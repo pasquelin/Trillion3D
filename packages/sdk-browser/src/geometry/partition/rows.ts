@@ -5,6 +5,10 @@
  * cell leaves. The buffers are sized when a session opens, before its engines read them
  * (`sizeRows`), for every node its view can hold at once (`sizing.ts`, #575): only a reach or a
  * parent's stretch past that grows them, in place, under the engine that draws them.
+ *
+ * A row a cell draws from an animated core node's own mesh (`CellNode.source`) reads that node's
+ * host mesh as its animation source — its skeleton, its morph weights —: the mesh's column of
+ * sources (`PlacedMesh.sources`), which its rows' `sources` is, says which, row by row.
  */
 import {
   createPlacementRows,
@@ -17,6 +21,7 @@ import type { PlacementGrowth } from '../../placement/engineSceneUpdates.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { createChangedRuns, type ChangedRuns } from '../residency/ranges.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 
 /** The association of a host mesh placed by rows: its mesh and primitive ranks, the rows, and
  *  whether a cloth draws it (`DrawRanks.twoSided`). */
@@ -27,6 +32,10 @@ export type RowLink = {
   twoSided?: boolean
 }
 
+/** The host meshes each streamed core node draws (`TableNode.streamed`), by its rank, each at its
+ *  primitive's rank: what a row drawn from that node's own mesh reads (`CellNode.source`). */
+export type StreamedMeshes = ReadonlyMap<number, readonly Mesh<object>[]>
+
 /** One mesh the cells place: its primitives' links, sharing one row numbering, and the host mesh
  *  of each. */
 export type PlacedMesh = {
@@ -35,12 +44,23 @@ export type PlacedMesh = {
   readonly free: number[]
   /** The `castShadow` of each host mesh its rows were last written with. */
   readonly casts: boolean[]
+  /** Per link, each row's animation source — the streamed core node's host mesh of that
+   *  primitive a row is drawn from, `null` or unset for any other row —: the very column its rows'
+   *  `sources` is (`PlacementRows.sources`), kept by a growth. Absent for a mesh no streamed node
+   *  draws. */
+  readonly sources?: readonly (Mesh<object> | null)[][]
 }
 
-/** A placed mesh over `links` drawn by `nodes`, each given one parked row. */
-export function placedMesh(links: readonly RowLink[], nodes: readonly Object3D[] = []): PlacedMesh {
+/** A placed mesh over `links` drawn by `nodes`, each given one parked row, its rows' animation
+ *  sources `sources`, when some streamed node draws it. */
+export function placedMesh(
+  links: readonly RowLink[],
+  nodes: readonly Object3D[] = [],
+  sources?: readonly (Mesh<object> | null)[][],
+): PlacedMesh {
   for (const link of links) link.placements = createPlacementRows(1)
-  return { links, nodes, free: [0], casts: nodes.map((node) => node.castShadow) }
+  const casts = nodes.map((node) => node.castShadow)
+  return { links, nodes, free: [0], casts, ...(sources && { sources }) }
 }
 
 /** How many rows every buffer of `mesh` holds. */

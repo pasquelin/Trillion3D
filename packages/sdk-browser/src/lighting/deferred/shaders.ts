@@ -24,7 +24,7 @@ export const FULLSCREEN_VERTEX = wgslBlock(
   `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(${FULLSCREEN_XY},0.0,1.0);}`,
 )
 /** The surfaces, their depth and the view: bindings 0 to 5 of the deferred resolve. */
-export const surfaceBindingsWgsl = () =>
+const surfaceBindingsWgsl = () =>
   wgslBlock(
     'surfaceBindingsWgsl',
     [VIEW_WGSL],
@@ -53,7 +53,7 @@ ${LIGHT_SURFACE_ENTRY}
 )
 /** Contract bindings: declared lights and their per-tile lists. The shadow mask, its transmission
  *  and tile words are declared with the shadow read (`directShadowWgsl`). */
-export const CONTRACT_BINDINGS_WGSL = wgslBlock(
+const CONTRACT_BINDINGS_WGSL = wgslBlock(
   'CONTRACT_BINDINGS_WGSL',
   [],
   `@group(0) @binding(${DEFERRED_BINDINGS.lights}) var<storage,read> directLights:DirectLights;

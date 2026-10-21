@@ -6,20 +6,24 @@ const CAPS: Caps = Caps {
     vertices: 256,
 };
 
-/// Every source triangle once, its corners in their order, and every cluster within the caps.
+/// A triangle's corners turned so its least vertex comes first, its winding kept: the strips
+/// start a triangle at whichever corner they enter it, so a cluster's triangles are the source's
+/// up to that turn.
+fn turned(t: &[u32]) -> [u32; 3] {
+    let first = (0..3).min_by_key(|&k| t[k]).unwrap_or(0);
+    [t[first], t[(first + 1) % 3], t[(first + 2) % 3]]
+}
+
+/// Every source triangle once, its winding kept (each corner order up to a turn), and every
+/// cluster within the caps.
 fn assert_partition(indices: &[u32], out: &[u32], ends: &[usize]) {
     let mut a: Vec<[u32; 3]> = indices
         .as_chunks::<3>()
         .0
         .iter()
-        .map(|t| [t[0], t[1], t[2]])
+        .map(|t| turned(t))
         .collect();
-    let mut b: Vec<[u32; 3]> = out
-        .as_chunks::<3>()
-        .0
-        .iter()
-        .map(|t| [t[0], t[1], t[2]])
-        .collect();
+    let mut b: Vec<[u32; 3]> = out.as_chunks::<3>().0.iter().map(|t| turned(t)).collect();
     a.sort_unstable();
     b.sort_unstable();
     assert_eq!(a, b, "every triangle once, its winding kept");
@@ -70,18 +74,20 @@ fn a_grid_by_columns_clusters_as_compactly_as_by_rows() {
                 let all: Vec<u32> = it.collect();
                 all.iter().max().unwrap() - all.iter().min().unwrap()
             };
-            // An 8 × 8 patch of quads spans 16; a part of the graph is near that, far from a strip.
+            // An 8 × 8 patch of quads spans 8 each way; the graph's parts are patches of irregular
+            // outline near that, a strip spans the grid's 64 one way.
+            let (wide, tall) = (span(&mut xs.clone()), span(&mut ys.clone()));
             assert!(
-                span(&mut xs.clone()) + span(&mut ys.clone()) <= 24,
-                "a strip"
+                wide.max(tall) <= 24,
+                "a strip: {wide} × {tall} (by columns: {by_columns})"
             );
             start = end;
         }
     }
 }
 
-/// A soup of 1 000 lone triangles is cut by the triangles alone, then each cluster, 384 vertices
-/// over the cap of 256, halved at encode.
+/// A soup of 1 000 lone triangles is cut by the triangles alone, then each cluster, whose strips
+/// lay 375 vertices over the cap of 256, is halved (`strip::constrained`).
 #[test]
 fn a_soup_is_halved_by_its_vertices() {
     let (positions, indices) = soup(1000, 3);

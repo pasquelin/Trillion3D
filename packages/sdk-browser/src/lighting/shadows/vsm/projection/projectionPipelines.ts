@@ -14,6 +14,7 @@ import {
   computeUniformEntry,
 } from '../../../../gpu/core/computeBindings.ts'
 import { oncePerDevice } from '../../../../gpu/core/oncePerDevice.ts'
+import { receiverLayoutEntry } from '../../../../visibility/passes/receiver.ts'
 import { hasSubgroupsOf } from '../../../../gpu/core/subgroups.ts'
 import { hizDepthEntries } from '../../../../visibility/hiz/gpu/pyramidTexture.ts'
 import { preparedComputePipeline, type PreparedPipeline } from '../../../deferred/fullscreen.ts'
@@ -104,7 +105,7 @@ function makePipelines(device: GPUDevice, layout: VsmLayout): Pipelines {
   // The opaque surfaces read the receiver target in a third group.
   const receiverLayout = device.createBindGroupLayout({
     label: 'vsm.projection.receiver',
-    entries: [computeTextureEntry(0, 'uint', '2d', COMPUTE)],
+    entries: [receiverLayoutEntry(0, COMPUTE)],
   })
   return {
     device,

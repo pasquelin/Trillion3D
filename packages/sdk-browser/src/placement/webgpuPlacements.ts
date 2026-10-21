@@ -74,7 +74,7 @@ export function updateWebgpuPlacements(
   takeCellsMoved(rows, (index) => {
     const rank = rootRankOfRow(layout.selectionRoots, rows, index)
     if (rank >= 0) linkWorldCell(rt, rank)
-    // A blended row's items read its cell in their records (`ITEM_HLOD_PROXY`).
+    // A blended row's items read its cell in their records (`ITEM_HLOD`).
     else if (rows.blended) rt.blendState.proxiesMoved = true
     waitWorldRow(rt, rows, index, rank)
     linked = true

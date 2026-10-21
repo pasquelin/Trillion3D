@@ -14,12 +14,12 @@
  * to plan, or no worker to plan it, the plan is already there at enqueue: the arrival is
  * then deliverable in the same turn, and no wait is added.
  *
- * The ceiling that counts is TIME. An arrival carries a streaming packet whose cluster
- * count is not known in advance: neither index bytes nor page count therefore bound the
- * duration it costs. The drain rereads the clock after each delivery and yields as soon
- * as the ceiling is reached; the rest waits for the next frame. At least one integration
- * always goes through, otherwise a page longer to integrate than the ceiling would never
- * enter.
+ * Two ceilings: the PAGES a frame installs (`countBudget`, as many as may be pending), and the
+ * main thread's TIME. An arrival carries a streaming packet whose cluster count is not known in
+ * advance: no page count bounds the duration it costs, and no byte count either, so none is
+ * kept. The drain rereads the clock after each delivery and yields as soon as the ceiling is
+ * reached; the rest waits for the next frame. At least one integration always goes through,
+ * otherwise a page longer to integrate than the ceiling would never enter.
  *
  * That ceiling is the frame's one integration budget (`./frameBudget.ts`, CONTRIBUTING.md
  * §Streaming rule 4), handed in by the session: its frame opens it, what else the frame
@@ -56,7 +56,6 @@ type Arrival = {
 const MAX_PLAN_WAITS = 2
 
 export function createArrivalQueue(
-  byteBudget: number,
   countBudget: number,
   /** The frame's one integration budget, which its frame opens (`./frameBudget.ts`). */
   budget: FrameBudget,
@@ -114,15 +113,14 @@ export function createArrivalQueue(
       return true
     },
     /**
-     * Delivers arrivals up to the budget — at most `countBudget` pages, `byteBudget` index bytes
-     * and what the frame's budget still admits. The following render
+     * Delivers arrivals up to the budget — at most `countBudget` pages and what the frame's
+     * budget still admits. The following render
      * synchronizes residency; calling `syncResident` here could draw a second frame. Returns the
      * pages delivered.
      */
     drain() {
-      let bytes = 0,
-        count = 0
-      while (head < items.length && bytes < byteBudget && count < countBudget && budget.admits()) {
+      let count = 0
+      while (head < items.length && count < countBudget && budget.admits()) {
         const item = items[head]
         if (!item.ready) {
           // Order is priority: an arrival whose plan has not returned holds back those that
@@ -138,7 +136,6 @@ export function createArrivalQueue(
         head++
         deliver(item)
         budget.spend()
-        bytes += item.array.byteLength
         count++
       }
       if (head >= items.length) {

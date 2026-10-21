@@ -100,6 +100,12 @@ export const builtins = {
   countLeadingZeros: each((x) => Math.clz32(n(x))),
   // The lowest set bit's rank; all ones (-1 as `i32`) for zero.
   firstTrailingBit: each((x) => (n(x) ? 31 - Math.clz32(n(x) & -n(x)) : 0xffffffff)),
+  // The highest bit's rank that differs from the sign, a negative `i32` read through its
+  // complement; all ones for none (0, or an `i32` −1).
+  firstLeadingBit: each((x) => {
+    const v = n(x) < 0 ? ~n(x) : n(x)
+    return v ? 31 - Math.clz32(v) : 0xffffffff
+  }),
   array: (...values: unknown[]) => values.map($cp),
   mat3x3f: (...columns: number[][]) => new Mat3(columns),
   mat4x4f: (...values: Array<number | number[]>) => new Mat(values.flat()),
@@ -112,6 +118,9 @@ export const builtins = {
   vec2u: vector(2, (x) => int(x) >>> 0),
   vec3u: vector(3, (x) => int(x) >>> 0),
   vec4u: vector(4, (x) => int(x) >>> 0),
+  vec2b: vector(2, (x) => Number(Boolean(x))),
+  vec3b: vector(3, (x) => Number(Boolean(x))),
+  vec4b: vector(4, (x) => Number(Boolean(x))),
   bitcast_u32: toBits,
   bitcast_vec3u: toBits,
   bitcast_vec4u: toBits,

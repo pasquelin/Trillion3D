@@ -109,7 +109,7 @@ test('a batch the session refuses is said by name, once, and no opening is asked
   const grow = {
     growsInPlace: () => true,
     growPlacements() {},
-    addPlacements: () => Promise.resolve('KEY_PAGE_MAX'),
+    addPlacements: () => Promise.resolve('an address of two pages'),
   }
   const batches = createWorldBatches(
     () => {},
@@ -122,7 +122,7 @@ test('a batch the session refuses is said by name, once, and no opening is asked
   batches.seat(mesh(), cutOf('b'), entry)
   batches.join(() => {}, grow)
   await new Promise((resolve) => setTimeout(resolve))
-  assert.deepEqual(said, [['the batch of b/0/0/0/0', 'KEY_PAGE_MAX']])
+  assert.deepEqual(said, [['the batch of b/0/0/0/0', 'an address of two pages']])
   batches.join(() => {}, grow)
   assert.equal(said.length, 1, 'said once')
 })

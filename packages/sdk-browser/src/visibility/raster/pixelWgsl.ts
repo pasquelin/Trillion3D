@@ -1,14 +1,13 @@
-import { DEPTH_CLEAR, DEPTH_NEAR } from '../../camera/depthConvention.ts'
+import { DEPTH_NEAR } from '../../camera/depthConvention.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
-import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
 import { maskKeepWgsl } from '../shader/pageWgsl.ts'
 import { maskAlphaWgsl } from '../../materials/virtual/wgsl.ts'
-import { UV_GRADIENTS_WGSL } from '../shader/shadeDeclWgsl.ts'
 import { RASTER_TRI_WGSL } from './triWgsl.ts'
 import { VIS_UNIFORMS_WGSL } from '../shader/pageWgsl.ts'
 import { FLAG_MASK } from '../types.ts'
 import { visTriangle } from '../visWords.ts'
+import { MODE_ID } from './contract.ts'
 
 /** The pixels of the frame the raster writes: the work buffer holds their depths, then their
  *  identifiers one frame further. */
@@ -26,108 +25,84 @@ export const pixelOffset = wgslFn(
 )
 
 /**
- * What a visibility-buffer pixel receives, and the resolve of two triangles that fall at exactly
- * the same depth.
+ * THE VISIBILITY WRITE, the one rule both rasters write a pixel by — the software raster's
+ * threads (`RASTER_PIXEL_WGSL`) and the hardware raster's fragments (`../shader/visWgsl.ts`) —
+ * into the one `work` buffer: per pixel a depth key, then one image further an identifier
+ * `(row+1)<<8 | triangle`, zero the background.
  *
- * **The resolve.** WebGPU has no sixty-four-bit atomic: one cannot write in one go "this depth
- * AND this identifier". Two passes do it without a lock and without depending on thread order:
+ * **The rule** is a sixty-four-bit maximum of `(depth, identifier)`: the nearest depth wins, and
+ * between fragments at exactly that depth, the greatest identifier. WebGPU has no sixty-four-bit
+ * atomic, so the same maximum is taken in two phases, each with one 32-bit atomic:
  *
- * 1. every class writes its depth by `atomicMax` on the IEEE-754 bits — for a positive depth
- *    those bits grow with the value, and engine depth is REVERSE-Z (1 at the near plane, 0 at
- *    infinity), so the integer maximum is the nearest;
- * 2. every class rereads the now-final depth and, for the only triangle whose depth is EXACTLY
- *    that, writes its identifier by `atomicMin`.
+ * 1. the depth phase keeps the greatest key by `atomicMax` — for a depth in [0, 1] the IEEE-754
+ *    bits grow with the value, and the engine's depth is reversed (1 at the near plane, 0 at
+ *    infinity), so the greatest key is the nearest. That is the first word of the maximum;
+ * 2. once every fragment's depth is down, the identifier phase writes, for each fragment whose key
+ *    is EXACTLY the pixel's, its identifier by `atomicMax`: the greatest among the nearest, the
+ *    second word of the same maximum.
  *
- * `max` and `min` are commutative and associative: the result depends neither on thread order,
- * nor on dispatch order, nor on the class split. And since the identifier is
- * `(row+1)<<8 | triangle`, the minimum is the smallest row rank, then the smallest triangle:
- * at equal depth, the winner is always the same, from frame to frame and from machine to
- * machine. This is the only place the frame can differ from a hardware raster, which resolves
- * by submission order.
+ * `max` is commutative and associative: the pixel holds the maximum of the pairs, whatever the
+ * thread, dispatch, raster or pass order — the very word a sixty-four-bit maximum would hold.
+ * Each phase first reads the pixel (`visPasses`) and skips a fragment that cannot change it — a
+ * key not nearer than the one held, or not the final one — before its cutout is read: an
+ * early-out, the maximum unchanged.
  *
- * The cluster's coplanar layer is an integer offset on the depth key, applied before packing:
- * in reverse-Z, ADDING units brings closer by exactly that many last bits, capped at the near-
- * plane bits. Zero for layer 0.
- *
- * **Coverage is watertight.** A pixel is covered when its three edge functions have the sign of
- * the area — never by derived weights, whose division and \`1-w0-w1\` round enough to leave a
- * shared-edge pixel to nobody, or to accept one far from a clip sliver. Each edge is evaluated
- * in the CANONICAL order of its two vertices, hence with the same operands in the same order
- * for the two triangles that share it: they read the same value up to sign, and a pixel exactly
- * on the edge goes to the one of the two whose interior is on the positive side of the
- * canonical sense — a top-left rule, one owner. The same three values make the weights,
- * normalised on their sum: a weight that does not sum to one shifts the whole depth of a flat
- * surface, enough to lose a coplanar-layer resolve.
+ * The key is the depth saturated to [0, 1], as the write clamps it, then raised by the row's
+ * coplanar layer units (`page.depthBias`): ADDING units in reversed depth brings it closer by
+ * exactly that many last bits, capped at the near plane's bits. Zero on layer 0.
+ */
+export const VIS_WRITE_WGSL = wgslBlock(
+  'VIS_WRITE_WGSL',
+  [pixelCount],
+  `
+/** The depth key of a fragment at device depth \`depth\` of a row raised by \`bias\` units. */
+fn visKey(depth:f32,bias:u32)->u32{return min(bitcast<u32>(${wgslF32(DEPTH_NEAR)}),bitcast<u32>(saturate(depth))+bias);}
+/** Whether a fragment of key \`key\` at pixel \`offset\` can still change it: nearer than the key
+ *  held in the depth phase, the final key itself in the identifier phase (\`ids\`). */
+fn visPasses(offset:u32,key:u32,ids:bool)->bool{
+ let held=atomicLoad(&work[offset]);
+ if(ids){return held==key;}
+ return held<key;
+}
+/** The fragment's word of the phase: its key, or its identifier \`id\` (\`ids\`). */
+fn visWrite(offset:u32,key:u32,id:u32,ids:bool){
+ if(ids){atomicMax(&work[pixelCount()+offset],id);}
+ else{atomicMax(&work[offset],key);}
+}`,
+)
+
+/**
+ * What a software-rastered pixel receives (`RASTER_TRI_WGSL`'s setup): covered when none of its
+ * three edge constants is negative, at the depth of the triangle's plane there; a masked row's
+ * cutout read at the perspective-correct weights — the edge constants by the corners' `1/w`,
+ * normalised —, its footprint the weights' screen steps. The pixel then takes the visibility write
+ * of the mode (`VIS_WRITE_WGSL`).
  */
 export const RASTER_PIXEL_WGSL = wgslBlock(
   'RASTER_PIXEL_WGSL',
-  [
-    edgeFunction,
-    RASTER_TRI_WGSL,
-    UV_GRADIENTS_WGSL,
-    maskKeepWgsl(maskAlphaWgsl(false)),
-    pixelCount,
-    pixelOffset,
-    visTriangle,
-  ],
+  [RASTER_TRI_WGSL, maskKeepWgsl(maskAlphaWgsl(false)), VIS_WRITE_WGSL, pixelOffset, visTriangle],
   `
-/** Canonical order of two screen vertices: highest first, then leftmost. */
-fn canonBefore(a:vec2f,b:vec2f)->bool{return a.y<b.y||(a.y==b.y&&a.x<b.x);}
-/** \`edgeFunction(a,b,p)\` computed in canonical order: both triangles of an edge read the same bits. */
-fn canonEdge(a:vec2f,b:vec2f,p:vec2f,before:bool)->f32{
- if(before){return edgeFunction(a,b,p);}
- return -edgeFunction(b,a,p);
-}
-/** True when edge \`a→b\` value \`e\` leaves the pixel on the interior side of a triangle of area \`area\`. */
-fn edgeCovers(e:f32,before:bool,inside:bool)->bool{
- if(e==0.0){return before==inside;}
- return (e>0.0)==inside;
-}
-/** Barycentric weights of the pixel in triangle \`(a,b,c)\` if it covers it; \`w<0\`: no. */
-fn coverTri(a:vec2f,b:vec2f,c:vec2f,area:f32,p:vec2f)->vec4f{
- let bc=canonBefore(b,c);let ca=canonBefore(c,a);let ab=canonBefore(a,b);
- let e0=canonEdge(b,c,p,bc);let e1=canonEdge(c,a,p,ca);let e2=canonEdge(a,b,p,ab);
- let inside=area>0.0;
- if(area==0.0||!edgeCovers(e0,bc,inside)||!edgeCovers(e1,ca,inside)||!edgeCovers(e2,ab,inside)){return vec4f(0.0,0.0,0.0,-1.0);}
- return vec4f(vec3f(e0,e1,e2)/(e0+e1+e2),1.0);
-}
-/** Weights of the pixel in the sub-triangle that covers it, and which one; \`w<0\`: none. */
-fn coverAt(t:Tri,sample:vec2f)->vec4f{
- let first=coverTri(t.a,t.b,t.c,t.area0,sample);
- if(first.w>=0.0){return vec4f(first.xyz,0.0);}
- if(t.quad!=0u){
-  let second=coverTri(t.a,t.c,t.d,t.area1,sample);
-  if(second.w>=0.0){return vec4f(second.xyz,1.0);}
- }
- return vec4f(0.0,0.0,0.0,-1.0);
-}
-fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
+fn rasterPixel(t:Tri,pixel:vec2i,mode:u32){
  // The only frame bound of the whole raster: thread tiles overshoot the triangle box as soon as
  // it is not a round count, and the box is already clamped to the last pixel of the frame.
  // Without this bound, a triangle at the right or bottom edge wraps its writes onto the next
  // row, even out of the identifier plane, where they overwrite the triangle-list header.
- if(pixel.x>i32(t.hi.x)||pixel.y>i32(t.hi.y)){return;}
- let sample=vec2f(pixel)+vec2f(0.5);
- let cov=coverAt(t,sample);
- if(cov.w<0.0){return;}
- var sb=t.b;var sc=t.c;var qb=t.cb;var qc=t.cc;var nb=t.ub;var nc=t.uc;
- if(cov.w>0.5){sb=t.c;sc=t.d;qb=t.cc;qc=t.cd;nb=t.uc;nc=t.ud;}
- let wa=cov.x;let wb=cov.y;let wc=cov.z;
- let depth=wa*t.ca.z/t.ca.w+wb*qb.z/qb.w+wc*qc.z/qc.w;
- // The far plane is infinite: depth falls toward far without ever reaching it.
- if(depth<=${wgslF32(DEPTH_CLEAR)}||depth>${wgslF32(DEPTH_NEAR)}){return;}
+ if(pixel.x>t.maxPixel.x||pixel.y>t.maxPixel.y){return;}
+ let c=edgesAt(t,pixel);
+ if(min(c.x,min(c.y,c.z))<0.0){return;}
  let page=pages[t.row];
- if((page.flags&${FLAG_MASK}u)!=0u){
-  let inv=wa/t.ca.w+wb/qb.w+wc/qc.w;
-  let tc=(t.ua*(wa/t.ca.w)+nb*(wb/qb.w)+nc*(wc/qc.w))/inv;
-  let gradients=uvGradients(t.a,sb,sc,sample,t.ua.xy,nb.xy,nc.xy,vec3f(1.0/t.ca.w,1.0/qb.w,1.0/qc.w));
-  if(!maskKeep(page,tc.xy,tc.z,gradients[0],gradients[1])){return;}
- }
+ let key=visKey(t.depth.x+t.depth.y*c.y+t.depth.z*c.z,page.depthBias);
  let offset=pixelOffset(vec2u(pixel));
- let raw=bitcast<u32>(depth);
- let bits=min(bitcast<u32>(${wgslF32(DEPTH_NEAR)}),raw+page.depthBias);
- if(writeId){if(atomicLoad(&work[offset])==bits){atomicMin(&work[pixelCount()+offset],page.packedBase|visTriangle(t.triangle));}}
- else{atomicMax(&work[offset],bits);}
+ let ids=mode==${MODE_ID}u;
+ if(!visPasses(offset,key,ids)){return;}
+ if((page.flags&${FLAG_MASK}u)!=0u){
+  let w=c*t.invW;let uvw=w*(1.0/(w.x+w.y+w.z));
+  let tc=t.ua*uvw.x+t.ub*uvw.y+t.uc*uvw.z;
+  let ddx=(t.ua*t.dx.x+t.ub*t.dx.y+t.uc*t.dx.z).xy;
+  let ddy=(t.ua*t.dy.x+t.ub*t.dy.y+t.uc*t.dy.z).xy;
+  if(!maskKeep(page,tc.xy,tc.z,ddx,ddy)){return;}
+ }
+ visWrite(offset,key,page.packedBase|visTriangle(t.triangle),ids);
 }
 `,
 )

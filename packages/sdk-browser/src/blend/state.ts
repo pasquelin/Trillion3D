@@ -151,8 +151,8 @@ function recordState(view: Float32Array<ArrayBuffer>) {
     itemPacked: new Float32Array(0) as Float32Array<ArrayBuffer>,
     /** Whole view of the records, on the same buffer: allocated with them, never per frame. */
     itemInts: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
-    /** A blended placement's row turned to draw as its cell's HLOD 0 actor or back
-     *  (`RowCell.proxy`): its items' records follow at the next image (`ITEM_HLOD_PROXY`). */
+    /** A blended placement's row turned to draw as another HLOD level — its cell's HLOD 0 actor or
+     *  back (`RowCell.proxy`) —: its items' records follow at the next image (`ITEM_HLOD`). */
     proxiesMoved: false,
     viewBuffer: undefined as GPUBuffer | undefined,
     viewPacked: view,

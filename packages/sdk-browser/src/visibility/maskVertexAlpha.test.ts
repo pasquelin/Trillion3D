@@ -89,12 +89,10 @@ test('both rasters hand the interpolated vertex alpha to the cutout; shadows pas
     2,
     'the one vertex stage, both halves drawn by it',
   )
-  // One camera fragment stage cuts: the visibility pass always writes its depth pyramid too (#1483).
-  assert.equal(VIS_SHADER.split('maskKeep(pages[in.instance],in.tc.xy,in.tc.z,').length, 2)
-  const small = rasterSource(4, 16)
-  assert.ok(small.includes('ua=vec3f(pageMaskUv(page,h,ia),pageMaskAlpha(page,h,ia));'))
-  assert.ok(small.includes('u:array<vec3f,4>'), 'the near clip carries it')
-  assert.ok(small.includes('if(cov.w>0.5){sb=t.c;sc=t.d;qb=t.cc;qc=t.cd;nb=t.uc;nc=t.ud;}'))
-  assert.ok(small.includes('uvGradients(t.a,sb,sc,sample,t.ua.xy,nb.xy,nc.xy,'))
-  assert.ok(small.includes('maskKeep(page,tc.xy,tc.z,gradients[0],gradients[1])'))
+  // One camera fragment stage cuts, in both phases of the visibility write.
+  assert.equal(VIS_SHADER.split('maskKeep(page,in.tc.xy,in.tc.z,').length, 2)
+  const small = rasterSource(4)
+  assert.ok(small.includes('t.ua=vec3f(pageMaskUv(page,h,k.x),pageMaskAlpha(page,h,k.x));'))
+  assert.ok(small.includes('let tc=t.ua*uvw.x+t.ub*uvw.y+t.uc*uvw.z;'), 'interpolated with the UV')
+  assert.ok(small.includes('maskKeep(page,tc.xy,tc.z,ddx,ddy)'))
 })

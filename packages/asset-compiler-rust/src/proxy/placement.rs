@@ -1,16 +1,16 @@
-use crate::compiler_validate::{item, required_index, values};
-use crate::compiler_world::Mat4;
+use crate::compiler::source::node_transform::Mat4;
+use crate::compiler::validate::{item, required_index, values};
 use crate::Result;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
-use trillion3d_math::linear::max_stretch;
+use trillion3d_math::matrix::linear::max_stretch;
 use trillion3d_math::matrix::transform_point;
 
 /// Where the scene places what it compiled, computed once for every stage that places — the
 /// depth layers, the proxy, the lights, the partition, the world roots and the
 /// physics —: each walked the hierarchy, and swept the primitives, on its own.
 pub struct Placement {
-    /// World transform of every node, by node index (`compiler_world::world_matrices`). The
+    /// World transform of every node, by node index (`compiler::source::node_transform::world_matrices`). The
     /// published scene keeps the input's nodes, their order and their transforms: one table
     /// serves both.
     pub(crate) world: Vec<Mat4>,

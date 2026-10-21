@@ -1,7 +1,7 @@
 use super::materials;
-use crate::compiler_validate::values;
-use crate::compiler_world::world_matrices;
-use crate::proxy::tracer::World;
+use crate::compiler::source::node_transform::world_matrices;
+use crate::compiler::validate::values;
+use crate::trace::tracer::World;
 use crate::{CompilerError, Result};
 use serde_json::Value;
 use std::path::Path;
@@ -17,13 +17,13 @@ fn place_primitive(
     g: &Value,
     bin: &[u8],
     primitive: &Value,
-    matrix: &crate::compiler_world::Mat4,
+    matrix: &crate::compiler::source::node_transform::Mat4,
     colour: u32,
     world: &mut World,
 ) -> Result<()> {
     // No buffer map here: the oracle reads a raw scene, so each accessor is validated.
     let (positions, indices, _) =
-        crate::compiler_primitive::triangles::read(g, bin, primitive, None)?;
+        crate::compiler::primitive::triangles::read(g, bin, primitive, None)?;
     let points = positions.collect_f32()?;
     for index in &indices {
         let at = *index as usize * 3;
@@ -37,10 +37,10 @@ fn place_primitive(
 /// The entire scene, node by node, with its BVH. Same tree as proxy, over different triangles:
 /// acceleration structure is shared, never geometry or cuts.
 pub fn load(path: &Path) -> Result<World> {
-    let (mut g, binary) = crate::compiler_source::flat_document(path)?;
+    let (mut g, binary) = crate::compiler::source::flat_document(path)?;
     let bin = binary.bytes();
     // The compiled scene draws every GPU instance; the reference world must hold them too.
-    crate::compiler_instancing::expand_gpu_instances(&mut g, bin)?;
+    crate::compiler::source::instancing::expand_gpu_instances(&mut g, bin)?;
     let matrices = world_matrices(&g)?;
     let nodes = values(&g, "nodes")?;
     let meshes = values(&g, "meshes")?;
@@ -52,7 +52,7 @@ pub fn load(path: &Path) -> Result<World> {
         node_links: Vec::new(),
     };
     // A hidden node is not drawn: the reference traces what the compiled scene shows.
-    let (_, hidden) = crate::compiler_nodes::scene_nodes(&g)?;
+    let (_, hidden) = crate::compiler::source::nodes::scene_nodes(&g)?;
     for (id, node) in nodes.iter().enumerate() {
         let Some(mesh) = node.get("mesh").and_then(Value::as_u64) else {
             continue;

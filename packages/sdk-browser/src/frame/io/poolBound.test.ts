@@ -11,9 +11,10 @@ import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 // `geometryAllocationBytes` counts the page slots AND the vertex buffers held beside them —
-// the float geometry of what no page covers, a one-vertex placeholder at least. The pool is drawn
-// from what the budget leaves those buffers, so the two never sum past the declared pool, whatever
-// its value: a multiple of the slot, one byte off it, or a budget halved.
+// the float geometry of what no page covers, a one-vertex placeholder at least. The budget pays the
+// streaming slots alone, the root cover's held beside them: what the pool holds past the root cover
+// never passes the declared budget, whatever its value — a multiple of the slot, one byte off it,
+// or a budget halved —, and the vertex buffers lie outside it, the same bytes at every budget.
 
 /** The coarse quad over three 24-byte slots, one root, its leaves streamed on demand. */
 function budgetedQuad(geometryPoolBytes: number) {
@@ -49,38 +50,47 @@ async function stream(backend: Backend, each: (metrics: ReturnType<Backend['metr
   return backend.metrics().residentPages ?? 0
 }
 
-/** What an image holds is under the budget, or the budget is under the root cover and the pool
- *  holds that cover alone, by name. */
-function assertBounded(budget: number, floor: number) {
-  return (metrics: { geometryAllocationBytes?: number | null; geometryPoolClamp?: unknown }) => {
-    const held = metrics.geometryAllocationBytes!
-    if (budget >= floor) assert.ok(held <= budget, `${held} bytes held under a ${budget} budget`)
-    else assert.deepEqual([held, metrics.geometryPoolClamp], [floor, 'root-cover'])
+/** What an image holds in the pool past the root cover's `cover` bytes is under the budget, the
+ *  `vertex` bytes of the vertex buffers lie beside the pool; a budget under a streaming slot, the
+ *  `slot` bytes, holds that cover alone, by name. */
+function assertBounded(budget: number, slot: number, cover: number, vertex: number) {
+  return (metrics: {
+    geometryAllocationBytes?: number | null
+    geometryPoolAllocatedBytes?: number | null
+    geometryPoolClamp?: unknown
+  }) => {
+    const pool = metrics.geometryPoolAllocatedBytes!
+    assert.ok(pool - cover <= budget, `${pool} in the pool, ${cover} of cover, ${budget} budget`)
+    assert.equal(metrics.geometryAllocationBytes! - pool, vertex, 'the vertex buffers lie beside')
+    if (budget < slot) assert.deepEqual([pool, metrics.geometryPoolClamp], [cover, 'root-cover'])
   }
 }
 
 test('the geometry held never passes the declared pool, at prepare and mid-session, at any budget', async () => {
   installGpuGlobals()
-  // The floor: what a one-byte budget is raised to — the root cover and the vertex buffers.
+  // The floor: what a one-byte budget holds — the root cover, beside no streaming slot, and the
+  // vertex buffers beside the pool.
   const probe = budgetedQuad(1)
   await probe.backend.prepare()
   probe.backend.render(camera())
   const { geometryAllocationBytes, geometryPoolAllocatedBytes, geometryPoolSlots } =
     probe.backend.metrics()
   disposeQuadRun(probe.backend, probe.fixture)
-  const floor = geometryAllocationBytes!,
-    slot = geometryPoolAllocatedBytes! / geometryPoolSlots!
-  assert.ok(floor > slot, 'vertex buffers are held beside the root slot')
-  // The floor and one byte under it, one byte past it, a value off every 4-byte alignment, each
-  // slot boundary and one byte under it, and the two budgets of the whole scene.
-  const budgets = [floor - 1, floor, floor + 1, floor + 37, 393_024, 393_048]
-  for (const slots of [1, 2]) budgets.push(floor + slots * slot - 1, floor + slots * slot)
+  const cover = geometryPoolAllocatedBytes!,
+    slot = cover / geometryPoolSlots!,
+    vertex = geometryAllocationBytes! - cover
+  assert.ok(vertex > 0, 'vertex buffers are held beside the root slot')
+  // One byte, a value under the slot and one byte past it, off every 4-byte alignment, each slot
+  // boundary and one byte under it, and the two budgets of the whole scene.
+  const budgets = [1, slot - 1, slot, slot + 1, slot + 37, 393_024, 393_048]
+  for (const slots of [1, 2, 3]) budgets.push(slots * slot - 1, slots * slot)
   let streamed = 0
   for (const budget of budgets) {
     const { fixture, backend } = budgetedQuad(budget)
     try {
       await backend.prepare()
-      streamed = Math.max(streamed, await stream(backend, assertBounded(budget, floor)))
+      const bounded = assertBounded(budget, slot, cover, vertex)
+      streamed = Math.max(streamed, await stream(backend, bounded))
     } finally {
       disposeQuadRun(backend, fixture)
     }
@@ -93,7 +103,7 @@ test('the geometry held never passes the declared pool, at prepare and mid-sessi
     for (const budget of budgets) {
       const report = await backend.setMemoryBudgets!({ geometryPoolBytes: budget })
       assert.equal(report.geometryPool.budgetBytes, budget, 'the budget read back is the declared')
-      await stream(backend, assertBounded(budget, floor))
+      await stream(backend, assertBounded(budget, slot, cover, vertex))
     }
   } finally {
     disposeQuadRun(backend, fixture)

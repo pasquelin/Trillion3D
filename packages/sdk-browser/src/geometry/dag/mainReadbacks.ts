@@ -5,13 +5,12 @@ import { chainMain, landMain, type MainCopy } from './dispatchRead.ts'
 
 /**
  * THE MAIN VIEW'S READBACK RING (`../../gpu/core/readbackRing.ts`): `DAG_READBACK_SLOTS` buffers the
- * frame copies the cut's lists into, read in order behind the reads and growths in flight
- * (`chainMain`), each a buffer of the cut's own — within its `share` (`admitInto`), counted in what
- * it holds (`cutBytes`) —, made with the tables at `bytes`, asked of its budget first, and made
- * again at a take that asks more once the list grew: the growth kept that room in the share and
- * asked the budget for it (`growDagList`), so a frame's copy never moves the pools' funding. A
- * slot refused at the start refuses the cut by name, as any table's; one refused at a later take
- * leaves that frame without a copy, the next asks again.
+ * frame copies the cut's lists into, read in order behind the reads and the tables made again in
+ * flight (`chainMain`), each a buffer of the cut's own — within its `share` (`admitInto`), counted
+ * in what it holds (`cutBytes`) —, made with the tables at `bytes`, asked of its budget first: the
+ * readout's list never changes its cap (`lists/listCap.ts`), so a frame's copy never moves the
+ * pools' funding. A slot refused at the start refuses the cut by name, as any table's; one refused
+ * at a later take leaves that frame without a copy, the next asks again.
  */
 export function createMainReadbacks(cut: CutHeld, bytes: number): ReadbackRing<MainCopy> {
   let ring: ReadbackRing<MainCopy> | undefined = undefined,
@@ -19,7 +18,7 @@ export function createMainReadbacks(cut: CutHeld, bytes: number): ReadbackRing<M
     refusal: unknown
   // The cut as its ring is admitted in: its tables, and the ring's buffers beside them — counted
   // here while it makes its first ones, then by the ring (`ReadbackRing.bytes`); the budget asked
-  // for those first ones, a later take's asked by the growth that made room for it (`growDagList`).
+  // for each one it makes.
   const held: CutHeld = {
     buffers: cut.buffers,
     textures: cut.textures,
@@ -29,9 +28,7 @@ export function createMainReadbacks(cut: CutHeld, bytes: number): ReadbackRing<M
       },
     },
     device: cut.device,
-    admit(bytes) {
-      if (!ring) cut.admit(bytes)
-    },
+    admit: cut.admit,
     share: cut.share,
   }
   const funded = {

@@ -58,7 +58,7 @@ pub(super) fn polygons(operands: &[Token]) -> (Vec<Face>, Vec<&'static str>) {
 }
 
 /// Indices of a record: a count, then that many integers. A missing or absurd count consumes
-/// nothing, which stops reading the record instead of letting it drift.
+/// nothing, which stops reading the record instead of letting it wander off.
 fn indices<'a>(words: &mut std::iter::Peekable<impl Iterator<Item = &'a str>>) -> Vec<i64> {
     let Some(count) = words.peek().and_then(|word| word.parse::<usize>().ok()) else {
         return Vec::new();

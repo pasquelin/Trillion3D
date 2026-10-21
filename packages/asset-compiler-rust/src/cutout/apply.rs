@@ -6,8 +6,8 @@
 //! material transmitting light — tinted glass keeps thickness — and material
 //! whose alpha factor is already partial, where opacity does not come from texture.
 use super::*;
-use crate::compiler_materials::MaterialFactors;
-use crate::texture_preview::{admission, source};
+use crate::compiler::materials::MaterialFactors;
+use crate::texture::{admission, source};
 
 mod candidates;
 use candidates::{candidates, Candidate};
@@ -124,12 +124,12 @@ fn measure_unanswered(
     let measured = admission::decode_admitted(admitted.0, admitted.1, source, &indices, |image| {
         let image = images?.get(image)?;
         let decoded = source::with_image_bytes(g, bin, image_root, image, |bytes, _| {
-            crate::plugins::image::decode(bytes, crate::texture_preview::PREVIEW_MAX_ALLOC)
+            crate::plugins::image::decode(bytes, crate::texture::PREVIEW_MAX_ALLOC)
         });
         let crate::plugins::image::DecodedImage::Rgba8(pixels) = decoded.ok()?.image else {
             return None;
         };
-        let _t = perf::Timer::new(perf::Phase::TextureAlpha);
+        let _t = crate::support::perf::Timer::new(crate::support::perf::Phase::TextureAlpha);
         Some(measure(&pixels))
     })?;
     for (sha, shape) in shas.into_iter().zip(measured) {

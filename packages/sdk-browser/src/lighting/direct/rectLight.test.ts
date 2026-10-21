@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { LTC_SIZE, ltcTable } from '../../../../sdk-core/src/lighting/ltcTable.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
-import { RECT_SHADING_WGSL } from './rectLightWgsl.ts'
+import { RECT_SURFACE_LIGHT_WGSL } from './rectLightWgsl.ts'
 import { TAU } from '../../../../math/src/constants.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
@@ -23,7 +23,7 @@ const shader = shaderRun<{
   polygonFormFactor: (a: V, b: V, c: V, d: V, up: V) => V
   ltcCorner: (q: V, T1: V, T2: V, N: V, m: V) => V
 }>(
-  wgslModule(RECT_SHADING_WGSL),
+  wgslModule(RECT_SURFACE_LIGHT_WGSL),
   ['rectView', 'polygonFormFactor', 'rectEdge', 'cutEdge', 'ltcCorner', 'faceNormal'],
   {
     ...F32_SCOPE,

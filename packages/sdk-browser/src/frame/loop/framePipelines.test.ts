@@ -58,7 +58,8 @@ async function classes(gpu: ReturnType<typeof gatedDevice>, keys: number[], emis
   return (await made).shadeClasses
 }
 
-const fragmentOf = (pipeline: unknown) => (pipeline as GPURenderPipelineDescriptor).fragment!
+/** A class's compute stage, as the kit's device makes it: its module, entry point and overrides. */
+const stageOf = (pipeline: unknown) => pipeline as GPUProgrammableStage
 
 test('a frame entry holds the image while a pipeline its frame binds compiles, and draws once it landed', async () => {
   const { rt, device, compiled, land } = armed()
@@ -92,7 +93,7 @@ test('a class a material changed into compiles off the frame before the image th
   const nine = rt.vis.shadeClasses!.of(9)
   assert.equal(nine.ready, true)
   assert.deepEqual(
-    fragmentOf(nine.get()).constants,
+    stageOf(nine.get()).constants,
     { CLASS_KEY: 9, FEEDBACK: 1 },
     'the class of before',
   )
@@ -104,7 +105,7 @@ test('a surface that came to emit switches the classes once those writing the la
     { rt, device, compiled } = armedRt
   const scene = census([5, 9])
   const before = await classes(armedRt, [5, 9], false)
-  assert.deepEqual(fragmentOf(before.of(5).get()).constants, {
+  assert.deepEqual(stageOf(before.of(5).get()).constants, {
     CLASS_KEY: 5,
     EMISSIVE_AO: 0,
     FEEDBACK: 1,
@@ -121,11 +122,12 @@ test('a surface that came to emit switches the classes once those writing the la
   const after = rt.vis.shadeClasses!
   assert.notEqual(after, before)
   assert.equal(rt.vis.writesEmissiveAo, true)
-  for (const key of [5, 9]) {
-    const fragment = fragmentOf(after.of(key).get())
-    assert.deepEqual(fragment.constants, { CLASS_KEY: key, FEEDBACK: 1 }, 'the layer written')
-    assert.deepEqual([...fragment.targets][2], { format: 'rgba16float' })
-  }
+  for (const key of [5, 9])
+    assert.deepEqual(
+      stageOf(after.of(key).get()).constants,
+      { CLASS_KEY: key, FEEDBACK: 1 },
+      'the layer written',
+    )
   assert.equal(compiled.sync, 0)
 })
 

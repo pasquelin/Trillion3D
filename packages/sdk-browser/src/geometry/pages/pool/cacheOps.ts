@@ -2,13 +2,19 @@ import { evictResident } from './commit.ts'
 import { behind } from '../../../gpu/core/behind.ts'
 import { resizeGpuPages, type GrownPages } from './resize.ts'
 import type { GpuPageContext } from './types.ts'
+import type { RootSlots } from './placement.ts'
 
 /** Changes the pool size behind the loads in flight (`createGpuPageCache`, `resize`). */
-export function resizeBehind(context: GpuPageContext, slots: number, grown?: GrownPages) {
+export function resizeBehind(
+  context: GpuPageContext,
+  slots: number,
+  grown?: GrownPages,
+  roots?: RootSlots,
+) {
   const { state } = context
   return behind(state, () => {
     context.check()
-    return resizeGpuPages(context, slots, grown)
+    return resizeGpuPages(context, slots, grown, roots)
   })
 }
 
@@ -41,10 +47,12 @@ export function unloadPage(context: GpuPageContext, key: string) {
 
 /** The pool's sizes and counters. */
 export function pageCacheStats(context: GpuPageContext) {
-  const { state, slots } = context
+  const { state, slots, roots } = context
   return {
     allocatedBytes: context.buffer.size,
     slots,
+    /** The root grains among them (`placement.ts`). */
+    rootSlots: roots.slots,
     residentPages: context.resident.size,
     /** Loads in flight: each takes a slot when it lands. */
     loading: state.loading,

@@ -22,8 +22,8 @@ export const SURFACE_MAP_FIELDS = [
   'emissiveMap',
   'subsurfaceMap',
 ] as const
-/** The subsurface map's bit in a record's UV channels word (`SURFACE_MAP_FIELDS` order): what both
- *  resolves read its coordinate by. */
+/** The subsurface map's rank in a record's UV channels word (`SURFACE_MAP_FIELDS` order, two bits
+ *  a map): what both resolves read its coordinate by. */
 export const SUBSURFACE_MAP_BIT = SURFACE_MAP_FIELDS.indexOf('subsurfaceMap')
 
 export type VisMaterial = {

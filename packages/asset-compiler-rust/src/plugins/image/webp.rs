@@ -13,7 +13,7 @@
 //! `docs/COMPILER.md` § "Input formats".
 use super::crate_image::{self, ANIMATED};
 use super::{ImageDecoded, ImageDecoder, Plugin};
-use crate::le::u32_at;
+use crate::support::le::u32_at;
 
 pub(super) static WEBP: Webp = Webp;
 pub(super) struct Webp;

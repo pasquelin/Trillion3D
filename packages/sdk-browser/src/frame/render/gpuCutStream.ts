@@ -3,11 +3,12 @@ import { pumpResidentTiles } from '../prepare/lightResources.ts'
 import { ensurePageTable } from './pageTable.ts'
 import { followCutRows } from '../prepare/growTables.ts'
 import { warmWorldActors } from '../prepare/hlodWarm.ts'
+import { growWebgpuRootRegion } from '../io/memory.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 /** The cut of the drawn view: the main one, or the view's own beside it on the same tables
  *  (`../../geometry/dag/aside.ts`), made at its first image. None for a scene without a cluster. */
-function cutOf({ run, views }: WebgpuPagesRuntime) {
+export function cutOf({ run, views }: WebgpuPagesRuntime) {
   const selection = run.gpuSelection
   if (!selection || views.active === views.main) return selection
   return (run.asideCut ??= selection.aside())
@@ -20,15 +21,15 @@ function cutOf({ run, views }: WebgpuPagesRuntime) {
  * not seat do: what the view uses sizes the table, never the placements (#1232).
  */
 export function streamCutResidency(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
-  const { run, services, views } = rt,
+  const { run, services } = rt,
     { rows } = rt.layout,
     marks = rt.timing.marks,
     selection = run.gpuSelection
-  // Never throttled: past the budget the queue keeps the coarsest pages the readbacks ask for, and
-  // the rest is drawn by its nearest resident ancestor (`../../geometry/residency/requestAdmission.ts`).
+  // The frame's streaming update: what does not fit is drawn by its nearest resident ancestor
+  // (`../../geometry/residency/queue.ts`). Root pages the root region lacks grains for grow it.
   services.queueCutResidency()
-  // The cache gives slots back in the order the main cut published (`../../geometry/residency/evictionFeed.ts`).
-  if (selection && views.active === views.main) services.followEvictions(selection, run.frame)
+  const short = services.residency.rootsShort
+  if (short) growWebgpuRootRegion(rt, short)
   marks.queueEnd = cpuNow()
   ensurePageTable(rt, gpuDevice)
   // The readback the drawn view adopts.
@@ -64,7 +65,7 @@ export function streamCutResidency(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice)
 /**
  * The cut of the drawn view into the frame's `encoder`: the main cut, or the view's own beside it
  * (`../../geometry/dag/aside.ts`), made at its first image. Returns false when no cut ran — a view
- * aside while the list grows —: its image is not drawn from another view's mask. A scene without a
+ * aside while the cut's tables are made again —: its image is not drawn from another view's mask. A scene without a
  * cluster has nothing to cut.
  */
 export function dispatchCut(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {

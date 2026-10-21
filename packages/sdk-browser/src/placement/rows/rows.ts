@@ -15,6 +15,7 @@
  * (`../growth/growth.ts`), and waits otherwise, the owner saying it by name.
  */
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
+import type { AnimationBanks } from '../../../../sdk-core/src/scene/core/animationBanks.ts'
 import type { MatrixElements } from '../../session/host/matrixElements.ts'
 import type { ChangedRuns } from '../../geometry/residency/ranges.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
@@ -45,13 +46,29 @@ export type PlacementRows = {
    *  among the cell's nodes, the placement of its model whose cells placed it (`instance`, 0 the
    *  first), its cell's HLOD 0 cell, and whether it draws as that cell's HLOD 0 actor — its cell
    *  past the main grid's loading range — rather than as the source mesh; a column of its own,
-   *  absent until a cell places one. */
+   *  absent until a cell places one. A row of an HLOD cell's instanced actor
+   *  (`../../geometry/hlod/hlodRows.ts`) lies in no cell (-1), its rank among the actor's rows,
+   *  that HLOD cell as `hlod`, and its actor's HLOD level (`actor`). */
   cells?: (
-    { cell: number; node: number; instance: number; hlod: number; proxy: boolean } | undefined
+    | {
+        cell: number
+        node: number
+        instance: number
+        hlod: number
+        proxy: boolean
+        actor?: number
+      }
+    | undefined
   )[]
   /** The rows whose cell moved since a backend last linked them to the HLOD 0 cell they lie in
    *  (`../../geometry/partition/rowCells.ts`, `takeCellsMoved`): one changed list, kept by a growth. */
   cellsMoved?: ChangedRuns
+  /** The scene's animation banks the rows' tracks are items of, for the rows of a mesh that
+   *  instanced skinned objects place (`../../../../sdk-core/src/scene/core/animationBanks.ts`). */
+  banks?: AnimationBanks
+  /** Per row, the item of `banks` it plays — the GPU poses it from that track —, -1 for none: a
+   *  column of its own, absent until a cell places an instanced skinned object; kept by a growth. */
+  tracks?: Int32Array
 }
 
 export function createPlacementRows(capacity: number): PlacementRows {
@@ -78,6 +95,11 @@ export function growPlacementRows(before: PlacementRows | null, needed: number) 
     rows.shadowless.set(before.shadowless)
     rows.cells = before.cells?.slice()
     rows.cellsMoved = before.cellsMoved
+    rows.banks = before.banks
+    if (before.tracks) {
+      rows.tracks = new Int32Array(rows.capacity).fill(-1)
+      rows.tracks.set(before.tracks)
+    }
   }
   return rows
 }

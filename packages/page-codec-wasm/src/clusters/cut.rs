@@ -1,5 +1,5 @@
 //! THE CUT of the ordered clusters (`cluster_in_order`): where the source order must be kept.
-use trillion3d_math::aabb::merge_aabb;
+use trillion3d_math::geometry::aabb::merge_aabb;
 
 type Box3 = ([f64; 3], [f64; 3]);
 

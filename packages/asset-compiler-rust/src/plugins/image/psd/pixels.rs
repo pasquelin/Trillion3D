@@ -29,7 +29,7 @@ pub(super) fn composite<'a>(
     if rest.is_empty() {
         return Err(COMPOSITE_MISSING);
     }
-    let marker = crate::le::be16_at(rest, 0).ok_or(DATA_TRUNCATED)?;
+    let marker = crate::support::le::be16_at(rest, 0).ok_or(DATA_TRUNCATED)?;
     Ok((declared, marker, &rest[MARKER_BYTES..]))
 }
 

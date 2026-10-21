@@ -128,7 +128,7 @@ pub(super) fn balance_cut(
     };
     for v in candidates {
         if movable(cut, moved, v) {
-            queue.insert(v as u32, cut.gain(v));
+            queue.insert(v as u32, cut.gain(v) as f32);
         }
     }
     let mut weight_cut = cut.cut;
@@ -158,17 +158,17 @@ pub(super) fn balance_cut(
                             queue.remove(k as u32);
                         }
                     } else if movable(cut, moved, k) {
-                        queue.update(k as u32, cut.gain(k));
+                        queue.update(k as u32, cut.gain(k) as f32);
                     }
                 } else if cut.across[k] > 0 {
                     cut.enter(k);
                     if movable(cut, moved, k) {
-                        queue.insert(k as u32, cut.gain(k));
+                        queue.insert(k as u32, cut.gain(k) as f32);
                     }
                 }
             } else {
                 if movable(cut, moved, k) {
-                    queue.update(k as u32, cut.gain(k));
+                    queue.update(k as u32, cut.gain(k) as f32);
                 }
                 if cut.across[k] == 0 && cut.on_boundary(k) {
                     cut.leave(k);

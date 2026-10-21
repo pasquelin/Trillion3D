@@ -80,11 +80,15 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
       'do not report candidate counts as GPU results',
     )
     await backend.flush()
+    // The drain adopts the readback; the streaming reads it at the next image's update, which
+    // starts the pages the cut asks and lists them for the host (`pendingUrls`).
+    render()
     assert.deepEqual(
       backend.pendingUrls?.().sort(),
       ['0', '1'],
-      'async desired cut is visible to streaming immediately',
+      'async desired cut is visible to streaming at the next image',
     )
+    await backend.flush()
     assert.deepEqual(backend.selectedPageIds(), ['2'])
     // The published cut is the coarse fallback, and that is what `selectedTriangles` reports: the cut
     // after the fallback. Nothing of it is missing, so there is no hole.

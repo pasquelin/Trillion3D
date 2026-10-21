@@ -9,6 +9,18 @@ pub mod bvh;
 pub mod simplify;
 pub mod wide;
 
+use trillion3d_math::geometry::aabb::longest_side;
+
+/// A length of `metres` in the object units of a mesh the largest world `scale` places; a missing,
+/// zero or non-finite scale leaves it as is, nothing guessed. The compiler's proxy threshold and
+/// its streaming bundles' bands map by it, so they follow one scale.
+pub fn object_units(metres: f64, scale: Option<f64>) -> f64 {
+    match scale {
+        Some(value) if value.is_finite() && value > 0.0 => metres / value,
+        _ => metres,
+    }
+}
+
 /// The node columns `build_columns` leaves besides the triangles and albedos it rewrites in place,
 /// and the rank each triangle of its leaf order had among the triangles it was given.
 pub struct Built {
@@ -111,7 +123,8 @@ pub fn cut_columns(indices: &[u32], positions: &[f32]) -> CutColumns {
 /// (`cut_columns`): one builder, one structure.
 pub fn columns_of(mut triangles: Vec<f32>, albedo: u32) -> CutColumns {
     triangles.truncate(triangles.len() / PROXY_TRIANGLE_FLOATS * PROXY_TRIANGLE_FLOATS);
-    let longest = crate::bits::grid::positions_extent(&triangles);
+    let b = bvh::extent(&triangles);
+    let longest = longest_side([b[0], b[1], b[2]], [b[3], b[4], b[5]]);
     let cell = simplify::plan_cell(
         &triangles,
         longest * PROXY_CUT_CELL_SHARE,

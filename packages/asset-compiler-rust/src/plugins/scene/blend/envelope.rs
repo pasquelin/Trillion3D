@@ -9,7 +9,7 @@
 //! in decimal digits, then a block variant. This reader only reads eight-byte little-endian
 //! pointers, and refuses the rest by name rather than reading it askew.
 use super::*;
-use crate::le::u32_at;
+use crate::support::le::u32_at;
 use std::{borrow::Cow, io::Read};
 
 pub(super) const MAGIC: &[u8] = b"BLENDER";

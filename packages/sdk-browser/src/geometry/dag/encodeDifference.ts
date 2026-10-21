@@ -13,8 +13,8 @@ const LIST_ARGS = [DAG_ARGS.list0, DAG_ARGS.list1]
  * (`shader/differenceWgsl.ts`): what a dispatch that copies a snapshot encodes before the copy,
  * in the cut's last pass when it cuts. Each list's kernels bind its ranks where the cut binds
  * `work` (`rankGroups`), both differences before either list is kept. Each dispatch is as long as
- * its list, never the cap: the kernels that know the lengths armed their groups
- * (`dagSortRequests`, `dagDrawPrefix`), copied here by the arming kernel, in the pass. The cut's
+ * its list, never the cap: the kernel that knows the lengths armed their groups (`dagDrawPrefix`),
+ * copied here by the arming kernel, in the pass. The cut's
  * own group is bound again behind them.
  */
 export function encodeDifference(pass: GPUComputePassEncoder, resources: DagResources) {

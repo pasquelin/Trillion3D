@@ -19,8 +19,7 @@ function bentPage() {
       JOINTS_0: floats([3, 4, 0, 0, 5, 3, 0, 0, 7, 3, 3, 3], 4),
       WEIGHTS_0: floats([0.5, 0.5, 0, 0, 0.7, 0.3, 0, 0, 0.25, 0.25, 0.25, 0.25], 4),
     },
-    -8,
-    undefined,
+    0,
     [
       {
         POSITION: floats([0, 0.5, 0, 0, 0, 0, 0, 0, 1], 3),
@@ -64,7 +63,7 @@ test('joints near the top of the sixteen-bit range still encode a page the reade
       ),
       WEIGHTS_0: floats([0.5, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0.5, 0.5, 0, 0], 4),
     },
-    -8,
+    0,
   )
   const joints = decodeGeometryPage(data).attributes.skinIndex
   assert.deepEqual(Array.from(joints.subarray(0, 2)), [65533, 65534])

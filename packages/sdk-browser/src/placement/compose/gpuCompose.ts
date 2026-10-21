@@ -26,8 +26,8 @@
  *
  * Everything a composed world gives is derived on the GPU, the CPU's to the word, as a host's world
  * is: the root boxes pass writes its world box and the primitive stretch every cut projects its
- * errors through (`../roots/rootBoxes.ts`); the rows pass each row's sphere, Hi-Z corners and
- * world-dependent levels of detail (`gpuComposeDerivedWgsl.ts`); the tree's leaves pass the leaf
+ * errors through (`../roots/rootBoxes.ts`); the rows pass each row's sphere and world-dependent
+ * levels of detail (`gpuComposeDerivedWgsl.ts`); the tree's leaves pass the leaf
  * boxes the placement tree is refitted over (`../tree/treeLeaves.ts`). The CPU readers — transparent depth,
  * the winding — read the lazy world of the root once a frame, as waves, a soft body and a skeleton
  * do. A link is never refused for what reads its row: the rows no root reads — a blended surface's,

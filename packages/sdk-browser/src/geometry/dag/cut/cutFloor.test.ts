@@ -1,6 +1,6 @@
 // Top-down pruning removes no cluster the cut would have kept.
 //
-// The descent drops a subtree whose error FLOOR exceeds the threshold: none of its
+// The descent drops a leaf whose least own error exceeds the threshold: none of its
 // clusters is fine enough, so none would have been kept. The bound is a lower bound, and an
 // OVERESTIMATED lower bound silently drops geometry — that is the batch's only risk, and it is
 // what this file forbids.
@@ -16,7 +16,7 @@ import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
 import { packDagSelection } from '../pack/pack.ts'
 import { cameraSelectionUniforms } from '../../../gpu/core/selection.ts'
 import { engineCamera } from '../../../camera/camera.fixture.ts'
-import { dagRecords, worldOf } from '../records.fixture.ts'
+import { dagRecords } from '../records.fixture.ts'
 import { dagViewFrames } from '../oracle/math.fixture.ts'
 import { NODE_CEIL } from '../nodeLayout.ts'
 import { DAG_NODE_FLOATS } from '../types.ts'
@@ -30,23 +30,19 @@ const pages = scenePages(4096, 8)
 const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200)
 
 /** The cut a descent WITHOUT pruning would return: every node opened, so the only remaining
- *  filter is the one `dagWanted` sets per cluster — frustum, cone, error band. */
+ *  filter is the one `dagWanted` sets per cluster — frustum, error band. */
 function coupeSansElagage(packed: ReturnType<typeof packDagSelection>, uniforms: unknown) {
   const frames = dagViewFrames(packed, uniforms as Parameters<typeof dagViewFrames>[1])
   const records = dagRecords(packed)
-  const { coneRejects, visible, draws } = createDagOraclePredicates({
-    packed,
+  const { visible, draws } = createDagOraclePredicates({
     records,
     // Every (placement, node) kept: no verdict filters a page.
     nodeFlags: { at: () => 0 },
     ...frames,
   })
   const retenues: number[] = []
-  for (let i = 0; i < packed.pageCount; i++) {
-    const w = worldOf(records, i)
-    if (visible(i) && draws(i, frames.pixelError, true, true) && !coneRejects(i, w))
-      retenues.push(i)
-  }
+  for (let i = 0; i < packed.pageCount; i++)
+    if (visible(i) && draws(i, frames.pixelError, true, true)) retenues.push(i)
   return retenues
 }
 
@@ -84,7 +80,8 @@ test('the one hierarchy: top-down pruning removes no kept cluster', () => {
       const uniforms = cameraSelectionUniforms(engineCamera(cam), threshold, [1280, 720])
       packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld)
       const expected = coupeSansElagage(packed, uniforms)
-      const actual = [...evaluateDagSelectionKernel(packed, uniforms).pageIds].sort((a, b) => a - b)
+      const drawn = evaluateDagSelectionKernel(packed, uniforms).drawablePageIds ?? []
+      const actual = [...drawn].sort((a, b) => a - b)
       assert.deepEqual(actual, expected, `${nom} at ${threshold} px`)
       elagages += descenteComptee(packed, uniforms, true).plancherCoupe
       plafonnes +=

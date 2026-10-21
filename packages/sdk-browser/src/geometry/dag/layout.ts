@@ -9,12 +9,12 @@
  * - hot (`CLUSTER_WORDS` words, the `clusters` record table) only holds what all five passes of
  *   a frame read: the cluster sphere and its parent's, both errors and the flags — level
  *   included, in their high bits;
- * - cold (`COLD_WORDS` words, the cold words' record table) holds what the open pass alone reads:
- *   the normal cone, the box, and the cut node that owns the page, relative to its
+ * - cold (`COLD_WORDS` words, the cold words' record table) holds what the cluster tests alone
+ *   read: the box, the triangles, and the cut node that owns the page, relative to its
  *   placement's first node, which only the oracle uses to replay descent.
  *
  * A record depends on no placement: the twelve placements of one primitive share one. What
- * is proper to a placement lives in the WORKING TABLE at the head of `pageCones`, one word
+ * is proper to a placement lives in the WORKING TABLE at the head of `coldWords`, one word
  * per page — the page's placement —, and the placement's record shift travels in its frame
  * words (`worlds/worlds.ts`): the page's record is its index plus that shift.
  *
@@ -22,14 +22,8 @@
  * read it do not walk a forty-eight-byte record for a single flag, and the host only
  * rewrites the words its changes touch. The cold records come last.
  */
-import {
-  CLUSTER_LEVEL_SHIFT,
-  CLUSTER_NEVER,
-  CLUSTER_ROOT_CHILD,
-  CLUSTER_TRANSPARENT,
-} from './clusterFlags.ts'
-import { REQUEST_STAGED_WORDS } from './request/request.ts'
-import { stagedRequestsWord } from './readoutWords.ts'
+import { CLUSTER_LEVEL_SHIFT, CLUSTER_NEVER, CLUSTER_TRANSPARENT } from './clusterFlags.ts'
+import { copiedWords } from './readoutWords.ts'
 import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
@@ -47,20 +41,14 @@ export const CLUSTER_LAYOUT = fieldLayout('Cluster', [
  *  word is that padding. */
 export const CLUSTER_WORDS = CLUSTER_LAYOUT.words
 /** Words of the cold record. */
-export const COLD_WORDS = 13
+export const COLD_WORDS = 9
 const CLUSTER_LEVEL_MAX = 0xffffff
 
-export function packClusterFlags(
-  never: boolean,
-  level: number,
-  transparent = false,
-  rootChild = false,
-) {
+export function packClusterFlags(never: boolean, level: number, transparent = false) {
   const bounded = clamp(Math.trunc(level) || 0, 0, CLUSTER_LEVEL_MAX)
   return (
     ((never ? CLUSTER_NEVER : 0) |
       (transparent ? CLUSTER_TRANSPARENT : 0) |
-      (rootChild ? CLUSTER_ROOT_CHILD : 0) |
       (bounded << CLUSTER_LEVEL_SHIFT)) >>>
     0
   )
@@ -76,34 +64,22 @@ export function packClusterFlags(
  * 0.52 ms for a capped readout, when the kernels themselves cost 0.99.
  *
  * The cap is WIDE next to a real cut: the same bench keeps 7,812 ranks of 1,992,187 at
- * threshold 64, 31,250 at threshold 16. It is where a cut STARTS: overflow remains possible — a
+ * threshold 64, 31,250 at threshold 16. It holds for the cut's life: overflow remains possible — a
  * camera placed in the geometry at a tiny threshold, hundreds of thousands of placements — and
- * it is SAID: the kernel sets the overflow bit, and the cut grows its list within the device
- * (`lists/listCap.ts`); past what the device holds, the cut coarsens until it fits (`coarsening.ts`). Only a
- * cut whose coarsest still overflows stays truncated: the frame still draws by its mask, and the
- * host adopts the head of each list, never an exit from it (`../cut/adoption/adoption.ts`). The pool's list (`poolBase`) keeps this cap.
+ * it is SAID: the kernel sets the overflow bit, the frame still draws by its mask, and the host
+ * adopts the head of each list, never an exit from it (`../cut/adoption/adoption.ts`). The GPU's
+ * own lists, which the frame draws from, hold their settings' caps (`lists/cutListCaps.ts`).
  */
 export const SELECTION_LIST_CAP = 262144
-/** What a cut's descent queues and its candidate and live lists hold when it is made: a view's
- *  reach, never the world's. A cut that passes one is not drawn and grows them (`queueGrowth.ts`):
- *  measured on an 8 km world from six eyes, a level holds up to 976 k entries and a frame lists up
- *  to 3.9 M candidates with nothing resident, 1.7 M with everything. */
-export const QUEUE_ENTRIES_START = 4 * SELECTION_LIST_CAP,
-  CANDIDATES_START = 8 * SELECTION_LIST_CAP
 /** Cap of a scene: never more than its catalogue, which no cut can exceed. */
 export const selectionListCap = (pageCount: number) => clamp(pageCount, 0, SELECTION_LIST_CAP)
-/** Bytes a resident cut's frame copies: everything before the staged requests. */
-export const residentReadbackBytes = (listCap: number) => stagedRequestsWord(listCap) * 4
-/** Requests ahead of the camera one sample stages: half its cap. They wait behind the camera's own
- *  staged requests, on their own counter (header word 6, before `OUT_AHEAD_PLACED`), so they never
- *  take a place the camera's requests would have used (`shader/snapshotWgsl.ts`). */
-const aheadRequestCap = (listCap: number) => listCap >>> 1
-/** Word of `out` where the snapshot the next difference is taken against waits, behind the staged
- *  requests — two words each, page and priority (`request/request.ts`) — and outside what the frame copies
- *  (`keptAt` of `shader/differenceWgsl.ts`): its two lengths (`KEPT_HEADER_WORDS`), then the
- *  requests' pages and the drawn pages, a list each. */
-export const keptSnapshotWord = (listCap: number) =>
-  stagedRequestsWord(listCap) + REQUEST_STAGED_WORDS * (listCap + aheadRequestCap(listCap))
+/** Bytes a resident cut's frame copies: every list up to the requests' priorities. */
+export const residentReadbackBytes = (listCap: number) => copiedWords(listCap) * 4
+/** Word of `out` where the snapshot the next difference is taken against waits, behind the
+ *  requests' priorities and outside what the frame copies (`keptAt` of
+ *  `shader/differenceWgsl.ts`): its two lengths (`KEPT_HEADER_WORDS`), then the requests' pages and
+ *  the drawn pages, a list each. */
+export const keptSnapshotWord = (listCap: number) => copiedWords(listCap)
 /** Words ahead of the kept lists: the length of each of the two. */
 export const KEPT_HEADER_WORDS = 2
 /** Word of `out` where region `v`'s saved drawn journal lies, behind the kept snapshot: its
@@ -113,9 +89,9 @@ export const KEPT_HEADER_WORDS = 2
  *  frame copies. */
 export const savedJournalWord = (listCap: number, v: number) =>
   keptSnapshotWord(listCap) + KEPT_HEADER_WORDS + 2 * listCap + v * (1 + listCap)
-/** Bytes of `out` with the staged requests behind, the camera's then those ahead, the kept
- *  snapshot and `regions` saved journals — none until a view is drawn aside: what the kernels
- *  write, more than the frame copies. */
+/** Bytes of `out` with the kept snapshot and `regions` saved journals behind what the frame
+ *  copies — none until a view is drawn aside: what the kernels write, more than the frame
+ *  copies. */
 export const stagedOutputBytes = (listCap: number, regions = 0) =>
   savedJournalWord(listCap, regions) * 4
 /** The most ranks an `out` of `bytes` holds: `stagedOutputBytes` read backwards. It grows with
@@ -138,8 +114,10 @@ export const OUT_COUNT = 0,
   OUT_FLAGS = 3,
   OUT_SELECTED_TRIANGLES = 4,
   OUT_TRANSPARENT_TRIANGLES = 5,
-  /** How many requests ahead the snapshot holds, behind every one of the camera's (`dagSortRequests`). */
-  OUT_AHEAD_PLACED = 7
+  /** The items the previous image's pyramid hid, held for the post pass, and those the post pass's
+   *  pyramid hid for good (`shader/occlusionWgsl.ts`). */
+  OUT_OCCLUDED = 6,
+  OUT_POST_HIDDEN = 7
 
 /** Residency words: one bit per cluster, thirty-two clusters per word. The first set opens the
  *  cold words at word 0: the cut rule's `resident(c)` (`../cut/readiness.ts`, `ready`). A
@@ -148,33 +126,8 @@ export const OUT_COUNT = 0,
 export const residentWords = (pageCount: number) => bitWords(Math.max(0, pageCount))
 /** First word of the second bit set, the rule's `resident(childGroup(c))` (`childReady`). */
 export const childBase = (pageCount: number) => residentWords(pageCount)
-/** First word of the pool's list: its count, then a content key per held slot (`poolList.ts`). */
-export const poolBase = (pageCount: number) => childBase(pageCount) + residentWords(pageCount)
-/** First word of the record keys, one per unique record: the content key it reads (`evict/evict.ts`). */
-export const recordKeyBase = (pageCount: number) =>
-  poolBase(pageCount) + 1 + selectionListCap(pageCount)
-/** What the cold table is laid out for: its pages, unique records, content keys, and the groups
- *  of those keys with the links to the groups that replace them (`evict/evict.ts`). */
-type ColdShape = {
-  pageCount: number
-  recordCount: number
-  keyCount: number
-  groupCount: number
-  groupEdges: number
-}
-/** First word of the key words, one per content key: its canonical page and its coarsest level. */
-export const keyWordBase = (shape: Pick<ColdShape, 'pageCount' | 'recordCount'>) =>
-  recordKeyBase(shape.pageCount) + Math.max(1, shape.recordCount)
-/** First word of the key groups, one per content key: the group its last use is its group's. */
-export const keyGroupBase = (shape: Pick<ColdShape, 'pageCount' | 'recordCount' | 'keyCount'>) =>
-  keyWordBase(shape) + Math.max(1, shape.keyCount)
-/** First word of the groups' parents: `groupCount + 1` starts, then the parents they bound. */
-export const groupParentBase = (shape: Pick<ColdShape, 'pageCount' | 'recordCount' | 'keyCount'>) =>
-  keyGroupBase(shape) + Math.max(1, shape.keyCount)
-/** First cold record, behind the bit sets, the pool's list, the record keys, the key words, the key
- *  groups and the groups' parents. */
-export const coldBase = (shape: ColdShape) =>
-  groupParentBase(shape) + shape.groupCount + 1 + shape.groupEdges
+/** First cold record, behind the two bit sets. */
+export const coldBase = (pageCount: number) => childBase(pageCount) + residentWords(pageCount)
 
 /** Hot field ranks, as `struct Cluster` of the shader lays them out. */
 export const {
@@ -185,11 +138,10 @@ export const {
   flags: HOT_FLAGS,
 } = CLUSTER_LAYOUT.at
 /** Cold field ranks, in the order `shader/recordWgsl.ts` reads them by word. */
-export const COLD_CONE = 0,
-  COLD_MIN = 4,
-  COLD_HAS_BOX = 7,
-  COLD_MAX = 8,
+export const COLD_MIN = 0,
+  COLD_HAS_BOX = 3,
+  COLD_MAX = 4,
   /** Owner node, relative to the placement's first node: the same for every placement. */
-  COLD_OWNER = 11,
+  COLD_OWNER = 7,
   /** Cluster triangles, read as an INTEGER word: those are what the totals accumulate. */
-  COLD_TRIANGLES = 12
+  COLD_TRIANGLES = 8

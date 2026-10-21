@@ -19,8 +19,8 @@ import type { PageSurface } from '../../pages/surface.ts'
 
 const [template] = blendFixture().metadata.primitives[0].pages
 
-/** The words of the row one lit triangle of `surface` writes; `hasUv1`, its float block's. */
-function rowOf(surface: PageSurface, hasUv1 = false) {
+/** The words of the row one lit triangle of `surface` writes; `hasExtraUv`, its float block's. */
+function rowOf(surface: PageSurface, hasExtraUv = false) {
   const source = new Group()
   const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3))
@@ -53,7 +53,7 @@ function rowOf(surface: PageSurface, hasUv1 = false) {
   const materialTable = createMaterialTable()
   const writer = createPageRowWriter(
     {
-      geometryBlocks: new Map([[rec.attributes, { vertexBase: 0, count: 3, hasUv1 }]]),
+      geometryBlocks: new Map([[rec.attributes, { vertexBase: 0, count: 3, hasExtraUv }]]),
       mapLayer: new Map(),
       dataLayer: new Map(),
       materialTable,

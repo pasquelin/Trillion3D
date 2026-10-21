@@ -56,8 +56,6 @@ export {
   frustumPlanesFromMatrix,
 } from '../../math/src/geometry/frustum/frustum.ts'
 export { composeMatrix4, composeMatrix4Batch } from '../../math/src/matrix/matrix4Compose.ts'
-export { CONE_LENGTH_RATIO, CONE_ORTHO_EPS } from '../../math/src/geometry/cone.ts'
-export { coneRejects, maxStretch } from '../../math/src/projection/projectionOracles.ts'
 export {
   copyMatrix4,
   determinantMatrix4,
@@ -95,6 +93,7 @@ export {
   worldToRenderOrigin,
 } from '../../math/src/projection/renderOrigin.ts'
 export { matrixWindingCw } from '../../math/src/matrix/orientation.ts'
+export { maxStretch } from '../../math/src/projection/projectionOracles.ts'
 export { NODE_AUTO_UPDATE } from '../../sdk-core/src/world/transform/nodeFlags.ts'
 export {
   nodeWorldDirection,

@@ -22,7 +22,7 @@ test('the row detail grows with the spheres and the mobility words, retired afte
     changes: { worldChanged: () => undefined },
   } as unknown as WebgpuLightState
   const held = [lights.spheres!.buffer, lights.mobilityRows!, lights.rowLods!.buffer]
-  const growth = pendingAll(growShadowRows(lights, device, 9))
+  const growth = pendingAll(growShadowRows(lights, device, 9).map((make) => make()))
   assert.equal(lights.rowLods!.rows, 4, 'nothing in place before the commit')
   growth.commit()
   assert.deepEqual([lights.spheres!.rows, lights.rowLods!.rows], [9, 9])

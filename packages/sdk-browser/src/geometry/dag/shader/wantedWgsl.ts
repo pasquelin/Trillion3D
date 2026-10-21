@@ -5,14 +5,15 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/g
 /**
  * The kernel that follows the descent, and that visits only what it kept.
  *
- * `dagWanted` walks the pages of the kept leaves: it drops the world clusters whose HLOD 0 cell is
- * not drawn by its HLOD (`worldGateWgsl.ts`) and those the frustum or the cone reject, deposits the
- * survivors in the live list (`liveWgsl.ts`), and publishes a REQUEST for each
- * one the cut wants at the host's threshold — the page and the priority the host will give it in
- * its queue (`../request/request.ts`). A wanted cluster that is not resident is drawn through its nearest
- * resident ancestor (`dagMask`).
- * A page the camera does not request goes to the view ahead (`aheadWgsl.ts`). A request marks its
- * candidate a seed of the rows' closure (`seedWgsl.ts`).
+ * `dagWanted` walks the pages of the leaves the running pass kept and saw — every one of them asked
+ * for already (`depositLeaf`, `levelWgsl.ts`): it drops those the frustum rejects, applies the cut
+ * rule — the error the cluster replaces shows, its own does not, or the finer group is not resident
+ * (`../../cut/rule.ts`), on the residency `../readiness.ts` derives —, and judges what it draws
+ * under the pyramid (`occlusionWgsl.ts`): seen, the cluster is deposited in the live list
+ * (`liveWgsl.ts`), which `dagMask` draws; hidden by the previous image's pyramid alone, it is held
+ * for the post pass (`postPassWgsl.ts`). No world cluster whose cell does not draw its actor is
+ * among them: the descent opens no node of such an actor (`worldNodeHides`). The post pass walks
+ * its own candidates, behind the main pass's (`candFirst`).
  *
  * Kept apart from `shader.ts`, which holds the other kernels and the bind declarations.
  */
@@ -21,34 +22,21 @@ export const DAG_WANTED_WGSL = wgslBlock(
   [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL],
   `@compute @workgroup_size(WORKGROUP_THREADS)
 fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id,n,WORKGROUP_THREADS);if(s>=min(atomicLoad(&work[candCounter()]),views[0u].candCap)){return;}
- wantedAt=s;
- // Only pages of the kept leaves: a page under a rejected node is never read, and its draw flag
- // is already zero — \`dagClearDrawn\` cleared the only ones that were one.
- let entry=flagAt(candBase()+2u*s);let i=entryIndex(entry);vi=entryView(entry);
- let w=flagAt(candBase()+2u*s+1u);
- // A world cluster its cell does not draw is neither drawn nor asked for (\`worldGateWgsl.ts\`).
- if(worldHides(i,w)){return;}
+ let s=candFirst()+flatIndex(id,n,WORKGROUP_THREADS);
+ if(s>=min(atomicLoad(&work[candCounter()]),views[0u].candCap)){return;}
+ let i=flagAt(candBase()+2u*s);let w=flagAt(candBase()+2u*s+1u);
  deformReach=reachOf(w);let r=recordOf(i,w);
  let cluster=clusterAt(r);
- // A page of the view ahead is only requested, never live; one the camera does not request is
- // tried there (\`aheadWgsl.ts\`).
- if(aheadOn()&&vi==AHEAD_VIEW){wantAhead(i,w,r,cluster);return;}
- if(!visible(r,w,cluster)){atomicAdd(&out.frustumRejected,1u);wantAhead(i,w,r,cluster);return;}
- let rejected=coneRejects(r,w);
- let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
- // The two screen errors \`selects\` compares, computed ONCE: the request's priority reuses them
- // (\`replacementPixels\`), and a camera cut keeps the two comparisons of the cut rule behind the
- // cone bit, for \`dagMask\` — same operands, same frame, so the same bits.
- let pixels=clusterPixels(cluster,e,stretch,focal);let t=views[vi].pixelError;
- liveAppend(entry,w,select(0u,CONE_REJECTED,rejected)|select(0u,PARENT_ABOVE,pixels.x>t)|select(0u,OWN_WITHIN,pixels.y<=t));
- if(!selects(pixels,t)||rejected){wantAhead(i,w,r,cluster);return;}
- atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);
- emitOne(i,cameraPriority(cluster.flags,replacementPixels(cluster,pixels)));
- stampUse(r);markSeed(ROW_SEED_ASKED);
+ if(!visible(r,w,cluster)){atomicAdd(&out.frustumRejected,1u);return;}
+ let rule=clusterRule(cluster,viewWorld(w));
+ if(rule.x&&rule.y){atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);}
+ if(!drawsCompared(isResident(i),rule.x,rule.y,childResident(i))){return;}
+ if(hasBox(r)!=0.0&&!unculledOf(w)){
+  let sight=boxSight(boxMin(r),boxMax(r),w);
+  if(sight==BOX_OCCLUDED){postCluster(i,w);}
+  if(sight!=BOX_SEEN){return;}
+ }
+ liveAppend(i,w);
 }
-/** The REPLACEMENT's error, what the eye would see if this cluster were missing: that is what
- *  ranks a request. A cluster nothing replaces falls back on its own. */
-fn replacementPixels(cluster:Cluster,pixels:vec2f)->f32{return select(pixels.x,pixels.y,cluster.parentError<0.0);}
 `,
 )

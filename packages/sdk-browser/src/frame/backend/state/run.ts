@@ -1,5 +1,4 @@
 import type { CullView } from '../../render/cutFreeze.ts'
-import type { CameraMotion } from '../../../camera/motion.ts'
 import type { HostCamera } from '../../../camera/world.ts'
 import type { DiagnosticMode } from '../../../../../sdk-core/src/runtime/diagnostics.ts'
 import type { PageRec } from '../../../geometry/selection/types.ts'
@@ -25,6 +24,10 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   submittedTriangles: number
   frustumRejected: number
   lodLevel: number
+  /** The adopted cut's occlusion counts: the items the previous image's pyramid hid, held for the
+   *  post pass, and those the post pass's pyramid hid for good (`SelectionResult.occluded`). */
+  occluded: number
+  postHidden: number
   frame: number
   imageRevision: number
   diagnostic: DiagnosticMode
@@ -51,7 +54,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   outputDiagnosticLogged: boolean
   noOccluderHistory: boolean
   rowsSyncedFrame: number
-  motion: CameraMotion
   /** The drawn view's cut uniforms: each view writes its own (`./view.ts`). */
   selectionUniforms: SelectionUniforms
   /** The main view's cull view while its cut is frozen, none while it follows the camera
@@ -95,7 +97,14 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   pageArrayEpoch: number
   /** What each list returned to the host describes: the state that produced it, or `-1` if it is to
    *  be remade. A list is kept only if everything it depends on is still that one. */
-  pendingHeld: { epoch: number; cut: number; limited: boolean; ready: boolean }
+  pendingHeld: {
+    epoch: number
+    cut: number
+    limited: boolean
+    ready: boolean
+    /** What the pool had accepted of the cut (`CutPending.accepted`). */
+    accepted: number
+  }
   ranksHeld: { epoch: number; cut: number; limited: boolean }
   /** Image entry: revisions, view origin, reread of the source graph, walk of world matrices and
    *  held-image witness. See `../../gate/gateCore.ts`. */
@@ -103,6 +112,14 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** True when the current image was held and nothing more will be drawn unasked: no CPU step
    *  was executed, and no device answer in flight asks another — targets refused included. */
   frameHeld: boolean
+  /** True while every image is drawn and none is presented (`../../loop/firstImage.ts`), every
+   *  view's: until the main view has loaded once (`initialLoad`), and while a partition's load
+   *  blocks on slow streaming (`streamingBlocks`). */
+  imageWithheld: boolean
+  /** True until the main view has loaded once: the session's initial load (`Engine.initialLoad`). */
+  initialLoad: boolean
+  /** Whether a partition's load blocks on slow streaming (`Engine.streamingBlocks`). */
+  streamingBlocks: boolean
   /** Images submitted whose GPU work the device has not finished: the loop draws no further one
    *  past `DAG_READBACK_SLOTS` of them (`../../loop/interactiveFrame.ts`, `skipsWebgpuFrame`). */
   gpuFramesInFlight: number
@@ -114,9 +131,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   worldUploadRevision: number
   /** The placements whose world a call wrote since the last upload (`../../render/movedWorlds.ts`). */
   movedWorlds: MovedWorlds
-  /** Ordered signature of the tested half: two images that share it share their occluders, therefore
-   *  the partition the next one inherits. */
-  occluderSignature: number
   /** The session's memory funding (`../../prepare/targetFunding.ts`, `../../io/memory.ts`). */
   funding: WebgpuFunding
 }

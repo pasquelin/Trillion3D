@@ -53,18 +53,21 @@ export function stripUniforms(dag: RuleDag, threshold: number) {
 }
 
 /** The GPU kernel's CPU model (`../dag/oracle/oracle.fixture.ts`), on the residency its host
- *  derives and uploads (`../dag/residencyUpload.ts`), deciding with `rule`. */
+ *  derives and uploads (`../dag/residencyUpload.ts`), deciding with `rule`. What it wants is what
+ *  the rule draws with every page resident: the kernel asks for its kept leaves' pages whole
+ *  (`depositLeaf`), so its requests name no wanted cluster. */
 function kernelBackend(
   dag: RuleDag,
   threshold: number,
   rule?: (packed: PackedDag) => CutRuleAt,
 ): CutBackend {
   const { packed, uniforms } = stripUniforms(dag, threshold)
+  const wanted = evaluateDagSelectionKernel(packed, uniforms).drawablePageIds ?? []
   const decide = rule?.(packed)
   return (resident) => {
     const residency = ruleResidency(packed, resident)
     const result = evaluateDagSelectionKernel(packed, uniforms, residency, decide)
-    return { drawn: result.drawablePageIds ?? [], wanted: result.pageIds }
+    return { drawn: result.drawablePageIds ?? [], wanted }
   }
 }
 
@@ -75,40 +78,33 @@ export const oracleBackend = (dag: RuleDag, threshold: number) => kernelBackend(
  * The same model where the kernel's own text decides (`DAG_SELECTION_SHADER`), run in Node. Its
  * residency reads `isResident(i)` and `childResident(i)` on the bit sets the host uploaded into the
  * cold words' record table — `coldWord(r,0u).x`, word `r` of the packing, as the table's texel
- * load returns it —, and the rule itself. Only the projection is the model's: its screen errors are
- * passed where the kernel projects. `dagWanted` keeps the rule's two comparisons in the page's cone
- * word, in its live entry (`liveAppend(entry,w,…);`), then `dagMask`'s `draw=drawsCompared(…);`
- * decides on that word.
+ * load returns it —, and the rule itself. Only the projection and its two comparisons are the
+ * model's: they are passed where the kernel makes them (`clusterRule`, `rule.x` the error the
+ * cluster replaces shows, `rule.y` its own does not), and `dagWanted`'s call site,
+ * `drawsCompared(…)`, decides on them.
  */
 export function wgslBackend(dag: RuleDag, threshold: number, source = DAG_SELECTION_SHADER) {
-  const camera = /\bdraw=(drawsCompared\([^;]+\));/.exec(source),
-    word = /\bliveAppend\(entry,w,([^;]+)\);/.exec(source)
-  if (!camera || !word) throw new Error('WGSL_CALL_SITE_MISSING: dagMask')
+  const site = /if\(!(drawsCompared\(.+?\))\)\{return;\}/.exec(source)
+  if (!site) throw new Error('WGSL_CALL_SITE_MISSING: dagWanted')
   return kernelBackend(dag, threshold, (packed) => {
     const cold = new Uint32Array(
-      packed.pageCones.buffer,
-      packed.pageCones.byteOffset,
-      packed.pageCones.length,
+      packed.coldWords.buffer,
+      packed.coldWords.byteOffset,
+      packed.coldWords.length,
     )
-    // The view block the call site and the residency reads name.
-    const views = [{ clusterCount: packed.pageCount, pixelError: threshold }]
+    // The view block the residency reads name.
+    const views = [{ clusterCount: packed.pageCount }]
     const scope = wgslScope(source, {
       ...wgslConstants(source),
       views,
       // The cold table's one-texel record `r`: its word in `x` (`../dag/cut/cutTables.ts`).
       coldWord: (r: number) => ({ x: cold[r] }),
-      vi: 0,
-      select: (no: unknown, yes: unknown, condition: unknown) => (condition ? yes : no),
     })
-    const kept = scope.expression(word[1], ['rejected', 'pixels', 't']),
-      draw = scope.expression(camera[1], ['i', 'word'])
+    const draw = scope.expression(site[1], ['i', 'rule'])
     return (_ready, parentPixels, ownPixels, _childReady, t, page) => {
-      const bits = kept({
-        rejected: false,
-        pixels: { x: Math.fround(parentPixels), y: Math.fround(ownPixels) },
-        t: Math.fround(t),
-      })
-      return draw({ i: page, word: bits }) === true
+      const within = Math.fround(t)
+      const rule = { x: Math.fround(parentPixels) > within, y: Math.fround(ownPixels) <= within }
+      return draw({ i: page, rule }) === true
     }
   })
 }

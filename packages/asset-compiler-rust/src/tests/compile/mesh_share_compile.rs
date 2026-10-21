@@ -2,7 +2,7 @@
 //! the same single primitive, the same pages, collision, proxy and depth layers, both nodes on it;
 //! one bit apart, they stay two primitives.
 use super::*;
-use crate::import::{f32_bytes, Bin};
+use crate::plugins::scene::convert::{f32_bytes, Bin};
 
 /// Vertices per side of the bumpy grid: enough triangles for a DAG with simplified levels.
 const SIDE: usize = 25;

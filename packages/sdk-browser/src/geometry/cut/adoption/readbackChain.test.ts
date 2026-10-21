@@ -1,7 +1,7 @@
 // Every GPU adoption reads the ranks its readback claims in the list held, whatever landed since
 // the readback the host holds: one overwritten before it was adopted, one a moved residency voided,
-// one cut past its list that grew it, a command buffer dropped, the bootstrap's list the GPU never
-// held. The lists, records, order and bytes are the hashed difference's (`readbackChain.fixture.ts`);
+// one cut past its list, read by its head, a command buffer dropped, the bootstrap's list the GPU
+// never held. The lists, records, order and bytes are the hashed difference's (`readbackChain.fixture.ts`);
 // the catalogue is asked only for the pages no rank named, where the hashed difference asks it for
 // every page of both lists.
 import test from 'node:test'
@@ -44,17 +44,20 @@ test('a readback a moved residency voided is followed, never adopted', async () 
   assert.equal(m.adopt(), 4)
 })
 
-test('a readback cut past its list grows it, and the kept snapshot moves with it', async () => {
+test('a readback cut past its list is read by its head, the list never grown', async () => {
   const m = await holding(32)
-  // The held pages first: the truncated kept lists hold them all.
+  // The held pages first: the head holds them all, and only the twelve pages of the head that
+  // entered are looked up, a list each.
   m.send(both([...held, ...range(60, 80)]))
   await settle()
+  assert.equal(m.adopt(), 24, 'twelve entries a list, no held page looked up')
   m.send(both(moved))
   await settle()
-  assert.equal(m.rig.resources.listCap, 80, 'grown, and that frame cut nothing')
+  assert.equal(m.rig.resources.listCap, 32, 'the list keeps its cap')
+  assert.equal(m.adopt(), 4, 'the cut under the cap again: its two entries a list')
   m.send(both(moved))
   await settle()
-  assert.equal(m.adopt(), 4)
+  assert.equal(m.adopt(), 0, 'the same cut again: no entry')
 })
 
 test('a command buffer dropped copies nothing, and the chain does not miss it', async () => {

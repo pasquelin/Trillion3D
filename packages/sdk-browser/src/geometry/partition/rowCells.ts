@@ -32,3 +32,7 @@ export function takeCellsMoved(rows: PlacementRows, visit: (index: number) => bo
 
 /** Where row `index` of `rows` lies, none when no cell placed it. */
 export const rowCell = (rows: PlacementRows, index: number) => rows.cells?.[index]
+
+/** The HLOD level a row lying at `at` draws as, which the HLOD view paints: its instanced actor's
+ *  (`RowCell.actor`), 0 its cell's HLOD 0 actor (`RowCell.proxy`), -1 itself or no cell's. */
+export const rowDrawnAs = (at: RowCell | undefined) => (at ? (at.actor ?? (at.proxy ? 0 : -1)) : -1)

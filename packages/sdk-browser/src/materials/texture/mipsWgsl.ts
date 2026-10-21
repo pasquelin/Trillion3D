@@ -40,7 +40,7 @@ const LEVEL_WGSL = wgslBlock(
  *
  * Under `weighted`, four texels whose alphas differ average their colours
  * weighted by alpha, and `select` keeps the plain mean everywhere else, byte for byte: the rule the
- * compiler bakes, and its reasons (`packages/asset-compiler-rust/src/texture_preview/reduce.rs`,
+ * compiler bakes, and its reasons (`packages/asset-compiler-rust/src/texture/reduce.rs`,
  * `halve`, #42).
  *
  * With a cutoff `C`, the median byte is scaled by the level's `t`, which the counts' pick left in

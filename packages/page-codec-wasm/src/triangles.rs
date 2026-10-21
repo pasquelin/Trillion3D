@@ -27,7 +27,7 @@ pub struct CornerCode {
     /// Width of a block's prefix: enough for the sum of every width but the last block's.
     pub prefix_bits: u32,
     pub blocks: usize,
-    /// Bits of the corner stream, the header's word 21.
+    /// Bits of the corner stream, the header's word 19.
     pub bits: usize,
 }
 
@@ -102,10 +102,10 @@ impl CornerCode {
 }
 
 /// The corner code of a page's indices: each block's smallest corner and width, computed once
-/// for the header's word 21 and for the streams.
+/// for the header's word 19 and for the streams.
 pub struct Spans {
     spans: Vec<(u32, u32)>,
-    /// Bits of the corner stream: what the header's word 21 says.
+    /// Bits of the corner stream: what the header's word 19 says.
     pub bits: usize,
 }
 

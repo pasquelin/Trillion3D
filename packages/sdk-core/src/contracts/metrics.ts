@@ -1,6 +1,5 @@
 import type { TextureFrameMetrics } from '../texture/metricsContracts.ts'
 import type { ShadowFrameMetrics } from './shadowMetrics.ts'
-import type { OcclusionFrameMetrics } from './occlusionMetrics.ts'
 import type { GpuMemoryFrameMetrics } from './gpuMemory.ts'
 /** One timed GPU pass. `gpuMs` is null when the device returned no usable pair of timestamps. */
 export interface GpuPassTiming {
@@ -37,7 +36,7 @@ export interface GpuPassTimings {
  */
 export type GpuFrameMs = number | null
 /** What one frame cost and held: times, triangles, pages, memory. */ export interface FrameMetrics
-  extends ShadowFrameMetrics, OcclusionFrameMetrics, TextureFrameMetrics, GpuMemoryFrameMetrics {
+  extends ShadowFrameMetrics, TextureFrameMetrics, GpuMemoryFrameMetrics {
   /** Time between two frames, ms: from the rAF timestamp of the frame drawn before this one to its
    *  own, frames held for the readbacks spanned, so a whole number of `displayRefreshMs` on a
    *  display that keeps its grid. Null before two frames. */
@@ -56,12 +55,12 @@ export type GpuFrameMs = number | null
    *  them: a zero would read as a frame with no draw. */
   drawCalls: number | null
   /** Clusters drawn. */ clusters: number | null
-  /** Triangles the cut selected: past its frustum and its detail levels, before the occlusion
-   *  test (`drawnTriangles`). */
+  /** Triangles the cut selected: past its frustum, its detail levels and both its occlusion passes
+   *  (`drawnTriangles`). */
   selectedTriangles: number | null
   /** Pages held in memory. */ residentPages: number | null
-  /** Submitted triangles: on the WebGPU-by-pages path, every drawable row — occlusion
-   *  rejects after submit —, held by the table, hence exact and of this frame. */
+  /** Submitted triangles: on the WebGPU-by-pages path, the cut's drawn list (`selectedTriangles`),
+   *  after both its occlusion passes, hence exact and of this frame. */
   submittedTriangles?: number | null
   /** All submitted triangles, including transparent passes. Null while the image is pending. */
   totalSubmittedTriangles?: number | null
@@ -90,13 +89,16 @@ export type GpuFrameMs = number | null
    * number of pages of its subtree: those pages are never visited, hence never counted.
    */
   frustumRejected?: number | null
-  /** Detail level of the cut. */ lodLevel?: number | null
   /**
-   * The factor the GPU cut's projected-error threshold is cut under: 1, but when the view asks more
-   * than the list one GPU binding holds, where the cut stops at coarser levels until its list fits,
-   * and comes back to 1 once the view asks less. Null without a GPU cut.
+   * What the GPU cut's two-pass occlusion held, every frame: the cells, nodes and clusters past its
+   * frustum and its detail levels that the previous image's depth pyramid hid in its main pass,
+   * held for its post pass. Null without a GPU cut.
    */
-  cutCoarsening?: number | null
+  occluded?: number | null
+  /** Of those held (`occluded`), the ones the post pass's pyramid — rebuilt from what the main pass
+   *  drew — hid again: neither drawn nor streamed this frame. Null without a GPU cut. */
+  postHidden?: number | null
+  /** Detail level of the cut. */ lodLevel?: number | null
   /**
    * WebGPU transparent counters. `transparentDrawCalls` counts every draw, both halves of a two-pass
    * material included; `transparentSubmittedTriangles` counts the triangles of the transparent cut
@@ -123,8 +125,8 @@ export type GpuFrameMs = number | null
    * run, `null` when nothing timed it.
    *
    * What the held frame SHOWS remains described by the cut it redisplays: `clusters`,
-   * `selectedTriangles`, `frustumRejected`, `lodLevel` and `residentPages` are those of the
-   * original frame, since it is the same cut.
+   * `selectedTriangles`, `frustumRejected`, `occluded`, `postHidden`, `lodLevel` and
+   * `residentPages` are those of the original frame, since it is the same cut.
    * Absent from an engine that does not hold its frames.
    */
   frameHeld?: boolean | null
@@ -154,12 +156,17 @@ export type GpuFrameMs = number | null
   uncoveredTriangles?: number | null
   /**
    * Triangles the CURRENT FRAME draws: those the cut selected (`selectedTriangles`, opaque and
-   * transparent of the hierarchy combined) less those the occlusion test rejected
-   * (`hizRejectedTriangles`), as the GPU last sampled them, one frame in fifteen: nothing is
-   * subtracted before the first sample. Transparent meshes outside the hierarchy are not in it
-   * (`transparentSubmittedTriangles`). Never `null` for lack of time, unlike `submittedTriangles`.
+   * transparent of the hierarchy combined), its drawn list taken after both its occlusion passes.
+   * Transparent meshes outside the hierarchy are not in it (`transparentSubmittedTriangles`).
+   * Never `null` for lack of time, unlike `submittedTriangles`.
    */
   drawnTriangles?: number | null
+  /** The DDA steps a voxel pixel's ray took through its brick, the mean and the most, as the
+   *  resolve last counted them on one pixel in 64 of a sampled frame (at most 10, a 4³ brick's
+   *  bound). Sampled one frame in fifteen, so they describe an earlier frame. `null` until a frame
+   *  counted one. */
+  voxelStepsMean?: number | null
+  voxelStepsMax?: number | null
   /** Hierarchy nodes on which this frame's cut posed a test — frustum or
    *  level-of-detail decision. A node already decided and fully visible receives none:
    *  it is traversed, not tested. This is the measure of the real work of a hierarchical cut; a

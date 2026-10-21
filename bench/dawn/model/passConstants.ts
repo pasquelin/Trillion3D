@@ -47,16 +47,18 @@ export const engine = (path: string, symbol: string): Source => ({
   symbol,
 })
 
-/** Bytes of a covered pixel's material surfaces: three rgba16float, the r8uint flags, the shadow
+/** Bytes of a covered pixel's material surfaces: three rgba16float, the r32uint flags, the shadow
  *  receiver (`RECEIVER_TARGET_BYTES`). */
-export const SURFACE_BYTES = 3 * 8 + 1 + RECEIVER_TARGET_BYTES
+export const SURFACE_BYTES = 3 * 8 + 4 + RECEIVER_TARGET_BYTES
+/** Bytes a pixel the material pass's clear writes: the three rgba16float surfaces and the flags. */
+export const SURFACE_CLEAR_BYTES = 3 * 8 + 4
 /** The material surfaces' fetches a covered pixel: its identifier, its triangle's three indices,
  *  three attributes of each of its three vertices. */
 export const SURFACE_FETCHES = 1 + 3 + 3 * 3
-/** The deferred resolve's reads of a covered pixel: flags, base, depth, normal, emission and
- *  occlusion (`LIGHT_SURFACE_ENTRY`), the receiver and the mask word and tile
+/** The deferred resolve's reads of a covered pixel: the r32uint flags, base, depth, normal,
+ *  emission and occlusion (`LIGHT_SURFACE_ENTRY`), the receiver and the mask word and tile
  *  (`directShadowWgsl`); its fetches, one a texture; its writes: the HDR and the unfogged source. */
-export const LIGHTING_READ = 1 + 8 + 4 + 8 + 8 + 8 + 4 + 4,
+export const LIGHTING_READ = 4 + 8 + 4 + 8 + 8 + 8 + 4 + 4,
   LIGHTING_FETCHES = 7,
   LIGHTING_WRITE = 8 + 8
 /** The shadow setup's footprint: eight neighbour depths a covered pixel (ENGINE.md, "Direct
@@ -71,32 +73,34 @@ export const SAMPLE_FETCHES = 2
 export const LIGHTS_A_LAYER = 4
 /** TAA: its four targets, rgba16float, rgba8unorm, rg32uint, r32uint (`resolveTargetUsage`),
  *  written and read back as history; its render inputs read once: colour, depth, identifier,
- *  flags, and the history the blends give up (r8, `GIVEN_UP_FORMAT`) — bound only where a blend
+ *  the r32uint flags, and the history the blends give up (r8, `GIVEN_UP_FORMAT`) — bound only where a blend
  *  gives some up, counted always: the model's frame does not say. Its fetches a display pixel are its shipped passes' (`countTaaFetches`), at the finest
  *  level: half the display per axis below it, else the display's. */
 export const TAA_TARGET_BYTES = 8 + 4 + 8 + 4,
-  TAA_INPUT_BYTES = 8 + 4 + 4 + 1 + 1
+  TAA_INPUT_BYTES = 8 + 4 + 4 + 4 + 1
 export const taaFetches = (f: Pick<Frame, 'P' | 'D'>) =>
   countTaaFetches(f.P < 0.9 * f.D ? 0.5 : 1).perDisplayPixel
-/** The cut's dependent dispatches per frame (`encodeDagKernels`), counted on its encoder by the
- *  model's test: seventeen whatever the levels — the first arming, clear, prepare, the wanted and
- *  the mask each behind its arming, prefix, scatter, commit, sort, the parents' raise, then the
- *  eviction queue's shared pool sort: count, place, groups, offsets, spread, scatter; pass 0 runs
- *  flat, unarmed, one less —, and two a level — its kernel and its arming —; the levels the model
+/** The cut's dependent dispatches per frame (`encodeDagKernels`), a cut in one pass, counted on its
+ *  encoder by the model's test: ten whatever the levels — the first arming, clear, prepare, the
+ *  wanted, the mask and the scatter each behind its arming, prefix, commit; pass 0 runs flat,
+ *  unarmed, one less —, and two a level — its kernel and its arming —; the levels the model
  *  counts. */
-export const DAG_FIXED_DISPATCHES = 17,
+export const DAG_FIXED_DISPATCHES = 10,
   DAG_LEVEL_DISPATCHES = 2,
   DAG_LEVELS = 8
 /** The partition's bytes a cluster: its row, then its counts (`encodeVis`). */
 export const PARTITION_ROW = 64,
   PARTITION_COUNTS = 16
-/** The visibility target's bytes a pixel: the r32uint identifier and the depth32float depth. */
+/** The visibility work buffer's bytes a pixel: the depth key and the identifier, two u32 words
+ *  each phase of the hardware and software rasters writes by atomic maximum. */
 export const VISIBILITY_BYTES = 4 + 4
-/** The material tiles' read: one 4-byte identifier a pixel, listed by 32×32 tiles. */
-export const TILE_ID_BYTES = 4
-/** The marking pass: a pixel of four (a stride of 2 each way), its depth, normal and flags read. */
+/** The shading bins' words: a pixel's 4-byte identifier, read by the count and by the scatter, and
+ *  a covered pixel's 4-byte word, written by the scatter and read by its class. */
+export const BIN_WORD_BYTES = 4
+/** The marking pass: a pixel of four (a stride of 2 each way), its depth, normal and r32uint flags
+ *  read. */
 export const MARK_STRIDE = 4,
-  MARK_BYTES = 4 + 8 + 1
+  MARK_BYTES = 4 + 8 + 4
 /** The reflection's march of a reflecting pixel's lobe ray (`screenMarch`): its iterations, 16 on average
  *  and 35 at the 99th percentile over the proof scenes, each reading a cell of the depth pyramid —
  *  the finished depth's farthest and the nearest (two texels), or at level 0 the depth, the

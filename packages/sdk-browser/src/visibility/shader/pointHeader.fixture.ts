@@ -64,7 +64,6 @@ function scene() {
             flags: flags | F.FLAG_CLUSTER_PAGE | (lineWidth ? F.FLAG_LINE : 0),
             ...{ pageOffset: at, indexCount: triangles * 3 },
             ...{ vertexBase: 0, packedBase: pages.length << 8, deformOutput: 0 },
-            hizSlot: NO_INDEX,
           })
       }
   const offset = words.length
@@ -74,7 +73,6 @@ function scene() {
     ...{ world: FAR, material: { sprite: [0, 0], lineWidth: 0 } },
     flags: F.FLAG_HAS_UV | F.FLAG_MASK,
     ...{ pageOffset: offset, indexCount: 36, vertexBase: 0, packedBase: 0, deformOutput: 0 },
-    hizSlot: NO_INDEX,
   })
   return { words, pages, pool, uvs: Array.from(floats(64, random)) }
 }
@@ -82,9 +80,9 @@ function scene() {
 const DECODE = [
   'pageHeader pageHeaderFor pageSurfaceRead pageCorner pageTriangle pagePosition',
   'pageRestPosition pageUv pageMaskAlpha pageColor vertPos vertUv clusterPointHeader',
-  'clusterSurfaceHeader clusterStream clusterWidths clusterStep pow2FromExponent bitLength ceilDiv',
-  'clusterIndex clusterTriangle clusterBlock clusterWindow clusterField clusterPosition clusterGrid',
-  'clusterUv clusterNormal clusterColor octBytesDecode octDecode octUnfold octFold byteOf',
+  'clusterSurfaceHeader clusterStream clusterWidths clusterUnit pow2FromExponent bitLength ceilDiv',
+  'clusterIndex clusterTriangle clusterBlock clusterWindow clusterField clusterPosition',
+  'clusterUv clusterNormal clusterColor clusterHasUv clusterUvValue clusterOctahedron',
 ].flatMap((line) => line.split(' '))
 /** Column-major 4×4 product, which `shaderRun`'s operators leave to the scope. */
 const product = (a: readonly number[], b: readonly number[]) =>
@@ -108,11 +106,12 @@ export const cameraViewProj = (zoom: number) =>
     ),
   )
 /** The camera vertex stages and what they call beside the decode, and the scope they read. */
-export const VIS_VS_NAMES = ['vis_vs', 'drawBatch', 'instanceRow'].concat(
-  ['instanceCorner', 'hardwareIdle', 'hardwareCorner', 'pageClip', 'computeTakes', 'screen'],
-  ['ndcToPixel', 'perspectiveDivide'],
-  ['screenBox', 'boxOf', 'pageLine', 'lineClip', 'pageShape'],
-)
+export const VIS_VS_NAMES = ['vis_vs', 'drawBatch', 'instanceRow'].concat([
+  'instanceCorner',
+  'pageLine',
+  'lineClip',
+  'pageShape',
+])
 export const VIS_VS_SCOPE = {
   ...{ NO_INDEX, pageSprite: () => [0, 0, 0, 1] },
 }

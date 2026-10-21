@@ -39,7 +39,8 @@ for (const [label, slots, burst] of [
   })
 
 test('a burst cut to the slots lists the same queue as a wider one', () => {
-  // A host whose burst is no more than its slots (`evictWgsl.ts`, `poolBurst`) sizes the scratch
+  // A host whose burst is no more than its slots (`../../lighting/shadows/vsm/freePagesWgsl.ts`,
+  // `poolBurst`) sizes the scratch
   // for those slots alone: every slot ranked, the boundary falls on the last rank; one in seven not
   // ranked, every one ranked is staged. Either way the queue and the total are the wide burst's.
   for (const skip of [0, 7]) {

@@ -96,6 +96,7 @@ async function measure(
       times[v].push(await batch(bytes, source, frames))
     }
   for (const buffer of [...cut.buffers, worst]) buffer.destroy()
+  cut.occlusion.dispose()
   return {
     pages: packed.pageCount,
     listCap: cut.listCap,

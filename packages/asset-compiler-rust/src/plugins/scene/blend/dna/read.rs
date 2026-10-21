@@ -4,8 +4,8 @@
 //! carries, and no product of dimensions or sizes is stored without being checked. A file that
 //! lies about any of them is refused under `blend-dna-invalid`, never by a panic.
 use super::{Field, Layout, POINTER};
-use crate::le::Cursor;
 use crate::plugins::scene::blend::{refused, CompilerError, Result};
+use crate::support::le::Cursor;
 use std::collections::HashMap;
 
 fn invalid() -> CompilerError {

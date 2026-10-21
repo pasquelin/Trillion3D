@@ -1,9 +1,6 @@
 import { FRUSTUM_PLANE_VALUES } from '../../../../math/src/geometry/frustum/frustum.ts'
-import type { NormalCone } from '../cone/cone.ts'
-import type { ConeContext } from '../cone/cone.fixture.ts'
-import { createConeContext } from '../cone/cone.fixture.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
-import { IDENTITY_WORLD, type MatrixElements } from '../../session/host/matrixElements.ts'
+import { IDENTITY_WORLD } from '../../session/host/matrixElements.ts'
 import type { ClusterCut } from '../selection/math.ts'
 import type { PageSurface } from '../pages/surface.ts'
 import type { CutReadiness } from './readiness.ts'
@@ -14,7 +11,6 @@ export interface PageRecord extends ClusterCut {
   level?: number
   min?: number[]
   max?: number[]
-  cone?: NormalCone
   material?: PageSurface
   array?: Uint32Array
 }
@@ -29,8 +25,8 @@ export interface SelectionState<T extends PageRecord> {
    *  instance, never a record. Reused `Int32Array`s widened as the cut emits (`fitPacked`). */
   wantedPacked: Int32Array
   shownPacked: Int32Array
-  /** Packed base of the root the cut is walking: set by `selectFlat` per root, like `flatWorld`,
-   *  so a kept page is named without a field on the shared record. */
+  /** Packed base of the root the cut is walking: set by `selectFlat` per root, so a kept page is
+   *  named without a field on the shared record. */
   flatBase: number
   pixelError: number
   frustumRejected: number
@@ -38,8 +34,6 @@ export interface SelectionState<T extends PageRecord> {
   nodesTested: number
   lodLevel: number
   complete: boolean
-  cameraStretch: number
-  flatWorld: MatrixElements
   flatElements: ArrayLike<number>
   flatStretch: number
   flatFocal: number
@@ -49,10 +43,6 @@ export interface SelectionState<T extends PageRecord> {
   /** The cut rule's residency of this root's pages (`./held.fixture.ts`), with the open count of each of
    *  its culling nodes; absent when nothing is held, every page then deemed resident. */
   flatHeld?: CutReadiness
-  /** What cone rejection reads of the root and the camera, set at the root's first cone. */
-  flatCone: ConeContext
-  /** The per-cluster path reads `cone`: false on a root its deformation moves (`flatReach`). */
-  flatCones: boolean
   /** This root declares that each of its pages carries its box: under a node entirely inside
    *  the frustum, the per-cluster path then reads neither `min` nor `max`. */
   flatBoxes: boolean
@@ -117,14 +107,10 @@ const reusedState: SelectionState<PageRecord> = {
   nodesTested: 0,
   lodLevel: 0,
   complete: true,
-  cameraStretch: 1,
-  flatWorld: IDENTITY_WORLD,
   flatElements: IDENTITY_WORLD.elements,
   flatStretch: 1,
   flatFocal: 1,
   flatReach: 0,
-  flatCone: createConeContext(),
-  flatCones: true,
   flatBoxes: false,
   held: undefined,
   shownCount: 0,

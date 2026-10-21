@@ -14,6 +14,10 @@ import {
 import { matrixWindingCw } from '../../../../../../math/src/wgsl/matrix.ts'
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, wgslConst } from '../../../../../../math/src/wgsl/decl.ts'
+import { recordTextureWgsl } from '../../../../gpu/core/recordTextureWgsl.ts'
+import { COLD_TABLE } from '../../../../geometry/dag/cut/cutTables.ts'
+import { frameTableWgsl } from '../../../../geometry/dag/frameTable.ts'
+import { worldGateWgsl } from '../../../../geometry/dag/shader/worldGateWgsl.ts'
 import { VSM_RENDER_PARAMS_WGSL } from './renderParamsWgsl.ts'
 
 /** THE NON-CLUSTER RASTER'S CASTER CANDIDATES (`renderCullWgsl.ts`): one thread a row, the rows the
@@ -23,10 +27,37 @@ import { VSM_RENDER_PARAMS_WGSL } from './renderParamsWgsl.ts'
  *  finite f32. */
 const VSM_INF = wgslConst('INF', [FLOAT32_MAX], 'const INF:f32=FLOAT32_MAX;')
 
+/** The group of a candidates kernel that binds the camera cut's world switch
+ *  (`VSM_RENDER_WORLD_WGSL`). */
+export const VSM_RENDER_WORLD_GROUP = 1
+
+/**
+ * The camera cut's world switch, as its descent reads it (`worldGateWgsl`): its cold words at 0
+ * and its frame words at 1 of `VSM_RENDER_WORLD_GROUP`, under the cut's names, and the cold word
+ * its placements' links start at in the parameters (`VsmRenderParams.worldLinks`). A cut that
+ * follows no world has it zero, and a stand-in bound for both tables (`vsmWorldGroup`), of which
+ * the gate reads no word.
+ */
+const VSM_RENDER_WORLD_WGSL = wgslBlock(
+  'VSM_RENDER_WORLD_WGSL',
+  [
+    recordTextureWgsl(COLD_TABLE, {
+      name: 'cold',
+      group: VSM_RENDER_WORLD_GROUP,
+      binding: 0,
+      access: 'read',
+    }),
+    frameTableWgsl('frames', { group: VSM_RENDER_WORLD_GROUP, binding: 1, access: 'read' }),
+    worldGateWgsl('params.worldLinks'),
+  ],
+  '',
+)
+
 /**
  * What a candidates kernel reads of the caster rows — group 0: 0 params (uniform, dynamic), 1 page
  * table rows (`pages`), 2 row spheres, 3 row mobility words, 4 row levels of detail, 5
- * candidates (rw), 6 counters (rw atomic) — and the main view's pixels of a row's error: the
+ * candidates (rw), 6 counters (rw atomic); group 1 the camera cut's world switch
+ * (`VSM_RENDER_WORLD_WGSL`) — and the main view's pixels of a row's error: the
  * opaque rows' (`vsmRenderCandidatesWgsl`) and the blended rows' (`../transmission/transmissionClearWgsl.ts`).
  */
 export const VSM_RENDER_ROWS_WGSL = wgslBlock(
@@ -37,6 +68,7 @@ export const VSM_RENDER_ROWS_WGSL = wgslBlock(
     projectedBoundWgsl(VSM_INF),
     CUT_RULE_WGSL,
     matrixWindingCw,
+    VSM_RENDER_WORLD_WGSL,
   ],
   `
 struct VsmRenderSphere{c:vec4f,l:vec4f,}
@@ -66,9 +98,12 @@ fn vsmRenderCandidateFlags(word:u32,deformOutput:u32)->u32{
  return VSM_RENDER_CAND_DYNAMIC|select(0u,VSM_RENDER_CAND_DEFORMING,deformOutput!=0u);
 }
 /** Whether a row casts nothing into the pass: no corners, a sprite, a placement that casts no shadow,
- *  or a row of the other kind — \`blend\` the blended casters the transmission takes, else the opaque ones. */
+ *  a row of the other kind — \`blend\` the blended casters the transmission takes, else the opaque
+ *  ones —, or a row the camera cut's world switch does not draw (\`worldDraws\`, on its packed page
+ *  and its placement): a world cluster whose cell hides its actor, a placement whose HLOD 0 cell
+ *  draws none of its own. A shadow comes from what the view draws alone, a voxel row's as any. */
 fn vsmRenderCasterSkipped(page:PageInfo,row:u32,blend:bool)->bool{
- return page.indexCount==0u||((page.flags&${FLAG_BLEND_CASTER}u)!=0u)!=blend||(page.flags&${FLAG_SPRITE}u)!=0u||(mobility[row]&${MOBILITY_SHADOWLESS}u)!=0u;
+ return page.indexCount==0u||((page.flags&${FLAG_BLEND_CASTER}u)!=0u)!=blend||(page.flags&${FLAG_SPRITE}u)!=0u||(mobility[row]&${MOBILITY_SHADOWLESS}u)!=0u||!worldDraws(page.selectionIndex,page.placement);
 }
 /** Appends the row's candidate when the main view's level of detail, residency folded, selects it,
  *  with the corners it draws: \`corners\` (its indices, twice for a two-sided row of the opaque raster,

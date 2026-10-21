@@ -12,10 +12,11 @@
 //! it, so siblings stand for disjoint triangles.
 use super::ERROR_PER_SIZE;
 use crate::dag::{DagCluster, DagGroup, DAG_CLUSTER_TRIANGLES};
-use std::collections::HashMap;
-use trillion3d_math::triangle::triangle_area;
-use trillion3d_math::vec3::point;
-use trillion3d_math::vecn::{distance2, mean};
+use trillion3d_math::geometry::triangle::triangle_area;
+use trillion3d_math::vector::vec3::point;
+use trillion3d_math::vector::vecn::{distance2, mean};
+use trillion3d_page_codec::encode::vertices::first_use;
+use trillion3d_page_codec::hash::WordMap;
 
 pub(crate) struct SeedGroup {
     /// Rank among the primitive's DAG groups, as the structure report lists them; one past the
@@ -61,10 +62,7 @@ impl SeedGroup {
         let mut triangles = 0;
         for &c in children {
             let child = &dag[c];
-            let mut corners = child.indices.clone();
-            corners.sort_unstable();
-            corners.dedup();
-            seed.vertices += corners.len();
+            seed.vertices += first_use(child.indices.iter().copied()).0.len();
             let corner = |t: &[u32], k: usize| point(pos, t[k]);
             seed.area += (child.indices.chunks_exact(3))
                 .map(|t| triangle_area(corner(t, 0), corner(t, 1), corner(t, 2)))
@@ -91,25 +89,33 @@ impl SeedGroup {
 }
 
 /// A mesh's shape preservation: `Voxelize` for a mesh the job voxelizes — by its `voxelize`
-/// match, its HLOD `voxel` chain or its own glTF `extras.shapePreservation` (`VOXELIZE_EXTRA`,
-/// `"none"` the default, or `"voxelize"`; any other word reads as `None`) —
-/// (`compiler_args::VoxelizeOptions::meshes`).
+/// match, its HLOD `voxel` chain or its own glTF `extras.shapePreservation` (`VOXELIZE_EXTRA`:
+/// `"none"` the default, `"area"` or `"voxelize"`; any other value refuses the job) —
+/// (`compiler::args::voxelize::VoxelizeOptions::meshes`); `Area` for a mesh whose extras name `"area"`, its
+/// simplification keeping the area its border loses (`simplify::SolveRules::keep_area`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum ShapePreservation {
     #[default]
     None,
+    Area,
     Voxelize,
 }
 
 impl ShapePreservation {
-    /// The setting glTF mesh `mesh`'s own `extras` names.
-    pub(crate) fn of(mesh: &serde_json::Value) -> Self {
-        let named = (mesh.get("extras"))
-            .and_then(|e| e.get(crate::shared_math::abi::VOXELIZE_EXTRA))
-            .and_then(|v| v.as_str());
-        match named {
-            Some("voxelize") => Self::Voxelize,
-            _ => Self::None,
+    /// The setting glTF mesh `mesh`'s own `extras` names, `None` when they name none; a value
+    /// that is not one of the three words is the job's refusal (`INVALID_OPTIONS`), as any
+    /// option's.
+    pub(crate) fn of(mesh: &serde_json::Value) -> crate::Result<Self> {
+        let key = crate::shared_math::abi::VOXELIZE_EXTRA;
+        let named = (mesh.get("extras").and_then(|e| e.get(key))).filter(|v| !v.is_null());
+        match named.map(|v| v.as_str()) {
+            None | Some(Some("none")) => Ok(Self::None),
+            Some(Some("area")) => Ok(Self::Area),
+            Some(Some("voxelize")) => Ok(Self::Voxelize),
+            Some(_) => Err(crate::CompilerError::new(
+                "INVALID_OPTIONS",
+                format!("A mesh's extras.{key} must be \"none\", \"area\" or \"voxelize\""),
+            )),
         }
     }
 }
@@ -124,13 +130,14 @@ pub(crate) struct VoxelSeed {
 }
 
 impl VoxelSeed {
-    /// The seed of a DAG: `pos` the arrays its clusters index, `indices` its level-0 triangles,
-    /// `shape` its mesh's setting. Empty unless `Voxelize`: voxels are tried on no other mesh.
+    /// The seed of a DAG: `pos` the arrays its clusters index, `indices` its level-0 triangles
+    /// and `source` each one's rank among the source's triangles — the ranks the voxels sample
+    /// the mesh's triangles by (`DagBuild::triangle_source`) —, `shape` its mesh's setting. Empty
+    /// unless `Voxelize`: voxels are tried on no other mesh.
     pub(crate) fn of(
         dag: &[DagCluster],
         groups: &[DagGroup],
-        pos: &[f32],
-        indices: &[u32],
+        (pos, indices, source): (&[f32], &[u32], &[u32]),
         shape: ShapePreservation,
     ) -> Self {
         if shape != ShapePreservation::Voxelize {
@@ -145,13 +152,13 @@ impl VoxelSeed {
             seeded.push(seed);
         }
         if !seeded.is_empty() {
-            own_triangles(dag, groups, (pos, indices), &mut seeded);
+            own_triangles(dag, groups, (pos, indices, source), &mut seeded);
         }
         let roots: Vec<usize> = (0..dag.len()).filter(|&c| dag[c].is_root()).collect();
         let level = dag.iter().map(|c| c.level).max().unwrap_or(0) + 1;
         let mut above = SeedGroup::of(dag, pos, (groups.len(), level, f64::INFINITY), &roots);
         above.num_parents = 1;
-        above.triangles = (0..(indices.len() / 3) as u32).collect();
+        above.triangles = source.to_vec();
         seeded.push(above);
         Self {
             groups: seeded,
@@ -165,13 +172,21 @@ fn centre(c: &DagCluster, pos: &[f32]) -> [f64; 3] {
     mean(c.indices.iter().map(|&v| point(pos, v)))
 }
 
-/// Fills each seeded group's level-0 triangles: every cluster holds the level-0 clusters it stands
-/// for, a level-0 cluster itself; a group gathers its children's and hands each to its output
-/// nearest it, centre to centre.
+/// A triangle's corners turned to start at its least vertex: one key whichever corner the strips
+/// of its cluster start it at (`dag::constrain_wide`).
+fn turned(corners: &[u32]) -> [u32; 3] {
+    let at = (0..3).min_by_key(|&k| corners[k]).unwrap_or(0);
+    [0, 1, 2].map(|k| corners[(at + k) % 3])
+}
+
+/// Fills each seeded group's level-0 triangles, as ranks among the source's (`source`, per
+/// triangle of `indices`): every cluster holds the level-0 clusters it stands for, a level-0
+/// cluster itself; a group gathers its children's and hands each to its output nearest it, centre
+/// to centre.
 fn own_triangles(
     dag: &[DagCluster],
     groups: &[DagGroup],
-    (pos, indices): (&[f32], &[u32]),
+    (pos, indices, source): (&[f32], &[u32], &[u32]),
     seeded: &mut [SeedGroup],
 ) {
     let centres: Vec<[f64; 3]> = dag.iter().map(|c| centre(c, pos)).collect();
@@ -182,9 +197,10 @@ fn own_triangles(
             _ => Vec::new(),
         })
         .collect();
-    // A triangle's rank by its corners; a repeated triangle takes its first rank.
-    let rank: HashMap<[u32; 3], u32> = (indices.chunks_exact(3).enumerate().rev())
-        .map(|(t, c)| ([c[0], c[1], c[2]], t as u32))
+    // A triangle's source rank by its corners, from whichever it starts; a repeated triangle takes
+    // its first rank.
+    let rank: WordMap<[u32; 3], u32> = (indices.chunks_exact(3).enumerate().rev())
+        .map(|(t, c)| (turned(c), source[t]))
         .collect();
     let mut next = seeded.iter_mut().peekable();
     for (g, group) in groups.iter().enumerate() {
@@ -204,7 +220,7 @@ fn own_triangles(
                 .iter()
                 .flat_map(|&l| dag[l as usize].indices.chunks_exact(3));
             let mut triangles: Vec<u32> = corners
-                .filter_map(|c| rank.get(&[c[0], c[1], c[2]]).copied())
+                .filter_map(|c| rank.get(&turned(c)).copied())
                 .collect();
             triangles.sort_unstable();
             seed.triangles = triangles;

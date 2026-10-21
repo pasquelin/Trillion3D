@@ -61,8 +61,10 @@ export function buildWorldSource(plan: WorldPlan) {
         // Each record's textures from its own cache: its chains, read from its folder.
         textureCaches: models.flatMap((model) => model.record.scene.textureCaches),
         ...{ framingLot: null, nodes: null },
-        // A world plays its models' clips through their own mixers, never through its session.
+        // A world plays its models' clips through their own mixers, never through its session; and
+        // their banks' tracks by their own clocks, which the models own (`loadedModel.ts`).
         clips: [],
+        banks: null,
         // Each model's cells follow the session's camera.
         partitions: models.flatMap((model) => modelPartitions(model)),
         // Each record's world roots once, whatever its placements: each one an instance of them.

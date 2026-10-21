@@ -51,7 +51,12 @@ function applyTotals(
   run: WebgpuPagesCore['run'],
   totals: Pick<
     GpuCut['result'],
-    'selectedTriangles' | 'transparentTriangles' | 'frustumRejected' | 'lodLevel'
+    | 'selectedTriangles'
+    | 'transparentTriangles'
+    | 'frustumRejected'
+    | 'lodLevel'
+    | 'occluded'
+    | 'postHidden'
   >,
   visible: number,
   ready: boolean,
@@ -61,6 +66,8 @@ function applyTotals(
   run.blendPagedTriangles = totals.transparentTriangles
   run.frustumRejected = totals.frustumRejected
   run.lodLevel = totals.lodLevel
+  run.occluded = totals.occluded
+  run.postHidden = totals.postHidden
   run.gpuMetricsReady = ready
 }
 

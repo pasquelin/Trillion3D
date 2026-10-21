@@ -12,6 +12,7 @@ const NAMES = [
   'frames',
   'cold',
   'tree',
+  'previous',
 ] as const
 
 /** The binding of each table of the selection kernel's group 0, read off the entries the

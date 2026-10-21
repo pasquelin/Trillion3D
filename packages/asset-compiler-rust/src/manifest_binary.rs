@@ -10,22 +10,18 @@
 //!   u32 magic 'WGMB' · u32 version · u32 columnCount · u32 reserved
 //!   columnCount × (u32 byteOffset, u32 byteLength)
 //!   column payloads, each starting on an 8-byte boundary
-use crate::texture_preview::{
+use crate::texture::{
     preview_block_bytes, preview_first_level, preview_level_count, preview_pixel_bytes,
     TexturePreview, FAMILIES,
 };
 use crate::Result;
 use serde_json::{json, Map, Value};
 
-#[cfg(test)]
-mod cone_tests;
 mod digests;
 pub(crate) mod format;
 mod laid;
 mod page;
 mod preview;
-#[cfg(test)]
-mod preview_tests;
 mod primitive;
 #[cfg(test)]
 mod tests;
@@ -62,8 +58,7 @@ const TEXTURE_PREVIEW_PIXELS: usize = 21;
 const TEXTURE_PREVIEW_BLOCKS: [usize; FAMILIES] = [22, 23, 24];
 const BUNDLE_DEPENDENCY_COUNT: usize = 25;
 const BUNDLE_DEPENDENCY: usize = 26;
-const PAGE_CONE: usize = 27;
-const COLUMNS: usize = 28;
+const COLUMNS: usize = 27;
 /// Numbers per level entry: texture, image, width, height, kind and provenance
 /// view, then the first carried level, their count, the start and length of its
 /// pixels, the atlas it serves, the count of levels baked as files, and the
@@ -89,7 +84,7 @@ pub(crate) fn is_lower_hex(value: &str) -> bool {
 }
 
 /// Bytes a page writes in each page column, whichever the page.
-const PAGE_COLUMN_WIDTHS: [(usize, usize); 9] = [
+const PAGE_COLUMN_WIDTHS: [(usize, usize); 8] = [
     (PAGE_BOUNDS, 48),
     (PAGE_SPHERE, 32),
     (PAGE_PARENT_SPHERE, 32),
@@ -98,7 +93,6 @@ const PAGE_COLUMN_WIDTHS: [(usize, usize); 9] = [
     (PAGE_U32, 4),
     (GEOMETRY_U32, 20),
     (PAGE_DEPTH_LAYER, 4),
-    (PAGE_CONE, 32),
 ];
 
 /// The columns of `primitives` encoded once — each one's slim record, and where its bytes start

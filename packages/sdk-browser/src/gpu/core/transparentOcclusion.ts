@@ -1,4 +1,9 @@
-import { CORNER_VALUES } from '../../geometry/partition/gpu/contract.ts'
+import { CORNER_VALUES } from './boxProjectWgsl.ts'
+import {
+  createProjectionUniformWriter,
+  PROJECTION_UNI,
+  type ProjectionFrame,
+} from './projectionUniform.ts'
 import { buildComputeStage } from './computeStages.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
@@ -15,23 +20,41 @@ export type TransparentOcclusion = NonNullable<
 >
 
 /** What the test borrows from the rest of the frame: the Hi-Z pyramid it just built and its
- *  levels uniform, the uniform the partition wrote for it, and the compact's verdict buffer. */
+ *  levels uniform, and the compact's verdict buffer. */
 type TransparentOcclusionSources = {
   pyramid: () => GPUTextureView | undefined
   levels: GPUBuffer
-  uniforms: GPUBuffer
   /** The verdict buffer the compact owns, read at each image: it follows the compact's growth. */
   occluded: () => GPUBuffer
 }
 
+/** The view an image was tested under, as the test keeps it and its audit reports it
+ *  (`../../blend/transparent/occlusionAudit.ts`). */
+export type AuditView = {
+  /** Width in pixels. */
+  width: number
+  /** Height in pixels. */
+  height: number
+  /** Nearest distance. */
+  near: number
+  /** View elements in double precision, as the image posted them. */
+  view: Float64Array
+  /** The camera's view-projection. */
+  viewProj: Float64Array
+}
+
+/** What an image tells the test before its compute pass (`begin`): the frame its boxes are
+ *  projected under, and what the image does with its occlusion (`CullStep`). */
+export type OcclusionFrame = ProjectionFrame & { cull: CullStep }
+
 /**
  * Occlusion of transparent clusters, done by the GPU, on the current frame's pyramid.
  *
- * It owns two buffers: the world corners of each transparent-table entry, as two
- * single-precision values, derived on the GPU only when a world matrix changes, and one bit per entry that
- * is never culled (`neverCulled`), which it never rejects. Everything else is
- * borrowed — pyramid, uniform, verdict buffer — so the rule applied to transparent clusters is
- * that of the opaques to the bit, and no frame pays two projections.
+ * It owns three buffers: the world corners of each transparent-table entry, as two
+ * single-precision values, derived on the GPU only when a world matrix changes, one bit per entry that
+ * is never culled (`neverCulled`), which it never rejects, and the frame's projection uniform, which
+ * it writes once an image (`begin`, `packProjectionUniform`). The pyramid, its levels and the
+ * verdict buffer are borrowed.
  */
 export async function createTransparentOcclusion(
   device: GPUDevice,
@@ -44,15 +67,38 @@ export async function createTransparentOcclusion(
   try {
     const made = await occlusionPipeline(device)
     if (!made) return freed(buffers)
+    const uniforms = device.createBuffer({
+      label: 'Trillion3D transparent occlusion uniform v1',
+      size: PROJECTION_UNI.words * 4,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    })
     o = {
-      ...{ device, entryCount, sources, ...buffers, ...made },
+      ...{ device, entryCount, sources, ...buffers, ...made, uniforms },
       ...{ bound: createWebgpuBindIdentity(), bindGroup: undefined, disposed: false },
       held: createHeldCopy(device, 'Trillion3D held transparent verdicts'),
       // A thread an entry.
       groups: workgroupCount(entryCount, WORKGROUP_THREADS),
+      writeUniform: createProjectionUniformWriter(),
+      // Copied, the camera's matrices being rewritten by the next image: the audit reads the last
+      // frame tested, never an earlier one.
+      kept: {
+        width: 0,
+        height: 0,
+        near: 0,
+        view: new Float64Array(16),
+        viewProj: new Float64Array(16),
+      },
+      lastFrame: undefined,
+      cull: 'follow',
+      drawsKept: false,
     }
     return {
-      /** The world corners of each entry, the entries pass's (`../../webgpu/transparent/
+      /** The view the last image tested was projected under; `undefined` before the first. */
+      get lastFrame() {
+        return o.lastFrame
+      },
+      begin: (frame: OcclusionFrame) => beginOcclusion(o, frame),
+      /** The world corners of each entry, the entries pass's (`../../blend/transparent/
        *  entryCorners.ts`): made anew by a growth. */
       get corners() {
         return o.corners
@@ -84,11 +130,12 @@ export async function createTransparentOcclusion(
        * Writes each entry's verdict for this frame. Without a fresh pyramid there is nothing to
        * walk: the buffer goes back to zero, and the compact keeps all its entries.
        */
-      encode: (encoder: GPUCommandEncoder, pyramidFresh: boolean, cull: OcclusionCull) =>
-        encodeOcclusion(o, encoder, pyramidFresh, cull),
+      encode: (encoder: GPUCommandEncoder, pyramidFresh: boolean) =>
+        encodeOcclusion(o, encoder, pyramidFresh),
       dispose() {
         o.disposed = true
         o.held.drop()
+        o.uniforms.destroy()
         freed(o)
       },
     }
@@ -114,11 +161,37 @@ type Occlusion = NonNullable<Awaited<ReturnType<typeof occlusionPipeline>>> & {
   groups: number
   /** The verdicts a frozen cut tested, kept aside (`./heldCopy.ts`). */
   held: HeldCopy
+  /** The frame's projection uniform (`begin`) and its writer. */
+  uniforms: GPUBuffer
+  writeUniform: ReturnType<typeof createProjectionUniformWriter>
+  /** The view the last image tested was projected under (`kept`), once one was. */
+  kept: AuditView
+  lastFrame: AuditView | undefined
+  /** What the image does with its occlusion (`OcclusionFrame.cull`). */
+  cull: CullStep
+  /** The image draws the verdicts a frozen cut kept again: it tests nothing. */
+  drawsKept: boolean
 }
 
-/** What the image's cull tells the test: the partition's step and whether it held its verdicts
- *  (`GpuPartition.cull`, `GpuPartition.held`). */
-type OcclusionCull = { readonly cull: CullStep; readonly held: boolean }
+/**
+ * The image's frame, before its compute pass: what it does with its occlusion, and, unless it draws
+ * a frozen cut's kept verdicts again — those images write neither, the uniform and the audit's frame
+ * staying the image's that tested them —, its projection uniform written and its view kept.
+ */
+function beginOcclusion(o: Occlusion, frame: OcclusionFrame) {
+  if (o.disposed) return
+  o.cull = frame.cull
+  o.drawsKept = frame.cull === 'held' && o.held.holds(o.sources.occluded())
+  if (o.drawsKept) return
+  o.writeUniform(o.device, o.uniforms, frame)
+  const { kept } = o
+  kept.width = frame.width
+  kept.height = frame.height
+  kept.near = frame.near
+  kept.view.set(frame.view)
+  kept.viewProj.set(frame.viewProj)
+  o.lastFrame = kept
+}
 
 /** The test's own buffers freed at once: none was ever named by a submitted command. */
 function freed(buffers: { corners: GPUBuffer; unculled: GPUBuffer }) {
@@ -162,25 +235,20 @@ async function occlusionPipeline(device: GPUDevice) {
 }
 
 /**
- * The image's verdicts, as its cull says (`CullStep`, `../../geometry/partition/gpu/types.ts`): an image that draws a
- * frozen cut's kept verdicts again puts back the transparents' too, or keeps every entry where it
- * cannot — its test would read a partition uniform the held image did not write; the first image of
- * a frozen cut tests and keeps its verdicts; an image that follows the camera drops them.
+ * The image's verdicts, as its cull says (`CullStep`): an image that draws a frozen cut's kept
+ * verdicts again puts them back, or keeps every entry where it cannot — its test would read a
+ * uniform it did not write (`beginOcclusion`); the first image of a frozen cut tests and keeps its
+ * verdicts; an image that follows the camera drops them.
  */
-function encodeOcclusion(
-  o: Occlusion,
-  encoder: GPUCommandEncoder,
-  pyramidFresh: boolean,
-  cull: OcclusionCull,
-) {
+function encodeOcclusion(o: Occlusion, encoder: GPUCommandEncoder, pyramidFresh: boolean) {
   if (o.disposed) return
   const occluded = o.sources.occluded()
-  if (cull.held) {
+  if (o.drawsKept) {
     if (o.held.restore(encoder, occluded)) return
     encoder.clearBuffer(occluded, 0, o.entryCount * 4)
   } else testOcclusion(o, encoder, pyramidFresh, occluded)
-  if (cull.cull === 'held') o.held.keep(encoder, occluded)
-  else if (cull.cull === 'follow') o.held.drop()
+  if (o.cull === 'held') o.held.keep(encoder, occluded)
+  else if (o.cull === 'follow') o.held.drop()
 }
 
 /** Each entry's verdict on this image's pyramid; all kept without a fresh one. */
@@ -201,7 +269,7 @@ function testOcclusion(
   next[1] = occluded
   next[2] = o.corners
   next[3] = o.unculled
-  next[4] = sources.uniforms
+  next[4] = o.uniforms
   next[5] = sources.levels
   if (o.bound.moved())
     o.bindGroup = o.device.createBindGroup({
@@ -210,7 +278,7 @@ function testOcclusion(
         { buffer: o.corners },
         pyramid,
         { buffer: occluded },
-        { buffer: sources.uniforms },
+        { buffer: o.uniforms },
         { buffer: o.unculled },
         { buffer: sources.levels },
       ]),

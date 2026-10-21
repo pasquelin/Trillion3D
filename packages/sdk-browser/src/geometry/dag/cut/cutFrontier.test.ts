@@ -10,9 +10,8 @@
 // persistence must face: the camera jump and the animated scene.
 //
 // It also measures the OTHER half of the problem, which persistence does not touch:
-// top-down reject. The replacement error ceiling only drops a too-fine subtree; the
-// own-error floor, which packing derives from the pages and stores in the node, also drops the too-
-// coarse — nothing from the compiler, nothing from the format.
+// top-down reject. The replacement error ceiling only drops a too-fine subtree; a leaf's least
+// own error, which the compiler stores in the node, also drops the too-coarse.
 import test from 'node:test'
 import { asHostLibrary } from '../../../session/host/resources.ts'
 import assert from 'node:assert/strict'
@@ -24,17 +23,18 @@ import { engineCamera } from '../../../camera/camera.fixture.ts'
 import { descenteComptee } from './cutFrontier.fixture.ts'
 import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
 import { packedWorldsToRenderOrigin } from '../pack/pack.fixture.ts'
+import { CULLING_FANOUT } from '../../../../../sdk-core/src/contracts/writtenFormats.ts'
 
 const pages = scenePages(16384, 8)
-/** The hierarchy every cache and cut carries (`build_culling_bvh`): one node per detail level under
- *  the root, each level its own spatial tree, PURE PER LEVEL. */
+/** The hierarchy every cache and cut carries (`build_culling_bvh`): each detail level its own
+ *  spatial tree, PURE PER LEVEL, the levels' roots under the one root. */
 function montage() {
   const roots = sceneRoots(
     pages,
     Array.from({ length: 12 }, () => new Matrix4()),
   )
-  // Packing derives page bounds and stores the floor in the node
-  // (`../pack/packNodes.ts`): counted descent reads it where the GPU reads it, not beside it.
+  // Packing copies each node's least own error (`../pack/packNodes.ts`): counted descent reads it
+  // where the GPU reads it, not beside it.
   return { roots, packed: packDagSelection(roots) }
 }
 const MONTAGES = [['compiler hierarchy (one node per level)', montage()]] as const
@@ -110,13 +110,13 @@ test('the descent frontier is what no exact persistence can save', () => {
         internesParImage: internes / 8,
         candidatsParImage: candidats / 8,
         // Cap of an exact persistence: internals, plus the parent test of a rejected node,
-        // one per sibling group of eight. Relative to everything the frame rereads, nodes
-        // and candidate clusters.
+        // one per sibling group of `CULLING_FANOUT`. Relative to everything the frame rereads,
+        // nodes and candidate clusters.
         plafondPourCent: Number(
-          ((100 * (internes + rejected / 8)) / (visites + candidats)).toFixed(2),
+          ((100 * (internes + rejected / CULLING_FANOUT)) / (visites + candidats)).toFixed(2),
         ),
-        // TOP-DOWN reject, the one the CPU cut already applies: nodes whose subtree
-        // has no cluster fine enough, and the candidates they carry.
+        // TOP-DOWN reject, the one the CPU cut already applies: leaves with no cluster fine
+        // enough, and the candidates they carry.
         nodeFloorPerImage: plancherCoupe / 8,
         candidatesRetireesParImage: (candidats - candidatesWithFloor) / 8,
         tooCoarseCandidatesPerImage: tooCoarse / 8,
@@ -141,14 +141,19 @@ test('the descent frontier is what no exact persistence can save', () => {
     ),
   )
   for (const ligne of lignes) {
-    // The frontier is almost all of descent: in an eight-child tree internals are about
-    // a seventh of what they carry, a bit more near the root where nodes are not full.
-    // What the threshold holds is the order of magnitude: never a sixth.
+    // The frontier is most of descent: in a tree of `CULLING_FANOUT` children internals are about
+    // one in `CULLING_FANOUT - 1` of what they carry, a bit more near the root where nodes are not
+    // full. What the threshold holds is the order of magnitude: never one in `CULLING_FANOUT - 2`.
     assert.ok(
-      ligne.internesParImage * 6 <= ligne.frontiereParImage,
+      ligne.internesParImage * (CULLING_FANOUT - 2) <= ligne.frontiereParImage,
       `${ligne.regime}: internals ${ligne.internesParImage} for a frontier of ${ligne.frontiereParImage}`,
     )
-    assert.ok(ligne.plafondPourCent < 5, `${ligne.regime}: ceiling ${ligne.plafondPourCent} %`)
+    // The internals are one node in `CULLING_FANOUT` of those visited, so the cap stays under one
+    // reread in `CULLING_FANOUT` of the frame's, the parent tests of rejected nodes included.
+    assert.ok(
+      ligne.plafondPourCent < 100 / CULLING_FANOUT,
+      `${ligne.regime}: ceiling ${ligne.plafondPourCent} %`,
+    )
     // Top-down reject is SAFE: it never drops anything but a candidate that is actually too coarse.
     assert.ok(
       ligne.candidatesRetireesParImage <= ligne.tooCoarseCandidatesPerImage,

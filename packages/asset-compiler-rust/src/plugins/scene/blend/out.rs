@@ -5,7 +5,7 @@
 //! copy: it creates them. Each array goes into the binary through an aligned view, and the
 //! accessor that names it carries the bounds glTF requires of positions.
 use super::*;
-use crate::import::SceneTables;
+use crate::plugins::scene::convert::SceneTables;
 
 /// The intermediate scene under construction.
 #[derive(Default)]

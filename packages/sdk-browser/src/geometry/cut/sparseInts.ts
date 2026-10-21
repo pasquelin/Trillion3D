@@ -15,6 +15,10 @@ import { grownLength } from '../../../../math/src/sequence/resized.ts'
  */
 const EMPTY = -1
 const MIN_SLOTS = 16
+/** How many ids a map tells apart: 0 to 2^31 − 1, the non-negative words of its `Int32Array`
+ *  keys, `-1` the empty one. Every per-page state of the cut is keyed so — a packed page's,
+ *  a catalogue key's —, so neither a packing nor a catalogue holds more. */
+export const SPARSE_IDS = 2 ** 31
 
 /** What a map tells a reader that holds a copy of its two tables (`keys`, `values`): each slot it
  *  writes — a set, an entry shifted back —, and each time the tables are replaced or emptied whole

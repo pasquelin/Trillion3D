@@ -2,7 +2,7 @@
  * THE TRANSPARENT ENTRIES' WORLD CORNERS, DERIVED ON THE GPU (`entryCornersWgsl.ts`), the rows pass's
  * second list: a transparent cluster claims no visibility row, so the occlusion test reads its own
  * corners, an entry each of the transparent table. An entry's inputs — its page's box grown by its
- * reach (`grownRowBox`) and its root's rank — are written when the entry is (a new table, a page
+ * reach (`grownPageBox`) and its root's rank — are written when the entry is (a new table, a page
  * bounded elsewhere); its corners are derived from its root's world whenever that root moves, the
  * entries of a moved root alone, never the table.
  */
@@ -17,7 +17,9 @@ import { liveBuffer } from '../../gpu/bind/liveEntries.ts'
 import { COMPOSE_ROWS_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { composeGroup, heldGroup } from '../../gpu/bind/bindIdentity.ts'
 import { passParams, writePassParams } from '../../gpu/core/passParams.ts'
-import { grownRowBox } from '../../placement/rows/rowInputPack.ts'
+import { boxGrow } from '../../../../math/src/geometry/box.ts'
+import { rowBox, rowGrowth } from '../../visibility/hiz/corners.ts'
+import type { PageRec } from '../../geometry/selection/types.ts'
 import { rootOf, rootOfPacked } from '../../geometry/selection/placements.ts'
 import { neverCulled } from '../../visibility/shader/spriteWgsl.ts'
 import { setBit } from '../../../../math/src/scalar/bits.ts'
@@ -29,6 +31,21 @@ import { ENTRY_CORNERS_ENTRY, ENTRY_CORNERS_WGSL, ENTRY_INPUT_DOUBLES } from './
 const ENTRY_WORDS = ENTRY_INPUT_DOUBLES * 2
 /** Entries one write sends at most: the scratch a run is packed in stays this size. */
 const RUN_ENTRIES = 1024
+
+/** A page's box, flat, as the growth by its reach reads it. */
+const flat = new Float64Array(6)
+
+/** The box of page `rec` grown by its reach under a root of reach `rootReach` (`rowGrowth`), flat —
+ *  its low corner then its high one — into `into` from `o`: what an entry's eight corners are made
+ *  of. */
+function grownPageBox(into: Float64Array, o: number, rec: PageRec, rootReach?: number) {
+  const { min, max } = rowBox(rec)
+  for (let axis = 0; axis < 3; axis++) {
+    flat[axis] = min[axis]
+    flat[3 + axis] = max[axis]
+  }
+  boxGrow(into, o, flat, 0, rowGrowth(rec, rootReach))
+}
 
 /** The entries kernel, once a device, compiled off the thread (`askEntryCorners`). */
 const entryKernel = autoKernel(COMPOSE_ROWS_PASS, ENTRY_CORNERS_WGSL, ENTRY_CORNERS_ENTRY)
@@ -110,7 +127,7 @@ export function sendEntryInputs(
         at = (entry - first) * ENTRY_WORDS
       if (!rec) continue
       const rank = rootOfPacked(placement, page)
-      grownRowBox(held.box, 0, rec, rootOf(selectionRoots, rank).reach)
+      grownPageBox(held.box, 0, rec, rootOf(selectionRoots, rank).reach)
       packDoubles(words, at, held.box)
       words[at + 12] = rank
       words[at + 14] = 1

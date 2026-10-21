@@ -31,7 +31,7 @@ fn three_imports_of_an_obj_give_the_same_key() {
     let obj = obj_source(&root, "obj", "newmtl Uni\nKd 1 1 1\n");
     let [une, two, trois] = three_keys(&obj, "identite-obj");
     assert_eq!(une, two, "two conversions of the same bytes, one key");
-    assert_eq!(two, trois, "the third does not drift either");
+    assert_eq!(two, trois, "the third does not change either");
 
     fs::write(obj.with_file_name("scene.mtl"), "newmtl Uni\nKd 0 1 0\n").expect("mtl");
     let modifiee = key_in_a_fresh_cache(&obj, "identite-obj-mtl");
@@ -53,7 +53,7 @@ fn three_imports_of_a_usd_layer_give_the_same_key() {
         })
         .collect();
     assert_eq!(keys[0], keys[1], "two conversions, one key");
-    assert_eq!(keys[1], keys[2], "the third does not drift either");
+    assert_eq!(keys[1], keys[2], "the third does not change either");
 
     let autre = compile_layer(
         "identite-usd-autre",

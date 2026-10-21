@@ -3,30 +3,17 @@
 use super::invariants::Built;
 use super::*;
 
-/// Every cluster's page decodes back to its source positions and attributes, within the error
-/// the page declares.
+/// Every cluster's page decodes back to its source positions and attributes, within what the grid
+/// of the mesh's clusters holds.
 pub(super) fn check_pages(built: &Built, label: &str) {
     let (positions, attributes) = (&built.positions, &built.attributes);
     let carried: Vec<&encode::Attribute> = attributes.iter().collect();
-    let exponent = crate::geometry_page_quant::primitive_exponent(
-        positions,
-        built
-            .dag
-            .iter()
-            .filter(|c| c.level > 0)
-            .map(|c| c.lod_error),
-        false,
-        trillion3d_page_codec::bits::grid::TILE_EXTENT_LOG2,
-    );
+    let extents = crate::geometry_page::quant::page_extents(positions, &built.dag);
+    let grid = crate::geometry_page::quant::page_grid(Default::default(), &extents)
+        .unwrap_or_else(|e| panic!("{label}: grid: {e:?}"));
     for cluster in &built.dag {
-        let encoded = encode::encode(
-            &cluster.indices,
-            positions,
-            &carried,
-            exponent,
-            trillion3d_page_codec::bits::grid::UV_EXPONENT,
-        )
-        .unwrap_or_else(|e| panic!("{label}: encode level {}: {e}", cluster.level));
+        let encoded = encode::encode(&cluster.indices, positions, &carried, grid)
+            .unwrap_or_else(|e| panic!("{label}: encode level {}: {e}", cluster.level));
         let page = trillion3d_page_codec::decode(&encoded.bytes, 64 << 20)
             .unwrap_or_else(|e| panic!("{label}: decode level {}: {e:?}", cluster.level));
         crate::tests::geometry_page::codec::verify(
@@ -34,7 +21,7 @@ pub(super) fn check_pages(built: &Built, label: &str) {
             &cluster.indices,
             positions,
             attributes,
-            page.quantization_error,
+            crate::tests::geometry_page::codec::position_bound(grid),
         );
     }
 }

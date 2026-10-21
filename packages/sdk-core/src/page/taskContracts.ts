@@ -1,13 +1,12 @@
 import type { RuntimeCutProxy } from '../contracts/proxy.ts'
-import type { CullingHierarchy, Page } from '../contracts/geometry.ts'
+import type { CullingHierarchy } from '../contracts/geometry.ts'
 import type { readCellPage } from '../scene/core/tablePartition.ts'
 
 /**
- * Off-main-thread page-task contract, version 11: `cut` turns drawn triangles into pages, which
- * come back as bytes with their descriptors and their normal cone, in the order of the culling
- * hierarchy that comes back with them (version 10), the packed triangles carrying
- * whether their pages keep one; `cells` reads a partition's cell file into the rows it places,
- * `cellPage` a page of its cell index (#575), and `blocks` decodes a texture tile's BC blocks to
+ * Off-main-thread page-task contract, version 12: `cut` turns drawn triangles into pages, which
+ * come back as bytes with their descriptors, in the order of the
+ * culling hierarchy that comes back with them (version 10); `cells` reads a partition's cell file
+ * into the rows it places, `cellPage` a page of its cell index (#575), and `blocks` decodes a texture tile's BC blocks to
  * RGBA8 for a device that samples none (version 11, `texture/blockDecode.ts`). No geometry page is decoded on the CPU: the GPU reads
  * it in place (#1483), and a fetched page's digest is taken where it lands (`crypto.subtle`, which
  * runs off the main thread already).
@@ -22,11 +21,12 @@ import type { readCellPage } from '../scene/core/tablePartition.ts'
  * synchronous fallback) returns exactly the same values: the contract does not say how the work
  * travels, only what it returns.
  */
-export const PAGE_TASK_PROTOCOL = 11
+export const PAGE_TASK_PROTOCOL = 12
 
-/** `cut`: drawn triangles, packed as five lengths, whether their pages keep a cone, whether a
- *  blended material wears them, then five four-byte arrays (`packDrawn`), cut into pages. `cells`:
- *  a partition's cell file, read into each node's parent, mesh and local matrix. `cellPage`: a page
+/** `cut`: drawn triangles, packed as five lengths, whether they are faces, whether a blended
+ *  material wears them, then five four-byte arrays (`packDrawn`), cut into pages. `cells`:
+ *  a partition's cell file, read into each node's parent, mesh, local matrix, track and whether it
+ *  is drawn from its parent's own mesh. `cellPage`: a page
  *  of its cell index, read into the pages it lists or its cells. `blocks`: a tile record's BC7
  *  blocks — BC5 when `blocks.twoChannel` —, decoded to RGBA8. */
 export type PageTaskOp = 'cut' | 'cells' | 'cellPage' | 'blocks'
@@ -46,17 +46,12 @@ export interface PageCutPage {
   /** Indices in the page. */ indexCount: number
   /** Which attributes it carries. */ flags: number
   /** Its size once unpacked. */ uncompressedBytes: number
-  /** The cone of its triangles' normals, when one was built. */
-  cone?: Page['cone']
 }
-/** What a `cut` returns: its pages, and the grids they were quantized on. */
+/** What a `cut` returns: its pages. */
 export interface PageCutPayload {
   /** The pages written, in the order of their culling hierarchy. */ pages: PageCutPage[]
   /** Their culling hierarchy, in the manifest's node layout (`page-codec-wasm/src/culling.rs`). */
   culling: CullingHierarchy
-  /** Grid step of positions, as a power of two. */ positionExponent: number
-  /** Grid step of texture coordinates, as a power of two. */ uvExponent: number
-  /** Largest position error on that grid. */ maxPositionError: number
   /** The cut's own proxy, for the faces a light's ray or a reflection can meet; absent for lines,
    *  sprites, blended, skinned or rewritten faces. */
   proxy?: RuntimeCutProxy
@@ -88,9 +83,17 @@ export type PageTaskBlocks = {
   /** `cut`: the pages, their bytes transferred. Absent otherwise. */
   cut?: PageCutPayload
   /** `cells`: per node, its core parent's rank (`-1`: the scene root) and its mesh's in `ranks`,
-   *  two 32-bit integers, and the local matrix the engine composes for its pose in `locals`,
-   *  sixteen doubles; both transferred. Absent otherwise. */
-  cells?: { nodes: number; ranks: ArrayBuffer; locals: ArrayBuffer }
+   *  two 32-bit integers, the local matrix the engine composes for its pose in `locals`, sixteen
+   *  doubles, the item of the scene's animation banks it plays in `tracks`, one 32-bit integer
+   *  (`-1`: none), and whether it is drawn from its parent's own host mesh in `sources`, one byte;
+   *  all transferred. Absent otherwise. */
+  cells?: {
+    nodes: number
+    ranks: ArrayBuffer
+    locals: ArrayBuffer
+    tracks: ArrayBuffer
+    sources: ArrayBuffer
+  }
   /** `cellPage`: the page's slots, or its cells (`readCellPage`). Absent otherwise. */
   cellPage?: ReturnType<typeof readCellPage>
   /** `blocks`: the RGBA8 texels, whole blocks wide (`decodeBcLevel`), transferred. */

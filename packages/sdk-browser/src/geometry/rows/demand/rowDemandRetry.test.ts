@@ -68,14 +68,6 @@ test('the demand is served in the GPU’s order: a nearer new request before an 
   tried.length = 0
   demand.serve(() => true, refuse)
   assert.deepEqual(tried, [2])
-  // Ahead requests follow the camera's, in their own order.
-  demand.follow({ pageIds: [2, 1], aheadPageIds: [3, 0] })
-  tried.length = 0
-  demand.serve(
-    () => true,
-    (page) => (tried.push(page), true),
-  )
-  assert.deepEqual(tried, [2, 1, 3, 0])
 })
 
 test('the demand’s bytes count its closures and every list it keeps', () => {

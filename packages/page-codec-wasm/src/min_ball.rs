@@ -1,18 +1,15 @@
 //! The smallest ball enclosing a set of points, by randomised incremental construction in its
 //! iterative form: one nested scan per support point, over a deterministic shuffle of the points
-//! (expected linear time, the same result on every host). The normal cone (`normal_cone.rs`)
-//! takes the ball of the unit face normals; it is the one smallest-ball solver, for points and for
-//! the ball of balls a DAG group and a culling node (`culling.rs`) enclose their children's with
-//! (`ball_of_balls`), exact by pivoting on its support (`through::basis`).
+//! (expected linear time, the same result on every host); it is the one smallest-ball solver of
+//! points. The balls a DAG group and a culling node enclose their children's with are the
+//! reference's ball of balls (`balls.rs`), never the smallest.
 use circumscribed::{circumscribed, diameter};
-use through::basis;
-use trillion3d_math::random::xorshift64;
-use trillion3d_math::sphere::farthest;
-use trillion3d_math::vec3::point;
-use trillion3d_math::vecn::{dot, length, sub};
+use trillion3d_math::geometry::sphere::farthest;
+use trillion3d_math::sequence::random::xorshift64;
+use trillion3d_math::vector::vec3::point;
+use trillion3d_math::vector::vecn::{dot, sub};
 
 mod circumscribed;
-mod through;
 
 /// A ball as its centre and radius.
 pub type Ball = ([f64; 3], f64);
@@ -107,46 +104,6 @@ pub fn point_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
     } else {
         [0.0; 4]
     }
-}
-
-/// Relative margin the ball of balls is inflated by, of its coordinates' magnitude: containment
-/// then survives the float64 rounding of any re-check (8.5e-14 m outside without it at 1 km).
-const CONTAINMENT_MARGIN: f64 = 1e-12;
-
-/// The smallest sphere enclosing `spheres` (those of negative radius are absent), exactly, by
-/// pivoting: the support of the current ball (at most four spheres) takes in the first sphere it
-/// does not hold, and `basis` gives the smallest ball of that support and the newcomer. Each pivot
-/// grows the ball, so it stops, at a ball the smallest of its support that holds every sphere:
-/// the smallest ball of all. Never larger than any other enclosing sphere. Its radius is then
-/// re-measured from the final centre — the rule the runtime's containment proof reads —, so every
-/// sphere is inside by construction, and raised by `CONTAINMENT_MARGIN`. No sphere gives the zero
-/// sphere; one, itself.
-pub fn ball_of_balls(spheres: &[[f64; 4]]) -> [f64; 4] {
-    let mut live: Vec<[f64; 4]> = spheres.iter().copied().filter(|s| s[3] >= 0.0).collect();
-    match live.len() {
-        0 => return [0.0; 4],
-        1 => return live[0],
-        _ => {}
-    }
-    shuffle(&mut live);
-    let holds = |ball: &[f64; 4], b: &[f64; 4]| {
-        let d = sub([b[0], b[1], b[2]], [ball[0], ball[1], ball[2]]);
-        length(d) + b[3] <= ball[3] * (1.0 + SLACK) + 1e-300
-    };
-    let (mut support, mut ball) = (vec![live[0]], live[0]);
-    // In exact arithmetic every pivot grows the ball; the bound only guards against rounding
-    // cycling between equal balls, whose re-measured radius below holds every sphere anyway.
-    for _ in 0..4 * live.len() + 64 {
-        let Some(outside) = live.iter().find(|b| !holds(&ball, b)) else {
-            break;
-        };
-        support.push(*outside);
-        (support, ball) = basis(&support);
-    }
-    let c = [ball[0], ball[1], ball[2]];
-    let r = farthest(c, live.iter().map(|s| ([s[0], s[1], s[2]], s[3])));
-    let magnitude = c[0].abs().max(c[1].abs()).max(c[2].abs()).max(r);
-    [c[0], c[1], c[2], r + magnitude * CONTAINMENT_MARGIN]
 }
 
 #[cfg(test)]

@@ -6,7 +6,13 @@ import type { PageRec, ClusterRoot } from '../../geometry/selection/types.ts'
 import type { BlendGpuItem } from '../state.ts'
 import { createTransparentTable, TRANSPARENT_GROUP } from './table.ts'
 import { evaluateTransparentCompaction } from './compactCpu.fixture.ts'
-import { CULL_STRIDE } from '../../geometry/dag/types.ts'
+import {
+  CULL_CHILD_COUNT as CHILDREN,
+  CULL_FIRST_CHILD as FIRST_CHILD,
+  CULL_FIRST_PAGE as FIRST_PAGE,
+  CULL_PAGE_COUNT as PAGES,
+  CULL_STRIDE,
+} from '../../geometry/dag/types.ts'
 import { lcgMaskedRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 const mesh = (name: string) => ({ name }) as unknown as HostMesh
@@ -26,14 +32,14 @@ function root(pages: PageRec[], leaves?: number[][]): ClusterRoot<PageRec> {
   if (!leaves) return { pages, world } as unknown as ClusterRoot<PageRec>
   // A root node over `leaves.length` leaves, each holding a contiguous run of pages.
   const nodes = new Float64Array((leaves.length + 1) * CULL_STRIDE)
-  nodes[12] = leaves.length
-  nodes[11] = 1
+  nodes[CHILDREN] = leaves.length
+  nodes[FIRST_CHILD] = 1
   let first = 0
   for (let leaf = 0; leaf < leaves.length; leaf++) {
     const base = (leaf + 1) * CULL_STRIDE
-    nodes[base + 12] = 0
-    nodes[base + 13] = first
-    nodes[base + 14] = leaves[leaf].length
+    nodes[base + CHILDREN] = 0
+    nodes[base + FIRST_PAGE] = first
+    nodes[base + PAGES] = leaves[leaf].length
     first += leaves[leaf].length
   }
   return {
@@ -56,12 +62,14 @@ function walk(source: ClusterRoot<PageRec>) {
   const stack = [0]
   while (stack.length) {
     const base = stack.pop()! * culling.stride,
-      children = culling.nodes[base + 12]
+      children = culling.nodes[base + CHILDREN]
     if (children > 0) {
-      for (let child = 0; child < children; child++) stack.push(culling.nodes[base + 11] + child)
+      for (let child = 0; child < children; child++)
+        stack.push(culling.nodes[base + FIRST_CHILD] + child)
       continue
     }
-    for (let i = 0; i < culling.nodes[base + 14]; i++) order.push(culling.nodes[base + 13] + i)
+    for (let i = 0; i < culling.nodes[base + PAGES]; i++)
+      order.push(culling.nodes[base + FIRST_PAGE] + i)
   }
   return order
 }

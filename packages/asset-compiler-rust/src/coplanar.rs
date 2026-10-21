@@ -13,12 +13,12 @@
 //! Only opaque surfaces without an alpha mask take part. Transparent and masked surfaces keep the
 //! order they already had, and a surface that shares its plane with nobody keeps layer 0, which is
 //! the untouched draw.
-use crate::compiler_materials::{transmissive_material, AlphaMode};
-use crate::compiler_validate::{item, required_index, values};
+use crate::compiler::materials::{transmissive_material, AlphaMode};
+use crate::compiler::validate::{item, required_index, values};
 use crate::Result;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
-use trillion3d_math::aabb::longest_side;
+use trillion3d_math::geometry::aabb::longest_side;
 
 pub mod assign;
 pub mod groups;
@@ -94,7 +94,7 @@ pub struct CoplanarResult {
 /// million of its longest side, so the same surface always hashes to the same plane whatever
 /// instance carried it, and two floors a millimetre apart stay two floors.
 ///
-/// Not `trillion3d_math::aabb::extend_aabb` loop: each axis bound read and kept
+/// Not `trillion3d_math::geometry::aabb::extend_aabb` loop: each axis bound read and kept
 /// separately, readable page without `min` still carrying `max`.
 pub fn offset_quantum(primitives: &[Value]) -> f64 {
     let mut low = [f64::INFINITY; 3];
@@ -130,7 +130,7 @@ pub fn offset_quantum(primitives: &[Value]) -> f64 {
 pub fn assign_depth_layers(
     inputs: &CoplanarInputs<'_>,
     bounds: &CoplanarBounds,
-    world: &[crate::compiler_world::Mat4],
+    world: &[crate::compiler::source::node_transform::Mat4],
 ) -> Result<CoplanarResult> {
     let mut counts = Counts::default();
     let surfaces = surface::collect(inputs, bounds, &mut counts.dropped_planes, world)?;

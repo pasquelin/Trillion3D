@@ -32,7 +32,7 @@
  * a fragment: a deeper one, the screen march (`REFLECTION_MARCH_STEPS` iterations) and the probes, no proxy
  * ray. Floor: the opaque trace's own cost, on the T pixels the reflecting transparents cover.
  *
- * Bytes: 4 + 1 a pixel (depth, flags) with blends; 8 + 8 + 23 more (normals, radiance, the grid's 28
+ * Bytes: 4 + 4 a pixel (depth, flags) with blends; 8 + 8 + 23 more (normals, radiance, the grid's 28
  * a texel and the history's 16 a pixel, a word a tile, `gridBytes`) once a transparent reflects, the
  * lobes target's once one carries a lobe.
  */

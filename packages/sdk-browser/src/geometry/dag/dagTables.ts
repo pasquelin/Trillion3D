@@ -8,6 +8,7 @@ import { DAG_ARGS_INITIAL } from './shader/armWgsl.ts'
 import { createTreeTable } from './tree/treeTable.ts'
 import { createCutTables } from './cut/cutTables.ts'
 import type { TextureMaker } from '../../gpu/core/recordTexture.ts'
+import type { CutListCaps } from './lists/cutListCaps.ts'
 
 /** What makes the cut's buffers and its record tables' textures: its admission (`resources.ts`). */
 type CutMakers = {
@@ -24,9 +25,10 @@ export function dagTables(
   { own, ownTexture }: CutMakers,
   listCap: number,
   heldSlots: number,
+  caps: CutListCaps,
 ) {
-  const { rows, blockCount, workLayout, shape } = cameraCutBuffers(packed)
-  // The camera's block, then the view ahead's (`shader/aheadWgsl.ts`, `DAG_UNIFORM_BYTES`).
+  const { rows, blockCount, workLayout, shape } = cameraCutBuffers(packed, caps)
+  // The camera's block (`shader/viewsWgsl.ts`, `DAG_UNIFORM_BYTES`).
   const uniformData = new Float32Array(DAG_UNIFORM_BYTES / 4)
   const frameData = primitiveFrameWords(packed)
   const uniforms = own({
@@ -84,7 +86,10 @@ export function dagTables(
     cutTables,
     /** The cold words as the host writes them, a word at a time (`writeRanges`). */
     cold: cutTables.cold.target('Word'),
-    /** What `flags` holds now: its queues and lists grow on demand (`queueGrowth.ts`). */
+    /** What `flags` holds now: its lists at their caps, laid out again when they change
+     *  (`queueGrowth.ts`). */
     flagShape: shape,
+    /** The caps its lists hold now (`lists/cutListCaps.ts`), what their overflows are said against. */
+    listCaps: caps,
   }
 }

@@ -4,7 +4,8 @@
  * its first need, never the whole binary —, and its images are read from where the tables locate
  * them.
  * No glTF is parsed and no loader runs — the host objects are made by the files beside this one,
- * each under the rules the host loader applied, so the scene is the one it built.
+ * each under the rules the host loader applied, so the scene is the one it built. The scene's
+ * animation banks, read with it, are handed in: the tracks its instanced skinned objects play.
  */
 import { EngineError } from '../../../../../sdk-core/src/contracts/cache.ts'
 import type { ClusterManifest } from '../../../../../sdk-core/src/contracts/geometry.ts'
@@ -22,6 +23,7 @@ import { preparedMaterials } from './materials.ts'
 import { preparedTextures } from './textures.ts'
 import type { Texture } from '../../../../../sdk-core/src/world/texture/texture.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
+import type { AnimationBanks } from '../../../../../sdk-core/src/scene/core/animationBanks.ts'
 
 type Inputs = {
   tables: PreparedSceneTables
@@ -34,12 +36,15 @@ type Inputs = {
   meter?: ByteMeter
   /** Reads a range of a file: the page cache's (`PageCache.readRange`). */
   readRange: ReadRange
+  /** The scene's animation banks (`../../drive/scene.ts`), whose tracks its instanced skinned
+   *  objects play; absent or `null` for a scene with none. */
+  banks?: AnimationBanks | null
 }
 
 /** The scene, the mesh and primitive ranks each drawn host mesh answers to, the rank each host
  *  texture answers to, and how many images the cache spared. */
 export async function buildPreparedScene(inputs: Inputs) {
-  const { tables, metadata, base, signal, track } = inputs
+  const { tables, metadata, base, signal, track, banks } = inputs
   const meter = inputs.meter ?? unmetered
   const { document, documentUrl, bufferUrl } = sceneDocument(tables, base)
   // Each view of the binary is read by its own range on the first need of a host vertex or an
@@ -68,6 +73,7 @@ export async function buildPreparedScene(inputs: Inputs) {
     ranks: meshes,
     nodes,
     placed,
+    streamed,
     clips,
   } = await preparedGraph({
     tables,
@@ -75,6 +81,7 @@ export async function buildPreparedScene(inputs: Inputs) {
     geometryOf: preparedGeometries(document, binary),
     materialOf,
     clothOf: clothPrimitives(metadata),
+    banks,
   }).finally(() => {
     building = false
   })
@@ -88,6 +95,8 @@ export async function buildPreparedScene(inputs: Inputs) {
     bakedImages: skipped.size,
     nodes,
     placed,
+    /** The meshes each streamed node draws, by primitive: what its cell's row reads. */
+    streamed,
     clips,
     /** The surface of each flattened material the world's HLOD actors wear, by actor rank
      *  (`tables.hlodMaterials`): built as every surface of the scene, on a geometry with normals,

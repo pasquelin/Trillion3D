@@ -1,108 +1,104 @@
-import { CAND_LIVE_WORDS } from './shader/levelWgsl.ts'
-import { grownLength } from '../../../../math/src/sequence/resized.ts'
-import { clamp } from '../../../../math/src/scalar/reals.ts'
-import { LIST_DROPPED, QUEUE_DROPPED } from './shader/viewsWgsl.ts'
-import { dagFlagsWords } from './shader/lastUseWgsl.ts'
-import { poolScratchWords } from '../../gpu/sort/sortWords.ts'
-import { selectionListCap } from './layout.ts'
-import { EVICTION_BURST } from './readoutWords.ts'
+import { CAND_WORDS, POST_WORDS, VISIBLE_WORDS } from './shader/listsWgsl.ts'
+import { cutListCaps, type CutListCaps } from './lists/cutListCaps.ts'
+import type { PackedDag } from './types.ts'
 
-/** Words of each descent queue of a packing: two an entry, the node then the placement reading it
- *  (`shader/levelWgsl.ts`), for every entry it may hold (`PackedDag.entryCount`), one root slot a
- *  placement at least. */
-export const dagQueueWords = (packed: {
-  queueEntries?: number
-  entryCount?: number
-  nodeCount?: number
-}) => 2 * Math.max(1, packed.queueEntries ?? packed.entryCount ?? packed.nodeCount ?? 0)
+/**
+ * THE CUT'S FLAGS, LAID OUT ONCE FOR ITS LISTS' CAPS (`lists/cutListCaps.ts`): its descent array,
+ * its candidate clusters, the clusters it draws, its drawn log and the post pass's held items, each
+ * section sized at its cap within
+ * what the packing can ever hold, never grown on demand. A cut that passes a cap draws what fits and
+ * says so (`lists/listFeedback.ts`); caps changed at run time lay the flags out again between two
+ * frames (`queueGrowth.ts`).
+ */
 
-/** Flag sections behind queue 0: the candidates, the live list, the drawn log and the log the
- *  running cut writes, `candCap` entries each (`shader/levelWgsl.ts`, `shader/liveWgsl.ts`). */
-const LIST_SECTIONS = 4
-
-/** What a cut's `flags` is laid out for: the words of each queue, the entries of each list. */
-export type FlagShape = { queueWords: number; candCap: number }
-
-/** The lists behind queue 0, where each starts, in words of an entry (`shader/levelWgsl.ts`): the
- *  candidates, two; the live list, three; the drawn log and the log being written, one each. */
-const LIST_STARTS = [0, 2, 5, 6]
-
-/** First word of section `s` of a `flags` of `shape`: the kernel's `queueBase` and list bases. */
-export function flagSectionStart(s: number, { queueWords, candCap }: FlagShape) {
-  if (s === 0) return 0
-  if (s <= LIST_SECTIONS) return queueWords + LIST_STARTS[s - 1] * candCap
-  return (s - LIST_SECTIONS) * queueWords + CAND_LIVE_WORDS * candCap
+/** The entries queue 0 holds as a cut starts, one `dagPrepare` thread each: without a placement
+ *  tree, every placement's root; with one, the tree's top nodes, then each member drawn whatever
+ *  the view and each placement of the world DAG (`shader/placementTreeWgsl.ts`). */
+export function queueZeroEntries(packed: Partial<Pick<PackedDag, 'worldCount' | 'placementTree'>>) {
+  const tree = packed.placementTree
+  if (!tree) return Math.max(1, packed.worldCount ?? 0)
+  return tree.levels[0].count + tree.always.set.count
 }
 
-/** The section a cut keeps from one cut to the next: the drawn log of the last cut that ran whole.
- *  The others each cut writes before it reads them. */
+/** The entries a pass's descent array holds that no node budget bounds: queue 0's
+ *  (`queueZeroEntries`), and with a placement tree each of its cells and each member a kept group
+ *  deposits, once a pass at most (`shader/placementTreeWgsl.ts`). */
+function instanceEntries(packed: Partial<Pick<PackedDag, 'worldCount' | 'placementTree'>>) {
+  const tree = packed.placementTree,
+    zero = queueZeroEntries(packed)
+  if (!tree) return zero
+  return zero + tree.levels.reduce((cells, level) => cells + level.count, 0) + tree.capacity
+}
+
+/** Flag sections behind the descent array: the candidates, the live list and the drawn log
+ *  (`shader/listsWgsl.ts`, `shader/liveWgsl.ts`); the post pass's held items follow them. */
+const LIST_SECTIONS = 3
+
+/**
+ * What a cut's `flags` is laid out for, and the budget its kernels hold one pass's nodes to: the
+ * words of the descent array, two an entry, as many entries as the post pass's held items, three
+ * words each; the candidate clusters' entries — the descent's, both passes', and from the list's
+ * end those the previous image's pyramid hid, the one budget all of them share —; the entries of
+ * the live list and of the drawn log; and the nodes one pass opens (`shader/levelWgsl.ts`).
+ */
+export type FlagShape = { queueWords: number; candCap: number; visCap: number; nodeBudget: number }
+
+/** The lists behind the descent array, where each starts, in words of a candidate entry then of a
+ *  visible one (`shader/listsWgsl.ts`): the candidates; the live list behind them; the drawn log
+ *  behind it. */
+const LIST_STARTS: readonly (readonly [number, number])[] = [
+  [0, 0],
+  [CAND_WORDS, 0],
+  [CAND_WORDS, 2],
+]
+
+/** First word of section `s` of a `flags` of `shape`: the kernel's list bases — the descent array,
+ *  the three lists, then the post pass's held items (`postNodeBase`). */
+export function flagSectionStart(s: number, { queueWords, candCap, visCap }: FlagShape) {
+  if (s === 0) return 0
+  if (s <= LIST_SECTIONS) {
+    const [cand, visible] = LIST_STARTS[s - 1]
+    return queueWords + cand * candCap + visible * visCap
+  }
+  return queueWords + CAND_WORDS * candCap + VISIBLE_WORDS * visCap
+}
+
+/** The section a cut keeps from one cut to the next: the drawn log of the last cut committed
+ *  (`shader/commitWgsl.ts`). The others each cut writes before it reads them. */
 export const JOURNAL_SECTION = 3
 
-/** The words of the sections of a `flags` of `shape` (`dagFlagsWords`). */
-export const flagShapeWords = (shape: FlagShape) => dagFlagsWords(shape.queueWords, shape.candCap)
+/** The words of the sections of a `flags` of `shape`: the descent array, `queueWords`, and as many
+ *  held items, `POST_WORDS` each; the candidates, `candCap` entries; the live list and the drawn
+ *  log, `visCap` entries each. */
+export const flagShapeWords = ({ queueWords, candCap, visCap }: FlagShape) =>
+  queueWords + (queueWords / 2) * POST_WORDS + CAND_WORDS * candCap + VISIBLE_WORDS * visCap
 
-/** Words of the eviction sort's scratch behind the sections (`shader/evictWgsl.ts`), for a cut of
- *  `pageCount` pages: over its pool list's keys (`selectionListCap`) and the burst they can take,
- *  no more than those keys — two words a staged key, two a group of `POOL_LANES` keys. Nothing
- *  carries it from one sort to the next, nor from one `flags` to the one it grows into. */
-export function evictScratchWords(pageCount: number) {
-  const keys = selectionListCap(pageCount)
-  return poolScratchWords(keys, Math.min(EVICTION_BURST, keys))
-}
-
-/** The shape of `packed`'s flags as a cut starts: a view's reach — a reach past it is grown into on
- *  demand (`grownFlagShape`), never refused up front —, queue 0 a root slot a placement at least
- *  (`pack/pack.ts`). The flags are a record table (`cut/cutTables.ts`): no section is held to a binding. */
-export function dagFlagShape(packed: {
-  queueEntries?: number
-  entryCount?: number
-  nodeCount?: number
-  pageCount: number
-  candCount?: number
-}): FlagShape {
+/**
+ * The shape of `packed`'s flags for the lists' `caps`, each section at its cap within what the
+ * packing can ever hold — a pure saving, no cut asks past it: a pass opens each placement's node
+ * once at most (`PackedDag.entryCount`), the descent array holding them beside the entries no
+ * budget bounds (`instanceEntries`); a cut lists each page once a pass and holds back for the post
+ * pass only pages it listed, so its candidates never pass twice its pages, and it draws each page
+ * once. The flags are a record table (`cut/cutTables.ts`): no section is held to a binding.
+ */
+export function dagFlagShape(
+  packed: Pick<PackedDag, 'pageCount'> &
+    Partial<Pick<PackedDag, 'entryCount' | 'nodeCount' | 'worldCount' | 'placementTree'>>,
+  caps: CutListCaps = cutListCaps(),
+): FlagShape {
+  const pages = Math.max(1, packed.pageCount),
+    nodeBudget = Math.min(caps.nodes, Math.max(1, packed.entryCount ?? packed.nodeCount ?? 0))
   return {
-    queueWords: dagQueueWords(packed),
-    candCap: Math.max(1, packed.candCount ?? packed.pageCount),
+    queueWords: 2 * (nodeBudget + instanceEntries(packed)),
+    candCap: Math.max(1, Math.min(caps.candidates, 2 * pages)),
+    visCap: Math.max(1, Math.min(caps.visible, pages)),
+    nodeBudget,
   }
 }
 
-/**
- * THE QUEUES AND LISTS A CUT GROWS TO. A cut's descent queues and its candidate and live lists are
- * sized for a view's reach when it is made (`layout.ts`, `QUEUE_ENTRIES_START`), never for the
- * world. A cut that passes one drops the work past it and says which (`shader/viewsWgsl.ts`,
- * `QUEUE_DROPPED`, `LIST_DROPPED`): it is not drawn (`shader/commitWgsl.ts`) — the frame draws the
- * last cut that ran whole — and never adopted, and what was full doubles here, the next cut cutting
- * again on it. A queue never holds more than every entry, a list more than every page: past that,
- * `undefined`, and the view coarsens instead (`coarsening.ts`), as it does past the readout's list
- * (`lists/listCap.ts`). What the record table or the cut's share cannot hold, its growth refuses
- * (`queueGrowth.ts`), and the view coarsens the same.
- */
-export function grownFlagShape(
-  bounds: { entryCount: number; pageCount: number },
-  shape: FlagShape,
-  dropped: number,
-): FlagShape | undefined {
-  // Twice what dropped (`grownLength`), within what the packing can ever hold.
-  const queueWords =
-      dropped & QUEUE_DROPPED
-        ? Math.min(
-            dagQueueWords({ entryCount: bounds.entryCount }),
-            grownLength(shape.queueWords, shape.queueWords + 1),
-          )
-        : shape.queueWords,
-    candCap =
-      dropped & LIST_DROPPED
-        ? clamp(bounds.pageCount, 1, grownLength(shape.candCap, shape.candCap + 1))
-        : shape.candCap
-  if (queueWords <= shape.queueWords && candCap <= shape.candCap) return undefined
-  return { ...shape, queueWords, candCap }
-}
-
-/** The wider of two shapes asked, field by field: two views that dropped work ask both. */
-export const widerFlagShape = (a: FlagShape | undefined, b: FlagShape): FlagShape =>
-  a
-    ? {
-        queueWords: Math.max(a.queueWords, b.queueWords),
-        candCap: Math.max(a.candCap, b.candCap),
-      }
-    : b
+/** Whether two shapes lay the flags out alike and hold the same budget. */
+export const sameFlagShape = (a: FlagShape, b: FlagShape) =>
+  a.queueWords === b.queueWords &&
+  a.candCap === b.candCap &&
+  a.visCap === b.visCap &&
+  a.nodeBudget === b.nodeBudget

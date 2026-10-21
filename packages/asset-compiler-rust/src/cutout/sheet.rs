@@ -7,7 +7,7 @@
 //! this scene no longer uses: an answer is given once per texture, not once per
 //! scene.
 use super::*;
-use crate::texture_preview::TexturePreview;
+use crate::texture::TexturePreview;
 
 /// Candidate texture to decide, as sheet and page present it.
 pub(crate) struct Entry {
@@ -36,7 +36,7 @@ pub(crate) fn entries(
     for preview in previews {
         // Cutout is a base color affair: data atlas entry of same texture,
         // when present, is neither a candidate nor extra weight.
-        if preview.kind.atlas() != crate::texture_preview::AtlasKind::Color {
+        if preview.kind.atlas() != crate::texture::AtlasKind::Color {
             continue;
         }
         let texture = preview.texture as usize;
@@ -99,7 +99,7 @@ fn image_name(images: Option<&Vec<Value>>, image: usize) -> String {
         .and_then(|images| images.get(image))
         .and_then(|value| value.get("uri"))
         .and_then(Value::as_str)
-        .map(|uri| crate::uri::decode(uri).unwrap_or_else(|| uri.to_string()))
+        .map(|uri| crate::support::uri::decode(uri).unwrap_or_else(|| uri.to_string()))
         .unwrap_or_else(|| format!("image {image}"))
 }
 

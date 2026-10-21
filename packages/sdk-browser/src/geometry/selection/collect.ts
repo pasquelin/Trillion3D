@@ -25,17 +25,17 @@ type Drawn = {
 }
 
 /** One root per placement of a primitive drawn by pages: its world and box, the primitive's
- *  nodes, bounds and links shared by all. */
+ *  nodes and links shared by all. */
 function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<PageRec>[]) {
   const { source, primitive, surface, pages, shape } = drawn,
     { structure, culling } = shape
-  const sharedCulling = culling && { ...culling, bounds: shape.bounds!, links: shape.links }
+  const sharedCulling = culling && { ...culling, links: shape.links }
   for (const { world, parked, placement } of placed) {
     const root: ClusterRoot<PageRec> = {
       world,
       mesh: primitive.mesh,
       pages,
-      // Nodes, their bounds and their links are the primitive's, shared by all its placements.
+      // Nodes and their links are the primitive's, shared by all its placements.
       culling: sharedCulling,
       worldBox: new Float64Array(BOX_VALUES),
       localBox: shape.local,

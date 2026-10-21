@@ -41,7 +41,7 @@ test('skills-link: skill files become aliases in .claude, replacing a stale copy
   )
   assert.equal(
     readlinkSync(join(root, '.claude', 'skills', 't3d-recette', 'SKILL.md')),
-    '../../../../skills/t3d-recette/SKILL.md',
+    '../../../skills/t3d-recette/SKILL.md',
   )
   assert.equal(
     readFileSync(join(root, '.claude', 'skills', 't3d-recette', 'SKILL.md'), 'utf8'),

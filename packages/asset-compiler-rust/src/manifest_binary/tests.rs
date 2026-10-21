@@ -1,3 +1,5 @@
+#[cfg(test)]
+pub(crate) mod preview;
 use super::*;
 /// Splits a finished manifest into the small JSON and the columns, as one page over every
 /// primitive.
@@ -15,7 +17,7 @@ pub(super) fn column(bytes: &[u8], index: usize) -> &[u8] {
 }
 /// The word at `at` of `bytes`.
 pub(super) fn word(bytes: &[u8], at: usize) -> u32 {
-    crate::le::u32_at(bytes, at).expect("a word")
+    crate::support::le::u32_at(bytes, at).expect("a word")
 }
 fn sha(c: char) -> String {
     std::iter::repeat_n(c, 64).collect()

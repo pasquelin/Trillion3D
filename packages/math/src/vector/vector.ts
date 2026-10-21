@@ -148,14 +148,14 @@ export function length3(x: number, y: number, z: number) {
 
 /** The plain root `Math.sqrt(x·x + y·y + z·z)`, the squares summed left to right, without
  *  `length3`'s band: past about 1e154 it overflows to Infinity, below about 1e-146 the squares
- *  underflow. The length of the Rust vectors (`length` of `packages/math/rust/src/vec3.rs`), for
+ *  underflow. The length of the Rust vectors (`length` of `packages/math/rust/src/vector/vec3.rs`), for
  *  the TypeScript twin of a Rust function (docs/MATHS.md "Lengths"). */
 export function plainLength3(x: number, y: number, z: number) {
   return Math.sqrt(x * x + y * y + z * z)
 }
 
 /** The plain root `Math.sqrt(x·x + y·y)`, the two squares summed, without `length2`'s band: the
- *  length of the Rust plane vectors (`length` of `packages/math/rust/src/vec2.rs`), the twin of
+ *  length of the Rust plane vectors (`length` of `packages/math/rust/src/vector/vec2.rs`), the twin of
  *  `plainLength3` (docs/MATHS.md "Lengths"). */
 export function plainLength2(x: number, y: number) {
   return Math.sqrt(x * x + y * y)

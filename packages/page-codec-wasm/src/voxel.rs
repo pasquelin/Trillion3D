@@ -54,7 +54,6 @@ impl VoxelPage {
             index_count: 3 * VOXEL_BRICK_TRIANGLES * self.bricks,
             flags: GEOMETRY_VOXEL,
             decoded_bytes: self.bytes.len(),
-            quantization_error: 0.0,
             triangles: VOXEL_BRICK_TRIANGLES * self.bricks,
         }
     }

@@ -17,7 +17,7 @@ use crate::dag::DagCluster;
 use crate::{Options, Result};
 use rayon::prelude::*;
 use serde_json::{json, Value};
-use trillion3d_math::aabb::extend_aabb_f32;
+use trillion3d_math::geometry::aabb::aabb_of_f32;
 use trillion3d_math::scalar::median_in_place;
 use trillion3d_page_codec::culling::CullingNode;
 use trillion3d_page_codec::encode::vertices::first_use;
@@ -38,31 +38,41 @@ pub(crate) fn tolerance(dag: &[DagCluster]) -> f64 {
     median_in_place(&mut errors)
 }
 
-/// The rank range (culling order) a node's subtree owns.
-fn range(culling: &[CullingNode], node: usize) -> (usize, usize) {
+/// The rank ranges (culling order) of the leaves of a node's subtree, its group parts: a subtree
+/// owns no one range, its parts lie where the page assignment laid them.
+fn leaf_ranges(culling: &[CullingNode], node: usize, out: &mut Vec<(usize, usize)>) {
     let n = &culling[node];
     if n.child_count == 0 {
-        return (n.first_cluster, n.first_cluster + n.cluster_count);
+        if n.cluster_count > 0 {
+            out.push((n.first_cluster, n.first_cluster + n.cluster_count));
+        }
+        return;
     }
-    let first = range(culling, n.first_child).0;
-    (first, range(culling, n.first_child + n.child_count - 1).1)
+    for child in n.first_child..n.first_child + n.child_count {
+        leaf_ranges(culling, child, out);
+    }
 }
 
-/// The culling nodes whose collision triangles make one tile each, as rank ranges.
+/// The culling nodes whose collision triangles make one tile each, each as its leaves' rank
+/// ranges.
 fn tile_ranges(
     culling: &[CullingNode],
     prefix: &[usize],
     node: usize,
-    out: &mut Vec<(usize, usize)>,
+    out: &mut Vec<Vec<(usize, usize)>>,
 ) {
-    let (from, to) = range(culling, node);
-    let triangles = prefix[to] - prefix[from];
+    let mut ranges = Vec::new();
+    leaf_ranges(culling, node, &mut ranges);
+    let triangles: usize = ranges
+        .iter()
+        .map(|&(from, to)| prefix[to] - prefix[from])
+        .sum();
     let n = &culling[node];
     if triangles == 0 {
         return;
     }
     if triangles <= TILE_TRIANGLES || n.child_count == 0 {
-        return out.push((from, to));
+        return out.push(ranges);
     }
     for child in n.first_child..n.first_child + n.child_count {
         tile_ranges(culling, prefix, child, out);
@@ -71,19 +81,18 @@ fn tile_ranges(
 
 /// Stores a cooked shape as a content-addressed object; returns its descriptor.
 pub(crate) fn store_shape(o: &Options, bytes: &[u8]) -> Result<Value> {
-    Ok(crate::compiler_storage::store_descriptor(o, bytes)?.0)
+    Ok(crate::compiler::cache::storage::store_descriptor(o, bytes)?.0)
 }
 
 /// One tile: its triangles gathered, their vertices compacted, cooked and stored.
 fn tile(o: &Options, pos: &[f32], triangles: &[u32]) -> Result<Value> {
     let (used, indices) = first_use(triangles.iter().copied());
     let mut vertices = Vec::with_capacity(used.len() * 3);
-    let (mut min, mut max) = ([f32::MAX; 3], [f32::MIN; 3]);
     for source in used {
         let at = source as usize * 3;
-        extend_aabb_f32(&mut min, &mut max, std::array::from_fn(|a| pos[at + a]));
         vertices.extend_from_slice(&pos[at..at + 3]);
     }
+    let (min, max) = aabb_of_f32(vertices.as_chunks::<3>().0.iter().copied());
     let mut descriptor = store_shape(o, &mesh_shape(&vertices, &indices)?)?;
     descriptor["triangles"] = json!(indices.len() / 3);
     descriptor["bounds"] = json!([min, max].concat());
@@ -111,7 +120,11 @@ fn cut_tiles(
     }
     ranges
         .iter()
-        .map(|&(from, to)| (from..to).filter_map(cut).flatten().copied().collect())
+        .map(|tile| {
+            (tile.iter())
+                .flat_map(|&(from, to)| (from..to).filter_map(cut).flatten().copied())
+                .collect()
+        })
         .collect()
 }
 

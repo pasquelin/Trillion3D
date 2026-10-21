@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { forwardReflectionWgsl } from './weight.ts'
+import { forwardIndirectWgsl } from './weight.ts'
 import { reflectionStagesWgsl } from './wgsl.ts'
 import { REFLECTION_TRACE_SHADER } from './trace/trace.ts'
 import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
@@ -20,8 +20,9 @@ const { frontPack: pack } = shaderRun<{ frontPack: (c: Vec3) => number }>(
 
 type Reflected = { base: Vec3; coat: Vec3 }
 
-/** `forwardTrace` of the shipped forward program, over a front texel `texel` and a front depth `depth` at
- *  every pixel, `answered` whether this image's trace answered the front; the field answers `field`. */
+/** `forwardTrace` of the shipped forward program (`forwardIndirectWgsl`), over a front texel `texel`
+ *  and a front depth `depth` at every pixel, `answered` whether this image's trace answered the
+ *  front; the field answers `field`. */
 function forward(texel: number[], depth: number, answered = true) {
   const field: Vec3 = [7, 7, 7]
   const run = shaderRun<{
@@ -34,7 +35,7 @@ function forward(texel: number[], depth: number, answered = true) {
       front: boolean,
     ) => Reflected
   }>(
-    wgslModule(forwardReflectionWgsl(1, false, 24)),
+    wgslModule(forwardIndirectWgsl(1, false, 24)),
     ['forwardTrace', 'frontUnpack', 'reflectionFrontTraced', 'reflectionFrontDepth'],
     {
       frontTraced: { load: () => texel },
@@ -64,7 +65,7 @@ test('a fragment at the front depth reads the trace’s radiance; any other, the
 })
 
 test('one chain: only the trace walks the proxy and samples a lobe; a forward program reads its answer', () => {
-  const forwardText = wgslModule(forwardReflectionWgsl(1, true, 24))
+  const forwardText = wgslModule(forwardIndirectWgsl(1, true, 24))
   for (const name of ['rtRadiance', 'rtProxy', 'reflectionProxied', 'reflectionSampleDirection'])
     assert.doesNotMatch(forwardText, new RegExp(`\\b${name}\\b`), name)
   assert.match(wgslModule(reflectionStagesWgsl(1)), /\breflectionProxied\b/)

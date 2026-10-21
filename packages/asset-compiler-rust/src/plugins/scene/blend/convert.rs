@@ -6,7 +6,7 @@
 //! matrix. A root node carries the axis conversion, Blender working Z-up and glTF Y-up: one
 //! exact matrix, rather than retouching every vertex.
 use super::*;
-use crate::import::SceneTables;
+use crate::plugins::scene::convert::SceneTables;
 
 /// Reads the file and writes its conversion into the cache. Nothing is written next to the source.
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {

@@ -43,7 +43,7 @@ pub(in crate::tests) fn published_folder(alter: impl FnOnce(&mut Value)) -> (Pat
 fn the_node_table_carries_every_node_and_its_local_pose() {
     // A parent that moves its two children: the pose written is the one each node declares, which
     // the runtime composes itself — the same bits the document gives. The children, placed meshes,
-    // lie in a cell under their core parent (`compiler_tables/partition.rs`).
+    // lie in a cell under their core parent (`compiler/tables/partition.rs`).
     let (_root, directory) = published_folder(|gltf| {
         gltf["scenes"] = json!([{"name":"stage","nodes":[0]}]);
         gltf["nodes"] = json!([

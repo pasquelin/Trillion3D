@@ -3,12 +3,12 @@
 //!
 //! The solve moves the region's vertices: one it left as it was stays the source vertex; every
 //! other one it kept becomes a placed vertex, its normal and colour already corrected by the
-//! simplifier (`qem::Corrected`). In the region, placed vertices follow its `n` source vertices,
+//! simplifier (`simplify::Corrected`). In the region, placed vertices follow its `n` source vertices,
 //! so re-clustering reads one array. In the primitive they follow every vertex it already has: the pages read them there, `source.bin`
 //! never does.
 use super::clusters::position_key;
 use super::*;
-use crate::qem::solve::{Region, SolvedRegion};
+use crate::simplify::region::{Region, SolvedRegion};
 
 /// What a region's vertices weld to under the level's weld, computed once per region: per region
 /// vertex its first copy, and per position the copy that stands for it.

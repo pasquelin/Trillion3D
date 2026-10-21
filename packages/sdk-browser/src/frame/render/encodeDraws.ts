@@ -6,7 +6,6 @@ import { ensurePageTable } from './pageTable.ts'
 import { encodeVis } from './encodeVis.ts'
 import { deriveRootRows, followRowWords } from '../../placement/rows/rowWords.ts'
 import { VSM_STILL_FRAMES } from '../../lighting/shadows/vsm/constants.ts'
-import { forgetRewrittenRows } from '../../visibility/passes/corners.ts'
 import { refreshDrawItemWords } from '../../visibility/passes/itemWords.ts'
 import { visLayerTop } from '../../visibility/passes/uniforms.ts'
 import { uploadDirtyRowMobility } from '../../lighting/shadows/casters/bounds.ts'
@@ -16,6 +15,7 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { uploadDirtyRows } from './dirtyRows.ts'
 import { castingLights } from '../../lighting/shadows/vsm/frame/vsmPlan.ts'
+import { shadowsFollowCells } from '../prepare/lightResources.ts'
 
 /**
  * The caster rows' shadow data — world spheres, mobility words, detail — exists and follows the
@@ -51,7 +51,7 @@ function followShadowRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
 /**
  * Brings the row table up to date, once an image and before anything reads it — the deformation,
  * the cut, the raster: the table made, then every reader of the row table's dirty marks followed —
- * draw records, mobility, the occlusion history, the rows pass's inputs and rows — and the rows
+ * draw records, mobility, the rows pass's inputs and rows — and the rows
  * uploaded, the marks cleared. A reader skipped would keep another occupant's words (#198). Each
  * costs the rows that changed. An image with no visibility row follows them too: the blended
  * casters' rows, behind, still feed its shadows, and rows left dirty would keep the frame from
@@ -63,7 +63,6 @@ export function followRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
   ensurePageTable(rt, device)
   refreshDrawItemWords(rt, visLayerTop(vis), vis.gpuDraw)
   followShadowRows(rt, device)
-  forgetRewrittenRows(rt)
   followRowWords(rt, device)
   uploadDirtyRows(rt)
 }
@@ -88,6 +87,9 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
     rt.services.syncRows(!run.textureConverging)
     run.rowsSyncedFrame = run.frame
   }
+  // The world's cells the cut switched before this image: the rows of both representations stale
+  // their shadow pages in this image's rows pass (`shadowsFollowCells`).
+  shadowsFollowCells(rt)
   // The engine draws through the visibility pass alone (#1483): pipelines a prepare left missing
   // are its failure, never another image.
   if (!vis.visPipelineBack || !vis.shadeClasses)

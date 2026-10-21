@@ -12,21 +12,21 @@ import { GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../../../../gpu/dispatc
  *  taking the least tier that holds its corners (`vsmRenderTierOf`) — at most 256 triangles a
  *  row, twice for a two-sided row: 1536 corners, the last tier's. */
 export const VSM_RENDER_CORNER_TIERS = 5
-export const VSM_RENDER_TIER_CORNERS = 96
-/** Then the voxel rows' tiers (`FLAG_VOXEL`), from `VSM_RENDER_VOXEL_TIER`: their pairs are drawn
- *  by the voxel raster (`renderVoxelWgsl.ts`), tier `VSM_RENDER_VOXEL_TIER + t` drawing
+const VSM_RENDER_TIER_CORNERS = 96
+/** Then the voxel rows' tiers (`FLAG_VOXEL`), from `VSM_RENDER_CORNER_TIERS`: their pairs are drawn
+ *  by the voxel raster (`renderVoxelWgsl.ts`), tier `VSM_RENDER_CORNER_TIERS + t` drawing
  *  `VSM_RENDER_TIER_CORNERS << t` corners a pair as corner tier `t` does — a page's bricks' boxes,
  *  one-sided, 36 corners a brick, 756 for its 21 at most: no pair launches more than twice the
  *  corners its page draws, nor fewer than 96 —, and only on a frame whose table holds a voxel row
  *  (`vsmEncodeChunks`). A candidate says it is one by `VSM_RENDER_VOXEL_BIT` in its corners, above
  *  any count a row draws. */
-export const VSM_RENDER_VOXEL_TIER = VSM_RENDER_CORNER_TIERS
-export const VSM_RENDER_VOXEL_TIERS = 4
-export const VSM_RENDER_VOXEL_BIT = 0x8000
+const VSM_RENDER_VOXEL_TIERS = 4
+const VSM_RENDER_VOXEL_BIT = 0x8000
 export const VSM_RENDER_TIERS = VSM_RENDER_CORNER_TIERS + VSM_RENDER_VOXEL_TIERS
 /** The corners a pair of tier `tier` draws. */
 export const vsmRenderTierCorners = (tier: number) =>
-  VSM_RENDER_TIER_CORNERS << (tier >= VSM_RENDER_VOXEL_TIER ? tier - VSM_RENDER_VOXEL_TIER : tier)
+  VSM_RENDER_TIER_CORNERS <<
+  (tier >= VSM_RENDER_CORNER_TIERS ? tier - VSM_RENDER_CORNER_TIERS : tier)
 /** Words per chunk in the indirect argument buffer, by dispatch: the cull's 3; a workgroup a command
  *  3 (the transmission's page list); the bin's 3, a thread a command (`vsmRenderBin`); then 3 a
  *  tier's expand, a workgroup a command of the tier; then a draw of 4 a tier. */
@@ -40,8 +40,8 @@ export const VSM_RENDER_ARGS_STRIDE_WORDS = VSM_RENDER_ARGS_DRAW + 4 * VSM_RENDE
  *  `VSM_RENDER_CHUNK_COUNTS` per chunk from word 4: commands, then each tier's pairs, commands
  *  and bin cursor (`VSM_RENDER_TIER_PAIRS`, `_CMDS`, `_CURSOR` + tier). */
 export const VSM_RENDER_COUNTS_HEAD = 4
-export const VSM_RENDER_TIER_PAIRS = 1
-export const VSM_RENDER_TIER_CMDS = VSM_RENDER_TIER_PAIRS + VSM_RENDER_TIERS
+const VSM_RENDER_TIER_PAIRS = 1
+const VSM_RENDER_TIER_CMDS = VSM_RENDER_TIER_PAIRS + VSM_RENDER_TIERS
 const VSM_RENDER_TIER_CURSOR = VSM_RENDER_TIER_CMDS + VSM_RENDER_TIERS
 export const VSM_RENDER_CHUNK_COUNTS = VSM_RENDER_TIER_CURSOR + VSM_RENDER_TIERS
 const VSM_RENDER_COUNT_VIEWS = 1
@@ -53,7 +53,8 @@ const VSM_RENDER_VIEW_DIRECTIONAL = 1
  * every slot), in one table: the struct the kernels read and the words the host writes
  * (`vsmWriteChunkParams`, `../chunks/chunkParams.ts`). The camera is the main view whose level of detail the casters take: eye (split
  * double), world-to-view rotation rows (engine convention, −Z forward), focal in pixels, near,
- * perspective 0/1, the cut's threshold.
+ * perspective 0/1, the cut's threshold; `worldLinks`, the cold word its cut's world links start
+ * at, zero for a cut that follows no world, whose switch the casters obey (`VsmRenderScene.world`).
  */
 export const VSM_RENDER_PARAMS = fieldLayout('VsmRenderParams', [
   ['eyeHigh', 'vec3f'],
@@ -73,6 +74,7 @@ export const VSM_RENDER_PARAMS = fieldLayout('VsmRenderParams', [
   ['chunkCount', 'u32'],
   ['cmdCapacity', 'u32'],
   ['pairCapacity', 'u32'],
+  ['worldLinks', 'u32'],
 ] as const)
 const VSM_RENDER_PARAMS_STRUCT_WGSL = wgslBlock(
   'VSM_RENDER_PARAMS_STRUCT_WGSL',
@@ -102,7 +104,6 @@ ${wgslConsts({
   VSM_RENDER_TIERS,
   VSM_RENDER_TIER_CORNERS,
   VSM_RENDER_CORNER_TIERS,
-  VSM_RENDER_VOXEL_TIER,
   VSM_RENDER_VOXEL_TIERS,
   VSM_RENDER_VOXEL_BIT,
 })}
@@ -113,11 +114,11 @@ fn vsmRenderTierOf(corners:u32)->u32{
  let n=corners&(VSM_RENDER_VOXEL_BIT-1u);
  let q=max((n+VSM_RENDER_TIER_CORNERS-1u)/VSM_RENDER_TIER_CORNERS,1u);
  let t=select(firstLeadingBit(q-1u)+1u,0u,q==1u);
- if((corners&VSM_RENDER_VOXEL_BIT)!=0u){return VSM_RENDER_VOXEL_TIER+min(t,VSM_RENDER_VOXEL_TIERS-1u);}
+ if((corners&VSM_RENDER_VOXEL_BIT)!=0u){return VSM_RENDER_CORNER_TIERS+min(t,VSM_RENDER_VOXEL_TIERS-1u);}
  return min(t,VSM_RENDER_CORNER_TIERS-1u);
 }
 /** The corners a pair of tier \`tier\` draws (\`vsmRenderTierCorners\`). */
-fn vsmRenderTierCorners(tier:u32)->u32{return VSM_RENDER_TIER_CORNERS<<select(tier,tier-VSM_RENDER_VOXEL_TIER,tier>=VSM_RENDER_VOXEL_TIER);}
+fn vsmRenderTierCorners(tier:u32)->u32{return VSM_RENDER_TIER_CORNERS<<select(tier,tier-VSM_RENDER_CORNER_TIERS,tier>=VSM_RENDER_CORNER_TIERS);}
 `,
 )
 

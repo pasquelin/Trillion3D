@@ -26,21 +26,32 @@ export { COMPILER_LINE_LIMIT } from '../sdk-node/src/compiler/lines.mts'
 export { createBatchProgress, createTerminalProgress } from '../sdk-node/src/cli/progress.mts'
 export { createCompilationJob, prepare, prepareMany } from '../sdk-node/src/index.mts'
 export { getSdkProvenance } from '../sdk-node/src/compiler/provenance.mts'
-export { HLOD_QUALITIES, resolveHlod } from '../sdk-core/src/contracts/hlodOptions.ts'
+export type {
+  HlodApproximation,
+  HlodSimplifySettings,
+} from '../sdk-core/src/contracts/hlodApproximationAbi.ts'
+export type {
+  HlodBuilder,
+  HlodMatchOf,
+  HlodWireMatch,
+  HlodWirePattern,
+} from '../sdk-core/src/contracts/hlodAbi.ts'
+export { resolveHlod } from '../sdk-core/src/contracts/hlodOptions.ts'
 export type {
   HlodExpert,
   HlodGroup,
   HlodMatch,
   HlodOptions,
   HlodPattern,
-  HlodQuality,
   HlodSimple,
 } from '../sdk-core/src/contracts/hlodOptions.ts'
+export type { HlodExpertOf, HlodLayer, HlodWire } from '../sdk-core/src/contracts/hlodLayerAbi.ts'
 export type {
-  HlodBuilder,
-  HlodLayer,
-  TemporalAntialiasingLevel,
-} from '../sdk-core/src/contracts/compilerAbi.ts'
+  HlodMeshBuildWire,
+  MeshBuildSettingsWire,
+  MeshBuildWire,
+  MeshInputSettingsWire,
+} from '../sdk-core/src/contracts/meshBuildAbi.ts'
 export {
   resolveMaterials,
   resolveResponsive,
@@ -54,6 +65,41 @@ export type {
   TemporalAntialiasingOption,
   TemporalAntialiasingShare,
 } from '../sdk-core/src/contracts/materialOptions.ts'
+export type {
+  MaterialSettingsWire,
+  TemporalAntialiasingLevel,
+} from '../sdk-core/src/contracts/materialAbi.ts'
+export { resolveMeshBuild } from '../sdk-core/src/contracts/meshBuildOptions.ts'
+export type {
+  MeshBuildOption,
+  MeshBuildRule,
+  MeshBuildSettings,
+} from '../sdk-core/src/contracts/meshBuildOptions.ts'
+export type { NameMatch, NamePattern } from '../sdk-core/src/contracts/nameMatch.ts'
+export { resolveObjectSettings } from '../sdk-core/src/contracts/objectOptions.ts'
+export type {
+  ObjectRule,
+  ObjectSettings,
+  ObjectSettingsOption,
+  SkinnedInstanceOption,
+  SkinnedInstanceSettings,
+} from '../sdk-core/src/contracts/objectOptions.ts'
+export type {
+  ObjectSettingsJobWire,
+  ObjectSettingsWire,
+  SkinnedInstanceWire,
+} from '../sdk-core/src/contracts/objectAbi.ts'
+export {
+  resolvePartitionGrid,
+  resolvePartitionScheme,
+} from '../sdk-core/src/contracts/partitionOptions.ts'
+export type {
+  PartitionGridOption,
+  PartitionGridSettings,
+  PartitionGridWire,
+  PartitionHlodGrid,
+  PartitionSchemeOption,
+} from '../sdk-core/src/contracts/partitionOptions.ts'
 export { resolveCompilerExecutable } from '../sdk-node/src/compiler/executable.mts'
 export { resolveVoxelize } from '../sdk-core/src/contracts/voxelizeOptions.ts'
 export type { VoxelizeOption } from '../sdk-core/src/contracts/voxelizeOptions.ts'

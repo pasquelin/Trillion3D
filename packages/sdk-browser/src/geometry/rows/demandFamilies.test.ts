@@ -1,8 +1,8 @@
 // The row cache's demand follows the readbacks' differences, never their lists: on generated
 // scene families — cooked DAG placements on a grid, host meshes of one page each scattered and in
 // clumps — a still camera closes nothing over after its first readback, and a moving one closes
-// over what its lists' differences name alone, where the demand closed over every drawn, asked and
-// ahead id each readback before. What it wants is the closure of the requests, frame by frame: the
+// over what its lists' differences name alone, where the demand closed over every drawn and asked
+// id each readback before. What it wants is the closure of the requests, frame by frame: the
 // rows asked for — and so the cut drawn and asked — are those of before.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -81,22 +81,16 @@ test('a still camera closes nothing over; a moving one, its lists’ differences
       const moving = frame >= 4,
         a = moving ? (frame - 4) * 0.2 : 0
       const eye = [centre[0] + span * Math.sin(a), 0.72 * span, centre[2] + span * Math.cos(a)]
-      const motion = moving
-        ? { velocity: Float64Array.of(span * 0.2, 0, 0), turn: 0.2, axis: Float64Array.of(0, 1, 0) }
-        : {}
       const uniforms = cameraSelectionUniforms(
         engineCamera(fieldCamera(eye, centre, 3 * span)),
         1,
         [1280, 720],
-        undefined,
-        motion,
       )
       packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld)
       const cut = evaluateDagSelectionKernel(packed, uniforms)
       closed = 0
       demand.follow(cut)
-      const lists =
-        (cut.drawablePageIds?.length ?? 0) + cut.pageIds.length + (cut.aheadPageIds?.length ?? 0)
+      const lists = (cut.drawablePageIds?.length ?? 0) + cut.pageIds.length
       if (frame > 0 && !moving) assert.equal(closed, 0, `${name}: still, frame ${frame}`)
       if (frame > 0) {
         before += lists
@@ -105,7 +99,7 @@ test('a still camera closes nothing over; a moving one, its lists’ differences
       // What it wants: the requests' closure, as a walk of every request would find it.
       const wanted = new Set<number>()
       createGroupClosure(roots as never, placement, pages).closeOver(
-        [...cut.pageIds, ...(cut.aheadPageIds ?? [])],
+        cut.pageIds,
         (id) => void wanted.add(id),
         undefined,
         true,

@@ -1,7 +1,7 @@
 //! Closed and curved surfaces of the corpus: what a sphere, a lathe and a torus hand the DAG.
 use super::*;
-use trillion3d_math::vec3::{cross, divide};
-use trillion3d_math::vecn::length;
+use trillion3d_math::vector::vec3::{cross, divide};
+use trillion3d_math::vector::vecn::length;
 
 /// A latitude–longitude sphere of radius `radius`: `segments + 1` columns so the seam column
 /// carries both `u = 0` and `u = 1`, one triangle per segment at each pole.

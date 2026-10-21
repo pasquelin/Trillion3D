@@ -12,10 +12,8 @@
 import type { WorldRootsHold } from '../hlod/worldRoots.ts'
 import { createDeferred } from '../../../../sdk-core/src/runtime/deferred.ts'
 
-/** What a held cell holds, counted per cell, and whether a top cell's bundles fit the tops'
- *  budget (`fits`, none: every one does). */
-type Holder = Pick<WorldRootsHold, 'hold' | 'release' | 'lift'> &
-  Partial<Pick<WorldRootsHold, 'fits'>>
+/** What a held cell holds, counted per cell. */
+type Holder = Pick<WorldRootsHold, 'hold' | 'release'>
 
 /** The holds on their way, and what a frame waits on: the next to land or fail, asked as a list of
  *  one made when first asked, or nothing while none reads. */
@@ -43,9 +41,9 @@ function createLandings() {
  *  world. A hold counts its bundles at once (`WorldRootsHold.hold`): its release lets them go at
  *  once too, and its reads still queued with them. */
 export function createCellHolds(world?: Holder) {
-  /** Per held cell, what lets its reads go and the priority they are read at; the held cells whose
-   *  hold failed for good. */
-  const holding = new Map<number, { stop: AbortController; priority: number }>(),
+  /** Per held cell, what lets its reads go; the held cells whose hold failed for good, and those
+   *  whose hold still reads. */
+  const holding = new Map<number, AbortController>(),
     failed = new Set<number>(),
     reading = new Set<number>(),
     landings = createLandings()
@@ -53,17 +51,11 @@ export function createCellHolds(world?: Holder) {
   let revision = 0
   return {
     /** `cell` is held: its bundles are held, and read at `priority` if they are not; a cell held
-     *  already has its reads still queued lifted to `priority`, when more urgent. */
+     *  already is left as it is. */
     hold(cell: number, priority: number) {
-      if (!world) return
-      const own = holding.get(cell)
-      if (own) {
-        if (priority >= own.priority) return
-        own.priority = priority
-        return void world.lift(cell, { signal: own.stop.signal, priority })
-      }
+      if (!world || holding.has(cell)) return
       const stop = new AbortController()
-      holding.set(cell, { stop, priority })
+      holding.set(cell, stop)
       reading.add(cell)
       revision++
       landings.started()
@@ -81,21 +73,19 @@ export function createCellHolds(world?: Holder) {
     },
     /** `cell` left: its bundles are released, its reads still queued let go. */
     release(cell: number) {
-      const own = holding.get(cell)
-      if (!own) return
+      const stop = holding.get(cell)
+      if (!stop) return
       holding.delete(cell)
       failed.delete(cell)
       reading.delete(cell)
       revision++
-      own.stop.abort()
+      stop.abort()
       world!.release(cell)
     },
     /** The cells held now. */
     cells: () => holding.keys(),
-    /** The cells whose hold still reads: the only ones a moved priority can lift. */
-    reading: () => reading.values(),
-    /** Whether top cell `cell`'s bundles fit the tops' budget now (`../hlod/worldBundles.ts`). */
-    fits: (cell: number) => !world?.fits || world.fits(cell),
+    /** Whether `cell`'s hold still reads: a cell loading waits on it. */
+    stillReads: (cell: number) => reading.has(cell),
     /** Whether `cell`'s hold failed for good: its actor never comes while it stays held. */
     failed: (cell: number) => failed.has(cell),
     /** Advanced by every hold, release and failure. */

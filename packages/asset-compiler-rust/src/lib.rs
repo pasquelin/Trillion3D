@@ -1,33 +1,21 @@
 //! Native exact-cluster compiler. Rendering, UI and platform IPC do not belong here.
-mod accessor_validation;
-pub mod albedo;
 pub mod coplanar;
 pub mod cutout;
 mod dag;
-mod eac_modifiers;
-mod geometry_page_deform;
-mod geometry_page_quant;
-mod gltf_codes;
-pub mod import;
-mod join;
-pub mod json;
-mod le;
 mod manifest_binary;
 #[cfg(any(test, feature = "oracle"))]
 pub mod oracle;
-mod perf;
 pub mod physics_cook;
 pub mod plugins;
 pub mod proxy;
-mod qem;
 pub mod shared_math;
-mod surface_trace;
-pub mod texture_preview;
-mod uri;
+mod simplify;
+pub mod texture;
 mod voxel;
 use rayon::prelude::*;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+pub use shared_math::abi::*;
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt::Display,
@@ -41,9 +29,6 @@ use std::{
     time::Instant,
 };
 use trillion3d_page_codec::encode;
-mod compiler_format;
-mod compiler_identity;
-pub use shared_math::abi::*;
 pub const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Per-cluster DAG identity: the group error is the simplifier's own — positions, normals and every
 /// texture set at their quadric weights — never below the children's, so the error grows
@@ -53,10 +38,11 @@ pub const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// reinterpreted.
 pub const DAG_ERROR_MODEL: &str = "dag-group-qem-v4";
 pub const DAG_CLUSTER_STRATEGY: &str = "dag-groups";
-/// Target size of one streaming bundle: a cell of the scene index, a bundle of the world DAG.
+/// The most bytes of one streaming page — the unit a runtime reads, installs, keeps and drops, one
+/// geometry pool slot (`compiler/pages/bundles.rs`) —, and of one file of the scene index's cells.
 pub const STREAM_BUNDLE_BYTES: usize = 128 * 1024;
 pub const STRUCTURE_VERSION: u32 = 1;
-/// The root of the manifest, of fixed size: its pages lie beside it (`compiler_manifest_pages.rs`).
+/// The root of the manifest, of fixed size: its pages lie beside it (`compiler/pages/manifest.rs`).
 pub const MANIFEST_FILE: &str = "clusters.json";
 /// Code of a job stopped on a cancel request: what the batch counts and the event reports.
 pub const CANCELLED: &str = "CANCELLED";
@@ -75,7 +61,7 @@ pub struct Options {
     pub simplification: String,
     /// Texture block families (`--textures-format`), the stored one first, the stored one alone by
     /// default.
-    pub texture_formats: Vec<texture_preview::BlockFormat>,
+    pub texture_formats: Vec<texture::BlockFormat>,
     /// The HLOD layers and the rules assigning objects to them (`hlod`, `Hlod::read`): none when
     /// the job names none; `Err` with the job's refusal when they do not read.
     pub hlod: std::result::Result<Hlod, String>,
@@ -87,6 +73,17 @@ pub struct Options {
     /// The voxelized objects (`voxelize`, `VoxelizeOptions::read`): none when the job names none;
     /// `Err` with the job's refusal when they do not read.
     pub voxelize: std::result::Result<VoxelizeOptions, String>,
+    /// The partition's main grid (`partitionGrid`, `PartitionGrid::read`): the reference's when
+    /// the job names none; `Err` with the job's refusal when it does not read.
+    pub partition_grid: std::result::Result<PartitionGrid, String>,
+    /// The mesh build settings — the scene's and the rules by object (`meshBuild`,
+    /// `MeshBuildOptions::read`): none when the job names none; `Err` with the job's refusal when
+    /// they do not read.
+    pub mesh_build: std::result::Result<MeshBuildOptions, String>,
+    /// Each object's settings — the scene's and the rules by object: whether it streams, whether
+    /// a skinned one is an instanced skinned object (`objectSettings`, `ObjectSettings::read`):
+    /// none when the job names none; `Err` with the job's refusal when they do not read.
+    pub object_settings: std::result::Result<ObjectSettings, String>,
     pub cancelled: Arc<AtomicBool>,
 }
 fn check(o: &Options) -> Result<()> {
@@ -97,92 +94,49 @@ fn check(o: &Options) -> Result<()> {
 pub fn implementation_hash() -> &'static str {
     include_str!(concat!(env!("OUT_DIR"), "/implementation_hash.txt"))
 }
-mod compiler_accessor_create;
-mod compiler_accessor_decode;
-mod compiler_accessor_types;
-mod compiler_args;
-pub mod compiler_budget;
-mod compiler_buffers;
-mod compiler_build;
-mod compiler_bundle_dependencies;
-mod compiler_coplanar;
-mod compiler_copy;
-mod compiler_digest;
-mod compiler_error;
-mod compiler_geometry_files;
-mod compiler_instancing;
-mod compiler_lights;
-mod compiler_lock;
-mod compiler_manifest_pages;
-mod compiler_materials;
-mod compiler_mesh_share;
-mod compiler_nodes;
-mod compiler_page_bundles;
-mod compiler_page_record;
-mod compiler_plan;
-mod compiler_primitive;
-mod compiler_primitive_checks;
-mod compiler_primitive_dag;
-mod compiler_primitive_pages;
-mod compiler_primitive_stalls;
-mod compiler_primitive_warn;
-mod compiler_prune;
-mod compiler_prune_textures;
-mod compiler_publish;
-mod compiler_ratio;
-mod compiler_reuse;
-mod compiler_reuse_proof;
-mod compiler_runtime;
-mod compiler_safe_path;
-mod compiler_scene;
-mod compiler_select;
-mod compiler_source;
-mod compiler_storage;
-mod compiler_tables;
-mod compiler_textures;
-mod compiler_types;
-mod compiler_validate;
-mod compiler_world;
-mod compiler_world_roots;
-#[cfg(test)]
-mod shared_math_tests;
+pub mod compiler;
+pub(crate) mod geometry_page;
+pub(crate) mod hlod;
+pub mod support;
 #[cfg(test)]
 mod tests;
-use compiler_accessor_create::*;
-use compiler_accessor_types::*;
-pub use compiler_args::{
+pub(crate) mod trace;
+use compiler::accessor::create::*;
+use compiler::accessor::types::*;
+pub use compiler::args::{
     job_options, machine_threads, parse_compiler_args, positive, Hlod, HlodBuilder, HlodLayer,
-    HlodLodSelection, JobDefaults, MaterialOptions, VoxelizeOptions, ID_FIELD,
+    HlodLodSelection, JobDefaults, MaterialOptions, MeshBuildOptions, ObjectSettings,
+    PartitionGrid, VoxelizeOptions, ID_FIELD,
 };
-use compiler_buffers::*;
-pub use compiler_build::compile;
-use compiler_bundle_dependencies::*;
-use compiler_copy::*;
-use compiler_digest::*;
-pub use compiler_error::{CompilerError, Result};
-use compiler_geometry_files::write_geometry_files;
-use compiler_instancing::expand_gpu_instances;
-use compiler_lights::stage_scene_lights;
-use compiler_lock::CacheLock;
-use compiler_manifest_pages::write_mesh_pages;
-use compiler_materials::*;
-use compiler_plan::*;
-use compiler_primitive::*;
-use compiler_primitive_dag::*;
-use compiler_primitive_pages::*;
-use compiler_prune::*;
-pub use compiler_publish::scope_pointer;
-use compiler_publish::{publish, Publication};
-use compiler_ratio::with_ratio;
-use compiler_runtime::*;
-use compiler_safe_path::*;
-use compiler_scene::*;
-use compiler_source::*;
-use compiler_storage::*;
-use compiler_tables::stage_scene_tables;
-use compiler_textures::*;
-use compiler_types::*;
-use compiler_validate::*;
-use compiler_world_roots::stage_world_roots;
+pub use compiler::build::compile;
+use compiler::build::progress::with_ratio;
+use compiler::cache::digest::*;
+use compiler::cache::lock::CacheLock;
+use compiler::cache::prune::*;
+pub use compiler::cache::publish::scope_pointer;
+use compiler::cache::publish::{publish, Publication};
+use compiler::cache::storage::*;
+pub use compiler::error::{CompilerError, Result};
+use compiler::lights::stage_scene_lights;
+use compiler::materials::textures::*;
+use compiler::materials::*;
+use compiler::pages::containers::write_geometry_files;
+use compiler::pages::dependencies::*;
+use compiler::pages::manifest::write_mesh_pages;
+use compiler::plan::*;
+use compiler::primitive::dag::*;
+use compiler::primitive::pages::*;
+use compiler::primitive::*;
+use compiler::source::buffers::*;
+use compiler::source::copy::*;
+use compiler::source::instancing::expand_gpu_instances;
+use compiler::source::load::*;
+use compiler::source::mapped::*;
+use compiler::source::safe_path::*;
+use compiler::source::scene::*;
+use compiler::source::*;
+use compiler::tables::stage_scene_tables;
+use compiler::validate::*;
+use hlod::chain::stage_world_roots;
 use physics_cook::stage_physics;
 use plugins::scene::{PreparedScene, RoutedSource};

@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { DIAGNOSTICS, type DiagnosticMode } from './diagnostics.ts'
-import {
-  DIAGNOSTIC_VIEWS,
-  LIT_VIEWS,
-} from '../../../sdk-browser/src/visibility/shader/shadeMode.ts'
+import { DIAGNOSTIC_VIEWS, drawsLit } from '../../../sdk-browser/src/visibility/shader/shadeMode.ts'
 import { createExplorerDiagnosticApi } from '../../../sdk-browser/src/api/diagnosticApi.ts'
 import type { Engine } from '../../../sdk-browser/src/session/engine/types.ts'
 
@@ -12,14 +9,14 @@ const modes = Object.keys(DIAGNOSTICS) as DiagnosticMode[]
 
 test('a view mode is available exactly when the WebGPU pipeline can show it', () => {
   // The resolve shades the normal image by default (its mode 0) and each view of its table; the
-  // lit image's views are steps of the normal pipeline (`LIT_VIEWS`).
+  // lit image's views are steps of the normal pipeline (`drawsLit`).
+  const litView = (mode: DiagnosticMode) => mode !== 'beauty' && drawsLit(mode)
   const shown = (mode: DiagnosticMode) =>
-    mode === 'beauty' || mode in DIAGNOSTIC_VIEWS || mode in LIT_VIEWS
+    mode === 'beauty' || mode in DIAGNOSTIC_VIEWS || litView(mode)
   for (const mode of modes) assert.equal(DIAGNOSTICS[mode].available, shown(mode), mode)
-  const views = [...Object.keys(DIAGNOSTIC_VIEWS), ...Object.keys(LIT_VIEWS)]
-  for (const mode of views as DiagnosticMode[])
+  for (const mode of Object.keys(DIAGNOSTIC_VIEWS) as DiagnosticMode[])
     assert.equal(DIAGNOSTICS[mode]?.available, true, `${mode} is offered`)
-  for (const mode of Object.keys(LIT_VIEWS))
+  for (const mode of modes.filter(litView))
     assert.ok(!(mode in DIAGNOSTIC_VIEWS), `${mode}: the resolve paints no view of the lit image`)
 })
 

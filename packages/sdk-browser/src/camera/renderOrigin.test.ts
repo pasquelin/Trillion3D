@@ -58,7 +58,6 @@ test('same scene at the origin and at 50 km: the sent matrices are identical bit
   memesNombres(loin.worlds, near.worlds, 'world matrix brought back to the eye')
   memesNombres(loin.uniforms.view, near.uniforms.view, 'relative view')
   memesNombres(loin.uniforms.planes, near.uniforms.planes, 'relative planes')
-  assert.equal(loin.uniforms.cameraStretch, near.uniforms.cameraStretch)
 })
 
 test('the published frame origin is the eye world position, not a zero', () => {

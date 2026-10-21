@@ -1,5 +1,4 @@
 import { frustumExcludesBox } from '../../../../math/src/geometry/frustum/box.ts'
-import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 import { selectFlat } from './select.fixture.ts'
 import { openMark } from './openRoot.fixture.ts'
 import { rootWorldBox, worldStretch } from '../selection/rootWorld.ts'
@@ -82,8 +81,6 @@ export function selectVisiblePages<T extends PageRecord>(
   state.shownPacked = result.shownPacked
   state.held = held
   state.pixelError = options.pixelError ?? 0
-  state.cameraStretch = maxStretch(cam.view)
-  state.flatWorld = roots[0]?.world ?? IDENTITY_WORLD
   state.flatElements = (roots[0]?.world ?? IDENTITY_WORLD).elements
   state.flatStretch = 1
   state.flatFocal = 1

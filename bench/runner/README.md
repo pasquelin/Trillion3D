@@ -189,8 +189,8 @@ sides.
 ## Outputs
 
 In `--out` (gitignored): `measure.json`, `resume.md`, and per view, threshold and side `.png`,
-`.coupe.txt` and a metrics line — selected and unrendered triangles, Hi-Z counters, selection
-hash, page budget — plus the A/A check (a side run twice) and the before/after image delta per channel. A capture whose
+`.coupe.txt` and a metrics line — selected and unrendered triangles, the cut's occlusion counts,
+selection hash, page budget — plus the A/A check (a side run twice) and the before/after image delta per channel. A capture whose
 every pixel is RGB 0 is refused by name (`black-capture`, exit code 1): its deltas read "black
 capture", never 0 px. `null` means unmeasured, never inferred.
 
@@ -200,14 +200,14 @@ All read on **one frame**, the measured loop's last (`series[].sides[].recordedF
 
 | Counter                   | Meaning                                                                                                                                           |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `selectedTriangles`       | the frame's cluster cut before frustum and occlusion rejection; `null` without a cut                                                              |
-| `drawnTriangles`          | `selectedTriangles` less the occlusion test's rejects (`hizRejectedTriangles`, last GPU sample, one frame in fifteen)                             |
+| `selectedTriangles`       | the frame's cluster cut, past its frustum and both its occlusion passes; `null` without a cut                                                     |
+| `drawnTriangles`          | `selectedTriangles`: the cut's drawn list is taken after both its occlusion passes                                                                |
 | `coverage` (`resume.md`)  | `selectedTriangles − drawnTriangles − uncoveredTriangles`: zero expected                                                                          |
 | `submittedTriangles`      | GPU count of the opaque raster pass; `null` while a GPU cut's readback is pending                                                                 |
 | `totalSubmittedTriangles` | the same with transparent passes; `null` under `--moving-camera`, where the readback never returns                                                |
 | `frameHeld`               | the frame was held (scene unchanged, no temporal pass running; the bench draws a converged temporal view, `drawConverged`): zero clusters drawn is a record, not a missing reading |
 | `uncoveredTriangles`      | cut triangles with no resident page and no covering ancestor, a hole: zero is the only valid value                                                |
-| `hiZ`                     | occlusion input, rejected, downsampled; on the GPU path an earlier frame, `null` before the first count                                           |
+| `occlusion`               | `occluded`, what the cut's main pass held for its post pass, then `postHidden`, what the post pass hid again; `null` without a GPU cut            |
 
 **GPU memory** (`series[].sides[].metrics`):
 allocated VRAM per side and view as registered by the device wrapper, in three categories (texture
@@ -334,7 +334,7 @@ only in-frustum points no drawn surface hides, at 1728×1117, DPR 2, through the
 tree. A row passes when the cut held, no browser error, both directions sampled and both maxima
 ≤ `pixelError + 0.1 px`; a failed or empty run exits nonzero. Run it with scenes cooked by the same
 checkout. The compiler-side measure of quantization alone:
-`packages/asset-compiler-rust/src/geometry_page_quant/screen/`.
+`packages/asset-compiler-rust/src/geometry_page/quant/screen/`.
 
     node bench/runner/lighting/lightTileIterations.ts [--width 1920] [--height 1080] [--views <names>]
 

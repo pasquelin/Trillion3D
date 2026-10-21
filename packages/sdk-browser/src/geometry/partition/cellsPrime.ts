@@ -9,7 +9,8 @@ import type { StreamPage } from '../streaming/types.ts'
 import type { CellRows } from './cellDecode.ts'
 import type { PageBody } from './cellIndex.ts'
 import type { CellFrame } from './follow.ts'
-import type { WorldCells } from '../../gpu/core/selection.ts'
+import type { WorldCells } from '../dag/worlds/worldCells.ts'
+import type { WorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 
 /** Kept internal as `budget` is: the streamer's verified bytes and their decode off the main
  *  thread, those refused for good, requests, catalogue, rows, else the owner told. */
@@ -19,7 +20,9 @@ export type CellFrameIo = {
   decodePage: (bytes: Uint8Array, url: string) => Promise<PageBody>
   /** Whether a read of `url` is refused for good (`PageStreamer.failed`). */
   failed(url: string): boolean
-  request(urls: readonly string[]): void
+  /** Asks `urls` of the streamer, by `priority` when given (`cellPriority`), else the view's own
+   *  (`PRIORITY_VISIBLE`). */
+  request(urls: readonly string[], priority?: number): void
   admit(pages: readonly StreamPage[]): void
   forget(urls: readonly string[]): void
   update(rows: PlacementRows, from: number, to: number): void
@@ -31,19 +34,29 @@ export type CellFrameIo = {
   /** The cut's world cells while it packs the world DAG of this partition's world
    *  (`GpuSelection.world`). */
   world?: WorldCells
+  /** Whether the frame runs in the initial load — the opening's (`primeFrames`), or a frame before
+   *  the session's first image is shown (`Engine.initialLoad`) —, which holds no cell back from
+   *  loading and weighs no slow streaming (`slowStreaming.ts`). */
+  initialLoad?: boolean
+  /** How the view streams the cells, the session's settings as they stand
+   *  (`WORLD_STREAMING_SETTINGS`): taken from this frame, every default when none is given. */
+  streaming?: WorldStreaming
 }
 
 /** Structurally a `FrameBudget`, kept internal. */
 export type CellBudget = { admits(): boolean; spend(): void }
 
 /** Kept internal as a frame's: the streamer's verified read, the decodes, the catalogue. */
-export type CellPrimeIo = Pick<CellFrameIo, 'decode' | 'decodePage' | 'admit' | 'forget'> & {
-  read(url: string): Promise<Uint8Array>
+export type CellPrimeIo = Pick<
+  CellFrameIo,
+  'decode' | 'decodePage' | 'admit' | 'forget' | 'streaming'
+> & {
+  read(url: string, priority?: number): Promise<Uint8Array>
 }
 
-/** Runs `frame` from `eye` to completion on an unbounded budget, what it asks read through
- *  `io.read` — a failure throws, the open fails —, each round waiting on the reads and the
- *  `decodes` it asked; the bytes read. */
+/** Runs `frame` from `eye` to completion on an unbounded budget, as the initial load — no cell held
+ *  back from loading —, what it asks read through `io.read` — a failure throws, the open fails —,
+ *  each round waiting on the reads and the `decodes` it asked; the bytes read. */
 export async function primeFrames(
   eye: ArrayLike<number>,
   io: CellPrimeIo,
@@ -53,16 +66,17 @@ export async function primeFrames(
   let bytes = 0
   const landed = new Map<string, Uint8Array>(),
     reads: Promise<void>[] = []
-  const read = (url: string) =>
-    io.read(url).then((got) => void ((bytes += got.byteLength), landed.set(url, got)))
+  const read = (url: string, priority?: number) =>
+    io.read(url, priority).then((got) => void ((bytes += got.byteLength), landed.set(url, got)))
   const port: CellFrameIo = {
     ...io,
     bytes: (url: string) => landed.get(url),
     failed: () => false,
-    request(urls: readonly string[]) {
-      for (const url of urls) if (!landed.has(url)) reads.push(read(url))
+    request(urls: readonly string[], priority?: number) {
+      for (const url of urls) if (!landed.has(url)) reads.push(read(url, priority))
     },
     update() {},
+    initialLoad: true,
   }
   for (;;) {
     const later = frame(eye, port, { admits: () => true, spend() {} })

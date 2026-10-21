@@ -4,9 +4,9 @@
 //! corner that decodes bit for bit onto a corner of its group's children takes that child corner's
 //! vertex — a position the simplification kept —; every other corner takes the source vertex
 //! nearest its position, the nearest normal among equally near ones (`Source::nearest`). A page
-//! passes when it decodes, when every corner lies in the page's published bounds — an exact
-//! page's in its sphere too —, when each corner of an exact page lies within the page's
-//! quantization error of its vertex — an encode or decode that moves a vertex fails there —, and,
+//! passes when it decodes, when every corner lies in the page's published bounds, when each
+//! corner of an exact page lies within half the diagonal of a cell of the page's position grid of
+//! its vertex — an encode or decode that moves a vertex fails there —, and,
 //! for a coarse page, when every point of its triangles lies near its group's children: within
 //! their longest edge plus the group error.
 pub(in crate::tests) use super::cooked_page_defects::cooked_page_defects;
@@ -14,13 +14,14 @@ use super::cooked_scene::CookedScene;
 use super::silhouette::Mesh;
 use super::*;
 use std::collections::HashMap;
-use trillion3d_math::vec3::point_checked;
+use trillion3d_math::vector::vec3::point_checked;
+use trillion3d_page_codec::bits::grid::PageGrid;
 
 pub(super) type Point = [f64; 3];
 
 /// Euclidean distance, on the crate's own vector helpers.
 pub(super) fn distance(a: Point, b: Point) -> f64 {
-    trillion3d_math::vecn::length(trillion3d_math::vecn::sub(a, b))
+    trillion3d_math::vector::vecn::length(trillion3d_math::vector::vecn::sub(a, b))
 }
 
 /// One decoded page: per corner, the source vertex it was matched to, the decoded position and,
@@ -29,7 +30,10 @@ pub(in crate::tests) struct PageCorners {
     pub source: Vec<u32>,
     pub corners: Vec<Point>,
     pub normals: Option<Vec<Point>>,
+    /// The most a corner moves: half the diagonal of a cell of the page's position grid.
     pub error: f64,
+    /// The grid the page was quantized on.
+    pub grid: PageGrid,
 }
 
 /// A primitive's source vertices, bucketed on a grid so a corner finds its nearest in a few cells.
@@ -44,8 +48,9 @@ impl<'a> Source<'a> {
     /// The source of flat `positions` and, when it has them, `normals`.
     pub fn new(positions: &'a [f32], normals: Option<&'a [f32]>) -> Self {
         let points = positions.as_chunks::<3>().0;
-        let (low, high) = trillion3d_math::aabb::aabb_of(points.iter().map(|p| p.map(f64::from)));
-        let diagonal = trillion3d_math::aabb::diagonal(low, high);
+        let (low, high) =
+            trillion3d_math::geometry::aabb::aabb_of(points.iter().map(|p| p.map(f64::from)));
+        let diagonal = trillion3d_math::geometry::aabb::diagonal(low, high);
         // About one vertex a cell over the box's volume.
         let cell = (diagonal / (points.len() as f64).cbrt().max(1.0)).max(1e-9);
         let mut cells: HashMap<[i64; 3], Vec<u32>> = HashMap::new();
@@ -118,6 +123,8 @@ pub(in crate::tests) fn page_corners(
 ) -> std::result::Result<PageCorners, String> {
     let decoded =
         trillion3d_page_codec::decode(bytes, usize::MAX).map_err(|e| format!("decode: {e:?}"))?;
+    let header = trillion3d_page_codec::Header::parse(bytes, usize::MAX)
+        .map_err(|e| format!("header: {e:?}"))?;
     let position = decoded.attribute(0).expect("position");
     // Rank 1 is the normal, absent on a page that carries none.
     let normal = decoded.attribute(1);
@@ -134,7 +141,12 @@ pub(in crate::tests) fn page_corners(
         source,
         corners,
         normals,
-        error: f64::from(decoded.quantization_error),
+        error: f64::from(header.position.unit()) * 0.5 * 3f64.sqrt(),
+        grid: PageGrid {
+            position: header.position.precision,
+            normal: header.normal_precision,
+            tangent: header.tangent_precision,
+        },
     })
 }
 

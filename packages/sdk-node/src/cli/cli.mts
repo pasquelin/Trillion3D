@@ -10,37 +10,46 @@ import {
   DEFAULT_TRIANGLE_BUDGET,
   HLOD_OPTION,
   MATERIALS_OPTION,
+  MESH_BUILD_OPTION,
+  OBJECT_SETTINGS_OPTION,
+  PARTITION_GRID_OPTION,
   RESPONSIVE_OPTION,
   SIMPLIFICATIONS,
   TEMPORAL_AA_LEVELS,
   TEMPORAL_AA_OPTION,
   VOXELIZE_OPTION,
 } from '../../../sdk-core/src/contracts/compilerAbi.ts'
-import type { HlodOptions } from '../../../sdk-core/src/contracts/hlodOptions.ts'
-import type {
-  MaterialsOption,
-  ResponsiveOption,
-  TemporalAntialiasingOption,
-} from '../../../sdk-core/src/contracts/materialOptions.ts'
-import type { VoxelizeOption } from '../../../sdk-core/src/contracts/voxelizeOptions.ts'
+import type { TemporalAntialiasingOption } from '../../../sdk-core/src/contracts/materialOptions.ts'
+import {
+  PARTITION_SCHEME_OPTION,
+  PARTITION_SCHEMES,
+  type PartitionSchemeOption,
+} from '../../../sdk-core/src/contracts/partitionOptions.ts'
+import type { PrepareOptions } from '../compiler/contracts.ts'
 
 /** Exit code of `--strict` when the compile succeeded with warnings; failures exit 1. */
 const STRICT_EXIT = 3
 const FLAGS = new Set(['--strict', '--verbose'])
 const argv = process.argv.slice(2)
-// The flags holding a value: the HLOD, either form (`resolveHlod`), the scene's temporal
-// anti-aliasing (`resolveTemporalAntialiasing`, a bare level or a boolean), the responsive objects
-// (`resolveResponsive`), the settings by material name (`resolveMaterials`) and the voxelized
-// objects (`resolveVoxelize`), each the last one, JSON but for the level.
-const JSON_OPTIONS = [
-  HLOD_OPTION,
-  TEMPORAL_AA_OPTION,
-  RESPONSIVE_OPTION,
-  MATERIALS_OPTION,
-  VOXELIZE_OPTION,
-]
-const isJsonFlag = (arg: string) => JSON_OPTIONS.some((option) => arg.startsWith(option))
-const flags = new Set(argv.filter((arg) => arg.startsWith('--') && !isJsonFlag(arg)))
+// The flags holding a value, each the last one. Those holding JSON, by the job field they set: the
+// HLOD, either form (`resolveHlod`), the responsive objects (`resolveResponsive`), the settings by
+// material name (`resolveMaterials`), the voxelized objects (`resolveVoxelize`), the partition's
+// main grid (`resolvePartitionGrid`), the mesh build settings (`resolveMeshBuild`) and the object
+// settings (`resolveObjectSettings`).
+const JSON_FLAGS = {
+  hlod: HLOD_OPTION,
+  responsive: RESPONSIVE_OPTION,
+  materials: MATERIALS_OPTION,
+  voxelize: VOXELIZE_OPTION,
+  partitionGrid: PARTITION_GRID_OPTION,
+  meshBuild: MESH_BUILD_OPTION,
+  objectSettings: OBJECT_SETTINGS_OPTION,
+} as const
+// And those holding a bare word: the scene's temporal anti-aliasing (`resolveTemporalAntialiasing`,
+// a level or a boolean) and the partition's scheme (`resolvePartitionScheme`, a name or `true`).
+const VALUE_FLAGS = [...Object.values(JSON_FLAGS), TEMPORAL_AA_OPTION, PARTITION_SCHEME_OPTION]
+const isValueFlag = (arg: string) => VALUE_FLAGS.some((option) => arg.startsWith(option))
+const flags = new Set(argv.filter((arg) => arg.startsWith('--') && !isValueFlag(arg)))
 const [
   input,
   output,
@@ -56,7 +65,7 @@ const unknown = [...flags].filter((flag) => !FLAGS.has(flag))
 if (!input || !output || !resourceBaseUrl || unknown.length)
   throw compilerError(
     'INVALID_ARGS',
-    `usage: trillion3d-compile [--strict] [--verbose] [${HLOD_OPTION}JSON] [${TEMPORAL_AA_OPTION}${TEMPORAL_AA_LEVELS.join('|')}|true|false] [${RESPONSIVE_OPTION}JSON] [${MATERIALS_OPTION}JSON] [${VOXELIZE_OPTION}JSON] SOURCE CACHE [${ASSET_SCOPES.join('|')}] [triangleBudget] RESOURCE_BASE_URL [threads] [ramBudgetMb] [${SIMPLIFICATIONS.join('|')}]`,
+    `usage: trillion3d-compile [--strict] [--verbose] [${HLOD_OPTION}JSON] [${TEMPORAL_AA_OPTION}${TEMPORAL_AA_LEVELS.join('|')}|true|false] [${RESPONSIVE_OPTION}JSON] [${MATERIALS_OPTION}JSON] [${VOXELIZE_OPTION}JSON] [${PARTITION_SCHEME_OPTION}${PARTITION_SCHEMES.join('|')}|true] [${PARTITION_GRID_OPTION}JSON] [${MESH_BUILD_OPTION}JSON] [${OBJECT_SETTINGS_OPTION}JSON] SOURCE CACHE [${ASSET_SCOPES.join('|')}] [triangleBudget] RESOURCE_BASE_URL [threads] [ramBudgetMb] [${SIMPLIFICATIONS.join('|')}]`,
   )
 /** Whether `word` is one of `list`'s words. */
 const oneOf = <T extends string>(list: readonly T[], word: string): word is T =>
@@ -77,7 +86,9 @@ function jsonFlag<T>(option: string): T | undefined {
     throw compilerError('INVALID_OPTIONS', `${option} must hold JSON`)
   }
 }
-const hlod = jsonFlag<HlodOptions>(HLOD_OPTION)
+const jsonOptions = Object.fromEntries(
+  Object.entries(JSON_FLAGS).map(([field, option]) => [field, jsonFlag(option)]),
+) as Pick<PrepareOptions, keyof typeof JSON_FLAGS>
 /** The last `--temporal-antialiasing=` flag's level: `true` and `false` as booleans, any other
  *  word as itself, which `resolveTemporalAntialiasing` checks. */
 const levelFlag = argv.filter((arg) => arg.startsWith(TEMPORAL_AA_OPTION)).pop()
@@ -88,9 +99,14 @@ const temporalAntialiasing =
     : levelWord === 'false'
       ? false
       : (levelWord as TemporalAntialiasingOption | undefined)
-const responsive = jsonFlag<ResponsiveOption>(RESPONSIVE_OPTION)
-const materials = jsonFlag<MaterialsOption>(MATERIALS_OPTION)
-const voxelize = jsonFlag<VoxelizeOption>(VOXELIZE_OPTION)
+/** The last `--partition-scheme=` flag's word: `true` as the boolean, any other word as itself,
+ *  which `resolvePartitionScheme` checks. */
+const schemeWord = argv
+  .filter((arg) => arg.startsWith(PARTITION_SCHEME_OPTION))
+  .pop()
+  ?.slice(PARTITION_SCHEME_OPTION.length)
+const partitionScheme =
+  schemeWord === 'true' ? true : (schemeWord as PartitionSchemeOption | undefined)
 const [strict, verbose] = [flags.has('--strict'), flags.has('--verbose')]
 const controller = new AbortController()
 process.once('SIGINT', () => controller.abort())
@@ -107,11 +123,9 @@ const result = await prepare(input, output, scope, triangleBudget, {
   threads: threads === undefined ? undefined : Number(threads),
   ramBudgetMb: Number(ramBudgetMb),
   simplification,
-  hlod,
+  ...jsonOptions,
   temporalAntialiasing,
-  responsive,
-  materials,
-  voxelize,
+  partitionScheme,
   signal: controller.signal,
   onProgress: (event) => {
     if (progress) progress.event(event)

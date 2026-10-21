@@ -67,7 +67,7 @@ test('a made cut not adopted is released when the running cut takes the roots in
   const made = fakeCut(),
     growth = rt.growth!
   growth.asked = false
-  growth.ready = { cut: made as unknown as GpuSelection, roots: 2, moved: new Set() }
+  growth.ready = { cut: made as unknown as GpuSelection, roots: 2 }
   grow()
   startGrownCut(rt)
   assert.equal(made.disposed, 1, 'the made cut is released, never left behind')
@@ -108,7 +108,7 @@ test('the roots taken in place join the worlds the host sends, at their ranks', 
 
 test('a cut the device refuses is said by name: the running cut stays, the session is not lost', async () => {
   const { rt, cut, grow, refusals } = session()
-  Object.assign(rt.layout, { rows: { logTouched() {} }, packedPages: [] })
+  Object.assign(rt.layout, { rows: {}, packedPages: [] })
   ;(rt.run as { lost?: boolean }).lost = false
   cut.full = true
   grow()
@@ -124,7 +124,7 @@ test('a cut the device refuses is said by name: the running cut stays, the sessi
 
 test('one cut is made at a time: roots that come while it is made wait for it to land', async () => {
   const { rt, cut, grow } = session()
-  Object.assign(rt.layout, { rows: { logTouched() {} }, packedPages: [] })
+  Object.assign(rt.layout, { rows: {}, packedPages: [] })
   cut.full = true
   grow()
   startGrownCut(rt)
@@ -142,12 +142,12 @@ test('one cut is made at a time: roots that come while it is made wait for it to
 
 test('a landed cut for fewer roots is released before a cut over them all is made', async () => {
   const { rt, cut, grow } = session()
-  Object.assign(rt.layout, { rows: { logTouched() {} }, packedPages: [] })
+  Object.assign(rt.layout, { rows: {}, packedPages: [] })
   cut.full = true
   grow()
   const landed = fakeCut(),
     growth = rt.growth!
-  growth.ready = { cut: landed as unknown as GpuSelection, roots: 2, moved: new Set() }
+  growth.ready = { cut: landed as unknown as GpuSelection, roots: 2 }
   grow()
   startGrownCut(rt)
   assert.equal(landed.disposed, 1, 'its tables released before the new cut asks its own')

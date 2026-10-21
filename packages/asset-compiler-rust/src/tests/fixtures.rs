@@ -59,23 +59,28 @@ pub(crate) fn options(source: PathBuf, cache: PathBuf) -> Options {
         threads: 1,
         ram_budget_mb: 64,
         simplification: "none".into(),
-        texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
+        texture_formats: vec![crate::texture::BlockFormat::Bc7],
         hlod: crate::Hlod::read(None),
         materials: crate::MaterialOptions::read(None, None, None),
         voxelize: crate::VoxelizeOptions::read(None),
+        partition_grid: crate::PartitionGrid::read(&serde_json::Map::new()),
+        mesh_build: crate::MeshBuildOptions::read(None),
+        object_settings: crate::ObjectSettings::read(None),
         cancelled: Arc::new(AtomicBool::new(false)),
     }
 }
 
 /// The chain the world tests build: HLOD 0 instanced, then three approximated layers, each building
-/// the next's actors, every placed object in it.
+/// the next's actors on a grid twice as coarse, the last always loaded, every placed object in it.
 pub(crate) fn hlod_chain() -> crate::Hlod {
     let chain = serde_json::json!({
         "layers": [
             {"name": "hlod0", "builder": "instanced", "parent": "hlod1"},
-            {"name": "hlod1", "builder": "approximate", "parent": "hlod2"},
-            {"name": "hlod2", "builder": "approximate", "parent": "hlod3"},
-            {"name": "hlod3", "builder": "approximate"}
+            {"name": "hlod1", "builder": "approximate", "parent": "hlod2", "cellSize": 512,
+                "loadingRange": 1024},
+            {"name": "hlod2", "builder": "approximate", "parent": "hlod3", "cellSize": 1024,
+                "loadingRange": 2048},
+            {"name": "hlod3", "builder": "approximate", "spatiallyLoaded": false}
         ],
         "default": "hlod0"
     });

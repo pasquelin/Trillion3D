@@ -11,13 +11,6 @@ type Stepped = { autoUpdate: boolean; update(delta: number): void }
 /** The world's physics as a frame runs it (`worldPhysics.ts`): its time set, then its frame. */
 type Physics = { time(seconds: number): void; frame(): boolean }
 
-/** A frame's metrics as the host copied them from the engine, and one a page reads composed from
- *  them; `null` where the path does not count. */
-export type WorldFrameMetrics = FrameMetrics & {
-  /** Clusters the occlusion test found hidden this frame; `null` where the path does not count them. */
-  hizCulled: number | null
-}
-
 /** What a frame hook receives: seconds since the last frame and since the world began. The
  *  world's one object, rewritten each frame: a hook that keeps a value copies it. */
 export interface FrameInfo {
@@ -28,32 +21,22 @@ export interface FrameInfo {
   time: number
   /** How many frames the world has drawn. */
   frame: number
-  /** What the last frame cost: triangles, pages, timings. */
-  metrics: WorldFrameMetrics
+  /** What the last frame cost: triangles, pages, timings, as the host copied them from the engine;
+   *  `null` where the path does not count. */
+  metrics: FrameMetrics
 }
 
 /** What a before-frame hook receives: the seconds the controllers just integrated, and since the
  *  world began. The world's one object, rewritten each frame: a hook that keeps a value copies it. */
 export type BeforeFrameInfo = Pick<FrameInfo, 'delta' | 'time'>
 
-/** The engine's metrics with what a page reads composed from them: the clusters the occlusion
- *  test rejected. */
-function named(m: FrameMetrics): WorldFrameMetrics {
-  return Object.assign(m, {
-    hizCulled: m.hizRejectedClusters ?? null,
-  })
-}
-
 /**
  * What a page reads before the world's first frame: a host-led loop asks for the metrics right
  * after `render()`, which draws nothing until the engine is ready. No frame ran, so nothing was
  * spent, loaded or drawn: every metric key is there, the ones a frame measures `null`, the totals
- * zero — the host sample before any frame (`UNMEASURED`), and no cluster culled.
+ * zero — the host sample before any frame (`UNMEASURED`).
  */
-export const NOT_DRAWN: Readonly<WorldFrameMetrics> = Object.freeze({
-  ...UNMEASURED,
-  hizCulled: null,
-})
+export const NOT_DRAWN: Readonly<FrameMetrics> = Object.freeze({ ...UNMEASURED })
 
 /** Adds `hook` to `hooks`; returns the function that removes it. */
 function member<T>(hooks: Set<(info: T) => void>, hook: (info: T) => void) {
@@ -117,7 +100,7 @@ type FramesState = {
   grid: ReturnType<typeof createFrameGrid>
   start: number
   frame: number
-  last: WorldFrameMetrics | null
+  last: FrameMetrics | null
   pace: ReturnType<typeof createLoopPace>
   info: FrameInfo
   ahead: BeforeFrameInfo
@@ -181,7 +164,7 @@ function dispatch(state: FramesState, metrics: FrameMetrics) {
   steps.since = 0
   info.time = (grid.time - state.start) / 1000
   info.frame = state.frame++
-  info.metrics = state.last = named(metrics)
+  info.metrics = state.last = metrics
   grid.refreshed(metrics.displayRefreshMs)
   for (const hook of state.hooks) hook(info)
 }

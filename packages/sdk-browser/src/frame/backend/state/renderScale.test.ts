@@ -87,12 +87,12 @@ test('the targets start at the maximum, apart from the display wherever a scale 
   assert.deepEqual(sizeOf(runtime(1).rt), { ...native, apart: false }, 'fixed at 1: as before')
 })
 
-// A capture, a diagnostic view and a GPU variant stay at the display's size.
-test('a capture, a diagnostic view and a GPU variant draw at the display size', () => {
+// A capture and a GPU variant stay at the display's size; a diagnostic view keeps the view's
+// targets, drawn in them at the pixel centre: switching to it remakes none.
+test('a capture and a GPU variant draw at the display size, a diagnostic view in the targets kept', () => {
   const changes: [string, (view: WebgpuPagesRuntime) => void][] = [
-    ['a diagnostic view', (view) => (view.run.diagnostic = 'normals' as never)],
     ['a capture', (view) => (view.capture.capturing = true)],
-    ['a GPU variant', (view) => (view.context.diagnosticGpuVariant = 'raster-compute' as never)],
+    ['a GPU variant', (view) => (view.context.diagnosticGpuVariant = 'geometry-flat')],
   ]
   for (const [what, change] of changes) {
     const { rt } = runtime(0.5)
@@ -100,6 +100,11 @@ test('a capture, a diagnostic view and a GPU variant draw at the display size', 
     const size = sizeOf(rt)
     assert.deepEqual([size.renderWidth, size.apart], [3456, false], what)
   }
+  const { rt } = runtime(0.5)
+  const beauty = sizeOf(rt)
+  rt.run.diagnostic = 'normals' as never
+  assert.deepEqual(sizeOf(rt), beauty, 'a diagnostic view: the targets of the beauty view')
+  assert.deepEqual([beauty.renderWidth, beauty.apart], [1728, true])
 })
 
 // A scale the page asked was ignored without temporal antialiasing: a feed at 0.5 with the pass off

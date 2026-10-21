@@ -15,7 +15,6 @@ import {
   DERIVE_ROWS_ENTRY,
   DERIVE_ROWS_WGSL,
   PART_CASTS,
-  PART_CORNERS,
   PART_LODS,
   PART_SPHERES,
 } from './rowWordsWgsl.ts'
@@ -72,8 +71,7 @@ function dispatch(
   const gpu = rt.rowWords!.gpu!
   const parts =
     (gpu.frame[0] ? PART_SPHERES : 0) |
-    (gpu.frame[1] ? PART_CORNERS : 0) |
-    (gpu.frame[2] ? PART_LODS : 0) |
+    (gpu.frame[1] ? PART_LODS : 0) |
     (castsBound(rt) ? PART_CASTS : 0)
   writePassParams(device, gpu.params[g], rt.rootWorlds!.held, parts, listed, all ? 1 : 0)
   const held = gpu.groups[g]
@@ -106,8 +104,7 @@ export function encodeRowWords(
   const gpu = (state.gpu ??= createRowWordsGpu(device))
   const spheresAnew = gpu.named[4] !== rt.lights.spheres?.buffer
   gpu.frame[0] = rt.lights.spheres?.buffer
-  gpu.frame[1] = rt.vis.gpuPartition?.corners
-  gpu.frame[2] = rt.lights.rowLods?.buffer
+  gpu.frame[1] = rt.lights.rowLods?.buffer
   if (partsMoved(rt, gpu)) partsMadeAnew(state, spheresAnew)
   const all = state.all,
     composed = composedRows(rt, device, all).length,

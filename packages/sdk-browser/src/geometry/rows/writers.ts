@@ -1,6 +1,6 @@
 import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
-import { packedRowBase, restampHizSlot } from './page/pageRow.ts'
+import { packedRowBase } from './page/pageRow.ts'
 import type { PageRowWriter } from './page/pageRowWriter.ts'
 import type { WebgpuRowState } from './state.ts'
 import { createPageCatalogue, type PageList } from '../selection/catalogue.ts'
@@ -34,14 +34,13 @@ export function createWebgpuRowWriters(
     writePageRow(rec, page, row, offsetWords, rows.pageTableFloats!, rows.pageTableInts!)
   }
 
-  /** Moves row `from` to rank `to`: the row's words, then the two that ARE the rank. */
+  /** Moves row `from` to rank `to`: the row's words, then the one that IS the rank. */
   const moveRow = (from: number, to: number) => {
     const ints = rows.pageTableInts!,
       page = rows.packedPageIndex[from],
       base = to * ROW_WORDS
     rows.pageTableFloats!.copyWithin(base, from * ROW_WORDS, (from + 1) * ROW_WORDS)
     ints[base + PAGE_INFO.at.packedBase] = packedRowBase(to)
-    restampHizSlot(ints, base, to)
     rows.packedRecs[to] = rows.packedRecs[from]
     rows.packedPageIndex[to] = page
     rows.rowPageIndex[to] = page

@@ -1,6 +1,7 @@
-// The CPU oracle of a row's eight world corners, which the rows pass writes (`composeCorners`,
-// `../../placement/compose/gpuComposeDerivedWgsl.ts`): the doubles `pageCornersInto` derives, each carried
-// by two single-precision values, the rounding then its residue. The word tests hold the shader to it.
+// The CPU oracle of a transparent entry's eight world corners, which the entries pass writes
+// (`writeCorners`, `../../placement/compose/gpuComposeDerivedWgsl.ts`): the doubles `pageCornersInto`
+// derives, each carried by two single-precision values, the rounding then its residue. The word
+// tests hold the shader to it.
 import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { BOX_CORNER_VALUES, pageCornersInto } from '../hiz/corners.ts'
 import type { HizPage } from '../hiz/types.ts'

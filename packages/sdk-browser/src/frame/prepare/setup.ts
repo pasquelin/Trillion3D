@@ -1,6 +1,7 @@
 import type { DeformationOutput } from '../../geometry/selection/types.ts'
 import { indexSourceBytes } from '../io/catalogue.ts'
-import { describePageSlots, pageAddress } from '../../geometry/rows/page/pageSlots.ts'
+import { describePageSlots } from '../../geometry/rows/page/pageSlots.ts'
+import { rootRegionOf } from './rootCover.ts'
 import { pageHomes } from '../../geometry/pages/pool/homes.ts'
 import type { EngineContext } from '../../session/engine/types.ts'
 import type { WebgpuDiagnosticChannel } from '../io/diagnostics.ts'
@@ -15,7 +16,6 @@ import {
   textureUploadMsFor,
 } from '../../session/memory/transferBudgets.ts'
 import { sessionGeometryPool } from '../../session/memory/sessionPool.ts'
-import { floorDiagnostic } from '../../session/memory/minimumCapacity.ts'
 import { DEFAULT_PIXEL_RATIO } from '../../session/engine/common.ts'
 import { bootstrapFields, setupPages } from './setupCatalogue.ts'
 import { DAG_CLUSTER_TRIANGLES } from '../../../../sdk-core/src/page/format.ts'
@@ -79,10 +79,6 @@ export function createWebgpuPagesSetup(context: EngineContext, diag: WebgpuDiagn
     get slots(): number {
       return this.geometryPool.slots
     },
-    /** The pages the pool must hold whatever the view: the root cover's and those its groups replace. */
-    get floorPages(): number {
-      return this.floorUrls.size
-    },
   }
 }
 
@@ -109,13 +105,15 @@ function setupSlots(
   diag: WebgpuDiagnostics,
   pages: ReturnType<typeof setupPages>,
 ) {
-  const { allPages, floorUrls, coverUrls } = pages
-  const floorPages = floorUrls.size
-  const uniquePages = Math.max(1, new Set(allPages.map(pageAddress)).size)
+  const { allPages, coverUrls, rootUrls } = pages
   const census = describePageSlots(allPages)
-  const { geometryUrls, pageBytes, homes: widths, maxCorners, ...clusterSides } = census
-  // Each page at its own width while the pool holds the whole catalogue (`geometry/pages/pool/homes.ts`).
-  const homes = pageHomes(widths)
+  const { geometryUrls, pageBytes, maxCorners, unitWidths, unitPages } = census
+  const { fromGeometryPage, fromSourceGeometry, transparentClusters } = census
+  const clusterSides = { fromGeometryPage, fromSourceGeometry, transparentClusters, unitPages }
+  // A slot holds a streaming page (`geometry/rows/page/pageSlots.ts`, `pageUnit`), each at its own
+  // width while the pool holds the whole catalogue (`geometry/pages/pool/homes.ts`).
+  const uniquePages = Math.max(1, unitWidths.size)
+  const homes = pageHomes(unitWidths)
   // Said out loud, never silently: an opaque or masked cluster the cache gave no geometry page
   // still draws from the source float buffers, and that is what those bytes are there for.
   diag.engineDiagnostic('geometry-pages', 'Clusters drawn from their quantized page', {
@@ -125,20 +123,25 @@ function setupSlots(
     homeBytes: homes?.bytes ?? null,
     drawCorners: maxCorners,
   })
-  diag.engineDiagnostic(...floorDiagnostic(coverUrls.size, floorPages))
   const sourceBytes = indexSourceBytes(allPages)
-  // The engine's two fixed pools, in bytes: what does not fit renders coarser.
-  // Image targets, themselves, follow resolution with no ceiling. Tables sized by drawable page start
-  // at the pool, and grow in place past it (`growTables.ts`).
+  // The engine's two fixed pools, in bytes: what does not fit renders coarser, the root pages held
+  // beside the geometry pool's streaming slots, in the grains of its root region, which grows as
+  // HLOD cells hold theirs (`rootRegionOf`). Image targets, themselves, follow resolution with no
+  // ceiling. Tables sized by drawable page start at the pool, and grow in place past it
+  // (`growTables.ts`).
   const { maxResidentPages, gpuDevice } = context
   const limits = gpuDevice?.limits,
-    homeBytes = homes?.bytes
+    homeBytes = homes?.bytes,
+    rootRegion = rootRegionOf(census, coverUrls, rootUrls)
   const geometry = sessionGeometryPool(
-    { pageBytes, uniquePages, homeBytes, rootPages: floorPages, maxResidentPages, limits },
+    {
+      ...{ pageBytes, uniquePages, homeBytes, maxResidentPages, limits },
+      ...{ rootPages: rootRegion.least, rootBytes: rootRegion.bytes },
+    },
     context.geometryPoolBytes,
   )
   return {
-    ...{ census, geometryUrls, pageBytes, homes, sourceBytes, geometry },
+    ...{ census, geometryUrls, pageBytes, homes, sourceBytes, geometry, rootRegion },
     maxCorners: Math.max(maxCorners, CLUSTER_MAX_CORNERS),
   }
 }
@@ -152,8 +155,12 @@ function slotFields(slots: ReturnType<typeof setupSlots>, context: EngineContext
     census: slots.census,
     /** The catalogue the geometry pool is drawn for, read at each draw (`sessionGeometryPool`). */
     geometryShape: slots.geometry.shape,
-    // The ceiling of every page draw and of the compute raster's triangle budget: the widest
-    // cluster the format holds, whatever the catalogue, so a page joining the session later fits.
+    /** The root region the catalogue asks (`rootRegionOf`), and its growth while one runs
+     *  (`../io/memory.ts`, `growWebgpuRootRegion`). */
+    rootRegion: slots.rootRegion,
+    rootGrowth: undefined as Promise<void> | undefined,
+    // The ceiling of every page draw: the widest cluster the format holds, whatever the
+    // catalogue, so a page joining the session later fits.
     maxCorners: slots.maxCorners,
     sourceBytes: slots.sourceBytes,
     // Geometry page url of every cluster drawn from one, by cluster address: what the pool reads

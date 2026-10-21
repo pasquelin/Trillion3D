@@ -73,9 +73,9 @@ test('every path that draws a line reads the dash, and a solid surface keeps eve
       ' if((page.flags&128u)==0u){return true;}\n let m=materialAt(page.material);\n if(!lineDash(uv.x,m.dash)){return false;}\n if(m.cut<=0.0){return true;}',
     ),
   )
-  // The camera's one cutting fragment stage: the pass always writes its depth pyramid (#1483).
-  assert.equal(VIS_SHADER.split('maskKeep(pages[in.instance],in.tc.xy,').length, 2)
-  assert.ok(rasterSource(4, 16).includes('maskKeep(page,tc.xy,tc.z,gradients[0],gradients[1])'))
+  // The camera's one cutting fragment stage, and the software raster's cut.
+  assert.equal(VIS_SHADER.split('maskKeep(page,in.tc.xy,').length, 2)
+  assert.ok(rasterSource(4).includes('maskKeep(page,tc.xy,tc.z,ddx,ddy)'))
   // The transparent pass.
   assert.ok(BLEND_SHADER.includes(LINE_DASH_WGSL.text))
   // Its dash is its surface's record's too, read by its vertex stage.

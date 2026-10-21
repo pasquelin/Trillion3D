@@ -11,6 +11,7 @@ import {
   createReflectionGrids,
   gridBytes,
   resolvedBytes,
+  type ReflectionGrids,
 } from './grids.ts'
 import { createReflectionViewWriter, type ReflectionFrame } from './viewWrite.ts'
 import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts'
@@ -40,9 +41,10 @@ export function reflectionBytes(width: number, height: number, blends: boolean) 
 /**
  * A view's reflection at `width × height`: the target the last pass writes, the radiance pyramid of
  * its last lit image (`radiance`, which holds the image it was made of: the next image reprojects its
- * hits with its view-projection), the grids the trace and its accumulation write
- * (`grids.ts`), the view uniform and its writer, and what each image writes in place.
- * `blends`, whether the scene has any, sizes the transparents' front layer (`createFrontLayer`);
+ * hits with its view-projection), the grids the trace and its accumulation write (`grids.ts`), made
+ * by the first image that traces — a view never lit makes none —, the view uniform and its writer,
+ * and what each image writes in place. `blends`, whether the scene has any, sizes the transparents'
+ * front layer (`createFrontLayer`); the budget counts the grids from the start (`reflectionBytes`).
  */
 export function createScreenReflection(
   device: GPUDevice,
@@ -64,7 +66,7 @@ export function createScreenReflection(
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   const radiance = createRadiancePyramid(device, width, height)
-  const grids = createReflectionGrids(device, 'Trillion3D reflection grid', [width, height])
+  let grids: ReflectionGrids | undefined
   // The resolved pixels, the opaque surface's then the front one's in the same pass (`trace/trace.ts`).
   const resolved = createKernelTexture(
     device,
@@ -78,8 +80,12 @@ export function createScreenReflection(
     target,
     targetView: target.createView(),
     radiance,
-    /** The opaque surface's grids (`grids.ts`). */
-    grids,
+    /** The opaque surface's grids (`grids.ts`), made when first read: by the first image that
+     *  traces (`encodeReflections`). */
+    get grids() {
+      grids ??= createReflectionGrids(device, 'Trillion3D reflection grid', [width, height])
+      return grids
+    },
     /** The resolved pixels both surfaces resolve into in turn (`resolveWgsl.ts`). */
     resolvedView: resolved.createView(),
     uniform,
@@ -107,7 +113,7 @@ export function createScreenReflection(
     dispose() {
       target.destroy()
       radiance.image.texture.destroy()
-      grids.destroy()
+      grids?.destroy()
       resolved.destroy()
       uniform.destroy()
       front.dispose()

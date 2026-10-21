@@ -99,7 +99,8 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   run.frame++
   const start = cpuNow()
   let presented = false
-  // Nothing drawn yet, or targets not granted: nothing is shown.
+  // Nothing drawn yet, targets not granted, or the image withheld — till the view has loaded, or
+  // while a load blocks on slow streaming (`firstImage.ts`): nothing is shown.
   const { presenter, displayTexture } = gpu,
     [width, height] = gpu.displaySize,
     at = rt.views.active.rect
@@ -107,6 +108,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     presenter &&
     displayTexture &&
     run.imageRevision > 0 &&
+    !run.imageWithheld &&
     !awaited &&
     (at || !presenter.holds(displayTexture, width, height))
   ) {

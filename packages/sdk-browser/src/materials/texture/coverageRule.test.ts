@@ -1,6 +1,6 @@
 // #748: the card's chains pick `t` and scale as the compiler does. The shipped WGSL is run here
 // (`shaderRule.fixture.ts`), on the table the compiler's test reads too
-// (`texture_preview/tests/coverage_alpha.rs`): one expected answer for every builder.
+// (`texture/tests/coverage_alpha.rs`): one expected answer for every builder.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'

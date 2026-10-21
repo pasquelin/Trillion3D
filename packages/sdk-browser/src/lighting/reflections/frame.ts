@@ -5,6 +5,7 @@ import type { ScreenReflection } from './gpu.ts'
 import { reflectionGroup, reflectionLightView, reflectionProxy } from './group.ts'
 import { encodeImageRadiance, stageReflectionImage } from './image.ts'
 import { encodeReflectionTrace } from './trace/traceEncode.ts'
+import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 import {
   environmentCurve,
   environmentExposure,
@@ -56,11 +57,12 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
  * resolve reads and the front radiance the forward fragments read, when the image is lit, its field
  * read from the bounce cascades and its proxy from the scene's proxy. What the lighting's view holds of the image — its
  * inverse view-projection, the eye, the exposure, the display curve, the background — the trace
- * reads there (`gpu.deferred.update`, written before the image is submitted). Every image traces and
- * accumulates, still or moving: a still view is how the history fills, a moving one how it follows.
+ * reads there (`gpu.deferred.update`, written before the image is submitted). Every lit image traces
+ * and accumulates, still or moving: a still view is how the history fills, a moving one how it
+ * follows. A view that shows no lit image (`drawsLit`) traces none, and makes no grid for it.
  */
 export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
-  const { gpu, vis, lights } = rt,
+  const { gpu, vis, lights, run } = rt,
     reflection = gpu.reflection,
     stages = vis.reflectionPipelines,
     hiz = vis.gpuHiz,
@@ -69,7 +71,12 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
   if (!reflection || !stages || !lightView) return
   const surfaces = gpu.surfaces,
     deferred = gpu.deferred,
-    traced = wantsContractLighting(rt) && !!surfaces && !!lights.buffer && !!deferred
+    traced =
+      wantsContractLighting(rt) &&
+      drawsLit(run.diagnostic) &&
+      !!surfaces &&
+      !!lights.buffer &&
+      !!deferred
   // Every image whose radiance is built is staged.
   writeFrame(rt, reflection, traced)
   if (!hiz || !depth) return

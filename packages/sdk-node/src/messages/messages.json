@@ -162,10 +162,10 @@
     },
     {
       "id": "T3D-E022",
-      "code": "PAGE_DEPENDENCY_BOUND",
+      "code": "CLUSTER_PAGE_TOO_LARGE",
       "level": "error",
-      "message": "A cluster's parents span more bundles than the dependency bound allows.",
-      "cause": "A cluster whose parents alone span more bundles than `streams.dependencyBound` ([bundles](COMPILER.md#invocation)); names the mesh, the primitive and the page",
+      "message": "A cluster's page is larger than a streaming page.",
+      "cause": "A cluster whose page alone is past the 128 KiB of a streaming page ([bundles](COMPILER.md#invocation)); names the mesh, the primitive and the page",
       "action": "Report it as a compiler bug, with the mesh and primitive the message names."
     },
     {
@@ -173,7 +173,7 @@
       "code": "INVALID_PAGE_DEPENDENCIES",
       "level": "error",
       "message": "A bundle's dependency list failed its consistency check.",
-      "cause": "A bundle dependency list with a cycle, missing its pages' parents, not closed, not reaching the root cover, or not empty on a pinned bundle; the message names the mesh and the primitive, then the page or the bundle ([bundles](COMPILER.md#invocation))",
+      "cause": "A bundle dependency list with a cycle, missing its pages' parents, not closed, not reaching the root cover, or naming a streaming page on a root page; the message names the mesh and the primitive, then the page or the bundle ([bundles](COMPILER.md#invocation))",
       "action": "Report it as a compiler bug, with the mesh, primitive and page the message names."
     },
     {
@@ -389,7 +389,7 @@
       "code": "DAG_FLAT",
       "level": "warn",
       "message": "A primitive of several clusters built no coarser level, so it is drawn at full detail at every distance.",
-      "cause": "The cluster DAG of the primitive stopped at depth 0: every group of clusters failed to simplify (border-locked, unreducible, too small or of unusable error); the warning carries the group count per outcome and the dominant cause.",
+      "cause": "The cluster DAG of the primitive stopped at depth 0: every group of clusters stalled, unreducible: no target cluster size re-split what the simplifier left into the group's parents; the warning carries the group count per outcome and the dominant cause.",
       "action": "Look at the named cause in `clusters.json`: remove locked borders in the authoring tool."
     },
     {
@@ -2310,6 +2310,30 @@
       "level": "error",
       "message": "An HLOD actor's flattened material atlas could not be cooked.",
       "cause": "The atlas a flattened HLOD layer bakes for its cells did not form an image, or its texture levels or PNG could not be encoded.",
+      "action": "Report it as a compiler bug, with the model and its HLOD option if you can share them."
+    },
+    {
+      "id": "T3D-E095",
+      "code": "GPU_UNAVAILABLE",
+      "level": "error",
+      "message": "HLOD building needs a GPU, and none could be opened.",
+      "cause": "An `approximate` HLOD layer builds its shell and bakes its atlas on the GPU, and a `merge` layer merging its materials bakes its atlas there; the machine offered no adapter (Metal, Vulkan, Direct3D 12 or GL) that runs compute shaders with eight storage buffers, or the adapter opened no device.",
+      "action": "Compile on a machine with a GPU and its driver, or leave out the HLOD layers that bake an atlas."
+    },
+    {
+      "id": "T3D-E096",
+      "code": "GPU_BAKE_FAILED",
+      "level": "error",
+      "message": "An HLOD step failed on the GPU.",
+      "cause": "The device refused or lost the work: a cell's sources, textures or shell scene larger than the GPU binds at once, the device out of memory or lost (it is opened once per process and never reopened), or a submission that never finished.",
+      "action": "Lower the cell's sources or the layer's `textureSize`, or compile on a GPU with more memory, in a new process after a lost device; report it as a compiler bug if it persists."
+    },
+    {
+      "id": "T3D-E097",
+      "code": "HLOD_UV_CHARTS",
+      "level": "error",
+      "message": "A `simplify` HLOD layer's mesh could not be cut into UV charts.",
+      "cause": "The spectral partition that charts a simplified mesh for its atlas refused it: an argument out of its range, a mesh that is not a manifold or whose false edges cut it apart, or a step that gave up (too few charts allowed, a closed surface left uncut); the message names which.",
       "action": "Report it as a compiler bug, with the model and its HLOD option if you can share them."
     }
   ]

@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { BOX_CORNER_VALUES } from '../../visibility/hiz/corners.ts'
-import { VERDICT_KEPT, VERDICT_REJECTED } from '../../geometry/partition/gpu/contract.ts'
 import { VsmCacheManager } from '../../lighting/shadows/vsm/cacheManager.ts'
 import { frame } from '../../lighting/shadows/vsm/clipmap.fixture.ts'
 import {
@@ -10,7 +9,7 @@ import {
 } from '../../lighting/shadows/vsm/constants.ts'
 import { inspectedCamera } from './camera.ts'
 import { cameraAt } from './inspection.fixture.ts'
-import { inspectedClusters, slotsRead, type ClusterSnapshot } from './clusters.ts'
+import { inspectedClusters, type ClusterSnapshot } from './clusters.ts'
 import { decodeShadowMap, shadowTableRows, snapshotShadowMaps } from './shadows.ts'
 import { CLUSTER_STATE } from './types.ts'
 
@@ -35,8 +34,8 @@ test('the inspected frustum: its near corners at the near distance, its edges le
   }
 })
 
-/** A snapshot of boxes `[x, y, z, side]`, the first `kept` drawn, judged at slots `slots`. */
-function snapshot(boxes: number[][], slots: number[], firstMissing: number): ClusterSnapshot {
+/** A snapshot of boxes `[x, y, z, side]`, the first `firstMissing` drawn. */
+function snapshot(boxes: number[][], firstMissing: number): ClusterSnapshot {
   const corners = new Float64Array(boxes.length * BOX_CORNER_VALUES)
   boxes.forEach(([x, y, z, side], i) => {
     for (let corner = 0; corner < 8; corner++) {
@@ -51,14 +50,15 @@ function snapshot(boxes: number[][], slots: number[], firstMissing: number): Clu
     corners,
     level: Uint8Array.from(boxes.map((_, i) => i)),
     triangles: Uint32Array.from(boxes.map(() => 128)),
-    slots: Int32Array.from(slots),
     firstMissing,
     frustumRejected: 7,
+    occluded: 5,
+    postHidden: 3,
     truncated: false,
   }
 }
 
-test('the inspected clusters: world boxes, levels, and kept, occluded or missing', () => {
+test('the inspected clusters: world boxes, levels, kept or missing, and the cut’s counts', () => {
   const snap = snapshot(
     [
       [0, 0, 0, 1],
@@ -66,21 +66,18 @@ test('the inspected clusters: world boxes, levels, and kept, occluded or missing
       [3, 3, 3, 0.5],
       [-4, 0, 1, 4],
     ],
-    [2, 0, -1, -1],
     3,
   )
-  assert.equal(slotsRead(snap), 3)
-  const verdicts = Uint32Array.from([VERDICT_REJECTED, VERDICT_KEPT, VERDICT_KEPT])
-  const clusters = inspectedClusters(snap, verdicts)
+  const clusters = inspectedClusters(snap)
   assert.equal(clusters.count, 4)
   assert.deepEqual(Array.from(clusters.bounds.subarray(6, 12)), [10, -2, 5, 12, 0, 7])
   assert.deepEqual(Array.from(clusters.level), [0, 1, 2, 3])
-  const { kept, occluded, missing } = CLUSTER_STATE
-  // Slot 2 kept, slot 0 rejected, no slot kept, then the missing one.
-  assert.deepEqual(Array.from(clusters.state), [kept, occluded, kept, missing])
+  const { kept, missing } = CLUSTER_STATE
+  // The three drawn, then the one asked and not drawn.
+  assert.deepEqual(Array.from(clusters.state), [kept, kept, kept, missing])
   assert.equal(clusters.frustumRejected, 7)
-  // Without the verdicts read back, nothing is called occluded.
-  assert.deepEqual(Array.from(inspectedClusters(snap).state), [kept, kept, kept, missing])
+  // The cut's occlusion, counted on the GPU: the main pass's holds and the post pass's hides.
+  assert.deepEqual([clusters.occluded, clusters.postHidden], [5, 3])
 })
 
 /** The sun's clipmap of the fixture, its entry given ids, as a plan leaves it. */

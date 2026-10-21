@@ -1,15 +1,13 @@
 /**
- * Where the cells of a partitioned scene are now. A cell carries the box around its nodes
- * in the frame of each core parent it hangs them under (`TableCell.parents`); a page may move that
- * parent (`getObjectByName`), and the rows follow it (`cells.ts`). The plan reads each cell's boxes
- * in the scene root's frame, one per parent, rewritten once a parent moved relative to the root,
- * so a cell is read where its objects stand, not where the file declared them. A page of the cell
- * index is boxed at the declared poses, in the root's frame: what it holds now lies within
- * that box and the box carried by each parent its cells hang under moved since the declaration
- * (`around`). How far each parent stretches the root's frame (`stretch`) is what the rows are sized
- * by (`sizing.ts`).
+ * Where the cells of a partitioned scene are now. A cell hangs its nodes under core parents
+ * (`TableCell.parents`); a page may move a parent (`getObjectByName`), and the rows follow it
+ * (`cells.ts`). A page of the cell index, and the bounds a cell streams by, are boxed at the
+ * declared poses, in the root's frame: what they hold now lies within that box and the box carried
+ * by each parent its cells hang under moved since the declaration (`around`), so a cell is read
+ * where its objects stand, not only where the file declared them. How far each parent stretches
+ * the root's frame (`stretch`) is what the rows are sized by (`sizing.ts`).
  */
-import { BOX_VALUES, boxTransform, boxUnion } from '../../../../math/src/geometry/box.ts'
+import { BOX_VALUES, boxEmpty, boxTransform, boxUnion } from '../../../../math/src/geometry/box.ts'
 import { determinantMatrix4, multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
@@ -43,17 +41,6 @@ export function stretchOf(matrix: ArrayLike<number>, back: Float64Array): Stretc
   return [flatFrame(matrix, back) ? 0 : 1 / maxStretch(back), maxStretch(matrix)]
 }
 
-/** What carries boxes — a cell —: its `[core rank, box]` per parent, its boxes in the root's frame
- *  when last written, and at which `refresh`. */
-export type Boxed = { parents: Parts; bounds: Float64Array; written: number }
-/** `[core rank, box]` per parent: the box in that parent's frame (`TableCell.parents`). */
-export type Parts = readonly (readonly [number | null, ArrayLike<number>])[]
-/** A `Boxed` over `parents`, never written. */
-export const boxed = (parents: Parts): Boxed => ({
-  parents,
-  bounds: new Float64Array(BOX_VALUES * parents.length),
-  written: -1,
-})
 /** A page of the cell index as it is boxed: at the declared poses, the core ranks its cells hang
  *  under, and now, written at a `refresh`. */
 export type Declared = {
@@ -69,11 +56,12 @@ const relativeInto = (out: Float64Array, parent: Object3D) =>
 /**
  * The frames of the core parents of ranks `ranks` relative to `root`, the node their scene hangs
  * on; `parents[rank]` is the host node of each core rank, standing where the file declares it when
- * this is called. `refresh` reads the frames again. `bounds` gives the boxes of a `Boxed` in the
- * root's frame, six values per parent, in the order of its `parents`, written again only when one
- * of those parents moved since, so a frame pays for the boxes it reads, never for every cell a
- * moved parent carries; `around`, the box of a page of the index where its parents stand;
- * `stretch`, per core rank, how far that parent's frame stretches the root's at the last `refresh`.
+ * this is called. `refresh` reads the frames again. `around` gives the box of a page of the index,
+ * or of the bounds a cell streams by, where its parents stand, written again only when one of
+ * those parents moved since, so a frame pays for the boxes it reads, never for every cell a moved
+ * parent carries; `declaredUnion`, a cell's content boxed at the declared poses from its parents'
+ * boxes; `stretch`, per core rank, how far that parent's frame stretches the root's at the last
+ * `refresh`.
  */
 export function createCellBoxes(
   ranks: Iterable<number>,
@@ -118,18 +106,7 @@ export function createCellBoxes(
     }
   }
   /** Whether the core parent `rank` (none: the scene root) moved since the refresh `since`. */
-  const moved = (rank: number | null, since: number) =>
-    rank !== null && (frames.get(rank)?.moved ?? 0) > since
-  const bounds = (item: Boxed) => {
-    if (item.written >= 0 && !item.parents.some(([rank]) => moved(rank, item.written)))
-      return item.bounds
-    item.parents.forEach(([rank, box], part) => {
-      if (rank === null) item.bounds.set(box, BOX_VALUES * part)
-      else boxTransform(item.bounds, BOX_VALUES * part, box, 0, frames.get(rank)!.matrix)
-    })
-    item.written = now
-    return item.bounds
-  }
+  const moved = (rank: number, since: number) => (frames.get(rank)?.moved ?? 0) > since
   const around = (page: Declared) => {
     const since = page.written
     if (since >= 0 && !page.parents.some((rank) => moved(rank, since))) return page.box
@@ -147,7 +124,21 @@ export function createCellBoxes(
     page.written = now
     return page.box
   }
-  return { refresh, bounds, around, stretch: stretch as ReadonlyMap<number, Stretch> }
+  /** The box around what `held` holds — per parent its core rank (`null`: the scene root) and the
+   *  box around its nodes in its frame (`TableCell.parents`) — at the declared poses, in the
+   *  root's frame: each box carried by its parent's declared frame, the boxes joined. */
+  const declaredUnion = (held: readonly (readonly [number | null, ArrayLike<number>])[]) => {
+    const out = new Float64Array(BOX_VALUES)
+    boxEmpty(out, 0)
+    for (const [rank, box] of held) {
+      const frame = rank === null ? undefined : frames.get(rank)
+      if (frame) boxTransform(carried, 0, box, 0, frame.declared)
+      else carried.set(box)
+      boxUnion(out, 0, carried[0], carried[1], carried[2], carried[3], carried[4], carried[5])
+    }
+    return out
+  }
+  return { refresh, around, declaredUnion, stretch: stretch as ReadonlyMap<number, Stretch> }
 }
 
 export type CellBoxes = ReturnType<typeof createCellBoxes>

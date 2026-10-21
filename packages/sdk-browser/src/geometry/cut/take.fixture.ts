@@ -1,5 +1,4 @@
 /** The per-page half of the cut's descent: a leaf's clusters tested and kept (`visit.ts`). */
-import { coneSkipsPage } from '../cone/cone.fixture.ts'
 import { frustumClipBox } from '../../../../math/src/geometry/frustum/box.ts'
 import { framePixels } from '../selection/frame.fixture.ts'
 import { drawsCluster } from './rule.fixture.ts'
@@ -47,10 +46,9 @@ function keep<T extends PageRecord>(
   s.shownTriangles += triangles
 }
 
-/** Test page `index`: the frustum unless an ancestor placed it entirely inside (`inside`), its
- *  band, then its cone; the emission order is that of the descent. `inside`, `cones` and `boxes`
- *  are constant under a node: the loop passes them instead of rereading them from state at each
- *  cluster.
+/** Test page `index`: the frustum unless an ancestor placed it entirely inside (`inside`), then
+ *  its band; the emission order is that of the descent. `inside` and `boxes` are constant under a
+ *  node: the loop passes them instead of rereading them from state at each cluster.
  *
  *  The cut rule (`./rule.ts`) decides twice: on the cut's residency for what is drawn, and on
  *  full residency for what is requested — the cut every page would draw once loaded. */
@@ -59,7 +57,6 @@ export function take<T extends PageRecord>(
   pages: T[],
   index: number,
   inside: boolean,
-  cones: boolean,
   boxes: boolean,
 ) {
   const rec = pages[index]
@@ -88,8 +85,6 @@ export function take<T extends PageRecord>(
     uncovered =
       !ready && rec.parentError == null && drawsCluster(true, pixels[1], pixels[0], childReady, t)
   if (!wanted && !drawn && !uncovered) return
-  if (cones && rec.cone && coneSkipsPage(rec, s.flatCone, s.flatWorld, s.cam, rec.min!, rec.max!))
-    return
   if (uncovered) s.uncoveredTriangles += rec.triangles
   keep(s, rec, index, wanted, drawn)
 }

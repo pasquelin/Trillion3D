@@ -1,6 +1,6 @@
 /**
  * The world's HLOD and its binary (docs/FORMAT.md, World HLOD): the table of the HLOD 1 to 3 the
- * compiler builds per HLOD cell (`compiler_world_roots.rs`, the HLOD chain) —
+ * compiler builds per HLOD cell (`hlod/chain.rs`, the HLOD chain) —
  * its records read and checked in `worldRootsTable.ts`. A table that breaks its own contract is
  * refused whole, `INVALID_CACHE`.
  */
@@ -49,20 +49,42 @@ export type WorldRoots = {
     }
   }
   /** The chain's HLOD cells, the HLOD 0 cells first, the partition's (`tablePartition.ts`, `hlod`):
-   *  per cell, the bundles holding
-   *  its actor's roots, ascending — what it holds while its actor is loaded. */
+   *  per cell, its actor's ROOT PAGES, ascending — every bundle holding one of its roots, and as
+   *  many more as its layer's always-resident size asks (`hlod/chain/bundles.rs`) —: what it holds
+   *  while its actor is loaded. */
   hlod: readonly (readonly number[])[]
-  /** The chain of HLOD cells (`compiler_tables/partition/hlod.rs`), the HLOD 0 cells first: per
-   *  cell, the cell its next level's actor lies in (-1 for a top cell, whose actor is always
-   *  loaded), its level — its actor's HLOD layer less one —, its actor's flags (`CHAIN_ACTOR`:
-   *  built, failed, none for a cell no layer builds an actor of), and the six bounds it streams
-   *  by. */
-  chain: { parent: Int32Array; level: Uint8Array; actor: Uint8Array; bounds: Float64Array }
+  /** The chain of HLOD cells (`src/hlod/cells.rs`), the HLOD 0 cells first: per cell, the cell
+   *  its actor lies in (-1 for an actor always loaded, or a cell nothing is built of), its level —
+   *  0 for an HLOD 0 cell, whose placements it draws, 1 at least for a cell of actors —, its
+   *  actor's HLOD level (`actorLevel`), its grid (`TablePartition.hlod.grids`), the level of its
+   *  cell on that grid, which its load order reads first (`rung`), its actor's flags
+   *  (`CHAIN_ACTOR`: built, none for an actor not built, which stands for nothing), the six
+   *  bounds it streams by — as its partition's scheme says, its content or its square on its grid
+   *  — and the six of its content, the actors in it. */
+  chain: {
+    parent: Int32Array
+    level: Uint8Array
+    actorLevel: Uint16Array
+    grid: Uint16Array
+    rung: Uint8Array
+    actor: Uint8Array
+    bounds: Float64Array
+    content: Float64Array
+  }
+  /** Each cell's actor's rows (`hlod/chain/builds/instanced.rs`): the objects standing as
+   *  themselves in it — an instanced layer's every one, the others' those marked `hlodInstance` —,
+   *  cell `c`'s the `count[c]` rows its bundle `bundle[c]` holds (-1 for none), one of the bundles
+   *  it holds with its actor's root pages (`hlod`): they stream with the actor, read as it is
+   *  loaded (`actorRows`), placed on their meshes' rows and drawn while the cell draws it
+   *  (`browser/geometry/hlod/hlodRows.ts`). */
+  rows: { bundle: Int32Array; count: Uint32Array }
 }
 /** A chain cell's actor flags (`WorldRoots.chain.actor`), the one word every reader asks whether
- *  a cell has an actor: built — its bundles hold its roots —; a layer builds it and that build
- *  failed (the table's flag). Neither: objects in no layer. */
-export const CHAIN_ACTOR = { built: 1, failed: 2 } as const
+ *  a cell has an actor: built — its bundles hold its roots, or it places rows —, and whether a
+ *  switch that draws it waits on its warm-up — its layer's builder not `instanced`
+ *  (`src/hlod/cells.rs`, `warmup`). Not built — none of its layer, or its build failed —, it
+ *  stands for nothing. */
+export const CHAIN_ACTOR = { built: 1, warmup: 2 } as const
 
 /** Each cell's children in a chain of `parent`s (-1 for a top cell): the cells whose actors lie in
  *  it. */
@@ -97,8 +119,10 @@ function firstPage(table: WorldRoots, bundle: number) {
  */
 export function bundlePageRanges(table: WorldRoots, bundle: number) {
   const ranges: { offset: number; bytes: number }[] = [],
-    { count, bytes } = table.bundles[bundle],
-    first = firstPage(table, bundle)
+    { count, bytes } = table.bundles[bundle]
+  // A bundle of no page holds an actor's rows, read whole by its cell: it has no page range.
+  if (count === 0) return ranges
+  const first = firstPage(table, bundle)
   let at = 0
   for (let page = first; page < first + count; page++) {
     const record = table.pages.at(page)
@@ -137,13 +161,12 @@ export type WorldRootsCluster = {
   page: WorldRootsPageFacts
 }
 
-/** A world page's length, vertex and index counts, attribute flags, decoded bytes and largest
- *  position displacement (`pages.rs`). */
+/** A world page's length, vertex and index counts, attribute flags and decoded bytes
+ *  (`pages.rs`). */
 export type WorldRootsPageFacts = {
   bytes: number
   vertexCount: number
   indexCount: number
   flags: number
   uncompressedBytes: number
-  quantizationError: number
 }

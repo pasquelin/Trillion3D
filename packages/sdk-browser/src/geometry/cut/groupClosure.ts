@@ -5,6 +5,7 @@ import type { PlacementIndex } from '../selection/placements.ts'
 import type { IdDelta } from './adoption/delta.ts'
 import { createSparseInts } from './sparseInts.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
+import { byteLengths } from '../../../../math/src/sequence/byteLengths.ts'
 import { rootOfPacked } from '../selection/placements.ts'
 
 /**
@@ -13,7 +14,7 @@ import { rootOfPacked } from '../selection/placements.ts'
  * The cut rule reads residency by group (`./readiness.ts`): a cluster is drawn once
  * every cluster of its group is resident and so, up to the roots, is every group that replaces
  * its outputs. A cut that asked only for the clusters it draws would leave the group-mates a view
- * never keeps — past the frustum, behind the cone — outside the cache, and its surface drawn one
+ * never keeps — past the frustum — outside the cache, and its surface drawn one
  * level coarser forever. So each page the cut names brings its group and the groups above it.
  *
  * Held by reference count per group, so a group many cut pages share is walked once: holding a
@@ -28,16 +29,20 @@ import { rootOfPacked } from '../selection/placements.ts'
  */
 export type GroupClosure = ReturnType<typeof createGroupClosure>
 
-/** A visitor a `closeOver` walk hands each page to. */
-type Visitor = (id: number, rec: PageRec) => void
+/** A visitor a `closeOver` walk hands each page to, with the priority it is reached at. */
+type Visitor = (id: number, rec: PageRec, priority: number) => void
+
+/** The highest priority a walk hands: a u32's. */
+const PRIORITY_MAX = 0xffffffff
 
 /**
  * The closure's state: holders per group and per page, the pages whose count moved in this
  * difference with whether each was held before it (`seen`: 1 no, 2 yes), the groups one
- * `closeOver` walk reached, and what a walk does — counts `step` on what it reaches, or hands each
- * page to `visitor`, naming each placement's own pages under `perInstance` rather than its
- * primitive's holder's. `holder` is the placement a shared page list is held at: the first that
- * asked, while it still places it.
+ * `closeOver` walk reached at the highest priority it reached them at (a u32 held in an int's
+ * bits), and what a walk does — counts `step` on what it reaches, or hands each page to `visitor`,
+ * naming each placement's own pages under `perInstance` rather than its primitive's holder's, each
+ * group above a request at one more than the group below it (`rise`). `holder` is the placement a
+ * shared page list is held at: the first that asked, while it still places it.
  */
 function createWalk(
   roots: readonly ClusterRoot<PageRec>[],
@@ -64,6 +69,7 @@ function createWalk(
     step: 0,
     visitor: undefined as Visitor | undefined,
     perInstance: false,
+    rise: 0,
     holder: new Map<readonly unknown[], number>(),
   }
 }
@@ -81,8 +87,8 @@ function holderOf(w: Walk, r: number) {
   return r
 }
 
-function touchId(w: Walk, id: number, rec: PageRec) {
-  if (w.visitor) return w.visitor(id, rec)
+function touchId(w: Walk, id: number, rec: PageRec, priority: number) {
+  if (w.visitor) return w.visitor(id, rec, priority)
   if (!w.seen.get(id)) {
     w.seen.set(id, w.heldPages.get(id) > 0 ? 2 : 1)
     w.touched.push(id)
@@ -90,48 +96,52 @@ function touchId(w: Walk, id: number, rec: PageRec) {
   w.heldPages.add(id, w.step)
 }
 
-const touch = (w: Walk, r: number, page: number) =>
-  touchId(w, baseOf(w, r) + page, w.roots[r].pages[page])
+const touch = (w: Walk, r: number, page: number, priority: number) =>
+  touchId(w, baseOf(w, r) + page, w.roots[r].pages[page], priority)
 
-/** Group `g` of placement `r` and what it holds: its members, and each output's own group — the
- *  output itself when nothing replaces it. A counted group is walked when it is first held or
- *  last released; a visited one once per walk. */
-function reach(w: Walk, r: number, g: number) {
+/** Group `g` of placement `r` and what it holds: its members at `priority`, and each output's own
+ *  group — the output itself when nothing replaces it — one higher (`rise`). A counted group is
+ *  walked when it is first held or last released; a visited one once per walk, again only for a
+ *  higher priority. */
+function reach(w: Walk, r: number, g: number, priority: number) {
   const s = w.roots[r].structure!,
     key = baseOf(w, r) + s.children[s.childOffsets[g]]
   if (w.visitor) {
-    if (w.walked.set(key, 1)) return
+    if (w.walked.get(key) >>> 0 >= priority) return
+    w.walked.set(key, priority | 0)
   } else {
     const count = w.heldGroups.add(key, w.step)
     if (count - w.step > 0 === count > 0) return
   }
-  for (let i = s.childOffsets[g]; i < s.childOffsets[g + 1]; i++) touch(w, r, s.children[i])
+  const above = Math.min(priority + w.rise, PRIORITY_MAX)
+  for (let i = s.childOffsets[g]; i < s.childOffsets[g + 1]; i++)
+    touch(w, r, s.children[i], priority)
   for (let i = s.outputOffsets[g]; i < s.outputOffsets[g + 1]; i++) {
     const output = s.outputs[i],
       owner = s.owners[output]
-    if (owner >= 0) reach(w, r, owner)
-    else touch(w, r, output)
+    if (owner >= 0) reach(w, r, owner, above)
+    else touch(w, r, output, above)
   }
 }
 
 /** A page enters through its own group, or alone when nothing replaces it, at its primitive's
- *  holder. */
-function enter(w: Walk, id: number) {
+ *  holder, at `priority`. */
+function enter(w: Walk, id: number, priority: number) {
   const rec = w.recordOf(id)
   if (!rec) return
   const placed = rootOfPacked(w.placement, id)
-  if (placed < 0 || !w.roots[placed]) return touchId(w, id, rec)
+  if (placed < 0 || !w.roots[placed]) return touchId(w, id, rec, priority)
   const r = w.perInstance ? placed : holderOf(w, placed),
     page = id - baseOf(w, placed),
     owner = w.roots[r].structure?.owners[page] ?? -1
-  if (owner >= 0) reach(w, r, owner)
-  else touchId(w, baseOf(w, r) + page, rec)
+  if (owner >= 0) reach(w, r, owner, priority)
+  else touchId(w, baseOf(w, r) + page, rec, priority)
 }
 
 /** Counts `step` on the `count` first pages of `ids` and on what they close over. */
 function enterAll(w: Walk, ids: ArrayLike<number>, count: number, step: number) {
   w.step = step
-  for (let i = 0; i < count; i++) enter(w, ids[i])
+  for (let i = 0; i < count; i++) enter(w, ids[i], 1)
 }
 
 /** The difference of the pages held: each page touched that is held now and was not, or was and
@@ -173,26 +183,39 @@ export function createGroupClosure(
     /** Bytes of the tables above, sized by what the cut closes over: the CPU budget holds them on
      *  WebGPU (`../../session/memory/memoryBudget.ts`). */
     get hostBytes() {
-      return (
-        w.heldGroups.byteLength +
-        w.heldPages.byteLength +
-        w.seen.byteLength +
-        w.walked.byteLength +
-        w.delta.entered.byteLength +
-        w.delta.exited.byteLength
+      return byteLengths(
+        w.heldGroups,
+        w.heldPages,
+        w.seen,
+        w.walked,
+        w.delta.entered,
+        w.delta.exited,
       )
     },
-    /** Visits every page `ids` close over, themselves included, each group once per call:
-     *  what a list rebuilt whole asks for (`../residency/lowerTier.ts`). `full` ends the
-     *  walk early, before the next id, once the visitor takes nothing more. `instances` names each
-     *  placement's own packed ranks, as the row cache holds them (`../rows/demand/rowDemand.ts`),
-     *  rather than the ranks of the placement its primitive's records are held at. */
-    closeOver(ids: ArrayLike<number>, visit: Visitor, full?: () => boolean, instances = false) {
+    /**
+     * Visits every page `ids` close over, themselves included, each group once per call. Given
+     * `priorities`, beside `ids`, each page is handed the highest priority a request reaches it at:
+     * its own request's for a request and its group-mates, one more for each group up to the roots
+     * — the coarser a group, the more pages wait on it —, a group walked again only when a request
+     * reaches it higher: what the residency's requests read (`../residency/pageRequests.ts`).
+     * Without them every page is handed 1. `instances` names each placement's own packed ranks, as
+     * the row cache holds them (`../rows/demand/rowDemand.ts`), rather than the ranks of the
+     * placement its primitive's records are held at.
+     */
+    closeOver(
+      ids: ArrayLike<number>,
+      visit: Visitor,
+      priorities?: ArrayLike<number>,
+      instances = false,
+    ) {
       w.visitor = visit
       w.perInstance = instances
-      for (let i = 0; i < ids.length && !full?.(); i++) enter(w, ids[i])
+      w.rise = priorities ? 1 : 0
+      for (let i = 0; i < ids.length; i++)
+        enter(w, ids[i], priorities ? Math.max(1, priorities[i] >>> 0) : 1)
       w.visitor = undefined
       w.perInstance = false
+      w.rise = 0
       w.walked.clear()
     },
     /** Turns the cut's difference into the difference of the pages it closes over. */

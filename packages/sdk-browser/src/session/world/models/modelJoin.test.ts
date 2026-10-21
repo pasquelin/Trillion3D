@@ -113,7 +113,7 @@ test('a model the scene loses is parked, its cells let go, and drawn again when 
 })
 
 test('what the session refuses is said by name, the model is not handed again, and no reopen is asked', async () => {
-  const { joins, session, said, calls, members, add } = world('KEY_PAGE_MAX')
+  const { joins, session, said, calls, members, add } = world('an address of two pages')
   joins.opened([])
   add(model(2))
   joins.reconcile(members, session)
@@ -121,7 +121,7 @@ test('what the session refuses is said by name, the model is not handed again, a
   assert.deepEqual(calls, ['add 0/0'], 'the join stops at the first source refused')
   assert.equal(said.length, 1)
   assert.match(said[0][0], /^the model file:\/\/\/cache\/manifest\.json/)
-  assert.equal(said[0][1], 'KEY_PAGE_MAX')
+  assert.equal(said[0][1], 'an address of two pages')
   joins.reconcile(members, session)
   await flush()
   assert.equal(calls.length, 1, 'refused models wait for the next opening, not for each frame')

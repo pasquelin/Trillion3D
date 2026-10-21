@@ -2,7 +2,8 @@ import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 
 /** The stage's buffers, refilled each image: the compute keeps its own copy when it binds them. */
 const buffers: (GPUBuffer | GPUTextureView)[] = []
-/** One deformation stage per image command buffer, before selection, shadows or raster. */
+/** One deformation stage per image command buffer, before selection, shadows or raster: the bank
+ *  pass first, every image the session holds a track (`bankTracks.ts`), then the stage. */
 export function encodeDeformation(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu, vis } = rt
   if (!vis.deformationCompute) return
@@ -20,5 +21,6 @@ export function encodeDeformation(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     rt.layout.rows.casterSlots,
     rt.run.frame,
     vis.pooledDeformation,
+    vis.deformation,
   )
 }

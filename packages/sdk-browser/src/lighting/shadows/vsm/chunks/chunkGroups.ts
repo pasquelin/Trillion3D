@@ -5,9 +5,15 @@
  */
 import { ceilDiv } from '../../../../../../math/src/scalar/integers.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../../../../gpu/dispatch/grid.ts'
-import type { WebgpuBindIdentity } from '../../../../gpu/bind/bindIdentity.ts'
+import type { HeldGroup, WebgpuBindIdentity } from '../../../../gpu/bind/bindIdentity.ts'
+import { sequentialEntries } from '../../../../gpu/core/computeBindings.ts'
+import { oncePerDevice } from '../../../../gpu/core/oncePerDevice.ts'
+import { standInTexture } from '../../../../gpu/core/standInTexture.ts'
+import { arrayView } from '../../../../gpu/core/textureViews.ts'
+import { COLD_TABLE } from '../../../../geometry/dag/cut/cutTables.ts'
 import { vsmBufferGroup } from '../passKit.ts'
 import { VSM_RENDER_ARGS_CULL, VSM_RENDER_ARGS_STRIDE_WORDS } from '../render/renderParamsWgsl.ts'
+import { VSM_RENDER_WORLD_GROUP } from '../render/renderCandidatesWgsl.ts'
 import type { VsmChunkKernels } from './chunkKernels.ts'
 import type { VsmListName } from './chunkSizing.ts'
 import { VSM_RENDER_PARAMS_BYTES } from './chunkParams.ts'
@@ -17,7 +23,8 @@ import type { VsmRenderScene } from '../render/renderPass.ts'
  *  bind it every frame without a new array. */
 const FIRST_SLOT: readonly number[] = [0]
 
-/** The candidates kernel over `rowCount` rows and the views with pages to draw among the first
+/** The candidates kernel over `rowCount` rows — its group 0 `candGroup`, the camera cut's world
+ *  switch `worldGroup` (`vsmWorldGroup`) — and the views with pages to draw among the first
  *  `mapCount` maps (`../render/renderViewsWgsl.ts`, groups `views0` over the VSM tables, `views1` over the
  *  lists), then the cull dispatch of every chunk, in `pass`: the opaque raster's and the
  *  transmission's. */
@@ -25,6 +32,7 @@ export function encodeVsmCandidates(
   pass: GPUComputePassEncoder,
   candidates: GPUComputePipeline,
   candGroup: GPUBindGroup,
+  worldGroup: GPUBindGroup,
   kernels: VsmChunkKernels,
   groups: { args: GPUBindGroup; views0: GPUBindGroup; views1: GPUBindGroup },
   rowCount: number,
@@ -32,6 +40,7 @@ export function encodeVsmCandidates(
 ) {
   pass.setPipeline(candidates)
   pass.setBindGroup(0, candGroup, FIRST_SLOT)
+  pass.setBindGroup(VSM_RENDER_WORLD_GROUP, worldGroup)
   dispatchRows(pass, ceilDiv(rowCount, WORKGROUP_THREADS))
   pass.setPipeline(kernels.views.pipeline)
   pass.setBindGroup(0, groups.views0)
@@ -41,6 +50,34 @@ export function encodeVsmCandidates(
   pass.setPipeline(kernels.args.cull.pipeline)
   pass.setBindGroup(0, argsGroup, FIRST_SLOT)
   pass.dispatchWorkgroups(1)
+}
+
+/** What the candidates read of the camera cut's world switch while it follows none: a stand-in for
+ *  its cold words and its frame words — two `r32uint` tables — which the gate then never reads
+ *  (`worldGateWgsl`), one a device. */
+const noWorld = oncePerDevice((device: GPUDevice) =>
+  arrayView(standInTexture(device, 'Trillion3D shadow casters no world', COLD_TABLE.format)),
+)
+
+/** The candidates' group over the camera cut's world switch (`VsmRenderScene.world`), held in
+ *  `held` on `layout` (`VSM_RENDER_WORLD_GROUP`): made again only when the layout or the cut's
+ *  tables moved — another cut, or a world packed or let go. */
+export function vsmWorldGroup(
+  device: GPUDevice,
+  held: HeldGroup,
+  layout: GPUBindGroupLayout,
+  world: VsmRenderScene['world'],
+) {
+  const { next } = held.identity,
+    cold = world?.cold ?? noWorld(device),
+    frames = world?.frames ?? cold
+  next[0] = layout
+  next[1] = cold
+  next[2] = frames
+  next.length = 3
+  if (held.identity.moved())
+    held.group = device.createBindGroup({ layout, entries: sequentialEntries([cold, frames]) })
+  return held.group!
 }
 
 /** The bind groups of one chunk's views and cull: `views0` / `cull0` the VSM tables', the others

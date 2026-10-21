@@ -7,6 +7,8 @@ export type DagArmWords = {
   drawnGroups: number
   candGroups: number
   liveGroups: number
+  postNodeGroups: number
+  postClusterGroups: number
   listGroups: number
 }
 
@@ -34,6 +36,8 @@ export const buildDagArm = (
     DRAWN_GROUPS: words.drawnGroups,
     CAND_GROUPS: words.candGroups,
     LIVE_GROUPS: words.liveGroups,
+    POST_NODE_GROUPS: words.postNodeGroups,
+    POST_CLUSTER_GROUPS: words.postClusterGroups,
     LIST_GROUPS: words.listGroups,
   })
 

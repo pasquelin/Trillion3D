@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuPageCache, type GpuPageCache } from './pages.ts'
-import { giveUp } from './order.fixture.ts'
 import { pageHomes } from './homes.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
@@ -82,14 +81,14 @@ test('a page wider than its home is refused: it would write over its neighbour',
   await assert.rejects(cache.load('a'), /PAGE_SIZE_MISMATCH/)
 })
 
-test('a pool that comes to hold the catalogue moves each page home, and leaves it grain by grain', async () => {
+test('a pool that comes to hold the catalogue moves each page home, and leaves it slot by slot', async () => {
   const { device, copies, buffers } = fakeDevice({ limits: LIMITS })
   // A hundred bytes of homes: more than two of the widest page hold.
   const homes = pageHomes(new Map([...WIDTHS, ['d', 40]]))!
   const cache = createGpuPageCache(device, source, { pageBytes: 40, slots: 2, homes })
   assert.equal(cache.stats().allocatedBytes, 80, 'two of the widest page')
-  await cache.load('a') // its home's 12 bytes in a grain of 20, at 0
-  await cache.load('b') // a grain of 40, at 40
+  await cache.load('a') // its home's 12 bytes in a slot, at 0
+  await cache.load('b') // a slot, at 40
   drained(cache)
   // Grains to homes: each page's bytes, its tails with them, to its home.
   assert.deepEqual(await cache.resize(3), [])
@@ -109,26 +108,25 @@ test('a pool that comes to hold the catalogue moves each page home, and leaves i
   const made = buffers.length
   assert.deepEqual(await cache.resize(5), [])
   assert.equal(buffers.length, made)
-  // Homes to two of the widest: every page to an aligned grain, which their bytes all fit.
+  // Homes to two of the widest: two slots, a page each, the latest arrivals kept.
   copies.length = 0
-  assert.deepEqual(await cache.resize(2), [])
+  assert.deepEqual(await cache.resize(2), ['a'])
   assert.equal(cache.stats().allocatedBytes, 80)
   assert.deepEqual(
     copies.map(({ fromOffset, toOffset, size }) => [fromOffset, toOffset, size]),
     [
-      [0, 0, 12],
       [12, 40, 40],
-      [52, 20, 8],
+      [52, 0, 8],
     ],
-    'a keeps its place, b and c each to the first grain that holds it',
+    'c and b each to the first free slot, a left out',
   )
   assert.deepEqual(drained(cache), [
+    ['a', -1],
     ['b', 10],
-    ['c', 5],
+    ['c', 0],
   ])
-  giveUp(cache, 'b')
-  await cache.load('d')
-  assert.ok(cache.get('d') && !cache.get('b'), 'grains evict what the order gives up again')
+  await cache.load('d', undefined, false, undefined, 'b')
+  assert.ok(cache.get('d') && !cache.get('b'), 'a named victim gives its slot')
 })
 
 test('pages joining a pool that holds the catalogue take homes behind the others, every page where it was', async () => {

@@ -64,16 +64,18 @@ await writeGenerated(
 const browserOnly = rows.filter(
   (row) => row.entries.includes('browser') && !row.entries.includes('core'),
 )
-// The browser facade is split like the common one, by area — the session's page words
-// and the diagnostics apart from the engine's other browser exports — so no generated file outgrows
-// the line limit. A page word that shadows a common contract of the same name is named explicitly
-// in `installed-package/browser.ts`: two star exports of one name would cancel each other, an explicit one wins.
+// The browser facade is split like the common one, by area — the session's page words, the
+// diagnostics and the geometry's apart from the engine's other browser exports — so no generated
+// file outgrows the line limit. A page word that shadows a common contract of the same name is
+// named explicitly in `installed-package/browser.ts`: two star exports of one name would cancel
+// each other, an explicit one wins.
+const AREAS: readonly (readonly [string, RegExp])[] = [
+  ['session', /\/sdk-browser\/src\/session\//],
+  ['diagnostic', /\/diagnostic\//],
+  ['geometry', /\/sdk-browser\/src\/geometry\//],
+]
 const browserArea = (row: ExportRow) =>
-  /\/sdk-browser\/src\/session\//.test(row.module)
-    ? 'session'
-    : /\/diagnostic\//.test(row.module)
-      ? 'diagnostic'
-      : 'engine'
+  AREAS.find(([, pattern]) => pattern.test(row.module))?.[0] ?? 'engine'
 const commonNames = new Set(common.map((row) => row.name))
 const browserAreas = [...new Set(browserOnly.map(browserArea))].sort()
 for (const name of browserAreas)

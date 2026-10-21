@@ -1,6 +1,6 @@
 /**
  * A compile job's voxelized objects as a host names them, and the function that turns them into
- * the form the compiler reads (`compiler_args/voxelize.rs`). A mesh is voxelized far away — its
+ * the form the compiler reads (`args/voxelize.rs`). A mesh is voxelized far away — its
  * DAG's coarse levels bricks of voxels wherever they hold the error better than triangles, a leaf
  * card's cut-out kept —, the first source naming it winning:
  * 1. `voxelize` — a match on the objects, as `responsive` names them: the meshes of every object
@@ -11,8 +11,8 @@
  * A job naming none of them compiles as before. A value left out or `null` names nothing, as the
  * compiler reads it.
  */
-import { VOXELIZE_OPTION, type HlodWireMatch } from './compilerAbi.ts'
-import { refusal, wireMatch, type NameMatch, type NamePattern } from './nameMatch.ts'
+import { VOXELIZE_FIELD, VOXELIZE_OPTION, type HlodWireMatch } from './compilerAbi.ts'
+import { jsonJobOption, refusal, wireMatch, type NameMatch, type NamePattern } from './nameMatch.ts'
 
 /** The objects whose meshes are voxelized far away: a node's name (a string, exact), a regular
  *  expression on it, or a match on what the glTF carries (`NameMatch`). */
@@ -29,14 +29,6 @@ export function resolveVoxelize(option?: VoxelizeOption | null): HlodWireMatch |
   return wireMatch(option, 'voxelize', refusal('voxelize'))
 }
 
-/** A job's `voxelize` field as the compiler reads it, left out when the job names none. */
-export function voxelizeJobFields({ voxelize }: { voxelize?: VoxelizeOption | null }) {
-  const match = resolveVoxelize(voxelize)
-  return match ? { voxelize: match } : {}
-}
-
-/** A job's `voxelize` as the command line's flag, none when the job names none. */
-export function voxelizeFlags(options: { voxelize?: VoxelizeOption | null }): string[] {
-  const { voxelize } = voxelizeJobFields(options)
-  return voxelize ? [`${VOXELIZE_OPTION}${JSON.stringify(voxelize)}`] : []
-}
+/** A job's `voxelize` as the job field and the command line's flag the compiler reads
+ *  (`jsonJobOption`): `fields` left out, `flags` none, when the job names none. */
+export const voxelizeJob = jsonJobOption(VOXELIZE_FIELD, VOXELIZE_OPTION, resolveVoxelize)

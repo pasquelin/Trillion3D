@@ -2,6 +2,24 @@ import { textureBytesOf } from './textureBytes.ts'
 
 const LABEL_NONE = 'unlabeled'
 
+/** The code a budget's refusal carries (`checkAllocation`): the limit's, never the device's. */
+export const BUDGET_EXCEEDED = 'GPU_BUDGET_EXCEEDED'
+
+/** A budget's refusal of an allocation: its `code`, never its message, says what it is;
+ *  `shortfall` the bytes the limit lacked for it, at least what room must come back before the
+ *  same allocation is admitted (`Infinity` for a limit that is no number); `requested` the bytes
+ *  it asked (`Infinity` when unsaid). */
+export class GpuBudgetExceeded extends Error {
+  readonly code = BUDGET_EXCEEDED
+  readonly shortfall: number
+  readonly requested: number
+  constructor(message: string, shortfall = Infinity, requested = Infinity) {
+    super(message)
+    this.shortfall = shortfall
+    this.requested = requested
+  }
+}
+
 /** One snapshot of a ledger (`GpuDeviceLedger.snapshot`). */
 export interface GpuDeviceLedgerSnapshot {
   /** Live bytes, every allocation included. */
@@ -51,8 +69,10 @@ export function checkAllocation(books: LedgerBooks, bytes: number, label: string
   const total = books.liveBytes + (books.base?.bytes ?? 0) + bytes - books.replacing
   const ceiling = books.limit?.()
   if (ceiling !== undefined && (!Number.isFinite(ceiling) || total > ceiling)) {
-    const error = new Error(
-      `GPU_BUDGET_EXCEEDED: requested=${bytes}, label=${label}, held=${total - bytes}, limit=${ceiling}`,
+    const error = new GpuBudgetExceeded(
+      `${BUDGET_EXCEEDED}: requested=${bytes}, label=${label}, held=${total - bytes}, limit=${ceiling}`,
+      Number.isFinite(ceiling) ? total - ceiling : Infinity,
+      bytes,
     )
     if (!soft) books.refusal = error
     throw error
@@ -121,7 +141,8 @@ function destroyLive(books: LedgerBooks, resources: Iterable<object>) {
     const entry = books.live.get(resource)
     if (!entry) continue
     labels.push(entry.label)
-    ;(resource as { destroy(): void }).destroy()
+    const freed = resource as { destroy(): void }
+    freed.destroy()
   }
   return labels
 }

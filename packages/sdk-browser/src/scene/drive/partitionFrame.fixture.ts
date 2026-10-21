@@ -7,8 +7,9 @@ import type { PageStreaming } from '../../geometry/streaming/pageStreamer.ts'
 export type Io = Parameters<PartitionCells['frame']>[1]
 /** No arrival budget: what a test places never depends on the time the machine takes. */
 export const budget = { admits: () => true, spend() {} }
-/** An engine stand-in whose cut packs no world DAG. */
-export const packsNoWorld = () => ({ worldCells: () => undefined }) as unknown as Engine
+/** An engine stand-in whose cut packs no world DAG, its first image shown. */
+export const packsNoWorld = () =>
+  ({ worldCells: () => undefined, initialLoad: () => false }) as unknown as Engine
 
 /** Cells that record what a frame hands them, and ask for one cell. */
 export function recording() {

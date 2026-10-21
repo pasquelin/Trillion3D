@@ -8,10 +8,13 @@ import {
   BASE_SLOTS,
   BIN_BACK,
   BIN_FRONT,
+  BIN_KIND,
   BIN_NONE,
   CULL_BINS,
   HALF_SLOTS,
   DRAW_ITEM_U32,
+  RASTER_HARDWARE,
+  RASTER_SOFTWARE,
   drawIndirectBytes,
 } from './contract.ts'
 import { createGpuDraw } from './factory.ts'
@@ -57,7 +60,14 @@ test('compact rest pass occupies the second half of the slots with exclusive-sca
   const result = evaluateDrawCompact(items, 768, 8)
   assert.equal(result.overflow, false)
   assert.deepEqual([...result.instances], [4, 7, 5, 9, 2])
-  assert.deepEqual([...result.counts], [2, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0])
+  // Each half: the opaque, the cutout, the voxel and the software bins (`BIN_KIND`), three face
+  // modes each; the main half holds the two back rows and the cutout, the post half a back and a
+  // front.
+  const half = (...modes: number[]) => [
+    ...modes,
+    ...Array<number>(HALF_SLOTS - modes.length).fill(0),
+  ]
+  assert.deepEqual([...result.counts], [...half(2, 0, 0, 0, 1), ...half(1, 0, 1)])
   assert.equal(result.counts.length, BASE_SLOTS)
   assert.deepEqual([...result.indirect.subarray(0, 4)], [...packDrawIndirect(768, 2)])
   const restBack = result.indirect.subarray(HALF_SLOTS * 4, (HALF_SLOTS + 1) * 4)
@@ -69,6 +79,23 @@ test('compact rest pass occupies the second half of the slots with exclusive-sca
   expectedRestFront[3] = 4
   assert.deepEqual([...restFront], [...expectedRestFront])
   assert.equal(BIN_NONE, 1)
+})
+
+test('a row the software raster draws takes the software bin of its face mode, any kind', () => {
+  const items: DrawItem[] = [
+    { pageIndex: 3, bin: BIN_FRONT, rest: 0, raster: RASTER_SOFTWARE },
+    { pageIndex: 6, bin: BIN_NONE + CULL_BINS, rest: 1, raster: RASTER_SOFTWARE },
+    { pageIndex: 8, bin: BIN_FRONT, rest: 0, raster: RASTER_HARDWARE },
+  ]
+  const result = evaluateDrawCompact(items, 768, 8)
+  const software = BIN_KIND.SOFTWARE * CULL_BINS
+  assert.equal(result.counts[BIN_FRONT], 1, 'the hardware row keeps its own slot')
+  assert.equal(result.counts[software + BIN_FRONT], 1)
+  assert.equal(result.counts[HALF_SLOTS + software + BIN_NONE], 1)
+  assert.equal(
+    result.counts.reduce((sum, count) => sum + count, 0),
+    items.length,
+  )
 })
 
 test('overflow zeros instance counts in every indirect slot', () => {
@@ -90,13 +117,10 @@ test('draw shader counts, prefixes and scatters page groups in parallel with sta
     'atomicAdd(&slotTally[s',
     'atomicAdd(&indirect[slotTotalAt',
   ])
-  // A half's run keeps its own rows, each in its slot of that half.
-  assert.ok(DRAW_SHADER.includes('restAt(i)!=0u'))
-  assert.ok(DRAW_SHADER.includes(`rest*${HALF_SLOTS}u+item.bin`))
-  assert.match(
-    DRAW_SHADER,
-    /fn restAt\(i:u32\)->u32\{return bitAt\(restBits\[bitWord\(i\)\],i\);\}/,
-  )
+  // A half's run keeps the rows its mask holds, each in its slot of that half.
+  assert.ok(DRAW_SHADER.includes('if(!selected(item)){return NO_INDEX;}'))
+  assert.ok(DRAW_SHADER.includes('return slotOf(0u,item);'))
+  assert.ok(DRAW_SHADER.includes(`rest*${HALF_SLOTS}u+binOf(item)`))
   assert.ok(DRAW_SHADER.includes('atomicStore(&indirect[o+3u],0u)'))
 })
 
@@ -145,9 +169,15 @@ test('GPU draw uploads each item once without a CPU compact and exposes GPU slot
       GPUBufferUsage.COPY_SRC,
   )
 
-  // Packed rows {pageIndex,bin,selectionIndex,layer,triangles}: nothing of the frame enters
-  // there, and the occluder/tested half comes from the buffer the GPU partition writes.
-  const items = new Uint32Array([4, BIN_BACK, 0, 0, 1, 1, BIN_NONE, 0, 0, 1, 7, BIN_BACK, 0, 0, 1])
+  // Packed rows {pageIndex,bin,selectionIndex,layer,triangles,raster}: nothing of the frame enters
+  // there but the raster word, which the host sends as zero, and each half comes from its pass's
+  // mask of the cut.
+  // prettier-ignore
+  const items = new Uint32Array([
+    4, BIN_BACK, 0, 0, 1, RASTER_HARDWARE,
+    1, BIN_NONE, 0, 0, 1, RASTER_HARDWARE,
+    7, BIN_BACK, 0, 0, 1, RASTER_HARDWARE,
+  ])
   const pass = { pass: device.createCommandEncoder().beginComputePass() }
   gpu.uploadItems(items, 0, 2)
   gpu.encode(pass, 3)
@@ -190,7 +220,7 @@ test('GPU draw uploads each item once without a CPU compact and exposes GPU slot
   const offsets = gpu.groupsBuffer as unknown as { data: Uint8Array }
   assert.deepEqual(
     [...new Uint32Array(offsets.data.buffer).subarray(0, BASE_SLOTS)],
-    [0, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+    [0, 2, ...Array<number>(BASE_SLOTS - 2).fill(3)],
   )
   gpu.dispose()
 })

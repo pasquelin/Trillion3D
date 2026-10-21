@@ -1,6 +1,5 @@
 use crate::dag::DagCluster;
-use trillion3d_page_codec::bits::grid::object_units;
-use trillion3d_page_codec::proxy::{PROXY_ERROR_METRES, PROXY_TRIANGLE_FLOATS};
+use trillion3d_page_codec::proxy::{object_units, PROXY_ERROR_METRES, PROXY_TRIANGLE_FLOATS};
 
 /// Threshold doublings a cut allows before giving up: the sixteenth is 65536× the
 /// first, i.e. the DAG roots beyond which nothing coarser exists. A known bound,

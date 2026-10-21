@@ -3,9 +3,9 @@ import { manifestCulling } from '../../geometry/dag/culling.fixture.ts'
 
 /**
  * The coarse quad under one more root, `3`, of twice its error: the group of the root holds the
- * coarse page `2`, and the two leaves stream below it. The pool's floor — the root cover and the
- * pages its groups replace (`../../session/memory/minimumCapacity.ts`) — is two slots of four: a pool
- * at its floor draws the coarse page, never the root, and has no slot for the leaves.
+ * coarse page `2`, and the two leaves stream below it. The root cover is the root alone, held
+ * beside the streamed pages (`../prepare/rootCover.ts`): the coarse page and the leaves take the
+ * streaming slots the pool has.
  */
 export function deepQuadScene(): ReturnType<typeof coarseQuadScene> {
   const fixture = coarseQuadScene()

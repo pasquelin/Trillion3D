@@ -42,19 +42,19 @@ fn voxelCarry(page:PageInfo,brick:u32)->mat4x4f{
 /** The ray through box point \`o\` of a brick, in its cells, which \`m\` draws to clip space: where
  *  it starts and its direction, the clip depth and w at its start and their change along it
  *  (\`depth\`), and the brick's mask and packed box (\`cells\`). */
-struct VoxelRay{from:vec3f,dir:vec3f,depth:vec4f,cells:vec3u,}
+struct VoxelRay{start:vec3f,dir:vec3f,depth:vec4f,cells:vec3u,}
 fn voxelRay(mask:vec2u,box:VoxelBox,o:vec3f,m:mat4x4f)->VoxelRay{
  let eye=voxelCellEye(m);
  var r:VoxelRay;
  r.dir=voxelCellRay(eye,o);
- r.from=select(o-r.dir*(8.0/length(r.dir)),eye.xyz,eye.w!=0.0);
+ r.start=select(o-r.dir*(8.0/length(r.dir)),eye.xyz,eye.w!=0.0);
  let z=vec4f(m[0].z,m[1].z,m[2].z,m[3].z);let w=vec4f(m[0].w,m[1].w,m[2].w,m[3].w);
- r.depth=vec4f(dot(z,vec4f(r.from,1.0)),dot(w,vec4f(r.from,1.0)),dot(z.xyz,r.dir),dot(w.xyz,r.dir));
+ r.depth=vec4f(dot(z,vec4f(r.start,1.0)),dot(w,vec4f(r.start,1.0)),dot(z.xyz,r.dir),dot(w.xyz,r.dir));
  r.cells=vec3u(mask,voxelBoxBits(box));
  return r;
 }
 /** What a pixel's ray (\`voxelRay\`, interpolated) meets in its brick. */
-fn voxelPixel(from:vec3f,dir:vec3f,cells:vec3u)->VoxelHit{return voxelCellTrace(from,dir,cells.xy,voxelBoxOf(cells.z));}
+fn voxelPixel(start:vec3f,dir:vec3f,cells:vec3u)->VoxelHit{return voxelCellTrace(start,dir,cells.xy,voxelBoxOf(cells.z));}
 /** The clip depth of a hit at \`t\` along a ray of depth terms \`depth\` (\`voxelRay\`). */
 fn voxelDepth(depth:vec4f,t:f32)->f32{return (depth.x+t*depth.z)/(depth.y+t*depth.w);}`,
 )

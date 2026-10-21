@@ -22,10 +22,10 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 /** The same pseudo-random numbers in [0, 1) every run. */
 const randomOf = lcgRandom
 
-/** A sheet of 48 × 32 cells, its pages as a held blended surface is cut. */
+/** A sheet of 48 × 32 cells, its pages as a blended surface is cut. */
 async function sheet() {
   const drawn = drawnTriangles(geometry.plane(12, 8, 48, 32), 'triangles')!
-  const cut = await cutDrawnTriangles(drawn, true, true, { held: true })
+  const cut = await cutDrawnTriangles(drawn, true, true)
   return { cut, rest: Float32Array.from(drawn.positions) }
 }
 

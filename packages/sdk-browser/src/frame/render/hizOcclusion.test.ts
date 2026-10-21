@@ -85,11 +85,20 @@ test("a visibility pass the device fails is the image's failure, said once: no o
   material.dispose()
 })
 
-test('a device without an r32uint visibility target refuses the scene by name', async () => {
+// The hardware raster writes the visibility buffer as storage (`VIS_WRITE_WGSL`): its pipelines hold
+// no colour target, the scene prepares. The one pipeline that writes an r32uint target is the
+// raster's closing resolve (`visibility/raster/resolve.ts`), made at a frame's entry
+// (`framePipelines.ts`): a device without it fails the first image, said once.
+test("a device without an r32uint target fails the first image, said once: the raster's resolve", async () => {
   installGpuGlobals()
   const { device } = fakeDevice({ ...BACKEND, rejectR32: true })
-  const { fixture, backend } = quadBackend(device)
-  await assert.rejects(backend.prepare(), /WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE/)
+  const events: Array<{ phase: string; context: Record<string, unknown> }> = []
+  const { fixture, backend } = quadBackend(device, { onDiagnostic: (event) => events.push(event) })
+  await backend.prepare()
+  assert.throws(() => backend.render(camera()), /NO_R32UINT/)
+  // A traced failure reaches the observer from the diagnostic queue, a task later.
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  assert.equal(events.filter((event) => event.phase === 'visibility-render-failed').length, 1)
   backend.dispose()
   fixture.geometry.dispose()
   fixture.material.dispose()

@@ -33,12 +33,14 @@ export function bundleSources(metafile: Metafile, dist: string): BundleSources {
  */
 const NOT_IN_CORE = {
   measurement: ['sdk-browser/src/measurement/'],
-  'the WebGPU renderer': ['sdk-browser/src/webgpu/pages/'],
-  'the WebGPU shadows': [
-    'sdk-browser/src/lighting/shadows/',
-    'sdk-browser/src/lighting/shadows/casters/',
-    'sdk-browser/src/lighting/shadows/vsm/',
+  'the WebGPU renderer': [
+    'sdk-browser/src/frame/backend/',
+    'sdk-browser/src/frame/io/',
+    'sdk-browser/src/frame/prepare/',
+    'sdk-browser/src/frame/render/',
+    'sdk-browser/src/diagnostic/feedback/',
   ],
+  'the WebGPU shadows': ['sdk-browser/src/lighting/shadows/'],
 }
 /** The shadows' constants and lean size modules, which import no pass, pipeline nor other shader
  *  text: the world's settings read the shadows' defaults from the constants, and the memory budget

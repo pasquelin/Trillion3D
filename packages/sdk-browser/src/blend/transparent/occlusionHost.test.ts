@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { refreshTransparentCorners } from './occlusionHost.ts'
-import { CORNER_VALUES } from '../../geometry/partition/gpu/contract.ts'
+import { CORNER_VALUES } from '../../gpu/core/boxProjectWgsl.ts'
 import { packPageCorners } from '../../visibility/passes/corners.fixture.ts'
 import { moveRootRows } from '../../frame/render/movedRoot.ts'
 import { createChangedRuns } from '../../geometry/residency/ranges.ts'

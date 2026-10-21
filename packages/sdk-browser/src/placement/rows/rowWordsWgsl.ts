@@ -1,17 +1,15 @@
 /**
  * THE ROWS PASS, the one writer of every word of a page-table row its root's world decides
- * (`rowWords.ts`): the sixteen world words of the row, the world sphere the shadow cull drops it by,
- * the eight corners the Hi-Z test projects it by and the detail the shadows' levels are judged by —
- * each from the root's world as the GPU holds it in doubles (`../roots/rootWorlds.ts`) and the row's inputs
+ * (`rowWords.ts`): the sixteen world words of the row, the world sphere the shadow cull drops it by
+ * and the detail the shadows' levels are judged by — each from the root's world as the GPU holds it in doubles (`../roots/rootWorlds.ts`) and the row's inputs
  * (`rowInputPack.ts`), rounded where the CPU's formulas round them (`../compose/gpuComposeDerivedWgsl.ts`,
  * `rowSphere.ts`), so a word is the one the CPU would have written from the same world. One thread a
  * row: every row of the table (`params.all`), or the rows a list names.
  */
 import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
-import { CORNERS_WGSL, LOD_WGSL } from '../compose/gpuComposeDerivedWgsl.ts'
+import { LOD_WGSL } from '../compose/gpuComposeDerivedWgsl.ts'
 import { INPUT_FLAGS, ROW_INPUT_DOUBLES } from './rowInputPack.ts'
 import { CENTRE_ERROR, SPHERE_GROWTH, SPHERE_MARGIN } from './rowSphere.ts'
-import { CORNER_VALUES } from '../../geometry/partition/gpu/contract.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../../lighting/shadows/sphereContract.ts'
 import { LOD_BIT, ROW_LOD_FLOATS } from '../../lighting/shadows/casters/rowLodWords.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
@@ -30,9 +28,8 @@ import { ROW_CAST_WGSL } from './rowCastWgsl.ts'
  *  buffer is made; the shadow changes (`PART_CASTS`) once the mobility words and the change list
  *  are made beside the spheres (`rowCastWgsl.ts`). */
 export const PART_SPHERES = 1,
-  PART_CORNERS = 2,
-  PART_LODS = 4,
-  PART_CASTS = 8
+  PART_LODS = 2,
+  PART_CASTS = 4
 
 /** A listed row's word: the row, and whether its shadow changed where it stands (`ROW_STALES`): a
  *  cutout's colour tile came or went, its surface's alpha moved — the box of the sphere it holds
@@ -91,8 +88,8 @@ fn composeSphere(row:u32,world:array<vec2u,16>){
 }`,
 )
 
-/** The words of a row that holds no page: a zero sphere and zero corners, which no cull keeps, and
- *  the detail every page draws (`FINITE_SENTINEL` as the coarser form's error). */
+/** The words of a row that holds no page: a zero sphere, which no cull keeps, and the detail every
+ *  page draws (`FINITE_SENTINEL` as the coarser form's error). */
 const CLEAR_ROW_WGSL = wgslBlock(
   'CLEAR_ROW_WGSL',
   [FINITE_SENTINEL],
@@ -100,9 +97,6 @@ const CLEAR_ROW_WGSL = wgslBlock(
 fn clearRow(row:u32){
  if((params.parts&${PART_SPHERES}u)!=0u&&(row+1u)*${CLUSTER_SPHERE_FLOATS}u<=arrayLength(&spheres)){
   for(var k=0u;k<${CLUSTER_SPHERE_FLOATS}u;k++){spheres[row*${CLUSTER_SPHERE_FLOATS}u+k]=0.0;}
- }
- if((params.parts&${PART_CORNERS}u)!=0u&&(row+1u)*${CORNER_VALUES}u<=arrayLength(&corners)){
-  for(var k=0u;k<${CORNER_VALUES}u;k++){corners[row*${CORNER_VALUES}u+k]=0u;}
  }
  if((params.parts&${PART_LODS}u)!=0u&&(row+1u)*${ROW_LOD_FLOATS}u<=arrayLength(&lods)){
   for(var k=0u;k<${ROW_LOD_FLOATS}u;k++){lods[row*${ROW_LOD_FLOATS}u+k]=0u;}
@@ -117,9 +111,8 @@ export const DERIVE_ROWS_ENTRY = 'deriveRows'
 /**
  * One thread a row (`deriveRow`): a row holding no page takes the clear words (`clearRow`); a row
  * holding one, its root's world as single-precision words and, each part when its buffer is bound
- * (`params.parts`), its sphere (`composeSphere`) and its cast state (`castCode`), its corners
- * (`composeCorners`) and its detail (`composeLod`). The row keeps the Hi-Z slot the CPU gave it:
- * its corners describe it. A listed row marked `ROW_STALES` first appends the box of the sphere it
+ * (`params.parts`), its sphere (`composeSphere`) and its cast state (`castCode`), and its detail
+ * (`composeLod`). A listed row marked `ROW_STALES` first appends the box of the sphere it
  * holds, the one its shadow pages were drawn from (`staleRow`). Every row derived appends its
  * shadow change (`castRow`), whatever named it — moved, written by the table, made ready, every
  * row —: a row whose world, sphere or cast state differs from what it held stales the pages it was
@@ -136,11 +129,10 @@ export const DERIVE_ROWS_WGSL = wgslProgram(
 @group(0) @binding(3) var<storage,read_write> spheres:array<f32>;
 @group(0) @binding(4) var<storage,read> inputs:array<vec2u>;
 @group(0) @binding(5) var<storage,read> rootBoxes:array<vec2u>;
-@group(0) @binding(6) var<storage,read_write> corners:array<u32>;
-@group(0) @binding(7) var<storage,read_write> lods:array<u32>;
-@group(0) @binding(8) var<storage,read> rowList:array<u32>;
-@group(0) @binding(9) var<storage,read> mobility:array<u32>;
-@group(0) @binding(10) var<storage,read_write> castChanges:array<atomic<u32>>;
+@group(0) @binding(6) var<storage,read_write> lods:array<u32>;
+@group(0) @binding(7) var<storage,read> rowList:array<u32>;
+@group(0) @binding(8) var<storage,read> mobility:array<u32>;
+@group(0) @binding(9) var<storage,read_write> castChanges:array<atomic<u32>>;
 fn deriveRow(row:u32,stale:bool){
  let at=row*${ROW_INPUT_DOUBLES}u;
  let base=row*${ROW_WORDS}u;
@@ -170,7 +162,6 @@ fn deriveRow(row:u32,stale:bool){
   if((params.parts&${PART_CASTS}u)!=0u){spheres[row*${CLUSTER_SPHERE_FLOATS}u+7u]=castCode(row);}
  }
  if(casts){castRow(row,was,worldSame,true);}
- if((params.parts&${PART_CORNERS}u)!=0u&&(row+1u)*${CORNER_VALUES}u<=arrayLength(&corners)){composeCorners(row,world);}
  if((params.parts&${PART_LODS}u)!=0u&&(row+1u)*${ROW_LOD_FLOATS}u<=arrayLength(&lods)){composeLod(row,rank,world);}
 }
 @compute @workgroup_size(WORKGROUP_THREADS) fn deriveRows(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
@@ -190,7 +181,6 @@ fn deriveRow(row:u32,stale:bool){
     WORKGROUP_THREADS_WGSL,
     SPHERE_WGSL,
     CLEAR_ROW_WGSL,
-    CORNERS_WGSL,
     LOD_WGSL,
     ROW_CAST_WGSL,
   ],

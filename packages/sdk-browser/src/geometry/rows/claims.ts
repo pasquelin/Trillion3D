@@ -63,22 +63,22 @@ export function leadFirst(pages: Int32Array, count: number, leads: (page: number
 
 /**
  * Serves the claims — pages that claim the write of a row record, each listed once
- * (`createMarkedList`) — in increasing page order within `budget` (`serveInOrder`), those `leads`
- * names first, the rest waiting for the next image in the same order. A page no rank is left for
- * leaves the queue too, handed to `refused`.
+ * (`createMarkedList`) — in increasing page order, those `leads` names first, every one of them
+ * (`serveInOrder` on no clock): the arrivals of the pages a frame installs, which its installs
+ * bound (`./rowPasses.ts`, `followArrivals`). A page no rank is left for leaves the queue too,
+ * handed to `refused`.
  */
 export function serveClaims(
   claims: ReturnType<typeof createMarkedList>,
   release: (page: number) => boolean,
   place: (page: number) => boolean,
-  budget?: FrameClock,
   refused?: (page: number) => void,
   leads?: (page: number) => boolean,
 ) {
   if (!claims.count) return
   sortPages(claims.list, claims.count)
   if (leads) leadFirst(claims.list, claims.count, leads)
-  const served = serveInOrder(claims.list, 0, claims.count, release, place, budget, (page) => {
+  const served = serveInOrder(claims.list, 0, claims.count, release, place, undefined, (page) => {
     refused?.(page)
     return false
   })

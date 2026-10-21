@@ -1,8 +1,6 @@
 import { HIZ_BUILD_SIDE, HIZ_PASS_LEVELS, HIZ_UNI } from './uniforms.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { surfaceSlopeOf } from '../../../../../math/src/wgsl/sampling.ts'
-import { HIZ_TEST_WGSL } from './testWgsl.ts'
-import { TESTED_BOX } from '../../../geometry/partition/gpu/contract.ts'
 import {
   HIZ_CULL_FARTHEST,
   HIZ_FOLD_WGSL,
@@ -27,13 +25,14 @@ const HIZ_DEPTH_TILE = 2 * HIZ_BUILD_SIDE + 2 * HIZ_PLANE_REACH
  * image, clipped to it. Reverse-Z throughout.
  *
  *  - the CULLING FARTHEST layer: level 0 a copy of the depth, each coarser texel the farthest — the
- *    MINIMUM — of the four below it. Built mid-frame (`encodePyramid`) from the depth the
- *    occluders drew, the only depth there is before the test of the rest — an image that tests
- *    nothing builds it from its whole depth. The depth only comes nearer after it, so what hides a
- *    box there hides it in the finished image, and a cell's farthest there is at or behind the
- *    finished one's: a bound every reader can trust. The occlusion test below, the partition's
- *    main-pass cull and the transparent test read it; the readers of the whole depth read its
- *    coarser levels, and level 0 in its own texture, which then holds the depth whole.
+ *    MINIMUM — of the four below it. Built mid-frame (`encodePyramid`) from the depth the cut's
+ *    main pass drew, the only depth there is before its post pass tests the rest, then again from
+ *    the whole depth for the next image's main pass. The depth only comes nearer after a build, so
+ *    what hides a box there hides it in the finished image, and a cell's farthest there is at or
+ *    behind the finished one's: a bound every reader can trust. The cut's occlusion test
+ *    (`../../../geometry/dag/shader/occlusionWgsl.ts`) and the transparent test read it; the
+ *    readers of the whole depth read its coarser levels, and level 0 in its own texture, which
+ *    then holds the depth whole.
  *  - the WHOLE-DEPTH FARTHEST layer, levels 1 and up: the same reduction of the FINISHED depth's
  *    planes — the farthest corner of each pixel's plane (`hizPlaneCorners`), so that it holds the
  *    whole of every pixel, not its centre alone —, built in the same pass and by the same kernel
@@ -65,22 +64,13 @@ const HIZ_DEPTH_TILE = 2 * HIZ_BUILD_SIDE + 2 * HIZ_PLANE_REACH
  * texel into the pyramid — the tests and the next image's cull read level 0 there —, the nearest
  * build writes each pixel's slopes, and both reduce level 1 from the texels they just read, never
  * rereading the copy.
- *
- * The test receives no count or bytes from the CPU: it reads the box count and writes its own
- * reject counters into the state the GPU partition holds, and the boxes are those the partition
- * packed in the same submission. No value is inferred there: a verdict is written, or the row
- * stays at zero.
  */
 export const HIZ_SHADER = wgslProgram(
   `override ${HIZ_NEAREST_BUILD}:bool=false;
 ${HIZ_UNI.wgsl}
-${TESTED_BOX.wgsl}
 @group(0) @binding(0) var hizPyramid:texture_storage_2d_array<${HIZ_FORMAT},read_write>;
 @group(0) @binding(1) var level0:texture_2d_array<f32>;
 @group(0) @binding(2) var<uniform> uni:Uni;
-@group(0) @binding(3) var<storage, read> bounds:array<Bounds>;
-@group(0) @binding(4) var<storage, read_write> flags:array<u32>;
-@group(0) @binding(5) var<storage, read_write> state:array<atomic<u32>>;
 var<workgroup> hizTile:array<vec2f,${HIZ_BUILD_SIDE ** 2}>;
 /** The folded depth of the nearest build's first pass over the workgroup's pixels and the border of
  *  two its planes reach (\`hizPlaneCorners\`), each texel loaded once; \`hizDepthOrigin\` the pixel
@@ -93,8 +83,6 @@ fn hizIn(i:u32,layer:u32)->u32{return select(i,i+layer*uni.upper,(i&HIZ_UPPER)!=
 /** The word at index \`i\` of \`layer\`, as a depth; one written there. */
 fn hizLoad(i:u32,layer:u32)->f32{let j=hizIn(i,layer);return bitcast<f32>(textureLoad(hizPyramid,hizTexel(j),hizSlice(j,layer)).r);}
 fn hizPut(i:u32,layer:u32,word:u32){let j=hizIn(i,layer);textureStore(hizPyramid,hizTexel(j),hizSlice(j,layer),vec4u(word,0u,0u,0u));}
-/** What the test reads (\`pyramidHides\`): the culling farthest layer. */
-fn hizCullFarthest(i:u32)->f32{return hizLoad(i,${HIZ_CULL_FARTHEST}u);}
 /** The layer this build writes, besides the finished depth's farthest in the nearest build. */
 fn hizLayer()->u32{return select(${HIZ_CULL_FARTHEST}u,${HIZ_NEAREST}u,${HIZ_NEAREST_BUILD});}
 /** The pair of bounds at packed index \`i\`: the layer's, and the finished depth's farthest. */
@@ -211,5 +199,5 @@ fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:ve
  }
 }
 `,
-  [HIZ_TEST_WGSL, HIZ_TEXEL_WGSL, HIZ_FOLD_WGSL, surfaceSlopeOf],
+  [HIZ_TEXEL_WGSL, HIZ_FOLD_WGSL, surfaceSlopeOf],
 )

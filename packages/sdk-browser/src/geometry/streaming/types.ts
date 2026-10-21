@@ -83,11 +83,13 @@ export interface PageStreamerOptions {
   cache: PageCache
   /** Cancels every read once aborted. */
   signal?: AbortSignal
-  /** Reads running at once; 8 by default. */
+  /** Reads running at once; `DEFAULT_PAGE_WORKERS` by default, the streaming pages that may be
+   *  pending (`../../session/engine/common.ts`). */
   workerCount?: number
   /** Hears each page that leaves the cache. */
   onEvict?: (url: string) => void
-  /** Bytes the transfer queue may hold; 8 MiB by default. */
+  /** Bytes the transfer queue may hold; `DEFAULT_PAGE_TRANSFER_BYTES` by default, those pending
+   *  streaming pages at their most bytes each. */
   maxTransferBytes?: number
   /** Hears each step of every read. */
   onDiagnostic?: (diagnostic: EngineDiagnostic) => void

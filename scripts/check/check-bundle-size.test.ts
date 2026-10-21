@@ -91,10 +91,10 @@ test('the gate lists the core by source folder, and fails on measurement, diagno
     const { fits, folders, forbidden } = coreSize(clean)
     assert.ok(fits, 'a family chunk is not the core: its sources are not listed')
     assert.deepEqual(folders.slice(1), [
-      '      0.9 kB  sdk-browser/src/world',
+      '      0.9 kB  sdk-browser/src/session',
       '      0.4 kB  sdk-core/src/math',
       '      0.2 kB  sdk-browser/src/gpu',
-      '      0.1 kB  sdk-browser/src/vsm',
+      '      0.1 kB  sdk-browser/src/lighting',
     ])
     assert.deepEqual(forbidden, [], "the shadows' size modules are the core's")
   } finally {
@@ -103,9 +103,9 @@ test('the gate lists the core by source folder, and fails on measurement, diagno
   for (const source of [
     'sdk-browser/src/measurement/measurementCode.js',
     'sdk-browser/src/frame/backend/pages.js',
-    'sdk-browser/src/gpu/shadow/atlas.js',
-    'sdk-browser/src/webgpu/shadow/pageRequests.js',
-    'sdk-browser/src/webgpu/shadow/allocWgsl.js',
+    'sdk-browser/src/lighting/shadows/atlas.js',
+    'sdk-browser/src/lighting/shadows/casters/pageRequests.js',
+    'sdk-browser/src/lighting/shadows/vsm/allocWgsl.js',
     'sdk-browser/src/lighting/shadows/vsm/render/renderPass.js',
   ]) {
     const dist = held({ [source]: 10 })

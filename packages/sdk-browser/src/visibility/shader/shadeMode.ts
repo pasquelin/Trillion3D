@@ -49,7 +49,7 @@ export const diagnosticReads = (mode: DiagnosticMode) => viewOf(mode)?.reads
  * most of its history each pixel's material keeps, as grey (`MATERIAL_HISTORY_VIEW`); 0 the
  * accumulated colour itself.
  */
-export const LIT_VIEWS = {
+const LIT_VIEWS = {
   'frame-difference': { light: 0, chain: true },
   'no-temporal-aa': { light: 0, chain: true },
   'taa-input': { light: 0, chain: true, taa: 1 },

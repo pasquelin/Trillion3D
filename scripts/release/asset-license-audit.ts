@@ -29,7 +29,7 @@ async function verifyFile(root: string, ref: Evidence, digests: Digests): Promis
   try {
     const file = await realpath(resolve(root, ref.path))
     const inside = relative(root, file)
-    if (!inside || inside === '../..' || inside.startsWith(`..${sep}`) || isAbsolute(inside))
+    if (!inside || inside === '..' || inside.startsWith(`..${sep}`) || isAbsolute(inside))
       return false
     if (!digests.has(file)) digests.set(file, digest(file))
     return (await digests.get(file)) === ref.sha256

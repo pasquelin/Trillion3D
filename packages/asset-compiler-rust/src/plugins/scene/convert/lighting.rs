@@ -1,0 +1,78 @@
+//! Lights of a scene read by ufbx: a node's matrix, and the glTF punctual light
+//! it carries. The driver never places a light of its own — everything comes from
+//! imported data.
+use super::*;
+use trillion3d_math::matrix::transform_direction;
+use trillion3d_math::vector::vec3::{cross, frame_across, normalized_or};
+
+pub(super) fn matrix_json(m: &ufbx::Matrix) -> Vec<f64> {
+    matrix_columns(m).to_vec()
+}
+/// The matrix as sixteen floats, column by column.
+fn matrix_columns(m: &ufbx::Matrix) -> [f64; 16] {
+    [
+        m.m00, m.m10, m.m20, 0.0, m.m01, m.m11, m.m21, 0.0, m.m02, m.m12, m.m22, 0.0, m.m03, m.m13,
+        m.m23, 1.0,
+    ]
+}
+pub(super) fn matrix_is_finite(m: &[f64]) -> bool {
+    m.iter().all(|v| v.is_finite())
+}
+/// Rotates the glTF light axis (-Z) onto the FBX light direction, then applies the node transform.
+pub(super) fn light_matrix(node: &ufbx::Node, direction: ufbx::Vec3) -> Vec<f64> {
+    let d = normalized_or([direction.x, direction.y, direction.z], [0.0, 0.0, -1.0]);
+    let z = [-d[0], -d[1], -d[2]];
+    // FBX gives no roll about the axis: the frame around it (`frame_across`).
+    let x = frame_across(z);
+    let y = cross(z, x);
+    let n = &node.node_to_world;
+    let columns = matrix_columns(n);
+    let mul = |c: [f64; 3]| transform_direction(&columns, c);
+    let (cx, cy, cz) = (mul(x), mul(y), mul(z));
+    vec![
+        cx[0], cx[1], cx[2], 0.0, cy[0], cy[1], cy[2], 0.0, cz[0], cz[1], cz[2], 0.0, n.m03, n.m13,
+        n.m23, 1.0,
+    ]
+}
+
+impl Importer<'_> {
+    pub(super) fn push_light(&mut self, node: &ufbx::Node, light: &ufbx::Light) {
+        let kind = match light.type_ {
+            ufbx::LightType::Point => "point",
+            ufbx::LightType::Directional => "directional",
+            ufbx::LightType::Spot => "spot",
+            _ => {
+                self.scene.report.add("light-area-or-volume");
+                return;
+            }
+        };
+        let matrix = light_matrix(node, light.local_direction);
+        if !matrix_is_finite(&matrix) {
+            self.scene.report.add("node-invalid-transform");
+            return;
+        }
+        // FBX carries no photometric unit: its intensity is a percentage, which the
+        // published `compiler::lights` setting turns into candela or lux, like glTF.
+        // And FBX declares no emitter radius: the compiler then measures it on the
+        // light's emissive body.
+        let source = crate::plugins::scene::convert::LightSource {
+            name: light.element.name.to_string(),
+            kind,
+            colour: [light.color.x, light.color.y, light.color.z],
+            intensity: light.intensity * crate::compiler::lights::fbx_intensity_scale(kind),
+            // The outer half-angle travels as written: `compiler::lights` clamps every cone once.
+            cone: (kind == "spot").then(|| {
+                (
+                    light.inner_angle.to_radians(),
+                    light.outer_angle.to_radians(),
+                )
+            }),
+            casts_shadow: Some(light.cast_shadows),
+            emitter_radius: None,
+        };
+        let rank = self.scene.light(&source);
+        let node =
+            crate::plugins::scene::convert::light_node(&node.element.name, json!(matrix), rank);
+        self.scene.nodes.push(node);
+    }
+}

@@ -1,15 +1,29 @@
 import { validated } from '../../gpu/core/errorScope.ts'
 import { behind } from '../../gpu/core/behind.ts'
 import { pendingMade } from '../../gpu/core/tableGrowth.ts'
-import { JOURNAL_SECTION, flagSectionStart, type FlagShape } from './flagSections.ts'
+import {
+  JOURNAL_SECTION,
+  dagFlagShape,
+  flagSectionStart,
+  sameFlagShape,
+  type FlagShape,
+} from './flagSections.ts'
 import { createFlagTable } from './cut/cutTables.ts'
 import { admitBeside } from './cut/cutBuffers.ts'
 import { cutHeldSlots, heldOpenAt, rankGroups } from './lists/listCap.ts'
 import { growDagList } from './lists/listGrowth.ts'
+import { sameListCaps, type CutListCaps } from './lists/cutListCaps.ts'
 import { regionsWanted } from './swap/swap.ts'
 import { recutMain, recutView, type DagRuntimeState } from './runtime/runtimeState.ts'
 import type { CutTablesAt } from './uniforms.ts'
 import type { DagResources } from './resources.ts'
+
+/**
+ * THE CUT'S TABLES MADE AGAIN BETWEEN TWO FRAMES, behind the readbacks in flight: its flags laid
+ * out anew for the lists' caps the session asks (`holdListCaps`), its readout for the regions the
+ * views aside ask and the open counts the row cache holds (`followRows`). No list grows on demand: a
+ * cut past a cap draws what fits (`shader/listsWgsl.ts`).
+ */
 
 /** Where `resources`' tables lie for its kernels: the open counts in `out`, its flags' shape. */
 export const cutTablesAt = (resources: {
@@ -17,20 +31,28 @@ export const cutTablesAt = (resources: {
   heldSlots: number
   swap: { regions: number }
   flagShape: FlagShape
-}): CutTablesAt => ({
-  ...heldOpenAt(resources),
-  queueWords: resources.flagShape.queueWords,
-  candCap: resources.flagShape.candCap,
-})
+}): CutTablesAt => ({ ...heldOpenAt(resources), shape: resources.flagShape })
+
+/** The lists' caps the session asks of the cut from its next cut on (`GpuSelection.holdLists`):
+ *  caps that lay the flags out as they are hold from now; others are laid out before the next cut
+ *  (`queueDagGrowth`), unless the device refused them already. */
+export function holdListCaps(resources: DagResources, state: DagRuntimeState, caps: CutListCaps) {
+  const asked = state.reshape?.caps ?? resources.listCaps
+  if (sameListCaps(asked, caps) || (state.refusedCaps && sameListCaps(state.refusedCaps, caps)))
+    return
+  const shape = dagFlagShape(resources.packed, caps)
+  state.reshape = sameFlagShape(shape, resources.flagShape) ? undefined : { caps, shape }
+  if (!state.reshape) resources.listCaps = caps
+}
 
 /**
  * Gives the cut a `flags` of `shape`, between two frames and with no readback in flight: its record
  * table made within the cut's share under an out-of-memory scope (`createFlagTable`), the drawn
  * log carried over to its new place, the bind groups made again and the old table retired. A
- * device that refuses keeps the old `flags` whole and says `false`: the next cut that drops work
- * coarsens instead. One layout and one text whatever the shape: nothing compiles again.
+ * device that refuses keeps the old `flags` whole and says `false`: the lists keep the caps they
+ * hold. One layout and one text whatever the shape: nothing compiles again.
  */
-async function growDagFlags(resources: DagResources, shape: FlagShape, disposed: () => boolean) {
+async function remakeDagFlags(resources: DagResources, shape: FlagShape, disposed: () => boolean) {
   const { device, cutTables } = resources,
     old = cutTables.flags
   // What the flags replace leaves the share: the new table is made within what remains, beside
@@ -41,7 +63,7 @@ async function growDagFlags(resources: DagResources, shape: FlagShape, disposed:
   // A creation the device throws on is a refusal too.
   const flags = await validated(
     device,
-    () => createFlagTable(device, shape, resources.pageCount, make),
+    () => createFlagTable(device, shape, make),
     'out-of-memory',
   ).catch(() => undefined)
   const { made } = admission
@@ -86,55 +108,73 @@ function carryJournal(resources: DagResources, flags: { texture: GPUTexture }, s
     'Word',
     flagSectionStart(JOURNAL_SECTION, from),
     flagSectionStart(JOURNAL_SECTION, shape),
-    from.candCap,
+    Math.min(from.visCap, shape.visCap),
   )
   resources.device.queue.submit([encoder.finish()])
 }
 
-/** Grows `flags` to `state.growFlags`, the list to `state.grow`, and `out` to the regions the views
- *  aside ask and the open counts the row cache holds (`state.growHeld`), behind the readbacks in
- *  `state.pending`; no frame cuts until each is in place or refused, and the next one cuts and reads
- *  again — on the grown tables, or, refused, to coarsen the cut past them (`coarsening.ts`), draw
- *  the views aside without a region, and leave more open counts at their nodes' (`heldOpen.ts`). */
+/** Lays `flags` out for the caps `state.reshape` asks, and makes `out` again for the regions the
+ *  views aside ask and the open counts the row cache holds (`state.growHeld`), behind the readbacks
+ *  in `state.pending`; no frame cuts until each is in place or refused, and the next one cuts and
+ *  reads again — on the new tables, or, refused, on the lists at the caps they hold (said once a
+ *  caps asked, `listNote`), the views aside without a region, more open counts at their nodes'
+ *  (`heldOpen.ts`). */
 function queueDagGrowth(resources: DagResources, state: DagRuntimeState) {
   const { swap } = resources,
-    flags = state.growFlags,
-    cap = Math.max(state.grow, resources.listCap),
+    reshape = state.reshape,
     held = Math.max(state.growHeld, resources.heldSlots),
     regions = state.regionsFull ? swap.regions : Math.max(swap.regions, regionsWanted(swap))
-  state.grow = 0
-  state.growFlags = undefined
+  state.reshape = undefined
   state.growHeld = 0
   state.growing = true
   void behind(state, async () => {
     try {
-      // Every view's cut in hand dropped work or stood on the old queues: each cuts again.
-      if (flags && !(await growDagFlags(resources, flags, () => state.disposed)))
-        state.flagsFull = true
-      if (cap === resources.listCap && regions === swap.regions && held === resources.heldSlots)
-        return
-      if (await growDagList(resources, cap, regions, () => state.disposed, held)) return
-      if (cap > resources.listCap) state.listFull = true
+      // Every view's cut in hand stood on the old lists: each cuts again.
+      if (reshape) {
+        const made = await remakeDagFlags(resources, reshape.shape, () => state.disposed)
+        reshapeLists(resources, state, reshape, made)
+      }
+      if (regions === swap.regions && held === resources.heldSlots) return
+      if (await growDagList(resources, regions, () => state.disposed, held)) return
       if (regions > swap.regions) state.regionsFull = true
     } finally {
       state.growing = false
       recutMain(swap, state)
-      if (flags) swap.cuts.forEach((_, v) => recutView(swap, v + 1))
+      if (reshape) swap.cuts.forEach((_, v) => recutView(swap, v + 1))
     }
   })
 }
 
-/** True when `flags` or the list must grow, or `out` must hold the saved regions the views aside
- *  ask. */
+/** The lists laid out for `asked` (`made`), its caps the cut's from now; or refused, their caps
+ *  kept, and said once: the session asking them again is not tried again (`holdListCaps`). */
+function reshapeLists(
+  resources: DagResources,
+  state: DagRuntimeState,
+  asked: { caps: CutListCaps; shape: FlagShape },
+  made: boolean,
+) {
+  if (made) {
+    resources.listCaps = asked.caps
+    state.refusedCaps = undefined
+    return
+  }
+  state.refusedCaps = asked.caps
+  resources.listNote?.(
+    'The device or the cut’s share holds no lists at the caps asked: they keep the caps they hold',
+    { asked: asked.caps, held: resources.listCaps },
+  )
+}
+
+/** True when the flags must be laid out again, or `out` must hold the saved regions the views
+ *  aside ask or the open counts the row cache holds. */
 export const growthAsked = (resources: DagResources, state: DagRuntimeState) =>
-  !!state.grow ||
-  !!state.growFlags ||
+  !!state.reshape ||
   state.growHeld > resources.heldSlots ||
   (!state.regionsFull && regionsWanted(resources.swap) > resources.swap.regions)
 
-/** True when no cut may run on the tables now: disposed, lost, or tables to grow — which wait for
- *  the readbacks in flight, then grow (`queueDagGrowth`): no frame cuts on the old ones. The main
- *  view's dispatch (`dispatch.ts`) and a view's aside (`aside.ts`) alike. */
+/** True when no cut may run on the tables now: disposed, lost, or tables to make again — which
+ *  wait for the readbacks in flight, then are made (`queueDagGrowth`): no frame cuts on the old
+ *  ones. The main view's dispatch (`dispatch.ts`) and a view's aside (`aside.ts`) alike. */
 export function tablesHeld(resources: DagResources, state: DagRuntimeState) {
   if (state.disposed || state.dead || state.growing) return true
   if (!growthAsked(resources, state)) return false

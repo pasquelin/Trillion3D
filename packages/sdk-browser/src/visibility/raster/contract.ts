@@ -1,15 +1,18 @@
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { clipToFramebuffer } from '../../../../math/src/wgsl/projection.ts'
 /**
- * Compute-raster contract: one writing of the numbers that both the WGSL and the encoder read.
- * The raster takes the share of the opaque and masked cut that the split gives it, up to the
- * whole cut; blend keeps its hardware pass.
+ * Software-raster contract: one writing of the numbers that both the WGSL and the encoder read.
  *
- * Four size classes, two lists. A class says how many pixels a sixty-four-thread group covers
- * at once, never what a triangle is worth: the class is read on the triangle's WHOLE box,
- * clipped to the viewport, so a triangle half off-screen falls in the class of what remains.
- * No class can overflow while the other has room: both of the same list fill it from both
- * ends, and the bound is held on the sum.
+ * THE SPLIT IS PER CLUSTER, as the cut hands clusters to the rasters: a cluster whose longest
+ * edge, projected at the nearest point of its level-of-detail sphere, stays under
+ * `hardwareRasterEdgePixels` (32 by default)
+ * and whose box crosses neither the near nor the far plane is rastered here, in compute; every
+ * other one by the hardware raster, which clips (`binWgsl.ts`). Lines, sprites and voxel bricks,
+ * which the vertex stage widens, turns or traces, are always hardware's. Blend keeps its pass.
+ *
+ * Three size classes, two lists a pass. A class says how many pixels a sixty-four-thread group covers
+ * at once, never what a triangle is worth: the class is read on the triangle's pixel box,
+ * clipped to the viewport and to the `MAX_SPAN` every triangle setup holds. Fine and coarse
+ * share a list, filled from both ends: neither overflows while the other has room, and the
+ * bound is held on the sum; large has the other one.
  */
 
 /** Side of the fine-class tile, and triangles a sixty-four-thread group treats there. */
@@ -18,74 +21,52 @@ export const FINE_SIDE = 4
 export const FINE_PER_GROUP = 64 / (FINE_SIDE * FINE_SIDE)
 /** Side of a full group's tile: the coarse class fits in one, the large class loops. */
 export const TILE = 8
-/** Tiles a large-class group walks at most, hence its maximum span in pixels. */
-const LARGE_TILES = 8
-export const LARGE_SPAN = TILE * LARGE_TILES - 1
+/** The widest pixel box a triangle setup keeps, past its first pixel: 64 pixels a side, the
+ *  bound the cluster split already holds a software triangle under (its edges stay below the
+ *  32-pixel threshold). */
+export const MAX_SPAN = 63
 /** Maximum span of a fine-class box: a tile of `FINE_SIDE` pixels on a side. */
 export const FINE_SPAN = FINE_SIDE - 1
+/** Subpixel samples on a pixel's side: eight fractional bits, the precision a vertex is snapped
+ *  to before its edges are set up — the hardware rasterizers' own. */
+export const SUBPIXEL_SAMPLES = 256
 
-/**
- * The small/large split: a triangle whose screen box, clamped to the frame, does not
- * exceed `computeSpan` pixels goes to the compute raster, the others to hardware. Zero: hardware
- * draws everything. `COMPUTE_ALL` is a mode, not an infinite span: compute then also takes
- * triangles a vertex puts behind the near plane, which a threshold always leaves to hardware,
- * which clips them itself.
- */
-export const COMPUTE_ALL = 1e9
-
-/**
- * The split predicate, the same text in both rasters: they read the same vertices, the same
- * hoisted product `viewProj*world`, the same box — and share the cut with neither hole nor
- * duplicate. Requires `uni.viewport` and `uni.computeSpan`.
- */
-export const COMPUTE_TAKES_WGSL = wgslBlock(
-  'COMPUTE_TAKES_WGSL',
-  [clipToFramebuffer],
-  `
-fn screen(p:vec4f)->vec2f{return clipToFramebuffer(p,uni.viewport).xy;}
-struct ScreenBox{lo:vec2f,hi:vec2f,q0:vec2f,q1:vec2f,span:f32,}
-/** Screen-extent box clamped to the frame, and its span in integer pixels. */
-fn boxOf(lo:vec2f,hi:vec2f)->ScreenBox{
- let last=uni.viewport-vec2f(1.0);
- let q0=clamp(floor(lo),vec2f(0.0),last);let q1=clamp(floor(hi),vec2f(0.0),last);
- return ScreenBox(lo,hi,q0,q1,max(q1.x-q0.x,q1.y-q0.y));
-}
-fn screenBox(a:vec2f,b:vec2f,c:vec2f)->ScreenBox{return boxOf(min(a,min(b,c)),max(a,max(b,c)));}
-fn computeTakes(ca:vec4f,cb:vec4f,cc:vec4f)->bool{
- if(uni.computeSpan>=${COMPUTE_ALL}){return true;}
- if(uni.computeSpan<=0.0||ca.w-ca.z<0.0||cb.w-cb.z<0.0||cc.w-cc.z<0.0){return false;}
- return screenBox(screen(ca),screen(cb),screen(cc)).span<=uni.computeSpan;
-}`,
-)
-
-/** Words the list reserves before its entries: four counts, the frame's largest height in
- *  tiles, then the four dispatches the `plan` kernel derives from them. */
+/** Words the list reserves before its entries: the three class counts, then the three
+ *  dispatches the `plan` kernel derives from them. */
 export const CNT_FINE = 0,
   CNT_COARSE = 1,
-  CNT_LARGE = 2,
-  CNT_HUGE = 3,
-  TILE_ROWS = 4
+  CNT_LARGE = 2
 /** First word of the indirect dispatches; they are contiguous so they copy as one. */
-export const DISPATCH_BASE = 6
-export const DISPATCH_WORDS = 12
-export const LIST_HEADER = 20
-
-/** Header bytes the frame clears: the five counters, rounded to the copy word. */
-export const HEADER_CLEAR_BYTES = 24
+export const DISPATCH_BASE = 3
+export const DISPATCH_WORDS = 9
+export const LIST_HEADER = DISPATCH_BASE + DISPATCH_WORDS
+/** Words of one pass's lists: its header, then the fine-and-coarse list and the large one,
+ *  `capacity` entries each. */
+export const rasterListWords = (capacity: number) => LIST_HEADER + 2 * capacity
 
 /**
- * The three modes of a raster kernel, in the order the frame encodes them.
- * `DEPTH_OCCLUDER` writes the occluder-half depth — that is what the pyramid reduces;
- * `DEPTH_REST` adds the tested half the Hi-Z verdict kept; `ID` finally resolves identifiers
- * on the now-final depth.
+ * The cut's two passes, each with lists of its own in the work buffer: `MAIN` the clusters the
+ * main pass drew against the previous image's pyramid — selected by the frame mask before the
+ * post pass —, `POST` those the post pass drew against the pyramid of the main pass's depth —
+ * selected by the post mask (`GpuSelection.postMaskOffset`). A cluster is in one of them only.
  */
-export const MODE_DEPTH_OCCLUDER = 0,
-  MODE_DEPTH_REST = 1,
-  MODE_ID = 2
+export const RASTER_PASS_MAIN = 0,
+  RASTER_PASS_POST = 1
+/** The passes, in the order the image draws them. */
+export const RASTER_PASSES = [RASTER_PASS_MAIN, RASTER_PASS_POST] as const
+export type RasterPass = (typeof RASTER_PASSES)[number]
 
-/** The four classes, in the order of their indirect dispatches. */
-export const RASTER_CLASSES = ['fine', 'coarse', 'large', 'huge'] as const
-export type RasterClass = (typeof RASTER_CLASSES)[number]
+/**
+ * The two modes of a raster kernel: `DEPTH` writes its pass's depth keys — the main pass's are what
+ * the pyramid reduces —, `ID` resolves identifiers on the final depth, once both passes wrote
+ * theirs (`VIS_WRITE_WGSL`).
+ */
+export const MODE_DEPTH = 0,
+  MODE_ID = 1
+
+/** The three classes, in the order of their indirect dispatches. */
+export const RASTER_CLASSES = ['fine', 'coarse', 'large'] as const
+type RasterClass = (typeof RASTER_CLASSES)[number]
 
 /** Entry-point name of a class in a mode: one rule, both sides read it. */
 export const rasterEntry = (klass: RasterClass, mode: number) => `${klass}${mode}`

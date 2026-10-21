@@ -1,6 +1,6 @@
 /**
  * The surface half of the scene tables (`scene-tables.json`,
- * `packages/asset-compiler-rust/src/compiler_tables/materials.rs`): each material the prepared
+ * `packages/asset-compiler-rust/src/compiler/tables/materials.rs`): each material the prepared
  * scene wears, in the engine's own words, and the sampler state of each texture it samples.
  */
 import type { TextureFilter, WrapMode } from '../../texture/contract.ts'
@@ -50,7 +50,7 @@ export interface TableTextureSlot {
     scale: readonly [number, number] | null
   } | null
 }
-/** The filters as the compiler writes them (`compiler_tables/textures.rs`), each with the
+/** The filters as the compiler writes them (`tables/textures.rs`), each with the
  *  engine's `TextureFilter` it is: the one table between the two, read by the prepared loader at
  *  load. */
 export const TABLE_FILTERS = {

@@ -68,14 +68,15 @@ export function encodeSeeThroughBackground(
     .end()
 }
 
-/** Both halves, the occluder one first. */
+/** Both halves, the main pass's first. */
 const HALVES = [false, true] as const
 
 /**
  * THE X-RAY PASS of the `wireframe` and `xray` views (`../shader/visWgsl.ts`), over
  * their background (`encodeSeeThroughBackground`) and their transparents: what the GPU cut
- * submitted this image — the visibility's indirect slots, both halves, as the raster drew them
- * (`walkSlots`) — drawn again as edges, seen through every surface, with no depth target: the
+ * submitted this image — the visibility's indirect slots, both halves, as the hardware raster
+ * drew them, and the software raster's rows from their own slots (`walkSlots`) — drawn again as
+ * edges, seen through every surface, with no depth target: the
  * scene's depth stays as the image wrote it. An image whose visibility drew nothing
  * (`run.depthDrawn`) draws no slot, its commands not this image's.
  */
@@ -90,6 +91,7 @@ export function encodeXray(rt: WebgpuPagesRuntime, device: GPUDevice, encoder: G
   })
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
   pass.setPipeline(pipeline.get())
-  for (const rest of HALVES) run.gpuDrawCalls += walkSlots(rt, device, pass, rest).draws
+  for (const rest of HALVES)
+    run.gpuDrawCalls += walkSlots(rt, device, pass, rest, undefined, true).draws
   pass.end()
 }

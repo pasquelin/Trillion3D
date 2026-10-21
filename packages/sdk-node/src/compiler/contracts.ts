@@ -7,6 +7,12 @@ import type {
   TemporalAntialiasingOption,
 } from '../../../sdk-core/src/contracts/materialOptions.ts'
 import type { VoxelizeOption } from '../../../sdk-core/src/contracts/voxelizeOptions.ts'
+import type {
+  PartitionGridOption,
+  PartitionSchemeOption,
+} from '../../../sdk-core/src/contracts/partitionOptions.ts'
+import type { MeshBuildOption } from '../../../sdk-core/src/contracts/meshBuildOptions.ts'
+import type { ObjectSettingsOption } from '../../../sdk-core/src/contracts/objectOptions.ts'
 import type { DagWarning } from '../../../sdk-core/src/contracts/dag.ts'
 import type { JobSnapshot } from '../../../sdk-core/src/runtime/jobs/jobs.ts'
 
@@ -71,9 +77,8 @@ export interface CompilerEvent {
   /** Threads the compiler may use; every core of the machine when omitted. */ threads?: number
   /** Memory the compiler may use, in MB. @defaultValue 4096 */ ramBudgetMb?: number
   /** How meshes are simplified. @defaultValue 'qem-endpoints' */ simplification?: Simplification
-  /** The world's HLOD: the simple form (`levels`, `quality`, `groups`) or the expert form
-   *  (`layers`, `assign`, `default`), over the objects a node's `extras.hlod` mark or a group or
-   *  rule names. @defaultValue none: the job builds no HLOD */
+  /** The world's HLOD: the simple form (`levels`, `groups`, `default`) or the expert form (`layers`, `assign`, `default`), over the objects a node's
+   *  `extras.hlod` mark or a group or rule names. @defaultValue none: the job builds no HLOD */
   hlod?: HlodOptions
   /** The scene's temporal anti-aliasing level, written in its manifest — `'off'`, `'low'`,
    *  `'medium'`, `'high'`, `'max'`, `true` the default level, `false` off —: the runtime's
@@ -92,6 +97,62 @@ export interface CompilerEvent {
    *  leaf's cut-out kept —: a node's name, a pattern on it, or a match (`resolveVoxelize`); the
    *  HLOD `foliage` group's objects are without it. @defaultValue none */
   voxelize?: VoxelizeOption
+  /** How the spatially loaded objects are cut into cells and streamed: `'hashSet'`, the
+   *  reference's default — a loose hierarchical grid with no top, each cell loading while the view
+   *  comes within its grid's range of the box around its content, the cells of a higher level
+   *  first, each HLOD level `i` on a grid of `(2 << i)` times the main grid's cell and range —, or
+   *  `'spatialHash'` — the older square grid over the world, each cell loading by its square, an
+   *  object no cell below the top holds always loaded, each HLOD layer on the grid its `cellSize`
+   *  and `loadingRange` name; `true` the default (`resolvePartitionScheme`). @defaultValue none:
+   *  `'hashSet'`, the cache key unchanged */
+  partitionScheme?: PartitionSchemeOption
+  /** The partition's main grid, every spatially loaded object streaming on it: `{ cellSize,
+   *  loadingRange, priority, origin, blockOnSlowStreaming }` — its cell side and loading range in
+   *  metres, its load priority among the grids, the lower the sooner, its origin (glTF `x`, `z`,
+   *  or under `hashSet` `x`, `y`, `z`), whether a load waits for its cells near the view while the
+   *  session's `worldStreamingBlockOnSlowStreaming` is on —, and each scheme's own settings — under
+   *  `hashSet` `{ streamBounds, flat, hlodGrids }`, under `spatialHash` `{ nestedLevels,
+   *  pullCoarser, smallByCentre }`, the other scheme's refused —, each the reference's when left
+   *  out (128 m, 256 m, 0, the origin, `false`, `'content'`, `true`, `2 << level` the main grid's,
+   *  `false`, `false`, `true`); `true` every
+   *  default, `false` the streaming off: every object loaded with the scene, no HLOD built
+   *  (`resolvePartitionGrid`). @defaultValue none: the reference's main grid, the cache key
+   *  unchanged */
+  partitionGrid?: PartitionGridOption
+  /** How each mesh is built: `{ storedTangents, keptTriangles, trimmedError, dropNearCollapsed,
+   *  alwaysResidentKib, recomputeNormals, recomputeTangents, useMikkTSpace,
+   *  computeWeightedNormals, skinnedWeldPosition, skinnedWeldNormal, skinnedWeldTexture,
+   *  positionPrecision, normalPrecision, tangentPrecision, objects }`
+   *  — whether its pages store the build's tangents (default `false`), the share of its triangles
+   *  (default 1) and the error in percent of its size (default 0) its finest level is cut to,
+   *  whether a triangle two of whose corners lie within 200 nanometres is dropped (default
+   *  `true`), how many KiB of it stay resident whatever the view, its root pages of 32 KiB holding
+   *  at least that much (default 0, one root page), whether the build rebuilds every normal
+   *  (default `true`) and every stored tangent (default `true`), the tangents MikkTSpace's
+   *  (default `true`), the normals weighed by area and angle (default `false`), and how far a
+   *  skinned mesh's corners may differ and be welded — metres (default 2e-7), unit vectors
+   *  (default 2e-5), texture coordinates (default 1/1024) —, the position grid of its pages (cells
+   *  of 2^-n centimetre, a whole number from -20 to 43; default none: the mesh's density sets it),
+   *  the bits an axis of its normals (1 to 15, default 8) and of its stored tangents' angle (0 to
+   *  12, default 7), `objects`
+   *  the rules `{ match, …settings }` setting them for the meshes
+   *  of the objects a match names; for each setting, the first rule matching, the scene's, the
+   *  mesh's own `extras`, the default (`resolveMeshBuild`). @defaultValue none: every default,
+   *  the cache key unchanged */
+  meshBuild?: MeshBuildOption
+  /** Each object's settings: `{ spatiallyLoaded, skinnedInstance, objects }` — whether it streams
+   *  on the partition's main grid, drawn while the view lies within the grid's loading range of
+   *  its cell (default `true`: an animated object streams too, no HLOD standing for it past its
+   *  cell's range), or is loaded with the scene and always drawn (`false`); whether a skinned
+   *  object plays a clip baked into the scene's animation banks on the GPU, every instance of one
+   *  clip, mesh and settings in one pose — `true` every default, `false` (the default) its host's
+   *  clips move it, or `{ clip, looping, playRate, position, boundsScale, animationMinScreenSize,
+   *  mobility }`, each its default when left out: the first animation moving a joint of its skin,
+   *  `true`, 1, 0, 1, 0 the run-time setting `animationMinScreenSize`, `'movable'` —, `objects`
+   *  the rules `{ match, …settings }` setting them for the objects a match names; for each
+   *  setting, the first rule matching, the scene's, the node's own `extras`, the default
+   *  (`resolveObjectSettings`). @defaultValue none: every default, the cache key unchanged */
+  objectSettings?: ObjectSettingsOption
   /** Stops the job when aborted. */ signal?: AbortSignal
   /** Called on each event. */
   onProgress?: (event: CompilerEvent & Partial<PreparationProgress>) => void
@@ -164,6 +225,10 @@ export interface BatchJob extends Pick<
   | 'responsive'
   | 'materials'
   | 'voxelize'
+  | 'partitionScheme'
+  | 'partitionGrid'
+  | 'meshBuild'
+  | 'objectSettings'
 > {
   /** Its name. */ id?: string
   /** The source file. */ source: string

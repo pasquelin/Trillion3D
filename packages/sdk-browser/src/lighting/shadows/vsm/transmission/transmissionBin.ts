@@ -12,6 +12,7 @@ import {
   encodeVsmChunkCommands,
   vsmChunkListGroups,
   vsmSceneRowsMoved,
+  vsmWorldGroup,
 } from '../chunks/chunkGroups.ts'
 import { vsmBufferGroup } from '../passKit.ts'
 import { vsmEnsureLists } from '../chunks/chunkLists.ts'
@@ -123,7 +124,7 @@ export function binLists(
   plan: BinPlan,
 ) {
   const { params, counts } = vsmEnsureLists(ctx, TRANSMISSION_LABEL, plan.within.size!)
-  vsmWriteChunkParams(ctx.device, scene.camera, plan, params, ctx.slots)
+  vsmWriteChunkParams(ctx.device, scene, plan, params, ctx.slots)
   encoder.clearBuffer(counts, 0, plan.within.size!.counts)
   const b = ctx.buffers as Required<VsmTransmissionContext['buffers']>
   if (vsmSceneRowsMoved(ctx.bound, scene, b, trans)) ctx.lists = undefined
@@ -132,7 +133,8 @@ export function binLists(
 }
 
 /** The blended rows' bin, in the chunks `plan` holds, in `pass`, over the groups `tables`
- *  (`binLists`): candidates, then per chunk the cull, its commands' redrawn pages and the bin. */
+ *  (`binLists`): candidates — under the camera cut's world switch, as the opaque raster's
+ *  (`vsmWorldGroup`) —, then per chunk the cull, its commands' redrawn pages and the bin. */
 export function encodeBin(
   pass: GPUComputePassEncoder,
   ctx: VsmTransmissionContext,
@@ -146,6 +148,7 @@ export function encodeBin(
     pass,
     ctx.candidates.pipeline,
     lists.cand,
+    vsmWorldGroup(ctx.device, ctx.world, ctx.candidates.groups[1], scene.world),
     ctx,
     tables,
     plan.rowCount,

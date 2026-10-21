@@ -3,7 +3,7 @@ import { cross2 } from '../../../../math/src/vector/vector.ts'
 type P = readonly [number, number]
 
 /** Twice the signed area: positive for a counter-clockwise outline. */
-export const signedArea = (ring: readonly P[]) =>
+const signedArea = (ring: readonly P[]) =>
   ring.reduce((sum, [x, y], i) => {
     const [nx, ny] = ring[(i + 1) % ring.length]
     return sum + x * ny - nx * y

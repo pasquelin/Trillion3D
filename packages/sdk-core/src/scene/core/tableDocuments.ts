@@ -1,6 +1,6 @@
 /**
  * The geometry layout the scene tables carry for the published scene file (`scene-tables.json`,
- * `packages/asset-compiler-rust/src/compiler_tables/documents.rs`): where every vertex attribute,
+ * `packages/asset-compiler-rust/src/compiler/tables/documents.rs`): where every vertex attribute,
  * index list and embedded image of that file sits in the one binary it is published with.
  *
  * A runtime views that binary through these numbers alone — it parses no glTF and decodes nothing

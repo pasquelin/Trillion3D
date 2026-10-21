@@ -1,7 +1,7 @@
 use super::{OracleJob, OracleLight, KIND_SPOT, KIND_SUN, SPOT_EDGE};
-use crate::proxy::tracer::{trace, World};
+use crate::trace::tracer::{trace, World};
 use rayon::prelude::*;
-use trillion3d_math::vecn::{dot, length, scale, sub};
+use trillion3d_math::vector::vecn::{dot, length, scale, sub};
 
 /// A ray's origin off the surface at `point`, lifted along its normal `n`: a ray leaving a face
 /// does not hit that face again.

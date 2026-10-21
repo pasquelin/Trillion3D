@@ -22,15 +22,15 @@ export function createRowWordsGpu(device: GPUDevice) {
     list: undefined as GPUBuffer | undefined,
     /** A stand-in for each part whose buffer is not made, for a list none holds, for the mobility
      *  words and the shadow changes while no light casts. */
-    absent: [0, 1, 2, 3, 4, 5].map(() =>
+    absent: [0, 1, 2, 3, 4].map(() =>
       device.createBuffer({ label: 'Trillion3D no row part', size: 64, usage: storage }),
     ),
     groups: [heldGroup(), heldGroup()],
-    /** What the entries read live, set at each pass, and the buffers the pass last wrote and read:
-     *  one of them made anew has every row derived. */
-    frame: [undefined, undefined, undefined] as (GPUBuffer | undefined)[],
-    named: new Array<GPUBuffer | undefined>(7),
-    next: new Array<GPUBuffer | undefined>(7),
+    /** What the entries read live, set at each pass — the spheres, the detail words —, and the
+     *  buffers the pass last wrote and read: one of them made anew has every row derived. */
+    frame: [undefined, undefined] as (GPUBuffer | undefined)[],
+    named: new Array<GPUBuffer | undefined>(6),
+    next: new Array<GPUBuffer | undefined>(6),
   }
 }
 export type RowWordsGpu = ReturnType<typeof createRowWordsGpu>
@@ -50,10 +50,9 @@ export const rowEntries = (rt: WebgpuPagesRuntime, gpu: RowWordsGpu, g: number) 
     liveBuffer(() => rt.rowWords!.inputs.buffer),
     liveBuffer(() => rt.rootWorlds!.boxes),
     liveBuffer(() => gpu.frame[1] ?? gpu.absent[1]),
-    liveBuffer(() => gpu.frame[2] ?? gpu.absent[2]),
-    liveBuffer(() => (g ? rt.compose?.gpu?.rowList : gpu.list) ?? gpu.absent[3]),
-    liveBuffer(() => rt.lights.mobilityRows ?? gpu.absent[4]),
-    liveBuffer(() => rt.lights.casts?.buffer ?? gpu.absent[5]),
+    liveBuffer(() => (g ? rt.compose?.gpu?.rowList : gpu.list) ?? gpu.absent[2]),
+    liveBuffer(() => rt.lights.mobilityRows ?? gpu.absent[3]),
+    liveBuffer(() => rt.lights.casts?.buffer ?? gpu.absent[4]),
   ])
 
 /** Whether a buffer the pass writes or reads is another than at its last run: the table, the
@@ -64,7 +63,7 @@ export function partsMoved(rt: WebgpuPagesRuntime, gpu: RowWordsGpu) {
   next[1] = rt.rowWords!.inputs.buffer
   next[2] = rt.rootWorlds!.worlds
   next[3] = rt.rootWorlds!.boxes
-  for (let k = 0; k < 3; k++) next[4 + k] = gpu.frame[k]
+  for (let k = 0; k < 2; k++) next[4 + k] = gpu.frame[k]
   return adoptEntries(named, next)
 }
 

@@ -6,7 +6,7 @@
 //! here — a driver that recomputed bytes would invent the image.
 use super::*;
 
-use crate::gltf_codes::{CLAMP_TO_EDGE, MIRRORED_REPEAT, REPEAT};
+use crate::compiler::accessor::codes::{CLAMP_TO_EDGE, MIRRORED_REPEAT, REPEAT};
 
 /// The two colour spaces a `UsdUVTexture` names plainly; `auto` lets the file say.
 const RAW: &str = "raw";

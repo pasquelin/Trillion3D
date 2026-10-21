@@ -1,4 +1,4 @@
-import { MIB } from '../../../../math/src/constants.ts'
+import { DEFAULT_PAGE_TRANSFER_BYTES, DEFAULT_PAGE_WORKERS } from '../../session/engine/common.ts'
 import { followSignal } from '../../../../sdk-core/src/runtime/followSignal.ts'
 import { createStreamingFetcher } from './fetch.ts'
 import { createStreamingQueue } from './queue.ts'
@@ -29,7 +29,8 @@ export function createPageStreamer(
   options: PageStreamerOptions,
 ) {
   const { cache: store, signal, onEvict, onDiagnostic } = options
-  const { workerCount = 8, maxTransferBytes = 8 * MIB } = options
+  const { workerCount = DEFAULT_PAGE_WORKERS, maxTransferBytes = DEFAULT_PAGE_TRANSFER_BYTES } =
+    options
   const catalog = new Map(pages.filter(listed).map((page) => [page.url, page]))
   const jobs = new Map<string, Job>(),
     queue = createTransferQueue()
@@ -79,7 +80,7 @@ export function createPageStreamer(
     ...{ base, catalog, store, jobs, queue, pinned, failures, abort, limit },
     ...{ maxTransferBytes, onEvict, onDiagnostic, state, emit, abortError },
   }
-  const { read: transfer, roundTrip } = createStreamingFetcher(context)
+  const { read: transfer } = createStreamingFetcher(context)
   const streaming = createStreamingCache(context)
   const { pin, unpin, retainRanks, reserve } = streaming
   /** A kept page held under a page's name as another file leaves before its first read. */
@@ -151,8 +152,6 @@ export function createPageStreamer(
     /** Whether a read of `url` is refused for good: another request would meet its failure again.
      *  One that may pass is never refused: it waits its turn, its askers waiting on it. */
     failed: (url: string) => failures.blocked(url)?.state === 'refused',
-    /** The reads' measured round trip in milliseconds, 0 before the first (`roundTrip.ts`). */
-    roundTripMs: roundTrip.ms,
     read: (url: string, signal: AbortSignal) => readBytes(url, signal).then(asIndices),
     readBytes,
     /** Bytes of a file outside the catalogue, by an HTTP Range through the page cache

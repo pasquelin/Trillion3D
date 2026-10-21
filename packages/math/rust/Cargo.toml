@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 license = "PolyForm-Noncommercial-1.0.0"
 
-# No dependency: the WebAssembly module carries nothing more.
 [lib]
 name = "trillion3d_math"
 path = "src/lib.rs"
@@ -13,6 +12,8 @@ path = "src/lib.rs"
 [features]
 golden = []
 
-[dev-dependencies]
-# fdlibm in pure Rust from musl (MIT): what `src/acos.rs` and `src/trig.rs` are tested against.
+[dependencies]
+# fdlibm's `pow` and `powf` in pure Rust from musl (MIT), the same on every host: the sRGB curve
+# (`src/color.rs`) takes its power from here, never from the platform's C library. The page codec
+# carries the same crate. `src/scalar/acos.rs` and `src/scalar/trig.rs` are tested against it too.
 libm = "0.2.16"

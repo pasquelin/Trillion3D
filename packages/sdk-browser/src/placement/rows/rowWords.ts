@@ -1,6 +1,6 @@
 /**
  * THE ROWS PASS'S WORK, FOLLOWED ON THE CPU. Every word of a row its root's world decides — its
- * world words, its sphere, its Hi-Z corners, its shadow detail — has one writer, the rows pass
+ * world words, its sphere, its shadow detail — has one writer, the rows pass
  * (`rowWordsPass.ts`), for every row: one written, one whose root the host moved, one a parent
  * composes. The CPU writes what a world does not change: a written row's inputs (`rowInputs.ts`),
  * and a moved root's world, 128 bytes (`../roots/rootWorlds.ts`). Here, once a frame before the rows go up

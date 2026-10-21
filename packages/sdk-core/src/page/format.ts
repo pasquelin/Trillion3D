@@ -3,7 +3,6 @@
 //   packages/page-codec-wasm/src/bits.rs
 //   packages/page-codec-wasm/src/deform.rs
 //   packages/page-codec-wasm/src/triangles.rs
-//   packages/page-codec-wasm/src/bits/grid.rs
 //   packages/page-codec-wasm/src/attributes.rs
 //   packages/asset-compiler-rust/src/dag.rs
 // Edit the source, then run `pnpm run generate:shared-rules`.
@@ -11,17 +10,20 @@
 
 /**
  * The geometry-page format a version-11 sidecar names, as the manifest's `geometryPages` declares
- * it once and every page header opens with.
+ * it once and every page header opens with. Format 8 adds the stored tangent (`FLAG_TANGENT`);
+ * format 9 holds every attribute at the values a mesh build quantizes it to: positions on a grid of
+ * centimetres, normals and tangents at their precisions, floating texture codes, byte colours,
+ * four texture sets.
  */
-export const GEOMETRY_PAGE_FORMAT_VERSION = 7
+export const GEOMETRY_PAGE_FORMAT_VERSION = 9
 
 /**
- * Twenty-five little-endian words open a page: counts, flags, the quantization records of the
- * four vector attributes, the error, the bits of the corner stream, the count of distinct
- * positions, and the deformation word: the skin record and the morph target count
- * (`deform.rs`), zero on a page that carries neither.
+ * Twenty-three little-endian words open a page: counts, flags, the grid of its positions, the
+ * ranges of its four texture sets and of its colour, the precisions of its normals and tangents,
+ * the bits of the corner stream, the count of distinct positions, and the deformation word: the
+ * skin record and the morph target count (`deform.rs`), zero on a page that carries neither.
  */
-export const CLUSTER_HEADER_WORDS = 25
+export const CLUSTER_HEADER_WORDS = 23
 
 /**
  * Attribute presence bits: normal, first and second texture coordinate, colour; then the skin
@@ -41,6 +43,22 @@ export const FLAG_COLOR = 8
 export const FLAG_SOFT_SOURCE = 64
 
 /**
+ * The tangent the source stored, which a reader takes in place of the frame it would rebuild from
+ * the triangle: its angle around the vertex's decoded normal and its bitangent's sign, one field of
+ * the page's tangent precision plus one bits per vertex (`bits::tangent_code`). Requires
+ * FLAG_NORMAL.
+ */
+export const FLAG_TANGENT = 128
+
+/**
+ * The presence bits of the third and fourth texture sets. Bit 256 is the geometry descriptor's
+ * flag of a voxel page (`voxel::GEOMETRY_VOXEL`), never a page attribute's.
+ */
+export const FLAG_UV2 = 512
+
+export const FLAG_UV3 = 1024
+
+/**
  * Presence bits of the skin and of the morph targets, beside those of `lib.rs`.
  */
 export const FLAG_SKIN = 16
@@ -48,7 +66,47 @@ export const FLAG_SKIN = 16
 export const FLAG_MORPH = 32
 
 /**
- * Most morph targets a page carries: eight bits of word 23.
+ * Texture sets a page carries at most.
+ */
+export const MAX_UV_SETS = 4
+
+/**
+ * Positions are quantized in centimetres of the mesh's own space, which a metre holds this many of.
+ */
+export const CENTIMETRES_PER_METRE = 100
+
+/**
+ * The least and the greatest precision of a position grid, whose step is `2^-precision`
+ * centimetre, and the bits an axis of one page spans at most.
+ */
+export const MIN_POSITION_PRECISION = -20
+
+export const MAX_POSITION_PRECISION = 43
+
+/**
+ * The greatest bits per axis of a normal and of a tangent's angle, and the precisions a mesh that
+ * names none takes.
+ */
+export const MAX_NORMAL_PRECISION = 15
+
+export const MAX_TANGENT_PRECISION = 12
+
+export const DEFAULT_NORMAL_PRECISION = 8
+
+export const DEFAULT_TANGENT_PRECISION = 7
+
+/**
+ * A texture coordinate is a float code of one sign bit, `UV_EXPONENT_BITS` of exponent and
+ * `UV_MANTISSA_BITS` of mantissa, the values under 1 evenly spaced (`bits::uv_code`).
+ */
+export const UV_EXPONENT_BITS = 5
+
+export const UV_MANTISSA_BITS = 14
+
+export const COLOR_LEVELS = 255
+
+/**
+ * Most morph targets a page carries: eight bits of word 21.
  */
 export const MAX_MORPH_TARGETS = 255
 
@@ -73,18 +131,13 @@ export const BLOCK_CORNERS = 24
 export const WIDTH_BITS = 5
 
 /**
- * Texture coordinates sit on a fixed grid of 2^-14: a quarter of a texel on a 4096 map.
- */
-export const UV_EXPONENT = -14
-
-/**
  * Triangles per cluster. Matches the page budget used by the exact path.
  */
 export const DAG_CLUSTER_TRIANGLES = 128
 
 /**
- * Vertex limit of an encoded cluster. The partition never reads it: a cluster over it is halved
- * once every level is built (`clusters::constrain_wide`).
+ * Vertex limit of an encoded cluster. The partition never reads it: a cluster whose strips lay
+ * more vertices is halved once every level is built (`clusters::constrain_wide`).
  */
 export const DAG_CLUSTER_VERTICES = 256
 
@@ -92,6 +145,9 @@ export const DAG_CLUSTER_VERTICES = 256
 export const OPTIONAL = [
   ['normal', 3, FLAG_NORMAL],
   ['uv', 2, FLAG_UV],
-  ['uv2', 2, FLAG_UV1],
+  ['uv1', 2, FLAG_UV1],
+  ['uv2', 2, FLAG_UV2],
+  ['uv3', 2, FLAG_UV3],
   ['color', 4, FLAG_COLOR],
+  ['tangent', 4, FLAG_TANGENT],
 ] as const

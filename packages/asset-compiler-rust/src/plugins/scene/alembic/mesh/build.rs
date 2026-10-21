@@ -6,8 +6,8 @@
 use super::super::geom::{GeomParam, Geometry};
 use super::super::TOPOLOGY_INVALID;
 use super::Part;
-use crate::import::Vertices;
 use crate::plugins::scene::cancel;
+use crate::plugins::scene::convert::Vertices;
 use crate::plugins::scene::corners::{gltf_uv, Corners};
 use crate::{CompilerError, Result};
 use std::sync::atomic::AtomicBool;
@@ -105,6 +105,8 @@ fn point(geometry: &Geometry, corner: usize) -> [f64; 3] {
     let vertex = vertex_of(geometry, corner).unwrap_or_default();
     u32::try_from(vertex)
         .ok()
-        .and_then(|vertex| trillion3d_math::vec3::point_checked(&geometry.positions, vertex))
+        .and_then(|vertex| {
+            trillion3d_math::vector::vec3::point_checked(&geometry.positions, vertex)
+        })
         .unwrap_or_default()
 }

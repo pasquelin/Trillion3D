@@ -4,6 +4,32 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { cullingInPlace } from './culling.fixture.ts'
+import {
+  CULL_CEIL,
+  CULL_CHILD_COUNT,
+  CULL_FIRST_CHILD,
+  CULL_FIRST_PAGE,
+  CULL_PAGE_COUNT,
+  CULL_SPHERE,
+} from './types.ts'
+
+type Tree = ReturnType<typeof cullingInPlace>
+
+/** The children of node `n`. */
+function children(tree: Tree, n: number) {
+  const base = n * tree.stride
+  const first = tree.nodes[base + CULL_FIRST_CHILD]
+  return Array.from({ length: tree.nodes[base + CULL_CHILD_COUNT] }, (_, c) => first + c)
+}
+
+/** The pages under node `n`, its leaves' ranks. */
+function pagesUnder(tree: Tree, n: number): number[] {
+  const base = n * tree.stride
+  if (tree.nodes[base + CULL_CHILD_COUNT] > 0)
+    return children(tree, n).flatMap((child) => pagesUnder(tree, child))
+  const first = tree.nodes[base + CULL_FIRST_PAGE]
+  return Array.from({ length: tree.nodes[base + CULL_PAGE_COUNT] }, (_, k) => first + k)
+}
 
 /** A page on the x axis, replaced by a band twice its radius. */
 const page = (i: number, parentError: number | null) => ({
@@ -15,12 +41,12 @@ const page = (i: number, parentError: number | null) => ({
   parentSphere: parentError === null ? null : [i, 0, 0, 2],
 })
 
-/** Ceiling `[10]` and sphere `[6..9]` of node `n`. */
-function replacement(tree: ReturnType<typeof cullingInPlace>, n: number) {
+/** Ceiling and LOD ball of node `n`. */
+function replacement(tree: Tree, n: number) {
   const base = n * tree.stride
   return {
-    ceil: tree.nodes[base + 10],
-    sphere: Array.from(tree.nodes.subarray(base + 6, base + 10)),
+    ceil: tree.nodes[base + CULL_CEIL],
+    sphere: Array.from(tree.nodes.subarray(base + CULL_SPHERE, base + CULL_SPHERE + 4)),
   }
 }
 
@@ -30,16 +56,16 @@ test('the ceiling is the largest replacement error, the sphere encloses every ba
   const root = replacement(tree, 0)
   assert.equal(root.ceil, 0.02 + 39 * 0.001)
   const [cx, cy, cz, r] = root.sphere
+  // The ball of balls, in single precision, takes the larger of two nested within 1e-4 of their
+  // squared distance: a hundredth at most outside.
   for (const { parentSphere } of pages) {
     const [x, y, z, radius] = parentSphere!
-    assert.ok(Math.hypot(x - cx, y - cy, z - cz) + radius <= r * (1 + 1e-9), `band at ${x} outside`)
+    assert.ok(Math.hypot(x - cx, y - cy, z - cz) + radius <= r + 1e-2, `band at ${x} outside`)
   }
-  // Each child keeps the largest error of its own pages, never more than the root's.
-  for (let c = 0; c < tree.nodes[12]; c++) {
-    const child = tree.nodes[11] + c,
-      at = child * tree.stride,
-      own = pages.slice(tree.nodes[at + 13], tree.nodes[at + 13] + tree.nodes[at + 14])
-    assert.equal(replacement(tree, child).ceil, Math.max(...own.map((p) => p.parentError!)))
+  // Each child keeps the largest error of the pages under it, never more than the root's.
+  for (const child of children(tree, 0)) {
+    const own = pagesUnder(tree, child).map((k) => pages[k].parentError!)
+    assert.equal(replacement(tree, child).ceil, Math.max(...own))
   }
 })
 
@@ -48,10 +74,8 @@ test('a subtree holding a cluster nothing replaces certifies nothing', () => {
   const tree = cullingInPlace(pages)
   const holder = pages.findIndex((p) => p.parentError === null)
   assert.equal(replacement(tree, 0).ceil, -1, 'the root holds it')
-  for (let c = 0; c < tree.nodes[12]; c++) {
-    const at = (tree.nodes[11] + c) * tree.stride,
-      [first, count] = [tree.nodes[at + 13], tree.nodes[at + 14]]
-    const holds = holder >= first && holder < first + count
-    assert.equal(replacement(tree, tree.nodes[11] + c).ceil, holds ? -1 : 0.02)
+  for (const child of children(tree, 0)) {
+    const holds = pagesUnder(tree, child).includes(holder)
+    assert.equal(replacement(tree, child).ceil, holds ? -1 : 0.02)
   }
 })

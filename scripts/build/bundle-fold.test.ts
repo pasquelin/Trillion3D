@@ -29,7 +29,7 @@ test('a module without a dynamic import is left as it is', () => {
 
 test("the bundle keeps as chunks exactly the engine's families, physics among them", () => {
   const registry = readFileSync('packages/sdk-browser/src/session/host/families.ts', 'utf8')
-  const loaded = [...registry.matchAll(/import\('\.\.\/([^']+)\.ts'\)/g)].map(
+  const loaded = [...registry.matchAll(/import\('\.\.\/\.\.\/([^']+)\.ts'\)/g)].map(
     ([, path]) => `sdk-browser/src/${path}.js`,
   )
   assert.deepEqual(Object.values(FAMILY_MODULES).flat().sort(), loaded.sort())

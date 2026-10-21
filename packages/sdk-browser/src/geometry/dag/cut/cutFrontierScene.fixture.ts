@@ -41,9 +41,9 @@ export function scenePages(feuilles: number, levels: number) {
 
 /** Scene poses. The world matrix comes from the caller: this module does not know the
  *  witness library, and the closed list in `tests/integration/engine-without-three.test.ts` forbids it.
- *  They carry the hierarchy the compiler gives (`cullingInPlace`): the root split into one node per
- *  detail level, each level its own spatial tree; `pages` are ranked in its order, in place, so the
- *  CPU cut, which reads the same array, reads the same ranks. */
+ *  They carry the hierarchy the one builder gives (`cullingInPlace`): each detail level its own
+ *  spatial tree under the root, every page a leaf of its own; `pages` keep their ranks, so the CPU
+ *  cut, which reads the same array, reads the same ranks. */
 export function sceneRoots(
   pages: ReturnType<typeof page>[],
   worlds: DagRoot['world'][],

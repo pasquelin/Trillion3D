@@ -20,11 +20,12 @@ const texelSum = (...formats: GPUTextureFormat[]) =>
 
 /** Version 1: opaque/masked material properties in linear space, before lighting.
  * No velocity or GI representation is claimed by this contract. The flags hold a model of 0 to 5
- * and three marks (`SurfaceBuffer.flags`), written by the opaque resolve alone: eight bits keep
- * every one. The four surfaces' formats, in their order (`SURFACE_OUTPUTS`). */
+ * and three marks (`SurfaceBuffer.views`), written by the opaque resolve alone: eight bits keep
+ * every one, in a 32-bit word, the narrowest a compute stage stores. The four surfaces' formats, in
+ * the order of their views (`SURFACE_OUTPUTS`). */
 export const SURFACE_FORMATS: GPUTextureFormat[] = SURFACE_OUTPUTS.map(({ format }) => format)
-/** Bytes of the four surface targets per pixel, and the shadow receiver's the resolve writes for
- *  the virtual shadow maps' projection (`../../visibility/shader/receiverTargetWgsl.ts`). */
+/** Bytes of the four surfaces per pixel, and the shadow receiver's the resolve writes for the
+ *  virtual shadow maps' projection (`../../visibility/shader/receiverTargetWgsl.ts`). */
 export const SURFACE_BYTES_PER_PIXEL = texelSum(...SURFACE_FORMATS) + RECEIVER_TARGET_BYTES
 /** Bytes per pixel of the feedback target, made only while the pipelines write it
  *  (`../../frame/prepare/feedbackVariant.ts`). */
@@ -46,7 +47,22 @@ export function frameTargetBytes(width: number, height: number, withHiz: boolean
   if (withHiz) bytes += pyramidHeldBytes(width, height)
   return bytes + SUBSURFACE_TARGET.texelBytes + PHYSICAL_LOBES_TARGET.texelBytes
 }
-/** Per-pixel surface data of a frame, kept on the GPU: depth, normals, material. */
+/**
+ * Per-pixel surface data of a frame, kept on the GPU: depth, normals, material. Two layered
+ * targets hold it, so that the material classes store every surface through two storage bindings
+ * (`../../visibility/shader/shadeOutputsWgsl.ts`):
+ * - the colours (`SURFACE_COLOURS_FORMAT`): RGB base color and A metalness; XYZ world normal and A
+ *   roughness; then, while `hasEmissiveAo`, RGB emission and A ambient occlusion; then, while
+ *   `hasSubsurface`, the independent thin-surface transmission color;
+ * - the words (`SURFACE_WORDS_FORMAT`): the flags — low three bits 0 background, 1 unlit (fogged),
+ *   2 reads, 3 shown as-is: a diagnostic, a normal or depth view; 4 and 5 the diffuse and toon
+ *   models (`./surfaceModel.ts`); above them, marks: 16 an emission-and-occlusion texel other than
+ *   (0, 0, 0, 1) (`./surfaceEmission.ts`), 32 a thin transmission, 64 an anisotropic or clear-coat
+ *   lobe (`./physicalLobes.ts`), 128 no fog —, then the shadow receiver's two words
+ *   (`../../visibility/shader/receiverTargetWgsl.ts`).
+ * Its readers bind views, each one layer — or the receiver's two —, the same formats whatever holds
+ * them.
+ */
 export interface SurfaceBuffer {
   /** Format version. */
   readonly version: 1
@@ -56,24 +72,17 @@ export interface SurfaceBuffer {
   readonly height: number
   /** GPU bytes it holds. */
   readonly allocationBytes: number
-  /** RGB base color, A metalness. */
-  readonly baseMetal: GPUTexture
-  /** XYZ world normal, A roughness. */
-  readonly normalRough: GPUTexture
-  /** RGB emission, A ambient occlusion. */
-  readonly emissiveAo: GPUTexture
-  /** Low three bits: 0 background, 1 unlit (fogged), 2 reads, 3 shown as-is: a diagnostic, a normal
-   *  or depth view; 4 and 5 the diffuse and toon models (`./surfaceModel.ts`). Above them, marks: 16
-   *  an emission-and-occlusion texel other than (0, 0, 0, 1) (`./surfaceEmission.ts`), 32 a thin
-   *  transmission, 64 an anisotropic or clear-coat lobe (`./physicalLobes.ts`), 128 no fog. */
-  readonly flags: GPUTexture
-  /** Independent thin-surface transmission color; a 1×1 zero texture when disabled (`holds`). */
-  readonly subsurface: GPUTexture
-  /** View of the thin-surface transmission texture. */
+  /** The colour layers (above). */
+  readonly colours: GPUTexture
+  /** The word layers (above). */
+  readonly words: GPUTexture
+  /** The layers of the colours the emission and occlusion, then the thin transmission, are in, a
+   *  byte each, the first lowest: 0 for one the frame does not hold. What the material classes read
+   *  to store them (`SHADE_BIN_LAYERS`). */
+  readonly layers: number
+  /** View of the thin-surface transmission colour; a 1×1 zero texture's when disabled. */
   readonly subsurfaceView: GPUTextureView
-  /** The shadow receiver of each pixel (`../../visibility/shader/receiverTargetWgsl.ts`). */
-  readonly receiver: GPUTexture
-  /** The view of `receiver` the shading pass writes and the lighting reads. */
+  /** The view of the receiver's two word layers the lighting reads. */
   readonly receiverView: GPUTextureView
   /** The anisotropic and clear-coat lobes of each pixel (`./physicalLobes.ts`); a 1×1 texture
    *  when no surface carries one. */
@@ -82,8 +91,12 @@ export interface SurfaceBuffer {
   readonly lobesView: GPUTextureView
   /** Whether the emission-and-occlusion layer has its pixels; a 1×1 `(0, 0, 0, 1)` otherwise. */
   readonly hasEmissiveAo: boolean
-  /** Its GPU texture views. */
+  /** Whether the thin transmission has its pixels. */
+  readonly hasSubsurface: boolean
+  /** The views of the four surfaces, in the order of `SURFACE_OUTPUTS`. */
   views(): GPUTextureView[]
+  /** The colours and the words, every layer of each, as the material classes store them. */
+  stores(): readonly [GPUTextureView, GPUTextureView]
   /** Frees it. */
   dispose(): void
 }

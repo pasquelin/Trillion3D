@@ -40,7 +40,7 @@ async function followed(side = 40, ready = { now: true }) {
     },
   }
   const resources = (await createDagResources(gpu.device, packed))!
-  const selection = createDagRuntime(resources, undefined, onGpu)
+  const selection = createDagRuntime(resources, onGpu)
   const sent = (label: string) =>
     gpu.writes
       .filter((write) => write.buffer.label === label)

@@ -6,6 +6,7 @@ import type { Box3 } from '../math/box3.ts'
 import { ObjectPhysics } from '../../physics/objectPhysics.ts'
 import type { PhysicsOption } from '../../physics/options.ts'
 import type { Skeleton } from '../animation/skeleton.ts'
+import type { BankTrack } from '../../scene/core/animationBanks.ts'
 import type { WaterSurface } from '../../fluids/waterSurface.ts'
 
 /** How the triangles a mesh draws are read from its geometry. */
@@ -34,6 +35,10 @@ export class Mesh<M extends object = Material> extends Object3D {
   /** The bones it bends by, when its geometry carries `skinIndex` and `skinWeight`: the GPU
    *  moves each vertex by its joints every frame. */
   declare skeleton?: Skeleton
+  /** The track of its scene's animation banks it plays, when it is an instanced skinned object's
+   *  mesh: the GPU poses it from that track every frame, its skeleton never read
+   *  (`../../scene/core/animationBanks.ts`). */
+  declare bank?: BankTrack
   /** The water surface whose waves carry it (`world.physics.waterSurface`): each vertex, a rest
    *  point of the plane at the surface's level, is moved on the GPU where the waves carry that
    *  point — the numbers buoyancy reads. Unset, a mesh that lies flat on the world's
@@ -139,6 +144,8 @@ export class Mesh<M extends object = Material> extends Object3D {
     if (mesh.morphTargetDictionary) this.morphTargetDictionary = { ...mesh.morphTargetDictionary }
     // The skeleton is shared: a copy bends by the same bones.
     if (mesh.skeleton) this.skeleton = mesh.skeleton
+    // A copy plays the same track: one pose for every instance of it.
+    if (mesh.bank) this.bank = mesh.bank
     if (mesh.waves) this.waves = mesh.waves
     const worn = mesh.material
     if (Array.isArray(worn) || worn !== this._material)

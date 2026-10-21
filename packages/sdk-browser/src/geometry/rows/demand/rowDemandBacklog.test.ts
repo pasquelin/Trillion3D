@@ -59,7 +59,7 @@ test('a nearer request is served before what the frame’s budget left of an old
   demand.follow({ pageIds: [1, 2] })
   // The budget lets one row through: 2 is left for the next image.
   let now = 0
-  const budget = createFrameBudget(1, () => now)
+  const budget = createFrameBudget(1, { now: () => now })
   budget.open()
   demand.serve(always, () => ((now += 5), true), budget)
   assert.equal(demand.waiting, 1)

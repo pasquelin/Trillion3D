@@ -1,21 +1,5 @@
-import { cpuNow } from '../../diagnostic/stopwatch.ts'
-import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
-import { adaptivePixelError, DEFAULT_PIXEL_ERROR } from '../../../../sdk-core/src/lod/policy.ts'
-import type { CameraMotion } from '../../camera/motion.ts'
-import type { EngineCamera } from '../../camera/engineCamera.ts'
-import { readCameraMotion } from '../../camera/motion.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 
-export function resolvePixelError(
-  context: { pixelError?: number; lodAdaptive?: boolean },
-  cam: EngineCamera,
-  motion: CameraMotion,
-) {
-  const base = context.pixelError ?? DEFAULT_PIXEL_ERROR
-  const speed = readCameraMotion(cam, motion, cpuNow())
-  if (!explorerSwitch(context, 'lodAdaptive') || !(base > 0)) return base
-  return adaptivePixelError(base, speed, Math.max(cam.far * 0.05, 1))
-}
 /** The request key of a record: its streaming bundle when the cache has one, its own page otherwise. */
 export function pageRequestUrl<T extends { url: string; streamUrl?: string }>(rec: T) {
   return rec.streamUrl ?? rec.url
@@ -56,9 +40,9 @@ export class RequestStamps {
     this.current++
   }
   /**
-   * Append to `into` the request address of each record whose rank has not yet been seen
-   * since `begin()`. Dedup and write fit in one loop, on the stamp array read as a field and
-   * on `into` ranks written directly: a cut of a hundred thousand records pays no
+   * Append to `into` the request address of each record of `list`, from `from` to `to`, whose rank
+   * has not yet been seen since `begin()`. Dedup and write fit in one loop, on the stamp array read
+   * as a field and on `into` ranks written directly: a cut of a hundred thousand records pays no
    * call or a stack frame per record. `missing` keeps only pages without bytes — the list of
    * addresses still awaited.
    */
@@ -71,10 +55,12 @@ export class RequestStamps {
     }[],
     into: string[],
     missing = false,
+    from = 0,
+    to = list.length,
   ) {
     const { stamps, current } = this
     let count = into.length
-    for (let i = 0; i < list.length; i++) {
+    for (let i = from; i < to; i++) {
       const rec = list[i],
         index = rec.requestIndex
       if (missing && rec.array) continue
@@ -110,9 +96,11 @@ export function indexPagesByUrl<T extends { url: string; streamUrl?: string }>(
 const viewsWithoutStamp = new Set<string>()
 type Requested = { array?: Uint32Array; url: string; streamUrl?: string; requestIndex?: number }
 /**
- * Request addresses of the records still missing bytes. A request brings its closure: the missing
- * bundles a record's bundle is installed after (`dependencies`, `./bundleDependencies.ts`) are
- * listed before the records themselves, so a parent outside the cut is fetched too.
+ * Request addresses of the records still missing bytes, in their order. A request brings its
+ * closure: the missing bundles a record's bundle is installed after (`dependencies`,
+ * `./bundleDependencies.ts`) are listed just before the record itself, so a parent outside the cut
+ * is fetched too, and the records first in the order are not queued behind every other record's
+ * dependencies.
  */
 export function collectPendingUrls<T extends Requested & { dependencies?: readonly Requested[] }>(
   shown: readonly T[],
@@ -122,11 +110,16 @@ export function collectPendingUrls<T extends Requested & { dependencies?: readon
   into.length = 0
   if (stamps) {
     stamps.begin()
+    // Each record's dependencies just before it; the records between two that have some, one pass.
+    let from = 0
     for (let i = 0; i < shown.length; i++) {
       const dependencies = shown[i].dependencies
-      if (dependencies?.length) stamps.mark(dependencies, into, true)
+      if (!dependencies?.length) continue
+      stamps.mark(shown, into, true, from, i)
+      stamps.mark(dependencies, into, true)
+      from = i
     }
-    return stamps.mark(shown, into, true)
+    return stamps.mark(shown, into, true, from)
   }
   // Fallback without stamps: a host that has not numbered its requests deduplicates by the strings.
   const seen = viewsWithoutStamp
@@ -138,8 +131,10 @@ export function collectPendingUrls<T extends Requested & { dependencies?: readon
     seen.add(key)
     into.push(key)
   }
-  for (let i = 0; i < shown.length; i++) shown[i].dependencies?.forEach(add)
-  for (let i = 0; i < shown.length; i++) add(shown[i])
+  for (let i = 0; i < shown.length; i++) {
+    shown[i].dependencies?.forEach(add)
+    add(shown[i])
+  }
   return into
 }
 /** Hand a loaded page or bundle to every record that shares it; a bundled record gets a view at its

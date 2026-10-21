@@ -127,19 +127,19 @@ test('a chain passes an aggregator only from a file it imports itself', () => {
 
 test('the tests of the domain folder of a changed file run, whatever they import', () => {
   const files = new Map([
-    ['packages/sdk-browser/src/webgpu/shadow/pass.ts', 'export const pass = 1;'],
-    ['packages/sdk-browser/src/webgpu/shadow/atlas/atlas.test.ts', ''],
-    ['packages/sdk-browser/src/webgpu/pages/pages.test.ts', ''],
+    ['packages/sdk-browser/src/lighting/shadows/pass.ts', 'export const pass = 1;'],
+    ['packages/sdk-browser/src/lighting/shadows/atlas/atlas.test.ts', ''],
+    ['packages/sdk-browser/src/frame/backend/pages.test.ts', ''],
     ['packages/sdk-core/src/index.test.ts', ''],
   ])
   assert.deepEqual(
-    domainOf('packages/sdk-browser/src/webgpu/shadow/pass.ts'),
-    'packages/sdk-browser/src/lighting/shadows/casters/',
+    domainOf('packages/sdk-browser/src/lighting/shadows/pass.ts'),
+    'packages/sdk-browser/src/lighting/shadows/',
   )
   assert.equal(domainOf('packages/sdk-core/src/index.ts'), undefined)
   assert.deepEqual(
-    relatedTests(files, new Set(['packages/sdk-browser/src/webgpu/shadow/pass.ts'])),
-    ['packages/sdk-browser/src/webgpu/shadow/atlas/atlas.test.ts'],
+    relatedTests(files, new Set(['packages/sdk-browser/src/lighting/shadows/pass.ts'])),
+    ['packages/sdk-browser/src/lighting/shadows/atlas/atlas.test.ts'],
   )
 })
 

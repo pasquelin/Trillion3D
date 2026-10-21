@@ -1,3 +1,4 @@
+import { HALF_MAX } from '../constants.ts'
 import { f32Bits, fromF64Words } from './bits.ts'
 
 /**
@@ -49,4 +50,43 @@ export function toHalf(value: number) {
     (rest === half &&
       (rounded === value ? (kept >>> shift) & 1 : Math.abs(value) > Math.abs(rounded)))
   return sign | ((kept >>> shift) + (up ? 1 : 0))
+}
+
+/** The value of half `bits` as a store of it reads back: exponent 31 the infinities (and NaN). */
+function halfRead(bits: number) {
+  if ((bits & HALF_INFINITY) !== HALF_INFINITY) return fromHalf(bits)
+  if (bits & 1023) return NaN
+  return bits & 0x8000 ? -Infinity : Infinity
+}
+
+/**
+ * `value` as a half store keeps it: made a float32 first, the precision errors are built in, then
+ * the nearest half, ties to even — past the largest finite half, infinity.
+ */
+export const halfNearest = (value: number) => halfRead(toHalf(Math.fround(value)))
+
+/**
+ * `value` made a float32, then the greatest half at or below it: a least bound rounded never above
+ * what it bounds. The nearest half steps down until it holds — from zero to `-0`, a negative one
+ * outwards —, no further than the last half pattern.
+ */
+export function halfFloor(value: number) {
+  const single = Math.fround(value)
+  let bits = toHalf(single)
+  while (halfRead(bits) > single && bits !== 0xffff)
+    bits = bits === 0 ? 0x8000 : bits & 0x8000 ? bits + 1 : bits - 1
+  return halfRead(bits)
+}
+
+/**
+ * The bits of the smallest half float at or above `value`, a reach a reader never finds below what
+ * it bounds: 0 for a value that is no positive number, the infinity's bits (`0x7c00`) past the
+ * largest finite half. The nearest half steps up until it holds.
+ */
+export function halfCeilBits(value: number) {
+  if (!(value > 0)) return 0
+  if (value > HALF_MAX) return HALF_INFINITY
+  let bits = toHalf(value)
+  while (halfRead(bits) < value) bits++
+  return bits
 }

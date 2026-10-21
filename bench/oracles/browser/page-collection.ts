@@ -19,7 +19,6 @@ import {
 } from '../../../packages/sdk-browser/src/geometry/selection/helpers.ts'
 import { meshes } from '../../../packages/sdk-browser/src/scene/meshes.ts'
 import { structureIndex } from '../../../packages/sdk-browser/src/geometry/selection/structure.ts'
-import { cullingBounds } from '../../../packages/sdk-browser/src/geometry/cut/bounds.ts'
 import { indexPageRequests } from '../../../packages/sdk-browser/src/geometry/selection/requests.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
@@ -111,7 +110,6 @@ export function referenceCollectClusterPages(
         matrix: mesh.matrixWorld,
         renderOrder: order,
         attached: false,
-        cone: undefined,
         geometry: undefined,
         mesh: undefined,
         resident: false,
@@ -162,7 +160,7 @@ export function referenceCollectClusterPages(
     roots.push({
       world: mesh.matrixWorld,
       pages,
-      culling: culling && { ...culling, bounds: cullingBounds(culling, pages) },
+      culling,
       worldBox: local
         .clone()
         .applyMatrix4(new THREE.Matrix4().fromArray(mesh.matrixWorld.elements)),

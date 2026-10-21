@@ -25,7 +25,6 @@ import type {
 } from '../../../../sdk-core/src/manifest/worldRoots.ts'
 import { structureIndex } from '../selection/structure.ts'
 import { cullingNodes } from '../selection/helpers.ts'
-import { cullingBounds } from '../cut/bounds.ts'
 import { cullingLinks } from '../cut/links.ts'
 import { IDENTITY_WORLD } from '../../session/host/matrixElements.ts'
 import type { worldRootPages } from './worldRootPages.ts'
@@ -42,9 +41,14 @@ export type WorldRootsDagTable = {
   /** The binary's resolved address, which every page address starts with: two worlds' pages never
    *  share one (`geometryPageAddress`). */
   url: string
-  chain: Pick<WorldRoots['chain'], 'parent' | 'level' | 'actor'>
+  chain: Pick<WorldRoots['chain'], 'parent' | 'level' | 'actorLevel' | 'actor'>
   /** Each bundle's offset in the binary: where its pages lie (`geometryPageAddress`). */
   bundles: readonly Pick<WorldRootsBundle, 'offset'>[]
+  /** Each HLOD cell's root pages (`WorldRoots.hlod`): what it holds while its actor is loaded. */
+  hlod: WorldRoots['hlod']
+  /** How many rows each HLOD cell's actor places (`WorldRoots.rows`): what its readiness counts
+   *  beside its roots. */
+  rows: Pick<WorldRoots['rows'], 'count'>
 }
 
 /** The world clusters as `worldRootPages` names them: what the cut projects, the primitive each
@@ -52,37 +56,43 @@ export type WorldRootsDagTable = {
 type WorldPages = ReturnType<typeof worldRootPages>['pages']
 
 /** The world DAG as the one cut reads it: a `DagRoot` over its pages, each rank's HLOD cell,
- *  and the roots each bundle holds for its cell. */
+ *  the roots each bundle holds for its cell, and each rank's bundle. */
 export type WorldDagRoot = Omit<DagRoot, 'pages' | 'culling' | 'hlod'> & {
   pages: WorldPages
   /** Its hierarchy with the bounds and links made once (`worldRootDag`). */
   culling?: Required<NonNullable<DagRoot['culling']>>
   hlod: NonNullable<DagRoot['hlod']>
   held: ReadonlyMap<number, readonly number[]>
+  /** Each rank's bundle, -1 for a rank without a page (`worldRootPages.ts`). */
+  bundleOf: Int32Array
 }
 
 /**
  * The world `DagRoot` of a world-roots table (world-space, identity matrix): its clusters in their
  * cook rank, a `ClusterStructureIndex` from its groups, and the culling hierarchy the cook built
  * over them (`worldRootPages`). A page is named by the binary's resolved `url` and its
- * `bundle`/`offset`. The clusters nothing replaces are the structure's roots, each `held` by its
- * bundle, its `holder`, resident while its HLOD cell holds it
- * (`../../../../asset-compiler-rust/src/compiler_world_roots/pack.rs`). `hlod` names, per rank, its
+ * `bundle`/`offset`. The clusters nothing replaces are the structure's roots; each lies in one of
+ * its actor's root pages — its roots, then its coarsest groups whole, the pages its cell lists —,
+ * whose every cluster is `held` by that bundle, its `holder`, resident while its HLOD cell holds
+ * it (`../../../../asset-compiler-rust/src/hlod/chain/bundles.rs`). `hlod` names, per rank, its
  * HLOD cell.
  */
 export function worldRootDag(
   table: WorldRootsDagTable,
   pagesOf: typeof worldRootPages,
 ): WorldDagRoot | undefined {
-  const { clusters, groups } = table
-  if (!clusters?.length || !groups?.length) return undefined
+  // A chain of no cell switches nothing. One whose actors are all rows (`WorldRoots.rows`) is a DAG
+  // of no cluster, its hierarchy one empty node: packed all the same, it carries the switch.
+  const { clusters = [], groups = [] } = table
+  if (!table.chain.parent.length) return undefined
   // The cook writes every world's hierarchy (since version 6): a DAG without one is refused when
   // read.
-  const { roots, held, pages, hlod } = pagesOf(
+  const { roots, held, pages, hlod, bundleOf } = pagesOf(
     clusters,
     table.url,
     table.bundles,
-    table.chain.level,
+    table.chain.actorLevel,
+    table.hlod,
   )
   const structure = structureIndex(
     { version: 1, roots, groups: cellTopGroups(groups, roots, pages, hlod) },
@@ -93,21 +103,19 @@ export function worldRootDag(
     world: IDENTITY_WORLD,
     pages,
     structure,
-    // Its hierarchy with its bounds and links, made once here as a primitive's template makes its
-    // own (`geometry/selection/template.ts`): every reader takes them, none derives them again.
-    culling: nodes && {
-      ...nodes,
-      bounds: cullingBounds(nodes, pages),
-      links: cullingLinks(nodes, pages.length),
-    },
+    // Its hierarchy with its links, made once here as a primitive's template makes its own
+    // (`geometry/selection/template.ts`): every reader takes them, none derives them again.
+    culling: nodes && { ...nodes, links: cullingLinks(nodes, pages.length) },
     // Each rank's HLOD cell, whose switch shows it, and the chain (`geometry/dag/worlds/worldLinks.ts`).
     hlod: {
       cells: hlod,
       parent: table.chain.parent,
       layer: table.chain.level,
       actor: table.chain.actor,
+      rows: table.rows.count,
     },
     held,
+    bundleOf,
   }
 }
 

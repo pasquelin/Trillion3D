@@ -7,8 +7,6 @@
 import type { PackedDag } from './types.ts'
 import {
   CLUSTER_WORDS,
-  COLD_CONE,
-  COLD_HAS_BOX,
   COLD_MAX,
   COLD_MIN,
   COLD_OWNER,
@@ -29,7 +27,7 @@ export type DagRecords = {
   hotInts: Uint32Array
   cold: Float32Array
   coldInts: Uint32Array
-  /** First cold record in `cold`, behind the residency bits, the pool's list and the keys. */
+  /** First cold record in `cold`, behind the two residency bit sets. */
   coldAt: number
   recordShift: Uint32Array
   rootBases: Uint32Array
@@ -38,25 +36,16 @@ export type DagRecords = {
 export function dagRecords(
   packed: Pick<
     PackedDag,
-    | 'clusters'
-    | 'pageCones'
-    | 'pageCount'
-    | 'recordCount'
-    | 'keyCount'
-    | 'groupCount'
-    | 'groupEdges'
-    | 'recordShift'
-    | 'rootBases'
-    | 'pageIndex'
+    'clusters' | 'coldWords' | 'pageCount' | 'recordShift' | 'rootBases' | 'pageIndex'
   >,
 ): DagRecords {
-  const { clusters, pageCones } = packed
+  const { clusters, coldWords } = packed
   return {
     hot: clusters,
     hotInts: new Uint32Array(clusters.buffer, clusters.byteOffset, clusters.length),
-    cold: pageCones,
-    coldInts: new Uint32Array(pageCones.buffer, pageCones.byteOffset, pageCones.length),
-    coldAt: coldBase(packed),
+    cold: coldWords,
+    coldInts: new Uint32Array(coldWords.buffer, coldWords.byteOffset, coldWords.length),
+    coldAt: coldBase(packed.pageCount),
     recordShift: packed.recordShift,
     rootBases: packed.rootBases,
     pageIndex: packed.pageIndex,
@@ -76,7 +65,6 @@ export function ownerOf(r: DagRecords, i: number) {
   const local = r.coldInts[coldOf(r, i) + COLD_OWNER]
   return local === NO_INDEX ? NO_INDEX : r.rootBases[worldOf(r, i)] + local
 }
-export const hasBoxOf = (r: DagRecords, i: number) => r.cold[coldOf(r, i) + COLD_HAS_BOX]
 /** Cluster triangles, as an integer word: the shader's `trianglesOf` is the mirror. */
 export const trianglesOf = (r: DagRecords, i: number) => r.coldInts[coldOf(r, i) + COLD_TRIANGLES]
 /** `at` is 0 for the cluster's band, 1 for its parent's: same pairs as in the shader. */
@@ -91,9 +79,4 @@ export function boxInto(r: DagRecords, i: number, min: number[], max: number[]) 
     min[a] = r.cold[base + COLD_MIN + a]
     max[a] = r.cold[base + COLD_MAX + a]
   }
-}
-export function coneInto(r: DagRecords, i: number, cone: { axis: number[]; angle: number }) {
-  const base = coldOf(r, i) + COLD_CONE
-  for (let a = 0; a < 3; a++) cone.axis[a] = r.cold[base + a]
-  cone.angle = r.cold[base + 3]
 }

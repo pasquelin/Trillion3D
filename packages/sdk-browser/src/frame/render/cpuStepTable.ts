@@ -28,7 +28,6 @@ const CPU = cpuStepTable([
   ['syncRowsMs', 'uploads'],
   ['residencyUploadMs', 'uploads'],
   ['selectionDispatchMs', 'selection'],
-  ['partitionMs', 'partition'],
   ['encodeRestMs', 'encode'],
   ['queueSubmitMs', 'submit'],
   ['arrivalsMs', 'residency'],

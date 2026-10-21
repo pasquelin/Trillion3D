@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { receiverStoreWgsl, receiverTargetReadWgsl } from './receiverTargetWgsl.ts'
+import { RECEIVER_WORDS_WGSL, receiverTargetReadWgsl } from './receiverTargetWgsl.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { SHADE_BINDINGS } from '../../gpu/bind/bindLayout.ts'
@@ -38,29 +38,29 @@ test('the lighting reads the receiver the resolve wrote: one decode, no triangle
   )
   assert.match(
     SHADE_SHADER,
-    /storeReceiver\(pos\.xy,rcvOffset,rcvPlane\)/,
+    /storeReceiver\(at\.xy,rcvOffset,rcvPlane\)/,
     'and stores it (`storageOnce.test.ts`)',
   )
   assert.equal('shadingOffset' in SHADE_BINDINGS, false, 'the resolve binds no offset target')
 })
 
 test('the receiver target keeps the offset to 1/4095 of its largest component and the plane to 4.2e-3 rad; a zero plane is no receiver', () => {
-  // One texel: what the resolve's `storeReceiver` writes, the projection's `shadowReceiver` reads.
-  let texel = [0, 0, 0, 0]
+  // One pixel's two words: what the resolve's `storeReceiver` writes in the words' two receiver
+  // layers, the projection's `shadowReceiver` reads from them.
+  let texel = [0, 0]
   const scope = {
-    receiverOutput: {},
     receiverTarget: {},
-    textureDimensions: () => [8, 8],
-    textureStore: (_target: object, _at: number[], value: number[]) => void (texel = value),
-    textureLoad: () => texel,
+    textureLoad: (_target: object, _pixel: number[], layer: number) => [texel[layer], 0, 0, 0],
   }
-  const { storeReceiver } = shaderRun<{
-    storeReceiver: (pos: number[], offset: number[], plane: number[]) => void
+  const { receiverWords } = shaderRun<{
+    receiverWords: (offset: number[], plane: number[]) => number[]
   }>(
-    wgslModule(receiverStoreWgsl(0)),
-    ['storeReceiver', 'octEncode', 'octFold', 'ndcToUvUnflipped', 'pow2FromExponent'],
+    wgslModule(RECEIVER_WORDS_WGSL),
+    ['receiverWords', 'octEncode', 'octFold', 'ndcToUvUnflipped', 'pow2FromExponent'],
     scope,
   )
+  const storeReceiver = (_pixel: number[], offset: number[], plane: number[]) =>
+    void (texel = receiverWords(offset, plane))
   const { shadowReceiver } = shaderRun<{
     shadowReceiver: (pixel: number[]) => { offset: number[]; plane: number[] }
   }>(
@@ -96,14 +96,10 @@ test('the receiver target keeps the offset to 1/4095 of its largest component an
   }
   // A zero plane is no receiver; a zero offset is one, on its plane.
   storeReceiver([1.5, 1.5], [0.1, 0, 0], [0, 0, 0])
-  assert.deepEqual(texel, [0, 0, 0, 0])
+  assert.deepEqual([...texel], [0, 0])
   assert.deepEqual(shadowReceiver([1.5, 1.5]), { offset: [0, 0, 0], plane: [0, 0, 0] })
   storeReceiver([1.5, 1.5], [0, 0, 0], [0, 3, 0])
   const flat = shadowReceiver([1.5, 1.5])
   assert.deepEqual(flat.offset, [0, 0, 0])
   assert.ok(flat.plane[1] > 0.999, `plane ${flat.plane}`)
-  // Past the target's size, nothing is written.
-  const kept = texel
-  storeReceiver([8.5, 1.5], [1, 1, 1], [1, 0, 0])
-  assert.equal(texel, kept)
 })

@@ -46,11 +46,6 @@ export const diagnostic = {
     return presentationColorDiagnostic(await session.capture(), width, height, clear)
   },
   /**
-   * Checks how the frame split its work between passes.
-   * @param world - The world to check.
-   */
-  partitionAudit: (world: object) => sessionOf(world).partitionAudit(),
-  /**
    * Checks which see-through surfaces the occlusion test kept or dropped.
    * @param world - The world to check.
    */

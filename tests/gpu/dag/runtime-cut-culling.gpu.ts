@@ -66,7 +66,7 @@ test('a run-time cut tests the pages a view reaches, not all of them, whatever t
     grid: cases[k].name,
     pages: cases[k].packed.pageCount,
     candidates: r.candidates,
-    kept: r.pages.length,
+    kept: r.drawn.length,
   }))
   console.log(JSON.stringify({ rows }))
   const [small, large] = rows

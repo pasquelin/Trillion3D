@@ -1,6 +1,5 @@
-// The certified screen error to the bits, on the table its Rust mirror reads too
-// (`screenErrorBits.json`; `projected_error_at`, `packages/page-codec-wasm/src/cut/error/tests.rs`):
-// a drift on either side fails the side that moved.
+// The certified screen error to the bits, on the table `screenErrorBits.json` pins: a drift of
+// `clusterErrorAtDepth` fails here.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'

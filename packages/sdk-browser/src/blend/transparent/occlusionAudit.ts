@@ -1,9 +1,24 @@
 import { readGpuBuffer, readGpuTextureR32F } from '../../gpu/core/readback.ts'
 import { visLayerTop } from '../../visibility/passes/uniforms.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
-import { BOX_CORNER_VALUES } from '../../visibility/hiz/corners.ts'
-import { auditView, packedPageCornersInto } from '../../gpu/core/partitionAudit.ts'
-import type { AuditView } from '../../geometry/partition/gpu/types.ts'
+import { BOX_CORNER_VALUES, pageCornersInto } from '../../visibility/hiz/corners.ts'
+import type { HizPage } from '../../visibility/hiz/types.ts'
+import type { AuditView } from '../../gpu/core/transparentOcclusion.ts'
+import { rootOf, rootOfPacked } from '../../geometry/selection/placements.ts'
+
+/** World corners of packed page `packed`, its record `rec`, at its root's world and reach, written
+ *  in `out` from `at` (`pageCornersInto`): the input the audit hands a reference, and the cluster
+ *  inspection's boxes (`../../diagnostic/inspection/clusters.ts`). */
+export function packedPageCornersInto(
+  layout: WebgpuPagesRuntime['layout'],
+  out: Float64Array,
+  at: number,
+  packed: number,
+  rec: HizPage,
+) {
+  const root = rootOf(layout.selectionRoots, rootOfPacked(layout.placement, packed))
+  pageCornersInto(out, at, rec, root.world, root.reach)
+}
 
 /**
  * What the transparent occlusion test REJECTED on the last image, and enough to refute it without
@@ -37,17 +52,8 @@ export async function readTransparentOcclusionAudit(
     device = rt.gpu.device,
     table = blendState.table,
     compaction = blendState.compaction,
-    frame = vis.gpuPartition?.lastFrame
-  if (
-    run.lost ||
-    !device ||
-    !table ||
-    !compaction ||
-    !blendState.occlusion ||
-    !frame ||
-    !vis.gpuHiz
-  )
-    return null
+    frame = blendState.occlusion?.lastFrame
+  if (run.lost || !device || !table || !compaction || !frame || !vis.gpuHiz) return null
   const words = await readGpuBuffer(device, compaction.occludedBuffer, table.capacity * 4)
   // A backend closed or lost while the read was in flight reads nothing more.
   if (!words || run.lost || !vis.gpuHiz) return null
@@ -69,7 +75,7 @@ export async function readTransparentOcclusionAudit(
     if (rec) packedPageCornersInto(layout, corners, i * BOX_CORNER_VALUES, page, rec)
   }
   return {
-    ...auditView(frame),
+    ...frame,
     layer: visLayerTop(vis),
     rejected,
     corners,

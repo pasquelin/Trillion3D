@@ -1,0 +1,226 @@
+//! Durations per phase, attached to the job that spends them.
+//!
+//! Global counters would add up the phases of every job in the same process:
+//! the second job of a batch would publish the first's simplification, which had no
+//! group to simplify. Each compilation therefore creates its own counters, attaches
+//! them to the thread that leads it and to each worker of its pool, and rereads
+//! only those.
+//!
+//! On one thread the timers are exclusive: they stand on a stack, and a timer born
+//! inside another pauses it until it dies, so each phase counts only its own time —
+//! a weld that waits in a join while its thread sorts another piece of the job
+//! counts the sort as the sort's. Untimed work inside an admitted job counts as
+//! `jobMs` (`Phase::Job`). From one thread to another the intervals still add up.
+//! Elapsed time is not CPU time: a wait, a write or a preempted thread enter the
+//! phase without any computation. The manifest therefore publishes them under
+//! `phaseElapsedMs`, their sum is the total of nothing, and `cpuMs` stays zero
+//! until someone actually measures the CPU.
+pub mod rss;
+use serde_json::{json, Value};
+use std::cell::RefCell;
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+};
+use std::time::Instant;
+
+macro_rules! phases {
+ ($($field:ident=>$variant:ident=>$label:literal),* $(,)?) => {
+  #[derive(Default)]
+  struct Phases{$($field:AtomicU64),*}
+  /// The phase a timer feeds.
+  #[derive(Clone,Copy)]
+  pub enum Phase{$($variant),*}
+  impl Phases{
+   fn slot(&self,phase:Phase)->&AtomicU64{match phase{$(Phase::$variant=>&self.$field),*}}
+   /// Elapsed milliseconds accumulated per phase, as a flat object.
+   fn report(&self)->Value{json!({$($label:(self.$field.load(Ordering::Relaxed) as f64)/1.0e6),*})}
+  }
+ }
+}
+
+phases! {
+ decode=>Decode=>"decodeMs",
+ weld=>Weld=>"weldMs",
+ cluster_level0=>ClusterLevel0=>"clusterLevel0Ms",
+ adjacency=>Adjacency=>"adjacencyMs",
+ grouping=>Grouping=>"groupingMs",
+ locks=>Locks=>"locksMs",
+ simplify=>Simplify=>"simplifyMs",
+ resplit=>Resplit=>"resplitMs",
+ culling=>Culling=>"cullingMs",
+ page_write=>PageWrite=>"pageWriteMs",
+ page_packed=>PagePacked=>"pagePackedMs",
+ coplanar=>Coplanar=>"coplanarMs",
+ manifest=>Manifest=>"manifestMs",
+ texture_alpha=>TextureAlpha=>"textureAlphaMs",
+ texture_decode=>TextureDecode=>"textureDecodeMs",
+ texture_bake=>TextureBake=>"textureBakeMs",
+ texture_write=>TextureWrite=>"textureWriteMs",
+ cutout_scan=>CutoutScan=>"cutoutScanMs",
+ voxels=>Voxels=>"voxelsMs",
+ job=>Job=>"jobMs",
+}
+
+thread_local! {
+    /// Counters of the job this thread currently serves, if it serves one.
+    static CURRENT: RefCell<Option<Arc<Phases>>> = const { RefCell::new(None) };
+    /// The timers alive on this thread, the running one last, the others paused.
+    static RUNNING: RefCell<Vec<Frame>> = const { RefCell::new(Vec::new()) };
+}
+
+/// The next timer's number, unique in the process: a timer dropped on another thread never
+/// matches one of that thread's.
+static NEXT: AtomicU64 = AtomicU64::new(0);
+
+/// Counters of a compilation, shared with the threads it employs.
+#[derive(Clone, Default)]
+pub struct JobPhases(Arc<Phases>);
+impl JobPhases {
+    /// Attaches these counters to the current thread, and restores what it carried
+    /// when the guard drops: a batch worker that chains two jobs keeps nothing of
+    /// the first.
+    pub fn attach(&self) -> Attached {
+        Attached(CURRENT.with(|current| current.borrow_mut().replace(self.0.clone())))
+    }
+    /// Attaches these counters for the whole life of the thread: a compilation's
+    /// pool is born and dies with it, and its workers never serve another job.
+    pub fn adopt(&self) {
+        CURRENT.with(|current| *current.borrow_mut() = Some(self.0.clone()));
+    }
+    /// The pool of one job: born and dying with it, each worker adopting these
+    /// counters, never a neighbour's.
+    pub fn pool(&self, threads: usize) -> Result<rayon::ThreadPool, rayon::ThreadPoolBuildError> {
+        let phases = self.clone();
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .start_handler(move |_| phases.adopt())
+            .build()
+    }
+    pub fn report(&self) -> Value {
+        self.0.report()
+    }
+}
+
+/// Attachment guard: it restores to the thread the counters it carried before.
+pub struct Attached(Option<Arc<Phases>>);
+impl Drop for Attached {
+    fn drop(&mut self) {
+        CURRENT.with(|current| *current.borrow_mut() = self.0.take());
+    }
+}
+
+/// A timer alive on its thread: its number, the counters it feeds, its phase and when it last
+/// started running.
+struct Frame {
+    id: u64,
+    phases: Option<Arc<Phases>>,
+    phase: Phase,
+    since: Instant,
+}
+impl Frame {
+    /// Adds what it ran since `since` to its phase.
+    fn charge(&self, now: Instant) {
+        if let Some(phases) = &self.phases {
+            let ran = now.saturating_duration_since(self.since).as_nanos() as u64;
+            phases.slot(self.phase).fetch_add(ran, Ordering::Relaxed);
+        }
+    }
+}
+
+/// Adds its lifetime — elapsed time, not CPU time — to the counter of the job
+/// attached to the current thread, less the lifetimes of the timers born inside it on
+/// the same thread, which pause it (`RUNNING`). A thread that serves none counts nothing
+/// rather than feeding another job's.
+pub struct Timer {
+    id: u64,
+    /// Never sent: a timer ends on the thread it began on.
+    _not_send: std::marker::PhantomData<*const ()>,
+}
+impl Timer {
+    pub fn new(phase: Phase) -> Self {
+        let id = NEXT.fetch_add(1, Ordering::Relaxed);
+        let now = Instant::now();
+        RUNNING.with(|running| {
+            let mut running = running.borrow_mut();
+            // The running timer pauses: what it ran so far is counted now.
+            if let Some(outer) = running.last_mut() {
+                outer.charge(now);
+            }
+            running.push(Frame {
+                id,
+                phases: CURRENT.with(|current| current.borrow().clone()),
+                phase,
+                since: now,
+            });
+        });
+        Self {
+            id,
+            _not_send: std::marker::PhantomData,
+        }
+    }
+}
+impl Drop for Timer {
+    /// Counts what it ran since it last started and lets the timer below run again. One dropped
+    /// while paused already counted its time; one dropped on another thread counts nothing more.
+    fn drop(&mut self) {
+        let now = Instant::now();
+        // A thread past its locals' end has no stack left to read: nothing to count.
+        let _ = RUNNING.try_with(|running| {
+            let mut running = running.borrow_mut();
+            let Some(at) = running.iter().rposition(|frame| frame.id == self.id) else {
+                return;
+            };
+            let frame = running.remove(at);
+            if at == running.len() {
+                frame.charge(now);
+                if let Some(outer) = running.last_mut() {
+                    outer.since = now;
+                }
+            }
+        });
+    }
+}
+
+/// Elapsed milliseconds of the stages of one primitive, in order. Primitives compile in parallel
+/// and share their job's counters, so a primitive cannot read its own share of them: it times its
+/// own stages, each from the end of the one before, and a slow cook says where it went.
+pub struct Laps {
+    last: Instant,
+    laps: serde_json::Map<String, Value>,
+}
+impl Laps {
+    pub fn start() -> Self {
+        Self {
+            last: Instant::now(),
+            laps: serde_json::Map::new(),
+        }
+    }
+    /// Closes the running stage under `label`, and opens the next.
+    pub fn lap(&mut self, label: &str) {
+        let ms = crate::shared_math::elapsed_ms(self.last);
+        self.laps.insert(label.into(), json!(ms));
+        self.last = Instant::now();
+    }
+    /// Runs `a` and `b` side by side on the current pool, each timed under its own label from the
+    /// end of the stage before, like a lap, and opens the next stage once both are done. The
+    /// results come back in argument order, whichever finished first.
+    pub fn join<A: Send, B: Send>(
+        &mut self,
+        (a_label, a): (&str, impl FnOnce() -> A + Send),
+        (b_label, b): (&str, impl FnOnce() -> B + Send),
+    ) -> (A, B) {
+        fn timed<T>(started: Instant, run: impl FnOnce() -> T) -> (T, f64) {
+            (run(), crate::shared_math::elapsed_ms(started))
+        }
+        let started = self.last;
+        let ((a, a_ms), (b, b_ms)) = rayon::join(|| timed(started, a), || timed(started, b));
+        self.laps.insert(a_label.into(), json!(a_ms));
+        self.laps.insert(b_label.into(), json!(b_ms));
+        self.last = Instant::now();
+        (a, b)
+    }
+    pub fn report(self) -> Value {
+        Value::Object(self.laps)
+    }
+}

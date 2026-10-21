@@ -40,7 +40,8 @@ export function worldPages(table: WorldRoots, url: string, first = 0) {
 }
 
 /** The file `page` names, read whole through `queue` on `signal`, verified against its
- *  fingerprint: a world's table or DAG, which its reader decodes and holds. Its bytes are that
+ *  fingerprint: a world's table or DAG, or a scene's animation banks
+ *  (`../../scene/drive/scene.ts`), which its reader decodes and holds. Its bytes are that
  *  reader's alone (`StreamPage.kept`), never an entry of the page cache, whose budget holds pages
  *  and levels: the page is catalogued for its read only, and leaves once the read settles. */
 export async function readWhole(queue: PageQueue, page: StreamPage, signal: AbortSignal) {

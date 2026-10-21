@@ -54,16 +54,12 @@ export function createWebgpuRowJournal() {
    * One only, because cut publication is unique: a subscriber list would suggest the opposite.
    */
   let watcher: ((page: number) => void) | undefined
-  /** The pages named while a cut is made beside the running one (`../../placement/growth/webgpuGrowth.ts`):
-   *  its pool, listed when it began, follows them alone when it is swapped in. */
-  let log: Set<number> | undefined
   /** Advanced by every page named: what a reader of the pages' bytes and slots compares. */
   let touchRevision = 0
   const touchPage = (page: number) => {
     touchRevision++
     touchedSet.add(page)
     if (watcher) watcher(page)
-    log?.add(page)
   }
   return {
     residencyChanges,
@@ -79,8 +75,6 @@ export function createWebgpuRowJournal() {
       if (watcher) throw new Error('ROW_JOURNAL_WATCHED_TWICE')
       watcher = watch
     },
-    /** Logs every page named from now into `into`, or stops logging (`undefined`). */
-    logTouched: (into?: Set<number>) => void (log = into),
     clearTouched: touchedSet.clear,
   }
 }

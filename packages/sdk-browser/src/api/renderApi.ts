@@ -5,7 +5,7 @@ import type { TemporalAntialiasingLevel } from '../../../sdk-core/src/contracts/
 type Inputs = { check: () => void; engine: Engine }
 
 /** The engine's render switches, written in place at the next frame, no session reopened:
- *  temporal antialiasing and the render scale. */
+ *  temporal antialiasing, the render scale and the frame cap. */
 export function createExplorerRenderApi({ check, engine }: Inputs) {
   return {
     /** Temporal antialiasing's level at the next frame, `'off'` none, no session reopened. */

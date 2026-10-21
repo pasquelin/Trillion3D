@@ -17,8 +17,8 @@ pub(super) fn fixture_named(gltf_name: &str, bin_name: &str) -> (PathBuf, Option
 }
 
 /// The manifest of the key folder `directory`, read from its root through its pages.
-pub(super) fn paged(directory: &Path) -> crate::compiler_manifest_pages::Paged {
-    crate::compiler_manifest_pages::read_manifest_at(directory).expect("the manifest's pages")
+pub(super) fn paged(directory: &Path) -> crate::compiler::pages::manifest::Paged {
+    crate::compiler::pages::manifest::read_manifest_at(directory).expect("the manifest's pages")
 }
 /// The bytes of `page`'s geometry page, a page of `primitive` of `result`: read from its bundle in
 /// the container it lies in, under `cache`.

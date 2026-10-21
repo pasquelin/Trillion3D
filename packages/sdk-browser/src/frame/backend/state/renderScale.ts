@@ -18,15 +18,15 @@ const litImage = (rt: Pick<WebgpuPagesRuntime, 'run' | 'capture'>) =>
  * The drawn view's render-scale bounds where its frame may be drawn below the display: the page
  * asked a scale below 1, which the temporal resolve rebuilds or, where none runs, the composition
  * upscales — the dynamic resolution runs with either, the same bounds with or without an
- * upscaler. A capture, a diagnostic
- * view, which renders at the pixel centre, and a diagnostic GPU variant, which sizes its own
- * targets, stay at the display's size: `undefined`. The bounds are those `frameSizeOf` last
- * fitted to the view's size.
+ * upscaler. A diagnostic view keeps the view's targets, drawn in them at the pixel centre
+ * (`beginTaaFrame`): switching to it remakes none. A capture, at the display's scale, and a
+ * diagnostic GPU variant, which sizes its own targets, stay at the display's size: `undefined`.
+ * The bounds are those `frameSizeOf` last fitted to the view's size.
  */
 function scaledBounds(rt: WebgpuPagesRuntime): RenderScaleBounds | undefined {
   const { bounds } = rt.views.active.scale
-  const beauty = litImage(rt) && !rt.context.diagnosticGpuVariant
-  return beauty && bounds.min < 1 ? bounds : undefined
+  const scaled = !rt.capture.capturing && !rt.context.diagnosticGpuVariant
+  return scaled && bounds.min < 1 ? bounds : undefined
 }
 
 /** Whether the view's temporal pass runs this image: rigged, switched on, a lit image other than
@@ -110,8 +110,9 @@ export const displayApart = (gpu: WebgpuPagesRuntime['gpu']) =>
 /**
  * Draws this image at `scale` in the targets in place, made at the bounds' maximum (`frameSizeOf`):
  * the image is drawn in their top-left `targetSize`. Where the display colour is not apart, the
- * targets' whole size. The Hi-Z pyramid is built over it (`GpuHiz.extent`); the last image's, of
- * another size, no longer describes this one, as after a moved view. `views.active.scale.drawn`
+ * targets' whole size. The Hi-Z pyramid is built over it (`GpuHiz.extent`); the last image's still
+ * stands for the cut's next main pass, read in that image's pixels through the levels it was built
+ * with (`../../render/cutPyramid.ts`). `views.active.scale.drawn`
  * reads back the size drawn: `scale` where the targets hold its extent (`renderExtent`), else the
  * share of the display they hold — an image of another size than the controller's, which it does
  * not measure; `steered`, an image the controller measures (`ScaleControl.drew`).
@@ -124,7 +125,6 @@ export function drawFrameAt(rt: WebgpuPagesRuntime, scale: number, steered = fal
     apart ? Math.min(allocatedSize[i], renderExtent(displaySize[i], scale)) : allocatedSize[i]
   const width = axis(0),
     height = axis(1)
-  if (width !== targetSize[0] || height !== targetSize[1]) rt.run.noOccluderHistory = true
   targetSize[0] = width
   targetSize[1] = height
   rt.vis.gpuHiz?.extent(width, height)

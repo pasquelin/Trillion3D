@@ -21,9 +21,10 @@ import { baseOpen, type CullingLinks } from './links.ts'
  * With the rule, a group then draws either all its outputs or all its members, never both and
  * never neither: every surface is drawn exactly once, by its nearest resident representation.
  *
- * `openAt(node)` counts the clusters under a culling node whose finer group is not ready: the only
- * clusters the rule may draw with an error above the threshold. A node whose error floor is above
- * the threshold is dropped only when that count is zero (`../dag/shader/floorWgsl.ts`).
+ * `openAt(node)` counts the clusters of a culling leaf whose finer group is not ready: the only
+ * clusters the rule may draw with an error above the threshold; an inner node's is zero. A leaf
+ * whose least own error is above the threshold is dropped only when that count is zero
+ * (`../dag/shader/floorWgsl.ts`).
  *
  * Bounded by the view, not the catalogue: the state is held for the resident pages
  * only — the resident set, the ready groups (all of whose members are resident), and per node how
@@ -58,19 +59,17 @@ interface ReadinessState {
   touchedNodes: number[]
 }
 
-/** A cluster's finer group became ready (`step` 1) or unready (-1): its nodes close or open. */
+/** A cluster's finer group became ready (`step` 1) or unready (-1): its leaf closes or opens. */
 function markNodes(
   links: CullingLinks | undefined,
   state: ReadinessState,
   page: number,
   step: number,
 ) {
-  let node = links ? links.leafOfPage[page] : -1
-  while (node >= 0) {
-    state.closed.add(node, step)
-    state.touchedNodes.push(node)
-    node = links!.parents[node]
-  }
+  const leaf = links ? links.leafOfPage[page] : -1
+  if (leaf < 0) return
+  state.closed.add(leaf, step)
+  state.touchedNodes.push(leaf)
 }
 
 /** Group `g` from what it reads: its members' residency and its outputs' own groups. */

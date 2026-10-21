@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createReadWatch } from './readWatch.ts'
-import { PRIORITY_PREFETCH } from './priority.ts'
+import { PRIORITY_VISIBLE } from './priority.ts'
 
 /** A watch over reads that settle when the test says: `land` or `drop` each url. */
 function watchedReads() {
@@ -26,7 +26,7 @@ test('a watch hears the reads the view waits on: each page once, a dropped one t
   const caught = (url: string, priority?: number) =>
     void read(url, new AbortController().signal, priority).catch(() => {})
   ;['a', 'b', 'c', 'a'].forEach((url) => caught(url))
-  caught('ahead', PRIORITY_PREFETCH)
+  caught('ahead', PRIORITY_VISIBLE + 2)
   await Promise.resolve()
   assert.deepEqual(heard, [{ landed: 0, asked: 3 }], 'one event for a task; a prefetch unheard')
   await settle('a', 'land')

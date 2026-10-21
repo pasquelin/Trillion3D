@@ -54,7 +54,7 @@ fn collect_one_node(
         cancelled: &cancelled,
         progress: &progress,
     };
-    let world = crate::compiler_world::world_matrices(g).expect("world matrices");
+    let world = crate::compiler::source::node_transform::world_matrices(g).expect("world matrices");
     surface::collect(&inputs, bounds, dropped, &world).expect("collect")
 }
 

@@ -9,8 +9,9 @@ export function createResidencyLog() {
   const changes = new Map<string, number>()
   /** The keys the host holds resident: those it drained last as arrived. */
   const known = new Set<string>()
-  /** The keys that arrived since a reader last took them, kept once one asks. */
-  let arrivals: string[] | undefined
+  /** The keys that arrived, and those that left, since a reader last took them, kept once one
+   *  asks. */
+  let arrivals: string[] | undefined, departures: string[] | undefined
   /** The pinned pages that left, which no one unpinned, since a reader last took them. */
   const unpinned = new Set<string>()
   return {
@@ -43,6 +44,15 @@ export function createResidencyLog() {
     left(key: string) {
       if (known.has(key)) changes.set(key, -1)
       else changes.delete(key)
+      departures?.push(key)
+    },
+    /** Each key that left since the last call, told once, in order: what a reader that keeps its
+     *  own book of the resident pages follows (`../../residency/streamedPages.ts`). Kept from the
+     *  first call. */
+    takeDepartures(visit: (key: string) => void) {
+      departures ??= []
+      for (let i = 0; i < departures.length; i++) visit(departures[i])
+      departures.length = 0
     },
     /** Moves the changes into the caller's arrays, then empties the log. */
     drain(keys: string[], slots: number[]) {

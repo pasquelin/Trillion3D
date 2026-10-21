@@ -10,7 +10,8 @@ import type { HostAttributes } from '../session/host/resources.ts'
 import type { SessionDeformation } from '../deformation/session.ts'
 import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { rowCell } from '../geometry/partition/rowCells.ts'
+import { rowCell, rowDrawnAs } from '../geometry/partition/rowCells.ts'
+import { drawnAsHlod, HLOD_INDEX } from '../diagnostic/colors.ts'
 
 /**
  * Record of a transparent item: what a blend draw reads about IT, and nothing that depends on the
@@ -59,23 +60,27 @@ export const ITEM_FLAG_BITS = 0xffff
  *  (`HISTORY_SHARE_SHIFT` of the row's flags), here from bit 16: the stage hands them to the
  *  fragments (`TRI_GIVEN_UP_SHIFT`), never into the flags it ORs the view's with. */
 export const ITEM_HISTORY_SHIFT = 16
-/** Above them, read by the vertex stage alone: the item's placement draws as its cell's HLOD 0 actor
- *  (`RowCell.proxy`), which the HLOD view colours (`diagnosticProxied`), as a page row's word says
- *  (`pageDiagnosticWord`). Written with the record, and again with the poses (`sceneRefresh.ts`). */
-export const ITEM_HLOD_PROXY = 1 << 29
+/** Above them, read by the vertex stage alone, from bit 28: the HLOD index its placement draws as
+ *  (`drawnAsHlod`, `none` itself) — its cell's HLOD 0 actor (`RowCell.proxy`), an instanced actor
+ *  for a row of it (`RowCell.actor`) —, which the HLOD view colours (`diagnosticDrawnAs`), as a
+ *  page row's word says (`pageDiagnosticWord`). Written with the record, and again with the poses
+ *  (`sceneRefresh.ts`). */
+export const ITEM_HLOD = { shift: 28, mask: 0xf } as const
 
-/** The item's `ITEM_HLOD_PROXY` bit, as its row's cell says now. */
-export const itemProxyBit = ({ placement }: Pick<BlendGpuItem, 'placement'>) =>
-  placement && rowCell(placement.rows, placement.index)?.proxy ? ITEM_HLOD_PROXY : 0
+/** The item's `ITEM_HLOD` bits, as its row's cell says now. */
+export const itemHlodBits = ({ placement }: Pick<BlendGpuItem, 'placement'>) => {
+  const drawnAs = rowDrawnAs(placement && rowCell(placement.rows, placement.index))
+  return (drawnAsHlod(HLOD_INDEX.none, drawnAs) << ITEM_HLOD.shift) >>> 0
+}
 
 /** Whether the floats `item` reads carry a second UV set where `vertUv1` finds it: the float
  *  pool's, for a geometry its pages carry unquantized. A quantized page says so in its own
  *  header. */
 const floatSecondUv = (item: BlendGpuItem, blocks?: ReadonlyMap<HostAttributes, GeometryBlock>) =>
-  !!blocks?.get(item.sourceGeometry.attributes)?.hasUv1
+  !!blocks?.get(item.sourceGeometry.attributes)?.hasExtraUv
 
 /** What an item's record says of the programs and targets it needs (`writeBlendItemRecord`): the
- *  lobed programs — its surface carries a lobe, or a map reading the second UV set —, and the
+ *  lobed programs — its surface carries a lobe, or a map reading a UV set past the first —, and the
  *  history given up — its surface's history share code is not 0 (`blendShareTargets`). */
 export const ITEM_NEEDS = { lobed: 1, givesUp: 2 } as const
 
@@ -91,8 +96,8 @@ export function writeBlendItemRecord(
   const base = index * BLEND_ITEM_WORDS,
     // Read as its owner wrote it last: a surface rewritten in place is read here (#335).
     mat = item.surface,
-    // The lobed programs carry the second UV set (`vertexWgsl.ts`): a lobe's maps, and every map
-    // that reads it (glTF's `texCoord`), are read there.
+    // The lobed programs carry a UV set past the first (`vertexWgsl.ts`): a lobe's maps, and every
+    // map that reads one (glTF's `texCoord`), are read there.
     lobed = hasPhysicalLobes(mat) || channelsOf(mat, SURFACE_MAP_FIELDS) !== 0
   floats.set(item.matrix.elements, base + ITEM.world)
   // Where the instance reads what it draws, it takes it from the expanded list; the record
@@ -103,7 +108,7 @@ export function writeBlendItemRecord(
   const { flags } = rowFlags(seen.row, item.geometry, tables.textures)
   const historyCode = (flags >>> HISTORY_SHARE_SHIFT) & HISTORY_SHARE_MASK
   ints[base + ITEM.flags] =
-    item.flags | (flags & ITEM_FLAG_BITS) | (historyCode << ITEM_HISTORY_SHIFT) | itemProxyBit(item)
+    item.flags | (flags & ITEM_FLAG_BITS) | (historyCode << ITEM_HISTORY_SHIFT) | itemHlodBits(item)
   // The deformation record of its placement (`PageInfo.deform`), in the float pool that holds it.
   ints[base + ITEM.deform] = tables.deformation?.wordOfWorld(item.matrix) ?? 0
   // Its surface's record (`../materials/table/materialTable.ts`), the opaque rows' table.

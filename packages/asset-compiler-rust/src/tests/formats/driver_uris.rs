@@ -30,7 +30,7 @@ fn only_image_uri(run: &GoldenRun, plugin: &str) -> String {
 /// What the written URI is worth, and what it yields once decoded.
 fn assert_round_trip(uri: &str) {
     assert_eq!(uri, ESCAPED);
-    assert_eq!(uri::decode(uri).as_deref(), Some(AWKWARD));
+    assert_eq!(crate::support::uri::decode(uri).as_deref(), Some(AWKWARD));
 }
 
 // Behaviour 2: the `ma` driver names its texture by a URI. Maya writes a path;

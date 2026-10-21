@@ -5,20 +5,20 @@ import { listWords } from './readoutWords.ts'
 import type { DagRuntimeState } from './runtime/runtimeState.ts'
 import type { DagResources } from './resources.ts'
 import { noteWhole } from './swap/swap.ts'
-import { recutView } from './runtime/runtimeState.ts'
-import { createCoarsening, type Coarsening } from './coarsening.ts'
 import { readDagSlot } from './readbackSlot.ts'
 import { createReadbackRing, unlessRefused } from '../../gpu/core/readbackRing.ts'
 import { behind } from '../../gpu/core/behind.ts'
-import { widerFlagShape } from './flagSections.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 
-/** What a copy was cut under, taken when it is copied: the readback's cut is made of it, and the
- *  factor its threshold was cut under (`coarsening.ts`). */
-type Captured = { uniforms: SelectionUniforms; worldRevision: number; coarsen: number }
+/** What a copy was cut under, taken when it is copied: the readback's cut is made of it. */
+type Captured = { uniforms: SelectionUniforms; worldRevision: number }
 
 /** The fewest ranks of each list a copy after the first takes. */
 const ASIDE_LEAST_RANKS = 1024
+
+/** Bytes of a copy of `ranks` ranks of each list (`aside.ts`, `copyLists`): the requests and the
+ *  drawn list, a header each, then the requests' priorities. */
+export const asideCopyBytes = (ranks: number) => (2 * listWords(ranks) + ranks) * 4
 
 /** What a copy of a view's lists was: `ranks` of each list out of a list of `listCap`, the cut
  *  `serial` of `captured`, under the withdrawals in place when its encoder was submitted
@@ -37,7 +37,6 @@ type AsideState = {
   inFlight: number
   whole: number
   last: GpuCut | null
-  coarse: Coarsening
   pending: Promise<unknown>
   disposed: boolean
 }
@@ -50,9 +49,7 @@ export type AsideSlots = ReturnType<typeof createAsideSlots>
  * (`../../gpu/core/readbackRing.ts`), each made again larger when a copy needs it, read one after the
  * other behind the view's reads in flight (`pending`). `copied` is the ranks of each list the next
  * copy takes — the whole list until a readback says more —; `inFlight` the cut whose copy is being
- * read, `whole` the last cut read back whole: a cut in neither is owed a copy. `coarse` is what the
- * factor the view's threshold is cut under follows, its own as the main view's is
- * (`coarsening.ts`).
+ * read, `whole` the last cut read back whole: a cut in neither is owed a copy.
  */
 export function createAsideSlots(resources: DagResources, state: DagRuntimeState, view: number) {
   const scratch = Array.from({ length: DAG_READBACK_SLOTS }, createDagOutputScratch)
@@ -62,7 +59,6 @@ export function createAsideSlots(resources: DagResources, state: DagRuntimeState
     inFlight: -1,
     whole: -1,
     last: null,
-    coarse: createCoarsening(),
     pending: Promise.resolve(),
     disposed: false,
   }
@@ -75,7 +71,7 @@ export function createAsideSlots(resources: DagResources, state: DagRuntimeState
     resources.device,
     {
       label: 'Trillion3D DAG aside readback',
-      bytes: listWords(0) * 8,
+      bytes: asideCopyBytes(0),
       count: DAG_READBACK_SLOTS,
       chain(read, copy) {
         // A mapping cut short by `dispose` or refused: the next copy tries again. Any other error
@@ -93,8 +89,7 @@ export function createAsideSlots(resources: DagResources, state: DagRuntimeState
 }
 
 /** A copy mapped (the ring's `read`), parsed into `scratch`: the next copy sized by what the cut
- *  asked, a cut past its list grown, and the readback adopted when it holds the whole cut on the
- *  residency in place. */
+ *  asked, and the readback adopted when it holds the whole cut on the residency in place. */
 function readAsideSlot(
   own: {
     resources: DagResources
@@ -109,45 +104,25 @@ function readAsideSlot(
   const { resources, state, slots } = own,
     { ranks, listCap } = read,
     drawn = listWords(ranks)
-  const { parsed, demand, grown, grownFlags, moved, retried } = readDagSlot(
+  const { parsed, demand } = readDagSlot(
     range,
     {
-      bytes: drawn * 8,
+      bytes: asideCopyBytes(ranks),
       drawnWordOffset: drawn,
-      listCap,
+      priorityWordOffset: 2 * drawn,
       scratch,
     },
-    {
-      limits: resources.device.limits,
-      heldSlots: resources.heldSlots,
-      pageCount: resources.pageCount,
-      listFull: state.listFull,
-      coarse: slots.coarse,
-      cutFactor: read.captured.coarsen,
-      flags: {
-        shape: resources.flagShape,
-        entryCount: resources.entryCount,
-        full: state.flagsFull,
-      },
-    },
+    { feedback: resources.listFeedback, caps: resources.listCaps },
   )
   // The next copy follows what the cut asks, twice it, within the list.
   if (demand > slots.copied || 4 * demand < slots.copied)
     slots.copied = clamp(2 * demand, ASIDE_LEAST_RANKS, listCap)
-  // A cut past its list grows it, as the main cut's does (`lists/listGrowth.ts`).
-  if (grown) state.grow = Math.max(state.grow, grown)
-  // A cut that dropped work grows the queues or lists it filled, as the main cut's does
-  // (`queueGrowth.ts`), and is never adopted.
-  if (grownFlags) state.growFlags = widerFlagShape(state.growFlags, grownFlags)
-  // Past the device, its cut coarsens and the view cuts again, its truncated readout adopted
-  // never; the factor follows the readouts cut under it alone.
-  if (moved) recutView(resources.swap, own.view)
-  if (retried && (!grown || parsed?.dropped)) return
   // Lists copied short of the cut are copied again at their size; a page withdrawn since may be
-  // named by them, which the mask no longer draws: the next cut will.
+  // named by them, which the mask no longer draws: the next cut will. A cut past the readout's
+  // list is read by its head (`../cut/adoption/adoption.ts`).
   const whole = demand <= ranks || ranks === listCap
-  // Read whole on a list that stays: no copy of this cut is owed any more.
-  if (parsed && whole && !grown) slots.whole = read.serial
+  // Read whole: no copy of this cut is owed any more.
+  if (parsed && whole) slots.whole = read.serial
   if (parsed && whole && read.withdrawn === state.withdrawnRevision) {
     const { uniforms, worldRevision } = read.captured
     slots.last = { uniforms, worldRevision, result: parsed }

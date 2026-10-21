@@ -70,7 +70,7 @@ pub(super) fn smooth_normals(seed: u64) -> Case {
             let (x, y) = (sheet.x_of(v), sheet.y_of(v));
             let dx = (z((x + 1).min(NX), y) - z(x.saturating_sub(1), y)) / 2.0;
             let dy = (z(x, (y + 1).min(NY)) - z(x, y.saturating_sub(1))) / 2.0;
-            let length = trillion3d_math::vecn::length([dx, dy, 1.0]);
+            let length = trillion3d_math::vector::vecn::length([dx, dy, 1.0]);
             [-dx / length, -dy / length, 1.0 / length]
         })
         .collect();
@@ -117,7 +117,7 @@ pub(super) fn turned_around() -> [(Generator, Generator); 2] {
 /// themselves, more than a band climbs where the profile lies nearly flat: the surface folds, and
 /// some of its faces are lit from behind as written. The apex's triangles have no area once its
 /// copies are welded by position: the simplifier removes them first (the degenerate
-/// test, `qem_simplifier_fixup.rs`).
+/// test, `simplify/region/collapse/fixup.rs`).
 fn turned_rock(seed: u64) -> Case {
     let mut rng = seeded(seed);
     let mut profile = vec![[0.05 + rng.unit() * 0.25, 0.0]];

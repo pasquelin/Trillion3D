@@ -27,16 +27,13 @@ export type MovedRootTarget = Pick<WebgpuPagesRuntime, 'rootWorlds'> & {
  * The world of one placement moved: only what reads it follows, and no word of its rows is written
  * here. Its CPU box and stretch are taken again when read (`worldMoved`); its world goes to the
  * GPU (`rootWorlds.ts`), and the rows pass derives every word of its
- * rows from it (`../../placement/rows/rowWords.ts`): world words, sphere, corners, detail. Placement
+ * rows from it (`../../placement/rows/rowWords.ts`): world words, sphere, detail. Placement
  * `rank` is named beside that send: its world alone goes up to the cut (`movedWorlds.ts`), and the
  * GPU cut's tree fits again the group of the pose its send says moved (`updateWorlds`). A world
  * that turned its winding swaps the face every row of it culls: its rows are written again
  * (`markRootRows`), their draw bins made for the new one. A transparent placement claims no
  * visibility row: its caster rows move with it, and the corners of its own transparent entries are
- * derived again (`occlusionPosed`), never the table's. The
- * occlusion history of its rows is kept: a stale rectangle only moves a row between the two halves
- * of the partition, never a pixel (`../../geometry/partition/gpu/projectWgsl.ts`). Returns the rows
- * written again.
+ * derived again (`occlusionPosed`), never the table's. Returns the rows written again.
  */
 export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>, rank: number) {
   worldMoved(root)

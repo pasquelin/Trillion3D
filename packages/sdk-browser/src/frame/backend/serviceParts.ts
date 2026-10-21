@@ -6,18 +6,16 @@ import { createWebgpuRowSync } from '../../geometry/rows/sync.ts'
 import type { WebgpuResidencySets } from '../../geometry/residency/sets.ts'
 import { createWebgpuPinUpdater } from '../../geometry/residency/pinUpdater.ts'
 import { createWebgpuBootstrap } from '../loop/bootstrap.ts'
-import { createWebgpuResidentEnsurer } from '../../geometry/residency/residentEnsurer.ts'
 import { createWebgpuResidencyQueue } from '../../geometry/residency/queue.ts'
 import { createPageParents } from '../../geometry/selection/pageParents.ts'
-import type { LowerList } from '../../geometry/residency/lowerTier.ts'
 import { createGroupClosure, type GroupClosure } from '../../geometry/cut/groupClosure.ts'
 import { acceptPage, dropPage } from '../io/pageApi.ts'
-import { pageAddress, readGeometryAhead } from '../../geometry/rows/page/pageSlots.ts'
+import { readGeometryAhead } from '../../geometry/rows/page/pageSlots.ts'
 import { markWebgpuLost } from '../io/lost.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
 import { noteResidenceChange } from '../../lighting/shadows/casters/bounds.ts'
 import { rootOfPacked } from '../../geometry/selection/placements.ts'
-import { rowWrittenAsProxy } from '../prepare/worldRoot.ts'
+import { rowWrittenAs } from '../prepare/worldRoot.ts'
 
 /** The row table's sync: the residency follower, the page-row writer, the row cache. */
 export function createRowSyncFor(rt: WebgpuPagesCore) {
@@ -29,8 +27,7 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
     onOffsetChange: (page, words) => (
       rows.touchPage(page),
       updateTransparentSpan(rt, page, words),
-      rowSync.blendCasters.follow(page),
-      notePool(rt, page, words >= 0)
+      rowSync.blendCasters.follow(page)
     ),
     // A ray's record is one per primitive, shared by its placements: followed once.
     onPrimitiveChange: (page) => rt.rays?.moved(page),
@@ -45,7 +42,7 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
     rows.markRowDirty,
     (packed) => rootOfPacked(rt.layout.placement, packed),
     rt.layout.deformationOutputOf,
-    (rank) => rowWrittenAsProxy(rt.layout.selectionRoots, rank),
+    (rank) => rowWrittenAs(rt.layout.selectionRoots, rank),
   )
   // The residency log names the instances whose slot moved; the slot is read on the cache itself
   // (`../../geometry/rows/page/pageState.ts`). The row table is a cache of what the GPU cut draws and asks for
@@ -73,17 +70,9 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
     // The host's frame: the clock every cut stamps with, the rows' use words too.
     () => run.frame,
     // A request waiting for the rows' queue asks the cut to cut again and rank one.
-    () => run.gpuSelection?.askEvictions(),
+    () => run.gpuSelection?.recut(),
   )
   return rowSync
-}
-
-/** Packed page `page`'s place in the GPU's pool list (`../../geometry/dag/poolList.ts`): listed while
- *  the pool holds it and does not pin it — the GPU never ranks a page the cache would refuse. */
-function notePool(rt: WebgpuPagesCore, page: number, held: boolean) {
-  const { run, gpu } = rt,
-    rec = rt.layout.recordOf(page)
-  run.gpuSelection?.notePool(page, held && !!rec && !gpu.cache?.isPinned(pageAddress(rec)))
 }
 
 /** The bootstrap cover: the pages read before the first cut. */
@@ -107,22 +96,21 @@ export function createBootstrapFor(rt: WebgpuPagesCore, hasBytes: (rec: PageRec)
   })
 }
 
-/** The upload side of residency: the pins, the ensurer over the queue and the lower tier, the
- *  queue itself. */
+/** The streaming of the geometry pool: the root cover's pins, and the update each frame runs over
+ *  the views' readbacks (`../../geometry/residency/queue.ts`). */
 export function createResidencyFor(
   rt: WebgpuPagesCore,
   parts: {
     residencySets: WebgpuResidencySets
     closure: GroupClosure
     hasBytes: (rec: PageRec) => boolean
-    lowerTier: LowerList
-    room: () => number
+    streamingSlots: () => number
   },
 ) {
   const { run, gpu, diag, context } = rt,
-    { tracking, bootstrapKey, geometryUrls } = rt.setup,
+    { tracking, geometryUrls } = rt.setup,
     { rows } = rt.layout,
-    { residencySets, closure, hasBytes, lowerTier } = parts
+    { residencySets } = parts
   const parentsOf = createPageParents(
     rt.layout.selectionRoots,
     rt.layout.placement,
@@ -133,48 +121,38 @@ export function createResidencyFor(
     sets: residencySets,
     bootstrapKey: rt.setup.bootstrapKey,
     deferredDrops: run.deferredDrops,
-    relist: (address) =>
-      rows.instances.each(address, (page) => notePool(rt, page, !!gpu.cache?.get(address))),
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
   })
-  const ensureResident = createWebgpuResidentEnsurer({
-    getCache: () => gpu.cache,
-    tracking,
-    bootstrapKey,
-    signal: context.signal,
-    hasBytes,
-    parentsOf,
-    isLost: () => run.lost,
-    traceEnabled: diag.traceEnabled,
-    traceDiagnostic: diag.traceDiagnostic,
-    lowerTier: () => lowerTier,
-    bytesRevision: rows.touchRevision,
-    // The cover's missing pages in the order their cells' holds are read: the top layer and the
-    // nearest first (`../../geometry/hlod/hlodCells.ts`).
-    coverMissing: (holds, limit) =>
-      residencySets.coverMissing(holds, limit, (page) =>
-        page.holder === undefined
-          ? 0
-          : Math.min(context.worldRoots?.priorityOf(page.holder) ?? 0, Number.MAX_VALUE),
-      ),
-    coverLacking: residencySets.coverLacking,
-    prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
-    clock: rt.clock,
-  })
-  const residency = createWebgpuResidencyQueue({
+  const read = context.readGeometryPage
+    ? readGeometryAhead(geometryUrls, context.readGeometryPage)
+    : () => undefined
+  return createWebgpuResidencyQueue({
     tracking,
     sets: residencySets,
-    room: parts.room,
+    closure: parts.closure,
+    packedPages: rt.layout.packedPages,
+    settings: context,
+    streamingSlots: parts.streamingSlots,
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
+    isLost: () => run.lost,
     updatePins: () => pinUpdater(gpu.cache, run.shown, run.frame, (key) => dropPage(rt, key, true)),
-    closure,
-    ensureResident,
+    parentsOf,
+    hasBytes: parts.hasBytes,
+    read,
+    // The cover's missing pages in the order their holders' reads are asked: the bundle whose cell
+    // took its turn to load first, first (`../../geometry/hlod/hlodHolds.ts`); a page with no
+    // holder before them, one whose bundle no cell holds after, ties in the cover's own order.
+    // Only the order they start in: each page reads in the pages' own lane (`PRIORITY_VISIBLE`).
+    coverRank: (page) =>
+      page.holder === undefined
+        ? 0
+        : Math.min(context.worldRoots?.priorityOf(page.holder) ?? 0, Number.MAX_VALUE),
+    signal: context.signal,
     markLost: (error) => markWebgpuLost(rt, { reason: 'residency', message: String(error) }),
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
     diagnosticFailure: diag.diagnosticFailure,
   })
-  return { ensureResident, residency }
 }

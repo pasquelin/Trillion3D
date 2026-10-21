@@ -12,12 +12,10 @@ import { visibilityDepth } from '../visibility/hiz/visibilityDepth.fixture.ts'
 import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts'
 import type { VisPage } from '../visibility/types.ts'
 import type { HizPage } from '../visibility/hiz/types.ts'
-import { resolvePixelError } from '../geometry/selection/requests.ts'
 import { dagFixture } from '../geometry/selection/dag.fixture.ts'
 import { engineSites, type Site } from './parentedEngineSites.fixture.ts'
 import { createEngineCamera } from './engineCamera.ts'
 import { readCameraWorld, type HostCamera } from './world.ts'
-import type { CameraMotion } from './motion.ts'
 import { identityRoots } from '../geometry/selection/placements.fixture.ts'
 import { rasterVisibility } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { graphDraws } from '../geometry/selection/drawSource.ts'
@@ -68,7 +66,6 @@ const pureSites: Site[] = [
         view: list(u.view),
         planes: list(u.planes),
         cameraWorld: u.cameraWorld,
-        cameraStretch: u.cameraStretch,
       }
     },
   },
@@ -103,16 +100,6 @@ const pureSites: Site[] = [
       const depth = visibilityDepth(ids, vis, identityRoots(), view, RASTER)
       const rgba = shadeVisibility(ids, vis, identityRoots(), view, RASTER)
       return { ids: list(ids), depth: list(depth), rgba: list(rgba) }
-    },
-  },
-  {
-    name: 'resolvePixelError (camera speed)',
-    // Called by every engine just after updating the frame camera: same contract here.
-    create: () => ({ motion: {} as CameraMotion }),
-    measure: (state, camera: HostCamera) => {
-      const { motion } = state as { motion: CameraMotion }
-      resolvePixelError({ pixelError: 1, lodAdaptive: true }, engine(camera), motion)
-      return list(motion.last ?? [])
     },
   },
 ]

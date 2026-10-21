@@ -1,6 +1,7 @@
 /**
  * THE DEFORMATION RECORD: what the GPU deformation stage reads of one placement each frame,
- * as floats in one block the page passes bind, one record per deformed placement. A row names its
+ * as floats in one block the page passes bind, one record per deformed placement and one per track
+ * of the animation banks, whose two palettes the bank pass writes (`bankTracks.ts`). A row names its
  * record (`PageInfo.deform`, the record's first float plus one; zero, none), and the page fetch of
  * every pass — visibility, compute raster, shadow depth, resolve, transparent, temporal — moves
  * each vertex by it before anything else reads the vertex (`deformWgsl.ts`).

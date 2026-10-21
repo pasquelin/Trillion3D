@@ -1,22 +1,34 @@
 import { HIZ_KERNEL_TEXELS } from '../counts.ts'
 import { floorLog2 } from '../../../../../math/src/scalar/integers.ts'
-import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../../math/src/wgsl/decl.ts'
 import { floorLog2 as floorLog2Decl } from '../../../../../math/src/wgsl/integer.ts'
 import { HIZ_LEVELS_STRUCT_WGSL, HIZ_READ_WGSL } from './pyramidTexture.ts'
+
+/** Mip `l`'s first index in the culling layer and its width, from the levels uniform the host binds
+ *  as `hizLevels`: level 0's every layer is its own slice, a coarser level's culling bound lies
+ *  `upper` before its nearest (`hizRoute`). The one reader of a mip's place, for every host that
+ *  reads the culling layer — the transparent clusters, the cut's occlusion. */
+export const HIZ_MIP_WGSL = wgslFn(
+  'hizMip',
+  [HIZ_LEVELS_STRUCT_WGSL],
+  `fn hizMip(l:u32)->vec2u{
+ let level=hizLevels.level[l];
+ return vec2u(select(level.x-hizLevels.count.z,level.x,l==0u),level.y);
+}`,
+)
 
 /**
  * The one pick of the pyramid rectangle of a screen rectangle: clipped to the viewport, the mip
  * that covers it in fewer than `HIZ_KERNEL_TEXELS` texels a side, and the coarse pre-test mip above
- * it. Every reader of a box's pyramid rectangle calls `hizRectPick` — the partition packing the
- * tested half (`classifyRows`), its main-pass cull and the transparent-cluster test (both through
- * `hiddenByPyramid`) —, so their rectangles and levels cannot diverge. It reads no pyramid, only
+ * it. Every reader of a box's pyramid rectangle calls `hizRectPick` — the transparent-cluster test,
+ * through `hiddenByPyramid` —, so their rectangles and levels cannot diverge. It reads no pyramid, only
  * the host's uniform `uni` (`width`, `height`) and the Hi-Z levels uniform the host binds as
  * `hizLevels` (`HIZ_LEVELS_STRUCT_WGSL`): the one mip table. A rectangle no mip covers is never
  * rejected.
  */
 export const HIZ_LEVEL_WGSL = wgslBlock(
   'HIZ_LEVEL_WGSL',
-  [floorLog2Decl, HIZ_LEVELS_STRUCT_WGSL],
+  [floorLog2Decl, HIZ_LEVELS_STRUCT_WGSL, HIZ_MIP_WGSL],
   `
 /** Lowest mip where a span of \`span\` texels can fit in the kernel. */
 fn firstLevel(span:i32)->u32{
@@ -57,12 +69,6 @@ fn hizRectPick(rect:vec4i)->HizRectPick{
  let pick=hizLevelFor(r,hizLevels.count.x);
  return HizRectPick(r,pick.x,pick.z,pick.y!=0u);
 }
-/** Mip \`l\`'s first index in the culling layer and its width: level 0's every layer is its own
- *  slice, a coarser level's culling bound lies \`upper\` before its nearest (\`hizRoute\`). */
-fn hizMip(l:u32)->vec2u{
- let level=hizLevels.level[l];
- return vec2u(select(level.x-hizLevels.count.z,level.x,l==0u),level.y);
-}
 `,
 )
 
@@ -78,12 +84,12 @@ fn hizMip(l:u32)->vec2u{
  * texels hide the box, every texel of the footprint does — rejected in at most four reads. Else
  * the footprint itself decides. The rectangle is a found pick's (`hizRectPick`), in texels of its
  * mip: never empty, never wider than the kernel.
- * They read the pyramid's farthest layer through `hizCullFarthest`, the host's: the sampled read
- * (`HIZ_READ_WGSL`), or the build's own in the kernel that builds it (`shader.ts`).
+ * They read the pyramid's farthest layer through `hizCullFarthest`, the sampled read
+ * (`HIZ_READ_WGSL`), over the host's `hizPyramid` binding.
  */
 export const HIZ_HIDES_WGSL = wgslBlock(
   'HIZ_HIDES_WGSL',
-  [],
+  [HIZ_READ_WGSL],
   `
 fn texelsHide(x0:i32,y0:i32,x1:i32,y1:i32,offset:u32,width:u32,nearest:f32)->bool{
  for(var y=y0;y<=y1;y++){
@@ -105,15 +111,14 @@ fn pyramidHides(minX:i32,minY:i32,maxX:i32,maxY:i32,offset:u32,width:u32,nearest
  * Whether a pyramid hides a projected box: the unclipped rectangle is clipped to the viewport,
  * the mip that covers it is chosen, and the farthest depth read there is compared to the box's
  * nearest (`pyramidHides`, after its coarse pre-test) — reverse-Z, so hidden means SMALLER. A
- * rectangle outside the viewport, or one no mip covers, hides nothing. Reads the shared uniform
- * (`PARTITION_UNI_WGSL`), the levels uniform `hizLevels` and the sampled pyramid `hizPyramid`, which the host kernel declares
- * (`HIZ_READ_WGSL`); the opaque main-pass cull
- * and the transparent-cluster test are this same function on their own inputs, so the two rules
- * cannot diverge.
+ * rectangle outside the viewport, or one no mip covers, hides nothing. Reads the host's uniform
+ * `uni` (`PROJECTION_UNI_WGSL`), the levels uniform `hizLevels` and the sampled pyramid
+ * `hizPyramid`, which the host kernel declares (`HIZ_READ_WGSL`): the transparent-cluster test
+ * (`../../../gpu/core/transparentOcclusionWgsl.ts`).
  */
 export const HIZ_HIDDEN_WGSL = wgslBlock(
   'HIZ_HIDDEN_WGSL',
-  [HIZ_LEVEL_WGSL, HIZ_HIDES_WGSL, HIZ_READ_WGSL],
+  [HIZ_LEVEL_WGSL, HIZ_HIDES_WGSL],
   `fn hiddenByPyramid(rect:vec4i,nearest:f32)->bool{
  let p=hizRectPick(rect);
  if(!p.found){return false;}

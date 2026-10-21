@@ -62,7 +62,7 @@ pub fn collect(
     inputs: &CoplanarInputs<'_>,
     bounds: &CoplanarBounds,
     dropped: &mut usize,
-    world: &[crate::compiler_world::Mat4],
+    world: &[crate::compiler::source::node_transform::Mat4],
 ) -> Result<Vec<Surface>> {
     let nodes = values(inputs.g, "nodes")?;
     let meshes = values(inputs.g, "meshes")?;
@@ -81,7 +81,7 @@ pub fn collect(
             );
         }
         let Some((node, old_mesh, mesh_index)) =
-            crate::compiler_nodes::compiled_mesh(nodes, *node_id, inputs.mesh_map)?
+            crate::compiler::source::nodes::compiled_mesh(nodes, *node_id, inputs.mesh_map)?
         else {
             continue;
         };

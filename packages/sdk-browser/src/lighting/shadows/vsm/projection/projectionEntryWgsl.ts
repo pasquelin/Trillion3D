@@ -18,7 +18,7 @@ var<workgroup> vsmTileRead:vec2u;
 fn vsmPixelOf(tile:vec2u,groupIndex:u32)->VsmPixel{
  let rect=vsmView.projectionRect;
  var p:VsmPixel;
- p.pos=${VSM_PROJECTION_GROUP_SIZE}u*tile+vsmZOrderDecode(groupIndex)+vec2u(rect.xy);
+ p.pos=${VSM_PROJECTION_GROUP_SIZE}u*tile+zOrderDecode(groupIndex)+vec2u(rect.xy);
  p.inRect=all(p.pos<vec2u(rect.zw));
  let coord=min(p.pos,vec2u(rect.zw)-1u);
  // The surface's texels are read at once; what they feed waits for \`info.valid\`. The depth is the

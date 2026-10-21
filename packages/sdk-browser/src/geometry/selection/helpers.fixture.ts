@@ -3,6 +3,7 @@ import { dagFixture } from './dag.fixture.ts'
 import { collectClusterPages } from './collect.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
 import { graphDraws } from './drawSource.ts'
+import { CULL_STRIDE } from '../dag/types.ts'
 
 export function assertOneRepresentationPerGroup(shown: readonly string[]) {
   const drawn = new Set(shown)
@@ -32,19 +33,20 @@ export function dagCulling() {
   const node = (
     box: number[],
     sphere: number[],
-    maxParent: number,
+    [maxParent, floor]: [number, number],
     firstChild: number,
     childCount: number,
     firstPage: number,
     pageCount: number,
-  ) => [...box, ...sphere, maxParent, firstChild, childCount, firstPage, pageCount]
+  ) => [...box, ...sphere, maxParent, floor, firstChild, childCount, firstPage, pageCount]
   return {
-    stride: 15,
+    stride: CULL_STRIDE,
     count: 3,
     nodes: [
-      ...node(whole, rootSphere, -1, 1, 2, 0, 0),
-      ...node(whole, both, 0.02, 0, 0, 0, 4),
-      ...node(whole, rootSphere, -1, 0, 0, 4, 3),
+      ...node(whole, rootSphere, [-1, 0], 1, 2, 0, 0),
+      // The four leaves, no own error; the two mid clusters and the root, the mid error the least.
+      ...node(whole, both, [0.02, 0], 0, 0, 0, 4),
+      ...node(whole, rootSphere, [-1, 0.02], 0, 0, 4, 3),
     ],
   }
 }

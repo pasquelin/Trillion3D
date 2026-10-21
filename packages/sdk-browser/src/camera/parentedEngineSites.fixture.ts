@@ -69,9 +69,9 @@ function transparentFan(): SceneContext & { dispose: () => void } {
  *  release of the engine's clock. */
 type EngineState = { gpu: ReturnType<typeof fakeDevice>; backend: Engine; dispose: () => void }
 
-/** The engine's clock: still within a frame, one display frame further at each. The camera's
- *  motion — the velocity the GPU cut's view ahead reads (`./motion.ts`) — is then a function of the
- *  poses alone, never of how long a run took: the two runs compared write the same uniforms. */
+/** The engine's clock: still within a frame, one display frame further at each. What the engine
+ *  reads of time is then a function of the frame count alone, never of how long a run took: the
+ *  two runs compared write the same uniforms. */
 const clock = { ms: 0 }
 
 async function webgpuEngine(scene: SceneContext): Promise<EngineState> {

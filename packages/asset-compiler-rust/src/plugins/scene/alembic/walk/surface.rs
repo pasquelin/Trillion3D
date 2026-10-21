@@ -5,7 +5,7 @@ use super::super::kind::{kind_of, Kind};
 use super::super::mesh::{parts, FaceSet};
 use super::super::property::POD_I32;
 use super::World;
-use crate::le::words;
+use crate::support::le::words;
 use crate::Result;
 use serde_json::json;
 

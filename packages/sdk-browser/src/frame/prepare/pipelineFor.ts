@@ -7,27 +7,21 @@ import {
   BIN_NONE,
   CULL_BINS,
 } from '../../visibility/draw/contract.ts'
-import { visLayerPipelineIndex } from '../../visibility/passes/pipelines.ts'
 import { windingCw } from '../render/winding.ts'
 import type { WebgpuPagesCore } from '../backend/runtime.ts'
 
 /** The layout's selection roots, ranked by the layout's index (`rootOfPacked`). */
 type Roots = Parameters<typeof windingCw>[0]
 
-/** Layer 0's pipelines by face mode: both halves draw with them, the tested half once the
- *  rejected rows left its compaction (`GpuDraw.encodeTested`). */
+/** The pipelines by face mode: both halves — the cut's main pass and its post pass — and every
+ *  coplanar layer draw with them (`GpuDraw.encode`, `GpuDraw.encodePost`). */
 const VIS_SLOTS = ['visPipelineBack', 'visPipelineNone', 'visPipelineFront'] as const
 
-/** Pipeline of an indirect slot: layer 0 keeps its own, each later layer has the same states plus
- *  its depth bias. A slot's face rank is its bin's face mode: a cutout slot draws with its face
- *  mode's pipeline, an opaque one with that pipeline's twin, a voxel one with its voxel twin
- *  (`drawVis`). */
+/** Pipeline of an indirect slot: its bin's face mode's, whatever its layer — a layer is its rows'
+ *  own depth units (`page.depthBias`). A cutout slot draws with it, an opaque one with its twin, a
+ *  voxel one with its voxel twin (`drawVis`). */
 export function visSlotPipeline(rt: WebgpuPagesCore, slot: number) {
-  const { vis } = rt
-  const layer = Math.floor(slot / BASE_SLOTS),
-    cull = (slot % BASE_SLOTS) % CULL_BINS
-  if (layer === 0) return vis[VIS_SLOTS[cull]]
-  return vis.visLayerPipelines[visLayerPipelineIndex(layer, cull)]
+  return rt.vis[VIS_SLOTS[(slot % BASE_SLOTS) % CULL_BINS]]
 }
 
 export const visBin = (rec: PageRec, rootRank: number, roots: Roots): 0 | 1 | 2 => {

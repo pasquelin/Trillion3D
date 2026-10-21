@@ -8,6 +8,12 @@ import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { rootBlends } from '../../geometry/selection/collectBlend.ts'
+import {
+  CULL_CHILD_COUNT,
+  CULL_FIRST_CHILD,
+  CULL_FIRST_PAGE,
+  CULL_PAGE_COUNT,
+} from '../../geometry/dag/types.ts'
 
 /** Entries one counting group of the compaction covers, a lane each of one workgroup. Item ranges
  *  are aligned on it, so a group never spans two items and the per-item prefix is a walk over whole
@@ -41,14 +47,14 @@ function visitOrder(root: ClusterRoot<PageRec>) {
   let rank = 0
   while (stack.length) {
     const base = stack.pop()! * stride,
-      children = nodes[base + 12]
+      children = nodes[base + CULL_CHILD_COUNT]
     if (children > 0) {
-      const first = nodes[base + 11]
+      const first = nodes[base + CULL_FIRST_CHILD]
       for (let child = 0; child < children; child++) stack.push(first + child)
       continue
     }
-    const firstPage = nodes[base + 13]
-    for (let i = 0; i < nodes[base + 14]; i++) order[firstPage + i] = rank++
+    const firstPage = nodes[base + CULL_FIRST_PAGE]
+    for (let i = 0; i < nodes[base + CULL_PAGE_COUNT]; i++) order[firstPage + i] = rank++
   }
   return order
 }

@@ -92,15 +92,14 @@ export const MATHS_FORMS = [
 export const MATHS_HOME = 'packages/math/**'
 
 /** Where the forms are written on purpose, the declared oracles: the bench's reference
- *  implementations and the witness library, the image metric's reference, the test kit's
- *  references, the before-forms a rewrite is proved against, and the test modules, fixtures and
+ *  implementations and the witness library, the image metric's reference, the before-forms a
+ *  rewrite is proved against, and the test modules, fixtures and
  *  GPU proofs (`isTestModule`, `scripts/git/repository-files.ts`), whose expectations are their own
  *  arithmetic, independent of the code they check. */
 export const MATHS_ORACLES = [
   'bench/oracles/**',
   'bench/witnesses/**',
   'bench/runner/references/flip.ts',
-  'tests/kit/reference/**',
   '**/*Before.fixture.ts',
   '**/*.{test,fixture,perf,gpu}.{ts,mts}',
 ]

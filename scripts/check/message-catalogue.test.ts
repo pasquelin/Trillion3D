@@ -18,6 +18,16 @@ const catalogueMessages = (
 ).messages
 /** Code-shaped literals of the compiler that name something else: attributes, variables, tags. */
 const NOT_MESSAGES = new Set([
+  // The names of the WGSL constants a GPU pass's layout prints into its shader prelude
+  // (`wgsl_constants` in `hlod/flatten/approximate/gpu/layout.rs` and `bake/gpu/layout.rs`).
+  ...['ATTRIBUTE', 'BOUND', 'BOX_NODE', 'CORNER', 'FIELD_NODE', 'FRAME', 'INSTANCE'].map(
+    (record) => `${record}_RECORDS`,
+  ),
+  ...['MESH', 'NODE', 'SURFACE', 'TEXTURE', 'TRIANGLE', 'VIEW'].map(
+    (record) => `${record}_RECORDS`,
+  ),
+  'WRAP_CLAMP',
+  'WRAP_MIRROR',
   'CARGO_PKG_VERSION',
   'COLOR_0',
   'JOINTS_0',
@@ -29,7 +39,7 @@ const NOT_MESSAGES = new Set([
   'TRILLION3D_CACHE_LOCK_WAIT_MS',
   'WEIGHTS_0',
   'alembic-ogawa-1-gltf-3',
-  // The file name of a two-channel ETC2-family level (`texture_preview/blocks.rs`).
+  // The file name of a two-channel ETC2-family level (`texture/blocks.rs`).
   'eac-rg',
   'hdr-radiance-rgbe-1',
   // The oracle's discarded decode failure (`oracle/materials.rs`): a texture it leaves out of a

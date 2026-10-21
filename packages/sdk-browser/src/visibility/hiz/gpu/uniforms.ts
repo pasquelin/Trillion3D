@@ -2,26 +2,6 @@ import { uniformSlots } from '../../../session/memory/pools.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
 
-/**
- * The test slot at word `at` of `image`, the uniform buffer's words: `[width, height, rows]`, then
- * 1 at `counting` on a sampled frame, the rest of the struct zero — a pyramid of another depth may
- * have left its build words there.
- */
-export function hizTestSlot(
-  image: Uint32Array,
-  at: number,
-  width: number,
-  height: number,
-  rows: number,
-  counting: boolean,
-) {
-  image.fill(0, at, at + HIZ_SLOT_WORDS)
-  image[at] = width
-  image[at + 1] = height
-  image[at + 2] = rows
-  image[at + HIZ_UNI.at.counting] = counting ? 1 : 0
-}
-
 /** The deepest pyramid the camera builds. */
 export const HIZ_MAX_LEVELS = 16
 /** Mips one build pass reduces in workgroup memory: an 8 × 8 workgroup reduces a 16 × 16 source
@@ -30,27 +10,24 @@ export const HIZ_PASS_LEVELS = 4
 /** Threads per side of a build workgroup: each reduces one 2 × 2 square, and the workgroup
  *  halves them `HIZ_PASS_LEVELS - 1` more times down to one texel. */
 export const HIZ_BUILD_SIDE = 1 << (HIZ_PASS_LEVELS - 1)
-/** A slot's struct `Uni` (`shader.ts`): a build pass's header — its source level, then `upper`,
- *  `counting` and `front` — and one `vec4u` per level it writes, or the test's words. */
+/** A slot's struct `Uni` (`shader.ts`): a build pass's header — its source level, then `upper`
+ *  and `front` — and one `vec4u` per level it writes, aligned as WGSL aligns it. */
 export const HIZ_UNI = fieldLayout('Uni', [
   ['a', 'u32'],
   ['b', 'u32'],
   ['c', 'u32'],
   ['d', 'u32'],
   ['upper', 'u32'],
-  ['counting', 'u32'],
   ['front', 'u32'],
-  ['pad', 'u32'],
   ['dst', { wgsl: `array<vec4u,${HIZ_PASS_LEVELS}>`, words: 4 * HIZ_PASS_LEVELS, align: 4 }],
 ])
-/** Words a slot holds: a build pass's header and the levels it writes, or the test's words; its
- *  other words up to the device's alignment are never written. */
+/** Words a slot holds: a build pass's header and the levels it writes; its other words up to the
+ *  device's alignment are never written. */
 export const HIZ_SLOT_WORDS = HIZ_UNI.words
 
-/** The Hi-Z's uniform slots on a device of `limits`: the deepest pyramid's build passes, then the
- *  test's slot behind them (`hizTest`). */
+/** The Hi-Z's uniform slots on a device of `limits`: the deepest pyramid's build passes. */
 export const hizUniformSlots = (limits?: Parameters<typeof uniformSlots>[0]) =>
-  uniformSlots(limits, ceilDiv(HIZ_MAX_LEVELS - 1, HIZ_PASS_LEVELS) + 1, HIZ_SLOT_WORDS)
+  uniformSlots(limits, ceilDiv(HIZ_MAX_LEVELS - 1, HIZ_PASS_LEVELS), HIZ_SLOT_WORDS)
 
 /** One build pass: the level it reads, its size, and the count of levels it writes. */
 export type HizBuildPass = { source: number; width: number; height: number; levels: number }

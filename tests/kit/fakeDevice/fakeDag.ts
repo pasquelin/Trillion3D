@@ -1,6 +1,7 @@
 import type { PackedDag } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
 import { dagBindingOf } from '../../../packages/sdk-browser/src/geometry/dag/shader/bindings.fixture.ts'
 import { viewWord } from '../../../packages/sdk-browser/src/geometry/dag/viewLayout.ts'
+import { CLUSTER_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
 import { floats, words } from './fakeBuffers.ts'
 import { recordWord, viewTexture, worldsAtEye } from './fakeWorldPose.ts'
 import {
@@ -42,8 +43,9 @@ export function readDagUniforms(data: Uint8Array) {
       pixelError: f32[at('pixelError')],
       near: f32[at('near')],
       cameraWorld: [f32[camera], f32[camera + 1], f32[camera + 2]] as [number, number, number],
-      cameraStretch: f32[at('cameraStretch')],
-      admitByLevel: !!u32[at('admitByLevel')],
+      viewProj: f32.slice(at('viewProj'), at('viewProj') + 16),
+      depthMap: [f32[at('depthMap')], f32[at('depthMap') + 1]] as [number, number],
+      viewSize: [u32[at('viewSize')], u32[at('viewSize') + 1]] as [number, number],
     },
   }
 }
@@ -80,11 +82,12 @@ export function packedFromBindings(
   for (let w = 0; w < worldCount; w++)
     for (let page = firsts[w]; page < firsts[w] + counts[w]; page++) ranks[page] = w
   const pageIndex = indexOfRanks(ranks, worldCount)
+  const clusters = floats(byBinding.get(DAG_SLOT.clusters)!.data)
   return {
     kind: 'dag',
-    clusters: floats(byBinding.get(DAG_SLOT.clusters)!.data),
+    clusters,
     nodes: floats(byBinding.get(DAG_SLOT.nodes)!.data),
-    pageCones: floats(byBinding.get(DAG_SLOT.cold)!.data),
+    coldWords: floats(byBinding.get(DAG_SLOT.cold)!.data),
     worlds: worldsAtEye(viewTexture(worlds), byBinding.get(DAG_SLOT.views)!.data, worldCount * 16),
     // The stretch the cut reads, its own field (`frameTable.ts`).
     frameStretch: new Float32Array(
@@ -99,16 +102,12 @@ export function packedFromBindings(
     levelSizes: new Uint32Array(0),
     nodeCount,
     primitiveNodeCount: nodeCount,
-    // Two words an entry in each queue (`levelWgsl.ts`).
-    entryCount: views[viewWord('queueCap')] / 2,
-    queueEntries: views[viewWord('queueCap')] / 2,
+    // The nodes one pass opens at most, as the block holds them (`flagSections.ts`).
+    entryCount: views[viewWord('nodeBudget')],
     worldCount,
     pageCount,
-    recordCount: views[viewWord('recordCount')],
-    keyCount: views[viewWord('keyCount')],
-    groupCount: views[viewWord('groupCount')],
-    groupEdges: views[viewWord('groupEdges')],
-    candCount: views[viewWord('candCap')],
+    // The records the hot table holds room for (`layout.ts`): the uniform block names none.
+    recordCount: Math.floor(clusters.length / CLUSTER_WORDS),
     pageIndex,
     rootCount: worldCount,
     pageUrlOf: () => undefined,

@@ -19,22 +19,35 @@ export interface DrawCase {
   mask?: number[]
 }
 
-/** Words of the selection buffer ahead of the mask: the mask is read at an offset. */
+/** Words of the selection buffer ahead of the masks: each is read at an offset. */
 const MASK_OFFSET = 11
 
-/** The draw records as the card holds them, and each row's rest bit (`restBits`). */
+/** The draw records as the card holds them. */
 function records(items: DrawItem[], cap: number) {
   const n = Math.min(items.length, cap),
-    words = new Uint32Array(Math.max(1, n) * DRAW_ITEM_U32),
-    rest = new Uint32Array(Math.max(1, ceilDiv(cap, 32)))
-  for (const [i, item] of items.slice(0, n).entries()) {
+    words = new Uint32Array(Math.max(1, n) * DRAW_ITEM_U32)
+  for (const [i, item] of items.slice(0, n).entries())
     words.set(
       [item.pageIndex, item.bin, item.selectionIndex ?? 0, item.layer ?? 0, item.triangles ?? 0],
       i * DRAW_ITEM_U32,
     )
-    if (item.rest) setBit(rest, i)
+  return { n, words }
+}
+
+/** The cut's two masks in one buffer, a bit a selection index, as its passes leave them: the
+ *  main pass's at `MASK_OFFSET` — the selected rows of the main half (`rest` 0) —, the post pass's
+ *  right after it — those of the post half. Unread words around them hold ones. */
+function masks(device: GPUDevice, items: DrawItem[], cap: number, mask?: number[]) {
+  const words = ceilDiv(cap, 32),
+    held = new Uint32Array(MASK_OFFSET + 2 * words + 1).fill(0xffffffff)
+  const main = held.subarray(MASK_OFFSET, MASK_OFFSET + words).fill(0),
+    post = held.subarray(MASK_OFFSET + words, MASK_OFFSET + 2 * words).fill(0)
+  for (const item of items.slice(0, cap)) {
+    const index = item.selectionIndex ?? 0
+    if (!mask || mask[index]) setBit(item.rest ? post : main, index)
   }
-  return { n, words, rest }
+  const maskBuffer = bufferHolding(device, held, GPUBufferUsage.STORAGE)
+  return { maskBuffer, maskOffset: MASK_OFFSET, postMaskOffset: MASK_OFFSET + words }
 }
 
 export async function runCase(
@@ -44,22 +57,15 @@ export async function runCase(
   cap: number,
   { name, items, mask }: DrawCase,
 ) {
-  const { n, words, rest } = records(items, cap)
+  const { n, words } = records(items, cap)
   if (n) draw.uploadItems(words, 0, n - 1)
-  device.queue.writeBuffer(draw.restBitsBuffer, 0, rest)
-  let selection: { maskBuffer: GPUBuffer; maskOffset: number } | undefined
-  if (mask) {
-    const words = new Uint32Array(ceilDiv(cap, 32) + MASK_OFFSET).fill(0xffffffff)
-    const bits = words.subarray(MASK_OFFSET).fill(0)
-    mask.forEach((flag, index) => flag && setBit(bits, index))
-    const maskBuffer = bufferHolding(device, words, GPUBufferUsage.STORAGE)
-    selection = { maskBuffer, maskOffset: MASK_OFFSET }
-  }
+  const selection = masks(device, items, cap, mask)
   const encoder = device.createCommandEncoder()
   const pass = encoder.beginComputePass()
   draw.encode({ pass }, items.length, selection)
-  // The tested half, as the engine compacts it after the Hi-Z test (`passes/passes.ts`).
-  draw.encodeTested({ pass }, vis.table, vis.hizFlags)
+  // The post half, as the engine compacts it once the cut's post pass wrote its mask
+  // (`frame/render/encodeVisSetup.ts`).
+  draw.encodePost({ pass }, selection.postMaskOffset)
   pass.end()
   const { slots } = draw
   // Each indirect slot, then the direct page past them; both halves draw with the one pipeline.
@@ -67,12 +73,6 @@ export async function runCase(
     const render = encoder.beginRenderPass({
       colorAttachments: [
         { view: vis.views[slot], clearValue: [0, 0, 0, 0], loadOp: 'clear', storeOp: 'store' },
-        {
-          view: vis.levelViews[slot],
-          clearValue: [0, 0, 0, 0],
-          loadOp: 'clear',
-          storeOp: 'discard',
-        },
       ],
     })
     render.setPipeline(vis.pipeline)
@@ -100,6 +100,6 @@ export async function runCase(
         .sort((a, b) => a - b),
     )
   }
-  selection?.maskBuffer?.destroy()
+  selection.maskBuffer.destroy()
   return { name, instanceIds, commands, visiblePages }
 }

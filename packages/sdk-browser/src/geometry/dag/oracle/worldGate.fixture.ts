@@ -1,6 +1,6 @@
 import { worldOf, dagRecords } from '../records.fixture.ts'
 import type { PackedDag } from '../types.ts'
-import { CELL_DRAW, LINK_WORDS, PLACEMENT_BITS } from '../worlds/worldLinks.ts'
+import { ACTOR_ROW, CELL_DRAW, LINK_WORDS } from '../worlds/worldLinks.ts'
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
 
 /** The word of HLOD cell `h` of instance `k` as the host last wrote it (`../worlds/worldFollow.ts`). */
@@ -9,26 +9,27 @@ const stateOf = (packed: PackedDag, k: number, h: number) => {
   return world.states[k * world.cells + h]
 }
 
-/** The CPU mirror of `worldStateOf` (`../shader/worldGateWgsl.ts`): the word of placement `w`'s
- *  HLOD 0 cell, its placements drawn for one in no cell. */
-function placementState(packed: PackedDag, w: number) {
+/** The CPU mirror of `worldCovers` (`../shader/worldGateWgsl.ts`): whether a placement opens
+ *  nothing, neither its file's word nor its HLOD 0 cell's drawing its placements; one in neither
+ *  always opens; a row of a cell's actor opens while its cell draws that actor, never in an
+ *  instance not packed. */
+export const oracleWorldCovers = (packed: PackedDag) => (w: number) => {
   const world = packed.world
-  const h = world ? world.links[w * LINK_WORDS] : NO_INDEX
-  if (!world || h === NO_INDEX) return CELL_DRAW.placements
-  return stateOf(packed, world.links[w * LINK_WORDS + 1], h)
+  if (!world) return false
+  const h = world.links[w * LINK_WORDS],
+    k = world.links[w * LINK_WORDS + 1],
+    f = world.links[w * LINK_WORDS + 2]
+  if (h === NO_INDEX && f === NO_INDEX) return false
+  if (h !== NO_INDEX && h & ACTOR_ROW)
+    return k === NO_INDEX || (stateOf(packed, k, h & ~ACTOR_ROW) & CELL_DRAW.hlod) === 0
+  let drawn = f === NO_INDEX ? 0 : world.files[f]
+  if (h !== NO_INDEX) drawn |= stateOf(packed, k, h)
+  return (drawn & CELL_DRAW.placements) === 0
 }
 
-/** The CPU mirror of `worldCovers`: whether a placement opens nothing, its HLOD 0 cell neither
- *  drawing nor asking for its placements. */
-export const oracleWorldCovers = (packed: PackedDag) => (w: number) =>
-  (placementState(packed, w) & PLACEMENT_BITS) === 0
-
-/** The CPU mirror of `worldWaits`: whether a placement asks for its pages and draws none. */
-export const oracleWorldWaits = (packed: PackedDag) => (w: number) =>
-  (placementState(packed, w) & PLACEMENT_BITS) === CELL_DRAW.asking
-
-/** The CPU mirror of `worldHides`: whether packed page `i` is a world cluster whose cell does not
- *  draw its actor, neither drawn nor asked for. */
+/** The CPU mirror of `worldHides` — and of `worldNodeHides`, whose nodes hold one actor's pages
+ *  alone: whether packed page `i` is a world cluster whose cell does not draw its actor, neither
+ *  drawn nor asked for. */
 export function oracleWorldHides(packed: PackedDag) {
   const world = packed.world
   if (!world) return () => false

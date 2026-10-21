@@ -36,14 +36,11 @@ test('a compiled morph clip writes the exact weights the GPU placement uploads',
   } as unknown as ModelRecord)
   const placed = deformedOf(mesh, { deformation: { joints: [], targets: [1] } }, mesh.matrixWorld)!
   const frame = createDeformationFrame([placed])
-  frame.update(() => false)
+  frame.update()
   animation.createMixer(model).clipAction(model.animations[0]).seek(0.5)
   assert.equal(mesh.morphTargetInfluences![0], 0.5)
   assert.equal(frame.pending(), true)
-  assert.equal(
-    frame.update(() => false),
-    true,
-  )
+  assert.equal(frame.update(), true)
   const at = recordLayout(placed.shape).weights
   assert.deepEqual([...frame.block.slice(at, at + 2)], [0.5, 0])
 })

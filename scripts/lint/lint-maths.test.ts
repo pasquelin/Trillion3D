@@ -58,7 +58,6 @@ test('the same forms pass inside packages/math and in the declared oracles', asy
       'bench/oracles/core/planted.ts',
       'bench/witnesses/planted.ts',
       'bench/runner/references/flip.ts',
-      'tests/kit/reference/planted.ts',
       'packages/sdk-browser/src/vsm/plantedBefore.fixture.ts',
       'packages/sdk-core/src/planted.test.ts',
       'packages/sdk-browser/src/planted.fixture.ts',

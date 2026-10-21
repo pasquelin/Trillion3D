@@ -63,7 +63,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   // No pixel carries the physical lobes: their target is a texel the trace never reads.
   const lobes = texture(PHYSICAL_LOBES_FORMAT, sampled, frame.lobes ? [width, height] : [1, 1])
   // The engine's depth pyramid, its level 0 as the visibility leaves it: the image's depth.
-  const { hiz, partition } = await standaloneHiz(device, width, height)
+  const { hiz } = await standaloneHiz(device, width, height)
   const depth = hiz.depth()!
   const write = (target: GPUTexture, data: ArrayBufferView<ArrayBuffer>, size = [width, height]) =>
     device.queue.writeTexture(
@@ -180,7 +180,6 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
       standIns.dispose()
       hiz.dispose()
       lightView.dispose()
-      for (const made of partition) made.destroy()
       // The HDR target of the next turn: the rig's own, or the one the pyramid gave back.
       for (const made of [base, flags, normals, targets.hdrTexture, lobes]) made.destroy()
     },

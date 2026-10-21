@@ -11,10 +11,8 @@ import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { hostSurface, repaintHostSurface } from '../../session/world/materials/surface.ts'
 import { surfaceRow } from '../../geometry/rows/surfaceRow.ts'
-import {
-  RECEIVER_TARGET_BYTES,
-  RECEIVER_TARGET_FORMAT,
-} from '../../visibility/shader/receiverTargetWgsl.ts'
+import { RECEIVER_TARGET_BYTES } from '../../visibility/shader/receiverTargetWgsl.ts'
+import { SURFACE_WORD_LAYERS, SURFACE_WORDS_FORMAT } from './surfaceOutputs.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { wantsSubsurface } from './subsurface.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
@@ -49,20 +47,20 @@ test('enabled transmission allocates exactly eight bytes per pixel, without anot
   const enabled = createSurfaceBuffer(gpu.device, 13, 7, { subsurface: true })
   assert.equal(enabled.allocationBytes - disabled.allocationBytes, (13 * 7 - 1) * 8)
   assert.equal(enabled.views().length, 4)
-  assert.equal(enabled.subsurface.width, 13)
-  assert.equal(enabled.subsurface.height, 7)
-  // The shadow receiver target is the same with or without transmission: one texel a pixel.
-  for (const { receiver } of [disabled, enabled]) {
-    assert.equal(receiver.format, RECEIVER_TARGET_FORMAT)
-    assert.equal(
-      receiver.width * receiver.height * RECEIVER_TARGET_BYTES,
-      13 * 7 * RECEIVER_TARGET_BYTES,
-    )
+  // The transmission is one more layer of the colours, the frame's size.
+  assert.equal(enabled.hasSubsurface, true)
+  assert.equal(enabled.colours.depthOrArrayLayers, disabled.colours.depthOrArrayLayers + 1)
+  assert.equal(enabled.colours.width * enabled.colours.height, 13 * 7)
+  // The shadow receiver is the same with or without transmission: two words a pixel.
+  for (const { words } of [disabled, enabled]) {
+    assert.equal(words.format, SURFACE_WORDS_FORMAT)
+    assert.equal(words.depthOrArrayLayers, SURFACE_WORD_LAYERS)
+    assert.equal(words.width * words.height * RECEIVER_TARGET_BYTES, 13 * 7 * RECEIVER_TARGET_BYTES)
   }
   disabled.dispose()
   enabled.dispose()
-  // Seven textures each, the shadow receiver target and the lobes' 1×1 included.
-  assert.equal(gpu.destroyed.length, 14)
+  // The colours, the words and the lobes' 1×1 each, the disabled transmission's 1×1 beside.
+  assert.equal(gpu.destroyed.length, 7)
 })
 
 test('shipped thin diffuse transmission integrates to its color, dark front and shadow included', () => {

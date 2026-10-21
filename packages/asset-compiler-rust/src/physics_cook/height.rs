@@ -52,6 +52,11 @@ pub(crate) fn detect(pos: &[f32], source: &[u32]) -> Option<Grid> {
     let cell = |v: f32, origin: f32, step: f32| ((v - origin) / step).round() as usize;
     let mut point: BTreeMap<u32, (usize, usize)> = BTreeMap::new();
     let size = (nx.max(nz).max(4) + 1) & !1;
+    // The height field holds a square of samples: a long thin lattice (a road, a ribbon) would
+    // hold far more than its vertices, and collides by mesh tiles instead.
+    if size * size > 8 * used.len().max(1024) {
+        return None;
+    }
     let mut samples = vec![f32::MAX; size * size];
     for &i in &used {
         let p = &pos[i as usize * 3..i as usize * 3 + 3];

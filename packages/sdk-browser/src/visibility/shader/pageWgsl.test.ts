@@ -20,7 +20,7 @@ import { ENGINE_SHADERS } from '../../gpu/core/engineShaders.fixture.ts'
 import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
-const SMALL_SHADER = rasterSource(4, 16)
+const SMALL_SHADER = rasterSource(4)
 
 /** How many times `fragment` appears, character for character, in `text`. */
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
@@ -43,9 +43,9 @@ test('PAGE_INFO_STRUCT_WGSL declares struct PageInfo only once in every shader t
   })
 })
 
-test('edgeFunction declares fn edgeFunction only once in the small-triangle raster and in shading', () => {
+test('edgeFunction declares fn edgeFunction only once in shading', () => {
   assert.match(wgslSource(edgeFunction), /fn edgeFunction\(/)
-  eachOnce(edgeFunction.text, { SMALL_SHADER, SHADE_SHADER })
+  eachOnce(edgeFunction.text, { SHADE_SHADER })
 })
 
 test('PAGE_VERTEX_WGSL declares fn vertPos only once in the raster and shading', () => {

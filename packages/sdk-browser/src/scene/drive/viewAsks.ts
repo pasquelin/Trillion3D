@@ -12,12 +12,13 @@ type Io = Pick<PageQueue, 'readBytes'> & { pin(url: string): void; unpin(url: st
 type Ask = { url: string; stop: AbortController; read: Promise<void>; settled: boolean }
 
 /**
- * The reads the frames' view asks of `io` at the visible priority, one asker a url, each with a
- * signal of its own and one pin in the cache: a url the next frame asks again keeps its read and its
- * page, one it no longer asks is let go and unpinned, so the queue drops it while it
- * waits, its failure's wait included. A page landed therefore waits in the cache, whatever the
- * cache holds, for the frame that takes it. A frame waits on the reads it asks, whether they are new
- * or on their way since an earlier frame. One asked again after its read settled is read again.
+ * The reads the frames' view asks of `io` — at the visible priority, a cell's by its own, ahead of
+ * it (`cellPriority`) —, one asker a url, each with a signal of its own and one pin in the cache: a
+ * url the next frame asks again keeps its read and its page, one it no longer asks is let go and
+ * unpinned, so the queue drops it while it waits, its failure's wait included. A page landed
+ * therefore waits in the cache, whatever the cache holds, for the frame that takes it. A frame
+ * waits on the reads it asks, whether they are new or on their way since an earlier frame. One
+ * asked again after its read settled is read again.
  *
  * THE ONE ASKER OF THE VIEW'S READS: the cells' (`partitionFrame.ts`) and the engine's missing
  * pages (`streaming.ts`) alike, one cancel rule — only what left the plan is let go
@@ -32,9 +33,9 @@ export function createViewAsks(io: Io) {
     io.unpin(own.url)
   })
   return {
-    /** Asks `urls` in the frame under way: their landings, settled either way; `heard` hears each
-     *  read made now land or fail. */
-    ask(urls: readonly string[], heard?: AskHeard) {
+    /** Asks `urls` in the frame under way, by `priority`: their landings, settled either way;
+     *  `heard` hears each read made now land or fail. */
+    ask(urls: readonly string[], heard?: AskHeard, priority = PRIORITY_VISIBLE) {
       const reads: Promise<void>[] = []
       for (const url of urls) {
         let own = asks.touch(url)
@@ -42,7 +43,7 @@ export function createViewAsks(io: Io) {
           const stop = new AbortController()
           const ask: Ask = { url, stop, read: Promise.resolve(), settled: false }
           const settle = () => void (ask.settled = true)
-          ask.read = io.readBytes(url, stop.signal, PRIORITY_VISIBLE).then(
+          ask.read = io.readBytes(url, stop.signal, priority).then(
             (bytes) => {
               settle()
               if (!stop.signal.aborted) heard?.land(url, bytes)

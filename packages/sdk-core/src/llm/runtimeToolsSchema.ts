@@ -3,6 +3,31 @@ import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts'
 import { COMPILER_OPTIONS_SCHEMA } from './compilerOptionsSchema.ts'
 import { LEAST_POOL_BUDGET } from '../contracts/poolBudgets.ts'
 import { DIAGNOSTICS, type DiagnosticMode } from '../runtime/diagnostics.ts'
+import { RASTER_RULES } from '../contracts/rasterOptions.ts'
+import { STREAMING_RULES } from '../contracts/streamingOptions.ts'
+import { WORLD_STREAMING_RULES } from '../contracts/worldStreamingOptions.ts'
+import { CUT_RULES } from '../contracts/cutOptions.ts'
+import { ANIMATION_RULES } from '../contracts/animationOptions.ts'
+import { SHADING_RULES } from '../contracts/shadingOptions.ts'
+
+/** A tool that writes the run-time settings of the rules by field `rules`, each as the explorer's
+ *  options describe it (`EXPLORER_OPTIONS_SCHEMA`). Each call is marked pure, so a bundle that
+ *  never reads the tools drops them. */
+const settingTool = (
+  name: string,
+  description: string,
+  rules: Readonly<Record<string, unknown>>,
+): Trillion3dTool => ({
+  name,
+  description,
+  parameters: {
+    type: 'object',
+    properties: Object.fromEntries(
+      Object.keys(rules).map((field) => [field, EXPLORER_OPTIONS_SCHEMA.properties[field]!]),
+    ),
+    additionalProperties: false,
+  },
+})
 
 /** The view modes this engine can show: the others `setDiagnostic` refuses. Pure, so a bundle
  *  that never reads the tools drops it. */
@@ -80,6 +105,36 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
       additionalProperties: false,
     },
   },
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_raster',
+    'Chooses which rasterizer draws each cluster from the next frame: the compute (software) raster for clusters whose edges project small, the hardware rasterizer for the others.',
+    RASTER_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_streaming',
+    'Changes how the geometry streaming runs from its next update: the pages it keeps started at once, the pages a frame installs, and how the streaming pool load scales the screen error.',
+    STREAMING_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_world_streaming',
+    "Changes from the next frame how the view streams a partitioned scene's cells (how many load at once, their load order, the streaming circle's range or radius, a sector) and the warm-up an HLOD switch waits on.",
+    WORLD_STREAMING_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_cut',
+    "Changes from the next frame how the GPU cluster cut culls: its two-pass occlusion against the depth pyramid, its frustum and too-coarse culls, and how an upscaled image's level of detail follows the display.",
+    CUT_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_animation',
+    "Changes from the next frame the animation the GPU plays: the screen size under which an instanced skinned object stops animating and is drawn in its rest pose, whether the animation banks' tracks blend their two nearest keys, and the scale of the world's seconds they advance by.",
+    ANIMATION_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_shading',
+    "Changes from the next frame how the material pass bins each material's pixels before shading them: by pixel or by 2 × 2 quad, or as each material's shading asks. The image is the same in each mode.",
+    SHADING_RULES,
+  ),
   {
     name: 'trillion3d_add_light',
     description: 'Adds a punctual point light, spot light, or directional sunlight into the scene.',

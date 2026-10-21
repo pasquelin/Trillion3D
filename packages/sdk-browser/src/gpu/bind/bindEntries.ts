@@ -10,12 +10,11 @@ import {
 /** What every pass that samples an atlas needs to bind: the streamer, which holds each atlas's
  *  pool and page table, and the sampler. */
 export type AtlasResources = { textures: WebgpuTileStreamer; sampler: GPUSampler }
-/** Direct and indirect visibility paths supply their own flags and slot buffers. */
+/** Direct and indirect visibility paths supply their own slot buffers. */
 export type VisBindResources = AtlasResources & {
   cache: GPUBuffer
   position: GPUBuffer
   pageTable: GPUBuffer
-  flags: GPUBuffer
   uniform: GPUBuffer
   uniformOffset: number
   uv: GPUBuffer
@@ -28,9 +27,6 @@ export type VisBindResources = AtlasResources & {
 }
 /** Resources of the hardware-resolve group, identical for both of its constructors. */
 export type ShadeBindResources = AtlasResources & {
-  subsurface: GPUTextureView
-  /** The shadow receiver target (`../../visibility/shader/receiverTargetWgsl.ts`). */
-  receiver: GPUTextureView
   visView: GPUTextureView
   cache: GPUBuffer
   position: GPUBuffer
@@ -52,13 +48,11 @@ export type SmallBindResources = AtlasResources & {
   indices: GPUBuffer
   positions: GPUBuffer
   pages: GPUBuffer
-  hizFlags: GPUBuffer
   /** The visibility-buffer uniform (`VIS_UNIFORM_BYTES`), read from its first slot. */
   uniform: GPUBuffer
   uvs: GPUBuffer
-  /** The raster image then, right after it, the list of small triangles. */
+  /** The visibility buffer then, right after it, the software raster's triangle lists. */
   work: GPUBuffer
-  selectionMask: GPUBuffer
   /** The surfaces' records (`../../materials/table/materialTable.ts`). */
   material: GPUTextureView
   /** The float pool's normal atlas (`SMALL_BINDINGS.normals`). */
@@ -82,7 +76,6 @@ export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
     bufferEntry(b.cache, () => r.cache),
     bufferEntry(b.position, () => r.position),
     bufferEntry(b.pageTable, () => r.pageTable),
-    bufferEntry(b.flags, () => r.flags),
     bufferEntry(
       b.uniform,
       () => r.uniform,
@@ -105,8 +98,6 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
   const b = SHADE_BINDINGS
   return [
     resourceEntry(b.visView, () => r.visView),
-    resourceEntry(b.subsurface, () => r.subsurface),
-    resourceEntry(b.receiver, () => r.receiver),
     bufferEntry(b.cache, () => r.cache),
     bufferEntry(b.position, () => r.position),
     bufferEntry(b.uv, () => r.uv),
@@ -130,7 +121,6 @@ export function smallBindEntries(r: SmallBindResources): GPUBindGroupEntry[] {
     bufferEntry(b.indices, () => r.indices),
     bufferEntry(b.positions, () => r.positions),
     bufferEntry(b.pages, () => r.pages),
-    bufferEntry(b.hizFlags, () => r.hizFlags),
     bufferEntry(
       b.uniform,
       () => r.uniform,
@@ -141,7 +131,6 @@ export function smallBindEntries(r: SmallBindResources): GPUBindGroupEntry[] {
     ...atlasEntries(b.color, () => r.textures?.color),
     resourceEntry(b.sampler, () => r.sampler),
     bufferEntry(b.work, () => r.work),
-    bufferEntry(b.selectionMask, () => r.selectionMask),
     resourceEntry(b.material, () => r.material),
     resourceEntry(b.normals, () => r.normals),
   ]

@@ -46,7 +46,6 @@ export const VIS_BINDINGS = {
   cache: 0,
   position: 1,
   pageTable: 2,
-  flags: 3,
   uniform: 4,
   uv: 5,
   color: atlasBindings(6),
@@ -72,9 +71,6 @@ export const SHADE_BINDINGS = {
   sampler: 10,
   uniform: 11,
   data: atlasBindings(12),
-  subsurface: 17,
-  /** The shadow receiver target the resolve writes (`receiverTargetWgsl.ts`). */
-  receiver: 18,
   /** What the frame's compute passes composed for the resolve (`shadeCacheWgsl.ts`). */
   shadeCache: 19,
   /** The surfaces' records (`../../materials/table/materialTable.ts`). */
@@ -132,20 +128,19 @@ export const BLEND_BINDINGS = {
 
 /**
  * The software raster lives entirely in the compute stage, where WebGPU guarantees only eight
- * storage buffers: the image and the small-triangle list therefore share one buffer, `work`,
- * the image first and the list right after it. One binding less, and the count holds.
+ * storage buffers: the image and the triangle lists therefore share one buffer, `work`, the
+ * image first and the lists right after it. One binding less, and the count holds. Its binning
+ * binds a layout of its own (`../../visibility/raster/binWgsl.ts`).
  */
 export const SMALL_BINDINGS = {
   indices: 0,
   positions: 1,
   pages: 2,
-  hizFlags: 3,
   uniform: 4,
   uvs: 5,
   color: atlasBindings(6),
   sampler: 10,
   work: 11,
-  selectionMask: 12,
   /** The visibility raster's number: the one cutout (`maskKeepWgsl`) reads it there in both. */
   material: VIS_BINDINGS.material,
   /** The visibility raster's number: the cutout's coordinate (`pageMaskUv`) reads it there in both. */

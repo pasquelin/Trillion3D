@@ -23,8 +23,7 @@ import { closeFreeRows, followArrivals, rebuildRows, rewriteRows } from './rowPa
  * (`rowsDenied`) and the table grows by it.
  *
  * Ranks stay contiguous — every reader reads `[0, packedCount)` —: ranks a pass frees are filled
- * from the end of the table, one move each, and a rank's record, corners, sphere and occlusion
- * verdict are rewritten with it. Records are written within the frame's time budget, the rest owed
+ * from the end of the table, one move each, and a rank's record and sphere are rewritten with it. Records are written within the frame's time budget, the rest owed
  * to the next image; a page whose record is not yet written is not resident, so its ancestor draws
  * it: no hole, only a late page. A table grown in place (`grow.ts`) keeps every rank it held.
  */
@@ -121,7 +120,7 @@ function applyRows(
   // A request no row served waits for the GPU's next queue, unless it has nothing more to give.
   const refused = demand.serve(s.release, s.place, budget)
   s.denied = refused && s.order.denies(s.frame()) ? refused : 0
-  followArrivals(s, budget)
+  followArrivals(s)
   closeFreeRows(s)
   rows.clearTouched()
   seen.epoch = rows.tableEpoch

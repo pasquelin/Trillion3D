@@ -2,11 +2,11 @@
 use super::{
     OracleCamera, OracleJob, OracleLight, KIND_POINT, KIND_SPOT, KIND_SUN, ORACLE_VERSION,
 };
-use crate::compiler_validate::Fields;
+use crate::compiler::validate::Fields;
 use crate::Result;
 use serde_json::Value;
 use std::path::PathBuf;
-use trillion3d_math::vec3::normalize_where;
+use trillion3d_math::vector::vec3::normalize_where;
 
 /// The readers of a job, each refusal an invalid job.
 const JOB: Fields = Fields("INVALID_ORACLE_JOB");

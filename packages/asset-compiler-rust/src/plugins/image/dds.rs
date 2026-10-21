@@ -11,7 +11,7 @@
 //! another job. `DecodedImage` currently has two variants, `Rgba8` and `RgbaF32`
 //! (`image-plugin-2`), and this driver only returns the first. What will need adding, exactly:
 //! a third variant `DecodedImage::Blocks { codec, width, height, data }`, a `match` at the
-//! consumer (`src/texture_preview.rs:134`, today `Rgba8` read and `RgbaF32` refused by
+//! consumer (`src/texture.rs:134`, today `Rgba8` read and `RgbaF32` refused by
 //! `image-float-unsupported`) that asks for it explicitly, and a driver that returns it. The
 //! driver is already split for that: `codec` names the codec and its block geometry, `header`
 //! returns the surface and the offset of its raw bytes, `blocks` is only the reconstruction —

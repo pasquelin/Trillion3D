@@ -7,7 +7,7 @@
 //! table; that is what names the schema — `AbcGeom_Xform`, `AbcGeom_PolyMesh`, `AbcGeom_FaceSet`
 //! — and therefore what the object is.
 use super::ogawa::{invalid, is_data, Ogawa};
-use crate::le::Cursor;
+use crate::support::le::Cursor;
 use crate::Result;
 use std::path::Path;
 

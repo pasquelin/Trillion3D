@@ -129,7 +129,7 @@ export function createWebgpuTileStreamer(options: {
     /**
      * Whether every tile of slot `slot` of the `kind` atlas resides at the level whose side matches
      * `pixels`, those that do not asked for the next pass beside the feedback, within what a pass
-     * takes (`../requests.ts`, `ask`): what a switch to an HLOD actor not drawn yet waits on
+     * takes (`../requests.ts`, `ask`): what the warm-up of an HLOD actor not drawn yet asks
      * (`../../../frame/prepare/hlodWarm.ts`). Read once per image `frame` and level. A retired texture
      * or a level of the tail — always resident (`../tails.ts`) — is warm.
      */

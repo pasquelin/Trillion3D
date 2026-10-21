@@ -4,9 +4,9 @@
 use super::cut::store_shape;
 use super::mass::solid_mass;
 use super::{refused, taken};
-use crate::compiler_primitive::triangles::mesh_triangles;
-use crate::compiler_world::Mat4;
-use crate::qem::welded_region;
+use crate::compiler::primitive::triangles::mesh_triangles;
+use crate::compiler::source::node_transform::Mat4;
+use crate::simplify::welded_region;
 use crate::{Options, Result};
 use serde_json::{json, Value};
 use trillion3d_math::matrix::transform_point_f32;

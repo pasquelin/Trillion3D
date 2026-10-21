@@ -12,7 +12,7 @@ use super::*;
 
 mod read;
 
-use crate::le::Cursor;
+use crate::support::le::Cursor;
 use read::{count, half, layout, strings, tag};
 
 /// Pointer size, that of the only files this reader opens.

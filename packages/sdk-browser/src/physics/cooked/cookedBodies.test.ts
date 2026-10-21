@@ -29,7 +29,7 @@ import {
 } from '../tiles/tiles.fixture.ts'
 import { body } from '../records.fixture.ts'
 
-/** The golden hull of a unit cube from the origin (`physics_cook/mass_tests.rs`). */
+/** The golden hull of a unit cube from the origin (`tests/mass.rs`). */
 const hullBytes = async () => new Uint8Array(await fixture('cube-hull.bin'))
 const diagonal = (d: number) => [d, 0, 0, 0, d, 0, 0, 0, d]
 /** A shapeless body's cooked hull, weighed as the unit cube but about `centre`. */

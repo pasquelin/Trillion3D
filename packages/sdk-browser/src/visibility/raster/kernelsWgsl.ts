@@ -1,125 +1,82 @@
 import {
   CNT_COARSE,
   CNT_FINE,
-  CNT_HUGE,
   CNT_LARGE,
-  DISPATCH_BASE,
   FINE_PER_GROUP,
   FINE_SIDE,
   LIST_HEADER,
-  MODE_DEPTH_OCCLUDER,
-  MODE_DEPTH_REST,
+  MODE_DEPTH,
+  MODE_ID,
   RASTER_CLASSES,
   TILE,
-  TILE_ROWS,
   rasterEntry,
 } from './contract.ts'
-import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
-import { VERDICT_KEPT, VERDICT_OCCLUDER } from '../../geometry/partition/gpu/contract.ts'
-import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { FLAG_MASK } from '../types.ts'
 import { VIS_TRIANGLE_BITS } from '../visWords.ts'
 
-/** The twelve entry points: four size classes, each in the frame's three modes. */
+/** The six entry points: three size classes, each in the two modes. */
 const entryPoints = () =>
-  RASTER_CLASSES.flatMap((klass, index) =>
-    [0, 1, 2].map(
+  RASTER_CLASSES.flatMap((klass) =>
+    [MODE_DEPTH, MODE_ID].map(
       (mode) =>
-        `@compute @workgroup_size(${TILE},${TILE}) fn ${rasterEntry(klass, mode)}(@builtin(workgroup_id) g:vec3u,@builtin(local_invocation_id) l:vec3u,@builtin(num_workgroups) n:vec3u){${['fineGroup', 'coarseGroup', 'largeGroup', 'hugeGroup'][index]}(g,l,n,${mode}u);}`,
+        `@compute @workgroup_size(${TILE},${TILE}) fn ${rasterEntry(klass, mode)}(@builtin(workgroup_id) g:vec3u,@builtin(local_invocation_id) l:vec3u,@builtin(num_workgroups) n:vec3u){${klass}Group(g,l,n,${mode}u);}`,
     ),
   ).join('\n')
 
 /**
- * Compute-raster kernels: clearing the frame, binning triangles by class, turning counts into
- * dispatches, and the four classes themselves.
- *
- * **The three modes and the occlusion test.** The occluder/tested split the partition decides
- * does not travel through an extra buffer — the GPU has none left at the compute stage. It
- * travels through the verdict word each row already owns: the partition writes `0` there for
- * the occluder half and `2` for the tested half, and the Hi-Z test brings that `2` to `1` on
- * rows it rejects. Mode `0` therefore writes occluder depth — that is what the pyramid reduces
- * —, mode `1` adds the surviving tested half, and mode `2` resolves identifiers over everything
- * that was drawn. Without partition or pyramid, every word is zero: mode `0` draws the whole
- * cut and the other two add nothing, which is exactly a single-pass frame.
- *
- * Binning itself does not know the verdicts: it runs before the pyramid, hence before THIS
- * frame's test has decided anything. It bins everything the cut carries, and it is the raster
- * passes that drop rejected rows. A rejected row costs its binning, not its pixels.
+ * The class lists of one pass in the `work` buffer, as its binning appends to them and its raster
+ * passes read them: `LIST`, their header's first word, is the pipeline's override — the main
+ * pass's lists or the post pass's (`RASTER_PASSES`) —, `capacity` entries a list. Fine and coarse
+ * share `LIST_S`, the fine class from the front and the coarse one from the back: neither
+ * overflows while the other has room, and the bound held is the sum — every triangle of every
+ * row. Large has `LIST_L`.
  */
-export const rasterKernels = (capacity: number) => `
-const LIST_S:u32=LIST+${LIST_HEADER}u;
-const LIST_L:u32=LIST+${LIST_HEADER + capacity}u;
-@compute @workgroup_size(WORKGROUP_THREADS) fn clear(@builtin(global_invocation_id) gid:vec3u,@builtin(num_workgroups) n:vec3u){
- let offset=flatIndex(gid,n,WORKGROUP_THREADS);let pixels=pixelCount();if(offset>=pixels){return;}
- // Reverse-Z: the buffer starts at FAR, and the GREATEST wins afterwards.
- atomicStore(&work[offset],bitcast<u32>(${wgslF32(DEPTH_CLEAR)}));atomicStore(&work[pixels+offset],NO_INDEX);
-}
-/** Verdict of a row, the contract's VERDICT_*; a row without a Hi-Z slot is an occluder. */
-fn rowVerdict(page:PageInfo)->u32{
- if(page.hizSlot==NO_INDEX){return ${VERDICT_OCCLUDER}u;}
- return hizFlags[page.hizSlot];
-}
-/** Whether \`mode\` draws \`page\`: one half's verdict, or, for the identifiers, what draws in
- *  every pass — the one reject rule's negation (\`hizRejected\`). */
-fn modeKeeps(mode:u32,page:PageInfo)->bool{
- if(mode==${MODE_DEPTH_OCCLUDER}u){return rowVerdict(page)==${VERDICT_OCCLUDER}u;}
- if(mode==${MODE_DEPTH_REST}u){return rowVerdict(page)==${VERDICT_KEPT}u;}
- return !hizRejected(page.hizSlot);
-}
-/** A list entry becomes the triangle it names again, if the current mode draws it. */
-fn triOf(entry:u32,mode:u32)->Tri{
- var t:Tri;t.ok=0u;
- let row=entry>>${VIS_TRIANGLE_BITS}u;let page=pages[row];
- if(!modeKeeps(mode,page)){return t;}
- return setupTriangle(row,visTriangle(entry),pageTransform(page),pageWinding(page));
-}
-// The threads of a binning group share the same page: thread zero computes for them the two
-// quantities that belong only to the page, and the others reread them instead of remaking them.
-var<workgroup> rowVp:mat4x4f;
-var<workgroup> rowDet:f32;
-// One thread per triangle of the drawable rows. Survivors are binned in their class list, whose
-// order the frame cannot see: the passes resolve their pixels by a minimum.
-// A group a page row, in rows along x and y; z: the row's triangles, \`WORKGROUP_THREADS\` a group.
-@compute @workgroup_size(WORKGROUP_THREADS) fn bin(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u,@builtin(num_workgroups) n:vec3u){
- let row=flatIndex(group,n,1u);
- let live=row<uni.pageCount;
- if(live&&lane.x==0u){let page=pages[row];rowVp=pageTransform(page);rowDet=pageWinding(page);}
- workgroupBarrier();
- if(!live){return;}
- let triangle=group.z*WORKGROUP_THREADS+lane.x;
- let t=setupTriangle(row,triangle,rowVp,rowDet);
- if(t.ok==0u){return;}
- let entry=(row<<${VIS_TRIANGLE_BITS}u)|visTriangle(triangle);
- let klass=triClass(t);
- atomicStore(&work[classPlace(klass,atomicAdd(&work[LIST+klass],1u))],entry);
- if(klass==${CNT_HUGE}u){
-  // The frame's tallest box gives the z dimension of the huge-class dispatch, its triangles in
-  // rows along x and y: one group per eight-row tile, and those that overshoot their triangle's
-  // box leave at once.
-  atomicMax(&work[LIST+${TILE_ROWS}u],tileRows(t));
- }
-}
-/** Class \`k\`'s list place of its \`at\`-th entry, \`k\` its count's rank (\`CNT_*\`). Two classes per
- *  list, filled from both ends: neither overflows while the other has room, and the bound held is
- *  the sum — every triangle of every row. Fine and coarse in \`LIST_S\`, large and huge in
- *  \`LIST_L\`, the even class from the front, the odd one from the back. */
+export const rasterListWgsl = (capacity: number) =>
+  wgslBlock(
+    `rasterListWgsl(${capacity})`,
+    [],
+    `
+override LIST:u32;
+override LIST_S:u32=LIST+${LIST_HEADER}u;
+override LIST_L:u32=LIST+${LIST_HEADER + capacity}u;
+/** Class \`k\`'s list place of its \`at\`-th entry, \`k\` its count's rank (\`CNT_*\`). */
 fn classPlace(k:u32,at:u32)->u32{
- let list=select(LIST_S,LIST_L,k>=${CNT_LARGE}u);
- return select(list+at,list+${capacity}u-1u-at,(k&1u)!=0u);
+ if(k==${CNT_LARGE}u){return LIST_L+at;}
+ return select(LIST_S+at,LIST_S+${capacity}u-1u-at,k==${CNT_COARSE}u);
 }
 /** Class \`k\`'s count (\`CNT_*\`). */
 fn classCount(k:u32)->u32{return atomicLoad(&work[LIST+k]);}
-/** A list dispatch of \`groups\` in rows, and \`z\` up z. */
-fn spread(slot:u32,groups:u32,z:u32){
- let base=LIST+${DISPATCH_BASE}u+slot*3u;let grid=groupGrid(groups);
- atomicStore(&work[base],grid.x);atomicStore(&work[base+1u],grid.y);atomicStore(&work[base+2u],z);
-}
-/** Each count becomes its dispatch, without any going through the CPU. */
-@compute @workgroup_size(1) fn plan(){
- let fine=ceilDiv(classCount(${CNT_FINE}u),${FINE_PER_GROUP}u);
- spread(0u,fine,1u);
- spread(1u,classCount(${CNT_COARSE}u),1u);
- spread(2u,classCount(${CNT_LARGE}u),1u);
- spread(3u,classCount(${CNT_HUGE}u),max(1u,atomicLoad(&work[LIST+${TILE_ROWS}u])));
+`,
+  )
+
+/**
+ * Software-raster kernels: the three classes, each in the two modes, over the lists of the
+ * pipeline's pass (`LIST`).
+ *
+ * **The passes are the cut's.** Each pass has its own binning (`binWgsl.ts`), which selects its
+ * rows by its own mask — the main pass's draws before the post pass, the post pass's alone after
+ * it —, so every entry of a pass's lists is drawn by that pass: no kernel reads a verdict. The main
+ * pass's depth is what the pyramid of the post pass's test reduces; the identifiers are chosen
+ * once both passes' depths are down, over both passes' lists. An image whose cut ran in one pass
+ * has no post lists to draw.
+ */
+export const rasterKernels = (capacity: number) => `
+/** A list entry becomes the triangle it names again: set up as binning set it up
+ *  (\`setupTriangle\`), with the cutout coordinate and the vertex alpha of its corners on a masked
+ *  row — the only one that pays the read of its surface's header. */
+fn triOf(entry:u32)->Tri{
+ let row=entry>>${VIS_TRIANGLE_BITS}u;let page=pages[row];
+ let masked=(page.flags&${FLAG_MASK}u)!=0u;
+ let h=pageHeaderFor(page,masked);
+ var t=setupTriangle(row,page,h,visTriangle(entry),pageTransform(page),pageWinding(page));
+ if(t.ok!=0u&&masked){
+  let k=t.corners;
+  t.ua=vec3f(pageMaskUv(page,h,k.x),pageMaskAlpha(page,h,k.x));
+  t.ub=vec3f(pageMaskUv(page,h,k.y),pageMaskAlpha(page,h,k.y));
+  t.uc=vec3f(pageMaskUv(page,h,k.z),pageMaskAlpha(page,h,k.z));
+ }
+ return t;
 }
 // A group past its class count reads nothing useful, but it does read: its rank is clamped on
 // the list so that read stays in the buffer. Its triangle is dropped just after.
@@ -135,20 +92,20 @@ fn fineGroup(group:vec3u,lane:vec3u,n:vec3u,mode:u32){
  let i=flatIndex(group,n,1u)*${FINE_PER_GROUP}u+slot;
  if(index%${FINE_SIDE * FINE_SIDE}u==0u){
   var t:Tri;t.ok=0u;
-  if(i<classCount(${CNT_FINE}u)){t=triOf(atomicLoad(&work[classPlace(${CNT_FINE}u,i)]),mode);}
+  if(i<classCount(${CNT_FINE}u)){t=triOf(atomicLoad(&work[classPlace(${CNT_FINE}u,i)]));}
   shared_tri[slot]=t;
  }
  workgroupBarrier();
  let t=shared_tri[slot];
  if(t.ok==0u){return;}
  let pixel=index%${FINE_SIDE * FINE_SIDE}u;
- rasterPixel(t,vec2i(t.lo)+vec2i(i32(pixel%${FINE_SIDE}u),i32(pixel/${FINE_SIDE}u)),mode==2u);
+ rasterPixel(t,t.minPixel+vec2i(i32(pixel%${FINE_SIDE}u),i32(pixel/${FINE_SIDE}u)),mode);
 }
 /** Triangle this group rasters, prepared by one thread and reread by the sixty-four. */
-fn oneTri(entry:u32,valid:bool,lane:vec3u,mode:u32)->Tri{
+fn oneTri(entry:u32,valid:bool,lane:vec3u)->Tri{
  if(lane.x==0u&&lane.y==0u){
   var t:Tri;t.ok=0u;
-  if(valid){t=triOf(entry,mode);}
+  if(valid){t=triOf(entry);}
   shared_tri[0]=t;
  }
  workgroupBarrier();
@@ -157,36 +114,25 @@ fn oneTri(entry:u32,valid:bool,lane:vec3u,mode:u32)->Tri{
 fn coarseGroup(group:vec3u,lane:vec3u,n:vec3u,mode:u32){
  let i=flatIndex(group,n,1u);
  let live=i<classCount(${CNT_COARSE}u);
- let t=oneTri(select(0u,atomicLoad(&work[classPlace(${CNT_COARSE}u,held(i))]),live),live,lane,mode);
+ let t=oneTri(select(0u,atomicLoad(&work[classPlace(${CNT_COARSE}u,held(i))]),live),live,lane);
  if(t.ok==0u){return;}
- rasterPixel(t,vec2i(t.lo)+vec2i(lane.xy),mode==2u);
+ rasterPixel(t,t.minPixel+vec2i(lane.xy),mode);
 }
-// Pixel of tile (tx,ty) of a box: rasterPixel drops those that leave the frame.
+// Pixel of tile (tx,ty) of a box: rasterPixel drops those past it.
 fn tilePixel(t:Tri,lane:vec3u,tx:u32,ty:u32)->vec2i{
- return vec2i(t.lo)+vec2i(i32(tx*${TILE}u+lane.x),i32(ty*${TILE}u+lane.y));
+ return t.minPixel+vec2i(i32(tx*${TILE}u+lane.x),i32(ty*${TILE}u+lane.y));
 }
 fn largeGroup(group:vec3u,lane:vec3u,n:vec3u,mode:u32){
  let i=flatIndex(group,n,1u);
  let live=i<classCount(${CNT_LARGE}u);
- let t=oneTri(select(0u,atomicLoad(&work[classPlace(${CNT_LARGE}u,held(i))]),live),live,lane,mode);
+ let t=oneTri(select(0u,atomicLoad(&work[classPlace(${CNT_LARGE}u,held(i))]),live),live,lane);
  if(t.ok==0u){return;}
+ // At most eight tiles an axis: the setup holds every box to \`MAX_SPAN\`.
  let cols=tileCols(t);let rows=tileRows(t);
  for(var ty=0u;ty<rows;ty=ty+1u){
   for(var tx=0u;tx<cols;tx=tx+1u){
-   rasterPixel(t,tilePixel(t,lane,tx,ty),mode==2u);
+   rasterPixel(t,tilePixel(t,lane,tx,ty),mode);
   }
- }
-}
-// The huge class no longer loops over its tile rows: each is one more group, taken on the
-// dispatch z dimension. A group whose row overshoots its triangle's box leaves.
-fn hugeGroup(group:vec3u,lane:vec3u,n:vec3u,mode:u32){
- let i=flatIndex(group,n,1u);
- let live=i<classCount(${CNT_HUGE}u);
- let t=oneTri(select(0u,atomicLoad(&work[classPlace(${CNT_HUGE}u,held(i))]),live),live,lane,mode);
- if(t.ok==0u||group.z>=tileRows(t)){return;}
- let cols=tileCols(t);
- for(var tx=0u;tx<cols;tx=tx+1u){
-  rasterPixel(t,tilePixel(t,lane,tx,group.z),mode==2u);
  }
 }
 ${entryPoints()}

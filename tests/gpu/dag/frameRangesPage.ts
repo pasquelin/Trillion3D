@@ -16,6 +16,7 @@ import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/
 import { dagDeviceRefusal } from '../../../packages/sdk-browser/src/geometry/dag/deviceRefusal.ts'
 import { dagBindEntries } from '../../../packages/sdk-browser/src/geometry/dag/shader/bindings.ts'
 import { selectionListCap } from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
+import { priorityWord } from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
 import { cutTablesAt } from '../../../packages/sdk-browser/src/geometry/dag/queueGrowth.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/geometry/dag/shader/viewsWgsl.ts'
 import { residentAll } from '../../../packages/sdk-browser/src/geometry/dag/residentAll.fixture.ts'
@@ -66,15 +67,7 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
     const at = cutTablesAt(resources)
     for (const pixelError of pixelErrors) {
       const block = new Float32Array(DAG_UNIFORM_BYTES / 4)
-      writeDagUniforms(
-        block,
-        packed,
-        { ...uniforms, pixelError },
-        resources.listCap,
-        undefined,
-        1,
-        at,
-      )
+      writeDagUniforms(block, packed, { ...uniforms, pixelError }, resources.listCap, undefined, at)
       device.queue.writeBuffer(resources.uniforms, 0, block)
       const encoder = device.createCommandEncoder()
       encodeDagKernels(encoder, resources)
@@ -83,7 +76,7 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
         (await readGpuBuffer(device, resources.output, resources.readbackBytes))!.buffer,
         0,
         resources.readbackBytes,
-        resources.outputBytes / 4,
+        { drawn: resources.outputBytes / 4, priorities: priorityWord(resources.listCap) },
       )
       if (!result) throw new Error('unreadable output')
       cuts.push({
@@ -95,6 +88,7 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
     }
     for (const buffer of resources.buffers) buffer.destroy()
     for (const { texture } of resources.textures) texture.destroy()
+    resources.occlusion.dispose()
     return cuts
   }
   const whole = await cut(device)

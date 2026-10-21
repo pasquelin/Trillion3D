@@ -7,7 +7,12 @@ import { FLAG_TRANSMISSIVE } from '../visibility/types.ts'
 import { emptyGeometryBlock } from '../geometry/rows/page/pageRowMaterial.ts'
 import { neverCulled } from '../visibility/shader/spriteWgsl.ts'
 import type { WebgpuBlendState } from './state.ts'
-import { FLAG_COLOR, FLAG_NORMAL, FLAG_UV } from '../../../sdk-core/src/page/format.ts'
+import {
+  FLAG_COLOR,
+  FLAG_NORMAL,
+  FLAG_TANGENT,
+  FLAG_UV,
+} from '../../../sdk-core/src/page/format.ts'
 
 /** Creates forward transparent GPU items, one per copy — per placement —, in source mesh order, and
  *  returns how many items transmit. The copies of a session that gains some later are given the
@@ -59,8 +64,8 @@ const sortPriority = (order: number) => clamp(Math.trunc(order), -0x8000, 0x7fff
 
 /** What a copy's geometry brings to its item's flags, as a page row's block (`GeometryBlock`): the
  *  record writer derives them with the surface's by `rowFlags`, as a row does — the attributes its
- *  quantized pages carry (`pageFlags`), else its source geometry's. A page stores no tangent: the
- *  fragment stage rebuilds the frame, as the opaque resolve does. */
+ *  quantized pages carry (`pageFlags`), else its source geometry's. A page that stores no tangent
+ *  (`FLAG_TANGENT`) leaves the fragment stage to rebuild the frame, as the opaque resolve does. */
 const blendGeometry = (copy: BlendCopy) => {
   const flags = copy.userData.pageFlags
   if (flags !== undefined)
@@ -68,7 +73,7 @@ const blendGeometry = (copy: BlendCopy) => {
       ...emptyGeometryBlock(),
       hasUv: (flags & FLAG_UV) !== 0,
       hasNormal: (flags & FLAG_NORMAL) !== 0,
-      hasTangent: false,
+      hasTangent: (flags & FLAG_TANGENT) !== 0,
       hasColor: (flags & FLAG_COLOR) !== 0,
       quantized: true,
     }

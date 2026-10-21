@@ -2,7 +2,7 @@ import type { WebgpuVisState } from './vis.ts'
 
 /** The visibility path's parts prepare makes whole, or refuses the scene by name
  *  (`../../prepare/visibility.ts`): one path, no second image configuration (#1483). */
-type PreparedPart = 'gpuDraw' | 'gpuHiz' | 'gpuPartition'
+type PreparedPart = 'gpuDraw' | 'gpuHiz'
 
 /** `vis`'s `part`, read at frame time: never absent past prepare, so its absence is a broken
  *  invariant, said by name — never an image drawn another way. */

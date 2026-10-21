@@ -58,6 +58,24 @@ fn decoded_rgba8(driver: &str, name: &str, max_alloc: u64, size: (u32, u32)) -> 
     decoded
 }
 
+/// The pixels `decoded_rgba8` yields, in read order of the decoded image.
+fn rgba8_pixels(driver: &str, name: &str, max_alloc: u64, size: (u32, u32)) -> Vec<[u8; 4]> {
+    let image = decoded_rgba8(driver, name, max_alloc, size);
+    image.pixels().map(|pixel| pixel.0).collect()
+}
+
+/// The float pixels the registry yields for a fixture, in read order of the decoded image: this
+/// driver claims it by its bytes, and it has the expected dimensions.
+fn f32_pixels(driver: &str, name: &str, max_alloc: u64, size: (u32, u32)) -> Vec<[f32; 4]> {
+    let bytes = fixture(driver, name);
+    let claimed = image::by_head(&bytes).expect("a driver claims these bytes");
+    assert_eq!(claimed.name(), driver, "{name}");
+    let (width, height, data) =
+        rgba_f32(image::decode(&bytes, max_alloc).unwrap_or_else(|e| panic!("{name}: {e}")));
+    assert_eq!((width, height), size, "{name}");
+    data.as_chunks::<4>().0.to_vec()
+}
+
 /// What a driver claims by extension: each writing names it, under its MIME type.
 fn assert_claims(driver: &str, mime: &str, extensions: &[&str]) {
     for extension in extensions {

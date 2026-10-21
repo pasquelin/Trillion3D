@@ -1,68 +1,37 @@
 import type { SelectionResult } from '../../gpu/core/selection.ts'
 import { parseDagOutput, type DagOutputScratch } from './uniforms.ts'
-import { grownListCap, listDemand } from './lists/listCap.ts'
-import { coarsenAfter, type Coarsening } from './coarsening.ts'
-import type { Limits } from './deviceListCap.ts'
-import { grownFlagShape, type FlagShape } from './flagSections.ts'
+import { listDemand } from './lists/listCap.ts'
+import type { ListFeedback } from './lists/listFeedback.ts'
+import type { CutListCaps } from './lists/cutListCaps.ts'
 
 /** Where a readback's lists lie and what they are read into: the bytes copied, the drawn list's
- *  first word, the cap of the list they were cut on, and the read's arrays. */
+ *  first word, the requests' priorities' first word, and the read's arrays. */
 export type SlotRead = {
   bytes: number
   drawnWordOffset: number
-  listCap: number
+  priorityWordOffset: number
   scratch: DagOutputScratch
 }
 
 /**
  * THE ONE READ OF A CUT'S READBACK, the main view's (`dispatch.ts`) and a view's drawn aside
  * (`aside.ts`), over the `range` its ring mapped (`../../gpu/core/readbackRing.ts`): its lists parsed
- * into the read's arrays, the ranks the cut asked of its readout (`listDemand`), the cap a cut
- * past its list grows to (`grownListCap`, none once the device refused a larger one), the queues
- * and lists a cut that dropped work grows to (`grownFlagShape`, none once the device refused
- * larger ones), the view's factor followed (`coarsenAfter`) when the readout was cut under it
- * (`cutFactor`), and given back. `moved`: the factor moved, and the view cuts again; `retried`:
- * the cut dropped work, the list grows, or the cut overflowed under another factor than the
- * view's now, and the readout is not adopted. `land` reads the mapped words before they go.
+ * into the read's arrays, the ranks the cut asked of its readout (`listDemand`) — a cut past the
+ * readout's list is read by its head (`../cut/adoption/adoption.ts`) —, what it asked of its lists
+ * noted against the caps they hold (`lists/listFeedback.ts`), and given back. A cut past a list's
+ * cap drew what fit: its readback is the image's, adopted as any. `land` reads the mapped words
+ * before they go.
  */
 export function readDagSlot(
   range: ArrayBuffer,
   read: SlotRead,
-  growth: {
-    limits: Limits
-    pageCount: number
-    /** The slots of open counts its readout holds behind its lists (`heldOpen.ts`). */
-    heldSlots?: number
-    listFull: boolean
-    coarse: Coarsening
-    cutFactor: number
-    /** The cut's `flags` as it is, every entry its queues may hold, and whether the device refused
-     *  a larger one (`queueGrowth.ts`). */
-    flags: { shape: FlagShape; entryCount: number; full: boolean }
-  },
-  land?: (words: ArrayBuffer, parsed: SelectionResult | null, retried: boolean) => void,
+  lists: { feedback: ListFeedback; caps: CutListCaps },
+  land?: (words: ArrayBuffer, parsed: SelectionResult | null) => void,
 ) {
   const demand = listDemand(range, read.drawnWordOffset)
-  const parsed = parseDagOutput(range, 0, read.bytes, read.drawnWordOffset, read.scratch)
-  const grown =
-    parsed?.truncated && !growth.listFull
-      ? grownListCap(growth.limits, growth.pageCount, read.listCap, demand, growth.heldSlots)
-      : undefined
-  // A cut that dropped work grows what was full; its demand, short of the work dropped, tells the
-  // factor nothing unless nothing can grow.
-  const dropped = parsed?.dropped ?? 0,
-    { coarse, cutFactor, flags } = growth
-  const grownFlags =
-    dropped && !flags.full
-      ? grownFlagShape({ ...flags, pageCount: growth.pageCount }, flags.shape, dropped)
-      : undefined
-  const past = (!!parsed?.truncated && !grown) || (!!dropped && !grownFlags)
-  const moved =
-    !!parsed &&
-    !grownFlags &&
-    cutFactor === coarse.factor &&
-    coarsenAfter(coarse, demand, read.listCap, past)
-  const retried = !!grown || !!dropped || (past && coarse.factor !== cutFactor)
-  land?.(range, parsed, retried)
-  return { parsed, demand, grown, grownFlags, moved, retried }
+  const at = { drawn: read.drawnWordOffset, priorities: read.priorityWordOffset }
+  const parsed = parseDagOutput(range, 0, read.bytes, at, read.scratch)
+  if (parsed?.peaks) lists.feedback(parsed.peaks, lists.caps)
+  land?.(range, parsed)
+  return { parsed, demand }
 }

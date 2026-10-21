@@ -150,9 +150,11 @@ closed first):
 - `camera`, `cutCamera`: the eye, its forward axis, the near plane's four corners and the edges
   leaving them (the far plane is at infinity). `cutCamera` is the camera the cut was made from.
 - `clusters`: the cut's clusters, up to 2^18. Each has a world box (`bounds`), a DAG `level`
-  (0 is the finest), its `triangles` and a `state` from `CLUSTER_STATE`: `kept`, `occluded` (the
-  occlusion test rejected it) or `missing` (not resident, its ancestor drew instead).
-  `frustumRejected` counts the clusters cut outside the frustum.
+  (0 is the finest), its `triangles` and a `state` from `CLUSTER_STATE`: `kept` (drawn by the
+  cut's main pass or its post pass) or `missing` (asked and not resident, its ancestor drew
+  instead). `frustumRejected` counts the clusters cut outside the frustum; `occluded` the items the
+  previous image's depth hid in the main pass, held for the post pass, and `postHidden` those the
+  post pass's depth then hid for good.
 - `shadows`: one record per shadow map. A sun's clipmap level places its mapped pages as four
   world corners each, on the plane through the level's centre facing the light. `rendered` marks
   the pages drawn this image; the others served their cached depth. A local light's map counts
@@ -214,16 +216,16 @@ Thirteen families describe the scene:
 Eight more exist because geometry is **cut into pages** the engine moves in and out of memory
 according to what the frame reads:
 
-| Family       | Members                                                                        | What it does                                                     | Example                                                                                                                                            |
-| ------------ | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `page`       | `createStreamer`, `createCache`, `httpSource`, `decode`                        | geometry in pages                                                | `page.createStreamer({ source: page.httpSource('assets/forest/', { pages, cache: createPageCache() }) })`, passed as `scene.load(url, { stream })` |
-| `budget`     | `geometryPool`, `texturePool`                                                  | fixed envelopes, not wishes                                      | `world.budget.geometryPool = 512 * 1024 * 1024`                                                                                                    |
-| `metric`     | `frame`, `gpuPasses`                                                           | what the image cost, never estimated                             | `metrics.selectedTriangles`, `metrics.residentPages` in `world.onFrame`; `metric.gpuPasses(world)`                                                 |
-| `diagnostic` | `createChannel`, `presentationColor`, `partitionAudit`, `transparentOcclusion` | watching the engine work                                         | `world.diagnostic.mode = 'clusters'` (or `'wireframe'`, `'triangles'`, `'beauty'`)                                                                 |
-| `capability` | `detect`, `lighting`                                                           | what the machine grants, before an image is promised             | `(await capability.detect()).webgpu`                                                                                                               |
-| `capture`    | `surface`, `buffer`                                                            | an image aside, at another resolution, without touching the view | `capture.surface(world, { width: 3840, height: 2160 })`                                                                                            |
-| `pose`       | `fromBounds`, `runPath`, `pointOfInterest`                                     | named poses, automatic framing, replaying a path                 | `world.camera.set(pose.fromBounds(math.box3().setFromObject(set)))`                                                                                |
-| `batch`      | `transformPoints`, `composeMatrix4`, `frustumKeepsBox`                         | a thousand matrices at once instead of a loop                    | `batch.composeMatrix4(outputs, positions, quaternions, scales, 1000)`                                                                              |
+| Family       | Members                                                      | What it does                                                     | Example                                                                                                                                            |
+| ------------ | ------------------------------------------------------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `page`       | `createStreamer`, `createCache`, `httpSource`, `decode`      | geometry in pages                                                | `page.createStreamer({ source: page.httpSource('assets/forest/', { pages, cache: createPageCache() }) })`, passed as `scene.load(url, { stream })` |
+| `budget`     | `geometryPool`, `texturePool`                                | fixed envelopes, not wishes                                      | `world.budget.geometryPool = 512 * 1024 * 1024`                                                                                                    |
+| `metric`     | `frame`, `gpuPasses`                                         | what the image cost, never estimated                             | `metrics.selectedTriangles`, `metrics.residentPages` in `world.onFrame`; `metric.gpuPasses(world)`                                                 |
+| `diagnostic` | `createChannel`, `presentationColor`, `transparentOcclusion` | watching the engine work                                         | `world.diagnostic.mode = 'clusters'` (or `'wireframe'`, `'triangles'`, `'beauty'`)                                                                 |
+| `capability` | `detect`, `lighting`                                         | what the machine grants, before an image is promised             | `(await capability.detect()).webgpu`                                                                                                               |
+| `capture`    | `surface`, `buffer`                                          | an image aside, at another resolution, without touching the view | `capture.surface(world, { width: 3840, height: 2160 })`                                                                                            |
+| `pose`       | `fromBounds`, `runPath`, `pointOfInterest`                   | named poses, automatic framing, replaying a path                 | `world.camera.set(pose.fromBounds(math.box3().setFromObject(set)))`                                                                                |
+| `batch`      | `transformPoints`, `composeMatrix4`, `frustumKeepsBox`       | a thousand matrices at once instead of a loop                    | `batch.composeMatrix4(outputs, positions, quaternions, scales, 1000)`                                                                              |
 
 `metric.frame(world)` is never `null`: before the first frame it holds every metric key, the
 totals (`cpuFrameMs`, `pageLoads`, `pageBytesRead`) at zero and every measure `null` — not measured,
@@ -302,8 +304,9 @@ The drawing buffer follows the canvas's CSS box, and `pixelRatio` the browser's,
 zero-size at creation needs an explicit `resize()` or showing first; one hidden later keeps its last
 size.
 
-`world.pixelError` is the DAG cut's screen error in pixels (`0` by default, the exact leaves; a
-positive value selects coarser pages when the cache has them). `pose.fromBounds(box)` frames a box,
+`world.pixelError` is the DAG cut's screen error in pixels (`1` by default: a coarser level strays
+at most one pixel from the finer one; `0` keeps the exact leaves, a larger value selects coarser
+pages when the cache has them). `pose.fromBounds(box)` frames a box,
 `pose.pointOfInterest(name, pose)` names one, `pose.runPath(world, poses, { images })` replays a
 path, one display frame per pose, and answers the frames drawn, their CPU time summarized and the
 display cadence.
@@ -311,6 +314,45 @@ display cadence.
 `world.temporalAntialiasing` (option of `createWorld` too, `true` by default) jitters each image by
 a sub-pixel offset and accumulates; `false` draws pixel centres with no history, as a pixel-exact
 capture needs. A write applies next frame, no session reopened; a read says what the image carries.
+
+`world.softwareRaster` (option of `createWorld` too, `true` by default) rasters in compute each
+cluster whose longest edge projects under `world.hardwareRasterEdgePixels` (option of `createWorld`
+too, `32` by default, a finite number of pixels above zero) and whose box crosses neither clip
+plane; every other cluster goes to the hardware rasterizer, and `false` hands it every one. Both are
+render settings: the page's value holds over the quality preset, a write applies next frame, and a
+value of another kind is refused by name.
+
+```js
+const world = createWorld('viewer', { softwareRaster: true, hardwareRasterEdgePixels: 32 })
+world.softwareRaster = false // every cluster on the hardware rasterizer, from the next frame
+world.hardwareRasterEdgePixels = 16 // fewer clusters on the software raster
+```
+
+`world.cut` holds the cut's settings, each an option of `createWorld` too: `cutTwoPassOcclusion`
+(`true`: the main view tests what it cuts against the previous image's depth, then what that hid
+against the depth it just drew), `cutOcclusionCulling`, `cutFrustumCulling` and `cutMinLodCulling`
+(`true`: each test on), `cutLodBiasFollowsUpscale` (`true`: an upscaled image's screen error follows
+the display over the render width), `cutLodBiasOffset` (`0`) and `cutLodBiasMin` (`-2`), that bias's
+offset and floor in powers of two, and the caps of its lists, `cutMaxNodes` (`2097152`),
+`cutMaxCandidateClusters` (`16777216`) and `cutMaxVisibleClusters` (`4194304`): past one, the cut
+draws what fits and warns. A write names the settings it changes, `null` one's default; a
+value of another kind is refused by name ([ENGINE.md](ENGINE.md#webgpu-page-raster)).
+
+```js
+const world = createWorld('viewer', { cutTwoPassOcclusion: true })
+world.cut = { cutLodBiasFollowsUpscale: false } // the screen error ignores the upscale, next frame
+```
+
+`world.shading` holds the material pass's settings, each an option of `createWorld` too:
+`shadeBinningMode` (`'auto'`: each material's pixels binned as its shading asks — one by one for
+every material of the engine —, `'pixel'` one by one, `'quad'` by 2 × 2 quad). The image is the same
+in each mode. A write names the settings it changes, `null` one's default; a value of another kind
+is refused by name ([ENGINE.md](ENGINE.md#material-surfaces)).
+
+```js
+const world = createWorld('viewer', { shadeBinningMode: 'pixel' })
+world.shading = { shadeBinningMode: 'quad' } // every material binned by quad, next frame
+```
 
 `world.renderScale` (option of `createWorld` too, `'auto'` by default) is the per-axis fraction of
 the display drawn before temporal antialiasing rebuilds the image: `'auto'` is a dynamic
@@ -475,8 +517,10 @@ an option changed (`session-reopen`, `cause`).
 `clearcoat` and `clearcoatRoughness`, drawn with `anisotropyMap` (RG the direction, B the
 strength), `clearcoatMap` (R), `clearcoatRoughnessMap` (G) and `clearcoatNormalMap`
 (`clearcoatNormalScale`), each map at its native size with its own filters, wrap, transform and UV
-channel, read as linear data. The second UV channel (`TEXCOORD_1`) is read from the compiled
-geometry page or from the source geometry; a geometry without one reads the first. The coat lies
+channel, read as linear data. A map reads the UV channel its `texCoord` names, `TEXCOORD_0` to
+`TEXCOORD_3`, from the compiled geometry page (four sets) or from the source geometry (two); a
+geometry without that set reads the first. A transparent surface carries the first set and one
+more, the first past it that one of its maps reads. The coat lies
 over every light, the environment and bounced light, on an opaque surface as on a
 blended or a transmissive one — whose transmitted light passes under it; a rectangle light
 stretches its specular lobe along the anisotropy.
@@ -803,7 +847,7 @@ What a host sets and reads; the pools' mechanics are [RESIDENCY.md](RESIDENCY.md
 | --------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `world.budget.gpu`          | 2 179 MiB                    | every GPU pool together, divided by `world.budget.split`                                                             |
 | `world.budget.cpu`          | the page cache's own default | what the world keeps in CPU memory                                                                                   |
-| `world.budget.geometryPool` | 512 MiB                      | cluster page slots, the root cover always resident; clamped to `geometryPoolCeiling`; the call a memory slider makes |
+| `world.budget.geometryPool` | 512 MiB                      | slots of a 128 KiB streaming page each, the root pages held beside them in the root region; clamped to `geometryPoolCeiling`; the call a memory slider makes |
 | `world.budget.texturePool`  | 512 MiB                      | virtual-texture tiles, every texture's tail always resident; clamped to `texturePoolCeiling`                         |
 | `world.budget.canvas`       | 3840 × 2160                  | the largest drawing buffer, `{ width, height }`, the effect targets are reserved at                                  |
 | `world.budget.physics`      | `DEFAULT_PHYSICS_BUDGET`     | [PHYSICS.md](PHYSICS.md#budgets)                                                                                     |
@@ -834,7 +878,15 @@ budget` with the bytes past the reserve.
 The low-level `createGpuPageCache` pins in tiers: `cache.pin(key, 'held')` for the root cover,
 `cache.pin(key)` for ordinary pins; `cache.resize(slots)` keeps held pages, then pinned, then
 unpinned, newest first in each; `cache.load(key, signal, 'held')` pins a page as it arrives;
-repinning never lowers a held page; `cache.unpin(key)` releases both.
+repinning never lowers a held page; `cache.unpin(key)` releases both. Its `units` option names each
+key's streaming page and offset there (`{ unit, offset }`): a slot of `pageBytes` holds one
+streaming page, its pages packed at their offsets, a victim's slot given up with every page of it;
+a key it names none of is a streaming page alone. Its `roots` option (`{ slots, bytes }`, counted
+in `slots`) lays a root region behind the streaming slots: the streaming pages of the `rootUrls`
+keys — the root pages — take its grains of `bytes`, never a streaming slot;
+`cache.resize(slots, grown, roots)` lays it anew, the one in place kept when absent, and
+`cache.rootRoom()` counts its free grains. `GeometryPool.roots` is the region the engine draws: it
+opens at 2048 grains within the scene's root pages and grows as HLOD cells hold theirs.
 
 **Coarser, never refused.** What a view asks beyond a pool is drawn coarser, by
 the nearest resident ancestor or a texture tile's coarser level: `coverageBudgetLimited` and
@@ -869,8 +921,7 @@ its last image. Each session reopen, a recovery included, is said once as `sessi
 `cause` (`device-lost` or `option`, nothing else: no change to the scene's content opens a session
 again), `durationMs` (from the loss, for a lost device), `framesWithoutImage`, `keptPages`. A mesh, a material, a model with its
 cells or a world the scene gains joins the running session in place, and one it loses is parked.
-What the session cannot take in place — a catalogue past its keys (`KEY_PAGE_MAX`), a pool or a pass
-the device refuses, a picture that changed size where the atlas layout is fixed — is said by name,
+What the session cannot take in place — a pool or a pass the device refuses, a picture that changed size where the atlas layout is fixed — is said by name,
 once, as `content-refused` (`kind: 'error'`, `what`, `reason`); the rest of the scene is drawn as it
 was.
 
@@ -926,6 +977,10 @@ key. `animation.twoBoneIK(root, mid, end, target, pole?, weight?)` solves a bone
 sampling; `animation.windClip(bones, options?)` loops bones (`direction: [x, z]`, `angle` in
 radians, `frequency` in Hz). `mesh.waves` shares the physics' waves with a water mesh
 ([PHYSICS.md](PHYSICS.md)).
+
+An instanced skinned object a compile named (`objectSettings.skinnedInstance`,
+[COMPILER.md](COMPILER.md#object-settings)) plays its baked clip on the GPU by itself, from the
+scene's load: no mixer moves it ([ENGINE.md](ENGINE.md#animation-banks)).
 
 The GPU deforms vertices before culling and drawing
 ([ENGINE.md](ENGINE.md#gpu-deformation)). `metrics.gpuDeformationMs` is the

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { Color } from '../../../../sdk-core/src/world/math/color.ts'
-import { surfaceFrontOnly, surfaceOf } from './surface.ts'
+import { surfaceOf } from './surface.ts'
 import { declareSurface, redeclareSurface } from './surfaceRecord.ts'
 import { surfaceJournals, surfaceWritten } from './surfaceWrites.ts'
 import { visBin } from '../../frame/prepare/pipelineFor.ts'
@@ -21,16 +21,14 @@ test('a mesh wears its surface record itself: every reader holds the one record'
 })
 
 test('the side answers what the record holds now, with no reread in between', () => {
-  // The opaque path — the pipelines, the face bins, the cut's normal cones — asks for the side. A
-  // front-only page carries a closed cone: a stale front on an opened surface would reject it.
+  // The opaque path — the pipelines, the face bins — asks for the side: a stale side on a surface
+  // sided again would draw the faces it no longer shows.
   const material = G.basicSurface({ side: G.FRONT_SIDE })
-  assert.equal(surfaceFrontOnly(material), true)
+  assert.equal(material.side, 'front')
   G.sided(material, G.DOUBLE_SIDE)
   assert.equal(material.side, 'double')
-  assert.equal(surfaceFrontOnly(material), false)
   G.sided(material, G.BACK_SIDE)
   assert.equal(material.side, 'back')
-  assert.equal(surfaceFrontOnly(material), false)
 })
 
 test('a redeclared record is filled in place, its version moved and its write journaled', () => {

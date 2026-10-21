@@ -157,7 +157,7 @@ export class Translator {
     return this.postfix(this.primary())
   }
   primary() {
-    const token = this.next()
+    let token = this.next()
     if (token === '(') {
       const inner = this.expression()
       this.eat(')')
@@ -167,6 +167,12 @@ export class Translator {
     if (/^[\d.]/.test(token)) return String(Number(token.replace(/[uif]$/i, '')))
     // A typed array's constructor, `array<vec2f,5>(…)`: its template skipped, its values an array.
     if (token === 'array' && this.peek() === '<') while (this.next() !== '>');
+    // A vector's templated constructor, `vec3<bool>(…)`: its shorthand, `vec3b` for a boolean one.
+    if (/^vec[234]$/.test(token) && this.peek() === '<') {
+      this.next()
+      token += this.next()[0]
+      this.eat('>')
+    }
     if (this.peek() !== '(') return token
     this.next()
     const args: string[] = []

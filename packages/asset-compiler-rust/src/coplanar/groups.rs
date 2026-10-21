@@ -1,5 +1,5 @@
 use super::*;
-use crate::join::Join;
+use trillion3d_math::join::{Join, LeastRoot};
 
 /// Surfaces grouped by the plane they really share.
 ///
@@ -18,7 +18,7 @@ pub fn plane_groups(surfaces: &[Surface], offset_quantum: f64) -> Vec<Vec<usize>
         .enumerate()
         .map(|(index, key)| (*key, index))
         .collect();
-    let mut join = Join::new(keys.len());
+    let mut join = Join::<LeastRoot>::new(keys.len());
     for (index, key) in keys.iter().enumerate() {
         let mine = &surfaces[buckets[key][0]];
         for step in 0..81usize {

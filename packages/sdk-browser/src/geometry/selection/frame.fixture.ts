@@ -5,17 +5,8 @@ import type { PageRecord, SelectionState } from '../cut/state.fixture.ts'
 /** `clusterPixels` through the frame's own lens — its view, stretch, focal length, near plane and
  *  projection — into `out`. */
 export function framePixels<T extends PageRecord>(s: SelectionState<T>, rec: T, out: Float64Array) {
-  const { flatElements, flatStretch, flatFocal, cam, flatReach } = s
-  return clusterPixels(
-    rec,
-    flatElements,
-    flatStretch,
-    flatFocal,
-    cam.near,
-    cam.perspective,
-    out,
-    flatReach,
-  )
+  const { flatElements, flatStretch, flatFocal, cam } = s
+  return clusterPixels(rec, flatElements, flatStretch, flatFocal, cam.near, cam.perspective, out)
 }
 
 /** `projectedClusterError` of one (error, sphere at `offset`) pair through the frame's lens. */
@@ -25,7 +16,7 @@ export function frameClusterError<T extends PageRecord>(
   sphere: ArrayLike<number> | null | undefined,
   offset = 0,
 ) {
-  const { flatElements, flatStretch, flatFocal, cam, flatReach } = s
+  const { flatElements, flatStretch, flatFocal, cam } = s
   const { near, perspective } = cam
   return projectedClusterError(
     error,
@@ -36,7 +27,6 @@ export function frameClusterError<T extends PageRecord>(
     flatFocal,
     near,
     perspective,
-    flatReach,
   )
 }
 
@@ -46,9 +36,8 @@ export function frameClusterError<T extends PageRecord>(
  *
  * A cluster whose parent has no sphere of its own reuses its own: both sides then project the same
  * sphere, so its view distance is taken once and both errors read it, `projectedErrorAt` getting
- * the same operands in the same order as `projectedClusterError`. Both spheres grow by `reach`. Coarse and replacement errors add twice that reach: by the
- * triangle inequality, arbitrary source displacement cannot separate corresponding points by
- * more than the two displacement bounds. Level-zero vertices need no transfer allowance.
+ * the same operands in the same order as `projectedClusterError`. A deformed cluster is measured at
+ * its rest pose's balls and errors, as the GPU cut measures it (`../dag/shader/error.ts`).
  */
 export function clusterPixels(
   rec: ClusterCut,
@@ -58,20 +47,19 @@ export function clusterPixels(
   near: number,
   perspective: number,
   out: Float64Array,
-  reach = 0,
 ) {
   const sphere = rec.sphere,
-    own = (rec.lodError ?? 0) + ((rec.level ?? 0) > 0 ? 2 * reach : 0),
-    parent = rec.parentError == null ? rec.parentError : rec.parentError + 2 * reach
+    own = rec.lodError ?? 0,
+    parent = rec.parentError
   if (sphere && own !== 0 && own !== Infinity && rec.parentSphere == null) {
     const lateral = viewLateral(sphere, 0, e),
       depth = viewDepth(sphere, 0, e),
-      radius = sphere[3] + reach
+      radius = sphere[3]
     out[0] = projectedErrorAt(own, lateral, depth, radius, stretch, focal, near, perspective)
     out[1] = projectedErrorAt(parent, lateral, depth, radius, stretch, focal, near, perspective)
     return out
   }
-  out[0] = projectedClusterError(own, sphere, 0, e, stretch, focal, near, perspective, reach)
+  out[0] = projectedClusterError(own, sphere, 0, e, stretch, focal, near, perspective)
   out[1] = projectedClusterError(
     parent,
     rec.parentSphere ?? sphere,
@@ -81,7 +69,6 @@ export function clusterPixels(
     focal,
     near,
     perspective,
-    reach,
   )
   return out
 }

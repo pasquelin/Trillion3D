@@ -6,7 +6,7 @@ pub fn find_overlaps(
     bounds: &CoplanarBounds,
     surfaces: &[Surface],
     counts: &mut Counts,
-    world: &[crate::compiler_world::Mat4],
+    world: &[crate::compiler::source::node_transform::Mat4],
 ) -> Result<Vec<Overlap>> {
     let groups = groups::plane_groups(surfaces, inputs.offset_quantum);
     counts.planes = groups.len();
@@ -78,7 +78,7 @@ fn test_pair(
     inputs: &CoplanarInputs<'_>,
     bounds: &CoplanarBounds,
     surfaces: &[Surface],
-    world: &[crate::compiler_world::Mat4],
+    world: &[crate::compiler::source::node_transform::Mat4],
     pair: (usize, usize),
     rectangles: (&overlap::Rect, &overlap::Rect),
     counts: &mut Counts,

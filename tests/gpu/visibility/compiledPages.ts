@@ -14,8 +14,8 @@ const SEMANTICS = [
   ['uv', 'TEXCOORD_0'],
   ['uv1', 'TEXCOORD_1'],
 ] as const
-/** A position grid of 1/1024 unit, under any error a proof reads. */
-const POSITION_EXPONENT = -10
+/** A position grid of an eighth of a centimetre, under any error a proof reads. */
+const POSITION_PRECISION = 3
 
 /** Gives every page of `scene` its geometry page, and returns the reader that serves them. */
 export function compilePages(scene: ScenePreparee) {
@@ -27,13 +27,8 @@ export function compilePages(scene: ScenePreparee) {
       const list = attributes[name]
       if (list) source[semantic] = { itemSize: list.itemSize, array: new Float32Array(list.array) }
     }
-    primitive.quantization = {
-      positionExponent: POSITION_EXPONENT,
-      uvExponent: -14,
-      maxPositionError: 2 ** POSITION_EXPONENT,
-    }
     for (const page of primitive.pages) {
-      const encoded = encodePage(scene.indices.get(page.url)!, source, POSITION_EXPONENT)
+      const encoded = encodePage(scene.indices.get(page.url)!, source, POSITION_PRECISION)
       const url = `geometry-${page.url}`
       bytes.set(url, encoded.data)
       page.geometry = {

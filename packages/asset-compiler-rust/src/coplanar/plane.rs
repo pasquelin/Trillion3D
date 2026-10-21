@@ -7,9 +7,9 @@ pub struct ClusterPlane {
     pub area: f64,
 }
 
-use trillion3d_math::aabb::longest_side;
-use trillion3d_math::vec3::{cross, frame_across, point_checked, unit_unless_zero};
-use trillion3d_math::vecn::{add, dot, length, scale};
+use trillion3d_math::geometry::aabb::longest_side;
+use trillion3d_math::vector::vec3::{cross, frame_across, point_checked, unit_unless_zero};
+use trillion3d_math::vector::vecn::{add, dot, length, scale};
 
 /// One orientation per plane, whichever way its triangles wind: a surface and the surface facing it
 /// hash to the same bucket, which is exactly the pair that fights over a pixel.
@@ -31,7 +31,7 @@ const SIGN_EPSILON: f64 = 1e-9;
 /// The plane a set of triangles lies in, or `None` when they do not share one. Every vertex must sit
 /// within `tolerance` of the plane and every triangle normal must be parallel to it: a cluster that
 /// merely looks flat from far away is not a coplanar surface. `crosses` are the triangles' own
-/// (`normal_cone::face_crosses`) and `(low, high)` the box of their vertices
+/// (`faces::face_crosses`) and `(low, high)` the box of their vertices
 /// (`dag::bounds::cluster_bounds`), both measured once for the page record.
 pub fn plane_of_triangles(
     (indices, positions): (&[u32], &[f32]),

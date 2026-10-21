@@ -3,15 +3,18 @@ import { behind } from '../../../gpu/core/behind.ts'
 import { commitGpuPage } from './commit.ts'
 import { checkRoom, placeOf, placesFor, refusal } from './loadPlace.ts'
 import { refusedStatus } from '../../cluster/checked.ts'
-import { PRIORITY_PREFETCH } from '../../streaming/priority.ts'
 
 /** `pinned` pins the page inside the queued operation: no resize queued behind the load runs between
  *  its arrival and its pin, so a pinned page is never ranked as an unpinned one. `priority` is its
- *  read's. A page absent at the request is read at once — reads overlap, uploads stay in order —,
- *  its bytes left unused when the page is resident by its turn; a page resident at the request is
- *  read only if it left by its turn. A failure fails the load, and its source says when the page
- *  is asked again (`geometry/streaming/failures.ts`). A page absent when the pool has no place to give —
- *  free, or that the GPU's order gives up — is refused at once, read for nothing never: the refusal is noted (`takeRefused`), so the GPU is asked a new order. */
+ *  read's. `victim` is a page the host gives up for it (`../../residency/streamedPages.ts`): the
+ *  slot of its streaming page is the arrival's, every page there evicted as the arrival is written
+ *  — drawn until then —, unless the arrival's streaming page holds a place already, or the victim
+ *  left or was pinned meanwhile, the arrival then taking a free slot. A page absent at the
+ *  request is read at once — reads overlap, uploads stay in order —, its bytes left unused when the
+ *  page is resident by its turn; a page resident at the request is read only if it left by its
+ *  turn. A failure fails the load, and its source says when the page is asked again
+ *  (`geometry/streaming/failures.ts`). A page absent when the pool has no free place and no victim
+ *  named is refused at once, read for nothing never. */
 export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
   const { resident, state, reader } = context
   const { emit, now } = reader
@@ -20,6 +23,7 @@ export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
     signal?: AbortSignal,
     pinned?: boolean,
     priority?: number,
+    victim?: string,
   ): Promise<ResidentPage> {
     const abortListener =
       emit && signal
@@ -38,16 +42,16 @@ export function createGpuPageLoader(context: GpuPageContext, pin: Pin) {
       resident: resident.has(key),
       loading: state.loading,
     }))
-    const prefetch = priority === PRIORITY_PREFETCH
-    if (!resident.has(key) && placesFor(context, prefetch) <= 0) {
+    if (!resident.has(key) && victim === undefined && placesFor(context, key) <= 0) {
       if (abortListener) signal!.removeEventListener('abort', abortListener)
-      return Promise.reject(refusal(context, key, 'eviction-queue-spent'))
+      return Promise.reject(refusal(context, key, 'no-free-slot'))
     }
     const job: Load = {
       key,
       signal,
       pinned,
       priority,
+      victim,
       abortListener,
       requestStarted,
       fetched: resident.has(key) ? undefined : readOf(context, key, signal, priority),
@@ -82,6 +86,8 @@ type Load = {
   signal: AbortSignal | undefined
   pinned: boolean | undefined
   priority: number | undefined
+  /** The page the host gives up for it, by key. */
+  victim: string | undefined
   abortListener: (() => void) | undefined
   requestStarted: number
   /** Its read, started with the request when the page was absent. */
@@ -114,11 +120,13 @@ async function runLoad(context: GpuPageContext, pin: Pin, job: Load): Promise<Re
     const bytes = await (job.fetched ?? readOf(context, key, signal, job.priority))
     check(signal)
     checkRoom(context, key, bytes)
+    const given = job.victim === undefined ? undefined : resident.get(job.victim),
+      victim = given && !eviction.isPinned(given.key) ? given : undefined
     const page = commitGpuPage(
       context,
       key,
       bytes,
-      placeOf(context, key, bytes.byteLength, job.priority === PRIORITY_PREFETCH),
+      placeOf(context, key, victim),
       job.requestStarted,
     )
     if (pinned) pin(key)

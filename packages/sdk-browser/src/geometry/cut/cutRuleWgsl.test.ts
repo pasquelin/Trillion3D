@@ -1,7 +1,7 @@
-// The WGSL run of the cut rule's tests is the kernel's own text: `dagMask`'s call site, the
-// cone word `dagWanted` keeps for it, the residency reads they make on the bit sets the host
-// uploads, and the rule. An edit to any of them that breaks the rule fails here, in the unit gate,
-// without a GPU.
+// The WGSL run of the cut rule's tests is the kernel's own text: `dagWanted`'s call site on the
+// cluster's two comparisons, the residency reads it makes on the bit sets the host uploads, and
+// the rule. An edit to any of them that breaks the rule fails here, in the unit gate, without a
+// GPU.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ruleDag } from './cutRule.fixture.ts'
@@ -42,7 +42,7 @@ test('a residency read one word off the uploaded bits is caught', () => {
   assert.throws(() => randomFrames(wgslBackend(dag, THRESHOLD, shifted)), FAULT)
 })
 
-test('a call site reading the wrong comparison of the cone word is caught', () => {
-  const swapped = edited('(word&OWN_WITHIN)!=0u', '(word&PARENT_ABOVE)!=0u')
+test('a call site reading the wrong comparison of the cluster is caught', () => {
+  const swapped = edited('rule.x,rule.y,', 'rule.y,rule.x,')
   assert.throws(() => randomFrames(wgslBackend(dag, THRESHOLD, swapped)), FAULT)
 })

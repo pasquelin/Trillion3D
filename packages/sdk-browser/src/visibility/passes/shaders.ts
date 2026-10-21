@@ -22,9 +22,10 @@ import {
   computeUniformEntry,
 } from '../../gpu/core/computeBindings.ts'
 
-/** Zeros for `drawSlots` rows, which the untested passes bind where the tested ones read verdicts;
- *  made again when the table grows (`../../frame/prepare/growTables.ts`). */
-export const zeroFlagsBuffer = (device: GPUDevice, drawSlots: number) =>
+/** Zeros for `drawSlots` rows, bound where a pass has nothing to read: the direct path's instance
+ *  and slot lists (`./bindings.ts`), a ray batch's missing geometry; made again when the table
+ *  grows (`../../frame/prepare/growTables.ts`). */
+export const zeroRowsBuffer = (device: GPUDevice, drawSlots: number) =>
   device.createBuffer({ size: Math.max(4, drawSlots * 4), usage: GPUBufferUsage.STORAGE })
 
 /** The visibility raster's group 0, entry by entry: what every pass drawing page-table rows binds. */
@@ -38,7 +39,6 @@ export function visLayoutEntries(): GPUBindGroupLayoutEntry[] {
       'read-only-storage',
       GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
     ),
-    computeBufferEntry(b.flags, 'read-only-storage', GPUShaderStage.VERTEX),
     // The fragment reads the texture level bias (`atlasLod`, `uni.mipBias`).
     computeUniformEntry(
       b.uniform,
@@ -77,9 +77,8 @@ export async function createWebgpuVisibilityShaders(
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   const visBindGroupLayout = device.createBindGroupLayout({ entries: visLayoutEntries() })
-  // The untested passes bind zeros at the same row index the tested ones read, so the buffer spans
-  // the row table; WebGPU hands back a zeroed buffer and nothing ever writes to this one.
-  const zeroFlags = zeroFlagsBuffer(device, drawSlots)
+  // WebGPU hands back a zeroed buffer and nothing ever writes to this one.
+  const zeroRows = zeroRowsBuffer(device, drawSlots)
   const visUniform = visUniformBuffer(device, slotCount)
   // With no variant, the two modules are exactly those from before: production compiles no
   // diagnostic stage.
@@ -96,7 +95,7 @@ export async function createWebgpuVisibilityShaders(
   return {
     shadeUniform,
     visBindGroupLayout,
-    zeroFlags,
+    zeroRows,
     visUniform,
     visModule,
     shadeModule,

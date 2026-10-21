@@ -1,6 +1,7 @@
 // Triangle batches (`drawBatches`): the same triangles reach the raster in the same order as one
-// instance per row did, so the visibility buffer is the same, ties included. `drawBatch`,
-// `hardwareIdle` and `survives` run from the shipped WGSL; `batchesOf` is checked by its text.
+// instance per row did, so the visibility buffer is the same, ties included. `drawBatch` and
+// `survives` run from the shipped WGSL, the vertex stage's corner bound (`corner>=page.indexCount`)
+// is checked by its text, and so is `batchesOf`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
@@ -26,6 +27,8 @@ test('batchesOf is the transcribed text', () => {
     functionsOf(drawShader(1), ['batchesOf']),
     /clamp\(ceilDiv\(item\.triangles\*3u,uni\.corners\),1u,uni\.perRow\)/,
   )
+  // The vertex stage idles every corner past its row's indices.
+  assert.ok(functionsOf(VIS_SHADER, ['vis_vs']).includes(IDLE_CORNER))
   // `scatterGroups` writes a row's batches one after the other, each its first triangle on top.
   assert.match(drawShader(1), /instances\[at\+b\]=page\|\(\(b\*stride\)<<24u\)/)
 })
@@ -44,17 +47,17 @@ function compact(items: Item[], shape: Shape) {
   return lists
 }
 
-type Stage = {
-  drawBatch: (i: number) => [number, number]
-  hardwareIdle: (page: { indexCount: number }, corner: number) => boolean
-}
+type Stage = { drawBatch: (i: number) => [number, number] }
+/** The vertex stage's bound on its corners: past its row's indices, a vertex draws nothing. */
+const IDLE_CORNER = 'if(corner>=page.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);'
 /** What the vertex stage of `instances` puts on screen, in draw order: one entry per triangle whose
- *  corners the shipped `hardwareIdle` lets through, each instance read with the shipped `drawBatch`. */
+ *  corners lie within its row's indices (`IDLE_CORNER`), each instance read with the shipped
+ *  `drawBatch`. */
 function primitives(instances: number[], corners: number, indexCount: (row: number) => number) {
-  const uni = { indirect: 1, drawSlot: 0, computeSpan: 0 }
-  const { drawBatch, hardwareIdle } = shaderRun<Stage>(
+  const uni = { indirect: 1, drawSlot: 0 }
+  const { drawBatch } = shaderRun<Stage>(
     VIS_SHADER,
-    ['drawBatch', 'instanceRow', 'instanceCorner', 'hardwareIdle'],
+    ['drawBatch', 'instanceRow', 'instanceCorner'],
     { uni, instances: Uint32Array.from(instances), slotOffsets: new Uint32Array(1) },
   )
   const out: Prim[] = []
@@ -63,8 +66,7 @@ function primitives(instances: number[], corners: number, indexCount: (row: numb
     const [row, first] = drawBatch(i)
     for (let v = 0; v < corners; v++, launched++) {
       const corner = first + v
-      if (corner % 3 === 0 && !hardwareIdle({ indexCount: indexCount(row) }, corner))
-        out.push([row, corner / 3])
+      if (corner % 3 === 0 && corner < indexCount(row)) out.push([row, corner / 3])
     }
   }
   return { out, launched }
@@ -106,20 +108,6 @@ for (const maxTriangles of [12, 32, 33, 128, 256])
     if (corners * perRow === maxTriangles * 3) assert.ok(after <= before)
     if (maxTriangles > 32) assert.ok(after < before, `${after} < ${before}`)
   })
-
-test('the tested half keeps or drops every batch of a row with the row', () => {
-  const rejected = new Set([3, 9])
-  // `hizRejected` reads the Hi-Z verdict at the row's slot: rejected rows hold verdict 1.
-  const pages = Array.from({ length: 12 }, (_, row) => ({ hizSlot: row }))
-  const hizFlags = Uint32Array.from(pages, (_, row) => (rejected.has(row) ? 1 : 2))
-  const { drawn } = shaderRun<{ drawn: (item: { pageIndex: number }) => boolean }>(
-    drawShader(1, true),
-    ['drawn', 'hizRejected'],
-    { pages, hizFlags },
-  )
-  for (let row = 0; row < 12; row++)
-    assert.equal(drawn({ pageIndex: row }), !rejected.has(row), `${row}`)
-})
 
 test('the shape: a catalogue under a batch keeps its corners, a wider one launches batches', () => {
   assert.deepEqual(drawBatches(36), { corners: 36, perRow: 1 })

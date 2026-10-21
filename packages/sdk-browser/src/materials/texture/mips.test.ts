@@ -51,7 +51,7 @@ test('uniforms take a block a level, at the alignment, grown twice their size at
 
 // #42: the weighted rule is a pipeline of its own, built with the `weighted` constant; the plain one
 // keeps it off. An sRGB chain encodes its levels again (`srgb`). The compiler proves the rule's bytes
-// (`texture_preview/tests/weighted_colour.rs`); which texture takes which rule is `scratch.test.ts`
+// (`texture/tests/weighted_colour.rs`); which texture takes which rule is `scratch.test.ts`
 // and `sourcesWeighted.test.ts`.
 test('one reduction pipeline per rule, the weighted and sRGB ones built with their constants', () => {
   const { device, texture, computePipelines } = scratch()

@@ -1,5 +1,5 @@
 use super::*;
-use crate::texture_preview::Layout;
+use crate::texture::Layout;
 
 /// Progressive levels section: one fixed-length entry per decoded color texture, and
 /// its own byte range in pixel column.

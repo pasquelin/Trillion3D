@@ -41,7 +41,7 @@ pub(super) fn tangents_present(seed: u64) -> Case {
 
 /// Colours and a mirrored second texture set on flat-shaded quads, all at once. Both sets are
 /// laid out per quad corner, so every vertex is a seam corner of both: each copy merges as a wedge
-/// of its own, with its own attributes (`qem_simplifier.rs`).
+/// of its own, with its own attributes (`simplify/region/collapse.rs`).
 pub(super) fn every_attribute(seed: u64) -> Case {
     let mut case = hard_normals(seed);
     case.name = "attributes-every-one";

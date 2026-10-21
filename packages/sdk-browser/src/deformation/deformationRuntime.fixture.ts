@@ -6,7 +6,7 @@ import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 
 /**
  * The pages runtime `updateWebgpuDeformation` reads, around one deformation `frame`: placements
- * `selectionRoots` and their `rows`, no pixel error, and a light state that records every world box
+ * `selectionRoots` and their `rows`, no bank track, and a light state that records every world box
  * it is told changed (`changed`, min then max).
  */
 export function deformationRuntime(
@@ -24,18 +24,18 @@ export function deformationRuntime(
     },
   })
   const rt = {
-    // A zero pixel error skips no placement (`screen.ts`).
     vis: {
       deformation: {
         ...{ any: true, frame, base: 0, entryOf: (rank: number) => rank },
-        update: () => frame.update(() => false),
+        tracks: { count: 0, plays: () => false },
+        update: () => frame.update(),
       },
       concatPos: {},
     },
     gpu: { device: { queue: { writeBuffer() {} } } },
     lights,
     layout: { selectionRoots, rows, rootIndex: { revision: 0 } },
-    run: { gate: { pixelError: 0 }, movedWorlds: createChangedRuns() },
+    run: { movedWorlds: createChangedRuns() },
     setup: {},
     blendState: { blendGpu: [], blendIndex: { revision: 0 } },
   } as unknown as WebgpuPagesRuntime

@@ -24,6 +24,9 @@ test("a shared command buffer is the caller's to submit, and abandoning it gives
   }
   const selection = await createGpuDagSelection(device, dag, { roots: hostStretches(dag) })
   assert.ok(selection)
+  // The cut's own buffers: its first copy of the poses the previous frame drew is submitted at its
+  // making (`../previousPoses.ts`).
+  submits = 0
   const abandoned = selection.dispatch(uniforms, device.createCommandEncoder())
   assert.equal(typeof abandoned, 'function', 'a shared buffer hands back its settlement')
   assert.equal(submits, 0, 'the selection does not submit a buffer it does not own')
@@ -32,7 +35,7 @@ test("a shared command buffer is the caller's to submit, and abandoning it gives
   const settle = selection.dispatch(uniforms, device.createCommandEncoder())
   assert.equal(typeof settle, 'function')
   settle!(true)
-  assert.equal((await selection.flush())?.pageIds.length, 4)
+  assert.equal((await selection.flush())?.pageIds.length, 7)
   assert.equal(submits, 0, 'the image submits its own buffer')
   selection.dispose()
   fixture.geometry.dispose()

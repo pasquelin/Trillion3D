@@ -8,7 +8,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 import { DAG_SELECTION_SHADER } from './shader.ts'
-import { DAG_CONE_WGSL } from './coneWgsl.ts'
 import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts'
 import { FRAME_TABLE } from '../frameTable.ts'
 import { createDagResources } from '../resources.ts'
@@ -74,20 +73,12 @@ test('no kernel writes a placement’s row: its pose is made where it is read', 
   // Made once per thread, from the pose at the eye (`placed`): every read goes through it.
   const text = wgslSource(DAG_PRIMITIVE_WGSL)
   assert.equal(text.match(/worldPose\(/g)?.length, 1, 'one pose a thread')
-  for (const read of ['viewWorld', 'normalOf', 'conformalOf', 'preparedPose', 'planeOf']) {
+  for (const read of ['viewWorld', 'preparedPose', 'planeOf']) {
     const body = text.slice(text.indexOf(`fn ${read}(`))
     assert.ok(
       body.slice(0, body.indexOf('\n')).includes('placed(w)') || body.includes(' placed(w);'),
     )
   }
-  const box = wgslSource(DAG_CONE_WGSL).slice(
-    wgslSource(DAG_CONE_WGSL).indexOf('fn coneRejectsBox'),
-  )
-  assert.ok(box.includes('conformalOf(w)') && box.includes('invTranspose3Apply(normalOf(w),'))
-  assert.match(
-    DAG_SELECTION_SHADER,
-    /fn outsideAhead\([^)]*\)->bool\{return outsideFrustum\(w,AHEAD_VIEW,/,
-  )
 })
 
 test("a never-culled primitive's open planes keep every box", () => {
@@ -102,12 +93,4 @@ test("a never-culled primitive's open planes keep every box", () => {
     assert.equal(frustumExcludesBox(open, ...box), false, box.join(', '))
   }
   assert.ok(DAG_SELECTION_SHADER.includes(',vec4f(0.0,0.0,0.0,1.0),unculledOf(w));'))
-})
-
-test('a deadline ahead reads the camera planes, though the view ahead is the current view', () => {
-  // `wantAhead` sets `vi` to the view ahead before `aheadDue`: its camera planes are view 0's.
-  const due = DAG_SELECTION_SHADER.slice(DAG_SELECTION_SHADER.indexOf('fn aheadDue('))
-  const body = due.slice(0, due.indexOf('\n}'))
-  assert.ok(body.includes('planeReach(planeOf(w,0u,i),'), 'the camera plane, view 0')
-  assert.ok(body.includes('planeReach(planeOf(w,AHEAD_VIEW,i),'), 'the plane ahead')
 })

@@ -11,8 +11,8 @@
 //! The rest of the driver knows nothing of it: these two functions have the signature
 //! `image::blocks` expects of a block decoder, and sit in the same codec table as the others.
 
-use crate::eac_modifiers::EAC_MODIFIERS;
 use crate::plugins::image::blocks::{blocks_of, BLOCK_SIDE};
+use crate::texture::blocks::eac_modifiers::EAC_MODIFIERS;
 
 /// Bytes of a one-channel block, and the side of a block in texels.
 const BLOCK: usize = 8;

@@ -1,18 +1,6 @@
-import { clamp, clampLowWins } from '../../../../../math/src/scalar/reals.ts'
 import { rootOfPacked, type PlacementIndex } from '../../selection/placements.ts'
 import type { DagCutLinks, DagRoot, PackedDag } from '../types.ts'
-import {
-  CANDIDATES_START,
-  CLUSTER_WORDS,
-  COLD_WORDS,
-  QUEUE_ENTRIES_START,
-  coldBase,
-  groupParentBase,
-  keyGroupBase,
-  keyWordBase,
-  recordKeyBase,
-} from '../layout.ts'
-import { KEY_PAGE_MAX, createContentKeys } from '../evict/evict.ts'
+import { CLUSTER_WORDS, COLD_WORDS, coldBase } from '../layout.ts'
 import { createRecordTable } from './packRecords.ts'
 import { packWorldLinks, worldLinkWords } from '../worlds/worldLinks.ts'
 import { packPlacementTree } from '../placement/placementTreePack.ts'
@@ -20,7 +8,7 @@ import { allocatePacking, emptyShared, placeRoot, type Packing } from './packRoo
 import { packPlan, roomFor, type DagCapacity } from './packCapacity.ts'
 
 /**
- * Pack the cluster bands, their cone/box records and the per-primitive culling nodes, at
+ * Pack the cluster bands, their box records and the per-primitive culling nodes, at
  * `capacity` — exactly the roots' when none is given.
  *
  * Records are stored once per unique cluster (`packRecords.ts`): the placements of one
@@ -40,10 +28,6 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     nodes: plan.nodes,
     worlds: plan.worlds,
   }
-  // A key word names its canonical page on twenty-seven bits (`../evict/evict.ts`). Beyond that, the
-  // eviction queue would stamp a page for another: better to refuse it by name.
-  if (size.pages > KEY_PAGE_MAX)
-    throw new Error(`GPU_SELECTION_PAGE_RANGE: ${size.pages} > ${KEY_PAGE_MAX}`)
   // The table holds the placements' own nodes; the tree's live in its own (`../tree/treeTable.ts`).
   const p = allocatePacking({ ...size, nodes: plan.primitiveNodes }, shared),
     records = createRecordTable()
@@ -55,15 +39,18 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
   shared.records = records
   const worldSources = [...roots]
   if (tree) packPlacementTree({ ...p, worldSources }, tree)
-  const tables = recordTables(roots, p, records, size.pages, plan),
-    { clusters, pageCones, cold, linkBase } = tables
-  shared.keys = tables.keys
-  shared.coldAt = tables.coldAt
+  const { clusters, coldWords, cold, linkBase, recordSlots } = recordTables(
+    roots,
+    p,
+    records,
+    size.pages,
+    plan,
+  )
   return {
     kind: 'dag',
     clusters,
     nodes: p.nodes,
-    pageCones,
+    coldWords,
     worlds: p.worlds,
     worldSources,
     rootNodes: p.rootNodes,
@@ -74,15 +61,8 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     entryCount: plan.entries,
     worldCount: size.worlds,
     pageCount: size.pages,
-    recordCount: tables.recordSlots,
-    keyCount: tables.keyCount,
+    recordCount: recordSlots,
     primitiveNodeCount: plan.primitiveNodes,
-    groupCount: tables.groupCount,
-    groupEdges: tables.groupEdges,
-    // The lists and queues a view's reach holds, the catalogue's at most: grown on demand.
-    candCount: clampLowWins(size.pages, 1, CANDIDATES_START),
-    // Queue 0 holds a root slot a placement without a tree (`dagPrepare`): never fewer.
-    queueEntries: clamp(plan.worlds, QUEUE_ENTRIES_START, plan.entries),
     pageIndex: p.pageIndex,
     recordShift: p.recordShift,
     rootCount: p.rootClusters,
@@ -101,10 +81,9 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
 
 /**
  * The hot records and the cold table of a packing of `pages` pages. The hot record only holds what
- * all five passes of a frame reread; the owner node and the cone go to the cold, which the open
- * pass alone reads. The cold table opens on the residency bits, one word for thirty-two pages,
- * written by delta, then the pool's list, then a content key per unique record and a word per key
- * (`../evict/evict.ts`): no word per page. The placements' links to the world DAG follow the cold records
+ * all five passes of a frame reread; the owner node, the box and the triangles go to the cold. The
+ * cold table opens on the residency bits, one word for thirty-two pages, written by delta, then the
+ * cold records: no word per page. The placements' links to the world DAG follow the cold records
  * (`../worlds/worldLinks.ts`).
  */
 function recordTables(
@@ -114,23 +93,8 @@ function recordTables(
   pages: number,
   { worldRoots, worlds, room }: ReturnType<typeof packPlan>,
 ) {
-  // Placed in order behind one another: the keys and groups are made as an appended root's are.
-  const content = createContentKeys()
-  roots.forEach((root, w) =>
-    content.place(root, p.cutLinks[w].pageBase, (p.cutLinks[w].pageBase + p.recordShift[w]) >>> 0),
-  )
   const recordSlots = roomFor(records.count, room?.records, room),
-    keys = roomFor(content.count, room?.keys, room),
-    groups = roomFor(content.groups, room?.groups, room),
-    edges = roomFor(content.edges, room?.edges, room),
-    shape = {
-      pageCount: pages,
-      recordCount: recordSlots,
-      keyCount: Math.max(1, keys),
-      groupCount: groups,
-      groupEdges: edges,
-    },
-    coldAt = coldBase(shape)
+    coldAt = coldBase(pages)
   const linkBase = coldAt + Math.max(1, recordSlots) * COLD_WORDS
   // Every instance of the world DAG shares its records and its cells, each its own states.
   const world = worldRoots[0],
@@ -139,26 +103,15 @@ function recordTables(
         ? 0
         : worldLinkWords(
             worlds,
-            p.cutLinks[world].pageCount,
+            p.cutLinks[world],
             roots[world].hlod!.parent.length,
             worldRoots.length,
           )
   const clusters = new Float32Array(Math.max(1, recordSlots) * CLUSTER_WORDS),
-    pageCones = new Float32Array(linkBase + worldWords),
-    cold = new Uint32Array(pageCones.buffer)
-  const at = {
-    recordKey: recordKeyBase(pages),
-    keyWord: keyWordBase(shape),
-    keyGroup: keyGroupBase(shape),
-    groupParent: groupParentBase(shape),
-    groupCapacity: shape.groupCount,
-  }
-  content.flush(cold, at)
-  records.finish(clusters, pageCones, coldAt)
-  return {
-    ...{ clusters, pageCones, cold, linkBase },
-    ...{ ...shape, recordSlots, keys: content, coldAt },
-  }
+    coldWords = new Float32Array(linkBase + worldWords),
+    cold = new Uint32Array(coldWords.buffer)
+  records.finish(clusters, coldWords, coldAt)
+  return { clusters, coldWords, cold, linkBase, recordSlots }
 }
 
 /**

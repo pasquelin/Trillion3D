@@ -1,8 +1,8 @@
 import { DEPTH_LAYER_BIAS_UNITS, MAX_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { PROJECTION_SLACK_WGSL } from './projectionSlackWgsl.ts'
-import { DEPTH_GROW, SCREEN_SLACK_K } from '../../geometry/partition/gpu/margins.ts'
+import { DEPTH_GROW, SCREEN_SLACK_K } from './projectionMargins.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
-import { CORNER_VALUES, FLAG_CLIP, PARTITION_UNI } from '../../geometry/partition/gpu/contract.ts'
+import { PROJECTION_UNI } from './projectionUniform.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { FAR_VALUE, INFINITE_THRESHOLD } from '../../../../math/src/wgsl/constants.ts'
 import { ndcToPixel } from '../../../../math/src/wgsl/projection.ts'
@@ -11,12 +11,23 @@ const SLACK = wgslF32(SCREEN_SLACK_K),
   GROW = wgslF32(DEPTH_GROW)
 
 /**
- * Uniform that ALL projection kernels share, byte for byte: the partition writes it once per frame
- * (`../../geometry/partition/gpu/uniform.ts`) and the transparent occlusion test reads the SAME buffer. Two boxes
- * of the same frame therefore enter the same arithmetic, with the same anchor and the same
- * matrices — no conservative rule can diverge. Its layout is the one table `PARTITION_UNI`.
+ * Floats of a world box: eight corners, each in three coordinates carried by TWO single-
+ * precision values — the rounded value and its residue.
+ *
+ * A corner alone in single precision carries an error of `u|x|`, and on a model whose
+ * coordinates are tens of thousands that error dominates all others: the conservative bound
+ * then yielded rectangles of several hundred texels. Two floats represent the original double
+ * to within `u²`, and the gap to the anchor is computed without ever bringing world magnitude
+ * into view: the bound becomes proportional to the cluster size again.
  */
-export const PARTITION_UNI_WGSL = wgslBlock('PARTITION_UNI_WGSL', [], PARTITION_UNI.wgsl)
+export const CORNER_VALUES = 48
+
+/**
+ * The frame's projection uniform, as the box projection reads it: the transparent occlusion test
+ * writes it once per frame (`./transparentOcclusion.ts`, `packProjectionUniform`). Its layout is the
+ * one table `PROJECTION_UNI`.
+ */
+export const PROJECTION_UNI_WGSL = wgslBlock('PROJECTION_UNI_WGSL', [], PROJECTION_UNI.wgsl)
 
 /**
  * Projection of a world box into a screen rectangle and a depth bound, done by the GPU in single
@@ -25,7 +36,7 @@ export const PARTITION_UNI_WGSL = wgslBlock('PARTITION_UNI_WGSL', [], PARTITION_
  * The CPU projected the eight world corners in double precision. Here the same arithmetic runs in
  * `f32`, so each dot product carries rounding error. It is not assumed: it is BOUNDED, term by
  * term, by the sum of absolute values of the four products that make that dot product, plus the
- * share of input rounding (`../../geometry/partition/gpu/margins.ts` carries both proofs). Corners enter RELATIVE
+ * share of input rounding (`./projectionMargins.ts` carries both proofs). Corners enter RELATIVE
  * to an anchor — the camera pose —, each carried by two single-precision values, and the received
  * matrices are already composed with that translation: otherwise the bound, which does not know
  * that terms of an urban model cancel, would yield rectangles of hundreds of texels and the
@@ -87,7 +98,7 @@ fn projectBox(slot:u32,layer:u32)->BoxProj{
   lowY=min(lowY,ny-quotientSlack(ny,cy,cw));highY=max(highY,ny+quotientSlack(ny,cy,cw));
   nearestZ=max(nearestZ,nz+quotientSlack(nz,cz,cw));
  }
- if(clips){return BoxProj(vec4i(0,0,0,0),0.0,${FLAG_CLIP}u);}
+ if(clips){return BoxProj(vec4i(0,0,0,0),0.0,1u);}
  let wF=f32(uni.width);let hF=f32(uni.height);
  let slack=${SLACK}*max(wF,hF)+1.0e-4;
  let rect=vec4i(

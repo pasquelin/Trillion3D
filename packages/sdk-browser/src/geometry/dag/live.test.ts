@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { encodeDagKernels } from './encode.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
-import { witnessEncoder, cutResources, LIVE, CAND, QUEUE, POOL } from './encode.fixture.ts'
+import { witnessEncoder, cutResources, LIVE, CAND, QUEUE } from './encode.fixture.ts'
 
 test('each cut kernel dispatches over the list the previous one filled', () => {
   const witness = witnessEncoder()
@@ -34,31 +34,17 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
   // The count launched flat is that of primitives, blocks, the roots' entries or one workgroup:
   // never that of clusters.
   const plats = dispatches.filter((l) => l.groups !== 'indirect').map((l) => l.kernel)
-  assert.deepEqual(plats, [
-    'dagPrepare',
-    'dagLevel0',
-    'dagDrawPrefix',
-    'dagCommitMask',
-    'dagSortRequests',
-    'dagRaiseParents',
-    'poolPlace',
-    'poolOffsets',
-    'poolScatter',
-  ])
-  // The pool sort's group stages walk the pool list's own count, armed by the host with it.
-  for (const kernel of ['poolCount', 'poolGroups', 'poolSpread'])
-    assert.equal(byKernel.get(kernel)?.list, POOL, `${kernel} follows the pool list`)
+  assert.deepEqual(plats, ['dagPrepare', 'dagLevel0', 'dagDrawPrefix', 'dagCommitMask'])
 })
 
 test('wait between launches depends only on depth, not on cluster count', () => {
   const witness = witnessEncoder()
   encodeDagKernels(witness.encoder, cutResources())
   const { dispatches } = witness.read()
-  // Log clear, prepare, one pass per level (three), candidates, mask, prefix, compaction, the
-  // commit of the cut's mask, the request sort, the parents' raise and the eviction queue's pool
-  // sort (its six stages, `../../gpu/sort/sort.ts`): the cut rule decides each cluster once, in the mask, with no
-  // round per primitive before it.
-  assert.equal(dispatches.length, 18)
+  // Log clear, prepare, one pass per level (three), candidates, mask, prefix, compaction and the
+  // commit of the cut's mask: the cut rule decides each cluster once, with no round per primitive
+  // before it.
+  assert.equal(dispatches.length, 10)
   const kernels = dispatches.map((l) => l.kernel)
   assert.ok(!kernels.includes('dagArgs') && !kernels.includes('dagDrawCount'))
   assert.equal(kernels[0], 'dagClearDrawn')

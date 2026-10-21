@@ -1,9 +1,9 @@
 //! Shared decoder golden test: what `encode::encode` writes, `trillion3d_page_codec`
-//! re-reads — same triangles, every attribute within the grid's declared error, and two source
+//! re-reads — same triangles, every attribute within what its grid holds, and two source
 //! vertices that quantize alike kept once.
 
-use trillion3d_math::random::xorshift32;
-use trillion3d_page_codec::bits::grid::UV_EXPONENT;
+use trillion3d_math::sequence::random::xorshift32;
+use trillion3d_page_codec::bits::grid::PageGrid;
 use trillion3d_page_codec::bits::pow2;
 use trillion3d_page_codec::encode::{encode, Attribute};
 use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
@@ -53,20 +53,32 @@ fn distance(a: &[f32], b: &[f32]) -> f64 {
         .sqrt()
 }
 
-/// Every decoded vertex against the source vertex its triangle names, within the declared error.
+/// How far a decoded position may lie from its source, in metres, on `grid`: half a cell's
+/// diagonal, and a float's own step at the largest coordinate the tests draw.
+pub(crate) fn position_bound(grid: PageGrid) -> f64 {
+    let cell = f64::from(pow2(-grid.position)) * 0.01;
+    cell * 0.5 * 3f64.sqrt() + 1e-4
+}
+
+/// Every decoded vertex against the source vertex its triangle names, within what its grid holds:
+/// `bound` metres for a position, the colour byte's half step, the texture code's.
 pub(crate) fn verify(
     page: &trillion3d_page_codec::DecodedPage,
     indices: &[u32],
     positions: &[f32],
     attrs: &[Attribute],
-    error: f32,
+    bound: f64,
 ) {
-    let uv_bound = f64::from(pow2(UV_EXPONENT)) * 0.5 * 2f64.sqrt() + 1e-6;
     for (corner, &source) in indices.iter().enumerate() {
         let local = page.indices()[corner] as usize;
         let source = source as usize;
         let position = &page.attribute(0).expect("position")[local * 3..local * 3 + 3];
-        assert!(distance(position, &positions[source * 3..source * 3 + 3]) <= f64::from(error));
+        let wanted = &positions[source * 3..source * 3 + 3];
+        // The page decodes its cell to a single-precision coordinate, twice rounded — the cell
+        // index to a float, then times the cell — so far from the origin a float's own step adds.
+        let largest = wanted.iter().fold(0f32, |m, &v| m.max(v.abs()));
+        let limit = bound + 2.0 * f64::from(largest) * f64::from(f32::EPSILON);
+        assert!(distance(position, wanted) <= limit);
         for attribute in attrs {
             // Ranks follow the page's fixed attribute order, present or not.
             let rank = 1 + trillion3d_page_codec::OPTIONAL
@@ -103,12 +115,29 @@ pub(crate) fn verify(
                         let got = f64::from(decoded[local * 4 + c]);
                         assert!(
                             (got - f64::from(expected[c].clamp(0.0, 1.0))).abs()
-                                <= 0.5 / 256.0 + 1e-6
+                                <= 0.5 / 255.0 + 1e-6
                         );
                     }
                     assert_eq!(decoded[local * 4 + 3], 1.0);
                 }
-                _ => assert!(distance(&decoded[local * 2..local * 2 + 2], expected) <= uv_bound),
+                // A texture code of 14 mantissa bits: a value under 1 is within half of 2^-14, a
+                // value from 1 up within the same relative step (2^-15 of it): a component's
+                // error is at most 2^-15 times the greater of 1 and its magnitude, whatever
+                // coordinate the build's solve placed (a solved wedge may lie past the source's).
+                _ => {
+                    let half_step = f64::from(pow2(-15));
+                    let bound = expected
+                        .iter()
+                        .map(|v| (half_step * f64::from(v.abs()).max(1.0)).powi(2))
+                        .sum::<f64>()
+                        .sqrt()
+                        * (1.0 + 1e-6);
+                    let got = &decoded[local * 2..local * 2 + 2];
+                    assert!(
+                        distance(got, expected) <= bound,
+                        "texture coordinate {got:?} for {expected:?}"
+                    );
+                }
             }
         }
     }
@@ -119,18 +148,17 @@ fn round_trip(vertices: usize, seed: u32) {
     let (indices, positions) = mesh(vertices, &mut state);
     let attrs = attributes(vertices, &mut state);
     let carried: Vec<&Attribute> = attrs.iter().collect();
-    let encoded = encode(&indices, &positions, &carried, -9, UV_EXPONENT).expect("encode");
+    let grid = PageGrid::at(1);
+    let encoded = encode(&indices, &positions, &carried, grid).expect("encode");
     let page = trillion3d_page_codec::decode(&encoded.bytes, 64 << 20).expect("decode");
     let header = &encoded.header;
     assert_eq!(page.flags, header.flags);
     assert_eq!(page.vertex_count, header.vertex_count);
     assert_eq!(page.decoded_bytes(), header.decoded_bytes());
-    assert_eq!(page.quantization_error, header.quantization_error);
     assert_eq!(
         page.decoded_bytes(),
         header.vertex_count * (3 + 3 + 2 + 2 + 4) * 4 + indices.len() * 4
     );
-    assert!(f64::from(header.quantization_error) <= f64::from(pow2(-9)) * 3f64.sqrt() * 0.5 + 1e-9);
     // Random vertices spend their full widths; a real cluster, tighter, spends fewer.
     if vertices >= 1024 {
         assert!(
@@ -139,11 +167,11 @@ fn round_trip(vertices: usize, seed: u32) {
             encoded.bytes.len()
         );
     }
-    verify(&page, &indices, &positions, &attrs, page.quantization_error);
+    verify(&page, &indices, &positions, &attrs, position_bound(grid));
 }
 
 #[test]
-fn golden_page_reread_within_its_declared_error() {
+fn golden_page_reread_within_what_its_grid_holds() {
     for (vertices, seed) in [(3usize, 1u32), (17, 7), (1024, 99), (65_535, 424_242)] {
         round_trip(vertices, seed);
     }
@@ -161,7 +189,8 @@ fn a_grid_cluster_codes_its_corners_below_their_fixed_width() {
         .flat_map(|r| (0..side - 1).map(move |c| r * side + c))
         .flat_map(|v| [v, v + 1, v + side, v + 1, v + side + 1, v + side])
         .collect();
-    let encoded = encode(&indices, &positions, &[], -4, UV_EXPONENT).expect("encode");
+    let grid = PageGrid::at(0);
+    let encoded = encode(&indices, &positions, &[], grid).expect("encode");
     let fixed_bits = indices.len() * 7;
     let corner_bits = trillion3d_page_codec::Layout::of(&encoded.header).position[0] * 32;
     assert!(
@@ -169,5 +198,5 @@ fn a_grid_cluster_codes_its_corners_below_their_fixed_width() {
         "{corner_bits} of {fixed_bits} bits"
     );
     let page = trillion3d_page_codec::decode(&encoded.bytes, 1 << 20).expect("decode");
-    verify(&page, &indices, &positions, &[], 0.0);
+    verify(&page, &indices, &positions, &[], position_bound(grid));
 }

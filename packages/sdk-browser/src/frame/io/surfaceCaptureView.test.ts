@@ -18,10 +18,10 @@ test('opaque materials are rendered before lighting into reusable GPU surface te
     backend.render(camera())
     await backend.flush()
     backend.render(camera())
-    // The four surfaces, the flags in `r8uint` last: the quad wears no texture, so no feedback
-    // target follows them (`feedbackVariant.ts`).
+    // The four surfaces, the flags in `r32uint` last, cleared before the classes shade them: the
+    // quad wears no texture, so no feedback target follows them (`feedbackVariant.ts`).
     const surface = passes.findIndex(
-      (pass) => pass.formats.length === 4 && pass.formats[3] === 'r8uint',
+      (pass) => pass.formats.length === 4 && pass.formats[3] === 'r32uint',
     )
     const lighting = passes.findIndex(
       (pass, i) => i > surface && pass.formats.length === 1 && pass.formats[0] === 'rgba16float',

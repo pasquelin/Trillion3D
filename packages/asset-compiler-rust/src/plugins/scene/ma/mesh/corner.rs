@@ -5,9 +5,9 @@
 //! share all three are one: it is that equality, never a rounding nor a distance, that decides
 //! what merges and what splits.
 use super::*;
-use crate::import::Corner;
+use crate::plugins::scene::convert::Corner;
 use crate::plugins::scene::corners::gltf_uv;
-use trillion3d_math::vec3::normalized_or;
+use trillion3d_math::vector::vec3::normalized_or;
 
 impl Surface {
     /// The point of a face corner, as the cutter reads it.

@@ -1,7 +1,7 @@
 //! Base surfaces of the corpus, each parameterised and drawn from the seed.
 use super::*;
-use trillion3d_math::vec3::{cross, divide};
-use trillion3d_math::vecn::length;
+use trillion3d_math::vector::vec3::{cross, divide};
+use trillion3d_math::vector::vecn::length;
 
 /// The quads a corpus sheet is cut into, unless the case needs another shape.
 pub(super) const NX: usize = 64;

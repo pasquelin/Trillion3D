@@ -16,43 +16,29 @@ use crate::{CompilerError, Options, Result};
 use serde_json::{json, Value};
 use trillion3d_page_codec::culling::CullingNode;
 
-#[cfg(test)]
-mod bodies_tests;
 pub(crate) mod cut;
-#[cfg(test)]
-mod cut_tests;
 mod declared;
 pub(crate) mod hausdorff;
 mod height;
 mod hull;
 mod mass;
-#[cfg(test)]
-mod mass_tests;
-#[cfg(test)]
-mod parallel_tests;
 mod pieces;
-#[cfg(test)]
-mod pieces_tests;
-#[cfg(test)]
-mod small_tests;
 mod soft;
 pub(crate) use soft::declared_soft;
 mod soft_record;
-#[cfg(test)]
-mod soft_tests;
 mod stage;
 #[cfg(test)]
 mod tests;
 mod voronoi;
-#[cfg(test)]
-mod voronoi_tests;
 
 pub(crate) use cut::TILE_TRIANGLES;
 pub(crate) use stage::stage_physics;
 
-/// The stage contract: its name and version, which enter `physics.json` and the cache key.
+/// The stage contract: its name and version, which enter `physics.json` and the cache key. Version
+/// 11 cuts its tiles along the culling hierarchy of group parts (`cut.rs`), whose subtrees own no
+/// one rank range: the tiles differ from a version-10 cook's.
 pub const PHYSICS_COOK_STAGE: &str = "physics-cook";
-pub const PHYSICS_COOK_VERSION: u32 = 10;
+pub const PHYSICS_COOK_VERSION: u32 = 11;
 /// Version of `physics.json`, its own: a reader refuses any other.
 pub const PHYSICS_FORMAT_VERSION: u32 = 2;
 /// Version of a `physics.json` whose bodies carry pieces (`pieces.rs`): a reader of format 2 alone

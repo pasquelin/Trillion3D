@@ -3,7 +3,6 @@ import {
   frustumFarPlane,
 } from '../../../../math/src/geometry/frustum/frustum.ts'
 import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
-import type { ConeContext } from '../cone/cone.fixture.ts'
 import { worldStretch } from '../selection/rootWorld.ts'
 import { selectionScratch, type PageRecord, type SelectionState } from './state.fixture.ts'
 import { traverse } from './visit.fixture.ts'
@@ -24,15 +23,10 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   // The packed rank of this root's first page: what `take` adds to a page's index to name the
   // instance, as the world below names its placement (#1235).
   s.flatBase = root.packedBase ?? -1
-  s.flatWorld = root.world
   s.flatElements = viewMatrix
-  s.flatStretch = worldStretch(root) * s.cameraStretch
+  s.flatStretch = worldStretch(root)
   s.flatFocal = Math.max(pixelScale[0], pixelScale[1])
-  // The cone context belongs to this root: it will be set at the first cluster that has one.
-  ;(s.flatCone as ConeContext).ready = false
-  // A deformed root's vertices leave the cones its pages were cooked with: it tests none.
   s.flatReach = root.reach ?? 0
-  s.flatCones = !(s.flatReach > 0)
   // A root that declares all its pages carry their box takes that check out of the per-cluster
   // path. Silence means "I declared nothing": the cut ensures it as before.
   s.flatBoxes = root.boxes === true

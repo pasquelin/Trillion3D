@@ -26,6 +26,7 @@ mod stage;
 
 pub(crate) use levels::{cell_levels, VoxelLevel};
 pub(crate) use page::voxel_dag;
+pub(crate) use raster::cells_within as triangle_cells;
 pub(crate) use seed::{ShapePreservation, VoxelSeed};
 pub(crate) use stage::{stage_voxels, VoxelInputs};
 pub(crate) use trillion3d_page_codec::voxel::VoxelPage;

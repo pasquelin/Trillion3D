@@ -58,21 +58,16 @@ export type SdkWasm = {
   /** The culling hierarchy of the run-time cut's pages (`../geometry/codec/cullingHierarchy.ts`): 0
    *  built, the answer held; 1 refused. */
   culling_build(records: number, count: number, meta: number): number
-  /** The position and texture grids of a primitive (`../geometry/runtime/cutGrid.ts`), two signed words
-   *  at `out`: `uvs` 0 for none, no `ranges` a span over every vertex, NaN where nothing is known,
-   *  `blended` 0 or 1. */
-  grid_exponents(
+  /** The position precision of a primitive cut into clusters (`../geometry/runtime/cutGrid.ts`), one
+   *  signed word at `out`: 0 written, 1 when a cluster is too wide for the coarsest precision. */
+  grid_precision(
     positions: number,
     vertexCount: number,
-    uvs: number,
     indices: number,
     ranges: number,
     rangeCount: number,
-    blended: number,
-    finestError: number,
-    scale: number,
     out: number,
-  ): void
+  ): number
 }
 type WasmSource = BufferSource | (() => Promise<BufferSource>)
 

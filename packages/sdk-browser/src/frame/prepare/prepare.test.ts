@@ -1,7 +1,7 @@
 // Lot F, F18: calculations of a WebGPU engine prepare. `indexSourceBytes` and
 // `materialsAndTangentsCount` (../io/catalogue.ts) replace a `flatMap` of a pair per page and
 // a `map`/two table copies with one walk each; their oracles are the implementations from before
-// lot F. A page's cone is the collection's (`geometry/selection/cones.test.ts`).
+// lot F.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
@@ -9,7 +9,7 @@ import { indexSourceBytes, materialsAndTangentsCount } from '../io/catalogue.ts'
 import {
   referenceIndexSourceBytes,
   referenceMaterialsAndTangentsCount,
-} from '../../../../../bench/oracles/browser/normal-cones.ts'
+} from '../../../../../bench/oracles/browser/page-catalogue.ts'
 import type { PageRec } from '../../geometry/selection/types.ts'
 
 test('indexSourceBytes yields the same table as the reference flatMap, last page of a winning address', () => {

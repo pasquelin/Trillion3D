@@ -1,6 +1,6 @@
-// The occluder history is established by the partition alone, and the partition runs only on
-// opaque rows. A view with none — blend clusters alone, the sky — must neither clear the bit nor
-// hold its frame on it. It does not count there, and counts as soon as a row is packed. The row
+// The occluder history is established by an image that draws opaque rows alone: the pyramid it
+// leaves is what the next image's cut occlusion reads. A view with none — blend clusters alone, the
+// sky — must neither clear the bit nor hold its frame on it. It does not count there, and counts as soon as a row is packed. The row
 // change flag is consumed by every submitted image, not by the opaque path alone.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -14,7 +14,7 @@ test('a view without a packed row owes no occluder history', () => {
   rt.run.noOccluderHistory = true
   assert.deepEqual(unsettledReasons(unsettledMask(rt)), ['noOccluderHistory'])
   rt.layout.rows.packedCount = 0
-  assert.equal(unsettledMask(rt), 0, 'nothing to partition: the frame may be held')
+  assert.equal(unsettledMask(rt), 0, 'no opaque row: the frame may be held')
   rt.layout.rows.packedCount = 1
   assert.deepEqual(
     unsettledReasons(unsettledMask(rt)),

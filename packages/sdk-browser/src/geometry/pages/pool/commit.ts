@@ -43,11 +43,11 @@ export function commitGpuPage(
   const { emit, now, report } = reader
   state.bytesRead += bytes.byteLength
   const uploadStarted = now()
-  // A slot is the size of the scene's LARGEST cluster. Writing the whole slot would charge every
-  // page — even a tiny one — a clear, a copy and a transfer of that size, while nothing ever
-  // reads the slot's tail: a page-table row names its offset and triangle count, and the
-  // visibility pass does not leave that range. Only the page's bytes go, padded to the multiple
-  // of four that `writeBuffer` requires. The page's whole words go straight from its own bytes —
+  // A page lies in its streaming page's slot at its offset there (`placement.ts`). Writing more
+  // would charge every page a clear, a copy and a transfer of bytes nothing reads: a page-table
+  // row names its offset and triangle count, and the visibility pass does not leave that range.
+  // Only the page's bytes go, padded to the multiple of four that `writeBuffer` requires — every
+  // page of a streaming page starts on a word. Its whole words go straight from its own bytes —
   // `writeBuffer` copies them itself, a staging copy first would only double the copy —
   // and only its last 1-3 bytes, zero-padded to a word, through the four-byte `tail`.
   const size = bytes.byteLength,

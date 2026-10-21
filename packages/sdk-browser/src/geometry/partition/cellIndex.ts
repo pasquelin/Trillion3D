@@ -13,17 +13,18 @@ import type { readCellPage, TableCell } from '../../../../sdk-core/src/scene/cor
 import type { TableSlot } from '../../../../sdk-core/src/scene/core/tablePages.ts'
 import type { StreamPage } from '../streaming/types.ts'
 import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
-import { boxed, type Boxed, type CellBoxes, type Declared } from './boxes.ts'
-import { boxDistance } from './plan.ts'
+import type { CellBoxes, Declared } from './boxes.ts'
+import { boxDistance } from './reach.ts'
 
 /** A page of the index: its file, its boxes, and once opened the pages it lists or its cells. */
 export type IndexPage = Declared & {
   slot: StreamPage
   body: { pages: IndexPage[] } | { cells: number[] } | null
 }
-/** A cell the index holds: its record, its file's address, its boxes, and its HLOD 0 cell's
- *  streaming bounds as declared, carried where the parents its nodes hang under stand now. */
-type Cell = TableCell & { item: Boxed; leafBox: Declared }
+/** A cell the index holds: its record, its file's address, the bounds its grid cell and its
+ *  HLOD 0 cell — none for objects in no layer — stream by, as declared, carried where the parents
+ *  its nodes hang under stand now, and its content's box once asked (`content`). */
+type Cell = TableCell & { squareBox: Declared; leafBox: Declared | null; contentBox?: Declared }
 /** A page's body as the pool reads it. */
 export type PageBody = ReturnType<typeof readCellPage>
 
@@ -46,17 +47,21 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
     const { url, bytes, sha256 } = cells.get(cell)!
     return { url, bytes, sha256 }
   }
-  /** The distances the walk meets `cell` by from `eye`: its content — its grid cell's, or its
-   *  nodes' boxes where a moved parent carried them — (`own`), its HLOD 0 cell's streaming bounds
-   *  where those parents carried them too (`leaf`, `leafBox`: a page's box and a cell's boxes
-   *  follow a moved parent, so do the bounds its HLOD 0 cell streams by), and the nearest of those
-   *  and its HLOD 1 cell's (`reach`) — a cell is met while any grid could stream it. */
-  const met = { own: 0, leaf: 0, reach: 0, leafBox: new Float64Array(0) as ArrayLike<number> }
-  const measure = ({ item, bounds, hlod, leafBox }: Cell, eye: ArrayLike<number>) => {
-    met.own = Math.min(boxDistance(bounds, eye), boxDistance(boxes.bounds(item), eye))
-    met.leafBox = boxes.around(leafBox)
-    met.leaf = boxDistance(met.leafBox, eye)
-    met.reach = Math.min(met.own, met.leaf, boxDistance(hlod[2], eye))
+  /** Where the walk meets `cell` from `eye`: the bounds its grid cell streams by and those of its
+   *  HLOD 0 cell — none for objects in no layer —, where the parents its nodes hang under carried
+   *  them (a page's box and a cell's boxes follow a moved parent, so do the bounds its cells
+   *  stream by), and the distance to the nearest of both (`reach`) — a cell is met while either
+   *  grid could stream it. */
+  const met = {
+    reach: 0,
+    square: new Float64Array(0) as ArrayLike<number>,
+    leaf: null as ArrayLike<number> | null,
+  }
+  const measure = ({ squareBox, leafBox }: Cell, eye: ArrayLike<number>) => {
+    met.square = boxes.around(squareBox)
+    met.leaf = leafBox && boxes.around(leafBox)
+    const own = boxDistance(met.square, eye)
+    met.reach = met.leaf ? Math.min(own, boxDistance(met.leaf, eye)) : own
     return met
   }
   /** Whether `page` holds no cell of `held`. */
@@ -98,6 +103,19 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
     },
     /** The record of a cell the index holds. */
     cell: (cell: number): TableCell => cells.get(cell)!,
+    /** Where the content of a cell the index holds lies now: the box around its nodes at the
+     *  declared poses (`CellBoxes.declaredUnion`), made at the first ask, carried where its parents
+     *  stand. */
+    content(cell: number) {
+      const held = cells.get(cell)!
+      held.contentBox ??= {
+        declared: boxes.declaredUnion(held.parents),
+        parents: held.squareBox.parents,
+        box: new Float64Array(BOX_VALUES),
+        written: -1,
+      }
+      return boxes.around(held.contentBox)
+    },
     /** How many pages the index holds opened, and cells. */
     stats: () => ({ pages: opened, cells: cells.size }),
     /** Opens `page` on its decoded `body`; returns the files it names, which the catalogue takes. */
@@ -112,39 +130,38 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
       const ids = body.cells.map((record, at) => {
         const url = new URL(record.url, base).href
         const id = body.first + at
-        const leafBox: Declared = {
-          declared: record.hlod[1],
-          parents: record.parents.flatMap(([rank]) => (rank === null ? [] : [rank])),
+        const parents = record.parents.flatMap(([rank]) => (rank === null ? [] : [rank]))
+        const carried = (declared: ArrayLike<number>): Declared => ({
+          declared,
+          parents,
           box: new Float64Array(BOX_VALUES),
           written: -1,
-        }
-        cells.set(id, { ...record, url, item: boxed(record.parents), leafBox })
+        })
+        cells.set(id, {
+          ...record,
+          url,
+          squareBox: carried(record.bounds),
+          leafBox: record.hlod && carried(record.hlod[1]),
+        })
         return id
       })
       page.body = { cells: ids }
       return ids.map(fileOf)
     },
     /**
-     * Walks the pages from the root: visits each cell within `radius` of `eye` — its boxes or its
-     * HLOD cells' streaming bounds, which its page's box holds too (`partition.rs`) —, with how
-     * far its content and its HLOD 0 cell's streaming bounds lie, that HLOD 0 cell and those
-     * bounds, and each
-     * page within it not yet opened (`unread`); closes each opened page past `keep` whose cells
-     * `held` holds none. Distances are 2D (`boxDistance`). Returns the boxes it tested: the pages
-     * it met, and the cells of the region pages it walked.
+     * Walks the pages from the root: visits each cell within `radius` of `eye` — the bounds its
+     * grid cell or its HLOD 0 cell streams by, which its page's box holds too (`partition.rs`) —,
+     * with how far the first lies, and both bounds where its parents stand (none for objects in
+     * no layer), and each page within it not yet opened (`unread`); closes each opened page past
+     * `keep` whose cells `held` holds none. Distances are 2D (`boxDistance`). Returns the boxes
+     * it tested: the pages it met, and the cells of the region pages it walked.
      */
     near(
       eye: ArrayLike<number>,
       radius: number,
       keep: number,
       held: { has(cell: number): boolean },
-      visit: (
-        cell: number,
-        own: number,
-        leaf: number,
-        hlod: number,
-        leafBox: ArrayLike<number>,
-      ) => void,
+      visit: (cell: number, square: ArrayLike<number>, leaf: ArrayLike<number> | null) => void,
       unread: (page: IndexPage, distance: number) => void,
     ) {
       const tested = { pages: 0, cells: 0 },
@@ -159,9 +176,8 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
         else
           for (const cell of page.body.cells) {
             tested.cells++
-            const record = cells.get(cell)!
-            const { own, leaf, reach, leafBox } = measure(record, eye)
-            if (reach <= radius) visit(cell, own, leaf, record.hlod[0], leafBox)
+            const { reach, square, leaf } = measure(cells.get(cell)!, eye)
+            if (reach <= radius) visit(cell, square, leaf)
           }
       }
       return tested

@@ -11,12 +11,14 @@
  * bytes and increments `unknownFormats`: a total that carries any is not a proof.
  */
 import {
+  BUDGET_EXCEEDED,
   checkAllocation,
   ledgerSnapshot,
   ledgerSweep,
   ledgerTransaction,
   observeCreates,
   type Admission,
+  type GpuBudgetExceeded,
   type GpuDeviceLedgerSnapshot,
   type LedgerBooks,
   type LedgerDevice,
@@ -159,8 +161,10 @@ export const ledgerReplacing = <T>(
   return ledger ? ledger.replacing(bytes, build) : build()
 }
 
-/** Whether `error` is a budget's refusal (`checkAllocation`): the limit, never the device. */
-export const budgetRefused = (error: unknown) => String(error).includes('GPU_BUDGET_EXCEEDED')
+/** Whether `error` is a budget's refusal (`checkAllocation`), by its code: the limit, never the
+ *  device. */
+export const budgetRefused = (error: unknown): error is GpuBudgetExceeded =>
+  (error as { code?: unknown } | null)?.code === BUDGET_EXCEEDED
 
 /** `build` run tentatively on the device's ledger (`GpuDeviceLedger.tentative`), or as is without
  *  one. */

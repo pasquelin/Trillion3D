@@ -2,7 +2,7 @@ import type { PageRec } from '../selection/types.ts'
 import { postPackedBases, type PlacementIndex } from '../selection/placements.ts'
 import { pageAddress } from './page/pageSlots.ts'
 import type { PageList } from '../selection/catalogue.ts'
-import { countBy } from '../../../../math/src/sequence/counts.ts'
+import { appendTo, countBy } from '../../../../math/src/sequence/counts.ts'
 
 type Root = { readonly pages: readonly PageRec[] }
 /** One page of a primitive: the root ranks of the primitive's placements, shared by all its pages,
@@ -34,11 +34,8 @@ export function createPackedInstances(roots: readonly Root[], placement: Placeme
     if (!placements) {
       placementsOf.set(pages, (placements = []))
       for (let offset = 0; offset < pages.length; offset++) {
-        const address = pageAddress(pages[offset]),
-          page = { placements, offset },
-          list = byAddress.get(address)
-        if (list) list.push(page)
-        else byAddress.set(address, [page])
+        const page = { placements, offset }
+        appendTo(byAddress, pageAddress(pages[offset]), page)
         if (pages[offset].transparent) blended.push(page)
         entries++
       }

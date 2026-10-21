@@ -1,11 +1,11 @@
 //! What a `WGP3` page carries for the GPU deformation stage: the joints and weights of a
 //! skinned vertex, and the position and normal displacement of each morph target. Both are
-//! optional streams after the colour, flagged in word 4; word 23 of the header packs the skin
-//! record and the target count (`word`), and each target's record follows the twenty-five header
+//! optional streams after the colour, flagged in word 4; word 21 of the header packs the skin
+//! record and the target count (`word`), and each target's record follows the twenty-three header
 //! words — nine words each, the first the word its streams start at, which a reader recomputes
 //! and trusts only when it matches, so every offset still follows from the counts and the widths.
 
-use crate::bits::{le_words, stream_words, BitReader, Quant};
+use crate::bits::{le_words, stream_words, BitReader};
 use crate::HEADER_BYTES;
 
 /// Presence bits of the skin and of the morph targets, beside those of `lib.rs`.
@@ -16,18 +16,15 @@ pub const MAX_JOINT_BITS: u32 = 16;
 /// The largest joint index a skin may name: a page stores a joint in sixteen bits. The one bound
 /// of the encoder and of the run-time deformation reach.
 pub const MAX_SKIN_JOINT: u32 = 0xffff;
-/// Most morph targets a page carries: eight bits of word 23.
+/// Most morph targets a page carries: eight bits of word 21.
 pub const MAX_MORPH_TARGETS: usize = 255;
 /// Header words of one morph target: its first stream, then its position and normal records.
 pub const MORPH_WORDS: usize = 9;
-/// Bits of every source weight, stored without quantization.
+/// Bits of every source weight and morph displacement, stored without quantization.
 pub const WEIGHT_BITS: u32 = 32;
-/// The one record a morph displacement takes: exact float32 bits, no grid.
-pub const RAW_F32: Quant<3> = Quant {
-    min: [0.0; 3],
-    exponent: 0,
-    bits: [32; 3],
-};
+/// The record a morph displacement takes in a target's header: three widths of `WEIGHT_BITS`, six
+/// bits each from bit 0, and no grid.
+const RAW_RECORD: u32 = WEIGHT_BITS | WEIGHT_BITS << 6 | WEIGHT_BITS << 12;
 
 /// The skin record: the page's smallest joint and the width of each joint's distance to it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -37,57 +34,47 @@ pub struct Skin {
     pub influences: usize,
 }
 
-/// Word 23: the joint width in bits 0 to 5, the target count in bits 6 to 13, the smallest joint
+/// Word 21: the joint width in bits 0 to 5, the target count in bits 6 to 13, the smallest joint
 /// in bits 14 to 29, two bits zero.
 pub fn word(skin: &Skin, targets: usize) -> u32 {
     skin.bits | (targets as u32) << 6 | skin.base << 14
 }
 
-/// One morph target of a page: the word its six streams start at, after the header, and the
-/// records of its position displacement and of its normal displacement.
+/// One morph target of a page: the word its six streams start at, after the header. Its position
+/// and normal displacements are raw float32 bits, three streams each.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Morph {
     pub start: usize,
-    pub position: Quant<3>,
-    pub normal: Quant<3>,
 }
 
 impl Morph {
     pub fn words(&self) -> [u32; MORPH_WORDS] {
-        let [a, b, c] = self.position.min.map(f32::to_bits);
-        let [d, e, f] = self.normal.min.map(f32::to_bits);
-        let (p, n) = (self.position.packed(), self.normal.packed());
-        [self.start as u32, p, a, b, c, n, d, e, f]
+        let raw = RAW_RECORD;
+        [self.start as u32, raw, 0, 0, 0, raw, 0, 0, 0]
     }
 
     pub fn unpack(w: &[u32]) -> Option<Self> {
-        if w[1] != RAW_F32.packed()
-            || w[5] != RAW_F32.packed()
-            || [w[2], w[3], w[4], w[6], w[7], w[8]] != [0; 6]
-        {
-            return None;
-        }
-        Some(Self {
+        let raw = w[1] == RAW_RECORD && w[5] == RAW_RECORD;
+        let grid_free = [w[2], w[3], w[4], w[6], w[7], w[8]] == [0; 6];
+        (raw && grid_free).then_some(Self {
             start: w[0] as usize,
-            position: RAW_F32,
-            normal: RAW_F32,
         })
     }
 
     /// Widths of its six streams, position then normal.
     pub fn bits(&self) -> [u32; 6] {
-        let ([a, b, c], [d, e, f]) = (self.position.bits, self.normal.bits);
-        [a, b, c, d, e, f]
+        [WEIGHT_BITS; 6]
     }
 }
 
 /// The skin record and the morph targets' records of a page whose flags word is `flags`, read
-/// from word 23 and the records after the header; `None` when a field is set that the flags do
+/// from word 21 and the records after the header; `None` when a field is set that the flags do
 /// not announce, a record leaves the format, or the records pass the end of `data`.
 pub fn parse(flags: u32, packed: u32, data: &[u8]) -> Option<(Skin, Vec<Morph>)> {
     let (skinned, morphed) = (flags & FLAG_SKIN != 0, flags & FLAG_MORPH != 0);
     let skin = Skin {
-        influences: u32::from_le_bytes(data.get(96..100)?.try_into().ok()?) as usize,
+        influences: u32::from_le_bytes(data.get(HEADER_BYTES - 4..HEADER_BYTES)?.try_into().ok()?)
+            as usize,
         bits: packed & 63,
         base: (packed >> 14) & 0xffff,
     };

@@ -1,4 +1,11 @@
 import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts'
+import { resolveSettings } from '../../../sdk-core/src/contracts/settingRules.ts'
+import { RASTER_RULES } from '../../../sdk-core/src/contracts/rasterOptions.ts'
+import { STREAMING_RULES } from '../../../sdk-core/src/contracts/streamingOptions.ts'
+import { WORLD_STREAMING_RULES } from '../../../sdk-core/src/contracts/worldStreamingOptions.ts'
+import { CUT_RULES } from '../../../sdk-core/src/contracts/cutOptions.ts'
+import { ANIMATION_RULES } from '../../../sdk-core/src/contracts/animationOptions.ts'
+import { SHADING_RULES } from '../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { WorldRootsHold } from '../geometry/hlod/worldRoots.ts'
 import { isCancelled, pixelRatioOf } from './engine/common.ts'
 import { createSceneLightStore } from '../../../sdk-core/src/scene/light/store.ts'
@@ -64,7 +71,6 @@ function optionContext(session: ExplorerSession) {
   return {
     maxResidentPages: options.maxResidentPages,
     pixelError: options.pixelError,
-    lodAdaptive: options.lodAdaptive,
     pixelRatio: () => pixelRatioOf(options),
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,
@@ -73,6 +79,14 @@ function optionContext(session: ExplorerSession) {
     maxFrameRate: options.maxFrameRate,
     effects: options.effects,
     geometryPoolBytes: options.geometryPoolBytes,
+    // The settings declared by rule, each refused at the opening when of another kind or out of
+    // range, as the world refuses them.
+    ...resolveSettings(RASTER_RULES, options),
+    ...resolveSettings(STREAMING_RULES, options),
+    ...resolveSettings(WORLD_STREAMING_RULES, options),
+    ...resolveSettings(CUT_RULES, options),
+    ...resolveSettings(ANIMATION_RULES, options),
+    ...resolveSettings(SHADING_RULES, options),
     admitGpuMemory: options.admitGpuMemory,
     texturePoolBytes: options.texturePoolBytes,
     textureCompression: options.textureCompression,
@@ -121,7 +135,6 @@ function engineContext(
     readGeometryPage: (url, own, priority) =>
       streamer.readBytes(url, own ?? streamer.signal, priority),
     worldRoots,
-    pageRoundTripMs: streamer.roundTripMs,
     draws: inputs.draws,
     signal,
     onDiagnostic: diagnosticChannel.enabled ? diagnosticChannel.emit : undefined,

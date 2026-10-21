@@ -1,5 +1,6 @@
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts'
+import { ANIMATION_BANK_WGSL } from '../../deformation/bankWgsl.ts'
 import { PRESENT_AT_SHADER } from './presentWgsl.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { DAG_SELECTION_SHADER } from '../../geometry/dag/shader/shader.ts'
@@ -9,10 +10,10 @@ import { RADIANCE_SHADER } from '../../lighting/reflections/radiance/radianceWgs
 import { REFLECTION_TRACE_SHADER } from '../../lighting/reflections/trace/trace.ts'
 import { blendFrontShader } from '../../blend/frontStageWgsl.ts'
 import { RUNTIME_POSE_SHADER } from '../../lighting/bounce/runtime/runtimePoseWgsl.ts'
-import { MATERIAL_TILES_SHADER } from '../../visibility/shader/materialTilesWgsl.ts'
+import { SHADE_BINS_SHADER } from '../../visibility/shader/shadeBinKernelsWgsl.ts'
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
-import { PARTITION_SHADER } from '../../geometry/partition/gpu/shader.ts'
 import { RESOLVE, rasterSource } from '../../visibility/raster/shader.ts'
+import { binSource } from '../../visibility/raster/binWgsl.ts'
 import { COMPOSE_SHADERS } from './engineShaders.compose.fixture.ts'
 import {
   BOUNCE_PROBE_SHADER,
@@ -41,6 +42,7 @@ import {
 } from '../../materials/texture/mipsWgsl.ts'
 import { SHADE_SHADER, shadeShader } from '../../visibility/shader/shadeWgsl.ts'
 import { VIS_SHADER, visShader, visXrayShader } from '../../visibility/shader/visWgsl.ts'
+import { visVoxelShader } from '../../visibility/shader/visVoxelWgsl.ts'
 import { BLEND_EXPAND_SHADER } from '../../blend/expand/expandWgsl.ts'
 import { BLEND_ORDER_SHADER } from '../../blend/order/orderWgsl.ts'
 import { BLEND_VERDICT_SHADER } from '../../blend/verdict/verdictWgsl.ts'
@@ -76,6 +78,7 @@ const compositions = (label: string, sources: Record<string, string>) =>
 const NARROW = { narrow: true, lobeless: true }
 export const ENGINE_SHADERS: Record<string, string> = {
   DEFORMATION_COMPUTE_WGSL,
+  ANIMATION_BANK_WGSL,
   PRESENT_AT_SHADER,
   TRANSPARENT_OCCLUSION: transparentOcclusionShader(),
   DAG_SELECTION_SHADER,
@@ -89,11 +92,11 @@ export const ENGINE_SHADERS: Record<string, string> = {
   FRONT_STAGE_LOBED: blendFrontShader(2),
   RUNTIME_POSE_SHADER,
   RADIANCE_SHADER,
-  MATERIAL_TILES_SHADER,
+  SHADE_BINS_SHADER,
   SHADE_CACHE_SHADER,
   SHADE_TRIS_SHADER,
-  PARTITION_SHADER,
-  RASTER: rasterSource(4096, 16),
+  RASTER: rasterSource(4096),
+  RASTER_BIN: binSource(4096),
   RESOLVE,
   ...COMPOSE_SHADERS,
   BOUNCE_PROBE_SHADER,
@@ -146,6 +149,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   VIS_SHADER,
   VIS_DIAGNOSTIC: visShader({ diagnostic: DIAGNOSTIC_VIS_WGSL }),
   VIS_XRAY_SHADER: visXrayShader(),
+  VIS_VOXEL_SHADER: visVoxelShader(),
   SHADE_SHADER,
   SHADE_DIAGNOSTIC: shadeShader({ diagnostic: DIAGNOSTIC_SHADE_WGSL }),
   BLEND_SHADER,

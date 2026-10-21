@@ -11,7 +11,7 @@ import {
 import { referenceExpectedGeometry } from '../../../../bench/oracles/core/preview-texture.ts'
 
 // Behaviour 5: the TypeScript geometry is the exact mirror of
-// `packages/asset-compiler-rust/src/texture_preview/levels.rs`, checked here on the same cases —
+// `packages/asset-compiler-rust/src/texture/levels.rs`, checked here on the same cases —
 // a texture that already fits under the base, an odd texture, a non-square texture.
 test('previewFirstLevel/Last/Size and previewGeometry match the Rust geometry on the same cases', () => {
   // 4×4: already fits under the base, three levels down to 1×1.

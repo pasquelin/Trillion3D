@@ -1,5 +1,5 @@
-// The visibility raster's slot draws and the material surfaces are executed as render bundles,
-// recorded once and replayed while what they name holds. On the real engine under the two-pass
+// The visibility raster's slot draws are executed as render bundles, recorded once and replayed
+// while what they name holds; the material surfaces are shaded in compute, nothing to bundle. On the real engine under the two-pass
 // occlusion and temporal antialiasing, every held image equals, pixel for pixel, that of a second
 // engine walking the same poses whose bundles are encoded as their commands in the pass
 // (`renderBundlesPage.ts`): image class 1.
@@ -13,7 +13,7 @@ import { runPageProof, assertSoundProof } from '../../kit/device/enginePageProof
 
 type Reading = Awaited<ReturnType<typeof import('./renderBundlesPage.ts').runRenderBundles>>
 
-test('the bundled raster and surfaces draw the image their commands draw', async () => {
+test('the bundled raster draws the image its commands draw', async () => {
   const reading = (await runPageProof(
     resolve(import.meta.dirname, 'renderBundlesPage.ts'),
     'renderBundles',
@@ -31,8 +31,8 @@ test('the bundled raster and surfaces draw the image their commands draw', async
   assert.ok(reading.steps[0].recorded > 0, 'the first pose records the bundles it draws')
   assert.deepEqual(
     reading.steps[0].labels,
-    ['Trillion3D material classes', 'Trillion3D visibility slots'],
-    'the raster halves and the surfaces are bundled',
+    ['Trillion3D visibility slots'],
+    'the raster halves are bundled',
   )
   assert.equal(reading.steps[2].recorded, 0, 'back at a pose drawn before, nothing is recorded')
 })

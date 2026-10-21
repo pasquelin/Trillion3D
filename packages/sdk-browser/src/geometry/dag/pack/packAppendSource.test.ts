@@ -99,9 +99,6 @@ test('a primitive the packing does not hold appends into the room it kept, as a 
     worlds: 2 * exact.worldCount,
     primitiveNodes: exact.primitiveNodeCount,
     records: exact.recordCount,
-    keys: exact.keyCount,
-    groups: exact.groupCount,
-    edges: exact.groupEdges,
   }
   const whole = packDagSelection(all, capacity),
     grown = packDagSelection(roots, capacity)
@@ -109,12 +106,11 @@ test('a primitive the packing does not hold appends into the room it kept, as a 
   assert.ok(added, 'appended in place')
   for (const table of TABLES) assert.deepEqual(grown[table], whole[table], table)
   assert.equal(grown.recordCount, whole.recordCount)
-  assert.equal(grown.keyCount, whole.keyCount)
   assert.deepEqual(grown.live, whole.live)
   assert.ok(added.nodes[1] > added.nodes[0] && added.records[1] > added.records[0])
 })
 
-test('a primitive past the nodes, records or keys the room kept is not appended', () => {
+test('a primitive past the nodes or records the room kept is not appended', () => {
   const { roots } = scene()
   const other = sceneRoots(scenePages(64, 3), [new Matrix4()])
   const exact = packDagSelection([...roots, ...other])
@@ -143,16 +139,11 @@ test('a packing kept ahead takes a source of records of its own in the room it k
   const packed = packDagSelection(held, room)
   assert.ok(packed.primitiveNodeCount >= exact.primitiveNodeCount + 64, 'room for primitives')
   assert.ok(packed.recordCount >= exact.recordCount + 64, 'room for records')
-  assert.ok(packed.keyCount >= exact.keyCount + 64, 'room for keys')
-  assert.ok(packed.groupCount >= exact.groupCount + 64, 'room for key groups')
   assert.ok(appendDagRoots(packed, first), 'a source of records of its own is appended in place')
-  // As a packing of every root at the room it kept: its primitive nodes, records and keys.
+  // As a packing of every root at the room it kept: its primitive nodes and records.
   const kept = {
     ...{ pages: room.pages, nodes: room.nodes, worlds: room.worlds },
     ...{ primitiveNodes: packed.primitiveNodeCount, records: packed.recordCount },
-    keys: packed.keyCount,
-    groups: packed.groupCount,
-    edges: packed.groupEdges,
   }
   const whole = packDagSelection([...held, ...first], kept)
   for (const table of TABLES) assert.deepEqual(packed[table], whole[table], table)

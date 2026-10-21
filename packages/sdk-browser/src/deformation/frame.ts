@@ -1,11 +1,10 @@
 import { paletteStretch, PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import type { Skeleton } from '../../../sdk-core/src/world/animation/skeleton.ts'
+import type { BankTrack } from '../../../sdk-core/src/scene/core/animationBanks.ts'
 import type { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts'
-import { resized } from '../../../math/src/sequence/resized.ts'
-import { createWaveHeld, heldInverse, wavesChanged, writeWaves } from './waveFrame.ts'
-import type { WaveHeld } from './waveFrame.ts'
+import { heldInverse, wavesChanged, writeWaves } from './waveFrame.ts'
 import { writeSoftSource, type SoftSource } from './softSource.ts'
-import { createSkinPalettes } from './skinPalettes.ts'
+import { appendRecords, deformationRecords, type Records } from './frameRecords.ts'
 import type { MatrixElements } from '../session/host/matrixElements.ts'
 import {
   KIND_MORPH,
@@ -13,12 +12,12 @@ import {
   KIND_WAVE,
   KIND_SOFT,
   keepPrevious,
-  recordLayout,
   RECORD_WORD,
   type RecordShape,
 } from './layout.ts'
 
-/** What a deformed placement is moved by: its mesh's skeleton, morph weights and waves. */
+/** What a deformed placement is moved by: its mesh's skeleton, morph weights and waves, or the
+ *  track of the scene's animation banks it plays. */
 export type DeformedMesh = {
   readonly sourceIdentity?: object | null
   skeleton?: Skeleton
@@ -28,6 +27,10 @@ export type DeformedMesh = {
   /** The world its skeleton's bones are read in, when it is not the one its placement stands in:
    *  the mesh's own within the model's graph (`PlacementRows.local`). */
   readonly frame?: ArrayLike<number>
+  /** The track it plays now (`bankTrack`): its row's (`PlacementRows.tracks`), or a banked node's
+   *  mesh's own (`Mesh.bank`). The GPU poses it from that track's record (`bankTracks.ts`): no
+   *  palette of its skeleton is written for it. */
+  readonly bank?: BankTrack
 }
 
 /** One deformed placement: where it stands, its mesh, the counts its record holds and how far
@@ -37,91 +40,9 @@ export type Deformed = {
   mesh: DeformedMesh
   shape: RecordShape
   reach: { joints: ArrayLike<number>; targets: ArrayLike<number> }
-}
-
-/** The records of a session's placements and what writes them: each record's first float plus
- *  one and its layout, the block and its words, each placement's reach, whether it moves and
- *  whether its record is to upload, its staleness read this frame, the mesh each was written for, its waves' stretch, the skin
- *  palettes, whether no frame was written yet, and the uploaded revision. The per-placement arrays
- *  hold places for the placements and the block the floats the records span, both grown by the
- *  engine's one rule (`resized`) when placements join (`appendRecords`). */
-type Records = ReturnType<typeof deformationRecords>
-
-/** An owner no mesh is: a record not written yet is written for another mesh than the one it meets. */
-const UNWRITTEN = {}
-
-function deformationRecords() {
-  const block = new Float32Array(1)
-  return {
-    placed: [] as (Deformed | null)[],
-    /** Placements with a record. */
-    deforming: 0,
-    /** Floats the records span, the block holding at least as many. */
-    floats: 0,
-    block,
-    words: new Uint32Array(block.buffer),
-    bases: new Uint32Array(0),
-    layouts: [] as (ReturnType<typeof recordLayout> | null)[],
-    reach: new Float64Array(0),
-    moving: new Uint8Array(0),
-    dirty: new Uint8Array(0),
-    // Each placement's `stale` answer once read this frame: 0 not yet, 1 fresh, 2 stale; noted
-    // for frame `knownFor` alone, -1 for none.
-    known: new Uint8Array(0),
-    knownFor: -1,
-    waveHeld: [] as (WaveHeld | null)[],
-    owners: [] as (object | null | undefined)[],
-    skins: createSkinPalettes([], block),
-    first: true,
-    revision: 0,
-  }
-}
-
-/**
- * Placements `entries` join the records behind the ones held, by the rule the open laid them out
- * with: a record's shape is fixed when it is made, its head written once, its floats end to end
- * after the others'. The arrays and the block grow by `resized` when they are full. Returns the
- * first new placement's rank.
- */
-function appendRecords(r: Records, entries: readonly (Deformed | null)[]) {
-  const first = r.placed.length,
-    count = first + entries.length
-  r.bases = resized(r.bases, count)
-  r.reach = resized(r.reach, count)
-  r.moving = resized(r.moving, count)
-  r.dirty = resized(r.dirty, count)
-  r.known = resized(r.known, count)
-  // A record's shape is fixed with the session: its layout is measured once.
-  const added = entries.map((entry, k) => {
-    if (!entry) return null
-    const layout = recordLayout(entry.shape)
-    r.bases[first + k] = r.floats + 1
-    // Records lie end to end: the stage reads the block float by float (`deformWgsl.ts`).
-    r.floats += layout.floats
-    r.deforming++
-    return layout
-  })
-  const block = resized(r.block, r.floats)
-  if (block !== r.block) {
-    r.block = block
-    r.words = new Uint32Array(block.buffer)
-    r.skins.use(block)
-  }
-  // A record's counts are fixed with the session too: its head is written once.
-  entries.forEach((entry, k) => {
-    if (!entry) return
-    const at = r.bases[first + k] - 1
-    const { joints, targets, waves, soft = 0 } = entry.shape
-    r.words.set([joints, targets, waves, soft], at + RECORD_WORD.joints)
-  })
-  entries.forEach((entry, k) => {
-    r.placed.push(entry)
-    r.layouts.push(added[k])
-    r.waveHeld.push(entry?.shape.waves ? createWaveHeld() : null)
-    r.owners.push(UNWRITTEN)
-  })
-  r.skins.append(entries)
-  return first
+  /** The record of a track of the animation banks (`bankTracks.ts`), no placement's: it skins in
+   *  both frames, and the GPU writes its two palettes every image (`bankWgsl.ts`). */
+  readonly track?: true
 }
 
 /** Whether placement `i`'s morph weights or waves moved since its record was written: what a
@@ -182,18 +103,23 @@ function writeSoft(
   return soft.reach
 }
 
+/** The head of track record `i` (`Deformed.track`), written when it joins (`cold`): it skins in
+ *  both frames, its palettes the GPU's. Nothing of it moves the block, and its reach is no
+ *  placement's: its head goes up with the block once, the frame it joins (`updateRecords`). */
+function holdTrack({ words, moving, dirty }: Records, i: number, at: number, cold: boolean) {
+  if (cold) words[at + RECORD_WORD.kinds] = words[at + RECORD_WORD.previousKinds] = KIND_SKIN
+  moving[i] = dirty[i] = 0
+  return 0
+}
+
 /** Writes placement `i`'s record for this frame; returns how far it moves a vertex. */
-function writeRecord(
-  r: Records,
-  i: number,
-  entry: Deformed,
-  skipped: (i: number, reach: number) => boolean,
-) {
+function writeRecord(r: Records, i: number, entry: Deformed) {
   const { block, words, owners } = r
   const cold = r.first || owners[i] !== entry.mesh.sourceIdentity
   owners[i] = entry.mesh.sourceIdentity
-  const at = r.bases[i] - 1,
-    { shape, mesh } = entry,
+  const at = r.bases[i] - 1
+  if (entry.track) return holdTrack(r, i, at, cold)
+  const { shape, mesh } = entry,
     layout = r.layouts[i]!,
     joints = shape.joints * PALETTE_FLOATS,
     palette = at + layout.palette,
@@ -204,7 +130,9 @@ function writeRecord(
   let kinds = 0,
     most = 0,
     moved = !cold && staleOnce(r, i, entry)
-  if (shape.joints && mesh.skeleton) {
+  // A mesh that plays a bank's track takes no palette of its skeleton: its rows name the track's
+  // record while it plays (`bankTracks.ts`).
+  if (shape.joints && mesh.skeleton && !mesh.bank) {
     moved = r.skins.write(i, entry, palette, joints, cold, moved)
     most = r.skins.reachOf(i)
     kinds |= KIND_SKIN
@@ -222,7 +150,6 @@ function writeRecord(
     most += writeSoft(r, at, at + layout.simulation, mesh.softSource, cold)
     kinds |= KIND_SOFT
   }
-  if (kinds && skipped(i, most)) kinds = most = 0
   words[at] = kinds
   if (cold) words[at + RECORD_WORD.previousKinds] = kinds
   r.moving[i] = moved || kinds !== words[at + RECORD_WORD.previousKinds] ? 1 : 0
@@ -231,11 +158,7 @@ function writeRecord(
 }
 
 /** This frame's records, the last frame's kept beside them (`DeformationFrame.update`). */
-function updateRecords(
-  r: Records,
-  skipped: (i: number, reach: number) => boolean,
-  frame: number | undefined,
-) {
+function updateRecords(r: Records, frame: number | undefined) {
   if (frame === undefined || r.knownFor !== frame) r.known.fill(0)
   let changed = r.first
   for (let i = 0; i < r.placed.length; i++) {
@@ -243,7 +166,7 @@ function updateRecords(
     if (!entry) continue
     // Last frame's flag: a record that moved then uploads once more, its previous pose settling.
     changed ||= r.moving[i] === 1 || r.owners[i] !== entry.mesh.sourceIdentity
-    r.reach[i] = writeRecord(r, i, entry, skipped)
+    r.reach[i] = writeRecord(r, i, entry)
     // This frame's flag, which `writeRecord` just set.
     changed ||= r.moving[i] === 1
   }
@@ -259,9 +182,10 @@ function updateRecords(
  * placement `i`'s record's first float plus one, zero when it does not deform. Each frame
  * (`update`) keeps the last frame's values beside this one's — the temporal pass reprojects each
  * vertex from where it was — and measures how far each placement can move a vertex (`reach`, in
- * the placement's units), which the cuts grow its bounds by. A placement whose `skipped` says its
- * reach projects below the error drawn is drawn at rest, its reach zero. A palette is written only
- * when an input it reads changed (`skinPalettes.ts`). Nothing is allocated after it is made.
+ * the placement's units), which the cuts grow its bounds by. Every record deforms, whatever its
+ * placement's size on screen. A palette is written only when an input it reads changed
+ * (`skinPalettes.ts`); a track's record (`Deformed.track`) has its palettes written by the GPU,
+ * never here. Nothing is allocated after it is made.
  */
 export function createDeformationFrame(placed: readonly (Deformed | null)[] = []) {
   const r = deformationRecords()
@@ -338,13 +262,13 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[] = []
       r.knownFor = -1
     },
     /**
-     * This frame's records, the last frame's kept beside them. `skipped(i, reach)` says whether
-     * placement `i`, moving a vertex by at most `reach` of its units, projects that below the
-     * error the image allows: it is then drawn at rest. Returns whether records need uploading,
-     * including the first pose and the previous pose settling after movement stops. `frame`
-     * takes the answers `pending` noted for it.
+     * This frame's records, the last frame's kept beside them. Returns whether records need
+     * uploading, including the first pose and the previous pose settling after movement stops.
+     * `frame` takes the answers `pending` noted for it.
      */
-    update: (skipped: (i: number, reach: number) => boolean, frame?: number) =>
-      updateRecords(r, skipped, frame),
+    update: (frame?: number) => updateRecords(r, frame),
   }
 }
+
+/** A session's records (`createDeformationFrame`). */
+export type DeformationFrame = ReturnType<typeof createDeformationFrame>

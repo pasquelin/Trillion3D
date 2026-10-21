@@ -63,7 +63,7 @@ pub(super) fn grid(side: usize, spacing: f64, scale: f64) -> Vec<Value> {
 
 /// The cell records of the tables in `directory`, read through their pages.
 pub(super) fn cells(directory: &Path) -> Vec<Value> {
-    let records = crate::compiler_tables::cell_records(directory).expect("cell records");
+    let records = crate::compiler::tables::cell_records(directory).expect("cell records");
     records.into_values().collect()
 }
 
@@ -141,27 +141,14 @@ fn a_cell_boxes_its_nodes_in_the_frame_of_their_core_parent() {
         low = low.min(cell["parents"][0][1][0].as_f64().expect("min x"));
     }
     assert_eq!(low, 0.0, "in the district's frame, not 1000 m away");
-    // A world this small is one region page: its slot's box, minimum x, after digest and size.
+    // A world this small is one region page: its slot's box, minimum x, after digest and size —
+    // the low edge of the main grid cell the district's first placements lie in.
     let slot = tables["partition"]["pages"][0].as_str().expect("slot");
     let union = f64::from_bits(u64::from_str_radix(&slot[72..88], 16).expect("hex"));
-    assert_eq!(union, 1000.0, "the union box is at the declared poses");
-}
-
-#[test]
-fn a_placement_under_an_animated_node_stays_in_the_core() {
-    // Its cell's box is written from the declared poses: a parent an animation moves would carry
-    // it out of that box, so it is read with the core.
-    let side = 48;
-    let mut nodes = grid(side, 4.0, 1.0);
-    nodes.push(json!({"name": "carrier", "children": (0..side * side).collect::<Vec<_>>()}));
-    let (_root, tables, _dir) = compiled_with(nodes, vec![side * side], |gltf| {
-        gltf["animations"] = json!([{"channels": [{"sampler": 0, "target": {"node": side * side, "path": "translation"}}],
-            "samplers": [{"input": 0, "output": 0}]}]);
-    });
-    assert_eq!(tables["partition"], Value::Null, "nothing leaves the core");
-    assert_eq!(
-        tables["nodes"].as_array().expect("nodes").len(),
-        side * side + 1
+    let cell = crate::DEFAULT_PARTITION_CELL_SIZE;
+    assert!(
+        union <= 1000.0 && union > 1000.0 - cell,
+        "the union box is at the declared poses: {union}"
     );
 }
 

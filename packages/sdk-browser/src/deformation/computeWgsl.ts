@@ -14,7 +14,13 @@ export const DEFORMATION_BINDING = {
   image: 5,
 } as const
 const B = DEFORMATION_BINDING
-import { DEFORM_ADDRESS, FLAG_CLUSTER_PAGE, FLAG_DYNAMIC, FLAG_VOXEL } from '../visibility/types.ts'
+import {
+  DEFORM_ADDRESS,
+  DEFORM_SHARED,
+  FLAG_CLUSTER_PAGE,
+  FLAG_DYNAMIC,
+  FLAG_VOXEL,
+} from '../visibility/types.ts'
 import { DEFORM_WGSL } from './deformWgsl.ts'
 import { DEFORM_TAG_WORDS, DEFORM_VERTEX_WORDS, DEFORMED_FIELD } from './outputs.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
@@ -24,7 +30,10 @@ import {
   computeUniformEntry,
 } from '../gpu/core/computeBindings.ts'
 
-/** One invocation per vertex, one group per resident placement; its results lie in the float pool. */
+/** One invocation per vertex, one group per resident placement; its results lie in the float pool.
+ *  A bank track's block (`DEFORM_SHARED`) is deformed by the row of every placement playing the
+ *  track, all to the same values: a vertex whose image tag already names this image is left, a
+ *  row before it having written it. */
 export const DEFORMATION_COMPUTE_WGSL = wgslProgram(
   `@group(0) @binding(${B.indices}) var<storage,read_write> indices:array<u32>;
 @group(0) @binding(${B.positions}) var<storage,read_write> positions:array<f32>;
@@ -44,14 +53,16 @@ fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) la
  let page=pages[row];
  if(page.deformOutput==0u||page.indexCount==0u){return;}
  let h=pageHeader(page);
+ let played=(page.deformOutput&${DEFORM_SHARED}u)!=0u;
  for(var v=lane;v<page.deformCount;v+=WORKGROUP_THREADS){
+  let at=(page.deformOutput&${DEFORM_ADDRESS}u)-1u+v*${DEFORM_VERTEX_WORDS}u;
+  let tags=at-${DEFORM_TAG_WORDS}u;
+  if(played&&deformTag(tags+1u)==deformTagOf(image.x)){continue;}
   let p=pageRestPosition(page,h,v);
   var n=vec3f(0.0);
   if((page.flags&${FLAG_CLUSTER_PAGE}u)!=0u){n=clusterNormal(h,page.pageOffset,v);}
   else if((page.flags&${FLAG_VOXEL}u)!=0u){n=voxelVertexNormal(page.pageOffset,v);}
   else{n=vertN(page.vertexBase,v);}
-  let at=(page.deformOutput&${DEFORM_ADDRESS}u)-1u+v*${DEFORM_VERTEX_WORDS}u;
-  let tags=at-${DEFORM_TAG_WORDS}u;
   var before=deformVertex(page,h,v,p,n,true).p;
   if((page.flags&${FLAG_DYNAMIC}u)!=0u&&deformTag(tags)==deformTagOf(page.selectionIndex+1u)){
    let last=deformTag(tags+1u);

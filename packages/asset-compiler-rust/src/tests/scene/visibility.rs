@@ -55,7 +55,7 @@ fn derived(hidden: bool) -> [Value; 7] {
 }
 
 /// What the tables say of node 1's visibility: its core entry's, or visible when it is placed —
-/// a cell holds visible nodes alone (`compiler_tables/partition.rs`).
+/// a cell holds visible nodes alone (`compiler/tables/partition.rs`).
 fn visibility(tables: &Value) -> Value {
     let nodes = tables["nodes"].as_array().expect("nodes");
     let entry = nodes

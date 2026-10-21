@@ -2,7 +2,7 @@
 // exceeds. A fine triangle off the axis, view centre (8, 0, −10), and its coarse replacement, the
 // same triangle shifted vertically by ε, chosen so the on-axis formula `ε·f / (|C| − r)` would
 // announce 0.39 px where the vertices truly move 0.5 px. At 0.4 px, every cut keeps the fine one:
-// the CPU cut (`selectVisiblePages`, with a culling node and its bounds), the kernel's
+// the CPU cut (`selectVisiblePages`, with a culling node), the kernel's
 // Node oracle and the WGSL kernel.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -12,9 +12,9 @@ import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/geometry/cut/cut.fixture.ts'
 import { projectedClusterError } from '../../../packages/sdk-browser/src/geometry/selection/math.ts'
-import { cullingBounds } from '../../../packages/sdk-browser/src/geometry/cut/bounds.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
+import { CULL_STRIDE } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/geometry/dag/oracle/oracle.fixture.ts'
@@ -70,9 +70,10 @@ function offAxisCase() {
     material,
   })
   const pages = [page(0, coarseBox, epsilon, null), page(1, fineBox, 0, epsilon)]
-  // One leaf node holding both clusters: box, sphere, no replacement (−1), two pages.
-  const nodes = new Float64Array(15)
-  nodes.set([...coarseBox.min, ...coarseBox.max, ...coarseBox.sphere, -1, 0, 0, 0, 2])
+  // One leaf node holding both clusters: box, sphere, no replacement (−1), the fine one's own
+  // error the least, two pages.
+  const nodes = new Float64Array(CULL_STRIDE)
+  nodes.set([...coarseBox.min, ...coarseBox.max, ...coarseBox.sphere, -1, 0, 0, 0, 0, 2])
   const announced = projectedClusterError(
     epsilon,
     coarseBox.sphere,
@@ -82,7 +83,7 @@ function offAxisCase() {
     focal,
     camera.near,
   )
-  return { camera, world, pages, culling: { nodes, stride: 15 }, displacement, announced }
+  return { camera, world, pages, culling: { nodes, stride: CULL_STRIDE }, displacement, announced }
 }
 
 test('the CPU cut, the oracle and the GPU keep the fine cluster off the axis', async () => {
@@ -98,7 +99,7 @@ test('the CPU cut, the oracle and the GPU keep the fine cluster off the axis', a
         {
           world,
           pages,
-          culling: node && { ...node, bounds: cullingBounds(node, pages) },
+          culling: node,
         },
       ],
       engineCamera(camera),
@@ -111,11 +112,13 @@ test('the CPU cut, the oracle and the GPU keep the fine cluster off the axis', a
       [{ world, pages: [] }],
       uniforms.cameraWorld,
     )
-    cuts[`oracle, ${variant}`] = names(evaluateDagSelectionKernel(packed, uniforms).pageIds)
+    cuts[`oracle, ${variant}`] = names(
+      evaluateDagSelectionKernel(packed, uniforms).drawablePageIds ?? [],
+    )
     return { name: variant, packed, uniforms }
   })
   const { adapter, readings } = await runSelectionKernel(cases)
-  for (const reading of readings) cuts[`gpu, ${reading.name}`] = names(reading.pages)
+  for (const reading of readings) cuts[`gpu, ${reading.name}`] = names(reading.drawn)
   console.log(JSON.stringify({ adapter, displacement, announced, cuts }))
   assert.ok(displacement > THRESHOLD, 'the case must actually exceed the threshold')
   assert.ok(announced >= displacement, 'the CPU underestimates the error')

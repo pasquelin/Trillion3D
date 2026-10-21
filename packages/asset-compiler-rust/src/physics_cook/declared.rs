@@ -7,16 +7,16 @@ use super::hull::{cooked_hull, Hull};
 use super::pieces::declared_breakable;
 use super::stage::place;
 use super::{refused, PHYSICS_COOK_FAILED};
-use crate::compiler_nodes::scene_nodes;
-use crate::compiler_validate::values;
-use crate::compiler_world::Mat4;
+use crate::compiler::source::node_transform::Mat4;
+use crate::compiler::source::nodes::scene_nodes;
+use crate::compiler::validate::values;
 use crate::{Options, Result};
 use serde_json::{json, Value};
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
-use trillion3d_math::linear::decompose_trs;
+use trillion3d_math::matrix::linear::decompose_trs;
+use trillion3d_math::matrix::rotation::rotation_matrix;
 use trillion3d_math::matrix::{multiply_matrix4_from_zero, scaling, translation};
-use trillion3d_math::rotation::rotation_matrix;
 
 /// `friction` and `restitution` the collider of node `node` declares, each only when declared.
 pub(crate) fn declared_matter(g: &Value, node: &Value) -> Value {

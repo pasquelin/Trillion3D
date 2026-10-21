@@ -3,7 +3,6 @@ import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import type { PageRec } from '../../geometry/selection/types.ts'
 import { createWebgpuRowState } from '../../geometry/rows/state.ts'
 import { DRAW_ITEM_U32 } from '../../visibility/draw/contract.ts'
-import { createCornerHold } from '../../visibility/passes/corners.ts'
 import { createDrawItemWordsHold } from '../../visibility/passes/itemWords.ts'
 import { VIS_MAX_PAGES } from '../../visibility/types.ts'
 import { boundTableRows, ROW_STEP, VIEW_ROWS } from '../../geometry/rows/tableRows.ts'
@@ -13,6 +12,7 @@ import { createPackedPages, createPageCatalogue } from '../../geometry/selection
 import { createPackedInstances } from '../../geometry/rows/instances.ts'
 import type { NodeIndex } from '../render/movedNode.ts'
 import { pagesHeld } from '../../geometry/pages/pool/placement.ts'
+import type { Refusal } from '../../gpu/core/refusal.ts'
 
 export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>
 
@@ -54,7 +54,7 @@ export function createWebgpuPagesLayout(
   /** The pool slot, in words, an address holds in the page cache, -1 none: the cache's own. */
   slotWords: (address: string) => number,
 ) {
-  const { roots, bootstrap, cap: slots, pageBytes, homes } = setup
+  const { roots, bootstrap, cap: slots, census } = setup
   // The world DAG is one more opaque root, wherever it sits (`worldRoot.ts`), its blended pages, if
   // any, the transparent pass's (`ClusterRoot.mixed`).
   const opaqueRoots = roots.filter((root) => !rootBlended(root)),
@@ -85,7 +85,7 @@ export function createWebgpuPagesLayout(
   const { drawSlots, blendSlots, bounded } = askedTableRows(
     packedPages.length - blendedPageCount,
     blendedPageCount,
-    pagesHeld(pageBytes, slots, homes),
+    pagesHeld(slots, census.unitPages),
     instances.copiesMax,
     limits,
     viewRows,
@@ -115,6 +115,9 @@ export function createWebgpuPagesLayout(
     /** The rows the view holds (`../../geometry/rows/tableRows.ts`): the table is never asked past them, and
      *  only a cut that selected more raises them (`growTables.ts`, `followCutRows`). */
     viewRows,
+    /** The tables' last growth refused (`growTables.ts`), until one is granted: what the cut's next
+     *  ask of rows waits for (`../../gpu/core/refusal.ts`). */
+    rowsRefusal: undefined as Refusal | undefined,
     worldUpdates,
     /** The placements a host walk's scan found moved, without a GPU cut (`rootWorldsMoved`). */
     worldsScanned: new Int32Array(8),
@@ -130,19 +133,18 @@ export function createWebgpuPagesLayout(
     /** The growth under way — the tables', the layers', an atlas lane's —, which the next one
      *  waits for (`growthQueue.ts`). */
     growing: undefined as Promise<unknown> | undefined,
-    ...rowScratch(drawSlots, pageBytes),
+    ...rowScratch(drawSlots, census.clusterBytes),
   }
 }
 
 /** The per-row scratch arrays of a table of `drawSlots` visibility rows, and the witnesses of what
  *  the GPU holds of them: made anew when the table grows (`growTables.ts`), they then send every
  *  row again, once. */
-export function rowScratch(drawSlots: number, pageBytes: number) {
+export function rowScratch(drawSlots: number, clusterBytes: number) {
   return {
-    /** Every triangle of every drawable row: the bound a raster list cannot exceed. */
-    rasterCapacity: drawSlots * workgroupCount(pageBytes / 4, 3),
-    /** The drawable rank the partition holds an occlusion history for (`forgetRewrittenRows`). */
-    cornerHold: createCornerHold(),
+    /** Every triangle of every drawable row — a cluster's page each, the widest `clusterBytes` —:
+     *  the bound a raster list cannot exceed. */
+    rasterCapacity: drawSlots * workgroupCount(clusterBytes / 4, 3),
     /** Draw rows, held from one image to the next: only a changing row rewrites them. */
     drawItemWords: new Uint32Array(drawSlots * DRAW_ITEM_U32),
     itemWordsHold: createDrawItemWordsHold(drawSlots),

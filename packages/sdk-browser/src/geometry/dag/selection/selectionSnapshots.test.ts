@@ -28,7 +28,7 @@ test('an in-flight snapshot that a world change crosses is never drained as the 
   release()
   for (let turn = 0; turn < 16 && !selection.peek(); turn++)
     await new Promise((done) => setImmediate(done))
-  assert.equal(selection.peek()?.result.pageIds.length, 4)
+  assert.equal(selection.peek()?.result.pageIds.length, 7)
   assert.notEqual(selection.peek()?.worldRevision, selection.worldRevision)
   // The cut is always resident (#1483): the drain cuts again under the poses in place and hands
   // back that cut, never the snapshot.

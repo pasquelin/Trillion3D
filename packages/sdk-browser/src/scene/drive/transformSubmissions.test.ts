@@ -75,7 +75,7 @@ function banc() {
   const drawn = [{ drawSource: { node } }]
   /** One loop frame: the gate decides to hold, then stores what it just produced. */
   const frame = () => {
-    const held = gate.enterFrame({}, camera, {}, undefined, source, drawn)
+    const held = gate.enterFrame({}, camera, undefined, source, drawn)
     gate.hold.keep(gate.revisions)
     return held
   }

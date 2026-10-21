@@ -1,11 +1,10 @@
-import { ERR_K, INPUT_K } from '../../geometry/partition/gpu/margins.ts'
+import { ERR_K, INPUT_K } from './projectionMargins.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 const K = wgslF32(ERR_K),
   IN = wgslF32(INPUT_K)
 
-/** Shared conservative dot and quotient arithmetic of the box projection: the camera partition
- *  and the transparent occlusion test (`boxProjectWgsl.ts`). */
+/** The conservative dot and quotient arithmetic of the box projection (`boxProjectWgsl.ts`). */
 export const PROJECTION_SLACK_WGSL = wgslBlock(
   'PROJECTION_SLACK_WGSL',
   [],

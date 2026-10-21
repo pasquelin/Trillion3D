@@ -28,7 +28,7 @@ export type BakedChain = { preview: TexturePreview; read: TextureLevelReader | u
  * texture's colour-atlas entry — that texture then has no plain one — and keeps its own word,
  * which names its files.
  */
-export function previewsByAtlas(previews: readonly TexturePreview[]) {
+function previewsByAtlas(previews: readonly TexturePreview[]) {
   const filed = new Map<string, TexturePreview>()
   for (const preview of previews)
     filed.set(`${preview.texture}/${previewAtlasOf(preview.atlas)}`, preview)

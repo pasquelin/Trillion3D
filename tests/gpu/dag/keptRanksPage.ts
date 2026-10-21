@@ -85,7 +85,7 @@ export async function keptRankDifferences() {
   await take([drawList(40, pages, 1), drawList(64, pages, 2)])
   await take([drawList(64, pages, 3), drawList(17, pages, 4)])
   await take([drawList(0, pages, 5), drawList(64, pages, 6)])
-  const grown = await growDagList(r, 256, 0, () => false)
+  const grown = await growDagList(r, 256, () => false)
   await take([drawList(256, pages, 7), drawList(200, pages, 8)])
   await take([drawList(256, pages, 9), drawList(256, pages, 10)])
   const rankBytes = r.ranks.map((buffer) => buffer.size)

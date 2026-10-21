@@ -1,7 +1,7 @@
 /**
  * The surface record a mesh wears: everything the engine path reads of a material, in the engine's
  * own words — one record per material, written by its owner (`surfaceRecord.ts`) and read IN PLACE
- * by every reader on the way to the image: the cut's normal cones, the row writer, the coplanar
+ * by every reader on the way to the image: the row writer, the coplanar
  * layer batches, the frame's cost snapshot, the transparent items, the witness that draws the same
  * scene. Comparing two surfaces is comparing two references; a write is journaled
  * (`surfaceWrites.ts`) and moves the record's version, which the memos keyed on it compare.
@@ -74,9 +74,6 @@ const NOTHING = declareSurface({ family: 'basic' })
  *  declaring nothing drawing as `NOTHING`. */
 export const surfaceOf = (material: HostMaterials): PageSurface =>
   Array.isArray(material) ? (material[0] ?? NOTHING) : material
-
-/** True when only the front faces are drawn: the one case a normal cone may reject a page. */
-export const surfaceFrontOnly = (surface: PageSurface) => surface.side === 'front'
 
 /** A surface's opacity, its colour factor's alpha, clamped: the light a blended one stops before
  *  its colour map's alpha, and what a masked one multiplies that alpha by before its cutoff. */

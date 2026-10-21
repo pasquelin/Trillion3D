@@ -10,16 +10,17 @@ test('a live setMemoryBudgets above the old ceiling grows the pool and the table
   try {
     const { layout, vis } = rt,
       cache = rt.gpu.cache!
-    // Two slots of the widest page hold three pages at their grains, the two leaves sharing one
-    // (`pagesHeld`): a row each.
-    assert.deepEqual([rt.setup.slots, rt.setup.cap, layout.drawSlots], [2, 2, 3])
-    assert.deepEqual(drawn(), ['2'], 'the coarse page alone, for want of room')
+    // The root's grain alone, a slot holding one page (`pagesHeld`): a row.
+    assert.deepEqual([rt.setup.slots, rt.setup.cap, layout.drawSlots], [1, 1, 1])
+    assert.deepEqual(drawn(), ['3'], 'the root alone, for want of room')
+    const rootBytes = rt.setup.geometryPool.allocatedBytes
     const report = await setWebgpuMemoryBudgets(rt, { geometryPoolBytes: 1 << 20 })
     assert.deepEqual([report.geometryPool.slots, report.geometryPool.clamp], [4, 'scene'])
     assert.deepEqual(
       [report.tables?.drawSlots, report.tables?.casterSlots, report.tables?.refused],
-      // Four asked past the three held: grown ahead of them, twice the rows held (`rowsAhead`).
-      [6, 6, false],
+      // Four asked past the one held: twice the rows held would be two, so the ask stands
+      // (`rowsAhead`).
+      [4, 4, false],
     )
     assert.ok(report.tables!.bytes > 0 && report.tables!.durationMs >= 0)
     // The whole catalogue now fits: the new pool holds each page at its own size.
@@ -27,12 +28,12 @@ test('a live setMemoryBudgets above the old ceiling grows the pool and the table
     assert.ok(rt.setup.homes!.bytes < 4 * rt.setup.pageBytes)
     assert.equal(
       report.transientBytes,
-      2 * rt.setup.pageBytes + rt.setup.homes!.bytes,
+      rootBytes + rt.setup.homes!.bytes,
       'the old pool beside the new',
     )
     // The same session: its pool resized, its tables grown, nothing prepared again.
     assert.equal(rt.gpu.cache, cache)
-    assert.deepEqual([rt.setup.cap, layout.drawSlots], [4, 6])
+    assert.deepEqual([rt.setup.cap, layout.drawSlots], [4, 4])
     assert.equal(vis.pageTable!.size, layout.rows.pageTableFloats!.byteLength)
     await draw(4)
     assert.deepEqual(drawn().sort(), ['0', '1'], 'the finer clusters, once resident')
@@ -50,12 +51,10 @@ test('an allocation refusal during a grow leaves the pool and every table in pla
       casterSlots: layout.rows.casterSlots,
       table: layout.rows.pageTableFloats,
       pageTable: vis.pageTable,
-      zeroFlags: vis.zeroFlags,
+      zeroRows: vis.zeroRows,
       items: vis.gpuDraw?.itemsBuffer,
-      flags: vis.gpuHiz?.flags,
       spheres: lights.spheres?.buffer,
       mobility: lights.mobilityRows,
-      corners: vis.gpuPartition?.corners,
       pool: rt.setup.geometryPool,
       cap: rt.setup.cap,
       cache: gpu.cache,
@@ -68,13 +67,13 @@ test('an allocation refusal during a grow leaves the pool and every table in pla
     refusing.on = true
     const report = await setWebgpuMemoryBudgets(rt, { geometryPoolBytes: 1 << 20 })
     assert.equal(report.tables?.refused, true)
-    assert.equal(report.geometryPool.slots, 2, 'the pool in place is kept')
+    assert.equal(report.geometryPool.slots, 1, 'the pool in place is kept')
     assert.equal(report.evictedPages, 0)
     assert.deepEqual(tables(), before)
     assert.equal(layout.rows.generation, 0)
     // The session draws on, from what it holds.
     await draw()
-    assert.deepEqual(drawn(), ['2'])
+    assert.deepEqual(drawn(), ['3'])
   } finally {
     dispose()
   }
@@ -89,10 +88,10 @@ test('a setting on a lost device grows the rows alone, and the budget is kept fo
     const report = await setWebgpuMemoryBudgets(rt, { geometryPoolBytes: 1 << 20 })
     assert.deepEqual(
       [report.tables?.refused, report.tables?.drawSlots, report.geometryPool.slots],
-      [false, 6, 4],
+      [false, 4, 4],
       'no refusal: the host budget holds',
     )
-    assert.deepEqual([layout.drawSlots, layout.rows.casterSlots, rt.setup.cap], [6, 6, 4])
+    assert.deepEqual([layout.drawSlots, layout.rows.casterSlots, rt.setup.cap], [4, 4, 4])
     // Nothing is asked of the lost device: its tables are the rebuild's to make.
     assert.deepEqual({ table: vis.pageTable, items: vis.gpuDraw?.itemsBuffer }, held)
   } finally {

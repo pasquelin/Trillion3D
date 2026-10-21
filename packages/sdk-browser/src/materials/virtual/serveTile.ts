@@ -20,7 +20,7 @@ export type ReadSource = Extract<TileTexture['source'], { kind: 'baked' }>
 
 /** The file level `level` of `source` is read from by its lane `lane`: the family's blocks in a
  *  block lane, the stored family's decoded to RGBA8 in the lossless one (`levelFormat`). */
-export function levelAddress(
+function levelAddress(
   source: ReadSource,
   level: number,
   lane: PoolLane,

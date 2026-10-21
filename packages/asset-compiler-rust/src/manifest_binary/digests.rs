@@ -33,7 +33,7 @@ pub fn texture_levels(bytes: &[u8]) -> Result<Vec<BakedLevels>> {
     let word = |entry: usize, index: usize| {
         let at = (entry * PREVIEW_WORDS + index) * 4;
         // The column holds `entries` whole entries, checked above.
-        crate::le::u32_at(words, at).unwrap_or(0)
+        crate::support::le::u32_at(words, at).unwrap_or(0)
     };
     (0..entries)
         .map(|entry| {
@@ -51,7 +51,7 @@ pub fn texture_levels(bytes: &[u8]) -> Result<Vec<BakedLevels>> {
 /// One column's payload, after the header checks; empty when the file predates the column.
 pub(super) fn column(bytes: &[u8], index: usize) -> Result<&[u8]> {
     let word = |at: usize| -> Result<usize> {
-        let word = crate::le::u32_at(bytes, at)
+        let word = crate::support::le::u32_at(bytes, at)
             .ok_or_else(|| MANIFEST.bad("Manifest binary is truncated"))?;
         Ok(word as usize)
     };

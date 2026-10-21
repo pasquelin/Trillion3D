@@ -51,6 +51,11 @@ export const createBlendOrderState = () => ({
   /** Whether a transmissive item lies in an HLOD 0 cell (`../keyRecords.ts`): a cell switch then moves
    *  the verdict's in-view count, its inputs' epoch with it (`../expand/expansionFrame.ts`). */
   cellTransmits: false,
+  /** Whether a record lies in a cell file (`KEY_FILED`), and the world and the revision of its
+   *  files' slots the records were written under (`noteFileSlots`): a slot moved, they are
+   *  written again. */
+  keyFiled: false,
+  fileSlots: { world: undefined as object | undefined, revision: -1 },
   /** The revision of the world's cells (`WorldCells.revision`) the verdict last judged under. No
    *  record is rewritten for it: the verdict reads the cells' state words itself. */
   cellRevision: -1,

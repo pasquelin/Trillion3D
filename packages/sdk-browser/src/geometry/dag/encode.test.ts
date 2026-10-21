@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { encodeDagKernels } from './encode.ts'
-import { witnessEncoder, cutResources, LIVE, CAND, DRAWN, QUEUE, POOL } from './encode.fixture.ts'
+import { witnessEncoder, cutResources, LIVE, CAND, DRAWN, QUEUE } from './encode.fixture.ts'
 
 test('a frame opens one command, whatever the depth', () => {
   // What the GPU pays between two kernels is counted in COMMANDS, not threads: each compute pass
@@ -25,13 +25,14 @@ test('each list is armed in the pass after the kernel that fills it, before the 
   const kernels = dispatches.map((l) => l.kernel)
   // Before the journal's clear (the previous frame's drawn count), before each level past pass 0
   // (the queue the level before it filled), after the descent (the candidates), after `dagWanted`
-  // (the live clusters).
+  // (the live clusters), after `dagDrawPrefix` (the live list whole, both passes' entries).
   assert.deepEqual(armements, [
     kernels.indexOf('dagClearDrawn'),
     kernels.indexOf('dagLevel1'),
     kernels.indexOf('dagLevel2'),
     kernels.indexOf('dagWanted'),
     kernels.indexOf('dagMask'),
+    kernels.indexOf('dagDrawScatter'),
   ])
   assert.deepEqual(
     dispatches.filter((l) => l.groups === 'indirect').map((l) => [l.kernel, l.list]),
@@ -42,15 +43,11 @@ test('each list is armed in the pass after the kernel that fills it, before the 
       ['dagWanted', CAND],
       ['dagMask', LIVE],
       ['dagDrawScatter', LIVE],
-      // The pool sort's group stages, on the record the host arms with the pool's list.
-      ['poolCount', POOL],
-      ['poolGroups', POOL],
-      ['poolSpread', POOL],
     ],
   )
   // The arming group in place, then the selection's back before any kernel of the cut.
   const arm = boundGroups.flatMap((g, at) => ((g as { nom?: string }).nom ? [at] : []))
-  assert.equal(arm.length, 5)
+  assert.equal(arm.length, 6)
   for (const at of arm) assert.notEqual((boundGroups[at + 1] as { nom?: string }).nom, 'armGroup')
 })
 
@@ -77,7 +74,7 @@ test('a flat dispatch past the device width runs in rows of it', () => {
   // Pass 0 over 1000 placements: 16 groups on a device four groups wide.
   const base = cutResources(2),
     device = { limits: { maxComputeWorkgroupsPerDimension: 4 } }
-  const wide = { ...base, worldCount: 1000, device } as unknown as typeof base
+  const wide = { ...base, packed: { worldCount: 1000 }, device } as unknown as typeof base
   const witness = witnessEncoder()
   encodeDagKernels(witness.encoder, wide)
   const { dispatches } = witness.read()
@@ -101,26 +98,6 @@ test('with a tree, level 1 walks the members drawn whatever the view beside the 
   encodeDagKernels(witness.encoder, cut as unknown as typeof base)
   const level1 = witness.read().dispatches.filter((l) => l.kernel === 'dagLevel1')
   assert.deepEqual(level1[0], { kernel: 'dagLevel1', groups: 'indirect', list: QUEUE + 1 })
-})
-
-test('the camera cut sorts its requests once, then lists its evictions over the pool list', () => {
-  const witness = witnessEncoder()
-  encodeDagKernels(witness.encoder, cutResources())
-  const { dispatches } = witness.read()
-  // The pool sort's group stages run over the list's own count, armed by `dagPrepare`
-  // (`armPoolSort`), never over its cap; its ranks, offsets and staged slots in one workgroup
-  // (`../../gpu/sort/sortWgsl.ts`).
-  assert.deepEqual(dispatches.slice(-8), [
-    { kernel: 'dagSortRequests', groups: 1 },
-    { kernel: 'dagRaiseParents', groups: 1 },
-    { kernel: 'poolCount', groups: 'indirect', list: POOL },
-    { kernel: 'poolPlace', groups: 1 },
-    { kernel: 'poolGroups', groups: 'indirect', list: POOL },
-    { kernel: 'poolOffsets', groups: 1 },
-    { kernel: 'poolSpread', groups: 'indirect', list: POOL },
-    { kernel: 'poolScatter', groups: 1 },
-  ])
-  assert.equal(dispatches.filter((l) => l.kernel === 'dagSortRequests').length, 1)
 })
 
 test('with a placement tree, prepare and pass 0 run over its top and the world DAG, not the world', () => {

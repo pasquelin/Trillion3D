@@ -46,7 +46,7 @@ function pruneRemoved(root: string, source: string): void {
   const gone = (link: string) => {
     if (!lstatSync(link).isSymbolicLink()) return false
     const target = resolve(dirname(link), readlinkSync(link))
-    return !relative(source, target).startsWith('../..') && !existsSync(target)
+    return !relative(source, target).startsWith('..') && !existsSync(target)
   }
   const skills = join(root, '.claude', 'skills')
   if (existsSync(skills))

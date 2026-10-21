@@ -54,7 +54,7 @@ export type {
 } from './manifest/binaryTypes.ts'
 export * from './runtime/diagnostics.ts'
 export { dagWarningsDiagnostic } from './contracts/dagWarnings.ts'
-export { LOD_QUALITY, lodQuality, adaptivePixelError } from './lod/policy.ts'
+export { LOD_QUALITY, lodQuality } from './lod/policy.ts'
 export type { LodQualityId } from './lod/policy.ts'
 export { frameStatistics, summarize } from './runtime/stats.ts'
 export * from './runtime/stageProfile.ts'
@@ -88,7 +88,7 @@ export {
   clusterErrorAtDepth,
   screenErrorBound,
 } from './lod/screenErrorBound.ts'
-export { maxStretch, coneRejects } from '../../math/src/projection/projectionOracles.ts'
+export { maxStretch } from '../../math/src/projection/projectionOracles.ts'
 export { matrixWindingCw } from '../../math/src/matrix/orientation.ts'
 export * from '../../math/src/index.ts'
 export { NODE_AUTO_UPDATE } from './world/transform/nodeFlags.ts'

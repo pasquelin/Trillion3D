@@ -1,9 +1,10 @@
 /**
  * A PARTITION'S CELL FILE, READ OFF THE MAIN THREAD (#575). The page worker pool's `cells` task
  * (`../work/task.ts`) parses the file, refuses one of another version and composes the
- * local matrix of each node as the engine composes a host node's; the main thread only copies
- * those matrices onto rows (`cells.ts`). Without a worker, the same function runs on the main
- * thread (`../work/host.ts`).
+ * local matrix of each node as the engine composes a host node's, and reads the track of the
+ * scene's animation banks each node plays and whether it is drawn from its parent's own host
+ * mesh; the main thread only copies those onto rows (`cells.ts`, `placements.ts`). Without a
+ * worker, the same function runs on the main thread (`../work/host.ts`).
  */
 import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
 import type { PageTaskDone } from '../../../../sdk-core/src/page/taskContracts.ts'
@@ -27,18 +28,29 @@ function rowLocal(node: CellNode, out: Float64Array) {
 /** A cell file as the pool answers it (`PageTaskDone.cells`). */
 type CellPayload = NonNullable<PageTaskDone['cells']>
 
-/** The nodes of the cell file `source`, read from `url`, each its parent's and mesh's ranks and its
- *  local matrix, or the named refusal of a file of another version. */
+/** The nodes of the cell file `source`, read from `url`, each its parent's and mesh's ranks, its
+ *  local matrix, its track and whether it is drawn from its parent's own mesh, or the named
+ *  refusal of a file of another version. */
 export function decodeCellFile(source: ArrayBuffer, url = 'a scene cell'): CellPayload {
   const nodes = assertCellNodes(JSON.parse(new TextDecoder().decode(source)), url)
   const ranks = new Int32Array(2 * nodes.length),
-    locals = new Float64Array(MATRIX_VALUES * nodes.length)
+    locals = new Float64Array(MATRIX_VALUES * nodes.length),
+    tracks = new Int32Array(nodes.length),
+    sources = new Uint8Array(nodes.length)
   nodes.forEach((node, at) => {
     ranks[2 * at] = node.parent ?? -1
     ranks[2 * at + 1] = node.mesh
     rowLocal(node, locals.subarray(MATRIX_VALUES * at, MATRIX_VALUES * (at + 1)))
+    tracks[at] = node.track ?? -1
+    sources[at] = node.source ? 1 : 0
   })
-  return { nodes: nodes.length, ranks: ranks.buffer, locals: locals.buffer }
+  return {
+    nodes: nodes.length,
+    ranks: ranks.buffer,
+    locals: locals.buffer,
+    tracks: tracks.buffer,
+    sources: sources.buffer,
+  }
 }
 
 /** A decoded cell as its rows are written from it. */
@@ -49,11 +61,17 @@ export type CellRows = {
   ranks: Int32Array
   /** Per node, its local matrix. */
   locals: Float64Array
+  /** Per node, the item of the scene's animation banks it plays (`CellNode.track`), -1 for none. */
+  tracks: Int32Array
+  /** Per node, 1 when its row is drawn from its parent's own host mesh (`CellNode.source`). */
+  sources: Uint8Array
 }
 
 /** The rows of a decoded cell. */
-export const cellRows = ({ nodes, ranks, locals }: CellPayload): CellRows => ({
+export const cellRows = ({ nodes, ranks, locals, tracks, sources }: CellPayload): CellRows => ({
   nodes,
   ranks: new Int32Array(ranks),
   locals: new Float64Array(locals),
+  tracks: new Int32Array(tracks),
+  sources: new Uint8Array(sources),
 })

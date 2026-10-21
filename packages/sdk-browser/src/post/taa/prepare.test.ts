@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { inertTaaDevice } from './device.fixture.ts'
 import { prepareTemporalAntialiasing, setWebgpuTemporalAntialiasing } from './prepare.ts'
-import { TAA_CAPABILITIES, TAA_CAPABILITY } from './capability.ts'
+import { TAA_CAPABILITIES } from './capability.ts'
 import { beginTaaFrame } from './frame.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { createScaleControl } from '../../frame/scale/scaleControl.ts'
@@ -38,7 +38,9 @@ function runtime(temporalAntialiasing: boolean) {
   return { rt, changed: () => changed }
 }
 
-const served = (rt: WebgpuPagesRuntime) => !rt.capabilities.unsupported.includes(TAA_CAPABILITY)
+/** Whether the pass's capabilities (`TAA_CAPABILITIES`), granted together, are served. */
+const served = (rt: WebgpuPagesRuntime) =>
+  TAA_CAPABILITIES.every((name) => !rt.capabilities.unsupported.includes(name))
 
 // The session opened with it off turns it on in place, and off again, without reopening.
 test('temporal antialiasing is switched during the session', async () => {
@@ -88,13 +90,11 @@ test('switched off, the history leaves its targets; on again, it is made at once
 // with it.
 test('temporal upscaling is served with the pass', async () => {
   const { rt } = runtime(true)
-  const upscales = () =>
-    TAA_CAPABILITIES.every((name) => !rt.capabilities.unsupported.includes(name))
-  assert.equal(upscales(), false, 'not before the pass exists')
+  assert.equal(served(rt), false, 'not before the pass exists')
   await prepareTemporalAntialiasing(rt, rt.gpu.device!)
-  assert.equal(upscales(), true)
+  assert.equal(served(rt), true)
   setWebgpuTemporalAntialiasing(rt, 'off')
-  assert.equal(upscales(), false)
+  assert.equal(served(rt), false)
 })
 
 test('a pass switched off while it compiles is not kept', async () => {
@@ -148,7 +148,8 @@ test('a pass rigged during a capture gets its history targets', async () => {
 test('temporal antialiasing rigged during a capture lands on the main view', async () => {
   const { rt } = runtime(false)
   await prepareTemporalAntialiasing(rt, rt.gpu.device!)
-  const main = { gpu: { temporal: undefined, targetBytes: 0 } }
+  // The main view opened without the pass, as the session did: its level off.
+  const main = { gpu: { temporal: undefined, temporalLevel: 'off', targetBytes: 0 } }
   Object.assign(rt, { views: { main, active: { scale: rt.views.main.scale }, persistent: [] } })
   setWebgpuTemporalAntialiasing(rt, 'max')
   for (let turn = 0; turn < 5; turn++) await new Promise(setImmediate)

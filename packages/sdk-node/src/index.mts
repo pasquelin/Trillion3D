@@ -49,15 +49,38 @@ import {
   DEFAULT_RAM_BUDGET_MB,
   DEFAULT_SIMPLIFICATION,
   DEFAULT_TRIANGLE_BUDGET,
-  HLOD_OPTION,
-  JOB_FIELDS,
   type JobField,
 } from '../../sdk-core/src/contracts/compilerAbi.ts'
 import { resolveHlod } from '../../sdk-core/src/contracts/hlodOptions.ts'
-import { materialFlags, materialJobFields } from '../../sdk-core/src/contracts/materialOptions.ts'
-import { voxelizeFlags, voxelizeJobFields } from '../../sdk-core/src/contracts/voxelizeOptions.ts'
+import { jobOptionFields } from '../../sdk-core/src/contracts/jobOptions.ts'
+import { compilerArguments } from './compiler/arguments.mts'
 export { resolveVoxelize } from '../../sdk-core/src/contracts/voxelizeOptions.ts'
 export type { VoxelizeOption } from '../../sdk-core/src/contracts/voxelizeOptions.ts'
+export {
+  resolvePartitionGrid,
+  resolvePartitionScheme,
+} from '../../sdk-core/src/contracts/partitionOptions.ts'
+export type {
+  PartitionGridOption,
+  PartitionGridSettings,
+  PartitionGridWire,
+  PartitionHlodGrid,
+  PartitionSchemeOption,
+} from '../../sdk-core/src/contracts/partitionOptions.ts'
+export { resolveMeshBuild } from '../../sdk-core/src/contracts/meshBuildOptions.ts'
+export type {
+  MeshBuildOption,
+  MeshBuildRule,
+  MeshBuildSettings,
+} from '../../sdk-core/src/contracts/meshBuildOptions.ts'
+export { resolveObjectSettings } from '../../sdk-core/src/contracts/objectOptions.ts'
+export type {
+  ObjectRule,
+  ObjectSettings,
+  ObjectSettingsOption,
+  SkinnedInstanceOption,
+  SkinnedInstanceSettings,
+} from '../../sdk-core/src/contracts/objectOptions.ts'
 export {
   resolveMaterials,
   resolveResponsive,
@@ -72,17 +95,35 @@ export type {
   TemporalAntialiasingShare,
 } from '../../sdk-core/src/contracts/materialOptions.ts'
 export type { TemporalAntialiasingLevel } from '../../sdk-core/src/contracts/compilerAbi.ts'
-export { resolveHlod, HLOD_QUALITIES } from '../../sdk-core/src/contracts/hlodOptions.ts'
+export { resolveHlod } from '../../sdk-core/src/contracts/hlodOptions.ts'
 export type {
   HlodExpert,
   HlodGroup,
   HlodMatch,
   HlodOptions,
   HlodPattern,
-  HlodQuality,
   HlodSimple,
 } from '../../sdk-core/src/contracts/hlodOptions.ts'
 export type { HlodBuilder, HlodLayer } from '../../sdk-core/src/contracts/compilerAbi.ts'
+// The wire forms a job's options are written in, named where the resolvers' signatures carry them.
+export type {
+  HlodApproximation,
+  HlodExpertOf,
+  HlodMatchOf,
+  HlodMeshBuildWire,
+  HlodSimplifySettings,
+  HlodWire,
+  HlodWireMatch,
+  HlodWirePattern,
+  MaterialSettingsWire,
+  MeshBuildSettingsWire,
+  MeshBuildWire,
+  MeshInputSettingsWire,
+  ObjectSettingsJobWire,
+  ObjectSettingsWire,
+  SkinnedInstanceWire,
+} from '../../sdk-core/src/contracts/compilerAbi.ts'
+export type { NameMatch, NamePattern } from '../../sdk-core/src/contracts/nameMatch.ts'
 export { createTerminalProgress, createBatchProgress } from './cli/progress.mts'
 export { reviewCutouts } from './cutout/review.mts'
 /**
@@ -104,7 +145,6 @@ export async function prepare(
 ): Promise<CompilationResult> {
   if (typeof options?.resourceBaseUrl !== 'string' || !options.resourceBaseUrl)
     throw compilerError('INVALID_OPTIONS', 'resourceBaseUrl is required')
-  // The compiler's command line takes the job's fields in the order `JOB_FIELDS` declares.
   const job: Record<JobField, string> = {
     source: input,
     cache: output,
@@ -116,15 +156,11 @@ export async function prepare(
     resourceBaseUrl: options.resourceBaseUrl,
     simplification: options.simplification ?? DEFAULT_SIMPLIFICATION,
   }
-  const args = JOB_FIELDS.map((field) => job[field])
-  // The HLOD, either form, as the compiler reads it (`resolveHlod`): a flag, never positional; the
-  // scene's temporal anti-aliasing, the responsive objects, the settings by material name and the
-  // voxelized objects, each a flag when named. What does not read is the job's refusal, as the
-  // compiler's.
+  // The HLOD, either form, and the other options the job names, each a flag (`compilerArguments`).
+  // What does not read is the job's refusal, as the compiler's.
+  let args: string[]
   try {
-    const hlod = resolveHlod(options.hlod)
-    if (hlod) args.push(`${HLOD_OPTION}${JSON.stringify(hlod)}`)
-    args.push(...materialFlags(options), ...voxelizeFlags(options))
+    args = compilerArguments(job, options)
   } catch (error) {
     if (error instanceof TypeError) throw compilerError('INVALID_OPTIONS', error.message)
     throw error
@@ -180,8 +216,7 @@ export async function prepareMany(
           ...job,
           id,
           ...(job.hlod == null ? {} : { hlod: resolveHlod(job.hlod) }),
-          ...materialJobFields(job),
-          ...voxelizeJobFields(job),
+          ...jobOptionFields(job),
         },
       ]
     } catch (error) {

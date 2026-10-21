@@ -1,9 +1,25 @@
+#[cfg(test)]
+pub(crate) mod bodies;
+#[cfg(test)]
+pub(crate) mod cut;
+#[cfg(test)]
+pub(crate) mod mass;
+#[cfg(test)]
+pub(crate) mod parallel;
+#[cfg(test)]
+pub(crate) mod pieces;
+#[cfg(test)]
+pub(crate) mod small;
+#[cfg(test)]
+pub(crate) mod soft;
+#[cfg(test)]
+pub(crate) mod voronoi;
 use super::cut::tolerance;
 use super::declared::declared_matter;
 use super::*;
 use crate::dag::DagCluster;
 use std::collections::{BTreeMap, BTreeSet};
-use trillion3d_math::linear::decompose_trs;
+use trillion3d_math::matrix::linear::decompose_trs;
 
 /// The golden tile: a 2 × 2 m quad tilted up along x, two triangles, cooked by native Jolt. The
 /// physics module's tests restore these very bytes (`packages/sdk-browser/src/physics`).
@@ -35,9 +51,9 @@ pub(super) fn cook_scene(
     let root = std::path::Path::new(env!("OUT_DIR")).join(format!("{name}-{}", std::process::id()));
     let o = crate::tests::fixtures::options_in(&root);
     std::fs::create_dir_all(o.cache.join("native/objects")).unwrap();
-    let world = crate::compiler_world::world_matrices(g).unwrap();
+    let world = crate::compiler::source::node_transform::world_matrices(g).unwrap();
     let placement = crate::proxy::placement::Placement::new(world, primitives);
-    let scene = crate::compiler_coplanar::DepthLayerScene {
+    let scene = crate::compiler::primitive::compiled::DepthLayerScene {
         o: &o,
         g,
         bin,
@@ -109,6 +125,7 @@ pub(super) fn cluster(level: usize, lod_error: f64, parent_error: f64) -> DagClu
         lod_error,
         parent_error,
         sphere: [0.0; 4],
+        whole_box: None,
         parent_sphere: [0.0; 4],
         source_rank: 0,
         group: None,

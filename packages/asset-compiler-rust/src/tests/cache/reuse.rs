@@ -1,7 +1,7 @@
 //! Fast path: a job whose product is already in the cache proves the folder
 //! and keeps it, instead of rebuilding the DAG to write the same bytes again.
 use super::*;
-use crate::import::f32_bytes;
+use crate::plugins::scene::convert::f32_bytes;
 use crate::tests::textures::identity_textures::{png_sized, source_texturee};
 
 /// A textured fixture whose image is wide enough to bake one level file, so the
@@ -144,7 +144,7 @@ fn a_reused_folder_keeps_its_physics_shapes() {
         .as_str()
         .expect("digest");
     let mut named = BTreeSet::new();
-    compiler_prune::referenced_objects(&first, &mut named);
+    crate::compiler::cache::prune::referenced_objects(&first, &mut named);
     assert!(named.contains(shape), "{named:?}");
     let (second, events) = compile_with_events(&options);
     assert_eq!(events[0]["completed"], 1, "reused: {events:?}");

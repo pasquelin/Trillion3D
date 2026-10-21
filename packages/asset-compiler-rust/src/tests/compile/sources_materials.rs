@@ -1,5 +1,5 @@
 use super::*;
-use crate::compiler_format::SOURCE_FORMAT_VERSION;
+use crate::compiler::cache::format::SOURCE_FORMAT_VERSION;
 
 #[test]
 fn compile_omits_images_when_the_gltf_has_none() {
@@ -90,8 +90,6 @@ fn compile_pages_transmission_as_a_blend() {
         .as_array()
         .expect("pages")
         .is_empty());
-    // Its pages are quantized on the primitive's grid.
-    assert!(!result["primitives"][0]["quantization"].is_null());
     fs::remove_dir_all(root).expect("cleanup");
 }
 /// The four material classes and how each is ranked. A transmission, whatever its alpha mode, is

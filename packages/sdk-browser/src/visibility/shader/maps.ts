@@ -16,7 +16,7 @@ const CARTE = {
 } as const satisfies Record<keyof typeof WRAP_MAP, string>
 
 /** The UV set map `nom` reads, its coordinate and derivatives (`mapCoord`, `physicalWgsl.ts`):
- *  the second where the record's `channels` word says so (glTF's `texCoord`). */
+ *  the set the record's `channels` word names (glTF's `texCoord`). */
 export const coordonnee = (nom: keyof typeof WRAP_MAP) => `mapCoord(m,${WRAP_MAP[nom]}u)`
 
 /** Atlas read of a map: its slot — whose header carries its addressing —, the pixel's coordinate
@@ -57,7 +57,7 @@ export const lectureDonnee = (
   const reprises = dejaLues
     .map(
       ([lue, other]) =>
-        `if(m.${CARTE[nom]}==m.${CARTE[other]}&&bitIsSet(m.channels,${WRAP_MAP[nom]}u)==bitIsSet(m.channels,${WRAP_MAP[other]}u)){${variable}=${lue};}else `,
+        `if(m.${CARTE[nom]}==m.${CARTE[other]}&&mapChannel(m.channels,${WRAP_MAP[nom]}u)==mapChannel(m.channels,${WRAP_MAP[other]}u)){${variable}=${lue};}else `,
     )
     .join('')
   return siCarte(nom, `${reprises}{${variable}=${lecture('dataSample', nom)};}`)

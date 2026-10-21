@@ -6,13 +6,13 @@ import { nodeCornersWgsl } from './nodeLayout.ts'
 
 /**
  * THE CUT'S NODES, one home whatever the world's size: a record table (`../../gpu/core/recordTexture.ts`)
- * of `rgba32uint`, a node a record of one field — `Node`, its twenty-four words as the packing lays
- * them (`pack/packNodes.ts`, `nodeLayout.ts`), six texels, one load each. Every reader reads it in place
+ * of `rgba32uint`, a node a record of one field — `Node`, its twenty words as the packing lays
+ * them (`pack/packNodes.ts`, `nodeLayout.ts`), five texels, one load each. Every reader reads it in place
  * — the cut's descent (`shader/bindings.ts`, `nodeAt`), the placement tree's leaves
  * (`../../placement/tree/treeLeavesWgsl.ts`) —, written whole by the host (`cut/cutTables.ts`,
  * `runtime/runtimeOps.ts`). Copied by none.
  *
- * A row holds 1024 nodes, 6144 texels; a layer 1024 rows, 2²⁰ nodes; 256 layers 2²⁸.
+ * A row holds 1024 nodes, 5120 texels; a layer 1024 rows, 2²⁰ nodes; 256 layers 2²⁸.
  */
 export const NODE_TABLE: RecordLayout = {
   label: 'Trillion3D DAG nodes',

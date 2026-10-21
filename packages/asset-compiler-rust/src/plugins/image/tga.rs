@@ -7,7 +7,7 @@
 //! the structure of its header — each field in its domain and the fields consistent with each
 //! other. The 2.0 footer, when the given bytes go that far, is enough on its own.
 use super::{crate_image, ImageDecoded, ImageDecoder, Plugin};
-use crate::le::u16_at;
+use crate::support::le::u16_at;
 
 pub(super) static TGA: Tga = Tga;
 pub(super) struct Tga;

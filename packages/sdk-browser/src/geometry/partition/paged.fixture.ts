@@ -35,21 +35,18 @@ const parentsOf = (cells: readonly TableCell[]) =>
  *  each mesh's rows at each rung. By default every rung holds every node. */
 type Ladder = { cube: number; rows: (mesh: number, total: number, rung: number) => number }
 
-/** The grids' loading ranges a test's partition names (`TablePartition.hlod.ranges`): the main
- *  grid's, then HLOD 0's and HLOD 1's, twice the one below. */
+/** The grids' loading ranges a test's partition names (`TablePartition.hlod.grids`, each cell
+ *  half its range): the main grid's, then HLOD 0's and HLOD 1's, twice the one below. */
 const RANGES = [2000, 4000, 8000]
 
 /** A cell as a test states it: its grid fields, when it gives none, its own (`gridded`). */
 export type CellRecord = Omit<TableCell, 'grid' | 'bounds' | 'hlod'> & Partial<TableCell>
 
-/** Bounds no eye comes near. */
-const NOWHERE = [1e300, 1e300, 1e300, 1e300, 1e300, 1e300]
-
 /** `cell` as the cook writes it, its grid fields its own when the test gives none: its own grid
- *  cell, streaming by its declared `box`, its own HLOD 0 cell, rank `rank`, streaming by that box
- *  too — the HLOD 0 cell holds its cells' content —, in an HLOD 1 cell no grid streams. */
+ *  cell, streaming by its declared `box`, its own HLOD 0 cell, rank `rank`, on the HLOD 0 grid's
+ *  finest level, streaming by that box too — the HLOD 0 cell holds its cells' content. */
 function gridded(cell: CellRecord, rank: number, box: Box): TableCell {
-  const { grid = [0, 0, 0], bounds = box, hlod = [rank, box, NOWHERE] } = cell
+  const { grid = [0, 0, 0], bounds = box, hlod = [rank, box, 1, 0] } = cell
   return { ...cell, grid, bounds, hlod }
 }
 
@@ -70,7 +67,7 @@ export function paged(
   const files = new Map<string, Uint8Array>()
   const cells = records.map((cell, rank) => gridded(cell, rank, declared(cell)))
   const write = (body: object, box: Box, list: readonly TableCell[]) => {
-    const json = JSON.stringify({ version: 6, ...body })
+    const json = JSON.stringify({ version: 13, ...body })
     const sha = hex(++serial, 64)
     files.set(`scene-page-${sha}.json`, new TextEncoder().encode(json))
     return { slot: `${sha}${hex(json.length, 8)}${box.map(f64).join('')}`, box, list }
@@ -94,15 +91,27 @@ export function paged(
   const top = build(0, cells.length)
   const rungs = (mesh: number, total: number) =>
     Array.from({ length: RUNGS }, (_, rung) => hex(ladder.rows(mesh, total, rung), 8)).join('')
+  // Loose grids, each at priority 0, none blocking: the main grid, then HLOD level `at - 1`'s;
+  // cell files stream on the main grid and on the HLOD 0 cells' (`GRID_FILES`, 2).
+  const grids = ranges.map(
+    (range, at) =>
+      f64(range / 2) +
+      f64(range) +
+      hex(0, 8) +
+      hex(Math.max(at - 1, 0), 8) +
+      hex(at < 2 ? 2 : 0, 8),
+  )
   const root = {
-    version: 6,
+    version: 13,
+    scheme: 'hashSet' as const,
+    flat: true,
     pages: [top.slot, ...Array<string>(7).fill('0'.repeat(168))],
     parents: [parentsOf(top.list), ...Array<string>(7).fill('')],
     meshes: [...totals]
       .sort(([a], [b]) => a - b)
       .map(([m, n]) => hex(m, 8) + hex(n, 8) + rungs(m, n)),
     cube: f64(ladder.cube),
-    hlod: { ranges: ranges.map(f64), cells: hex(cells.length, 8) },
+    hlod: { grids, coarser: grids.map(() => null), cells: hex(cells.length, 8) },
   }
   return { partition: tablePartition(root), files, root }
 }

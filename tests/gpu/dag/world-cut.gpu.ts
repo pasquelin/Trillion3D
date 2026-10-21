@@ -23,7 +23,7 @@ const FRAMES = 24
  *  its HLOD every world page of its cell. */
 function frameOf(s: WorldScene, states: readonly number[]) {
   const world = s.packed.world!,
-    cold = new Uint32Array(s.packed.pageCones.buffer)
+    cold = new Uint32Array(s.packed.coldWords.buffer)
   world.states.set(states)
   cold.set(world.states, world.stateBase)
   const resident = new Uint8Array(s.packed.pageCount)
@@ -37,12 +37,15 @@ function frameOf(s: WorldScene, states: readonly number[]) {
 
 test('the kernel draws every object exactly once, by the representation its cell chose', async () => {
   const next = lcgRandom(1473),
-    // Its placements, its actor, nothing, its actor while its placements ask.
-    choices = [CELL_DRAW.placements, CELL_DRAW.hlod, 0, CELL_DRAW.hlod | CELL_DRAW.asking]
+    // Its placements, its actor, nothing.
+    choices = [CELL_DRAW.placements, CELL_DRAW.hlod, 0]
   const frames = Array.from({ length: FRAMES }, () => {
     const s = worldScene()
     const threshold = 0.01 * 2 ** (next() * 8)
-    const states = Array.from({ length: s.world.leaves }, () => choices[Math.floor(next() * 4)])
+    const states = Array.from(
+      { length: s.world.leaves },
+      () => choices[Math.floor(next() * choices.length)],
+    )
     const resident = frameOf(s, states)
     return { s, uniforms: cameraSelectionUniforms(s.cam, threshold, [1280, 720]), states, resident }
   })

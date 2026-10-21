@@ -1,8 +1,8 @@
 //! The blend materials whose base colour a texture carries: the bindings an answer or a measurement
 //! may turn cutout.
 use super::*;
-use crate::compiler_materials::AlphaMode;
-use crate::texture_preview::collect;
+use crate::compiler::materials::AlphaMode;
+use crate::texture::collect;
 
 /// Candidate binding: material declared in blend whose base color carries a texture.
 pub(super) struct Candidate {

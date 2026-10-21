@@ -42,7 +42,7 @@ export function pagedQuad(specs: readonly ClusterSpec[]) {
       const geo = encodePage(
         spec.corners,
         { POSITION: { itemSize: 3, array: POSITIONS }, ...spec.attributes },
-        -6,
+        0,
       )
       encoded[id] = geo
       bytes.set(`g${id}`, geo.data)
@@ -62,12 +62,7 @@ export function pagedQuad(specs: readonly ClusterSpec[]) {
   )
   const metadata: ClusterManifest = {
     ...QUAD_MANIFEST,
-    primitives: [
-      {
-        ...exactPrimitive(roots),
-        quantization: { positionExponent: -6, uvExponent: -14, maxPositionError: 0.02 },
-      },
-    ],
+    primitives: [exactPrimitive(roots)],
   }
   const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]])
   return {

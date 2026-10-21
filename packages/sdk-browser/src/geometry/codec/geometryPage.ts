@@ -1,6 +1,5 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { MIB } from '../../../../math/src/constants.ts'
-import { fromF32Bits } from '../../../../math/src/float/bits.ts'
 import { loadedSdkWasm, type SdkWasm } from '../../wasm/sdkWasm.ts'
 import { META, META_WORDS } from '../../wasm/encodeAbi.ts'
 import { withArena, type Arena } from '../../wasm/wasmArena.ts'
@@ -29,9 +28,6 @@ export type DecodedGeometryPage = {
   flags: number
   /** Its size once unpacked. */
   decodedBytes: number
-  /** The header's largest position displacement, in object units: a decoded position may lie
-   *  that far from its source, and so from the page's declared box. */
-  quantizationError: number
 }
 
 /** The decoded page budget a call may spend unless it names another. */
@@ -69,10 +65,6 @@ export function refused(answer: Uint32Array): never {
   throw new Error(new TextDecoder().decode(bytes))
 }
 
-/** The page's quantization error the module answered in `words`, a float32 at `META`'s word. */
-export const pageQuantizationError = (words: Uint32Array) =>
-  fromF32Bits(words[META.QUANTIZATION_ERROR])
-
 /**
  * The format's gate on a page the pool uploads as it is and the shaders decode in place: magic,
  * version, grids, and counts that measure exactly this many bytes. Returns the page's counts, or
@@ -92,7 +84,6 @@ export function checkGeometryPage(
       indexCount: words[META.INDEX_COUNT],
       flags: words[META.FLAGS],
       decodedBytes: words[META.DECODED_BYTES],
-      quantizationError: pageQuantizationError(words),
       morphTargets: words[META.MORPH_TARGETS],
       skinInfluences: words[META.SKIN_INFLUENCES],
     }
@@ -143,6 +134,5 @@ export function decodeGeometryPage(
     skinInfluences,
     flags: counts.flags,
     decodedBytes,
-    quantizationError: counts.quantizationError,
   }
 }

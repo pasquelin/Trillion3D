@@ -50,13 +50,14 @@ test("a stage's count bounds its pass's queue, and the sum covers every node", (
 })
 
 test('packed-hierarchy stages are counted with the root included', () => {
-  // Thirty-three pages: three median splits give the root eight leaves of four or five. Two stages.
+  // Thirty-three pages, one level, each a leaf: the complete tree of four children a node gives
+  // its root children of 4, 4, 9 and 16 pages, then 16 nodes, then the 23 leaves left.
   const pages = Array.from({ length: 33 }, (_, i) => ({ min: [i, 0, 0], max: [i + 1, 1, 1] }))
   const { nodes, stride } = cullingInPlace(pages)
-  assert.deepEqual(hierarchyLevelSizes(nodes, stride), [1, 8])
-  // One leaf: the root IS the leaf, a single stage.
+  assert.deepEqual(hierarchyLevelSizes(nodes, stride), [1, 4, 16, 23])
+  // Four pages: one node over its four leaves, two stages.
   const small = cullingInPlace(pages.slice(0, 4))
-  assert.deepEqual(hierarchyLevelSizes(small.nodes, small.stride), [1])
+  assert.deepEqual(hierarchyLevelSizes(small.nodes, small.stride), [1, 4])
   // No page: an empty leaf root, always one stage, never zero passes.
   const empty = cullingInPlace([])
   assert.deepEqual(hierarchyLevelSizes(empty.nodes, empty.stride), [1])

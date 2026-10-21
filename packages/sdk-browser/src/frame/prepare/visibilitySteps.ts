@@ -2,13 +2,10 @@ import { createVoxelSteps } from '../../visibility/passes/voxelSteps.ts'
 import { createWebgpuBlendPipelines, type BlendedSurface } from '../../blend/pipelines.ts'
 import { ensureWebgpuShadeBindings } from '../../gpu/bind/shadeBindings.ts'
 import type { createWebgpuVisibilityShaders } from '../../visibility/passes/shaders.ts'
-import {
-  createWebgpuCoplanarLayerPipelines,
-  createWebgpuVisibilityRasterPipelines,
-} from '../../visibility/passes/pipelines.ts'
+import { createWebgpuVisibilityRasterPipelines } from '../../visibility/passes/pipelines.ts'
 import { createWebgpuShadePipelines } from '../../visibility/passes/shadePipelines.ts'
 import { createShadeCache } from '../../visibility/passes/shadeCache.ts'
-import { depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts'
+import { createShadeBins } from '../../materials/classes/shadeBins.ts'
 import { ensurePageTable } from '../render/pageTable.ts'
 import { SURFACE_BYTES_PER_PIXEL, SURFACE_FORMATS } from '../../materials/surface/surfaceBuffer.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -77,61 +74,8 @@ export async function prepareRasterPipelines(
   } = rasterPipelines)
 }
 
-/** The pipelines of the coplanar layers above 0, for `slots` layer slots, made from `module` and
- *  `layout`; undefined, said, when the device refuses them: one layer is drawn then. */
-export async function buildLayerPipelines(
-  rt: WebgpuPagesRuntime,
-  gpuDevice: GPUDevice,
-  module: GPUShaderModule,
-  layout: GPUBindGroupLayout,
-  slots: number,
-  variant: Variant,
-) {
-  const { diag } = rt
-  try {
-    const pipelines = await createWebgpuCoplanarLayerPipelines(
-      gpuDevice,
-      module,
-      layout,
-      slots,
-      variant,
-    )
-    diag.engineDiagnostic('coplanar-layers-ready', 'Coplanar layers ready', {
-      layers: slots - 1,
-      pipelines: pipelines.length,
-      biasUnitsPerLayer: depthLayerUnits(1),
-    })
-    return pipelines
-  } catch (error) {
-    diag.diagnosticFailure('coplanar-layer-pipelines-failed', error)
-    return undefined
-  }
-}
-
-/** The coplanar layers' pipelines, when the scene carries layers; a refusal draws one layer. */
-export async function prepareLayerPipelines(
-  rt: WebgpuPagesRuntime,
-  gpuDevice: GPUDevice,
-  shaders: Shaders,
-  variant: Variant,
-) {
-  const { vis } = rt
-  vis.visLayerPipelines.length = 0
-  if (vis.drawLayerSlots <= 1) return
-  const built = await buildLayerPipelines(
-    rt,
-    gpuDevice,
-    shaders.visModule,
-    shaders.visBindGroupLayout,
-    vis.drawLayerSlots,
-    variant,
-  )
-  if (built) vis.visLayerPipelines = built
-  else vis.drawLayerSlots = 1
-}
-
 /** Each resolve class of the census (`preparePages.ts`), read now that the atlases are laid out,
- *  gets its pipeline, plus a direct single-class path; the census is taken again at a frame entry
+ *  gets its pipeline, and the image its shading bins; the census is taken again at a frame entry
  *  once what it reads moved (`../loop/framePipelines.ts`). */
 export async function prepareShadeClasses(
   rt: WebgpuPagesRuntime,
@@ -144,19 +88,17 @@ export async function prepareShadeClasses(
   // The frame's cache first: the class pipelines' group binds its buffer.
   vis.shadeCache ??= await createShadeCache(gpuDevice)
   vis.voxelSteps ??= createVoxelSteps(gpuDevice)
-  ;({
-    shadeBindGroupLayout: vis.shadeBindGroupLayout,
-    shadeClasses: vis.shadeClasses,
-    materialTiles: vis.materialTiles,
-  } = await createWebgpuShadePipelines(
-    gpuDevice,
-    shaders.shadeModule,
-    classes,
-    variant,
-    vis.writesFeedback,
-    undefined,
-    vis.writesEmissiveAo,
-  ))
+  vis.shadeBins ??= await createShadeBins(gpuDevice)
+  ;({ shadeBindGroupLayout: vis.shadeBindGroupLayout, shadeClasses: vis.shadeClasses } =
+    await createWebgpuShadePipelines(
+      gpuDevice,
+      shaders.shadeModule,
+      classes,
+      variant,
+      vis.writesFeedback,
+      undefined,
+      vis.writesEmissiveAo,
+    ))
   diag.engineDiagnostic('material-classes-ready', 'Resolve classes and their pipelines', {
     classes: classes.length,
     keys: classes,

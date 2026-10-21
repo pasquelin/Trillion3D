@@ -1,9 +1,9 @@
 use crate::coplanar::plane::*;
-use trillion3d_math::vecn::dot;
+use trillion3d_math::vector::vecn::dot;
 
 /// `plane_of_triangles` on the crosses and the box a page record measures.
 fn plane_of(indices: &[u32], positions: &[f32], ratio: f64) -> Option<ClusterPlane> {
-    let crosses = trillion3d_page_codec::normal_cone::face_crosses(positions, indices);
+    let crosses = trillion3d_page_codec::faces::face_crosses(positions, indices);
     let bounds = crate::dag::bounds::cluster_bounds(positions, indices);
     plane_of_triangles((indices, positions), &crosses, bounds, ratio)
 }

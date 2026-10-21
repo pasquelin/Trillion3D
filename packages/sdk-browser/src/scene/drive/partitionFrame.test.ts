@@ -6,7 +6,7 @@ import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { createPartitionCells } from '../../geometry/partition/cells.ts'
 import { placedMesh } from '../../geometry/partition/rows.ts'
 import { paged } from '../../geometry/partition/paged.fixture.ts'
-import { PRIORITY_VISIBLE } from '../../geometry/streaming/priority.ts'
+import { cellPriority, PRIORITY_VISIBLE } from '../../geometry/streaming/priority.ts'
 import { createPartitionFrame } from './partitionFrame.ts'
 import { budget, packsNoWorld, recording, streamer } from './partitionFrame.fixture.ts'
 
@@ -72,10 +72,11 @@ async function asks(
 
 test('a pebble far below any error target is read while its grid cell is in range', async () => {
   // A small object within the main grid's loading range is read whatever it projects to: a cell's
-  // actors load by its range alone, never by their size on screen.
+  // actors load by its range alone, never by their size on screen. Its file is asked in the cells'
+  // lane, by the turn the cell took to load (the first).
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 300)
   assert.deepEqual(await asks('pebble.json', [200, 0, 0, 200.01, 0.01, 0.01], camera), [
-    [['https://cache.test/key/pebble.json'], PRIORITY_VISIBLE],
+    [['https://cache.test/key/pebble.json'], cellPriority(0)],
   ])
 })
 

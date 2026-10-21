@@ -31,7 +31,7 @@ test('every image hands the frame gate the runtime watched-sources closure, neve
     const handed: unknown[] = []
     const enterFrame = rt.run.gate.enterFrame.bind(rt.run.gate)
     rt.run.gate.enterFrame = (...args: Parameters<typeof enterFrame>) => {
-      handed.push(args[5])
+      handed.push(args[4])
       return enterFrame(...args)
     }
     for (let image = 0; image < 3; image++) {

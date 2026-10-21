@@ -26,6 +26,15 @@ import type { PresentRect } from '../../gpu/core/presentAt.ts'
 import type { RenderScale } from '../../frame/scale/renderScaleOption.ts'
 import type { WebgpuViewOptions } from '../../frame/backend/state/persistentView.ts'
 import type { TextureCaches } from '../../materials/texture/textureCaches.ts'
+import type {
+  HlodWarmupOptions,
+  WorldStreamingOptions,
+} from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
+import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.ts'
+import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animationOptions.ts'
+import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
+import type { RasterOptions } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
+import type { StreamingOptions } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
 type ViewSize = { width: number; height: number }
 /** A view drawn beside the main one (`Engine.addView`). */
 export interface EngineView {
@@ -85,9 +94,6 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   cpuFrameEnd(): void
   /** The frame's CPU time, the number the stats corner shows (`FrameMetrics.cpuFrameMs`). */
   frameCpuMs(ms: number): void
-  /** What the GPU partition of the last frame wrote, and the inputs it drew it from: the proof,
-   *  cluster by cluster, that its rectangles and depths are conservative. */
-  partitionAudit(): Promise<import('../../gpu/core/partitionAudit.ts').PartitionAudit | null>
   /** What the transparent occlusion test rejected, and the depth it rejected against: the proof
    *  that no removed cluster would have written a pixel. */
   transparentOcclusionAudit(): Promise<
@@ -121,6 +127,13 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
    *  frame cap (`../../frame/cadence.ts`) — nothing drawn, no frame counted; an explicit render never
    *  is. */
   skipsFrame(): boolean
+  /** Whether the session still runs its initial load: its first image not shown yet
+   *  (`../../frame/loop/firstImage.ts`). Meanwhile a partition holds no cell back from loading. */
+  initialLoad(): boolean
+  /** A partition's load blocks on slow streaming (`blocked`), or blocks no more
+   *  (`../../geometry/partition/slowStreaming.ts`): meanwhile no image is presented
+   *  (`../../frame/loop/firstImage.ts`). Told only as it moves. */
+  streamingBlocks(blocked: boolean): void
   /** The nearest drawn triangle a world ray meets — or line it passes within `lineReach` of —, of
    *  the objects `filter` lets it meet, within `reach` (`../../lighting/rays/rayQueue.ts`): traced on
    *  the GPU at the next tick with every ray cast meanwhile, answered a frame or so later, never
@@ -137,7 +150,32 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   ): Promise<import('../../materials/surface/surfaceBuffer.ts').SurfaceCapture>
   dispose(): void | Promise<void> // A release that finishes later resolves when it has.
 }
-export interface EngineContext {
+/** What an engine is built on. Beside the fields below, how the view streams a partitioned scene's
+ *  cells and the warm-up an HLOD switch waits on, each setting by its field
+ *  (`../../../../sdk-core/src/contracts/worldStreamingOptions.ts`), resolved at the opening,
+ *  written by `setWorldStreaming`, read through their resolvers at each frame by the partition
+ *  (`../../frame/schedule/sessionFrame.ts`) and the HLOD warm-up (`../../frame/prepare/hlodWarm.ts`);
+ *  the cut's settings likewise (`../../../../sdk-core/src/contracts/cutOptions.ts`), written by
+ *  `setCut`, read at each frame by the cut (`../../frame/render/gpuCut.ts`); the animation's
+ *  likewise (`../../../../sdk-core/src/contracts/animationOptions.ts`), written by `setAnimation`,
+ *  read at each frame by the animation banks' tracks (`../../deformation/bankTracks.ts`); the
+ *  shading's likewise (`../../../../sdk-core/src/contracts/shadingOptions.ts`), written by
+ *  `setShading`, read at each frame by the material pass (`../../materials/classes/materialPasses.ts`);
+ *  the software raster, on by default, and the projected edge in pixels from which a cluster is
+ *  the hardware rasterizer's (`../../../../sdk-core/src/contracts/rasterOptions.ts`), written by
+ *  `setSoftwareRaster` and `setHardwareRasterEdgePixels` and read each image by the cluster split
+ *  (`../../visibility/passes/uniforms.ts`); the geometry streaming's settings
+ *  (`../../../../sdk-core/src/contracts/streamingOptions.ts`), written by `setStreaming` and read
+ *  by each update of the streaming (`../../geometry/residency/queue.ts`). */
+export interface EngineContext
+  extends
+    WorldStreamingOptions,
+    HlodWarmupOptions,
+    CutOptions,
+    AnimationOptions,
+    ShadingOptions,
+    RasterOptions,
+    StreamingOptions {
   source: Object3D
   metadata: ClusterManifest
   indices: Map<string, Uint32Array>
@@ -148,9 +186,10 @@ export interface EngineContext {
    *  chain of each texture and the reader of its levels (`../../materials/texture/textureCaches.ts`). */
   textureCaches: TextureCaches
   signal?: AbortSignal
+  /** The most 128 KiB streaming pages the geometry pool's streaming slots hold, the root region's
+   *  grains apart (`../memory/pools.ts`, `page-cap`): benches and tests bound the pool by it. */
   maxResidentPages?: number
   pixelError?: number
-  lodAdaptive?: boolean
   /** Presentation clear color supplied by the host, encoded as 0xRRGGBB. */
   clearColor?: number
   /** Bounded diagnostics emitted by the engine and owned by the host report. */
@@ -168,9 +207,11 @@ export interface EngineContext {
   /** Texture-tile bytes and tile-copy CPU milliseconds admitted per frame; the rest waits. */
   maxTextureTransferBytesPerFrame?: number
   maxTextureUploadMsPerFrame?: number
-  /** Geometry-page pool bytes, fixed regardless of the scene; 512 MiB by default. The root cover
-   *  always fits, the rest draws coarser when it does not fit, image targets follow resolution.
-   *  The per-page tables start at it and grow in place for a larger one (`setMemoryBudgets`). */
+  /** Geometry-page pool bytes of the streamed pages — slots of a 128 KiB streaming page each —,
+   *  fixed regardless of the scene; 512 MiB by default. The root pages are held beside them, in
+   *  the pool's root region, never in them; what does not fit draws coarser, image targets follow
+   *  resolution. The per-page tables start at it and grow in place for a larger one
+   *  (`setMemoryBudgets`). */
   geometryPoolBytes?: number
   admitGpuMemory?: AdmitGpuMemory // active allocations through the world's one global budget
   /** Virtual-texture pool bytes, shared by the colour and data atlases; 512 MiB by default. A view
@@ -219,7 +260,6 @@ export interface EngineContext {
   /** The world roots this scene's manifest opened, whose DAG the cut packs; their pages are read
    *  as any geometry page (`../../geometry/hlod/worldRuns.ts`); absent without them. */
   worldRoots?: import('../../geometry/hlod/worldRoots.ts').WorldRootsHold
-  pageRoundTripMs?: () => number // the reads' measured round trip (`../../geometry/streaming/roundTrip.ts`)
   /** The session's one integration budget per frame (`integration/frameBudget.ts`); absent, nothing bounds it. */
   frameBudget?: import('../../geometry/integration/frameBudget.ts').FrameClock
 }

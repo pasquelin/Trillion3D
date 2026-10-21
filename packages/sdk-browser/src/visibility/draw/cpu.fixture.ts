@@ -1,4 +1,11 @@
-import { BASE_SLOTS, HALF_SLOTS, slotCount } from './contract.ts'
+import {
+  BASE_SLOTS,
+  BIN_KIND,
+  CULL_BINS,
+  HALF_SLOTS,
+  RASTER_SOFTWARE,
+  slotCount,
+} from './contract.ts'
 
 /** Exclusive prefix scan: each value's offset, then the total. */
 function exclusiveScan(values: readonly number[]): [number[], number] {
@@ -31,6 +38,8 @@ export type DrawItem = {
   selectionIndex?: number
   layer?: number
   triangles?: number
+  /** The raster drawing the row this image: `RASTER_HARDWARE` (default) or `RASTER_SOFTWARE`. */
+  raster?: number
 }
 /** What the CPU mirror of the compaction returns. */
 type CompactResult = {
@@ -42,11 +51,20 @@ type CompactResult = {
   overflow: boolean
 }
 
-/** A slot is a bin, an occluder/tested half and a coplanar layer, in that order.
+/** The bin a row is drawn in this image: its own, or its face mode's software bin where the
+ *  software raster draws it. CPU mirror of `binOf` (shader.ts). */
+const binOf = (item: DrawItem) =>
+  item.raster === RASTER_SOFTWARE
+    ? BIN_KIND.SOFTWARE * CULL_BINS + (item.bin % CULL_BINS)
+    : item.bin
+
+/** A slot is a bin, a main/post half and a coplanar layer, in that order.
  *  CPU mirror of `slotOf` (shader.ts): same product, same sum, same layer cap.
  *  Two languages, two writings; `prefixEquivalence.test.ts` opposes them. */
 function slotOf(item: DrawItem, layerSlots: number) {
-  return item.rest * HALF_SLOTS + item.bin + BASE_SLOTS * Math.min(item.layer ?? 0, layerSlots - 1)
+  return (
+    item.rest * HALF_SLOTS + binOf(item) + BASE_SLOTS * Math.min(item.layer ?? 0, layerSlots - 1)
+  )
 }
 
 function emptyCompact(maxVertexCount: number, overflow: boolean, slots: number): CompactResult {

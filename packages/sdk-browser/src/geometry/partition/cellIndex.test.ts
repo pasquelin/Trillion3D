@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { boxed, createCellBoxes } from './boxes.ts'
+import { createCellBoxes } from './boxes.ts'
 import { createCellIndex } from './cellIndex.ts'
-import { boxDistance } from './plan.ts'
+import { boxDistance } from './reach.ts'
 import { createPartitionCells } from './cells.ts'
 import { opened } from './cells.fixture.ts'
 import { grid } from './cellGrid.fixture.ts'
@@ -117,19 +117,20 @@ test('the index finds every cell a whole walk finds, under a parent moved and tu
       // Every cell of the world, opened whole on a second index: the walk finds the same.
       const whole = createCellIndex(partition.pages, 'https://cache.test/', boxes)
       openAll(whole, files)
-      // A cell is met by its boxes where its parent stands, or by its HLOD 0 cell's bounds as
-      // declared and carried by that parent (`paged`: its HLOD 0 cell streams by its declared box).
+      // A cell is met by the bounds its grid cell or its HLOD 0 cell streams by, as declared and
+      // carried by its parent.
       const all = [...Array(whole.stats().cells).keys()]
         .filter((cell) => {
-          const { bounds, parents } = whole.cell(cell)
-          const leaf = boxes.around({
-            declared: bounds,
-            parents: parents.flatMap(([rank]) => (rank === null ? [] : [rank])),
-            box: new Float64Array(6),
-            written: -1,
-          })
-          const moved = boxDistance(boxes.bounds(boxed(parents)), eye)
-          return Math.min(boxDistance(bounds, eye), moved, boxDistance(leaf, eye)) <= radius
+          const { bounds, parents, hlod } = whole.cell(cell)
+          const around = (declared: ArrayLike<number>) =>
+            boxes.around({
+              declared,
+              parents: parents.flatMap(([rank]) => (rank === null ? [] : [rank])),
+              box: new Float64Array(6),
+              written: -1,
+            })
+          const leaf = hlod ? boxDistance(around(hlod[1]), eye) : Infinity
+          return Math.min(boxDistance(around(bounds), eye), leaf) <= radius
         })
         .map((cell) => whole.cell(cell).url)
       const urls = found.map((cell) => index.cell(cell).url)

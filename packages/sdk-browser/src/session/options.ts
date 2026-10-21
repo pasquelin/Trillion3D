@@ -7,6 +7,15 @@ import type {
 import type { EngineDiagnostic, DiagnosticDetail } from '../diagnostic/types.ts'
 import type { EngineFactory } from './engine/factory.ts'
 import type { DiagnosticGpuVariant } from '../diagnostic/gpuVariant.ts'
+import type {
+  HlodWarmupOptions,
+  WorldStreamingOptions,
+} from '../../../sdk-core/src/contracts/worldStreamingOptions.ts'
+import type { CutOptions } from '../../../sdk-core/src/contracts/cutOptions.ts'
+import type { AnimationOptions } from '../../../sdk-core/src/contracts/animationOptions.ts'
+import type { ShadingOptions } from '../../../sdk-core/src/contracts/shadingOptions.ts'
+import type { RasterOptions } from '../../../sdk-core/src/contracts/rasterOptions.ts'
+import type { StreamingOptions } from '../../../sdk-core/src/contracts/streamingOptions.ts'
 
 /** A named view of a scene a page can jump to. */
 export type PointOfInterest = {
@@ -17,7 +26,38 @@ export type PointOfInterest = {
   /** Where the camera stands and what it looks at. */
   pose: CameraPose
 }
-export interface MeasuredWorldOptions {
+/** A session's options. Beside those below, how the view streams a partitioned scene's cells
+ *  (`worldStreaming…`) and the warm-up an HLOD switch waits on (`hlodWarmup…`), each setting by
+ *  its field (`../../../sdk-core/src/contracts/worldStreamingOptions.ts`), its default left out;
+ *  set during the session by `explorer.setWorldStreaming`, one field at a time. The cut's
+ *  settings likewise (`cut…`, `../../../sdk-core/src/contracts/cutOptions.ts`), set during the
+ *  session by `explorer.setCut`, the animation's (`animation…`,
+ *  `../../../sdk-core/src/contracts/animationOptions.ts`), set by `explorer.setAnimation`, and the
+ *  shading's (`shadeBinningMode`, `../../../sdk-core/src/contracts/shadingOptions.ts`), set by
+ *  `explorer.setShading`. The software raster (`softwareRaster`, on by default: a cluster whose
+ *  longest edge projects under `hardwareRasterEdgePixels` and that crosses neither clip plane is
+ *  rastered in compute, every other one by the hardware rasterizer; `false` draws every cluster
+ *  with the hardware) and the edge it goes to the hardware at (`hardwareRasterEdgePixels`, 32 by
+ *  default, a finite number above zero), `../../../sdk-core/src/contracts/rasterOptions.ts`, set by
+ *  `explorer.setSoftwareRaster` and `explorer.setHardwareRasterEdgePixels`. The geometry
+ *  streaming's five settings (`streaming…`,
+ *  `../../../sdk-core/src/contracts/streamingOptions.ts`): the pages kept started at once
+ *  (`streamingMaxPendingPages`, 128), those a frame installs at most
+ *  (`streamingMaxInstallsPerFrame`, 128, never more than may be pending), the pool's load in
+ *  percent of its pages under which the quality rises again and over which it falls
+ *  (`streamingQualityMinPoolPercent` 70, `streamingQualityMaxPoolPercent` 85, read no lower than
+ *  the low mark, from 10 to 100) and the lowest scale of the screen error it falls to
+ *  (`streamingQualityMinScale`, 0.3, from 0.1 to 1); set by `explorer.setStreaming`, from the
+ *  streaming's next update. Each is refused at the opening when out of its range. */
+export interface MeasuredWorldOptions
+  extends
+    WorldStreamingOptions,
+    HlodWarmupOptions,
+    CutOptions,
+    AnimationOptions,
+    ShadingOptions,
+    RasterOptions,
+    StreamingOptions {
   /** Own controls, CSS/DPR sizing and demand-driven rendering. Off by default. */
   interactive?: boolean
   /** Called before every frame the interactive session draws: the host writes its scene then. */
@@ -58,7 +98,6 @@ export interface MeasuredWorldOptions {
    *  cache of its own. */
   pageCache?: import('../geometry/streaming/pageCache.ts').PageCache
   pixelError?: number
-  lodAdaptive?: boolean
   /** Bounded diagnostics emitted by a backend and owned by the host report. */
   onDiagnostic?: (diagnostic: EngineDiagnostic) => void
   /** Summary suppresses per-frame trace records; trace is the default with an observer. */
@@ -78,8 +117,8 @@ export interface MeasuredWorldOptions {
   maxTextureUploadMsPerFrame?: number
   /** Geometry-page pool bytes — streamed geometry memory, regardless of the scene, a fixed
    *  512 MB pool. 512 MiB by default.
-   *  The root cover always fits; what a view asks beyond that draws coarser, never refused.
-   *  Set during the session by `explorer.setMemoryBudgets`. */
+   *  The root cover is held beside it, never in it; what a view asks beyond the pool draws
+   *  coarser, never refused. Set during the session by `explorer.setMemoryBudgets`. */
   geometryPoolBytes?: number
   /** Internal transaction against the owning world's declared global GPU budget. */
   admitGpuMemory?: AdmitGpuMemory

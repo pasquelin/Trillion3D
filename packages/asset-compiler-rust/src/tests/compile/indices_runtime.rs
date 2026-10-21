@@ -1,5 +1,5 @@
 use super::*;
-use trillion3d_math::vecn::{length, sub};
+use trillion3d_math::vector::vecn::{length, sub};
 use trillion3d_page_codec::culling::CULLING_STRIDE;
 
 #[test]
@@ -85,8 +85,10 @@ fn compile_dag_emits_a_flat_per_cluster_cut() {
                 let centre = |v: &Vec<Value>, i: usize| v[i].as_f64().expect("coordinate");
                 let point = |v: &Vec<Value>| [0, 1, 2].map(|i| centre(v, i));
                 let distance = length(sub(point(sphere), point(parent_sphere)));
+                // Within the reach the DAG's ball of balls holds two balls nested at
+                // (`dag::bounds::balls_ball`: a hundredth at most).
                 assert!(
-                    distance + centre(sphere, 3) <= centre(parent_sphere, 3) + 1e-6,
+                    distance + centre(sphere, 3) <= centre(parent_sphere, 3) + 1e-2,
                     "parent bounds must enclose the cluster bounds"
                 );
             }
@@ -112,16 +114,17 @@ fn compile_dag_emits_a_flat_per_cluster_cut() {
     assert!(count > 1, "a 20 000 triangle grid must need interior nodes");
     let number = |index: usize| nodes[index].as_f64().expect("culling number");
     let mut covered = vec![0usize; pages.len()];
+    // Box, ball, ceiling, floor, first child, child count, first page, page count.
     for node in 0..count {
         let base = node * CULLING_STRIDE;
-        let children = number(base + 12) as usize;
-        let page_count = number(base + 14) as usize;
+        let children = number(base + 13) as usize;
+        let page_count = number(base + 15) as usize;
         if children > 0 {
             assert_eq!(page_count, 0);
-            assert!(number(base + 11) as usize + children <= count);
+            assert!(number(base + 12) as usize + children <= count);
             continue;
         }
-        let first = number(base + 13) as usize;
+        let first = number(base + 14) as usize;
         assert!(page_count > 0 && first + page_count <= pages.len());
         for id in first..first + page_count {
             covered[id] += 1;

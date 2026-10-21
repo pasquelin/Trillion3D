@@ -1,8 +1,6 @@
-import { leafCone } from '../../cone/cone.ts'
 import type { DagRoot } from '../types.ts'
 import {
   CLUSTER_WORDS,
-  COLD_CONE,
   COLD_HAS_BOX,
   COLD_MAX,
   COLD_MIN,
@@ -56,15 +54,9 @@ function writeRecords(
       owner[i] === NO_INDEX,
       rec.level ?? 0,
       !!rec.transparent,
-      !!rec.rootChild,
     )
-    const cone = leafCone(rec),
-      base = i * COLD_WORDS,
+    const base = i * COLD_WORDS,
       hasBox = rec.min && rec.max ? 1 : 0
-    cold[base + COLD_CONE] = cone.axis[0]
-    cold[base + COLD_CONE + 1] = cone.axis[1]
-    cold[base + COLD_CONE + 2] = cone.axis[2]
-    cold[base + COLD_CONE + 3] = cone.angle
     cold[base + COLD_HAS_BOX] = hasBox
     for (let a = 0; a < 3; a++) {
       cold[base + COLD_MIN + a] = hasBox ? rec.min![a] : 0
@@ -139,9 +131,9 @@ export function createRecordTable() {
     },
     /** Copies every unique record into the final buffers, the cold ones from word `coldAt` — or,
      *  from block `first` on, those a growth added. */
-    finish(clusters: Float32Array, pageCones: Float32Array, coldAt: number, first = 0) {
+    finish(clusters: Float32Array, coldWords: Float32Array, coldAt: number, first = 0) {
       const hotInts = new Uint32Array(clusters.buffer, clusters.byteOffset),
-        coldInts = new Uint32Array(pageCones.buffer, pageCones.byteOffset)
+        coldInts = new Uint32Array(coldWords.buffer, coldWords.byteOffset)
       for (const block of blocks.slice(first)) {
         hotInts.set(block.hot, block.base * CLUSTER_WORDS)
         coldInts.set(block.cold, coldAt + block.base * COLD_WORDS)

@@ -12,13 +12,12 @@ import {
   drawIndirectBytes,
   slotCount,
 } from './contract.ts'
-import { bitWords } from '../../../../math/src/scalar/integers.ts'
 
 // Compact buffers depend on the row count (slotCap) and the coplanar-layer count (layerSlots),
 // never on the frame: this file pins their sizes and alignments, including the layerSlots = 1
 // case which must reproduce the sizes from before layers.
 
-test('createGpuDrawBuffers sizes the item, rest and instance buffers from slotCap alone, for layerSlots = 1', () => {
+test('createGpuDrawBuffers sizes the item and instance buffers from slotCap alone, for layerSlots = 1', () => {
   const { device } = fakeDevice()
   const slotCap = 8
   const buffers = createGpuDrawBuffers(device, slotCap, 1, 1)
@@ -28,8 +27,8 @@ test('createGpuDrawBuffers sizes the item, rest and instance buffers from slotCa
     'layerSlots = 1 reproduces one layer: both halves, three kinds of rows, three face modes',
   )
   assert.equal(buffers.itemsBuf.size, slotCap * DRAW_ITEM_U32 * 4)
-  assert.equal(buffers.restBuf.size, Math.max(4, bitWords(slotCap) * 4))
   assert.equal(buffers.uniforms.size, UNIFORM_BYTES)
+  assert.equal(buffers.postUniforms.size, UNIFORM_BYTES)
   assert.equal(buffers.instanceBuffer.size, slotCap * 4)
   // A command of 16 B per slot, then each slot's total and the occluders' end.
   assert.equal(buffers.indirectBuffer.size, BASE_SLOTS * 16 + (BASE_SLOTS + 1) * 4)
@@ -39,7 +38,7 @@ test('createGpuDrawBuffers sizes the item, rest and instance buffers from slotCa
   assert.equal(buffers.all.length, 6, 'every allocated buffer is disposed through `all`')
 })
 
-test('the indirect, group and slot-total buffers grow with layerSlots; the item, rest and instance buffers do not', () => {
+test('the indirect, group and slot-total buffers grow with layerSlots; the item and instance buffers do not', () => {
   const slotCap = 20
   const sizesFor = (layerSlots: number) => {
     const { device } = fakeDevice()
@@ -53,7 +52,6 @@ test('the indirect, group and slot-total buffers grow with layerSlots; the item,
     three.itemsBuf.size,
     'items depend on slotCap, not the layer count',
   )
-  assert.equal(one.restBuf.size, three.restBuf.size)
   assert.equal(one.instanceBuffer.size, three.instanceBuffer.size)
   assert.equal(one.uniforms.size, three.uniforms.size)
   assert.equal(three.indirectBuffer.size, drawIndirectBytes(slotCount(3)))

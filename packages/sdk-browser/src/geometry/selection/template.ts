@@ -5,19 +5,13 @@ import {
   primitiveUsesClusterErrors,
   type Primitive,
 } from '../../../../sdk-core/src/contracts/geometry.ts'
-import {
-  clusterErrorFields,
-  cullingNodes,
-  quantizationErrorOf,
-  streamPlacement,
-} from './helpers.ts'
+import { clusterErrorFields, cullingNodes, streamPlacement } from './helpers.ts'
 import { structureIndex } from './structure.ts'
-import { cullingBounds } from '../cut/bounds.ts'
 import { cullingLinks, type CullingLinks } from '../cut/links.ts'
 
 /**
  * What a source object carries once, however many times it is placed in the scene: error bands,
- * streaming bundles, cluster identities, the culling hierarchy and its bounds, group links, local
+ * streaming bundles, cluster identities, the culling hierarchy and its links, group links, local
  * box. None of that depends on a placement's world matrix — two instances of the same object used
  * to hold two copies of it. Placements keep what belongs to them: a matrix, a draw rank, a mesh.
  *
@@ -34,19 +28,16 @@ export type Template = {
   pages: Array<{
     array: Uint32Array | undefined
     cut: ReturnType<typeof clusterErrorFields>
-    placed: { url: string; offset: number } | undefined
+    placed: { url: string; offset: number; pinned: boolean } | undefined
     clusterId: string
   }>
   sourceOrder: number[]
-  /** How far the grid moved a position (`quantizationErrorOf`): every band and box grows by it. */
-  quantizationError: number
   complete: boolean
   shape: Shape | undefined
 }
 type Shape = {
   structure: ReturnType<typeof structureIndex>
   culling: ReturnType<typeof cullingNodes>
-  bounds: Float64Array | undefined
   links: CullingLinks | undefined
   local: Float64Array
 }
@@ -73,7 +64,6 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
       const kept = held.get(primitive)
       if (kept) return kept
       const placement = streamPlacement(primitive.streams, primitive.pages)
-      const quantizationError = quantizationErrorOf(primitive)
       const pages = primitive.pages.map((page, index) => {
         const array = indices.get(page.url)
         if (!array && !allowMissing && indices.size) throw new Error('Missing page')
@@ -83,7 +73,7 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
         if (array && array.length !== page.count) throw new Error('Incomplete cluster coverage')
         return {
           array,
-          cut: clusterErrorFields(page, quantizationError),
+          cut: clusterErrorFields(page),
           placed: placement?.[index],
           clusterId: `${primitive.mesh}/${primitive.primitive}/${page.id}`,
         }
@@ -93,7 +83,6 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
         // The source rank of a cluster depends only on the primitive; only a transparent mesh
         // reads it, and it reads it identically under each of its instances.
         sourceOrder: primitive.pages.map((page, index) => page.start ?? index),
-        quantizationError,
         complete: primitive.pages.every(
           (page) => indices.has(page.url) || (page.role ?? 'exact') === 'coarse',
         ),
@@ -102,8 +91,8 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
       held.set(primitive, template)
       return template
     },
-    /** Culling hierarchy, per-node bounds, group links and local box: the DAG's shape, shared
-     *  by every instance of the object. */
+    /** Culling hierarchy, its links, group links and local box: the DAG's shape, shared by every
+     *  instance of the object. */
     shapeOf(primitive: Primitive, template: Template): Shape {
       if (template.shape) return template.shape
       if (!primitiveUsesClusterErrors(primitive))
@@ -112,17 +101,10 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
           `Primitive ${primitive.mesh}/${primitive.primitive}: clusters without a DAG error band; recompile with ${DAG_ERROR_MODEL}`,
           { mesh: primitive.mesh, primitive: primitive.primitive, expected: DAG_ERROR_MODEL },
         )
-      const { quantizationError } = template
-      const culling = cullingNodes(primitive.culling, template.pages.length, quantizationError)
+      const culling = cullingNodes(primitive.culling, template.pages.length)
       const shape: Shape = {
-        structure: structureIndex(primitive.structure, primitive.pages.length, quantizationError),
+        structure: structureIndex(primitive.structure, primitive.pages.length),
         culling,
-        bounds: culling
-          ? cullingBounds(
-              culling,
-              template.pages.map((entry) => entry.cut),
-            )
-          : undefined,
         links: culling ? cullingLinks(culling, template.pages.length) : undefined,
         local: localBox(primitive, culling),
       }

@@ -11,7 +11,7 @@ use super::kind::{kind_of, Kind};
 use super::property::{Properties, POD_BOOL, POD_F64, POD_U8};
 use super::scene::Scene;
 use super::xform;
-use crate::le::words;
+use crate::support::le::words;
 use crate::Result;
 use serde_json::json;
 use std::sync::atomic::AtomicBool;

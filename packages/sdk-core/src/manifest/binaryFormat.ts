@@ -20,6 +20,7 @@
 export const GEOMETRY_PAGE_CODEC = 'quantized'
 
 import { PREVIEW_WORDS } from '../texture/previewFormat.ts'
+import { CULLING_STRIDE } from '../contracts/writtenFormats.ts'
 
 export const COLUMN_NAMES = [
   'pageBounds',
@@ -49,7 +50,6 @@ export const COLUMN_NAMES = [
   'texturePreviewEtc2',
   'bundleDependencyCount',
   'bundleDependency',
-  'pageCone',
 ] as const
 export type ColumnName = (typeof COLUMN_NAMES)[number]
 /** How one column of the binary manifest is stored. */
@@ -83,7 +83,6 @@ export type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8'
  * @property texturePreviewEtc2 - The previews' ETC2 blocks.
  * @property bundleDependencyCount - How many bundles each bundle depends on.
  * @property bundleDependency - The bundles each bundle depends on, closed to the root cover.
- * @property pageCone - Each page's normal cone: axis, then half-angle.
  */
 export const COLUMN_KIND: Record<ColumnName, ColumnKind> = {
   pageBounds: 'f64',
@@ -113,7 +112,6 @@ export const COLUMN_KIND: Record<ColumnName, ColumnKind> = {
   texturePreviewEtc2: 'u8',
   bundleDependencyCount: 'u32',
   bundleDependency: 'u32',
-  pageCone: 'f64',
 }
 /** Numbers per element. A sha is 64 ASCII hexadecimal characters: one `TextDecoder` for the whole
  *  column, then one `substring` per entry, is far cheaper than re-encoding 32 raw bytes each time. */
@@ -125,7 +123,7 @@ export const COLUMN_STRIDE: Record<ColumnName, number> = {
   pageInt: 8,
   pageU32: 1,
   geometryU32: 5,
-  cullingNodes: 15,
+  cullingNodes: CULLING_STRIDE,
   groupLevel: 1,
   groupError: 1,
   groupSphere: 4,
@@ -148,7 +146,6 @@ export const COLUMN_STRIDE: Record<ColumnName, number> = {
   texturePreviewEtc2: 1,
   bundleDependencyCount: 1,
   bundleDependency: 1,
-  pageCone: 4,
 }
 export const BYTES_PER_ELEMENT: Record<ColumnKind, number> = { f64: 8, i32: 4, u32: 4, u8: 1 }
 

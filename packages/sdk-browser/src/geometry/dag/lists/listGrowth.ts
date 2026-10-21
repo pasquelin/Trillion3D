@@ -1,14 +1,10 @@
-// THE CAMERA CUT'S LIST GROWN (`growDagList`): a new readout and its kept ranks made beside the
-// old ones within the cut's share, the kept snapshot and the open counts carried over, the old
-// ones retired by the one growth transaction (`../../../gpu/core/tableGrowth.ts`).
+// THE CAMERA CUT'S READOUT MADE AGAIN (`growDagList`) for the regions the views aside ask and the
+// open counts the row cache holds: a new readout and its kept ranks made beside the old ones within
+// the cut's share, the kept snapshot and the open counts carried over, the old ones retired by the
+// one growth transaction (`../../../gpu/core/tableGrowth.ts`). Its list's cap never moves.
 import { validated } from '../../../gpu/core/errorScope.ts'
 import { bytesOfBuffers, pendingBuffers } from '../../../gpu/core/tableGrowth.ts'
-import {
-  DAG_READBACK_SLOTS,
-  KEPT_HEADER_WORDS,
-  keptSnapshotWord,
-  residentReadbackBytes,
-} from '../layout.ts'
+import { KEPT_HEADER_WORDS, keptSnapshotWord } from '../layout.ts'
 import { SELECTION_HEADER_WORDS } from '../readoutWords.ts'
 import { pastBinding, readoutRow } from '../bufferTable.ts'
 import { admitBeside } from '../cut/cutBuffers.ts'
@@ -16,7 +12,6 @@ import { DAG_PASS } from '../encodeDifference.ts'
 import type { DagResources } from '../resources.ts'
 import { newRegions } from '../swap/swap.ts'
 import { HELD_BY_WORD } from '../frameTable.ts'
-import { viewWord } from '../viewLayout.ts'
 import { dispatchRows, groupWidth, WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 import { workgroupCount } from '../../../../../math/src/scalar/integers.ts'
 import { createDagList, heldOpenAt, rankGroups } from './listCap.ts'
@@ -40,31 +35,28 @@ function writeHeldOpen(resources: DagResources, grown: boolean) {
 }
 
 /**
- * Gives the camera cut a list of `listCap` ranks, `regions` saved journals and `heldSlots` slots of
- * open counts, between two frames and with no readback in flight: a new readout, the bind groups
- * that name it, and the old ones retired — the readback ring takes the new size at its next copy.
- * Made under an out-of-memory scope, within one binding: a device that cannot grant them keeps the
- * old readout whole and says `false`, so the next truncated readout coarsens its cut
- * (`../coarsening.ts`) — or the views aside cut without a region — rather than end on an error of the
- * whole device. The kernels read the cap from the uniforms (`../uniforms.ts`); the pool's list, in
- * the cold words' table (`../cut/cutTables.ts`), keeps its own (`../layout.ts`).
+ * Gives the camera cut a readout of its list's ranks (`listCap`, the cut's for its life),
+ * `regions` saved journals and `heldSlots` slots of open counts, between two frames and with no
+ * readback in flight: a new readout, the bind groups that name it, and the old ones retired. Made
+ * under an out-of-memory scope, within one binding: a device that cannot grant them keeps the old
+ * readout whole and says `false`, so the views aside cut without a region and more open counts
+ * stay at their nodes' — rather than end on an error of the whole device. The pool's list, in the
+ * cold words' table (`../cut/cutTables.ts`), keeps its own (`../layout.ts`).
  */
 export async function growDagList(
   resources: DagResources,
-  listCap: number,
   regions: number,
   disposed: () => boolean,
   heldSlots = resources.heldSlots,
 ) {
+  const { listCap } = resources
   if (pastBinding(resources.device.limits, { out: readoutRow(listCap, regions, heldSlots) }))
     return false
   // What the readout replaces leaves the share: the new one is made within what remains.
   const replaced = [resources.output, ...resources.ranks]
-  // The ring's next copies take the grown size: kept in the share, asked now (`../mainReadbacks.ts`).
-  const ring = DAG_READBACK_SLOTS * residentReadbackBytes(listCap) - resources.readbacks.bytes
-  const admission = admitBeside<GPUBuffer>(resources, bytesOfBuffers(replaced), Math.max(0, ring))
+  const admission = admitBeside<GPUBuffer>(resources, bytesOfBuffers(replaced))
   // Each buffer noted in what the admission made: one past the share is never made, and the growth
-  // is refused by name (`pastShare`): the view coarsens instead (`../coarsening.ts`).
+  // is refused by name (`pastShare`).
   const make = (descriptor: GPUBufferDescriptor) =>
     admission.admit({ label: descriptor.label, bytes: descriptor.size }, () =>
       resources.device.createBuffer(descriptor),
@@ -72,15 +64,12 @@ export async function growDagList(
   // A creation the device throws on is a refusal too.
   const list = await validated(
     resources.device,
-    () => {
-      if (ring > 0) resources.admit(ring)
-      return createDagList(make, listCap, regions, heldSlots)
-    },
+    () => createDagList(make, listCap, regions, heldSlots),
     'out-of-memory',
   ).catch(() => undefined)
   const made = admission.made.map(({ resource }) => resource)
   const growth = cutGrowth(resources, made, replaced, () => {
-    const from = { output: resources.output, listCap: resources.listCap },
+    const from = resources.output,
       grown = heldSlots > resources.heldSlots
     Object.assign(resources, list)
     resources.group.out = list!.output
@@ -118,37 +107,22 @@ const cutGrowth = (
   })
 
 /**
- * The kept snapshot carried into the grown readout `to`, lengths and both lists, each at the place
- * the new cap gives it (`keptSnapshotWord`), then each list ranked in its new table
- * (`../shader/differenceWgsl.ts`, `dagCutRekeep`) — the kernels read the new cap, written first —:
- * the next copy's difference is taken against it as if the list had not grown, and the readbacks
- * since keep naming their pages by its ranks (`../differenceChain.ts`).
+ * The kept snapshot carried from the readout `from` into the one made again, `to`'s — its lengths
+ * and both lists, where the list's cap lays them (`keptSnapshotWord`) —, then each list ranked in its
+ * new table (`../shader/differenceWgsl.ts`, `dagCutRekeep`): the next copy's difference is taken
+ * against it as before, and the readbacks since keep naming their pages by its ranks
+ * (`../differenceChain.ts`).
  */
-function carryKeptSnapshot(to: DagResources, from: { output: GPUBuffer; listCap: number }) {
-  const { device } = to,
+function carryKeptSnapshot(to: DagResources, from: GPUBuffer) {
+  const { device, listCap } = to,
     encoder = device.createCommandEncoder(),
-    a = keptSnapshotWord(from.listCap) * 4,
-    b = keptSnapshotWord(to.listCap) * 4,
-    asked = (KEPT_HEADER_WORDS + from.listCap) * 4
-  encoder.copyBufferToBuffer(from.output, a, to.output, b, asked)
-  encoder.copyBufferToBuffer(
-    from.output,
-    a + asked,
-    to.output,
-    b + (KEPT_HEADER_WORDS + to.listCap) * 4,
-    from.listCap * 4,
-  )
-  device.queue.writeBuffer(to.uniforms, viewWord('listCap') * 4, Uint32Array.of(to.listCap))
+    at = keptSnapshotWord(listCap) * 4
+  encoder.copyBufferToBuffer(from, at, to.output, at, (KEPT_HEADER_WORDS + 2 * listCap) * 4)
   const pass = encoder.beginComputePass(DAG_PASS)
   to.rekeepPipelines.forEach((pipeline, l) => {
     pass.setBindGroup(0, to.rankGroups[l])
     pass.setPipeline(pipeline)
-    dispatchRows(
-      pass,
-      workgroupCount(from.listCap, WORKGROUP_THREADS),
-      1,
-      groupWidth(device.limits),
-    )
+    dispatchRows(pass, workgroupCount(listCap, WORKGROUP_THREADS), 1, groupWidth(device.limits))
   })
   pass.end()
   device.queue.submit([encoder.finish()])

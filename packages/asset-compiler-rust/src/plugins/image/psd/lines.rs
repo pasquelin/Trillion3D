@@ -80,7 +80,7 @@ impl<'a> Lines<'a> {
     /// Compressed length that the table gives this line.
     fn count(&self, index: usize) -> std::result::Result<usize, &'static str> {
         let at = index * self.count_bytes;
-        crate::le::uint_at(self.counts, at, self.count_bytes, true)
+        crate::support::le::uint_at(self.counts, at, self.count_bytes, true)
             .and_then(|count| usize::try_from(count).ok())
             .ok_or(DATA_TRUNCATED)
     }

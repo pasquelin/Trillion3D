@@ -8,6 +8,14 @@
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
+#[cfg(test)]
+pub(crate) mod geometry;
+#[cfg(test)]
+pub(crate) mod ray_triangle;
+#[cfg(test)]
+pub(crate) mod scalar;
+#[cfg(test)]
+pub(crate) mod tests;
 mod value;
 pub use value::{f32s, f64s, ordinary, Value, HOSTILE_F64};
 

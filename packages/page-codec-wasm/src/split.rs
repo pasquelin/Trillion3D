@@ -1,12 +1,12 @@
 //! THE MEDIAN SPLIT of a group of ids by their centres, on the axis of least cost, one for every
-//! tree built over boxed things: the culling hierarchy (`culling.rs`), the proxy's BVH
-//! (`proxy/bvh.rs`) and the world's cells
-//! (`asset-compiler-rust/src/compiler_tables/partition/split.rs`).
-//! A split is a selection, linear in the group, never a sort; a caller that reads a half in order
-//! sorts it (`sort_along`). Ties break by identifier, so a tree is the same on every build.
-use trillion3d_math::aabb::{aabb_of, aabb_of_boxes};
-use trillion3d_math::triangle::centroid;
-use trillion3d_math::vecn::distance2;
+//! median tree built over boxed things: the proxy's BVH (`proxy/bvh.rs`) and the world's cells
+//! (`asset-compiler-rust/src/compiler/tables/partition/split.rs`); the culling hierarchy sorts its
+//! parts as the reference does (`culling/tree.rs`).
+//! A split is a selection, linear in the group, never a sort: each half is in no order. Ties break
+//! by identifier, so a tree is the same on every build.
+use trillion3d_math::geometry::aabb::{aabb_of, aabb_of_boxes};
+use trillion3d_math::geometry::triangle::centroid;
+use trillion3d_math::vector::vecn::distance2;
 
 /// Triangle centroids and boxes (`centres_and_boxes`).
 pub type Boxed = (Vec<[f64; 3]>, Vec<([f64; 3], [f64; 3])>);
@@ -35,8 +35,9 @@ pub fn select_at(slice: &mut [usize], centres: &[[f64; 3]], axis: usize, at: usi
     }
 }
 
-/// Sorts `slice` in the order of `along` on `axis`.
-pub fn sort_along(slice: &mut [usize], centres: &[[f64; 3]], axis: usize) {
+/// Sorts `slice` in the order of `along` on `axis`: the order the tests read a split's halves in.
+#[cfg(test)]
+pub(crate) fn sort_along(slice: &mut [usize], centres: &[[f64; 3]], axis: usize) {
     slice.sort_unstable_by(along(centres, axis));
 }
 

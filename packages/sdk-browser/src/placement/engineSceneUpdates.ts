@@ -5,7 +5,7 @@ import type { PlacementLink } from './compose/gpuCompose.ts'
 import type { DrawSource } from '../geometry/selection/drawSource.ts'
 import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import type { HostAttributes, HostMaterials } from '../session/host/resources.ts'
-import type { WorldCells } from '../gpu/core/selection.ts'
+import type { WorldCells } from '../geometry/dag/worlds/worldCells.ts'
 import type { TextureCache } from '../materials/texture/textureCaches.ts'
 
 /** A range of one vertex list a dynamic geometry rewrote (#573): vertices `from` to

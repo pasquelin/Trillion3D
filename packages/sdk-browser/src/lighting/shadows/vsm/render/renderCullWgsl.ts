@@ -27,9 +27,11 @@ import { VSM_RENDER_OVERLAP_WGSL } from './renderOverlapWgsl.ts'
  * - `vsmRenderCandidates` (per row): the caster list. Drops rows that never cast
  *   (no corners, blended-caster rows, sprites — translucent / sprite proxies do not render into
  *   VSM depth —, and rows whose placement casts no shadow: `castShadow = false`, hidden or parked,
- *   `MOBILITY_SHADOWLESS`) — and rows the camera's cut does not select, and appends the rest with
- *   their world sphere (split double), corner count, cache-as-dynamic bit (engine mobility,
- *   `lighting/shadows/casters/mobility.ts`) and deforming bit (`vsmRenderCandidateFlags`).
+ *   `MOBILITY_SHADOWLESS`) — and rows the camera's cut does not select — its level of detail, and
+ *   its world switch: an HLOD cell's actor or placements it does not draw (`worldDraws`) —, and
+ *   appends the rest with their world sphere (split double), corner count, cache-as-dynamic bit
+ *   (engine mobility, `lighting/shadows/casters/mobility.ts`) and deforming bit
+ *   (`vsmRenderCandidateFlags`).
  * - `vsmRenderCull` (per candidate × map view): the per-page draw commands:
  *   distance cull, static-layer test, frustum (the box frustum test with
  *   the dynamic depth cull range), then per mip: screen rect, fine caster, stale rect

@@ -1,0 +1,234 @@
+//! Identity of the compiled product: what the cache key is made of, and nothing else.
+//!
+//! The key names a cache folder that consumers reuse without rereading it. It must
+//! therefore keep two opposite promises: two compilations that would yield the same
+//! bytes carry the same key, and two that would yield different bytes carry two.
+//! An import manifest hashed as-is betrayed the first — it carries the conversion
+//! timing and the path of the machine that did it, which two runs never agree on.
+//! Linked images of the scene, read later for previews, betrayed the second —
+//! their pixels enter the sidecar without entering the identity that names it.
+//!
+//! Identity is therefore built in two parts: what the source declares, stripped of
+//! its timings and run provenance, and the fingerprint of the resources compilation
+//! actually consumes — the geometry binary and each image file the scene cites.
+use crate::*;
+
+/// Fields a manifest carries for operations, not identity: a measured time, the
+/// path of the converting machine. They are stripped at every level — a per-input
+/// record carries its own — and the rest enters the key, including what a driver
+/// will add tomorrow: forgetting to exclude tightens identity, forgetting to
+/// include would loosen it.
+const VOLATILE: [&str; 4] = ["importMs", "ms", "parseMs", "path"];
+
+/// Copies a value without its volatile fields, at every level.
+fn stable(value: &Value) -> Value {
+    match value {
+        Value::Object(fields) => Value::Object(
+            fields
+                .iter()
+                .filter(|(name, _)| !VOLATILE.contains(&name.as_str()))
+                .map(|(name, value)| (name.clone(), stable(value)))
+                .collect(),
+        ),
+        Value::Array(items) => Value::Array(items.iter().map(stable).collect()),
+        other => other.clone(),
+    }
+}
+
+/// Images the scene cites by relative URI, in its order, with the fingerprint of
+/// the file found, read from the table taken once for the compilation
+/// (`texture::source::ImageShas`). `null` means absence: an image that
+/// appears changes identity as much as one whose bytes change. Embedded images
+/// are not here — their bytes are already those of the binary.
+fn linked_images(
+    g: &Value,
+    image_root: &Path,
+    shas: &crate::texture::source::ImageShas,
+) -> Vec<Value> {
+    let Some(images) = g.get("images").and_then(Value::as_array) else {
+        return Vec::new();
+    };
+    images
+        .iter()
+        .enumerate()
+        .filter_map(|(index, image)| {
+            let uri = image.get("uri").and_then(Value::as_str)?;
+            crate::support::uri::resolve_under(image_root, uri).ok()?;
+            Some(json!({"uri":uri,"sha256":shas.get(index)}))
+        })
+        .collect()
+}
+
+/// Cache key: identity of the source, of the resources it consumes, and the
+/// options that decide the product. A consumer that reuses by this key finds the
+/// same bytes. `image_root` is the root where relative image URIs resolve, named
+/// by the router; `shas` the fingerprint of each image. `cutouts` is what an answer has REALLY changed in the scene:
+/// bindings reclassified as cutout, which change how their primitives are ranked
+/// and therefore the product bytes. An answer with no effect — "glass", refusal,
+/// a texture the scene does not use — does not move the key.
+pub(crate) fn cache_key(
+    o: &Options,
+    loaded: &RuntimeSource,
+    (image_root, shas): (&Path, &crate::texture::source::ImageShas),
+    cutouts: &[Value],
+) -> Result<String> {
+    let source = hash(&serde_json::to_vec(&stable(&loaded.manifest))?);
+    let images = linked_images(&loaded.g, image_root, shas);
+    let bin_hash = &loaded.bin_hash;
+    let mut material = json!({
+        "source":source,"binary":bin_hash,"images":images,
+        "compiler":COMPILER_VERSION,"implementation":implementation_hash(),
+        "plugins":plugins::fingerprint(),"scope":o.scope,"budget":o.triangle_budget,
+        "resourceBase":o.resource_base,"simplification":o.simplification,
+        "textureFormats":o.texture_formats.iter().map(|f| f.name()).collect::<Vec<_>>(),
+        "hlod":o.hlod.as_ref().map_or(Value::Null, |hlod| hlod.named.clone()),
+        "errorModel":DAG_ERROR_MODEL,"cutouts":cutouts,
+    });
+    // The material settings, only when the job names some: a job naming none keeps its key.
+    if let Some(named) = o
+        .materials
+        .as_ref()
+        .ok()
+        .and_then(MaterialOptions::identity)
+    {
+        material["materials"] = named;
+    }
+    // The voxelized objects, only when the job names some: a job naming none keeps its key.
+    if let Some(named) = o.voxelize.as_ref().ok().and_then(VoxelizeOptions::identity) {
+        material["voxelize"] = named.clone();
+    }
+    // The partition's scheme and main grid, each only when the job names it: a job naming neither
+    // keeps its key.
+    if let Ok(partition) = o.partition_grid.as_ref() {
+        if let Some(named) = partition.scheme_identity() {
+            material[PARTITION_SCHEME_FIELD] = named.clone();
+        }
+        if let Some(named) = partition.identity() {
+            material[PARTITION_GRID_FIELD] = named.clone();
+        }
+    }
+    // The mesh build settings, only when the job names some: a job naming none keeps its key.
+    if let Some(named) = o
+        .mesh_build
+        .as_ref()
+        .ok()
+        .and_then(MeshBuildOptions::identity)
+    {
+        material[MESH_BUILD_FIELD] = named.clone();
+    }
+    // Each object's settings, only when the job names some: a job naming none keeps its key.
+    if let Some(named) = o
+        .object_settings
+        .as_ref()
+        .ok()
+        .and_then(ObjectSettings::identity)
+    {
+        material[OBJECT_SETTINGS_FIELD] = named.clone();
+    }
+    keyed(material, crate::physics_cook::JOLT_COMMIT)
+}
+
+/// The key of `material` once the physics cook is named in it: the stage's version and the Jolt
+/// commit it links, whose binary state the cooked shapes are. A cache cooked by another Jolt is
+/// another key, never reused.
+fn keyed(mut material: Value, jolt: &str) -> Result<String> {
+    material["jolt"] = json!(jolt);
+    material["physicsCook"] = json!(crate::physics_cook::PHYSICS_COOK_VERSION);
+    Ok(hash(serde_json::to_string(&material)?.as_bytes()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Behaviour: the build script watches the source directory itself. Watched file by file, a
+    // module created after the previous run is in no watch list, the script does not rerun and
+    // the next build keeps the previous `implementation_hash` — a cache key that stands still
+    // while the compiler moves. A stale reuse also comes from a cook running a binary it
+    // never rebuilt; this is the same shape, one build earlier, and is closed here.
+    #[test]
+    fn the_build_script_watches_the_source_folder() {
+        assert!(include_str!("../../../build.rs").contains("cargo:rerun-if-changed=src\""));
+    }
+
+    // Behaviour: the page codec and the maths are linked into the compiler: their sources are
+    // hashed as the compiler's own, so a codec or maths edit moves the key. So does the cargo configuration, whose
+    // C++ flags change what the simplifier simplifies to, and so does the physics cook: its source,
+    // every header it includes and the CMake file that sets its flags. Read from the list the build
+    // hashed, which is the list it watches and prints.
+    #[test]
+    fn the_build_hashes_its_path_dependencies_and_the_cpp_flags() {
+        let inputs: Vec<&str> =
+            include_str!(concat!(env!("OUT_DIR"), "/implementation_inputs.txt"))
+                .lines()
+                .collect();
+        for input in [
+            "../page-codec-wasm/src/lib.rs",
+            "../page-codec-wasm/Cargo.toml",
+            "../math/rust/src/lib.rs",
+            "../math/rust/Cargo.toml",
+            "../../.cargo/config.toml",
+            "../physics-jolt-wasm/cook/cook.cpp",
+            "../physics-jolt-wasm/src/layout.h",
+            "../physics-jolt-wasm/CMakeLists.txt",
+        ] {
+            assert!(inputs.contains(&input), "{input} is not hashed");
+        }
+        assert!(inputs.contains(&"src/compiler/cache/identity.rs"));
+    }
+
+    // Behaviour: test code is never in the binary, so it never moves the key: the golden harness,
+    // the golden and unit tests, and a `#[cfg(test)]` module are left out, in every crate.
+    #[test]
+    fn the_build_leaves_test_code_out_of_the_hash() {
+        let inputs: Vec<&str> =
+            include_str!(concat!(env!("OUT_DIR"), "/implementation_inputs.txt"))
+                .lines()
+                .collect();
+        for input in [
+            "../math/rust/src/golden.rs",
+            "../math/rust/src/golden/value.rs",
+            "../math/rust/src/golden_tests.rs",
+            "../page-codec-wasm/src/golden_tests/grid.rs",
+            "src/tests/golden.rs",
+            "src/geometry_page/quant/screen.rs",
+        ] {
+            assert!(!inputs.contains(&input), "{input} is hashed");
+        }
+        assert!(!inputs.iter().any(|input| input.contains("_tests")));
+    }
+
+    // Behaviour: the runtime reads the error model the compiler writes. A mismatch would make
+    // every fresh cache STALE_CACHE, or let a stale one through.
+    #[test]
+    fn the_runtime_names_the_same_error_model() {
+        let contract = include_str!("../../../../sdk-core/src/contracts/base.ts");
+        let line = format!("export const DAG_ERROR_MODEL = '{DAG_ERROR_MODEL}'");
+        assert!(
+            contract.contains(&line),
+            "sdk-core does not declare {DAG_ERROR_MODEL}"
+        );
+    }
+
+    // Behaviour: shapes cooked by another Jolt are another product: the key moves with the commit.
+    #[test]
+    fn another_jolt_is_another_key() {
+        let material = json!({"source":"abc"});
+        let ours = keyed(material.clone(), crate::physics_cook::JOLT_COMMIT).unwrap();
+        assert_ne!(ours, keyed(material, &"0".repeat(40)).unwrap());
+    }
+
+    // Behaviour: a measured time or a machine path leaves identity, at every
+    // level; the rest of the manifest enters as-is.
+    #[test]
+    fn measures_and_provenance_leave_the_identity() {
+        let manifest = json!({"runtime":{"sha256":"abc"},
+            "source":{"plugin":"usd","path":"/chez/moi/s.usd","importMs":12.5,
+                "files":[{"file":"s.usd","sha256":"def","parseMs":3.0,"ms":4.0}]}});
+        assert_eq!(
+            stable(&manifest),
+            json!({"runtime":{"sha256":"abc"},
+                "source":{"plugin":"usd","files":[{"file":"s.usd","sha256":"def"}]}})
+        );
+    }
+}

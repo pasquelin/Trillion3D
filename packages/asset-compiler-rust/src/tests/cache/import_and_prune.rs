@@ -73,7 +73,7 @@ fn recompiling_prunes_stale_keys_and_orphan_objects() {
         .collect();
     assert_eq!(keys.len(), 1, "only the latest key survives");
     let mut referenced = BTreeSet::new();
-    compiler_prune::referenced_objects(&second, &mut referenced);
+    crate::compiler::cache::prune::referenced_objects(&second, &mut referenced);
     let objects: BTreeSet<String> = fs::read_dir(objects_dir(&options.cache))
         .expect("objects")
         .filter_map(|e| e.ok())

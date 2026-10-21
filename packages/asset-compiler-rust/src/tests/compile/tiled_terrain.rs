@@ -136,26 +136,18 @@ fn defects_with_a_vertex_moved(
     up: f32,
 ) -> Vec<String> {
     let primitive = &scene.result["primitives"][0];
-    let exponent = primitive["quantization"]["positionExponent"]
-        .as_i64()
-        .expect("exponent") as i32;
     let pages = primitive["pages"].as_array().expect("pages");
     let at = pages
         .iter()
         .position(|p| p["level"].as_u64() == Some(level))
         .expect("a page at that level");
     let mut read = cooked_pages(scene, primitive);
-    let source = read[at].as_ref().expect("a decoded page").source.clone();
+    let page = read[at].as_ref().expect("a decoded page");
+    let (source, grid) = (page.source.clone(), page.grid);
     let mut moved = positions.to_vec();
     moved[source[0] as usize * 3 + 1] += up;
-    let encoded = trillion3d_page_codec::encode::encode(
-        &source,
-        &moved,
-        &[],
-        exponent,
-        trillion3d_page_codec::bits::grid::UV_EXPONENT,
-    )
-    .expect("encode");
+    let encoded =
+        trillion3d_page_codec::encode::encode(&source, &moved, &[], grid).expect("encode");
     read[at] = page_corners(&encoded.bytes, &Source::new(positions, None));
     cooked_page_defects(read, primitive, positions)
 }
@@ -169,10 +161,13 @@ fn assert_moved_vertices_are_reported(scene: &CookedScene) {
     let positions = scene.positions(&scene.result["primitives"][0]);
     let exact = defects_with_a_vertex_moved(scene, &positions, 0, 0.5);
     assert!(exact.iter().any(|d| d.contains("decodes")), "{exact:#?}");
-    let exponent = scene.result["primitives"][0]["quantization"]["positionExponent"]
-        .as_i64()
-        .expect("exponent") as i32;
-    let up = 2f32.powi(exponent + trillion3d_page_codec::bits::MAX_BITS as i32 - 2);
+    // A quarter of the 2^21 cells a page's axis holds, in metres, on the grid of the page.
+    let grid = cooked_pages(scene, &scene.result["primitives"][0])[0]
+        .as_ref()
+        .expect("a decoded page")
+        .grid;
+    let cells = 2f32.powi(trillion3d_page_codec::MAX_POSITION_BITS as i32 - 2);
+    let up = cells * 2f32.powi(-grid.position) * 0.01;
     let coarse = defects_with_a_vertex_moved(scene, &positions, 1, up);
     for defect in ["outside its bounds", "leaves group"] {
         assert!(

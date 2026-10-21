@@ -20,7 +20,6 @@ function world(fail: Set<number>) {
       landed.push(cell)
     },
     release: (cell: number) => void released.push(cell),
-    lift() {},
   }
 }
 
@@ -78,7 +77,6 @@ test('a cell that leaves while its hold reads lets its world reads go at once, a
   const held = createCellHolds({
     hold: (_, options) => (asked.push(options!), new Promise<void>(() => {})),
     release() {},
-    lift() {},
   })
   held.hold(3, 1.25)
   held.release(3)

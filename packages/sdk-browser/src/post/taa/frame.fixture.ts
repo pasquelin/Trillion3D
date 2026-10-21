@@ -53,6 +53,8 @@ export function runtime() {
     vis: { visView: { ids: true }, pageTable: { pages: true }, concatPos: {}, concatUv: {} },
     run: { diagnostic: 'beauty', gpuDrawCalls: 0, frame: 0, gate },
     capture: { capturing: false },
+    // No diagnostic GPU variant: the view's own targets, whichever diagnostic view is drawn.
+    context: { diagnosticGpuVariant: undefined },
     lights: { vsm: { settle: { renderedTotal: 0 } } },
   } as unknown as WebgpuPagesRuntime
   rt.gpu.surfaces = { views: () => [{}, {}, {}, flags] } as never

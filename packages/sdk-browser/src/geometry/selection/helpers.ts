@@ -3,6 +3,7 @@ import {
   CULL_CHILD_COUNT,
   CULL_FIRST_CHILD,
   CULL_FIRST_PAGE,
+  CULL_FLOOR,
   CULL_MIN,
   CULL_PAGE_COUNT,
   CULL_STRIDE,
@@ -16,27 +17,13 @@ import {
   type StreamCatalogue,
 } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { PageRec } from './types.ts'
-import { boxGrow } from '../../../../math/src/geometry/box.ts'
-
-/**
- * The largest distance the primitive's grid moved one of its source positions, in object units
- * (`primitives[].quantization.maxPositionError`), or zero on a cache whose pages carry no grid.
- * Every band and every box of the primitive grows by it: that is what makes the pixel threshold
- * bound the surface an engine actually draws, the quantized one.
- */
-export function quantizationErrorOf(primitive: Pick<Primitive, 'quantization'>) {
-  const error = primitive.quantization?.maxPositionError
-  return typeof error === 'number' && Number.isFinite(error) && error > 0 ? error : 0
-}
+import { halfFloor, halfNearest } from '../../../../math/src/float/half.ts'
 
 /** Validate and unpack the flat culling hierarchy. Absent or malformed, the flat path scans pages.
- *  `quantizationError` raises each node's subtree replacement bound by the same length it raises
- *  a cluster's band, so a subtree is never rejected on a band the clusters below no longer have. */
-export function cullingNodes(
-  culling: CullingHierarchy | null | undefined,
-  pageCount: number,
-  quantizationError = 0,
-) {
+ *  Each node's subtree replacement bound and floor are kept as half floats, as every error the cut
+ *  compares: the bound the nearest half (`halfNearest`), the floor the greatest half at or below
+ *  it (`halfFloor`), so a floor never rises above the least own error it bounds. */
+export function cullingNodes(culling: CullingHierarchy | null | undefined, pageCount: number) {
   if (
     !culling ||
     !Array.isArray(culling.nodes) ||
@@ -50,10 +37,11 @@ export function cullingNodes(
   for (let node = 0; node < culling.count; node++) {
     const base = node * culling.stride,
       children = nodes[base + CULL_CHILD_COUNT]
-    // -1 says the subtree holds a cluster nothing replaces; a bound is raised, a sentinel is not.
-    if (nodes[base + CULL_CEIL] >= 0) nodes[base + CULL_CEIL] += quantizationError
-    // A node encloses the boxes of its clusters, which the grid moved by the same length.
-    boxGrow(nodes, base + CULL_MIN, nodes, base + CULL_MIN, quantizationError)
+    // -1 says the subtree holds a cluster nothing replaces; a bound is rounded, a sentinel is not.
+    if (nodes[base + CULL_CEIL] >= 0) nodes[base + CULL_CEIL] = halfNearest(nodes[base + CULL_CEIL])
+    // A floor above zero is the least own error of clusters a group produced; a floor of zero
+    // holds a cluster no group produced.
+    if (nodes[base + CULL_FLOOR] > 0) nodes[base + CULL_FLOOR] = halfFloor(nodes[base + CULL_FLOOR])
     if (children > 0) {
       if (nodes[base + CULL_FIRST_CHILD] + children > culling.count)
         throw new Error('Inconsistent culling hierarchy')
@@ -77,24 +65,14 @@ const NO_CLUSTER_ERROR = {
   source: undefined,
 } as const
 /**
- * The error band of a cluster, in object units, as the cut certifies it.
+ * The error band of a cluster, in object units, as the cut certifies it: the cluster's own, and
+ * its replacement's, as the compiler published them, nothing added.
  *
- * `quantizationError` is the largest distance the primitive's grid moved one of its source
- * positions (`primitives[].quantization.maxPositionError`): the surface an engine draws from the
- * quantized pages stands that far from the surface the band was computed on, so the two distances
- * add — the screen threshold then bounds the drawn surface, not the source one. It is a sum of two
- * lengths in the same unit, nothing weighted.
- *
- * A cluster NO GROUP PRODUCED keeps its band as it is. Its band is the floor of the ladder — the
- * cache holds nothing finer of that surface —, and the threshold cannot ask for a refinement that
- * does not exist: at zero pixels, raising that floor would leave the cut with nothing to draw.
- * Every band the cut can still choose against grows: a produced cluster's own band, the band of
- * the group that replaces it, and the group bands themselves, so a replacement swaps at exactly
- * the same threshold and the cut stays a partition.
+ * Both errors are kept as the nearest half float (`halfNearest`), the precision the cut compares
+ * every error in: a node's bound (`cullingNodes`) and a group's band (`structureIndex`) alike.
  */
 export function clusterErrorFields(
   page: Page,
-  quantizationError = 0,
 ): Pick<
   PageRec,
   'level' | 'lodError' | 'sphere' | 'parentError' | 'parentSphere' | 'group' | 'source'
@@ -111,20 +89,21 @@ export function clusterErrorFields(
   // The parent sphere uses the same rule as the page's own sphere: rejected here,
   // at prepare time, never mid-frame. A zero error projects nothing and does not read
   // its sphere; it has nothing to validate.
-  if (parent !== null && parent + quantizationError > 0 && !clusterSphereValid(page.parentSphere))
+  if (parent !== null && parent > 0 && !clusterSphereValid(page.parentSphere))
     throw new Error('Invalid cluster parameters')
   const source = typeof page.source === 'number' ? page.source : null
   return {
     level: page.level,
-    lodError: page.lodError! + (source === null ? 0 : quantizationError),
+    lodError: halfNearest(page.lodError!),
     sphere: page.sphere,
-    parentError: parent === null ? null : parent + quantizationError,
+    parentError: parent === null ? null : halfNearest(parent),
     parentSphere: parent === null ? null : page.parentSphere,
     group: typeof page.group === 'number' ? page.group : null,
     source,
   }
 }
-/** Bundle URL and offset of every page, or undefined when the cache predates streaming bundles. */
+/** Bundle URL and offset of every page, and whether its bundle is one of the primitive's root pages
+ *  (`streams.pinned`), or undefined when the cache predates streaming bundles. */
 export function streamPlacement(
   streams: StreamCatalogue | null | undefined,
   pages: readonly Page[],
@@ -137,9 +116,9 @@ export function streamPlacement(
     // A page reads its geometry page from the bundle, or its indices where it has none.
     if (page.streamOffset + (page.geometry?.bytes ?? page.count * 4) > bundle.bytes)
       throw new Error(`Page ${page.id} exceeds its bundle`)
-    return { url: bundle.url, offset: page.streamOffset }
+    return { url: bundle.url, offset: page.streamOffset, pinned: page.stream < streams.pinned }
   })
   return placement.every((entry) => entry)
-    ? (placement as Array<{ url: string; offset: number }>)
+    ? (placement as Array<{ url: string; offset: number; pinned: boolean }>)
     : undefined
 }

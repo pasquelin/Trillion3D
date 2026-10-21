@@ -1,24 +1,24 @@
 import { createGpuPageCache } from '../../geometry/pages/pool/pages.ts'
 import { grantedGeometryPool } from '../../geometry/residency/poolGrants.ts'
 import { grantedLatest } from './grantLatest.ts'
-import { geometryBudgetBeside } from '../io/besidePools.ts'
 import { stopped, throwIfStopped } from '../io/lost.ts'
 import { type WebgpuPagesRuntime } from '../backend/runtime.ts'
+import type { GeometryPool } from '../../session/memory/pools.ts'
 
 /**
  * The engine's GPU page cache, with its trace hook. Cache events are sampled only if trace is
  * requested: otherwise no closure is posted, and the cache does not even have an observer to call.
  */
-function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, slots: number) {
+function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, pool: GeometryPool) {
   const { diag, run, services } = rt,
-    { pageBytes, homes, coverUrls: cover } = rt.setup
+    { pageBytes, homes, coverUrls: cover, rootUrls, census } = rt.setup,
+    { slots, roots } = pool
+  // Each address's streaming page, read on the census, which a source added later joins in place.
+  const units = (address: string) => census.units.get(address)
   const options = (
     diag.traceEnabled
       ? {
-          pageBytes,
-          slots,
-          homes,
-          cover,
+          ...{ pageBytes, slots, roots, rootUrls, homes, units, cover },
           onDiagnostic: (event: {
             phase: string
             message: string
@@ -29,16 +29,16 @@ function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, sl
               frame: run.frame,
             })),
         }
-      : { pageBytes, slots, homes, cover }
+      : { pageBytes, slots, roots, rootUrls, homes, units, cover }
   ) as Parameters<typeof createGpuPageCache>[2]
   return createGpuPageCache(gpuDevice, services.pageSource, options)
 }
 
 /**
  * Out of memory absorbed: the geometry pool is the one the device grants, its cache allocated
- * once, under the out-of-memory scope (`poolGrants.ts`), from what its budget leaves the vertex
- * buffers beside it (`geometryBudgetBeside`). Refused even at its floor, the root cover: refused
- * by name, never allocated at the full request outside any scope. Until a pool is granted,
+ * once, under the out-of-memory scope (`poolGrants.ts`), its streaming slots the whole of its
+ * budget (`../../session/memory/pools.ts`). Refused even at its floor, the root cover: refused by
+ * name, never allocated at the full request outside any scope. Until a pool is granted,
  * `setMemoryBudgets` records its budget on `setup.geometryPool`, and the later word is granted in
  * turn (`grantedLatest`).
  */
@@ -46,24 +46,19 @@ export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: G
   const { setup, gpu, diag } = rt
   const held = await grantedLatest({
     budget: () => setup.geometryPool.budgetBytes,
-    draw: (asked) => {
-      const { bytes, declared } = geometryBudgetBeside(rt, asked)
-      return { bytes, declared, pool: declared(setup.geometryPoolFor(bytes)) }
-    },
+    draw: (bytes) => ({ bytes, pool: setup.geometryPoolFor(bytes) }),
     same: (drawn, pool) => drawn.slots === pool.slots,
-    grant: async ({ bytes, declared }) => {
-      const granted = await grantedGeometryPool(
+    grant: ({ bytes }) =>
+      grantedGeometryPool(
         gpuDevice,
         bytes,
         setup.geometryPoolFor,
         diag.engineDiagnostic,
         (pool) => {
-          const cache = createWebgpuPagesCache(rt, gpuDevice, pool.slots)
+          const cache = createWebgpuPagesCache(rt, gpuDevice, pool)
           return { cache, destroy: () => void cache.dispose() }
         },
-      )
-      return granted && { ...granted, pool: declared(granted.pool) }
-    },
+      ),
     stopped: () => stopped(rt),
   })
   if (!held) throw new Error('WEBGPU_GEOMETRY_POOL_REFUSED')

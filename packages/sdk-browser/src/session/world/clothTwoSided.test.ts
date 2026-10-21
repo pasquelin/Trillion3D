@@ -26,8 +26,8 @@ import type { Cut } from './cuts.ts'
 import { drawSourceOf } from '../../geometry/selection/drawSource.ts'
 
 /**
- * What every pass reads of the faces a host surface draws: the side the WebGPU pipelines cull by
- * and the cut's cones open on, the row flag the material pass flips a back face's normal by and the
+ * What every pass reads of the faces a host surface draws: the side the WebGPU pipelines cull by,
+ * the row flag the material pass flips a back face's normal by and the
  * shadow raster culls nothing on, both read off the record's side.
  */
 function faces(surface: HostMaterials) {

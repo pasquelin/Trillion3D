@@ -1,79 +1,48 @@
 import { allocPyramid, pyramidLayout, type Pyramid } from './pyramid.ts'
-import { HIZ_SLOT_WORDS, HIZ_UNI, hizTestSlot } from './uniforms.ts'
+import { HIZ_SLOT_WORDS, HIZ_UNI } from './uniforms.ts'
 import { HIZ_LEVELS_FRONT_WORD } from './levelsUniform.ts'
 import type { UniformSlots } from '../../../session/memory/pools.ts'
 import { writeChangedSlots } from '../../../gpu/core/writeChanged.ts'
-import { pendingBuffers } from '../../../gpu/core/tableGrowth.ts'
-import type { OpenPass } from '../../../gpu/core/lazyComputePass.ts'
-import type { createHizPipelines, hizPagesGroup } from './pipelines.ts'
+import type { createHizPipelines } from './pipelines.ts'
 import type { GpuHiz } from './types.ts'
 import { sequentialEntries } from '../../../gpu/core/computeBindings.ts'
-import { createWebgpuBindIdentity } from '../../../gpu/bind/bindIdentity.ts'
 
 export type HizPipelines = NonNullable<Awaited<ReturnType<typeof createHizPipelines>>>
 
-/** What the Hi-Z's methods share (`factory.ts`, here): its kernels, its buffers, the
- *  drawn view's pyramid `at` and its bind group, and the partition's buffers once attached. */
+/** What the Hi-Z's methods share (`factory.ts`, here): its kernels, its buffers, and the
+ *  drawn view's pyramid `at` and its bind group. */
 export type HizState = HizPipelines & {
   device: GPUDevice
   level0Usage: number
-  pagesGroup: ReturnType<typeof hizPagesGroup>
-  /** The test's dispatch arguments, written on the GPU from the partition's box count
-   *  (`testHizArgs`), and the group that binds them to the kernel that writes them. */
-  testArgs: GPUBuffer
-  testArgsGroup: GPUBindGroup
   uniforms: GPUBuffer
   /** The uniform's slots (`hizUniformSlots`): their stride, offsets and the words they hold. */
   slots: UniformSlots
   /** Every word the kernels read: the drawn pyramid's build passes from word zero
-   *  (`hizBuildWords`), the test's slot behind them (`hizTestSlot`). */
+   *  (`hizBuildWords`). */
   image: Uint32Array<ArrayBuffer>
   /** The drawn pyramid's levels uniform (`hizLevelWords`), which the readers of the whole depth
    *  bind (`GpuHiz.depth`). */
   levelTable: GPUBuffer
-  /** Until `attach`, the bind group points at this idle buffer, which nothing reads. */
-  idle: GPUBuffer
   buffers: GPUBuffer[]
   disposed: boolean
   /** The drawn view's pyramid; another view keeps its own while this one is drawn (`swap`). */
   at: Pyramid | undefined
   bindGroup: GPUBindGroup | undefined
-  bounds: GPUBuffer
-  state: GPUBuffer
-  flags: GPUBuffer
-  cap: number
 }
 
-/** Verdict flags for `rows` rows: copied aside and back while the cut is frozen (`heldCopy.ts`). */
-export const hizFlags = (device: GPUDevice, rows: number) =>
-  device.createBuffer({
-    size: Math.max(4, rows * 4),
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-  })
-
-/** The drawn pyramid's bind group, made again when a buffer it names moved
- *  (`createWebgpuBindIdentity`: an `attach`, a growth of the flags), never per swap. */
+/** The drawn pyramid's bind group, made with the pyramid, never per swap: its own views and the
+ *  Hi-Z's uniform, which lives as long as the Hi-Z. */
 export function bindHiz(h: HizState) {
   const { at } = h
   if (!at) return void (h.bindGroup = undefined)
-  const bound = (at.bound ??= createWebgpuBindIdentity()),
-    { next } = bound
-  next[0] = h.uniforms
-  next[1] = h.bounds
-  next[2] = h.flags
-  next[3] = h.state
-  if (bound.moved())
-    at.group = h.device.createBindGroup({
-      layout: h.layout,
-      entries: sequentialEntries([
-        at.pyramidView,
-        at.depthView,
-        { buffer: h.uniforms, size: HIZ_SLOT_WORDS * 4 },
-        { buffer: h.bounds },
-        { buffer: h.flags },
-        { buffer: h.state },
-      ]),
-    })
+  at.group ??= h.device.createBindGroup({
+    layout: h.layout,
+    entries: sequentialEntries([
+      at.pyramidView,
+      at.depthView,
+      { buffer: h.uniforms, size: HIZ_SLOT_WORDS * 4 },
+    ]),
+  })
   h.bindGroup = at.group
 }
 
@@ -101,19 +70,6 @@ function sendHizBuild(h: HizState, { drawn, frontWritten }: Pyramid) {
   h.device.queue.writeBuffer(h.levelTable, 0, drawn.levelWords)
 }
 
-/** Verdict flags for `rows` rows, made now and put in place by `commit` (`GpuHiz.growFlags`). */
-export function hizGrowFlags(h: HizState, gpu: GpuHiz, rows: number) {
-  const next = hizFlags(h.device, rows)
-  return pendingBuffers(h.device, [next], () => {
-    const old = h.flags
-    h.buffers[h.buffers.indexOf(old)] = gpu.flags = h.flags = next
-    h.cap = rows
-    // Every pyramid's group names the flags: each is made again at its next bind (`bindHiz`).
-    bindHiz(h)
-    return [old]
-  })
-}
-
 /** The `drawnWidth × drawnHeight` the image draws in level 0 (`GpuHiz.extent`). */
 export function hizExtent(h: HizState, drawnWidth: number, drawnHeight: number) {
   const { at } = h
@@ -124,37 +80,6 @@ export function hizExtent(h: HizState, drawnWidth: number, drawnHeight: number) 
   if (at.drawn.width === w && at.drawn.height === hh) return
   at.drawn = pyramidLayout(w, hh, h.slots)
   sendHizBuild(h, at)
-}
-
-/** The test of the compacted boxes, in the frame's compute pass (`GpuHiz.encodeTest`). */
-export function hizTest(
-  h: HizState,
-  queueDevice: GPUDevice,
-  open: OpenPass,
-  maxRows: number,
-  pages: GPUBuffer,
-  counting: boolean,
-) {
-  bindHiz(h)
-  const { at, bindGroup, image } = h
-  if (h.disposed || !bindGroup || !at || h.bounds === h.idle) return 0
-  const rows = Math.min(maxRows, h.cap)
-  const { passes, width: w, height: hh } = at.drawn,
-    slot = passes.length
-  hizTestSlot(image, slot * h.slots.strideWords, w, hh, rows, counting)
-  writeChangedSlots(queueDevice, h.uniforms, image, h.slots, slot, slot + 1)
-  // The compacted box count lives in the state: a kernel turns it into the dispatch's arguments,
-  // which cover the tested boxes and no other row; the threads past the count leave at the first
-  // test.
-  const pass = open.pass
-  pass.setBindGroup(0, bindGroup, h.slots.offset(slot))
-  pass.setBindGroup(1, h.testArgsGroup)
-  pass.setPipeline(h.argsPipeline)
-  pass.dispatchWorkgroups(1)
-  pass.setBindGroup(1, h.pagesGroup(pages))
-  pass.setPipeline(h.testPipeline)
-  pass.dispatchWorkgroupsIndirect(h.testArgs, 0)
-  return rows
 }
 
 /** The drawn view's pyramid made again at `width × height` (`GpuHiz.resize`). */

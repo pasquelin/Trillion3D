@@ -39,8 +39,8 @@ export async function runPageTask(
       const cutting = import('../runtime/runtimeCut.ts')
       const { unpackDrawn } = await import('../runtime/runtimePack.ts')
       const { cutDrawnTriangles } = await cutting
-      const { drawn, cones, blended, recut, held } = unpackDrawn(request.source)
-      const cut = await cutDrawnTriangles(drawn, cones, blended, { recut, held })
+      const { drawn, faces, blended } = unpackDrawn(request.source)
+      const cut = await cutDrawnTriangles(drawn, faces, blended)
       const transfer = cut.pages.flatMap((page) => [page.index, page.geometry])
       const { proxy } = cut
       if (proxy)
@@ -55,7 +55,8 @@ export async function runPageTask(
     if (request.op === 'cells') {
       const { decodeCellFile } = await import('../partition/cellDecode.ts')
       const cells = decodeCellFile(request.source, request.name)
-      return done(request, started, { cells }, [cells.ranks, cells.locals])
+      const { ranks, locals, tracks, sources } = cells
+      return done(request, started, { cells }, [ranks, locals, tracks, sources])
     }
     if (request.op === 'blocks') {
       const { decodeBcLevel } = await import('../../materials/texture/blockDecode.ts')

@@ -1,215 +1,163 @@
 /**
- * THE CHAIN OF HLOD CELLS A PARTITION FOLLOWS: which cells are wished, told to the cut, and the
- * roots each cell holds while its actor is loaded.
+ * THE CHAIN OF HLOD CELLS A PARTITION FOLLOWS: which cells are wished, which load, told to the
+ * cut, and the roots each cell holds while its actor is loaded.
  *
- * Each HLOD layer's grid streams its cells within its loading range: an HLOD cell of layer `l` is wished while its streaming bounds lie
- * within `ranges[l + 1]` of the eye, in 2D as its grid tests it — an HLOD 0 cell as the plan finds
- * it (`../partition/plan.ts`). A cell's actor of the next layer is content of the cell it lies in, its parent in
- * the chain: loaded while that parent is loaded — wished, or still visible until it is made
- * invisible, a cell unloaded only once hidden —, always for a top cell, whose layer is
- * always loaded (`compiler_tables/partition/hlod.rs`). A cell with no actor holds nothing. A loaded actor's roots are held, visible or
- * not: a loaded HLOD actor stays hidden while its source cell is visible, ready for the switch.
- * The holds are read in streaming order:
- * the highest layer first — the top one, always loaded —, then by the square of the distance from
- * the eye to the cell's box over its grid's range times how far the cell lies behind the view
- * — the near cells in front first —; each hold's read priority is that order's key itself, on a
- * 1/64 grid, so no list is sorted, and a hold still reading is lifted as the order moves.
+ * Each HLOD grid streams its cells within its loading range: a cell above HLOD 0 is wished while
+ * the view's shape for its grid's range meets the bounds it streams by (`StreamingSource.meets`),
+ * or while a wished cell of a grid that asks it pulls it in (`hlodPulls.ts`) — an HLOD 0 cell as
+ * the plan finds it (`../partition/plan.ts`). A cell's actor is content of the
+ * cell it lies in, its parent in the chain: held while that parent loads or has loaded — from its
+ * turn to load (`LoadSlots`) until it is wished no more —, or is still visible until it is made
+ * invisible, a cell unloaded only once hidden; always for an actor always loaded — built by a
+ * layer not spatially loaded, or held whole by no cell below its grid's top (`src/hlod/cells.rs`).
+ * An actor not built holds nothing, and stands for nothing. A loaded actor's roots are held,
+ * visible or not, and its rows placed — the objects standing as themselves in it (`hlodRows.ts`) —:
+ * a loaded HLOD actor stays hidden while its source cell is visible, ready for the switch.
  *
- * The tops hold within the tops' budget (`worldBundles.ts`), nearest first; a top past it
- * is refused (`CELL_TOLD.refused`): it stands for nothing, its content following its range as a
- * cell with no actor's — never every child of it loaded at any distance —, and is tried again as
- * room frees or the view moves.
+ * A cell above HLOD 0 wished whose children's actors are not all held and landed waits its turn to
+ * load (`waiting`), as does the unit of the actors always loaded of a level (`hlodTops.ts`): in the
+ * partition's one load order, so many loading at once at most (`../partition/loadSlots.ts`). The
+ * holds are asked by the priority of their unit's turn, the cell files' too (`hlodHolds.ts`).
  *
- * A frame does only what moved: each level's cells are found around the eye in a grid of their
- * own, one bucket a loading range wide (`createLevelGrids`), the cells entering or leaving its range
- * alone told again; a cell whose word or whose parent's visibility moved has its children's loads
- * weighed again, and nothing else. Each frame the cut is told what each cell that moved is
- * (`WorldCells.show`) and switches its visibility (`../dag/worlds/worldFollow.ts`).
+ * A frame does only what moved: each grid's cells are found around the eye in buckets of their
+ * own, one bucket a grid's reach wide (`createGridBuckets`, `hlodBuckets.ts`), the cells entering
+ * or leaving its range alone told again; a cell whose word, whose turn or whose parent's
+ * visibility moved has its children's loads weighed again, and nothing else. Each frame the cut
+ * is told what each cell that moved is (`WorldCells.show`) and switches its visibility
+ * (`../dag/worlds/worldFollow.ts`).
  *
- * Cost, for C cells of the chain, L levels and n cells within a level's range: O(C) once at
- * creation, then per eye move O(L · n), per moved cell O(its children), per view turn O(holds
- * still reading + tops refused); nothing per frame while nothing moved.
+ * Cost, for C cells of the chain, G grids and n cells within a grid's range: O(C) once at
+ * creation, then per eye move O(G · n), per moved cell O(its children), per frame O(cells
+ * wished); nothing more while nothing moved.
  */
 import type { WorldRootsHold } from './worldRoots.ts'
-import type { WorldCells } from '../../gpu/core/selection.ts'
+import type { WorldCells } from '../dag/worlds/worldCells.ts'
+import { createGridBuckets } from './hlodBuckets.ts'
+import { createHoldOrder } from './hlodHolds.ts'
+import { createTops } from './hlodTops.ts'
+import type { HlodPulls } from './hlodPulls.ts'
+import type { ActorRows } from './hlodRows.ts'
 import type { createCellHolds } from '../partition/cellHolds.ts'
 import type { LeafWish } from '../partition/plan.ts'
+import type { LoadingCell, LoadSlots } from '../partition/loadSlots.ts'
+import type { StreamingSource } from '../partition/source.ts'
+import type { PartitionGrid } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
 import { CELL_TOLD } from '../dag/worlds/worldFollow.ts'
-import { CHAIN_ACTOR, chainChildren } from '../../../../sdk-core/src/manifest/worldRoots.ts'
-import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
-import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
-import { boxGroundDistance } from '../../../../math/src/geometry/boxDistance.ts'
-import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { cellChildren } from '../dag/worlds/worldLinks.ts'
+import { CHAIN_ACTOR } from '../../../../sdk-core/src/manifest/worldRoots.ts'
 import { keepNumbers } from '../../../../math/src/vector/vector.ts'
 
-type Chain = NonNullable<WorldRootsHold['table']>['chain']
-
-/** A bucket holding no cell. */
-const NO_CELLS: readonly number[] = []
-/** Read priorities are kept on a 1/64 grid: a hold is lifted only once its order moved by that. */
-const PRIORITY_STEPS = 64
-
-/** A bucket's key from its two coordinates: exact while each lies within ±2²⁵. */
-const bucketKey = (ix: number, iz: number) => (ix + 0x2000000) * 0x4000000 + (iz + 0x2000000)
-
-/**
- * Per HLOD level above 0, the cells of `chain` filed on the ground in buckets as wide as their
- * grid's loading range (`ranges[level + 1]`), each in every bucket its streaming bounds meet: the
- * cells within that range of an eye lie in the 3 × 3 buckets around it at most (`near`).
- */
-function createLevelGrids(chain: Chain, ranges: readonly number[]) {
-  const { bounds, level } = chain,
-    count = level.length
-  const grids = new Map<number, { side: number; buckets: Map<number, number[]> }>()
-  for (let cell = 0; cell < count; cell++) {
-    if (level[cell] === 0) continue
-    let grid = grids.get(level[cell])
-    if (!grid)
-      grids.set(level[cell], (grid = { side: ranges[level[cell] + 1], buckets: new Map() }))
-    const { side, buckets } = grid,
-      at = BOX_VALUES * cell
-    for (let ix = Math.floor(bounds[at] / side); ix <= Math.floor(bounds[at + 3] / side); ix++)
-      for (
-        let iz = Math.floor(bounds[at + 2] / side);
-        iz <= Math.floor(bounds[at + 5] / side);
-        iz++
-      ) {
-        const key = bucketKey(ix, iz)
-        const list = buckets.get(key)
-        if (list) list.push(cell)
-        else buckets.set(key, [cell])
-      }
-  }
-  /** The frame each cell was last met at by `near`: a cell filed in several buckets once. */
-  const metAt = new Uint32Array(count)
-  let frame = 0
-  return {
-    /** The levels above 0 that hold cells. */
-    levels: () => grids.keys(),
-    /** Each cell of `at` within its range of `(x, z)` on the ground, as its grid tests it, told to
-     *  `visit` once. */
-    near(at: number, x: number, z: number, visit: (cell: number) => void) {
-      const grid = grids.get(at)
-      if (!grid) return
-      frame++
-      const { side, buckets } = grid
-      for (let ix = Math.floor((x - side) / side); ix <= Math.floor((x + side) / side); ix++)
-        for (let iz = Math.floor((z - side) / side); iz <= Math.floor((z + side) / side); iz++) {
-          for (const cell of buckets.get(bucketKey(ix, iz)) ?? NO_CELLS) {
-            if (metAt[cell] === frame) continue
-            metAt[cell] = frame
-            if (boxGroundDistance(bounds, BOX_VALUES * cell, x, z) <= side) visit(cell)
-          }
-        }
-    },
-  }
-}
-
-/** The chain of HLOD cells of a partition, their roots held in `holds` on `world`'s table, `ranges`
- *  the grids' loading ranges (`TablePartition.hlod.ranges`). */
+/** The chain of HLOD cells of a partition, their roots held in `holds` on `world`'s table and
+ *  their actors' rows placed by `actorRows`, the partition's `grids` (`TablePartition.hlod.grids`)
+ *  streamed by the view `source`, the cells taking their turn to load from `slots`. */
 export function createHlodCells(
   world: Partial<Pick<WorldRootsHold, 'table'>> | undefined,
   holds: ReturnType<typeof createCellHolds>,
-  ranges: readonly number[],
+  grids: readonly PartitionGrid[],
+  source: StreamingSource,
+  slots: Pick<LoadSlots, 'loads' | 'priorityOf'>,
+  pulls?: Pick<HlodPulls, 'on' | 'pulled'>,
+  actorRows?: ActorRows,
 ) {
   const chain = world?.table?.chain
   const count = chain?.parent.length ?? 0
-  /** Per cell: wished, every cell file of an HLOD 0 cell placed, its actor's roots held, and the
-   *  word it was last told (`CELL_TOLD`). */
+  /** Per cell: wished, every cell file of an HLOD 0 cell placed, one of them refused for good, its
+   *  actor's roots held, its turn to load come while it stays wished, and the word it was last
+   *  told (`CELL_TOLD`). */
   const wished = new Uint8Array(count),
     placed = new Uint8Array(count),
+    lost = new Uint8Array(count),
     loadedNow = new Uint8Array(count),
+    started = new Uint8Array(count),
     toldWords = new Uint8Array(count)
   /** Each cell's children: the cells whose actors lie in it. */
-  const below = chain ? chainChildren(chain.parent) : []
-  let topLevel = 0
-  for (let cell = 0; cell < count; cell++) topLevel = Math.max(topLevel, chain!.level[cell])
-  const grids = chain && createLevelGrids(chain, ranges)
-  /** Per level above 0, the cells wished now and the list the next measure fills, swapped; the
-   *  HLOD 0 cells wished or placed now. */
+  const below = chain ? cellChildren(chain.parent) : []
+  let buckets = chain && createGridBuckets(chain, grids, source)
+  /** Per grid, the cells above HLOD 0 wished now and the list the next measure fills, swapped;
+   *  the HLOD 0 cells wished or placed now. */
   const wishedOf = new Map<number, [number[], number[]]>(),
     leavesOn = new Set<number>()
-  /** The top cells the tops' budget refused (`refused`), tried again as room frees or the view
-   *  moves, nearest first; and those whose load waits for that order in a settle. */
-  const refused = new Uint8Array(count),
-    refusedTops = new Set<number>(),
-    topsDue: number[] = []
   /** The cells whose actors are loaded. */
   const loadedCells = new Set<number>()
   /** The cells whose word may have moved, and those whose load may have. */
   const toldDue: number[] = [],
     loadDue: number[] = []
-  /** What the cells were last followed under: the eye and view axis, the cut and the instance of
-   *  the world DAG, and the holds. */
-  const seenEye = new Float64Array(3).fill(NaN),
-    seenAxis = new Float64Array(3).fill(NaN)
+  /** Whether `cell`'s actor is held and landed, its rows placed; a failed one waits for nothing. */
+  const landed = (cell: number) =>
+    !!loadedNow[cell] && !holds.stillReads(cell) && !actorRows?.pending(cell)
+  /** The units of the actors always loaded (`hlodTops.ts`), and the cells' ranks and holds
+   *  (`hlodHolds.ts`). */
+  const tops = createTops(chain, slots, landed, (cell) => void loadDue.push(cell))
+  const order = chain && createHoldOrder(chain, grids, source, slots, tops, holds, actorRows)
+  /** What the cells were last followed under: the eye, the cut and the instance of the world DAG,
+   *  and the holds. */
+  const seenEye = new Float64Array(3).fill(NaN)
   let toldTo: WorldCells | undefined,
     instance = 0,
     seenHolds = -1,
+    /** The revision of the view's shape the cells were last measured under
+     *  (`StreamingSource.revision`): a setting it reads moved. */
+    seenShape = -1,
     /** Whether every cell was weighed since the last cut, instance or close. */
     weighed = false
   const visible = (cell: number) => !!toldTo?.visible(instance, cell)
-  /** Whether the cut's last image had `cell` stand for an actor it cannot draw. */
-  const stands = (cell: number) => !!toldTo?.stands(instance, cell)
   /** Whether `cell` has an actor built: what the table says (`CHAIN_ACTOR`), the cut's own word. */
   const hasActor = (cell: number) => (chain!.actor[cell] & CHAIN_ACTOR.built) !== 0
-  /** Whether `cell`'s actor is loaded: none without one; a top cell's always, else while its parent
-   *  is wished — told so, or standing for an actor it cannot draw — or still visible. */
+  /** Whether `cell`'s actor is loaded: none not built; one always loaded once its unit's turn has
+   *  come (`hlodTops.ts`), else while its parent loads or has loaded — its turn come, while it
+   *  stays wished — or is still visible. */
   const loaded = (cell: number) => {
     if (!hasActor(cell)) return false
     const up = chain!.parent[cell]
-    return up < 0 || wished[up] === 1 || visible(up) || stands(up)
+    return up < 0 ? tops.opened(cell) : started[up] === 1 || visible(up)
   }
   /** `cell`'s word may have moved. */
   const tell = (cell: number) => void toldDue.push(cell)
-  /** The loads of `cell`'s children may have moved, and of theirs below a child that stands for an
-   *  actor it cannot draw — whose standing follows its parent's wish. */
+  /** The loads of `cell`'s children may have moved. */
   const weighChildren = (cell: number) => {
-    for (const child of below[cell]) {
-      loadDue.push(child)
-      if (!hasActor(child) || holds.failed(child)) weighChildren(child)
+    for (const child of below[cell]) loadDue.push(child)
+  }
+  /** Whether every child of `cell` with an actor built has it held and landed, its rows placed. */
+  const settled = (child: number) => !hasActor(child) || landed(child)
+  const whole = (cell: number) => below[cell].every(settled)
+  /** Each upper cell's wish from `eye`, the cells entering or leaving their range told again; one
+   *  wished no more loses its turn, its children's loads weighed again. A reach that moved files
+   *  the cells again, and measures again from an eye that stood, as a shape that turns with the
+   *  view does at each frame (`StreamingSource.turns`) and as one whose settings moved does
+   *  (`StreamingSource.revision`). */
+  const measure = (eye: ArrayLike<number>) => {
+    if (buckets!.stale()) {
+      buckets = createGridBuckets(chain!, grids, source)
+      seenEye.fill(NaN)
     }
-  }
-  /** The read priority of `cell`'s hold from `eye` looking along `axis`: the highest level first,
-   *  then the square of the distance to its box over its grid's range times how far it lies behind
-   *  the view — inside, first —; strictly after the view's own pages, in the visible band. */
-  const priorityOf = (cell: number, eye: ArrayLike<number>, axis: ArrayLike<number>) => {
-    const { bounds, level } = chain!
-    const at = BOX_VALUES * cell,
-      range = ranges[level[cell] + 1]
-    const dx = eye[0] - clamp(eye[0], bounds[at], bounds[at + 3]),
-      dy = eye[1] - clamp(eye[1], bounds[at + 1], bounds[at + 4]),
-      dz = eye[2] - clamp(eye[2], bounds[at + 2], bounds[at + 5])
-    const squared = dx * dx + dy * dy + dz * dz
-    const cos = squared > 0 ? (axis[0] * dx + axis[1] * dy + axis[2] * dz) / Math.sqrt(squared) : -1
-    const key = clamp(squared / (range * range), 0, 1) * (cos * 0.5 + 0.5)
-    const order = (topLevel - level[cell] + key) / (topLevel + 1)
-    return PRIORITY_VISIBLE + 0.5 + Math.floor(order * PRIORITY_STEPS) / (2 * PRIORITY_STEPS)
-  }
-  /** Each upper cell's wish from `eye`, the cells entering or leaving their range told again;
-   *  whether the eye or the view axis moved. */
-  const measure = (eye: ArrayLike<number>, axis: ArrayLike<number>) => {
-    const eyeStill = keepNumbers(seenEye, eye)
-    if (keepNumbers(seenAxis, axis) && eyeStill) return false
-    if (eyeStill) return true
-    for (const level of grids!.levels()) {
-      let lists = wishedOf.get(level)
-      if (!lists) wishedOf.set(level, (lists = [[], []]))
+    const eyeStood = keepNumbers(seenEye, eye),
+      shapeStood = source.revision === seenShape
+    seenShape = source.revision
+    if (eyeStood && shapeStood && !source.turns()) return
+    for (const grid of buckets!.grids()) {
+      let lists = wishedOf.get(grid)
+      if (!lists) wishedOf.set(grid, (lists = [[], []]))
       const [before, now] = lists
       now.length = 0
       meeting = now
-      grids!.near(level, eye[0], eye[2], meet)
+      buckets!.near(grid, eye[0], eye[2], meet)
+      // Wished too: those the wished cells of a grid that asks it pull in (`hlodPulls.ts`).
+      for (const cell of pulls?.on(grid) ?? [])
+        if (chain!.level[cell] && pulls!.pulled(cell)) meet(cell)
       // Wished before and not met now: leaving.
       for (const cell of before) {
         if (wished[cell] !== 1) continue
         wished[cell] = 0
+        if (started[cell]) {
+          started[cell] = 0
+          weighChildren(cell)
+        }
         tell(cell)
       }
       for (const cell of now) wished[cell] = 1
       lists[0] = now
       lists[1] = before
     }
-    return true
   }
   /** The list a measure fills, and each cell met into it: kept (2) or entering (3), told again. */
   let meeting: number[] = []
@@ -221,74 +169,50 @@ export function createHlodCells(
       tell(cell)
     }
   }
-  /** `cell`'s actor loaded or let go as it now is. */
-  const load = (cell: number, eye: ArrayLike<number>, axis: ArrayLike<number>) => {
+  /** `cell`'s actor loaded or let go as it now is, one loaded held by `settle`. */
+  const load = (cell: number) => {
     const now = loaded(cell)
     if (now === (loadedNow[cell] === 1)) return
     loadedNow[cell] = Number(now)
     if (now) {
       loadedCells.add(cell)
-      // A top holds within the tops' budget: held in their order once the settle knows them all.
-      if (chain!.parent[cell] < 0) topsDue.push(cell)
-      else holds.hold(cell, priorityOf(cell, eye, axis))
+      order!.open(cell)
     } else {
       loadedCells.delete(cell)
-      refusedTops.delete(cell)
-      refused[cell] = 0
       holds.release(cell)
+      actorRows?.release(cell)
     }
     // Its hold's failure, or its end, moves its word.
     tell(cell)
   }
-  /** The tops of `tops` held nearest first while the tops' budget takes them, the others refused
-   *  — standing for nothing, their content following its range (`CELL_TOLD.refused`) — till room
-   *  frees or the view moves. */
-  const holdTops = (tops: number[], eye: ArrayLike<number>, axis: ArrayLike<number>) => {
-    if (!tops.length) return
-    for (const cell of tops) topOrder[cell] = priorityOf(cell, eye, axis)
-    tops.sort((a, b) => topOrder[a] - topOrder[b])
-    for (const cell of tops) {
-      const fits = holds.fits(cell)
-      if (fits) holds.hold(cell, topOrder[cell])
-      if (Number(!fits) === refused[cell]) continue
-      refused[cell] = Number(!fits)
-      if (fits) refusedTops.delete(cell)
-      else refusedTops.add(cell)
-      tell(cell)
-    }
-    tops.length = 0
-  }
-  /** Each top's priority, as `holdTops` last ordered them. */
-  const topOrder = new Float64Array(count)
-  /** `cell` told what it is now; its children's loads weighed again once it moved. */
+  /** `cell` told what it is now. */
   const told = (cell: number) => {
     let word = wished[cell] ? CELL_TOLD.wished : 0
     if (placed[cell]) word |= CELL_TOLD.placed
+    if (lost[cell]) word |= CELL_TOLD.lost
     if (holds.failed(cell)) word |= CELL_TOLD.failed
-    if (refused[cell]) word |= CELL_TOLD.refused
+    if (actorRows?.seated(cell)) word |= CELL_TOLD.rows
     if (toldWords[cell] === word) return
     toldWords[cell] = word
     toldTo?.show(instance, cell, word)
-    weighChildren(cell)
   }
-  /** Every cell due, settled: what a word told moves — what stands, so what loads — is read by the
-   *  cut as soon as it is told, settled here again, never left for a camera move that may not
-   *  come. */
-  const settle = (eye: ArrayLike<number>, axis: ArrayLike<number>) => {
-    while (toldDue.length || loadDue.length || topsDue.length) {
+  /** Every cell due, settled — what a word told moves is read by the cut at once, never left for a
+   *  camera move that may not come —, the loads in the order they fell due. */
+  const settle = () => {
+    while (toldDue.length || loadDue.length) {
       for (let cell = toldDue.pop(); cell !== undefined; cell = toldDue.pop()) told(cell)
-      for (let cell = loadDue.pop(); cell !== undefined; cell = loadDue.pop()) load(cell, eye, axis)
-      holdTops(topsDue, eye, axis)
+      for (let at = 0; at < loadDue.length; at++) load(loadDue[at])
+      loadDue.length = 0
+      order?.flush((cell) => loadedNow[cell] === 1)
     }
   }
   return {
-    /** The frame from `eye` looking along `axis` (unit, in the cells' frame), with the HLOD 0 cells
-     *  the plan met (`leaves`): each cell that moved told to `cells`, as instance `at` of the world
-     *  DAG; each loaded actor's roots held at its streaming order's priority, every other let go. */
+    /** The frame from `eye` (in the cells' frame), with the HLOD 0 cells the plan met (`leaves`):
+     *  each cell that moved told to `cells`, as instance `at` of the world DAG; each loaded
+     *  actor's roots held, every other let go. */
     follow(
       leaves: ReadonlyMap<number, LeafWish>,
       eye: ArrayLike<number>,
-      axis: ArrayLike<number>,
       cells: WorldCells | undefined,
       at: number,
     ) {
@@ -304,55 +228,71 @@ export function createHlodCells(
           loadDue.push(cell)
         }
       }
-      const turned = measure(eye, axis)
+      measure(eye)
       for (const [cell, leaf] of leaves) {
         const wish = Number(leaf.wished),
-          whole = Number(leaf.placed)
-        if (wish || whole) leavesOn.add(cell)
-        if (wished[cell] === wish && placed[cell] === whole) continue
+          whole = Number(leaf.placed),
+          gone = Number(leaf.lost)
+        if (wish || whole || gone) leavesOn.add(cell)
+        if (wished[cell] === wish && placed[cell] === whole && lost[cell] === gone) continue
         wished[cell] = wish
         placed[cell] = whole
+        lost[cell] = gone
         tell(cell)
       }
       for (const cell of leavesOn) {
         if (leaves.has(cell)) continue
         leavesOn.delete(cell)
-        wished[cell] = placed[cell] = 0
+        wished[cell] = placed[cell] = lost[cell] = 0
         tell(cell)
       }
       // A cell whose visibility moved moves its children's loads.
       cells?.moved(at, weighChildren)
-      // A hold failed or ended moves its cell's word, and may free room for a top refused; the
-      // view moved, a nearer top refused may take a farther one's turn.
-      const freed = holds.revision !== seenHolds
-      if (freed) for (const cell of loadedCells) tell(cell)
-      if (freed || turned) for (const cell of refusedTops) topsDue.push(cell)
-      settle(eye, axis)
+      // A hold failed or ended moves its cell's word; so do its actor's rows placed while the cut
+      // follows the world, or parked, those read since placed.
+      if (holds.revision !== seenHolds) for (const cell of loadedCells) tell(cell)
+      actorRows?.turn(!!cells, tell)
+      actorRows?.place(tell)
+      settle()
       seenHolds = holds.revision
-      // The view turned: each hold still reading lifted to its priority now, when more urgent.
-      if (turned) for (const cell of holds.reading()) holds.hold(cell, priorityOf(cell, eye, axis))
+    },
+    /** The cells above HLOD 0 wished whose children's actors are not all held and landed, ranked
+     *  in the load order (`LoadingCell`), and the units of the actors always loaded not whole, onto
+     *  `out`. */
+    waiting(out: LoadingCell[]) {
+      if (!chain) return
+      for (const [, [now]] of wishedOf)
+        for (const cell of now) if (!whole(cell)) out.push(order!.ranked(cell))
+      tops.waiting(out)
+    },
+    /** The cells above HLOD 0 whose turn to load `slots` gives now start, their children's actors
+     *  held from now on, while they stay wished; so do the units of the actors always loaded. */
+    start() {
+      if (!chain) return
+      for (const [, [now]] of wishedOf)
+        for (const cell of now) {
+          if (started[cell] || !slots.loads(cell)) continue
+          started[cell] = 1
+          weighChildren(cell)
+        }
+      tops.start()
+      settle()
     },
     /** Whether HLOD cell `cell` was visible at the cut's last image. */
     visible,
-    /** Whether HLOD cell `cell` stood, at the cut's last image, for an actor it cannot draw. */
-    stands,
-    /** Every cell let go: its roots, and what it was told. */
+    /** Every cell let go: its roots, its actor's rows, and what it was told. */
     close(cells: WorldCells | undefined, at: number) {
       for (const cell of holds.cells()) holds.release(cell)
+      for (const cell of loadedCells) actorRows?.release(cell)
       for (let cell = 0; cell < count; cell++) if (toldWords[cell]) cells?.show(at, cell, 0)
-      wished.fill(0)
-      placed.fill(0)
-      loadedNow.fill(0)
-      toldWords.fill(0)
+      for (const state of [wished, placed, lost, loadedNow, started, toldWords]) state.fill(0)
       loadedCells.clear()
-      refused.fill(0)
-      refusedTops.clear()
-      topsDue.length = 0
       leavesOn.clear()
       wishedOf.clear()
       toldDue.length = loadDue.length = 0
+      order?.clear()
+      tops.clear()
       seenEye.fill(NaN)
-      seenAxis.fill(NaN)
       toldTo = undefined
       weighed = false
     },

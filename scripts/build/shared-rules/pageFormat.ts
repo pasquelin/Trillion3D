@@ -17,7 +17,6 @@ function codec() {
     bits: read('bits.rs'),
     deform: read('deform.rs'),
     triangles: read('triangles.rs'),
-    grid: read('bits/grid.rs'),
     dag: rustConstants('packages/asset-compiler-rust/src/dag.rs', known),
   }
 }
@@ -30,7 +29,7 @@ const RENAMED: Record<string, string> = {
 
 /** The decoded name of each optional attribute, in the order `OPTIONAL` (`attributes.rs`) lists
  *  them: the names are the readers', the flags and widths the codec's. */
-const OPTIONAL_NAMES = ['normal', 'uv', 'uv2', 'color']
+const OPTIONAL_NAMES = ['normal', 'uv', 'uv1', 'uv2', 'uv3', 'color', 'tangent']
 
 const exported = (constants: readonly RustConstant[], names: readonly string[]) =>
   names.map((name) => {
@@ -44,24 +43,47 @@ const declaration = ({ name, value, doc }: RustConstant) =>
 
 /** The page format's constants, printed for the TypeScript readers. */
 export function pageFormatTs() {
-  const { page, deform, triangles, grid, dag } = codec()
+  const { page, deform, triangles, dag } = codec()
   const flags = [
-    ...exported(page, ['FLAG_NORMAL', 'FLAG_UV', 'FLAG_UV1', 'FLAG_COLOR', 'FLAG_SOFT_SOURCE']),
+    ...exported(page, [
+      'FLAG_NORMAL',
+      'FLAG_UV',
+      'FLAG_UV1',
+      'FLAG_COLOR',
+      'FLAG_SOFT_SOURCE',
+      'FLAG_TANGENT',
+      'FLAG_UV2',
+      'FLAG_UV3',
+    ]),
     ...exported(deform, ['FLAG_SKIN', 'FLAG_MORPH']),
   ]
   const items = [
     ...exported(page, ['VERSION', 'HEADER_WORDS']),
     ...flags,
+    ...exported(page, [
+      'MAX_UV_SETS',
+      'CENTIMETRES_PER_METRE',
+      'MIN_POSITION_PRECISION',
+      'MAX_POSITION_PRECISION',
+      'MAX_NORMAL_PRECISION',
+      'MAX_TANGENT_PRECISION',
+      'DEFAULT_NORMAL_PRECISION',
+      'DEFAULT_TANGENT_PRECISION',
+      'UV_EXPONENT_BITS',
+      'UV_MANTISSA_BITS',
+      'COLOR_LEVELS',
+    ]),
     ...exported(deform, ['MAX_MORPH_TARGETS', 'MORPH_WORDS']),
     ...exported(triangles, ['TRIANGLE_BLOCK', 'BLOCK_CORNERS', 'WIDTH_BITS']),
-    ...exported(grid, ['UV_EXPONENT']),
     ...exported(dag, ['DAG_CLUSTER_TRIANGLES', 'DAG_CLUSTER_VERTICES']),
   ]
   const attributes = rustSource(`${CODEC}/attributes.rs`)
   const optional = [...attributes.matchAll(/\((FLAG_\w+), (\d+)\),/g)]
   if (optional.length !== OPTIONAL_NAMES.length)
-    throw new Error("attributes.rs: OPTIONAL no longer lists the readers' four attributes")
-  return `${header([`${CODEC}/lib.rs`, `${CODEC}/bits.rs`, `${CODEC}/deform.rs`, `${CODEC}/triangles.rs`, `${CODEC}/bits/grid.rs`, `${CODEC}/attributes.rs`, 'packages/asset-compiler-rust/src/dag.rs'], '//')}
+    throw new Error(
+      `attributes.rs: OPTIONAL no longer lists the readers' ${OPTIONAL_NAMES.length} attributes`,
+    )
+  return `${header([`${CODEC}/lib.rs`, `${CODEC}/bits.rs`, `${CODEC}/deform.rs`, `${CODEC}/triangles.rs`, `${CODEC}/attributes.rs`, 'packages/asset-compiler-rust/src/dag.rs'], '//')}
 /** The \`WGP3\` quantized cluster page as every reader must know it (\`docs/FORMAT.md\`). */
 
 ${items.map(declaration).join('\n\n')}
@@ -99,7 +121,7 @@ ${tables.map(([scope, name, doc]) => `/** ${doc} */\n${object(scope, name)}`).jo
  *  printed for the SDK module's loader. */
 export function pageEncoderAbiTs() {
   return wasmAbiTs(
-    `${CODEC}/wasm_encode.rs`,
+    `${CODEC}/wasm/encode.rs`,
     ['REQUEST_WORDS', 'META_WORDS'],
     [
       ['request', 'REQUEST', "The request's words, by what each holds."],

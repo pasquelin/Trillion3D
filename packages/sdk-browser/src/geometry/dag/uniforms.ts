@@ -1,26 +1,33 @@
 import type { PackedDag } from './types.ts'
-import { coarsenedThreshold } from './coarsening.ts'
 import {
-  OUT_AHEAD_PLACED,
   OUT_COUNT,
   OUT_FLAGS,
   OUT_FRUSTUM_REJECTED,
   OUT_LOD_LEVEL,
+  OUT_OCCLUDED,
+  OUT_POST_HIDDEN,
   OUT_SELECTED_TRIANGLES,
   OUT_TRANSPARENT_TRIANGLES,
 } from './layout.ts'
-import { SELECTION_HEADER_WORDS, evictionWord, readCountedList } from './readoutWords.ts'
+import {
+  PEAK_CANDIDATES,
+  PEAK_NODES,
+  PEAK_VISIBLE,
+  SELECTION_HEADER_WORDS,
+  readCountedList,
+} from './readoutWords.ts'
 import type { SelectionResult, SelectionUniforms } from '../../gpu/core/selection.ts'
-import { WORK_DROPPED } from './shader/viewsWgsl.ts'
-import { viewWord, writeAheadBlock } from './viewLayout.ts'
+import { twoPassOf } from './shader/occlusionWgsl.ts'
+import { viewWord } from './viewLayout.ts'
 import { REGION_NONE, swapRegionsWord } from './shader/swapWgsl.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
-import { dagQueueWords } from './flagSections.ts'
+import { dagFlagShape, type FlagShape } from './flagSections.ts'
+import type { ListPeaks } from './lists/listFeedback.ts'
 
 /** Where a cut's tables lie for its kernels: the open counts placements hold in `out` — the first
- *  word in `out.pages`, the slots less one (`heldOpen.ts`) —, then the words of each descent queue
- *  and the entries of each list its `flags` holds (`queueGrowth.ts`), the packing's when absent. */
-export type CutTablesAt = { base: number; mask: number; queueWords?: number; candCap?: number }
+ *  word in `out.pages`, the slots less one (`heldOpen.ts`) —, then the shape its `flags` is laid
+ *  out for (`flagSections.ts`), the packing's at the lists' default caps when absent. */
+export type CutTablesAt = { base: number; mask: number; shape?: FlagShape }
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every
@@ -30,32 +37,35 @@ export type CutTablesAt = { base: number; mask: number; queueWords?: number; can
 export type DagOutputScratch = {
   result: SelectionResult
   drawable: number[]
-  ahead: number[]
-  evict: number[]
+  peaks: ListPeaks
 }
 export const createDagOutputScratch = (): DagOutputScratch => ({
   result: {
     pageIds: [],
+    priorities: [],
     frustumRejected: 0,
     lodLevel: 0,
+    occluded: 0,
+    postHidden: 0,
     selectedTriangles: 0,
     transparentTriangles: 0,
   },
   drawable: [],
-  ahead: [],
-  evict: [],
+  peaks: { nodes: 0, candidates: 0, visible: 0 },
 })
+
+/** The unsigned word view of each block written, made once: a cut writes its block every frame. */
+const wordsOf = new WeakMap<Float32Array, Uint32Array>()
 
 /**
  * One view's block of the uniform array (`shader/viewsWgsl.ts`). Every word is written through
  * `viewWord`, the name the kernels read it by, so a field added to `viewLayout.ts` moves the host
  * and the shader together. The camera runs one view on buffers sized for one, whose queues hold
  * every node. `listCap` is the ranks its readout holds (`lists/listCap.ts`), `saveRegion` the region its
- * clear saves the journal in place to (`shader/swapWgsl.ts`); a cut restores none. `coarsen` is the
- * factor its projected-error threshold is cut under, 1 but past the list the device holds
- * (`coarsening.ts`). `at`, where the open counts placements hold lie in `out` (`lists/listCap.ts`,
- * `heldOpenAt`) — none by default —, and the words of each queue and the entries of each list the
- * cut's `flags` holds now (`queueGrowth.ts`), the packing's by default.
+ * clear saves the journal in place to (`shader/swapWgsl.ts`); a cut restores none. `at`, where the
+ * open counts placements hold lie in `out` (`lists/listCap.ts`, `heldOpenAt`) — none by default —,
+ * and the shape the cut's `flags` is laid out for (`queueGrowth.ts`, `cutTablesAt`), the
+ * packing's at the lists' default caps by default.
  */
 export function writeDagUniforms(
   target: Float32Array,
@@ -63,7 +73,6 @@ export function writeDagUniforms(
   uniforms: SelectionUniforms,
   listCap: number,
   saveRegion = REGION_NONE,
-  coarsen = 1,
   at: CutTablesAt = { base: 0, mask: 0 },
 ) {
   const W = viewWord
@@ -72,9 +81,13 @@ export function writeDagUniforms(
   target.set(uniforms.view, W('view'))
   target[W('pixelScale')] = uniforms.pixelScale[0]
   target[W('pixelScale') + 1] = uniforms.pixelScale[1]
-  target[W('pixelError')] = coarsenedThreshold(uniforms.pixelError, coarsen)
+  target[W('pixelError')] = uniforms.pixelError
   target[W('near')] = uniforms.near
-  const ints = new Uint32Array(target.buffer, target.byteOffset, target.length)
+  let ints = wordsOf.get(target)
+  if (!ints) {
+    ints = new Uint32Array(target.buffer, target.byteOffset, target.length)
+    wordsOf.set(target, ints)
+  }
   ints[W('clusterCount')] = packed.pageCount
   ints[W('nodeCount')] = packed.nodeCount
   ints[W('worldCount')] = packed.worldCount
@@ -86,27 +99,25 @@ export function writeDagUniforms(
     // The eye exact, which every translation the cut reads is taken off (`worldPoseWgsl.ts`).
     packDoubles(ints, W('eye'), cw, 0, 3)
   }
-  target[W('cameraStretch')] = uniforms.cameraStretch ?? 1
+  writeOcclusion(target, ints, uniforms)
   // Sample cap the kernel reads to bound its two halves and to say, when it happens, that it
   // truncated (`lists/listCap.ts`).
   ints[W('listCap')] = listCap
   // The projection's clip-w weight: 1 perspective, 0 orthographic (`screenErrorBound.ts`).
   target[W('perspective')] = uniforms.perspective ?? 1
-  // The camera's queues hold every placement's every node: two words an entry, the node then its
-  // placement (`shader/levelWgsl.ts`).
-  ints[W('queueCap')] = at.queueWords ?? dagQueueWords(packed)
+  // The lists as the flags lay them out, and the nodes a pass opens at most (`flagSections.ts`):
+  // the descent array two words an entry, the node then its placement (`shader/listsWgsl.ts`).
+  const shape = at.shape ?? dagFlagShape(packed)
+  ints[W('queueCap')] = shape.queueWords
+  ints[W('candCap')] = shape.candCap
+  ints[W('visCap')] = shape.visCap
+  ints[W('nodeBudget')] = shape.nodeBudget
   // The open counts placements hold of their own (`heldOpen.ts`): where in `out.pages`, how many.
   ints[W('heldBase')] = at.base
   ints[W('heldMask')] = at.mask
-  ints[W('candCap')] = at.candCap ?? packed.candCount
-  ints[W('recordCount')] = packed.recordCount
-  ints[W('keyCount')] = packed.keyCount
-  ints[W('groupCount')] = packed.groupCount
-  ints[W('groupEdges')] = packed.groupEdges
-  // The host's frame: every view's cut of one frame stamps the same clock (`shader/lastUseWgsl.ts`).
+  // The host's frame: every view's cut of one frame stamps the rows it uses with the same clock
+  // (`../rows/rowClosureWgsl.ts`).
   ints[W('frame')] = uniforms.frame ?? 0
-  // A pool short of the cut ranks the camera's requests by admission (`request/request.ts`).
-  ints[W('admitByLevel')] = uniforms.admitByLevel ? 1 : 0
   ints[W('swapRegions')] = swapRegionsWord(saveRegion, REGION_NONE)
   // The placement tree (`placement/placementTree.ts`): its top level's nodes, which open the descent, the
   // queue entry of its first node and the members drawn whatever the view — the world DAG's
@@ -118,40 +129,58 @@ export function writeDagUniforms(
   ints[W('alwaysCount')] = tree?.always.set.count ?? 0
   // The placements' links to the world's cells (`worlds/worldLinks.ts`): none, no gate.
   ints[W('worldLinks')] = world?.linkBase ?? 0
-  writeAheadBlock(target, ints, uniforms)
 }
 
-/** `drawnWordOffset`: rank of the compacted-list count in the sample, 0 when there is none. */
+/** The projection's words of the block (`shader/occlusionWgsl.ts`): the render matrix, its depth
+ *  map and the view's size, which every box's pixel centres are found with; the culls the host
+ *  turned off (`shader/viewsWgsl.ts`); what the occlusion runs, and, when it runs two passes, the
+ *  same three at the image before. */
+function writeOcclusion(target: Float32Array, ints: Uint32Array, uniforms: SelectionUniforms) {
+  const W = viewWord,
+    occlusion = uniforms.occlusion ?? 0
+  target.set(uniforms.viewProj, W('viewProj'))
+  target.set(uniforms.depthMap, W('depthMap'))
+  ints.set(uniforms.viewSize, W('viewSize'))
+  ints[W('cullOff')] = uniforms.cullOff ?? 0
+  ints[W('occlusion')] = occlusion
+  if (!twoPassOf(uniforms)) return
+  target.set(uniforms.prevViewProj!, W('prevViewProj'))
+  target.set(uniforms.prevDepthMap!, W('prevDepthMap'))
+  ints.set(uniforms.prevSize!, W('prevSize'))
+}
+
+/** `at`: where the readback's lists lie in it — the drawn list's header (`drawn`, 0 when there is
+ *  none) and the requests' priorities (`priorities`), in words. */
 export function parseDagOutput(
   bytes: ArrayBufferLike,
   byteOffset: number,
   byteLength: number,
-  drawnWordOffset: number,
+  at: { drawn: number; priorities: number },
   scratch: DagOutputScratch = createDagOutputScratch(),
 ): SelectionResult | null {
   const ints = new Uint32Array(bytes, byteOffset, Math.floor(byteLength / 4))
   const head = SELECTION_HEADER_WORDS,
-    held = Math.max(0, (drawnWordOffset || ints.length) - head)
+    held = Math.max(0, (at.drawn || ints.length) - head)
   // Arrays written rank after rank, then cut to their length, and never sized ahead: an array whose
   // length is set before its ranks are written holds holes from then on, and each of the reads
   // that follow — the cut's difference, its records, its packed ranks, several a frame on a
   // hundred thousand ranks — pays the hole check, near six times a packed read (#831). A frame reuses
   // the arrays it grew; a typed-array iterator is never unrolled.
-  const { result, drawable, evict } = scratch,
-    pageIds = result.pageIds
-  // Each rank is a REQUEST: the page, a whole word (`request/request.ts`). The GPU wrote them SORTED
-  // (`shader/snapshotWgsl.ts`): the camera's, counted on their own, then as many of the view
-  // ahead's as the cap left. The host reads them in that order and ranks nothing.
-  const ahead = scratch.ahead,
-    visible = Math.min(ints[OUT_COUNT] ?? 0, held),
-    count = visible + Math.min(ints[OUT_AHEAD_PLACED] ?? 0, held - visible)
-  for (let i = 0; i < visible; i++) pageIds[i] = ints[head + i]
-  pageIds.length = visible
-  for (let i = visible; i < count; i++) ahead[i - visible] = ints[head + i]
-  ahead.length = count - visible
-  result.aheadPageIds = ahead
+  const { result, drawable, peaks } = scratch,
+    { pageIds, priorities } = result
+  // Each rank is a REQUEST: the page, a whole word, in the order the GPU's threads asked them, and
+  // its priority at the same rank of the priority list (`request/request.ts`): the host ranks them.
+  const count = Math.min(ints[OUT_COUNT] ?? 0, held, Math.max(0, ints.length - at.priorities))
+  for (let i = 0; i < count; i++) {
+    pageIds[i] = ints[head + i]
+    priorities[i] = ints[at.priorities + i]
+  }
+  pageIds.length = count
+  priorities.length = count
   result.frustumRejected = ints[OUT_FRUSTUM_REJECTED] ?? 0
   result.lodLevel = ints[OUT_LOD_LEVEL] ?? 0
+  result.occluded = ints[OUT_OCCLUDED] ?? 0
+  result.postHidden = ints[OUT_POST_HIDDEN] ?? 0
   // Totals the GPU holds: they describe the cut, not the list that reports it, so a truncated
   // sample still returns them correctly (`shader/totalsWgsl.ts`).
   result.selectedTriangles = ints[OUT_SELECTED_TRIANGLES] ?? 0
@@ -160,19 +189,17 @@ export function parseDagOutput(
   // the frame mask is correct — but the reported LIST is truncated, and nothing that lives off
   // it must take it for the whole cut.
   result.truncated = ((ints[OUT_FLAGS] ?? 0) & 1) !== 0
-  // A queue or a list full: the cut was not drawn, and its lists are not the cut's.
-  result.dropped = (ints[OUT_FLAGS] ?? 0) & WORK_DROPPED
   result.drawablePageIds = undefined
+  result.peaks = undefined
+  if (!at.drawn) return result
   // The drawable list arrives already compacted, in increasing order: the CPU no longer walks
   // one flag per DAG page, only the ranks the GPU kept.
-  if (drawnWordOffset) {
-    result.drawablePageIds = readCountedList(ints, drawnWordOffset, drawable)
-    // A sample that ends where the eviction queue would start carries none (a view's aside).
-    const evictAt = evictionWord(drawnWordOffset - head)
-    if (evictAt >= ints.length) evict.length = 0
-    else readCountedList(ints, evictAt, evict)
-    result.evictPageIds = evict
-    result.evictOld = Math.min(evict.length, ints[evictAt + 1] ?? 0)
-  }
+  result.drawablePageIds = readCountedList(ints, at.drawn, drawable, held)
+  // What the cut asked of its lists, in the drawn list's header (`shader/commitWgsl.ts`): what
+  // passed a cap was dropped, and the rest drawn.
+  peaks.nodes = ints[at.drawn + PEAK_NODES] ?? 0
+  peaks.candidates = ints[at.drawn + PEAK_CANDIDATES] ?? 0
+  peaks.visible = ints[at.drawn + PEAK_VISIBLE] ?? 0
+  result.peaks = peaks
   return result
 }

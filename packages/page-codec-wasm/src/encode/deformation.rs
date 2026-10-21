@@ -6,7 +6,7 @@ use super::cells::{gather, Cell};
 use super::skin::skin_fields;
 use super::vertices::first_use;
 use super::{EncodeError, Result};
-use crate::deform::{Morph, Skin, MAX_MORPH_TARGETS, RAW_F32, WEIGHT_BITS};
+use crate::deform::{Morph, Skin, MAX_MORPH_TARGETS, WEIGHT_BITS};
 use crate::writer::BitWriter;
 use crate::{FLAG_MORPH, FLAG_SKIN, FLAG_SOFT_SOURCE};
 /// One morph target of a primitive: its position displacement per vertex, three floats each, and
@@ -118,11 +118,7 @@ pub fn page_deformation(
             vertex.extend(moved[v * 3..v * 3 + 3].iter().map(|x| x.to_bits()));
             vertex.extend((0..3).map(|c| bent.as_ref().map_or(0, |b| b[v * 3 + c].to_bits())));
         }
-        morphs.push(Morph {
-            start: 0,
-            position: RAW_F32,
-            normal: RAW_F32,
-        });
+        morphs.push(Morph { start: 0 });
     }
     Ok(PageDeformation {
         skin,

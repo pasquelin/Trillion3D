@@ -1,18 +1,24 @@
-import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { surfaceColorAttachments } from '../prepare/attachments.ts'
 import { createGpuRaster } from '../../visibility/raster/raster.ts'
 import { ensureWebgpuVisibilityBindings } from '../../visibility/passes/bindings.ts'
+import { encodeHardwareRaster } from '../../visibility/passes/drawer.ts'
 import { ensureWebgpuShadeBindings } from '../../gpu/bind/shadeBindings.ts'
-import { writeWebgpuVisibilityUniforms } from '../../visibility/passes/uniforms.ts'
-import { requestsComputeRaster } from '../../diagnostic/gpuGeometry.ts'
+import { visPostEntry, writeWebgpuVisibilityUniforms } from '../../visibility/passes/uniforms.ts'
+import { RASTER_PASS_MAIN, RASTER_PASS_POST } from '../../visibility/raster/contract.ts'
+import { uniformStride } from '../../session/memory/pools.ts'
 import { createRenderEncoder, submitColorCopy } from './encoder.ts'
 import { encodeSurfaceLighting } from './surfaceLighting.ts'
 import type { GpuRasterInput } from '../../visibility/raster/types.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
 import { prepared } from '../backend/state/prepared.ts'
-import { EMPTY_SURFACES_PASS } from '../../diagnostic/stage/passLabels.ts'
+import {
+  EMPTY_SURFACES_PASS,
+  VISIBILITY_IDENTIFIERS_PASS,
+  VISIBILITY_PRIMARY_PASS,
+  VISIBILITY_SECONDARY_PASS,
+} from '../../diagnostic/stage/passLabels.ts'
 
 /** An image with no drawable row still clears the surfaces, lights them and presents the result. */
 export function encodeEmptySurfaces(
@@ -42,29 +48,36 @@ export function encodeEmptySurfaces(
 }
 
 /**
- * What an image gives the compute raster, held from one image to the next: each of its fields is
+ * What an image gives the raster, held from one image to the next: each of its fields is
  * rewritten before every encode, and encode consumes it before returning. Writing it in the clear
  * every image allocated an eighteen-field object per image.
  */
 const rasterInput = {} as GpuRasterInput
 
 /**
- * Creates the compute raster once, and only under a variant that asks for it — `raster-compute` or
- * `raster-hybrid`: in production the hardware draws (Geometry 26). A frame's entry makes it, its
- * pipelines compiled off the thread while the frame is held (`../loop/framePipelines.ts`); the
- * image's encode finds it. A variant is a request, not an opportunity — an exceeded surface budget
- * refuses; it does not silently render the hardware image under the compute label.
+ * Creates the visibility raster — its buffer, the cluster split and the software classes —, made
+ * again when the targets grow past it or the row table outgrows its lists. A frame's entry makes
+ * it, its pipelines compiled off the thread while the frame is held (`../loop/framePipelines.ts`);
+ * the image's encode finds it.
  */
 export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt
-  if (vis.gpuRaster || !requestsComputeRaster(rt.context?.diagnosticGpuVariant)) return
-  const [width, height] = rt.gpu.targetSize
-  vis.gpuRaster = createGpuRaster(device, width, height, rt.layout.rasterCapacity)
+  const [width, height] = rt.gpu.allocatedSize,
+    capacity = rt.layout.rasterCapacity
+  const held = vis.gpuRaster
+  if (held && held.width === width && held.height === height && held.capacity === capacity) return
+  held?.dispose()
+  vis.gpuRaster = createGpuRaster(device, width, height, capacity)
 }
 
 /** Writes the image's uniforms and rebuilds the shade and raster bind groups a resource change voided. */
-export function ensureVisBindings(rt: WebgpuPagesRuntime, device: GPUDevice, tableRows: number) {
-  writeWebgpuVisibilityUniforms(rt, device, tableRows)
+export function ensureVisBindings(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  cam: EngineCamera,
+  tableRows: number,
+) {
+  writeWebgpuVisibilityUniforms(rt, device, cam, tableRows)
   // The resolve's cache is laid for this image's rows before its group names the buffer.
   const [width, height] = rt.gpu.targetSize
   rt.vis.shadeCache?.layFor(tableRows, rt.setup.maxCorners, width, height)
@@ -72,99 +85,98 @@ export function ensureVisBindings(rt: WebgpuPagesRuntime, device: GPUDevice, tab
   ensureWebgpuVisibilityBindings(rt)
 }
 
+/** The hardware slots a pass draws: the main pass's half, the post pass's, or both. */
+const MAIN_HALF = [false] as const,
+  POST_HALF = [true] as const,
+  BOTH_HALVES = [false, true] as const
+
 /**
- * The compute raster draws this image: it exists, and so do all its resources. That is THE decision
- * the split uniform (`computeSpan`) and the encoded stages both read; one only, or hardware would
- * fold triangles nobody draws.
+ * The visibility raster of this image, the main pass's binning encoded, and its three stages ready
+ * to interleave with the cut's two passes (`../../visibility/passes/passes.ts`): each runs the
+ * hardware raster's slots, then the software raster's lists, into the one visibility buffer
+ * (`VIS_WRITE_WGSL`) —
+ * - `occluders`: the main pass's depth, the rows the frame mask holds before the post pass, then
+ *   the pyramid's level zero from it;
+ * - `rest`: once the cut's post pass wrote its mask, its rows' binning and hardware compaction,
+ *   their depth, then level zero again from the whole depth;
+ * - `ids(post)`: the identifiers of everything drawn — the post pass's too when `post` —, once
+ *   every depth is down, then the resolve into the attachments.
+ * None when a resource the raster reads is missing: the image is then not drawn.
  */
-export function computeRasterReady(rt: WebgpuPagesRuntime) {
-  const { vis, gpu } = rt
+export function visibilityRasterStages(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+) {
+  const { vis, gpu, run } = rt
   const raster = vis.gpuRaster,
-    { concatPos, concatUv, concatNrm, pageTable, zeroFlags, textures, mapsSampler } = vis
+    { concatPos, concatUv, concatNrm, pageTable, textures, mapsSampler } = vis
   if (
     !raster ||
     !gpu.cache ||
+    !gpu.depthView ||
+    !vis.visView ||
     !concatPos ||
     !concatUv ||
     !concatNrm ||
     !pageTable ||
-    !zeroFlags ||
     !textures ||
     !mapsSampler
   )
     return null
-  return {
-    raster,
-    indices: gpu.cache.buffer,
-    concatPos,
-    concatUv,
-    concatNrm,
-    pageTable,
-    zeroFlags,
-    textures,
-    mapsSampler,
-  }
-}
-
-/**
- * The three compute-raster stages, ready to interleave between the hardware raster's passes:
- * occluder half after the primary pass, tested half after the secondary, identifiers to close —
- * each blended into the attachments hardware posted.
- */
-export function computeRasterStages(
-  rt: WebgpuPagesRuntime,
-  twoPass: boolean,
-  tableRows: number,
-  maxVertexCount: number,
-  idsView: GPUTextureView,
-  depthTarget: GPUTextureView,
-) {
-  const { vis, run } = rt
-  const ready = computeRasterReady(rt)
-  if (!ready) return null
-  const { raster } = ready
-  // The occluder/tested split travels in the verdict word the partition wrote: an image in one
-  // pass reads zeros and rasters the whole cut in one go. A scene without a cluster binds no
-  // selection mask (`../../visibility/raster/bindings.ts`): its groups are keyed apart.
   const gpuHiz = prepared(vis, 'gpuHiz'),
-    hizFlags = twoPass ? gpuHiz.flags : ready.zeroFlags
-  const key = (twoPass ? 1 : 0) + (run.gpuSelection ? 2 : 0)
+    gpuDraw = prepared(vis, 'gpuDraw')
   const input = rasterInput
-  input.indices = ready.indices
-  input.positions = ready.concatPos
-  input.pages = ready.pageTable
-  input.hizFlags = hizFlags
-  // The uniform is written before any pass (`ensureVisBindings`): it exists when we encode.
+  input.indices = gpu.cache.buffer
+  input.positions = concatPos
+  input.pages = pageTable
+  // The uniform is written before any pass (`ensureVisBindings`): it exists when we encode. The
+  // post pass's binning reads its own entry, whose selection is the post mask.
   input.uniform = vis.visUniform!
-  input.uvs = ready.concatUv
-  input.normals = ready.concatNrm
-  input.textures = ready.textures
-  input.sampler = ready.mapsSampler
+  input.postUniformOffset = visPostEntry(vis) * uniformStride(device.limits)
+  input.uvs = concatUv
+  input.normals = concatNrm
+  input.textures = textures
+  input.sampler = mapsSampler
   // Sent up with the visibility groups (`ensureWebgpuVisibilityBindings`), before any pass.
   input.material = vis.materialTable.view!
-  input.pageRows = tableRows
-  input.maxTriangles = ceilDiv(maxVertexCount, 3)
-  input.idsView = idsView
-  input.depthView = depthTarget
+  input.items = gpuDraw.itemsBuffer
+  input.pageRows = rt.layout.rows.packedCount
+  input.idsView = vis.visView
+  input.depthView = gpu.depthView
   input.hizView = gpuHiz.level0View
-  input.tested = twoPass
   input.selection = run.gpuSelection
-  input.groups = vis.rasterGroups
-  input.groupKey = key
-  // Full-screen resolve triangles are draw calls like the others: the one that closes the image,
-  // and the pyramid's when the tested half exists. The count carries them.
+  run.gpuComputeDispatches += raster.encodeBinning(encoder, input, RASTER_PASS_MAIN)
+  const size = gpu.targetSize
+  // Full-screen resolve triangles are draw calls like the others: the pyramid's level zero after
+  // each pass's depth and the one that closes the image. The count carries them.
+  const depthLevel = (encoder: GPUCommandEncoder) => {
+    raster.encodeDepthLevel(encoder, input, size)
+    run.gpuDrawCalls += 1
+  }
   return {
     occluders(encoder: GPUCommandEncoder) {
-      run.gpuDrawCalls += input.tested ? 1 : 0
-      run.gpuComputeDispatches += raster.encodeOccluders(encoder, input)
+      encodeHardwareRaster(rt, device, encoder, VISIBILITY_PRIMARY_PASS, MAIN_HALF, false)
+      run.gpuComputeDispatches += raster.encodeDepth(encoder, RASTER_PASS_MAIN)
+      depthLevel(encoder)
     },
     rest(encoder: GPUCommandEncoder) {
-      run.gpuComputeDispatches += raster.encodeRest(encoder)
+      // Called once the cut's post pass returned: the selection exists and its post mask is
+      // written. Its rows' split and binning, then their hardware compaction, in one compute pass.
+      const { postMaskOffset } = run.gpuSelection!
+      run.gpuComputeDispatches += raster.encodeBinning(encoder, input, RASTER_PASS_POST, (open) =>
+        gpuDraw.encodePost(open, postMaskOffset),
+      )
+      encodeHardwareRaster(rt, device, encoder, VISIBILITY_SECONDARY_PASS, POST_HALF, false)
+      run.gpuComputeDispatches += raster.encodeDepth(encoder, RASTER_PASS_POST)
+      depthLevel(encoder)
     },
-    ids(encoder: GPUCommandEncoder) {
+    ids(encoder: GPUCommandEncoder, post: boolean) {
+      const halves = post ? BOTH_HALVES : MAIN_HALF
+      encodeHardwareRaster(rt, device, encoder, VISIBILITY_IDENTIFIERS_PASS, halves, true)
+      run.gpuComputeDispatches += raster.encodeIds(encoder, input, size, post)
       run.gpuDrawCalls += 1
-      run.gpuComputeDispatches += raster.encodeIds(encoder, input)
     },
   }
 }
-export type ComputeRasterStages = ReturnType<typeof computeRasterStages>
+export type VisibilityRasterStages = NonNullable<ReturnType<typeof visibilityRasterStages>>

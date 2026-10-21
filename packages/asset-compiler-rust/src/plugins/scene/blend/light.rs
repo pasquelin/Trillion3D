@@ -10,7 +10,7 @@
 //! square metre, and exposure multiplies it by `2^exposure`. The radiant intensity of a point or
 //! a spot is therefore `P / 4π` W/sr — Blender spreads a spot's power over the whole sphere, the
 //! cone only cuts it —, that of a lambertian area `P / π` on axis, and a sun's illuminance is
-//! its strength as-is. glTF being photometric, `compiler_lights::photometric` does the
+//! its strength as-is. glTF being photometric, `compiler::lights::photometric` does the
 //! conversion, and rereading it yields exactly the watt read here.
 //!
 //! **The emitter radius** comes from the native data: `radius` — `shadow_soft_size` in files that
@@ -61,7 +61,7 @@ pub(super) fn build(
         }
     };
     let exposure = f64::from(lamp.float("exposure", 0.0));
-    let source = crate::import::LightSource {
+    let source = crate::plugins::scene::convert::LightSource {
         name,
         kind: gltf_kind,
         colour: [
@@ -70,7 +70,7 @@ pub(super) fn build(
             lamp.float("b", 1.0),
         ]
         .map(|channel| f64::from(channel).max(0.0)),
-        intensity: crate::compiler_lights::radiometric_intensity(
+        intensity: crate::compiler::lights::radiometric_intensity(
             f64::from(energy(&lamp)),
             exposure,
             spread(kind),
@@ -109,7 +109,7 @@ fn spread(kind: i64) -> f64 {
 /// cone, and `spotblend` the fraction that softens toward its edge.
 fn cone(lamp: &At<'_>) -> (f64, f64) {
     let outer = f64::from(lamp.float("spotsize", 0.0)) / 2.0;
-    crate::import::cone_angles(outer, f64::from(lamp.float("spotblend", 0.0)))
+    crate::plugins::scene::convert::cone_angles(outer, f64::from(lamp.float("spotblend", 0.0)))
 }
 
 /// The radius of the emissive envelope, in world metres, or nothing when the lamp carries none.

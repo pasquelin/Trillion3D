@@ -16,10 +16,11 @@ import {
   textureProbe,
 } from '../../geometry/residency/poolGrants.ts'
 import type { TexturePool } from '../../geometry/residency/memoryBudgets.ts'
-import { geometryBudgetBeside, textureBudgetBeside, textureBytesBeside } from './besidePools.ts'
+import { textureBudgetBeside, textureBytesBeside } from './besidePools.ts'
 import { ledgerReplacing } from '../../gpu/core/deviceLedger.ts'
-import { growWebgpuTables } from '../prepare/growTables.ts'
+import { growRows } from '../prepare/growTables.ts'
 import type { GrownPages } from '../../geometry/pages/pool/resize.ts'
+import { roundUpToSignificantBits } from '../prepare/rootCover.ts'
 
 /**
  * Changes memory pools mid-session without emptying what they hold: pages and tiles that fit in
@@ -123,17 +124,17 @@ async function setGeometryBudget(
     transientBytes = 0,
     tables: MemoryBudgetsReport['tables'] = null,
     applied = !grown
-  const { bytes, declared } = geometryBudgetBeside(rt, budget)
-  // A pool above the tables waits for a running prepare: the tables it builds are those that grow.
-  if (setup.preparing && setup.geometryPoolFor(bytes).slots > setup.cap) {
+  // The streaming slots take the whole budget (`../../session/memory/pools.ts`). A pool above the
+  // tables waits for a running prepare: the tables it builds are those that grow.
+  if (setup.preparing && setup.geometryPoolFor(budget).slots > setup.cap) {
     if (origin === 'prepare-targets') throw new Error('TARGET_ADMISSION_REQUIRES_TABLE_GROWTH')
     await setup.preparing
   }
-  let pool: GeometryPool | undefined = setup.geometryPoolFor(bytes)
+  let pool: GeometryPool | undefined = setup.geometryPoolFor(budget)
   // The tables first: a pool whose pages would find no row is never put in place, and the probe
   // then asks the device for the pool beside the tables it already holds.
   if (pool.slots > setup.cap) {
-    tables = await growWebgpuTables(rt, pool.slots)
+    tables = await growRows(rt, pool.slots)
     if (tables?.refused) pool = undefined
   }
   if (pool && (pool.slots !== setup.slots || grown) && gpu.cache && device && !run.lost) {
@@ -142,20 +143,20 @@ async function setGeometryBudget(
       bare = geometryProbe(device)
     const probe = (drawn: GeometryPool) => ledgerReplacing(device, held, () => bare(drawn))
     pool = await probed(
-      grantedGeometryPool(device, bytes, setup.geometryPoolFor, diag.engineDiagnostic, probe),
+      grantedGeometryPool(device, budget, setup.geometryPoolFor, diag.engineDiagnostic, probe),
     )
   }
   if (pool && (pool.slots !== setup.slots || grown) && gpu.cache && !run.lost) {
     transientBytes = setup.geometryPool.allocatedBytes + pool.allocatedBytes
-    // The root cover keeps its place before any other page: the pool never goes below it, and a
-    // cut can only be completed from it.
-    const evicted = await gpu.cache.resize(pool.slots, grown)
+    // The root cover keeps its place before any other page, in the root region's grains: the pool
+    // never goes below it, and a cut can only be completed from it.
+    const evicted = await gpu.cache.resize(pool.slots, grown, pool.roots)
     applied = true
     // A pinned page that has just been evicted is told by the cache: the pin step puts it back in
     // the queue if the image still keeps it.
     evictedPages = evicted.length
   }
-  if (pool) setup.geometryPool = declared(pool)
+  if (pool) setup.geometryPool = pool
   return { evictedPages, transientBytes, tables, applied }
 }
 
@@ -172,6 +173,38 @@ export function growWebgpuPagePool(rt: WebgpuPagesRuntime, grown: GrownPages) {
       (report) => report.applied,
     ),
   )
+}
+
+/**
+ * The ROOT REGION grown for `short` root pages more than its grains hold
+ * (`../../geometry/pages/pool/placement.ts`): HLOD cells hold more root pages than it has room
+ * for. As the reference's root page allocation, it grows to the grains asked rounded up to two
+ * significant bits (`roundUpToSignificantBits`), within every root page the catalogue has
+ * (`rootRegion.most`): the geometry pool drawn again for its budget, the tables grown first when
+ * it asks more rows, its pages kept. One growth at a time; the pages wait for it. A device that
+ * refuses it keeps the region in place, and the region grows no more: the pages it lacks room for
+ * wait, said by name.
+ */
+export function growWebgpuRootRegion(rt: WebgpuPagesRuntime, short: number) {
+  const { setup, diag } = rt,
+    held = setup.geometryPool.roots.slots
+  const grains = Math.min(roundUpToSignificantBits(held + short, 2), setup.rootRegion.most)
+  if (setup.rootGrowth || grains <= held) return
+  setup.geometryShape.rootPages = grains
+  const budget = setup.geometryPool.budgetBytes
+  setup.rootGrowth = behind(rt.run.funding, async () => {
+    await setGeometryBudget(rt, rt.gpu.device, budget, 'host')
+    const granted = setup.geometryPool.roots.slots
+    if (granted >= grains) return
+    setup.geometryShape.rootPages = granted
+    setup.rootRegion.most = granted
+    diag.engineDiagnostic('root-region-refused', 'The root region could not grow', {
+      asked: grains,
+      held: granted,
+    })
+  })
+    .catch((error) => diag.diagnosticFailure('root-region-growth', error))
+    .finally(() => (setup.rootGrowth = undefined))
 }
 
 /**

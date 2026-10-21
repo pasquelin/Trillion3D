@@ -9,6 +9,11 @@ import {
   DEFAULT_TEXTURE_POOL_BUDGET,
   LEAST_POOL_BUDGET,
 } from '../contracts/poolBudgets.ts'
+import {
+  rasterProperties,
+  settingRuleProperties,
+  streamingProperties,
+} from './settingProperties.ts'
 
 /**
  * Comprehensive JSON Schema documenting all initialization options for the Trillion3D explorer (MeasuredWorldOptions).
@@ -43,8 +48,9 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = /* @__PURE__ */ (() => 
       default: DEFAULT_GEOMETRY_POOL_BUDGET,
       minimum: LEAST_POOL_BUDGET,
       description:
-        'Size of the GPU geometry pool in bytes (default 512 MiB). Fixed memory allocated to cluster pages. Non-visible pages are evicted or streamed at coarser LOD without overflow.',
+        'Size of the GPU geometry pool in bytes (default 512 MiB). Fixed memory allocated to streamed cluster pages; the root cover is held beside it, never in it. The least recently used pages give their slots to new ones; what does not fit draws coarser, without overflow.',
     },
+    ...streamingProperties(),
     texturePoolBytes: {
       type: 'integer',
       default: DEFAULT_TEXTURE_POOL_BUDGET,
@@ -73,13 +79,10 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = /* @__PURE__ */ (() => 
       default: DEFAULT_PIXEL_ERROR,
       minimum: 0,
       description:
-        'Screen-space error threshold in pixels for cluster LOD selection. Default: the balanced preset. 0 = exact leaf clusters; 1 to 2 = standard reference fidelity; > 2 = aggressive simplification for low-end hardware.',
+        'Screen-space error threshold in pixels for cluster LOD selection, the most pixels an edge of a coarser level may stray from the finer one. Default: 1. 0 = exact leaf clusters; 1 to 2 = standard reference fidelity; > 2 = aggressive simplification for low-end hardware.',
     },
-    lodAdaptive: {
-      type: 'boolean',
-      default: explorerSwitchDefault('lodAdaptive'),
-      description: 'Enables dynamic adaptation of LOD error threshold based on scene workload.',
-    },
+    ...rasterProperties(),
+    ...settingRuleProperties(),
     bounce: {
       type: 'boolean',
       default: explorerSwitchDefault('bounce'),

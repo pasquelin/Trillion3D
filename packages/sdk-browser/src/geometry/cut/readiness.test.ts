@@ -42,11 +42,10 @@ function reference(resident: Uint8Array) {
     s.sources[p] < 0 || group(s.sources[p]) ? 1 : 0,
   )
   const open = new Int32Array(nodes)
-  for (let p = 0; p < pages; p++)
-    for (let n = dag.culling.links.leafOfPage[p]; !childReady[p] && n >= 0;) {
-      open[n]++
-      n = dag.culling.links.parents[n]
-    }
+  for (let p = 0; p < pages; p++) {
+    const leaf = dag.culling.links.leafOfPage[p]
+    if (!childReady[p] && leaf >= 0) open[leaf]++
+  }
   return { ready, childReady, open }
 }
 

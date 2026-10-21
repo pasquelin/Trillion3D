@@ -4,7 +4,7 @@ import { unorm8Byte } from '../../../../math/src/wgsl/color.ts'
 import { SCALED_WGSL } from './coverageMathWgsl.ts'
 
 /**
- * The coverage-preserving alpha rule (`texture_preview/coverage.rs`, #44) in WGSL, as the card's
+ * The coverage-preserving alpha rule (`texture/coverage.rs`, #44) in WGSL, as the card's
  * chains run it, around its integer arithmetic (`coverageMath.ts`, printed into
  * `coverageMathWgsl.ts`: `scaled`, step 4, and the cut's `filtered` and `cutBin`). The scale:
  * `median`, a level's alpha byte as the compiler rounds it, and `reducedAlpha`, what a reduced

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { clusterDecodeWgsl } from '../../cluster/decodeWgsl.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { builtins } from '../../../materials/texture/shaderRunBuiltins.fixture.ts'
+import { FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3 } from '../../../../../sdk-core/src/page/format.ts'
 import { decodeGeometryPage } from '../../codec/geometryPage.ts'
 import { encodePage } from '../../codec/encodePage.fixture.ts'
 import { randomPage } from '../../codec/randomPages.fixture.ts'
@@ -14,24 +15,23 @@ import { wgslModule } from '../../../../../math/src/wgsl/assemble.ts'
 import { lcgFloatRandom } from '../../../../../math/src/sequence/seeded.fixture.ts'
 
 type Fn = (...args: unknown[]) => unknown
-const ROUTINES = ['clusterField', 'clusterWidths', 'clusterStep']
+const ROUTINES = ['clusterField', 'clusterWidths', 'clusterUnit']
 const READERS = ['clusterHeader', 'clusterTriangle', 'clusterIndex', 'clusterPosition', 'clusterUv']
 const ATTRIBUTES = ['clusterNormal', 'clusterColor', 'clusterJoint', 'clusterWeight']
 const NAMES = [...ROUTINES, ...READERS, ...ATTRIBUTES, 'clusterMorph']
 const HELPERS = [
-  'octBytesDecode',
-  'octDecode',
-  'octUnfold',
-  'octFold',
   'pow2FromExponent',
   'bitLength',
-  'byteOf',
   'ceilDiv',
   'clusterStream',
   'clusterWindow',
   'clusterBlock',
-  'clusterGrid',
+  'clusterHasUv',
+  'clusterUvValue',
+  'clusterOctahedron',
 ].concat(['clusterPointHeader', 'clusterSurfaceHeader'])
+/** The presence bit of each texture set, in set order. */
+const UV_FLAGS = [FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3]
 /** WGSL's integers where the decode leans on them: it divides integers alone, and truncates;
  *  `i32` of a `u32` keeps its bits, `>>` of a negative `i32` is arithmetic. */
 const INTEGERS = {
@@ -79,6 +79,9 @@ function decoder(page: Uint8Array, after: (i: number) => number) {
 /** Every value each reader decodes from the page, by routine. */
 function decodeAll(call: (name: string, ...args: unknown[]) => unknown) {
   const h = call('clusterHeader', BASE) as Record<string, number>
+  // The unit is a member of type `f32`, which holds a single float; the run keeps the double of the
+  // literal its hundredth is printed as (`wgslF32`), which the GPU reads as that float.
+  h.posUnit = Math.fround(h.posUnit)
   const out: Record<string, unknown[]> = { clusterHeader: [h] }
   const add = (name: string, ...args: unknown[]) =>
     (out[name] ??= []).push(call(name, h, BASE, ...args))
@@ -88,7 +91,8 @@ function decodeAll(call: (name: string, ...args: unknown[]) => unknown) {
   for (let v = 0; v < h.vertexCount; v++) {
     add('clusterPosition', v)
     if (h.flags & 1) add('clusterNormal', v)
-    if (h.flags & 2) add('clusterUv', v)
+    for (let set = 0; set < UV_FLAGS.length; set++)
+      if (h.flags & UV_FLAGS[set]) add('clusterUv', v, set)
     if (h.flags & 8) add('clusterColor', v)
     for (let k = 0; k < skin; k++) {
       add('clusterJoint', v, k)
@@ -117,12 +121,13 @@ function pages() {
       NORMAL: { itemSize: 3, array: floats(n * 3, (i) => (i % 3 === 1 ? 1 : 0)) },
       TEXCOORD_0: { itemSize: 2, array: floats(n * 2, () => random()) },
       TEXCOORD_1: { itemSize: 2, array: floats(n * 2, () => random()) },
+      TEXCOORD_2: { itemSize: 2, array: floats(n * 2, () => random()) },
+      TEXCOORD_3: { itemSize: 2, array: floats(n * 2, () => random() * 8 - 4) },
       COLOR_0: { itemSize: 4, array: floats(n * 4, () => random()) },
       JOINTS_0: { itemSize: 4, array: floats(n * 4, (i) => (i * 3) % 5) },
       WEIGHTS_0: { itemSize: 4, array: floats(n * 4, () => 0.25) },
     },
-    -16,
-    -14,
+    7,
     [0, 1].map(() => ({
       POSITION: { itemSize: 3, array: floats(n * 3, () => random() - 0.5) },
       NORMAL: { itemSize: 3, array: floats(n * 3, () => random() - 0.5) },
@@ -159,6 +164,16 @@ test('a page decodes the same whatever follows its end; only a block window read
     assert.deepEqual(expected.clusterIndex, corners, name)
     const positions = (expected.clusterPosition as number[][]).flat().map(Math.fround)
     assert.deepEqual(positions, [...reference.attributes.position], name)
+    // Each texture set the page stores, the JavaScript decoder's floats.
+    const sets = ['uv', 'uv1', 'uv2', 'uv3'].filter((key) => key in reference.attributes)
+    const coordinates = ((expected.clusterUv ?? []) as number[][]).map((uv) => uv.map(Math.fround))
+    sets.forEach((key, k) =>
+      assert.deepEqual(
+        coordinates.filter((_, i) => i % sets.length === k).flat(),
+        [...reference.attributes[key]],
+        `${name} ${key}`,
+      ),
+    )
     for (const reader of Object.keys(expected)) readers.add(reader)
     for (const reader of [...zero.past, ...ones.past, ...noise.past]) pastReaders.add(reader)
     if (name === 'point') assert.ok(zero.past.length > 0, 'the one-vertex page reads past its end')

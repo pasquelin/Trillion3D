@@ -1,5 +1,5 @@
 // Top-down pruning removes work, never pages: the shipped kernel against the same text whose
-// `floorPrunes` always answers false, on the same scene, cameras and threshold. The pages kept
+// `floorPrunes` always answers false, on the same scene, cameras and threshold. The pages drawn
 // must be identical — pruning only drops subtrees no cluster of which is fine enough — and the
 // descent must list fewer candidates: the work the five passes after it do not walk.
 import test from 'node:test'
@@ -23,8 +23,7 @@ const POSES: Array<[string, number, number, number]> = [
   ['up close', 1.5, 3, 1],
 ]
 /** Pruning's sole guard: disarmed, the descent walks every subtree. */
-const GUARD =
-  'fn floorPrunes(open:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32,t:f32)->bool{\n'
+const GUARD = 'fn floorPrunes(open:u32,node:CullNode,e:mat4x4f)->bool{\n'
 
 test('pruning drops candidates and keeps exactly the same pages', async () => {
   assert.ok(DAG_SELECTION_SHADER.includes(GUARD), 'the `floorPrunes` guard has changed shape')
@@ -45,7 +44,7 @@ test('pruning drops candidates and keeps exactly the same pages', async () => {
   const plain = await runSelectionKernel(cases, unpruned)
   const rows = cases.map(({ name }, k) => {
     const [a, b] = [pruned.readings[k], plain.readings[k]]
-    return { name, kept: a.pages, keptUnpruned: b.pages, candidates: [b.candidates, a.candidates] }
+    return { name, kept: a.drawn, keptUnpruned: b.drawn, candidates: [b.candidates, a.candidates] }
   })
   console.log(
     JSON.stringify({

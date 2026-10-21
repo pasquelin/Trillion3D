@@ -42,7 +42,7 @@ pub(super) fn passes(
         let order = random.permutation(cut.boundary.len(), cut.boundary.len());
         for &i in &order {
             let v = cut.boundary[i as usize] as usize;
-            queues[cut.side[v] as usize].insert(v as u32, cut.gain(v));
+            queues[cut.side[v] as usize].insert(v as u32, cut.gain(v) as f32);
         }
         for step in 0..n {
             let from = if targets[0] - cut.sides[0] < targets[1] - cut.sides[1] {
@@ -85,12 +85,12 @@ pub(super) fn passes(
                             queue.remove(k as u32);
                         }
                     } else if !moved[k] {
-                        queue.update(k as u32, cut.gain(k));
+                        queue.update(k as u32, cut.gain(k) as f32);
                     }
                 } else if cut.across[k] > 0 {
                     cut.enter(k);
                     if !moved[k] {
-                        queue.insert(k as u32, cut.gain(k));
+                        queue.insert(k as u32, cut.gain(k) as f32);
                     }
                 }
             }

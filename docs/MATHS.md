@@ -21,7 +21,7 @@ imports it. Its contract:
 Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`, `half` — the
 float16 encode and decode), `vector/` (with `spherical.ts`),
 `quaternion/`, `matrix/` (with `matrixElements.ts`, the pose comparisons), `geometry/` (boxes,
-spheres, cones, slabs, triangles, `frustum/`), `projection/` (`camera.ts`, the camera frame, focal
+spheres, slabs, triangles, `frustum/`), `projection/` (`camera.ts`, the camera frame, focal
 and pixel scales; `renderOrigin.ts`; `clip.ts`, a clip window laid over a projection; `forwardZ.ts`, the
 reversed-depth projections down +z of a light's shadow map; `projectionOracles.ts`), `color/`,
 `scalar/` (`reals.ts`, `integers.ts`, `quantile.ts` — the nearest and floor ranks, the one median (the nearest rank at 0.5) and the mean;
@@ -63,8 +63,7 @@ within about 1e-146 of vertical follows the direction where the 0 snapped it to 
 The declared exceptions, each held to bits the rule would change:
 
 - `hypot` where a twin fixes other bits or an answer needs its last bit: the kernels of
-  `packages/page-codec-wasm/src/wasm/math.rs` (`hypot`); the normal-cone reference
-  `tests/kit/reference/cone.ts`, held to `packages/page-codec-wasm/src/normal_cone.rs`; `length`
+  `packages/page-codec-wasm/src/wasm/math.rs` (`hypot`); `length`
   of `packages/sdk-core/src/world/animation/ik.ts`, where the bend of a straight chain out of
   reach depends on the last bit; `closes` of `packages/sdk-core/src/world/math/curves.ts`, an
   outline's closing point dropped at a gap under 1e-12, where the rule's root would decide a gap
@@ -72,12 +71,12 @@ The declared exceptions, each held to bits the rule would change:
   `spriteRow` of `packages/sdk-browser/src/session/world/poses/poses.ts`, where a uniform scale's two
   axis lengths must round alike; and the generator whose committed files hold the builtin's bits,
   the normals of `scripts/dev/fixtures/garden-source.ts` (`hypot3`).
-- The plain root without the band, the twin of the Rust vectors (`packages/math/rust/src/vec2.rs`,
+- The plain root without the band, the twin of the Rust vectors (`packages/math/rust/src/vector/vec2.rs`,
   `vec3.rs`): `plainLength3` and `plainLength2` (`vector/vector.ts`), `Math.sqrt` of the three (two) squares
   summed left to right, the rule of every TypeScript twin of a Rust function; `clusterErrorAtDepth` and
-  `clusterErrorPixels` of `packages/sdk-core/src/lod/screenErrorBound.ts` (`plainLength2`), held to `cut/error.rs`
+  `clusterErrorPixels` of `packages/sdk-core/src/lod/screenErrorBound.ts` (`plainLength2`), pinned
   by `screenErrorBits.json`, whose row at a 1e308 depth pins the plain sum's Infinity; the gap of
-  `sphereUnion` (`geometry/sphere.ts`), held to `merge_spheres` of `packages/math/rust/src/sphere.rs`
+  `sphereUnion` (`geometry/sphere.ts`), held to `merge_spheres` of `packages/math/rust/src/geometry/sphere.rs`
   past the band too (`sphereUnion.test.ts`).
 - A division by the length to normalise, which keeps each component correctly rounded:
   `normalizeQuaternion`, whose Kahan sum of the four squares, `hypot4` outside `2^-900..2^900`
@@ -159,7 +158,7 @@ Three gates keep a formula in its one home; each runs in `check:changed` and in 
   the WGSL library holds.
 
 The declared oracles — the bench's reference implementations and witnesses, the image metric's
-reference, the test kit's references, the before-forms a rewrite is proved against, and the test
+reference, the before-forms a rewrite is proved against, and the test
 modules, fixtures and GPU proofs, whose expectations are their own arithmetic — keep their forms on
 purpose: the list is `MATHS_ORACLES` of the same file, read by all three gates.
 
@@ -258,7 +257,7 @@ vectors, boxes, the 4×4 product in `f32` and `f64`, JavaScript's `Math.min`, `M
 and the compiler both depend on it and keep no copy. `packages/math/golden` holds the reference
 values every twin of a mirrored primitive — Rust, TypeScript, WGSL — is tested against bit for bit:
 the inputs and outputs of each case written by their bits, one JSON file per primitive, or per
-encoder and its decoder with their round trip (`oct.json`, `quantize.json`), one case per line
+encoder and its decoder with their round trip (`oct.json`), one case per line
 (Prettier leaves the folder alone). The crate that owns a twin checks its files in one test
 (`packages/math/rust/src/golden.rs`); after a deliberate change of a primitive, `pnpm run
 golden:write` rewrites them all, the command each file names.
@@ -274,10 +273,10 @@ golden:write` rewrites them all, the command each file names.
 - Single numbers, `packages/math/golden`: `mip_size` (TypeScript `mipSize`, WGSL `mipSize` through `mipSize.golden.test.ts` of `packages/sdk-browser/src/gpu/shader/`), `srgb_to_linear`, `hermite_basis`, `xorshift32`, `lcg32`; `preview_levels` (`previewLevels.golden.test.ts` of `packages/sdk-core/src/texture/`).
 - WebAssembly twin: `packages/sdk-browser/src/geometry/decode/multiplyBatch.golden.test.ts`.
 - The proxy BVH child box and albedo bytes are read by WGSL alone (`nodeWgsl.ts`): no CPU twin.
-- The grid rule has no TypeScript twin: the run-time cut runs the Rust rule in the SDK module
-  (`wasm/encode.rs`), held to `grid.json` (`cutGrid.golden.test.ts`, `packages/sdk-browser/src/geometry/runtime/`);
-  on every compiled scene, it picks the grid the compiler wrote
-  (`tests/integration/runtime-cut-grid.test.ts`).
+- The grid rule (`PageGrid::of`, positions in centimetres on cells of one precision) has no
+  TypeScript twin and no golden: the run-time cut runs the Rust rule in the SDK module
+  (`wasm/grid.rs`), the one the compiler runs, tested where it lives
+  (`packages/asset-compiler-rust/src/tests/geometry_page/grid.rs`).
 
 ### Measured against the witness library
 
@@ -300,13 +299,13 @@ plane**: `near` projects to 1, infinity to 0 (`packages/sdk-browser/src/camera/d
 `engineCamera.ts` beside it), one convention for the frustum planes, the GPU's view-projection, the
 Hi-Z bounds and the CPU visibility raster. A declared exception: the bench compares the projection's
 x/y terms to the witness's, the depth terms being the engine's. `far` is still read for the frustum
-far plane, the adaptive threshold and the shadow range.
+far plane and the shadow range.
 
 #### Sides — `packages/sdk-browser/src/materials/surface/materialSide.ts`
 
 | Function                                    | Computes                                                                                                     | Witness call                          | Proof                  |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------- | ---------------------- |
-| `type Side = 'front' \| 'back' \| 'double'` | which faces of a surface are drawn; every raster, cone, pipeline and blend-plan decision compares against it | `FrontSide`, `BackSide`, `DoubleSide` | `materialSide.test.ts` |
+| `type Side = 'front' \| 'back' \| 'double'` | which faces of a surface are drawn; every raster, pipeline and blend-plan decision compares against it       | `FrontSide`, `BackSide`, `DoubleSide` | `materialSide.test.ts` |
 | `sideOf(material)`                          | the `Side` a mesh's surface record declares, the first of an array deciding, an empty array front            | the host's double-side test           | `materialSide.test.ts` |
 
 ### Batch functions

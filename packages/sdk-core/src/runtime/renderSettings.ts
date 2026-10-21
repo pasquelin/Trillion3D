@@ -21,18 +21,29 @@ export type QualityGroup = (typeof QUALITY_GROUPS)[number]
 
 /** What every setting says beside its value: who writes it. How a change reaches the image, and
  *  what it throws away, is the hook's that applies it (`watch`), never a word of the table. */
-interface EntryBase {
+export interface EntryBase {
   /** The quality group whose levels write it. */
   group: QualityGroup
   /** Set by the editor alone: neither a preset nor a page writes it. */
   editorOnly: boolean
 }
 
+/** A switch of the table. */
+export type FlagSettingEntry = EntryBase & { kind: 'flag'; default: boolean }
+/** A number of the table, whole or not, within its range. */
+export type NumberSettingEntry = EntryBase & {
+  kind: 'int' | 'float'
+  default: number
+  range: readonly [number, number]
+}
+/** One of the table's named choices. */
+export type ChoiceSettingEntry = EntryBase & {
+  kind: 'choice'
+  default: string
+  choices: readonly string[]
+}
 /** One setting of the table: its kind, its default — an engine constant — and its bounds. */
-export type RenderSettingEntry =
-  | (EntryBase & { kind: 'flag'; default: boolean })
-  | (EntryBase & { kind: 'int' | 'float'; default: number; range: readonly [number, number] })
-  | (EntryBase & { kind: 'choice'; default: string; choices: readonly string[] })
+export type RenderSettingEntry = FlagSettingEntry | NumberSettingEntry | ChoiceSettingEntry
 
 /** A setting's value: a switch, a number, or one of its choices. */
 export type RenderSettingValue = boolean | number | string

@@ -26,7 +26,16 @@ test('the DAG layout entries are the bindings the selection shader declares', ()
   assert.deepEqual(buffers(), declared)
   // Every other table is a record table (`../cut/cutTables.ts`), no storage buffer of the stage's
   // eight; the flags the one the kernels write, a storage texture.
-  const records = ['clusters', 'nodes', 'flags', 'worlds', 'frames', 'cold', 'tree'] as const
+  const records = [
+    'clusters',
+    'nodes',
+    'flags',
+    'worlds',
+    'frames',
+    'cold',
+    'tree',
+    'previous',
+  ] as const
   const bindings = records.map((name) => dagBindingOf()[name])
   assert.deepEqual(textures(), bindings)
   assert.deepEqual(wgslTextureBindings(DAG_SELECTION_SHADER), bindings)

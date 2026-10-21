@@ -5,7 +5,7 @@
 //! Provenance: the compiled worlds of `partition_pages.rs`; a synthetic lattice of cells at one and
 //! at sixteen times its area, which no compile needs.
 use super::*;
-use crate::compiler_tables::partition::pages::*;
+use crate::compiler::tables::partition::pages::*;
 
 /// The integer of hexadecimal digits `from..to` of `text`.
 fn digits(text: &str, from: usize, to: usize) -> u64 {
@@ -85,7 +85,8 @@ pub(super) fn assert_root(directory: &Path, root: &Value) {
                 .iter()
                 .filter_map(Value::as_f64)
                 .collect();
-            let centre = trillion3d_math::aabb::centre([b[0], b[1], b[2]], [b[3], b[4], b[5]]);
+            let centre =
+                trillion3d_math::geometry::aabb::centre([b[0], b[1], b[2]], [b[3], b[4], b[5]]);
             let cube: Vec<f64> = (0..6)
                 .map(|at| centre[at % 3] + if at < 3 { -half } else { half })
                 .collect();

@@ -28,6 +28,19 @@ export function rowsOfRoots(rt: WebgpuPagesRuntime, ranks: ArrayLike<number>) {
   return listed.subarray(0, count)
 }
 
+type Layout = WebgpuPagesRuntime['layout']
+
+/** The caster row of page `page` of `root`, packed from `base`, -1 for none (`rootRows`). */
+function pageCasterRow(
+  rows: Layout['rows'],
+  root: Layout['selectionRoots'][number],
+  base: number,
+  page: number,
+) {
+  const row = ownPageRow(rows, base + page, !!root.pages[page].transparent)
+  return row >= 0 && casterRow(rows, row) ? row : -1
+}
+
 /**
  * THE ROWS OF ROOT `rank`'S RESIDENT PAGES, each handed to `visit`: a page's caster row — a blended
  * cluster's own (`../../geometry/rows/blendCasters.ts`) —, never past the caster slots, and an opaque row
@@ -39,7 +52,15 @@ export function rootRows(rt: WebgpuPagesRuntime, rank: number, visit: (row: numb
     base = root?.packedBase ?? -1
   if (!root || base < 0) return
   for (let page = 0; page < root.pages.length; page++) {
-    const row = ownPageRow(rows, base + page, !!root.pages[page].transparent)
-    if (row >= 0 && casterRow(rows, row)) visit(row)
+    const row = pageCasterRow(rows, root, base, page)
+    if (row >= 0) visit(row)
   }
+}
+
+/** The caster row of page `page` of root `rank`, as `rootRows` names it, -1 for none. */
+export function rootPageRow(rt: Pick<WebgpuPagesRuntime, 'layout'>, rank: number, page: number) {
+  const { rows, selectionRoots } = rt.layout,
+    root = selectionRoots[rank],
+    base = root?.packedBase ?? -1
+  return root && base >= 0 && page < root.pages.length ? pageCasterRow(rows, root, base, page) : -1
 }

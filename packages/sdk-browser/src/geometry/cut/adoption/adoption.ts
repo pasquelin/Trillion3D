@@ -36,9 +36,6 @@ export function createWebgpuCutAdopter(options: {
   onDrawnDelta: () => void
   /** Called when `drawn` has just been remade from `shown`: the frame no longer has to remake it. */
   onDrawnMirrored: () => void
-  /** Called with the view ahead's requests of each new readback, and empty once the camera is
-   *  still — its readback may be the last of the move, adopted as the still camera's cut. */
-  onAhead: (ids: readonly number[]) => void
 }) {
   const metrics = {
     /** True when the frame reread the shown list it already held: `desired` and `shown` are those of
@@ -54,6 +51,8 @@ export function createWebgpuCutAdopter(options: {
     transparentTriangles: 0,
     frustumRejected: 0,
     lodLevel: 0,
+    occluded: 0,
+    postHidden: 0,
   }
   let lastCut: GpuCut | undefined
   const askedUnion = createHeadUnion(),
@@ -66,25 +65,16 @@ export function createWebgpuCutAdopter(options: {
    *  what forbids holding `shown` on a sequence the frame never adopted. */
   let drawnSeq = 0,
     shownSeq = -1
-  /** Whether the last list offered ahead was the one of a still camera: empty. */
-  let offeredStill = false
-  const offerAhead = (cut: GpuCut) => {
-    offeredStill = !options.uniforms.ahead
-    options.onAhead(offeredStill ? [] : (cut.result.aheadPageIds ?? []))
-  }
   const adopt = () => {
     metrics.cutHeld = false
     metrics.listsRewritten = false
     const selection = options.selection(),
       cut = selection?.peek()
-    // A list still past the device at the coarsest cut (`../../dag/coarsening.ts`),
-    // its roots and cells alone, is read by its head: the requests the GPU ranked first, and the
-    // drawn pages it compacted first, plus what the lists held past it (`./headUnion.ts`): the
-    // frame's mask draws the whole cut, so nothing exits.
+    // A list past the readout's cap (`../../dag/lists/listCap.ts`) is read by its head: the
+    // requests the GPU ranked first, and the drawn pages it compacted first, plus what the lists
+    // held past it (`./headUnion.ts`): the frame's mask draws the whole cut, so nothing exits.
     if (!cut?.result.drawablePageIds) return false
     const { desired, shown, delta, drawnDelta } = options
-    // A new readback offers its requests ahead; a held one only empties them once the camera stops.
-    const offer = cut !== lastCut || (!options.uniforms.ahead && !offeredStill)
     if (cut === lastCut) {
       delta.hold()
       drawnDelta.hold()
@@ -104,7 +94,6 @@ export function createWebgpuCutAdopter(options: {
     // The packed ranks of the desired cut, rank by rank beside its records, remade only when the
     // difference moved: a held or unchanged one leaves them as they stand.
     if (delta.changed) copyRanks(options.desiredPacked, delta.ids, delta.count)
-    if (offer) offerAhead(cut)
     if (drawnDelta.changed) drawnSeq++
     // A difference is applied where it is computed, and only when it moved. An image that adopts
     // nothing — no readback has landed — must not replay the previous one, which would count every
@@ -142,6 +131,8 @@ export function createWebgpuCutAdopter(options: {
     metrics.transparentTriangles = cut.result.transparentTriangles
     metrics.frustumRejected = cut.result.frustumRejected
     metrics.lodLevel = cut.result.lodLevel
+    metrics.occluded = cut.result.occluded
+    metrics.postHidden = cut.result.postHidden
     return true
   }
   return {

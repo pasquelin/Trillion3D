@@ -115,7 +115,13 @@ test('a mesh a hidden core node names is placed visible by the cells', async () 
     cube: 1,
     parents: [],
     pages: [],
-    hlod: { ranges: [256, 512, 1024], cells: 0 },
+    scheme: 'hashSet' as const,
+    flat: true,
+    hlod: {
+      grids: [{ cell: 128, range: 256, priority: 0, level: 0, blocks: false, files: true }],
+      coarser: [null],
+      cells: 0,
+    },
   }
   const geometryOf = () => {
     const geometry = new Geometry()

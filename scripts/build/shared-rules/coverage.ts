@@ -56,7 +56,7 @@ ${exported ? 'export ' : ''}const ${wgslName(name)} = wgslBlock(
 )`
   })
   return `${header([COVERAGE_MATH], '//')}
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 ${blocks.join('\n\n')}
 `

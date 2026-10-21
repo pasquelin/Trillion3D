@@ -22,10 +22,8 @@ import {
   lightingModel,
 } from '../lighting/lightGridCount.ts'
 import { countResolveWork } from '../lighting/resolveWorkCount.ts'
-import { countClassFragments } from '../lighting/materialTileCount.ts'
 import { countTaaFetches } from './taaFetchCount.ts'
 import {
-  CLASSES,
   DEMAND_MARKS,
   FRAME_RATES,
   MASK_TEXELS,
@@ -61,7 +59,6 @@ export function frameBudget(
     lamps,
     lamps.map((_, rank) => rank < MAX_SHADOW_SLICES),
   )
-  const material = countClassFragments(width, height, CLASSES, pose)
   const surface = Object.values(SURFACE_ACCESSES).reduce((a, b) => a + b, 0)
   const gbuffer = gbufferAccesses(RESOLVE_GBUFFER.after).texels
   const model = lightingModel(grid)
@@ -80,8 +77,8 @@ export function frameBudget(
     row('visibility', 'raster fragments × 3 (depth test, depth, id)', 3 * fragments),
     row('visibility', 'triangles', SPONZA_TRIANGLES, (SPONZA_TRIANGLES * r.trianglePs) / 1e9),
     row('visibility', 'Hi-Z pyramid texels', hiz),
-    row('materials', 'tile classification, 1 a pixel', N),
-    row('materials', 'class fragments tested', material.tiled * N),
+    row('materials', 'shading bins: the identifier counted and scattered, 2 a pixel', 2 * N),
+    row('materials', 'bin words, written and read a covered pixel', 2 * C),
     row('materials', `surface accesses, ${surface} a covered pixel`, surface * C),
     row('lighting', 'light grid pass (`lightingModel`)', grid.work.columnTests, model.tilePass),
     row('lighting', `G-buffer, ${gbuffer} a covered pixel`, gbuffer * C, model.gbuffer),

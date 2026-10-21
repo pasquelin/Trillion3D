@@ -4,7 +4,7 @@
 //! column `j` of `b`. The same product in `f32` or `f64` (`multiply_matrix4`) is the compiler's,
 //! with the translation, scaling and glTF node composition its scene drivers build matrices from.
 
-use crate::real::Real;
+use crate::scalar::real::Real;
 
 /// Floats of a column-major 4×4 matrix.
 pub const MATRIX_VALUES: usize = 16;
@@ -117,21 +117,6 @@ pub fn transform_direction(matrix: &[f64; MATRIX_VALUES], direction: [f64; 3]) -
     })
 }
 
-/// Floats of an affine map laid out as three rows of four, row-major: `[m₀₀, m₀₁, m₀₂, t₀, …]`.
-pub const AFFINE_3X4_VALUES: usize = 12;
-
-/// `point` under the row-major 3×4 affine map `m`, in `f64` and rounded once to `f32`: row by row
-/// `((m₀·x + m₁·y) + m₂·z) + m₃`, every float widened first.
-#[inline]
-pub fn transform_point_3x4_f32(m: &[f32; AFFINE_3X4_VALUES], point: [f32; 3]) -> [f32; 3] {
-    core::array::from_fn(|r| {
-        (m[r * 4] as f64 * point[0] as f64
-            + m[r * 4 + 1] as f64 * point[1] as f64
-            + m[r * 4 + 2] as f64 * point[2] as f64
-            + m[r * 4 + 3] as f64) as f32
-    })
-}
-
 /// Translation by `by`.
 pub fn translation(by: [f64; 3]) -> [f64; MATRIX_VALUES] {
     let mut out = IDENTITY;
@@ -141,7 +126,7 @@ pub fn translation(by: [f64; 3]) -> [f64; MATRIX_VALUES] {
 
 /// Scaling by `by`, axis by axis, in the precision of `by`.
 pub fn scaling<T: Real>(by: [T; 3]) -> [T; MATRIX_VALUES] {
-    let mut out = crate::rotation::identity();
+    let mut out = crate::matrix::rotation::identity();
     for axis in 0..3 {
         out[axis * 4 + axis] = by[axis];
     }
@@ -151,7 +136,7 @@ pub fn scaling<T: Real>(by: [T; 3]) -> [T; MATRIX_VALUES] {
 /// Translation · rotation · scale, as glTF composes a node: the rotation of the unit quaternion
 /// `r` (`rotation::rotation_matrix`), each of its columns times its scale, then `t` written in.
 pub fn compose_trs(t: [f64; 3], r: [f64; 4], s: [f64; 3]) -> [f64; MATRIX_VALUES] {
-    let mut matrix = crate::rotation::rotation_matrix(r);
+    let mut matrix = crate::matrix::rotation::rotation_matrix(r);
     for column in 0..3 {
         for row in 0..3 {
             matrix[column * 4 + row] *= s[column];
@@ -161,10 +146,8 @@ pub fn compose_trs(t: [f64; 3], r: [f64; 4], s: [f64; 3]) -> [f64; MATRIX_VALUES
     matrix
 }
 
+pub mod euler;
+pub mod linear;
+pub mod rotation;
 #[cfg(test)]
-#[path = "matrix_tests.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "matrix_apply_tests.rs"]
-mod apply_tests;

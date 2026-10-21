@@ -110,8 +110,8 @@ export function rasterVisibility(
       side = mat.side
     // A mirrored transform reverses the walk direction on screen: the face to drop is the other one, as
     // `visBin` does for WebGPU pipelines and the witness library (`frontFaceCW`). Without this
-    // flip, this rasterizer drew under a mirror exactly the faces that cone rejection
-    // drops — and its own shading (`visibilityLighting`) already flipped the sign.
+    // flip, this rasterizer drew under a mirror exactly the faces every other path drops — and
+    // its own shading (`visibilityLighting`) already flipped the sign.
     const world = locationOf(locations, pageIndex).world,
       positiveArea = (side === 'back') !== matrixWindingCw(world.elements)
     const transformed = !!mat.map && uvTransformed(mat.map.transform)

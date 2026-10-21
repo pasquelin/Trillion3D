@@ -12,6 +12,7 @@ import { COTANGENT_FRAME_WGSL } from '../geometry/cluster/cotangentFrameWgsl.ts'
 import { FACING_SHIFT, FACING_WGSL } from './facing.ts'
 import { TRI_CHANNELS_SHIFT, TRI_GIVEN_UP_SHIFT } from './vertexReadsWgsl.ts'
 import { blendRequestWgsl } from './requestWgsl.ts'
+import { BLEND_TANGENT_FRAME_WGSL } from './tangentFrameWgsl.ts'
 import { COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL } from '../materials/virtual/wgsl.ts'
 import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
@@ -87,10 +88,10 @@ fn blendGeometricNormal(in:VSOut,front:bool,q0:vec3f,q1:vec3f)->vec3f{
  * neighbours read the same ones; every value a kept fragment computes is the one it computed
  * before, from the same operands.
  *
- * With `lobes`, a lobed program's (`vertexWgsl.ts`): its screen derivatives take the second UV
- * set's too (`physicalWgsl.ts`), and each map is read at the set its record names (`blendUv`, the
- * `channels` word, glTF's `texCoord`); a lobeless program carries the first alone. `geometric` is
- * the normal before the map, which the coat bends its own map from.
+ * With `lobes`, a lobed program's (`vertexWgsl.ts`): its screen derivatives take the one set past
+ * the first it carries too (`physicalWgsl.ts`), and each map that reads a set past the first is
+ * read at it (`blendUv`, the `channels` word, glTF's `texCoord`); a lobeless program carries the
+ * first alone. `geometric` is the normal before the map, which the coat bends its own map from.
  */
 export const blendSurfaceWgsl = (lobes: boolean) => {
   // The first UV set: the whole of a lobeless program's \`uv\`, a lobed one's first two lanes.
@@ -102,6 +103,7 @@ export const blendSurfaceWgsl = (lobes: boolean) => {
       unitToSigned3,
       ORM_LAW_WGSL,
       COTANGENT_FRAME_WGSL,
+      BLEND_TANGENT_FRAME_WGSL,
       BLEND_SURFACE_NORMAL_WGSL,
       COLOR_SAMPLE_WGSL,
       DATA_SAMPLE_WGSL,
@@ -115,7 +117,8 @@ struct BlendGrads{gradX:vec2f,gradY:vec2f,q0:vec3f,q1:vec3f,nX:vec3f,nY:vec3f,${
 fn blendGrads(in:VSOut)->BlendGrads{return BlendGrads(dpdx(${uv}),dpdy(${uv}),dpdx(in.view),dpdy(in.view),dpdx(in.normal.xyz),dpdy(in.normal.xyz)${lobes ? `,dpdx(in.uv.zw),dpdy(in.uv.zw),extractBits(in.tri,${TRI_CHANNELS_SHIFT}u,${TRI_GIVEN_UP_SHIFT - TRI_CHANNELS_SHIFT}u)` : ''});}
 fn blendSampled(in:VSOut)->bool{return (in.ids.y&${FLAG_SAMPLED}u)!=0u;}
 /** The coordinate and screen derivatives map \`i\` (\`SURFACE_MAP_FIELDS\` order) is read at: the
- *  second UV set where the record's \`channels\` word says so, in a program that carries it. */
+ *  set past the first where the record's \`channels\` word says it reads one, in a program that
+ *  carries it (\`channelsRead\`). */
 struct BlendUv{uv:vec2f,ddx:vec2f,ddy:vec2f,}
 fn blendUv(in:VSOut,g:BlendGrads,i:u32)->BlendUv{
  ${lobes ? 'if(bitIsSet(g.channels,i)){return BlendUv(in.uv.zw,g.uv1X,g.uv1Y);}' : ''}
@@ -161,7 +164,7 @@ fn blendSurface(in:VSOut,front:bool,g:BlendGrads,base:vec4f)->BlendSurface{
   // runs down, hence the sign, as on the geometric normal above.
   let frame=cotangentFrame(N,g.q0,g.q1,c.ddx,c.ddy);
   var T=-frame.T;var B=-frame.B;
-  if((flags&${FLAG_HAS_TANGENT}u)!=0u){T=unitOrZero(in.tangent.xyz);B=unitOrZero(in.bitangent.xyz);}
+  if((flags&${FLAG_HAS_TANGENT}u)!=0u){let stored=blendTangentFrame(in);T=stored.T;B=stored.B;}
   let flip=select(1.0,face,(flags&${FLAG_DOUBLE | FLAG_HAS_NORMAL}u)==${FLAG_DOUBLE | FLAG_HAS_NORMAL}u);
   N=bendNormal(N,T,B,flip,mapN);
   Nx=bendNormal(Nx,T,B,flip,mapNx);

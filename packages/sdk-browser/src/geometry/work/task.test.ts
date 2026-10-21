@@ -19,7 +19,7 @@ function requete(overrides: Partial<PageTaskRequest>): PageTaskRequest {
 }
 
 test('an arbitrary request identifier comes back unchanged in every form of answer', async () => {
-  const cell = JSON.stringify({ version: 2, nodes: [] })
+  const cell = JSON.stringify({ version: 3, nodes: [] })
   const { answer: ok } = await runPageTask(
     requete({ op: 'cells', source: new TextEncoder().encode(cell).buffer, id: 777 }),
   )

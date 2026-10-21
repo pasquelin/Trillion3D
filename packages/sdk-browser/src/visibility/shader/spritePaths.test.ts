@@ -10,7 +10,8 @@ import { PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts'
 import { PAGE_SHAPE_WGSL } from './pageShapeWgsl.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
-import { rasterSource } from '../raster/shader.ts'
+import { binSource } from '../raster/binWgsl.ts'
+import { FLAG_LINE, FLAG_SPRITE, FLAG_VOXEL } from '../types.ts'
 import { BLEND_ITEM_WGSL } from '../../blend/items.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
@@ -32,17 +33,18 @@ test('every raster turns a sprite page off its record, the shadow vertex stage i
   assert.match(wgslSource(PAGE_SHAPE_WGSL), /if\(\(page\.flags&\d+u\)==0u\)\{return PageShape/)
   assert.ok(wgslSource(PAGE_SHAPE_WGSL).includes('return PageShape(m.sprite,m.lineWidth);'))
   assert.ok(wgslSource(PAGE_SCREEN_WGSL).includes(SPRITE_WGSL.text))
-  // The compute raster and the hardware skip test read `pageClip`, which turns a sprite page.
+  // A pass that reads `pageClip` turns a sprite page.
   assert.ok(
     wgslSource(PAGE_SCREEN_WGSL).includes(
       ' if(shape.sprite.y!=0.0){return uni.viewProj*pageSprite(page,pagePosition(page,h,vertex),shape.sprite);}\n let clip=vp*vec4f(pagePosition(page,h,vertex),1.0);',
     ),
   )
   // The one text, not a name some pass declares its own way: the name sweep proves only a name.
-  for (const shader of [rasterSource(4, 16), VIS_SHADER, SHADE_SHADER])
+  for (const shader of [VIS_SHADER, SHADE_SHADER])
     assert.ok(shader.includes(PAGE_SCREEN_WGSL.text) && shader.includes(PAGE_SHAPE_WGSL.text))
-  assert.ok(rasterSource(4, 16).includes('let shape=pageShape(page);'))
-  assert.ok(rasterSource(4, 16).includes('let ca=pageClip(vp,page,h,ia,shape);'))
+  // A sprite row is the hardware raster's, as a line's and a voxel row's: the split never hands
+  // it to the software raster, which draws no turned quad.
+  assert.ok(binSource(4).includes(`(page.flags&${FLAG_LINE | FLAG_SPRITE | FLAG_VOXEL}u)==0u`))
   // The one hardware vertex stage, both halves', after the untouched triangle and line expressions.
   const hardware =
     ' out.position=uni.viewProj*world;\n if(shape.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position,shape.lineWidth);}\n if(shape.sprite.y!=0.0){out.position=uni.viewProj*pageSprite(page,p,shape.sprite);}'

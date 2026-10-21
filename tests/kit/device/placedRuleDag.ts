@@ -1,7 +1,7 @@
-// The generated placed scene the row and streaming proofs cut on Dawn (`../../gpu/row/rowClosureRun.ts`,
-// `../../gpu/row/rowCacheScene.ts`, `../../gpu/streaming/evictionWorld.ts`): `copies` placements of the cut-rule
-// DAG along x, packed, and the strip camera's uniforms at any x, the packing's worlds brought to its
-// render frame. Each proof adds its own rows, residency or pages.
+// The generated placed scene the row proofs cut on Dawn (`../../gpu/row/rowClosureRun.ts`,
+// `../../gpu/row/rowCacheScene.ts`): `copies` placements of the cut-rule DAG along x, packed, and
+// the strip camera's uniforms at any x, the packing's worlds brought to its render frame. Each proof
+// adds its own rows or residency.
 import { ruleDag } from '../../../packages/sdk-browser/src/geometry/cut/cutRule.fixture.ts'
 import {
   placements,

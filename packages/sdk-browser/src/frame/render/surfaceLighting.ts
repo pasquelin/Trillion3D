@@ -126,11 +126,17 @@ export function encodeSurfaceLighting(
     asIs && blendShare && !accumulated
       ? composedImage(effects?.color ?? gpu.hdrView, blendShare.view, effects?.bloom)
       : effects
-  // A diagnostic variant, a guide or a view placed at a canvas rectangle composes offscreen.
+  // A diagnostic variant, a guide or a view placed at a canvas rectangle composes offscreen; an
+  // image withheld — till the view has loaded, or while a load blocks on slow streaming — composes
+  // offscreen and is never shown (`../loop/firstImage.ts`).
   const guided = guidesShown(rt),
     placed = !!rt.views.active.rect
   const presentation =
-    capture.capturing || guided || placed || composesOffscreen(rt.context.diagnosticGpuVariant)
+    capture.capturing ||
+    guided ||
+    placed ||
+    run.imageWithheld ||
+    composesOffscreen(rt.context.diagnosticGpuVariant)
       ? undefined
       : gpu.presenter?.targetView(...gpu.displaySize)
   // The frame-difference view composes the display image alone, then draws its difference with

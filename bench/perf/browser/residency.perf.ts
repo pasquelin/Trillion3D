@@ -3,6 +3,10 @@ import { maxStretch } from '../../../packages/math/src/projection/projectionOrac
 import { updateResidencyBits } from '../../../packages/sdk-browser/src/geometry/dag/residencyUpload.ts'
 import { parseDagOutput } from '../../../packages/sdk-browser/src/geometry/dag/uniforms.ts'
 import { residentWords } from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
+import {
+  listWords,
+  SELECTION_HEADER_WORDS,
+} from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
 import { measure } from '../../core/measure.ts'
 import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
@@ -39,13 +43,22 @@ const column = (cones: Float32Array) => {
 const worlds = new Float32Array(64 * 16)
 for (let i = 0; i < worlds.length; i++) worlds[i] = i % 17 === 0 ? 1 + alea() : alea() * 0.01
 
-const sortieGpu = new Uint32Array(4 + 12000 + 20000)
-sortieGpu[0] = 12000
+// A readout as a cut leaves it (`readoutWords.ts`): 12 000 requests behind the header, the 20 000
+// drawn pages' list behind them, then each request's priority word.
+const REQUESTS = 12000,
+  DRAWN = 20000,
+  drawnAt = listWords(REQUESTS),
+  prioritiesAt = drawnAt + listWords(DRAWN)
+const sortieGpu = new Uint32Array(prioritiesAt + REQUESTS)
+sortieGpu[0] = REQUESTS
 sortieGpu[1] = 431
 sortieGpu[2] = 5
-sortieGpu[3] = 0
-for (let i = 0; i < 12000; i++) sortieGpu[4 + i] = i * 3
-for (let i = 0; i < 20000; i++) sortieGpu[4 + 12000 + i] = i % 7 ? 1 : 0
+for (let i = 0; i < REQUESTS; i++) {
+  sortieGpu[SELECTION_HEADER_WORDS + i] = i * 3
+  sortieGpu[prioritiesAt + i] = REQUESTS - i
+}
+sortieGpu[drawnAt] = DRAWN
+for (let i = 0; i < DRAWN; i++) sortieGpu[drawnAt + SELECTION_HEADER_WORDS + i] = i
 
 const resResidencyBits = await measure({
   name: 'residency-bit update',
@@ -69,16 +82,20 @@ const resParseDag = await measure({
   name: 'GPU cut read',
   fichier: 'packages/sdk-browser/src/geometry/dag/uniforms.ts',
   cas: [
-    { name: 'cut read, 12 000 pages', input: 20000, size: 12000 },
-    { name: 'empty cut', input: 0, size: 0 },
+    {
+      name: 'cut read, 12 000 requests, 20 000 drawn',
+      input: { drawn: drawnAt, priorities: prioritiesAt },
+      size: REQUESTS,
+    },
+    { name: 'no drawn list', input: { drawn: 0, priorities: prioritiesAt }, size: REQUESTS },
   ],
-  calculation: (masque) => parseDagOutput(sortieGpu.buffer, 0, sortieGpu.byteLength, masque),
-  // The oracle takes a per-page flag mask; the engine receives an
-  // already-compacted list and a word offset. The two do not describe the same output:
-  // correctness of `parseDagOutput` is held by `packages/sdk-browser/src/geometry/dag/uniforms.test.ts`, not by this bench.
+  calculation: (at) => parseDagOutput(sortieGpu.buffer, 0, sortieGpu.byteLength, at),
+  // The oracle takes a per-page flag mask; the engine receives already-compacted lists and their
+  // word offsets. The two do not describe the same output: correctness of `parseDagOutput` is held
+  // by `packages/sdk-browser/src/geometry/dag/uniforms.test.ts`, not by this bench.
   expected: undefined,
   motif:
-    'oracle from before batch A is stale — correctness in packages/sdk-browser/src/gpu/dag/uniforms.test.ts',
+    'oracle from before batch A is stale — correctness in packages/sdk-browser/src/geometry/dag/uniforms.test.ts',
   options: { tours: 100, budgetMs: 1000 },
 })
 

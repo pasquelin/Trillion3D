@@ -17,7 +17,7 @@ import { forwardPool, vsmTraceBindingsLabel, type VsmTraceBindings } from './sha
 
 /** The shadow projection's view uniform (`VsmProjectionView`) at `binding`: what a fragment's trace
  *  reads. */
-export const vsmTraceViewWgsl = (binding: number, kinds: number) =>
+const vsmTraceViewWgsl = (binding: number, kinds: number) =>
   wgslBlock(
     `vsmTraceViewWgsl(${binding}, ${kinds})`,
     [vsmTraceLightWgsl(kinds)],

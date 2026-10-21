@@ -1,10 +1,9 @@
 // The placement tree adds savings and loses nothing, on generated scene families: grids, scatters
 // and clumps of several sizes, placements of their own height, seen from above at 0.72 of the span
-// looking at the centre, low along a row and away from it, still and moving (the view ahead). A
-// group that straddles the frustum hands each member its own root test: a root outside every view
-// asks nothing, whatever group it sits in. Its cut — drawn, asked, asked ahead — is the flat
-// descent's, pose by pose, and no more placements reach their own test than the flat descent's,
-// which tests them all.
+// looking at the centre, low along a row and away from it. A group that straddles the frustum hands
+// each member its own root test: a root outside the view asks nothing, whatever group it sits in.
+// Its cut — drawn, asked — is the flat descent's, pose by pose, and no more placements reach their
+// own test than the flat descent's, which tests them all.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fieldCamera, placementField } from '../placement/placementTree.fixture.ts'
@@ -16,7 +15,6 @@ import { dagViewFrames } from '../oracle/math.fixture.ts'
 import { cameraSelectionUniforms } from '../../../gpu/core/selection.ts'
 import { engineCamera } from '../../../camera/camera.fixture.ts'
 import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
-import type { CameraMotion } from '../../../camera/motion.ts'
 import type { DagRoot } from '../types.ts'
 
 const VIEWPORT: [number, number] = [1280, 720]
@@ -73,33 +71,24 @@ test('on every family the tree cuts as the flat descent and tests no more placem
   for (const [name, roots, span] of FAMILIES) {
     const dag = packDagSelection(roots)
     assert.ok(dag.placementTree, `${name}: a tree`)
-    for (const [eye, at] of poses(span))
-      for (const moving of [false, true]) {
-        const cam = engineCamera(fieldCamera(eye, at, 2 * span))
-        const motion: CameraMotion = moving
-          ? { velocity: Float64Array.of(20, 0, -10), turn: 0.8, axis: Float64Array.of(0, 1, 0) }
-          : {}
-        const uniforms = cameraSelectionUniforms(cam, 1, VIEWPORT, undefined, motion)
-        packedWorldsToRenderOrigin(dag, roots, uniforms.cameraWorld)
-        const cut = (tree: boolean) => {
-          const packed = tree ? dag : { ...dag, placementTree: undefined }
-          const result = evaluateDagSelectionKernel(packed, uniforms)
-          const frames = dagViewFrames(packed, uniforms),
-            ahead = uniforms.ahead
-              ? dagViewFrames(packed, { ...uniforms, ...uniforms.ahead })
-              : undefined
-          const flags = dagOracleDescent(packed, frames, ahead)
-          let reached = 0
-          for (let w = 0; w < roots.length; w++)
-            if (flags.at(w, packed.rootBases[w]) !== 1) reached++
-          const lists = [result.drawablePageIds ?? [], result.pageIds, result.aheadPageIds ?? []]
-          return { lists: lists.map((ids) => [...ids].sort((a, b) => a - b)), reached }
-        }
-        const grouped = cut(true),
-          flat = cut(false),
-          label = `${name}, eye ${eye.map(Math.round)}${moving ? ', moving' : ''}`
-        assert.deepEqual(grouped.lists, flat.lists, `${label}: the flat cut`)
-        assert.ok(grouped.reached <= flat.reached, `${label}: ${grouped.reached} > ${flat.reached}`)
+    for (const [eye, at] of poses(span)) {
+      const cam = engineCamera(fieldCamera(eye, at, 2 * span))
+      const uniforms = cameraSelectionUniforms(cam, 1, VIEWPORT)
+      packedWorldsToRenderOrigin(dag, roots, uniforms.cameraWorld)
+      const cut = (tree: boolean) => {
+        const packed = tree ? dag : { ...dag, placementTree: undefined }
+        const result = evaluateDagSelectionKernel(packed, uniforms)
+        const flags = dagOracleDescent(packed, dagViewFrames(packed, uniforms))
+        let reached = 0
+        for (let w = 0; w < roots.length; w++) if (flags.at(w, packed.rootBases[w]) !== 1) reached++
+        const lists = [result.drawablePageIds ?? [], result.pageIds]
+        return { lists: lists.map((ids) => [...ids].sort((a, b) => a - b)), reached }
       }
+      const grouped = cut(true),
+        flat = cut(false),
+        label = `${name}, eye ${eye.map(Math.round)}`
+      assert.deepEqual(grouped.lists, flat.lists, `${label}: the flat cut`)
+      assert.ok(grouped.reached <= flat.reached, `${label}: ${grouped.reached} > ${flat.reached}`)
+    }
   }
 })

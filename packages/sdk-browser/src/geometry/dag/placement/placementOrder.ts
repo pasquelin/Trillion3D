@@ -10,11 +10,13 @@ import type { DagRoot } from '../types.ts'
  *  rank beside them, up to `2 ** (53 - 3 * MORTON_BITS)` placements. */
 const MORTON_BITS = 10
 
-/** The cell a partition placed placement `w`'s row in, or none. */
+/** The cell a partition placed placement `w`'s row in, or none: a row of an HLOD actor lies in no
+ *  cell (`RowCell.actor`), on the curve with the others. */
 export type Ordered = Pick<DagRoot, 'world' | 'placement'>
 const cellOf = (roots: readonly Ordered[], w: number) => {
-  const placement = roots[w].placement
-  return placement ? rowCell(placement.rows, placement.index)?.cell : undefined
+  const placement = roots[w].placement,
+    at = placement && rowCell(placement.rows, placement.index)
+  return at?.actor === undefined ? at?.cell : undefined
 }
 
 /**

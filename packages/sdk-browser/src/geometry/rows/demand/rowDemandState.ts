@@ -22,8 +22,8 @@ type DemandTable = {
 export type DemandState = {
   table: DemandTable
   drawsRow: (page: number) => boolean
-  /** Each request list's difference from the readback followed before. */
-  lists: Record<'asked' | 'ahead', CutDelta>
+  /** The request list's difference from the readback followed before. */
+  lists: Record<'asked', CutDelta>
   /** The closure of the requests: the instances wanted. */
   asking: InstanceClosure
   /** Per instance, `WANTED` while the requests' closure holds it, `LISTED` while it is in `list`:
@@ -116,16 +116,13 @@ function rankList(d: DemandState, l: CutDelta, rank: number) {
 }
 
 /** The pending entries, compacted, ranked again by the readback's order of the request each came
- *  in with, the camera's then the view ahead's; one whose request left after them; each run in its
- *  order. One key per entry — its rank times the count, plus its place — sorted as numbers. */
+ *  in with; one whose request left after them; each run in its order. One key per entry — its
+ *  rank times the count, plus its place — sorted as numbers. */
 export function rerank(d: DemandState) {
-  const { asked, ahead } = d.lists,
-    sc = d.scratch,
+  const sc = d.scratch,
     n = d.count
   d.ranks.clear()
-  let rank = 0
-  rank = rankList(d, asked, rank)
-  rank = rankList(d, ahead, rank)
+  const rank = rankList(d, d.lists.asked, 0)
   sc.keys = resized(sc.keys, n)
   sc.pages = resized(sc.pages, n)
   sc.by = resized(sc.by, n)

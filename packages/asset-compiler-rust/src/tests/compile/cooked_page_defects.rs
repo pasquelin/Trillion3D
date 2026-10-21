@@ -1,8 +1,9 @@
 //! The defects of a cooked primitive's decoded pages against their source: every corner inside its
-//! page's bounds, each corner of an exact page inside its sphere — its vertices' smallest ball —
-//! and within its page's quantization error of its vertex, and a coarse page's triangles held to
-//! the children of the group that produced it. A coarse page's sphere is its children's balls',
-//! which projects the error and bounds nothing it draws (`dag/reduce.rs`).
+//! page's bounds, each corner of an exact page within its page's quantization error of its vertex,
+//! and a coarse page's triangles held to the children of the group that produced it. No page is
+//! held to its sphere: it is the ball its error is projected through — an exact page's the ball
+//! of its vertices, which may leave one out, a coarse page's its children's balls' — and bounds
+//! nothing it draws, its box does (`dag/bounds.rs`).
 //!
 //! A coarse page is held to its bounds and its children's surface alone. Its vertices
 //! sit where each merge's quadric put them, optimized off both ends of the edge it collapsed, and
@@ -11,7 +12,7 @@
 //! matched to says nothing of where it should decode.
 use super::cooked_pages::{distance, PageCorners, Point};
 use super::*;
-use trillion3d_math::vec3::point_checked;
+use trillion3d_math::vector::vec3::point_checked;
 
 /// The defects of one cooked primitive against its source `positions`, flat `xyz`, one line each;
 /// empty when every page is sound.
@@ -38,9 +39,6 @@ pub(in crate::tests) fn cooked_page_defects(
         let max: Vec<f64> = (0..3)
             .map(|a| page["max"][a].as_f64().expect("max"))
             .collect();
-        let sphere: Vec<f64> = (0..4)
-            .map(|a| page["sphere"][a].as_f64().expect("sphere"))
-            .collect();
         let slack = |p: Point| 2.0 * d.error + 1e-5 * p.iter().map(|v| v.abs()).fold(1.0, f64::max);
         let exact = page["level"].as_u64() == Some(0);
         for (&s, &p) in d.source.iter().zip(&d.corners) {
@@ -55,9 +53,6 @@ pub(in crate::tests) fn cooked_page_defects(
             }
             if (0..3).any(|a| p[a] < min[a] - slack(p) || p[a] > max[a] + slack(p)) {
                 defects.push(format!("page {id}: vertex {s} at {p:?} outside its bounds"));
-            }
-            if exact && distance(p, [sphere[0], sphere[1], sphere[2]]) > sphere[3] + slack(p) {
-                defects.push(format!("page {id}: vertex {s} at {p:?} outside its sphere"));
             }
         }
     }
@@ -110,9 +105,9 @@ fn coarse_defects(
                 "output {output}"
             );
             for t in d.corners.chunks(3) {
-                let samples =
-                    [0, 1, 2].map(|k| trillion3d_math::aabb::centre(t[k], t[(k + 1) % 3]));
-                let centroid = trillion3d_math::triangle::centroid([t[0], t[1], t[2]]);
+                let samples = [0, 1, 2]
+                    .map(|k| trillion3d_math::geometry::aabb::centre(t[k], t[(k + 1) % 3]));
+                let centroid = trillion3d_math::geometry::triangle::centroid([t[0], t[1], t[2]]);
                 for sample in samples.into_iter().chain([centroid]) {
                     let near = points
                         .iter()

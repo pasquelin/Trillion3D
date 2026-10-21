@@ -24,9 +24,6 @@ export const PAGE_INFO = fieldLayout('PageInfo', [
   ['vertexBase', 'u32'],
   ['packedBase', 'u32'],
   ['clusterHash', 'u32'],
-  // The row's Hi-Z slot; `NO_INDEX` for a row never culled (`neverCulled`), which every reader of
-  // the verdict draws unjudged (`HIZ_REJECTED_WGSL`, `rowVerdict`).
-  ['hizSlot', 'u32'],
   ['selectionIndex', 'u32'],
   // The row's diagnostic word (`DIAGNOSTIC_WORD`, `../diagnostic/colors.ts`): its level, HLOD
   // index and error, written with the row, which every diagnostic view reads in the shader.
@@ -43,6 +40,17 @@ export const PAGE_INFO = fieldLayout('PageInfo', [
   // The rank of the surface's record in the material table and its second UV set's bit
   // (`MATERIAL_SECOND_UV`, `../materials/table/materialTable.ts`).
   ['material', 'u32'],
+  // The cluster's level-of-detail sphere in its primitive's space (`PageRec.sphere`), written with
+  // the row; a radius below zero for a record without one. The cluster split judges the projected
+  // edge at it (`raster/binWgsl.ts`).
+  ['lodSphere', 'vec4f'],
+  // The cluster's vertex box (centre, half extent) and longest edge in its primitive's space, the
+  // split's other inputs: measured from its triangles by the binning of the first image after the
+  // row's upload and kept here — the CPU's copy holds zero, so every upload measures them again —,
+  // never by the CPU (`raster/binWgsl.ts`).
+  ['boxCenter', 'vec3f'],
+  ['edgeLength', 'f32'],
+  ['boxExtent', 'vec3f'],
 ] as const)
 
 /** The level a row's diagnostic word holds (`pageDiagnosticWord`), a transparent instance's as an

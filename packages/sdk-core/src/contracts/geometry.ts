@@ -1,11 +1,7 @@
 import type { DagReport, PrimitiveDagStall } from './dag.ts'
 import type { AssetScope } from './base.ts'
 import type { RuntimeCutProxy, SceneProxyDescriptor } from './proxy.ts'
-import type {
-  GeometryPageDescriptor,
-  GeometryPageFormat,
-  PrimitiveQuantization,
-} from '../page/contracts.ts'
+import type { GeometryPageDescriptor, GeometryPageFormat } from '../page/contracts.ts'
 import type { TexturePreview } from '../texture/previewContracts.ts'
 import type { SoftBodyType } from '../physics/soft/soft.ts'
 
@@ -42,10 +38,6 @@ export interface Page {
    *  with a depth bias of n whole layer steps, which is what decides the winner between two opaque
    *  surfaces that share a plane exactly. Absent and 0 mean the same thing: the untouched draw. */
   depthLayer?: number
-  /** The cone that bounds its triangles' normals: `axis` a unit vector, `angle` the half-angle in
-   *  radians, π for a cone that rejects nothing. The compiler cooks it for every cluster; the
-   *  WebGPU cut skips a one-sided cluster the camera sees from behind its cone. */
-  cone?: { axis: [number, number, number]; angle: number }
 }
 /** An LOD sphere an error band is projected through — culling reads boxes —: four finite values,
  *  a radius of at least zero. Unrolled on purpose: it runs once per cluster at preparation, with no closure. */
@@ -95,7 +87,9 @@ export interface ClusterStructure {
   /** Clusters nothing replaces. */ roots: number[]
   /** Every group. */ groups: ClusterGroup[]
 }
-/** Clusters read together in one request, kept and dropped together. */ export interface StreamBundle {
+/** A STREAMING PAGE: clusters read together in one request, installed, kept and dropped together
+ *  — the unit of the runtime's residency (`sdk-browser/src/geometry/residency/queue.ts`). */
+export interface StreamBundle {
   /** Where it is read; for a range of a geometry container, its name in the page catalogue: the
    *  container's address and its offset there. */ url: string
   /** A range of a geometry container: `bytes` of the file at `file`, from `offset`. */
@@ -103,16 +97,19 @@ export interface ClusterStructure {
   /** Fingerprint of its bytes. */ sha256: string
   /** Its size. */ bytes: number
   /** Clusters it holds. */ count: number
-  /** The bundles holding the parents of its clusters, closed up to the pinned root cover and
+  /** Every page of the groups holding its groups' outputs, closed up to the pinned root pages and
    *  ascending: it is installed after every one of them. */ dependencies: number[]
 }
-/** Streaming bundles of a primitive. The first `pinned` bundles hold exactly the root clusters,
- *  so keeping them resident guarantees a complete, if coarse, cover of the primitive. */
+/** Streaming pages of a primitive (the compiler's page assignment, `compiler/pages/bundles.rs`):
+ *  its groups from the coarsest, a group spreading over several pages. The first `pinned` are its
+ *  root pages, 32 KiB and 64 clusters each — as many as its `alwaysResidentKib` asks, one at least —,
+ *  holding its roots, so keeping them resident guarantees a complete, if coarse, cover of the
+ *  primitive; the others hold 128 KiB and 256 clusters at most. */
 export interface StreamCatalogue {
   /** Format version. */ version: number
-  /** Bundles always kept. */ pinned: number
-  /** Target bundle size. */ bundleBytes: number
-  /** Most bundles holding the parents of one bundle's clusters, fixed before packing. */ dependencyBound: number
+  /** Root pages, always kept. */ pinned: number
+  /** A streaming page's most bytes. */ bundleBytes: number
+  /** Most pages one page lists directly, as the compiler measured them. */ dependencyBound: number
   /** Longest closed dependency list of a bundle, as the compiler published it. */ maxDependencies: number
   /** Every bundle. */ pages: StreamBundle[]
 }
@@ -132,8 +129,6 @@ export interface StreamCatalogue {
   /** A world's dynamic geometry: index pages alone, their vertices read as floats from the
    *  host geometry the engine rewrites in place. */
   dynamic?: boolean
-  /** Null on a primitive without pages, which was quantized on no grid. */
-  quantization?: PrimitiveQuantization | null
   /** How far its deformation can move a vertex from its rest pose: per joint of its skin
    *  the ball of the vertices that joint moves, `[x, y, z, radius]` flat, and each morph target's
    *  largest displacement; `null` or absent on a primitive that does not deform. */
@@ -181,4 +176,18 @@ export interface ClusterManifest {
   /** Where to read the resident scene proxy and its BVH: geometry hit by rays.
    *  Absent from a cache compiled before bounce, which remains readable as is. */
   proxy?: SceneProxyDescriptor
+  /** Where to read the scene's animation banks: the clips its instanced skinned objects play on
+   *  the GPU (`../scene/core/animationBanks.ts`). Absent from a scene with none. */
+  animationBanks?: AnimationBanksDescriptor
+}
+
+/** The manifest's entry of the scene's animation banks (`animation-banks.bin`): its address
+ *  relative to the manifest, its version (`ANIMATION_BANKS_VERSION`), its length and digest, and
+ *  how many items — tracks — it holds. */
+export interface AnimationBanksDescriptor {
+  url: string
+  version: number
+  bytes: number
+  sha256: string
+  items: number
 }

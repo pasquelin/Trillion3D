@@ -37,13 +37,13 @@ test('records appended to a frame are the records of a frame made over all of th
   const all = placements(5),
     whole = createDeformationFrame(all),
     grown = createDeformationFrame(all.slice(0, 3))
-  grown.update(() => false)
+  grown.update()
   grown.append(all.slice(3, 9))
   grown.append(all.slice(9))
-  whole.update(() => false)
-  grown.update(() => false)
-  whole.update(() => false)
-  grown.update(() => false)
+  whole.update()
+  grown.update()
+  whole.update()
+  grown.update()
   assert.equal(grown.floats, whole.floats, 'the records span exactly the floats of the added ones')
   assert.ok(grown.block.length >= grown.floats && grown.block.length < 2 * grown.floats + 1)
   assert.deepEqual([...grown.bases.subarray(0, 15)], [...whole.bases.subarray(0, 15)])

@@ -10,13 +10,13 @@ use super::declared::declared_matter;
 use super::soft_record::{soft_record, SoftDeclared};
 use super::stage::place;
 use super::{refused, soft_settings, PHYSICS_COOK_FAILED, SOFT_VERTEX_WORDS};
-use crate::compiler_accessor_create::accessor;
-use crate::compiler_validate::{item, required_index, values};
-use crate::compiler_world::Mat4;
+use crate::compiler::accessor::create::accessor;
+use crate::compiler::source::node_transform::Mat4;
+use crate::compiler::validate::{item, required_index, values};
 use crate::{Options, Result};
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
-use trillion3d_math::linear::decompose_trs;
+use trillion3d_math::matrix::linear::decompose_trs;
 
 const KINDS: [&str; 3] = ["cloth", "rope", "volume"];
 

@@ -1,65 +1,45 @@
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { VIEW_BLOCK_WORDS } from '../viewLayout.ts'
-import { AHEAD_VIEW } from './aheadWgsl.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /**
- * ONE cut, many views: the frame's shadow views — sun clipmap levels and lamp faces that have
- * pages to draw — are selected by a single traversal of the DAG kernels, not one traversal each.
+ * The cut's one view: its block of the uniform buffer (`../viewLayout.ts`), read by every kernel as
+ * `views[0u]`, and the flag a descent entry carries in its top bit.
  *
- * Each work item carries the index of the view it serves: a descent-queue entry, a candidate page
- * and a live cluster pack it in their top bits (`VIEW_SHIFT`). Each view reads its own block of the
- * uniform array — planes, projection, page mask, texel error — and owns its per-primitive
- * frustum planes, indexed by the SLOT `view * worldCount + world`. Nothing carries from one frame
- * to the next. What the views share is what one cut shares: the clusters, the hierarchy, the
- * residency bits, the queues and lists, and the request readback.
- *
- * A dispatch waits for the previous one whatever its size (`../encode.ts`): V views run as V
- * traversals paid V times that wait, and as one traversal pay it once. The thread count is the
- * same — each level still visits, per view, what its bound allows.
- *
- * A camera is the one-view case: view 0, slot = primitive, entries equal to the bare indices. Its
- * text, its layout and its verdicts are those of before.
- *
- * The array holds the views a cut runs: the camera's, and the view ahead of it (`AHEAD_VIEW`).
- * The camera's entries carry view 0, the view ahead's view 1: no word of `work` nor of the uniforms
- * is kept per view.
+ * A queue entry names an item ACCEPTED at the level before — a node of a placement, a cell of the
+ * placement tree —, whose children the level tests (`levelWgsl.ts`), or, flagged `ENTRY_TEST`, an
+ * item that still awaits its own test: a placement's root or a top cell, which queue 0 opens with
+ * (`placementTreeWgsl.ts`). A member a kept group of the tree deposits is tested by the level that
+ * reads it, as its own range of entries says (`nodeCount + k`).
  */
-const DAG_MAX_VIEWS = AHEAD_VIEW + 1
-/** Bits below the view index in a work entry: 2^27 nodes or clusters, five bits of view. */
-const VIEW_SHIFT = 27
-if (DAG_MAX_VIEWS > 1 << (32 - VIEW_SHIFT))
-  throw new Error(`${DAG_MAX_VIEWS} views do not fit the ${32 - VIEW_SHIFT} view bits`)
+const DAG_MAX_VIEWS = 1
+/** The top bit of a descent entry: the item awaits its own test. */
+const ENTRY_TEST = 0x80000000
 
-/** Bytes of the uniform array a cut binds: every view's block, whatever the views it runs. */
+/** Bytes of the uniform buffer a cut binds: its block. */
 export const DAG_UNIFORM_BYTES = DAG_MAX_VIEWS * VIEW_BLOCK_WORDS * 4
-/**
- * Bits of the output's flag word set when work was dropped — a descent queue full, or the
- * candidate list, the live list or the log the cut writes: the cut is then not drawn
- * (`dagCommitMask`), and the host grows what was full (`../queueGrowth.ts`).
- */
-export const QUEUE_DROPPED = 4,
-  LIST_DROPPED = 8,
-  WORK_DROPPED = QUEUE_DROPPED | LIST_DROPPED
+
+/** The block's `cullOff` word: the cut's culls the host turned off (`cutFrustumCulling`,
+ *  `cutMinLodCulling`, `../../../../../sdk-core/src/contracts/cutOptions.ts`) — the frustum's, and
+ *  the too coarse subtree's (`floorWgsl.ts`). None by default. */
+export const CULL_FRUSTUM_OFF = 1,
+  CULL_MIN_LOD_OFF = 2
 
 export const DAG_VIEWS_WGSL = wgslBlock(
   'DAG_VIEWS_WGSL',
   [],
   `${wgslConsts({
     MAX_VIEWS: DAG_MAX_VIEWS,
-    VIEW_SHIFT,
-    ENTRY_INDEX: (1 << VIEW_SHIFT) - 1,
+    ENTRY_TEST,
+    ENTRY_INDEX: ENTRY_TEST - 1,
   })}
-/** The view the current work item serves: set by each kernel from its entry, read by every
- *  function that needs a view's uniforms. A camera leaves it at zero. */
-var<private> vi:u32;
-fn packEntry(view:u32,index:u32)->u32{return (view<<VIEW_SHIFT)|index;}
-fn entryIndex(entry:u32)->u32{return entry&ENTRY_INDEX;}
-fn entryView(entry:u32)->u32{return entry>>VIEW_SHIFT;}
 ${wgslConsts({
-  QUEUE_DROPPED,
-  LIST_DROPPED,
+  CULL_FRUSTUM_OFF,
+  CULL_MIN_LOD_OFF,
 })}
-fn dropWork(bit:u32){atomicOr(&out.overflow,bit);}
+/** Whether the host turned the cull \`bit\` off (\`cullOff\`). */
+fn cullOff(bit:u32)->bool{return (views[0u].cullOff&bit)!=0u;}
+/** The clock a use is stamped with: the host's frame. */
+fn useClock()->u32{return views[0u].frame;}
 `,
 )

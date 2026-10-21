@@ -55,15 +55,7 @@ export const baseSide: Partial<Row> = {
   submittedTriangles: null,
   totalSubmittedTriangles: null,
   frameHeld: null,
-  hiZ: {
-    tested: null,
-    rejected: null,
-    beyond16Texels: null,
-    testedTriangles: null,
-    rejectedTriangles: null,
-    beyond16TexelsTriangles: null,
-    image: null,
-  },
+  occlusion: { occluded: null, postHidden: null },
   selection: { source: null, sha256: null, count: 0 },
   pageBudget: {
     requested: 32,

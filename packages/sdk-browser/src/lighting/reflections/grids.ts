@@ -48,7 +48,7 @@ export const gridSide = (pixels: number) =>
   ceilDiv(pixels, REFLECTION_COUNTS.REFLECTION_TRACE_BLOCK)
 
 /** The grid over a view of `width × height` pixels (`gridSide`). */
-export const gridExtent = (width: number, height: number): [number, number] => [
+const gridExtent = (width: number, height: number): [number, number] => [
   gridSide(width),
   gridSide(height),
 ]

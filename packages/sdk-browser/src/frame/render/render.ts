@@ -3,6 +3,7 @@ import type { HostCamera } from '../../camera/world.ts'
 import { renderGpuCut } from './gpuCut.ts'
 import { uploadWorlds } from './worldUpload.ts'
 import { holdWebgpuFrame } from '../loop/hold.ts'
+import { followFirstImage } from '../loop/firstImage.ts'
 import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant.ts'
 import { deviceAnswering } from '../loop/deviceAnswer.ts'
 import { refreshBlendWorlds } from '../../blend/worlds.ts'
@@ -21,11 +22,17 @@ import { startGrownCut } from '../../placement/growth/grownCutStart.ts'
 export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, aspect?: number) {
   const { run } = rt
   const gpuDevice = enterImage(rt, camera, aspect)
+  // The poses the last frame drew are kept as the main view's image opens the frame, held or drawn,
+  // before it sends one: every view's main pass of the frame tests against them
+  // (`../../geometry/dag/previousPoses.ts`).
+  if (rt.views.active === rt.views.main) run.gpuSelection?.keepPoses()
   // Targets that no longer fit the view are asked; the frame is held until granted.
   void requestFrameTargets(rt, gpuDevice)
   const pixelError = run.gate.pixelError,
     cam = run.gate.cam
   followSceneInputs(rt, gpuDevice)
+  // The session's images are shown from the first drawn once the main view has loaded.
+  followFirstImage(rt)
   // Neither the scene, nor the view, nor the resources have moved, and nothing is in flight: the
   // previous image is this one. No CPU step is run below.
   // A frame the device still answers for (targets, shadow pool) is held even when forced.
@@ -66,15 +73,7 @@ function enterImage(rt: WebgpuPagesRuntime, camera: HostCamera, aspect: number |
   // camera into the engine's — everything that follows only reads the latter. The list of nodes
   // the host can write is only built at a scene change, never per image — twelve instances of the
   // same model re-read that model once.
-  run.gate.enterFrame(
-    context,
-    camera,
-    run.motion,
-    rt.setup.viewport,
-    source,
-    rt.watchedSources,
-    aspect,
-  )
+  run.gate.enterFrame(context, camera, rt.setup.viewport, source, rt.watchedSources, aspect)
   return gpuDevice
 }
 

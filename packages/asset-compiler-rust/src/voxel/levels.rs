@@ -14,11 +14,12 @@ use super::bricks::{bricks, voxel_record, VOXEL_BYTES};
 use super::raster::{binned, cells, Cell};
 use super::sample::Probe;
 use super::solid::{solid, Voxel};
-use crate::proxy::tracer::vertex;
-use crate::surface_trace::Traceable;
+use crate::trace::surface::Traceable;
+use crate::trace::tracer::vertex;
 use rayon::prelude::*;
-use std::collections::{BTreeMap, HashMap};
-use trillion3d_math::aabb::aabb_of;
+use std::collections::BTreeMap;
+use trillion3d_math::geometry::aabb::aabb_of;
+use trillion3d_page_codec::hash::WordMap;
 
 /// Bricks a tile's side holds: a tile's voxels and their sums, at most 32³, fit a few tens of
 /// megabytes on each core that samples one.
@@ -52,14 +53,14 @@ fn tile_of(cell: Cell) -> Cell {
 }
 
 /// The cells, by tile, that `mesh`'s triangles overlap at side `side`, and each tile's triangles.
-type Tiled = (BTreeMap<Cell, Vec<Cell>>, HashMap<Cell, Vec<u32>>);
+type Tiled = (BTreeMap<Cell, Vec<Cell>>, WordMap<Cell, Vec<u32>>);
 
 /// Each triangle of `mesh` in the tiles its box reaches at side `side`; with `seed`, each cell it
 /// overlaps too, by tile — level 0's cells.
 fn tiled(mesh: &Traceable, side: f64, seed: bool) -> Tiled {
     let world = &mesh.world;
     let count = world.tags.len();
-    let mut tris: HashMap<Cell, Vec<u32>> = HashMap::new();
+    let mut tris: WordMap<Cell, Vec<u32>> = WordMap::default();
     let mut found: BTreeMap<Cell, Vec<Cell>> = BTreeMap::new();
     for t in 0..count {
         let c = [0, 1, 2].map(|k| vertex(world, t, k));

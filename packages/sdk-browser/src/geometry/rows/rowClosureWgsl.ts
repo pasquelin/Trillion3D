@@ -7,7 +7,6 @@ import { STRUCTURE_WORD } from '../dag/frameTable.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { ROW_MAP_WGSL } from './rowMapWgsl.ts'
 import { ROW_USE, ROW_USE_WORDS } from './rowWords.ts'
-import { DAG_SEED_WGSL } from '../dag/shader/seedWgsl.ts'
 
 /** Group-1 bindings of the rows' closure in the cut's program: the page→row map, the rows' use
  *  words, the group structures, the packed pages' walk words (`rowClosure.ts` binds them). */
@@ -16,13 +15,12 @@ export const ROW_CLOSURE_BINDING = { rowMap: 0, rowUse: 1, structures: 2, pageWa
 const B = ROW_CLOSURE_BINDING
 
 /**
- * THE ROWS' CLOSURE (#1527), two kernels of the cut's program run after `dagMask`
- * (`../dag/encode.ts`): every page the cut drew, asked for or asked for ahead — its seeds
- * (`../dag/shader/seedWgsl.ts`) — raises with `atomicMax` the use word of each row its
- * readiness needs: the rows of its group's members and, up to the roots, of the groups above it, in
- * ITS placement (`../cut/groupClosure.ts`, `instances`), outside the frustum or not. A
- * drawn or asked page stamps the frame (`useClock`), one asked ahead the view ahead's clock
- * (`aheadClock`), as the pool's last uses do (`../dag/shader/lastUseWgsl.ts`).
+ * THE ROWS' CLOSURE (#1527), two kernels of the cut's program run once its last pass drew
+ * (`../dag/encode.ts`): every page the cut drew or asked for — the live entries `dagMask` drew,
+ * the candidates of the leaves it kept, both passes' — raises with `atomicMax` the use word of each
+ * row its readiness needs: the rows of its group's members and, up to the roots, of the groups above
+ * it, in ITS placement (`../cut/groupClosure.ts`, `instances`), outside the frustum or not, at the
+ * frame (`useClock`).
  *
  * The walk is the CPU's `reach`, on the primitive's structure as the packing compiled it
  * (`../dag/structureTable.ts`), its base in the placement's frame words: a group popped,
@@ -47,7 +45,6 @@ export const ROW_CLOSURE_WGSL = wgslBlock(
       binding: B.structures,
       access: 'read',
     }),
-    DAG_SEED_WGSL,
     NO_INDEX,
     FLAT_INDEX_WGSL,
     WORKGROUP_THREADS_WGSL,
@@ -88,17 +85,15 @@ fn rowClose(i:u32,w:u32,v:u32,lane:u32){
   }
  }
 }
-/** The candidates \`dagWanted\` marked asked, or asked ahead (\`markSeed\`). */
+/** The candidates both passes listed: every page of a leaf the cut kept, each asked for
+ *  (\`depositLeaf\`). */
 @compute @workgroup_size(ROW_LANES)
 fn rowCloseAsked(@builtin(workgroup_id) id:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lane:u32){
  let first=flatIndex(id,n,1u)*WORKGROUP_THREADS;
  let count=min(atomicLoad(&work[candCounter()]),views[0u].candCap);
  for(var k=lane;k<WORKGROUP_THREADS;k+=ROW_LANES){
   let s=first+k;if(s>=count){break;}
-  let entry=flagAt(candBase()+2u*s);let kind=entryView(entry);
-  if(kind<ROW_SEED_ASKED){continue;}
-  let v=select(aheadClock(),useClock(),kind==ROW_SEED_ASKED);
-  rowClose(entryIndex(entry),flagAt(candBase()+2u*s+1u),v,lane);
+  rowClose(flagAt(candBase()+2u*s),flagAt(candBase()+2u*s+1u),useClock(),lane);
  }
 }
 /** The live entries \`dagMask\` drew: the nearest resident ancestor standing in included. */
@@ -108,7 +103,7 @@ fn rowCloseDrawn(@builtin(workgroup_id) id:vec3u,@builtin(num_workgroups) n:vec3
  let count=liveCount();
  for(var k=lane;k<WORKGROUP_THREADS;k+=ROW_LANES){
   let s=first+k;if(s>=count){break;}
-  let i=entryIndex(liveAt(s));
+  let i=liveAt(s);
   if((atomicLoad(&work[drawMaskWord(i)])&drawBit(i))==0u){continue;}
   rowClose(i,liveWorld(s),useClock(),lane);
  }

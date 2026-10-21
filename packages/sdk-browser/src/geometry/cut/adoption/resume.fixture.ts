@@ -45,11 +45,16 @@ export function banc(panne?: 'envoi') {
       frustumRejected: 0,
       lodLevel: 0,
       ...fixtureTotals(),
+      priorities: [1],
+      occluded: 0,
+      postHidden: 0,
     },
     worldRevision: 0,
   }
   const selection = {
     worldRevision: 0,
+    // The lists' caps the session's settings give the cut: this bench's selection has no lists.
+    holdLists() {},
     updateResidency(flags: PageResidency) {
       comptes.residence++
       const change = vueResidence !== flags.flag(0)
@@ -71,6 +76,9 @@ export function banc(panne?: 'envoi') {
           frustumRejected: 0,
           lodLevel: 0,
           ...fixtureTotals(),
+          priorities: [1],
+          occluded: 0,
+          postHidden: 0,
         },
         worldRevision: 0,
       }
@@ -99,7 +107,6 @@ export function banc(panne?: 'envoi') {
     run: {
       gpuSelection: selection,
       selectionUniforms: uniforms,
-      motion: {}, // a still camera: no view ahead
       ...createWebgpuBudgetState(),
       gpuMetricsReady: false,
       lost: false,
@@ -124,7 +131,7 @@ export function banc(panne?: 'envoi') {
       diagnosticFailure: (code: string) => codes.push(code),
     },
     context: {},
-    // No light cut ran: the lower residency tier receives nothing.
+    // No light cut ran.
     lights: {},
     // No texture streams: the residency stream pumps no tile.
     vis: {},
@@ -138,11 +145,10 @@ export function banc(panne?: 'envoi') {
           return desired.length
         },
       },
-      residency: { short: () => false },
+      residency: { qualityScale: 1 },
       queueCutResidency: () => {
         comptes.queue++
       },
-      followEvictions: () => {},
       followCut: () => {},
       blendCasters: { asked: 0, used: 0 },
       syncRows: () => {

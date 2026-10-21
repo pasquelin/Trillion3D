@@ -1,21 +1,13 @@
 // `gateCore.ts` guarantees an ORDER: `enterFrame` copies the camera pose (`readCameraWorld`)
-// BEFORE the adaptive threshold and BEFORE the view fingerprint. `../../camera/contract.test.ts` proves it
-// by calling `resolveCameraWorld` then `viewChanged`/`readScene` by hand — never `enterFrame`
-// itself. These tests loop on the full public entry, so the order is the one `enterFrame` actually
-// applies, not the one a test recomposes.
+// BEFORE the view fingerprint. `../../camera/contract.test.ts` proves it by calling
+// `resolveCameraWorld` then `viewChanged`/`readScene` by hand — never `enterFrame` itself. This
+// test loops on the full public entry, so the order is the one `enterFrame` actually applies, not
+// the one a test recomposes.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { createFrameGateCore } from './gateCore.ts'
-import type { CameraMotion } from '../../camera/motion.ts'
-import { engineCamera } from '../../camera/camera.fixture.ts'
-import {
-  POSES_PARENT,
-  flattenedCamera,
-  creeRig,
-  poseRig,
-} from '../../../../../tests/kit/device/cameraRig.ts'
+import { POSES_PARENT, creeRig, poseRig } from '../../../../../tests/kit/device/cameraRig.ts'
 
 type Pose = (typeof POSES_PARENT)[number]
 const VIEWPORT: [number, number] = [800, 600]
@@ -25,12 +17,11 @@ test('enterFrame copies the pose before the view fingerprint: a rig moved alone,
   const gate = createFrameGateCore(1)
   const source = new Object3D()
   const rig = creeRig()
-  const motion: CameraMotion = {}
   const image = () => {
     // `host = false`: nobody walks the rig, as the contract announces for a parent outside the
     // prepared scene. If `enterFrame` read the local pose, or resolved it AFTER the view
     // fingerprint, this move would change nothing there and the frame would stay held wrongly.
-    const held = gate.enterFrame({}, rig.camera, motion, VIEWPORT, source, [])
+    const held = gate.enterFrame({}, rig.camera, VIEWPORT, source, [])
     gate.hold.keep(gate.revisions)
     return held
   }
@@ -42,24 +33,4 @@ test('enterFrame copies the pose before the view fingerprint: a rig moved alone,
   assert.equal(image(), false, 'the rig moved alone: the frame cannot be held')
   assert.equal(image(), false, 'the new view has no twin frame yet')
   assert.equal(image(), true, 'still again: the frame becomes holdable')
-})
-
-test('enterFrame resolves the pose before the adaptive threshold: the measured speed is that of the world eye', () => {
-  const gate = createFrameGateCore(1)
-  const source = new Object3D()
-  const rig = creeRig()
-  const motion: CameraMotion = {}
-  poseRig(rig, DEPLACE_ET_TOURNE, false) // never walked: only `enterFrame` can see it.
-  gate.enterFrame({ pixelError: 1, lodAdaptive: true }, rig.camera, motion, VIEWPORT, source, [])
-  const flattenedEye = [...engineCamera(flattenedCamera(DEPLACE_ET_TOURNE)).eye]
-  assert.deepEqual(
-    [...(motion.last ?? [])],
-    flattenedEye,
-    'speed must start from the eye position in the world, ancestors included',
-  )
-  assert.notDeepEqual(
-    [...(motion.last ?? [])],
-    G.xyz(rig.camera.position),
-    'witness: without prior resolution, this would be the local pose under the rig',
-  )
 })

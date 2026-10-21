@@ -4,19 +4,21 @@
 //! A page is written by `encode_page` from one request block of `REQUEST_WORDS` words and held for
 //! the loader (`held.rs`): its length is known only once written.
 
+use crate::attributes::UV_FLAGS;
+use crate::bits::grid::PageGrid;
 use crate::encode::deformation::{Deformation, MorphTarget};
 use crate::encode::{encode_deformed, Attribute};
 use crate::wasm::held::hold;
 use crate::wasm::math::{view, view_mut};
-use crate::{Header, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
+use crate::{Header, FLAG_COLOR, FLAG_NORMAL};
 
 /// Words of a request block. Offsets are bytes in linear memory, 0 for an absent array.
-pub const REQUEST_WORDS: usize = 16;
+pub const REQUEST_WORDS: usize = 17;
 /// The request's words: `indices` (`index_count` words), `positions` (`vertex_count` × 3 floats),
-/// the optional `normals` (× 3), `uv0` and `uv1` (× 2), `colors` (× `color_width`, 3 or 4); the
-/// grids `position_exponent` and `uv_exponent` (signed); the skin's `joints` (words) and `weights`
-/// (floats), `influences` each per vertex; the morph `targets`, a table of two offsets (position,
-/// normal) each over every vertex.
+/// the optional `normals` (× 3), `uv0` to `uv3` (× 2), `colors` (× `color_width`, 3 or 4); the
+/// position precision of the grid (signed: the step is `2^-precision` centimetre), which a cut
+/// takes from `grid.rs`; the skin's `joints` (words) and `weights` (floats), `influences` each per
+/// vertex; the morph `targets`, a table of two offsets (position, normal) each over every vertex.
 pub mod request {
     pub const INDICES: usize = 0;
     pub const INDEX_COUNT: usize = 1;
@@ -25,33 +27,35 @@ pub mod request {
     pub const NORMALS: usize = 4;
     pub const UV0: usize = 5;
     pub const UV1: usize = 6;
-    pub const COLORS: usize = 7;
-    pub const COLOR_WIDTH: usize = 8;
-    pub const POSITION_EXPONENT: usize = 9;
-    pub const UV_EXPONENT: usize = 10;
-    pub const JOINTS: usize = 11;
-    pub const WEIGHTS: usize = 12;
-    pub const INFLUENCES: usize = 13;
-    pub const TARGET_COUNT: usize = 14;
-    pub const TARGETS: usize = 15;
+    pub const UV2: usize = 7;
+    pub const UV3: usize = 8;
+    pub const COLORS: usize = 9;
+    pub const COLOR_WIDTH: usize = 10;
+    pub const POSITION_PRECISION: usize = 11;
+    pub const JOINTS: usize = 12;
+    pub const WEIGHTS: usize = 13;
+    pub const INFLUENCES: usize = 14;
+    pub const TARGET_COUNT: usize = 15;
+    pub const TARGETS: usize = 16;
 }
 
 /// Words of the block `encode_page` and the decoder's `page_check` (`decode.rs`) answer in.
 pub const META_WORDS: usize = 16;
 /// The answer's words on success, the header of the page written or checked (`answer_header`):
-/// its `vertex_count`, `index_count`, `flags`, decoded bytes, quantization error (float bits),
-/// morph targets and skin influences; `encode_page` adds the page's normal cone (`Encoded::cone`),
-/// `[x, y, z, angle]` as four float64, low word first, from `CONE`. On refusal, word 0 is the length of the refusal's code and
-/// its ASCII bytes follow from byte 4 (`refuse`).
+/// its `vertex_count`, `index_count`, `flags`, decoded bytes, morph targets and skin influences;
+/// and, of a page written only, the box of the positions it decodes to, as float bits: its low
+/// corner, then its high one. On refusal, word 0 is the length of the refusal's code and its ASCII
+/// bytes follow from byte 4 (`refuse`).
 pub mod meta {
     pub const VERTEX_COUNT: usize = 0;
     pub const INDEX_COUNT: usize = 1;
     pub const FLAGS: usize = 2;
     pub const DECODED_BYTES: usize = 3;
-    pub const QUANTIZATION_ERROR: usize = 4;
-    pub const MORPH_TARGETS: usize = 5;
-    pub const SKIN_INFLUENCES: usize = 6;
-    pub const CONE: usize = 7;
+    pub const MORPH_TARGETS: usize = 4;
+    pub const SKIN_INFLUENCES: usize = 5;
+    /// The box's six words, low x, y, z then high x, y, z: the first and the last.
+    pub const LOW_X: usize = 6;
+    pub const HIGH_Z: usize = 11;
 }
 
 /// Writes the page `request` describes. Returns 0, its header answered in `meta` and the page held;
@@ -67,16 +71,20 @@ pub unsafe extern "C" fn encode_page(request: u32, meta: u32) -> u32 {
     let indices = view(r[request::INDICES], r[request::INDEX_COUNT] as usize);
     let positions = view::<f32>(r[request::POSITIONS], vertices * 3);
     let mut attributes = Vec::new();
-    for (word, flag, width) in [
-        (request::NORMALS, FLAG_NORMAL, 3),
-        (request::UV0, FLAG_UV, 2),
-        (request::UV1, FLAG_UV1, 2),
-        (
-            request::COLORS,
-            FLAG_COLOR,
-            r[request::COLOR_WIDTH] as usize,
-        ),
-    ] {
+    let uv_words = [request::UV0, request::UV1, request::UV2, request::UV3];
+    let mut slots = vec![(request::NORMALS, FLAG_NORMAL, 3)];
+    slots.extend(
+        uv_words
+            .into_iter()
+            .zip(UV_FLAGS)
+            .map(|(word, flag)| (word, flag, 2)),
+    );
+    slots.push((
+        request::COLORS,
+        FLAG_COLOR,
+        r[request::COLOR_WIDTH] as usize,
+    ));
+    for (word, flag, width) in slots {
         if r[word] != 0 {
             attributes.push(Attribute {
                 flag,
@@ -106,18 +114,15 @@ pub unsafe extern "C" fn encode_page(request: u32, meta: u32) -> u32 {
             });
         }
     }
-    let exponents = (
-        r[request::POSITION_EXPONENT] as i32,
-        r[request::UV_EXPONENT] as i32,
-    );
-    match encode_deformed(indices, positions, &carried, (&deformation, &[]), exponents) {
+    let grid = PageGrid::at(r[request::POSITION_PRECISION] as i32);
+    match encode_deformed(indices, positions, &carried, (&deformation, &[]), grid) {
         Ok(page) => {
             answer_header(meta, &page.header);
             let words = view_mut::<u32>(meta, META_WORDS);
-            for (at, value) in page.cone.iter().enumerate() {
-                let bits = value.to_bits();
-                words[meta::CONE + at * 2] = bits as u32;
-                words[meta::CONE + at * 2 + 1] = (bits >> 32) as u32;
+            let [low, high] = page.bounds;
+            let corners = [low, high].concat();
+            for (word, value) in words[meta::LOW_X..=meta::HIGH_Z].iter_mut().zip(corners) {
+                *word = value.to_bits();
             }
             hold(page.bytes);
             0
@@ -136,7 +141,6 @@ pub(crate) unsafe fn answer_header(answer: u32, header: &Header) {
     words[meta::INDEX_COUNT] = header.index_count as u32;
     words[meta::FLAGS] = header.flags;
     words[meta::DECODED_BYTES] = header.decoded_bytes() as u32;
-    words[meta::QUANTIZATION_ERROR] = header.quantization_error.to_bits();
     words[meta::MORPH_TARGETS] = header.morphs.len() as u32;
     words[meta::SKIN_INFLUENCES] = header.skin.influences as u32;
 }

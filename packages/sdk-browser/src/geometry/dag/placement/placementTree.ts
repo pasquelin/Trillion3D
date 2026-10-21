@@ -54,7 +54,7 @@ export const TREE_GROUP = 2
 type TreeLevel = { base: number; count: number }
 
 /**
- * The tree: its `levels`, top first, the last its groups, its `nodes` — twenty-four words each, laid
+ * The tree: its `levels`, top first, the last its groups, its `nodes` — twenty words each, laid
  * as a `CullNode`, indexed within the tree: a cell's children are too —, which a queue entry names
  * from `cellBase` on; `depth` the levels it sets above a member's root. `order[k]` is the placement
  * member `k` names (`NO_INDEX` past the `count` live members, up to `capacity` — a member slot a

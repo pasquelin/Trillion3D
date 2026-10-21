@@ -13,12 +13,12 @@ type DagDeviceLimits = Limits & { maxStorageBuffersPerShaderStage?: number }
  * WHAT OF A CAMERA CUT THIS DEVICE CANNOT HOLD, by name, or `undefined` when it holds it all. A
  * buffer past one binding would fail on the device — a bind group refused — and the GPU cut would
  * be gone without a word. Refused here, before any buffer, the host names it and refuses the scene.
- * Its tables — the clusters, the nodes, the cold words, the flags, the frame words, the worlds and
- * the placement tree — are record tables (`cut/cutTables.ts`), no storage binding: whatever the world,
- * the stage binds the readout and `work` alone. No dispatch is refused: each runs in rows
+ * Its tables — the clusters, the nodes, the cold words, the flags, the frame words, the worlds, the
+ * previous poses and the placement tree — are record tables (`cut/cutTables.ts`), no storage
+ * binding: whatever the world, the stage binds the readout and `work` alone. No dispatch is refused: each runs in rows
  * (`../../gpu/dispatch/grid.ts`). The readout starts within one binding and grows no further
  * (`lists/listCap.ts`): refused only if not one rank fits; `work` — its blocks and counters, under half
- * a byte a page, and the pool sort's `POOL_SORT_WORDS`, a constant —, past it.
+ * a byte a page —, past it.
  */
 export function dagDeviceRefusal(limits: DagDeviceLimits, packed: PackedDag) {
   const table = cameraCutBuffers(packed)

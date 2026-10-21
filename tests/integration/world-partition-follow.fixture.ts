@@ -23,8 +23,15 @@ import {
   primePartitions,
 } from '../../packages/sdk-browser/src/scene/drive/partitionFrame.ts'
 import { readCellPage } from '../../packages/sdk-core/src/scene/core/tablePartition.ts'
+import { DEFAULT_PARTITION_LOADING_RANGE } from '../../packages/sdk-core/src/contracts/compilerAbi.ts'
+import { resolveWorldStreaming } from '../../packages/sdk-core/src/contracts/worldStreamingOptions.ts'
 import { compiled, machine, type world } from './world-partition.fixture.ts'
 import { readJson } from '../../scripts/git/repository-files.ts'
+
+/** The session's streaming settings but for the cells loading at once: sixty-four, not four
+ *  (`maxLoadingCells`), so that a world's worth of cells settles in a few dozen frames, not a
+ *  thousand. */
+export const loadingMany = () => ({ ...resolveWorldStreaming(), maxLoadingCells: 64 })
 
 /** `gltf` compiled under a folder of its own named from `prefix`, served and read whole. */
 export async function served(t: TestContext, prefix: string, gltf: ReturnType<typeof world>) {
@@ -56,6 +63,8 @@ function standIn(opened: Iterable<PlacementRows>) {
   const counts = { grown: 0 }
   const backend = {
     worldCells: () => undefined,
+    // A session past its first image: no cell is weighed as a load blocked on slow streaming.
+    initialLoad: () => false,
     updatePlacements() {},
     composePlacements: composeStandIn(),
     growsInPlace: () => true,
@@ -87,9 +96,12 @@ export async function followed(model: LoadedModel, eye: readonly number[]) {
     engine: engine.backend,
     renew: () => void renewed.count++,
     budget: { admits: () => true, spend() {} },
+    streaming: loadingMany,
   })!
+  // Once the first image is shown the cells load a few at a time (`maxLoadingCells`): the frames
+  // run until the partition asks for no more.
   const settle = async () => {
-    for (let step = 0; step < 32; step++) {
+    for (let step = 0; step < 4096; step++) {
       frame()
       if (!(await frame.pending())) break
     }
@@ -117,8 +129,9 @@ export async function assertNoneMissing(
   for (const rows of engine.drawn)
     for (let row = 0; row < rows.capacity; row++)
       if (rows.live[row]) drawn.add(key(rows.matrices[row * 16 + 12], rows.matrices[row * 16 + 14]))
+  // The job names no grid (`compiled`): the main grid loads within its default range.
   const eye = camera.position,
-    reach = cells.ranges[0]
+    reach = DEFAULT_PARTITION_LOADING_RANGE
   let near = 0
   for (const { url } of await cellRecords(cells.pages)) {
     const body = readJson(fileURLToPath(url))

@@ -8,7 +8,6 @@ import { untag } from '../../../../../tests/kit/fakeDevice/fakeWebgpuDevice.ts'
 import {
   quadScene,
   camera,
-  assertBothQuadPagesDrawn,
   disposeQuadRun,
   flushedImage,
   streamingQuadBackend,
@@ -50,15 +49,19 @@ test('detail replaces the complete GPU fallback only after every replacement is 
     await backend.flush()
     await flushedImage(backend)
     await flushedImage(backend)
-    assertBothQuadPagesDrawn(backend)
+    // The temporal pass draws every image until its history is whole (`taaConverging`): an image's
+    // counts are read once its readback has landed.
+    await flushedImage(backend)
+    assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'])
+    assert.equal(backend.metrics().submittedTriangles, 2)
   } finally {
     disposeQuadRun(backend, fixture)
   }
 })
 
-// A page cap under the pool's floor draws that floor — the root cover and the pages its
-// groups replace —: the coarse page stands in for the leaves, never the root the view refuses.
-test('a refinement exceeding the GPU budget keeps the floor, not the refused root, and reports the limit', async () => {
+// A page cap of two streaming slots beside the root cover: the coarse page stands in for the
+// leaves, never the root the view refuses.
+test('a refinement exceeding the GPU budget keeps the coarse page, not the refused root, and reports the limit', async () => {
   installGpuGlobals()
   const fixture = deepQuadScene(),
     { device } = fakeDevice(BACKEND),
@@ -73,19 +76,16 @@ test('a refinement exceeding the GPU budget keeps the floor, not the refused roo
   }) as ReturnType<typeof webgpuPagesEngine> & { selectedPageIds(): string[] }
   try {
     await backend.prepare()
-    const floor = events.find(({ phase }) => phase === 'minimum-capacity')?.context
-    assert.deepEqual([floor?.rootPages, floor?.floorPages], [1, 2], 'what the floor costs, said')
     // The first image draws the root, and asks for the floor's page before any leaf; that page
     // enters the residency the image after its bytes, and the cut on it is read back one image
     // later (#1483): drawn and drained until the pose settles.
     await settledImage(backend)
     for (let i = 0; i < 4; i++) {
-      backend.render(camera())
+      await flushedImage(backend)
       assert.deepEqual(backend.selectedPageIds(), ['2'], 'the root the view refuses is replaced')
       assert.equal(backend.metrics().submittedTriangles, 2)
       assert.equal(backend.metrics().coverageBudgetLimited, true)
       assert.deepEqual(backend.pendingUrls!(), [])
-      await backend.flush()
     }
   } finally {
     disposeQuadRun(backend, fixture)
@@ -128,18 +128,28 @@ test('streaming completion during image readback preserves the captured frame an
   const gate = new Promise<void>((resolve) => {
     release = resolve
   })
+  // The readback is held once the host has been asked for the pages: not at the first image.
+  let holding = false
   device.createBuffer = (descriptor) => {
     const buffer = createBuffer(descriptor)
-    if (untag(descriptor.label) === 'Trillion3D explicit capture')
-      buffer.mapAsync = async () => {
+    if (untag(descriptor.label) === 'Trillion3D explicit capture') {
+      const map = buffer.mapAsync.bind(buffer)
+      buffer.mapAsync = async (...args) => {
+        if (!holding) return map(...args)
         mapped()
         await gate
       }
+    }
     return buffer
   }
   const backend = streamingQuadBackend(fixture, device)
   try {
     await backend.prepare()
+    // The first image's cut is read back; the next one starts the pages it asks and the host is
+    // asked for their bytes (`pendingUrls`).
+    await flushedImage(backend)
+    const copied = textureBufferCopies.length
+    holding = true
     backend.render(camera())
     const flushing = backend.flush()
     await mapping
@@ -153,10 +163,10 @@ test('streaming completion during image readback preserves the captured frame an
     assert.equal(passes.length, before, 'streaming must not overwrite an image being captured')
     assert.equal((await backend.capture()).length, 32 * 32 * 4)
     assert.deepEqual(backend.pendingUrls?.(), [], 'pages arriving during capture remain accepted')
-    assert.equal(textureBufferCopies.length, 1, 'the capture must not spin on streaming updates')
+    assert.equal(textureBufferCopies.length, copied + 1, 'the capture must not spin on updates')
     await flushedImage(backend)
     await flushedImage(backend)
-    backend.render(camera())
+    await flushedImage(backend)
     assert.equal(
       backend.metrics().submittedTriangles,
       2,

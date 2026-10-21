@@ -132,7 +132,8 @@ pub(super) fn same_links(
 ///
 /// The pair's link to itself leaves its row. A pair of few links (`FEW_LINKS`, the degree of a
 /// vertex matched with itself counted twice) holds that link first, from the start, and the row's
-/// last link takes its place; a pair of many leaves the link's own place to the last link.
+/// last link takes its place; a pair of many, two vertices, leaves the link's own place to the
+/// last link, while a vertex of many alone keeps a link to itself.
 pub(super) fn contract<'g>(
     graph: &Level,
     mate: &mut [u32],
@@ -194,7 +195,7 @@ pub(super) fn contract<'g>(
             if !row.is_empty() {
                 row[0] = last;
             }
-        } else if own != usize::MAX {
+        } else if u != v && own != usize::MAX {
             row.swap_remove(own);
         }
         offsets.push(adjacency.len() as u32);

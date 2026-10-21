@@ -14,14 +14,14 @@
 //!    (`passes`), each pass undone back to its best point.
 //!
 //! Each bisection seeds its own random numbers (`Draws::seeded(SEED)`), and every tie breaks by a
-//! fixed rule (`heap.rs`, `order.rs`): the same graph cuts the same way wherever and whenever it
+//! fixed rule (`trillion3d_math::heap`, `order.rs`): the same graph cuts the same way wherever and whenever it
 //! is cut.
 //! Coarsening lives in `coarsen`, the contraction in `contract`, the cut and its growth in `cut`, the
 //! bounds, random cut, refinement and balance in `refine`, the passes in `passes`.
-use super::heap::Gains;
 use super::order::Draws;
 use super::Graph;
 use std::borrow::Cow;
+use trillion3d_math::heap::{Greatest, IndexedHeap};
 mod coarsen;
 use coarsen::coarsen;
 mod contract;
@@ -83,7 +83,7 @@ impl Level<'_> {
 
 /// The buffers one bisection reuses from level to level, sized for its finest graph.
 struct Work {
-    queues: [Gains; 2],
+    queues: [IndexedHeap<Greatest>; 2],
     moved: Vec<bool>,
     swaps: Vec<u32>,
     /// Per coarse vertex, its place in the row being merged (`contract`).
@@ -134,7 +134,7 @@ pub(super) fn bisect(graph: &Graph, shares: [f32; 2], unbalance: i32) -> Vec<u8>
         total: n as i64,
     };
     let mut work = Work {
-        queues: [Gains::new(n), Gains::new(n)],
+        queues: [IndexedHeap::new(n), IndexedHeap::new(n)],
         moved: vec![false; n],
         swaps: Vec::with_capacity(n),
         slot: vec![usize::MAX; n],
@@ -158,11 +158,3 @@ pub(super) fn bisect(graph: &Graph, shares: [f32; 2], unbalance: i32) -> Vec<u8>
     let side = grow(coarsest, &balance, tries, &mut work, &mut random);
     refine(&levels, &maps, side, &balance, &mut work, &mut random)
 }
-
-// ---------------------------------------------------------------- 1. coarsening
-
-// ---------------------------------------------------------------- the cut and its boundary
-
-// ---------------------------------------------------------------- 2. the coarsest cut
-
-// ---------------------------------------------------------------- 3. refinement

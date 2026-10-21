@@ -4,8 +4,8 @@
  * doubles. The GPU derives both for every root whose world moved, the one home every pass reads
  * (`../../placement/roots/rootBoxes.ts`, the box in the roots' boxes, the stretch in the frame words'
  * field the cut projects its errors through); the CPU takes them for the readers that decide on
- * the CPU in the frame that asks — the deformation's screen-size skip (`../../deformation/screen.ts`)
- * and the shadow box of a deformation (`noteDeformed`) —, the same doubles, never sent.
+ * the CPU in the frame that asks — the shadow box of a deformation (`noteDeformed`) —, the same
+ * doubles, never sent.
  *
  * Each is a memo keyed by the world's one version, `worldAt`, which `worldMoved` moves at each place
  * the engine takes a world that moved — a move (`../../frame/render/movedRoot.ts`), a row

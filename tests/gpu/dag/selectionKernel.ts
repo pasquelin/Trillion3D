@@ -1,15 +1,17 @@
 // The DAG selection kernel run on the GPU: the device and its pipelines opened once, then for each
 // case its buffers as the engine lays them out (`selectionCase.ts`), the stages `dagPrepare`, the
-// level descent, `dagWanted`, `dagMask`, `dagCommitMask` and `dagSortRequests` in the engine's order
-// (`geometry/dag/encode.ts`) for a cut that starts from fresh buffers, then the readout, the frame
-// counters and the draw flags read back.
+// level descent, `dagWanted`, `dagMask` and `dagCommitMask` in the engine's order
+// (`geometry/dag/encode.ts`) for a cut in one pass that starts from fresh buffers, under no pyramid
+// (`geometry/dag/occlusion.ts`), then the readout, the frame counters and the draw flags read back.
 import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import assert from 'node:assert/strict'
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/geometry/dag/shader/shader.ts'
 import { dagBindEntries } from '../../../packages/sdk-browser/src/geometry/dag/shader/bindings.ts'
+import { OCCLUSION_GROUP } from '../../../packages/sdk-browser/src/geometry/dag/shader/occlusionWgsl.ts'
+import { createCutOcclusion } from '../../../packages/sdk-browser/src/geometry/dag/occlusion.ts'
 import {
-  stagedRequestsWord,
+  priorityWord,
   SELECTION_HEADER_WORDS,
 } from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
 import { LEVEL_QUEUES } from '../../../packages/sdk-browser/src/geometry/dag/shader/levelWgsl.ts'
@@ -22,16 +24,16 @@ import {
 } from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
 import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
-import { bindCase, type SelectionCase, type StageOutput } from './selectionCase.ts'
+import { bindCase, type SelectionCase } from './selectionCase.ts'
 import { workgroupCount } from '../../../packages/math/src/scalar/integers.ts'
 import { hasBit } from '../../../packages/math/src/scalar/bits.ts'
 
 /** What one case's cut left on the GPU. */
 interface SelectionReading {
   name: string
-  /** Requested pages in the order the GPU sorted them, a whole word each. */
+  /** Requested pages in the order the GPU's threads asked them, a whole word each. */
   requests: number[]
-  /** Each request's priority, at its rank: read where `dagWanted` staged it, beside its page. */
+  /** Each request's priority word, at its rank: read at the same rank of the priority list. */
   priorities: number[]
   /** The requested pages, in increasing order. */
   pages: number[]
@@ -58,7 +60,13 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
   const { module, compilation } = await gpu.compile(shader)
   assert.deepEqual(compilation, [], 'the selection kernel compiles')
   const layout = device.createBindGroupLayout({ entries: dagBindEntries() })
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
+  // The stages that read the pyramid read the blank one: nothing is hidden, nothing held for a post
+  // pass. One layout of both groups serves every stage.
+  const occlusion = createCutOcclusion(device),
+    noPyramid = occlusion.group(undefined)
+  const pipelineLayout = device.createPipelineLayout({
+    bindGroupLayouts: [layout, occlusion.layout],
+  })
   const stage = (entryPoint: string) =>
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } })
   // Level 0 is the root level, as the engine encodes it (`geometry/dag/encode.ts`): the queue's slots,
@@ -67,12 +75,10 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
     levels = Array.from({ length: LEVEL_QUEUES }, (_, q) => stage(`dagLevel${q}`)),
     wanted = stage('dagWanted'),
     mask = stage('dagMask'),
-    commit = stage('dagCommitMask'),
-    sort = stage('dagSortRequests')
+    commit = stage('dagCommitMask')
   const groups = (threads: number) => workgroupCount(threads, WORKGROUP_THREADS)
 
-  const bind = (selection: SelectionCase, write?: StageOutput) =>
-    bindCase(device, layout, selection, write)
+  const bind = (selection: SelectionCase) => bindCase(device, layout, selection)
 
   type Run = [GPUComputePipeline, number]
   /** Encodes `passes` on `group` and submits them: each a compute pass of its runs, a pipeline
@@ -82,6 +88,7 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
     for (const runs of passes) {
       const pass = encoder.beginComputePass()
       pass.setBindGroup(0, group)
+      pass.setBindGroup(OCCLUSION_GROUP, noPyramid)
       for (const [pipeline, workgroups] of runs) {
         pass.setPipeline(pipeline)
         pass.dispatchWorkgroups(workgroups)
@@ -103,8 +110,8 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
     const pages = groups(packed.pageCount)
     // The whole descent in one pass, as the engine encodes it: a thread per primitive, and at
     // least one per block of pages (it resets the block counts), then each level dispatched flat
-    // over a bound of its entries, a placement's node each. Then the kept leaves' pages, their verdict and the
-    // requests' sort: `pageCount` bounds the candidate list and the live list.
+    // over a bound of its entries, a placement's node each. Then the kept leaves' pages and their
+    // verdict: `pageCount` bounds the candidate list and the live list.
     const levelRuns = Array.from({ length: Math.max(1, packed.levelSizes.length) }, (_, l): Run => [
       levels[l % LEVEL_QUEUES],
       groups(packed.entryCount),
@@ -117,7 +124,6 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
         [mask, pages],
         // The cut's mask made the frame's, a thread a word of two a block (`commitWgsl.ts`).
         [commit, groups(2 * pages)],
-        [sort, 1],
       ],
     )
     const header = SELECTION_HEADER_WORDS
@@ -127,22 +133,15 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
     const drawBits = work.subarray(at.work.drawMask)
     const count = Math.min(out[OUT_COUNT], packed.pageCount)
     const requests = Array.from(out.subarray(header, header + count))
-    // The staged pairs, page then priority, in the order the threads won the counter.
-    // None staged reads nothing: a readback of no byte is none.
-    const staged = count
-      ? (await readGpuBuffer(
-          device,
-          buffers.out.buffer,
-          count * 8,
-          stagedRequestsWord(at.listCap) * 4,
-        ))!
+    // Each request's priority at its rank of the priority list (`priorityWord`). None asked reads
+    // nothing: a readback of no byte is none.
+    const priorities = count
+      ? (await readGpuBuffer(device, buffers.out.buffer, count * 4, priorityWord(at.listCap) * 4))!
       : new Uint32Array(0)
-    const priorityOf = new Map<number, number>()
-    for (let s = 0; s < count; s++) priorityOf.set(staged[2 * s], staged[2 * s + 1])
     const reading: SelectionReading = {
       name: selection.name,
       requests,
-      priorities: requests.map((page) => priorityOf.get(page) ?? -1),
+      priorities: Array.from(priorities),
       pages: [...requests].sort((a, b) => a - b),
       frustumRejected: out[OUT_FRUSTUM_REJECTED],
       overflow: out[OUT_FLAGS],
@@ -166,10 +165,9 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
     module,
     bind,
     cut,
-    /** `dagSortRequests` alone on `group`: the requests its output holds staged, sorted. */
-    sort: (group: GPUBindGroup) => dispatch(group, [[sort, 1]]),
     /** Waits for the queue, closes the device and returns the adapter. */
     async close() {
+      occlusion.dispose()
       const { court } = await gpu.fermer()
       assert.deepEqual(gpu.errors, [], 'the device reports no error')
       return court

@@ -1,5 +1,5 @@
 import type { GpuRasterInput } from './types.ts'
-import { DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts'
+import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
 import { VIS_UNIFORM_BYTES } from '../../gpu/bind/bindLayout.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { RASTER_OCCLUDER_HIZ_PASS, RASTER_RESOLVE_PASS } from '../../diagnostic/stage/passLabels.ts'
@@ -7,23 +7,21 @@ import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
 import { sequentialEntries, computeBufferEntry } from '../../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 
-const RESOLVE_DEPTH = {
+/** The closing resolve writes every pixel's depth: no test, the visibility buffer decided. */
+const RESOLVE_DEPTH: GPUDepthStencilState = {
   format: DEPTH_FORMAT,
   depthWriteEnabled: true,
-  depthCompare: DEPTH_COMPARE_OR_EQUAL,
+  depthCompare: 'always',
 }
 
 /**
- * Full-screen hardware resolves of the visibility buffer.
+ * Full-screen resolves of the visibility buffer both rasters wrote (`VIS_WRITE_WGSL`) into the
+ * attachments every consumer reads, each pixel written, so each attachment is cleared, never
+ * loaded: past the drawn size, it holds the background.
  *
- * The hardware raster opens and clears the attachments — identifiers, opaque depth, pyramid
- * level zero — and writes its triangles there; these resolves then merge those of the compute
- * raster, under the same depth test, keeping what is already there (`load`). A pixel both
- * producers reach goes to the nearest, and on a tie to compute, which runs last:
- * `greater-equal`, otherwise the second resolve would lose the depth the first just wrote.
- *
- * `encodeHiz` serves between the two halves: it writes compute occluder depth into level zero
- * and the buffer, before any identifier is resolved.
+ * `encodeDepthLevel` serves between the two halves: it writes the occluder depth into the level
+ * zero the pyramid reduces, before any identifier is resolved. `encodeFinal` closes the frame:
+ * identifiers, depth, and level zero again, the whole cut's.
  */
 export function createRasterResolves(
   device: GPUDevice,
@@ -35,20 +33,23 @@ export function createRasterResolves(
     ...{ device, work, targetBytes, ...resolvePipelines(device, code) },
     ...{ bound: createWebgpuBindIdentity(), group: undefined },
     ...{ idsFor: undefined, depthFor: undefined, hizFor: undefined },
-    ...{ hizPass: undefined, finalPass: undefined },
+    ...{ levelPass: undefined, finalPass: undefined },
   }
   return {
-    /** Compute occluder depth, in the level zero the pyramid reduces and in the depth
-     *  buffer; no identifier. */
-    encodeHiz(encoder: GPUCommandEncoder, input: GpuRasterInput, width: number, height: number) {
+    /** The occluder depth, into the level zero the pyramid reduces; no identifier. */
+    encodeDepthLevel(
+      encoder: GPUCommandEncoder,
+      input: GpuRasterInput,
+      width: number,
+      height: number,
+    ) {
       refresh(z, input)
-      drawResolve(encoder, z, z.hizPass!, z.hizOnly, input.uniform, width, height)
+      drawResolve(encoder, z, z.levelPass!, z.depthLevel, input.uniform, width, height)
     },
-    /** Closed frame: identifiers, depth, and the pyramid reset to the whole cut. */
+    /** Closed frame: identifiers, depth, and the pyramid's level zero over the whole cut. */
     encodeFinal(encoder: GPUCommandEncoder, input: GpuRasterInput, width: number, height: number) {
       refresh(z, input)
-      const pipeline = input.hizView ? z.two : z.one
-      drawResolve(encoder, z, z.finalPass!, pipeline, input.uniform, width, height)
+      drawResolve(encoder, z, z.finalPass!, z.resolved, input.uniform, width, height)
     },
   }
 }
@@ -59,7 +60,7 @@ function drawResolve(
   encoder: GPUCommandEncoder,
   z: Resolves,
   desc: GPURenderPassDescriptor,
-  pipeline: Resolves['one'],
+  pipeline: Resolves['resolved'],
   uniform: GPUBuffer,
   width: number,
   height: number,
@@ -87,7 +88,7 @@ type Resolves = ReturnType<typeof resolvePipelines> & {
   idsFor: GPUTextureView | undefined
   depthFor: GPUTextureView | undefined
   hizFor: GPUTextureView | undefined
-  hizPass: GPURenderPassDescriptor | undefined
+  levelPass: GPURenderPassDescriptor | undefined
   finalPass: GPURenderPassDescriptor | undefined
 }
 
@@ -104,30 +105,24 @@ function resolvePipelines(device: GPUDevice, code: string) {
   const primitive = { topology: 'triangle-list' as const }
   // Asked, compiled off the thread from now, the frames held on them, as the raster's own
   // (`raster.ts`).
-  const makeFinal = (two: boolean) =>
-    preparedPipeline(device, {
-      layout: pipelineLayout,
-      vertex,
-      fragment: {
-        module,
-        entryPoint: two ? 'two' : 'one',
-        targets: two
-          ? [{ format: 'r32uint' as const }, { format: 'r32float' as const }]
-          : [{ format: 'r32uint' as const }],
-      },
-      primitive,
-      depthStencil: RESOLVE_DEPTH,
-    })
-  const one = makeFinal(false).ask(),
-    two = makeFinal(true).ask()
-  const hizOnly = preparedPipeline(device, {
+  const resolved = preparedPipeline(device, {
     layout: pipelineLayout,
     vertex,
-    fragment: { module, entryPoint: 'hiz', targets: [{ format: 'r32float' as const }] },
+    fragment: {
+      module,
+      entryPoint: 'resolved',
+      targets: [{ format: 'r32uint' as const }, { format: 'r32float' as const }],
+    },
     primitive,
     depthStencil: RESOLVE_DEPTH,
   }).ask()
-  return { layout, one, two, hizOnly }
+  const depthLevel = preparedPipeline(device, {
+    layout: pipelineLayout,
+    vertex,
+    fragment: { module, entryPoint: 'depthLevel', targets: [{ format: 'r32float' as const }] },
+    primitive,
+  }).ask()
+  return { layout, resolved, depthLevel }
 }
 
 function bound(z: Resolves, uniform: GPUBuffer) {
@@ -143,16 +138,14 @@ function bound(z: Resolves, uniform: GPUBuffer) {
   return z.group!
 }
 
-/** A colour attachment kept as the hardware raster left it. */
-const kept = (view: GPUTextureView) => ({
+/** A colour attachment the resolve writes whole, cleared to `clear`: identifiers to the
+ *  background, level zero to the far plane — a clear to 1 would put the near plane under every
+ *  uncovered texel, and the pyramid's minimum reduction would reject whatever projects there. */
+const written = (view: GPUTextureView, clear: number) => ({
   view,
-  loadOp: 'load' as const,
+  loadOp: 'clear' as const,
   storeOp: 'store' as const,
-})
-const depthKept = (view: GPUTextureView) => ({
-  view,
-  depthLoadOp: 'load' as const,
-  depthStoreOp: 'store' as const,
+  clearValue: { r: clear, g: 0, b: 0, a: 1 },
 })
 
 /** Rebuilds both descriptors when, and only when, one of the three views has changed. */
@@ -162,16 +155,18 @@ function refresh(z: Resolves, input: GpuRasterInput) {
   z.idsFor = input.idsView
   z.depthFor = input.depthView
   z.hizFor = input.hizView
-  z.hizPass = {
+  z.levelPass = {
     label: RASTER_OCCLUDER_HIZ_PASS,
-    colorAttachments: [kept(input.hizView!)],
-    depthStencilAttachment: depthKept(input.depthView),
+    colorAttachments: [written(input.hizView, DEPTH_CLEAR)],
   }
   z.finalPass = {
     label: RASTER_RESOLVE_PASS,
-    colorAttachments: input.hizView
-      ? [kept(input.idsView), kept(input.hizView)]
-      : [kept(input.idsView)],
-    depthStencilAttachment: depthKept(input.depthView),
+    colorAttachments: [written(input.idsView, 0), written(input.hizView, DEPTH_CLEAR)],
+    depthStencilAttachment: {
+      view: input.depthView,
+      depthClearValue: DEPTH_CLEAR,
+      depthLoadOp: 'clear',
+      depthStoreOp: 'store',
+    },
   }
 }

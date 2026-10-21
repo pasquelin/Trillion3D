@@ -4,10 +4,6 @@ import { NODE_FIRST_CHILD, NODE_KIND, NODE_PAGE_COUNT } from '../nodeLayout.ts'
 import { drawnAlways, TREE_GROUP, type PlacementTree } from '../placement/placementTree.ts'
 import type { DagViewFrames } from './math.fixture.ts'
 
-/** A kept leaf reached only by the view ahead (`../shader/aheadWgsl.ts`): its pages are requested
- *  ahead and never drawn. */
-export const AHEAD_LEAF = 3
-
 /** One view's verdict on node `n` read by placement `w`: `-1` rejected — outside, too fine or too
  *  coarse —, else its children. `open`, the placement's open count there (`dagNodeFloor`). A node of
  *  the placement tree is read in the tree (`treeNode`). */
@@ -113,35 +109,32 @@ function placementRoot(packed: Descended, w: number, covers: Covers) {
  *
  * A rejected node yields nothing, and a never-reached leaf stays rejected. The flags carry each
  * (placement, node) verdict — non-zero means « the camera does not descend here » —, and only kept
- * leaves fall back to zero: they alone are what clusters consult next. A node the camera rejects is tried
- * against the view `ahead`, when there is one, and what that view keeps continues under it alone;
- * its kept leaves take `AHEAD_LEAF`. With a placement tree, the descent starts at its top nodes
- * and the members drawn whatever the view — the world DAG's placements among them (`always`); a
- * placement the world DAG draws in its place (`covers`) opens nothing.
+ * leaves fall back to zero: they alone are what clusters consult next. With a placement tree, the
+ * descent starts at its top nodes and the members drawn whatever the view — the world DAG's
+ * placements among them (`always`); a placement the world DAG draws in its place (`covers`) opens
+ * nothing.
  *
- * Top-down pruning drops a subtree whose error floor is above the threshold, unless the subtree
- * is open — it holds the nearest resident ancestor of something missing (`../shader/floorWgsl.ts`).
+ * Top-down pruning drops a leaf whose least own error is above the threshold, unless the leaf is
+ * open — it holds the nearest resident ancestor of something missing (`../shader/floorWgsl.ts`).
  *
  * Split from `oracle.fixture.ts`: it is a whole step, it has its own WGSL mirror.
  */
 export function dagOracleDescent(
   packed: Descended,
   frames: DagViewFrames,
-  ahead?: DagViewFrames,
   covers: Covers = () => false,
 ) {
   const nodeInts = new Uint32Array(packed.nodes.buffer),
     tree = packed.placementTree
   const nodeFlags = createDescentFlags()
-  /** Quadruples: the node, the placement reading it, whether it is the view ahead's alone, then its
-   *  level. */
+  /** Triples: the node, the placement reading it, then its level. */
   const frontier: number[] = []
   const always = tree ? Array.from(tree.always.set.list.subarray(0, tree.always.set.count)) : []
   const opened = tree ? always : packed.rootNodes.keys()
   for (const w of opened)
-    if (placementRoot(packed, w, covers) >= 0) frontier.push(packed.rootNodes[w], w, 0, 0)
+    if (placementRoot(packed, w, covers) >= 0) frontier.push(packed.rootNodes[w], w, 0)
   const top = tree?.levels[0]
-  for (let c = 0; c < (top?.count ?? 0); c++) frontier.push(tree!.cellBase + top!.base + c, 0, 0, 0)
+  for (let c = 0; c < (top?.count ?? 0); c++) frontier.push(tree!.cellBase + top!.base + c, 0, 0)
   // The entries each level's queue holds, as the kernel counts them: queue 0 a slot a root (a
   // placement's without a tree, the top nodes and the world DAG's with one); and the candidates.
   const work = {
@@ -150,7 +143,6 @@ export function dagOracleDescent(
   }
   while (frontier.length) {
     const level = frontier.pop() as number
-    let aheadOnly = frontier.pop() as number
     let w = frontier.pop() as number
     let n = frontier.pop() as number
     if (n >= packed.nodeCount) {
@@ -159,24 +151,20 @@ export function dagOracleDescent(
       ;({ w, root: n } = member)
     }
     if (treeNode(packed, n) < 0) nodeFlags.read(w)
-    let children = aheadOnly ? -1 : keeps(frames, packed, nodeInts, n, w)
-    if (children < 0 && ahead) {
-      children = keeps(ahead, packed, nodeInts, n, w)
-      aheadOnly = 1
-    }
+    const children = keeps(frames, packed, nodeInts, n, w)
     if (children < 0) {
       nodeFlags.set(w, n, 2)
       continue
     }
     if (children) {
       const first = firstChild(packed, nodeInts, n)
-      for (let c = 0; c < children; c++) frontier.push(first + c, w, aheadOnly, level + 1)
+      for (let c = 0; c < children; c++) frontier.push(first + c, w, level + 1)
       work.levels[level + 1] = (work.levels[level + 1] ?? 0) + children
       continue
     }
     // A group of the tree with no member yet opens nothing: it is no leaf.
     if (treeNode(packed, n) >= 0) continue
-    nodeFlags.set(w, n, aheadOnly ? AHEAD_LEAF : 0)
+    nodeFlags.set(w, n, 0)
     work.candidates += nodeInts[n * DAG_NODE_FLOATS + NODE_PAGE_COUNT]
   }
   return Object.assign(nodeFlags, { work })

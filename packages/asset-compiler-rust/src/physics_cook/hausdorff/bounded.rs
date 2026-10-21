@@ -4,9 +4,9 @@
 use super::{Grid, P};
 use rayon::prelude::*;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
-use trillion3d_math::triangle::centroid;
-use trillion3d_math::vec3::point;
-use trillion3d_math::vecn::lerp;
+use trillion3d_math::geometry::triangle::centroid;
+use trillion3d_math::vector::vec3::point;
+use trillion3d_math::vector::vecn::lerp;
 
 /// A floor raised to every value a parallel search returns. A value at or below the floor cannot
 /// raise the search's maximum, so a query may stop there; a value above it is measured exactly and

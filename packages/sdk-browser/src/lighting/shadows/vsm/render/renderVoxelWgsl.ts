@@ -15,7 +15,7 @@ import {
 import type { VsmLayout } from '../layout.ts'
 
 /**
- * The shadow raster's voxel tiers (from `VSM_RENDER_VOXEL_TIER`), a module of their own beside the
+ * The shadow raster's voxel tiers (from `VSM_RENDER_CORNER_TIERS`), a module of their own beside the
  * raster (`renderRasterWgsl.ts`), whose text the other tiers compile as they did before voxels: the
  * same pairs, groups and pool, a voxel row's pairs alone, made the first time a table holds a voxel
  * row (`renderPipes.ts`). Its vertex draws a corner of a brick's box,
@@ -42,7 +42,7 @@ struct VsmVoxelOut{
  /** Translated world (relative to a local light) and the emitter radius, 0 for none. */
  @location(1) fromEmitter:vec4f,
  /** The light's ray through the box point (\`voxelRay\`); \`cells.w\` whether a sun level flattens. */
- @location(2) from:vec3f,
+ @location(2) start:vec3f,
  @location(3) dir:vec3f,
  @location(4) depth:vec4f,
  @location(5) @interpolate(flat) cells:vec4u,
@@ -69,7 +69,7 @@ struct VsmVoxelOut{
  let flatten=bitIsSet(pair.y,20u);
  let clip=vsmRenderClip(raw,shifted,flatten);
  let r=voxelRay(mask,box,o,raw.shiftedToMapUv*toShifted*cells);
- out.from=r.from;out.dir=r.dir;out.depth=r.depth;out.cells=vec4u(r.cells,select(0u,1u,flatten));
+ out.start=r.start;out.dir=r.dir;out.depth=r.depth;out.cells=vec4u(r.cells,select(0u,1u,flatten));
  // Clip scaled and biased onto the pair's page, as the raster places every corner.
  let mipLevel=(pair.y>>16u)&7u;
  let s=f32(VSM_LEVEL0_TEXELS>>mipLevel)/f32(VSM_PAGE_TEXELS/2u);
@@ -82,7 +82,7 @@ struct VsmVoxelOut{
 @fragment fn vsmRenderFs(in:VsmVoxelOut){
  let r=in.fromEmitter.w;
  if(r>0.0&&dot(in.fromEmitter.xyz,in.fromEmitter.xyz)<r*r){discard;}
- let hit=voxelPixel(in.from,in.dir,in.cells.xyz);
+ let hit=voxelPixel(in.start,in.dir,in.cells.xyz);
  if(!hit.found){discard;}
  var z=voxelDepth(in.depth,hit.t);
  if(in.cells.w!=0u){z=min(z,${VSM_F32_BELOW_ONE});}

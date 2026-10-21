@@ -4,7 +4,6 @@ import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuPageCache } from './pages.ts'
-import { orderOf } from './order.fixture.ts'
 
 const LIMITS = { maxBufferSize: 1024 }
 test('dispose aborts an in-flight load and does not write after destroy', async () => {
@@ -78,10 +77,12 @@ test('a load of a resident page reads nothing; one that left by its turn reads i
   await cache.load('a', undefined, true)
   cache.unpin('a')
   assert.deepEqual(reads, ['a'], 'a repin of a resident page asks the source nothing')
-  // `b` takes the only slot before the second load of `a` comes to its turn: the GPU gives up
-  // each in turn.
-  cache.evictInOrder(orderOf(['a', 'b']))
-  const [, again] = await Promise.all([cache.load('b'), cache.load('a')])
+  // `b` takes the only slot before the second load of `a` comes to its turn: each names the
+  // other its victim.
+  const [, again] = await Promise.all([
+    cache.load('b', undefined, false, undefined, 'a'),
+    cache.load('a', undefined, false, undefined, 'b'),
+  ])
   assert.equal(again.key, 'a')
   assert.deepEqual(reads, ['a', 'b', 'a'])
   await cache.dispose()

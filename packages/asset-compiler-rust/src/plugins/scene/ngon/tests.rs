@@ -1,12 +1,14 @@
 //! What ear clipping guarantees: the area of a simple polygon, and a counted output rather
 //! than a panic on a ring that nothing makes cuttable. The convex path is proved in
-//! `tests_convex`, against the ears.
+//! `tests/convex.rs`, against the ears.
 //!
 //! The U ring and the area measure are those of the drivers, in `crate::tests::ngons`: one
 //! definition of the U polygon, and one way to measure what comes out of it.
+#[cfg(test)]
+pub(crate) mod convex;
 use super::*;
 use crate::tests::ngons::{cut_area, U_RING};
-use trillion3d_math::{scalar::mean, vec2::double_area};
+use trillion3d_math::{scalar::mean, vector::vec2::double_area};
 
 /// A planar ring, placed in the plane `z = 0`.
 pub(super) fn flat_ring(points: &[[f64; 2]]) -> Vec<[f64; 3]> {

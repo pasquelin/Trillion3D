@@ -44,9 +44,8 @@ import type { HostRotation } from '../scene/host/scan/graphNodes.ts'
  * revision: neither `scene`, nor `resources`, nor `view`. The pose enters the decision to
  * hold or replay a frame by a single path, the view fingerprint (`../frame/view/viewRevision.ts`,
  * which the frame gate calls `viewChanged`), which compares the sixteen numbers of the view.
- * ORDER is therefore the guarantee: frame entry copies the pose BEFORE the adaptive threshold
- * (`resolvePixelError`) and BEFORE the view fingerprint, and the fingerprint is reread BEFORE
- * the hold decision. A rig the host moves without touching the camera thus moves the
+ * ORDER is therefore the guarantee: frame entry copies the pose BEFORE the view fingerprint, and
+ * the fingerprint is reread BEFORE the hold decision. A rig the host moves without touching the camera thus moves the
  * fingerprint and replays the frame; without the prior resolve, the fingerprint would see
  * nothing move and the frame would be held wrongly. A resolve done downstream, for its part,
  * neither opens nor closes any gate: it reaches no revision.
@@ -115,8 +114,8 @@ const optics: CameraOptics = { fov: 0, aspect: 1, near: 0, far: 0, zoom: 1 }
  * the host, the PROJECTION does not: the engine composes it from the declared optics
  * (field, aspect, near plane, zoom) in its own depth convention — reversed, infinite far
  * plane — because the host matrix carries its library's and a finite far plane. `camera.far`
- * is still read as-is for what still depends on it (adaptive threshold, shadow range) and
- * for the frustum far plane, which keeps it; it enters no depth. `writeEngineCamera`
+ * is still read as-is for what still depends on it (shadow range) and for the frustum far
+ * plane, which keeps it; it enters no depth. `writeEngineCamera`
  * then rebuilds the view by inverting the world matrix, the view-projection and the six
  * frustum planes, once for the whole frame.
  */

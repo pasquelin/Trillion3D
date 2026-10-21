@@ -1,10 +1,10 @@
 /**
  * WHAT THE ROWS PASS DERIVES A ROW'S WORLD-DEPENDENT WORDS FROM, kept for every caster row of the
- * table (`rowWords.ts`). A row's world sphere, its eight Hi-Z corners and its shadow detail are each
- * made of its root's world and of what a world does not change — the page's box and sphere, its
- * errors, its reach, the cut rule's residency —; the second is what a row's inputs hold
- * (`rowInputPack.ts`): twenty-four doubles, written when the row is, read by the GPU whenever the
- * row's root moves. No CPU copy of them is held: a run is packed in a scratch and sent.
+ * table (`rowWords.ts`). A row's world sphere and its shadow detail are each made of its root's
+ * world and of what a world does not change — the page's box and sphere, its errors, its reach,
+ * the cut rule's residency —; the second is what a row's inputs hold (`rowInputPack.ts`):
+ * `ROW_INPUT_DOUBLES` doubles, written when the row is, read by the GPU whenever the row's root
+ * moves. No CPU copy of them is held: a run is packed in a scratch and sent.
  */
 import { rootOf, rootOfPacked } from '../../geometry/selection/placements.ts'
 import { INPUT_FLAGS, ROW_INPUT_DOUBLES, packInputs, rowInputs } from './rowInputPack.ts'

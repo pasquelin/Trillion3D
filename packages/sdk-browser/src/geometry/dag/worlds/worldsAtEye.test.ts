@@ -15,7 +15,6 @@ import {
   type Pair,
 } from '../../../placement/compose/composeDoubles.fixture.ts'
 import { DAG_WORLD_POSE_WGSL } from '../shader/worldPoseWgsl.ts'
-import { DAG_SELECTION_SHADER } from '../shader/shader.ts'
 import { createCameraFrames } from '../cameraFrames.ts'
 import { FRAME_ROW_WORDS } from '../types.ts'
 import { cutOnce, kernelUniforms, packed } from '../selection/selectionHelpers.fixture.ts'
@@ -74,14 +73,6 @@ test('a translation is taken from whole words: a low word a float move would alt
     for (let a = 0; a < 3; a++)
       assert.equal(got[a] >>> 0, f32Bits(value(t[a]) - value(e[a])), `axis ${a}`)
   }
-})
-
-test('the cone reads the translation its thread made, the one worldPose makes', () => {
-  // One subtraction of the eye a thread (`placed`), none more a page (`coneRejectsBox`).
-  assert.ok(DAG_SELECTION_SHADER.includes('placedW=w;placedPose=worldPose(w);'))
-  const cone = DAG_SELECTION_SHADER.slice(DAG_SELECTION_SHADER.indexOf('fn coneRejectsBox'))
-  assert.ok(cone.slice(0, cone.indexOf('\n}')).includes('preparedPose(w)'))
-  assert.ok(!cone.slice(0, cone.indexOf('\n}')).includes('worldPose('))
 })
 
 test('the main view and a view aside, each at its own eye, run no pass over every placement', async () => {
@@ -151,7 +142,7 @@ test('a root its parent stops composing takes back the pose the host holds', asy
   // Unlinked, the host's pose stands again though the host wrote nothing.
   selection.composedPlacement(0, false)
   selection.dispatch(uniforms)
-  assert.equal((await selection.flush())?.pageIds.length, 4, 'back at the pose the host holds')
+  assert.equal((await selection.flush())?.pageIds.length, 7, 'back at the pose the host holds')
   selection.dispose()
   fixture.geometry.dispose()
 })

@@ -38,7 +38,7 @@ import { namesNoSession } from '../../gpu/core/sessionHandle.ts'
 import { families } from '../../session/host/families.ts'
 import { claimWebgpuDevice, markWebgpuLost } from '../io/lost.ts'
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts'
-import type { WorldCells } from '../../gpu/core/selection.ts'
+import type { WorldCells } from '../../geometry/dag/worlds/worldCells.ts'
 import {
   measureWebgpuFrame,
   pendingWebgpuFrame,
@@ -60,11 +60,22 @@ function wakingWorld(world: WorldCells, wake: () => void) {
     waking = {
       show: (instance, cell, word) => world.show(instance, cell, word) && (wake(), true),
       visible: world.visible,
-      stands: world.stands,
+      fileShown: world.fileShown,
+      fileSlot: world.fileSlot,
+      get slotRevision() {
+        return world.slotRevision
+      },
+      pageBase: world.pageBase,
       moved: world.moved,
       warmWith: world.warmWith,
+      firstImageShown: world.firstImageShown,
+      hlodEnabled: world.hlodEnabled,
+      blockingLoad: world.blockingLoad,
       get warming() {
         return world.warming
+      },
+      get shown() {
+        return world.shown
       },
       get revision() {
         return world.revision
@@ -162,6 +173,8 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
     pendingFrame: () => pendingWebgpuFrame(rt),
     measureFrame: () => measureWebgpuFrame(rt),
     skipsFrame: () => skipsWebgpuFrame(rt),
+    initialLoad: () => run.initialLoad,
+    streamingBlocks: (blocked) => void (run.streamingBlocks = blocked),
     flush(options?: { image?: boolean }) {
       return flushWebgpuPages(rt, options)
     },

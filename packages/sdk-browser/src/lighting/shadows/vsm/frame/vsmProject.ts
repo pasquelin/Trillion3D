@@ -40,6 +40,8 @@ export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFram
   const { spheres, mobilityRows, rowLods, pageLayout } = lights
   if (!pageGroup || !spheres || !mobilityRows || !rowLods || !pageLayout || !vis.pageTable) return
   vsm.renderedPlan = plan
+  const cut = run.gpuSelection,
+    cells = cut?.cellStates
   vsm.stats.render = encodeVsmRenderAndTransmission(
     rt,
     vsm,
@@ -65,6 +67,8 @@ export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFram
         perspective: cam.perspective === 1,
         threshold: run.gate.pixelError,
       },
+      // The cut's world switch: a row the view does not draw casts nothing (`worldDraws`).
+      world: cut && cells && { cold: cells.view, frames: cut.frames, links: cells.links },
     },
   )
   // The histograms the chunks of a later frame are sized from (`rowPageBound.ts`): the spheres as

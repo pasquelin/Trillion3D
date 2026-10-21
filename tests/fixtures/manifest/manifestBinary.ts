@@ -1,4 +1,5 @@
 import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../../packages/sdk-core/src/contracts/base.ts'
+import { CULLING_STRIDE } from '../../../packages/sdk-core/src/contracts/writtenFormats.ts'
 import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../../packages/sdk-core/src/page/format.ts'
 import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/geometry.ts'
 import {
@@ -80,7 +81,6 @@ export function manifest(): ClusterManifest {
       parentSphere: [0.5, 0, 0, 4],
       group: 0,
       source: null,
-      cone: { axis: [-0.0621135613999339, 0.027174688463389093, 0.9976990737678042], angle: 1.75 },
     },
     {
       id: 1,
@@ -97,7 +97,6 @@ export function manifest(): ClusterManifest {
       parentSphere: null,
       group: null,
       source: 0,
-      cone: { axis: [0, 0, 1], angle: Math.PI },
     },
   ]
   // The sparse shape: a cluster band and its geometry in its bundle — no group, no role.
@@ -113,7 +112,6 @@ export function manifest(): ClusterManifest {
       sphere: [0.5, 0.5, 0.5, 0.8660254037844386],
       parentError: null,
       parentSphere: null,
-      cone: { axis: [1, 0, 0], angle: 0.5 },
     },
   ]
   // A copy: a test that alters the manifest leaves the shared bundles as they are.
@@ -152,9 +150,9 @@ export function manifest(): ClusterManifest {
         clusterStrategy: 'dag-groups',
         pages: dagPages,
         culling: {
-          stride: 15,
+          stride: CULLING_STRIDE,
           count: 1,
-          nodes: [-1, -2, -3, 1, 2, 3, 0, 0, 0, 3.7416573867739413, -1, 0, 0, 0, 2],
+          nodes: [-1, -2, -3, 1, 2, 3, 0, 0, 0, 3.7416573867739413, -1, 0, 0, 0, 0, 2],
         },
         structure: {
           version: 1,

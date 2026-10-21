@@ -28,7 +28,7 @@ export const webgpuVertexApi = (rt: WebgpuPagesRuntime) => ({
     for (const { name, from, count } of ranges) pool?.write(attributes, name, from, count)
     noteRewritten(rt, attributes, box, reach, boxes)
     // A rewrite moves vertices, never a pose: the hierarchy keeps its matrices, so the next image
-    // walks no world — the row table, its occluder history and its corners are kept. A host pose
+    // walks no world — the row table is kept. A host pose
     // write still unread stays owed (`engineWriting`) and is walked.
     run.gate.engineMovedInPlace()
     return true

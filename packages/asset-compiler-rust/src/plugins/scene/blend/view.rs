@@ -92,7 +92,7 @@ impl<'a> At<'a> {
         if !field.pointer || bytes.len() < POINTER {
             return 0;
         }
-        crate::le::u64_at(bytes, 0).unwrap_or(0)
+        crate::support::le::u64_at(bytes, 0).unwrap_or(0)
     }
     /// A string written in place in a character array, or in the block a `char *` designates,
     /// without its terminating zero.
@@ -105,7 +105,7 @@ impl<'a> At<'a> {
         } else {
             bytes
         };
-        String::from_utf8_lossy(crate::le::until_nul(bytes)).into_owned()
+        String::from_utf8_lossy(crate::support::le::until_nul(bytes)).into_owned()
     }
     /// A nested structure, typed by the type the SDNA gives the field.
     pub(super) fn inner(&self, name: &str) -> Option<At<'a>> {

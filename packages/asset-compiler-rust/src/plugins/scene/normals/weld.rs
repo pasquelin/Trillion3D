@@ -1,6 +1,7 @@
 //! Smoothing connectivity of the shared per-corner normal computation.
 use super::*;
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::hash_map::Entry;
+use trillion3d_page_codec::hash::{word_map, WordMap};
 
 impl Surface<'_> {
     /// Unites the corners that soft edges join. A sharp face does not enter, a hard edge is
@@ -18,15 +19,16 @@ impl Surface<'_> {
     /// therefore only decide unions.
     pub(super) fn weld(
         &self,
-        join: &mut Join,
+        join: &mut Join<LeastRoot>,
         faces: usize,
         check: &mut impl FnMut(usize) -> Option<()>,
     ) -> Option<()> {
-        let mut shared: HashMap<[u32; 2], usize> = HashMap::new();
+        // Read by key only, never walked: the pairs below come out in the file's order.
+        let mut shared: WordMap<[u32; 2], usize> = word_map(0);
         self.edges(faces, Edges::Every, check, |edge, _| {
             *shared.entry(edge).or_default() += 1;
         })?;
-        let mut seen: HashMap<[u32; 2], [u32; 2]> = HashMap::new();
+        let mut seen: WordMap<[u32; 2], [u32; 2]> = word_map(0);
         let mut pairs: Vec<([u32; 2], [u32; 2])> = Vec::new();
         self.edges(faces, Edges::Smooth, check, |edge, side| {
             if shared.get(&edge) != Some(&2) {
@@ -83,7 +85,7 @@ impl Surface<'_> {
     /// Unites, from both ends of a shared edge, the corners that carry the same vertex. The two
     /// faces ordinarily walk it in opposite senses, but a flipped mesh does not: it is the
     /// vertex that decides, never the order.
-    fn pair(&self, join: &mut Join, side: [u32; 2], other: [u32; 2]) {
+    fn pair(&self, join: &mut Join<LeastRoot>, side: [u32; 2], other: [u32; 2]) {
         for here in side {
             for there in other {
                 if self.corners[here as usize] == self.corners[there as usize] {

@@ -7,7 +7,7 @@
 //! primitives (sphere, capsule, cylinder, plane) have an editor-specific tessellation that
 //! cannot be reproduced faithfully: they are counted in the report, never approximated.
 use super::*;
-use crate::import::{primitive, Vertices};
+use crate::plugins::scene::convert::{primitive, Vertices};
 use std::collections::HashMap;
 
 /// GUID of the editor's built-in resources, as it appears in scenes.

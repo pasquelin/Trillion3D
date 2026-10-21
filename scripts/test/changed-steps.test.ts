@@ -7,7 +7,7 @@ import { goldenChecks } from '../native/golden-checks.ts'
 // not a golden value alone (only the golden step reads it); a TypeScript change leaves it out.
 test('the native step follows the files the crates build from or read', () => {
   for (const file of [
-    'packages/math/rust/src/aabb.rs',
+    'packages/math/rust/src/geometry/aabb.rs',
     'packages/sdk-node/src/messages/messages.json',
   ])
     assert.ok(changedSteps([file], [file], 0).includes('rust'), file)
@@ -25,7 +25,7 @@ test('a changed reference value runs the golden tests that read it', () => {
   assert.ok(changedSteps([file], [file], 0).includes('golden'))
   const sources: Record<string, string> = {
     'packages/page-codec-wasm/src/golden/grid.rs': 'Twin {\n    file: "grid",',
-    'packages/math/rust/src/golden_tests.rs': 'Twin { file: "acos",',
+    'packages/math/rust/src/golden/tests.rs': 'Twin { file: "acos",',
     'packages/sdk-browser/src/geometry/runtime/cutGrid.golden.test.ts':
       "assertGolden('grid', 'tile_log2'",
     'packages/math/src/float/trig.golden.test.ts': "assertGolden('acos', 'acos'",
@@ -46,7 +46,7 @@ test('a changed reference value runs the golden tests that read it', () => {
 // Behaviour: a tracked file deleted in the working tree is skipped, not read.
 test('a candidate deleted in the working tree is no crash', () => {
   const sources: Record<string, string> = {
-    'packages/math/rust/src/golden_tests.rs': 'Twin { file: "grid",',
+    'packages/math/rust/src/golden/tests.rs': 'Twin { file: "grid",',
     'packages/math/src/gone.golden.test.ts': "assertGolden('grid', 'tile'",
   }
   assert.deepEqual(
@@ -61,7 +61,7 @@ test('a candidate deleted in the working tree is no crash', () => {
 // as written, never as a pattern.
 test('a reference file of any name runs the golden tests that read it', () => {
   const sources: Record<string, string> = {
-    'packages/math/rust/src/golden_tests.rs': 'Twin { file: "page-grid.v2",',
+    'packages/math/rust/src/golden/tests.rs': 'Twin { file: "page-grid.v2",',
     'packages/math/src/grid.golden.test.ts': "assertGolden('page-grid.v2', 'tile'",
     'packages/math/src/other.golden.test.ts': "assertGolden('page-gridXv2', 'tile'",
   }
@@ -83,7 +83,7 @@ test('a reference file of any name runs the golden tests that read it', () => {
 test('several changed reference files read each candidate once', () => {
   const sources: Record<string, string> = {
     'packages/page-codec-wasm/src/golden/grid.rs': 'Twin {\n    file: "grid",',
-    'packages/math/rust/src/golden_tests.rs': 'Twin { file: "acos",',
+    'packages/math/rust/src/golden/tests.rs': 'Twin { file: "acos",',
     'packages/sdk-browser/src/geometry/runtime/cutGrid.golden.test.ts':
       "assertGolden('grid', 'tile_log2'",
     'packages/math/src/float/trig.golden.test.ts': "assertGolden('acos', 'acos'",

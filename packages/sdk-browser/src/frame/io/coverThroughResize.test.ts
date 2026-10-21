@@ -17,17 +17,17 @@ test('the root cover draws through a pool resize and the row growth that follows
         if (recordOf(page)?.url === url) return page
       return -1
     }
-    const cover = ['2', '3'].map(rankOf)
+    const cover = [rankOf('3')]
     assert.ok(
       cover.every((page) => page >= 0),
       'the cover is in the catalogue',
     )
-    assert.deepEqual(drawn(), ['2'])
-    layout.viewRows = 2
+    assert.deepEqual(drawn(), ['3'])
+    layout.viewRows = 1
     await setWebgpuMemoryBudgets(rt, { geometryPoolBytes: 1 << 20 })
     await draw(1)
     const flags = () => cover.map((page) => layout.rows.residentFlag(page))
-    assert.deepEqual(flags(), [1, 1], 'the cover stays resident, its rows at its new place')
+    assert.deepEqual(flags(), [1], 'the cover stays resident, its row at its new place')
     assert.ok(drawn().length > 0, 'the first image after the resize draws')
     for (let image = 1; image < 4; image++) {
       await draw(1)

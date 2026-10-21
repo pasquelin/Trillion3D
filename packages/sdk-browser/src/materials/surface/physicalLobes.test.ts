@@ -42,7 +42,7 @@ test('a lobe that comes remakes the lobes target alone, the other targets kept',
     wanted.views(),
     without.views().map((view, at) => (at === 2 ? view : view)),
   )
-  assert.equal(wanted.baseMetal, without.baseMetal)
+  assert.equal(wanted.colours, without.colours)
   assert.equal(
     wanted.allocationBytes - without.allocationBytes,
     (13 * 7 - 1) * PHYSICAL_LOBES_TARGET.texelBytes,

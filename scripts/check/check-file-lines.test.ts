@@ -11,20 +11,20 @@ test('counts physical lines, including an unterminated final line', () => {
 
 test('rejects every oversized file, including existing files', () => {
   const lines = new Map([
-    ['new.ts', 201],
+    ['new.ts', 301],
     ['old.rs', 5309],
-    ['small.mjs', 200],
+    ['small.mjs', 300],
   ])
   const errors = lineLimitViolations(lines)
   assert.equal(errors.length, 2)
-  assert.match(errors[0], /new.ts: 201 lines/)
+  assert.match(errors[0], /new.ts: 301 lines/)
   assert.match(errors[1], /old.rs: 5309 lines/)
 })
 
 test('checks only selected files during a targeted run', () => {
   const errors = lineLimitViolations(
     new Map([
-      ['large.ts', 300],
+      ['large.ts', 400],
       ['changed.ts', 199],
     ]),
     new Set(['changed.ts']),

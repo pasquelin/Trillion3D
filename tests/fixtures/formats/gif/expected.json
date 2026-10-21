@@ -8,7 +8,7 @@
   },
   "case": "A quad whose base colour is palette-global.gif, a 4 × 2 GIF indexed on a global colour table of eight entries, compiled by the common harness.",
   "formatVersion": 11,
-  "manifestBinaryVersion": 13,
+  "manifestBinaryVersion": 18,
   "previews": [
     {
       "atlas": 0,
@@ -81,7 +81,7 @@
       "pixelBytes": 44,
       "pixelOffset": 0,
       "sourceKind": 0,
-      "sourceSha256": "d9c14c88f00f45c9edef16dde1129a8a8a034c21953c6b467d89c169111f6d4f",
+      "sourceSha256": "b188a6723530451819658c56c58eb41d41ecce1ac44fc238000cac3843fed375",
       "sourceView": 4294967295,
       "texture": 0,
       "width": 4

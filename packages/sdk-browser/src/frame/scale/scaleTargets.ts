@@ -2,7 +2,8 @@
 export const SECOND_MS = 1000
 /** 60 Hz, the slowest display the engine draws for: the refresh assumed before the display's is
  *  measured (`scaleControl.ts`), the main thread's frame past which it chokes
- *  (`../../diagnostic/frameProfile.ts`). */
+ *  (`../../diagnostic/frameProfile.ts`), and the share loading takes of it while the session's
+ *  first image is withheld (`../loop/firstImage.ts`). */
 export const FALLBACK_REFRESH_MS = SECOND_MS / 60
 /** The images a GPU time is waited for before the timer counts as silent (`scaleTick.ts`), and
  *  the interactive loop's first display frames, held to measure the refresh on (`scaleControl.ts`,

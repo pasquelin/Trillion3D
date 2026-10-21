@@ -1,13 +1,13 @@
-import { RECEIVER_TARGET_FORMAT } from '../shader/receiverTargetWgsl.ts'
+import { SURFACE_WORDS_FORMAT } from '../../materials/surface/surfaceOutputs.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { createFloatAtlas } from '../../gpu/core/floatAtlas.ts'
 import { standInTexture } from '../../gpu/core/standInTexture.ts'
 import { computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 
-/** The receiver binding of a layout at \`binding\`: the resolve's receiver target
- *  (\`receiverTargetWgsl.ts\`), read by load. */
+/** The receiver binding of a layout at \`binding\`: the resolve's receiver, the two layers of the
+ *  surfaces' words that hold it (\`receiverTargetWgsl.ts\`), read by load. */
 export const receiverLayoutEntry = (binding: number, visibility: GPUShaderStageFlags) =>
-  computeTextureEntry(binding, 'uint', '2d', visibility)
+  computeTextureEntry(binding, 'uint', '2d-array', visibility)
 
 /** The frame's shadow receiver target, the one the resolve wrote (\`shadeBindings.ts\`), or nothing
  *  while it does not exist: then no pixel was resolved, and none is lit. */
@@ -19,10 +19,12 @@ export const receiverResources = ({ gpu }: WebgpuPagesRuntime) => gpu.surfaces?.
  * reads.
  */
 export function receiverPlaceholders(device: GPUDevice) {
-  const target = standInTexture(device, 'Trillion3D empty receiver', RECEIVER_TARGET_FORMAT)
+  const target = standInTexture(device, 'Trillion3D empty receiver', SURFACE_WORDS_FORMAT, {
+    layers: 2,
+  })
   const normals = createFloatAtlas(device, 'Trillion3D empty normals', 1)
   return {
-    resources: target.createView(),
+    resources: target.createView({ dimension: '2d-array' }),
     normals: normals.view,
     dispose() {
       normals.texture.destroy()

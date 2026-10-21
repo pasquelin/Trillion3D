@@ -7,16 +7,16 @@
 use super::refused;
 use crate::Result;
 use serde_json::{json, Value};
-use std::collections::HashMap;
-use trillion3d_math::vec3::{divide, triple};
-use trillion3d_math::vecn::sub;
+use trillion3d_math::vector::vec3::{divide, triple};
+use trillion3d_math::vector::vecn::sub;
+use trillion3d_page_codec::hash::WordMap;
 
 /// Density a body is weighed at, kg/m³: the runtime's (`SHAPE_DENSITY`, `src/commands.cpp`).
 pub(super) const DENSITY: f64 = 1000.0;
 
 /// Whether every edge of the welded `triangles` runs once each way as often.
 fn closed(triangles: &[u32]) -> bool {
-    let mut balance: HashMap<(u32, u32), i64> = HashMap::new();
+    let mut balance: WordMap<(u32, u32), i64> = WordMap::default();
     for &[a, b, c] in triangles.as_chunks::<3>().0 {
         for (from, to) in [(a, b), (b, c), (c, a)].into_iter().filter(|(f, t)| f != t) {
             *balance.entry((from.min(to), from.max(to))).or_default() +=

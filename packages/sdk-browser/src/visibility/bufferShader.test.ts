@@ -34,13 +34,16 @@ test('MeshStandardMaterial pure metal retains the punctual specular highlight', 
 test('vis shader instances pages from the page table', () => {
   assert.match(VIS_SHADER, /@builtin\(instance_index\)/)
   assert.match(VIS_SHADER, /pages\s*:\s*array<PageInfo>/)
-  assert.match(VIS_SHADER, /vertexIndex\s*>=\s*page\.indexCount/)
+  assert.match(VIS_SHADER, /corner\s*>=\s*page\.indexCount/)
   assert.doesNotMatch(VIS_SHADER, /uni\.pageOffset/)
   assert.match(VIS_SHADER, /@group\(0\) @binding\(2\) var<storage,\s*read> pages/)
   assert.match(VIS_SHADER, /@group\(0\) @binding\(4\) var<uniform> uni/)
   assert.match(VIS_SHADER, /@group\(0\) @binding\(6\) var colorPool/)
   assert.match(VIS_SHADER, /fn maskKeep/)
-  assert.match(VIS_SHADER, /discard;/)
+  // The fragment writes no attachment: a cut pixel returns before `visWrite`, it discards nothing.
+  assert.match(VIS_SHADER, /if\(MASKED&&!maskKeep\(page,in\.tc\.xy,in\.tc\.z,gx,gy\)\)\{return;\}/)
+  assert.match(VIS_SHADER, /visWrite\(offset,key,in\.id,ID_PHASE\);/)
+  assert.doesNotMatch(VIS_SHADER, /discard;/)
   assert.match(VIS_SHADER, /textureSampleLevel/)
   assert.doesNotMatch(VIS_SHADER, /textureSample\s*\(/)
   assert.doesNotMatch(VIS_SHADER, /@group\(0\) @binding\(2\) var<uniform>/)

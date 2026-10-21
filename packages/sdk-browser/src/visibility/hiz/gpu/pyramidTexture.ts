@@ -16,8 +16,8 @@ import type { HizDepth } from './types.ts'
  * pyramid whose level 0 holds `N` texels and its coarser levels `M` in all (`pyramidBytes`: `M` is a
  * third of `N`). Three bounds of a cell are kept, of three different depths:
  *  - `HIZ_CULL_FARTHEST`, the farthest of the OCCLUDERS' depth, built mid-frame, before the rest
- *    of the scene is drawn: what the culling (the partition's, the transparent clusters', the
- *    occlusion test) trusts, because the depth only comes nearer after it. Its level 0 is a copy
+ *    of the scene is drawn: what the culling (the transparent clusters', the cut's occlusion)
+ *    trusts, because the depth only comes nearer after it. Its level 0 is a copy
  *    of level 0.
  *  - `HIZ_WHOLE_FARTHEST`, the farthest of the FINISHED depth, built once every opaque pixel is
  *    drawn: what a ray march of the whole depth needs to know a cell is entirely in front of the

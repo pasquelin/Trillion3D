@@ -103,7 +103,7 @@ const passeCollect =
         ...boxToArray(root.localBox ?? new Float64Array(6)),
         ...boxToArray(root.worldBox ?? new Float64Array(6)),
       ]),
-      bornes: output.roots.map((root) => root.culling?.bounds ?? null),
+      bornes: output.roots.map((root) => root.culling?.nodes ?? null),
     }
   }
 

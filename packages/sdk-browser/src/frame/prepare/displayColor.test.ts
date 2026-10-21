@@ -29,6 +29,9 @@ function made(renderWidth: number, water: boolean) {
   const size = { width: 64, height: 32, renderWidth, renderHeight: renderWidth / 2, apart: true }
   const asked = frameTargetAllocation(rt, size)
   makeTargets(rt, gpu.device, size, asked)
+  // The reflection's grids are made by the first image that traces, and the budget counts them
+  // from the start (`reflectionBytes`): the bytes made are the bytes asked once that image has.
+  void rt.gpu.reflection!.grids
   // The distortion's targets are charged beside the targets (`frameExtraBytes`); a scene without
   // it keeps two 1×1 stand-ins no one charges.
   const charged = gpu.textures.filter(

@@ -1,8 +1,8 @@
 // One cut rule per cluster (#486): on a synthetic DAG whose pages leave at random, the engine
 // covers every leaf exactly once, by the cluster it wants or by that cluster's nearest resident
 // ancestor — never coarser, and never a whole primitive coarsened for one missing page. The kernel
-// model runs twice: with the TypeScript rule, and with the kernel's own `dagMask` call site, on
-// the comparisons `dagWanted` kept, run in Node on the residency bits its host uploads. The CPU cut
+// model runs twice: with the TypeScript rule, and with the kernel's own `dagWanted` call site, on
+// the cluster's two comparisons, run in Node on the residency bits its host uploads. The CPU cut
 // runs the same rule on the same DAG (#483 rules 1, 2 and 8).
 import test from 'node:test'
 import assert from 'node:assert/strict'

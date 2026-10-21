@@ -52,7 +52,7 @@ test("encoding-submit: the traced pose is the engine camera's, not the host came
   }
 })
 
-// The trace publishes the triangles drawn as the metrics do (`drawnTrianglesOf`), without the
+// The trace publishes the triangles drawn as the metrics do (the cut's selected), without the
 // `pending` guard that hid `submittedTriangles`: a number once an image has been submitted, never
 // `null`.
 test("encoding-submit: drawnTriangles is the metrics' count, never null once the image is submitted", async () => {

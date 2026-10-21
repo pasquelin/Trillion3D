@@ -1,6 +1,6 @@
 /**
  * Geometry of a texture's progressive pyramid, held to
- * `packages/asset-compiler-rust/src/texture_preview/levels.rs` by `golden/preview_levels.json`
+ * `packages/asset-compiler-rust/src/texture/levels.rs` by `golden/preview_levels.json`
  * (the sides are `mipSize`, held by `golden/mip_size.json`).
  *
  * A level `k` is exactly mip level `k` of the source: both sides divided as

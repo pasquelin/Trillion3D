@@ -20,11 +20,9 @@ mod convex;
 mod ears;
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
-mod tests_convex;
 use super::cancel;
 use std::sync::atomic::AtomicBool;
-use trillion3d_math::triangle::newell;
+use trillion3d_math::geometry::triangle::newell;
 
 /// A reusable cutter: the ring, its projection, the ranks still alive and the triangles serve
 /// from one face to the next, so a mesh of a thousand faces does not allocate a thousand times.

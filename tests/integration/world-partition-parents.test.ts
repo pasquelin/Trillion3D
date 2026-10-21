@@ -14,7 +14,7 @@ import type { PlacementRows } from '../../packages/sdk-browser/src/placement/row
 import { createWorldPoses } from '../../packages/sdk-browser/src/session/world/poses/poses.ts'
 import { createPartitionFrame } from '../../packages/sdk-browser/src/scene/drive/partitionFrame.ts'
 import { compiler, SPACING, world } from './world-partition.fixture.ts'
-import { assertNoneMissing, primed, served } from './world-partition-follow.fixture.ts'
+import { assertNoneMissing, loadingMany, primed, served } from './world-partition-follow.fixture.ts'
 import { noModels } from '../../packages/sdk-browser/src/session/world/models/models.fixture.ts'
 
 const SHIFT = 5000
@@ -44,11 +44,13 @@ test(
       camera,
       engine: {
         worldCells: () => undefined,
+        initialLoad: () => false,
         updatePlacements: (rows) => void drawn.add(rows),
         composePlacements: composeStandIn(),
       } as Partial<Engine> as Engine,
       renew: () => void renewed++,
       budget: { admits: () => true, spend() {} },
+      streaming: loadingMany,
     })!
     for (let step = 0; step < 16; step++) {
       frame()

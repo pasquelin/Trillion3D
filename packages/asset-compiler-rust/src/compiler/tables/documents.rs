@@ -1,0 +1,158 @@
+//! The geometry layout of one published document: where each vertex attribute and each index list
+//! of every primitive sits in the binary the document is published with, how it is typed, the box
+//! its positions declare, the surface each primitive wears, and where each image comes from.
+//!
+//! The runtime views the binary through these numbers and nothing else: it neither parses the
+//! document nor decodes anything the compiler has not already laid out. The compiler writes the
+//! document's one buffer (`source.bin`), so every view offset is an offset into it.
+use super::sparse::sparse;
+use super::*;
+use crate::compiler::accessor::codes::{component_bytes, element_shape};
+
+fn views(g: &Value) -> Result<Vec<Value>> {
+    let Some(views) = g.get("bufferViews").and_then(Value::as_array) else {
+        return Ok(Vec::new());
+    };
+    views
+        .iter()
+        .map(|view| {
+            if optional_index(view.get("buffer"), "bufferView.buffer", 0)? != 0 {
+                return Err(invalid("a published document carries one buffer"));
+            }
+            Ok(json!({
+                "offset": optional_index(view.get("byteOffset"), "bufferView.byteOffset", 0)?,
+                "length": required_index(view.get("byteLength"), "bufferView.byteLength")?,
+                "stride": match view.get("byteStride") {
+                    Some(stride) => Some(required_index(Some(stride), "bufferView.byteStride")?),
+                    None => None,
+                },
+            }))
+        })
+        .collect()
+}
+
+fn accessors(g: &Value, views: usize) -> Result<Vec<Value>> {
+    let Some(accessors) = g.get("accessors").and_then(Value::as_array) else {
+        return Ok(Vec::new());
+    };
+    accessors
+        .iter()
+        .map(|accessor| {
+            let view = match accessor.get("bufferView") {
+                Some(view) => Some(bounded(view, "accessor.bufferView", views)?),
+                None => None,
+            };
+            let kind = accessor.get("type").and_then(Value::as_str).unwrap_or("");
+            let component = accessor.get("componentType").and_then(Value::as_u64);
+            if element_shape(kind).is_none()
+                || !component.is_some_and(|c| component_bytes(c as usize).is_some())
+            {
+                return Err(invalid("accessor type or componentType is not readable"));
+            }
+            Ok(json!({
+                "view": view,
+                "offset": optional_index(accessor.get("byteOffset"), "accessor.byteOffset", 0)?,
+                "componentType": component,
+                "normalized": accessor.get("normalized").and_then(Value::as_bool) == Some(true),
+                "count": required_index(accessor.get("count"), "accessor.count")?,
+                "type": kind,
+                "min": accessor.get("min").cloned().unwrap_or(Value::Null),
+                "max": accessor.get("max").cloned().unwrap_or(Value::Null),
+                "sparse": sparse(accessor.get("sparse"), views)?,
+            }))
+        })
+        .collect()
+}
+
+/// Accessor ranks by glTF semantic, each checked against the accessor table; `None` when absent.
+fn semantics(
+    declared: Option<&Value>,
+    accessors: usize,
+) -> Result<Option<serde_json::Map<String, Value>>> {
+    let Some(declared) = declared.and_then(Value::as_object) else {
+        return Ok(None);
+    };
+    let mut out = serde_json::Map::new();
+    for (semantic, id) in declared {
+        let id = bounded(id, "primitive attribute", accessors)?;
+        out.insert(semantic.clone(), json!(id));
+    }
+    Ok(Some(out))
+}
+
+/// One primitive: its attributes by glTF semantic, its morph targets, its index list and the surface rank it wears.
+fn primitive(g: &Value, p: &Value, accessors: usize, surfaces: &mut Materials) -> Result<Value> {
+    if optional_index(p.get("mode"), "primitive.mode", 4)? != 4 {
+        return Err(CompilerError::new(
+            "UNSUPPORTED_PRIMITIVE",
+            "Only static triangles are supported",
+        ));
+    }
+    let attributes = semantics(p.get("attributes"), accessors)?
+        .ok_or_else(|| invalid("primitive.attributes is required"))?;
+    // Morph targets, each a set of attributes the host adds to the base ones by a weight.
+    let targets = match p.get("targets").and_then(Value::as_array) {
+        Some(targets) => Value::Array(
+            targets
+                .iter()
+                .map(|target| {
+                    semantics(Some(target), accessors).map(|t| t.unwrap_or_default().into())
+                })
+                .collect::<Result<_>>()?,
+        ),
+        None => Value::Null,
+    };
+    let indices = match p.get("indices") {
+        Some(value) => Some(bounded(value, "primitive.indices", accessors)?),
+        None => None,
+    };
+    Ok(
+        json!({"attributes":attributes,"targets":targets,"indices":indices,"material":surfaces.rank(g, p)?}),
+    )
+}
+
+fn images(g: &Value, views: usize) -> Result<Vec<Value>> {
+    let Some(images) = g.get("images").and_then(Value::as_array) else {
+        return Ok(Vec::new());
+    };
+    images
+        .iter()
+        .map(|image| {
+            let view = match image.get("bufferView") {
+                Some(view) => Some(bounded(view, "image.bufferView", views)?),
+                None => None,
+            };
+            Ok(json!({
+                "name": name_of(image),
+                "uri": image.get("uri").cloned().unwrap_or(Value::Null),
+                "view": view,
+                "mimeType": image.get("mimeType").cloned().unwrap_or(Value::Null),
+            }))
+        })
+        .collect()
+}
+
+/// The layout of one published document, the binary it is read from named beside it.
+pub(super) fn document_table(g: &Value, buffer: &str, surfaces: &mut Materials) -> Result<Value> {
+    let views = views(g)?;
+    let accessors = accessors(g, views.len())?;
+    let mut meshes = Vec::new();
+    for mesh in g
+        .get("meshes")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .unwrap_or(&[])
+    {
+        let mut parts = Vec::new();
+        for p in values(mesh, "primitives")? {
+            parts.push(primitive(g, p, accessors.len(), surfaces)?);
+        }
+        meshes.push(json!({
+            "name": name_of(mesh),
+            "weights": mesh.get("weights").cloned().unwrap_or(Value::Null),
+            "primitives": parts,
+        }));
+    }
+    let images = images(g, views.len())?;
+    Ok(json!({"buffer":buffer,"views":views,"accessors":accessors,"meshes":meshes,"images":images}))
+}

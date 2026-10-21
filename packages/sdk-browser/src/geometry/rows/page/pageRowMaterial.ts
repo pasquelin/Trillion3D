@@ -5,8 +5,11 @@ import { slotSampled } from '../../../materials/virtual/sampling/samplingHeaders
 import {
   FLAG_COLOR,
   FLAG_NORMAL,
+  FLAG_TANGENT,
   FLAG_UV,
   FLAG_UV1,
+  FLAG_UV2,
+  FLAG_UV3,
 } from '../../../../../sdk-core/src/page/format.ts'
 import { GEOMETRY_VOXEL } from '../../../../../sdk-core/src/page/voxelPage.ts'
 import { FLAG_SAMPLED } from '../../../visibility/types.ts'
@@ -20,9 +23,10 @@ export type GeometryBlock = {
   /** Vertex colours: the page's `COLOR_0`, or the tail of the source UV buffer
    *  (`../../../gpu/core/vertexColors.ts`). */
   hasColor: boolean
-  /** A second UV set: the page's `TEXCOORD_1`, or the tail of the normal atlas the float block is
-   *  read through (`../../pages/pool/geometryPoolLayout.ts`), which the physical maps on that set read. */
-  hasUv1?: boolean
+  /** A UV set past the first: any of the page's `TEXCOORD_1` to `TEXCOORD_3`, or the tail of the
+   *  normal atlas the float block is read through (`../../pages/pool/geometryPoolLayout.ts`),
+   *  which the maps on those sets read. */
+  hasExtraUv?: boolean
   /** The row reads its geometry from the quantized page in its pool slot, not from the source
    *  float buffers: `vertexBase` then addresses nothing. */
   quantized?: boolean
@@ -37,8 +41,9 @@ export type GeometryBlock = {
  * and every slot move, and this runs there.
  *
  * A cluster the engine uploaded as a quantized page reads that page: the page's own flags say
- * which attributes it carries, and it stores no tangent — the resolve rebuilds the frame from
- * the triangle (`../../cluster/decodeWgsl.ts`). Any other cluster reads the source block its primitive
+ * which attributes it carries — its stored tangents among them where its mesh stores them
+ * (`FLAG_TANGENT`, `clusterTangent`); without them the resolve rebuilds the frame from the
+ * triangle (`../../cluster/decodeWgsl.ts`). Any other cluster reads the source block its primitive
  * was packed into.
  */
 export function rowGeometry(
@@ -54,15 +59,15 @@ export function rowGeometry(
   into.voxel = (page.flags & GEOMETRY_VOXEL) !== 0
   if (into.voxel) {
     Object.assign(into, { hasUv: false, hasNormal: true, hasTangent: false, hasColor: false })
-    into.hasUv1 = false
+    into.hasExtraUv = false
     into.quantized = false
     return into
   }
   into.hasUv = (page.flags & FLAG_UV) !== 0
   into.hasNormal = (page.flags & FLAG_NORMAL) !== 0
-  into.hasTangent = false
+  into.hasTangent = (page.flags & FLAG_TANGENT) !== 0
   into.hasColor = (page.flags & FLAG_COLOR) !== 0
-  into.hasUv1 = (page.flags & FLAG_UV1) !== 0
+  into.hasExtraUv = (page.flags & (FLAG_UV1 | FLAG_UV2 | FLAG_UV3)) !== 0
   into.quantized = true
   return into
 }
@@ -75,7 +80,7 @@ export const emptyGeometryBlock = (): GeometryBlock => ({
   hasNormal: false,
   hasTangent: false,
   hasColor: false,
-  hasUv1: false,
+  hasExtraUv: false,
   quantized: false,
   voxel: false,
 })

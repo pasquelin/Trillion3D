@@ -14,13 +14,13 @@
 //! rank order whatever runs first.
 //! The recursion, the graph's bisection and the Morton order live in `recurse`.
 mod bisect;
-mod heap;
 mod order;
 
-use trillion3d_math::vecn::distance2;
-
 use std::ops::Range;
+use trillion3d_math::join::{GreatestRoot, Join};
+use trillion3d_math::vector::vecn::distance2;
 mod recurse;
+pub use recurse::spread;
 use recurse::{morton, recurse};
 
 /// Who runs the two halves of a bisection: one after the other (`Serial`), or side by side on a
@@ -35,40 +35,6 @@ impl Fork for Serial {
     fn fork(&self, a: &mut (dyn FnMut() + Send), b: &mut (dyn FnMut() + Send)) {
         a();
         b();
-    }
-}
-
-/// The connected islands of the elements, by union and find: a link joins two elements' islands.
-pub struct Islands {
-    parent: Vec<u32>,
-}
-impl Islands {
-    pub fn new(count: usize) -> Self {
-        Self {
-            parent: (0..count as u32).collect(),
-        }
-    }
-    /// The island of `i`, every element on the way pointed at it.
-    pub fn find(&mut self, i: u32) -> u32 {
-        let mut root = i;
-        while self.parent[root as usize] != root {
-            root = self.parent[root as usize];
-        }
-        let mut at = i;
-        while self.parent[at as usize] != root {
-            let next = self.parent[at as usize];
-            self.parent[at as usize] = root;
-            at = next;
-        }
-        root
-    }
-    /// Joins the islands of `a` and `b`, the larger number naming both.
-    pub fn union(&mut self, a: u32, b: u32) {
-        let (ra, rb) = (self.find(a), self.find(b));
-        if ra != rb {
-            let (low, high) = if ra < rb { (ra, rb) } else { (rb, ra) };
-            self.parent[low as usize] = high;
-        }
     }
 }
 
@@ -124,30 +90,30 @@ impl Partitioner {
         }
     }
 
-    /// Ranks the elements in the Morton order of their `centre` within `bounds` (ties by element),
+    /// Ranks the elements in the Morton order of their `centres` within `bounds` (ties by element),
     /// then links each element of a small island — a run of fewer than `RUN_FOR_LINKS` elements of
     /// one island along that order — to its `LINKS_PER_ELEMENT` nearest elements of other islands
     /// among the next `LINK_STEPS` on each side, a run of its own island skipped whole. Each link
     /// goes both ways, once.
     pub fn locality_links(
         &mut self,
-        islands: &mut Islands,
+        islands: &mut Join<GreatestRoot>,
         bounds: ([f32; 3], [f32; 3]),
-        centre: impl Fn(u32) -> [f32; 3],
+        centres: &[[f32; 3]],
     ) {
         let n = self.ranks.len();
         let (low, high) = bounds;
         let extent = (0..3).map(|a| high[a] - low[a]).fold(0.0f32, f32::max);
         // Each element after its Morton code, ties by element: one sort of whole words.
         let mut keyed: Vec<u64> = (0..n as u32)
-            .map(|e| u64::from(morton(centre(e), low, extent)) << 32 | u64::from(e))
+            .map(|e| u64::from(morton(centres[e as usize], low, extent)) << 32 | u64::from(e))
             .collect();
         keyed.sort_unstable();
         self.ranks = keyed.iter().map(|&k| k as u32).collect();
         for (rank, &e) in self.ranks.iter().enumerate() {
             self.rank_of[e as usize] = rank as u32;
         }
-        let island: Vec<u32> = self.ranks.iter().map(|&e| islands.find(e)).collect();
+        let island: Vec<u32> = self.ranks.iter().map(|&e| islands.root(e)).collect();
         // Each rank's run of one island along the order, to jump past an island at once.
         let mut runs = vec![0..0; n];
         let mut start = 0;
@@ -164,7 +130,7 @@ impl Partitioner {
                 continue;
             }
             let me = self.ranks[i];
-            let here = centre(me);
+            let here = centres[me as usize];
             let mut nearest = [(u32::MAX, f32::MAX); LINKS_PER_ELEMENT];
             for forward in [false, true] {
                 let mut at = i;
@@ -189,7 +155,7 @@ impl Partitioner {
                         };
                         continue;
                     }
-                    let mut candidate = (other, distance2(here, centre(other)));
+                    let mut candidate = (other, distance2(here, centres[other as usize]));
                     for slot in nearest.iter_mut() {
                         if candidate.1 < slot.1 {
                             std::mem::swap(&mut candidate, slot);

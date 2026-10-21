@@ -1,5 +1,5 @@
 // Defect 6's cases: four named witnesses, then a sample of at least 3072 cases over what moves the
-// determinant — uniform scale from 1e-3 to 1e-16, anisotropic scale (left out by conformity), large
+// determinant — uniform scale from 1e-3 to 1e-16, anisotropic scale, large
 // local coordinates, an object of realistic world size, and a mirror (negative determinant) on half
 // of them.
 import assert from 'node:assert/strict'
@@ -11,14 +11,11 @@ export const turned = (s: number, kind: 'uniform' | 'anisotropic', angleDeg: num
 
 /**
  * The witnesses, in this order:
- *  — the counter-example: a half-turn about X sends the local axis (0,0,1) to (0,0,−1), straight
- *    at the camera, so both triangles face it. Below s ≈ 2.15e-7 (det = s³ < 1e-20) the absolute
- *    threshold kept the LOCAL axis (0,0,1), facing away, and culled the cluster;
- *  — the large scale: the same, s outside the guard's band (det ≫ 1e-20);
- *  — no rotation: the same tiny scale, the local axis already the world one, both triangles facing
- *    away — a cull that is right before as after, and must stay so;
- *  — not conformal: the same rotation and tiny scale, anisotropic — conformity (defect 1) leaves it
- *    out before `inverseTranspose3`, so the cone never culls it.
+ *  — the counter-example: a half-turn about X at a tiny uniform scale (det = s³ < 1e-20) turns
+ *    both triangles to face the camera;
+ *  — the large scale: the same, s outside that band (det ≫ 1e-20);
+ *  — no rotation: the same tiny scale, both triangles facing away;
+ *  — not conformal: the same rotation and tiny scale, anisotropic.
  */
 const WITNESSES: [string, Case][] = [
   ['counter-example', turned(1e-8, 'uniform', 180)],

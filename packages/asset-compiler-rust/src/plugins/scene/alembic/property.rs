@@ -10,7 +10,7 @@
 //! sample opens on sixteen key bytes the writer left there.
 use super::archive::{text, Archive, META_INLINE};
 use super::ogawa::{invalid, is_data};
-use crate::le::Cursor;
+use crate::support::le::Cursor;
 use crate::Result;
 
 /// The sixteen key bytes that precede the values of every sample.

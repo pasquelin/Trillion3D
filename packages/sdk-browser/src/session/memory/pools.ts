@@ -1,4 +1,5 @@
 import type { TexturePool } from '../../geometry/residency/memoryBudgets.ts'
+import type { RootSlots } from '../../geometry/pages/pool/placement.ts'
 
 /**
  * Engine memory budgets: FIXED-size pools, set by the host and never read off
@@ -78,10 +79,13 @@ export type PoolClamp =
   'root-cover' | 'scene' | 'page-cap' | 'device-limit' | 'minimum' | 'ceiling' | null
 
 /** The geometry pool as it stands: slots, page size and bytes held. */ export type GeometryPool = {
-  /** Bytes requested by the host, and the page slots the pool draws from them. */
+  /** Bytes requested by the host for the streaming slots: the root cover's are beside them. */
   budgetBytes: number
-  /** Page slots. */ slots: number
-  /** Bytes per page. */ pageBytes: number
+  /** Streaming page slots: the streaming slots and the root cover's grains. */ slots: number
+  /** Bytes per streaming slot: the widest streaming page's. */ pageBytes: number
+  /** The root cover's grains among the slots, behind the streaming ones, and the bytes of each
+   *  (`../../geometry/pages/pool/placement.ts`). */
+  roots: RootSlots
   /** Bytes held. */ allocatedBytes: number
   /** Why the size was limited. */ clamp: PoolClamp
 }
@@ -98,62 +102,71 @@ export const checkGeometryPoolBudget = (bytes: number) =>
   checkBudget(bytes, 'INVALID_GEOMETRY_POOL_BUDGET')
 
 /**
- * Geometry page-pool slots for a budget in bytes, 512 MB by default. Root coverage always fits, its
- * resident root pages being outside the pool: a budget smaller than that cover is raised to it, by name.
- * A scene smaller than the budget takes only what it has, and a page cap (`maxResidentPages`, the
- * one benches and tests use) also bounds it. A pool that holds the
- * whole catalogue (`slots` at `uniquePages`) and knows its pages' own sizes (`homeBytes`,
- * `../../geometry/pages/pool/homes.ts`) holds those bytes alone, not a slot of the widest page for each. The
- * DEVICE limit weighs the pool as it is held: past it, the pool keeps the slots the device holds;
- * a root cover no device's slots hold is held with every page at its own size when those fit, and
- * only a catalogue that fits no buffer at all is refused.
+ * Geometry page-pool slots for a budget in bytes, 512 MB by default: the STREAMING POOL, the slots
+ * of the widest streaming page the budget holds — each slot one streaming page, its clusters packed
+ * as the cache laid them (`../../geometry/pages/pool/placement.ts`) —, and BESIDE it the ROOT
+ * REGION, a grain of `rootBytes` for each of the root cover's streaming pages (`rootPages`), which
+ * the budget never pays for — the pool is both. The budget pays for the streaming slots alone. A
+ * budget that holds no slot leaves the root cover alone, by name (`root-cover`). A scene smaller
+ * than both takes only what it has, and a page cap (`maxResidentPages`, the one benches and tests
+ * use) bounds the streaming slots. A pool that holds the whole catalogue (`slots` at
+ * `uniquePages`, its streaming pages) and knows their own sizes (`homeBytes`,
+ * `../../geometry/pages/pool/homes.ts`) holds those bytes alone, not a slot of the widest for each.
+ * The DEVICE limit weighs the pool as it is held: past it, the pool keeps the streaming slots the
+ * device holds beside the root region; a root cover no device holds so is held with every
+ * streaming page at its own size when those fit, and only a catalogue that fits no buffer at all
+ * is refused.
  */
 export function geometryPoolFor(options: {
   budgetBytes: number
   pageBytes: number
-  /** Resident geometry records outside page slots, included in this same budget. */
-  fixedBytes?: number
   uniquePages: number
-  /** The whole catalogue at its pages' own sizes, when the engine places it so. */
+  /** The whole catalogue at its streaming pages' own sizes, when the engine places it so. */
   homeBytes?: number
+  /** The root cover's streaming pages, held beside the streaming slots. */
   rootPages: number
+  /** The bytes of a root grain, the widest root cover's page's: none, a streaming slot's. */
+  rootBytes?: number
   maxResidentPages?: number
   limits?: Parameters<typeof storageBufferCap>[0]
 }): GeometryPool {
   const { budgetBytes, pageBytes, uniquePages, maxResidentPages, limits } = options
   checkGeometryPoolBudget(budgetBytes)
-  const fixedBytes = options.fixedBytes ?? 0
-  const floor = Math.max(1, options.rootPages)
-  let slots = Math.floor((budgetBytes - fixedBytes) / pageBytes),
+  const roots: RootSlots = { slots: options.rootPages, bytes: options.rootBytes || pageBytes }
+  const floor = Math.max(1, roots.slots)
+  let streaming = Math.max(0, Math.floor(budgetBytes / pageBytes)),
     clamp: PoolClamp = null
-  if (maxResidentPages !== undefined && maxResidentPages < slots) {
-    slots = maxResidentPages
+  if (maxResidentPages !== undefined && maxResidentPages < streaming) {
+    streaming = maxResidentPages
     clamp = 'page-cap'
   }
+  if (streaming === 0) clamp = 'root-cover'
+  let slots = floor + streaming
   if (uniquePages < slots) {
-    slots = uniquePages
+    slots = Math.max(uniquePages, floor)
     clamp = 'scene'
   }
-  if (slots < floor) {
-    slots = floor
-    clamp = 'root-cover'
-  }
   const { homeBytes } = options
-  /** Bytes a pool of `n` slots holds: every page at its own size when it holds the catalogue. */
+  const rootBytes = roots.slots * roots.bytes
+  /** Bytes a pool of `n` slots holds: every streaming page at its own size when it holds the
+   *  catalogue, else its streaming slots and its root region. */
   const held = (n: number) =>
-    (homeBytes !== undefined && n >= uniquePages ? homeBytes : n * pageBytes) + fixedBytes
+    homeBytes !== undefined && n >= uniquePages
+      ? homeBytes
+      : (n - roots.slots) * pageBytes + rootBytes
   const deviceBytes = storageBufferCap(limits)
   if (held(slots) > deviceBytes) {
-    const deviceSlots = Math.floor((deviceBytes - fixedBytes) / pageBytes)
+    const deviceSlots =
+      deviceBytes < rootBytes ? 0 : roots.slots + Math.floor((deviceBytes - rootBytes) / pageBytes)
     if (deviceSlots >= floor) slots = deviceSlots
     else if (held(uniquePages) <= deviceBytes) slots = uniquePages
     else
       throw new Error(
-        `GEOMETRY_POOL_DEVICE_LIMIT: ${floor} root pages of ${pageBytes} bytes, device allows ${deviceBytes}`,
+        `GEOMETRY_POOL_DEVICE_LIMIT: ${floor} root pages of ${roots.bytes} bytes, device allows ${deviceBytes}`,
       )
     clamp = 'device-limit'
   }
-  return { budgetBytes, slots, pageBytes, allocatedBytes: held(slots), clamp }
+  return { budgetBytes, slots, pageBytes, roots, allocatedBytes: held(slots), clamp }
 }
 
 /** What a host can change mid-session; a missing field keeps its value. */

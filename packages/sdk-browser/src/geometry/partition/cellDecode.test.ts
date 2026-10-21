@@ -11,7 +11,7 @@ const nodes = [
   { parent: null, mesh: 7, matrix: null, translation: [1, 2, 3], rotation: null, scale: [2, 2, 2] },
   { parent: 4, mesh: 9, matrix: null, translation: null, rotation: [0, 1, 0, 0], scale: null },
 ]
-const text = JSON.stringify({ version: 2, nodes })
+const text = JSON.stringify({ version: 3, nodes })
 
 test('a cell file is read into each node its ranks and the local matrix a host node composes', () => {
   const rows = cellRows(decodeCellFile(new TextEncoder().encode(text).buffer))

@@ -1,0 +1,193 @@
+//! The paged index: records lie in pages, each the node of the halving (`split.rs`) whose
+//! records fit one page, under index pages of at most `FAN_OUT` pages cut from the same tree — no
+//! second spatial partition. A root keeps only `FAN_OUT` slots of one width: its size does not
+//! grow with the world. Each kind of record is paged so, under its own files and version (`Kind`).
+use super::*;
+use split::Region;
+use std::{fmt::Write as _, ops::Range};
+
+pub(crate) mod cells;
+mod page;
+mod read;
+mod rows;
+pub(crate) use cells::*;
+pub(crate) use page::*;
+pub(crate) use read::*;
+pub(crate) use rows::*;
+
+/// The most bytes a region page of more than one record holds: one stream unit.
+pub(crate) const PAGE_BYTES: usize = crate::STREAM_BUNDLE_BYTES;
+/// How many pages the root and an index page list at most.
+pub(crate) const FAN_OUT: usize = 8;
+/// A slot: the page's SHA-256 in 64 hexadecimal digits, its size in 8, then its box — the union
+/// of its records' at the declared poses — as the bits of six `f64` in 16 each. Zeros: no page.
+pub(crate) const SLOT_WIDTH: usize = 64 + 8 + 6 * 16;
+
+/// A kind of page: the prefix of its files, the version every page carries, and the member a
+/// region page lists its records under.
+pub(crate) struct Kind {
+    pub prefix: &'static str,
+    pub version: u32,
+    pub records: &'static str,
+}
+/// The pages of the cell records.
+pub(crate) const CELL_PAGES: Kind = Kind {
+    prefix: "scene-page-",
+    version: PARTITION_VERSION,
+    records: "cells",
+};
+
+/// The region page over a range of records, its version aside: measured, given `None`; given the
+/// page measured, the page written, as is or finished by the files it writes beside it — only
+/// then does it write them.
+pub(crate) type Leaf<'a> = dyn Fn(Range<usize>, Option<Value>) -> Result<Value> + 'a;
+/// What an index page and the root list beside each page they name, from that page's range of
+/// records, under `parents`: for the cell index, the core parents its cells hang under.
+pub(crate) type Beside<'a> = dyn Fn(Range<usize>) -> String + 'a;
+
+/// The records of one kind of page, their boxes, and where each record starts once written.
+pub(crate) struct Pager<'a> {
+    kind: &'a Kind,
+    /// The bytes of a region page of no record, as `leaf` lays it out.
+    empty: usize,
+    /// Where each record starts in a region page's list, a comma after each, and where the last
+    /// ends: a lower bound of a page's bytes, which its other members may grow.
+    starts: Vec<usize>,
+    /// The box of each record; `None`, every page unboxed.
+    bounds: Option<&'a [Box6]>,
+    directory: &'a Path,
+    leaf: &'a Leaf<'a>,
+    /// What an index page lists beside each page; `None`, nothing.
+    beside: Option<&'a Beside<'a>>,
+    /// Whether each range measured is a region page.
+    measured: BTreeMap<(usize, usize), bool>,
+    /// The region pages measured and not yet written: each is written as it was measured.
+    bodies: BTreeMap<(usize, usize), Value>,
+    /// Every page written and its slot, a region page with the records it lists: the region pages
+    /// in record order, each index page after the pages it lists.
+    pub written: Vec<(Option<Range<usize>>, String)>,
+}
+
+impl<'a> Pager<'a> {
+    /// The pager of `kind` over `records`, boxed by `bounds`, whose region pages `leaf` lays out:
+    /// the bytes of an empty region page are measured on `leaf` itself.
+    pub(crate) fn new(
+        kind: &'a Kind,
+        records: &[Value],
+        bounds: Option<&'a [Box6]>,
+        directory: &'a Path,
+        leaf: &'a Leaf<'a>,
+        beside: Option<&'a Beside<'a>>,
+    ) -> Result<Self> {
+        let mut starts = vec![0];
+        for record in records {
+            starts.push(starts[starts.len() - 1] + json_len(record)? + 1);
+        }
+        let mut pager = Pager {
+            kind,
+            empty: 0,
+            starts,
+            bounds,
+            directory,
+            leaf,
+            beside,
+            measured: BTreeMap::new(),
+            bodies: BTreeMap::new(),
+            written: Vec::new(),
+        };
+        pager.empty = json_len(&pager.region(0..0, None)?)?;
+        Ok(pager)
+    }
+
+    /// The region page over `records`, its version stamped; given its `measured` page, written.
+    fn region(&self, records: Range<usize>, measured: Option<Value>) -> Result<Value> {
+        let mut body = (self.leaf)(records, measured)?;
+        body["version"] = json!(self.kind.version);
+        Ok(body)
+    }
+
+    /// Whether `region` is a region page: one record, or records whose page fits `PAGE_BYTES`. Its
+    /// page is measured once, and only when its records and the commas between them would fit;
+    /// one that fits is kept for `write`.
+    fn fits(&mut self, region: &Region) -> Result<bool> {
+        let (cells, one) = (&region.cells, region.halves.is_none());
+        let key = (cells.start, cells.end);
+        if let Some(fits) = self.measured.get(&key) {
+            return Ok(*fits);
+        }
+        let least = self.empty + self.starts[cells.end] - self.starts[cells.start];
+        let fits = one
+            || least.saturating_sub(1) <= PAGE_BYTES && {
+                let body = self.region(cells.clone(), None)?;
+                let fits = json_len(&body)? <= PAGE_BYTES;
+                if fits {
+                    self.bodies.insert(key, body);
+                }
+                fits
+            };
+        self.measured.insert(key, fits);
+        Ok(fits)
+    }
+
+    /// The slots of the pages listing `region`'s records in order, each written, and what is
+    /// listed beside each: its halving opened, the node of most records first, until `FAN_OUT`
+    /// pages or every one is a region page.
+    fn slots(&mut self, region: &Region) -> Result<(Vec<String>, Vec<String>)> {
+        let mut pages = vec![region];
+        while pages.len() < FAN_OUT {
+            let mut open = Vec::new();
+            for (at, page) in pages.iter().enumerate() {
+                if !self.fits(page)? {
+                    open.push(at);
+                }
+            }
+            let Some(at) = open.into_iter().max_by_key(|at| pages[*at].cells.len()) else {
+                break;
+            };
+            let halves = pages[at]
+                .halves
+                .as_deref()
+                .expect("a region that does not fit");
+            pages.splice(at..=at, halves);
+        }
+        let beside = |page: &Region| self.beside.map(|beside| beside(page.cells.clone()));
+        let listed = pages.iter().filter_map(|page| beside(page)).collect();
+        let slots = pages.into_iter().map(|page| self.write(page));
+        Ok((slots.collect::<Result<_>>()?, listed))
+    }
+
+    /// Writes `region` as a region page, or as an index page over its slots; its slot.
+    fn write(&mut self, region: &Region) -> Result<String> {
+        let cells = region.cells.clone();
+        let leaf = self.fits(region)?;
+        let mut body = json!({"version": self.kind.version});
+        if leaf {
+            let measured = match self.bodies.remove(&(cells.start, cells.end)) {
+                Some(measured) => measured,
+                None => self.region(cells.clone(), None)?,
+            };
+            body = self.region(cells.clone(), Some(measured))?;
+        } else {
+            let (slots, listed) = self.slots(region)?;
+            body["pages"] = json!(slots);
+            if self.beside.is_some() {
+                body["parents"] = json!(listed);
+            }
+        }
+        let boxes = self.bounds.map_or(&[][..], |bounds| &bounds[cells.clone()]);
+        let slot = write_page(self.kind, self.directory, &body, boxes)?;
+        let records = leaf.then_some(cells);
+        self.written.push((records, slot.clone()));
+        Ok(slot)
+    }
+
+    /// The root's slots over `tree`, the empty ones last, and what is listed beside them.
+    pub(crate) fn root(&mut self, tree: &Region) -> Result<(Vec<String>, Vec<String>)> {
+        let (mut slots, mut listed) = self.slots(tree)?;
+        slots.resize(FAN_OUT, "0".repeat(SLOT_WIDTH));
+        if self.beside.is_some() {
+            listed.resize(FAN_OUT, String::new());
+        }
+        Ok((slots, listed))
+    }
+}

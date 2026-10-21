@@ -1,10 +1,10 @@
-use crate::compiler_validate::values;
-use crate::texture_preview::TexturePreview;
+use crate::compiler::validate::values;
+use crate::texture::TexturePreview;
 use crate::Result;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
-use trillion3d_math::aabb::{grow_flat, EMPTY_FLAT};
-use trillion3d_math::box_transform::{box_transform, BOX_VALUES};
+use trillion3d_math::geometry::aabb::{grow_flat, EMPTY_FLAT};
+use trillion3d_math::geometry::box_transform::{box_transform, BOX_VALUES};
 // The proxy's pure geometry — snapping, BVH, wide collapse — and its layout numbers live in the
 // page codec, the crate the browser's one WebAssembly module and the compiler share: one builder.
 use trillion3d_page_codec::proxy::{
@@ -16,7 +16,6 @@ pub mod albedo;
 pub mod cut;
 pub mod encode;
 pub mod placement;
-pub(crate) mod tracer;
 
 /// Version of the "proxy" cache product. A proxy of another version is rejected, never guessed.
 pub const SCENE_PROXY_VERSION: u32 = 6;
@@ -90,7 +89,7 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     let mut bounds = EMPTY_FLAT;
     for node_id in inputs.shown {
         let Some((_, old_mesh, mesh_index)) =
-            crate::compiler_nodes::compiled_mesh(nodes, *node_id, inputs.mesh_map)?
+            crate::compiler::source::nodes::compiled_mesh(nodes, *node_id, inputs.mesh_map)?
         else {
             continue;
         };

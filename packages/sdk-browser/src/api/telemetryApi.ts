@@ -13,13 +13,6 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, engine: Eng
      * as `stageProfile: true` was not requested of `openMeasuredWorld`.
      */
     stageProfile: (): StageProfile => engine.stageProfile(),
-    /**
-     * What the GPU partition of the engine wrote for the last frame, with the world corners and
-     * the matrices it drew it from, or `null` when it holds none. Redoing
-     * the CPU computation on those inputs proves, cluster by cluster, that the GPU screen
-     * rectangle contains the CPU one and that its depth underestimates the CPU one.
-     */
-    partitionAudit: () => engine.partitionAudit(),
     /** Transparent clusters the occlusion test rejected on the last frame, with their world
      *  corners and the frame depth: enough to check, cluster by cluster, that each one was
      *  entirely behind the opaque. */

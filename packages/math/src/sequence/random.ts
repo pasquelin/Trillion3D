@@ -1,5 +1,5 @@
 /**
- * Seeded generators on 32-bit unsigned integers, the twins of `packages/math/rust/src/random.rs`:
+ * Seeded generators on 32-bit unsigned integers, the twins of `packages/math/rust/src/sequence/random.rs`:
  * integer arithmetic alone, so a seed gives the same numbers on every run and every machine. Each
  * step is a pure function of the state; the `…Random` forms hold that state in the closure they
  * return, made once where a scene is laid out, and give a number in `[0, 1)`, the word over 2³².

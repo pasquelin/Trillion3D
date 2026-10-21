@@ -13,10 +13,11 @@ import { geometryPoolFor } from '../../session/memory/pools.ts'
 test('setMemoryBudgets sets the pools in session, brings them back by name, and the image continues', async () => {
   installGpuGlobals()
   const { device } = fakeDevice(BACKEND)
-  // Two 12-byte root pages: a one-page budget is raised to root coverage.
+  // Two 12-byte root pages, the root cover: a budget under a streaming slot leaves the pool that
+  // cover alone, which no budget pays for.
   const { fixture, backend } = quadBackend(device, {
     maxResidentPages: undefined,
-    geometryPoolBytes: 12,
+    geometryPoolBytes: 1,
   })
   try {
     await backend.prepare()
@@ -24,13 +25,13 @@ test('setMemoryBudgets sets the pools in session, brings them back by name, and 
     const before = backend.metrics()
     assert.deepEqual(
       [before.geometryPoolBytes, before.geometryPoolSlots, before.geometryPoolClamp],
-      [12, 2, 'root-cover'],
+      [1, 2, 'root-cover'],
     )
     // More than the scene has pages: brought back to the scene, by name, nothing is evicted.
     const grown = await backend.setMemoryBudgets!({ geometryPoolBytes: 1024 * MIB })
     assert.deepEqual([grown.geometryPool.clamp, grown.geometryPool.slots], ['scene', 2])
     assert.equal(grown.evictedPages, 0)
-    // Under root coverage: raised to it, by name; roots never leave.
+    // A budget of no slot: the root cover alone, by name; roots never leave.
     const shrunk = await backend.setMemoryBudgets!({ geometryPoolBytes: 1, texturePoolBytes: 1 })
     assert.equal(shrunk.geometryPool.clamp, 'root-cover')
     // The quad has no map: no texture layer at any budget, nothing raised to a floor.
@@ -129,8 +130,9 @@ test('a geometry pool the device refuses mid-session shrinks, and the session go
   })
   const resized: number[] = [],
     diagnostics: Array<[string, Record<string, unknown>]> = []
+  // The pool in place: the root's slot alone, no streaming slot.
   const setup = {
-    geometryPool: geometryPoolFor({ budgetBytes: 8, pageBytes: 8, uniquePages: 100, rootPages: 1 }),
+    geometryPool: geometryPoolFor({ budgetBytes: 1, pageBytes: 8, uniquePages: 100, rootPages: 1 }),
     geometryPoolFor: (budgetBytes: number) =>
       geometryPoolFor({ budgetBytes, pageBytes: 8, uniquePages: 100, rootPages: 1 }),
     get slots() {
@@ -152,13 +154,14 @@ test('a geometry pool the device refuses mid-session shrinks, and the session go
     },
   }
   const report = await setWebgpuMemoryBudgets(rt as never, { geometryPoolBytes: 64 })
-  // 64 → 32 → 16 bytes: two slots, what the device grants.
+  // 64, 32, 16 then 8 bytes of streaming slots beside the root's 8: 72 → 40 → 24 → 16 bytes, two
+  // slots, what the device grants.
   assert.deepEqual(resized, [2])
   assert.equal(report.geometryPool.slots, 2)
   assert.equal(run.lost, false)
   assert.deepEqual(diagnostics[0], [
     'gpu-out-of-memory',
-    { kind: 'warning', pool: 'geometry', requestedBytes: 64, grantedBytes: 16, clamp: null },
+    { kind: 'warning', pool: 'geometry', requestedBytes: 72, grantedBytes: 16, clamp: null },
   ])
   assert.equal(gpu.scopes.length, 0)
 })

@@ -45,19 +45,19 @@ async function drawn(backend: Pick<Engine, 'render' | 'flush'>) {
   await backend.flush()
 }
 
-/** The feedback each image's resolve wrote: the targets of its surfaces pass, its shade
- *  pipelines' outputs, and whether the reduction ran. */
+/** The feedback each image's resolve wrote: the targets its surfaces pass clears, whether its
+ *  shade pipelines store the request (`FEEDBACK`), and whether the reduction ran. */
 function feedbackOf(gpu: Gpu) {
   const surfaces = gpu.passes.filter((pass) => pass.label === MATERIAL_SURFACES_PASS)
-  const shade = gpu.renderPipelines.filter((desc) =>
-    desc.fragment?.entryPoint?.startsWith('shade_fs'),
+  const shade = gpu.computePipelines.filter((desc) =>
+    desc.compute.entryPoint?.startsWith('shade_cs'),
   )
   return {
     targets: gpu.textures.filter((texture) => texture.label === FEEDBACK_TARGET),
     lastPass: surfaces.at(-1)?.formats,
     shade: shade.map((desc) => ({
-      entry: desc.fragment!.entryPoint,
-      r32: [...desc.fragment!.targets].some((target) => target?.format === 'r32uint'),
+      entry: desc.compute.entryPoint,
+      feedback: desc.compute.constants?.FEEDBACK === 1,
     })),
     reduced: dispatchedEntries(gpu.dispatches).includes('reduce'),
   }
@@ -69,9 +69,9 @@ test('a scene that wears no texture makes no feedback target, reduces nothing, a
     const seen = feedbackOf(gpu)
     assert.deepEqual(seen.targets, [], 'no target is ever made')
     assert.deepEqual(seen.lastPass?.length, 4)
-    assert.ok(!seen.lastPass?.includes('r32uint'))
     assert.ok(seen.shade.length > 0)
-    for (const pipeline of seen.shade) assert.deepEqual(pipeline, { entry: 'shade_fs', r32: false })
+    for (const pipeline of seen.shade)
+      assert.deepEqual(pipeline, { entry: 'shade_cs', feedback: false })
     assert.equal(seen.reduced, false, 'no reduction is encoded')
   } finally {
     disposeQuadRun(backend, fixture)
@@ -87,7 +87,8 @@ test('a textured scene keeps the target at the size of the others, writes it and
       [[32, 32, false]],
     )
     assert.equal(seen.lastPass?.at(4), 'r32uint')
-    for (const pipeline of seen.shade) assert.deepEqual(pipeline, { entry: 'shade_fs', r32: true })
+    for (const pipeline of seen.shade)
+      assert.deepEqual(pipeline, { entry: 'shade_cs', feedback: true })
     assert.equal(seen.reduced, true)
   } finally {
     disposeQuadRun(backend, fixture)
@@ -104,7 +105,7 @@ test('a texture that comes after open brings the target in place, the other targ
     // The image asks the variant that writes the feedback; the one in place draws meanwhile.
     await drawn(backend)
     assert.deepEqual(feedbackOf(gpu).targets, [])
-    assert.ok(!feedbackOf(gpu).lastPass?.includes('r32uint'))
+    assert.equal(feedbackOf(gpu).lastPass?.length, 4)
     // Compiled, it is installed at the next image's entry, with the target it writes.
     await new Promise((settle) => setTimeout(settle))
     await drawn(backend)
@@ -119,7 +120,7 @@ test('a texture that comes after open brings the target in place, the other targ
       before.some((target) => gpu.destroyed.includes(target)),
       false,
     )
-    assert.ok(seen.shade.some((pipeline) => pipeline.entry === 'shade_fs' && pipeline.r32))
+    assert.ok(seen.shade.some((pipeline) => pipeline.entry === 'shade_cs' && pipeline.feedback))
   } finally {
     disposeQuadRun(backend, fixture)
   }

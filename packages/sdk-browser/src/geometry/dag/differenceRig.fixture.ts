@@ -77,7 +77,7 @@ export async function differenceRig(cap: number, placements = 40) {
   /** The kernels encoded since `encoded` was last read, from the `seen`-th dispatch on. */
   let seen = 0
   const resources = (await createDagResources(device, dag, null, cap))!
-  const selection = createDagRuntime(resources, undefined, hostStretches(resources.packed))
+  const selection = createDagRuntime(resources, hostStretches(resources.packed))
   return {
     resources,
     selection,

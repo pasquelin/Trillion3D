@@ -1,9 +1,17 @@
 // The header of a `WGP3` page written from the format alone (`sdk-core/src/page/format.ts`): the words of
 // the header and the stream order, never the shader (`pageHeaderReference.test.ts`).
-import { fromF32Bits } from '../../../../math/src/float/bits.ts'
 import {
   BLOCK_CORNERS,
+  CENTIMETRES_PER_METRE,
   CLUSTER_HEADER_WORDS,
+  FLAG_COLOR,
+  FLAG_NORMAL,
+  FLAG_TANGENT,
+  FLAG_UV,
+  FLAG_UV1,
+  FLAG_UV2,
+  FLAG_UV3,
+  MAX_UV_SETS,
   MORPH_WORDS,
 } from '../../../../sdk-core/src/page/format.ts'
 import { TRIANGLE_BLOCK, WIDTH_BITS } from '../../../../sdk-core/src/page/format.ts'
@@ -11,23 +19,34 @@ import { bitLength, ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 export type Header = Record<string, number | number[]>
 const words32 = (count: number, bits: number) => Math.ceil((count * bits) / 32)
+const UV_FLAGS = [FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3]
 
 /** The header of the page at `base` of `words`, field by field, as the format lays it out. */
 export function reference(words: Uint32Array, base: number): Header {
   const w = (i: number) => words[base + i]
-  const f32 = (i: number) => fromF32Bits(w(i))
-  const widths = (word: number, n: number) =>
-    Array.from({ length: n }, (_, c) => (word >>> (6 * c)) & 63)
-  const step = (word: number) => 2 ** (word >> 24)
-  const [vertexCount, indexCount, flags, positionCount] = [w(2), w(3), w(4), w(22)]
+  const fields = (word: number, count: number, width: number) =>
+    Array.from({ length: count }, (_, c) => (word >>> (width * c)) & ((1 << width) - 1))
+  // A cell in metres is the cell times a hundredth of the centimetre step: one rounding of the
+  // hundredth, then the exact power of two.
+  const unit = (word: number) => 2 ** -(word >> 24) * Math.fround(1 / CENTIMETRES_PER_METRE)
+  const [vertexCount, indexCount, flags, cornerBits, positionCount] = [
+    w(2),
+    w(3),
+    w(4),
+    w(19),
+    w(20),
+  ]
   const indexBits = bitLength(vertexCount - 1),
-    prefixBits = bitLength(Math.floor(w(21) / BLOCK_CORNERS))
+    prefixBits = bitLength(Math.floor(cornerBits / BLOCK_CORNERS))
   const recordBits = indexBits + WIDTH_BITS + prefixBits,
     linkBits = bitLength(positionCount - 1)
-  const [posBits, uvBits, uv1Bits, colorBits] = [5, 9, 12, 15].map((i, k) =>
-    widths(w(i), [3, 2, 2, 4][k]),
-  )
-  const morphCount = (w(23) >>> 6) & 255
+  const posBits = fields(w(5), 3, 6)
+  const sets = Array.from({ length: MAX_UV_SETS }, (_, s) => [w(9 + 2 * s), w(10 + 2 * s)])
+  const [uvBitsX, uvBitsY] = [0, 1].map((c) => sets.map((pair) => pair[c] & 31))
+  const [uvMinX, uvMinY] = [0, 1].map((c) => sets.map((pair) => pair[c] >>> 5))
+  const [colorMin, colorBits] = [fields(w(17), 4, 8), fields(w(18), 4, 4)]
+  const [normalBits, tangentBits] = [(w(18) >>> 16) & 15, (w(18) >>> 20) & 15]
+  const morphCount = (w(21) >>> 6) & 255
   let at = CLUSTER_HEADER_WORDS + MORPH_WORDS * morphCount
   const streams = at
   const stream = (present: boolean, count: number, bits: number) => {
@@ -36,30 +55,30 @@ export function reference(words: Uint32Array, base: number): Header {
     return start
   }
   const blocks = stream(true, ceilDiv(indexCount / 3, TRIANGLE_BLOCK), recordBits)
-  const corners = stream(true, w(21), 1)
+  const corners = stream(true, cornerBits, 1)
   const pos = posBits.map((bits) => stream(true, positionCount, bits))
   const links = at
   stream(positionCount < vertexCount, vertexCount, linkBits)
-  const normal = stream((flags & 1) !== 0, vertexCount, 16)
-  const uv = uvBits.map((bits) => stream((flags & 2) !== 0, vertexCount, bits))
-  const uv1 = uv1Bits.map((bits) => stream((flags & 4) !== 0, vertexCount, bits))
-  const color = colorBits.map((bits) => stream((flags & 8) !== 0, vertexCount, bits))
+  const hasNormal = (flags & FLAG_NORMAL) !== 0
+  const normal = [0, 1].map(() => stream(hasNormal, vertexCount, normalBits))
+  const [uvX, uvY] = [[] as number[], [] as number[]]
+  for (let s = 0; s < MAX_UV_SETS; s++) {
+    const present = (flags & UV_FLAGS[s]) !== 0
+    uvX.push(stream(present, vertexCount, uvBitsX[s]))
+    uvY.push(stream(present, vertexCount, uvBitsY[s]))
+  }
+  const color = colorBits.map((bits) => stream((flags & FLAG_COLOR) !== 0, vertexCount, bits))
+  const tangent = stream((flags & FLAG_TANGENT) !== 0, vertexCount, tangentBits + 1)
   return {
     ...{ vertexCount, indexCount, flags, indexBits, prefixBits, recordBits, positionCount },
-    ...{ linkBits, posBits, posStep: step(w(5)), posMin: [6, 7, 8].map(f32), skinBits: w(23) & 63 },
-    ...{ morphCount, skinBase: (w(23) >>> 14) & 0xffff, streams, blocks, corners, pos, links },
-    ...{ uvBits, uvStep: step(w(9)), uvMin: [10, 11].map(f32), uv1Bits, uv1Step: step(w(12)) },
-    ...{
-      uv1Min: [13, 14].map(f32),
-      colorBits,
-      colorStep: step(w(15)),
-      colorMin: [16, 17, 18, 19].map(f32),
-    },
-    ...{ quantizationError: f32(20), influences: w(24), normal, uv, uv1, color, skin: at },
+    ...{ linkBits, posBits, posUnit: unit(w(5)), posStart: [6, 7, 8].map((i) => w(i) | 0) },
+    ...{ skinBits: w(21) & 63, morphCount, skinBase: (w(21) >>> 14) & 0xffff, streams },
+    ...{ blocks, corners, pos, links, uvBitsX, uvBitsY, uvMinX, uvMinY, colorBits, colorMin },
+    ...{ normalBits, tangentBits, influences: w(22), normal, uvX, uvY, color, tangent, skin: at },
   }
 }
 /** The fields a shader row reads once its corners and positions are decoded: all but the
  *  attribute grids and the streams past the links. */
-export const POINT = Object.keys(reference(new Uint32Array(25).fill(1), 0)).filter(
-  (k) => !/^(flags|uv|uv1|color|normal|skin|influences|quantizationError)/.test(k),
-)
+export const POINT = Object.keys(
+  reference(new Uint32Array(CLUSTER_HEADER_WORDS).fill(1), 0),
+).filter((k) => !/^(flags|uv|color|normal|tangent|skin|influences)/.test(k))

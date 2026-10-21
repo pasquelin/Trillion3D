@@ -96,12 +96,12 @@ test('engineOf gives a side its own engine, otherwise that of the campaign', () 
 // The flags a campaign types are English, their per-side forms named after the side.
 test('the engine, the two sides and their variants are read under English flags', () => {
   const argv = ['--engine', 'webgpu', '--before', 'dist', '--engine-before', 'three-lod']
-  const { settings, flags } = readOptions([...argv, '--variant-before', 'raster-compute'], '/r')
+  const { settings, flags } = readOptions([...argv, '--variant-before', 'geometry-flat'], '/r')
   assert.strictEqual(settings.engine, 'webgpu')
   assert.strictEqual(flags.get('before'), 'dist')
   assert.strictEqual(
     equipSide({ name: 'before' } as never, flags, settings).variant,
-    'raster-compute',
+    'geometry-flat',
   )
 })
 

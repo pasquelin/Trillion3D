@@ -1,12 +1,12 @@
-/** Why a DAG group stalled: `unreducible` (no target cluster size down to half a cluster
- *  re-splits what the simplifier left into the group's parents), `unusable-error` (the
- *  simplifier returned a non-finite error). */
-export type DagStallCause = 'unreducible' | 'unusable-error'
-/** What the stalls of a primitive come to: the level-0 triangles left as roots, the cause of
+/** Why a DAG group stalled: `unreducible`, no target cluster size down to half a cluster
+ *  re-splits what the simplifier left into the group's parents. */
+export type DagStallCause = 'unreducible'
+/** What the stalls of a primitive come to: the level-0 triangles no coarser level replaces — a
+ *  root's, or a child's of a group that stalled, drawn by nothing past its error —, the cause of
  *  the stalls holding the most triangles (`null` without a stall), and the seam, locked and
  *  texture-island counts summed over its stalled groups. */
 export interface DagStallSummary {
-  /** Triangles left at the roots. */
+  /** Level-0 triangles no coarser level replaces. */
   rootTriangles: number
   /** Why it stopped. */
   cause: DagStallCause | null

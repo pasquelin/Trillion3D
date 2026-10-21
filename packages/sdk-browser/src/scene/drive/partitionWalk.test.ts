@@ -43,7 +43,7 @@ function grid(side: number) {
         rotation: null,
         scale: null,
       }))
-      bodies.set(url, new TextEncoder().encode(JSON.stringify({ version: 2, nodes })))
+      bodies.set(url, new TextEncoder().encode(JSON.stringify({ version: 3, nodes })))
       const bounds = [x * 10, 0, z * 10, x * 10 + 8, 1, z * 10 + 8]
       const parents: TableCell['parents'] = [[null, bounds]]
       cells.push({ url, sha256: '', bytes: 1, parents, meshes: [[mesh, 4]], meshPages: [] })
@@ -88,6 +88,7 @@ test('on an engine that grows no buffer, a walk never leaves a cell waiting for 
     // Every engine is handed the rows; this one refuses to grow any in place.
     engine: {
       worldCells: () => undefined,
+      initialLoad: () => false,
       updatePlacements() {},
       composePlacements: () => false,
       growPlacements() {},

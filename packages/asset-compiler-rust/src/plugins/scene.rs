@@ -19,6 +19,7 @@ pub(crate) mod blend;
 pub(crate) mod cancel;
 mod claims;
 pub(crate) mod codes;
+pub mod convert;
 pub(crate) mod corners;
 mod fbx;
 mod gltf;
@@ -31,7 +32,7 @@ mod prepared;
 mod request;
 mod route;
 mod spread;
-mod ufbx_driver;
+mod ufbx;
 mod unity;
 mod unitypackage;
 mod usd;
@@ -73,7 +74,7 @@ pub fn image_root(source: &Path) -> PathBuf {
     if !source.is_file() {
         return source.to_path_buf();
     }
-    crate::compiler_safe_path::parent_or_dot(source).to_path_buf()
+    crate::compiler::source::safe_path::parent_or_dot(source).to_path_buf()
 }
 
 /// Classic FBX convention, also Maya's: `TransparentColor` is a *transparency* weighted by

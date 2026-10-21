@@ -4,13 +4,12 @@
 //
 // Why this truth and not `rawOrientation`: the transformed vertices' raw orientation ignores that
 // the engine swaps the culled face when the determinant is negative, and under a mirror calls
-// "facing" the face the engine does not draw. A cluster the cut drops is a DEFECT only when the
-// engine draws fragments of it; otherwise the drop is right.
+// "facing" the face the engine does not draw.
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { windingCw } from '../../../packages/sdk-browser/src/frame/render/winding.ts'
 import { runWindingRaster } from '../pages/windingRaster.ts'
-import { camera, type Case, type rawOrientation } from './inverseTransposeCases.ts'
+import { camera, type Case } from './inverseTransposeCases.ts'
 
 /** A square view fine enough that each case covers thousands of pixels, small enough that the
  *  6 916 rasterisations, CPU and GPU, take a few seconds. */
@@ -51,34 +50,4 @@ function rasterLoad(cases: Case[]) {
 export async function engineDraws(cases: Case[]) {
   const { adapter, fragments } = await runWindingRaster(rasterLoad(cases))
   return { adapter, fragments, drawn: cases.map((_, i) => fragments[i] > 0) }
-}
-
-/**
- * The cut's culls against what the engine draws. The raw count — "the raw orientation says facing
- * and the cut culls" — is not silently replaced: it is kept as `raw` and split in two, and what the
- * raw orientation did NOT see is counted beside it.
- *   — `wrong`: the cut culls a cluster the engine draws fragments of. THE defect.
- *   — `rawDrawn`: the part of the raw count that is a defect.
- *   — `rawUndrawn`: the part that was not — the engine draws nothing of it.
- *   — `missedByRaw`: defects the raw count never sees, the raw orientation calling them facing away
- *     while the engine draws them (the face swap under a mirror plays both ways).
- * Invariants: `raw = rawDrawn + rawUndrawn` and `wrong = rawDrawn + missedByRaw`.
- */
-export function classifyCulls(
-  raw: ReturnType<typeof rawOrientation>[],
-  draws: Awaited<ReturnType<typeof engineDraws>>,
-) {
-  const index = raw.map((_, i) => i)
-  const facing = (i: number) => raw[i].frontVisible
-  const drawn = (i: number) => draws.drawn[i]
-  const count = (culls: boolean[], holds: (i: number) => boolean) =>
-    index.filter((i) => culls[i] && holds(i)).length
-  const population = (culls: boolean[]) => ({
-    raw: count(culls, facing),
-    wrong: count(culls, drawn),
-    rawDrawn: count(culls, (i) => facing(i) && drawn(i)),
-    rawUndrawn: count(culls, (i) => facing(i) && !drawn(i)),
-    missedByRaw: count(culls, (i) => !facing(i) && drawn(i)),
-  })
-  return { index, population }
 }

@@ -53,6 +53,7 @@ import {
   ceilDivWgsl,
   isFiniteWord,
   lowBits,
+  zOrderDecode,
 } from '../../../../../../math/src/wgsl/integer.ts'
 import { FLOAT32_MIN_NORMAL } from '../../../../../../math/src/wgsl/constants.ts'
 import { unprojectPoint, uvToNdc } from '../../../../../../math/src/wgsl/projection.ts'
@@ -165,6 +166,7 @@ export function vsmProjectionWgsl(layout: VsmLayout, subgroups = false) {
       bitIsSet,
       isFiniteWord,
       lowBits,
+      zOrderDecode,
       FLOAT32_MIN_NORMAL,
       receiverTargetReadWgsl(VSM_PROJECTION_RECEIVER_GROUP, 0),
       ...(subgroups ? [SUBGROUP_ALL_WGSL] : []),

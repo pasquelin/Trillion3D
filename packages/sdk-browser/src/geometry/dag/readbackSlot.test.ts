@@ -1,53 +1,47 @@
-// A cut's readback, read over the range its ring mapped (`readbackSlot.ts`): a cut that dropped
-// work is never adopted, what was full grows, or past the device the view coarsens. A mapping
-// refused is the ring's to meet (`../../gpu/core/readbackRing.test.ts`).
+// A cut's readback, read over the range its ring mapped (`readbackSlot.ts`): a cut past a list's
+// cap drew what fit and is read as any; what it asked of its lists is noted against their caps, an
+// overflow said once each time it raises its list's high-water mark (`lists/listFeedback.ts`). A
+// mapping refused is the ring's to meet (`../../gpu/core/readbackRing.test.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readDagSlot } from './readbackSlot.ts'
 import { createDagOutputScratch } from './uniforms.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
-import { createCoarsening } from './coarsening.ts'
-import { OUT_FLAGS } from './layout.ts'
-import { LIST_DROPPED, QUEUE_DROPPED } from './shader/viewsWgsl.ts'
+import { PEAK_CANDIDATES, PEAK_NODES } from './readoutWords.ts'
+import { createListFeedback, type ListOverflow } from './lists/listFeedback.ts'
 
-const shape = { queueWords: 8, candCap: 2 }
+const caps = { nodes: 16, candidates: 64, visible: 32 }
 
-const read = (range: ArrayBuffer, full = false, coarse = createCoarsening()) =>
-  readDagSlot(
-    range,
-    {
-      bytes: 64,
-      drawnWordOffset: 8,
-      listCap: 4,
-      scratch: createDagOutputScratch(),
-    },
-    {
-      limits: {},
-      pageCount: 4,
-      listFull: false,
-      coarse,
-      cutFactor: 1,
-      flags: { shape, entryCount: 16, full },
-    },
-  )
-
-test('a cut that dropped work is never adopted: what was full doubles, or the view coarsens', () => {
+test('a cut past a cap is read as any, its overflow said once a high-water mark', () => {
   installGpuGlobals()
-  /** A readout whose flag word says `dropped`, its lists empty. */
-  const dropping = (dropped: number) => {
+  const said: ListOverflow[] = []
+  const feedback = createListFeedback((overflow) => said.push(overflow))
+  /** A readout whose drawn list's header says what the cut asked, its lists empty. */
+  const asking = (nodes: number, candidates: number) => {
     const words = new Uint32Array(16)
-    words[OUT_FLAGS] = dropped
+    words[8 + PEAK_NODES] = nodes
+    words[8 + PEAK_CANDIDATES] = candidates
     return words.buffer
   }
-  const queue = read(dropping(QUEUE_DROPPED))
-  assert.ok(queue.retried, 'not adopted')
-  assert.deepEqual(queue.grownFlags, { ...shape, queueWords: 16 }, 'the queues double, alone')
-  const list = read(dropping(LIST_DROPPED))
-  assert.deepEqual(list.grownFlags, { ...shape, candCap: 4 }, 'the lists double, alone')
-  // Every page listed already: nothing grows past the catalogue, and the view coarsens instead.
-  const coarse = createCoarsening()
-  const past = read(dropping(QUEUE_DROPPED), true, coarse)
-  assert.ok(past.retried && !past.grownFlags && past.moved && coarse.factor > 1)
-  const whole = read(dropping(0))
-  assert.ok(!whole.retried && !whole.grownFlags, 'a cut that ran whole is adopted')
+  const read = (range: ArrayBuffer) =>
+    readDagSlot(
+      range,
+      { bytes: 64, drawnWordOffset: 8, priorityWordOffset: 12, scratch: createDagOutputScratch() },
+      { feedback, caps },
+    )
+  assert.ok(read(asking(20, 10)).parsed?.drawablePageIds, 'past a cap, read as any')
+  assert.deepEqual(
+    said.map(({ list, peak, cap }) => [list, peak, cap]),
+    [['nodes', 20, 16]],
+  )
+  read(asking(18, 10))
+  assert.equal(said.length, 1, 'under the mark: said no more')
+  read(asking(24, 100))
+  assert.deepEqual(
+    said.slice(1).map(({ list, highWater }) => [list, highWater]),
+    [
+      ['nodes', 24],
+      ['candidates', 100],
+    ],
+  )
 })

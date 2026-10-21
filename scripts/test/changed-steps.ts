@@ -65,7 +65,7 @@ export function changedSteps(
   // A deleted source can leave an export only its tests used: any code change, deletions included.
   if (code) steps.push('check:unused')
   steps.push(...TREE_GATES)
-  // The compiler embeds the message catalogue (`asset-compiler-rust/src/messages.rs`). A golden
+  // The compiler embeds the message catalogue (`asset-compiler-rust/src/cli/messages.rs`). A golden
   // value alone is no Rust change: the `golden` step below holds it to the crates.
   if (existing.some((file) => file.endsWith('.rs') || file === MESSAGE_CATALOGUE))
     steps.push('rust')

@@ -9,7 +9,7 @@
 use super::convex::swings_once;
 use super::{cancel, Ngon};
 use std::sync::atomic::AtomicBool;
-use trillion3d_math::vec2::double_area;
+use trillion3d_math::vector::vec2::double_area;
 
 /// The tested corners by grid cell (`starts`, `items`), over the box `low`…`low + side / scale`.
 #[derive(Default)]

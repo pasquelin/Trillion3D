@@ -1,7 +1,6 @@
-//! Bit fields, the sequential reader, the step and the octahedral normals.
+//! Bit fields, the sequential reader, the grid's step and record, and the octahedral normals.
 
 use super::*;
-use trillion3d_math::octahedral::oct_decode;
 use trillion3d_math::GOLDEN_32;
 
 /// The reference `field`: two word reads, a shift and a mask per field.
@@ -50,27 +49,38 @@ fn the_sequential_reader_reads_each_field_where_the_random_reader_finds_it() {
 fn the_step_is_exact_and_the_record_survives_its_word() {
     assert_eq!(pow2(-16), 1.0 / 65536.0);
     assert_eq!(pow2(3), 8.0);
-    let record = Quant {
-        min: [1.5, -2.0, 0.0],
-        exponent: -20,
-        bits: [17, 0, 24],
+    let grid = PositionGrid {
+        start: [-7, 0, 1 << 30],
+        bits: [17, 0, 21],
+        precision: -20,
     };
-    assert_eq!(Quant::unpack(record.packed(), record.min), Some(record));
-    assert_eq!(Quant::<3>::unpack(25, record.min), None);
-    assert_eq!(Quant::<3>::unpack(1 << 18, record.min), None);
-    assert_eq!(
-        Quant::<3>::unpack(record.packed(), [f32::NAN, 0.0, 0.0]),
-        None
-    );
-    assert_eq!(dequant(1.5, 3, 0.25), 2.25);
+    assert_eq!(PositionGrid::unpack(grid.packed(), grid.start), Some(grid));
+    // A precision, a width or a stray bit past the format's, and a cell past an `i32`.
+    assert_eq!(PositionGrid::unpack(44 << 24, [0; 3]), None);
+    assert_eq!(PositionGrid::unpack(22, [0; 3]), None);
+    assert_eq!(PositionGrid::unpack(1 << 18, [0; 3]), None);
+    assert_eq!(PositionGrid::unpack(21, [i32::MAX, 0, 0]), None);
 }
 
 #[test]
-fn octahedral_bytes_decode_to_unit_vectors_on_both_hemispheres() {
-    for q in [0u32, 255, 255 << 8, 0xFFFF, 128 | (128 << 8), 0x40C0] {
-        let [x, y, z] = oct_decode(q);
-        assert!((x * x + y * y + z * z - 1.0).abs() < 1e-6, "{q}");
+fn octahedral_cells_decode_to_unit_vectors_on_both_hemispheres_at_every_precision() {
+    for bits in 1..=15 {
+        let top = (1u32 << bits) - 1;
+        let cells = [
+            [0, 0],
+            [top, top],
+            [0, top],
+            [top / 2, top / 2],
+            [top / 3, top - 1],
+        ];
+        for q in cells {
+            let [x, y, z] = normal_decode(q, bits);
+            assert!(
+                (x * x + y * y + z * z - 1.0).abs() < 1e-6,
+                "{q:?} on {bits}"
+            );
+        }
+        assert!(normal_decode([0, 0], bits)[2] < 0.0);
     }
-    assert!(oct_decode(0)[2] < 0.0);
-    assert!(oct_decode(128 | (128 << 8))[2] > 0.99);
+    assert!(normal_decode([128, 128], 8)[2] > 0.99);
 }

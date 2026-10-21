@@ -6,6 +6,8 @@
 import { COMPUTE, computeBufferEntry } from '../../../../gpu/core/computeBindings.ts'
 import {
   createWebgpuBindIdentity,
+  heldGroup,
+  type HeldGroup,
   type WebgpuBindIdentity,
 } from '../../../../gpu/bind/bindIdentity.ts'
 import type { UniformSlots } from '../../../../session/memory/pools.ts'
@@ -91,6 +93,8 @@ export interface VsmChunkContext<Tables> {
   /** The groups over the tables of a frame set (`res.current`, the two in turn) and the lists'
    *  groups, made again when one of them moved. */
   tables: VsmPerFrameSet<Tables>
+  /** The candidates' group over the camera cut's world switch (`vsmWorldGroup`). */
+  world: HeldGroup
   /** Where the rows are, binned for the chunks' bound. */
   rowBound: VsmRowBound
 }
@@ -114,6 +118,7 @@ export function vsmChunkContext<Tables>(
     passes: vsmChunkPasses(label, slots),
     bound: createWebgpuBindIdentity(),
     tables: vsmFrameSetHeld<Tables>(),
+    world: heldGroup(),
     rowBound: existing?.rowBound ?? createVsmRowBound(),
   }
 }

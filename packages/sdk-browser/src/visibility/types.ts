@@ -21,13 +21,18 @@ export const ROW_WORDS = PAGE_INFO.words,
   PAGE_INFO_STRIDE = PAGE_INFO.words * 4
 /** The high bit of a material word (`PageInfo.material`, a blend item's `material`): the row reads
  *  its geometry as floats and its geometry carries a second UV set, at the tail of the normal atlas
- *  it reads (`vertUv1`, `../geometry/pages/pool/geometryPoolLayout.ts`). A quantized page says so in its
- *  own header. Below it, the rank of its surface's record (`../materials/table/materialTable.ts`). */
+ *  it reads (`vertUv1`, `../geometry/pages/pool/geometryPoolLayout.ts`); a float geometry carries
+ *  no more than two sets. A quantized page says so in its own header. Below it, the rank of its
+ *  surface's record (`../materials/table/materialTable.ts`). */
 export const MATERIAL_SECOND_UV = 0x80000000,
   MATERIAL_RANK_MASK = 0x7fffffff
 /** The address bits of `PageInfo.deformOutput`: the results' first word in the float pool plus
  *  one, wherever their source lies (`../deformation/outputs.ts`). */
 export const DEFORM_ADDRESS = 0x3fffffff
+/** The bit of `PageInfo.deformOutput` above its address: the results are a bank track's, shared by
+ *  every row of the placements playing it, the first row to reach a vertex in an image deforming
+ *  it for all (`../deformation/computeWgsl.ts`). Every reader of the address masks it away. */
+export const DEFORM_SHARED = 0x40000000
 export const FLAG_LIT = 1,
   FLAG_DOUBLE = 2,
   FLAG_HAS_UV = 4,
@@ -67,7 +72,7 @@ export const FLAG_LIT = 1,
   FLAG_DIAGNOSTIC_VIEW = 0x40000000
 /** Beside it, which view: its code (`DIAGNOSTIC_VIEWS`, `shader/shadeMode.ts`) in the frame flags'
  *  four bits from here, which the transparent pass reads as the resolve reads `uni.mode`: above
- *  every row flag (`FLAG_MAP_UV1` the last), which the frame flags are OR'd with. */
+ *  every flag a blend item carries (`ITEM_FLAG_BITS`), which the frame flags are OR'd with. */
 export const DIAGNOSTIC_CODE_SHIFT = 25,
   DIAGNOSTIC_CODE_MASK = 15
 /** Fog opt-out above the model bits; a dynamic geometry's row, reactive to the temporal pass (#573);
@@ -77,10 +82,12 @@ export const FLAG_FOG_FREE = 1 << 20,
   FLAG_DYNAMIC = 1 << 21,
   FLAG_SPRITE = 1 << 22,
   FLAG_LINE = 1 << 23,
-  /** A row whose base map reads the second UV set (glTF's `texCoord` 1, `Texture.channel`): what
-   *  every vertex stage hands its cutout and transmittance (`pageMaskUv`,
-   *  `shader/pageGeometryWgsl.ts`). A row flag alone: a blend item reads its record's `channels`. */
-  FLAG_MAP_UV1 = 1 << 24
+  /** The texture set a row's base map reads (glTF's `texCoord`, `Texture.channel`, 0 to 3), in two
+   *  flags: its low bit here, its high bit at `FLAG_MAP_UV_HIGH`: what every vertex stage hands
+   *  its cutout and transmittance (`pageMaskUv`, `shader/pageUvSetWgsl.ts`). Row flags alone: a
+   *  blend item reads its record's `channels`. */
+  FLAG_MAP_UV_LOW = 1 << 24,
+  FLAG_MAP_UV_HIGH = 1 << 29
 /** The four bits from here of a row's flags: the most of its history the temporal anti-aliasing
  *  keeps on its surface's pixels (`VisMaterial`'s `historyShare`), as its code
  *  (`historyShareCode`). The opaque passes carry it as they carry a pixel animation, and the
@@ -89,12 +96,12 @@ export const FLAG_FOG_FREE = 1 << 20,
  *  history into a target of their own (`GIVEN_UP_TARGET`). The blend pass's frame flags hold their
  *  diagnostic code at these bits, a word a row's flags reach through `ITEM_FLAG_BITS` alone, its
  *  low sixteen bits. Bits 17 to 19 are the surface model's (`MODEL_SHIFT`), 20 to 24 the flags
- *  above, 29 and up free. */
+ *  above, 29 the base map's high texture-set bit, 31 free. */
 export const HISTORY_SHARE_SHIFT = 25,
   HISTORY_SHARE_MASK = 15
 /** The code's steps: a share is a whole number of twelfths of history, so 1, 0.75, 0.5, 0.25 and 0
  *  are exact; code 0 the whole history, the engine's own blend, `HISTORY_SHARE_STEPS` none. */
-export const HISTORY_SHARE_STEPS = 12
+const HISTORY_SHARE_STEPS = 12
 /** The history share's code (`HISTORY_SHARE_SHIFT`), the nearest twelfth of what it gives up. */
 export const historyShareCode = (share = 1) =>
   Math.round((1 - saturate(share)) * HISTORY_SHARE_STEPS)

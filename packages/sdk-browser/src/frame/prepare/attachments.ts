@@ -68,5 +68,6 @@ const cleared = attachmentMemo((view) => ({
 /** Surface colour attachments, cleared. */
 export const surfaceColorAttachments = cleared.of
 
-/** Surfaces cleared, then the feedback target: the attachments of the hardware resolve. */
+/** Surfaces cleared, then the feedback target: the attachments of the material pass's clear, before
+ *  its classes store their pixels (`../../materials/classes/materialPasses.ts`). */
 export const shadeColorAttachments = cleared.withFeedback

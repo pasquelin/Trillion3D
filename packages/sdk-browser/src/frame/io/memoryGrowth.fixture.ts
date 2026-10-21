@@ -25,9 +25,9 @@ export const SUN: SceneLight = {
   castsShadow: true,
 }
 
-/** The deep quad (`../backend/deepQuad.fixture.ts`), on a pool at its floor — the root and the coarse page
- *  its group replaces, no slot for the leaves — and tables sized for it, the GPU cut drawing at
- *  full detail, lit by `light` when given. The device answers out-of-memory scopes, and refuses
+/** The deep quad (`../backend/deepQuad.fixture.ts`), on a pool at its floor — the root's grain
+ *  alone, no streaming slot for the coarse page nor the leaves — and tables sized for it, the GPU
+ *  cut drawing at full detail, lit by `light` when given. The device answers out-of-memory scopes, and refuses
  *  the page table while `refusing.on`. */
 export async function coarseSession(light?: SceneLight) {
   installGpuGlobals()

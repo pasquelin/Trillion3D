@@ -11,9 +11,9 @@
     }
   ],
   "refus": {
+    "empty": "ARCHIVE_EMPTY",
     "sortieDeDossier": "ARCHIVE_PATH_ESCAPE",
-    "truncated": "ARCHIVE_UNREADABLE",
-    "empty": "ARCHIVE_EMPTY"
+    "truncated": "ARCHIVE_UNREADABLE"
   },
   "rule": "A container changes nothing about the project it wraps. The test first compares the compilation from the package with that of the same project laid out flat - name, size and fingerprint of every data file read included - then pins the three booby-trapped packages, refused by their code without a byte being written.",
   "scene": {
@@ -38,7 +38,7 @@
       }
     ],
     "formatVersion": 11,
-    "manifestBinaryVersion": 13,
+    "manifestBinaryVersion": 18,
     "notes": [],
     "plugin": {
       "name": "unity",
@@ -47,7 +47,7 @@
     "primitives": 1,
     "selectedNodes": 3,
     "selectedTriangles": 36,
-    "sidecarSha256": "549a42503b2563d1f79dea8e9e8bd002925c6e8cb92f6088f6552c43a07b95d4",
+    "sidecarSha256": "8eb1a41d08c04063b6319c962bdf034c0f4fccc573f408be3fba1252de9029ae",
     "sourceTriangles": 36,
     "totalNodes": 3,
     "unsupported": {}

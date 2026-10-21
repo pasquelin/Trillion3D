@@ -1,9 +1,9 @@
 // #198, #1483: a row of the page table changes occupant. Under the row cache a row is EVICTED —
 // the view moved to another placement, whose requests take back the rows no cut used for a while
 // (`geometry/rows/rowOrder.ts`). Every reader of a row must then follow its new occupant: its record
-// names it, and the row is marked rewritten, the run the draw items, the corners and the
-// partition's history are rewritten and forgotten on (`geometry/rows/dirty.ts`,
-// `forEachRewrittenRun`; `visibility/passes/corners.ts`). On Dawn the shipped kernel cuts each view on the residency the cache publishes: the moved view draws what it wants,
+// names it, and the row is marked rewritten, the run the draw items are rewritten on
+// (`geometry/rows/dirty.ts`, `forEachRewrittenRun`). On Dawn the shipped kernel cuts each view on
+// the residency the cache publishes: the moved view draws what it wants,
 // from its own placement alone, no evicted occupant in its place.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -44,10 +44,7 @@ test('a row evicted for another placement names its new occupant to every reader
       `row ${row}'s record names ${page}`,
     )
     assert.equal(rows.rowOf(page), row, `${page} reads its row`)
-    assert.ok(
-      rewritten.has(row),
-      `row ${row} is rewritten for the draw items, corners and partition`,
-    )
+    assert.ok(rewritten.has(row), `row ${row} is rewritten for the draw items`)
   }
   // Every page the moved view draws holds a row whose record names it.
   for (const page of moved.drawn) {

@@ -28,8 +28,7 @@ function createViewRevision() {
       pixelError: number,
     ) {
       // The camera pose, ancestors included, is the one frame entry has just copied: every entry
-      // calls `readCameraWorld` before the adaptive threshold and before this read, and nothing
-      // else enters here. That is the order the contract (`../../camera/world.ts`) guarantees, and it is
+      // calls `readCameraWorld` before this read, and nothing else enters here. That is the order the contract (`../../camera/world.ts`) guarantees, and it is
       // by this fingerprint alone that a pose decides to hold or replay a frame.
       const same = fingerprint.same(cam, viewportWidth, viewportHeight)
       if (same && far === cam.far && quality === pixelError) return false

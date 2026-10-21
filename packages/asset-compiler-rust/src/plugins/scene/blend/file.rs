@@ -18,7 +18,7 @@
 //! the file's size costs no heap. Only a gzip or Zstandard wrapping is unpacked, under the job's
 //! RAM budget.
 use super::*;
-use crate::le::{u32_at, u64_at};
+use crate::support::le::{u32_at, u64_at};
 use std::borrow::Cow;
 
 /// The header length of a sixty-four-bit-field block.

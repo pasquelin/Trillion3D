@@ -34,7 +34,6 @@ export async function holdAndCapture(o: HoldOptions) {
     replicaCount: 1,
     detail: 'source',
     pixelError: o.pixelError,
-    lodAdaptive: false,
     preload: 'visible',
     engine: sdk.webgpuPagesEngine,
     diagnosticDetail: 'summary',

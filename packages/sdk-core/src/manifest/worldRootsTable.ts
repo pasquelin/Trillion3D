@@ -1,11 +1,12 @@
 /**
  * The world HLOD's records (docs/FORMAT.md, World HLOD): `world-roots.table` and
  * `world-roots.dag`, read straight from their bytes, as the cook writes them
- * (`compiler_world_roots/records.rs`). Never one string of the whole world, which a JavaScript
+ * (`chain/records.rs`). Never one string of the whole world, which a JavaScript
  * engine refuses past 512 MiB: the open world's table weighed 866 MiB as JSON. A record is read at
  * its rank when asked, as a page is viewed in its bundle; only the bundles, a few thousand, are
  * read whole. A file that breaks its contract is refused whole, `INVALID_CACHE`.
  */
+import { NO_INDEX } from '../../../math/src/constants.ts'
 import { uint64FromWords } from '../../../math/src/scalar/uint64.ts'
 import { hexOfBytes } from '../../../math/src/scalar/hex.ts'
 import type { ClusterGroup, CullingHierarchy } from '../contracts/geometry.ts'
@@ -17,14 +18,22 @@ import {
   type WorldRootsCluster,
   type WorldRootsPageFacts,
 } from './worldRoots.ts'
-// The products' version this reader knows, the compiler's: another is refused.
-import { WORLD_ROOTS_VERSION } from '../contracts/writtenFormats.ts'
+// The products' version this reader knows, the compiler's: another is refused. A culling node is
+// `CULLING_STRIDE` `f64` (`page-codec-wasm/src/culling.rs`); an actor's row, `WORLD_ROOTS_ROW_BYTES`
+// bytes (`hlod/chain/builds/instanced.rs`).
+import {
+  CULLING_STRIDE,
+  WORLD_ROOTS_ROW_BYTES,
+  WORLD_ROOTS_VERSION,
+} from '../contracts/writtenFormats.ts'
 
 /** Bytes of each header and record (`records.rs`, `dag_records.rs`). */
-const [TABLE_HEADER, BUNDLE, PAGE, HLOD_CELL] = [64, 56, 24, 64]
-const [DAG_HEADER, CLUSTER, GROUP, NODE] = [24, 184, 64, 120]
-/** Numbers per culling node (`page-codec-wasm/src/culling.rs`, `CULLING_STRIDE`). */
-const NODE_STRIDE = 15
+const [TABLE_HEADER, BUNDLE, PAGE, HLOD_CELL] = [64, 56, 24, 124]
+/** Where a row's track and matrix lie, after its mesh: a row is its mesh's rank, the item of the
+ *  animation banks it plays (`NO_INDEX` for none), then sixteen `f64` of its world matrix. */
+const ROW_TRACK = 4,
+  ROW_MATRIX = 8
+const [DAG_HEADER, CLUSTER, GROUP, NODE] = [24, 180, 64, CULLING_STRIDE * 8]
 
 /** `bytes`' view, its `u32` words, and its pool from where `poolAt` reads it starts: `poolAt`
  *  refuses a file its records do not fill exactly. */
@@ -57,6 +66,9 @@ function opened(
 }
 
 const below = (values: Uint32Array, end: number) => values.every((value) => value < end)
+
+/** A record's word as an index, `-1` for the word that names nothing (`NO_INDEX`). */
+const indexOf = (word: number) => (word === NO_INDEX ? -1 : word)
 
 type Opened = ReturnType<typeof opened>
 
@@ -117,27 +129,49 @@ export function readWorldRoots(bytes: Uint8Array): WorldRoots {
   const chain = {
     parent: new Int32Array(hlodCount),
     level: new Uint8Array(hlodCount),
+    actorLevel: new Uint16Array(hlodCount),
+    grid: new Uint16Array(hlodCount),
+    rung: new Uint8Array(hlodCount),
     actor: new Uint8Array(hlodCount),
     bounds: new Float64Array(6 * hlodCount),
+    content: new Float64Array(6 * hlodCount),
   }
+  const rows = { bundle: new Int32Array(hlodCount), count: new Uint32Array(hlodCount) }
   const hlod = Array.from({ length: hlodCount }, (_, cell) => {
     const at = hlodAt + cell * HLOD_CELL,
       held = list(at)
     if (!below(held, bundleCount)) refuseWorldRoots(`HLOD cell ${cell} bundles`)
-    // The level in the low 16 bits, whether its actor's build failed in the high 16 (`records.rs`);
-    // an actor built is one whose bundles hold roots.
+    // Its actor's rows: one of its bundles, `WORLD_ROOTS_ROW_BYTES` a row (`records.rs`), or none.
+    const own = word(at + 20)
+    rows.bundle[cell] = indexOf(own)
+    rows.count[cell] = word(at + 24)
+    const sized = own === NO_INDEX ? rows.count[cell] === 0 : held.includes(own)
+    if (
+      !sized ||
+      (own !== NO_INDEX && bundles[own].bytes !== rows.count[cell] * WORLD_ROOTS_ROW_BYTES)
+    )
+      refuseWorldRoots(`HLOD cell ${cell} rows`)
+    // The level in the low 8 bits, whether its actor asks a warm-up in the next bit, the level of
+    // its cell on its grid in the next 7, the grid in the high 16, then its actor's HLOD level
+    // (`records.rs`); an actor built is one whose bundles hold roots or that places rows.
     const parent = word(at + 8),
-      level = word(at + 12) & 0xffff,
-      failed = (word(at + 12) >>> 16) & 1
-    const actor = (held.length ? CHAIN_ACTOR.built : 0) | (failed ? CHAIN_ACTOR.failed : 0)
-    // A cell's next level's actor lies in a cell of the next level, after it in the chain.
-    if (parent !== 0xffffffff && (parent <= cell || parent >= hlodCount))
+      level = word(at + 12) & 0xff,
+      warmup = (word(at + 12) >>> 8) & 1,
+      grid = word(at + 12) >>> 16
+    chain.rung[cell] = (word(at + 12) >>> 9) & 0x7f
+    // A cell's actor lies in a cell of a coarser grid, after it in the chain.
+    if (parent !== NO_INDEX && (parent <= cell || parent >= hlodCount))
       refuseWorldRoots(`HLOD cell ${cell} parent`)
-    chain.parent[cell] = parent === 0xffffffff ? -1 : parent
+    chain.parent[cell] = indexOf(parent)
     chain.level[cell] = level
-    chain.actor[cell] = actor
-    for (let k = 0; k < 6; k++)
-      chain.bounds[6 * cell + k] = file.view.getFloat64(at + 16 + 8 * k, true)
+    chain.actorLevel[cell] = word(at + 16)
+    chain.grid[cell] = grid
+    const built = held.length > 0 || rows.count[cell] > 0
+    chain.actor[cell] = built ? CHAIN_ACTOR.built | (warmup && CHAIN_ACTOR.warmup) : 0
+    for (let k = 0; k < 6; k++) {
+      chain.bounds[6 * cell + k] = file.view.getFloat64(at + 28 + 8 * k, true)
+      chain.content[6 * cell + k] = file.view.getFloat64(at + 76 + 8 * k, true)
+    }
     return [...held]
   })
   return {
@@ -151,7 +185,32 @@ export function readWorldRoots(bytes: Uint8Array): WorldRoots {
     pages: tablePages(file, pagesAt, pageCount),
     hlod,
     chain,
+    rows,
   }
+}
+
+/**
+ * The `count` rows of an actor its rows bundle's `bytes` hold (`WorldRoots.rows`), read as its
+ * cell holds it, or `INVALID_CACHE` for bytes of another length: each its mesh's rank (`mesh`),
+ * the item of the scene's animation banks it plays (`track`, -1 for none: an instanced skinned
+ * object marked to stand as itself, its matrix then its skin frame's world), and its world matrix
+ * in the scene's frame, sixteen numbers from `16 · row` (`matrix`).
+ */
+export function actorRows(bytes: Uint8Array, count: number) {
+  if (bytes.byteLength !== count * WORLD_ROOTS_ROW_BYTES)
+    refuseWorldRoots(`${count} rows in ${bytes.length}`)
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  const mesh = new Uint32Array(count),
+    track = new Int32Array(count),
+    matrix = new Float64Array(16 * count)
+  for (let row = 0; row < count; row++) {
+    const byte = row * WORLD_ROOTS_ROW_BYTES
+    mesh[row] = view.getUint32(byte, true)
+    track[row] = indexOf(view.getUint32(byte + ROW_TRACK, true))
+    for (let v = 0; v < 16; v++)
+      matrix[16 * row + v] = view.getFloat64(byte + ROW_MATRIX + 8 * v, true)
+  }
+  return { mesh, track, matrix }
 }
 
 /** The page facts a cluster record holds at `at`. */
@@ -163,7 +222,6 @@ function pageFacts(view: DataView, at: number): WorldRootsPageFacts {
     indexCount: word(2),
     flags: word(3),
     uncompressedBytes: word(4),
-    quantizationError: view.getFloat32(at + 20, true),
   }
 }
 
@@ -171,7 +229,7 @@ function pageFacts(view: DataView, at: number): WorldRootsPageFacts {
  * `bytes` as the world DAG, or `INVALID_CACHE`: every world cluster in the cook's rank, in the
  * shape the world stream reads (`WorldRootsCluster`), the group list, its children and outputs
  * naming clusters of the DAG, and the world's culling hierarchy, its nodes naming ranges of those
- * ranks (the cook ranks the clusters in its order, `compiler_world_roots/merge.rs`).
+ * ranks (the cook ranks the clusters in its order, `chain/merge.rs`).
  */
 export function readWorldRootsDag(bytes: Uint8Array) {
   const { view, word, list } = opened(bytes, 'WRTD', DAG_HEADER, (w) => {
@@ -216,9 +274,9 @@ export function readWorldRootsDag(bytes: Uint8Array) {
   const nodesAt = groupsAt + word(12) * GROUP,
     count = word(20)
   const culling: CullingHierarchy = {
-    stride: NODE_STRIDE,
+    stride: CULLING_STRIDE,
     count,
-    nodes: floats(nodesAt, count * NODE_STRIDE),
+    nodes: floats(nodesAt, count * CULLING_STRIDE),
   }
   return { clusters, groups, culling }
 }

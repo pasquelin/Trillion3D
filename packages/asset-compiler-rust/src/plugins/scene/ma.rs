@@ -28,8 +28,8 @@
 //!
 //! **What it counts on the report without returning it**: see the `ma-*` constants of `report.rs`.
 use super::*;
-use crate::import::{Report, SceneTables};
 use crate::plugins::scene::codes::{FILE_INVALID, SIZE_UNSUPPORTED};
+use crate::plugins::scene::convert::{Report, SceneTables};
 use crate::CompilerError;
 use serde_json::json;
 use std::{collections::HashMap, fs, time::Instant};

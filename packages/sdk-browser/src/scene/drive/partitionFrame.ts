@@ -16,6 +16,7 @@ import { patientTask } from '../../geometry/work/host.ts'
 import { cellRows, type CellRows } from '../../geometry/partition/cellDecode.ts'
 import { createViewAsks } from './viewAsks.ts'
 import type { PageBody } from '../../geometry/partition/cellIndex.ts'
+import type { WorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 
 /** The streaming source a camera is, written into `view`: where its eye stands in the world — the
  *  source's location the grids' ranges are read from — and where it looks, unit, its `-z`: the
@@ -51,9 +52,9 @@ async function decodePage(bytes: Uint8Array, url: string): Promise<PageBody> {
 
 /**
  * Sizes the rows for `camera`'s view — for every node when no owner can open the session again
- * (`owned` false) —, then runs each partition's frame to completion (`PartitionCells.prime`), its
- * reads through the streamer at the head of its queue, its decodes on the page worker pool; the
- * bytes read.
+ * (`owned` false) —, then runs each partition's frame to completion (`PartitionCells.prime`) under
+ * the session's `streaming` settings — every default when absent —, its reads through the streamer
+ * at the head of its queue, its decodes on the page worker pool; the bytes read.
  */
 export async function primePartitions(
   partitions: readonly PartitionCells[],
@@ -61,14 +62,17 @@ export async function primePartitions(
   streamer: PageStreaming,
   owned: boolean,
   signal?: AbortSignal,
+  streaming?: WorldStreaming,
 ) {
   const { eye } = viewOf(camera)
   const io = {
-    read: (url: string) => streamer.readBytes(url, signal ?? streamer.signal),
+    read: (url: string, priority?: number) =>
+      streamer.readBytes(url, signal ?? streamer.signal, priority),
     decode: decodeCell,
     decodePage,
     admit: streamer.admit,
     forget: streamer.forget,
+    streaming,
   }
   const bytes = await Promise.all(partitions.map((cells) => cells.prime(eye, io, owned)))
   return bytes.reduce((sum, value) => sum + value, 0)
@@ -86,6 +90,9 @@ type Inputs = {
    *  engine that grows no buffer in place: the owner opens the session again. Absent, a cell
    *  past those rows waits. */
   renew?: () => void
+  /** How the view streams the cells, the session's settings as they stand at each frame; absent,
+   *  every setting's default. */
+  streaming?: () => WorldStreaming
 }
 
 /**
@@ -95,7 +102,9 @@ type Inputs = {
  * it handed to the page worker pool decoded, and the next of the cells' holds on its way landed,
  * true while one of them waits for a frame to place it, or a decode or a hold landed: a still
  * camera is drawn again until they all are. A read that failed and may pass stays on its way till
- * it lands (`../../geometry/streaming/failures.ts`): nothing else wakes the loop for it.
+ * it lands (`../../geometry/streaming/failures.ts`): nothing else wakes the loop for it. Whether
+ * a partition's load blocks on slow streaming is told to the engine as it moves
+ * (`Engine.streamingBlocks`).
  */
 export function createPartitionFrame(inputs: Inputs) {
   const { streamer, camera, engine: backend, renew, budget } = inputs
@@ -103,10 +112,10 @@ export function createPartitionFrame(inputs: Inputs) {
   const asks = createViewAsks(streamer)
   let reads: Promise<void>[] = [],
     later = false
-  const request = (urls: readonly string[]) => {
+  const request = (urls: readonly string[], priority?: number) => {
     // A read that fails is said by the streamer's own diagnostics; the frames ask it while they
     // need it (`viewAsks.ts`), and wait on it.
-    for (const read of asks.ask(urls)) reads.push(read)
+    for (const read of asks.ask(urls, undefined, priority)) reads.push(read)
   }
   const pending = async () => {
     const asked = reads,
@@ -151,18 +160,34 @@ export function createPartitionFrame(inputs: Inputs) {
         get world() {
           return backend.worldCells(cells.world)
         },
+        get streaming() {
+          return inputs.streaming?.()
+        },
+        get initialLoad() {
+          return backend.initialLoad()
+        },
       }
       ios.set(cells, own)
     }
     return own
   }
   const seen = viewOf(camera)
+  /** Whether a partition's load blocked on slow streaming at the last step, as the engine was told
+   *  (`Engine.streamingBlocks`). */
+  let blocked = false
   const step = () => {
-    if (!partitions.length) return
-    const { eye, axis } = viewOf(camera, seen)
-    later = false
-    for (const cells of partitions) later = cells.frame(eye, io(cells), budget, axis) || later
-    asks.end()
+    let blocks = false
+    if (partitions.length) {
+      const { eye, axis } = viewOf(camera, seen)
+      later = false
+      for (const cells of partitions) {
+        later = cells.frame(eye, io(cells), budget, axis) || later
+        if (cells.blocking) blocks = true
+      }
+      asks.end()
+    }
+    // The last partition left, nothing blocks.
+    if (blocks !== blocked) backend.streamingBlocks((blocked = blocks))
   }
   return Object.assign(step, {
     pending,

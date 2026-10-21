@@ -40,7 +40,7 @@ export const PASSES: K.PassModel[] = [
   },
   {
     label: 'visibility primary',
-    formula: `T triangles; P·cover fragments; ${K.VISIBILITY_BYTES} B a pixel (r32uint id + depth32float)`,
+    formula: `T triangles; P·cover fragments; ${K.VISIBILITY_BYTES} B a pixel (u32 depth key + u32 id)`,
     work: (f) => ({
       triangles: f.T,
       fragments: f.P * f.cover,
@@ -48,7 +48,7 @@ export const PASSES: K.PassModel[] = [
       passes: 1,
     }),
     sources: [
-      K.engine('visibility/passes/pipelines.ts', 'VIS_TARGETS'),
+      K.engine('visibility/raster/pixelWgsl.ts', 'VIS_WRITE_WGSL'),
       K.engine('visibility/passes/pipelines.ts', 'VIS_DEPTH'),
     ],
   },
@@ -63,28 +63,29 @@ export const PASSES: K.PassModel[] = [
     ],
   },
   {
-    label: 'material cache and tiles',
-    formula: `P identifiers read (${K.TILE_ID_BYTES} B), 32×32 tiles listed`,
-    work: (f) => ({ texels: f.P, bytes: K.TILE_ID_BYTES * f.P, passes: 1 }),
-    sources: [K.engine('visibility/shader/materialTilesWgsl.ts', 'MATERIAL_TILES_SHADER')],
+    label: 'material surfaces v1',
+    formula: `the surfaces cleared: P·${K.SURFACE_CLEAR_BYTES} B`,
+    work: (f) => ({ bytes: K.SURFACE_CLEAR_BYTES * f.P, passes: 1 }),
+    sources: [K.engine('materials/surface/surfaceOutputs.ts', 'SURFACE_OUTPUTS')],
   },
   {
-    label: 'material surfaces v1',
-    formula: `P·cover·(4 B id + ${K.SURFACE_BYTES} B surfaces); ${K.SURFACE_FETCHES} fetches (id, 3 indices, 3×3 attributes)`,
+    label: 'material cache, bins and shading',
+    formula: `2P identifiers read and P·cover pixel words written then read (${K.BIN_WORD_BYTES} B each); P·cover·(4 B id + ${K.SURFACE_BYTES} B surfaces); ${K.SURFACE_FETCHES} fetches (id, 3 indices, 3×3 attributes)`,
     work: (f) => ({
-      bytes: f.P * f.cover * (4 + K.SURFACE_BYTES),
-      texels: K.SURFACE_FETCHES * f.P * f.cover,
-      pixelsMrt4: f.P * f.cover,
+      bytes:
+        K.BIN_WORD_BYTES * (2 * f.P + 2 * f.P * f.cover) + f.P * f.cover * (4 + K.SURFACE_BYTES),
+      texels: 2 * f.P + K.SURFACE_FETCHES * f.P * f.cover,
       passes: 1,
     }),
     sources: [
+      K.engine('visibility/shader/shadeBinKernelsWgsl.ts', 'SHADE_BINS_SHADER'),
       { path: 'docs/ENGINE.md', symbol: 'Material surfaces' },
       K.engine('visibility/shader/receiverTargetWgsl.ts', 'RECEIVER_TARGET_BYTES'),
     ],
   },
   {
     label: 'vsm.marking',
-    formula: `P/${K.MARK_STRIDE} pixels (a stride of 2 each way) × (depth 4 + normal 8 + flags 1 B, a light-grid cell) + page marks`,
+    formula: `P/${K.MARK_STRIDE} pixels (a stride of 2 each way) × (depth 4 + normal 8 + flags 4 B, a light-grid cell) + page marks`,
     work: (f) => ({ bytes: (K.MARK_BYTES * f.P) / K.MARK_STRIDE, texels: f.P, passes: 1 }),
     sources: [
       K.engine('lighting/shadows/vsm/frame/vsmEncode.ts', 'encodeVsmFrame'),

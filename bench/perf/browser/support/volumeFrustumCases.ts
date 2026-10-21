@@ -41,7 +41,7 @@ const locaux = (views: { vp: number[] }[], worlds: number[][], pas: number): Loc
       .map((m) => ({ planes: plans(vp, Float32Array), m })),
   )
 
-/** Equivalence lines of the frustum and the cone, without timer options. */
+/** Equivalence lines of the frustum, without timer options. */
 // These three computations are timed only: Three's planes are not the engine's reversed-depth
 // planes, so their correctness is held by the bit-exact witnesses
 // `bench/witnesses/three/parity/core/math/frustum/frustum.test.ts` and `.../frustum/box.test.ts`,

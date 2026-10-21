@@ -2,24 +2,33 @@ import type { GpuPageContext, ResidentPage } from './types.ts'
 import { ledgerReplacing } from '../../../gpu/core/deviceLedger.ts'
 import { grownByCopy } from '../../../gpu/core/tableGrowth.ts'
 import { evictResident } from './commit.ts'
-import type { Eviction } from './eviction.ts'
 import { checkBudget, storageBufferCap } from '../../../session/memory/pools.ts'
 import { extendHomes, pageHomes, type PageHomes } from './homes.ts'
-import { createPlacement, poolBytes } from './placement.ts'
+import { createPlacement, poolBytes, type Placement, type RootSlots } from './placement.ts'
 
-/** Bytes of a pool of `slots` pages of `pageBytes` at most (`poolBytes`), refused past one storage
- *  binding. */
+/** Bytes of a pool of `slots` streaming pages of `pageBytes` at most, `roots` its root region
+ *  (`poolBytes`), refused past one storage binding. */
 export const pageBufferBytes = (
   device: GPUDevice,
   pageBytes: number,
   slots: number,
   homes?: PageHomes,
+  roots?: RootSlots,
 ) => {
   checkBudget(slots, 'INVALID_PAGE_BUDGET')
-  const size = poolBytes(pageBytes, slots, homes)
+  if (roots && !rootsFit(roots, slots)) throw new Error('INVALID_PAGE_BUDGET')
+  const size = poolBytes(pageBytes, slots, homes, roots)
   if (size > storageBufferCap(device.limits)) throw new Error('INVALID_PAGE_BUDGET')
   return size
 }
+
+/** Whether `roots` lies in a pool of `slots`: whole grains, no more than its slots, each a whole
+ *  number of words. */
+const rootsFit = ({ slots: grains, bytes }: RootSlots, slots: number) =>
+  Number.isSafeInteger(grains) &&
+  grains >= 0 &&
+  grains <= slots &&
+  (grains === 0 || (Number.isSafeInteger(bytes) && bytes >= 4 && bytes % 4 === 0))
 
 export const createPageBuffer = (
   device: GPUDevice,
@@ -32,80 +41,85 @@ export const createPageBuffer = (
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
   })
 
-/** The resident pages, ranked only when some must leave: the root cover first, then the pinned
- *  pages, then those the GPU's order does not list — in use, or too recent for it —, each the most
- *  recent arrival first, then the listed ones, its last first: what an arrival would take is what a
- *  smaller pool gives up first (`eviction.ts`). A pool that keeps everything has no rank to
- *  compute. */
-function rankedPages(
-  resident: ReadonlyMap<string, ResidentPage>,
-  fits: boolean,
-  eviction: Eviction,
-  cover: ReadonlySet<string>,
-): ResidentPage[] {
-  const pages = [...resident.values()]
-  if (fits) return pages
-  const kept: ResidentPage[][] = [[], [], []],
-    listed: ResidentPage[] = []
-  for (const page of pages) {
-    if (cover.has(page.key)) kept[0].push(page)
-    else if (eviction.isPinned(page.key)) kept[1].push(page)
-    else if (eviction.rankOf(page.key) === undefined) kept[2].push(page)
-    else listed.push(page)
-  }
-  // Among the pages the order says nothing of, the most recent arrival first.
-  for (const bucket of kept) bucket.sort((a, b) => b.generation - a.generation)
-  listed.sort((a, b) => eviction.rankOf(b.key)! - eviction.rankOf(a.key)!)
-  return [...kept.flat(), ...listed]
+/** A streaming page the pool holds: its name, its first byte, one of its pages' keys — whether a
+ *  root grain holds it (`placement.ts`, `rooted`) —, its resident pages, and its rank — 0 for one
+ *  of the root cover, 1 for one pinned, 2 for another — and latest arrival. */
+type HeldUnit = {
+  unit: string
+  start: number
+  key: string
+  pages: ResidentPage[]
+  rank: number
+  latest: number
 }
 
-/** The catalogue a pool is laid out for when pages join it: the width the widest of them asks, and
- *  the width of each address new to it (`extendHomes`). */
+/** The streaming pages `old` holds, with the pages `resident` holds in each, ranked only when some
+ *  must leave (`fits` false): the root cover's first, then the pinned ones, then the others, each
+ *  the most recent arrival first: a smaller pool gives up the oldest arrivals. */
+function heldUnits(context: GpuPageContext, old: Placement, fits: boolean): HeldUnit[] {
+  const { resident, eviction, cover } = context
+  const units: HeldUnit[] = []
+  for (const [unit, { start, keys }] of old.placed) {
+    const pages = [...keys].flatMap((key) => resident.get(key) ?? [])
+    const rank = Math.min(
+      ...pages.map((page) => (cover.has(page.key) ? 0 : eviction.isPinned(page.key) ? 1 : 2)),
+    )
+    const latest = Math.max(...pages.map((page) => page.generation))
+    const [key] = keys
+    units.push({ unit, start, key, pages, rank, latest })
+  }
+  if (!fits) units.sort((a, b) => a.rank - b.rank || b.latest - a.latest)
+  return units
+}
+
+/** The catalogue a pool is laid out for when pages join it: the width the widest streaming page
+ *  asks, and the width of each streaming page new to it (`extendHomes`). */
 export type GrownPages = { pageBytes: number; widths: ReadonlyMap<string, number> }
 
 /**
  * The pool changes size WITHOUT losing what it holds, through its one allocator (`placement.ts`):
- * a new layout of the new bytes, the pages placed in it in rank — the root cover first, which a
- * pool never goes below, then the pinned pages, then by the GPU's order (`rankedPages`; no rank
- * when they all fit) —, each where it was when that range is free, at its home when the pool comes
- * to hold the catalogue, else in the first span that fits; a page no span takes is evicted. Every
- * page that moved is logged as an ordinary arrival (`residencyLog.ts`). The pages are copied into
- * the new buffer in runs: a page that keeps its offset beside one that does too is one copy, so a
- * pool that grows behind its pages copies them in one; a pool whose bytes and offsets all stay
- * keeps its buffer. Returns the evicted keys, pinned included: the caller unpins them on its side.
+ * a new layout of the new bytes, the streaming pages placed in it in rank — the root cover's
+ * first, which a pool never goes below, then the pinned ones, then the latest arrivals
+ * (`heldUnits`; no rank when they all fit) —, each where it was when that slot is free, at its
+ * home when the pool comes to hold the catalogue, else in a free slot; one no slot takes is
+ * evicted, every page of it. Every page that moved is logged as an ordinary arrival
+ * (`residencyLog.ts`). The streaming pages are copied into the new buffer in runs: one that keeps
+ * its place beside one that does too is one copy, so a pool that grows behind its pages copies
+ * them in one; a pool whose bytes and places all stay keeps its buffer. Returns the evicted keys,
+ * pinned included: the caller unpins them on its side.
  *
- * Pages joined the catalogue (`grown`): their homes are added behind the others; a wider widest
- * page widens the room of a page the catalogue does not name.
+ * Pages joined the catalogue (`grown`): the homes of their streaming pages are added behind the
+ * others; a wider widest streaming page widens every slot. `roots`, the new root region
+ * (`placement.ts`), keeps the one in place when absent: the root pages take its grains.
  */
 export function resizeGpuPages(
   context: GpuPageContext,
   slots: number,
   grown?: GrownPages,
+  roots = context.roots,
 ): string[] {
   const { device, resident } = context
   const pageBytes = Math.max(context.pageBytes, grown?.pageBytes ?? context.pageBytes)
   if (grown) joinHomes(context, grown.widths)
-  const bytes = pageBufferBytes(device, pageBytes, slots, context.homes)
+  const bytes = pageBufferBytes(device, pageBytes, slots, context.homes, roots)
   const old = context.placement
+  const { homes, units, rootUrls } = context
   const placement = createPlacement({
     bytes,
     widest: pageBytes,
-    homes: context.homes,
-    eviction: context.eviction,
-    resident,
+    ...{ homes, units, roots, rootUrls, resident },
   })
   let total = 0
-  for (const page of resident.values()) total += placement.widthFor(page.key, old.widthOf(page))
-  const pages = rankedPages(resident, total <= bytes, context.eviction, context.cover)
+  for (const unit of old.placed.keys()) total += placement.widthOf(unit)
   // The layout first, nothing moved yet: a buffer the device refuses leaves the pool as it was.
-  const plan: { page: ResidentPage; offset: number; bytes: number }[] = []
+  const plan: { held: HeldUnit; start: number; bytes: number }[] = []
   let moved = false
-  for (const page of pages) {
-    const from = old.widthOf(page),
-      width = placement.widthFor(page.key, from),
-      offset = placement.keep(page.key, width, page.offset)
-    plan.push({ page, offset, bytes: Math.min(from, width) })
-    if (offset !== page.offset) moved = true
+  for (const held of heldUnits(context, old, total <= bytes)) {
+    const start = placement.keep(held.unit, held.start, held.key)
+    for (const page of held.pages) if (start >= 0) placement.hold(page.key)
+    const copied = Math.min(old.widthOf(held.unit), placement.widthOf(held.unit))
+    plan.push({ held, start, bytes: copied })
+    if (start !== held.start) moved = true
   }
   const next =
     moved || bytes !== context.buffer.size
@@ -113,23 +127,23 @@ export function resizeGpuPages(
       : context.buffer
   const evicted: string[] = []
   const runs: number[] = []
-  for (const { page, offset, bytes: width } of plan.sort((x, y) => x.page.offset - y.page.offset)) {
-    if (offset < 0) {
-      evictResident(context, page, 'resize')
-      evicted.push(page.key)
+  for (const { held, start, bytes: width } of plan.sort((x, y) => x.held.start - y.held.start)) {
+    if (start < 0) {
+      for (const page of held.pages) {
+        evictResident(context, page, 'resize')
+        evicted.push(page.key)
+      }
       continue
     }
     const at = runs.length - 3
-    if (
-      at >= 0 &&
-      runs[at] + runs[at + 2] === page.offset &&
-      runs[at + 1] + runs[at + 2] === offset
-    )
+    if (at >= 0 && runs[at] + runs[at + 2] === held.start && runs[at + 1] + runs[at + 2] === start)
       runs[at + 2] += width
-    else runs.push(page.offset, offset, width)
-    if (offset === page.offset) continue
-    page.offset = offset
-    context.changes.placed(page.key, offset)
+    else runs.push(held.start, start, width)
+    if (start === held.start) continue
+    for (const page of held.pages) {
+      page.offset += start - held.start
+      context.changes.placed(page.key, page.offset)
+    }
   }
   if (next !== context.buffer) {
     const held = context.buffer
@@ -146,11 +160,12 @@ export function resizeGpuPages(
   }
   context.placement = placement
   context.slots = slots
+  context.roots = roots
   context.pageBytes = pageBytes
   return evicted
 }
 
-/** The homes of the addresses `widths` names, behind the pool's own. */
+/** The homes of the streaming pages `widths` names, behind the pool's own. */
 function joinHomes(context: GpuPageContext, widths: ReadonlyMap<string, number>) {
   if (context.homes) extendHomes(context.homes, widths)
   else context.homes = pageHomes(widths)

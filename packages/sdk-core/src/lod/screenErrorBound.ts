@@ -49,8 +49,7 @@ export function screenErrorBound(
   near: number,
   perspective = 1,
 ): number {
-  // Rust mirror, to the bits (`screenErrorBits.json`): `projected_error_at` of
-  // `packages/page-codec-wasm/src/cut/error.rs`.
+  // Pinned to the bits by `screenErrorBits.json`.
   const reach = radius * stretch,
     shift = error * stretch
   const nearest = clipWeight(perspective, depth - reach),

@@ -85,6 +85,19 @@ export function createRecordTexture(
     // The caller's bytes are not held past its write.
     sending.data = none
   }
+  /** One copy's descriptors (`copyTexels`), held and filled again at each piece like a write's:
+   *  the encoder reads them when called. */
+  const copyFrom: GPUTexelCopyTextureInfo = { texture: table.texture, origin },
+    copyTo: GPUTexelCopyTextureInfo = { texture: table.texture, origin }
+  let copying: GPUCommandEncoder | undefined
+  const copyPiece: PieceVisit = (x, y, layer, width, rows) => {
+    origin[0] = x
+    origin[1] = y
+    origin[2] = layer
+    extent[0] = width
+    extent[1] = rows
+    copying!.copyTextureToTexture(copyFrom, copyTo, extent)
+  }
   /** Field `field` of the `count` records from `first`, `data` holding them from `dataOffset`
    *  bytes, each record's field after the other. */
   const write = (
@@ -148,7 +161,8 @@ export function createRecordTexture(
       return true
     },
     /** Texels `[from, from + count)` of field `field` copied, in `encoder`, to texels from `at` of
-     *  the same field of `to`, a table of the same layout: a row's run a copy. */
+     *  the same field of `to`, a table of the same layout: a row's run a copy — the same texels
+     *  (`from === at`) the rectangles of a write (`texelPieces`), whole rows in one. */
     copyTexels(
       encoder: GPUCommandEncoder,
       to: { texture: GPUTexture },
@@ -157,6 +171,14 @@ export function createRecordTexture(
       at: number,
       count: number,
     ) {
+      if (from === at) {
+        copyFrom.texture = table.texture
+        copyTo.texture = to.texture
+        copying = encoder
+        texelPieces(layout, field, from, count, copyPiece)
+        copying = undefined
+        return
+      }
       for (let t = 0; t < count;) {
         const source = texelAt(layout, field, from + t),
           target = texelAt(layout, field, at + t),

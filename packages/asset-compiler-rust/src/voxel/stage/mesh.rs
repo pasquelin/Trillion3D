@@ -3,13 +3,13 @@ use super::super::sample::Probe;
 use super::super::seed::SeedGroup;
 use super::surface::{mesh_joints, voxelize, Surface};
 use super::{VoxelInputs, Voxelized, Voxelled};
-use crate::proxy::tracer::vertex;
-use crate::surface_trace::Traceable;
+use crate::trace::surface::Traceable;
+use crate::trace::tracer::vertex;
 use crate::{invalid, Result};
 use std::collections::HashMap;
 use std::ops::Range;
-use trillion3d_math::aabb::aabb_of;
-use trillion3d_math::vecn::sub;
+use trillion3d_math::geometry::aabb::aabb_of;
+use trillion3d_math::vector::vecn::sub;
 
 /// The groups of compiled mesh `compiled`, read from source mesh `source`, drawn as voxels: each
 /// of its `primitives`' seeded groups in level order, then its far group, above every primitive's

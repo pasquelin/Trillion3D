@@ -36,11 +36,13 @@ fn compile_writes_pages_and_namespaced_pointer() {
         !directory.join("scene.gltf").exists(),
         "no second scene beside the pages"
     );
-    assert_eq!(result["geometryPages"]["formatVersion"], 7);
+    assert_eq!(
+        result["geometryPages"]["formatVersion"],
+        trillion3d_page_codec::VERSION
+    );
     assert_eq!(result["geometryPages"]["codec"], "quantized");
     let geometry = &result["primitives"][0]["pages"][0]["geometry"];
     assert!(geometry.get("formatVersion").is_none());
-    assert!(result["primitives"][0]["quantization"]["positionExponent"].is_number());
     let primitive = &result["primitives"][0];
     let page = geometry_page(&options.cache, &result, primitive, &primitive["pages"][0]);
     let decoded = trillion3d_page_codec::decode(&page, 1 << 20).expect("decode");

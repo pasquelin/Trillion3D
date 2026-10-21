@@ -3,7 +3,7 @@
 //! below. Raw surface and run-length compressed lines are two ways of writing the same
 //! composite, in PSD as in PSB — the golden proves it by comparing them to the same reference.
 use super::super::image as registry;
-use super::{assert_claims, assert_refusals, decoded_rgba8, fixture};
+use super::{assert_claims, assert_refusals, fixture, rgba8_pixels};
 
 mod declarations;
 
@@ -53,10 +53,7 @@ fn with_alpha(base: [[u8; 4]; 8]) -> Vec<[u8; 4]> {
 
 /// Pixels of a fixture, in read order of the decoded image.
 fn pixels(name: &str) -> Vec<[u8; 4]> {
-    decoded_rgba8("psd", name, MAX_ALLOC, SIZE)
-        .pixels()
-        .map(|pixel| pixel.0)
-        .collect()
+    rgba8_pixels("psd", name, MAX_ALLOC, SIZE)
 }
 
 // Driver golden: both writings of the composite and both versions of the format yield, pixel by

@@ -1,10 +1,10 @@
 //! How far a deformed primitive can move, the one measure of both cuts — the compiler's
-//! (`asset-compiler-rust/src/geometry_page_deform/reach.rs`) and the run-time cut's, through the
+//! (`asset-compiler-rust/src/geometry_page/deform/reach.rs`) and the run-time cut's, through the
 //! SDK module (`../wasm/reach.rs`): the rest-pose ball of the vertices each joint moves, and each
 //! morph target's largest displacement. The runtime inflates a deformed cluster's bounds by them,
 //! so culling never drops a visible deformed cluster.
 use crate::min_ball::point_sphere;
-use trillion3d_math::sphere::farthest;
+use trillion3d_math::geometry::sphere::farthest;
 
 /// For each joint up to the highest weighted one, the smallest ball `[x, y, z, radius]` of the
 /// rest `positions` it moves with a positive weight (`point_sphere`, the one sphere of a vertex

@@ -24,7 +24,7 @@ function runStage(
 test('three stages on one clock spend the share once, each its first piece admitted', () => {
   let now = 0
   const tick = (ms: number) => void (now += ms)
-  const clock = createFrameBudget(2, () => now)
+  const clock = createFrameBudget(2, { now: () => now })
   const frame = now
   clock.open()
   const arrivals = runStage(clock, tick, 0.5)
@@ -41,7 +41,7 @@ test('three stages on one clock spend the share once, each its first piece admit
 
 test('a stage reads what the stages before it left', () => {
   let now = 0
-  const clock = createFrameBudget(2, () => now)
+  const clock = createFrameBudget(2, { now: () => now })
   clock.open()
   now += 0.5
   clock.spend()
@@ -59,7 +59,7 @@ test('a stage reads what the stages before it left', () => {
 
 test('a stopped clock stays stopped, and a running one keeps its time when resumed', () => {
   let now = 0
-  const clock = createFrameBudget(1, () => now)
+  const clock = createFrameBudget(1, { now: () => now })
   clock.open()
   clock.spend()
   now += 0.6
@@ -76,7 +76,7 @@ test('a stopped clock stays stopped, and a running one keeps its time when resum
 
 test("a stage's own ceiling stops it before the frame's share, and the next stage starts afresh", () => {
   let now = 0
-  const clock = createFrameBudget(4, () => now)
+  const clock = createFrameBudget(4, { now: () => now })
   clock.open()
   const capped = () => {
     let pieces = 0

@@ -39,7 +39,7 @@ function adopt(into: Float64Array, at: number, x: number, y: number, z: number, 
  * the union's diameter runs through both centres, `(d + held + radius) / 2`, its centre moved
  * toward the new sphere by `(next − held) / d` of the gap, `d` the gap's plain root
  * (`plainLength3`), the length of its Rust twin, `merge_spheres` of
- * `packages/math/rust/src/sphere.rs`, at every distance. The fold of a node's children into its
+ * `packages/math/rust/src/geometry/sphere.rs`, at every distance. The fold of a node's children into its
  * bounds, in the order of the compiler's own merge.
  */
 export function sphereUnion(

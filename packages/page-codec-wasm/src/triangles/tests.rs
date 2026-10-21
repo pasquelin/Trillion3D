@@ -4,7 +4,7 @@
 
 use super::*;
 use crate::bits::stream_words;
-use trillion3d_math::random::xorshift32;
+use trillion3d_math::sequence::random::xorshift32;
 use trillion3d_math::GOLDEN_32;
 
 /// The words of the block table then of the corner stream that code `indices`, and their code.

@@ -48,13 +48,14 @@ test('a floor is its slowest resource at its peak, plus a fixed cost a pass', ()
 
 test('the passes count their shipped constants', () => {
   // TAA at half the display per axis: its analysis' fetches a render texel over the four a display
-  // pixel holds, and its update's 19 (`taaFetchCount.test.ts`), 48 B of targets a pixel.
+  // pixel holds, and its update's 19 (`taaFetchCount.test.ts`), 48 B of targets a display pixel and
+  // 21 B of inputs a render pixel: colour, depth, identifier, the r32uint flags, the given-up history.
   const taa = pass('temporal antialiasing').work(frame)
   assert.equal(taa.texels! / frame.D, countTaaFetches(0.5).analysis / 4 + 19)
-  assert.equal(taa.bytes, 48 * frame.D + 18 * frame.P)
-  // One sun: one ray of nine samples, two fetches each, plus the screen ray's start and four samples.
+  assert.equal(taa.bytes, 48 * frame.D + 21 * frame.P)
+  // One sun: one ray of five samples, two fetches each, plus the screen ray's start and four samples.
   const vsm = pass('vsm.projection').work(frame)
-  assert.equal(vsm.texels, frame.P * (5 + 9 * 2))
+  assert.equal(vsm.texels, frame.P * (5 + 5 * 2))
   // Four lights fill one mask layer, five two.
   assert.equal(pass('vsm.projection').work({ ...frame, L: 5 }).bytes, 21 * frame.P + 8 * frame.P)
   assert.equal(pass('visibility primary').work(frame).triangles, frame.T)
@@ -125,7 +126,7 @@ test('every source a pass cites holds its symbol, and its formula the bytes its 
   assert.ok(dag.formula.includes(`${perRow} B`), `${dag.formula} counts ${perRow} B a row`)
 })
 
-test('the selection’s dispatches are the encoder’s: seventeen, and two a level', () => {
+test('the selection’s dispatches are the encoder’s: ten, and two a level', () => {
   for (const levels of [2, 3, 4, 5]) {
     const witness = witnessEncoder()
     encodeDagKernels(witness.encoder as never, cutResources(levels) as never)

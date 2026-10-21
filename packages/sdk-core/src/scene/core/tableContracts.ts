@@ -1,6 +1,6 @@
 /**
  * The tables the compiler writes beside the pages (`scene-tables.json`,
- * `packages/asset-compiler-rust/src/compiler_tables.rs`): the node graph, the cameras, the surfaces
+ * `packages/asset-compiler-rust/src/compiler/tables.rs`): the node graph, the cameras, the surfaces
  * and the geometry layout of the prepared scene — everything the runtime builds that scene from,
  * said by the cache instead of being read back out of the source file. The source's lamps are not
  * among them: `lights.json` carries them, read once (`sdk-browser/src/lighting/importedLights.ts`).
@@ -27,8 +27,10 @@ export const SCENE_TABLES_FILE = 'scene-tables.json'
  *  flattened material the world's HLOD actors wear (`hlodMaterials`). */
 const SCENE_TABLES_VERSION = 9
 /** The version of the node table this runtime reads: every node but those a cell places, with its
- *  local pose, whether it is visible and the skin it bends its mesh by. 6 names no light. */
-const NODE_TABLE_VERSION = 6
+ *  local pose, whether it is visible and the skin it bends its mesh by. 6 names no light, 7 says
+ *  which animated node a cell draws (`streamed`) and which node plays a track of the scene's
+ *  animation banks (`bank`). */
+const NODE_TABLE_VERSION = 7
 /** The version of the material table this runtime reads: 5 names an entry's history share
  *  (`temporalAntialiasing`, below 1 only) in place of 4's `responsive`. */
 const MATERIAL_TABLE_VERSION = 5
@@ -66,6 +68,13 @@ export interface TableNode {
   /** `false` when it declares itself hidden (`KHR_node_visibility`): it and the nodes under it
    *  are not drawn until a page shows it. */
   visible: boolean
+  /** An animated node — skinned, morphed or moved by a clip — that streams: its mesh is drawn only
+   *  by a row of the cell that holds it, while that cell is placed (`CellNode.source`), its own
+   *  host mesh that row's animation source. */
+  streamed?: true
+  /** An instanced skinned node loaded with the scene: the item of the scene's animation banks its
+   *  mesh plays (`./animationBanks.ts`); the node hangs under its skin's frame at no pose. */
+  bank?: number
 }
 /** A camera as the glTF file declares it, each silent field `null`. */
 export interface TableCamera {
@@ -118,7 +127,7 @@ export interface PreparedSceneTables {
   /** The geometry layout of the published scene file (`source.gltf`). */
   document: TableDocument
   /** Per HLOD actor above HLOD 0, by the rank its world clusters name, the rank in `materials` of
-   *  the flattened material it wears (`compiler_world_roots/flatten`). */
+   *  the flattened material it wears (`hlod/flatten`). */
   hlodMaterials: readonly number[]
 }
 

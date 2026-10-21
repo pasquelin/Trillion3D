@@ -5,7 +5,7 @@
 //! coordinate in its own tables, or the bits of their values — and what the vertex carries when
 //! first met. Two corners with the same key are one vertex: equality decides, never a distance.
 use super::ngon::Ngon;
-use crate::import::Vertices;
+use crate::plugins::scene::convert::Vertices;
 use std::{hash::Hash, sync::atomic::AtomicBool};
 use trillion3d_page_codec::hash::{word_map, WordMap};
 

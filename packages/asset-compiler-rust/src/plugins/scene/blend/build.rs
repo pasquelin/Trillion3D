@@ -10,10 +10,10 @@
 //! left, glTF at the top left, so `v` becomes `1 - v`. That is the convention of the ma, alembic
 //! and usd drivers, and it leaves the image bytes intact.
 use super::*;
-use crate::import::{primitive, Corner, Vertices};
 use crate::plugins::scene::cancel;
+use crate::plugins::scene::convert::{primitive, Corner, Vertices};
 use crate::plugins::scene::corners::{gltf_uv, Corners};
-use trillion3d_math::vec3::point_checked;
+use trillion3d_math::vector::vec3::point_checked;
 
 /// A primitive under construction: the one corner builder, keyed by the vertex and the bits of
 /// the corner's normal and texture coordinate.

@@ -2,7 +2,6 @@
 export type {
   BeforeFrameInfo,
   FrameInfo,
-  WorldFrameMetrics,
 } from '../../sdk-browser/src/session/world/frames/frames.ts'
 export type { BudgetCanvas } from '../../sdk-browser/src/session/memory/memoryBudget.ts'
 export { canvasRay } from '../../sdk-browser/src/session/world/raycast.ts'

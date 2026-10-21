@@ -4,11 +4,11 @@
 //! and `divide` by `vecn::length`, the plain root of the squares the scene drivers use. The slerp's arc
 //! and weights are those of `slerpArc` and `slerpOnArc`, with fdlibm's arc cosine and sine.
 
-use crate::acos::acos;
-use crate::js::{compensated_squares, hypot, js_min};
-use crate::real::Real;
-use crate::trig;
-use crate::vecn::dot;
+use crate::scalar::acos::acos;
+use crate::scalar::js::{compensated_squares, hypot, js_min};
+use crate::scalar::real::Real;
+use crate::scalar::trig;
+use crate::vector::vecn::dot;
 
 /// The squared length `normalize` takes unscaled between these two, `2^-900` and `2^900`
 /// (`SQUARED_MIN`, `SQUARED_MAX` of `packages/math/src/quaternion/quaternion.ts`).
@@ -71,5 +71,4 @@ pub fn slerp_weights(w: f64, [sign, angle, sin]: [f64; 3]) -> [f64; 2] {
 }
 
 #[cfg(test)]
-#[path = "quaternion_tests.rs"]
 mod tests;

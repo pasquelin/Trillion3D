@@ -38,7 +38,7 @@ test('a session reopened after a device loss rebuilds the same cut, fetching not
   /** The cut drawn from what `streamer` holds: the GPU pool is filled from it. */
   const cut = (streamer: ReturnType<typeof open>) => {
     const resident = Uint32Array.from(dagPageUrls(dag), (url) => Number(streamer.has(url)))
-    return kernelUrls(fixture, 1, camera, resident, 'drawablePageIds').urls
+    return kernelUrls(fixture, 1, camera, resident).urls
   }
   // Every page of the fixture: the cut draws a group only once its members and the groups above
   // it are resident, and this DAG is small enough to hold whole.

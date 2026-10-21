@@ -177,7 +177,7 @@ test('pr-body.yml gives the check the token that reads the closed issue', () => 
   assert.match(workflow, /^ {2}issues: read$/m)
   assert.match(
     workflow,
-    /GITHUB_TOKEN: \$\{\{ github\.token \}\}\n.*node scripts\/check-pr-body\.ts/,
+    /GITHUB_TOKEN: \$\{\{ github\.token \}\}\n.*node scripts\/release\/check-pr-body\.ts/,
   )
 })
 
@@ -188,5 +188,5 @@ test('pr-body.yml enforces the commit identity check beside the body check', () 
   )
   assert.match(workflow, /^ {2}pull-requests: read$/m)
   assert.match(workflow, /PR_NUMBER: \$\{\{ github\.event\.pull_request\.number \}\}/)
-  assert.match(workflow, /node scripts\/check-commit-identity\.ts/)
+  assert.match(workflow, /node scripts\/git\/check-commit-identity\.ts/)
 })

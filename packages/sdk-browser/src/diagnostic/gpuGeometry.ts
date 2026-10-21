@@ -1,11 +1,11 @@
 import type { DiagnosticGpuVariant } from './gpuVariant.ts'
-import { COMPUTE_ALL, FINE_SPAN } from '../visibility/raster/contract.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { unorm8 } from '../../../math/src/wgsl/color.ts'
 import { VIS_FRAGMENT, VIS_UNMASKED } from '../visibility/shader/visWgsl.ts'
 
 /**
- * DIAGNOSTIC fragment stages of the geometry pass, added to the two visibility modules for
+ * DIAGNOSTIC stages of the geometry pass — the raster's fragment, the resolve's compute stage —,
+ * added to the two visibility modules for
  * these variants only: without a variant, production compiles exactly the previous text. As
  * for blend, each one neutralises ONE factor without touching the encoded commands — same
  * passes, same calls, same order — and the rendered image therefore differs from the
@@ -18,23 +18,24 @@ export const DIAGNOSTIC_VIS_WGSL = wgslBlock(
   'DIAGNOSTIC_VIS_WGSL',
   [],
   `
-@fragment fn vis_hiz_jete_fs(in:VSOut)->VisHizOut{discard;var out:VisHizOut;out.id=0u;out.depth=0.0;return out;}`,
+@fragment fn vis_hiz_jete_fs(in:VSOut){discard;}`,
 )
 
-/** The two flat resolve stages: reading only the pixel's class (`classAdmits`, which every
- *  resolve stage asks: no depth target keeps another class's pixels), then the identifier. */
+/** The two flat resolve stages, each over its class's bin as the resolve's (`binnedPixel`):
+ *  one grey surface, then the identifier's low byte. */
 export const DIAGNOSTIC_SHADE_WGSL = wgslBlock(
   'DIAGNOSTIC_SHADE_WGSL',
   [unorm8],
   `
-@fragment fn shade_plat_fs(@builtin(position) pos:vec4f)->SurfaceOut{
- if(!classAdmits(textureLoad(vis,vec2i(i32(pos.x),i32(pos.y)),0).r)){discard;}
- return diagnosticSurface(vec3f(0.5),0u);
+@compute @workgroup_size(SHADE_BIN_GROUP) fn shade_plat_cs(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lane:u32){
+ let at=binnedPixel(group,n,lane);
+ if(!shadesPixel(at)){return;}
+ storeSurface(at.xy,diagnosticSurface(vec3f(0.5),0u));
 }
-@fragment fn shade_ids_fs(@builtin(position) pos:vec4f)->SurfaceOut{
- let packed=textureLoad(vis,vec2i(i32(pos.x),i32(pos.y)),0).r;
- if(!classAdmits(packed)){discard;}
- return diagnosticSurface(vec3f(unorm8(packed,0u)),0u);
+@compute @workgroup_size(SHADE_BIN_GROUP) fn shade_ids_cs(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lane:u32){
+ let at=binnedPixel(group,n,lane);
+ if(!shadesPixel(at)){return;}
+ storeSurface(at.xy,diagnosticSurface(vec3f(unorm8(textureLoad(vis,vec2i(at.xy),0).r,0u)),0u));
 }`,
 )
 
@@ -51,15 +52,15 @@ const VIS_STAGE: Partial<Record<DiagnosticGpuVariant, VisStage>> = {
 
 /** Surface-resolve stage that each variant imposes. */
 const SHADE_STAGE: Partial<Record<DiagnosticGpuVariant, string>> = {
-  'resolve-flat': 'shade_plat_fs',
-  'resolve-ids': 'shade_ids_fs',
+  'resolve-flat': 'shade_plat_cs',
+  'resolve-ids': 'shade_ids_cs',
 }
 
 /** True when the variant changes a fragment stage of the visibility raster. */
 export const variesVisibility = (variant?: DiagnosticGpuVariant) =>
   variant !== undefined && variant in VIS_STAGE
 
-/** True when the variant changes the fragment stage of surface resolve. */
+/** True when the variant changes the stage of surface resolve. */
 export const variesShade = (variant?: DiagnosticGpuVariant) =>
   variant !== undefined && variant in SHADE_STAGE
 
@@ -68,20 +69,10 @@ export const variesShade = (variant?: DiagnosticGpuVariant) =>
 export const visVariantFragment = (variant?: DiagnosticGpuVariant): VisStage =>
   (variant && VIS_STAGE[variant]) || { entryPoint: VIS_FRAGMENT }
 
-/** Fragment stage of surface resolve for the requested variant. */
-export const shadeVariantFragment = (variant?: DiagnosticGpuVariant) =>
-  (variant && SHADE_STAGE[variant]) || 'shade_fs'
+/** Compute stage of surface resolve for the requested variant. */
+export const shadeVariantEntry = (variant?: DiagnosticGpuVariant) =>
+  (variant && SHADE_STAGE[variant]) || 'shade_cs'
 
 /** True when the variant does not encode the second visibility pass: occluders only. */
 export const skipsSecondaryPass = (variant?: DiagnosticGpuVariant) =>
   variant === 'geometry-one-pass'
-
-/** What the variant hands to the compute raster: nothing, the small triangles, or the whole cut. */
-export function computeSpanFor(variant?: DiagnosticGpuVariant) {
-  if (variant === 'raster-compute') return COMPUTE_ALL
-  if (variant === 'raster-hybrid') return FINE_SPAN
-  return 0
-}
-
-/** True when the variant hands all or part of the opaque geometry to the compute raster. */
-export const requestsComputeRaster = (variant?: DiagnosticGpuVariant) => computeSpanFor(variant) > 0

@@ -51,7 +51,7 @@ pub(super) fn is_data(child: u64) -> bool {
 
 /// The 64-bit field at the file offset `at`.
 fn read_u64(bytes: &[u8], at: u64) -> Option<u64> {
-    crate::le::u64_at(bytes, usize::try_from(at).ok()?)
+    crate::support::le::u64_at(bytes, usize::try_from(at).ok()?)
 }
 
 impl Ogawa {
@@ -72,7 +72,8 @@ impl Ogawa {
         // The three bytes after `Ogawa`: the freeze flag, then the version on sixteen bits
         // big-endian — the format writes `00 01` for version one, which reading backwards would
         // yield two hundred and fifty-six.
-        let (Some(&frozen), Some(version)) = (map.get(5), crate::le::be16_at(&map, 6)) else {
+        let (Some(&frozen), Some(version)) = (map.get(5), crate::support::le::be16_at(&map, 6))
+        else {
             return Err(invalid(format!("{name}: header is truncated")));
         };
         if frozen != FROZEN {

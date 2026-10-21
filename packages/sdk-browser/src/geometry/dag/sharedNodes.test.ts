@@ -14,15 +14,10 @@ import { scenePages, sceneRoots } from './cut/cutFrontierScene.fixture.ts'
 import { packedWorldsToRenderOrigin } from './pack/pack.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { residentFlags } from './layout.fixture.ts'
-import {
-  CANDIDATES_START,
-  QUEUE_ENTRIES_START,
-  childBase,
-  coldBase,
-  selectionListCap,
-} from './layout.ts'
+import { childBase, coldBase } from './layout.ts'
 import { dagFlagShape, flagShapeWords } from './flagSections.ts'
-import { CAND_LIVE_WORDS, LEVEL_QUEUES } from './shader/levelWgsl.ts'
+import { CAND_WORDS, POST_WORDS, VISIBLE_WORDS } from './shader/listsWgsl.ts'
+import { cutListCaps } from './lists/cutListCaps.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
 import { treeNodeCount } from './placement/placementTree.ts'
 import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
@@ -67,7 +62,7 @@ function residency(packed: PackedDag, resident: ArrayLike<number>, slots?: numbe
   createDagResidencyUpload({ device, packed, cold: () => {}, heldSlots: slots })(
     pageResidency(resident),
   )
-  const bits = new Uint32Array(packed.pageCones.buffer, packed.pageCones.byteOffset)
+  const bits = new Uint32Array(packed.coldWords.buffer, packed.coldWords.byteOffset)
   return {
     ready: residentFlags(bits, packed.pageCount, 0),
     childReady: residentFlags(bits, packed.pageCount, childBase(packed.pageCount)),
@@ -159,39 +154,43 @@ test('placements holding their own open counts cut as each alone, a table short 
   )
 })
 
-test('the cold table holds no word per page: residency bits, then what each record and key holds', () => {
+test('the cold table holds no word per page: residency bits, then what each record holds', () => {
   const one = packDagSelection(field(1))
   for (const count of [100, 1000]) {
     const packed = packDagSelection(field(count))
-    // What the placements past the first add: their pages' residency bits, a tree slot each, and
-    // the pool's list, as long as the readout's cap (`selectionListCap`), the view's bound.
-    const pool = 4 * (selectionListCap(packed.pageCount) - selectionListCap(one.pageCount))
-    const bytes = packed.pageCones.byteLength - one.pageCones.byteLength - pool,
+    // What the placements past the first add: their pages' two residency bits.
+    const bytes = packed.coldWords.byteLength - one.coldWords.byteLength,
       pages = packed.pageCount - one.pageCount
     assert.ok(bytes / pages < 1, `${count} placements: ${bytes / pages} bytes a page`)
-    assert.ok(coldBase(packed) - coldBase(one) <= Math.ceil(pages / 16) + 2 + pool / 4, `${count}`)
+    assert.ok(
+      coldBase(packed.pageCount) - coldBase(one.pageCount) <= Math.ceil(pages / 16) + 2,
+      `${count}`,
+    )
   }
 })
 
-test('a cut’s flags hold a view’s reach, its queues and lists, never a word per placement or page', () => {
-  const one = packDagSelection(field(1))
-  // Each queue's entries, each list's, as a cut starts.
-  const bound = LEVEL_QUEUES * 2 * QUEUE_ENTRIES_START + CAND_LIVE_WORDS * CANDIDATES_START
+test('a cut’s flags hold its lists’ caps at most, and a root slot a placement beside the nodes', () => {
+  // The descent array's entries and as many held items — the nodes' cap, each placement's slot and
+  // the placement tree's nodes, once as queue 0's top and once as a cell —, the candidates, the
+  // visible lists.
+  const caps = cutListCaps()
   for (const count of [100, 10_000]) {
     const packed = packDagSelection(field(count)),
-      shape = dagFlagShape(packed)
-    assert.equal(packed.keyCount, one.keyCount, `${count} placements: the keys are the primitive's`)
-    assert.equal(packed.groupCount, one.groupCount, `${count} placements: so are their groups`)
-    assert.ok(flagShapeWords(shape) <= bound, `${count} placements: within the reach`)
+      slots = count + 2 * treeNodeCount(packed.placementTree),
+      bound =
+        (2 + POST_WORDS) * (caps.nodes + slots) +
+        CAND_WORDS * caps.candidates +
+        VISIBLE_WORDS * caps.visible
+    assert.ok(flagShapeWords(dagFlagShape(packed)) <= bound, `${count} placements: within the caps`)
   }
 })
 
 test('the packing holds no host table of a word per page: a page names its placement by the index', () => {
   const packed = packDagSelection(field(1000))
   for (const [name, value] of Object.entries(packed))
-    if (ArrayBuffer.isView(value) && name !== 'pageCones')
+    if (ArrayBuffer.isView(value) && name !== 'coldWords')
       assert.ok(value.byteLength < packed.pageCount, `${name}: ${value.byteLength} B`)
   // The cold table is the GPU's: its residency bits, a bit a page, and its records'.
-  assert.ok(packed.pageCones.byteLength < packed.pageCount, 'pageCones')
+  assert.ok(packed.coldWords.byteLength < packed.pageCount, 'coldWords')
   assert.equal(packed.pageIndex.baseOfRoot.length, packed.worldCount)
 })

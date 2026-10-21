@@ -12,7 +12,8 @@ import { unsettledMask, unsettledReasons } from './unsettled.ts'
 import { settledRt } from './hold.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
-/** The residency path of one GPU-cut image, in the engine's order: publication, admission, budget. */
+/** The residency path of one GPU-cut image, in the engine's order: publication, admission, the
+ *  streaming. */
 function overBudgetEngine(slots: number) {
   const world = scene()
   const cutPending = createCutPending(world.packed, world.delta, world.sets.accepts)
@@ -30,8 +31,8 @@ function overBudgetEngine(slots: number) {
     world.cut()
     cutPending.apply()
     admitGpuCut(rt)
-    // Room beyond the pinned cover, as `queueCutResidency` passes it.
-    world.budget(slots - 2)
+    // The streaming's slots, the pool's beyond the pinned cover (`streamingSlots`).
+    world.stream(slots - 2)
   }
   /** The host serves every page the pool accepted, and nothing else. */
   const serveAccepted = () =>

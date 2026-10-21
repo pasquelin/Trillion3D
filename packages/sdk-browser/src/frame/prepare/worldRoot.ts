@@ -9,17 +9,19 @@
  * the pool and drawn as any page —, its geometry pages read as any geometry page
  * (`../../geometry/hlod/worldRuns.ts`), and each placed row links to the HLOD 0 cell it lies in
  * (`cellOfRoot`), whose one representation the cut follows (`../../geometry/dag/worlds/worldLinks.ts`). A
- * world whose packing would pass the pages a key word names (`KEY_PAGE_MAX`) is not packed: the
- * scene keeps its GPU cut, its cells drawn by their placements alone. The roots each HLOD cell
- * holds join the cover the cut's cache keeps resident while it holds them (`coverHeldRoots`).
+ * world whose packing would pass the pages the cut's per-page state tells apart (`SPARSE_IDS`) is
+ * not packed: the scene keeps its GPU cut, its cells drawn by their placements alone. The roots
+ * each HLOD cell holds join the cover the cut's cache keeps resident while it holds them
+ * (`coverHeldRoots`).
  */
 import type { EngineContext } from '../../session/engine/types.ts'
 import type { PageRec, ClusterRoot } from '../../geometry/selection/types.ts'
 import { indexPageRequests } from '../../geometry/selection/requests.ts'
 import { worldSelectionRoots, type WorldHeld } from '../../geometry/hlod/worldRecords.ts'
 import type { WorldRootsHold } from '../../geometry/hlod/worldRoots.ts'
-import { KEY_PAGE_MAX } from '../../geometry/dag/evict/evict.ts'
-import { rowCell } from '../../geometry/partition/rowCells.ts'
+import { SPARSE_IDS } from '../../geometry/cut/sparseInts.ts'
+import { rowCell, rowDrawnAs, type RowCell } from '../../geometry/partition/rowCells.ts'
+import type { CellLink } from '../../geometry/dag/worlds/worldCells.ts'
 import type { GpuSelection } from '../../gpu/core/selection.ts'
 import type { PlacementRows } from '../../placement/rows/rows.ts'
 import type { WebgpuPagesCore } from '../backend/runtime.ts'
@@ -35,15 +37,15 @@ type Collected = {
 export const isWorldRoot = <R extends object>(root: R): root is R & WorldHeld => 'hlod' in root
 
 /** Whether the world DAG's pages, once per placement of its model (`instances`), and the pages
- *  every root places stay within the keys a page names (`KEY_PAGE_MAX`): packed, the cut keeps
- *  them one key each. */
+ *  every root places stay within the ids the cut keys its per-page state by (`SPARSE_IDS`):
+ *  packed, each is one id. */
 export function worldFits(
   dag: { readonly pages: readonly unknown[] },
   roots: readonly ClusterRoot<PageRec>[],
   instances = 1,
 ) {
   const placed = roots.reduce((sum, root) => sum + root.pages.length, 0)
-  return placed + instances * dag.pages.length <= KEY_PAGE_MAX
+  return placed + instances * dag.pages.length <= SPARSE_IDS
 }
 
 /** How many roots the world DAG `hold` draws takes: one per row of its pose, one without. */
@@ -78,32 +80,47 @@ export function withWorldRoot<T extends Collected>(collected: T, context: Engine
 }
 
 /** No cell: `cellOfRoot`'s answer for a root no partition cell placed. */
-const NO_CELL = [-1, 0] as const
+const NO_CELL: CellLink = [-1, 0, -1, false, false]
+/** The link `linkOf` fills and gives for a row in a cell: every caller consumes it before it asks
+ *  for another. */
+const link: CellLink = [-1, 0, -1, false, false]
 
 /**
- * The HLOD 0 cell root `root`'s row lies in, -1 for none — a parked row, a page-less root, a node no
- * cell placed (a core node, always loaded) —, and the instance of the world DAG it lies in: the
- * placement of its model whose cell placed its row (`../../geometry/partition/rowCells.ts`).
+ * Where row `at` lies (`CellLink`, `../../geometry/partition/rowCells.ts`): its HLOD 0 cell, -1
+ * for none — a node no cell placed (a core node, always loaded) —, the instance of the world DAG
+ * it lies in — the placement of its model whose cell placed it —, its cell file, and whether that
+ * file's main cell is wished: drawn as the source mesh, not as its HLOD 0 actor; or the HLOD cell
+ * whose instanced actor it is a row of (`RowCell.actor`).
  */
-function cellOfRoot(root: ClusterRoot<PageRec>) {
-  const placement = root.placement
-  if (!placement || root.parked || !root.pages[0]) return NO_CELL
-  const at = rowCell(placement.rows, placement.index)
-  return at ? ([at.hlod, at.instance ?? 0] as const) : NO_CELL
+const linkOf = (at: RowCell | undefined): CellLink => {
+  if (!at) return NO_CELL
+  link[0] = at.hlod
+  link[1] = at.instance ?? 0
+  link[2] = at.cell
+  link[3] = !at.proxy
+  link[4] = at.actor !== undefined
+  return link
 }
 
-/** Each placement of `roots` the new `cut` packs lies in the HLOD 0 cell its row lies in now, as
- *  a row moved later tells it (`linkWorldCell`): a cut made at open, or for a growth. Nothing for a
- *  cut that packs no world DAG. */
+/** Where root `root`'s row lies (`linkOf`): in none for a parked row or a page-less root. */
+function cellOfRoot(root: ClusterRoot<PageRec>): CellLink {
+  const placement = root.placement
+  if (!placement || root.parked || !root.pages[0]) return NO_CELL
+  return linkOf(rowCell(placement.rows, placement.index))
+}
+
+/** Each placement of `roots` the new `cut` packs lies in the HLOD 0 cell and the cell file its row
+ *  lies in now, as a row moved later tells it (`linkWorldCell`): a cut made at open, or for a
+ *  growth. Nothing for a cut that packs no world DAG. */
 export function linkWorldCells(cut: GpuSelection, roots: readonly ClusterRoot<PageRec>[]) {
   if (!cut.world) return
   for (let rank = 0; rank < roots.length; rank++) cut.placeInCell(rank, ...cellOfRoot(roots[rank]))
 }
 
 /** Row `index` of `rows`, whose root is `rank` (-1 for none yet), told to `rt`'s cut: a row whose
- *  root a growth will bring counts in its HLOD 0 cell as a placement not resident until then; one
- *  the blend pass draws never gets a root, and waits for none. Nothing when the cut packs no world
- *  DAG. */
+ *  root a growth will bring counts in its HLOD 0 cell — a row of an instanced actor in that actor
+ *  — and its cell file as a placement not resident until then; one the blend pass draws never
+ *  gets a root, and waits for none. Nothing when the cut packs no world DAG. */
 export function waitWorldRow(
   rt: { run: { gpuSelection?: GpuSelection } },
   rows: PlacementRows,
@@ -112,30 +129,32 @@ export function waitWorldRow(
 ) {
   const cut = rt.run.gpuSelection
   if (!cut?.world) return
-  const at = rank < 0 && !rows.blended ? rowCell(rows, index) : undefined
-  cut.waitRow(rows, index, at ? at.hlod : -1, at?.instance ?? 0)
+  const [cell, instance = 0, file, , actor] = linkOf(
+    rank < 0 && !rows.blended ? rowCell(rows, index) : undefined,
+  )
+  cut.waitRow(rows, index, cell, instance, file, actor)
 }
 
-/** Whether each placement root drew as its cell's HLOD 0 actor when its rows were last written:
- *  set by the writing alone (`rowWrittenAsProxy`). */
-const drawnAsProxy = new WeakMap<object, boolean>()
+/** The HLOD level each placement root drew as when its rows were last written: set by the writing
+ *  alone (`rowWrittenAs`). */
+const drawnBefore = new WeakMap<object, number>()
 
-/** Whether placement root `rank` of `roots` draws as its cell's HLOD 0 actor (`RowCell.proxy`),
- *  read as a row of it is written, and kept: what `linkWorldCell` compares a move with. It names the
- *  row's diagnostic word alone (`pageDiagnosticWord`), never what draws. */
-export function rowWrittenAsProxy(roots: readonly ClusterRoot<PageRec>[], rank: number) {
+/** The HLOD level placement root `rank` of `roots` draws as (`rowDrawnAs`), read as a row of it is
+ *  written, and kept: what `linkWorldCell` compares a move with. It names the row's diagnostic word
+ *  alone (`pageDiagnosticWord`), never what draws. */
+export function rowWrittenAs(roots: readonly ClusterRoot<PageRec>[], rank: number) {
   const root = roots[rank],
     placement = root?.placement
-  const proxy = !!placement && !!rowCell(placement.rows, placement.index)?.proxy
-  if (root) drawnAsProxy.set(root, proxy)
-  return proxy
+  const level = rowDrawnAs(placement && rowCell(placement.rows, placement.index))
+  if (root) drawnBefore.set(root, level)
+  return level
 }
 
-/** Placement `rank` of `rt`'s cut lies in the HLOD 0 cell its row lies in now (`cellOfRoot`): told
- *  where its row's cell moved (`takeCellsMoved`) or the row was parked or taken (`flipWorld`);
- *  nothing when it packs no world DAG. A placement that turned to draw as its cell's HLOD 0 actor,
- *  or back to its source mesh (`RowCell.proxy`), has its page rows written again: their diagnostic
- *  word names what draws (`pageDiagnosticWord`). */
+/** Placement `rank` of `rt`'s cut lies where its row lies now (`cellOfRoot`): told where its row's
+ *  cell moved (`takeCellsMoved`) or the row was parked or taken (`flipWorld`); nothing when it
+ *  packs no world DAG. A placement that turned to draw as another HLOD level — its cell's HLOD 0
+ *  actor or back to its source mesh (`RowCell.proxy`) —, has its page rows written again: their
+ *  diagnostic word names what draws (`pageDiagnosticWord`). */
 export function linkWorldCell(
   rt: {
     layout: {
@@ -153,9 +172,9 @@ export function linkWorldCell(
   const placement = root.placement,
     rows = rt.layout.rows
   if (!rows || !placement) return
-  const proxy = !!rowCell(placement.rows, placement.index)?.proxy
+  const level = rowDrawnAs(rowCell(placement.rows, placement.index))
   // Against what its rows were written with: they are written again until they say it.
-  if ((drawnAsProxy.get(root) ?? false) === proxy) return
+  if ((drawnBefore.get(root) ?? -1) === level) return
   const base = root.packedBase ?? -1
   if (base < 0) return
   for (let page = 0; page < root.pages.length; page++)

@@ -1,6 +1,6 @@
 //! What sheet and page display: one row per IMAGE, never per binding.
 use super::*;
-use crate::texture_preview::{AtlasKind, PreviewSource, TexturePreview};
+use crate::texture::{AtlasKind, PreviewSource, TexturePreview};
 
 /// 1×1 preview of given image, cited by texture .
 fn apercu(texture: u32, image: u32, sha256: &str) -> TexturePreview {

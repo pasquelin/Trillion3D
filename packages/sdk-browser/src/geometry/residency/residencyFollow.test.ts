@@ -1,5 +1,5 @@
-// A pooled key is noted to the GPU pool list (`../../frame/backend/services.ts`, `notePool`) at its arrival,
-// for every placement, whether a row was written or not; and a page's slot is read on the cache,
+// A pooled key names every placement's packed rank at its arrival (`onOffsetChange`), whether a row
+// was written or not; and a page's slot is read on the cache,
 // never mirrored (`../rows/page/pageState.ts`): a slot the cache moved is the one every reader sees, before
 // any sync, and nothing is ever rebuilt from the catalogue.
 import test from 'node:test'

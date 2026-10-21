@@ -1,7 +1,7 @@
 /** The checks and writes the test encoder applies before it stores a row, as the compiler refuses
  *  them (`asset-compiler-rust/src/manifest_binary/page.rs`). */
 import { EngineError } from '../../../packages/sdk-core/src/contracts/cache.ts'
-import type { ClusterManifest, Page } from '../../../packages/sdk-core/src/contracts/geometry.ts'
+import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/geometry.ts'
 import { PREVIEW_BLOCK_FORMATS } from '../../../packages/sdk-core/src/texture/previewFormat.ts'
 import type { Counts } from '../../../packages/sdk-core/src/manifest/binaryLayout.ts'
 import type { SlimPrimitiveBinary } from '../../../packages/sdk-core/src/manifest/binaryTypes.ts'
@@ -18,24 +18,6 @@ export function checkedDepthLayer(depthLayer: number) {
       depthLayer,
     })
   return depthLayer
-}
-
-/** Writes page `page`'s cone into the cone column: three finite axis numbers and a finite angle,
- *  as the compiler requires. Only an absent cone is open (a hand-written page); a `null` or
- *  malformed one is refused, never read as open nor thrown as a `TypeError`. */
-export function writeCone(
-  column: Float64Array,
-  page: number,
-  cone: Page['cone'] | null = { axis: [0, 0, 1], angle: Math.PI },
-) {
-  const axis: unknown = cone?.axis
-  // `Array.from` turns a hole into `undefined`, which `every` alone would skip and `set` write as NaN.
-  if (!Array.isArray(axis) || axis.length !== 3 || !Array.from(axis).every(Number.isFinite))
-    throw new EngineError('INVALID_CACHE', 'A cluster cone is not three axis numbers', { cone })
-  if (!Number.isFinite(cone!.angle))
-    throw new EngineError('INVALID_CACHE', 'A cluster cone angle is not finite', { cone })
-  column.set(axis as number[], page * 4)
-  column[page * 4 + 3] = cone!.angle
 }
 
 /** A digest as its 64 ASCII hexadecimal characters, at its slot in a sha column; nothing is

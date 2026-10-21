@@ -1,6 +1,6 @@
 // The compiled models the append proofs load, generated: a glTF of cubes in a grid, compiled once
 // by the native compiler. One that places more cubes than a stream unit holds is partitioned in
-// cells the world reads by distance (`compiler_tables/partition.rs`), a smaller one is not. The
+// cells the world reads by distance (`tables/partition.rs`), a smaller one is not. The
 // bench and the coplanar fixtures are the proofs' other models; nothing here names a site example.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'

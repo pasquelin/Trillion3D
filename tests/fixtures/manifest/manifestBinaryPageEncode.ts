@@ -4,7 +4,7 @@ import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/g
 import * as format from '../../../packages/sdk-core/src/manifest/binaryFormat.ts'
 import * as pageFlags from '../../../packages/sdk-core/src/manifest/binaryPageWords.ts'
 import { EngineError } from '../../../packages/sdk-core/src/contracts/cache.ts'
-import { checkedDepthLayer, writeCone } from './manifestBinaryEncodeChecks.ts'
+import { checkedDepthLayer } from './manifestBinaryEncodeChecks.ts'
 import type { ColumnView } from './manifestBinaryPreviewEncode.ts'
 
 /** The columns a page writes, from an encoder that hands out views by column name. */
@@ -17,7 +17,6 @@ export function pageColumns(view: ColumnView) {
     words = view('pageU32', (b, o, n) => new Uint32Array(b, o, n))
   const geometryWords = view('geometryU32', (b, o, n) => new Uint32Array(b, o, n))
   const pageDepthLayer = view('pageDepthLayer', (b, o, n) => new Uint32Array(b, o, n))
-  const pageCone = view('pageCone', (b, o, n) => new Float64Array(b, o, n))
   return {
     bounds,
     sphere,
@@ -27,26 +26,16 @@ export function pageColumns(view: ColumnView) {
     words,
     geometryWords,
     pageDepthLayer,
-    pageCone,
   }
 }
 
 type Page = ClusterManifest['primitives'][number]['pages'][number]
 
 /** Writes page `item` at row `page` of `columns`: its bounds, errors, spheres, integers, geometry,
- *  cone, flags and depth layer. */
+ *  flags and depth layer. */
 export function writePage(columns: ReturnType<typeof pageColumns>, page: number, item: Page) {
-  const {
-    bounds,
-    sphere,
-    parentSphere,
-    error,
-    ints,
-    words,
-    geometryWords,
-    pageDepthLayer,
-    pageCone,
-  } = columns
+  const { bounds, sphere, parentSphere, error, ints, words, geometryWords, pageDepthLayer } =
+    columns
   bounds.set(item.min, page * 6)
   bounds.set(item.max, page * 6 + 3)
   let flags = 0
@@ -100,7 +89,6 @@ export function writePage(columns: ReturnType<typeof pageColumns>, page: number,
     ],
     page * 5,
   )
-  writeCone(pageCone, page, item.cone)
   words[page] = flags
   if (item.depthLayer !== undefined) pageDepthLayer[page] = checkedDepthLayer(item.depthLayer)
 }

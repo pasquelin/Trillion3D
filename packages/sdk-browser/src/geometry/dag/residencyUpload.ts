@@ -86,9 +86,9 @@ export function createDagResidencyUpload(
   const sendHeld = heldSender(device, resources, packed.heldOpen!)
   // The bits extend the cold records in their buffer: one view, mirror and write source.
   const bits = new Uint32Array(
-    packed.pageCones.buffer,
-    packed.pageCones.byteOffset,
-    packed.pageCones.length,
+    packed.coldWords.buffer,
+    packed.coldWords.byteOffset,
+    packed.coldWords.length,
   )
   /** Words or nodes the last apply changed, and the ranges that cover them. */
   let touched = new Int32Array(8)
@@ -110,8 +110,8 @@ export function createDagResidencyUpload(
   // nothing resident; the node counts are the packing's own, uploaded with the nodes
   // (`packCullingNodes`). From then on only what moves is.
   writeBlankBits(packed, readiness, bits)
-  const { pageCones } = packed
-  cold(0, pageCones.buffer as ArrayBuffer, pageCones.byteOffset, 2 * residentWords(pageCount) * 4)
+  const { coldWords } = packed
+  cold(0, coldWords.buffer as ArrayBuffer, coldWords.byteOffset, 2 * residentWords(pageCount) * 4)
   const apply = (
     next: PageResidency,
     changes?: ResidencyChanges,
@@ -138,7 +138,7 @@ export function createDagResidencyUpload(
     }
     for (const { values, base } of sets)
       upload(
-        packed.pageCones,
+        packed.coldWords,
         base,
         1,
         updateResidencyBits(values, pageCount, bits, base, changed, touched),

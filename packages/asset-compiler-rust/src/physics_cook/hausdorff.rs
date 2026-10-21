@@ -2,10 +2,10 @@
 //! vertex, edge midpoint and centroid of one side to the nearest triangle of the other, the largest
 //! kept (a sampled Hausdorff distance, published as such). Triangles are binned in a uniform grid
 //! and a query widens ring by ring until no nearer cell can remain.
-use trillion3d_math::aabb::{aabb_of, longest_side};
-use trillion3d_math::triangle::closest_point;
-use trillion3d_math::vec3::point;
-use trillion3d_math::vecn::{dot, sub};
+use trillion3d_math::geometry::aabb::{aabb_of, longest_side};
+use trillion3d_math::geometry::triangle::closest_point;
+use trillion3d_math::vector::vec3::point;
+use trillion3d_math::vector::vecn::{dot, sub};
 use trillion3d_page_codec::hash::WordMap;
 
 mod bounded;
@@ -53,27 +53,18 @@ impl<'a> Grid<'a> {
             cells: WordMap::default(),
             keys: [[i64::MAX; 3], [i64::MIN; 3]],
         };
+        // Each triangle in the cells it crosses, not in every cell of its box: a large tilted
+        // triangle among small ones would otherwise take a cube of cells.
         for (t, tri) in binned() {
-            let (lo, hi) = tri
-                .iter()
-                .fold(([i64::MAX; 3], [i64::MIN; 3]), |(lo, hi), &i| {
-                    let c = grid.key(point(pos, i));
-                    (
-                        [0, 1, 2].map(|k| lo[k].min(c[k])),
-                        [0, 1, 2].map(|k| hi[k].max(c[k])),
-                    )
-                });
-            grid.keys = [
-                [0, 1, 2].map(|k| grid.keys[0][k].min(lo[k])),
-                [0, 1, 2].map(|k| grid.keys[1][k].max(hi[k])),
-            ];
-            for x in lo[0]..=hi[0] {
-                for y in lo[1]..=hi[1] {
-                    for z in lo[2]..=hi[2] {
-                        grid.cells.entry([x, y, z]).or_default().push(t as u32);
-                    }
-                }
-            }
+            let corners = tri.map(|i| sub(point(pos, i), min));
+            crate::voxel::triangle_cells(corners, cell, None, |c| {
+                let c = c.map(i64::from);
+                grid.keys = [
+                    [0, 1, 2].map(|k| grid.keys[0][k].min(c[k])),
+                    [0, 1, 2].map(|k| grid.keys[1][k].max(c[k])),
+                ];
+                grid.cells.entry(c).or_default().push(t as u32);
+            });
         }
         grid
     }

@@ -6,14 +6,14 @@ import { createDenseKeySet } from '../cut/adoption/denseKeys.ts'
 import type { WebgpuResidencySets } from './sets.ts'
 
 /**
- * Keeps the ROOT COVER pinned — the one hold the host keeps of the pool: what any view uses, and
- * when, the GPU alone knows, and its eviction order says it (`../dag/evict/evict.ts`).
+ * Keeps the ROOT COVER pinned — the pool's one hold: it is held apart from the pages the streaming
+ * gives up, which are the oldest of its use order (`./streamedPages.ts`).
  *
  * The cover changes by a difference (`sets.coverEntering`, `sets.coverLeaving`): a key joining it is
  * pinned as soon as the cache holds its bytes, `waiting` carrying it to their arrival; a key leaving
- * it is unpinned. A pinned page is out of the GPU's pool list, a page unpinned back in it
- * (`relist`): the GPU never lists a page the cache would refuse. Nothing walks the pinned set per
- * image. A request whose drop waited (`deferredDrops`) is asked again at each step.
+ * it is unpinned, and unloaded when it is a root page (`unpin`). Nothing walks the pinned set per
+ * image. A request whose drop waited
+ * (`deferredDrops`) is asked again at each step.
  */
 export function createWebgpuPinUpdater(options: {
   tracking: WebgpuPageTracking
@@ -21,12 +21,10 @@ export function createWebgpuPinUpdater(options: {
   /** Holders per key of the root cover: what the trace names. */
   bootstrapKey: Uint8Array
   deferredDrops: Set<string>
-  /** The page at `address` was pinned or unpinned: the GPU's pool list follows. */
-  relist: (address: string) => void
   traceEnabled: boolean
   traceDiagnostic: WebgpuDiagnosticChannel['traceDiagnostic']
 }) {
-  const { tracking, sets, bootstrapKey, deferredDrops, relist } = options
+  const { tracking, sets, bootstrapKey, deferredDrops } = options
   const { traceEnabled, traceDiagnostic } = options
   /** Covered keys the cache cannot pin yet: their bytes have not arrived. */
   const waiting = createDenseKeySet()
@@ -36,7 +34,6 @@ export function createWebgpuPinUpdater(options: {
     const url = tracking.pageCatalog[key]
     current.pin(url)
     waiting.remove(key)
-    relist(url)
     if (traceEnabled) added.push(url)
   }
   /** A covered key the cache has not pinned yet: pinned now when the cache holds it, else waiting
@@ -47,12 +44,15 @@ export function createWebgpuPinUpdater(options: {
     if (current.get(url)) pinKey(key)
     else waiting.add(key)
   }
+  /** A key leaving the cover, unpinned; a root page — its cell let go of its actor — leaves the
+   *  pool with it, its root grain free for the next (`../pages/pool/placement.ts`), as the root
+   *  pages of a resource let go are. */
   const unpin = (key: number) => {
     waiting.remove(key)
     const url = tracking.pageCatalog[key]
-    if (!current.unpin(url)) return
-    relist(url)
-    if (traceEnabled) removed.push(url)
+    const unpinned = current.unpin(url)
+    if (current.rooted(url) && current.holds(url)) current.unload(url)
+    if (unpinned && traceEnabled) removed.push(url)
   }
   /** What the pin sample publishes: the image's DELTA, never the pinned set. */
   const added: string[] = [],

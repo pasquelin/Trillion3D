@@ -1,13 +1,14 @@
 /**
- * What the rows pass (`../rows/rowWordsWgsl.ts`) and the root boxes pass (`../roots/rootBoxesWgsl.ts`) derive
- * from a root's world besides the words of the row itself, each the CPU formula's to the word — the
+ * What the rows pass (`../rows/rowWordsWgsl.ts`), the root boxes pass (`../roots/rootBoxesWgsl.ts`)
+ * and the transparent entries pass (`../../blend/transparent/entryCornersWgsl.ts`) derive from a
+ * root's world besides the words of the row itself, each the CPU formula's to the word — the
  * doubles it derives them in, rounded where it rounds them: the root's world box, the eight corners
- * of a row the Hi-Z test projects, and the detail words the shadows' levels are judged by. They read
- * what a world does not change from a row's inputs (`../rows/rowInputPack.ts`), twenty-four doubles a row,
- * the declarations the program holds:
+ * of a transparent entry its occlusion test projects, and the detail words the shadows' levels are
+ * judged by. They read what a world does not change from a row's inputs (`../rows/rowInputPack.ts`),
+ * `ROW_INPUT_DOUBLES` doubles a row, the declarations the program holds:
  *
  *   inputs    array<vec2u>   a row's inputs, `ROW_INPUT_DOUBLES` doubles each
- *   corners   array<u32>     `CORNER_VALUES` words a row, the Hi-Z corners
+ *   corners   array<u32>     `CORNER_VALUES` words an entry, its occlusion corners
  *   lods      array<u32>     `ROW_LOD_FLOATS` words a row, the shadow detail
  *   rootBoxes array<vec2u>   `ROOT_BOX_DOUBLES` a root, its world box then its stretch
  *
@@ -24,15 +25,14 @@ import { FINITE_SENTINEL } from '../../../../math/src/wgsl/constants.ts'
 import { D_HALF } from '../../../../math/src/wgsl/doubleConstants.ts'
 import { toF32 } from '../../../../math/src/wgsl/f32.ts'
 import { STRETCH_DOUBLE_WGSL } from '../gpuStretchWgsl.ts'
-import { CORNER_VALUES } from '../../geometry/partition/gpu/contract.ts'
 import { LOD_BIT, LOD_INPUT, ROW_LOD_FLOATS } from '../../lighting/shadows/casters/rowLodWords.ts'
 import { INPUT_LOD, ROW_INPUT_DOUBLES } from '../rows/rowInputPack.ts'
 import { ROOT_BOX_DOUBLES, ROOT_LOCAL_DOUBLES } from '../roots/rootWorldSends.ts'
 
 /** The eight corners of the box of bounds `lo` and `hi` at `world`, from word `out` of `corners`, as
  *  `pageCornersInto` derives them: corner `k` takes the maximum on `x` when bit 0 of `k` is set, on
- *  `y` for bit 1, on `z` for bit 2; each coordinate two words, the single rounding then its residue.
- *  A row's (`composeCorners`) and a transparent entry's (`../../blend/transparent/entryCorners.ts`). */
+ *  `y` for bit 1, on `z` for bit 2; each coordinate two words, the single rounding then its residue:
+ *  a transparent entry's (`../../blend/transparent/entryCorners.ts`). */
 export const BOX_CORNERS_WGSL = wgslBlock(
   'BOX_CORNERS_WGSL',
   [splitDouble, affineAxis],
@@ -50,20 +50,6 @@ fn writeCorners(out:u32,world:array<vec2u,16>,lo:array<vec2u,3>,hi:array<vec2u,3
    corners[out+k*6u+3u+axis]=s.y;
   }
  }
-}`,
-)
-
-/** The eight corners of row `row`'s grown box (its inputs' from double 6) at `world`. */
-export const CORNERS_WGSL = wgslBlock(
-  'CORNERS_WGSL',
-  [BOX_CORNERS_WGSL],
-  `
-fn composeCorners(row:u32,world:array<vec2u,16>){
- let at=row*${ROW_INPUT_DOUBLES}u;
- var lo:array<vec2u,3>;
- var hi:array<vec2u,3>;
- for(var axis=0u;axis<3u;axis++){lo[axis]=inputs[at+6u+axis];hi[axis]=inputs[at+9u+axis];}
- writeCorners(row*${CORNER_VALUES}u,world,lo,hi);
 }`,
 )
 

@@ -5,6 +5,8 @@
 //! Site with detail difference stays local rather than aligned.
 
 pub(crate) mod abi;
+#[cfg(test)]
+pub(crate) mod tests;
 
 /// Padding bytes to reach next multiple of four: zero when already
 /// aligned. Alignment binary format requires of views.

@@ -11,7 +11,7 @@ import { nodeCornersWgsl } from '../nodeLayout.ts'
 /**
  * THE PLACEMENT TREE'S HOME, one whatever the world's size: a record table
  * (`../../../gpu/core/recordTexture.ts`) of `r32uint` words, a record a node of the tree, its index within
- * the tree (`PlacementTree.nodes`) — `Node`, its twenty-four words laid as a `CullNode`
+ * the tree (`PlacementTree.nodes`) — `Node`, its twenty words laid as a `CullNode`
  * (`../nodeLayout.ts`) —, and beside the nodes the tree's two lists, each one line of words across the
  * records (`TREE_SPAN` a record): `Members`, the order of its members (`PlacementTree.order`), and
  * `Always`, the members drawn whatever the view (`PlacementTree.always`). The tree holds at least a

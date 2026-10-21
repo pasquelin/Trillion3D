@@ -1,6 +1,7 @@
 import type { PageRec } from '../../selection/types.ts'
 import { createDenseKeySet } from '../../cut/adoption/denseKeys.ts'
 import { pageAddress } from './pageSlots.ts'
+import { createPageUnits } from '../../residency/pageUnits.ts'
 
 /** Addresses a trace sample names, at most, whatever the size of the described set. */
 const TRACE_SAMPLE = 16
@@ -11,15 +12,17 @@ type PageList = ArrayLike<PageRec | undefined>
 export type WebgpuPageTracking = ReturnType<typeof createWebgpuPageTracking>
 
 /** Stable numeric page keys keep the hot residency path out of string hash tables. The catalogue
- *  is the list of pool ADDRESSES (`pageAddress`), which is what the cache holds and pins. */
+ *  is the list of pool ADDRESSES (`pageAddress`), which is what the cache holds and pins; each
+ *  address belongs to one STREAMING PAGE, the unit the residency streams (`units`,
+ *  `../../residency/pageUnits.ts`). */
 export function createWebgpuPageTracking(allPages: PageRec[]) {
   const pageCatalog: string[] = []
   const pageCatalogIds = new Map<string, number>()
+  const units = createPageUnits()
   const pageRefs = (urls: string[]) => urls.map((url) => pageCatalogIds.get(url) ?? url)
-  // The highest DAG level of the catalogue: admission ranks the minimum capacity above it.
-  let topLevel = 0
-  /** Numbers the addresses of `pages` the catalogue does not hold yet, behind those it holds: the
-   *  open's records, then the records of a source added to the session (`addPlacements`). */
+  /** Numbers the addresses of `pages` the catalogue does not hold yet, behind those it holds — each
+   *  filed in its streaming page —: the open's records, then the records of a source added to the
+   *  session (`addPlacements`). */
   const append = (pages: readonly PageRec[]) => {
     for (const page of pages) {
       const address = pageAddress(page)
@@ -28,9 +31,9 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
         key = pageCatalog.length
         pageCatalog.push(address)
         pageCatalogIds.set(address, key)
+        units.file(key, page)
       }
       page.keyIndex = key
-      topLevel = Math.max(topLevel, page.level ?? 0)
     }
   }
   append(allPages)
@@ -43,9 +46,10 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
   /**
    * The sets the residency path carries from one image to the next. They are dense sets, not
    * per-image rebuilds: an image that changes no page touches none of them.
-   * `wanted` is what the upload queue still has to fetch, `wantedPages` the record it fetches each key
-   * by; `keep` is what the image forbids the cache to reclaim. The pages the cache holds pinned
-   * are the cache's to say (`GpuPageCache.isPinned`).
+   * `wanted` is what the pool took on of what the image asks — the pages the streaming started or
+   * holds (`../../residency/sets.ts`) —, `wantedPages` the record of each key; `keep` is what the
+   * image forbids the cache to reclaim. The pages the cache holds pinned are the cache's to say
+   * (`GpuPageCache.isPinned`).
    */
   const wantedPages: PageRec[] = []
   const wanted = createDenseKeySet(wantedPages)
@@ -55,13 +59,12 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
     pageCatalogIds,
     pageRefs,
     append,
+    /** The streaming page of each key, and each streaming page's keys and records. */
+    units,
     get keyCount() {
       return Math.max(1, pageCatalog.length)
     },
     keyOf,
-    get topLevel() {
-      return topLevel
-    },
     wanted,
     wantedPages,
     keep,

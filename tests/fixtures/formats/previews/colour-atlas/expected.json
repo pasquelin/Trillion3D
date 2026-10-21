@@ -8,7 +8,7 @@
   },
   "case": "Four quads, four materials that share three colour textures: an OPAQUE with a 40×24 PNG baseColorTexture linked by uri, a MASK at alphaCutoff 0.25 on a 24×16 PNG with binary alpha embedded in a bufferView, and a BLEND whose 80×48 JPEG baseColorTexture also serves as emissiveTexture to a fourth material.",
   "formatVersion": 12,
-  "manifestBinaryVersion": 13,
+  "manifestBinaryVersion": 18,
   "previews": [
     {
       "atlas": 0,
@@ -120,7 +120,7 @@
       "pixelBytes": 5112,
       "pixelOffset": 0,
       "sourceKind": 0,
-      "sourceSha256": "ae601887f343ccc10456c1eb86414d7859f6bbf5dc242cd14bbac5a7057f0cbe",
+      "sourceSha256": "5569d7078a71b9d20f8afc05c61b9e064ff8b65118690ae0a2cdfbc6fb33a976",
       "sourceView": 4294967295,
       "texture": 0,
       "width": 40
@@ -222,7 +222,7 @@
       "pixelBytes": 2044,
       "pixelOffset": 5112,
       "sourceKind": 1,
-      "sourceSha256": "764ca8b2876da06936d980caac536133e756aeb3986689a8db72873f78423fc3",
+      "sourceSha256": "35318d8ea5e687b6347883394d214e41b1c4f5f7ed4382b11e2c64a0ee71757d",
       "sourceView": 6,
       "texture": 1,
       "width": 24
@@ -337,7 +337,7 @@
       "pixelBytes": 5112,
       "pixelOffset": 7156,
       "sourceKind": 0,
-      "sourceSha256": "63409ac8494d98206d3a7740dff3dcf710ef1f523cd48cf992a2cfb1036b428d",
+      "sourceSha256": "55fb23171b3ad80350d85ab370beb48899b8e48bb0a3b35ff1865e57df0e928e",
       "sourceView": 4294967295,
       "texture": 2,
       "width": 80

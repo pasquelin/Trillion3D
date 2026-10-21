@@ -45,12 +45,13 @@ const LEVEL_COLORS: readonly Rgb[] = [
  *  and each level past it the proxy of that level drawn (`level0 + its level`). Read as an index into
  *  `HLOD_COLORS`. */
 export const HLOD_INDEX = { none: 0, level0: 1 } as const
-/** The HLOD index of a page of HLOD index `index`, its placement drawn as its cell's HLOD 0 actor
- *  (`proxy`): `level0` in place of `none` — the one rule, the opaque rows' word written with it
+/** The HLOD index of a page of HLOD index `index` whose placement draws as HLOD level `drawnAs` —
+ *  0 its cell's HLOD 0 actor, an instanced actor's level for a row of it, -1 itself —: that
+ *  level's in place of `none` — the one rule, the opaque rows' word written with it
  *  (`pageDiagnosticWord`), a transparent item's applied in its vertex stage
- *  (`diagnosticProxied`). */
-export const proxiedHlod = (index: number, proxy: boolean) =>
-  proxy && index === HLOD_INDEX.none ? HLOD_INDEX.level0 : index
+ *  (`diagnosticDrawnAs`). */
+export const drawnAsHlod = (index: number, drawnAs: number) =>
+  drawnAs >= 0 && index === HLOD_INDEX.none ? HLOD_INDEX.level0 + drawnAs : index
 /** The HLOD coloration: white (no proxy), blue (HLOD level 0), yellow (HLOD level 1), purple,
  *  cyan, grey — the last for every index past it, so a deeper chain still reads as a proxy. */
 const HLOD_COLORS: readonly Rgb[] = [
@@ -93,12 +94,12 @@ export const DIAGNOSTIC_PALETTE_WGSL = wgslBlock(
 const DIAGNOSTIC_HLOD_COLORS=array<vec3f,${HLOD_COLORS.length}>(${HLOD_COLORS.map(vec3).join(',')});
 fn diagnosticFlat()->vec3f{return vec3f(0.204,0.827,0.6);}
 fn diagnosticLevel(level:u32)->vec3f{return DIAGNOSTIC_LEVEL_COLORS[min(level,${LEVEL_COLORS.length - 1}u)];}
-/** \`word\` with its HLOD index as \`proxiedHlod\` gives it for a placement drawn as its cell's HLOD 0
- *  actor. */
-fn diagnosticProxied(word:u32)->u32{
+/** \`word\` with its HLOD index as \`drawnAsHlod\` gives it for a placement drawn as the HLOD index
+ *  \`drawn\` — \`none\` drawn as itself. */
+fn diagnosticDrawnAs(word:u32,drawn:u32)->u32{
  let at=${DIAGNOSTIC_WORD.hlodMask}u<<${DIAGNOSTIC_WORD.hlodShift}u;
- if((word&at)!=${HLOD_INDEX.none}u<<${DIAGNOSTIC_WORD.hlodShift}u){return word;}
- return (word&~at)|(${HLOD_INDEX.level0}u<<${DIAGNOSTIC_WORD.hlodShift}u);
+ if(drawn==${HLOD_INDEX.none}u||(word&at)!=${HLOD_INDEX.none}u<<${DIAGNOSTIC_WORD.hlodShift}u){return word;}
+ return (word&~at)|(min(drawn,${DIAGNOSTIC_WORD.hlodMask}u)<<${DIAGNOSTIC_WORD.hlodShift}u);
 }
 fn diagnosticHlod(index:u32)->vec3f{return DIAGNOSTIC_HLOD_COLORS[min(index,${HLOD_COLORS.length - 1}u)];}
 fn diagnosticDebugColor(color:vec3f,base:vec3f)->vec3f{return color*(0.05+0.95*luminance(base));}

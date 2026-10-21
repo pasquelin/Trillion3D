@@ -1,20 +1,22 @@
-//! Bit fields, dequantization and octahedral normals of a `WGP3` page, each beside its encoder
-//! (`quant`, `oct`), written once for every reader: the WebAssembly decoder, the native compiler
-//! (which encodes and measures its own error with them) and the tests. The WGSL decoders repeat these formulas operation for operation —
-//! one multiply and one add per component, both correctly rounded — so a position decoded on
-//! the GPU is the same 32-bit float as one decoded here.
+//! Bit fields, the grids of a page's attributes, octahedral normals and stored tangents of a `WGP3`
+//! page, each beside its encoder (`grid`, `quant`, `oct`), written once for every reader: the
+//! WebAssembly decoder, the native compiler and the tests. The WGSL decoders repeat these formulas
+//! operation for operation — a position is one correctly rounded multiply of its cell by the
+//! grid's step — so a position decoded on the GPU is the same 32-bit float as one decoded here.
 
 pub mod grid;
-mod log2;
 mod oct;
 mod quant;
-pub(crate) use oct::oct_decode_stream;
-pub use quant::{dequant, grid_cell, quantization_error, quantize, Quant, QuantRefusal};
+pub(crate) use oct::{
+    normal_code, normal_decode, normal_decode_stream, tangent_code, tangent_decode_stream,
+};
+pub use quant::{
+    color_byte, color_value, quantize_positions, uv_code, uv_value, ColorRange, PositionGrid,
+    UvRange,
+};
 
 /// Widest field of the format: a 24-bit field read at any bit offset spans two words at most.
 pub const MAX_BITS: u32 = 24;
-/// Largest magnitude of a grid exponent: the step stays a normal `f32`.
-pub const MAX_EXPONENT: i32 = 64;
 
 /// Bits needed to hold every value of `0..=range`; zero for a constant field.
 pub fn bits_for(range: u32) -> u32 {

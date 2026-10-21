@@ -2,7 +2,7 @@
   "layout": "one case per line, read line by line: never reformatted",
   "regenerate": "pnpm run golden:write",
   "albedo_pack": {
-    "about": "a linear colour to four bytes, each channel clamped to [0, 1], times 255 and rounded half away from zero, alpha 255 (asset-compiler-rust albedo.rs pack; read by sdk-browser bounce nodeWgsl.ts proxyAlbedoOf)",
+    "about": "a linear colour to four bytes, each channel clamped to [0, 1], times 255 and rounded half away from zero, alpha 255 (asset-compiler-rust compiler/materials/albedo.rs pack; read by sdk-browser bounce nodeWgsl.ts proxyAlbedoOf)",
     "inputs": "colour: 3 f64",
     "outputs": "1 u32",
     "cases": [

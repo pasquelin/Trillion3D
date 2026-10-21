@@ -1,10 +1,10 @@
 /**
  * What a compile option names objects by on what the glTF already carries — a node's name, its
  * mesh's, one of its materials', values of its `extras` —, and the one reading that turns a
- * host's form into the compiler's (`HlodWirePattern`, `HlodMatchOf` in `compilerAbi.ts`): the HLOD
+ * host's form into the compiler's (`HlodWirePattern`, `HlodMatchOf` in `hlodAbi.ts`): the HLOD
  * groups and rules (`hlodOptions.ts`) and the responsive objects (`materialOptions.ts`) read it.
  */
-import type { HlodMatchOf, HlodWireMatch, HlodWirePattern } from './compilerAbi.ts'
+import type { HlodMatchOf, HlodWireMatch, HlodWirePattern } from './hlodAbi.ts'
 
 /** A name to match: a string the exact name, a regular expression any name it matches —
  *  `{ regex, flags }` its JSON form, for a command line's flag. */
@@ -44,7 +44,7 @@ export function fieldsOf(
 }
 
 /** Whether `value` is a pattern: a name, a regular expression or its JSON form. */
-export const isPattern = (value: unknown): value is NamePattern =>
+const isPattern = (value: unknown): value is NamePattern =>
   typeof value === 'string' ||
   value instanceof RegExp ||
   (isRecord(value) && typeof value.regex === 'string')
@@ -56,7 +56,7 @@ const PATTERN_FLAGS = 'imsguy'
 /** A pattern as the compiler reads it. A regular expression the compiler would read otherwise is
  *  refused: a flag it does not know (`d`, `v`), or `i` on a source holding a letter past ASCII,
  *  which its case folding does not reach. */
-export function wirePattern(pattern: unknown, what: string, refuse: Refuse): HlodWirePattern {
+function wirePattern(pattern: unknown, what: string, refuse: Refuse): HlodWirePattern {
   const wire = pattern instanceof RegExp ? { regex: pattern.source, flags: pattern.flags } : pattern
   if (!isPattern(wire) || wire instanceof RegExp)
     return refuse(`${what} must be a name or a regular expression`)
@@ -68,6 +68,62 @@ export function wirePattern(pattern: unknown, what: string, refuse: Refuse): Hlo
   if (flags.includes('i') && [...wire.regex].some((c) => c.charCodeAt(0) > 0x7f))
     refuse(`${what}: flag i folds ASCII letters only; write both cases in /${wire.regex}/`)
   return wire
+}
+
+/**
+ * An option set for the whole scene and by object, as the compiler reads it (`meshBuild`,
+ * `objectSettings`): its settings `settingNames`, which `settingsOf` reads from the fields `named`
+ * — `what` naming them in a refusal —, and under `objects` the rules `{ match, …settings }`, in
+ * order, each setting them for the objects its match names.
+ * @throws TypeError naming the option `field` and what it holds wrong.
+ */
+export function resolveByObject<S extends object>(
+  option: unknown,
+  field: string,
+  settingNames: readonly string[],
+  objects: string,
+  settingsOf: (named: Record<string, unknown>, what: string, refuse: Refuse) => S,
+) {
+  const refuse: Refuse = refusal(field)
+  const named = fieldsOf(option, [...settingNames, objects], 'the settings', refuse)
+  const wire = settingsOf(named, '', refuse) as S & {
+    objects?: (S & { match: HlodWireMatch })[]
+  }
+  const rules = named[objects]
+  if (rules === undefined || rules === null) return wire
+  if (!Array.isArray(rules)) return refuse(`${objects} must be an array of rules`)
+  wire.objects = rules.map((rule: unknown, at) => {
+    const what = `${objects}[${at}]`
+    const fields = fieldsOf(rule, [...settingNames, 'match'], what, refuse)
+    return {
+      match: wireMatch(fields.match, `${what}.match`, refuse),
+      ...settingsOf(fields, `${what}.`, refuse),
+    }
+  })
+  return wire
+}
+
+/**
+ * A compile option a job names as one value the compiler reads as JSON, under the job field
+ * `field` and the command line's flag `flag`: `resolve` reads it, `undefined` for none.
+ * `fields` is the job's field as the compiler reads it, left out when the job names none; `flags`
+ * the command line's flag, none likewise.
+ */
+export function jsonJobOption<K extends string, O, W>(
+  field: K,
+  flag: string,
+  resolve: (option?: O | null) => W | undefined,
+) {
+  return {
+    fields(job: { [F in K]?: O | null }) {
+      const wire = resolve(job[field])
+      return (wire === undefined ? {} : { [field]: wire }) as { [F in K]?: W }
+    },
+    flags(job: { [F in K]?: O | null }): string[] {
+      const wire = resolve(job[field])
+      return wire === undefined ? [] : [`${flag}${JSON.stringify(wire)}`]
+    },
+  }
 }
 
 /** A match as the compiler reads it: a pattern is a node's name; an object holds only the match's

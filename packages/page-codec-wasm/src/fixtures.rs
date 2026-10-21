@@ -1,6 +1,6 @@
-//! Generated meshes the clusterer is proved on, here (`clusters/tests.rs`) and in the compiler's DAG
-//! tests (`asset-compiler-rust/src/dag/tests/part17.rs`): one home for both crates' families.
-use trillion3d_math::random::xorshift64;
+//! Generated meshes the clusterer is proved on (`clusters/tests.rs`). The compiler's own tests
+//! build theirs (`asset-compiler-rust/src/tests/fixture_shapes.rs`).
+use trillion3d_math::sequence::random::xorshift64;
 
 /// A `side` × `side` grid of unit quads, listed by rows or by columns, its vertices shared.
 pub fn grid(side: u32, by_columns: bool) -> (Vec<f32>, Vec<u32>) {

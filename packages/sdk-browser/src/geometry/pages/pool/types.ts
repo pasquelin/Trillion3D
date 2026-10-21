@@ -1,7 +1,7 @@
 import type { createGpuPageReader } from './reader.ts'
-import type { PageHomes } from './homes.ts'
+import type { PageHomes, PageUnitsOf } from './homes.ts'
 import type { Eviction } from './eviction.ts'
-import type { Placement } from './placement.ts'
+import type { Placement, RootSlots } from './placement.ts'
 import type { ResidencyLog } from './residencyLog.ts'
 
 /** One page held in the GPU page pool. */
@@ -17,14 +17,22 @@ export interface ResidentPage {
 }
 export type GpuPageContext = {
   device: GPUDevice
+  /** The width of a slot: the widest streaming page's. */
   pageBytes: number
+  /** Streaming pages the pool holds at once, its root grains included. */
   slots: number
-  /** Each page's width and home (`homes.ts`): the allocator's (`placement.ts`). */
+  /** Its root region, behind the streaming slots (`placement.ts`). */
+  roots: RootSlots
+  /** Each streaming page's width and home (`homes.ts`): the allocator's (`placement.ts`). */
   homes?: PageHomes
+  /** Each address's streaming page and offset there (`homes.ts`). */
+  units?: PageUnitsOf
   buffer: GPUBuffer
   resident: Map<string, ResidentPage>
   /** The root cover's pages: a pool never goes below them (`resize.ts`). */
   cover: ReadonlySet<string>
+  /** Every root page's address: the root region's grains hold them (`placement.ts`). */
+  rootUrls: ReadonlySet<string>
   abort: AbortController
   state: {
     pending: Promise<unknown>
@@ -35,10 +43,8 @@ export type GpuPageContext = {
     bytesRead: number
     uploadedBytes: number
     evictions: number
-    /** A load was refused for lack of a place since the host last asked (`takeRefused`). */
-    refused: boolean
   }
-  /** Which unpinned pages give their bytes back to an arrival (`eviction.ts`). */
+  /** The pages the pool keeps whatever the host asks: its pins (`eviction.ts`). */
   eviction: Eviction
   /** Where an arrival lands: the pool's one allocator (`placement.ts`). */
   placement: Placement

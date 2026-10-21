@@ -2,7 +2,7 @@
   "layout": "one case per line, read line by line: never reformatted",
   "regenerate": "pnpm run golden:write",
   "acos": {
-    "about": "fdlibm's arc cosine (math/rust acos.rs, math trig.ts)",
+    "about": "fdlibm's arc cosine (math/rust scalar/acos.rs, math trig.ts)",
     "inputs": "x: f64",
     "outputs": "1 f64",
     "cases": [

@@ -4,8 +4,7 @@ import { createViewHold, type ViewHold } from '../view/viewRevision.ts'
 import { createHostSceneWatch } from '../../scene/host/scan/watch.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { readCameraWorld, type HostCamera } from '../../camera/world.ts'
-import type { CameraMotion } from '../../camera/motion.ts'
-import { resolvePixelError } from '../../geometry/selection/requests.ts'
+import { DEFAULT_PIXEL_ERROR } from '../../../../sdk-core/src/lod/policy.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { readScene, type FrameGateSources, type HostWrite } from './gateScene.ts'
 
@@ -80,13 +79,12 @@ export function viewChanged(core: GateState, ...[view, viewport, error]: ViewRea
 
 export const held = ({ own, revisions }: GateState) => own.hold.stable && own.hold.same(revisions)
 
-/** What frame entry reads: the quality settings, the host camera and its motion, the viewport,
- *  the source graph and what to reread of it, and the aspect ratio the image is drawn at when a
- *  second view renders aside at its own. */
+/** What frame entry reads: the quality threshold (`pixelError`, `DEFAULT_PIXEL_ERROR` when the host
+ *  names none), the host camera, the viewport, the source graph and what to reread of it, and the
+ *  aspect ratio the image is drawn at when a second view renders aside at its own. */
 export type FrameEntry = [
-  context: { pixelError?: number; lodAdaptive?: boolean },
+  context: { pixelError?: number },
   camera: HostCamera,
-  motion: CameraMotion,
   viewport: readonly [number, number] | undefined,
   source: Object3D,
   drawn: FrameGateSources,
@@ -97,18 +95,17 @@ export type FrameEntry = [
  * Frame entry, in the order every engine follows, and which carries the hold verdict.
  *
  * The camera world pose, ancestors included, is resolved and copied into the engine camera
- * first and once — view, view-projection, frustum planes, eye: the adaptive threshold reads
- * it, then the view fingerprint (contract and guarantees: `../../camera/world.ts`). Camera speed is
- * read every frame, held or not: skipping it would skew the adaptive threshold of the first
- * frame that moves again. Finally the host may write the source graph without going through
- * the engine: the reread is what announces it, and it precedes the hold decision.
+ * first and once — view, view-projection, frustum planes, eye: the view fingerprint reads it
+ * (contract and guarantees: `../../camera/world.ts`). Finally the host may write the source graph
+ * without going through the engine: the reread is what announces it, and it precedes the hold
+ * decision.
  */
 export function enterFrame(core: GateState, cam: EngineCamera, ...entry: FrameEntry) {
-  const [context, camera, motion, viewport, source, drawn, aspect] = entry
+  const [context, camera, viewport, source, drawn, aspect] = entry
   readCameraWorld(cam, camera, aspect)
   if (trackViewCamera(core.own, camera, cam, viewport?.[0] ?? -1, viewport?.[1] ?? -1))
     bumpView(core.revisions)
-  core.pixelError = resolvePixelError(context, cam, motion)
+  core.pixelError = context.pixelError ?? DEFAULT_PIXEL_ERROR
   viewChanged(core, cam, viewport, core.pixelError)
   readScene(core, source, drawn)
   return held(core)

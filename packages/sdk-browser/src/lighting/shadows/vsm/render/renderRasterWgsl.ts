@@ -37,7 +37,7 @@ import { VSM_CASTER_PROJECTION_WGSL } from './renderCasterWgsl.ts'
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
 import { bitAt, bitIsSet, byteOf } from '../../../../../../math/src/wgsl/integer.ts'
 import { PAGE_GEOMETRY_WGSL, UV_READ } from '../../../../visibility/shader/pageGeometryWgsl.ts'
-import { maskUvWgsl } from '../../../../visibility/shader/pageUv1Wgsl.ts'
+import { maskUvWgsl } from '../../../../visibility/shader/pageUvSetWgsl.ts'
 import { VIS_BINDINGS } from '../../../../gpu/bind/bindLayout.ts'
 import {
   PAGE_BINDING,

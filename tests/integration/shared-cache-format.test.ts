@@ -1,7 +1,7 @@
 // The cache format number is written twice — once in Rust, once in TypeScript — and one product
 // is read by both. Nothing in a compilation compares them, so a raise applied on one side only
 // would be seen by a rendered proof and by nothing else. This test compares them directly: the
-// constants of `compiler_format.rs` against those of `sdk-core`, and the descriptor the compiler publishes (`--version`)
+// constants of `cache/format.rs` against those of `sdk-core`, and the descriptor the compiler publishes (`--version`)
 // against the number the runtime reads.
 import test from 'node:test'
 import assert from 'node:assert/strict'

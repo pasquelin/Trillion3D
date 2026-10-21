@@ -99,7 +99,7 @@ impl ImageDecoder for Exr {
 /// layer that comes out. Both flags are read without the crate: four bytes of the specification,
 /// and a deep or multi-part file is named before any other read.
 fn subset(bytes: &[u8], max_alloc: u64) -> std::result::Result<(u32, u32), &'static str> {
-    let flags = crate::le::u32_at(bytes, VERSION_FIELD).ok_or(HEADER_INVALID)?;
+    let flags = crate::support::le::u32_at(bytes, VERSION_FIELD).ok_or(HEADER_INVALID)?;
     if flags & FLAG_DEEP != 0 {
         return Err(DEEP);
     }

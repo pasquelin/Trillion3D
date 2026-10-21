@@ -13,7 +13,8 @@ use super::levels::{LevelBrick, VoxelLevel};
 use super::ERROR_PER_SIZE;
 use crate::dag::{DagCluster, DagGroup};
 use std::collections::{BTreeMap, HashMap};
-use trillion3d_math::sphere::merge_spheres;
+use trillion3d_math::geometry::sphere::merge_spheres;
+use trillion3d_page_codec::hash::WordMap;
 use trillion3d_page_codec::voxel::{encode_voxel_page, VoxelBrick, VoxelPage, VOXEL_PAGE_BRICKS};
 
 /// The page of `bricks` of a level of voxels `side` wide.
@@ -34,7 +35,7 @@ fn encode(bricks: &[&LevelBrick], side: f64) -> VoxelPage {
 /// around it, each shell a step wider, and past the first holding one only as far as a nearer
 /// brick may still lie, never over every page.
 fn nearest_page(
-    page_of: &HashMap<[i32; 3], usize>,
+    page_of: &WordMap<[i32; 3], usize>,
     (low, high): ([i32; 3], [i32; 3]),
     parent: [i32; 3],
 ) -> Option<usize> {
@@ -136,7 +137,7 @@ pub(crate) fn voxel_dag(levels: &[VoxelLevel]) -> VoxelDag {
     }
     for k in (0..top).rev() {
         let (level, up) = (&levels[k], &levels[k + 1]);
-        let page_of: HashMap<[i32; 3], usize> = (nodes.iter().enumerate())
+        let page_of: WordMap<[i32; 3], usize> = (nodes.iter().enumerate())
             .filter(|(_, n)| n.level == k + 1)
             .flat_map(|(p, n)| n.bricks.iter().map(move |&b| (up.bricks[b].at, p)))
             .collect();
@@ -218,6 +219,7 @@ pub(crate) fn voxel_dag(levels: &[VoxelLevel]) -> VoxelDag {
                 lod_error: error(node.level),
                 parent_error: parent.map_or(f64::INFINITY, |_| error(node.level + 1)),
                 sphere: spheres[n],
+                whole_box: None,
                 parent_sphere: parent.map_or(spheres[n], |g| groups[g].sphere),
                 source_rank: 0,
                 group: parent,

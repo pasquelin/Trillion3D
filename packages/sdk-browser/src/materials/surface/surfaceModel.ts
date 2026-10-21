@@ -75,7 +75,7 @@ export const surfaceReflects = wgslFn(
   [],
   `fn surfaceReflects(flags:u32)->bool{return (flags&${SURFACE_MODEL_MASK}u)==${MODEL_FLAG.physical}u;}`,
 )
-/** The r8 surface target's high bit carries a material's fog opt-out. */
+/** The surface flags' eighth bit carries a material's fog opt-out. */
 export const FOG_FREE_SURFACE_FLAG = 128
 /** The surface target's mark of an emission-and-occlusion texel other than `(0, 0, 0, 1)`
  *  (`surfaceEmission.ts`); 32 is the thin subsurface's (`subsurface.ts`). */

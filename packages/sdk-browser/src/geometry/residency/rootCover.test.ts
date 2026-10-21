@@ -1,14 +1,10 @@
 // The root cover counts its holders: the session holds its roots from open, a held cell adds a
 // holder to the roots it alone needs. A page joins the cover with its first holder — kept, out of
-// what the budget weighs, its address listed — and leaves with its last; the queue loads it before
-// any other page, pinned on arrival. The session's holders never move.
+// what the streaming weighs, its address listed — and leaves with its last. The session's holders
+// never move.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { keysOf, rec, world } from './sets.fixture.ts'
-import { createWebgpuPageTracking } from '../rows/page/pageTracking.ts'
-import { createWebgpuResidencySets } from './sets.ts'
-import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
-import { ensurerOptions, orderedPool, pageOf } from './residentEnsurer.fixture.ts'
 
 /** Six cut pages, levels 0 to 2, and two roots a held cell adds; the session's top apart. */
 function scene() {
@@ -41,40 +37,14 @@ test('a page the cut asks for leaves the queue while covered, and comes back onc
   const w = scene()
   w.delta.apply([0, 1, 2, 3, 4, 5, 6])
   w.cut()
-  // Room for the two coarsest levels: the root, level 1, among them.
-  w.budget(5)
+  w.stream()
   const asked = w.keys[0]
-  assert.ok(keysOf(w.tracking.wanted).has(asked), 'the coarsest are queued')
+  assert.ok(keysOf(w.tracking.wanted).has(asked), 'the streaming holds it')
   w.sets.holdCover([w.roots[0]], true)
-  w.budget(5)
+  w.stream()
   const wanted = keysOf(w.tracking.wanted)
   assert.ok(!wanted.has(asked) && keysOf(w.tracking.keep).has(asked), 'covered, kept, unweighed')
-  assert.equal(wanted.size, 5, 'the room goes to the cut')
+  assert.equal(wanted.size, 6, 'the rest of the cut')
   w.sets.holdCover([w.roots[0]], false)
-  w.budget(5)
   assert.ok(keysOf(w.tracking.wanted).has(asked), 'asked for by the cut again')
-})
-
-test('the queue loads the pages a holder brought before its own, pinned on arrival', async () => {
-  const pages = ['queued', 'held'].map(pageOf)
-  const tracking = createWebgpuPageTracking(pages)
-  const bootstrapKey = new Uint8Array(tracking.keyCount)
-  const sets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages: pages })
-  sets.holdCover([pages[1]], true)
-  assert.equal(sets.coverSlots, 1, 'one slot taken by the cover')
-  tracking.wanted.add(tracking.keyOf(pages[0]), pages[0])
-  const cache = orderedPool(1)
-  const ensure = createWebgpuResidentEnsurer({
-    ...ensurerOptions(tracking, cache),
-    bootstrapKey,
-    coverMissing: sets.coverMissing,
-  })
-  await ensure([pages[0]], 1, 1)
-  assert.deepEqual([...cache.resident.keys()], ['held'], 'the cover first: the pool is full')
-  assert.ok(cache.pins.has('held'), 'pinned on arrival')
-  assert.deepEqual(
-    sets.coverMissing((page) => !!cache.get(page.url)),
-    [],
-    'loaded, it is missing no more',
-  )
 })

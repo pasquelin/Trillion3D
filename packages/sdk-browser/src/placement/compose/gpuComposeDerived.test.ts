@@ -1,7 +1,7 @@
 // What the rows pass and the root boxes pass derive from a world (`gpuComposeDerivedWgsl.ts`, the
 // shipped WGSL run in JavaScript) is what the CPU formulas give from the same world and the same
-// inputs, word for word: the eight Hi-Z corners (`packPageCorners`), the shadow detail words (the
-// oracle `writeRowLod`) and the root's world box (`rootWorldBox`). Generated families: rotations, uneven, negative and sheared
+// inputs, word for word: the shadow detail words (the oracle `writeRowLod`) and the root's world
+// box (`rootWorldBox`). Generated families: rotations, uneven, negative and sheared
 // worlds near and far from the origin, boxes and spheres of every size, a reach and a dynamic
 // box now and then, every combination of the cut rule's residency, rows with and without a
 // coarser form, roots with and without a box. The detail reads the stretch the root's words hold.
@@ -10,10 +10,8 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { rootWorldBox } from '../../geometry/selection/rootWorld.ts'
-import { packPageCorners } from '../../visibility/passes/corners.fixture.ts'
 import { ROW_LOD_FLOATS } from '../../lighting/shadows/casters/rowLodWords.ts'
 import { writeRowLod } from '../../lighting/shadows/casters/rowLodWords.fixture.ts'
-import { CORNER_VALUES } from '../../geometry/partition/gpu/contract.ts'
 import { ROOT_BOXES_WGSL } from '../roots/rootBoxesWgsl.ts'
 import { DERIVE_ROWS_WGSL } from '../rows/rowWordsWgsl.ts'
 import { LOD_WGSL } from './gpuComposeDerivedWgsl.ts'
@@ -29,28 +27,14 @@ const STRETCH = ['dDiv', 'dRsqrt', 'dSqrt', 'chebyshevRoot', 'maxStretchOf']
 
 const rows = {
   inputs: [] as Pair[],
-  corners: [] as number[],
   lods: [] as number[],
   rootBoxes: [] as Pair[],
 }
 const derived = shaderRun<{
-  composeCorners(row: number, world: Pair[]): void
   composeLod(row: number, rank: number, world: Pair[]): void
-}>(
-  DERIVE_ROWS_WGSL,
-  [
-    ...DOUBLE_HELPERS,
-    ...SPLIT,
-    'dSqrt',
-    'writeCorners',
-    'composeCorners',
-    'lodCentre',
-    'composeLod',
-  ],
-  {
-    ...rows,
-  },
-)
+}>(DERIVE_ROWS_WGSL, [...DOUBLE_HELPERS, ...SPLIT, 'dSqrt', 'lodCentre', 'composeLod'], {
+  ...rows,
+})
 const roots = { rootInputs: [] as Pair[], rootBoxes: [] as Pair[] }
 const boxes = shaderRun<{ composeRoot(rank: number, world: Pair[]): Pair }>(
   ROOT_BOXES_WGSL,
@@ -101,7 +85,7 @@ const doubleOf = (p: Pair) => {
   return new Float64Array(cell.buffer)[0]
 }
 
-test('the corners, the detail and the world box a world derives are the CPU formulas’, word for word', () => {
+test('the detail and the world box a world derives are the CPU formulas’, word for word', () => {
   const next = lcgRandom(41)
   let withBox = 0
   const scratch = new Float64Array(ROW_INPUT_DOUBLES),
@@ -121,8 +105,6 @@ test('the corners, the detail and the world box a world derives are the CPU form
     const ready = next() < 0.8,
       childReady = next() < 0.8
     // The CPU: the root's box carried by its world, then the row's words from it.
-    const cornersCpu = new Float32Array(CORNER_VALUES)
-    packPageCorners(cornersCpu, 0, rec, root.world, root.reach)
     const lodCpu = new Float32Array(ROW_LOD_FLOATS)
     writeRowLod(lodCpu, 0, rec, root as never, ready, childReady)
     // The GPU: the inputs as the table keeps them, the world as the passes hold it.
@@ -147,13 +129,6 @@ test('the corners, the detail and the world box a world derives are the CPU form
       )
     }
     rows.rootBoxes.splice(0, ROOT_BOX_DOUBLES, ...roots.rootBoxes.slice(0, ROOT_BOX_DOUBLES))
-    rows.corners.length = CORNER_VALUES
-    derived.composeCorners(0, doubles)
-    assert.deepEqual(
-      rows.corners.map((w) => w >>> 0),
-      wordsOf(cornersCpu),
-      `corners, case ${i}`,
-    )
     rows.lods.length = ROW_LOD_FLOATS
     derived.composeLod(0, 0, doubles)
     assert.deepEqual(

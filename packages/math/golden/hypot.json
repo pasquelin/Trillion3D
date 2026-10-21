@@ -2,7 +2,7 @@
   "layout": "one case per line, read line by line: never reformatted",
   "regenerate": "pnpm run golden:write",
   "hypot": {
-    "about": "Math.hypot of 2, 3 or 4 values (math hypot.ts hypot2, hypot3, hypot4), hypot (math/rust js.rs)",
+    "about": "Math.hypot of 2, 3 or 4 values (math hypot.ts hypot2, hypot3, hypot4), hypot (math/rust scalar/js.rs)",
     "inputs": "2 to 4 f64",
     "outputs": "1 f64",
     "cases": [

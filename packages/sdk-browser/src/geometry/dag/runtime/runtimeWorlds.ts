@@ -48,8 +48,10 @@ function posesMoved(run: DagRun, moved: number, origins: Int32Array) {
   }
   run.state.worldRevision++
   const ranks = into.subarray(0, count)
-  // The tree follows the poses the send moved, a host walk's as a call's.
+  // The tree follows the poses the send moved, a host walk's as a call's, and so do the poses the
+  // next frame keeps (`../previousPoses.ts`).
   run.tree?.moved(ranks)
+  for (const w of ranks) run.resources.frames.previous.moved(w)
   return ranks
 }
 
@@ -107,5 +109,6 @@ export function rewritePlacement({ resources, state, proxies }: DagRun, w: numbe
   frames.writeWorldOrigins(rewritten)
   frames.writeNamedWorlds(packed.worlds, rewritten, 1)
   proxies.worldsWritten(rewritten, 1)
+  frames.previous.moved(w)
   state.worldRevision++
 }

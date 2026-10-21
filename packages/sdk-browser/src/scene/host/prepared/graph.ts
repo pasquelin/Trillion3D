@@ -12,7 +12,10 @@
  *   camera depth first, then each mesh as its surfaces are ready — in the order
  *   they are first named when they are ready together, in the order their images land when not;
  * - a node's pose is set from what it declares: a matrix decomposed, or its translation, rotation
- *   and scale as they are — so the engine composes the same world matrices from them.
+ *   and scale as they are — so the engine composes the same world matrices from them;
+ * - a skinned node bends its meshes by its skeleton, a banked one plays its item's track of the
+ *   scene's animation banks instead (`motion.ts`); a streamed node keeps its place and is drawn by
+ *   its main cell's row alone (`placed.ts`).
  */
 import { readPreparedSourceRank } from './sourceRanks.ts'
 import type { PreparedSceneTables } from '../../../../../sdk-core/src/scene/core/tableContracts.ts'
@@ -22,18 +25,26 @@ import { isDrawnNode } from '../graph/kinds.ts'
 import { Group, Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import type { Camera } from '../../../../../sdk-core/src/world/camera/camera.ts'
 import { placedMeshes } from './placed.ts'
-import { bindSkins, clipsOf, movedNodes } from './motion.ts'
+import { bindBanks, bindSkins, clipsOf, movedNodes, streamedMeshes } from './motion.ts'
 import type { RowLink } from '../../../geometry/partition/rows.ts'
+import type { AnimationBanks } from '../../../../../sdk-core/src/scene/core/animationBanks.ts'
 
 /** What the engine knows a drawn mesh by: its mesh and primitive ranks, and the rows placing it
  *  when a partition's cells do. */
 type MeshRanks = RowLink
 
-type Inputs = MeshInputs & { tables: PreparedSceneTables }
+type Inputs = MeshInputs & {
+  tables: PreparedSceneTables
+  /** The scene's animation banks, whose tracks its banked nodes play; absent or `null` for a
+   *  scene with none. */
+  banks?: AnimationBanks | null
+}
 
-/** The prepared scene as a host graph, and the ranks each drawn host mesh answers to. */
+/** The prepared scene as a host graph, the ranks each drawn host mesh answers to, the placed
+ *  meshes the cells draw by rows, and the meshes each streamed node draws, by primitive — what a
+ *  row its cell draws from that node reads (`CellNode.source`). */
 export async function preparedGraph(inputs: Inputs) {
-  const { tables } = inputs
+  const { tables, banks } = inputs
   const unique = uniqueNames()
   const ranks = new Map<Object3D, MeshRanks>()
   const scene = new Group()
@@ -46,8 +57,13 @@ export async function preparedGraph(inputs: Inputs) {
   bindSkins(tables, nodes)
   const clips = clipsOf(tables, nodes)
   const at = new Map(names.order.map((rank, index) => [rank, index]))
-  const placed = placedMeshes(tables.partition, scene, ranks, (rank) => made[at.get(rank)!])
-  return { scene, ranks, nodes, placed, clips }
+  const streamed = streamedMeshes(tables, nodes, ranks)
+  const parts = (rank: number) => made[at.get(rank)!]
+  const placed = placedMeshes({ tables, scene, ranks, parts, banks, streamed })
+  // After the copies the cells place are made: a copy of a banked node's mesh plays its row's
+  // track, never that node's.
+  bindBanks(tables, nodes, banks)
+  return { scene, ranks, nodes, placed, streamed, clips }
 }
 
 type Unique = ReturnType<typeof uniqueNames>

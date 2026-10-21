@@ -10,13 +10,13 @@
 //! normal, turned to the face — the side the surface is seen from — and the normals' products — the
 //! distribution whose projected area weighs a neighbour.
 use super::raster::Cell;
-use crate::proxy::tracer::Among;
-use crate::surface_trace::Traceable;
+use crate::trace::surface::Traceable;
+use crate::trace::tracer::Among;
 use std::f64::consts::TAU;
 use std::sync::OnceLock;
-use trillion3d_math::random::splitmix_draw;
-use trillion3d_math::vec3::{cross, dominant_axis, frame_across};
-use trillion3d_math::vecn::{add, scale, weighted_sum};
+use trillion3d_math::sequence::random::splitmix_draw;
+use trillion3d_math::vector::vec3::{cross, dominant_axis, frame_across};
+use trillion3d_math::vector::vecn::{add, scale, weighted_sum};
 
 /// The surface a voxel is sampled against: the mesh, a zero `near` per triangle (a voxel's rays
 /// test every triangle in it), and its tie.

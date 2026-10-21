@@ -1,8 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { signedArea, triangulate } from './triangulate.ts'
+import { triangulate, wind } from './triangulate.ts'
 
 type P = readonly [number, number]
+
+/** Twice a ring's signed area, the shoelace sum: positive for a counter-clockwise ring. */
+const ringArea = (ring: readonly P[]) =>
+  ring.reduce((sum, [x, y], i) => {
+    const [nx, ny] = ring[(i + 1) % ring.length]
+    return sum + x * ny - nx * y
+  }, 0)
 
 /** Checks the triangles tile the outline minus its holes: every one counter-clockwise, their
  *  areas adding up to the polygon's, no ring vertex strictly inside one. */
@@ -19,7 +26,7 @@ function tiles(outline: P[], holes: P[][] = [], label = '') {
     sum += area(i)
   }
   const expected = [outline, ...holes.filter((h) => h.length >= 3)].reduce(
-    (total, ring, r) => total + (r ? -1 : 1) * Math.abs(signedArea(ring)),
+    (total, ring, r) => total + (r ? -1 : 1) * Math.abs(ringArea(ring)),
     0,
   )
   assert.ok(Math.abs(sum - expected) < 1e-9, `${label}: area ${sum}, not ${expected}`)
@@ -33,10 +40,20 @@ const square: P[] = [
   [0, 4],
 ]
 
-test('twice the signed area: positive counter-clockwise, negative clockwise', () => {
-  assert.equal(signedArea(square), 32)
-  assert.equal(signedArea([...square].reverse()), -32)
-  assert.equal(signedArea([]), 0)
+test('the outline is turned counter-clockwise and each hole clockwise, a wound ring kept', () => {
+  const outline = [...square].reverse()
+  const hole: P[] = [
+    [1, 1],
+    [2, 1],
+    [2, 2],
+    [1, 2],
+  ]
+  wind(outline, [hole])
+  assert.equal(ringArea(outline), 32)
+  assert.equal(ringArea(hole), -2)
+  const kept = [...square]
+  wind(kept, [])
+  assert.deepEqual(kept, square)
 })
 
 test('simple outlines, either way round, are cut into n − 2 triangles', () => {
@@ -51,7 +68,7 @@ test('simple outlines, either way round, are cut into n − 2 triangles', () => 
   ]
   assert.equal(tiles(l, [], 'L').triangles.length, 12)
   const { points } = tiles([...l].reverse(), [], 'clockwise L')
-  assert.ok(signedArea(points) > 0, 'a clockwise outline is turned round')
+  assert.ok(ringArea(points) > 0, 'a clockwise outline is turned round')
   const star: P[] = Array.from({ length: 10 }, (_, i) => {
     const r = i % 2 ? 1 : 3
     return [r * Math.cos((i * Math.PI) / 5), r * Math.sin((i * Math.PI) / 5)] as const

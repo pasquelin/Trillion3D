@@ -23,18 +23,30 @@ test("a held cell's roots gain a holder while it holds them, until the backend e
     run: { gate: { resourcesChanged: () => woken++ } },
   }
   coverHeldRoots(rt as unknown as Parameters<typeof coverHeldRoots>[0], { holdCover })
-  // Cell 0 holds bundles 1 and 3: bundle 1 carries its HLOD 1 root.
+  // Cell 0 holds root pages 1 and 3 (the table's `hlod`): every cluster of each joins the cover with
+  // its cell — bundle 1's HLOD 1 root, and bundle 3's three level 0 clusters beside it.
+  const copiesOf = (bundle: number) =>
+    hold.dag!.held.get(bundle)!.map((rank) => selectionRoots[1].pages[rank].url)
+  const [one, three] = [copiesOf(1), copiesOf(3)]
+  assert.deepEqual([one.length, three.length], [1, 3])
   await hold.hold(0)
-  const copies = hold.dag!.held.get(1)!.map((rank) => selectionRoots[1].pages[rank].url)
-  assert.equal(copies.length, 1)
-  assert.deepEqual(told, [[copies, true]])
-  assert.equal(woken, 1, 'the next image asks for them')
+  assert.deepEqual(told, [
+    [one, true],
+    [three, true],
+  ])
+  assert.equal(woken, 2, 'the next image asks for them, for each root page')
   hold.release(0)
-  assert.deepEqual(told.at(-1), [copies, false], 'its cell let go, they leave the cover')
+  assert.deepEqual(told.slice(2), [
+    [one, false],
+    [three, false],
+  ])
   await hold.hold(0)
   ends.abort()
-  assert.deepEqual(told.at(-1), [copies, false], 'the backend gone, the cover lets go')
+  assert.deepEqual(told.slice(-2), [
+    [one, false],
+    [three, false],
+  ])
   hold.release(0)
   await hold.hold(0)
-  assert.equal(told.length, 4, 'nothing followed past the end')
+  assert.equal(told.length, 8, 'nothing followed past the end')
 })

@@ -4,22 +4,70 @@
  * association carries the instance buffer the cells write (`../../../geometry/partition/rows.ts`), so
  * its own pose is never read. It bounds itself by the box around every cell: the framing and the
  * bounds of a loaded model take the whole world, whichever cells are read.
+ *
+ * Every row stands in the frame of the scene's graph, as a loaded model's mesh does
+ * (`PlacementRows.local`): a palette it reads is read there. The rows carry the scene's animation
+ * banks, whose items the instanced skinned objects a cell places play (`PlacementRows.banks`,
+ * `tracks`). A row a cell draws from an animated core node's own mesh (`CellNode.source`) reads
+ * that node's host mesh as its animation source, row by row (`PlacementRows.sources`), among the
+ * streamed nodes' meshes of its primitive (`sourceModels`).
+ *
+ * One rule ties a streamed node (`TableNode.streamed`) to its cell: each mesh it draws keeps its
+ * place in the graph — the clips and the skins name it, its skeleton and its morph weights are
+ * what the rows read —, but is drawn by no root of its own. Its association holds one row, never
+ * written, so parked, whose animation source is none (`sources: [null]`): no record is made for it.
+ * Its main cell's row draws it, while that cell is placed.
  */
-import type { TablePartition } from '../../../../../sdk-core/src/scene/core/tablePartition.ts'
+import type { PreparedSceneTables } from '../../../../../sdk-core/src/scene/core/tableContracts.ts'
+import type { AnimationBanks } from '../../../../../sdk-core/src/scene/core/animationBanks.ts'
 import type { HostBox, HostMesh } from '../../../session/host/resources.ts'
+import type { Mesh } from '../../../../../sdk-core/src/world/object/mesh.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
-import { placedMesh, type PlacedMesh, type RowLink } from '../../../geometry/partition/rows.ts'
+import { createPlacementRows } from '../../../placement/rows/rows.ts'
+import {
+  placedMesh,
+  type PlacedMesh,
+  type RowLink,
+  type StreamedMeshes,
+} from '../../../geometry/partition/rows.ts'
+
+type Inputs = {
+  tables: Pick<PreparedSceneTables, 'partition' | 'nodes'>
+  /** Where the copies hang. */
+  scene: Object3D
+  /** Each drawn host mesh's association, which the copies and the streamed meshes join. */
+  ranks: Map<Object3D, RowLink>
+  /** The primitive meshes built for a mesh rank. */
+  parts: (rank: number) => readonly Object3D[]
+  /** The scene's animation banks; absent or `null` for a scene with none. */
+  banks?: AnimationBanks | null
+  /** The meshes each streamed node draws (`streamedMeshes`, `motion.ts`). */
+  streamed: StreamedMeshes
+}
+
+/** The meshes each streamed node draws parked in `ranks`: drawn by their main cells' rows. */
+function parkStreamed(streamed: StreamedMeshes, ranks: Map<Object3D, RowLink>) {
+  for (const drawn of streamed.values())
+    for (const part of drawn) {
+      const placements = createPlacementRows(1)
+      placements.sources = [null]
+      ranks.set(part, { ...ranks.get(part), placements })
+    }
+}
 
 /** The placed mesh of each mesh rank the cells place, its host meshes added under `scene` and
- *  their links recorded in `ranks`; `parts` gives the primitive meshes built for a rank. */
-export function placedMeshes(
-  partition: TablePartition | null,
-  scene: Object3D,
-  ranks: Map<Object3D, RowLink>,
-  parts: (rank: number) => readonly Object3D[],
-) {
+ *  their links recorded in `ranks`, the streamed nodes' meshes parked there. */
+export function placedMeshes({ tables, scene, ranks, parts, banks, streamed }: Inputs) {
   const placed = new Map<number, PlacedMesh>()
+  parkStreamed(streamed, ranks)
+  const { partition } = tables
   if (!partition) return placed
+  // The streamed nodes' meshes of each mesh rank: the animation sources its rows are drawn from.
+  const sourcesOf = new Map<number, (readonly Mesh<object>[])[]>()
+  for (const [id, drawn] of streamed) {
+    const rank = tables.nodes[id].mesh!
+    ;(sourcesOf.get(rank) ?? sourcesOf.set(rank, []).get(rank)!).push(drawn)
+  }
   const [minX, minY, minZ, maxX, maxY, maxZ] = partition.bounds
   const box: HostBox = { min: { x: minX, y: minY, z: minZ }, max: { x: maxX, y: maxY, z: maxZ } }
   for (const rank of partition.meshes) {
@@ -38,7 +86,18 @@ export function placedMeshes(
       ...(ranks.get(part)?.twoSided ? { twoSided: true } : {}),
     }))
     nodes.forEach((mesh, at) => ranks.set(mesh, links[at]))
-    placed.set(rank, placedMesh(links, nodes))
+    // Its rows' sources, one column a primitive, when a streamed node draws it.
+    const drawers = sourcesOf.get(rank)
+    const fed = drawers && { drawers, sources: built.map((): (Mesh<object> | null)[] => []) }
+    placed.set(rank, placedMesh(links, nodes, fed?.sources))
+    links.forEach((link, at) => {
+      const rows = link.placements!
+      rows.local = true
+      if (banks) rows.banks = banks
+      if (!fed) return
+      rows.sources = fed.sources[at]
+      rows.sourceModels = new Set(fed.drawers.map((drawn) => drawn[at]))
+    })
   }
   return placed
 }

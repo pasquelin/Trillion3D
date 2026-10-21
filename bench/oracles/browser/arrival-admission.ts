@@ -47,7 +47,7 @@ interface ReferenceArrival {
 }
 
 /** `arrivalQueue.ts:15-65`: `touched.includes` on every delivered page. */
-export function referenceArrivalQueue(byteBudget: number, countBudget: number) {
+export function referenceArrivalQueue(countBudget: number) {
   const items: ReferenceArrival[] = [],
     waiting = new Map<ReferenceTarget, Set<string>>(),
     touched: ReferenceTarget[] = []
@@ -64,14 +64,12 @@ export function referenceArrivalQueue(byteBudget: number, countBudget: number) {
     },
     drain() {
       if (head >= items.length) return 0
-      let bytes = 0,
-        count = 0
+      let count = 0
       touched.length = 0
-      while (head < items.length && bytes < byteBudget && count < countBudget) {
+      while (head < items.length && count < countBudget) {
         const item = items[head++]
         waiting.get(item.target)?.delete(item.url)
         item.target.acceptPage?.(item.url, item.array)
-        bytes += item.array.byteLength
         count++
         if (!touched.includes(item.target)) touched.push(item.target)
       }

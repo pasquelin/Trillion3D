@@ -9,12 +9,12 @@ use super::{
     JOLT_COMMIT, PHYSICS_COOK_STAGE, PHYSICS_COOK_VERSION, PHYSICS_FILE, PHYSICS_FORMAT_VERSION,
     PIECES_FORMAT_VERSION,
 };
-use crate::compiler_coplanar::DepthLayerScene;
+use crate::compiler::primitive::compiled::DepthLayerScene;
 use crate::{product, required_index, values, Product, Result, COMPILER_VERSION};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
-use trillion3d_math::linear::decompose_trs;
+use trillion3d_math::matrix::linear::decompose_trs;
 
 /// Writes a placement `trs` into `entry` as `physics.json` carries it: a static instance's, a
 /// rigid body's or a soft body's.
@@ -116,7 +116,7 @@ pub(crate) fn stage_physics(
         "colliders":colliders,"instances":instances,"bodies":bodies,"softBodies":soft_bodies,"report":report,
     });
     let mut objects = BTreeSet::new();
-    crate::compiler_prune::referenced_objects(&document, &mut objects);
+    crate::compiler::cache::prune::referenced_objects(&document, &mut objects);
     let written = product(directory, PHYSICS_FILE, &serde_json::to_vec(&document)?)?;
     let objects: Vec<Value> = objects
         .into_iter()

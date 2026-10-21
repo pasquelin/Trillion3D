@@ -1,24 +1,33 @@
-//! The flat layouts of the hierarchy: a cluster as the record the run-time cut sends
+//! The flat layouts of the hierarchy: a part as the record the run-time cut sends
 //! (`CULLING_RECORD_FLOATS`), a node as the numbers the manifest and the GPU read (`CULLING_STRIDE`).
 use super::*;
 
-impl CullingCluster {
-    /// The cluster as its record.
+/// A whole number under `2^32` as an index; `None` for any other number.
+fn whole(value: f64) -> Option<usize> {
+    (value >= 0.0 && value.fract() == 0.0 && value < 4_294_967_296.0).then_some(value as usize)
+}
+
+impl CullingPart {
+    /// The part as its record.
     pub fn record(&self) -> [f64; CULLING_RECORD_FLOATS] {
-        let last = [self.parent_error, self.level as f64];
-        let values = self.min.iter().chain(&self.max).chain(&self.parent_sphere);
-        filled(values.chain(&last))
+        let errors = [self.min_error, self.parent_error];
+        let place = [self.level, self.first, self.count].map(|value| value as f64);
+        let values = self.min.iter().chain(&self.max).chain(&self.sphere);
+        filled(values.chain(&errors).chain(&place))
     }
 
-    /// The cluster of record `r`, `None` when its level is not a whole number under `2^32`.
+    /// The part of record `r`, `None` when its level, first rank or count is not a whole number
+    /// under `2^32`.
     pub fn from_record(r: &[f64]) -> Option<Self> {
-        let level = r[11];
-        (level >= 0.0 && level.fract() == 0.0 && level < 4_294_967_296.0).then(|| Self {
+        Some(Self {
             min: [r[0], r[1], r[2]],
             max: [r[3], r[4], r[5]],
-            parent_sphere: [r[6], r[7], r[8], r[9]],
-            parent_error: r[10],
-            level: level as usize,
+            sphere: [r[6], r[7], r[8], r[9]],
+            min_error: r[10],
+            parent_error: r[11],
+            level: whole(r[12])?,
+            first: whole(r[13])?,
+            count: whole(r[14])?,
         })
     }
 }
@@ -27,7 +36,7 @@ impl CullingNode {
     /// The node in the flat layout (`CULLING_STRIDE` numbers): an infinite ceiling is written -1.
     pub fn flat(&self) -> [f64; CULLING_STRIDE] {
         let error = self.max_parent_error;
-        let ceiling = [if error.is_finite() { error } else { -1.0 }];
+        let errors = [if error.is_finite() { error } else { -1.0 }, self.min_error];
         let links = [
             self.first_child,
             self.child_count,
@@ -36,7 +45,7 @@ impl CullingNode {
         ];
         let links = links.map(|value| value as f64);
         let values = self.min.iter().chain(&self.max).chain(&self.sphere);
-        filled(values.chain(&ceiling).chain(&links))
+        filled(values.chain(&errors).chain(&links))
     }
 }
 

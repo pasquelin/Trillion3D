@@ -1,4 +1,4 @@
-// A manifest laid out as the compiler pages it (`compiler_manifest_pages.rs`), in memory: the root
+// A manifest laid out as the compiler pages it (`compiler/pages/manifest.rs`), in memory: the root
 // `clusters.json` holds, and every page and column file under it by name.
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'

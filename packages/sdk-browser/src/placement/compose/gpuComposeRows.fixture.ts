@@ -54,7 +54,7 @@ export function crystals() {
 }
 
 /** The CPU's row write (`../../geometry/rows/page/pageRow.ts`): the world as a `Float32Array` stores it, the
- *  rank, the row's own Hi-Z slot, and material words that no pose touches. */
+ *  rank, and material words that no pose touches. */
 export function cpuTable(meshes: readonly { matrixWorld: { elements: ArrayLike<number> } }[]) {
   const buffer = new ArrayBuffer(N * PAGE_INFO_STRIDE),
     floats = new Float32Array(buffer),
@@ -64,7 +64,6 @@ export function cpuTable(meshes: readonly { matrixWorld: { elements: ArrayLike<n
     for (let k = 16; k < ROW_WORDS; k++) ints[base + k] = (row * 2654435761 + k * 40503) >>> 0
     floats.set(mesh.matrixWorld.elements, base)
     ints[base + PAGE_INFO.at.placement] = row
-    ints[base + PAGE_INFO.at.hizSlot] = row
   })
   return ints
 }

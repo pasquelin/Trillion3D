@@ -49,23 +49,6 @@ export interface WebgpuTimingState {
   publishedSteps: CpuStepWindow
   /** The bounds' window the host opens again (`resetStageProfile`) and reads (`cpuSteps`). */
   hostSteps: CpuStepWindow
-  // Encode-side step durations of the current image, reported by the `cpu-timing` diagnostic.
-  /** What encoding the partition cost the CPU: the corners the table just changed, one view-projection
-   *  matrix, and two compute dispatches. Never a row. */
-  lastPartitionMs: number
-  /** What the image's partition decided: counts, never durations. */
-  partitionCounts: {
-    rows: number
-    occluders: number
-    tested: number
-    /** Rows the previous image drew, before its pyramid withdrew some of them. */
-    previousOccluders: number
-    /** Rows drawn last image that last image's pyramid sent to the tested half. */
-    pyramidWithdrawn: number
-    /** Image these counts describe: they are written by the GPU and reread periodically, therefore
-     *  never those of the current image. `-1` until a sample has come back. */
-    sampledFrame: number
-  }
   /** What the world step walks: counts, never durations. `roots` is the layout's roots;
    *  `rootsUploaded` how many root worlds this image sent — those a call named, every one after a
    *  host walk, none otherwise, so a held or still image, a moving camera's included, reports
@@ -133,15 +116,6 @@ export function createWebgpuTimingState(
     profiler,
     publishedSteps: profiler.openWindow(),
     hostSteps: profiler.openWindow(),
-    lastPartitionMs: 0,
-    partitionCounts: {
-      rows: 0,
-      occluders: 0,
-      tested: 0,
-      previousOccluders: 0,
-      pyramidWithdrawn: 0,
-      sampledFrame: -1,
-    },
     // Read live, never a count kept beside the roots.
     worldCounts: {
       get roots() {

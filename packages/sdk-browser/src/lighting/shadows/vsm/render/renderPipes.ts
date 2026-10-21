@@ -20,11 +20,15 @@ import {
   vsmRenderRasterWgsl,
 } from './renderRasterWgsl.ts'
 import { vsmChunkContext, vsmChunkKernels } from '../chunks/chunkKernels.ts'
-import { vsmCandidatesEntries, vsmRenderParamsEntry } from '../chunks/chunkParams.ts'
+import {
+  vsmCandidatesEntries,
+  vsmCandidatesWorldEntries,
+  vsmRenderParamsEntry,
+} from '../chunks/chunkParams.ts'
 import { VSM_RENDER_EXPAND_SPECS, vsmRenderExpandWgsl } from './renderExpandWgsl.ts'
 import {
+  VSM_RENDER_CORNER_TIERS,
   VSM_RENDER_TIERS,
-  VSM_RENDER_VOXEL_TIER,
   vsmRenderTierCorners,
 } from './renderParamsWgsl.ts'
 import { vsmRenderVoxelWgsl } from './renderVoxelWgsl.ts'
@@ -48,7 +52,7 @@ export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
     `${RENDER_LABEL}.candidates`,
     vsmRenderCandidatesWgsl(),
     'vsmRenderCandidates',
-    [vsmCandidatesEntries()],
+    [vsmCandidatesEntries(), vsmCandidatesWorldEntries()],
   )
   const expandCode = vsmRenderExpandWgsl(layout)
   const expandGroups = [
@@ -154,7 +158,7 @@ function makeRaster(
       },
     })
   const tiers = TIERS.map((t) =>
-    t < VSM_RENDER_VOXEL_TIER ? tier(t, module) : madeLater(() => tier(t, voxelStages())),
+    t < VSM_RENDER_CORNER_TIERS ? tier(t, module) : madeLater(() => tier(t, voxelStages())),
   )
   return { layout1, tiers }
 }

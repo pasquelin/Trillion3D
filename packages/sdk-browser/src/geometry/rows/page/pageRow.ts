@@ -2,13 +2,8 @@ import type { PageRec } from '../../selection/types.ts'
 import { FLAG_MASK, FLAG_VOXEL, ROW_WORDS } from '../../../visibility/types.ts'
 import { VIS_TRIANGLE_BITS } from '../../../visibility/visWords.ts'
 import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
-import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import { BIN_KIND, type BinKind } from '../../../visibility/draw/contract.ts'
 
-/** Stamps rank `row` as the Hi-Z slot of the row at `base`, unless the row has none. */
-export function restampHizSlot(ints: Uint32Array, base: number, row: number) {
-  if (ints[base + PAGE_INFO.at.hizSlot] !== NO_INDEX) ints[base + PAGE_INFO.at.hizSlot] = row
-}
 /** The kind of row `row` of the table `ints` (`BIN_KIND`): voxel bricks (`FLAG_VOXEL`), whose boxes
  *  trace their voxels and write their depth (`vis_voxel_fs`); a cutout (`FLAG_MASK`), the bit
  *  `maskKeep` tests; or opaque. */

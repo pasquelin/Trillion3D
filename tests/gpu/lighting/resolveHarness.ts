@@ -8,7 +8,7 @@
 import { directLightingWgsl } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts'
 import { wgslModule, wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
-import { CONTRACT_BINDINGS_WGSL } from '../../../packages/sdk-browser/src/lighting/deferred/shaders.ts'
+import { DEFERRED_BINDINGS } from '../../../packages/sdk-browser/src/lighting/deferred/bindings.ts'
 import { VIEW_WGSL } from '../../../packages/sdk-browser/src/lighting/deferred/worldAtWgsl.ts'
 
 /** Floats of a sample: albedo and metal, normal and roughness, point and occlusion, eye
@@ -51,6 +51,8 @@ export const resolveHarness = (
   wgslProgram(
     `
 @group(0) @binding(5) var<uniform> view:View;
+@group(0) @binding(${DEFERRED_BINDINGS.lights}) var<storage,read> directLights:DirectLights;
+@group(0) @binding(${DEFERRED_BINDINGS.tiles}) var<storage,read> tileLights:array<u32>;
 ${lighting(narrow, shadowed, rects, lobes, perLight)}${lobes ? LOBE_ENTRIES_WGSL : ''}
 /** No bounced light, as the direct program answers a thin surface's back: the harness lists no probe. */
 fn sampleBounce(P:vec3f,N:vec3f)->vec3f{return vec3f(0.0);}
@@ -65,7 +67,7 @@ fn main(@builtin(global_invocation_id) id:vec3u){
  let lit=contractLighting(s.albedoMetal.rgb,s.albedoMetal.a,s.normalRough.a,normalize(s.normalRough.xyz),normalize(s.eyeFlag.xyz),s.pointAo.xyz,s.pointAo.w,0u);
  sums[id.x]=vec4u(bitcast<vec3u>(lit),0u);
 }`,
-    [VIEW_WGSL, CONTRACT_BINDINGS_WGSL],
+    [VIEW_WGSL],
   )
 
 /** A sample's light through the lobes program, its lobes set by hand (\`setLobes\`): \`zeroLobes\`, lobes on with

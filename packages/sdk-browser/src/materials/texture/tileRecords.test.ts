@@ -17,7 +17,7 @@ function rowsOf(data: Uint8Array, offset: number, stride: number, rows: number, 
 }
 
 // The record sizes the compiler's tiled file is written with (`tile_records`, pinned by the same
-// numbers in `asset-compiler-rust/src/texture_preview/tests/tile_records.rs`), and where each
+// numbers in `asset-compiler-rust/src/texture/tests/tile_records.rs`), and where each
 // record's compressed bytes lie, read from the file's head.
 test('a tile record’s rank and size follow from the level’s dimensions, its place from the head', () => {
   const at = (tx: number, ty: number) => tileRecord(769, 300, tx, ty)

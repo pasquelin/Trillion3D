@@ -2,7 +2,7 @@
   "layout": "one case per line, read line by line: never reformatted",
   "regenerate": "pnpm run golden:write",
   "preview_levels": {
-    "about": "previewFirstLevel and previewLastLevel (sdk-core texture/previewLevels.ts), preview_first_level and preview_last_level (asset-compiler-rust texture_preview/levels.rs): the finest level carried, the first whose sides fit PREVIEW_BASE, and the last, where both sides are one texel",
+    "about": "previewFirstLevel and previewLastLevel (sdk-core texture/previewLevels.ts), preview_first_level and preview_last_level (asset-compiler-rust texture/levels.rs): the finest level carried, the first whose sides fit PREVIEW_BASE, and the last, where both sides are one texel",
     "inputs": "width: u32, height: u32",
     "outputs": "first level: u32, last level: u32",
     "cases": [

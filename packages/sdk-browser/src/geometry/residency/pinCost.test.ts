@@ -5,18 +5,41 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuPageTracking } from '../rows/page/pageTracking.ts'
 import { createWebgpuPinUpdater } from './pinUpdater.ts'
-import { orderedPool, pageOf } from './residentEnsurer.fixture.ts'
-import { setsOver } from './sets.fixture.ts'
+import { rec, setsOver } from './sets.fixture.ts'
+
+/** A pool that holds what it loads, hands the pin step what arrived since it last asked, and pins:
+ *  what the pin step reads of the GPU page cache (`../pages/pool/pages.ts`). */
+function arrivalPool() {
+  const resident = new Set<string>(),
+    pins = new Set<string>(),
+    arrivals: string[] = []
+  return {
+    pins,
+    get: (url: string) => resident.has(url) || undefined,
+    load(url: string) {
+      resident.add(url)
+      arrivals.push(url)
+    },
+    takeArrivals(visit: (url: string) => void) {
+      for (const url of arrivals) visit(url)
+      arrivals.length = 0
+    },
+    takeUnpinned() {},
+    pin: (url: string) => void pins.add(url),
+    isPinned: (url: string) => pins.has(url),
+    unpin: (url: string) => pins.delete(url),
+    stats: () => ({ pinned: pins.size }),
+  }
+}
 
 for (const count of [1e3, 1e5])
-  test(`${count} covered pages waiting: the pin step asks the cache of each once, and pins one on arrival`, async () => {
-    const pages = Array.from({ length: count }, (_, k) => pageOf(`p${k}`))
+  test(`${count} covered pages waiting: the pin step asks the cache of each once, and pins one on arrival`, () => {
+    const pages = Array.from({ length: count }, (_, k) => rec(`p${k}`, 0))
     const tracking = createWebgpuPageTracking(pages)
     const bootstrapKey = new Uint8Array(tracking.keyCount).fill(1)
     const sets = setsOver(tracking, bootstrapKey, pages)
-    const cache = orderedPool(count),
-      gets = { count: 0 },
-      relisted: string[] = []
+    const cache = arrivalPool(),
+      gets = { count: 0 }
     const get = cache.get
     cache.get = (url: string) => (gets.count++, get(url))
     const pins = createWebgpuPinUpdater({
@@ -24,7 +47,6 @@ for (const count of [1e3, 1e5])
       sets,
       bootstrapKey,
       deferredDrops: new Set(),
-      relist: (url) => relisted.push(url),
       traceEnabled: false,
       traceDiagnostic: () => {},
     })
@@ -35,9 +57,8 @@ for (const count of [1e3, 1e5])
       pins(cache as never, [], frame, () => {})
       assert.equal(gets.count, 0, `frame ${frame}: ${gets.count} cache reads`)
     }
-    await cache.load('p7')
+    cache.load('p7')
     pins(cache as never, [], 6, () => {})
     assert.ok(cache.pins.has('p7'), 'the page that arrived is pinned')
     assert.equal(cache.pins.size, 1)
-    assert.deepEqual(relisted, ['p7'], 'and out of the GPU pool list')
   })

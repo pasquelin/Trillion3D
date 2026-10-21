@@ -18,7 +18,7 @@
 //! - scale unchanged, since `S·diag(s)·S = diag(s)`.
 use serde_json::{json, Value};
 use trillion3d_math::quaternion::divide;
-use trillion3d_math::vecn::{length, squared_length};
+use trillion3d_math::vector::vecn::{length, squared_length};
 
 /// A Unity local transform, already converted into glTF space.
 #[derive(Clone, Copy)]

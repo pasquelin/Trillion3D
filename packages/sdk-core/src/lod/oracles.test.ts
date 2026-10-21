@@ -1,22 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { clusterErrorPixels } from './screenErrorBound.ts'
-import { dotVector3 } from '../../../math/src/vector/vector.ts'
-import { coneRejects, maxStretch } from '../../../math/src/projection/projectionOracles.ts'
-
-test('wide cone must not reject a visible normal', () => {
-  const angle = (2 * Math.PI) / 3
-  const normal = [Math.sqrt(3) / 2, 0, -0.5]
-  assert.ok(dotVector3(normal, [0, 0, -1]) > 0)
-  assert.ok(-1 < -Math.sin(angle))
-  assert.equal(coneRejects(-1, angle), false)
-})
-
-test('cone tangency and perspective spread are kept', () => {
-  assert.equal(coneRejects(-1, Math.PI / 6), true)
-  assert.equal(coneRejects(-Math.sin(Math.PI / 6), Math.PI / 6), false)
-  assert.equal(coneRejects(-1, Math.PI / 3, Math.PI / 6), false)
-})
+import { maxStretch } from '../../../math/src/projection/projectionOracles.ts'
 
 test('max error is not cumulative bound', () => {
   const firstDisplacement = 0.001

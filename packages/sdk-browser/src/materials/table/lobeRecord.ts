@@ -17,8 +17,8 @@ const scratchInts = new Uint32Array(scratch.buffer)
 /**
  * Writes the lobe extension of `mat` at word `at`: its factors as the material declares them,
  * clamped as the lobes read them (a strength and a coat in [0, 1], a coat roughness in
- * [floor, 1]); its maps' slots in the data atlas, in `PHYSICAL_MAP_FIELDS` order, 0 for none; bit
- * `i` of the channels word set where map `i` reads the second UV set. Returns whether a word
+ * [floor, 1]); its maps' slots in the data atlas, in `PHYSICAL_MAP_FIELDS` order, 0 for none; the
+ * texture set map `i` reads in bits `2i` and `2i+1` of the channels word. Returns whether a word
  * changed.
  */
 export function writeLobeRecord(

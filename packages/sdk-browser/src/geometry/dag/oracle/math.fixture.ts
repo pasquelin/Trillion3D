@@ -33,7 +33,6 @@ export const dagScratch = {
   view: new Float64Array(16),
   world: new Float64Array(16),
   viewMatrix: new Float64Array(16),
-  cone: { axis: [0, 0, 1] as [number, number, number], angle: Math.PI },
   min: [0, 0, 0] as number[],
   max: [0, 0, 0] as number[],
 }
@@ -66,7 +65,7 @@ export function projectedError(
 
 /**
  * What a frame sets per primitive before any descent: trunk planes brought into the
- * primitive's space, the view·world matrix, and object-view stretch. Two CPU descents
+ * primitive's space, the view·world matrix, and the placement's stretch. Two CPU descents
  * asked for it word for word — the oracle (`oracle.fixture.ts`) and frontier counting
  * (`../cut/cutFrontier.fixture.ts`) — ; it is written only here, so neither can drift
  * from the kernel without the other doing so too.
@@ -77,10 +76,8 @@ export type DagViewFrames = {
   stretches: number[]
   focal: number
   near: number
-  /** The projection's clip-w weight, and the camera as a homogeneous point of the render frame:
-   *  the origin under a perspective projection, the way back under an orthographic one. */
+  /** The projection's clip-w weight. */
   perspective: number
-  viewPoint: Float64Array
   pixelError: number
   /** The frustum's render-frame planes and the eye they are taken from: what the placement tree's
    *  world boxes are tested against (`../shader/placementTreeWgsl.ts`). */
@@ -100,8 +97,7 @@ type OraclePack = Pick<PackedDag, 'worlds' | 'worldCount'> &
   Partial<PackedDag> & { frameStretch?: ArrayLike<number> }
 
 export function dagViewFrames(packed: OraclePack, uniforms: SelectionUniforms): DagViewFrames {
-  const cameraStretch = uniforms.cameraStretch ?? 1,
-    perspective = uniforms.perspective ?? 1
+  const perspective = uniforms.perspective ?? 1
   const planes: Float64Array[] = [],
     views: number[][] = [],
     stretches: number[] = []
@@ -115,7 +111,7 @@ export function dagViewFrames(packed: OraclePack, uniforms: SelectionUniforms): 
     planes.push(object)
     multiplyMatrix4(viewMatrix, view, world)
     views.push(Array.from(viewMatrix))
-    stretches.push(stretchOf(packed, w) * cameraStretch)
+    stretches.push(stretchOf(packed, w))
   }
   return {
     planes,
@@ -124,12 +120,6 @@ export function dagViewFrames(packed: OraclePack, uniforms: SelectionUniforms): 
     focal: Math.max(uniforms.pixelScale[0], uniforms.pixelScale[1]),
     near: uniforms.near,
     perspective,
-    viewPoint: Float64Array.of(
-      view[2] * (1 - perspective),
-      view[6] * (1 - perspective),
-      view[10] * (1 - perspective),
-      perspective,
-    ),
     pixelError: uniforms.pixelError,
     viewPlanes: Float64Array.from(uniforms.planes),
     cameraWorld: uniforms.cameraWorld ?? [0, 0, 0],

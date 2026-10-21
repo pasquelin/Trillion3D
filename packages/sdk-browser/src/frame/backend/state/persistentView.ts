@@ -1,5 +1,4 @@
 import type { HostCamera } from '../../../camera/world.ts'
-import { drawnTrianglesOf } from './drawnTriangles.ts'
 import { viewTargetBytes } from './gpu.ts'
 import type { ViewFrameMetrics } from '../../../../../sdk-core/src/contracts/metrics.ts'
 import { rigViewTemporal, setWebgpuTemporalAntialiasing } from '../../../post/taa/prepare.ts'
@@ -135,7 +134,7 @@ function viewMetrics(rt: WebgpuPagesRuntime, view: WebgpuView) {
   metrics.renderWidth = gpu.targetSize[0]
   metrics.renderHeight = gpu.targetSize[1]
   metrics.renderScale = view.scale.drawn
-  metrics.drawnTriangles = drawnTrianglesOf(run, rt.vis.gpuPartition?.counts())
+  metrics.drawnTriangles = run.selectedTriangles
   metrics.frameTargetBytes = viewTargetBytes(gpu)
   return metrics
 }

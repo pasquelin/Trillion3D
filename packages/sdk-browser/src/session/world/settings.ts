@@ -8,8 +8,18 @@ import {
   DEFAULT_TEMPORAL_AA_LEVEL,
   TEMPORAL_AA_LEVELS,
 } from '../../../../sdk-core/src/contracts/compilerAbi.ts'
+import { RASTER_RULES } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
+import { STREAMING_RULES } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
+import { WORLD_STREAMING_RULES } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
+import type { SettingRule } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
+import { ANIMATION_RULES } from '../../../../sdk-core/src/contracts/animationOptions.ts'
+import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import {
   createRenderSettings,
+  type ChoiceSettingEntry,
+  type FlagSettingEntry,
+  type NumberSettingEntry,
   type QualityGroup,
   type RenderSettingEntry,
 } from '../../../../sdk-core/src/runtime/renderSettings.ts'
@@ -22,7 +32,34 @@ const flag = (value: boolean, group: QualityGroup) => ({
   ...base(group),
 })
 
-/** Every render setting of the engine, by name. */
+/** The entry of a setting whose value is `V`: a switch, a number, or a choice of names. */
+type RuleEntry<V> = V extends boolean
+  ? FlagSettingEntry
+  : V extends number
+    ? NumberSettingEntry
+    : ChoiceSettingEntry & { default: V; choices: readonly V[] }
+/** The entry of one setting of a contract's rules (`SettingRule`), of the view distance's group:
+ *  its kind, default and range or names the rule's. A number `above` its range's start lies from
+ *  the smallest number past it. */
+function ruleEntry(rule: SettingRule) {
+  const group = base('viewDistance')
+  if (rule.kind === 'flag') return { kind: rule.kind, default: rule.default, ...group }
+  if (rule.kind === 'choice')
+    return { kind: rule.kind, default: rule.default, choices: rule.choices, ...group }
+  const range = rule.above ? ([Number.MIN_VALUE, rule.range[1]] as const) : rule.range
+  return { kind: rule.kind, default: rule.default, range, ...group }
+}
+/** The entries of the settings of a contract's rules by field, each setting by its field. */
+const ruleEntries = <R extends Readonly<Record<string, SettingRule>>>(rules: R) =>
+  Object.fromEntries(
+    Object.entries(rules).map(([field, rule]) => [field, ruleEntry(rule)]),
+  ) as unknown as { [F in keyof R]: RuleEntry<R[F]['default']> }
+
+/** Every render setting of the engine, by name. The settings declared by rule — the cluster
+ *  raster's, the geometry streaming's, the partition's streaming and the HLOD warm-up's, the cut's,
+ *  the animation's, the shading's — are read at each frame, or at each update of the streaming,
+ *  from the session's context; no level of the view distance's writes them, as the reference's
+ *  scalability groups leave every one at its default. */
 const WORLD_SETTINGS = {
   // Wired: the world applies them (`switches.ts`).
   pixelError: {
@@ -40,7 +77,26 @@ const WORLD_SETTINGS = {
     ...base('edgeSmoothing'),
   },
   bounce: flag(false, 'indirectLight'),
+  ...ruleEntries(RASTER_RULES),
+  ...ruleEntries(STREAMING_RULES),
+  ...ruleEntries(WORLD_STREAMING_RULES),
+  ...ruleEntries(CUT_RULES),
+  ...ruleEntries(ANIMATION_RULES),
+  ...ruleEntries(SHADING_RULES),
 } as const satisfies Readonly<Record<string, RenderSettingEntry>>
+
+/** The fields of every setting declared by rule: no quality level writes one unless its table
+ *  lists it (`quality.ts`). */
+export const RULE_FIELDS: ReadonlySet<string> = new Set(
+  [
+    RASTER_RULES,
+    STREAMING_RULES,
+    WORLD_STREAMING_RULES,
+    CUT_RULES,
+    ANIMATION_RULES,
+    SHADING_RULES,
+  ].flatMap((rules) => Object.keys(rules)),
+)
 
 /** A world's registry over the engine's settings. */
 export const createWorldSettings = () => createRenderSettings(WORLD_SETTINGS)

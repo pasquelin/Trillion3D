@@ -15,7 +15,6 @@ import { createCutDelta } from './adoption/delta.ts'
 import { createCutPending } from './adoption/pending.ts'
 import { createWebgpuPageTracking } from '../rows/page/pageTracking.ts'
 import { createWebgpuResidencySets } from '../residency/sets.ts'
-import { createRequestAdmission } from '../residency/requestAdmission.ts'
 import { postPackedBases } from '../selection/placements.ts'
 import type { ClusterRoot, PageRec } from '../selection/types.ts'
 
@@ -73,14 +72,6 @@ function tables(copies: number) {
   })
   sets.applyCut(closure.delta)
   sets.applyDrawn(drawnDelta)
-  createRequestAdmission(
-    sets,
-    tracking,
-    closure,
-  )(1 << 20, {
-    cuts: [{ uniforms: {}, result: { pageIds: cut.wantedPacked.slice(0, cut.wanted.length) } }],
-    first: null,
-  } as never)
   const pending = createCutPending(
     packed,
     closure.delta,

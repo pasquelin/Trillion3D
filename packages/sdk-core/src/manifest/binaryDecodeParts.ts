@@ -7,6 +7,7 @@ import type {
   StreamCatalogue,
 } from '../contracts/geometry.ts'
 import { streamBundleAddress } from '../page/contracts.ts'
+import { CULLING_STRIDE } from '../contracts/writtenFormats.ts'
 import * as format from './binaryFormat.ts'
 import type { GeometryFile, SlimPrimitiveBinary } from './binaryTypes.ts'
 
@@ -49,7 +50,7 @@ export function decodeCulling(
   if (binary.culling === undefined) return undefined
   if (binary.culling === null) return null
   const { stride, count } = binary.culling
-  if (stride !== 15)
+  if (stride !== CULLING_STRIDE)
     throw new EngineError(
       'UNSUPPORTED_FORMAT',
       'Manifest binary culling stride differs from this version',
@@ -58,7 +59,7 @@ export function decodeCulling(
   const decoded = {
     stride,
     count,
-    nodes: Array.from(nodes.subarray(cursors.node * 15, (cursors.node + count) * 15)),
+    nodes: Array.from(nodes.subarray(cursors.node * stride, (cursors.node + count) * stride)),
   }
   cursors.node += count
   return decoded

@@ -33,7 +33,7 @@ const PROFILE: &str = "image-profile-unsupported";
 /// `DecodedImage` cannot carry, its only variant being RGBA8. Clipping it in silence
 /// would add a loss the source did not have, which the import policy forbids. Accepting it
 /// would need an `Rgba16` variant on the image contract and its explicit handling at every
-/// consumer — `texture_preview` today, the preview pyramid next.
+/// consumer — `texture` today, the preview pyramid next.
 const DEPTH: &str = "image-depth-unsupported";
 
 impl Plugin for Tiff {

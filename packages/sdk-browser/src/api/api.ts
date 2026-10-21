@@ -8,6 +8,7 @@ import { createExplorerDiagnosticApi } from './diagnosticApi.ts'
 import { createExplorerSceneApi } from './sceneApi.ts'
 import { createExplorerRenderApi } from './renderApi.ts'
 import { createExplorerSelectionApi } from './selectionApi.ts'
+import { createExplorerRuleApi } from './ruleApi.ts'
 import { createExplorerViewportApi } from './viewportApi.ts'
 import { createExplorerTelemetryApi } from './telemetryApi.ts'
 import { createExplorerLightApi } from './lightApi.ts'
@@ -34,6 +35,7 @@ function engineApis(inputs: Inputs, onDispose: (release: () => void) => void) {
       setCapturingSurface: inputs.setCapturingSurface,
     }),
     ...createExplorerSelectionApi({ check, context }),
+    ...createExplorerRuleApi({ check, context }),
     ...createExplorerDiagnosticApi({ check, engine, setMode: inputs.setDiagnostic }),
     ...createExplorerLightApi({
       ...{ check, engine, moveNamed: inputs.moveNamed },

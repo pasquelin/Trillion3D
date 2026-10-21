@@ -1,218 +1,211 @@
-import { alignDown, alignUp, ceilDiv, floorLog2 } from '../../../../../math/src/scalar/integers.ts'
 import type { ResidentPage } from './types.ts'
-import { lastAtMost } from '../../../../../math/src/scalar/search.ts'
-import type { PageHomes } from './homes.ts'
-import type { Eviction, NoVictim } from './eviction.ts'
+import type { PageHomes, PageUnit, PageUnitsOf } from './homes.ts'
 
-/** Where an arrival lands: its first byte, and the pages that give it up, if any — they are still
- *  resident, and leave before the arrival is written. */
+/** Where an arrival lands: its first byte, and the pages that give up their streaming page's slot
+ *  to it, if any — still resident, they leave before the arrival is written. */
 export type Place = { offset: number; victims: readonly ResidentPage[] }
 
-/** The bytes a pool of `slots` pages of `pageBytes` at most takes: the catalogue's own bytes when
- *  they fit the slots' (`homes.ts`), the slots' otherwise. */
-export const poolBytes = (pageBytes: number, slots: number, homes?: PageHomes) =>
-  homes && homes.bytes <= pageBytes * slots ? homes.bytes : pageBytes * slots
+/** Why an arrival finds no place: none free, and no victim named whose slot it takes. */
+export type NoPlace = 'no-free-slot'
 
-/** The grain a page of `bytes` takes in a pool whose widest page is `widest`: the widest halved
- *  while whole words still hold the page (`createPlacement`). */
-function grainOf(widest: number, bytes: number) {
-  let grain = widest
-  while (grain % 8 === 0 && grain / 2 >= bytes) grain /= 2
-  return Math.max(grain, alignUp(bytes, 4))
+/** The pool's ROOT REGION, behind its streaming slots: `slots` grains of `bytes` — the widest
+ *  root page's, a compiled root page's bytes at most (`ROOT_PAGE_BYTES`,
+ *  `packages/asset-compiler-rust/src/compiler/pages/bundles.rs`) —, each holding one ROOT PAGE:
+ *  the root cover's, or an HLOD cell's while its actor is loaded. It grows as the cells hold more
+ *  (`../../../frame/io/memory.ts`, `growWebgpuRootRegion`). */
+export type RootSlots = { readonly slots: number; readonly bytes: number }
+/** No root region: the root pages take streaming slots. */
+export const NO_ROOT_SLOTS: RootSlots = { slots: 0, bytes: 0 }
+
+/** The bytes a pool of `slots` slots takes — `roots.slots` of them root grains, the others
+ *  streaming pages of `pageBytes` at most —: the catalogue's own bytes when they fit the slots'
+ *  (`homes.ts`), the slots' otherwise. */
+export const poolBytes = (
+  pageBytes: number,
+  slots: number,
+  homes?: PageHomes,
+  roots = NO_ROOT_SLOTS,
+) => {
+  const slotted = (slots - roots.slots) * pageBytes + roots.slots * roots.bytes
+  return homes && homes.bytes <= slotted ? homes.bytes : slotted
+}
+
+/** The most pages a pool of `slots` streaming pages holds at once, each of `perSlot` pages at most
+ *  (the census's `unitPages`): what the tables sized by resident page ask
+ *  (`../../../frame/prepare/layout.ts`, `askedTableRows`). */
+export const pagesHeld = (slots: number, perSlot: number) => slots * perSlot
+
+/** A streaming page placed: its first byte, its pages placed there, and whether a root grain
+ *  holds it. */
+type Placed = { start: number; keys: Set<string>; root: boolean }
+
+/** The first member of `free` in its insertion order, taken; -1 for none. */
+function takeFirst(free: Set<number>) {
+  const first = free.values().next()
+  if (first.done) return -1
+  free.delete(first.value)
+  return first.value
 }
 
 /**
- * The most pages a pool of `slots` slots of `widest` bytes holds at once (`createPlacement`): the
- * whole catalogue where it holds its bytes (`poolBytes`), else its narrowest pages first, each at
- * its grain — more than `slots` where pages are narrower than the widest. What the tables sized by
- * resident page ask (`../../../frame/prepare/layout.ts`, `askedTableRows`). O(pages) once, the
- * grains being the widest's halvings.
- */
-export function pagesHeld(widest: number, slots: number, homes?: PageHomes) {
-  const bytes = widest * slots
-  if (!homes) return slots
-  if (homes.bytes <= bytes) return homes.homes.size
-  const count = new Map<number, number>()
-  for (const home of homes.homes.values()) {
-    const grain = grainOf(widest, home.bytes)
-    count.set(grain, (count.get(grain) ?? 0) + 1)
-  }
-  let room = bytes,
-    pages = 0
-  for (const grain of [...count.keys()].sort((a, b) => a - b)) {
-    const fit = Math.min(count.get(grain)!, Math.floor(room / grain))
-    pages += fit
-    room -= fit * grain
-  }
-  return pages
-}
-
-/** A free span's size class: spans of `[4·2^c, 4·2^(c+1))` bytes in class `c`. */
-const classOf = (bytes: number) => floorLog2(Math.max(1, bytes >>> 2))
-
-/**
- * THE POOL'S ONE ALLOCATOR: byte spans of the pool buffer, held in an array sorted by offset, free
- * or held, the free ones filed by size class. A page's width is its home's (`homes.ts`: its bytes
- * and its deformation tails) when the catalogue names it, its bytes padded to a word otherwise.
- * - While the pool holds the catalogue's bytes (`poolBytes`), a page takes its home at its exact
- *   width: homes partition the pool and only their pages hold them, so a home is always free for
- *   its page — no search, no victim.
- * - Otherwise its width rounds up to a grain, the widest page halved while it stays whole words and
- *   holds the page (`grainOf`), aligned to itself: the first free span of its class or above that
- *   holds an aligned grain is split (segregated fit); else the eviction order (`eviction.ts`) gives
- *   its first victim whose aligned grain holds only free or evictable spans, and they leave with it.
- * A freed span joins its free neighbours. Fixed slots are its equal-width case — every page the
- * widest, every grain one slot, every window one victim —; a page a quarter of the widest takes a
- * quarter, a half a half, and a grain never straddles a wider one, so a widest arrival frees the
- * aligned grain of the small pages the order gives up. Cost: an arrival a binary search per free
- * span it looks at and O(n) word moves to split one (n the spans, twice the pages at most); a
- * window O(spans in one grain) beside the order's walk.
+ * THE POOL'S ONE ALLOCATOR, by STREAMING PAGE (`homes.ts`, `PageUnit`: each address's page, an
+ * address `units` names none of a page alone): a page lies at its streaming page's place plus its
+ * offset there; the streaming page takes its place with its first page and gives it up with its
+ * last, so its pages lie packed as the cache laid them, never one a slot.
+ * - While the pool holds the catalogue's bytes (`poolBytes`), each streaming page takes its home at
+ *   its exact width: homes partition the pool and only their pages hold them, so a home is always
+ *   free for its pages — no search, no victim.
+ * - Otherwise the pool is slots of the widest streaming page, each streaming page one slot
+ *   whatever its bytes — the slot of the victim the host names (`load.ts`), every page of the
+ *   victim's streaming page leaving with it, else a free one —, then its ROOT REGION
+ *   (`RootSlots`): a ROOT PAGE (`rootUrls`) takes a free grain there, which it gives up only when
+ *   it leaves; it never takes a streaming slot, nor a victim's.
+ * Cost: O(1) an arrival, beside the victims it names.
  */
 export function createPlacement(o: {
   bytes: number
-  /** The widest page: the room of one the catalogue does not name, and the largest grain. */
+  /** The widest streaming page: the width of every slot, and the room of one no home names. */
   widest: number
   homes?: PageHomes
-  eviction: Eviction
+  units?: PageUnitsOf
+  /** The root region, behind the streaming slots: none, the root pages take streaming slots. */
+  roots?: RootSlots
+  /** Every root page's address — the root cover's, and each HLOD cell's while its actor is
+   *  loaded —: their streaming pages take the root region's grains. */
+  rootUrls?: ReadonlySet<string>
+  /** The pool's pages: the victims a slot given up names. */
   resident: ReadonlyMap<string, ResidentPage>
 }) {
-  const { eviction, resident, homes, widest } = o
+  const { homes, widest, units, rootUrls, resident } = o
   const held = homes && o.bytes >= homes.bytes ? homes : undefined
-  const starts: number[] = [0],
-    sizes: number[] = [o.bytes],
-    keys: (string | null)[] = [null],
-    buckets: Set<number>[] = []
-  let freeBytes = 0,
-    count = 0
-  const bucket = (bytes: number) => (buckets[classOf(bytes)] ??= new Set())
-  const refree = (i: number) => (bucket(sizes[i]).add(starts[i]), (freeBytes += sizes[i]))
-  const unfree = (i: number) => (bucket(sizes[i]).delete(starts[i]), (freeBytes -= sizes[i]))
-  refree(0)
-  /** The span holding byte `offset`. */
-  const indexOf = (offset: number) => lastAtMost(starts, offset)
-  /** Free span `i` gives `[offset, offset + width)` to `key`; what lies before and after stays free. */
-  const carve = (i: number, offset: number, width: number, key: string) => {
-    const start = starts[i],
-      end = start + sizes[i]
-    unfree(i)
-    const at = offset > start ? [start, offset] : [offset],
-      size = offset > start ? [offset - start, width] : [width],
-      owner: (string | null)[] = offset > start ? [null, key] : [key]
-    if (offset + width < end) {
-      at.push(offset + width)
-      size.push(end - offset - width)
-      owner.push(null)
-    }
-    starts.splice(i, 1, ...at)
-    sizes.splice(i, 1, ...size)
-    keys.splice(i, 1, ...owner)
-    for (let k = 0; k < owner.length; k++) if (owner[k] === null) refree(i + k)
-    count++
+  const roots = (!held && o.roots) || NO_ROOT_SLOTS,
+    grain = roots.bytes
+  /** The root region's first byte: past the streaming slots. */
+  const rootStart = o.bytes - roots.slots * grain
+  const unitOf = (key: string): PageUnit => units?.(key) ?? { unit: key, offset: 0 }
+  /** Whether `key`'s streaming page takes a root grain: a root page, the pool having a root
+   *  region. */
+  const rooted = (key: string) => roots.slots > 0 && !!rootUrls?.has(key)
+  const placed = new Map<string, Placed>()
+  /** The streaming slots and the root grains no streaming page holds, in insertion order: the
+   *  lowest first at the open, each one freed later (`freed`) after those. */
+  const free = new Set<number>(),
+    freeRoots = new Set<number>()
+  if (!held) {
+    for (let slot = 0; slot < Math.floor(rootStart / widest); slot++) free.add(slot)
+    for (let at = 0; at < roots.slots; at++) freeRoots.add(at)
   }
-  /** Held span `i` free again, joined to its free neighbours. */
-  const release = (i: number) => {
-    let first = i,
-      last = i
-    if (i > 0 && keys[i - 1] === null) unfree((first = i - 1))
-    if (i + 1 < keys.length && keys[i + 1] === null) unfree((last = i + 1))
-    const size = starts[last] + sizes[last] - starts[first]
-    starts.splice(first, last - first + 1, starts[first])
-    sizes.splice(first, last - first + 1, size)
-    keys.splice(first, last - first + 1, null)
-    refree(first)
-    count--
-  }
-  /** The first free span holding `width` bytes at an offset aligned to `width`: its index and that
-   *  offset, or none. */
-  const fit = (width: number) => {
-    for (let c = classOf(width); c < buckets.length; c++)
-      for (const start of buckets[c] ?? []) {
-        const i = indexOf(start),
-          at = alignUp(start, width)
-        if (at + width <= start + sizes[i]) return { i, at }
-      }
-    return undefined
-  }
-  /** The grain `[at, at + width)` holding `page`, the order's victim, when every other span it
-   *  meets is free or evictable: a grain of the victim alone asks the order nothing more. */
-  const windowAt = (page: ResidentPage, width: number, lower?: boolean) => {
-    const at = alignDown(page.offset, width)
-    if (at + width > o.bytes) return undefined
-    for (let j = indexOf(at); j < keys.length && starts[j] < at + width; j++)
-      if (keys[j] !== null && keys[j] !== page.key && !eviction.evictable(keys[j]!, lower))
-        return undefined
+  /** Streaming page `unit` placed at `start`, in a root grain or not, `key` its first page. */
+  const take = (unit: string, start: number, root: boolean, key?: string) => {
+    const at: Placed = { start, keys: new Set(key === undefined ? [] : [key]), root }
+    placed.set(unit, at)
     return at
   }
-  /** The bytes `key`'s page of `bytes` takes: its home's width while the pool holds the catalogue,
-   *  else its grain (`grainOf`). */
-  const widthFor = (key: string, bytes: number) => {
-    const own = homes?.homes.get(key)?.bytes ?? alignUp(bytes, 4)
-    return held ? own : grainOf(widest, own)
-  }
+  /** A root grain for streaming page `unit`, `key` its first page there; -1 for none. */
+  const grainFor = (unit: string, at: number, key?: string) =>
+    at < 0 ? -1 : take(unit, rootStart + at * grain, true, key).start
+  /** The width of the place streaming page `unit` takes when no home sets it: a grain's for a
+   *  root page, placed in a grain or, `key` one of its pages, not placed yet and rooted, else a
+   *  slot's. */
+  const slotWidth = (unit: string, key?: string) =>
+    (placed.get(unit)?.root ?? (key !== undefined && rooted(key))) ? grain : widest
+  /** The width streaming page `unit` takes: its home's while the pool holds the catalogue, else a
+   *  grain's or a slot's. */
+  const widthOf = (unit: string) => held?.homes.get(unit)?.bytes ?? slotWidth(unit)
   return {
-    /** The bytes `key`'s page may fill: one past them would write over a neighbour. */
-    room: (key: string) => homes?.homes.get(key)?.bytes ?? widest,
-    /** The place of `key`'s page of `bytes`, taken, or why none is; `lower`, a page of a lower
-     *  tier, takes an old page's alone (`eviction.ts`). */
-    place(key: string, bytes: number, lower?: boolean): Place | NoVictim {
-      const width = widthFor(key, bytes)
+    /** The bytes `key`'s page may fill from its place: one past them would write over a neighbour
+     *  or the next streaming page. The catalogue's own bytes of its streaming page bound it
+     *  whenever it names them, the pool holding the catalogue or not; else the place's width. */
+    room(key: string) {
+      const { unit, offset } = unitOf(key)
+      return (homes?.homes.get(unit)?.bytes ?? slotWidth(unit, key)) - offset
+    },
+    /**
+     * The place of `key`'s page, taken, or why none is: in its streaming page's place when it holds
+     * one; else at its home while the pool holds the catalogue; else, for a root page, in a free
+     * root grain; else in the slot of `victim`, a page the host gives up for it (`load.ts`),
+     * its whole streaming page leaving; else in a free slot.
+     */
+    place(key: string, victim?: ResidentPage): Place | NoPlace {
+      const { unit, offset } = unitOf(key)
+      const own = placed.get(unit)
+      if (own) {
+        own.keys.add(key)
+        return { offset: own.start + offset, victims: [] }
+      }
       if (held) {
-        const home = held.homes.get(key)
+        const home = held.homes.get(unit)
         if (!home) throw new Error('PAGE_HOME_MISSING')
-        const i = indexOf(home.offset)
-        if (keys[i] !== null) return 'eviction-queue-spent'
-        carve(i, home.offset, width, key)
-        return { offset: home.offset, victims: [] }
+        return { offset: take(unit, home.offset, false, key).start + offset, victims: [] }
       }
-      const free = fit(width)
-      if (free) {
-        carve(free.i, free.at, width, key)
-        return { offset: free.at, victims: [] }
+      if (rooted(key)) {
+        const start = grainFor(unit, takeFirst(freeRoots), key)
+        return start < 0 ? 'no-free-slot' : { offset: start + offset, victims: [] }
       }
-      const page = eviction.victim(
-        (candidate) => windowAt(candidate, width, lower) !== undefined,
-        lower,
-      )
-      if (typeof page === 'string') return page
-      const at = windowAt(page, width, lower)!,
-        victims: ResidentPage[] = []
-      for (let j = indexOf(at); j < keys.length && starts[j] < at + width; j++)
-        if (keys[j] !== null) victims.push(resident.get(keys[j]!)!)
-      for (const victim of victims) release(indexOf(victim.offset))
-      carve(indexOf(at), at, width, key)
-      return { offset: at, victims }
+      const givenUnit = victim && unitOf(victim.key).unit,
+        given = givenUnit === undefined ? undefined : placed.get(givenUnit)
+      if (givenUnit !== undefined && given && !given.root) {
+        placed.delete(givenUnit)
+        const victims = [...given.keys].flatMap((page) => resident.get(page) ?? [])
+        return { offset: take(unit, given.start, false, key).start + offset, victims }
+      }
+      const slot = takeFirst(free)
+      if (slot < 0) return 'no-free-slot'
+      return { offset: take(unit, slot * widest, false, key).start + offset, victims: [] }
     },
-    /** A resize's place for `key`'s page of `width` (`widthFor`): its home while the pool holds the
-     *  catalogue, else `offset` when that grain is free, else the first free grain; -1 when none
-     *  is. Never a victim. */
-    keep(key: string, width: number, offset: number) {
-      const at = held ? held.homes.get(key)?.offset : offset % width === 0 ? offset : -1
-      if (at !== undefined && at >= 0 && at + width <= o.bytes) {
-        const i = indexOf(at)
-        if (keys[i] === null && starts[i] + sizes[i] >= at + width) {
-          carve(i, at, width, key)
-          return at
-        }
+    /** A resize's place for streaming page `unit`, which lay at `start` (`resize.ts`), `key` one
+     *  of its pages: its home while the pool holds the catalogue, else that slot — a root grain
+     *  for a root page (`rooted`) — when it is free, else a free one; -1 when none is. Never a
+     *  victim. Its pages join it as they keep their place (`hold`). */
+    keep(unit: string, start: number, key: string) {
+      if (held) {
+        const home = held.homes.get(unit)
+        return home ? take(unit, home.offset, false).start : -1
       }
-      if (held) return -1
-      const free = fit(width)
-      if (!free) return -1
-      carve(free.i, free.at, width, key)
-      return free.at
+      if (rooted(key)) {
+        const at = (start - rootStart) / grain
+        const same = start >= rootStart && Number.isInteger(at) && freeRoots.delete(at)
+        return grainFor(unit, same ? at : takeFirst(freeRoots))
+      }
+      const at = start / widest,
+        same = start < rootStart && Number.isInteger(at) && free.delete(at)
+      const slot = same ? at : takeFirst(free)
+      if (slot < 0) return -1
+      return take(unit, slot * widest, false).start
     },
-    widthFor,
-    /** The bytes `page` holds: its span's. */
-    widthOf: (page: ResidentPage) => sizes[indexOf(page.offset)],
-    /** `page` left without an arrival to take its place: free for the next one. */
+    /** Page `key` keeps its place in its streaming page, which `keep` placed. */
+    hold(key: string) {
+      placed.get(unitOf(key).unit)?.keys.add(key)
+    },
+    /** Whether `key`'s streaming page holds a place: its page lands there, no other needed. */
+    holds: (key: string) => placed.has(unitOf(key).unit),
+    /** Whether `key`'s streaming page takes a root grain, never a streaming slot. */
+    rooted,
+    /** Each streaming page placed, by name: its first byte, its pages, and whether a root grain
+     *  holds it. */
+    placed: placed as ReadonlyMap<string, Readonly<Placed>>,
+    widthOf,
+    /** `page` left without an arrival to take its place: its streaming page's slot or grain is free
+     *  for the next one with its last page. */
     freed(page: ResidentPage) {
-      const i = indexOf(page.offset)
-      if (keys[i] === page.key) release(i)
+      const { unit } = unitOf(page.key)
+      const at = placed.get(unit)
+      if (!at?.keys.delete(page.key) || at.keys.size) return
+      placed.delete(unit)
+      if (held) return
+      if (at.root) freeRoots.add((at.start - rootStart) / grain)
+      else free.add(at.start / widest)
     },
-    /** How many places no page holds: the homes empty while the pool holds the catalogue, else
-     *  the widest grains its free bytes make, a part of one counted whole — a page under the widest
-     *  takes it, and a pool of small pages refuses none while one byte of its grains is free. */
-    get free() {
-      return held ? held.homes.size - count : ceilDiv(freeBytes, widest)
+    /** How many streaming pages of `key`'s kind may still take a place with no victim: the homes
+     *  empty while the pool holds the catalogue, else the free root grains for a root page
+     *  (`rooted`), the free streaming slots for another or for none named. */
+    freeFor(key?: string) {
+      if (held) return held.homes.size - placed.size
+      return key !== undefined && rooted(key) ? freeRoots.size : free.size
+    },
+    /** The root grains no streaming page holds: none while the pool holds the catalogue. */
+    get rootFree() {
+      return freeRoots.size
     },
   }
 }

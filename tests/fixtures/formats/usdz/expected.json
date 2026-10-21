@@ -10,7 +10,6 @@
       "version": "usd-openusd-0.7.0-gltf-8"
     }
   ],
-  "twoLayersTriangles": 1,
   "refus": {
     "compressed": "USDZ_LAYOUT_INVALID",
     "noScene": "USDZ_ROOT_LAYER_MISSING"
@@ -18,16 +17,17 @@
   "rule": "A container changes nothing of the scene it packs: the package is extracted under the cache and the scene that comes out is exactly that of the same layer read outside the package. The root layer is the first entry of the package, never a layer sought among the others: those are resources. A badly laid-out package or one that does not open on a USD layer is refused by its code, never half-extracted.",
   "scene": {
     "formatVersion": 12,
-    "manifestBinaryVersion": 13,
+    "manifestBinaryVersion": 18,
     "primitives": 3,
     "selectedNodes": 3,
     "selectedTriangles": 36,
-    "sidecarSha256": "8938dbe1ac8951c784b590b5c14d8dd57b0f6cf611fa1e4a23261f6f3281c95d",
+    "sidecarSha256": "354b6dfc34f5b193f4054ac2117793933c8efd9a6c82577c6f34f1ef3a82a630",
     "sourceTriangles": 36,
     "totalNodes": 3
   },
   "scenePlugin": {
     "name": "usdz",
     "version": "usdz-aousd-1.0-zip-8.6.0-extract-1"
-  }
+  },
+  "twoLayersTriangles": 1
 }

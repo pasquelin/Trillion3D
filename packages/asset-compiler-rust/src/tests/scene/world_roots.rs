@@ -5,8 +5,8 @@
 //! times, which spans several grid cells.
 use super::partition::{cells, grid};
 use super::*;
-use crate::compiler_world_roots::decoded::table;
-use crate::compiler_world_roots::{WORLD_ROOTS_BIN, WORLD_ROOTS_FILE};
+use crate::hlod::chain::tests::decoded::table;
+use crate::hlod::chain::{WORLD_ROOTS_BIN, WORLD_ROOTS_FILE};
 
 /// The fixture triangle placed `side` × `side` times, wearing `materials` — its first, if any —,
 /// compiled whole and simplified: its result and its cache's directory. Each placement is scaled
@@ -35,7 +35,7 @@ fn grid_world(side: usize, materials: Value) -> (PathBuf, Value, PathBuf) {
 fn a_partitioned_world_publishes_its_hlod_cell_by_cell() {
     let side = 48;
     let (_root, result, directory) = grid_world(side, json!([]));
-    // The table as a load reads it (`compiler_world_roots/decoded.rs`): its header, then each
+    // The table as a load reads it (`hlod/chain/tests/decoded.rs`): its header, then each
     // HLOD cell's bundles, its parent, layer and bounds.
     let table = table(&fs::read(directory.join(WORLD_ROOTS_FILE)).expect("table"));
     let report = &result["worldRoots"];

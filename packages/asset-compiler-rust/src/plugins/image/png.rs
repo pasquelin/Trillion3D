@@ -26,7 +26,7 @@ pub(super) struct Png;
 /// `DecodedImage` cannot carry, its only variant being RGBA8. Clipping it in silence
 /// would add a loss the source did not have, which the import policy forbids. Accepting it
 /// would need an `Rgba16` variant on the image contract and its explicit handling at every
-/// consumer — `texture_preview` today, the preview pyramid next.
+/// consumer — `texture` today, the preview pyramid next.
 const DEPTH: &str = "image-depth-unsupported";
 
 /// The file declares an animation — `acTL` chunk — and the contract returns only one image.
@@ -118,11 +118,11 @@ fn declarations(bytes: &[u8]) -> (Transfer, Vec<&'static str>) {
                 described = true;
                 // The profile's name, before the first null: the profile itself is compressed,
                 // and its name is what the specification writes in the clear.
-                notes.extend(icc::note(crate::le::until_nul(data)));
+                notes.extend(icc::note(crate::support::le::until_nul(data)));
             }
             SRGB_CHUNK => described = true,
             GAMMA_CHUNK => {
-                gamma = crate::le::be32_at(data, 0);
+                gamma = crate::support::le::be32_at(data, 0);
             }
             _ => {}
         }

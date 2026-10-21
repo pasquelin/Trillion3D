@@ -12,13 +12,15 @@ import {
 } from '../../gpu/core/recordTexture.ts'
 import { WORLD_TABLE } from './worlds/worldTable.ts'
 import { FRAME_TABLE } from './frameTable.ts'
+import { createPreviousPoses } from './previousPoses.ts'
 
 /**
  * A camera cut's frame words and worlds, each one record table whatever the world's size
  * (`frameTable.ts`, `worlds/worldTable.ts`), made by `make` — the cut's admission (`resources.ts`) —, read
- * and written in place by every pass and copied by none. The host keeps its rows whole
- * (`frameData`, indexed by placement); each write lands at the placement's record. No work per
- * frame: a write follows a change.
+ * and written in place by every pass. The host keeps its rows whole (`frameData`, indexed by
+ * placement); each write lands at the placement's record. No work per frame: a write follows a
+ * change. Beside them, the poses the previous image drew (`previousPoses.ts`): the one copy of the
+ * worlds, a pose at a time, those that moved.
  */
 export function createCameraFrames(
   device: GPUDevice,
@@ -48,6 +50,10 @@ export function createCameraFrames(
     pending: createChangedRuns(),
   }
   const origins = createWorldOrigins(worldCount, f.worlds.target('Origin'), sources)
+  // The worlds and their exact translations first: the poses the previous image drew start as them.
+  writeSpan(f, f.worlds, 'Matrix', worlds, 16, 0, Infinity)
+  origins.write()
+  const previous = createPreviousPoses(device, f.worlds, worldCount, make)
   const table = {
     /** The placements' frame words (`frameTable.ts`): the cut's kernels, the tree's leaves and
      *  refit read them, the root boxes pass writes their stretch. */
@@ -62,11 +68,20 @@ export function createCameraFrames(
     /** Placement `row`'s translation as the GPU no longer holds it: its next write sends it. */
     forgetOrigin: (row: number) => origins.forget(row),
     originBytes: origins.hostBytes,
-    /** The cut's group: `group`, with the frame words and the worlds as they stand. */
+    /** The poses the previous image drew (`previousPoses.ts`): placements made take theirs at once,
+     *  those a send or a composition moved are kept by the next image. */
+    previous,
+    /** The cut's group: `group`, with the frame words, the worlds and the previous poses as they
+     *  stand. */
     bindGroup: (layout: GPUBindGroupLayout, group: DagGroup) =>
       device.createBindGroup({
         layout,
-        entries: dagGroupEntries({ ...group, frames: f.rows.view, worlds: f.worlds.view }),
+        entries: dagGroupEntries({
+          ...group,
+          frames: f.rows.view,
+          worlds: f.worlds.view,
+          previous: previous.table.view,
+        }),
       }),
     /** The host rows of placements `[from, to)` — every one by default — to their records. */
     writeRows: (from = 0, to = Infinity) =>
@@ -88,8 +103,6 @@ export function createCameraFrames(
     flushWords: () => flushWords(f),
   }
   table.writeRows()
-  table.writeWorlds(worlds)
-  table.writeWorldOrigins()
   return table
 }
 
@@ -145,4 +158,4 @@ function flushWords(f: Frames) {
 }
 export type CameraFrames = ReturnType<typeof createCameraFrames>
 /** A cut's group without the record tables it binds (`dagGroupEntries`). */
-type DagGroup = Omit<Parameters<typeof dagGroupEntries>[0], 'frames' | 'worlds'>
+export type DagGroup = Omit<Parameters<typeof dagGroupEntries>[0], 'frames' | 'worlds' | 'previous'>

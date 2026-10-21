@@ -7,8 +7,8 @@ export function invalidateOccluderHistory(run: WebgpuRunState) {
   run.noOccluderHistory = true
 }
 
-/** The diagnostic compute raster dropped, made again at its next image over what grew; no
- *  occluder history describes the new rows. */
+/** The visibility raster dropped, made again at its next image over what grew; no occluder
+ *  history describes the new rows. */
 export function dropRaster(rt: Pick<WebgpuPagesRuntime, 'vis' | 'run'>) {
   rt.vis.gpuRaster?.dispose()
   rt.vis.gpuRaster = undefined
@@ -28,29 +28,25 @@ export function dropGpuSelection(rt: WebgpuPagesRuntime) {
   rt.run.gpuSelection = undefined
 }
 
-/** The partition lives with the pyramid and compaction: it writes one and reads the other. */
-function dropGpuPartition(rt: WebgpuPagesRuntime) {
-  // The transparent occlusion test reads the partition uniform: it leaves with it, and the
-  // transparent table gets all its entries back.
+/** The transparent occlusion test lives with the pyramid it reads: it leaves with it, and the
+ *  transparent table gets all its entries back. */
+function dropTransparentOcclusion(rt: WebgpuPagesRuntime) {
   rt.blendState.occlusion?.dispose()
   rt.blendState.occlusion = undefined
   disposeEntryCorners(rt.blendState.occlusionEntries)
   rt.blendState.occlusionEntries = undefined
   rt.blendState.occlusionEpoch = -1
-  rt.vis.gpuPartition?.dispose()
-  rt.vis.gpuPartition = undefined
 }
 
 function dropGpuHiz(rt: WebgpuPagesRuntime) {
   const { vis } = rt
-  dropGpuPartition(rt)
+  dropTransparentOcclusion(rt)
   vis.gpuHiz?.dispose()
   vis.gpuHiz = undefined
   invalidateOccluderHistory(rt.run)
 }
 
 function dropGpuDraw(rt: WebgpuPagesRuntime) {
-  dropGpuPartition(rt)
   rt.vis.gpuDraw?.dispose()
   rt.vis.gpuDraw = undefined
 }
@@ -62,22 +58,19 @@ export function disposeVis(rt: WebgpuPagesRuntime) {
   vis.visPipelineBack = undefined
   vis.visPipelineNone = undefined
   vis.visPipelineFront = undefined
-  vis.visLayerPipelines.length = 0
   vis.drawLayerSlots = 1
   // Their bundles hold the pipelines and groups that go.
   for (const bundles of vis.visBundles) bundles.clear()
-  vis.shadeBundles.clear()
   vis.shadeClasses = undefined
   vis.shadeCensus = undefined
-  vis.materialTiles?.dispose()
-  vis.materialTiles = undefined
+  vis.shadeBins?.dispose()
+  vis.shadeBins = undefined
   vis.shadeCache?.dispose()
   vis.shadeCache = undefined
   vis.voxelSteps?.dispose()
   vis.voxelSteps = undefined
   vis.shadeBindGroupLayout = undefined
   vis.visBindGroupLayout = undefined
-  vis.visModule = undefined
   vis.mapsSampler = undefined
   vis.blendBindGroupLayout = undefined
   vis.blendPipelines = undefined
@@ -95,7 +88,7 @@ export function disposeVis(rt: WebgpuPagesRuntime) {
   vis.materialTable.dispose()
   vis.shadeUniform?.destroy()
   vis.visUniform?.destroy()
-  vis.zeroFlags?.destroy()
+  vis.zeroRows?.destroy()
   vis.textures?.destroy()
   vis.textures = undefined
   vis.vertexPool = undefined
@@ -106,7 +99,7 @@ export function disposeVis(rt: WebgpuPagesRuntime) {
     vis.pageTable =
     vis.shadeUniform =
     vis.visUniform =
-    vis.zeroFlags =
+    vis.zeroRows =
       undefined
   rows.pageTableFloats = undefined
   rows.pageTableInts = undefined

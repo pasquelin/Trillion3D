@@ -8,6 +8,7 @@ import { createWebgpuView, viewGpu, type WebgpuView } from '../backend/state/vie
 import { heldTargetGrant } from '../backend/state/gpu.ts'
 import { releaseWebgpuView, useWebgpuView } from '../backend/state/viewSwitch.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { fetchHostPages } from './hostPages.ts'
 
 /** Targets asked of the device, or pools funded again beside them, while a capture draws:
  *  it waits for them and draws again, never reading pages a funding moved. */
@@ -84,14 +85,15 @@ const CAPTURE_ROUNDS = 64
 
 /**
  * Whether the capture's cut is whole: every page of it the pool accepted is resident, its instance
- * ready for the GPU cut — bytes and row (`../../geometry/rows/slots.ts`) —, and no row is owed. A page past
- * the budget is drawn by its nearest resident ancestor, as on any image.
+ * ready for the GPU cut — bytes and row (`../../geometry/rows/slots.ts`) —, no row is owed, and the
+ * streaming leaves no page to start (`busy`). A page past the budget is drawn by its nearest
+ * resident ancestor, as on any image.
  */
 function captureSettled(rt: WebgpuPagesRuntime) {
   const { run, services, views } = rt,
     { rows } = rt.layout
   if (!views.active.cut?.adopted || !services.bootstrapState.ready) return false
-  if (services.rowsOwed() || rows.rowsDenied) return false
+  if (services.rowsOwed() || rows.rowsDenied || services.residency.busy) return false
   for (let i = 0; i < run.desired.length; i++) {
     const rec = run.desired[i]
     if (!services.residencySets.accepts(rec)) continue
@@ -103,9 +105,10 @@ function captureSettled(rt: WebgpuPagesRuntime) {
 /**
  * Draws the capture's cut once it is whole. Each round reads back the cut the last image of the
  * view drew (`../../geometry/dag/aside.ts`), adopts it — its requests join the queue, ranked first
- * under the one budget (#268) —, waits for the queue, and draws again: the GPU cut then draws the
- * pages that landed and the rows they took. The hooks let a capture refuse a cut the budget or the
- * host has dropped, before any draw.
+ * under the one budget (#268) —, waits for the queue and for the host's bytes of the pages it
+ * stopped on (`fetchHostPages`), and draws again: the GPU cut then draws the pages that landed and
+ * the rows they took. The hooks let a capture refuse a cut the budget or the host has dropped,
+ * before any draw.
  */
 export async function drawResidentCut(
   rt: WebgpuPagesRuntime,
@@ -119,6 +122,10 @@ export async function drawResidentCut(
     services.adoptViewCut()
     services.queueCutResidency()
     await services.residency.pending
+    // The queue stops on a page only the host can give, and drawing again moves nothing: its
+    // bytes are asked for here, or the capture refuses it, never burns its rounds on it.
+    const absent = await fetchHostPages(rt)
+    if (absent) throw new Error(`SURFACE_PAGES_NOT_RESIDENT: ${absent}`)
     await rt.layout.growing
     hooks.admitted?.()
     const settled = captureSettled(rt)

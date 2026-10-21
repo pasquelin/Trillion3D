@@ -9,7 +9,7 @@ import { createPageStreamer } from './pageStreamer.ts'
 import { createPageCache } from './pageCache.ts'
 import { servedPages } from './servedPages.fixture.ts'
 import { eventually } from './eventually.fixture.ts'
-import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from './priority.ts'
+import { PRIORITY_VISIBLE } from './priority.ts'
 
 test('two GPU loads of one page in flight read it by its one job: one transfer', async () => {
   const previous = globalThis.fetch
@@ -60,7 +60,7 @@ test('a view read joining a prefetch in flight is counted and raises it', async 
     const busy = streamer.readBytes('busy.bin', signal, PRIORITY_VISIBLE)
     await eventually(() => started.length === 1)
     const other = streamer.readBytes('other.bin', signal, PRIORITY_VISIBLE + 1)
-    const prefetch = streamer.readBytes('ahead.bin', signal, PRIORITY_PREFETCH)
+    const prefetch = streamer.readBytes('ahead.bin', signal, PRIORITY_VISIBLE + 2)
     const progress = streamer.watch(() => {})
     const view = streamer.readBytes('ahead.bin', signal, PRIORITY_VISIBLE)
     assert.deepEqual(progress.reads(), { landed: 0, asked: 1 }, 'the view waits on the page')

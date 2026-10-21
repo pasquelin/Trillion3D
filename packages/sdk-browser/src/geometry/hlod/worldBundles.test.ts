@@ -135,7 +135,9 @@ test('a cell let go while its bundles transfer and held again joins that read: r
 test('a table whose bundle holds pages it does not name is refused at open, naming the bundle', async (t) => {
   const fixture = worldRootsFixture(sha)
   const spec = { ...fixture.spec, bundles: fixture.spec.bundles.map((b) => ({ ...b })) }
-  spec.bundles[3].count = 0 // its bytes hold a page its table does not name
+  // Its bytes hold a page its table does not name: a bundle of no page holds an actor's rows
+  // (`bundlePageRanges`), so it names fewer, not none.
+  spec.bundles[3].count = 2
   const bytes = encodeWorldRoots(spec)
   const world = served(t, { world: { bytes, bin: fixture.bin, table: readWorldRoots(bytes) } })
   await assert.rejects(opened(t, world.manifest), /bundle 3/)

@@ -8,7 +8,7 @@
   },
   "case": "A quad whose base colour is rgb-raw.psd, a flattened 4 × 2 Photoshop composite in eight-bit RGB with a raw surface, compiled by the common harness.",
   "formatVersion": 11,
-  "manifestBinaryVersion": 13,
+  "manifestBinaryVersion": 18,
   "previews": [
     {
       "atlas": 0,
@@ -81,7 +81,7 @@
       "pixelBytes": 44,
       "pixelOffset": 0,
       "sourceKind": 0,
-      "sourceSha256": "18f1d63b596bc812bfde6f5e611f95853590a80e01698690e13be0f7b480abc3",
+      "sourceSha256": "62882cb662f3efe89f2bd4590f4d32e021e12173f71cf1a82df027ca1c89b487",
       "sourceView": 4294967295,
       "texture": 0,
       "width": 4

@@ -3,10 +3,9 @@
 // switched off as an adapter lacking it would leave it: each slot's start must come from storage,
 // never from the indirect command.
 import { createGpuDraw } from '../../../packages/sdk-browser/src/visibility/draw/factory.ts'
-import { VIS_SHADER } from '../../../packages/sdk-browser/src/visibility/shader/visWgsl.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { runCase, type DrawCase } from './drawCase.ts'
-import { setupVisibility } from './drawVisibility.ts'
+import { setupVisibility, VIS_ID_SHADER } from './drawVisibility.ts'
 
 /** Every case on one compaction of `cap` rows of one-triangle pages, in turn: what each left. */
 export async function runDrawCompaction({ cases, cap }: { cases: DrawCase[]; cap: number }) {
@@ -15,7 +14,7 @@ export async function runDrawCompaction({ cases, cap }: { cases: DrawCase[]; cap
   const { device } = gpu
   const draw = await createGpuDraw(device, cap, 1, 3)
   if (!draw) throw new Error('the GPU draw compaction does not mount')
-  const { module, compilation } = await gpu.compile(VIS_SHADER)
+  const { module, compilation } = await gpu.compile(VIS_ID_SHADER)
   if (compilation.length) throw new Error(`the visibility shader does not compile: ${compilation}`)
   const vis = setupVisibility(
     device,

@@ -8,18 +8,17 @@ import { webgpuPagesEngine } from '../../frame/backend/pages.ts'
 import { camera, quadScene } from '../../frame/backend/testScenes.fixture.ts'
 import { drawsOf, pipelinesOf, resolveFixture } from './materialPasses.fixture.ts'
 import type { FakePass } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
-import { MATERIAL_SURFACES_PASS } from '../../diagnostic/stage/passLabels.ts'
+import { MATERIAL_COMPUTE_PASS, MATERIAL_SURFACES_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
-import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import { createTextureCaches } from '../texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 const passSummary = (passes: FakePass[]) => passes.map((pass) => [pass.label, drawsOf(pass)])
 
-test('one present class shades directly into the cleared surfaces', () => {
-  const { rt, device, encoder, passes } = resolveFixture([5], [5], [5])
-  encodeMaterialPasses(rt, device, encoder)
-  assert.deepEqual(passSummary(passes), [[MATERIAL_SURFACES_PASS, 1]])
+test('one present class shades its bin into the surfaces the pass of no draw cleared', () => {
+  const { rt, encoder, passes, computePasses, ordinary, bins } = resolveFixture([5], [5])
+  encodeMaterialPasses(rt, encoder)
+  assert.deepEqual(passSummary(passes), [[MATERIAL_SURFACES_PASS, 0]])
   assert.equal(passes[0].depth, undefined)
   const colors = passes[0].colors as unknown as Array<{
     view: unknown
@@ -39,91 +38,56 @@ test('one present class shades directly into the cleared surfaces', () => {
   )
   for (const { clearValue } of colors.slice(0, 4)) assert.deepEqual(clearValue, [0, 0, 0, 0])
   assert.equal(rt.run.feedbackWritten, true)
-  assert.equal(rt.run.gpuDrawCalls, 1)
-})
-
-test('a cached direct class is used only for that sole present class', () => {
-  const { rt, device, encoder, passes, made, ordinary, direct } = resolveFixture(
-    [5, 9],
-    [5, 9],
-    [5],
+  // Then the compute pass: the bins of the image, and the class's one dispatch of its bin.
+  assert.deepEqual(
+    computePasses.map(({ label }) => label),
+    [MATERIAL_COMPUTE_PASS],
   )
-  encodeMaterialPasses(rt, device, encoder)
-  assert.deepEqual(passSummary(passes), [[MATERIAL_SURFACES_PASS, 2]])
-  assert.deepEqual(pipelinesOf(passes[0]), [ordinary.get(5), ordinary.get(9)])
-  assert.ok(!pipelinesOf(passes[0]).includes(direct.get(5)))
-  rt.layout.rows.pageTableInts![PAGE_INFO.at.materialClass] = 9
-  rt.layout.rows.packedCount = 1
-  passes.length = 0
-  encodeMaterialPasses(rt, device, encoder)
-  assert.deepEqual(passSummary(passes), [[MATERIAL_SURFACES_PASS, 1]])
-  assert.equal(pipelinesOf(passes[0])[0], ordinary.get(9))
-  assert.notEqual(pipelinesOf(passes[0])[0], direct.get(5))
-  assert.equal(passes[0].depth, undefined)
-  assert.deepEqual(made, [], 'the resolve compiles no class: each was compiled before')
+  assert.deepEqual(pipelinesOf(computePasses[0]), [ordinary.get(5)])
+  assert.deepEqual(bins.assigned, [[5]])
+  assert.deepEqual(bins.laid, [[8, 4]])
+  assert.deepEqual(bins.shaded, [0])
+  assert.equal(rt.run.gpuComputeDispatches, 4 + 1)
 })
 
-test('the same classes replay the surfaces bundle, a class that leaves records it again', () => {
-  const { rt, device, bundles, encoder, passes } = resolveFixture([5, 9], [5, 9])
-  encodeMaterialPasses(rt, device, encoder)
-  encodeMaterialPasses(rt, device, encoder)
-  assert.deepEqual(passSummary(passes), [
-    [MATERIAL_SURFACES_PASS, 2],
-    [MATERIAL_SURFACES_PASS, 2],
-  ])
-  assert.equal(bundles.length, 1, 'recorded by the first image, replayed by the second')
-  // Recorded for the pass's attachments: the four surfaces and the feedback target.
-  assert.equal([...bundles[0].descriptor.colorFormats].length, passes[0].colors.length)
-  rt.layout.rows.pageTableInts![PAGE_INFO.at.materialClass] = 9
-  rt.layout.rows.packedCount = 1
-  encodeMaterialPasses(rt, device, encoder)
-  assert.equal(bundles.length, 2, 'one class left: its stream is recorded again')
-  assert.equal(drawsOf(passes[2]), 1)
-})
-
-// A held frame keys the bundle by the class set and the present classes' stamp: it looks up no
-// class pipeline, however many classes the image holds.
-test('a frame over the same classes replays without looking up a class pipeline', () => {
-  const { rt, device, encoder } = resolveFixture([5, 9, 2], [5, 9, 2])
-  const classes = rt.vis.shadeClasses!,
-    of = classes.of.bind(classes)
-  let looked = 0
-  classes.of = (key) => (looked++, of(key))
-  encodeMaterialPasses(rt, device, encoder)
-  assert.equal(looked, 3, 'the recording walks each class once')
-  for (let frame = 0; frame < 4; frame++) encodeMaterialPasses(rt, device, encoder)
-  assert.equal(looked, 3, 'held frames: none')
-})
-
-test('an empty class census retains the pass that clears the surfaces, and draws nothing', () => {
-  const { rt, device, encoder, passes } = resolveFixture([], [])
-  encodeMaterialPasses(rt, device, encoder)
+test('an empty class census retains the pass that clears the surfaces, and shades nothing', () => {
+  const { rt, encoder, passes, bins } = resolveFixture([], [])
+  encodeMaterialPasses(rt, encoder)
   assert.deepEqual(passSummary(passes), [[MATERIAL_SURFACES_PASS, 0]])
-  assert.equal(rt.run.gpuDrawCalls, 0)
+  assert.equal(bins.binned, 0)
+  assert.deepEqual(bins.shaded, [])
+  assert.equal(rt.run.gpuComputeDispatches, 0)
 })
 
-test('an image draws each class of its rows once in one pass without depth, from the class set', () => {
-  const { rt, device, encoder, passes, made, ordinary } = resolveFixture([5, 9, 5, 2], [5, 9, 2])
-  encodeMaterialPasses(rt, device, encoder)
-  // One pass: no material depth is written or tested, each class keeps its own pixels.
-  assert.deepEqual(passSummary(passes), [[MATERIAL_SURFACES_PASS, 3]])
-  const [surfaces] = passes
-  // Rows of class 5 twice: one draw; each class drawn with its compiled pipeline.
-  assert.deepEqual(pipelinesOf(surfaces), [ordinary.get(5), ordinary.get(9), ordinary.get(2)])
-  assert.equal(surfaces.depth, undefined)
+test('an image shades each class of its rows once, one dispatch of its bin, from the class set', () => {
+  const { rt, encoder, passes, computePasses, made, ordinary, bins } = resolveFixture(
+    [5, 9, 5, 2],
+    [5, 9, 2],
+  )
+  encodeMaterialPasses(rt, encoder)
+  // No material depth is written or tested: each class shades its own bin.
+  assert.equal(passes[0].depth, undefined)
+  // Rows of class 5 twice: one bin, one dispatch; each class with its compiled pipeline.
+  assert.deepEqual(bins.assigned, [[5, 9, 2]])
+  assert.deepEqual(pipelinesOf(computePasses[0]), [
+    ordinary.get(5),
+    ordinary.get(9),
+    ordinary.get(2),
+  ])
+  assert.deepEqual(bins.shaded, [0, 1, 2])
   assert.deepEqual(made, [])
-  assert.equal(rt.run.gpuDrawCalls, 3, 'one draw per class present')
+  assert.equal(rt.run.gpuComputeDispatches, 4 + 3, 'the bins, then one dispatch per class present')
 })
 
 test('a resolve without its bind group fails by name instead of drawing nothing', () => {
-  const { rt, device, encoder } = resolveFixture([5], [5])
+  const { rt, encoder } = resolveFixture([5], [5])
   rt.vis.shadeBindGroup = undefined
-  assert.throws(() => encodeMaterialPasses(rt, device, encoder), /MATERIAL_RESOLVE_UNAVAILABLE/)
+  assert.throws(() => encodeMaterialPasses(rt, encoder), /MATERIAL_RESOLVE_UNAVAILABLE/)
 })
 
-test('a backend makes no material depth, its class pipelines test no depth, and disposing destroys the visibility target', async () => {
+test('a backend makes no material depth, its classes are compute stages, and disposing destroys the visibility target', async () => {
   installGpuGlobals()
-  const { device, textures, renderPipelines, destroyed } = fakeDevice(BACKEND)
+  const { device, textures, renderPipelines, computePipelines, destroyed } = fakeDevice(BACKEND)
   const { source, metadata, indices, associations } = quadScene()
   const backend = webgpuPagesEngine({
     textureCaches: createTextureCaches(createPageCache()),
@@ -138,12 +102,8 @@ test('a backend makes no material depth, its class pipelines test no depth, and 
   await backend.prepare()
   backend.render(camera())
   assert.ok(!textures.some(({ label }) => label === 'Trillion3D material depth'))
-  const classes = renderPipelines.filter(({ fragment }) =>
-    fragment?.entryPoint?.startsWith('shade_'),
-  )
-  assert.ok(classes.length > 0)
-  for (const { depthStencil, fragment } of classes)
-    assert.equal(depthStencil, undefined, `${fragment?.entryPoint} tests no depth`)
+  assert.ok(computePipelines.some(({ compute }) => compute.entryPoint === 'shade_cs'))
+  assert.ok(!renderPipelines.some(({ fragment }) => fragment?.entryPoint?.startsWith('shade_')))
   assert.ok(!renderPipelines.some(({ fragment }) => fragment?.entryPoint === 'material_depth_fs'))
   const [ids] = textures.filter(({ label }) => label === 'Trillion3D visibility')
   assert.equal(destroyed.includes(ids), false)

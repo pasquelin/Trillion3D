@@ -48,7 +48,8 @@ impl Ifd<'_> {
     /// An unsigned integer of `width` bytes, in the order the header declares.
     fn uint(&self, at: usize, width: usize) -> Option<u32> {
         // Widths 1, 2 and 4 only: the narrowing is exact.
-        crate::le::uint_at(self.bytes, at, width, self.big_endian).map(|value| value as u32)
+        crate::support::le::uint_at(self.bytes, at, width, self.big_endian)
+            .map(|value| value as u32)
     }
 
     /// Values of an entry. They live in the field's four bytes when they fit — left-aligned —,

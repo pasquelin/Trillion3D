@@ -18,7 +18,7 @@ export function scene() {
 export const TABLES = [
   'clusters',
   'nodes',
-  'pageCones',
+  'coldWords',
   'worlds',
   'rootNodes',
   'rootBases',

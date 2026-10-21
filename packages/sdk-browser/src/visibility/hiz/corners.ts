@@ -15,10 +15,11 @@ export const rowGrowth = (page: HizPage, reach = 0) => (page.moved ? 0 : reach)
 
 /**
  * World-space corners of `page`'s box, written in `out` from `at`: eight corners of three doubles,
- * derived from its local bounds and the `world` of its root on every read, as the GPU partition receives
- * them per row. Nothing is kept per page — a host table of every packed page cost 24 doubles each
- * —, and the arithmetic is `projectBoxInto`'s (`projection.fixture.ts`), so the doubles are the
- * same bit for bit. A
+ * derived from its local bounds and the `world` of its root on every read: what the transparent
+ * occlusion audit hands its reference and the cluster inspection draws
+ * (`../../blend/transparent/occlusionAudit.ts`). Nothing is kept per page — a host table of every
+ * packed page cost 24 doubles each —, and the arithmetic is `projectBoxInto`'s
+ * (`projection.fixture.ts`), so the doubles are the same bit for bit. A
  * dynamic page's box is where its vertices are this frame (`moved`); another grows by its
  * root's `reach` on every side, the farthest a deformation moved a vertex from where its page is
  * bounded, as every cut and sphere grows it: an occlusion test of the rest box would reject a page

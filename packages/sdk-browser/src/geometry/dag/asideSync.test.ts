@@ -6,6 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { packDagSelection } from './pack/pack.ts'
 import { LINK_WORDS } from './worlds/worldLinks.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime/runtime.ts'
 import type { RootsOnGpu } from './runtime/runtimeOps.ts'
@@ -34,7 +35,7 @@ async function asideOver(roots: DagRoot[]) {
     },
   }
   const resources = (await createDagResources(gpu.device, packed))!
-  const selection = createDagRuntime(resources, undefined, onGpu)
+  const selection = createDagRuntime(resources, onGpu)
   const aside = selection.aside()
   const uniforms = { ...createSelectionUniforms(), pixelError: 1 }
   selection.dispatch(uniforms)
@@ -95,5 +96,9 @@ test('a view aside cut alone reads the links of placements put in their cells si
       const at = w * LINK_WORDS + k
       assert.equal(cold[linkBase + at], links[at], `placement ${w}`)
     }
-  assert.deepEqual([...links.subarray(4 * LINK_WORDS, 7 * LINK_WORDS)], [0, 0, 1, 0, 2, 0])
+  // Each its cell, its instance and no file.
+  assert.deepEqual(
+    [...links.subarray(4 * LINK_WORDS, 7 * LINK_WORDS)],
+    [0, 0, NO_INDEX, 1, 0, NO_INDEX, 2, 0, NO_INDEX],
+  )
 })

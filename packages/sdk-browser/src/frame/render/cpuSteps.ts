@@ -55,7 +55,6 @@ function recordStages(rt: WebgpuPagesRuntime) {
     dagClusters: rt.run.gpuSelection?.pageCount ?? 0,
   })
   stages.setCounts('animations', timing.worldCounts)
-  stages.setCounts('partition', timing.partitionCounts)
   timing.encodeCounts.drawCalls = rt.run.gpuDrawCalls
   timing.encodeCounts.blendDrawCalls = rt.run.blendDrawCalls
   timing.encodeCounts.computeDispatches = rt.run.gpuComputeDispatches

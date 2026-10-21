@@ -18,7 +18,7 @@ function world() {
 
 test('an arrival off the cut, the cover and the pins leaves the image alone', () => {
   const w = world()
-  frame(w, [2, 3], 64)
+  frame(w, [2, 3])
   // Pages o1 (cut) and o0 (bootstrap cover) matter; o5 is named by nothing the image reads.
   assert.equal(w.affectsImage([w.packed[2]]), true, 'a page the cut asks for')
   assert.equal(w.affectsImage([w.packed[0]]), true, 'a page of the bootstrap cover')
@@ -29,7 +29,7 @@ test('an arrival off the cut, the cover and the pins leaves the image alone', ()
 
 test('a page the cut asks for past the page budget still counts', () => {
   const w = world()
-  // Room for nothing: the queue is empty, the cut still asks for o4.
+  // No streaming slot: the streaming starts nothing, the cut still asks for o4.
   frame(w, [8, 9], 0)
   assert.equal(w.tracking.wanted.has(w.tracking.keyOf(w.packed[8])), false)
   assert.equal(w.affectsImage([w.packed[8]]), true)
@@ -37,7 +37,7 @@ test('a page the cut asks for past the page budget still counts', () => {
 
 test('a page the cache holds pinned counts, whatever the cut says', () => {
   const w = world()
-  frame(w, [], 64)
+  frame(w, [])
   w.pinned.add(w.tracking.keyOf(w.packed[14]))
   assert.equal(w.affectsImage([w.packed[14]]), true)
 })

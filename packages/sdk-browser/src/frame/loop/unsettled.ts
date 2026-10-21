@@ -30,6 +30,10 @@ const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << inde
 >
 export const TEXTURES_PENDING = BIT.texturesPending,
   SHADOWS_PENDING = BIT.shadowsPending
+/** The bits that say the view has not loaded what its scene holds yet: the root cover, the cut's
+ *  readback and the row table (`viewLoading`). The finer pages the cut asks past the roots stream
+ *  in after, image by image, as they would once shown. */
+const LOADING = BIT.bootstrap | BIT.metricsPending | BIT.rowsDirty
 /** The run's own state: loss, capture, frame, cut and budget flags. */
 function runMask(rt: WebgpuPagesRuntime) {
   const { run, capture, timing } = rt,
@@ -65,7 +69,7 @@ function loadMask(rt: WebgpuPagesRuntime) {
   if (shadowsUnsettled(lights, rt.rowWords)) mask |= BIT.shadowsPending
   // Pending cut pages must land before holding; the cut difference keeps this count.
   if (services.cutPending.count) mask |= BIT.cutPending
-  // An HLOD switch waiting on its actor's textures switches on a later cut: a still view keeps
+  // An HLOD switch waiting on its actor's warm-up switches on a later cut: a still view keeps
   // drawing till it has (`../prepare/hlodWarm.ts`).
   if (run.gpuSelection?.world?.warming) mask |= BIT.hlodWarming
   return mask
@@ -91,6 +95,17 @@ function historyMask(rt: WebgpuPagesRuntime, frame: number | undefined) {
 export function unsettledMask(rt: WebgpuPagesRuntime, frame?: number) {
   const other = runMask(rt) | loadMask(rt) | historyMask(rt, frame)
   return reflectionsPending(rt.gpu.reflection) ? other | BIT.reflections : other
+}
+/**
+ * Whether the active view still loads: one of its loading bits set (`LOADING`), or a world's
+ * cell wished and not visible yet — its content not loaded, its placements' roots not resident
+ * (`WorldCells.shown`). What the session's first image waits for (`firstImage.ts`): the streaming
+ * of the cells completed. Textures, shadows, the finer pages and the temporal histories refine an
+ * image already whole, and wait for nothing here.
+ */
+export function viewLoading(rt: WebgpuPagesRuntime) {
+  const world = rt.run.gpuSelection?.world
+  return ((runMask(rt) | loadMask(rt)) & LOADING) !== 0 || (!!world && !world.shown)
 }
 /** Names of the bits that are set: what the barrier publishes when the pose does not settle. */
 export const unsettledReasons = (mask: number) =>

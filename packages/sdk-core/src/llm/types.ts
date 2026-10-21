@@ -19,6 +19,8 @@ export interface JsonSchemaProperty {
   default?: string | number | boolean
   /** Smallest value. */
   minimum?: number
+  /** The value must be above this one. */
+  exclusiveMinimum?: number
   /** Largest value. */
   maximum?: number
   /** The shape of each item. */

@@ -112,7 +112,6 @@ export type {
 } from './session/memory/pools.ts'
 export type { TexturePool } from './geometry/residency/memoryBudgets.ts'
 export type { BudgetCanvas } from './session/memory/memoryBudget.ts'
-export type { PartitionAudit } from './gpu/core/partitionAudit.ts'
 export type {
   FrameInspection,
   InspectedCamera,
@@ -139,7 +138,8 @@ export type {
   TextureCompression,
 } from './materials/texture/blockFormats.ts'
 export type { TextureCache } from './materials/texture/textureCaches.ts'
-export type { WorldCells } from './gpu/core/selection.ts'
+export type { WorldCells } from './geometry/dag/worlds/worldCells.ts'
+export type { ActorWarmth } from './geometry/dag/worlds/worldWarm.ts'
 export type {
   HostRetentionDelta,
   PageStreamerOptions,
@@ -152,7 +152,25 @@ export { presentationColorDiagnostic } from './diagnostic/presentationDiagnostic
 export { createGpuPageCache, type GpuPageCacheOptions } from './geometry/pages/pool/pages.ts'
 export type { ResidentPage } from './geometry/pages/pool/types.ts'
 export type { EvictionOrder } from './geometry/pages/pool/eviction.ts'
-export type { PageHome, PageHomes } from './geometry/pages/pool/homes.ts'
+export type { PageHome, PageHomes, PageUnit, PageUnitsOf } from './geometry/pages/pool/homes.ts'
+export type { GrownPages } from './geometry/pages/pool/resize.ts'
+export type { RootSlots } from './geometry/pages/pool/placement.ts'
+// The animation banks a mesh's track (`Mesh.bank`) names and the clock they play by, and the setting
+// rules the run-time options are resolved by: named where the public signatures carry them.
+export type {
+  AnimationBanks,
+  BankBake,
+  BankItem,
+  BankTrack,
+  DecodedBanks,
+} from '../../sdk-core/src/scene/core/animationBanks.ts'
+export type { BankClock } from '../../sdk-core/src/world/animation/bankClock.ts'
+export type {
+  RulesByField,
+  SettingOptions,
+  SettingRange,
+  SettingValues,
+} from '../../sdk-core/src/contracts/settingRules.ts'
 export { createPageStreamer } from './geometry/streaming/pageStreamer.ts'
 // The page cache a streamer reads through, its owner's (`PageStreamerOptions.cache`).
 export {

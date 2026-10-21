@@ -11,7 +11,6 @@ import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { enginePose, resolveCameraWorld } from './world.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
-import { resolvePixelError } from '../geometry/selection/requests.ts'
 import { createFrameGateCore } from '../frame/gate/gateCore.ts'
 import {
   POSES_PARENT,
@@ -20,7 +19,6 @@ import {
   poseRig,
 } from '../../../../tests/kit/device/cameraRig.ts'
 import { engineCamera } from './camera.fixture.ts'
-import type { CameraMotion } from './motion.ts'
 
 type Pose = (typeof POSES_PARENT)[number]
 const VIEWPORT: [number, number] = [1280, 720]
@@ -149,23 +147,4 @@ test('boundary: a function called alone resolves its own pose', () => {
       'selection uniforms must describe the same camera as the flattened pose',
     )
   }
-})
-
-test('boundary: the adaptive threshold called alone measures the eye velocity in the world', () => {
-  const contexte = { pixelError: 1, lodAdaptive: true }
-  const rig = creeRig(),
-    sousRigMotion: CameraMotion = {},
-    flattenedMotion: CameraMotion = {}
-  for (const pose of POSES_PARENT as Pose[]) {
-    // No frame entry here: the rig camera has never been walked by anyone.
-    resolvePixelError(contexte, engineCamera(poseRig(rig, pose, false) as Camera), sousRigMotion)
-    resolvePixelError(contexte, engineCamera(flattenedCamera(pose) as Camera), flattenedMotion)
-    assert.deepEqual(
-      [...(sousRigMotion.last ?? [])],
-      [...(flattenedMotion.last ?? [])],
-      'the position kept for velocity must be that of the eye in the world',
-    )
-  }
-  // The test discriminates: without resolve, the velocity would be that of the camera in its rig.
-  assert.notDeepEqual([...(sousRigMotion.last ?? [])], G.xyz(rig.camera.position))
 })

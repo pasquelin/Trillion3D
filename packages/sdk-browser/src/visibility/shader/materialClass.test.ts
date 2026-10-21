@@ -82,63 +82,26 @@ test('the resolve trusts the raster that kept the pixel: no second cutout', () =
     ),
   )
   assert.doesNotMatch(fragment, /baseColor\.w/)
-  assert.ok(SHADE_SHADER.includes('if(!classAdmits(id)){discard;}'))
-  // The entry (`shadeEntryWgsl.ts`) is a declaration of the program: the one reject is the whole
-  // shader's.
-  assert.equal(
-    SHADE_SHADER.match(/discard;/g)?.length,
-    1,
-    'visibility bounds and class ownership, one reject, guard storage writes',
-  )
+  // A compute stage rejects nothing: its lanes past their bin leave before any write.
+  assert.doesNotMatch(SHADE_SHADER, /discard;/)
 })
 
-test('the resolve compiles one pipeline per class, none with a depth test', async () => {
-  const { device, renderPipelines } = fakeDevice()
-  const pipelines = renderPipelines as unknown as Array<{
-    vertex: { constants?: Record<string, number> }
-    fragment: { entryPoint: string; constants?: Record<string, number>; targets: unknown[] }
-    depthStencil?: unknown
-  }>
+test('the resolve compiles one compute pipeline per class, none a depth export', async () => {
+  const { device, computePipelines } = fakeDevice()
   const made = await createWebgpuShadePipelines(device, {} as GPUShaderModule, [0, 5])
-  assert.equal(pipelines.length, 2, 'no depth export')
-  const [first, second] = pipelines
+  assert.equal(computePipelines.length, 2, 'no depth export')
+  const [first, second] = computePipelines
   for (const [key, pipeline] of [
     [0, first],
     [5, second],
   ] as const) {
-    assert.equal(pipeline.fragment.entryPoint, 'shade_fs')
-    assert.deepEqual(pipeline.vertex.constants, { CLASS_KEY: key })
-    // The fragment's tile request folded in by its feedback target (`feedbackConstants`).
-    assert.deepEqual(pipeline.fragment.constants, { CLASS_KEY: key, FEEDBACK: 1 })
-    assert.equal(pipeline.depthStencil, undefined)
+    assert.equal(pipeline.compute.entryPoint, 'shade_cs')
+    // The tile request folded in by its feedback target (`feedbackConstants`).
+    assert.deepEqual(pipeline.compute.constants, { CLASS_KEY: key, FEEDBACK: 1 })
     const compiled = made.shadeClasses.of(key)
     assert.equal(compiled.ready, true, 'compiled at preparation, off the thread')
-    assert.equal(compiled.get(), pipeline as unknown as GPURenderPipeline)
+    assert.equal((compiled.get() as unknown as { entryPoint: string }).entryPoint, 'shade_cs')
   }
-})
-
-test('one production class also compiles a direct surface pipeline', async () => {
-  const { device, renderPipelines } = fakeDevice()
-  const made = await createWebgpuShadePipelines(device, {} as GPUShaderModule, [5])
-  const direct = made.shadeClasses.single(5)!.get() as unknown as {
-    vertex: { constants?: Record<string, number> }
-    fragment: { entryPoint: string; constants?: Record<string, number>; targets: unknown[] }
-    depthStencil?: unknown
-  }
-  assert.ok(renderPipelines.includes(direct as unknown as GPURenderPipelineDescriptor))
-  assert.equal(direct.fragment.entryPoint, 'shade_fs')
-  assert.deepEqual(direct.vertex.constants, { CLASS_KEY: 5, SINGLE_CLASS: 1 })
-  assert.deepEqual(direct.fragment.constants, { CLASS_KEY: 5, SINGLE_CLASS: 1, FEEDBACK: 1 })
-  assert.equal(direct.fragment.targets.length, 5)
-  assert.equal(direct.depthStencil, undefined)
-
-  const diagnostic = await createWebgpuShadePipelines(
-    fakeDevice().device,
-    {} as GPUShaderModule,
-    [5],
-    'resolve-flat',
-  )
-  assert.equal(diagnostic.shadeClasses.single(5), undefined)
 })
 
 test('the materials view colours a pixel by the class that resolved it', () => {

@@ -73,7 +73,6 @@ test("a closed backend's reads answer nothing once the next session opens, and n
   const next = quadBackend(device)
   await next.backend.prepare()
   await closing
-  assert.equal(await first.backend.partitionAudit?.(), null)
   assert.equal(await first.backend.transparentOcclusionAudit?.(), null)
   await next.backend.dispose()
   for (const { fixture } of [first, next]) {

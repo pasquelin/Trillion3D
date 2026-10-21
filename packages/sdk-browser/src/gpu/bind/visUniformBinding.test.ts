@@ -31,7 +31,6 @@ test('every group that binds the visibility uniform spans the whole struct', () 
     cache: buffer,
     position: buffer,
     pageTable: buffer,
-    flags: buffer,
     uniformOffset: 256,
     uv: buffer,
     instances: buffer,
@@ -42,10 +41,8 @@ test('every group that binds the visibility uniform spans the whole struct', () 
     indices: buffer,
     positions: buffer,
     pages: buffer,
-    hizFlags: buffer,
     uvs: buffer,
     work: buffer,
-    selectionMask: buffer,
   })
   assert.equal(sizeAt(vis, VIS_BINDINGS.uniform), VIS_UNIFORM_BYTES)
   assert.equal(sizeAt(small, SMALL_BINDINGS.uniform), VIS_UNIFORM_BYTES)
@@ -62,12 +59,17 @@ test('both stages read the visibility uniform, at the size of its struct', async
   assert.equal(entry.buffer?.minBindingSize, VIS_UNIFORM_BYTES)
 })
 
-test('the uniform size covers its words, rounded to the matrix alignment', () => {
-  const words = wgslSource(VIS_UNIFORMS_WGSL)
-    .replace(/.*viewProj:mat4x4f,/, '')
-    .match(/:(f32|u32)/g)!
-  const vec2 = (wgslSource(VIS_UNIFORMS_WGSL).match(/:vec2f/g) ?? []).length
-  const bytes = 64 + 4 * words.length + 8 * vec2
-  assert.match(wgslSource(VIS_UNIFORMS_WGSL), /selectionEnabled:u32,pixelRatio:f32,mipBias:f32,\}$/)
-  assert.equal(VIS_UNIFORM_BYTES, alignUp(bytes, 16))
+// A member's bytes and alignment, as WGSL's struct rules give them.
+const MEMBERS = { f32: [4, 4], u32: [4, 4], vec2f: [8, 8], vec3f: [12, 16], mat4x4f: [64, 16] }
+
+test('the uniform size covers its members, laid out as WGSL lays them, rounded to the matrix alignment', () => {
+  const source = wgslSource(VIS_UNIFORMS_WGSL)
+  let end = 0
+  for (const [, type] of source.matchAll(/\w+:(f32|u32|vec2f|vec3f|mat4x4f),/g)) {
+    const [bytes, align] = MEMBERS[type as keyof typeof MEMBERS]
+    end = alignUp(end, align) + bytes
+  }
+  // The cluster split's last word: whether any cluster is the software raster's.
+  assert.match(source, /hardwareEdge:f32,softwareRaster:u32,\}$/)
+  assert.equal(VIS_UNIFORM_BYTES, alignUp(end, 16))
 })

@@ -153,7 +153,7 @@ export function poolEncoding(block: TextureBlockFormat | undefined): PoolEncodin
  * without a map reads. BC7: mode 6, every endpoint at its maximum; ASTC: a void-extent block of
  * 16-bit ones; ETC2 RGBA8: an EAC alpha at 255, then an individual-mode colour at 15 on every
  * channel. Proved on an independent decoder in
- * `packages/asset-compiler-rust/src/texture_preview/blocks/tests.rs` and `tests_etc2.rs`.
+ * `packages/asset-compiler-rust/src/texture/blocks/tests.rs` and `tests/etc2.rs`.
  */
 export const WHITE_TAIL: TailBytes = {
   levels: [new Uint8Array([255, 255, 255, 255]) as Uint8Array<ArrayBuffer>],

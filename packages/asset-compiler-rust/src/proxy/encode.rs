@@ -1,3 +1,5 @@
+#[cfg(test)]
+pub(crate) mod tests;
 use super::{SceneProxy, SCENE_PROXY_HEADER_WORDS, SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION};
 use serde_json::{json, Value};
 use trillion3d_page_codec::proxy::{
@@ -53,7 +55,3 @@ impl SceneProxy {
         words.iter().flat_map(|word| word.to_le_bytes()).collect()
     }
 }
-
-#[cfg(test)]
-#[path = "encode_tests.rs"]
-pub(crate) mod tests;

@@ -53,7 +53,7 @@ const outputs: Record<string, () => string> = {
   'packages/sdk-core/src/page/format.ts': pageFormatTs,
   'packages/sdk-core/src/contracts/writtenFormats.ts': writtenFormatsTs,
   'packages/sdk-browser/src/wasm/encodeAbi.ts': pageEncoderAbiTs,
-  'packages/asset-compiler-rust/src/texture_preview/coverage_math.rs': coverageRust,
+  'packages/asset-compiler-rust/src/texture/coverage_math.rs': coverageRust,
   'packages/asset-compiler-rust/src/shared_math/abi.rs': compilerAbiRust,
   'packages/sdk-browser/src/session/host/familyLoadFailedId.ts': familyLoadFailedId,
 }

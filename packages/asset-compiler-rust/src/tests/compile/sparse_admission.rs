@@ -72,6 +72,6 @@ pub(in crate::tests) fn two_grids() -> (PathBuf, Options) {
         "accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":(n + 1) * (n + 1)},{"bufferView":1,"componentType":5125,"type":"SCALAR","count":n * n * 6}],
         "meshes":[{"primitives":[primitive, primitive]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
     let (root, mut options) = crate::tests::fixtures::gltf_fixture("waves", &gltf, &bin);
-    options.threads = (60 << 20) / crate::compiler_primitive::cost::WORKER_BYTES;
+    options.threads = (60 << 20) / crate::compiler::primitive::cost::WORKER_BYTES;
     (root, options)
 }

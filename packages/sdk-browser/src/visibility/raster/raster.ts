@@ -1,21 +1,25 @@
 import {
+  DISPATCH_BASE,
   DISPATCH_WORDS,
-  HEADER_CLEAR_BYTES,
-  LIST_HEADER,
-  MODE_DEPTH_OCCLUDER,
-  MODE_DEPTH_REST,
+  MODE_DEPTH,
   MODE_ID,
   RASTER_CLASSES,
+  RASTER_PASSES,
+  RASTER_PASS_MAIN,
+  RASTER_PASS_POST,
   rasterEntry,
+  rasterListWords,
+  type RasterPass,
 } from './contract.ts'
 import { RESOLVE, rasterSource } from './shader.ts'
+import { binLayoutEntries, binSource } from './binWgsl.ts'
 import { SMALL_BINDINGS, atlasLayoutEntries } from '../../gpu/bind/bindLayout.ts'
 import { createRasterBindings } from './bindings.ts'
 import { createRasterResolves } from './resolve.ts'
 import { preparedComputeStage } from '../../gpu/core/computeStages.ts'
 import type { GpuRasterInput } from './types.ts'
-import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
-import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
+import type { OpenPass } from '../../gpu/core/lazyComputePass.ts'
+import { dispatchRows } from '../../gpu/dispatch/grid.ts'
 import {
   RASTER_BINNING_PASS,
   RASTER_IDENTIFIERS_PASS,
@@ -30,10 +34,12 @@ import {
 } from '../../gpu/core/computeBindings.ts'
 
 /**
- * Compute raster of the opaque and masked cut.
+ * The visibility raster's buffer and its software half: the cluster split and the binning, the
+ * software classes, and the resolves of the buffer both rasters write (`VIS_WRITE_WGSL`).
  *
- * `capacity` is the number of triangles a list can hold: every triangle of every drawable row.
- * Both lists therefore each hold the whole, and no frame loses one.
+ * `width` × `height` is the size of the targets, the most any image draws; `capacity` the number
+ * of triangles a list can hold: every triangle of every drawable row. Each pass's two lists
+ * therefore each hold the whole, and no frame loses one.
  */
 export function createGpuRaster(
   device: GPUDevice,
@@ -41,35 +47,59 @@ export function createGpuRaster(
   height: number,
   capacity: number,
 ) {
-  const { targetBytes, listOffset, work, indirect } = rasterBuffers(device, width, height, capacity)
-  const { computeLayout, ...pipelines } = rasterPipelines(device, capacity, listOffset)
+  const { targetBytes, listOffsets, work, indirect } = rasterBuffers(
+    device,
+    width,
+    height,
+    capacity,
+  )
+  const { layouts, ...pipelines } = rasterPipelines(device, capacity, listOffsets)
+  const bindings = createRasterBindings(device, layouts, work)
   const r: Raster = {
-    ...{ width, height, work, indirect, listOffset, ...pipelines },
+    ...{ work, indirect, listOffsets, targetBytes, ...pipelines },
     resolves: createRasterResolves(device, RESOLVE, work, targetBytes),
-    bindings: createRasterBindings(device, computeLayout, work),
+    bindings,
     group: undefined,
   }
   return {
     width,
     height,
     capacity,
-    /**
-     * Occluder half: binning the cut, occluder depth, and its merge into pyramid level zero and
-     * the depth buffer the hardware raster just wrote. Returns the number of compute dispatches
-     * encoded.
-     */
-    encodeOccluders: (encoder: GPUCommandEncoder, input: GpuRasterInput) =>
-      encodeOccluders(r, encoder, input),
-    /** Surviving tested half, after the pyramid verdict. */
-    encodeRest(encoder: GPUCommandEncoder) {
-      encodeMode(r, encoder, MODE_DEPTH_REST, RASTER_TESTED_DEPTH_PASS)
+    /** The hardware raster's group over the visibility buffer its fragments write. */
+    hardwareGroup: bindings.hardware,
+    /** The binning of `pass`: the cluster split written into the draw records of the rows its
+     *  mask selects, its software rows binned into its lists, then `compact`'s dispatches in the
+     *  same compute pass — the pass's hardware compaction, which reads those records. The main
+     *  pass's opens the image, the visibility buffer cleared with its class counts; the post
+     *  pass's clears its own counts alone. Returns the number of compute dispatches encoded. */
+    encodeBinning: (
+      encoder: GPUCommandEncoder,
+      input: GpuRasterInput,
+      pass: RasterPass,
+      compact?: (open: OpenPass) => void,
+    ) => encodeBinning(r, encoder, input, pass, compact),
+    /** The software depth of `pass`'s lists, after its hardware slots'. */
+    encodeDepth(encoder: GPUCommandEncoder, pass: RasterPass) {
+      encodeMode(r, encoder, pass === RASTER_PASS_MAIN ? MAIN_ONLY : POST_ONLY, MODE_DEPTH)
       return RASTER_CLASSES.length
     },
-    /** Identifier resolve over everything that was drawn, and the frame closed. */
-    encodeIds(encoder: GPUCommandEncoder, input: GpuRasterInput) {
-      encodeMode(r, encoder, MODE_ID, RASTER_IDENTIFIERS_PASS)
-      r.resolves.encodeFinal(encoder, input, width, height)
-      return RASTER_CLASSES.length
+    /** The depth both rasters wrote so far, into the pyramid's level zero (`size` the image's
+     *  drawn size). */
+    encodeDepthLevel(encoder: GPUCommandEncoder, input: GpuRasterInput, size: readonly number[]) {
+      r.resolves.encodeDepthLevel(encoder, input, size[0]!, size[1]!)
+    },
+    /** The software identifiers over the lists of the main pass — and of the post pass when
+     *  `post` —, after the hardware raster's, and the frame closed. */
+    encodeIds(
+      encoder: GPUCommandEncoder,
+      input: GpuRasterInput,
+      size: readonly number[],
+      post: boolean,
+    ) {
+      const passes = post ? RASTER_PASSES : MAIN_ONLY
+      encodeMode(r, encoder, passes, MODE_ID)
+      r.resolves.encodeFinal(encoder, input, size[0]!, size[1]!)
+      return passes.length * RASTER_CLASSES.length
     },
     dispose() {
       work.destroy()
@@ -78,111 +108,143 @@ export function createGpuRaster(
   }
 }
 
-type Raster = Omit<ReturnType<typeof rasterPipelines>, 'computeLayout'> & {
-  width: number
-  height: number
+const MAIN_ONLY = [RASTER_PASS_MAIN] as const,
+  POST_ONLY = [RASTER_PASS_POST] as const
+/** Each mode's compute pass label, by mode (`MODE_DEPTH`, `MODE_ID`) then by the first pass it
+ *  draws: the passes' depths are timed apart, the identifiers of both together. */
+const MODE_LABELS = [
+  [RASTER_OCCLUDER_DEPTH_PASS, RASTER_TESTED_DEPTH_PASS],
+  [RASTER_IDENTIFIERS_PASS, RASTER_IDENTIFIERS_PASS],
+] as const
+
+type Raster = Omit<ReturnType<typeof rasterPipelines>, 'layouts'> & {
   work: GPUBuffer
   indirect: GPUBuffer
-  listOffset: number
+  listOffsets: readonly number[]
+  targetBytes: number
   resolves: ReturnType<typeof createRasterResolves>
   bindings: ReturnType<typeof createRasterBindings>
+  /** The software raster's group, the image's, bound by the main pass's binning. */
   group: GPUBindGroup | undefined
 }
 
 /** One storage buffer for the image and for the lists: the compute stage is allowed only eight
- *  buffers on the poorest device WebGPU guarantees, and the raster uses them all. */
+ *  buffers on the poorest device WebGPU guarantees, and the raster uses six. The image first —
+ *  depth keys, then identifiers —, then the main pass's lists, then the post pass's. */
 function rasterBuffers(device: GPUDevice, width: number, height: number, capacity: number) {
   const targetBytes = Math.max(8, width * height * 8),
-    listOffset = targetBytes
+    passBytes = rasterListWords(capacity) * 4
+  const listOffsets = RASTER_PASSES.map((pass) => targetBytes + pass * passBytes)
   const work = device.createBuffer({
-    label: 'Trillion3D raster target and lists',
-    size: listOffset + Math.max(4, (LIST_HEADER + 2 * capacity) * 4),
+    label: 'Trillion3D visibility buffer and lists',
+    size: targetBytes + RASTER_PASSES.length * passBytes,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   })
   // Dispatch words are copied out of the lists instead of being written by a binding, so no
-  // pass holds the buffer it launches from.
+  // pass holds the buffer it launches from: one pass's after the other's.
   const indirect = device.createBuffer({
     label: 'Trillion3D raster dispatch',
-    size: DISPATCH_WORDS * 4,
+    size: RASTER_PASSES.length * DISPATCH_WORDS * 4,
     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
   })
-  return { targetBytes, listOffset, work, indirect }
+  return { targetBytes, listOffsets, work, indirect }
 }
 
-function rasterPipelines(device: GPUDevice, capacity: number, listOffset: number) {
+function rasterPipelines(device: GPUDevice, capacity: number, listOffsets: readonly number[]) {
   const b = SMALL_BINDINGS
   const compute = COMPUTE
-  const computeLayout = device.createBindGroupLayout({
+  const rasterLayout = device.createBindGroupLayout({
     entries: [
       computeBufferEntry(b.indices, 'read-only-storage', compute),
       computeBufferEntry(b.positions, 'read-only-storage', compute),
       computeBufferEntry(b.pages, 'read-only-storage', compute),
-      computeBufferEntry(b.hizFlags, 'read-only-storage', compute),
       computeBufferEntry(b.uniform, 'uniform', compute),
       computeBufferEntry(b.uvs, 'read-only-storage', compute),
       ...atlasLayoutEntries(b.color, compute),
       computeSamplerEntry(b.sampler, 'filtering', compute),
       computeBufferEntry(b.work, 'storage', compute),
-      computeBufferEntry(b.selectionMask, 'read-only-storage', compute),
       computeTextureEntry(b.material, 'uint', '2d-array', compute),
       computeTextureEntry(b.normals, 'unfilterable-float', '2d-array', compute),
     ],
   })
-  const computeModule = device.createShaderModule({ code: rasterSource(capacity, listOffset / 4) })
-  const computePipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [computeLayout] })
+  const binLayout = device.createBindGroupLayout({ entries: binLayoutEntries() })
   // Asked, compiled off the thread from now, the frames held on them: the raster is made at a
   // frame's entry (`../../frame/loop/framePipelines.ts`), and the frame that draws it finds them.
-  const pipelineFor = (entryPoint: string) =>
-    preparedComputeStage(device, computePipelineLayout, computeModule, entryPoint).ask()
-  const clear = pipelineFor('clear'),
-    bin = pipelineFor('bin'),
-    plan = pipelineFor('plan')
-  /** One pipeline per class and per mode: the mode does not travel by a uniform, it IS the
-   *  entry point, so no dispatch rereads a word to know what it does. */
-  const raster = RASTER_CLASSES.map((klass) =>
-    [MODE_DEPTH_OCCLUDER, MODE_DEPTH_REST, MODE_ID].map((mode) =>
-      pipelineFor(rasterEntry(klass, mode)),
+  // One module each, one pipeline a pass: the pass's lists are its override (`LIST`), the word
+  // their header starts at.
+  const stages = (layout: GPUBindGroupLayout, module: GPUShaderModule) => {
+    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
+    return (entryPoint: string, pass: RasterPass) =>
+      preparedComputeStage(device, pipelineLayout, module, entryPoint, {
+        LIST: listOffsets[pass]! / 4,
+      }).ask()
+  }
+  const binStage = stages(binLayout, device.createShaderModule({ code: binSource(capacity) })),
+    rasterStage = stages(rasterLayout, device.createShaderModule({ code: rasterSource(capacity) }))
+  const bin = RASTER_PASSES.map((pass) => binStage('bin', pass)),
+    plan = RASTER_PASSES.map((pass) => binStage('plan', pass))
+  /** One pipeline per pass, class and mode: neither the lists nor the mode travel by a uniform,
+   *  they ARE the pipeline, so no dispatch rereads a word to know what it does. */
+  const raster = RASTER_PASSES.map((pass) =>
+    RASTER_CLASSES.map((klass) =>
+      [MODE_DEPTH, MODE_ID].map((mode) => rasterStage(rasterEntry(klass, mode), pass)),
     ),
   )
-  return { computeLayout, clear, bin, plan, raster }
+  return { layouts: { raster: rasterLayout, bin: binLayout }, bin, plan, raster }
 }
 
-/** The four indirect dispatches of a mode, in a single compute pass. */
-function encodeMode(r: Raster, encoder: GPUCommandEncoder, mode: number, label: string) {
-  const pass = encoder.beginComputePass({ label })
-  pass.setBindGroup(0, r.group!)
-  for (let klass = 0; klass < RASTER_CLASSES.length; klass++) {
-    pass.setPipeline(r.raster[klass]![mode]!.get())
-    pass.dispatchWorkgroupsIndirect(r.indirect, klass * 12)
-  }
-  pass.end()
+/** The three indirect dispatches of a mode for each of `passes`, in a single compute pass: two
+ *  consecutive passes already see each other's writes, so every class of both passes has written
+ *  its depth before any chooses an identifier — one chosen before a class wrote its depth would
+ *  name a losing triangle. */
+function encodeMode(
+  r: Raster,
+  encoder: GPUCommandEncoder,
+  passes: readonly RasterPass[],
+  mode: number,
+) {
+  const compute = encoder.beginComputePass({ label: MODE_LABELS[mode]![passes[0]!] })
+  compute.setBindGroup(0, r.group!)
+  for (const pass of passes)
+    for (let klass = 0; klass < RASTER_CLASSES.length; klass++) {
+      compute.setPipeline(r.raster[pass]![klass]![mode]!.get())
+      compute.dispatchWorkgroupsIndirect(r.indirect, (pass * DISPATCH_WORDS + klass * 3) * 4)
+    }
+  compute.end()
 }
 
-function encodeOccluders(r: Raster, encoder: GPUCommandEncoder, input: GpuRasterInput) {
-  const { width, height, work, listOffset } = r
-  const group = (r.group = r.bindings(input))
-  encoder.clearBuffer(work, listOffset, HEADER_CLEAR_BYTES)
+function encodeBinning(
+  r: Raster,
+  encoder: GPUCommandEncoder,
+  input: GpuRasterInput,
+  pass: RasterPass,
+  compact?: (open: OpenPass) => void,
+) {
+  const { work } = r,
+    list = r.listOffsets[pass]!
+  // Zero is the far plane's key and the background's identifier: the main pass's binning opens
+  // the image, which starts there with its class counts, in one clear; the post pass's clears its
+  // counts alone, the depth the main pass wrote kept.
+  if (pass === RASTER_PASS_MAIN) {
+    r.group = r.bindings.raster(input)
+    encoder.clearBuffer(work, 0, list + DISPATCH_BASE * 4)
+  } else encoder.clearBuffer(work, list, DISPATCH_BASE * 4)
   const binning = encoder.beginComputePass({ label: RASTER_BINNING_PASS })
-  binning.setBindGroup(0, group)
-  binning.setPipeline(r.clear.get())
-  // A thread a pixel.
-  dispatchRows(binning, ceilDiv(width * height, WORKGROUP_THREADS))
-  binning.setPipeline(r.bin.get())
-  // A group a page row, in rows; z: a page's triangles, at most 256 (`VIS_TRIANGLE_BITS`), 4 groups.
-  dispatchRows(
-    binning,
-    Math.max(1, input.pageRows),
-    workgroupCount(input.maxTriangles, WORKGROUP_THREADS),
-  )
-  binning.setPipeline(r.plan.get())
+  binning.setBindGroup(0, r.bindings.bin(input, pass))
+  binning.setPipeline(r.bin[pass]!.get())
+  // A workgroup a drawable row, in rows.
+  dispatchRows(binning, Math.max(1, input.pageRows))
+  binning.setPipeline(r.plan[pass]!.get())
   binning.dispatchWorkgroups(1)
+  compact?.({ pass: binning })
   binning.end()
-  encoder.copyBufferToBuffer(work, listOffset + 24, r.indirect, 0, DISPATCH_WORDS * 4)
-  // One pass per raster dispatch: two consecutive dispatches already see each other's
-  // writes, so every class has written its depth before any chooses an identifier. An
-  // identifier chosen before a class has written its depth would name a losing triangle.
-  encodeMode(r, encoder, MODE_DEPTH_OCCLUDER, RASTER_OCCLUDER_DEPTH_PASS)
-  if (input.tested) r.resolves.encodeHiz(encoder, input, width, height)
-  return 3 + RASTER_CLASSES.length
+  encoder.copyBufferToBuffer(
+    work,
+    list + DISPATCH_BASE * 4,
+    r.indirect,
+    pass * DISPATCH_WORDS * 4,
+    DISPATCH_WORDS * 4,
+  )
+  return 2
 }
 export type GpuRaster = ReturnType<typeof createGpuRaster>

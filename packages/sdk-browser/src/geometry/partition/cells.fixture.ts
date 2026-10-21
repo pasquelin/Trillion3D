@@ -42,8 +42,8 @@ export function world(
     scale: [2, 2, 2],
   })
   const bodies: Record<string, unknown> = {
-    'near.json': { version: 2, nodes: [node(1, near), node(3, near)] },
-    'far.json': { version: 2, nodes: [node(5000, far)] },
+    'near.json': { version: 3, nodes: [node(1, near), node(3, near)] },
+    'far.json': { version: 3, nodes: [node(5000, far)] },
   }
   const cell = (url: string, rank: number | null, x: number, nodes: number): CellRecord => ({
     url,

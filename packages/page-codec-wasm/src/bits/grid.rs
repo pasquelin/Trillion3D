@@ -1,145 +1,169 @@
-//! The position and texture grids of a primitive, written once for both cuts: the compiler's
-//! (`geometry_page_quant::primitive_exponent`, `primitive_uv_exponent`) and the one the engine
-//! runs on drawn triangles or on a compiled primitive's own clusters
+//! The grid every page of a primitive shares, written once for both cuts: the compiler's
+//! (`geometry_page::quant::page_grid`) and the one the engine runs on drawn triangles
 //! (`packages/sdk-browser/src/geometry/runtime/runtimeCut.ts`), through the SDK module
-//! (`wasm/encode.rs`). Their logarithms are read from the bits (`log2.rs`): both cuts take the
-//! same integers on every host.
+//! (`wasm/grid.rs`). The position precision follows how fine the primitive's clusters are, as a
+//! mesh build sets it; the normals' and tangents' are the mesh's, or the format's.
 
-use super::log2::{ceil_log2, floor_log2};
-use super::{MAX_BITS, MAX_EXPONENT};
-use trillion3d_math::aabb::{aabb_of, longest_side};
+use super::quant::rounded_cell;
+use super::{pow2, PositionGrid};
+use crate::{
+    AUTO_MIN_POSITION_PRECISION, CENTIMETRES_PER_METRE, DEFAULT_NORMAL_PRECISION,
+    DEFAULT_TANGENT_PRECISION, MAX_NORMAL_PRECISION, MAX_POSITION_BITS, MAX_POSITION_PRECISION,
+    MAX_TANGENT_PRECISION, MIN_POSITION_PRECISION,
+};
 
-/// A tile spans 2^1 = 2 m of the world, in 2^16 steps: primitives wider than 2 m sit on 2^-15 m
-/// (30.5 µm), the finest the page field allows below that (`finest_exponent`). The grid is the
-/// only bound on a leaf page's error: the cut already counts it on every produced cluster
-/// (`quantizationErrorOf`, sdk-browser), but a leaf has nothing finer to refine to. A leaf moves the
-/// source by at most √3/2 of a step, 26.4 µm, which projects to 0.057 px at a metre on the reference
-/// display (2234 lines under a 55° vertical field, focal 2146 px), under the display quantum of
-/// 0.1 px down to 57 cm; 2^-14 would be 0.11 px at a metre. A kilometre primitive
-/// stops at the page field: its DAG root spans it, 2^23 steps at most (2^-13 m on 1,024 m).
-pub const TILE_EXTENT_LOG2: i32 = 1;
+/// The least `f32` an `i32` holds, and the greatest at or under `i32::MAX`.
+const CELL_MIN: f32 = -2_147_483_648.0;
+const CELL_MAX: f32 = 2_147_483_520.0;
+/// The most cells an axis of one page spans above its start.
+const MAX_SPAN: i64 = (1 << MAX_POSITION_BITS) - 1;
+/// The factor of a natural logarithm to a base-2 one, in `f32`.
+const LOG_TO_LOG2: f32 = 1.442_695_02;
 
-/// Texture coordinates sit on a fixed grid of 2^-14: a quarter of a texel on a 4096 map.
-pub const UV_EXPONENT: i32 = -14;
-
-/// A tile's width, as a power of two in object units, for a primitive the largest world `scale`
-/// places: 2 m in those units, a missing, zero or non-finite scale taken as a metre per unit.
-/// Rounded down: a tile never spans more than 2 m.
-pub fn tile_log2(scale: Option<f64>) -> i32 {
-    floor_log2(object_units(2f64.powi(TILE_EXTENT_LOG2), scale))
+/// The box of one cluster of a primitive, in metres of its own space: the clusters of the finest
+/// level (`finest`) set the position precision, every one must fit it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Extent {
+    pub low: [f32; 3],
+    pub high: [f32; 3],
+    pub finest: bool,
 }
 
-/// A length of `metres` in the object units of a primitive the largest world `scale` places; a
-/// missing, zero or non-finite scale leaves it as is, nothing guessed. The compiler's proxy
-/// threshold maps by it too, so a tile and a proxy follow one scale.
-pub fn object_units(metres: f64, scale: Option<f64>) -> f64 {
-    match scale {
-        Some(value) if value.is_finite() && value > 0.0 => metres / value,
-        _ => metres,
+impl Extent {
+    /// Half the length of the box's diagonal, in centimetres.
+    fn size(&self) -> f32 {
+        let half = |c: usize| {
+            let centimetres = CENTIMETRES_PER_METRE as f32;
+            (self.high[c] * centimetres - self.low[c] * centimetres) * 0.5
+        };
+        (half(0) * half(0) + half(1) * half(1) + half(2) * half(2)).sqrt()
     }
 }
 
-/// Grid of a primitive, the finer of two rules: its widest extent, capped at 2^`tile_log2`, split
-/// into 2^16 steps, and an eighth of the finest group error its DAG published. Both are
-/// bounded below by the finest grid a page as wide as the primitive fits (`finest_exponent`), so no
-/// page needs more than `MAX_BITS` per coordinate. Every page shares that exponent and rounds
-/// absolute coordinates: a vertex two clusters or two tiles share lands on one cell. The step is a
-/// power of two: `q * step` is exact.
-pub fn grid_exponent(extent: f64, finest_error: Option<f64>, tile_log2: i32) -> i32 {
-    let (widest, finest) = if extent > 0.0 {
-        (floor_log2(extent), finest_exponent(extent))
-    } else {
-        (0, -(MAX_BITS as i32 - 2))
-    };
-    let by_extent = widest.min(tile_log2) - 16;
-    let by_error = finest_error.map_or(by_extent, |e| floor_log2(e / 8.0));
-    by_extent
-        .min(by_error)
-        .max(finest)
-        .clamp(-MAX_EXPONENT, MAX_EXPONENT)
+/// The precisions a mesh build names, each none where it names none: the position grid's, as the
+/// whole number `n` of its step `2^-n` centimetre; the normals', in bits an axis; and the stored
+/// tangents' angle's, in bits. A negative normal or tangent precision is none.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Precision {
+    pub position: Option<i32>,
+    pub normal: Option<i32>,
+    pub tangent: Option<i32>,
 }
 
-/// The finest grid on which a positive `span` fits a page's field: at most 2^23 steps, which
-/// rounding at both ends keeps under the 2^`MAX_BITS` a page holds, so a blended surface sits on
-/// one grid however it is cut.
-pub fn finest_exponent(span: f64) -> i32 {
-    // Saturating: a span of 0 gives `i32::MIN`, which a plain subtraction would wrap to the coarsest grid.
-    ceil_log2(span)
-        .saturating_sub(MAX_BITS as i32 - 1)
-        .clamp(-MAX_EXPONENT, MAX_EXPONENT)
-}
+impl Precision {
+    /// Bits an axis of a normal, from 1 to `MAX_NORMAL_PRECISION`: a normal of no bits has no cell
+    /// to decode. `DEFAULT_NORMAL_PRECISION` where none is named.
+    pub fn normal_bits(&self) -> u32 {
+        named(
+            self.normal,
+            DEFAULT_NORMAL_PRECISION,
+            (1, MAX_NORMAL_PRECISION),
+        )
+    }
 
-/// The grid of a primitive of widest `extent`: a `blended` one takes the finest grid its pages
-/// hold, a coarser one showing through a transparent surface; any other `grid_exponent`.
-/// The compiler passes its DAG's finest error and its tile; the run-time cut, whose clusters are
-/// all roots, none and the tile of a metre per unit (`TILE_EXTENT_LOG2`).
-pub fn primitive_grid_exponent(
-    extent: f64,
-    finest_error: Option<f64>,
-    blended: bool,
-    tile_log2: i32,
-) -> i32 {
-    if blended && extent > 0.0 {
-        finest_exponent(extent)
-    } else {
-        grid_exponent(extent, finest_error, tile_log2)
+    /// Bits of a stored tangent's angle, from 0 to `MAX_TANGENT_PRECISION`.
+    /// `DEFAULT_TANGENT_PRECISION` where none is named.
+    pub fn tangent_bits(&self) -> u32 {
+        named(
+            self.tangent,
+            DEFAULT_TANGENT_PRECISION,
+            (0, MAX_TANGENT_PRECISION),
+        )
     }
 }
 
-/// The texture grid of a primitive whose pages may hold a texture-coordinate span of `span`: the
-/// one rule of both cuts. Never coarser than the format's 2^`UV_EXPONENT`: a `blended` primitive
-/// takes the finest grid that span fits, one grid however it is cut, finer than the format's when
-/// the span allows; any other the format's. A page whose own span would not fit its field takes
-/// the coarser grid that holds it, alone (`page_uv_exponent`): no primitive pays for one page.
-pub fn uv_grid_exponent(span: f64, blended: bool) -> i32 {
-    match blended && span > 0.0 {
-        true => finest_exponent(span).min(UV_EXPONENT),
-        false => UV_EXPONENT,
+/// `bits` held within `limits`, or `default` where none, or a negative, is named.
+fn named(bits: Option<i32>, default: u32, (low, high): (u32, u32)) -> u32 {
+    match bits {
+        Some(bits) if bits >= 0 => (bits as u32).clamp(low, high),
+        _ => default,
     }
 }
 
-/// The texture grid one page is written on: the primitive's `grid`, coarser only when the page's
-/// own coordinates (`values`, two floats a vertex) span more than its field holds there. Each page
-/// carries its exponent and its minimum, so only that page's precision moves.
-pub fn page_uv_exponent(grid: i32, values: &[f32]) -> i32 {
-    let span = widest_uv_span(values, &[], &[]);
-    match span > 0.0 {
-        true => grid.max(finest_exponent(span)),
-        false => grid,
-    }
+/// What every page of a primitive is quantized with: the position grid's precision, the normals'
+/// bits an axis and the tangents' angle bits.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PageGrid {
+    pub position: i32,
+    pub normal: u32,
+    pub tangent: u32,
 }
 
-/// The longest side of the box of `positions` (three floats a vertex): the extent a primitive's
-/// position grid is set by, measured the same way by both cuts.
-pub fn positions_extent(positions: &[f32]) -> f64 {
-    let b = crate::proxy::bvh::extent(positions);
-    longest_side([b[0], b[1], b[2]], [b[3], b[4], b[5]])
-}
-
-/// The widest range of either texture coordinate a page holds: over the corners of each of
-/// `ranges` (ranks into `corners`), or over every vertex of `uvs` when `ranges` is empty — a
-/// primitive whose DAG pages may hold it whole. The span `uv_grid_exponent` reads, measured the
-/// same way by both cuts.
-pub fn widest_uv_span(uvs: &[f32], corners: &[u32], ranges: &[[u32; 2]]) -> f64 {
-    let pairs = uvs.as_chunks::<2>().0;
-    let span = |vertices: &mut dyn Iterator<Item = usize>| {
-        let points = vertices
-            .filter_map(|v| pairs.get(v))
-            .map(|uv| uv.map(f64::from));
-        let (low, high) = aabb_of::<2>(points);
-        longest_side(low, high)
-    };
-    if ranges.is_empty() {
-        return span(&mut (0..pairs.len()));
+impl PageGrid {
+    /// The grid on position precision `position`, the normals and the tangents at the format's.
+    pub fn at(position: i32) -> Self {
+        Self {
+            position,
+            normal: DEFAULT_NORMAL_PRECISION,
+            tangent: DEFAULT_TANGENT_PRECISION,
+        }
     }
-    ranges
-        .iter()
-        .map(|&[start, end]| {
-            let corners = corners.get(start as usize..end as usize).unwrap_or(&[]);
-            span(&mut corners.iter().map(|&v| v as usize))
+
+    /// The positions `positions` (three floats a vertex, in metres) decode to on this grid: each
+    /// the float a reader of any page holding it draws (`PositionGrid::metres`), whatever the
+    /// cluster — a vertex is one cell in every page that has it. What a box bounding a page is
+    /// measured over, so that it holds every vertex the page decodes to.
+    pub fn decoded(&self, positions: &[f32]) -> Vec<f32> {
+        let scale = pow2(self.position);
+        let unit = PositionGrid::flat(self.position).unit();
+        positions
+            .iter()
+            .map(|&metres| (rounded_cell(metres, scale) as i32) as f32 * unit)
+            .collect()
+    }
+
+    /// The grid of a primitive's pages: the position precision `precision` names, or the one the
+    /// primitive's `extents` set (`automatic`), held to the format's bounds, then lowered until
+    /// every cluster's box spans at most `MAX_POSITION_BITS` cells an axis. Every page rounds
+    /// absolute coordinates on it, so a vertex two clusters share lands on one cell. `None` when
+    /// a cluster is too wide for the coarsest precision.
+    pub fn of(precision: Precision, extents: &[Extent]) -> Option<Self> {
+        let mut position = match precision.position {
+            Some(fixed) => fixed,
+            None => automatic(extents).max(AUTO_MIN_POSITION_PRECISION),
+        }
+        .clamp(MIN_POSITION_PRECISION, MAX_POSITION_PRECISION);
+        for extent in extents {
+            while !fits(extent, pow2(position)) {
+                position -= 1;
+                if position < MIN_POSITION_PRECISION {
+                    return None;
+                }
+            }
+        }
+        Some(Self {
+            position,
+            normal: precision.normal_bits(),
+            tangent: precision.tangent_bits(),
         })
-        .fold(0.0, f64::max)
+    }
 }
 
-#[cfg(test)]
-mod tests;
+/// Whether a cluster's box falls on `scale` (`2^precision`) cells that an `i32` holds and that
+/// span at most `MAX_POSITION_BITS` bits an axis.
+fn fits(extent: &Extent, scale: f32) -> bool {
+    (0..3).all(|c| {
+        let low = rounded_cell(extent.low[c], scale);
+        let high = rounded_cell(extent.high[c], scale);
+        low >= CELL_MIN && high <= CELL_MAX && (high as i64 - low as i64) <= MAX_SPAN
+    })
+}
+
+/// The precision a primitive's clusters call for: seven less the mean of the base-2 logarithms of
+/// the finest clusters' half-diagonals in centimetres, rounded — a denser mesh gets a finer grid.
+/// A cluster of no extent counts for nothing; no finest cluster, a mean of zero.
+fn automatic(extents: &[Extent]) -> i32 {
+    let sizes = (extents.iter())
+        .filter(|extent| extent.finest)
+        .map(Extent::size)
+        .filter(|&size| size > 0.0);
+    let (total, count) = sizes.fold((0.0f64, 0u32), |(total, count), size| {
+        (total + f64::from(libm::logf(size) * LOG_TO_LOG2), count + 1)
+    });
+    let mean = if count > 0 {
+        total / f64::from(count)
+    } else {
+        0.0
+    };
+    7 - (mean + 0.5).floor() as i32
+}

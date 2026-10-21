@@ -28,10 +28,7 @@ fn opaque() -> Vec<[u8; 4]> {
 
 /// Pixels of a fixture, in read order of the decoded image.
 fn pixels(name: &str) -> Vec<[u8; 4]> {
-    super::decoded_rgba8("tga", name, MAX_ALLOC, (4, 2))
-        .pixels()
-        .map(|pixel| pixel.0)
-        .collect()
+    super::rgba8_pixels("tga", name, MAX_ALLOC, (4, 2))
 }
 
 // TGA driver golden: the six profiles the driver announces it reads yield, pixel by pixel, the

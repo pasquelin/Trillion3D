@@ -46,13 +46,12 @@ function simulateDeriveRows(bind: ComputeBind) {
       spheres: boundFloats(bind.entries, 3),
       inputs: vectors(2, boundWords(bind.entries, 4)),
       rootBoxes: vectors(2, boundWords(bind.entries, 5)),
-      corners: boundWords(bind.entries, 6),
-      lods: boundWords(bind.entries, 7),
-      mobility: boundWords(bind.entries, 9),
-      castChanges: boundWords(bind.entries, 10),
+      lods: boundWords(bind.entries, 6),
+      mobility: boundWords(bind.entries, 8),
+      castChanges: boundWords(bind.entries, 9),
     },
   )
-  const list = boundWords(bind.entries, 8)
+  const list = boundWords(bind.entries, 7)
   for (let j = 0; j < listed; j++) {
     const named = all ? j : list[j]
     const stale = !all && (named & ROW_STALES) !== 0

@@ -10,7 +10,6 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { checked, ONE_REQUEST } from '../cluster/checked.ts'
 import type { Job, StreamContext, StreamPage } from './types.ts'
-import { createRoundTrip } from './roundTrip.ts'
 import { checkedPages } from './fetchAttempt.ts'
 
 /** What a transfer brings each of its jobs: its page's bytes, or what its read failed by. */
@@ -37,8 +36,6 @@ async function request(
 /** The reads of `context`'s transfers (`read`), a page's bytes kept in its cache. */
 export function createStreamingFetcher(context: StreamContext) {
   const { catalog, emit, state, store } = context
-  /** The reads' round trip, what the view ahead adds to its horizon (`roundTrip.ts`). */
-  const roundTrip = createRoundTrip()
   /** The pages of `jobs` read by one request on `signal`: what each job lands with. */
   const read = async (jobs: readonly Job[], signal: AbortSignal): Promise<Landed[]> => {
     const pages = jobs.map((job) => catalog.get(job.url)!)
@@ -48,7 +45,7 @@ export function createStreamingFetcher(context: StreamContext) {
         url,
         expectedBytes: bytes,
       }))
-    // Its round trip runs until the pages' bytes have landed: what a page asked ahead has to cover.
+    // Its round trip runs until the pages' bytes have landed.
     const sent = cpuNow()
     let buffer: ArrayBuffer
     try {
@@ -56,14 +53,12 @@ export function createStreamingFetcher(context: StreamContext) {
     } catch (cause) {
       return jobs.map(() => ({ cause }))
     }
-    const durationMs = msSince(sent)
-    roundTrip.note(durationMs)
     emit?.('page-read-end', 'Page read finished', () => ({
       version: 1,
       url: jobs[0].url,
       pages: jobs.length,
       actualBytes: buffer.byteLength,
-      durationMs,
+      durationMs: msSince(sent),
     }))
     if (signal.aborted) return jobs.map(() => ({ cause: signal.reason }))
     const landed = await checkedPages(context, pages, buffer)
@@ -76,5 +71,5 @@ export function createStreamingFetcher(context: StreamContext) {
       return { bytes: own.bytes }
     })
   }
-  return { read, roundTrip }
+  return { read }
 }

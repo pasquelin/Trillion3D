@@ -15,7 +15,7 @@ import { resolveCameraWorld } from '../../camera/world.ts'
 import { worldPoseOf } from '../bodies/bodyFrame.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
 import { selectByKey } from '../../../../math/src/select.ts'
-import { keepRadius } from '../../geometry/partition/plan.ts'
+import { keepRadius } from '../../geometry/partition/reach.ts'
 
 /** A compiled model as the streamer reads it (`LoadedModel`): where its files are, and the scene
  *  node of a source node, the nodes below it and its radius (`_nodeAt`), where it numbers them. */

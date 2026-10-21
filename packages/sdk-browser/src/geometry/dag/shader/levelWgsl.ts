@@ -1,11 +1,7 @@
-import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 import { HELD_BY_WORD, MARK_WORD, PAGE_BASE_WORD, ROOT_WORD } from '../frameTable.ts'
-import {
-  FLAT_INDEX_WGSL,
-  OPEN_SLICE_WGSL,
-  WORKGROUP_THREADS_WGSL,
-} from '../../../gpu/dispatch/grid.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
 
 /**
  * Level-by-level descent of the cut hierarchy, and the subtree pruning it allows.
@@ -22,159 +18,171 @@ import {
  * carry no kept child and no kept cluster: that is the invariant CPU descent
  * (`../../cut/visit.fixture.ts`) already exploits.
  *
- * Descent is therefore by levels: pass 0 starts from the roots — one per primitive,
- * set by `dagPrepare` —, each following pass only reads nodes the previous kept, and
- * only emits kept children. A kept leaf deposits its pages in the candidate list,
- * which `dagWanted` then dispatches over. The pass count is the hierarchy depth,
- * known at packing and small.
+ * Descent is therefore by levels. Queue 0 holds what the descent tests first — one placement's root
+ * per slot, or the placement tree's top cells (`placementTreeWgsl.ts`), each flagged to be tested
+ * (`ENTRY_TEST`) — and pass 0 tests them. Every later queue holds only what the level before it
+ * KEPT: a pass reads an accepted node and tests its children in its own thread — each in the
+ * frustum, its subtree needed at the threshold, not too coarse, then under the pyramid
+ * (`occlusionWgsl.ts`) —, and only the children it keeps enter the next queue. A kept leaf deposits
+ * its pages in the candidate list, which `dagWanted` then dispatches over, and asks for every one of
+ * them (`depositLeaf`); the children of a node the previous image's pyramid alone hides are held
+ * for the post pass by their parent, one entry and the mask of them (`openNode`, `postNode`), which
+ * the post pass tests again (`postPassWgsl.ts`) — but a leaf none of whose pages is resident, which
+ * is dropped (`heldBack`). The pass count is the hierarchy depth, known at packing and small: pass
+ * `L` tests the items of depth `L`.
  *
- * Pass `L`'s queue only holds children of nodes kept at level `L-1`, hence only nodes of level
- * `L`, written compacted from zero. Levels 0 and 1 are launched FLAT: their counts are small and
- * known — the queue 0 entries, then the stage packing counts (`hierarchyLevelSizes`). Deeper, a
- * stage counts every placement's nodes of that level, the world's, so each level is launched on what
- * the level before it deposited: the queue's groups open as it fills (`openSlice`) and are armed in
+ * Every level lies in the one descent array, behind the level before it (`listsWgsl.ts`,
+ * `queueStart`). Level 0 is launched FLAT on queue 0's slots, at the array's head; every later level
+ * on what the level before it deposited: its groups open as it fills (`openSlice`) and are armed in
  * the pass (`armWgsl.ts`), one more dispatch of the head pass, never a copy outside it. Entries past
- * the queue count leave on the guard.
+ * the level's count leave on the guard.
  *
- * THREE queues in rotation, not two: the counter of the queue a level will fill must
- * be zero before it writes there, and with two queues that reset could only come from
- * the CPU, one more copy per level. With three queues, level `L` zeroes queue
+ * THREE counting slots in rotation, not two: the counter of the level a level will fill must
+ * be zero before it writes there, and with two slots that reset could only come from
+ * the CPU, one more copy per level. With three slots, level `L` zeroes slot
  * `(L+2) % 3`: it does not read it — it reads `L % 3` — and does not write it — it
  * writes `(L+1) % 3` —, so none of its children can see it change, and the next pass
- * writes on a clean queue. Flat dispatch always opens at least one workgroup, so that
- * reset always happens.
- *
- * No new buffer for all that: the eight storage buffers per stage ceiling is reached. Queue 0
- * occupies the range node flags used, queues 1 and 2 follow the candidates, and the counters
- * extend `work` behind those of the live list, its group count behind the kept lists'
- * (`queueGroups`).
- *
- * The candidate list and the drawn log share a range: `dagClearDrawn` (`swapWgsl.ts`) reads it as
- * a log at the very start of the frame, level passes then write it as candidates,
- * `dagWanted` rereads it, and `dagMask` only rewrites it as a log one pass later,
- * when nobody still reads the candidates.
+ * writes on a clean slot. Level `L` also says where the level it fills starts — behind its own
+ * entries, all appended before it runs —, which each of its threads appending there reckons alike.
+ * Flat dispatch always opens at least one workgroup, so both always happen.
  */
-/** Descent queues, in rotation: level `L` reads `L % LEVEL_QUEUES`, writes `(L+1) % …`
+/** Descent slots, in rotation: level `L` reads `L % LEVEL_QUEUES`, writes `(L+1) % …`
  *  and zeroes `(L+2) % …`, which it neither reads nor writes. Three is the smallest
  *  count that makes those three indices distinct. */
 export const LEVEL_QUEUES = 3
-/** Words of the lists, for one entry of each: the candidates, two; the live list, three
- *  (`liveWgsl.ts`); the drawn log, one, and the log the running cut writes, one (`swapWgsl.ts`). */
-export const CAND_LIVE_WORDS = 7
+
+/** Placement `w`'s root mark (`PackedDag.mark`), the word behind its record shift, in the frame
+ *  words its host binds as `frames`: the descent's, and the world's switch a pass beside it reads
+ *  (`worldGateWgsl.ts`). */
+export const DAG_MARK_OF_WGSL = wgslFn(
+  'markOf',
+  [],
+  `fn markOf(w:u32)->u32{return framesWord(w,${MARK_WORD}u);}`,
+)
+/** Placement `w`'s first page, its shared nodes counting their pages from it, in the frame words
+ *  its host binds as `frames` (`DAG_MARK_OF_WGSL`). */
+export const DAG_PAGE_BASE_OF_WGSL = wgslFn(
+  'pageBaseOf',
+  [],
+  `fn pageBaseOf(w:u32)->u32{return framesWord(w,${PAGE_BASE_WORD}u);}`,
+)
 
 export const DAG_LEVEL_WGSL = wgslBlock(
   'DAG_LEVEL_WGSL',
-  [FLAT_INDEX_WGSL, OPEN_SLICE_WGSL, WORKGROUP_THREADS_WGSL, NO_INDEX],
-  `fn queueBase(q:u32)->u32{return select(views[0u].queueCap*q+views[0u].candCap*${CAND_LIVE_WORDS}u,0u,q==0u);}
-/** Entries a queue holds: two words each, the node then the placement that reads it. */
-fn queueEntries()->u32{return views[0u].queueCap/2u;}
-/** The candidates behind queue 0, two words each, the page then its placement: \`candCap\` of them. */
-fn candBase()->u32{return views[0u].queueCap;}
-/** The drawn log of the last cut that ran whole, a word a page, then the one the running cut
- *  writes, \`candCap\` each, behind the live list (\`swapWgsl.ts\`, \`dagCommitMask\`). */
-fn journalBase()->u32{return views[0u].queueCap+5u*views[0u].candCap;}
-fn writtenBase()->u32{return journalBase()+views[0u].candCap;}
-fn queueCounter(q:u32)->u32{return liveCounter()+3u+q;}
-/** Queue \`q\`'s group count, x then y, which a level past the first dispatches on (\`armWgsl.ts\`). */
-fn queueGroups(q:u32)->u32{return listGroups(3u+q);}
-fn candCounter()->u32{return liveCounter()+6u;}
-fn candGroups()->u32{return candCounter()+1u;}
-fn drawnCounter()->u32{return liveCounter()+9u;}
-fn drawnGroups()->u32{return drawnCounter()+1u;}
-/** The log the running cut writes: its count (\`dagCommitMask\` makes it the drawn log). */
-fn writtenCounter()->u32{return liveCounter()+12u;}
-/** Index of the primitive's root node, deposited once and for all. */
+  [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, NO_INDEX, DAG_MARK_OF_WGSL, DAG_PAGE_BASE_OF_WGSL],
+  `/** Index of the primitive's root node, deposited once and for all. */
 fn rootOf(w:u32)->u32{return framesWord(w,${ROOT_WORD}u);}
-/** The primitive's root mark (\`PackedDag.mark\`), the word behind its record shift. */
-fn markOf(w:u32)->u32{return framesWord(w,${MARK_WORD}u);}
-/** Placement \`w\`'s first page: its shared nodes count their pages from it. */
-fn pageBaseOf(w:u32)->u32{return framesWord(w,${PAGE_BASE_WORD}u);}
 /** The open counts placement \`w\` holds of its own (\`../heldOpen.ts\`): none, it reads its nodes'. */
 fn heldByOf(w:u32)->u32{return framesWord(w,${HELD_BY_WORD}u);}
-/** THE ONE LIST APPEND of the cut: \`count\` entries reserved at \`counter\`, \`stride\` words each at
- *  \`base\` — the entry \`first + k\`, then the placement \`w\` reading it, then its cone word \`cone\`, as
- *  many as the stride holds. Past the list's \`cap\` entries nothing is written and \`drop\` is said
- *  (\`dropWork\`). The dispatch argument at \`groups\` follows the opening of each slice of
- *  \`WORKGROUP_THREADS\`, so it equals \`ceil(total/WORKGROUP_THREADS)\` without a one-thread kernel
- *  pulling it afterwards (\`openSlice\`); \`NO_INDEX\` for a list no kernel dispatches on. */
-fn listAppend(counter:u32,groups:u32,base:u32,stride:u32,cap:u32,drop:u32,first:u32,count:u32,w:u32,cone:u32){
- let at=atomicAdd(&work[counter],count);
- for(var k=0u;k<count;k++){
-  let s=at+k;
-  if(s>=cap){dropWork(drop);return;}
-  setFlag(base+stride*s,first+k);
-  if(stride>1u){setFlag(base+stride*s+1u,w);}
-  if(stride>2u){setFlag(base+stride*s+2u,cone);}
-  if(groups!=NO_INDEX&&s%WORKGROUP_THREADS==0u){openSlice(groups,s/WORKGROUP_THREADS);}
+/** Entry \`s\` of the level slot \`src\` counts: an item flagged to be tested is tested, an accepted
+ *  node has its children tested, a member a kept group deposited is tested as its placement's
+ *  instance; what is kept enters the NEXT level, behind this one's entries — a leaf's pages the
+ *  candidate list —, what the previous image's pyramid alone hides the post list. */
+fn levelStep(src:u32,s:u32){
+ let dst=(src+1u)%${LEVEL_QUEUES}u;
+ // The slot the level after next will fill resets to zero here: this level neither reads nor
+ // writes it. The level this one fills starts behind its entries. Its first thread always runs: a
+ // level past the first dispatches one workgroup at least.
+ if(s==0u){
+  let q=(src+2u)%${LEVEL_QUEUES}u;atomicStore(&work[queueCounter(q)],0u);resetGrid(queueGroups(q));
+  atomicStore(&work[queueStartWord(dst)],queueAfter(src));
+ }
+ if(s>=queueHeld(src)){return;}
+ let at=queueEntry(src,s);
+ let entry=flagAt(at);
+ if(entry==NO_INDEX){return;}
+ let w=flagAt(at+1u);
+ let index=entry&ENTRY_INDEX;let tests=(entry&ENTRY_TEST)!=0u;
+ // Past the nodes, a member a kept group of the tree deposited; past the placements' own nodes, a
+ // cell of the tree (\`placementTreeWgsl.ts\`).
+ if(index>=views[0u].nodeCount){testMember(dst,index-views[0u].nodeCount);return;}
+ if(hasTree()&&index>=views[0u].cellBase){
+  let t=index-views[0u].cellBase;
+  if(tests){testCell(dst,t);}else{openCell(dst,t);}
+  return;
+ }
+ if(tests){testRoot(dst,w);}else{openNode(dst,index,w);}
+}
+/** Placement \`w\`'s root, tested as its instance: its box in the frustum, then under the pyramid.
+ *  Kept, it is accepted (\`acceptNode\`): no error of its own is compared, the root's children are.
+ *  The previous pyramid alone hiding it, the instance is held whole for the post pass. */
+fn testRoot(dst:u32,w:u32){
+ let root=rootOf(w);let node=nodeAt(root);deformReach=reachOf(w);
+ if(outsideFrustum(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
+ let sight=sightOf(node,w);
+ if(sight==BOX_SEEN){acceptNode(dst,root,node,w,false);}
+ if(sight==BOX_OCCLUDED){postNode(root,w,1u);}
+}
+/** The children of node \`index\` of placement \`w\`, accepted at the level before, each tested; those
+ *  the previous pyramid alone hides held for the post pass by their parent, one entry and the mask of
+ *  them, within the post pass's node budget (\`nodeBudget\`) — a run of thirty-two children an entry,
+ *  a mask word's bits. */
+fn openNode(dst:u32,index:u32,w:u32){
+ let node=nodeAt(index);deformReach=reachOf(w);
+ var held=0u;
+ for(var k=0u;k<node.childCount;k++){
+  if(testNode(dst,node.firstChild+k,w)){held|=1u<<(k%32u);}
+  if(held!=0u&&(k%32u==31u||k+1u==node.childCount)){
+   if(withinBudget(nodeTotalWord(CUT_POST),views[0u].nodeBudget,1u)!=0u){postNode(node.firstChild+k-k%32u,w,held);}
+   held=0u;
+  }
  }
 }
-/** \`count\` nodes from \`first\` on descent queue \`dst\`, read by placement \`w\` — a primitive's nodes
- *  are its placements' alike —, its group count opened as it fills: a level past the first is
- *  dispatched on what the level before it deposited (\`../encode.ts\`). */
-fn queueAppend(dst:u32,first:u32,count:u32,w:u32){
- listAppend(queueCounter(dst),queueGroups(dst),queueBase(dst),2u,queueEntries(),QUEUE_DROPPED,packEntry(vi,first),count,w,0u);
+/** Node \`c\` of placement \`w\`: not a world actor's its cell does not draw (\`worldNodeHides\`), in
+ *  the frustum, its subtree needed — the error it replaces seen at the threshold
+ *  (\`subtreeNeeded\`) —, a leaf not too coarse — its floor within the threshold, unless it is open
+ *  (\`floorPrunes\`) —, then under the pyramid: seen, it is accepted. Whether the previous pyramid
+ *  alone hides it and it waits for the post pass (\`heldBack\`). The trunk-reject count moves for the
+ *  frustum and the ceiling, never for the floor nor an actor not drawn. */
+fn testNode(dst:u32,c:u32,w:u32)->bool{
+ if(worldNodeHides(c,w)){return false;}
+ let node=nodeAt(c);
+ if(outsideFrustum(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return false;}
+ let e=viewWorld(w);
+ if(!subtreeNeeded(node,sphereEdges(node.sphere,e).x)){atomicAdd(&out.frustumRejected,1u);return false;}
+ if(floorPrunes(openOf(w,c,node.open),node,e)){return false;}
+ let sight=sightOf(node,w);
+ if(sight==BOX_SEEN){acceptNode(dst,c,node,w,false);}
+ return sight==BOX_OCCLUDED&&heldBack(node,w);
 }
-/** Entry \`s\` of the queue at \`base\`: its node word, then its placement. */
-fn putEntry(base:u32,s:u32,entry:u32,w:u32){setFlag(base+2u*s,entry);setFlag(base+2u*s+1u,w);}
-/** Page \`page\` on the log the running cut writes (\`dagCommitMask\` makes it the drawn log). */
-fn drawnAppend(page:u32){listAppend(writtenCounter(),NO_INDEX,writtenBase(),1u,views[0u].candCap,LIST_DROPPED,page,1u,0u,0u);}
-/** Frame counters, reset by a single thread. Queue 0 already counts its roots: one thread per
- *  entry has just deposited its own, at its own rank, with no counter to contest (\`rootSlots\`). */
-fn resetCounters(){
- atomicStore(&work[liveCounter()],0u);resetGrid(liveGroups());
- atomicStore(&work[queueCounter(0u)],rootSlots());
- atomicStore(&work[queueCounter(1u)],0u);atomicStore(&work[queueCounter(2u)],0u);
- for(var q=0u;q<${LEVEL_QUEUES}u;q++){resetGrid(queueGroups(q));}
- atomicStore(&work[candCounter()],0u);resetGrid(candGroups());
- atomicStore(&work[writtenCounter()],0u);
+/** Whether a node's subtree is needed at the threshold: the error its clusters replace is seen
+ *  (\`errorShows\`), or none bounds it. A deformation moves no LOD ball: the rest pose's are read. */
+fn subtreeNeeded(node:CullNode,edge:f32)->bool{
+ return node.maxParentError<0.0||errorShows(edge,node.maxParentError);
 }
-/** A list's dispatch argument, x and y, back to no group. */
-fn resetGrid(groups:u32){atomicStore(&work[groups],0u);atomicStore(&work[groups+1u],0u);}
-/** A node of queue \`src\`: rejected, it yields nothing; kept, it deposits its children
- *  in the NEXT of the three queues, or its pages in the candidate list when it is a leaf. */
-fn levelStep(src:u32,s:u32){
- // The queue the next level will fill resets to zero here: this level neither reads nor writes it.
- // Its first thread always runs: a level past the first dispatches one workgroup at least.
- if(s==0u){let q=(src+2u)%${LEVEL_QUEUES}u;atomicStore(&work[queueCounter(q)],0u);resetGrid(queueGroups(q));}
- if(s>=min(atomicLoad(&work[queueCounter(src)]),queueEntries())){return;}
- let entry=flagAt(queueBase(src)+2u*s);
- if(entry==NO_INDEX){return;}
- vi=entryView(entry);
- let index=entryIndex(entry);
- // Past the nodes, a member a kept group of the tree deposited; past the placements' own nodes, a
- // node of the tree (\`placementTreeWgsl.ts\`).
- if(index>=views[0u].nodeCount){placementStep(src,index-views[0u].nodeCount);return;}
- if(hasTree()&&index>=views[0u].cellBase){treeStep(src,index-views[0u].cellBase);return;}
- nodeStep(src,index,flagAt(queueBase(src)+2u*s+1u));
+/** The pyramid's verdict on \`node\` of placement \`w\` once it passed its frustum (\`boxSight\`): a
+ *  placement no camera culls is always seen. */
+fn sightOf(node:CullNode,w:u32)->u32{
+ if(unculledOf(w)){return BOX_SEEN;}
+ return boxSight(node.minimum,node.maximum,w);
 }
-/** Node \`index\` of the queue \`src\` under the view \`vi\`: a node of the shared hierarchy
- *  placement \`w\` reads, whose root its gate already opened (\`opensRoot\`). */
-fn nodeStep(src:u32,index:u32,w:u32){
- let node=nodeAt(index);
- deformReach=reachOf(w);
- // A node of the view ahead is only that view's (\`aheadWgsl.ts\`); one the camera rejects is tried there.
- let open=openOf(w,index,node.open);
- if(aheadOn()&&vi==AHEAD_VIEW){descendAhead(src,node,w,open);return;}
- if(outsideFrustum(w,vi,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w,open);return;}
- // Too FINE: no replacement of the subtree is coarse enough yet, the manifest carries it.
- // Too COARSE: no cluster of the subtree is fine enough, packing derives it from the pages —
- // unless the subtree is open, holding the nearest resident ancestor of something missing
- // (\`floorWgsl.ts\`). The trunk-reject count moves for neither: a subtree dropped here is
- // not dropped by the trunk, and the readout would say something other than what it names.
- let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();let t=views[vi].pixelError;
- if(tooCoarse(node,e,stretch,focal,t)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w,open);return;}
- if(floorPrunes(open,node.floorSphere,node.errorFloor,e,stretch,focal,t)){descendAhead(src,node,w,open);return;}
- descend(src,node,w);
+/** Whether \`node\` of placement \`w\`, below its root and hidden by the previous pyramid alone, waits
+ *  for the post pass: an inner node, or a leaf with a resident page (\`isResident\`), what the post
+ *  pass can draw of it. A leaf none of whose pages is resident is dropped, neither tested again nor
+ *  asked for this image. */
+fn heldBack(node:CullNode,w:u32)->bool{
+ if(node.childCount>0u){return true;}
+ let first=pageBaseOf(w)+node.firstPage;
+ for(var k=0u;k<node.pageCount;k++){if(isResident(first+k)){return true;}}
+ return false;
 }
-/** Too coarse under the view \`vi\` and its threshold \`t\`: no cluster of the subtree is fine enough. */
-fn tooCoarse(node:CullNode,e:mat4x4f,stretch:f32,focal:f32,t:f32)->bool{
- return deformReach==0.0&&node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=t;
+/** Node \`index\` of placement \`w\` kept: its children tested at the next level, or, a leaf, its pages
+ *  deposited — a leaf the main pass held below the root (\`held\`), its resident pages alone asked
+ *  for. */
+fn acceptNode(dst:u32,index:u32,node:CullNode,w:u32,held:bool){
+ if(node.childCount>0u){queueAppend(dst,index,1u,w);return;}
+ depositLeaf(node,w,held);
 }
-/** A kept node opens its children for placement \`w\`, or deposits its pages — counted from the
- *  placement's first —, under the current view \`vi\`. */
-fn descend(src:u32,node:CullNode,w:u32){
- if(node.childCount>0u){queueAppend((src+1u)%${LEVEL_QUEUES}u,node.firstChild,node.childCount,w);return;}
- listAppend(candCounter(),candGroups(),candBase(),2u,views[0u].candCap,LIST_DROPPED,packEntry(vi,pageBaseOf(w)+node.firstPage),node.pageCount,w,0u);
+/** A leaf kept and seen: its pages — counted from the placement's first — are candidates, and each
+ *  is asked for at the leaf's priority (\`leafPriority\`). A leaf the main pass held below the root
+ *  (\`held\`, \`heldBack\`) asks for its resident pages alone: the others were dropped there. */
+fn depositLeaf(node:CullNode,w:u32,held:bool){
+ let first=pageBaseOf(w)+node.firstPage;
+ let priority=leafPriority(node,viewWorld(w));
+ for(var k=0u;k<node.pageCount;k++){
+  if(!held||isResident(first+k)){requestPage(first+k,priority);}
+ }
+ candAppend(first,node.pageCount,w);
 }
 /** Queue \`q\`'s level, a thread an entry. Pass 0 is \`dagLevel0\` on queue 0: without a tree one root
  *  per slot, with one its few entries (\`rootSlots\`); queue 0 reused deeper (level 3, 6…) alike. */

@@ -1,137 +1,55 @@
-import { drawVis } from './drawer.ts'
 import { skipsSecondaryPass } from '../../diagnostic/gpuGeometry.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
-import type { ComputeRasterStages } from '../../frame/render/encodeVisSetup.ts'
-import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
-import {
-  HIZ_PASS,
-  VISIBILITY_PRIMARY_PASS,
-  VISIBILITY_SECONDARY_PASS,
-} from '../../diagnostic/stage/passLabels.ts'
+import type { VisibilityRasterStages } from '../../frame/render/encodeVisSetup.ts'
+import { HIZ_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts'
 import { prepared } from '../../frame/backend/state/prepared.ts'
+import { cutPyramid, notePyramidBuilt } from '../../frame/render/cutPyramid.ts'
+import { cutOf } from '../../frame/render/gpuCutStream.ts'
 
 /** The occlusion step's compute pass, opened by the first of its kernels that dispatches. */
 const hizPass = new LazyComputePass(HIZ_PASS)
 
-/**
- * The Hi-Z pyramid, its occlusion test and the tested half's compaction it decides: what splits the
- * occluder half from the tested half, whoever produced the image.
- *
- * None of these decisions depends on a count the CPU would have established row by row: the
- * occlusion kernel itself reads how many boxes the partition compacted for it. An image whose GPU
- * put everything on the occluder side therefore still encodes this step, which culls nothing —
- * and the image is the same.
- *
- * The verdict it writes has three values and that is what the compute raster reads: `0` for a row
- * of the occluder half, `1` for a tested row the pyramid rejects, `2` for a tested row it keeps.
- * The partition set the `0`s and the `2`s before this step; the test only brings some `2`s down
- * to `1`; the tested half's compaction leaves the `1`s out (`GpuDraw.encodeTested`).
- *
- * One compute pass for the three: its dispatches run in order and each sees what the previous
- * wrote — the test reads the pyramid, the compaction the verdicts. Without a page table no row
- * draws, and the tested slots stay as the occluder compaction wrote them: empty.
- */
-function encodeHizMidFrame(rt: WebgpuPagesRuntime, device: GPUDevice, encoder: GPUCommandEncoder) {
-  const { vis } = rt,
-    { rows } = rt.layout,
-    gpuHiz = prepared(vis, 'gpuHiz')
-  const pass = hizPass.begin(encoder)
-  gpuHiz.encodePyramid(pass)
+/** The pyramid's culling layer built from the depth in level 0, in a compute pass of its own. */
+function encodePyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+  prepared(rt.vis, 'gpuHiz').encodePyramid(hizPass.begin(encoder))
+  hizPass.end()
   rt.run.hizPyramidFresh = true
-  // The test reads each row's Hi-Z slot in the page table: without one, no row was drawn.
-  // Its rejects are counted on the partition's counting frame, into the partition's counters.
-  const partition = prepared(vis, 'gpuPartition')
-  if (vis.pageTable) {
-    // An image that draws a frozen cut's kept verdicts again tests nothing
-    // (`../../frame/render/cutFreeze.ts`).
-    if (!partition.held)
-      gpuHiz.encodeTest(device, pass, rows.packedCount, vis.pageTable, partition.counting)
-    // The verdict exists now: the tested half is compacted without the rejected rows, in their
-    // order, before the second pass launches their vertices. They placed no pixel: the image does
-    // not move.
-    prepared(vis, 'gpuDraw').encodeTested(pass, vis.pageTable, gpuHiz.flags)
-  }
-  pass.end()
 }
 
 /**
- * The visibility buffer, in this order: the primary hardware pass, the occluder half of the compute raster blended into it, the pyramid's farthest layer and
- * its test, the secondary pass, the tested half of compute, then its identifiers. Without
- * `compute` — no compute raster — hardware alone produces the same attachments, and each compute
- * step is simply absent.
+ * The visibility buffer, in the order of the cut's two-pass occlusion: the main pass's clusters —
+ * hardware slots, then software lists — and the pyramid's level zero from them
+ * (`raster.occluders`); the pyramid built from that depth; the cut's post pass, which judges against
+ * it what the previous image's pyramid hid (`GpuSelection.encodePost`); the post pass's clusters
+ * (`raster.rest`) and the pyramid built again from the whole depth, which the next image's main
+ * pass reads; then the identifiers of everything drawn and the resolve into the attachments
+ * (`../../frame/render/encodeVisSetup.ts`). A cut in one pass — a view's first image, the
+ * occlusion turned off — draws everything in the first: the pyramid is built once, from the whole
+ * depth. Both rasters write the one buffer by the one rule (`VIS_WRITE_WGSL`).
  */
 export function encodeWebgpuVisibilityPasses(
   rt: WebgpuPagesRuntime,
-  device: GPUDevice,
   encoder: GPUCommandEncoder,
-  twoPass: boolean,
-  compute: ComputeRasterStages,
+  raster: VisibilityRasterStages,
 ) {
-  const { vis, gpu } = rt,
-    gpuHiz = prepared(vis, 'gpuHiz'),
-    idsView = vis.visView!,
-    depthTarget = gpu.depthView!,
-    [width, height] = gpu.targetSize
-  const visColors = (loadOp: 'clear' | 'load') => {
-    const ids: {
-      view: GPUTextureView
-      loadOp: 'clear' | 'load'
-      storeOp: 'store'
-      clearValue?: GPUColor
-    } = { view: idsView, loadOp, storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 1 } }
-    return [
-      ids,
-      {
-        // Level 0 of the pyramid is a DEPTH: its clear is the far plane, not 1. In reversed Z, a
-        // clear to 1 would fill every uncovered texel with the near plane, and the min reduction
-        // would yield 1 over a whole background block — enough to reject any page that projects
-        // there, holes by the thousands of pixels.
-        view: gpuHiz.level0View,
-        loadOp,
-        storeOp: 'store' as const,
-        clearValue: { r: DEPTH_CLEAR, g: 0, b: 0, a: 1 },
-      },
-    ]
-  }
-  // A pass on the visibility targets: cleared by the primary pass, loaded by every later one.
-  const visibilityPass = (label: string, loadOp: 'clear' | 'load') => {
-    const pass = encoder.beginRenderPass({
-      label,
-      colorAttachments: visColors(loadOp),
-      depthStencilAttachment: {
-        view: depthTarget,
-        depthClearValue: DEPTH_CLEAR,
-        depthLoadOp: loadOp,
-        depthStoreOp: 'store',
-      },
-    })
-    pass.setViewport(0, 0, width, height, 0, 1)
-    return pass
-  }
-  const visPass = visibilityPass(VISIBILITY_PRIMARY_PASS, 'clear')
-  drawVis(rt, device, visPass, false)
-  visPass.end()
-  compute?.occluders(encoder)
+  const { run } = rt
+  raster.occluders(encoder)
   rt.run.hizPyramidFresh = false
-  if (twoPass) encodeHizMidFrame(rt, device, encoder)
-  // An image in one pass tests nothing, and its occluders drew the whole depth: the pyramid's
-  // farthest layer is still built from it, which the readers of the whole depth bound cells with.
-  if (!twoPass) {
-    gpuHiz.encodePyramid(hizPass.begin(encoder))
-    hizPass.end()
+  encodePyramid(rt, encoder)
+  // The drawn view's cut, the main one or its own aside (`../../geometry/dag/aside.ts`).
+  const post = !!cutOf(rt)?.encodePost(encoder, cutPyramid(rt))
+  // The only diagnostic variant that touches encoded commands: it leaves the post pass's clusters
+  // out of the image to weigh the main pass's alone, and therefore yields an incomplete image.
+  const withRest = post && !skipsSecondaryPass(rt.context?.diagnosticGpuVariant)
+  if (withRest) {
+    raster.rest(encoder)
+    encodePyramid(rt, encoder)
   }
-  // A frozen cut's first image keeps the verdicts it just tested (`GpuPartition.keepVerdicts`).
-  prepared(vis, 'gpuPartition').keepVerdicts(encoder)
-  // The only diagnostic variant that touches encoded commands: it leaves the tested half out of
-  // the image to weigh the occluders alone, and therefore yields an incomplete image.
-  if (twoPass && !skipsSecondaryPass(rt.context?.diagnosticGpuVariant)) {
-    const restPass = visibilityPass(VISIBILITY_SECONDARY_PASS, 'load')
-    drawVis(rt, device, restPass, true)
-    restPass.end()
-    compute?.rest(encoder)
-  }
-  compute?.ids(encoder)
+  // The pyramid holds the image's whole depth — but where the post pass's clusters were left out —:
+  // what the view's next main pass tests against.
+  notePyramidBuilt(rt, encoder, run.gate.cam, withRest || !post)
+  raster.ids(encoder, withRest)
   // Level 0 now holds every opaque pixel's depth: what the pyramid's nearest layer is built from,
   // in the reflections' pass (`../../lighting/reflections/frame.ts`).
   rt.run.depthDrawn = true

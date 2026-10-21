@@ -45,8 +45,8 @@ export async function runRowTurn(options: typeof TURN = TURN) {
   if (!gpu) return { unavailable: 'no WebGPU adapter' }
   const { device } = gpu
   const held: { selection?: GpuSelection } = {}
-  // A request no free row serves asks the cut for a queue (`rowOrder.ts`).
-  const scene = rowCacheScene(options.copies, options.table, () => held.selection?.askEvictions())
+  // A request no free row serves asks the cut to cut again and read back its queue (`rowOrder.ts`).
+  const scene = rowCacheScene(options.copies, options.table, () => held.selection?.recut())
   const { rows, sync, packed, roots, placement, pages } = scene
   const host = {
     ...{ map: rows.rowMap, words: sync.rowWords, table: rows },
@@ -122,7 +122,7 @@ export async function runRowTurn(options: typeof TURN = TURN) {
       drawn = [...(cut.result.drawablePageIds ?? [])].sort((a, b) => a - b),
       reference = [...(truths.get(frame) ?? [])].sort((a, b) => a - b)
     frames.push({ frame, drawn, reference, holes: holes(units, per, drawn, reference) })
-    const named = [...drawn, ...cut.result.pageIds, ...(cut.result.aheadPageIds ?? [])]
+    const named = [...drawn, ...cut.result.pageIds]
     closure.closeOver(
       named,
       (page) => void lastUse.set(page, Math.max(lastUse.get(page) ?? 0, frame)),

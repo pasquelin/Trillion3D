@@ -29,16 +29,19 @@ function heldMatches(
 
 /**
  * Addresses the image still waits for. They are a function of the requested cut, the budget flag,
- * bootstrap coverage and the bytes the pages hold — and of nothing else. An image that reread the
- * sample it already held, with no page receiving or losing its bytes, therefore returns exactly the
- * list already yielded.
+ * bootstrap coverage, the pages the streaming started of it and the bytes the pages hold — and of
+ * nothing else. An image that reread the sample it already held, with no page receiving or losing
+ * its bytes nor started meanwhile, therefore returns exactly the list already yielded.
  */
 export function pendingUrls(rt: WebgpuPagesRuntime) {
-  const { run } = rt,
-    ready = rt.services.bootstrapState.ready,
+  const { run, services } = rt,
+    ready = services.bootstrapState.ready,
+    accepted = services.cutPending.accepted,
     held = run.pendingHeld
-  if (heldMatches(run, held) && held.ready === ready) return run.hostPendingScratch
+  if (heldMatches(run, held) && held.ready === ready && held.accepted === accepted)
+    return run.hostPendingScratch
   held.ready = ready
+  held.accepted = accepted
   // Until pinned coverage is there, that is what we wait for. Then the cut itself holds the list of
   // its rows without bytes that the pool accepted: those are the only ones to walk, and a fully
   // arrived cut — the ordinary case — walks none.

@@ -53,7 +53,7 @@ const RESOLVENT: Record<string, string> = {
 /** Who is allowed to touch a LOCAL camera pose, or resolve it via a Three accessor. */
 const POSE_LOCALE: Record<string, string> = {
   'camera/world.ts': 'the contract: it is what translates local pose into world pose',
-  'world/camera/camera.ts': 'the host POSES its camera; the local pose is what it writes',
+  'camera/session/camera.ts': 'the host POSES its camera; the local pose is what it writes',
   'camera/controls/pose.ts': 'the camera-controller boundary: a controller writes a local pose',
   'api/cameraApi.ts': 'host round-trip: `homePose` returns what `setCameraPose` rewrites',
   'frame/schedule/sessionState.ts': 'the session sets the local pose it is handed (`setPose`)',
@@ -67,8 +67,6 @@ const POSE_LOCALE: Record<string, string> = {
   'frame/backend/testScenes.fixture.ts': 'test scene builder: it poses the camera',
   'frame/backend/twoPlaces.fixture.ts': 'test scene builder: it poses the camera',
   'geometry/dag/placement/placementTree.fixture.ts': 'test scene builder: it poses the camera',
-  'geometry/dag/lists/listCoarsen.fixture.ts': 'test scene builder: it poses the camera',
-  'geometry/dag/gridScene.fixture.ts': 'test scene builder: it poses the camera',
 }
 
 /**

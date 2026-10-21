@@ -76,6 +76,7 @@ test('a blended scene costs the share only when a debug view or the temporal pas
   const { rt } = runtime()
   const glass = { surface: surfaceOf(standardSurface({ roughness: 0.5 })) }
   Object.assign(rt, { blendState: { blendGpu: [glass] }, vis: { ...rt.vis, asIsShown: false } })
+  rt.gpu.temporalLevel = 'off'
   const base = frameTargetAllocation(rt, native(64, 32))
   rt.vis.asIsShown = true
   // Its two channels and, beside them, the history the transparents give up: three bytes a pixel.
@@ -95,6 +96,7 @@ test('the frame targets hold the share only while a debug view reads it', () => 
     vis: { asIsShown: false },
     capture: { capturing: false },
   })
+  rt.gpu.temporalLevel = 'off'
   const { device, textures } = fakeDevice({ limits: { maxTextureDimension2D: 8192 } })
   const made = (shown: boolean) => {
     rt.vis.asIsShown = shown
@@ -134,7 +136,7 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
       targetSize: [32, 32],
       allocatedSize: [32, 32],
       displaySize: [32, 32],
-      surfaces: { width: 32, height: 32, subsurface: { width: 1, height: 1 } },
+      surfaces: { width: 32, height: 32, hasSubsurface: false },
       reflection: { front: { wanted: false } },
       targetGrant: undefined,
     },
@@ -157,7 +159,7 @@ test('a frame drawn below the display costs its render targets and the display c
   Object.assign(rt.gpu, {
     hdrTexture: {},
     displayTexture: {},
-    surfaces: { width: 32, height: 16, subsurface: { width: 1, height: 1 } },
+    surfaces: { width: 32, height: 16, hasSubsurface: false },
     reflection: { front: { wanted: false } },
     feedbackTexture: {},
     allocatedSize: [32, 16],

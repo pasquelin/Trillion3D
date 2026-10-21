@@ -18,7 +18,7 @@ const LEVEL_0 = 'Trillion3D Hi-Z level 0'
 
 test('level 0 holds the front layer from its making: an ask makes, copies and binds nothing', async () => {
   const { device, textures, textureCopies } = fakeDevice()
-  const hiz = await createGpuHiz(device, 16, 8, 4)
+  const hiz = await createGpuHiz(device, 16, 8)
   assert.ok(hiz)
   const level0s = () => textures.filter((texture) => texture.label === LEVEL_0)
   const level0 = hiz.level0
@@ -38,7 +38,7 @@ test('level 0 holds the front layer from its making: an ask makes, copies and bi
 
 test('a scene whose transparents come and go keeps the front layer: its fold follows the frame word', async () => {
   const { device, textureCopies, writes, passDescriptors } = fakeDevice()
-  const hiz = await createGpuHiz(device, 16, 8, 4)
+  const hiz = await createGpuHiz(device, 16, 8)
   assert.ok(hiz)
   const front = hiz.front(true)
   assert.ok(front)

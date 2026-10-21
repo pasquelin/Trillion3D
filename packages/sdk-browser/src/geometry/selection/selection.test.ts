@@ -4,12 +4,9 @@ import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { collectClusterPages } from './collect.ts'
 import { rootCoverage } from './selection.ts'
 import { selectVisiblePages } from '../cut/cut.fixture.ts'
-import { packDagSelection } from '../dag/pack/pack.ts'
-import { kernelUniforms } from '../dag/selection/selectionHelpers.fixture.ts'
 import { blendFixture, camera } from './blend.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
-import { evaluateDagSelectionKernel } from '../dag/oracle/oracle.fixture.ts'
 import { graphDraws } from './drawSource.ts'
 
 test('clustered blend pages retain their source and only select the intersecting part of a mesh', () => {
@@ -63,31 +60,6 @@ test('clustered blend never reports missing exact coverage as resident', () => {
     ['near'],
   )
   assert.deepEqual(selected.shown, [])
-  fixture.geometry.dispose()
-  fixture.material.dispose()
-})
-
-test('double-sided blend pages survive backface cones in CPU and packed GPU selection', () => {
-  const fixture = blendFixture()
-  const { roots, allPages } = collectClusterPages(
-    fixture.source,
-    graphDraws(fixture.source, fixture.associations),
-    fixture.metadata,
-    fixture.indices,
-  )
-  allPages[0].cone = { axis: [0, 0, -1], angle: 0 }
-  const cam = camera(),
-    packed = packDagSelection(roots)
-  const cpu = selectVisiblePages(roots, engineCamera(cam), {})
-  const gpu = evaluateDagSelectionKernel(packed, kernelUniforms(packed, roots, cam, 0, [960, 540]))
-  assert.deepEqual(
-    cpu.shown.map((page) => page.url),
-    ['near'],
-  )
-  assert.deepEqual(
-    gpu.pageIds.map((id) => packed.pageUrlOf(id)),
-    ['near'],
-  )
   fixture.geometry.dispose()
   fixture.material.dispose()
 })

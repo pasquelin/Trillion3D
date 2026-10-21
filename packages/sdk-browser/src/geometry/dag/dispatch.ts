@@ -6,7 +6,9 @@ import type {
 import { copySelectionUniforms } from '../../gpu/core/selectionCopy.ts'
 import { createDagOutputScratch, writeDagUniforms, type DagOutputScratch } from './uniforms.ts'
 import type { DagResources } from './resources.ts'
-import { encodeDagKernels } from './encode.ts'
+import { encodeDagKernels, encodeDagPost } from './encode.ts'
+import { twoPassOf } from './shader/occlusionWgsl.ts'
+import type { CutPyramid } from './occlusion.ts'
 import { encodeDagDifference } from './encodeDifference.ts'
 import { DAG_READBACK_SLOTS } from './layout.ts'
 import { cutTablesAt, tablesHeld } from './queueGrowth.ts'
@@ -35,6 +37,12 @@ export type MainCut = {
   chain: Chain
   scratch: DagOutputScratch[]
   reads: number
+  /** The pyramid the next cut's main pass reads, the previous image's (`GpuSelection.bindPyramid`):
+   *  none, a blank one, which hides nothing. */
+  pyramid?: CutPyramid
+  /** The cut whose post pass the image encodes (`encodeMainPost`), and the copy its readback
+   *  takes once it is finished. */
+  post?: { copy: Copy | undefined }
 }
 
 /**
@@ -53,13 +61,22 @@ export function createDagDispatch(resources: DagResources, state: DagRuntimeStat
     reads: 0,
   }
   const dispatch: GpuSelection['dispatch'] = (next, shared) => dispatchMain(cut, next, shared)
-  return { dispatch, copyOwed: (encoder: GPUCommandEncoder) => copyOwed(cut, encoder) }
+  return {
+    dispatch,
+    copyOwed: (encoder: GPUCommandEncoder) => copyOwed(cut, encoder),
+    encodePost: (encoder: GPUCommandEncoder, pyramid: CutPyramid | undefined) =>
+      encodeMainPost(cut, encoder, pyramid),
+    bindPyramid: (pyramid: CutPyramid | undefined) => void (cut.pyramid = pyramid),
+  }
 }
 
 /** The main view's dispatch: it cuts when its inputs moved, brings its mask back from its region
  *  when its cut stands, and copies the readback the host has not had yet when the ring has room. */
 function dispatchMain(cut: MainCut, next: SelectionUniforms, shared?: GPUCommandEncoder) {
   const { resources, state } = cut
+  // Bound for this dispatch alone: an image whose target was made again binds the new one.
+  const pyramid = cut.pyramid
+  cut.pyramid = undefined
   if (tablesHeld(resources, state)) return undefined
   const { swap } = resources
   let compute = !sameCut(swap, MAIN_VIEW, next, state)
@@ -84,14 +101,33 @@ function dispatchMain(cut: MainCut, next: SelectionUniforms, shared?: GPUCommand
   const copy = room ? takeCopy(cut, snap) : undefined
   if (!compute && !copy) return undefined
   const encoder = shared ?? resources.device.createCommandEncoder()
-  const undo = holdDispatch(swap, state)
-  if (compute) cutMain(cut, encoder, snap, !!copy)
+  const undo = holdDispatch(cut)
+  // A cut in two passes leaves its post pass, its finish and its copy to the image, behind its
+  // first raster pass (`encodePost`): one submitting a command buffer of its own has no raster to
+  // wait for, and cuts in one pass.
+  if (!shared) snap.occlusion = 0
+  const post = compute && twoPassOf(snap)
+  if (compute) cutMain(cut, encoder, { snap, copy: !!copy, post, pyramid })
   else encodeDagDifference(encoder, resources)
-  if (copy) {
-    copy.tag.serial = swap.cut
-    claimCopy(cut, encoder, copy)
-  }
+  if (copy) copy.tag.serial = swap.cut
+  if (post) cut.post = { copy }
+  else if (copy) claimCopy(cut, encoder, copy)
   return settleMain(cut, { encoder, shared, copy, undo })
+}
+
+/** `GpuSelection.encodePost`: the post pass of the cut the last dispatch left open, its finish and
+ *  its readback's copy, into `encoder`; false when it left none. */
+export function encodeMainPost(
+  cut: MainCut,
+  encoder: GPUCommandEncoder,
+  pyramid: CutPyramid | undefined,
+) {
+  const open = cut.post
+  if (!open) return false
+  cut.post = undefined
+  encodeDagPost(encoder, cut.resources, pyramid, !!open.copy)
+  if (open.copy) claimCopy(cut, encoder, open.copy)
+  return true
 }
 
 /** The main cut's lists, still in `out` and copied by no readback, copied into `encoder` before a
@@ -112,9 +148,19 @@ function copyOwed(cut: MainCut, encoder: GPUCommandEncoder): SelectionSubmission
   return settleMain(cut, { encoder, shared: encoder, copy, undo })
 }
 
-/** The main view cuts under `snap` into `encoder`, its difference in the cut's last pass when a
- *  copy follows; a cut no readback copies is owed (`copyOwed`). */
-function cutMain(cut: MainCut, encoder: GPUCommandEncoder, snap: SelectionUniforms, copy: boolean) {
+/** The main view cuts under `snap` into `encoder` — its main pass alone when `post`, on `pyramid`
+ *  (`MainCut.pyramid`) —, its difference in the cut's last pass when a copy follows; a cut no
+ *  readback copies is owed (`copyOwed`). */
+function cutMain(
+  cut: MainCut,
+  encoder: GPUCommandEncoder,
+  {
+    snap,
+    copy,
+    post,
+    pyramid,
+  }: { snap: SelectionUniforms; copy: boolean; post: boolean; pyramid?: CutPyramid },
+) {
   const { resources, state } = cut,
     { swap, uniformData, packed, listCap } = resources
   writeDagUniforms(
@@ -123,12 +169,10 @@ function cutMain(cut: MainCut, encoder: GPUCommandEncoder, snap: SelectionUnifor
     snap,
     listCap,
     saveRegionFor(swap, MAIN_VIEW),
-    state.coarse.factor,
     cutTablesAt(resources),
   )
   resources.device.queue.writeBuffer(resources.uniforms, 0, uniformData)
-  encodeDagKernels(encoder, resources, copy)
-  state.factorMoved = false
+  encodeDagKernels(encoder, resources, { differ: copy, post, pyramid })
   noteCut(swap, MAIN_VIEW, {
     uniforms: snap,
     residency: state.residencyRevision,
@@ -186,12 +230,14 @@ function holdClaims(state: DagRuntimeState) {
   }
 }
 
-/** The swap's and the state's claims held together (`holdSwap`, `holdClaims`). */
-function holdDispatch(swap: DagResources['swap'], state: DagRuntimeState) {
-  const swapBack = holdSwap(swap, MAIN_VIEW),
-    claimsBack = holdClaims(state)
+/** The swap's and the state's claims held together (`holdSwap`, `holdClaims`), and the post pass
+ *  the dispatch leaves open: a dropped image encodes none. */
+function holdDispatch(cut: MainCut) {
+  const swapBack = holdSwap(cut.resources.swap, MAIN_VIEW),
+    claimsBack = holdClaims(cut.state)
   return () => {
     claimsBack()
     swapBack()
+    cut.post = undefined
   }
 }

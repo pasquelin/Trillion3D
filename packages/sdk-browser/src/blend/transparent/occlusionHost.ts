@@ -1,5 +1,12 @@
-import { createTransparentOcclusion } from '../../gpu/core/transparentOcclusion.ts'
+import {
+  createTransparentOcclusion,
+  type OcclusionFrame,
+} from '../../gpu/core/transparentOcclusion.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { taaRenderMatrix } from '../../post/taa/frame.ts'
+import { visLayerTop } from '../../visibility/passes/uniforms.ts'
+import { cullStep } from '../../frame/render/cutFreeze.ts'
 import {
   createEntryCorners,
   encodeEntryCorners,
@@ -11,26 +18,68 @@ import {
 /**
  * Mounts the occlusion test of transparent clusters, once everything it borrows exists.
  *
- * It is neither a fallback nor an option: without a pyramid, without a partition or without GPU
- * compaction there is simply nothing to strip, and the transparent table then keeps all its entries
- * — the image is the same, at the cost it had. The verdict buffer belongs to compaction and stays
- * zero while nobody writes it.
+ * It is neither a fallback nor an option: without a pyramid or without GPU compaction there is
+ * simply nothing to strip, and the transparent table then keeps all its entries — the image is the
+ * same, at the cost it had. The verdict buffer belongs to compaction and stays zero while nobody
+ * writes it.
  */
 export async function prepareTransparentOcclusion(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis, blendState } = rt,
     { table, compaction } = blendState
-  const hiz = vis.gpuHiz,
-    partition = vis.gpuPartition
-  if (!hiz || !partition || !table || !compaction?.encode) return
+  const hiz = vis.gpuHiz
+  if (!hiz || !table || !compaction?.encode) return
   blendState.occlusion = await createTransparentOcclusion(device, table.capacity, {
     pyramid: () => hiz.pyramidView(),
     levels: hiz.levelTable,
-    uniforms: partition.uniforms,
     // The compaction's, read at each image: its buffers are made over when the table outgrows them.
     occluded: () => blendState.compaction!.occludedBuffer,
   })
   if (!blendState.occlusion) return
   blendState.occlusionEpoch = -1
+}
+
+const noMatrix = new Float64Array(16)
+/** The test's frame, filled every image in the SAME object: `begin` writes it into the uniform and
+ *  copies what the audit keeps, so nothing here needs to be new. The anchor is a tuple held the same
+ *  way, so the camera pose allocates nothing. */
+const anchor: [number, number, number] = [0, 0, 0]
+const frame: OcclusionFrame = {
+  view: noMatrix,
+  viewProj: noMatrix,
+  anchor,
+  near: 0,
+  width: 0,
+  height: 0,
+  layerTop: 0,
+  cull: 'follow',
+}
+
+/**
+ * The frame the transparent clusters are tested under, at the head of the visibility image
+ * (`../../frame/render/encodeVis.ts`): the matrices come from the ENGINE camera, which image entry
+ * has already filled from the pose contract (`../../camera/world.ts`), view and view-projection
+ * posted there once for the whole image in double precision; the test adds no matrix calculation.
+ */
+export function beginTransparentOcclusion(rt: WebgpuPagesRuntime, cam: EngineCamera) {
+  const occlusion = rt.blendState.occlusion
+  if (!occlusion) return
+  frame.view = cam.view
+  // The render matrix, temporal-antialiasing jitter included: the pyramid the test reads was
+  // rasterised with it, and its margins are to the ulp.
+  frame.viewProj = taaRenderMatrix(rt, cam)
+  // Projection anchor: the eye in the world. Corners enter the kernel only by their offset from it,
+  // which keeps the error bound tight whatever the model size.
+  anchor[0] = cam.eye[0]
+  anchor[1] = cam.eye[1]
+  anchor[2] = cam.eye[2]
+  frame.near = cam.near
+  frame.width = rt.gpu.targetSize[0]
+  frame.height = rt.gpu.targetSize[1]
+  frame.layerTop = visLayerTop(rt.vis)
+  // The image's cull: a frozen cut's draws again the verdicts it kept
+  // (`../../frame/render/cutFreeze.ts`).
+  frame.cull = cullStep(rt)
+  occlusion.begin(frame)
 }
 
 /**

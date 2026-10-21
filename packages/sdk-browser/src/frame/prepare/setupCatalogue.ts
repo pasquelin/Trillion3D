@@ -83,12 +83,12 @@ export function pagedBlendCopiesOf(
 
 type SetupPages = ReturnType<typeof collectClusterPages>
 
-/** The setup's fields of the catalogue's tracking and root cover. */
+/** The setup's fields of the catalogue's tracking, root cover and root pages. */
 export function bootstrapFields(pages: ReturnType<typeof setupPages>) {
-  const { tracking, bootstrap, coverUrls, bootstrapKey, floorUrls, requests } = pages
+  const { tracking, bootstrap, coverUrls, rootUrls, bootstrapKey, requests } = pages
   // `byUrl` is indexed by REQUEST key: the streaming bundle when the cache publishes one, the cluster
   // object otherwise. One request therefore hands bytes to every cluster that shares it. The GPU page
   // cache stays keyed by pool address (`pageAddress`), the granularity it uploads and pins.
   const byUrl = indexPagesByUrl(pages.allPages)
-  return { tracking, bootstrap, coverUrls, bootstrapKey, floorUrls, byUrl, requests }
+  return { tracking, bootstrap, coverUrls, rootUrls, bootstrapKey, byUrl, requests }
 }

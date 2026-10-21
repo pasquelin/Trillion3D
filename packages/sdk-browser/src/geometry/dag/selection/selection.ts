@@ -2,13 +2,12 @@
  * GPU cut of a cluster DAG (`errorModel: dag-group-qem-v4`).
  *
  * Every cluster carries its own screen-error band, so no cluster depends on another. One thread per
- * candidate cluster evaluates `parentErrorPx > pixelError >= lodErrorPx` with the same projection as
- * `clusterErrorPixels`; the candidates come from a level-by-level descent of the primitive's culling
- * hierarchy, one indirect pass per level, which rejects a whole subtree at once (out of frustum, or
- * a subtree whose largest replacement error already fits the budget) and never reads the clusters
- * below it. Rejection there is a pure accelerator: a node's box contains every cluster box below it
- * and its `maxParentError` bounds every `parentError` below it, so the selected set is identical
- * with or without the hierarchy.
+ * candidate cluster draws it when its parent's error shows past the threshold at its sphere's
+ * nearest edge scale and its own does not (`../shader/error.ts`); the candidates come from a
+ * level-by-level descent of the primitive's culling hierarchy, one indirect pass per level, which
+ * rejects a whole subtree at once — out of the frustum, its largest replacement error already
+ * within the threshold, or hidden by the pyramid (`../shader/occlusionWgsl.ts`) — and never reads
+ * the clusters below it.
  */
 import { cutSteps, type CutProgress, type CutSteps } from '../cut/cutSteps.ts'
 import type { GpuSelection } from '../../../gpu/core/selection.ts'
@@ -20,7 +19,8 @@ import type { RootsOnGpu } from '../runtime/runtimeOps.ts'
 import { dagDeviceRefusal } from '../deviceRefusal.ts'
 import { cutHeldSlots } from '../lists/listCap.ts'
 import type { CutAdmission } from '../cut/cutBuffers.ts'
-import type { DagResources, RowCutPass } from '../resources.ts'
+import type { DagResources, ListNote, RowCutPass } from '../resources.ts'
+import type { CutListCaps } from '../lists/cutListCaps.ts'
 
 export async function createGpuDagSelection(
   device: GPUDevice,
@@ -29,8 +29,6 @@ export async function createGpuDagSelection(
     diagnosticGpuVariant?: DiagnosticGpuVariant
     /** Told why a scene that has a cut gets no GPU cut: the host refuses the scene by name. */
     onRefused?: (reason: string, details?: Record<string, unknown>) => void
-    /** The pages the pool already holds: a cut made beside a running one (a growth in place). */
-    poolHeld?: (page: number) => boolean
     /** What the session writes of its roots on the GPU before every cut, the tree's leaves among
      *  them (`RootsOnGpu`): the stretch's one writer — a cut without it projects every cluster to
      *  nothing —, so never optional. */
@@ -47,6 +45,11 @@ export async function createGpuDagSelection(
     timed?: (steps: ReturnType<CutSteps['end']>) => void
     /** The row cache's pass on the cut, made over its resources (`RowCutPass`). */
     rowPass?: (cut: DagResources) => RowCutPass
+    /** The caps its lists are laid out for, the session's settings (`../lists/cutListCaps.ts`);
+     *  the reference's defaults when absent. */
+    lists?: CutListCaps
+    /** Where the cut says its lists' warnings — an overflow past a cap, caps the device refused. */
+    onListNote?: ListNote
   },
 ): Promise<GpuSelection | undefined> {
   if (packed.pageCount < 1) return undefined
@@ -69,6 +72,7 @@ export async function createGpuDagSelection(
     options.share,
     options.admit,
     steps,
+    options.lists,
   )
   options.timed?.(steps.end())
   if (!resources) {
@@ -76,5 +80,6 @@ export async function createGpuDagSelection(
     return undefined
   }
   resources.rowPass = options.rowPass?.(resources)
-  return createDagRuntime(resources, options.poolHeld, options.roots)
+  resources.listNote = options.onListNote
+  return createDagRuntime(resources, options.roots)
 }

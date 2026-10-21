@@ -1,10 +1,12 @@
 // The WGSL decode of a quantized cluster page, run through the accessors the engine's raster,
 // shadow and resolve stages call — a page-table row over a pool slot —, against the SDK module's
 // decoder of the same bytes, a flat-shaded page among them (its positions stored once and read
-// through each vertex's link): positions, texture coordinates and colours bit for bit — the
-// format's arithmetic is one multiply and one add, both correctly rounded in WGSL —, normals within
-// what WGSL grants `normalize`, indices exact, and the cotangent frame every lighting pass bends its
-// normal map with, against the same formula in JavaScript.
+// through each vertex's link): positions, the four texture sets and colours bit for bit — a
+// position is its cell converted to a float (exact below 2^24 cells) times the grid's unit, a
+// texture coordinate its float code's bits, a colour its byte times 1/255, each one correctly
+// rounded operation in WGSL —, normals within what WGSL grants `normalize`, indices exact, and the
+// cotangent frame every lighting pass bends its normal map with, against the same formula in
+// JavaScript.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { decodeGeometryPage } from '../../../packages/sdk-browser/src/geometry/codec/geometryPage.ts'
@@ -17,10 +19,10 @@ import { ringMesh } from '../../../packages/sdk-browser/src/geometry/codec/ringM
 import { crossVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { decodeOnGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './decodingKernel.ts'
 
-/** A ring page of `triangles` at `exponent`, flat-shaded or not, with the SDK module's decode. */
-function page(triangles: number, exponent: number, flat = false) {
-  const ring = ringMesh(triangles, exponent)
-  const { encoded, indices } = flat ? flatShaded(ring, exponent) : ring
+/** A ring page of `triangles` at `precision`, flat-shaded or not, with the SDK module's decode. */
+function page(triangles: number, precision: number, flat = false) {
+  const ring = ringMesh(triangles, precision, 4, 4)
+  const { encoded, indices } = flat ? flatShaded(ring, precision) : ring
   const decoded = decodeGeometryPage(encoded.data)
   return {
     bytes: encoded.data,
@@ -34,7 +36,7 @@ function page(triangles: number, exponent: number, flat = false) {
  *  normal, so the page stores each position once and links its vertices to them. */
 function flatShaded(
   { indices, attributes }: { indices: number[]; attributes: PageAttributes },
-  exponent: number,
+  precision: number,
 ) {
   const corners = indices.map((_, k) => k)
   const flat = Object.fromEntries(
@@ -46,9 +48,10 @@ function flatShaded(
       return [name, { itemSize, array: new Float32Array(values) }]
     }),
   )
-  const encoded = encodePage(corners, flat, exponent),
+  const encoded = encodePage(corners, flat, precision),
     words = new DataView(encoded.data.buffer, encoded.data.byteOffset)
-  assert.ok(words.getUint32(88, true) < words.getUint32(8, true), 'positions stored once')
+  // Word 20, the page's position count, under word 2, its vertex count.
+  assert.ok(words.getUint32(80, true) < words.getUint32(8, true), 'positions stored once')
   return { encoded, indices: corners }
 }
 
@@ -65,7 +68,9 @@ function cotangentFrame(N: number[], e1: number[], e2: number[], duv1: number[],
 }
 
 test('the WGSL decode reads every page as the JavaScript decoder does', async () => {
-  const pages = [page(126, -12), page(5, -3), page(40, -20), page(40, -12, true)]
+  // Precisions, cells of 2^-p centimetre: a fine grid short of 2^24 cells at a hundred metres, the
+  // default, a coarse one, and the flat-shaded page at the default.
+  const pages = [page(126, 7), page(5, -3), page(40, 10), page(40, 7, true)]
   const { adapter, words, errors } = await decodeOnGpu(pages)
   assert.deepEqual(errors, [])
   let worstNormal = 0,
@@ -73,7 +78,7 @@ test('the WGSL decode reads every page as the JavaScript decoder does', async ()
   for (const [k, { decoded, vertexCount, indexCount }] of pages.entries()) {
     const ints = words[k],
       values = new Float32Array(ints.buffer, ints.byteOffset, ints.length)
-    const { position, normal, uv, uv2, color } = decoded.attributes
+    const { position, normal, uv, uv1, uv2, uv3, color } = decoded.attributes
     /** `count` exact floats of vertex `i` at `offset` in the output, against `array`. */
     const exact = (
       name: string,
@@ -91,8 +96,10 @@ test('the WGSL decode reads every page as the JavaScript decoder does', async ()
     for (let i = 0; i < vertexCount; i++) {
       exact('position', position, i, 0, 3)
       exact('uv', uv, i, 6, 2)
-      exact('uv2', uv2, i, 8, 2)
-      exact('colour', color, i, 10, 4)
+      exact('uv1', uv1, i, 8, 2)
+      exact('uv2', uv2, i, 10, 2)
+      exact('uv3', uv3, i, 12, 2)
+      exact('colour', color, i, 14, 4)
       for (let c = 0; c < 3; c++)
         worstNormal = Math.max(
           worstNormal,

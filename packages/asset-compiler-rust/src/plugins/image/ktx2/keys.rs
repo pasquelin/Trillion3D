@@ -9,7 +9,7 @@
 //! and downward, is the image-contract orientation. `KTXswizzle` says which channel
 //! permutation to apply before reading the colour. Ignoring them without a word flipped a
 //! texture or swapped its channels with nothing signalling it.
-use crate::le::{u32_at, until_nul};
+use crate::support::le::{u32_at, until_nul};
 use std::collections::BTreeMap;
 
 /// The two header words that name the section: its offset then its length.

@@ -1,4 +1,3 @@
-import type { PendingGrowth } from '../../../gpu/core/tableGrowth.ts'
 import type { OpenPass } from '../../../gpu/core/lazyComputePass.ts'
 
 export type GpuHiz = {
@@ -6,25 +5,16 @@ export type GpuHiz = {
   height: number
   level0: GPUTexture
   level0View: GPUTextureView
-  flags: GPUBuffer
-  /** The build of the drawn pyramid's farthest layer from the depth drawn so far — the occluders'
-   *  —, as dispatches of the frame's compute pass. */
+  /** The build of the drawn pyramid's farthest layer from the depth drawn so far — the cut's main
+   *  pass's, or the whole depth's —, as dispatches of the frame's compute pass. */
   encodePyramid(open: OpenPass): void
   /** The build of its nearest layer — each pixel's plane, each cell's nearest — and of the
    *  finished depth's farthest layer, once level 0 holds the whole depth, as dispatches of the open compute pass. */
   encodeNearest(open: OpenPass): void
-  /**
-   * Adopts the tested boxes and the frame state the GPU partition writes. It is mounted after the
-   * pyramid — it reads `flags` — so the bind group only knows them here. Without this call,
-   * `encodeTest` encodes nothing: no row is then tested, so none is rejected.
-   */
-  attach(bounds: GPUBuffer, state: GPUBuffer): void
-  /** Verdict flags for `rows` rows, made now and put in place by `commit`: the pyramids stay. */
-  growFlags(rows: number): PendingGrowth
-  /** The levels uniform (`hizLevelWords`): the one mip table, which the partition's cull and
-   *  packing and the transparent occlusion test bind (`hizMip`) as the depth readers do. */
+  /** The levels uniform (`hizLevelWords`): the one mip table, which the cut's occlusion test and
+   *  the transparent occlusion test bind (`hizMip`) as the depth readers do. */
   readonly levelTable: GPUBuffer
-  /** The pyramid texture's view, whose farthest layer the partition's cull and the transparent
+  /** The pyramid texture's view, whose farthest layer the cut's occlusion test and the transparent
    *  occlusion test walk with the `levelTable`. It changes identity on every target resize. */
   pyramidView(): GPUTextureView | undefined
   /** What a reader of the whole depth binds (`hizDepthEntries`, `hizDepthWgsl`): level 0 — the
@@ -37,27 +27,10 @@ export type GpuHiz = {
    *  writes it, so no reader folds a layer this image did not write. It changes identity on every
    *  target resize. */
   front(wanted: boolean): GPUTextureView | undefined
-  /**
-   * Tests the boxes the partition compacted, as a dispatch of the frame's compute pass, after
-   * the pyramid's build in the same pass; their count lives in the state, the CPU does
-   * not read it, and the dispatch is sized by it (`testHizArgs`), not by the rows the table
-   * holds. `maxRows`, the table's drawable rows, bounds what the uniform declares. Nothing is
-   * cleared first: the partition wrote every drawable row's verdict this frame (`classifyRows`),
-   * `0` for an occluder, and the test rewrites each tested row's. `pages` is the page table: a row
-   * whose Hi-Z slot is none (never culled) is kept and counts no reject. Rejects are counted only
-   * when `counting`, the frame whose counters are sampled (`GpuPartition.countsDue`).
-   */
-  encodeTest(
-    device: GPUDevice,
-    open: OpenPass,
-    maxRows: number,
-    pages: GPUBuffer,
-    counting: boolean,
-  ): number
   resize(device: GPUDevice, width: number, height: number): boolean
   /**
-   * The `width × height` this image draws in the top-left of level 0, at most its size: the build,
-   * the test and the levels uniform read that, so a render-scale change remakes nothing. Level 0 is
+   * The `width × height` this image draws in the top-left of level 0, at most its size: the build
+   * and the levels uniform read that, so a render-scale change remakes nothing. Level 0 is
    * cleared to the far plane beyond it, which never occludes.
    */
   extent(width: number, height: number): void

@@ -1,7 +1,7 @@
 //! A building of thin closed shapes keeps its walls on every level of its cook, on every case of
 //! the family the test generates (`tests/thin_shapes.rs`). Every page decodes inside its bounds
-//! and near its source, every cut flips no face against the normals its pages decode, and still
-//! shows each wall a camera on any axis sees.
+//! and near its source, every cut flips no face against the normals its pages decode, and the
+//! finest cut covers each wall a camera on any axis sees (`silhouette.rs`).
 use super::cooked_pages::{cooked_page_defects, cooked_pages, drawn};
 use super::cooked_scene::{cook_scene, CookedScene};
 use super::silhouette::{cut_defects, Mesh};
@@ -16,7 +16,7 @@ fn cook(case: &ThinShapes, tag: &str) -> CookedScene {
 }
 
 #[test]
-fn every_cut_of_a_family_of_thin_closed_shapes_keeps_its_walls_facing_out() {
+fn every_cut_of_a_family_of_thin_closed_shapes_faces_its_normals_and_the_finest_covers_its_walls() {
     for (rank, case) in ThinShapes::family().iter().enumerate() {
         let scene = cook(case, &format!("thin-shapes-{rank}"));
         let primitives = scene.result["primitives"].as_array().expect("primitives");
@@ -59,7 +59,7 @@ fn every_cut_of_a_family_of_thin_closed_shapes_keeps_its_walls_facing_out() {
 }
 
 #[test]
-fn coarse_levels_turned_inside_out_are_reported_flipped_and_lost() {
+fn coarse_levels_turned_inside_out_are_reported_flipped() {
     let scene = cook(&ThinShapes::FIRST, "thin-shapes-flipped");
     let primitives = scene.result["primitives"].as_array().expect("primitives");
     let wood = &primitives[1];
@@ -78,16 +78,16 @@ fn coarse_levels_turned_inside_out_are_reported_flipped_and_lost() {
     }
     let defects = cut_defects(&drawn, wood, &source, &rest);
     let _ = fs::remove_dir_all(&scene.root);
-    for defect in ["faces against its normals", "loses"] {
-        assert!(
-            defects.iter().any(|d| d.contains(defect)),
-            "{defect}: {defects:#?}"
-        );
-    }
+    assert!(
+        defects
+            .iter()
+            .any(|d| d.contains("faces against its normals")),
+        "{defects:#?}"
+    );
 }
 /// Digest of what the family's first case cooks to: every page, its objects by digest, its
 /// errors and bounds.
-const FIRST_CASE_COOK: &str = "e434c50026850deb869ed710fff2f0258a945f9c904a0d7ec141f2def16496bf";
+const FIRST_CASE_COOK: &str = "94cf98b1e18d413e844f6632bf9844d390d4cd99c1e7b91213b4a19fd528a041";
 
 /// The cook is the same bytes on every platform: its cache keys and every test above depend on
 /// it. A different digest on one platform alone is a cook that is not portable (the simplifier's

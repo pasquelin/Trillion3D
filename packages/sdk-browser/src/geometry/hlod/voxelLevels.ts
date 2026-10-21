@@ -13,6 +13,7 @@ import {
   VOXEL_BRICK_CORNERS,
   VOXEL_BRICK_INDICES,
 } from '../../../../sdk-core/src/page/voxelPage.ts'
+import { CULLING_FANOUT } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import { sphereUnion } from '../../../../math/src/geometry/sphere.ts'
 import { boxEmpty, boxUnion } from '../../../../math/src/geometry/box.ts'
 import {
@@ -20,6 +21,7 @@ import {
   CULL_CHILD_COUNT,
   CULL_FIRST_CHILD,
   CULL_FIRST_PAGE,
+  CULL_FLOOR,
   CULL_MAX,
   CULL_MIN,
   CULL_PAGE_COUNT,
@@ -38,13 +40,11 @@ import type { ByteMeter } from '../cluster/byteMeter.ts'
  * streamed, held and evicted by the one streamer, chosen by the one cut, drawn by every raster
  * through the page geometry (`../../visibility/shader/voxelWgsl.ts`).
  *
- * Each primitive's culling tree gains a root over its old one and a tree of its bricks, eight to a
- * node as the compiler packs them; every node's replacement ceiling and ball are read again from
- * the pages, whose bands the join rewrote.
+ * Each primitive's culling tree gains a root over its old one and a tree of its bricks, a leaf a
+ * group part and `CULLING_FANOUT` children a node as the compiler packs them; every node's
+ * replacement ceiling, ball and least own error are read again from the pages, whose bands the
+ * join rewrote.
  */
-
-/** Pages and children a culling node holds at most, as the compiler packs them. */
-const NODE_FAN = 8
 
 /** A node of the bricks' culling tree before it is laid out. */
 type Tree = { box: Float64Array; first: number; count: number; children: Tree[] }
@@ -58,15 +58,20 @@ function leaf(pages: readonly Page[], at: number, count: number, first: number):
   return { box, first: first + at, count, children: [] }
 }
 
-/** The tree of `pages`, the first of them page `first`: leaves of eight, nodes of eight. */
+/** The tree of `pages`, the first of them page `first`: a leaf per group part — a run of pages of
+ *  one group, the one bundle holding them all; a root a part of its own —, `CULLING_FANOUT`
+ *  children a node. */
 function brickTree(pages: readonly Page[], first: number) {
   let level: Tree[] = []
-  for (let at = 0; at < pages.length; at += NODE_FAN)
-    level.push(leaf(pages, at, Math.min(NODE_FAN, pages.length - at), first))
+  for (let at = 0, end = 1; at < pages.length; at = end++) {
+    const group = pages[at].group
+    while (group != null && end < pages.length && pages[end].group === group) end++
+    level.push(leaf(pages, at, end - at, first))
+  }
   while (level.length > 1) {
     const up: Tree[] = []
-    for (let at = 0; at < level.length; at += NODE_FAN) {
-      const children = level.slice(at, at + NODE_FAN),
+    for (let at = 0; at < level.length; at += CULLING_FANOUT) {
+      const children = level.slice(at, at + CULLING_FANOUT),
         box = new Float64Array(6)
       boxEmpty(box, 0)
       for (const c of children)
@@ -97,28 +102,32 @@ function layOut(nodes: number[], stride: number, at: number, tree: Tree) {
   }
 }
 
-/** Every node's replacement ceiling and ball, read from `pages` bottom up: the greatest
- *  `parentError` under it (-1 where a page has none) through the ball of every replacement. */
+/** Every node's replacement ceiling, ball and least own error, read from `pages` bottom up: the
+ *  greatest `parentError` under it (-1 where a page has none) through the ball of every
+ *  replacement, and the least `lodError`. */
 function ceilings(nodes: number[], stride: number, pages: readonly Page[]) {
   for (let node = nodes.length / stride - 1; node >= 0; node--) {
     const base = node * stride,
       ball = new Float64Array([0, 0, 0, -1])
-    let ceil = 0
-    const take = (error: number, sphere: ArrayLike<number>, from: number) => {
+    let ceil = 0,
+      floor = Infinity
+    const take = (error: number, own: number, sphere: ArrayLike<number>, from: number) => {
       ceil = error < 0 || ceil < 0 ? -1 : Math.max(ceil, error)
+      floor = Math.min(floor, own)
       sphereUnion(ball, 0, sphere, from)
     }
     const children = nodes[base + CULL_CHILD_COUNT]
     for (let c = 0; c < children; c++) {
       const child = (nodes[base + CULL_FIRST_CHILD] + c) * stride
-      take(nodes[child + CULL_CEIL], nodes, child + CULL_SPHERE)
+      take(nodes[child + CULL_CEIL], nodes[child + CULL_FLOOR], nodes, child + CULL_SPHERE)
     }
     if (!children)
       for (let p = 0; p < nodes[base + CULL_PAGE_COUNT]; p++) {
         const page = pages[nodes[base + CULL_FIRST_PAGE] + p]
-        take(page.parentError ?? -1, page.parentSphere ?? page.sphere!, 0)
+        take(page.parentError ?? -1, page.lodError ?? 0, page.parentSphere ?? page.sphere!, 0)
       }
     nodes[base + CULL_CEIL] = ceil
+    nodes[base + CULL_FLOOR] = floor
     for (let a = 0; a < 4; a++) nodes[base + CULL_SPHERE + a] = ball[a]
   }
 }

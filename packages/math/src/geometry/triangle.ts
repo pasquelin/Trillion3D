@@ -5,7 +5,7 @@ import { writeCrossVector3 } from '../vector/vector.ts'
  * The triangle's edge cross product, `(b − a) × (c − a)`, into `out[o..o + 2]`: its normal by its
  * winding, twice its area long, zero for a degenerate triangle. The corners are read at `v[a]`,
  * `v[b]` and `v[c]` (three numbers each), the edges taken from the first corner, then
- * `crossVector3`. `triangle_cross` of `packages/math/rust/src/triangle.rs`.
+ * `crossVector3`. `triangle_cross` of `packages/math/rust/src/geometry/triangle.rs`.
  */
 export function triangleCross<T extends NumberSink>(
   out: T,

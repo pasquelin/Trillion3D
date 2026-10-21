@@ -37,9 +37,9 @@ export async function prepareDeformationCompute(rt: WebgpuPagesRuntime, device: 
 
 /**
  * One setup for the deformation of every placement, sharing the vertex pool. A session that
- * deforms — a root with a record, a page with deformed results — first awaits the family's code
- * (`deformationCode.ts`), as its scene's other resources, before any frame; one that does not
- * loads none of it, and its pool holds no block.
+ * deforms — a root with a record, a page with deformed results, a bank's track to play — first
+ * awaits the family's code (`deformationCode.ts`), as its scene's other resources, before any
+ * frame; one that does not loads none of it, and its pool holds no block.
  */
 export async function prepareDeformationGeometry(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis, layout, setup } = rt
@@ -48,10 +48,15 @@ export async function prepareDeformationGeometry(rt: WebgpuPagesRuntime, device:
   vis.geometryBlocks.clear()
   vis.deformationCode = undefined // a refused import below leaves no earlier prepare's code
   vis.deformationCompute = undefined
-  // The results of every deformed page of every placement, in the float pool's tail.
+  // The results of every deformed page of every placement, in the float pool's tail — the
+  // blocks the placements playing a track share among them, kept by the session —, then the
+  // records, which take each root's own results as it joins.
+  vis.deformation = createSessionDeformation()
   setup.deformationBlocks.length = 0
-  setup.deformationBlocks.push(...assignDeformationOutputs(layout.selectionRoots))
-  vis.deformation = createSessionDeformation(layout.selectionRoots)
+  setup.deformationBlocks.push(
+    ...assignDeformationOutputs(layout.selectionRoots, vis.deformation.tracks.shared),
+  )
+  vis.deformation.append(layout.selectionRoots)
   const code = await loadDeformationCode(vis, deformsAny(layout.selectionRoots))
   Object.assign(
     vis,

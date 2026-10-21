@@ -5,8 +5,8 @@
 
 // Identity, translation, scale, the rotations and composition come from the maths crate, where
 // this driver's other modules import them too: repeating them here would let them diverge.
-use crate::compiler_world::Mat4;
-use trillion3d_math::rotation::quaternion_wxyz;
+use crate::compiler::source::node_transform::Mat4;
+use trillion3d_math::matrix::rotation::quaternion_wxyz;
 
 /// Rotation of a quaternion `(w, x, y, z)`, as USD writes it. A length at or under `f64::EPSILON`
 /// rotates nothing; a NaN one still divides, as this driver always has.

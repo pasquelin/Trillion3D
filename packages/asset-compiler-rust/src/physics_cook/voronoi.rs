@@ -3,15 +3,15 @@
 //! is a box clipped by its bisectors then the solid's planes; an edge's crossing is computed from
 //! its two ends in one order, so neighbouring faces meet to the bit, and each cut is capped along
 //! the edges no touched face walks back: every cell comes out a closed mesh.
-use crate::import::Vertices;
+use crate::plugins::scene::convert::Vertices;
 use crate::plugins::scene::corners::Corners;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, HashSet};
 use std::sync::atomic::AtomicBool;
-use trillion3d_math::aabb::{centre, corner};
-use trillion3d_math::triangle::triangle_cross;
-use trillion3d_math::vec3::{point, triple, unit};
-use trillion3d_math::vecn::{dot, lerp, scale, sub};
+use trillion3d_math::geometry::aabb::{centre, corner};
+use trillion3d_math::geometry::triangle::triangle_cross;
+use trillion3d_math::vector::vec3::{point, triple, unit};
+use trillion3d_math::vector::vecn::{dot, lerp, scale, sub};
 
 type Point = [f64; 3];
 /// A convex polytope: its faces, each a polygon wound as the solid's faces are.

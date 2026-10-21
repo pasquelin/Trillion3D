@@ -28,18 +28,15 @@ function countedPages(count: number) {
   return { pages, counts }
 }
 
-/** A generated sequence of readbacks over `count` instances: a window of asked and ahead ids that
- *  slides by a tenth of itself each readback. */
+/** A generated sequence of readbacks over `count` instances: a window of asked ids that slides by
+ *  a tenth of itself each readback. */
 function readbacks(count: number, frames: number) {
   const width = Math.min(count >> 2, 4096),
     step = Math.floor(width / 10)
   return Array.from({ length: frames }, (_, f) => {
     const from = (f * step) % (count - width + 1)
     const ids = (n: number, at: number) => Array.from({ length: n }, (_, i) => (at + i) % count)
-    return {
-      pageIds: ids(width >> 1, from + step),
-      aheadPageIds: ids(width >> 2, from + 2 * step),
-    }
+    return { pageIds: ids(width >> 1, from + step) }
   })
 }
 
@@ -77,7 +74,7 @@ test('per readback, the row table is read per change, never per id named', () =>
   const demand = createRowDemand(counted, () => true, closeAlone)
   let named = 0,
     entered = 0
-  const held = { asked: new Set<number>(), ahead: new Set<number>() }
+  const held = { asked: new Set<number>() }
   const enters = (ids: number[], was: Set<number>) => {
     for (const id of ids) if (!was.has(id)) entered++
     return new Set(ids)
@@ -89,9 +86,8 @@ test('per readback, the row table is read per change, never per id named', () =>
       () => true,
       () => true,
     )
-    named += cut.pageIds.length + cut.aheadPageIds.length
+    named += cut.pageIds.length
     held.asked = enters(cut.pageIds, held.asked)
-    held.ahead = enters(cut.aheadPageIds, held.ahead)
   }
   // The row table is read for what entered the requests alone, never per id named.
   assert.ok(rowReads > 0, 'the demand reads the table')
@@ -102,9 +98,9 @@ test('per readback, the row table is read per change, never per id named', () =>
 test('the demand holds bytes by the pages it holds, never by the largest: one asked at 10⁹', () => {
   const far = 1e9,
     demand = createRowDemand(pageStateOf(far + 1), () => true, closeAlone)
-  demand.follow({ pageIds: [far], aheadPageIds: [far - 1] })
+  demand.follow({ pageIds: [far] })
   assert.ok(demand.wanted(far), 'the far page is asked for')
-  demand.follow({ pageIds: [far - 2], aheadPageIds: [] })
+  demand.follow({ pageIds: [far - 2] })
   assert.ok(demand.wanted(far - 2) && !demand.wanted(far))
   // A mark per id up to the largest named — the lists' or the demand's flags — would weigh a
   // gigabyte each.

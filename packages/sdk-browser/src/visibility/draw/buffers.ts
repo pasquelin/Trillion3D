@@ -5,7 +5,6 @@ import {
   DRAW_ITEM_U32,
   UNIFORM_BYTES,
 } from './contract.ts'
-import { bitWords } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * Compact buffers: they depend only on the row count, the coplanar-layer count and the instances a
@@ -23,16 +22,15 @@ export function createGpuDrawBuffers(
   const { entries: groupEntries, words: groupWords } = drawGroupWords(slotCap, slots)
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   const itemsBuf = device.createBuffer({ size: slotCap * DRAW_ITEM_U32 * 4, usage: storage })
-  // Copied aside and back while the cut is frozen (`../../gpu/core/heldCopy.ts`).
-  const restBuf = device.createBuffer({
-    size: Math.max(4, bitWords(slotCap) * 4),
-    usage: storage | GPUBufferUsage.COPY_SRC,
-  })
-  const uniforms = device.createBuffer({
-    label: 'Trillion3D draw compaction uniform',
-    size: UNIFORM_BYTES,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
+  // One uniform a half: the same words but the mask each selects by (`selectionOffset`).
+  const uniform = (label: string) =>
+    device.createBuffer({
+      label,
+      size: UNIFORM_BYTES,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    })
+  const uniforms = uniform('Trillion3D draw compaction uniform'),
+    postUniforms = uniform('Trillion3D post draw compaction uniform')
   // A row takes up to `perRow` instances, one per batch of its triangles (`drawBatches`).
   const instanceBuffer = device.createBuffer({
     size: slotCap * perRow * 4,
@@ -47,11 +45,11 @@ export function createGpuDrawBuffers(
     slots,
     groupEntries,
     itemsBuf,
-    restBuf,
     uniforms,
+    postUniforms,
     instanceBuffer,
     indirectBuffer,
     groups,
-    all: [itemsBuf, restBuf, uniforms, instanceBuffer, indirectBuffer, groups],
+    all: [itemsBuf, uniforms, postUniforms, instanceBuffer, indirectBuffer, groups],
   }
 }

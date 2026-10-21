@@ -26,7 +26,6 @@ export function explorerOptions(
     replicaCount: (options.instances ?? 1) as 1 | 4 | 9 | 12,
     detail: 'source',
     pixelError: options.pixelError,
-    lodAdaptive: false,
     // The page ceiling and byte reservoirs: absent (`undefined`), the engine keeps its
     // defaults — the page runs in the browser, nothing is serialised here.
     maxResidentPages: options.maxPages ?? undefined,

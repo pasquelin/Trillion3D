@@ -28,15 +28,11 @@ export interface CutSelection {
   ids: string[]
 }
 
-/** Contract occlusion counters, under their own names; `image` names the frame they describe. */
-interface HiZCounters {
-  tested: number | null
-  rejected: number | null
-  beyond16Texels: number | null
-  testedTriangles: number | null
-  rejectedTriangles: number | null
-  beyond16TexelsTriangles: number | null
-  image: number | null
+/** The cut's occlusion counts of the recorded frame, under their contract names: what its main pass
+ *  held for the post pass, and what the post pass hid again. */
+interface OcclusionCounts {
+  occluded: number | null
+  postHidden: number | null
 }
 
 /** The page budget as the last frame saw it (`series/seriesPools.ts`). */
@@ -110,7 +106,7 @@ export interface Row {
   totalSubmittedTriangles: number | null
   recordedFrame: number | null
   frameHeld: boolean | null
-  hiZ: HiZCounters
+  occlusion: OcclusionCounts
   selection: { source: CutSelection['source']; sha256: string | null; count: number }
   geometryBytes: number | null
   pageBudget: PageBudget

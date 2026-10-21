@@ -67,7 +67,7 @@
       "uri": "textures/checker.png"
     }
   ],
-  "manifestBinaryVersion": 13,
+  "manifestBinaryVersion": 18,
   "materials": [
     {
       "alphaMode": "BLEND",
@@ -159,7 +159,7 @@
   },
   "selectedNodes": 1,
   "selectedTriangles": 4,
-  "sidecarSha256": "f913ee20d6f6e9a9e486d4522d29a0146afa5191d5f1b42c5721206931102766",
+  "sidecarSha256": "b557d7dffccb59e668216688d72b75b7e6669bba36df18a8ec1f321e7345dc63",
   "sourceTriangles": 4,
   "textures": [
     {

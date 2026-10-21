@@ -15,8 +15,8 @@ import type { RecordLayout } from '../../gpu/core/recordLayout.ts'
  * - Both second normal factors: a pass picks the vertex tangents' one where it reads them
  *   (`frameNormalScaleY`).
  * - `model`: the surface model, the fog opt-out above it (`FOG_FREE_MODEL_BIT`).
- * - The maps' atlas slots, zero for none; `channels`, bit `i` set where map `i` of
- *   `SURFACE_MAP_FIELDS` reads the second UV set (glTF's `texCoord`, `channelsOf`); `lobes`, the
+ * - The maps' atlas slots, zero for none; `channels`, two bits a map: the texture set map `i` of
+ *   `SURFACE_MAP_FIELDS` reads, at bit `2i` (glTF's `texCoord`, `channelsOf`); `lobes`, the
  *   first texel of the surface's lobe extension plus one (`writeLobeRecord`), zero without a lobe.
  * - The volume: `invIor` the refraction ratio, `attenuation`
  *   the law's constant `k` (`volumeAttenuation`), each computed here once in f64.

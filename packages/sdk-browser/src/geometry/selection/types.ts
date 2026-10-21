@@ -4,7 +4,6 @@ import type { DrawSource } from './drawSource.ts'
 import type { PageSurface } from '../pages/surface.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
 import type { MatrixElements } from '../../session/host/matrixElements.ts'
-import type { NormalCone } from '../cone/cone.ts'
 import type { CullingLinks } from '../cut/links.ts'
 import type { PlacementOf } from '../../placement/rows/rows.ts'
 
@@ -14,11 +13,14 @@ export type MovedBox = { readonly min: number[]; readonly max: number[] }
 
 /** Where a page's deformation results lie for a placement (`ClusterRoot.deformationOutputs`), in the
  *  float pool, `count` vertices of them from float `from`; `pool` names the geometry and placement
- *  world of a block shared by the pages of a geometry read as floats, none a page's own. */
+ *  world of a block shared by the pages of a geometry read as floats, none a page's own; `shared`
+ *  marks the block of a page that every placement playing one bank track reads
+ *  (`../../deformation/bankTracks.ts`). */
 export type DeformationOutput = {
   from: number
   count: number
   pool?: { attributes: HostAttributes; world?: MatrixElements }
+  shared?: true
 }
 
 export type PageRec = {
@@ -44,8 +46,8 @@ export type PageRec = {
   role?: 'exact' | 'coarse'
   /** Flat DAG cut, copied from the page. Absent on caches without a per-cluster error. */
   level?: number
-  /** The HLOD layer a world page belongs to (`geometry/hlod/worldRecords.ts`): 1 for `HLODLayer_Merged`;
-   *  absent on a primitive's page, which draws itself. */
+  /** The HLOD level of the actor a world page belongs to (`geometry/hlod/worldRecords.ts`, its
+   *  cell's `actorLevel`); absent on a primitive's page, which draws itself. */
   hlodLayer?: number
   lodError?: number
   sphere?: number[]
@@ -58,6 +60,10 @@ export type PageRec = {
    *  property of the bundle: one request makes dozens of clusters drawable at once. */
   streamUrl?: string
   streamOffset?: number
+  /** On a cluster of one of its primitive's ROOT PAGES (`streams.pinned`, as many as its mesh's
+   *  `alwaysResidentKib` asks): the session's root cover holds it whatever the view
+   *  (`../../frame/prepare/rootCover.ts`). */
+  pinned?: true
   /** One record of each bundle its bundle is installed after, closed up to the root cover
    *  (`./bundleDependencies.ts`): a request for this record brings the missing ones with it. */
   dependencies?: readonly PageRec[]
@@ -73,19 +79,14 @@ export type PageRec = {
   drawSource?: DrawSource
   sourceOrder?: number
   renderOrder: number
-  /** The cone of its triangles' normals the compiler cooked, opened at collection on a surface
-   *  that shows its back (`./collectRecords.ts`); absent on a page that keeps none. */
-  cone?: NormalCone
   /** Rank of the request key, set once by `indexPageRequests`: deduplication without hashing. */
   requestIndex?: number
   /** The residency's key of the page: its rank in the host catalogue, set once. Residency and
    *  pinning without hashing. */
   keyIndex?: number
-  /** True on a page of the group a root replaces: the minimum capacity holds it and admits it
-   *  first (`../../session/memory/minimumCapacity.ts`). */
-  rootChild?: boolean
-  /** On a root a cell alone needs, the world bundle its cell holds it by: the cover holds it while
-   *  that bundle is held (`../residency/coverHolders.ts`), never for the session. */
+  /** On a cluster of an HLOD actor's root page — a root, or a cluster of the coarsest groups packed
+   *  beside the roots —, the world bundle its cell holds it by: the cover holds it while that
+   *  bundle is held (`../residency/coverHolders.ts`), never for the session. */
   holder?: number
 }
 /**
@@ -125,12 +126,11 @@ export type ClusterRoot<T> = {
   packedBase?: number
   /** Compiled mesh number of its primitive (`Primitive.mesh`). */
   mesh?: number
-  /** `bounds`: per-node bounds derived from the nodes and the pages, once at prepare time.
-   *  `links`: parent of each node and leaf node of each cluster, the same shared prepare. */
+  /** The primitive's culling hierarchy; `links`: parent of each node and leaf node of each
+   *  cluster, derived once at prepare time and shared by its placements. */
   culling?: {
     nodes: Float64Array
     stride: number
-    bounds: Float64Array
     links?: CullingLinks
   }
   /** Root world box, six bounds flat (`packages/math/src/geometry/box.ts`), taken when read
@@ -171,7 +171,8 @@ export type ClusterRoot<T> = {
   placement?: PlacementOf
   /** The results of each of its pages, by the page's rank in `pages`, where its deformation writes
    *  them (`../../deformation/outputs.ts`): its own, whatever the other placements of the primitive
-   *  pose; absent on a root that deforms nothing. */
+   *  pose, or, while it plays a bank's track, the track's, which every placement playing it reads
+   *  (`../../deformation/bankTracks.ts`); absent on a root that deforms nothing. */
   deformationOutputs?: (DeformationOutput | undefined)[]
   /** How far its primitive's deformation can move a vertex from rest (`Primitive.deformation`),
    *  absent on one that does not deform (#357). */

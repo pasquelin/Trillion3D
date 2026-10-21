@@ -1,5 +1,5 @@
-use crate::albedo::Palette;
-use crate::texture_preview::source::with_image_bytes;
+use crate::compiler::materials::albedo::Palette;
+use crate::texture::source::with_image_bytes;
 use serde_json::Value;
 use std::path::Path;
 use trillion3d_math::color::srgb_byte_to_linear;
@@ -35,5 +35,7 @@ fn texture_mean(g: &Value, bin: &[u8], directory: &Path, texture: u64) -> Option
 /// Linear diffuse albedo of each material, read from source and not from cache.
 pub fn palette(g: &Value, bin: &[u8], source: &Path) -> Palette {
     let directory = source.parent().unwrap_or(Path::new("."));
-    crate::albedo::palette(g, |texture| texture_mean(g, bin, directory, texture))
+    crate::compiler::materials::albedo::palette(g, |texture| {
+        texture_mean(g, bin, directory, texture)
+    })
 }

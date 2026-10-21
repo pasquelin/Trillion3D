@@ -20,6 +20,7 @@ import { PAGE_INFO_STRIDE } from '../../visibility/types.ts'
 import { VIS_BINDINGS, SHADE_BINDINGS } from './bindLayout.ts'
 import { BASE_SLOTS } from '../../visibility/draw/contract.ts'
 import { createGpuRaster } from '../../visibility/raster/raster.ts'
+import { RASTER_PASS_MAIN } from '../../visibility/raster/contract.ts'
 import type { WebgpuTileStreamer } from '../../materials/virtual/streamer/streamer.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -55,7 +56,7 @@ function stubVis(layouts: Record<string, unknown>) {
     shadeUniform: token(),
     shadeCache: { buffer: token() },
     voxelSteps: { buffer: token() },
-    zeroFlags: token(),
+    zeroRows: token(),
     visView: {} as GPUTextureView,
     textures: stubTextures(),
     mapsSampler: {} as GPUSampler,
@@ -124,7 +125,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   // Resolve shares the prepare-time entries.
   ensureWebgpuShadeBindings(rt, device)
   // PageInfo is a tightly packed storage array, not a dynamically offset binding per row.
-  assert.equal(PAGE_INFO_STRIDE, 128)
+  assert.equal(PAGE_INFO_STRIDE, 176)
   for (const [index, binding] of [
     [0, VIS_BINDINGS.pageTable],
     [1, SHADE_BINDINGS.pageTable],
@@ -134,7 +135,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
     const resource = entry.resource as GPUBufferBinding
     assert.equal(resource.buffer, vis.pageTable)
     assert.equal(resource.offset ?? 0, 0)
-    assert.equal(resource.size ?? resource.buffer.size, 3 * 128)
+    assert.equal(resource.size ?? resource.buffer.size, 3 * PAGE_INFO_STRIDE)
     const layout = groups[index].layout.entries as GPUBindGroupLayoutEntry[]
     assert.equal(
       layout.find((entry) => entry.binding === binding)!.buffer?.hasDynamicOffset ?? false,
@@ -146,8 +147,9 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   blendState.lighting = blendLightResources(rt)
   drawBlendPass(rt, device, encoder)
 
-  // The unique constructor of the small-triangle software raster, fourth pair of the path: it
-  // reads the same colour pool and the same page table as the other passes.
+  // The constructors of the visibility raster, fourth set of the path: the hardware raster's group
+  // over the visibility buffer, then the software raster's, its binning's and the resolve's. The
+  // software raster reads the same colour pool and the same page table as the other passes.
   const raster = createGpuRaster(device, 4, 4, 8)
   const buffer = {} as GPUBuffer,
     view = {} as GPUTextureView
@@ -155,25 +157,23 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
     indices: buffer,
     positions: buffer,
     pages: buffer,
-    hizFlags: buffer,
     uniform: buffer,
+    postUniformOffset: 0,
     uvs: buffer,
     textures: vis.textures,
     sampler: vis.mapsSampler,
     material: view,
     normals: view,
+    items: buffer,
     pageRows: 1,
-    maxTriangles: 3,
     idsView: view,
     depthView: view,
-    tested: false,
-    groups: [],
-    groupKey: 0,
+    hizView: view,
   }
-  raster.encodeOccluders(encoder, rasterInput)
-  raster.encodeIds(encoder, rasterInput)
+  raster.encodeBinning(encoder, rasterInput, RASTER_PASS_MAIN)
+  raster.encodeIds(encoder, rasterInput, [4, 4], false)
   const counted = groups.map((group) => [group.entries.length, group.layout.entries.length])
-  assert.equal(counted.length, 5, 'the four constructors ran, the resolver included')
+  assert.equal(counted.length, 7, 'every constructor ran, the visibility raster’s four included')
   for (const [built, expected] of counted)
     assert.equal(built, expected, `a group binds ${built} entries for a layout of ${expected}`)
   assert.deepEqual(

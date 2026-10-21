@@ -7,11 +7,15 @@ import {
   HLOD_FIELD,
   JOB_FIELDS,
   MATERIALS_FIELD,
+  MESH_BUILD_FIELD,
+  OBJECT_SETTINGS_FIELD,
+  PARTITION_GRID_FIELD,
   RESPONSIVE_FIELD,
   SIMPLIFICATIONS,
   TEMPORAL_AA_FIELD,
   VOXELIZE_FIELD,
 } from '../../../packages/sdk-core/src/contracts/compilerAbi.ts'
+import { PARTITION_SCHEME_FIELD } from '../../../packages/sdk-core/src/contracts/partitionOptions.ts'
 import { COMPILER_OPTIONS_SCHEMA } from '../../../packages/sdk-core/src/llm/compilerOptionsSchema.ts'
 import { REPOSITORY_ROOT } from '../../git/repository-files.ts'
 
@@ -26,7 +30,7 @@ function words(rust: string, head: string) {
 }
 
 test('the compiler reads the job fields, scopes and simplifications the schema names', () => {
-  // The compiler's job reader (`compiler_args.rs`) and check (`compiler_validate.rs`) read the
+  // The compiler's job reader (`compiler/args.rs`) and check (`compiler/validate.rs`) read the
   // printed `abi.rs`; the options schema reads `compilerAbi.ts`: the two must name the same job.
   const rust = readFileSync(join(REPOSITORY_ROOT, ABI), 'utf8')
   assert.deepEqual(words(rust, 'pub mod job_field'), [...JOB_FIELDS])
@@ -39,6 +43,10 @@ test('the compiler reads the job fields, scopes and simplifications the schema n
       RESPONSIVE_FIELD,
       MATERIALS_FIELD,
       VOXELIZE_FIELD,
+      PARTITION_SCHEME_FIELD,
+      PARTITION_GRID_FIELD,
+      MESH_BUILD_FIELD,
+      OBJECT_SETTINGS_FIELD,
     ].sort(),
   )
   assert.deepEqual(words(rust, 'pub const SCOPES'), [...ASSET_SCOPES])

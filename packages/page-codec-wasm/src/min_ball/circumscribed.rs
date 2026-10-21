@@ -1,8 +1,8 @@
 //! The smallest ball through a support of 2, 3 or 4 points — the diameter, the circumscribed
 //! circle or sphere — the step of `min_ball`, as `through` is the ball of balls' one.
 use super::{Ball, Held};
-use trillion3d_math::vec3::cross;
-use trillion3d_math::vecn::{add, dot, length, scale, sub};
+use trillion3d_math::vector::vec3::cross;
+use trillion3d_math::vector::vecn::{add, dot, length, scale, sub};
 
 /// The ball of which `a` and `b` are a diameter.
 pub(super) fn diameter(a: [f64; 3], b: [f64; 3]) -> Ball {

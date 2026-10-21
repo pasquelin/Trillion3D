@@ -7,13 +7,34 @@ import {
   NODE_CEIL,
   NODE_CHILD_COUNT,
   NODE_FLOOR,
-  NODE_FLOOR_SPHERE,
   NODE_MAX,
   NODE_MIN,
   NODE_OPEN,
   NODE_SPHERE,
 } from '../nodeLayout.ts'
 import { projectedError, type DagViewFrames } from './math.fixture.ts'
+import { REQUEST_CATEGORY, REQUEST_PRIORITY_MAX, REQUEST_PRIORITY_MIN } from '../request/request.ts'
+import { f32Bits } from '../../../../../math/src/float/bits.ts'
+import { clamp } from '../../../../../math/src/scalar/reals.ts'
+
+/** The projected replacement ceiling of node `n` read by placement `w`, in pixels: what the
+ *  descent compares to the threshold (`dagNodeVerdict`) and a kept leaf's request priority reads
+ *  (`dagLeafPriority`). */
+function projectedCeiling(f: DagViewFrames, nodes: ArrayLike<number>, n: number, w: number) {
+  const base = n * DAG_NODE_FLOATS
+  return projectedError(
+    nodes[base + NODE_CEIL],
+    nodes[base + NODE_SPHERE],
+    nodes[base + NODE_SPHERE + 1],
+    nodes[base + NODE_SPHERE + 2],
+    nodes[base + NODE_SPHERE + 3],
+    f.views[w],
+    f.stretches[w],
+    f.focal,
+    f.near,
+    f.perspective,
+  )
+}
 
 /** Kernel verdict on a cut node read by placement `w` (`../shader/levelWgsl.ts`, `levelStep`):
  *  `-1` rejected — outside the trunk, or whose subtree replacement is not yet too coarse —,
@@ -38,32 +59,38 @@ export function dagNodeVerdict(
     )
   )
     return -1
-  const ceil = nodes[base + NODE_CEIL]
-  if (
-    ceil >= 0 &&
-    projectedError(
-      ceil,
-      nodes[base + NODE_SPHERE],
-      nodes[base + NODE_SPHERE + 1],
-      nodes[base + NODE_SPHERE + 2],
-      nodes[base + NODE_SPHERE + 3],
-      f.views[w],
-      f.stretches[w],
-      f.focal,
-      f.near,
-      f.perspective,
-    ) <= f.pixelError
-  )
-    return -1
+  if (nodes[base + NODE_CEIL] >= 0 && projectedCeiling(f, nodes, n, w) <= f.pixelError) return -1
   return ints[base + NODE_CHILD_COUNT]
 }
 
+/** The request priority word of kept leaf `n` read by placement `w` (`leafPriority`,
+ *  `../shader/error.ts`): the error its pages replace, its reach over the threshold — one or more
+ *  for a leaf the cut keeps —, unbounded without a ceiling; the float's bits under the camera's
+ *  category (`requestPriority`). */
+export function dagLeafPriority(f: DagViewFrames, nodes: ArrayLike<number>, n: number, w: number) {
+  const reach =
+    nodes[n * DAG_NODE_FLOATS + NODE_CEIL] >= 0
+      ? projectedCeiling(f, nodes, n, w) / f.pixelError
+      : Infinity
+  return requestPriority(reach)
+}
+
+/** The CPU mirror of `requestPriority` (`../shader/error.ts`): the camera's category in the top two
+ *  bits, the single-precision bits of `priority` below them, within the range the host's heap
+ *  keeps (`../request/request.ts`). */
+const requestPriority = (priority: number) =>
+  clamp(
+    ((REQUEST_CATEGORY << 30) | (f32Bits(priority) >>> 2)) >>> 0,
+    REQUEST_PRIORITY_MIN,
+    REQUEST_PRIORITY_MAX,
+  )
+
 /**
- * The subtree error FLOOR, projected as the kernel projects it (`../shader/floorWgsl.ts`,
- * `errorFloor`): above the threshold none of its clusters is fine enough and the cut
- * takes none. An open subtree — it holds a cluster whose finer group is not resident, which the
- * cut rule may draw whatever its error — returns zero, so never prunes. `open`, placement `w`'s
- * own count there (`../heldOpen.ts`); the node's, shared, when it holds none.
+ * A leaf's error FLOOR, projected as the kernel projects it (`../shader/floorWgsl.ts`,
+ * `floorPrunes`) through its LOD ball: above the threshold none of its clusters is fine enough and
+ * the cut takes none. An inner node, and an open leaf — it holds a cluster whose finer group is not
+ * resident, which the cut rule may draw whatever its error —, return zero, so never prune. `open`,
+ * placement `w`'s own count there (`../heldOpen.ts`); the node's, shared, when it holds none.
  */
 export function dagNodeFloor(
   f: DagViewFrames,
@@ -74,16 +101,16 @@ export function dagNodeFloor(
   open = ints[n * DAG_NODE_FLOATS + NODE_OPEN],
 ) {
   const base = n * DAG_NODE_FLOATS
-  if (open !== 0) return 0
+  if (open !== 0 || ints[base + NODE_CHILD_COUNT] > 0) return 0
   return errorFloorAt(
     nodes[base + NODE_FLOOR],
     viewDepthOf(
-      nodes[base + NODE_FLOOR_SPHERE],
-      nodes[base + NODE_FLOOR_SPHERE + 1],
-      nodes[base + NODE_FLOOR_SPHERE + 2],
+      nodes[base + NODE_SPHERE],
+      nodes[base + NODE_SPHERE + 1],
+      nodes[base + NODE_SPHERE + 2],
       f.views[w],
     ),
-    nodes[base + NODE_FLOOR_SPHERE + 3],
+    nodes[base + NODE_SPHERE + 3],
     f.stretches[w],
     f.focal,
     f.perspective,

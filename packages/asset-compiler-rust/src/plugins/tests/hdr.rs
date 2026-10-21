@@ -3,7 +3,7 @@
 //! compression and new compression are three ways of writing the same line — the golden proves
 //! it by comparing their pixels to the same reference.
 use super::super::image as registry;
-use super::{fixture, rgba_f32};
+use super::{f32_pixels, fixture};
 use std::path::PathBuf;
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
@@ -26,13 +26,7 @@ const REFERENCE_8X1: [[f32; 4]; 8] = [PALE, PALE, PALE, PALE, BLANC, VERT_VIF, G
 
 /// Pixels of a fixture, in read order of the decoded image.
 fn pixels(name: &str, size: (u32, u32)) -> Vec<[f32; 4]> {
-    let bytes = fixture("hdr", name);
-    let decoder = registry::by_head(&bytes).expect("a driver claims these bytes");
-    assert_eq!(decoder.name(), "hdr", "{name}");
-    let (width, height, data) =
-        rgba_f32(registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|e| panic!("{name}: {e}")));
-    assert_eq!((width, height), size, "{name}");
-    data.as_chunks::<4>().0.to_vec()
+    f32_pixels("hdr", name, MAX_ALLOC, size)
 }
 
 // Driver golden: the three writings of a line and the two format signatures yield, value by

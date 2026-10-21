@@ -16,13 +16,13 @@ interface DagOutputOracle {
 
 /** `packages/sdk-browser/src/geometry/dag/runtime/runtime.ts:94-101`: the residency column read through the cones, one
  *  float per cluster. Bit residency poses the same verdicts on far fewer bytes. */
-export function referenceUpdateResidency(next: Uint32Array, pageCones: Float32Array) {
+export function referenceUpdateResidency(next: Uint32Array, cones: Float32Array) {
   let changed = false
   for (let j = 0; j < next.length; j++) {
     const index = j * CONE_FLOATS + FLAG,
       value = next[j] ? 1 : 0
-    if (pageCones[index] !== value) {
-      pageCones[index] = value
+    if (cones[index] !== value) {
+      cones[index] = value
       changed = true
     }
   }

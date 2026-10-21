@@ -31,8 +31,8 @@ use super::bricks::Brick;
 use super::seed::VoxelSeed;
 use super::solid::Voxel;
 use super::{ERROR_PER_SIZE, VOXEL_FILE};
-use crate::compiler_storage::{product, Product};
-use crate::texture_preview::TexturePreview;
+use crate::compiler::cache::storage::{product, Product};
+use crate::texture::TexturePreview;
 use crate::Result;
 use rayon::prelude::*;
 use serde_json::{json, Value};
@@ -150,7 +150,7 @@ pub(crate) fn stage_voxels(
     directory: &Path,
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<(Product, Value)> {
-    let _t = crate::perf::Timer::new(crate::perf::Phase::Voxels);
+    let _t = crate::support::perf::Timer::new(crate::support::perf::Phase::Voxels);
     // A compiled mesh is read from the first source mesh it stands for.
     let mut source_of: BTreeMap<u64, usize> = BTreeMap::new();
     for (&source, &compiled) in inputs.mesh_map {

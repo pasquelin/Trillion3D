@@ -12,6 +12,7 @@ import {
 import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 import type { PageRec } from '../../geometry/selection/types.ts'
 import { describePageSlots, pageAddress } from '../../geometry/rows/page/pageSlots.ts'
+import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../../../sdk-core/src/page/format.ts'
 
 /** The quad as two clusters whose two widths disagree: the first draws both triangles from
  *  positions alone — six corners in the fewest bytes the format can hold them — while the second
@@ -66,7 +67,7 @@ test('a page whose header is forged is refused instead of poured into the pool',
   installGpuGlobals()
   const forgeries: Record<string, (view: DataView) => void> = {
     magic: (view) => view.setUint32(0, 0, true),
-    version: (view) => view.setUint32(4, 9, true),
+    version: (view) => view.setUint32(4, GEOMETRY_PAGE_FORMAT_VERSION + 1, true),
     counts: (view) => view.setUint32(8, view.getUint32(8, true) + 16, true),
   }
   for (const forge of Object.values(forgeries)) {

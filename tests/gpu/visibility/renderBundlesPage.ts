@@ -1,4 +1,4 @@
-// The visibility raster and the material surfaces as render bundles, on the real engine: the
+// The visibility raster as render bundles, on the real engine: the
 // occluding scene of the Hi-Z proofs under the two-pass occlusion and temporal antialiasing, the
 // camera beside the wall, hidden behind it, then beside it again — both halves of the raster, the
 // tested half compacted or not. Each pose is rendered until held with the bundles, and on a second

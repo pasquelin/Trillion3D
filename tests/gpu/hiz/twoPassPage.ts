@@ -1,37 +1,38 @@
-// The two-phase Hi-Z on the real engine: the camera first sees the far slab beside the wall (its
-// clusters drawn, hence occluders of the next image), then steps in front of the wall, where the
-// slab is hidden. The first image there still draws the slab's rows in the main pass — the last
-// image's pyramid, read with the last image's rectangles, does not hide them — and its own pyramid
-// then does: the next image withdraws them (`pyramidWithdrawn`), the post pass rejects them, and
-// they stay rejected. Temporal antialiasing is on: its jitter once made rows trade halves every
-// image, and the image must still be held. Each held image is compared to a fresh engine's.
+// The cut's two-pass occlusion on the real engine: the camera first sees the far slab beside the
+// wall (its clusters drawn into the pyramid the next image reads), then steps in front of the wall,
+// where the slab is hidden. The first image there still draws the slab in the main pass — the last
+// image's pyramid, projected with the last image's matrix, does not hide it — and its own pyramid
+// then does: the next image's main pass holds it for the post pass (`occluded`), the post pass hides
+// it again (`postHidden`), and it stays hidden. Temporal antialiasing is on: its jitter must not
+// keep the image from being held. Each held image is compared to a fresh engine's.
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/session/engine/types.ts'
 import { cameraFace } from '../../kit/device/sharedSceneProof.ts'
-import { countsStep, untilHeld } from '../../kit/device/sceneImageProof.ts'
+import { untilHeld } from '../../kit/device/sceneImageProof.ts'
 import { occluderEngine, onOccluderScene, slabPixels } from './occluderScene.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 
 type Camera = ReturnType<typeof cameraFace>
 
-const options = { stageProfile: true, temporalAntialiasing: true }
+const options = { temporalAntialiasing: true }
 
 /** Renders `camera` until the engine holds the image (`untilHeld`): the held image, the images it
- *  took (null if it never held), and the largest withdrawal and rejection sampled meanwhile. */
+ *  took (null if it never held), and the most items the main pass held and the post pass hid
+ *  meanwhile. */
 async function heldPose(backend: Engine, camera: Camera) {
-  let withdrawn = 0,
-    rejected = 0
+  let occluded = 0,
+    postHidden = 0
   const {
     rendered,
     settled: held,
     count,
   } = await untilHeld(backend, camera, ({ metrics }) => {
-    withdrawn = Math.max(withdrawn, countsStep(backend, 'partition')?.pyramidWithdrawn ?? 0)
-    rejected = Math.max(rejected, metrics.hizRejectedClusters ?? 0)
+    occluded = Math.max(occluded, metrics.occluded ?? 0)
+    postHidden = Math.max(postHidden, metrics.postHidden ?? 0)
   })
   const pixels = held ?? rendered
   if (!pixels) throw new Error('no image was rendered')
-  return { pixels, images: held ? count + 1 : null, withdrawn, rejected }
+  return { pixels, images: held ? count + 1 : null, occluded, postHidden }
 }
 
 /** The same pose on an engine that has never seen another: the witness of the held image. */
@@ -49,16 +50,15 @@ async function freshPose(
   }
 }
 
-/** One pose: whether and when it held, what the partition withdrew and the test rejected, the
- *  slab's pixels, and the pixels the held image differs from the witness on. */
+/** One pose: whether and when it held, what the main pass held and the post pass hid, the slab's
+ *  pixels, and the pixels the held image differs from the witness on. */
 interface TwoPassStep {
   x: number
   images: number | null
-  withdrawn: number
-  rejected: number
+  occluded: number
+  postHidden: number
   slab: number
   gap: number
-  rows: number | null
 }
 
 export function runTwoPass() {
@@ -70,11 +70,10 @@ export function runTwoPass() {
       steps.push({
         x,
         images: held.images,
-        withdrawn: held.withdrawn,
-        rejected: held.rejected,
+        occluded: held.occluded,
+        postHidden: held.postHidden,
         slab: slabPixels(held.pixels),
         gap: compareImages(held.pixels, witness).differentPixels,
-        rows: countsStep(backend, 'partition')?.rows ?? null,
       })
     }
   })

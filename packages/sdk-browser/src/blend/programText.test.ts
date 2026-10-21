@@ -11,11 +11,14 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { blendShader } from './shader.ts'
 import type { ContractKey } from '../lighting/deferred/contractCuts.ts'
 
-// Retaken when the lobed vertex came to read UV1 for a map's channels and pass them in `tri`.
-const VERTEX = '450d08d959c6e44b91d6c395a2094841f95c066bf1cd4e791f114c0bb2486d5a'
-// Retaken when the blend module took the diagnostic light views, the cell-gated verdict inputs and
-// the coverage-writing additive layers.
-const BLEND = '1f7dc43b038bd864abb826e459180ed6a8c65f1965d7328049505b43475a3f0c'
+// Retaken when the vertex came to pass the item's history share code above the triangle's rank
+// (`TRI_GIVEN_UP_SHIFT`), the page reads drew a voxel row's bricks as boxes (`voxelWgsl.ts`), and
+// the lobed vertex took the one texture set past the first its maps name (`channelsAlt`).
+const VERTEX = '4527231df79be64432298d76dcf283c314a39b64fa2f846f9f6ed30dd9a64ead'
+// Retaken when the blend module took that vertex, the per-material history share it writes for
+// the temporal pass where its material gives the history up, and the stored tangents' frame in a
+// module of its own (`tangentFrameWgsl.ts`) for the normal map and the lobes both.
+const BLEND = 'f5c3218b6eba5c5b02663e38ae98cee3625ebc3632c69384400f68fc2ea31c0e'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */
@@ -39,11 +42,11 @@ test('the blend module text is pinned under every contract key', () => {
   assert.equal(digest(KEYS.map((key) => blendShader(key))), BLEND)
 })
 
-// Retaken when a map reading the second UV set (the record's `channels`) came to read it too.
-test('a lobed vertex reads the second UV set only where its surface carries a lobe or a map reading it', () => {
+// Retaken when the texture sets a map reads grew to four (the record's two-bit `channels`).
+test('a lobed vertex reads a set past the first only where a map of its surface or its lobes names one', () => {
   const text = wgslModule(blendVertexWgsl(true))
   assert.match(
     text,
-    /if\(\(m\.lobes!=0u\|\|m\.channels!=0u\)&&pageHasUv1\(page,h\)\)\{uv1=pageUv1\(/,
+    /var alt=channelsAlt\(m\.channels\);\s*if\(alt==0u&&m\.lobes!=0u\)\{alt=channelsAlt\(physicalAt\(m\.lobes\)\.channels\);\}\s*if\(alt!=0u&&pageHasUvSet\(page,h,alt\)\)\{uv1=pageUvSet\(/,
   )
 })

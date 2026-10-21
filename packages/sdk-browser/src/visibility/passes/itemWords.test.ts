@@ -145,8 +145,8 @@ test("a cutout row's bin word is its face mode's cutout bin, rewritten with the 
     a.layout.rows.pageTableInts[row * ROW_WORDS + PAGE_INFO.at.flags] = on ? FLAG_MASK : 0
     a.dirty.mark(row)
   }
-  // Every other row's bin is its face mode: the partition and the compaction count and place the
-  // cutout rows in their own slots.
+  // Every other row's bin is its face mode: the compaction counts and places the cutout rows in
+  // their own slots.
   const bins = () =>
     [0, 1, 2, 3, 4, 5].map((row) => a.layout.drawItemWords[row * DRAW_ITEM_U32 + 1])
   const cutBin = BIN_BACK + CULL_BINS

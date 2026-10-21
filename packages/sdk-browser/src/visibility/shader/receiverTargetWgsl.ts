@@ -3,6 +3,11 @@ import { octDecode, octEncode } from '../../../../math/src/wgsl/octahedral.ts'
 import { ndcToUvUnflipped } from '../../../../math/src/wgsl/projection.ts'
 import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
 import { pow2FromExponent } from '../../../../math/src/wgsl/integer.ts'
+import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
+import {
+  SURFACE_RECEIVER_WORDS,
+  SURFACE_WORDS_FORMAT,
+} from '../../materials/surface/surfaceOutputs.ts'
 
 /**
  * THE SHADOW RECEIVER TARGET: the resolve, which has the pixel's triangle decoded already, writes
@@ -10,37 +15,32 @@ import { pow2FromExponent } from '../../../../math/src/wgsl/integer.ts'
  * triangle's plane), and every shadow read — the virtual shadow maps' projection, the deferred
  * lighting — reads it back here, never decoding the triangle again.
  *
- * One texel a pixel, `rg32uint` (8 bytes), 64 bits: the plane in octahedral form (two 10-bit
- * halves, ≤ 4.2e-3 rad); the offset in a shared exponent (5 bits, 2^-26 to 2^4 m) and three signed
- * 13-bit mantissas — within 1/4095 (2.4e-4) of its largest component (5 µm on a 2 cm offset). A
- * zero exponent field is no receiver. `receiverOffsetReaders.test.ts` holds the round trip to
- * these bounds.
+ * Two words a pixel (8 bytes), 64 bits, the second and third layers of the surfaces' words
+ * (`SURFACE_WORDS`): the plane in octahedral form (two 10-bit halves, ≤ 4.2e-3 rad); the offset in
+ * a shared exponent (5 bits, 2^-26 to 2^4 m) and three signed 13-bit mantissas — within 1/4095
+ * (2.4e-4) of its largest component (5 µm on a 2 cm offset). A zero exponent field is no receiver.
+ * `receiverOffsetReaders.test.ts` holds the round trip to these bounds.
  */
-export const RECEIVER_TARGET_FORMAT: GPUTextureFormat = 'rg32uint'
-export const RECEIVER_TARGET_BYTES = 8
+export const RECEIVER_TARGET_BYTES = SURFACE_RECEIVER_WORDS * texelBytesOf(SURFACE_WORDS_FORMAT)
 
-/** The resolve's write: `storeReceiver` with the offset and the (unnormalised) plane; a zero plane
- *  is no receiver. The plane goes in octahedral form (`octEncode` of the maths library), which the
- *  reader decodes (`octDecode`): each side lists only its own half. */
-export const receiverStoreWgsl = (binding: number) =>
-  wgslBlock(
-    `receiverStoreWgsl(${binding})`,
-    [octEncode, ndcToUvUnflipped, pow2FromExponent],
-    `
-@group(0) @binding(${binding}) var receiverOutput:texture_storage_2d<${RECEIVER_TARGET_FORMAT},write>;
-fn storeReceiver(pos:vec2f,offset:vec3f,plane:vec3f){
- if(!all(vec2u(pos)<textureDimensions(receiverOutput))){return;}
- if(dot(plane,plane)<=0.0){textureStore(receiverOutput,vec2i(pos),vec4u(0u));return;}
+/** The resolve's two words of a receiver (`storeReceiver`, `shadeOutputsWgsl.ts`): `receiverWords`
+ *  of the offset and the (unnormalised) plane, both zero for a zero plane — no receiver. The plane
+ *  goes in octahedral form (`octEncode` of the maths library), which the reader decodes
+ *  (`octDecode`): each side lists only its own half. */
+export const RECEIVER_WORDS_WGSL = wgslBlock(
+  'RECEIVER_WORDS_WGSL',
+  [octEncode, ndcToUvUnflipped, pow2FromExponent],
+  `
+fn receiverWords(offset:vec3f,plane:vec3f)->vec2u{
+ if(dot(plane,plane)<=0.0){return vec2u(0u);}
  let q=vec2u(round(saturate(ndcToUvUnflipped(octEncode(plane)))*1023.0));
  let m=max(max(abs(offset.x),abs(offset.y)),abs(offset.z));
  var e=-26;
  if(m>0.0){e=clamp(i32(ceil(log2(m))),-26,4);if(m>pow2FromExponent(e)&&e<4){e+=1;}}
  let k=vec3u(vec3i(round(clamp(offset/pow2FromExponent(e),vec3f(-1.0),vec3f(1.0))*4095.0))+vec3i(4096));
- let x=q.x|(q.y<<10u)|(u32(e+27)<<20u)|((k.x&127u)<<25u);
- let y=(k.x>>7u)|(k.y<<6u)|(k.z<<19u);
- textureStore(receiverOutput,vec2i(pos),vec4u(x,y,0u,0u));
+ return vec2u(q.x|(q.y<<10u)|(u32(e+27)<<20u)|((k.x&127u)<<25u),(k.x>>7u)|(k.y<<6u)|(k.z<<19u));
 }`,
-  )
+)
 
 /** A pixel's shadow receiver: its shading-point offset and its triangle's plane. The one structure
  *  of its writer (`receiverOffsetWgsl.ts`) and its reader (`receiverTargetReadWgsl`). */
@@ -51,15 +51,16 @@ export const SHADOW_RECEIVER_STRUCT_WGSL = wgslBlock(
 )
 
 /** The reader's `shadowReceiver(pixel)`, the resolve's result (`receiverOffsetWgsl.ts`): the
- *  pixel's texel (`shadowReceiverTexel`) decoded (`shadowReceiverOf`), each for a reader that loads
- *  the texel ahead of its decode. */
+ *  pixel's two words (`shadowReceiverTexel`) — the two layers of its view of the surfaces' words
+ *  (`SurfaceBuffer.receiverView`) — decoded (`shadowReceiverOf`), each for a reader that loads the
+ *  words ahead of their decode. */
 export const receiverTargetReadWgsl = (group: number, binding: number) =>
   wgslBlock(
     `receiverTargetReadWgsl(${group}, ${binding})`,
     [SHADOW_RECEIVER_STRUCT_WGSL, octDecode, unitToSigned2, pow2FromExponent],
     `
-@group(${group}) @binding(${binding}) var receiverTarget:texture_2d<u32>;
-fn shadowReceiverTexel(pixel:vec2i)->vec2u{return textureLoad(receiverTarget,pixel,0).xy;}
+@group(${group}) @binding(${binding}) var receiverTarget:texture_2d_array<u32>;
+fn shadowReceiverTexel(pixel:vec2i)->vec2u{return vec2u(textureLoad(receiverTarget,pixel,0,0).x,textureLoad(receiverTarget,pixel,1,0).x);}
 fn shadowReceiver(pixel:vec2f)->ShadowReceiver{return shadowReceiverOf(shadowReceiverTexel(vec2i(pixel)));}
 fn shadowReceiverOf(t:vec2u)->ShadowReceiver{
  let field=(t.x>>20u)&31u;

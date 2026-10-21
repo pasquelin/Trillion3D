@@ -1,18 +1,18 @@
 /**
  * THE COPLANAR LAYERS A SOURCE BRINGS ARE GRANTED IN PLACE. A session draws one set of indirect
  * slots for each coplanar layer its pages carry (`depthLayerSlots`, the open's rule): the compaction
- * is made for that many (`createGpuDraw`), the visibility uniforms hold a slot for each, a pipeline
- * of its own carries each layer's depth bias (`buildLayerPipelines`). A source whose pages stack
- * deeper than the session's slots — a model compiled with coplanar surfaces, joining a world opened
- * on none — is granted the slots it needs by the open's own functions: the compaction, the layers'
- * pipelines and the uniforms are made beside the running ones, and put in place in one step between
- * two images, the partition reading the new compaction
- * (`partitionSourcesOf`), the draw records written again (`refreshDrawItemWords`).
+ * is made for that many (`createGpuDraw`), the visibility uniforms hold a slot for each; every
+ * layer draws with the same pipelines, its clusters carrying their layer's depth units in their
+ * rows (`page.depthBias`, `VIS_WRITE_WGSL`). A source whose pages stack deeper than the session's
+ * slots — a model compiled with coplanar surfaces, joining a world opened on none — is granted the
+ * slots it needs by the open's own functions: the compaction and the uniforms are made beside the
+ * running ones, and put in place in one step between two images, the draw records written again
+ * (`refreshDrawItemWords`).
  * Queued behind the growths of the tables (`queueTableGrowth`): both read the compaction.
  *
- * Cost of a grant from L to L' layers over R rows: the compaction's buffers for L' (R·(5+perRow)
- * words and (L'-L)·slots commands), L'-L layers of pipelines, the draw records sent once; every
- * other table is the session's.
+ * Cost of a grant from L to L' layers over R rows: the compaction's buffers for L' (R·(6+perRow)
+ * words and (L'-L)·slots commands), the draw records sent once; every other table is the
+ * session's.
  */
 import { createGpuDraw } from '../../visibility/draw/factory.ts'
 import { deviceMade } from '../../gpu/core/errorScope.ts'
@@ -22,9 +22,7 @@ import { pendingBuffers } from '../../gpu/core/tableGrowth.ts'
 import { stopped } from '../io/lost.ts'
 import { dropRaster } from '../io/drops.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
-import { partitionSourcesOf } from './drawSources.ts'
 import { queueTableGrowth } from './growthQueue.ts'
-import { buildLayerPipelines } from './visibilitySteps.ts'
 import { depthLayerSlots } from './visibility.ts'
 
 /** Whether the session draws every coplanar layer `pages` carry, granting the slots it lacks;
@@ -43,20 +41,9 @@ async function grant(rt: WebgpuPagesRuntime, device: GPUDevice, slots: number) {
   const { vis, layout, setup, run } = rt
   // Granted meanwhile, by another source's growth ahead of this one in the queue.
   if (slots <= vis.drawLayerSlots) return true
-  const { gpuHiz: hiz, gpuPartition: partition, gpuDraw: held } = vis
-  const { visModule, visBindGroupLayout } = vis
-  if (!hiz || !partition || !held || !visModule || !visBindGroupLayout || run.lost) return false
-  const [draw, pipelines] = await Promise.all([
-    createGpuDraw(device, layout.drawSlots, slots, setup.maxCorners),
-    buildLayerPipelines(
-      rt,
-      device,
-      visModule,
-      visBindGroupLayout,
-      slots,
-      rt.context.diagnosticGpuVariant,
-    ),
-  ])
+  const held = vis.gpuDraw
+  if (!held || run.lost) return false
+  const draw = await createGpuDraw(device, layout.drawSlots, slots, setup.maxCorners)
   const uniform = await deviceMade(device, () => {
     const next = visUniformBuffer(device, visUniformSlots({ drawLayerSlots: slots }))
     return pendingBuffers(device, [next], () => {
@@ -67,16 +54,14 @@ async function grant(rt: WebgpuPagesRuntime, device: GPUDevice, slots: number) {
   })
   // The draw path moved while these were made (a lost device, a disposal): nothing is changed.
   const stale = vis.gpuDraw !== held || stopped(rt)
-  if (!draw || !pipelines || !uniform || stale) {
+  if (!draw || !uniform || stale) {
     draw?.dispose()
     uniform?.destroy()
     return false
   }
   vis.gpuDraw = draw
   vis.drawLayerSlots = slots
-  vis.visLayerPipelines = pipelines
   uniform.commit()
-  partition.rebind(() => partitionSourcesOf(draw, hiz))
   held.dispose()
   dropRaster(rt)
   // Origin of the resource change: the slots, the compaction and the uniforms were replaced.

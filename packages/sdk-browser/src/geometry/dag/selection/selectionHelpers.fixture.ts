@@ -47,12 +47,13 @@ export function kernelUniforms(
   return cameraSelectionUniforms(cam, pixelError, viewport)
 }
 
+/** The urls of the pages the kernel's oracle draws for `fixture` (`../oracle/oracle.fixture.ts`),
+ *  every page resident unless `resident` says otherwise: what a CPU cut selects. */
 export function kernelUrls(
   fixture: ReturnType<typeof dagFixture>,
   pixelError: number,
   camera: HostCamera,
   resident?: Uint32Array,
-  field: 'pageIds' | 'drawablePageIds' = 'pageIds',
 ) {
   const { dag, roots } = packed(fixture)
   const result = evaluateDagSelectionKernel(
@@ -60,7 +61,7 @@ export function kernelUrls(
     kernelUniforms(dag, roots, camera, pixelError),
     resident && ruleResidency(dag, resident),
   )
-  return { result, urls: (result[field] ?? []).map((id) => dag.pageUrlOf(id)).sort() }
+  return { result, urls: (result.drawablePageIds ?? []).map((id) => dag.pageUrlOf(id)).sort() }
 }
 
 export function cpuUrls(
@@ -109,10 +110,11 @@ export async function fixtureSelection() {
   return { fixture, dag, uniforms, selection }
 }
 
-/** A selection on the fixture, cut once under a wide camera: its four pages in hand. */
+/** A selection on the fixture, cut once under a wide camera: its requests in hand, every page of the
+ *  seven its kept leaves hold — nothing resident, no leaf's floor prunes it. */
 export async function cutOnce() {
   const { fixture, dag, uniforms, selection } = await fixtureSelection()
   selection.dispatch(uniforms)
-  assert.equal((await selection.flush())?.pageIds.length, 4)
+  assert.equal((await selection.flush())?.pageIds.length, 7)
   return { fixture, dag, uniforms, selection }
 }

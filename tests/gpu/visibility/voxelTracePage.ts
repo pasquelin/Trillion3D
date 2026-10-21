@@ -69,10 +69,9 @@ function asBrick(scene: K.ScenePreparee, rank: number, served: Map<string, Uint8
   const flags = { indexCount: count, flags: GEOMETRY_VOXEL, uncompressedBytes: bytes.byteLength }
   const band = { level: 0, lodError: 0, sphere: [0, 0, 0, 0.8], parentError: null }
   const links = { parentSphere: null, group: null, source: null }
-  const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI }
   const page = { id: 0, url, sha256: 'proof', bytes: bytes.byteLength, count, min, max }
   primitive.pages = [
-    { ...page, ...band, ...links, role: 'coarse', cone, geometry: { ...geometry, ...flags } },
+    { ...page, ...band, ...links, role: 'coarse', geometry: { ...geometry, ...flags } },
   ]
   primitive.structure = { version: 1, roots: [0], groups: [] }
   primitive.culling = manifestCulling(primitive.pages)

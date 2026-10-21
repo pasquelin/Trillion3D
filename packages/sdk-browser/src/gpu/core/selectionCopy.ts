@@ -1,14 +1,13 @@
 import { sameElements, sameValues } from '../../../../math/src/matrix/matrixElements.ts'
-import { copyAheadView } from './aheadView.ts'
 import type { SelectionUniforms } from './selection.ts'
 
-/** Same threshold, projection and pose. The view ahead changes no page drawn nor visible request:
- *  uncompared, the last readback of a move is the stopped camera's cut, adopted with no other. The
- *  frame is the clock of the stamps, never a reason to cut again. */
+/** Same threshold, projection and pose: the view a readback describes. The occlusion's inputs —
+ *  the render matrices, the pyramid's image — are not compared: whether a cut stands across frames
+ *  is the swap's question (`../../geometry/dag/swap/swap.ts`, `stampMatches`). */
 export function sameSelectionUniforms(a: SelectionUniforms, b: SelectionUniforms) {
   if (
     a.pixelError !== b.pixelError ||
-    !a.admitByLevel !== !b.admitByLevel ||
+    (a.cullOff ?? 0) !== (b.cullOff ?? 0) ||
     a.near !== b.near ||
     (a.perspective ?? 1) !== (b.perspective ?? 1) ||
     a.pixelScale[0] !== b.pixelScale[0] ||
@@ -32,10 +31,15 @@ export function copySelectionUniforms(source: SelectionUniforms): SelectionUnifo
     pixelError: source.pixelError,
     near: source.near,
     cameraWorld: [source.cameraWorld[0], source.cameraWorld[1], source.cameraWorld[2]],
-    cameraStretch: source.cameraStretch,
     perspective: source.perspective,
-    ahead: copyAheadView(source.ahead),
-    admitByLevel: source.admitByLevel,
+    viewProj: source.viewProj.slice(),
+    depthMap: [source.depthMap[0], source.depthMap[1]],
+    viewSize: [source.viewSize[0], source.viewSize[1]],
+    occlusion: source.occlusion,
+    cullOff: source.cullOff,
+    prevViewProj: source.prevViewProj?.slice(),
+    prevDepthMap: source.prevDepthMap && [source.prevDepthMap[0], source.prevDepthMap[1]],
+    prevSize: source.prevSize && [source.prevSize[0], source.prevSize[1]],
     frame: source.frame,
   }
 }

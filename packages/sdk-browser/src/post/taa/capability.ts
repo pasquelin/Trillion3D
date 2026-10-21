@@ -1,7 +1,7 @@
 /** The capabilities the temporal pass serves: antialiasing, the motion vectors it derives from the
  *  visibility buffer, and the upscaling it reconstructs. Named apart from the pass, so an engine
  *  without it declares it unsupported without loading any of its code. */
-export const TAA_CAPABILITY = 'temporal antialiasing'
+const TAA_CAPABILITY = 'temporal antialiasing'
 const MOTION_CAPABILITY = 'motion vectors'
 /** A frame drawn below the display and reconstructed to it (`renderScale`): the pass's own. */
 const UPSCALE_CAPABILITY = 'temporal upscaling'

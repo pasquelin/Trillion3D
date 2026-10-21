@@ -65,11 +65,11 @@ test('page-authored placement uploads its own morph weights and resets history o
   } as unknown as ClusterRoot<PageRec>
   const session = createSessionDeformation([root])
   assert.equal(session.any, true)
-  session.frame.update(() => false)
+  session.frame.update()
   const at = recordLayout({ joints: 0, targets: 1, waves: 0 }).weights
   assert.deepEqual([...session.frame.block.slice(at, at + 2)], [0.25, 0.25])
   owners[0] = b
   assert.equal(session.frame.pending(), true)
-  session.frame.update(() => false)
+  session.frame.update()
   assert.deepEqual([...session.frame.block.slice(at, at + 2)], [0.75, 0.75])
 })

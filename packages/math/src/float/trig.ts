@@ -2,11 +2,10 @@
  * fdlibm's sine and arc cosine, as the `libm` crate (0.2.16, `src/math/{sin,k_sin,k_cos,rem_pio2,
  * acos}.rs`, MIT, from musl and FreeBSD msun) writes them: the same bits on every machine, where
  * `Math.sin` and `Math.acos` are the engine's and the machine's (`Math.acos` differs from fdlibm on
- * one arm64 input in two hundred, `packages/page-codec-wasm/src/normal_cone.rs`). Their Rust twins
- * are `packages/math/rust/src/trig.rs` and `acos.rs`: a kernel that runs either side gives
- * the same numbers. The square root is the instruction's (`Math.sqrt`, correctly rounded, as
- * `libm`'s own). High words are read as thresholds on the magnitude: `|x| < fromHigh(h + 1)` is
- * `f64High(|x|) <= h`.
+ * one arm64 input in two hundred). Their Rust twins are `packages/math/rust/src/scalar/trig.rs` and
+ * `scalar/acos.rs`: a kernel that runs either side gives the same numbers. The square root is the
+ * instruction's (`Math.sqrt`, correctly rounded, as `libm`'s own). High words are read as
+ * thresholds on the magnitude: `|x| < fromHigh(h + 1)` is `f64High(|x|) <= h`.
  *
  * The original notice, which fdlibm asks to keep:
  *

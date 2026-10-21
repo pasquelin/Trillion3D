@@ -1,10 +1,9 @@
-import { BOUND_STRIDE, cullingBounds, OWN_FLOOR, OWN_SPHERE } from '../../cut/bounds.ts'
-import type { ClusterCut } from '../../selection/math.ts'
 import {
   CULL_CEIL,
   CULL_CHILD_COUNT,
   CULL_FIRST_CHILD,
   CULL_FIRST_PAGE,
+  CULL_FLOOR,
   CULL_MAX,
   CULL_MIN,
   CULL_PAGE_COUNT,
@@ -13,7 +12,6 @@ import {
   DAG_NODE_FLOATS,
 } from '../types.ts'
 import type { Culling } from './packRoots.ts'
-import { FINITE_SENTINEL } from '../../../../../math/src/constants.ts'
 import {
   NODE_MIN,
   NODE_FIRST_CHILD,
@@ -24,7 +22,6 @@ import {
   NODE_FIRST_PAGE,
   NODE_PAGE_COUNT,
   NODE_CHILD_COUNT,
-  NODE_FLOOR_SPHERE,
   NODE_FLOOR,
   NODE_OPEN,
   NODE_KIND,
@@ -32,40 +29,14 @@ import {
 } from '../nodeLayout.ts'
 
 /**
- * The cut node as the GPU reads it, and the subtree error FLOOR it carries.
- *
- * The manifest only gives the node the replacement error CEILING: descent can
- * therefore only drop a too-fine subtree, and walks down to pages a too-coarse
- * subtree the cut will take nothing from. The floor — the smallest own error of
- * the subtree, with the sphere that encloses those it summarises — is the other
- * half, which the oracle sets too (`../oracle/nodeVerdict.fixture.ts`). `cullingBounds`
- * derives it from the pages at prepare: nothing from the compiler, nothing from
- * the page format.
- *
- * Four more words per node, sixteen floats become twenty-four: the floor sphere,
- * the floor itself, and the node's OPEN count — the clusters under it whose finer group
- * is not resident, the only ones the cut rule may draw above the threshold. Packing
- * writes the DAG's own count with nothing resident (`open`, `baseOpen`), so the table the
- * cut uploads at creation is already the one the rule reads; the kernel's host keeps it from
- * then on (`../readiness.ts`), and descent never drops an open subtree on its floor.
+ * The cut node as the GPU reads it: the manifest's node (`page-codec-wasm/src/culling.rs`) — its
+ * box, its LOD ball, its replacement error ceiling and its least own error, both bounds of its
+ * subtree, and its links — and the node's OPEN count: the clusters under it whose finer group is
+ * not resident, the only ones the cut rule may draw above the threshold. Packing writes the DAG's
+ * own count with nothing resident (`open`, `baseOpen`), so the table the cut uploads at creation
+ * is already the one the rule reads; the kernel's host keeps it from then on (`../readiness.ts`),
+ * and descent never drops an open leaf on its floor (`../shader/floorWgsl.ts`).
  */
-
-/** Primitive bounds: those the host already derived, otherwise ours. The same
- *  node array always comes with the same pages — a placement copies the envelope,
- *  not the data — so the reduction is done once per array and recovered by identity. */
-export function cullingBoundsFor(
-  culling: Culling,
-  pages: readonly ClusterCut[],
-  cache: Map<Float64Array, Float64Array>,
-) {
-  if (culling.bounds) return culling.bounds
-  let values = cache.get(culling.nodes)
-  if (!values) {
-    values = cullingBounds(culling, pages)
-    cache.set(culling.nodes, values)
-  }
-  return values
-}
 
 /**
  * Copies a primitive's nodes into the GPU array — once, every placement of the primitive reading
@@ -79,7 +50,6 @@ export function packCullingNodes(
   nodes: Float32Array,
   nodeInts: Uint32Array,
   culling: Culling,
-  bounds: Float64Array,
   place: { nodeBase: number; pageBase: number },
   owner: Uint32Array,
   open?: Int32Array,
@@ -87,30 +57,22 @@ export function packCullingNodes(
   if (culling.stride < CULL_STRIDE) throw new Error('GPU_DAG_CULLING_STRIDE')
   const { nodeBase, pageBase } = place
   const count = culling.nodes.length / culling.stride
-  if (bounds.length !== count * BOUND_STRIDE) throw new Error('GPU_DAG_CULLING_BOUNDS')
   for (let n = 0; n < count; n++) {
     const src = n * culling.stride,
-      dst = (nodeBase + n) * DAG_NODE_FLOATS,
-      at = n * BOUND_STRIDE
+      dst = (nodeBase + n) * DAG_NODE_FLOATS
     for (let a = 0; a < 3; a++) {
       nodes[dst + NODE_MIN + a] = culling.nodes[src + CULL_MIN + a]
       nodes[dst + NODE_MAX + a] = culling.nodes[src + CULL_MAX + a]
     }
-    for (let a = 0; a < 4; a++) {
-      nodes[dst + NODE_SPHERE + a] = culling.nodes[src + CULL_SPHERE + a]
-      nodes[dst + NODE_FLOOR_SPHERE + a] = bounds[at + OWN_SPHERE + a]
-    }
+    for (let a = 0; a < 4; a++) nodes[dst + NODE_SPHERE + a] = culling.nodes[src + CULL_SPHERE + a]
     nodes[dst + NODE_CEIL] = culling.nodes[src + CULL_CEIL]
+    nodes[dst + NODE_FLOOR] = culling.nodes[src + CULL_FLOOR]
     nodeInts[dst + NODE_FIRST_CHILD] = nodeBase + culling.nodes[src + CULL_FIRST_CHILD]
     nodeInts[dst + NODE_CHILD_COUNT] = culling.nodes[src + CULL_CHILD_COUNT]
     nodeInts[dst + NODE_FIRST_PAGE] = pageBase + culling.nodes[src + CULL_FIRST_PAGE]
     nodeInts[dst + NODE_PAGE_COUNT] = culling.nodes[src + CULL_PAGE_COUNT]
     // No placement of its own: a queue entry names the placement that reads it.
     nodeInts[dst + NODE_WORLD] = 0
-    const floor = bounds[at + OWN_FLOOR]
-    // The shader cannot write an infinite constant: its floor reads `FINITE_SENTINEL` (its `INF`)
-    // where the CPU bound returns infinity, and both reject the same subtree.
-    nodes[dst + NODE_FLOOR] = Number.isFinite(floor) ? floor : FINITE_SENTINEL
     nodeInts[dst + NODE_OPEN] = open ? open[n] : 0
     nodeInts[dst + NODE_KIND] = 0
     nodeInts[dst + NODE_PAD] = 0

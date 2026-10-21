@@ -61,7 +61,8 @@ const RGBA8_PIXEL_BYTES: u64 = 4;
 /// The thirty-two-bit little-endian word at this offset, as the headers of the block containers
 /// (`dds`, `ktx2`) store every field: their header's length is checked before they read it.
 pub(super) fn word(bytes: &[u8], at: usize) -> u32 {
-    crate::le::u32_at(bytes, at).expect("a header field inside the length that was checked")
+    crate::support::le::u32_at(bytes, at)
+        .expect("a header field inside the length that was checked")
 }
 
 /// Bytes of a `width` × `height` surface of uncompressed pixels, `per_pixel` bytes each.

@@ -34,7 +34,7 @@ function placedTwice(offsets: readonly number[]) {
   const roots = [...placements, ...instances]
   const packed = packDagSelection(roots)
   const placed = packed.world!,
-    cold = new Uint32Array(packed.pageCones.buffer)
+    cold = new Uint32Array(packed.coldWords.buffer)
   offsets.forEach((_, k) => {
     for (let u = 0; u < world.leaves; u++) setLink(placed, k * world.leaves + u, u, k)
   })
@@ -94,7 +94,7 @@ test('each instance draws the representation its own cells chose: near, its obje
 test("one instance's states switch none of the other's: past its range, an instance draws nothing", () => {
   const s = placedTwice([0, 1000])
   s.switchTo(0, 0)
-  s.switchTo(1, CELL_DRAW.hlod | CELL_DRAW.asking)
+  s.switchTo(1, CELL_DRAW.hlod)
   const leaves = s.world.leaves,
     drawn = cut(s)
   assert.deepEqual(covers(s, drawn), [new Array(leaves).fill(0), new Array(leaves).fill(1)])

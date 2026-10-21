@@ -8,8 +8,8 @@
 //! corner, then the value at that rank.
 use super::archive::{meta_value, Archive};
 use super::property::{Properties, POD_F32, POD_I32, POD_U32};
-use crate::le::words;
 use crate::plugins::scene::spread::Spread;
+use crate::support::le::words;
 use crate::Result;
 
 /// A parameter's scope, read from its metadata, as the spread it names.

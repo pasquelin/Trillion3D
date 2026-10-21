@@ -57,7 +57,10 @@ function worldRecord(page: WorldPage, rank: number, surface: PageSurface, order:
     sphere: page.sphere,
     parentError: page.parentError,
     parentSphere: page.parentSphere,
-    // A root its cell holds joins the cover with the cell, never at open (`PageRec.holder`).
+    // The streaming page it lies in, the unit the residency streams (`PageRec.streamUrl`).
+    ...(facts && page.stream && { streamUrl: page.stream.url, streamOffset: page.stream.offset }),
+    // A page of the root page its cell holds joins the cover with the cell, never at open
+    // (`PageRec.holder`, `worldRootPages.ts`).
     ...(page.holder !== undefined && { holder: page.holder }),
     depthLayer: 0,
     attributes: PAGED,
@@ -76,9 +79,10 @@ function worldRecord(page: WorldPage, rank: number, surface: PageSurface, order:
  * material, by the rank its clusters name), its group structure and culling hierarchy over them,
  * drawn at the identity — or one root per row of `pose`, each placement of its model at its own
  * world, parked while its row is, as a mesh source's rows place it —, ranked `order` among the
- * draws; none when no actor has a surface. Every root shares the records, the hierarchy and the
- * held pages: a placement more adds a root, never a record. Rows a growth adds are cloned from them
- * (`../../placement/growth/growth.ts`).
+ * draws; none when its pages wear no surface yet. A DAG of no page — actors all rows — wears none
+ * and is placed all the same: its roots carry the switch (`../dag/worlds/worldLinks.ts`). Every
+ * root shares the records, the hierarchy and the held pages: a placement more adds a root, never
+ * a record. Rows a growth adds are cloned from them (`../../placement/growth/growth.ts`).
  */
 export function worldSelectionRoots(
   dag: WorldDagRoot,
@@ -87,7 +91,7 @@ export function worldSelectionRoots(
   pose?: PlacementRows,
 ): (ClusterRoot<PageRec> & WorldHeld)[] {
   const fallback = surfaces[0]
-  if (!fallback) return []
+  if (!fallback && dag.pages.length) return []
   const pages = dag.pages.map((page, rank) => {
     const surface = surfaces[page.material]
     // No surface: a record without a page, worn as any other only to stay a record.
@@ -99,8 +103,8 @@ export function worldSelectionRoots(
   if (!culling) throw new Error('WORLD_CULLING_MISSING')
   const localBox = culling.nodes.slice(0, BOX_VALUES),
     held = new Map<number, PageRec[]>()
-  // The roots each bundle holds for its HLOD cell, those with a page alone: a record without one
-  // is not a page, never held nor covered.
+  // The pages each root page holds for its HLOD cell, those with a page alone: a record without
+  // one is not a page, never held nor covered.
   for (const [bundle, ranks] of dag.held) {
     const own = ranks.map((rank) => pages[rank]).filter((page) => page.url)
     if (own.length) held.set(bundle, own)

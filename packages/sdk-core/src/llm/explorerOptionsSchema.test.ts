@@ -10,6 +10,11 @@ import {
   DEFAULT_TEXTURE_POOL_BUDGET,
 } from '../contracts/poolBudgets.ts'
 import { DEFAULT_TEXTURE_UPLOAD_MS } from '../../../sdk-browser/src/session/memory/textureTransferDefaults.ts'
+import { WORLD_STREAMING_RULES } from '../contracts/worldStreamingOptions.ts'
+import { resolveSetting, type SettingRule } from '../contracts/settingRules.ts'
+import { CUT_RULES } from '../contracts/cutOptions.ts'
+import { ANIMATION_RULES } from '../contracts/animationOptions.ts'
+import { RASTER_RULES } from '../contracts/rasterOptions.ts'
 
 const validate = new Ajv().compile(EXPLORER_OPTIONS_SCHEMA)
 const explorer = { manifestUrl: '/assets/model/manifest.json' }
@@ -25,7 +30,6 @@ test('explorer arguments accept a complete host request and keep host extensions
       maxTextureUploadMsPerFrame: 2,
       temporalAntialiasing: false,
       pixelError: 1.5,
-      lodAdaptive: true,
       bounce: true,
       bounceBudgetMs: 1,
       importedLights: false,
@@ -46,7 +50,6 @@ test('explorer arguments name every choice the engine takes and refuse the rest'
   for (const field of [
     'interactive',
     'temporalAntialiasing',
-    'lodAdaptive',
     'bounce',
     'importedLights',
     'stageProfile',
@@ -88,12 +91,23 @@ test('an explorer request naming only its manifest is completed with the engine 
 })
 
 test('a switch the host leaves out is set in the engine as the schema advertises it', () => {
+  // The raster's settings, the world streaming's, the cut's and the animation's are read by their
+  // contract's one resolver; every other switch is the explorer's.
+  const rules: Readonly<Record<string, SettingRule>> = {
+    ...RASTER_RULES,
+    ...WORLD_STREAMING_RULES,
+    ...CUT_RULES,
+    ...ANIMATION_RULES,
+  }
   const advertised = Object.entries(EXPLORER_OPTIONS_SCHEMA.properties).filter(
     ([, property]) => property.type === 'boolean' && property.default !== undefined,
   )
-  assert.deepEqual(advertised.map(([key]) => key).sort(), [...EXPLORER_SWITCH_NAMES].sort())
-  for (const [key, property] of advertised)
+  const switches = advertised.filter(([key]) => !(key in rules))
+  assert.deepEqual(switches.map(([key]) => key).sort(), [...EXPLORER_SWITCH_NAMES].sort())
+  for (const [key, property] of switches)
     assert.equal(explorerSwitch({}, key as ExplorerSwitch), property.default, key)
+  for (const [key, property] of advertised.filter(([key]) => key in rules))
+    assert.equal(resolveSetting(rules[key]), property.default, key)
 })
 
 // No pool ceiling: the drawable-page tables start at the pool and grow in place past it.

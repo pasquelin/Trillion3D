@@ -11,6 +11,7 @@ import { material, porte } from './scenesCut.ts'
 import type { PageRec } from '../../../../packages/sdk-browser/src/geometry/selection/types.ts'
 import { DEFAULT_SCOPE } from '../../../../packages/sdk-core/src/contracts/base.ts'
 import type { ClusterManifest } from '../../../../packages/sdk-core/src/contracts/geometry.ts'
+import { CULLING_STRIDE } from '../../../../packages/sdk-core/src/contracts/writtenFormats.ts'
 
 /** A page as `manifesteEtScene` builds it: bounds, cluster error, sphere, index triplet it covers,
  *  plus `sha256`, which `ClusterManifest['primitives'][number]['pages']` requires but nothing in
@@ -137,8 +138,8 @@ export function manifesteEtScene({
       pages: pagesPrimitive,
     }
     if (p % 5 === 0) {
-      const node = [-20, -12, -8, 20, 12, 8, 0, 0, 0, 30, -1, 0, 0, 0, pagesPrimitive.length]
-      primitive.culling = { stride: 15, count: 1, nodes: node }
+      const node = [-20, -12, -8, 20, 12, 8, 0, 0, 0, 30, -1, 0, 0, 0, 0, pagesPrimitive.length]
+      primitive.culling = { stride: CULLING_STRIDE, count: 1, nodes: node }
     }
     list.push(primitive)
   }
@@ -159,7 +160,7 @@ export function manifesteEtScene({
   return { source, associations, metadata, indices }
 }
 
-/** Fields the cones/catalogue paths never read: shared across every fixture page. */
+/** Fields the catalogue paths never read: shared across every fixture page. */
 const DUMMY_BOUNDS: number[] = [0, 0, 0]
 
 /** Pages of a manifest seen as an engine catalogue: bytes, materials, attributes. */
@@ -192,7 +193,6 @@ export function catalogueDePages({
       max: DUMMY_BOUNDS,
       depthLayer: 0,
       renderOrder: 0,
-      cone: undefined,
     })
   }
   return list

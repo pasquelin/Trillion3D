@@ -1,6 +1,8 @@
 import type { SelectionUniforms } from '../../../gpu/core/selection.ts'
 import { sameSelectionUniforms } from '../../../gpu/core/selectionCopy.ts'
 import { REGION_NONE } from '../shader/swapWgsl.ts'
+import { twoPassOf } from '../shader/occlusionWgsl.ts'
+import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
 
 /** The main view's token; a view drawn aside takes its own (`takeAsideView`). A view's token less
  *  one is its region of `out` (`../shader/swapWgsl.ts`). */
@@ -81,16 +83,27 @@ export function newRegions(swap: MaskSwap, regions: number) {
   swap.outOwner = 0
 }
 
-/** True when `stamp` was made under `uniforms`, the residency and the poses in place. */
-export const stampMatches = (
+/** True when `stamp` was made under `uniforms`, the residency and the poses in place: the view, and
+ *  the render matrix and size its boxes' pixel centres were found with — a jittered image moves it
+ *  every frame. A cut whose occlusion runs two passes read the pyramid of the image before it,
+ *  which every image builds anew: it stands for its own frame alone. */
+export function stampMatches(
   stamp: CutStamp | undefined,
   uniforms: SelectionUniforms,
   state: { residencyRevision: number; worldRevision: number },
-) =>
-  !!stamp &&
-  stamp.residency === state.residencyRevision &&
-  stamp.world === state.worldRevision &&
-  sameSelectionUniforms(stamp.uniforms, uniforms)
+) {
+  if (!stamp || stamp.residency !== state.residencyRevision) return false
+  const made = stamp.uniforms
+  return (
+    stamp.world === state.worldRevision &&
+    sameSelectionUniforms(made, uniforms) &&
+    sameValues(made.viewProj, uniforms.viewProj) &&
+    sameValues(made.depthMap, uniforms.depthMap) &&
+    sameValues(made.viewSize, uniforms.viewSize) &&
+    (made.occlusion ?? 0) === (uniforms.occlusion ?? 0) &&
+    (!twoPassOf(uniforms) || made.frame === uniforms.frame)
+  )
+}
 
 /** True when `view`'s last cut was made under `uniforms`, the residency and the poses in place:
  *  cut again, it would be the same cut. */

@@ -1,35 +1,49 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { octBytesDecode } from '../../../../math/src/wgsl/octahedral.ts'
+import { TWO_PI } from '../../../../math/src/wgsl/constants.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import {
   bitLength,
   bitWord,
-  byteOf,
   ceilDivWgsl,
   lowBits,
   pow2FromExponent,
 } from '../../../../math/src/wgsl/integer.ts'
 import {
   BLOCK_CORNERS,
+  CENTIMETRES_PER_METRE,
   CLUSTER_HEADER_WORDS,
+  COLOR_LEVELS,
   FLAG_COLOR,
   FLAG_NORMAL,
+  FLAG_TANGENT,
   FLAG_UV,
   FLAG_UV1,
+  FLAG_UV2,
+  FLAG_UV3,
   MAX_MORPH_TARGETS,
+  MAX_UV_SETS,
   MORPH_WORDS,
   TRIANGLE_BLOCK,
+  UV_EXPONENT_BITS,
+  UV_MANTISSA_BITS,
   WIDTH_BITS,
 } from '../../../../sdk-core/src/page/format.ts'
 import { CLUSTER_HEADER_WGSL } from './headerWgsl.ts'
+
+/** The bits of a texture code's exponent and mantissa, below its sign: its mask. */
+const UV_MAGNITUDE_BITS = UV_EXPONENT_BITS + UV_MANTISSA_BITS
 
 /**
  * WGSL decode of a `WGP3` quantized cluster page read in place from a storage buffer of words
  * (`docs/FORMAT.md`): the header once per cluster, then any vertex or corner by rank, in O(1)
  * — a field never spans more than two words, and a triangle is its block's record, read once, and
- * three fields. The arithmetic is the format's, operation for
- * operation — one multiply, one add, both correctly rounded in WGSL —, so a position decoded here
- * is the 32-bit float the shared Rust codec and `../codec/geometryPage.ts` decode; a normal, which goes
- * through `normalize`, agrees to the ULP tolerance WGSL grants that builtin.
+ * three fields. The arithmetic is the format's, operation for operation — a position is its cell,
+ * converted to a float, times the grid's unit, a colour its byte times 1/255, a texture
+ * coordinate its float code's exponent and mantissa set in a float's bits —, so a decoded value is
+ * the 32-bit float the shared Rust codec and `../codec/geometryPage.ts` decode (the cell's
+ * conversion exact up to 2^24 cells, and rounded by the device past them); a normal, which goes
+ * through `normalize`, agrees to the ULP tolerance WGSL grants that builtin, and a stored tangent,
+ * through `cos`, `sin` and `normalize`, to theirs.
  *
  * The host declares the buffer and names it: `clusterDecodeWgsl('pageWords')` binds every routine
  * to `pageWords:array<u32>`.
@@ -37,16 +51,7 @@ import { CLUSTER_HEADER_WGSL } from './headerWgsl.ts'
 export function clusterDecodeWgsl(buffer: string) {
   return wgslBlock(
     `clusterDecodeWgsl(${buffer})`,
-    [
-      octBytesDecode,
-      CLUSTER_HEADER_WGSL,
-      bitLength,
-      byteOf,
-      ceilDivWgsl,
-      pow2FromExponent,
-      lowBits,
-      bitWord,
-    ],
+    [TWO_PI, CLUSTER_HEADER_WGSL, bitLength, ceilDivWgsl, pow2FromExponent, lowBits, bitWord],
     `// The \`bits\`-bit field at bit \`at\` of the page at word \`base\`.
 fn clusterField(base:u32,at:u32,bits:u32)->u32{
  if(bits==0u){return 0u;}
@@ -55,9 +60,16 @@ fn clusterField(base:u32,at:u32,bits:u32)->u32{
  if(shift+bits>32u){value|=${buffer}[index+1u]<<(32u-shift);}
  return value&lowBits(bits);
 }
-// A record word: six bits per width from bit 0, the exponent as a signed byte on top.
-fn clusterWidths(word:u32)->vec4u{return vec4u(word&63u,(word>>6u)&63u,(word>>12u)&63u,(word>>18u)&63u);}
-fn clusterStep(word:u32)->f32{return pow2FromExponent(i32(word)>>24u);}
+// The position record: six bits per width from bit 0, the precision as a signed byte on top.
+fn clusterWidths(word:u32)->vec3u{return vec3u(word&63u,(word>>6u)&63u,(word>>12u)&63u);}
+// The metres of a cell on that grid: 2^-precision centimetre, a hundredth of it in the one rounding
+// of the unit, the power of two exact.
+fn clusterUnit(word:u32)->f32{return pow2FromExponent(-(i32(word)>>24u))*${wgslF32(1 / CENTIMETRES_PER_METRE)};}
+// Whether a page of flags \`flags\` carries texture set \`uvSet\`.
+fn clusterHasUv(flags:u32,uvSet:u32)->bool{
+ let present=vec4u(${FLAG_UV}u,${FLAG_UV1}u,${FLAG_UV2}u,${FLAG_UV3}u);
+ return (flags&present[uvSet])!=0u;
+}
 // The word a stream of \`count\` fields of \`bits\` bits starts at; \`at\` moves past it when present.
 fn clusterStream(present:bool,count:u32,bits:u32,at:ptr<function,u32>)->u32{
  let start=*at;
@@ -65,20 +77,20 @@ fn clusterStream(present:bool,count:u32,bits:u32,at:ptr<function,u32>)->u32{
  return start;
 }
 // The header's corners and positions: what a raster reads of a row that draws no surface
-// attribute, nine of the twenty-three words a whole header reads and five of its fifteen streams.
+// attribute, nine of the twenty-three words a whole header reads and five of its twenty-one streams.
 // \`links\` is where the link stream starts, present or not; \`clusterSurfaceHeader\` does the rest.
 fn clusterPointHeader(base:u32)->ClusterHeader{
  var h:ClusterHeader;
  h.vertexCount=${buffer}[base+2u];h.indexCount=${buffer}[base+3u];
- let p=${buffer}[base+5u];h.posBits=clusterWidths(p).xyz;h.posStep=clusterStep(p);
- h.posMin=vec3f(bitcast<f32>(${buffer}[base+6u]),bitcast<f32>(${buffer}[base+7u]),bitcast<f32>(${buffer}[base+8u]));
+ let p=${buffer}[base+5u];h.posBits=clusterWidths(p);h.posUnit=clusterUnit(p);
+ h.posStart=vec3i(i32(${buffer}[base+6u]),i32(${buffer}[base+7u]),i32(${buffer}[base+8u]));
  h.indexBits=bitLength(h.vertexCount-1u);
- let cornerBits=${buffer}[base+21u];
+ let cornerBits=${buffer}[base+19u];
  h.prefixBits=bitLength(cornerBits/${BLOCK_CORNERS}u);
  h.recordBits=h.indexBits+${WIDTH_BITS}u+h.prefixBits;
- h.positionCount=${buffer}[base+22u];h.linkBits=bitLength(h.positionCount-1u);
- // Word 23: the joint width in bits 0 to 5, the target count in 6 to 13, the smallest joint above.
- let dw=${buffer}[base+23u];h.skinBits=dw&63u;h.morphCount=(dw>>6u)&${MAX_MORPH_TARGETS}u;h.skinBase=(dw>>14u)&0xffffu;
+ h.positionCount=${buffer}[base+20u];h.linkBits=bitLength(h.positionCount-1u);
+ // Word 21: the joint width in bits 0 to 5, the target count in 6 to 13, the smallest joint above.
+ let dw=${buffer}[base+21u];h.skinBits=dw&63u;h.morphCount=(dw>>6u)&${MAX_MORPH_TARGETS}u;h.skinBase=(dw>>14u)&0xffffu;
  let stored=h.positionCount;var at=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount;h.streams=at;
  h.blocks=clusterStream(true,ceilDiv(h.indexCount/3u,${TRIANGLE_BLOCK}u),h.recordBits,&at);
  h.corners=clusterStream(true,cornerBits,1u,&at);
@@ -91,21 +103,29 @@ fn clusterPointHeader(base:u32)->ClusterHeader{
 fn clusterSurfaceHeader(point:ClusterHeader,base:u32)->ClusterHeader{
  var h=point;
  h.flags=${buffer}[base+4u];
- let t=${buffer}[base+9u];h.uvBits=clusterWidths(t).xy;h.uvStep=clusterStep(t);
- h.uvMin=vec2f(bitcast<f32>(${buffer}[base+10u]),bitcast<f32>(${buffer}[base+11u]));
- let s=${buffer}[base+12u];h.uv1Bits=clusterWidths(s).xy;h.uv1Step=clusterStep(s);
- h.uv1Min=vec2f(bitcast<f32>(${buffer}[base+13u]),bitcast<f32>(${buffer}[base+14u]));
- let c=${buffer}[base+15u];h.colorBits=clusterWidths(c);h.colorStep=clusterStep(c);
- h.colorMin=vec4f(bitcast<f32>(${buffer}[base+16u]),bitcast<f32>(${buffer}[base+17u]),bitcast<f32>(${buffer}[base+18u]),bitcast<f32>(${buffer}[base+19u]));
- h.quantizationError=bitcast<f32>(${buffer}[base+20u]);
- h.influences=${buffer}[base+24u];
+ // Words 9 to 16: each texture set's two ranges, the least code above five bits of width.
+ for(var s=0u;s<${MAX_UV_SETS}u;s++){
+  let u=${buffer}[base+9u+2u*s];let v=${buffer}[base+10u+2u*s];
+  h.uvBitsX[s]=u&31u;h.uvMinX[s]=u>>5u;h.uvBitsY[s]=v&31u;h.uvMinY[s]=v>>5u;
+ }
+ // Word 17: the four least colour bytes, red lowest; word 18: their four widths of four bits, then
+ // the precision of the normals and of the tangents in four bits each.
+ let cm=${buffer}[base+17u];let cb=${buffer}[base+18u];
+ h.colorMin=vec4u(cm&255u,(cm>>8u)&255u,(cm>>16u)&255u,cm>>24u);
+ h.colorBits=vec4u(cb&15u,(cb>>4u)&15u,(cb>>8u)&15u,(cb>>12u)&15u);
+ h.normalBits=(cb>>16u)&15u;h.tangentBits=(cb>>20u)&15u;
+ h.influences=${buffer}[base+22u];
  let n=h.vertexCount;var at=h.links;
  clusterStream(h.positionCount<n,n,h.linkBits,&at);
- h.normal=clusterStream((h.flags&${FLAG_NORMAL}u)!=0u,n,16u,&at);
- let hasUv=(h.flags&${FLAG_UV}u)!=0u;h.uv.x=clusterStream(hasUv,n,h.uvBits.x,&at);h.uv.y=clusterStream(hasUv,n,h.uvBits.y,&at);
- let hasUv1=(h.flags&${FLAG_UV1}u)!=0u;h.uv1.x=clusterStream(hasUv1,n,h.uv1Bits.x,&at);h.uv1.y=clusterStream(hasUv1,n,h.uv1Bits.y,&at);
+ let hasNormal=(h.flags&${FLAG_NORMAL}u)!=0u;
+ h.normal.x=clusterStream(hasNormal,n,h.normalBits,&at);h.normal.y=clusterStream(hasNormal,n,h.normalBits,&at);
+ for(var s=0u;s<${MAX_UV_SETS}u;s++){
+  let hasUv=clusterHasUv(h.flags,s);
+  h.uvX[s]=clusterStream(hasUv,n,h.uvBitsX[s],&at);h.uvY[s]=clusterStream(hasUv,n,h.uvBitsY[s],&at);
+ }
  let hasColor=(h.flags&${FLAG_COLOR}u)!=0u;h.color.x=clusterStream(hasColor,n,h.colorBits.x,&at);h.color.y=clusterStream(hasColor,n,h.colorBits.y,&at);
  h.color.z=clusterStream(hasColor,n,h.colorBits.z,&at);h.color.w=clusterStream(hasColor,n,h.colorBits.w,&at);
+ h.tangent=clusterStream((h.flags&${FLAG_TANGENT}u)!=0u,n,h.tangentBits+1u,&at);
  h.skin=at;
  return h;
 }
@@ -140,25 +160,61 @@ fn clusterIndex(h:ClusterHeader,base:u32,corner:u32)->u32{
  let b=clusterBlock(h,base,corner/3u);
  return b.x+clusterField(base+h.corners,b.z+(corner%${BLOCK_CORNERS}u)*b.y,b.y);
 }
-fn clusterGrid(base:u32,stream:u32,vertex:u32,bits:u32,minimum:f32,step:f32)->f32{
- return minimum+f32(clusterField(base+stream,vertex*bits,bits))*step;
-}
-// A vertex's position: its own, or the one its link names when the page stores each once.
+// A vertex's position: its own, or the one its link names when the page stores each once. Each cell
+// is the page's start plus the stored offset, converted to a float and multiplied by the unit.
 fn clusterPosition(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
  var at=vertex;
  if(h.positionCount<h.vertexCount){at=clusterField(base+h.links,vertex*h.linkBits,h.linkBits);}
- return vec3f(clusterGrid(base,h.pos.x,at,h.posBits.x,h.posMin.x,h.posStep),
-  clusterGrid(base,h.pos.y,at,h.posBits.y,h.posMin.y,h.posStep),
-  clusterGrid(base,h.pos.z,at,h.posBits.z,h.posMin.z,h.posStep));
+ let offset=vec3i(i32(clusterField(base+h.pos.x,at*h.posBits.x,h.posBits.x)),
+  i32(clusterField(base+h.pos.y,at*h.posBits.y,h.posBits.y)),
+  i32(clusterField(base+h.pos.z,at*h.posBits.z,h.posBits.z)));
+ return vec3f(h.posStart+offset)*h.posUnit;
 }
-fn clusterUv(h:ClusterHeader,base:u32,vertex:u32)->vec2f{
- return vec2f(clusterGrid(base,h.uv.x,vertex,h.uvBits.x,h.uvMin.x,h.uvStep),
-  clusterGrid(base,h.uv.y,vertex,h.uvBits.y,h.uvMin.y,h.uvStep));
+// The coordinate a texture code stands for: its exponent and mantissa, below the sign, set the float
+// from one half up, stretched so that the first binade [0.5, 1] covers [0, 1]; a negative code
+// holds the inverted bits.
+fn clusterUvValue(code:u32)->f32{
+ let mask=${(1 << UV_MAGNITUDE_BITS) - 1}u;
+ let negative=code<=mask;
+ let magnitude=select(code,~code,negative)&mask;
+ let halfUp=bitcast<f32>(0x3f000000u+(magnitude<<${23 - UV_MANTISSA_BITS}u));
+ let value=min(halfUp*2.0-1.0,halfUp);
+ return select(value,-value,negative);
 }
-// Two octahedral bytes back to a unit vector.
+// Texture set \`uvSet\` of a vertex.
+fn clusterUv(h:ClusterHeader,base:u32,vertex:u32,uvSet:u32)->vec2f{
+ let bx=h.uvBitsX[uvSet];let by=h.uvBitsY[uvSet];
+ return vec2f(clusterUvValue(h.uvMinX[uvSet]+clusterField(base+h.uvX[uvSet],vertex*bx,bx)),
+  clusterUvValue(h.uvMinY[uvSet]+clusterField(base+h.uvY[uvSet],vertex*by,by)));
+}
+// The unit normal two cells of the octahedron of \`bits\` bits an axis stand for: each cell times
+// the grid's step less one, z one less their magnitudes, the lower half unfolded by what z lacks
+// of zero, the vector made unit.
+fn clusterOctahedron(cells:vec2u,bits:u32)->vec3f{
+ let e=vec2f(cells)*(2.0/f32((1u<<bits)-1u))-1.0;
+ let z=1.0-abs(e.x)-abs(e.y);
+ let lack=select(0.0,min(-z,1.0),z<0.0);
+ return normalize(vec3f(select(e+lack,e-lack,e>=vec2f(0.0)),z));
+}
 fn clusterNormal(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
- let q=clusterField(base+h.normal,vertex*16u,16u);
- return octBytesDecode(q,0u);
+ let b=h.normalBits;
+ return clusterOctahedron(vec2u(clusterField(base+h.normal.x,vertex*b,b),clusterField(base+h.normal.y,vertex*b,b)),b);
+}
+// The stored tangent of a page that carries it (\`FLAG_TANGENT\`): its angle around the vertex's
+// decoded normal, a turn in 2^\`tangentBits\` steps, in a plane whose axes the normal fixes — x and z
+// traded when |z| > |x|, the axis (−y, x, 0) and the normal crossed with it, both left of their
+// length, which scales the cosine and the sine instead —, and its bitangent's sign on the bit above.
+fn clusterTangent(h:ClusterHeader,base:u32,vertex:u32)->vec4f{
+ let bits=h.tangentBits;
+ let q=clusterField(base+h.tangent,vertex*(bits+1u),bits+1u);
+ let n=clusterNormal(h,base,vertex);
+ let swap=abs(n.z)>abs(n.x);
+ let z=select(n,n.zyx,swap);
+ let axisX=vec3f(-z.y,z.x,0.0);let axisY=cross(z,axisX);
+ let inverse=1.0/sqrt(axisX.x*axisX.x+axisX.y*axisX.y);
+ let angle=f32(q&lowBits(bits))*(TWO_PI/f32(1u<<bits));
+ let t=axisX*(cos(angle)*inverse)+axisY*(sin(angle)*inverse);
+ return vec4f(select(t,t.zyx,swap),select(1.0,-1.0,((q>>bits)&1u)!=0u));
 }
 // Every influence is retained; weight words are exact source float32 bits.
 fn clusterJoint(h:ClusterHeader,base:u32,vertex:u32,influence:u32)->u32{
@@ -176,11 +232,14 @@ fn clusterMorph(h:ClusterHeader,base:u32,t:u32,vertex:u32,normal:bool)->vec3f{
  let at=base+h.streams+${buffer}[r]+select(0u,3u*n,normal)+vertex;
  return vec3f(bitcast<f32>(${buffer}[at]),bitcast<f32>(${buffer}[at+n]),bitcast<f32>(${buffer}[at+2u*n]));
 }
+// A vertex's colour: each channel's byte, its least plus the stored offset, over 255.
 fn clusterColor(h:ClusterHeader,base:u32,vertex:u32)->vec4f{
- return vec4f(clusterGrid(base,h.color.x,vertex,h.colorBits.x,h.colorMin.x,h.colorStep),
-  clusterGrid(base,h.color.y,vertex,h.colorBits.y,h.colorMin.y,h.colorStep),
-  clusterGrid(base,h.color.z,vertex,h.colorBits.z,h.colorMin.z,h.colorStep),
-  clusterGrid(base,h.color.w,vertex,h.colorBits.w,h.colorMin.w,h.colorStep));
+ let b=h.colorBits;
+ let bytes=vec4u(h.colorMin.x+clusterField(base+h.color.x,vertex*b.x,b.x),
+  h.colorMin.y+clusterField(base+h.color.y,vertex*b.y,b.y),
+  h.colorMin.z+clusterField(base+h.color.z,vertex*b.z,b.z),
+  h.colorMin.w+clusterField(base+h.color.w,vertex*b.w,b.w));
+ return vec4f(bytes)*${wgslF32(1 / COLOR_LEVELS)};
 }`,
   )
 }

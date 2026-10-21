@@ -1,7 +1,7 @@
 export { createWorld } from './world.ts'
 export type { World } from './world.ts'
 export type { WorldOptions } from './options.ts'
-export type { FrameInfo, BeforeFrameInfo, WorldFrameMetrics } from './frames/frames.ts'
+export type { FrameInfo, BeforeFrameInfo } from './frames/frames.ts'
 export type { WorldTarget } from './target.ts'
 export type { ViewOptions, ViewRect, ViewFrameInfo, WorldView } from './views.ts'
 export type { LoadOptions } from './scene.ts'

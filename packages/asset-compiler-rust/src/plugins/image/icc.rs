@@ -55,7 +55,7 @@ pub(super) fn jpeg(bytes: &[u8]) -> Option<&'static str> {
         if kind == START_OF_SCAN || kind == END_OF_IMAGE {
             return None;
         }
-        let length = usize::from(crate::le::be16_at(bytes, at + 2)?);
+        let length = usize::from(crate::support::le::be16_at(bytes, at + 2)?);
         let payload = bytes.get(at + 2 + SEGMENT_LENGTH..at + 2 + length)?;
         if kind == APP2 {
             if let Some(profile) = payload.strip_prefix(JPEG_MARKER) {

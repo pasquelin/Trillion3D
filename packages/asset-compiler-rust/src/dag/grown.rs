@@ -1,25 +1,40 @@
-//! The primitive's vertex arrays as its DAG grows them: the source's, then, level by level,
-//! every vertex a solved reduction placed (`solved.rs`, `placed.rs`).
-use super::attributes::{key, Key};
+//! The primitive's vertex arrays as its DAG grows them: the source's as the build reads them
+//! (`input.rs`), then, level by level, every vertex a solved reduction placed (`solved.rs`,
+//! `placed.rs`).
+use super::attributes::{key, row_offset, Key};
 use super::placed::Local;
 use super::welds::{Columns, Welds};
 use super::{DagAttributes, GroupReductionInput};
 use trillion3d_page_codec::encode::Attribute;
 use trillion3d_page_codec::hash::{word_map, WordMap};
-use trillion3d_page_codec::{FLAG_UV, FLAG_UV1};
+use trillion3d_page_codec::{FLAG_SKIN, UV_FLAGS};
 
-/// The source's positions and carried attributes followed by every placed vertex. The pages,
-/// the cook's checks, the collider and the proxy read these; `source.bin` never does.
+/// The source's positions and carried attributes as the build reads them, followed by every
+/// placed vertex. The pages, the cook's checks, the collider and the proxy read these
+/// (`Grown::arrays`); `source.bin` never does.
 #[derive(Debug)]
 pub struct Grown {
     pub positions: Vec<f32>,
     pub carried: Vec<Attribute>,
-    /// Per placed vertex, the source vertex it was solved from, through every level between.
+    /// Per vertex past the source's, the source vertex it deforms as: for a piece the build cut
+    /// from a source vertex (`input::frames`), that vertex; for a placed vertex, through every
+    /// level between, the one whose bones it took (`Local::placed`).
     pub origin: Vec<u32>,
 }
 impl Grown {
-    /// The vertex arrays a stage reads: the grown ones, or the source's when nothing was placed.
+    /// The vertex arrays a stage reads: the grown ones, or the source's when the build changed
+    /// nothing, without the bones (`attributes::bones`), which no stage reads from there.
     pub fn arrays<'a>(
+        grown: &'a Option<Grown>,
+        positions: &'a [f32],
+        attributes: DagAttributes<'a>,
+    ) -> (&'a [f32], Vec<&'a Attribute>) {
+        let (positions, mut carried) = Self::level(grown, positions, attributes);
+        carried.retain(|a| a.flag != FLAG_SKIN);
+        (positions, carried)
+    }
+    /// The vertex arrays a level of the build reads: the grown ones, or the source's.
+    pub(super) fn level<'a>(
         grown: &'a Option<Grown>,
         positions: &'a [f32],
         attributes: DagAttributes<'a>,
@@ -31,9 +46,10 @@ impl Grown {
     }
     /// Appends the vertices a reduction `placed`, if any, after those already placed at its
     /// level, whose vertex count was `base`; the reduction's `clusters` and the welds follow. The
-    /// first placement copies the source's arrays once; a solve that moved nothing, never.
+    /// first placement copies the `source` arrays once; a solve that moved nothing, never.
     pub(super) fn place(
         grown: &mut Option<Grown>,
+        (positions, attributes): (&[f32], DagAttributes),
         welds: &mut Welds,
         placed: Placed,
         clusters: &mut [Vec<u32>],
@@ -42,7 +58,6 @@ impl Grown {
         if placed.origins.is_empty() {
             return;
         }
-        let (positions, attributes) = (welds.positions, welds.attributes);
         let offset = grown
             .as_ref()
             .map_or(0, |g| (g.positions.len() / 3) as u32 - base);
@@ -71,7 +86,9 @@ impl Grown {
 }
 
 /// The vertices one solved reduction placed, numbered from its level's vertex count, with every
-/// carried attribute, the level's vertex each was solved from and what the level's welds say.
+/// carried attribute, the level's vertex each deforms as (`Local::placed`) and what the level's
+/// welds say; none by default.
+#[derive(Default)]
 pub(super) struct Placed {
     pub positions: Vec<f32>,
     /// Per carried attribute, in the build's order, `width` floats per placed vertex.
@@ -87,10 +104,7 @@ impl Local<'_> {
         let carried = input.attributes.carried;
         let weighted = input.weighted;
         // Where each carried attribute sits in a solved row: the simplifier's order.
-        let offset = |a: &Attribute| {
-            let at = (weighted.iter()).position(|w| std::ptr::eq(w.values, &a.values[..]))?;
-            Some(weighted[..at].iter().map(|w| w.width).sum::<usize>())
-        };
+        let offset = |a: &Attribute| row_offset(weighted, a);
         let placed = (self.n..self.n + self.origin.len()).map(|id| id as u32);
         let values: Vec<Vec<f32>> = carried
             .iter()
@@ -116,7 +130,7 @@ impl Local<'_> {
                 w => self.global(w, base),
             })
             .collect();
-        let origins: Vec<u32> = placed.map(|id| self.from(id) as u32).collect();
+        let origins = self.deformed_as(placed, carried, &values);
         // The keys `by` names of the placed vertices and of the level's vertices.
         let (at, level_positions) = (&positions[..], input.positions);
         let keys = |by: fn(u32) -> bool| {
@@ -143,7 +157,7 @@ impl Local<'_> {
                 .map(|k| *seen.entry(placed(k)).or_insert(base + k as u32))
                 .collect()
         };
-        let weld_seam = canonical(|flag| flag == FLAG_UV || flag == FLAG_UV1, input.weld_seam);
+        let weld_seam = canonical(|flag| UV_FLAGS.contains(&flag), input.weld_seam);
         let exact = canonical(|_| true, input.exact);
         Placed {
             positions,
@@ -155,5 +169,42 @@ impl Local<'_> {
                 exact,
             },
         }
+    }
+
+    /// Per vertex of `placed`, the level's vertex it deforms as: the one it was solved from, when
+    /// the build carries no bones (`FLAG_SKIN` among `carried`) or that one holds the bones the
+    /// vertex took (`values`, per carried attribute); else the region's first vertex holding them,
+    /// as one does: a solve copies bones whole, never blends them (`simplify::Role::Bones`).
+    fn deformed_as(
+        &self,
+        placed: impl Iterator<Item = u32>,
+        carried: &[&Attribute],
+        values: &[Vec<f32>],
+    ) -> Vec<u32> {
+        let Some(bones) = carried.iter().position(|a| a.flag == FLAG_SKIN) else {
+            return placed.map(|id| self.from(id) as u32).collect();
+        };
+        let width = carried[bones].width;
+        let held = |v: usize| &carried[bones].values[v * width..][..width];
+        let bits = |values: &[f32]| -> Vec<u32> { values.iter().map(|x| x.to_bits()).collect() };
+        let mut holding: Option<WordMap<Vec<u32>, u32>> = None;
+        (placed.enumerate())
+            .map(|(k, id)| {
+                let (from, took) = (self.from(id), &values[bones][k * width..][..width]);
+                if bits(held(from)) == bits(took) {
+                    return from as u32;
+                }
+                let holding = holding.get_or_insert_with(|| {
+                    let mut first: WordMap<Vec<u32>, u32> = word_map(self.remap.len());
+                    for &v in self.remap {
+                        first.entry(bits(held(v as usize))).or_insert(v);
+                    }
+                    first
+                });
+                *holding
+                    .get(&bits(took))
+                    .expect("a solve copies a region vertex's bones")
+            })
+            .collect()
     }
 }

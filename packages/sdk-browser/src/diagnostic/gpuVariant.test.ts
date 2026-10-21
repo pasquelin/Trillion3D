@@ -9,7 +9,6 @@ import {
   selectionRepeat,
 } from './gpuVariant.ts'
 import type { DiagnosticGpuVariant } from './gpuVariant.ts'
-import { requestsComputeRaster } from './gpuGeometry.ts'
 import { DIAGNOSTIC_GPU_VARIANTS } from './gpuVariants.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
@@ -57,14 +56,11 @@ test('each variant neutralises a single factor, and its stage exists in the modu
   }
 })
 
-test('counting, off-screen presentation and the compute raster are turned on only by their variant', () => {
+test('counting and off-screen presentation are turned on only by their variant', () => {
   const comptant = DIAGNOSTIC_GPU_VARIANTS.filter(countsBlendOverdraw)
   const offscreen = DIAGNOSTIC_GPU_VARIANTS.filter(composesOffscreen)
-  const compute = DIAGNOSTIC_GPU_VARIANTS.filter(requestsComputeRaster)
   assert.deepEqual(comptant, ['blend-overdraw'])
   assert.deepEqual(offscreen, ['present-offscreen'])
-  assert.deepEqual(compute, ['raster-compute', 'raster-hybrid'])
-  assert.equal(requestsComputeRaster(undefined), false)
 })
 
 test('only the two cut variants re-encode it, and each its share', () => {

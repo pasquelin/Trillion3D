@@ -1,7 +1,6 @@
 import type { PlacementOf } from '../../placement/rows/rows.ts'
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/page/contracts.ts'
 import type { MatrixElements } from '../../session/host/matrixElements.ts'
-import type { NormalCone } from '../cone/cone.ts'
 import type { PageSurface } from '../pages/surface.ts'
 import type { ClusterStructureIndex, RootProxy } from '../selection/types.ts'
 import type { CullingLinks } from '../cut/links.ts'
@@ -10,29 +9,34 @@ import type { PackedWorld } from './worlds/worldLinks.ts'
 import type { HeldOpen } from './heldOpen.ts'
 import type { PlacementIndex } from '../selection/placements.ts'
 import type { createRecordTable } from './pack/packRecords.ts'
-import type { ContentKeys } from './evict/evict.ts'
 import type { StructureTable } from './structureTable.ts'
+import { CULLING_STRIDE } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 
-/** Twenty-four floats per node: the sixteen from the manifest, then the subtree error-floor
- *  sphere, the floor and a flags word (`pack/packNodes.ts`). */
-export const DAG_NODE_FLOATS = 24,
-  CULL_STRIDE = 15
+/** Twenty words per node (`nodeLayout.ts`, `pack/packNodes.ts`): the manifest's box, ceiling,
+ *  sphere, least own error and links, the placement word, then the open count, the kind and a pad
+ *  word. */
+export const DAG_NODE_FLOATS = 20,
+  /** Numbers per node of the manifest's culling hierarchy (`page-codec-wasm/src/culling.rs`). */
+  CULL_STRIDE = CULLING_STRIDE
 /** A culling node's fields in its manifest row of `CULL_STRIDE` numbers: its box (min, max), its
- *  sphere, its error ceiling, its first child and child count, its first page and page count. */
+ *  LOD sphere, its error ceiling, its least own error, its first child and child count, its first
+ *  page and page count. */
 export const CULL_MIN = 0,
   CULL_MAX = 3,
   CULL_SPHERE = 6,
   CULL_CEIL = 10,
-  CULL_FIRST_CHILD = 11,
-  CULL_CHILD_COUNT = 12,
-  CULL_FIRST_PAGE = 13,
-  CULL_PAGE_COUNT = 14
+  CULL_FLOOR = 11,
+  CULL_FIRST_CHILD = 12,
+  CULL_CHILD_COUNT = 13,
+  CULL_FIRST_PAGE = 14,
+  CULL_PAGE_COUNT = 15
 /** Words of a placement's row of `frames`, the host's words (`frameTable.ts`): nothing is derived
  *  into it (`shader/primitiveWgsl.ts`). */
 export const FRAME_ROW_WORDS = 7
 type DagCluster = {
   url: string
-  /** Its quantized page: with `url`, the content key the pool holds it under (`evict/evict.ts`). */
+  /** Its quantized page: with `url`, the content key the pool holds it under
+   *  (`../rows/page/pageSlots.ts`, `pageAddress`). */
   geometryPage?: GeometryPageDescriptor
   lodError?: number
   parentError?: number | null
@@ -41,14 +45,11 @@ type DagCluster = {
   level?: number
   min?: number[]
   max?: number[]
-  cone?: NormalCone
   material?: PageSurface
   /** Cluster triangles and its pass: the GPU holds the totals, the CPU does not sum them
    *  (`layout.ts`, snapshot header). */
   triangles?: number
   transparent?: boolean
-  /** In the group a root replaces: admitted first under a short pool (`request/request.ts`). */
-  rootChild?: boolean
 }
 export type DagRoot = {
   world: MatrixElements
@@ -61,17 +62,24 @@ export type DagRoot = {
   placement?: PlacementOf
   /** Its root mark (`ClusterRoot.mark`): one never culled takes planes no box leaves. */
   mark?: number
-  /** `bounds`: per-node bounds `cullingBounds` derives from the pages. The host shares them
-   *  among all placements of a primitive; without them, the layout derives them itself. */
-  culling?: { nodes: Float64Array; stride: number; bounds?: Float64Array; links?: CullingLinks }
+  /** Its primitive's culling hierarchy, with its upward links when the host derived them, shared
+   *  by every placement of the primitive (`../cut/links.ts`). */
+  culling?: { nodes: Float64Array; stride: number; links?: CullingLinks }
   /** The proxy of its cut and the surface it wears, what a ray meets of it beyond the visible cut
    *  (`ClusterRoot.proxy`): a run-time cut's alone. */
   proxy?: RootProxy
   /** Group links: what the cut rule's residency is derived from (`../cut/readiness.ts`). */
   structure?: ClusterStructureIndex
   /** The world HLOD's alone (`geometry/hlod/worldHlod.ts`): each rank's HLOD cell, and each cell of the
-   *  chain's parent (-1 for a top cell), layer and actor's flags (`CHAIN_ACTOR`). */
-  hlod?: { cells: Int32Array; parent: Int32Array; layer: Uint8Array; actor: Uint8Array }
+   *  chain's parent (-1 for a top cell), layer, actor's flags (`CHAIN_ACTOR`) and the rows its
+   *  actor places (`WorldRoots.rows`). */
+  hlod?: {
+    cells: Int32Array
+    parent: Int32Array
+    layer: Uint8Array
+    actor: Uint8Array
+    rows: Uint32Array
+  }
 }
 /** What a placement's cut residency is derived from, and where its pages sit in the packing and
  *  its primitive's shared nodes in the node table (`readiness.ts`). */
@@ -84,11 +92,10 @@ export type DagCutLinks = {
   nodeCount: number
 }
 /** What placing a root reads again for the next placement of its primitive (`pack/pack.ts`): per node
- *  array its level sizes and bounds, and per page array its first placement's page base, record
- *  base, node array and root-cluster count. */
+ *  array its level sizes, and per page array its first placement's page base, record base, node
+ *  array and root-cluster count. */
 export type DagPackShared = {
   levelSizesOf: Map<Float64Array, readonly number[]>
-  boundsOf: Map<Float64Array, Float64Array>
   firstOf: Map<
     DagRoot['pages'],
     { pageBase: number; recordBase: number; nodes: Float64Array; rootClusters: number }
@@ -99,18 +106,15 @@ export type DagPackShared = {
   /** The unique records written, which a page array of another source of a packed primitive is
    *  looked up in: its records are an earlier placement's when their words are the same. */
   records?: ReturnType<typeof createRecordTable>
-  /** The content keys written, which an appended array's pages are named by. */
-  keys?: ContentKeys
-  /** Where the cold records begin in the cold words: what a growth writes the records it adds by. */
-  coldAt?: number
 }
 export type PackedDag = {
   kind: 'dag'
   /** Hot records, one per UNIQUE cluster: placements of one primitive share theirs (`layout.ts`). */
   clusters: Float32Array
   nodes: Float32Array
-  /** Working table (one placement word per page), residency bits, then the unique cold records. */
-  pageCones: Float32Array
+  /** The cold words: the residency bits, the unique cold records, then the world's links
+   *  (`layout.ts`, `worlds/worldLinks.ts`). */
+  coldWords: Float32Array
   worlds: Float32Array
   /** Live double-precision placements; light selection reads them before camera rebasing rounds. */
   worldSources: readonly Pick<DagRoot, 'world'>[]
@@ -130,7 +134,7 @@ export type PackedDag = {
    *  live ones (`live`) lead each; those past them are inert, no root naming them (`pack/pack.ts`).
    *  Nodes are each primitive's ONCE, shared by its placements, then the placement tree's. */
   nodeCount: number
-  /** What a descent queue holds at most: a placement's entry for each of its primitive's nodes,
+  /** The nodes one pass opens at most: a placement's entry for each of its primitive's nodes,
    *  every placement of the capacity, then the tree's nodes (`shader/levelWgsl.ts`). */
   entryCount: number
   worldCount: number
@@ -145,16 +149,6 @@ export type PackedDag = {
   recordCount: number
   /** Nodes the primitives take, the room kept for a growth's included: the placement tree's follow. */
   primitiveNodeCount: number
-  /** Content keys behind the records, one per page address (`evict/evict.ts`). */
-  keyCount: number
-  /** The groups of those keys, and the links from each group to the groups replacing it: what a
-   *  use stamps upward (`evict/evict.ts`, `shader/lastUseWgsl.ts`). */
-  groupCount: number
-  groupEdges: number
-  /** What the candidate and live lists hold, and each descent queue, now (`shader/levelWgsl.ts`):
-   *  a view's reach, grown when a cut passes one (`queueGrowth.ts`). */
-  candCount: number
-  queueEntries: number
   /** Each placement's first page, on the host alone: what names a page's placement
    *  (`rootOfPacked`); the kernels read it from the entries that carry it. */
   pageIndex: PlacementIndex

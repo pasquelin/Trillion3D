@@ -16,14 +16,12 @@ import {
   ROW_WORDS,
 } from '../../../visibility/types.ts'
 import { shownAsIs } from '../../../materials/surface/surfaceModel.ts'
-import { neverCulled } from '../../../visibility/shader/spriteWgsl.ts'
 import type { SessionDeformation } from '../../../deformation/session.ts'
 import { writeRowDeformation } from '../../../deformation/outputs.ts'
 import { surfaceEmitsOrOccludes } from '../../../materials/surface/surfaceEmission.ts'
 import { packedRowBase, rowIndexCount } from './pageRow.ts'
 import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
 import { pageDiagnosticWord } from '../../selection/diagnostic.ts'
-import { NO_INDEX } from '../../../../../math/src/constants.ts'
 
 type PageRowResources = MaterialLayers & {
   geometryBlocks: Map<HostAttributes, GeometryBlock>
@@ -46,7 +44,7 @@ type RowWriter = {
   markRowDirty: (row: number) => void
   rootRank: (packed: number) => number
   outputOf: (packed: number) => DeformationOutput | undefined
-  proxyOf: (rank: number) => boolean
+  drawnAs: (rank: number) => number
   // What the catalogue fixes once and for all is not recomputed for every arriving page.
   constants: ReturnType<typeof createPageRowConstants>
   // Filled again at every row write, never allocated again.
@@ -65,16 +63,17 @@ export function createPageRowWriter(
   rootRank: (packed: number) => number,
   /** Where the placement of a packed rank writes the results of its page (`PackedPages.outputOf`). */
   outputOf: (packed: number) => DeformationOutput | undefined = () => undefined,
-  /** Whether placement `rank` draws as its cell's HLOD 0 actor (`RowCell.proxy`): its rows'
-   *  diagnostic word says so. */
-  proxyOf: (rank: number) => boolean = () => false,
+  /** The HLOD level placement `rank` draws as — 0 its cell's HLOD 0 actor (`RowCell.proxy`), its
+   *  actor's for a row of an instanced actor (`RowCell.actor`), -1 itself —: its rows' diagnostic
+   *  word says so. */
+  drawnAs: (rank: number) => number = () => -1,
 ) {
   const w: RowWriter = {
     resources,
     markRowDirty,
     rootRank,
     outputOf,
-    proxyOf,
+    drawnAs,
     constants: createPageRowConstants(),
     block: emptyGeometryBlock(),
   }
@@ -89,7 +88,7 @@ export function createPageRowWriter(
 }
 
 function writeRow(
-  { resources, markRowDirty, rootRank, outputOf, proxyOf, constants, block }: RowWriter,
+  { resources, markRowDirty, rootRank, outputOf, drawnAs, constants, block }: RowWriter,
   rec: PageRec,
   pageIndex: number,
   row: number,
@@ -123,26 +122,28 @@ function writeRow(
   ints[base + PAGE_INFO.at.vertexBase] = geo?.vertexBase ?? 0
   ints[base + PAGE_INFO.at.packedBase] = packedRowBase(row)
   ints[base + PAGE_INFO.at.clusterHash] = constants.hashOf(rec.clusterId)
-  // The Hi-Z verdict of a row lives at the row's own index, and the rows a frame does not test are
-  // cleared on the GPU before the test, so no row ever reads the verdict of an earlier image. A
-  // row never culled reads none, nor does a deformed one: its box is its rest pose's.
-  const deform = resources.deformation?.rowWord(rank) ?? 0
-  ints[base + PAGE_INFO.at.deform] = deform
+  ints[base + PAGE_INFO.at.deform] = resources.deformation?.rowWord(rank) ?? 0
   writeRowDeformation(ints, base, outputOf(pageIndex))
   // Its surface's record (`PageInfo.material`); a float block's second UV set rides in its high
   // bit (`MATERIAL_SECOND_UV`).
   ints[base + PAGE_INFO.at.material] = materialWord(
     surface.rank,
-    !!geo && !geo.quantized && !!geo.hasUv1,
+    !!geo && !geo.quantized && !!geo.hasExtraUv,
   )
-  ints[base + PAGE_INFO.at.hizSlot] = neverCulled(mat) || deform ? NO_INDEX : row
   ints[base + PAGE_INFO.at.selectionIndex] = pageIndex
-  ints[base + PAGE_INFO.at.diagnosticWord] = pageDiagnosticWord(rec, proxyOf(rank))
+  ints[base + PAGE_INFO.at.diagnosticWord] = pageDiagnosticWord(rec, drawnAs(rank))
   // Depth units to add for this cluster's coplanar layer — engine depth is reversed: zero for
   // layer 0, one calculation source for the hardware path and the software raster alike.
   ints[base + PAGE_INFO.at.depthBias] = depthLayerUnits(rec.depthLayer)
   ints[base + PAGE_INFO.at.placement] = rank
   // The class the resolve draws this page under: its flags and map slots, as one word.
   ints[base + PAGE_INFO.at.materialClass] = maps.classKey
+  // The cluster's level-of-detail sphere, which the cluster split judges its edge at; a negative
+  // radius without one (`PageInfo.lodSphere`).
+  const sphere = rec.sphere ?? NO_SPHERE
+  for (let a = 0; a < 4; a++) floats[base + PAGE_INFO.at.lodSphere + a] = sphere[a]
   markRowDirty(row)
 }
+
+/** The level-of-detail sphere of a record without one: no centre, a negative radius. */
+const NO_SPHERE = [0, 0, 0, -1]

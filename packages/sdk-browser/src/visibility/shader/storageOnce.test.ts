@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { receiverStoreWgsl } from './receiverTargetWgsl.ts'
+import { RECEIVER_WORDS_WGSL } from './receiverTargetWgsl.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 
 /** The text of WGSL function `name` of the resolve, to its closing brace. */
@@ -14,13 +14,14 @@ const bodyOf = (name: string) => {
   return SHADE_SHADER.slice(at, SHADE_SHADER.indexOf('\n}\n', at))
 }
 
-test('shade_fs writes each storage texel exactly once, after the resolve, which writes none', () => {
-  const entry = bodyOf('shade_fs'),
+test('shade_cs writes each storage texel exactly once, after the resolve, which writes none', () => {
+  const entry = bodyOf('shade_cs'),
     resolve = bodyOf('shadeSurface')
   assert.equal(entry.match(/storeReceiver\(/g)?.length, 1)
   assert.equal(entry.match(/storeSubsurface\(/g)?.length, 1)
-  assert.ok(entry.indexOf('shadeSurface(pos,id)') < entry.indexOf('storeSubsurface('))
-  assert.ok(entry.indexOf('if(!classAdmits(id)){discard;}') < entry.indexOf('shadeSurface('))
+  assert.ok(entry.indexOf('shadeSurface(') < entry.indexOf('storeSubsurface('))
+  // A lane with no pixel of its class leaves before any read or write.
+  assert.ok(entry.indexOf('if(!shadesPixel(at)){return;}') < entry.indexOf('shadeSurface('))
   assert.doesNotMatch(resolve, /store(?:Receiver|Subsurface)\(/)
   // Their values are the invocation's private variables, zero at its start; one path sets each.
   for (const name of ['thinOut', 'rcvOffset', 'rcvPlane'])
@@ -31,17 +32,16 @@ test('shade_fs writes each storage texel exactly once, after the resolve, which 
 
 test('every way out of the resolve leaves the receiver word the double write left', () => {
   let texel: number[] = []
-  const { storeReceiver } = shaderRun<{
-    storeReceiver: (pos: number[], offset: number[], plane: number[]) => void
+  const { receiverWords } = shaderRun<{
+    receiverWords: (offset: number[], plane: number[]) => number[]
   }>(
-    wgslModule(receiverStoreWgsl(0)),
-    ['storeReceiver', 'octEncode', 'octFold', 'ndcToUvUnflipped', 'pow2FromExponent'],
-    {
-      receiverOutput: {},
-      textureDimensions: () => [8, 8],
-      textureStore: (_target: object, _at: number[], value: number[]) => void (texel = value),
-    },
+    wgslModule(RECEIVER_WORDS_WGSL),
+    ['receiverWords', 'octEncode', 'octFold', 'ndcToUvUnflipped', 'pow2FromExponent'],
+    {},
   )
+  // The store of a pixel's receiver (`storeReceiver`): its two words, written whole.
+  const storeReceiver = (_pixel: number[], offset: number[], plane: number[]) =>
+    void (texel = receiverWords(offset, plane))
   const resolve = bodyOf('shadeSurface'),
     setAt = resolve.indexOf('rcvOffset=')
   // Each return of the resolve, by the text: those before the receiver is set never set it.

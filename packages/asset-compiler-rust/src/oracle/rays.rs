@@ -1,12 +1,12 @@
 use super::geometry::albedo_of;
 use super::trace::{direct, lifted, scene_reach};
 use super::OracleJob;
-use crate::proxy::tracer::{surface_at, trace, World};
+use crate::trace::tracer::{surface_at, trace, World};
 use std::f64::consts::PI;
-use trillion3d_math::random::splitmix_unit;
 use trillion3d_math::scalar::perspective_slope;
-use trillion3d_math::vec3::{cross, frame_across, unit_or_itself};
-use trillion3d_math::vecn::sub;
+use trillion3d_math::sequence::random::splitmix_unit;
+use trillion3d_math::vector::vec3::{cross, frame_across, unit_or_itself};
+use trillion3d_math::vector::vecn::sub;
 use trillion3d_math::{GOLDEN, GOLDEN_32};
 
 /// Secondary bounce rays, relative to primary ones: variance that matters is first bounce,

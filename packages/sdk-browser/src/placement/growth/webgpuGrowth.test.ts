@@ -5,10 +5,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { pageAddress } from '../../geometry/rows/page/pageSlots.ts'
-import { placedSession, scaleDown } from './webgpuGrowth.fixture.ts'
+import { GROWN_ROWS, placedSession, scaleDown } from './webgpuGrowth.fixture.ts'
 
 test('a WebGPU session grows the rows of a scaled-down partition in place, its GPU cut with them', async () => {
-  const session = await placedSession(5)
+  const session = await placedSession(GROWN_ROWS)
   const { rt, cells, links, reopened } = session
   try {
     const { layout } = rt,
@@ -76,7 +76,7 @@ test('a WebGPU session grows the rows of a scaled-down partition in place, its G
 test('the placement tables the group closure and page parents hold follow a growth in place', async () => {
   // Built once at open (`services.ts`), they would read the open's tables past a growth, and a page
   // of a new row would find no root (#1235).
-  const session = await placedSession(5)
+  const session = await placedSession(GROWN_ROWS)
   try {
     const { layout } = session.rt,
       held = layout.placement

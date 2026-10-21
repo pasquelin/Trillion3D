@@ -88,21 +88,22 @@ export function rowCacheScene(
   }
 }
 
-/** Cuts the view `back` and follows until the drawn cut is the wanted one, `rounds` readbacks at
- *  most, every round on one device and one build of the kernel; returns what it settled on. */
+/** Cuts the view `back` and follows until the drawn cut is the wanted one — the cut every page
+ *  resident draws —, `rounds` readbacks at most, every round on one device and one build of the
+ *  kernel; returns what it settled on. */
 export function settleView(scene: ReturnType<typeof rowCacheScene>, back = 0, rounds = 8) {
   const { rows, sync, packed, clock, gpu } = scene
   const uniforms = scene.view(back)
   return runOnDawn(async () => {
     const kernel = await openSelectionKernel()
+    const { drawn: wanted } = await kernel.cut({ name: 'wanted', packed, uniforms })
     clock.frame++
     sync.syncRows(false)
-    let drawn: number[] = [],
-      wanted: number[] = []
+    let drawn: number[] = []
     for (let round = 0; round < rounds; round++) {
       const resident = Uint8Array.from({ length: packed.pageCount }, (_, p) => rows.residentFlag(p))
       const reading = await kernel.cut({ name: `round ${round}`, packed, uniforms, resident })
-      ;({ drawn, pages: wanted } = reading)
+      drawn = reading.drawn
       if (drawn.join() === wanted.join()) break
       gpu(clock.frame, [...drawn, ...reading.requests])
       sync.followCut({ result: { pageIds: reading.requests } })

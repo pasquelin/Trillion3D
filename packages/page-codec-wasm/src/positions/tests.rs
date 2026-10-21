@@ -1,10 +1,18 @@
 //! A page that stores its positions once: each vertex decodes to the position its link names,
 //! and a link past the stored positions refuses the page before any stream is decoded.
 
-use crate::bits::Quant;
+use crate::bits::{ColorRange, PositionGrid, UvRange};
 use crate::triangles::{CornerCode, Spans};
 use crate::writer::BitWriter;
-use crate::{decode, Header, PageError};
+use crate::{decode, Header, PageError, MAX_UV_SETS};
+
+/// The grid of the pages: a cell a centimetre.
+fn grid() -> PositionGrid {
+    PositionGrid {
+        bits: [2, 0, 0],
+        ..PositionGrid::flat(0)
+    }
+}
 
 /// Four vertices on one triangle, `positions` stored with `x` equal to their rank, and `links`.
 fn page(positions: usize, links: &[u32]) -> Vec<u8> {
@@ -14,15 +22,11 @@ fn page(positions: usize, links: &[u32]) -> Vec<u8> {
         vertex_count: 4,
         index_count: indices.len(),
         flags: 0,
-        position: Quant {
-            min: [0.0; 3],
-            exponent: 0,
-            bits: [2, 0, 0],
-        },
-        uv: Quant::flat(-14),
-        uv1: Quant::flat(-14),
-        color: Quant::flat(-8),
-        quantization_error: 0.0,
+        position: grid(),
+        uv: [UvRange::default(); MAX_UV_SETS],
+        color: ColorRange::default(),
+        normal_precision: 8,
+        tangent_precision: 7,
         corner_bits: spans.bits,
         position_count: positions,
         skin: crate::Skin::default(),
@@ -50,11 +54,18 @@ fn xs(data: &[u8]) -> Result<Vec<f32>, PageError> {
 
 #[test]
 fn each_vertex_decodes_to_the_position_its_link_names() {
-    assert_eq!(xs(&page(3, &[2, 0, 2, 1])), Ok(vec![2.0, 0.0, 2.0, 1.0]));
+    // A cell is `unit` metres: the ranks, scaled.
+    let at = |ranks: &[u32]| -> Vec<f32> {
+        ranks
+            .iter()
+            .map(|&r| grid().metres(0, r, grid().unit()))
+            .collect()
+    };
+    assert_eq!(xs(&page(3, &[2, 0, 2, 1])), Ok(at(&[2, 0, 2, 1])));
     // One stored position serves every vertex: links of no bit.
-    assert_eq!(xs(&page(1, &[])), Ok(vec![0.0; 4]));
+    assert_eq!(xs(&page(1, &[])), Ok(at(&[0; 4])));
     // As many positions as vertices: no link, one position each.
-    assert_eq!(xs(&page(4, &[])), Ok(vec![0.0, 1.0, 2.0, 3.0]));
+    assert_eq!(xs(&page(4, &[])), Ok(at(&[0, 1, 2, 3])));
 }
 
 #[test]

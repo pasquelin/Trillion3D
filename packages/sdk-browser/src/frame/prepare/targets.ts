@@ -1,7 +1,6 @@
 import { wantsSubsurface } from '../../materials/surface/subsurface.ts'
 import { forgetCapturedImage } from '../backend/state/capture.ts'
 import { wantsPhysicalLobes } from './lobesTarget.ts'
-import { holds } from '../../materials/surface/surfaceBuffer.ts'
 import {
   DEPTH_FORMAT,
   DISPLAY_FORMAT,
@@ -18,6 +17,7 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { displayApart, type FrameSize } from '../backend/state/renderScale.ts'
 import { makeAsIsShare, wantsAsIsShare } from './asIsShareTarget.ts'
 import { makesDisplayColor, sceneBlends } from './targetAllocation.ts'
+import { BUDGET_EXCEEDED, GpuBudgetExceeded } from '../../gpu/core/ledgerBooks.ts'
 
 /** True when the drawn view's frame targets in place are those of `size`, both sizes alike. */
 export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
@@ -33,7 +33,7 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
     gpu.displaySize[1] === size.height &&
     displayApart(gpu) === size.apart &&
     !!gpu.surfaces &&
-    holds(gpu.surfaces, gpu.surfaces.subsurface, wantsSubsurface(rt)) &&
+    gpu.surfaces.hasSubsurface === wantsSubsurface(rt) &&
     // The lobes target is remade alone when it flips (`followLobes`), never the whole set.
     !!gpu.reflection &&
     // The front depth the blends write is full-size once the session holds a blend: one that joined
@@ -56,7 +56,8 @@ export function releaseTargets(rt: WebgpuPagesRuntime, keepHistory = false) {
 }
 
 /** The texture-feedback target, made while the pipelines write it (`./feedbackVariant.ts`, which
- *  makes and releases it in place); only the A/B diagnostic copies it out. */
+ *  makes and releases it in place): the material classes' shading stores its requests, the
+ *  transparents draw theirs; only the A/B diagnostic copies it out. */
 export function makeFeedbackTarget(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -69,6 +70,7 @@ export function makeFeedbackTarget(
     format: FEEDBACK_FORMAT,
     usage:
       GPUTextureUsage.RENDER_ATTACHMENT |
+      GPUTextureUsage.STORAGE_BINDING |
       GPUTextureUsage.TEXTURE_BINDING |
       (rt.context.feedbackTargetAB ? GPUTextureUsage.COPY_SRC : 0),
   })
@@ -96,7 +98,7 @@ export function makeTargets(
   buildTargets(rt, device, size, targetBytes)
   // The view's pyramid is one of its targets (#1483): refused, the targets are, for memory.
   if (vis.gpuHiz && !vis.gpuHiz.resize(device, width, height))
-    throw new Error('GPU_BUDGET_EXCEEDED: the Hi-Z pyramid')
+    throw new GpuBudgetExceeded(`${BUDGET_EXCEEDED}: the Hi-Z pyramid`)
   return { allocation: targetAllocationOf(rt), destroy: () => releaseTargets(rt) }
 }
 

@@ -14,9 +14,9 @@ import {
 
 /**
  * The blended caster rows, as `vsmRenderCandidates` takes the opaque ones (same LOD test, same
- * candidate record): group 0 = that kernel's (0 params, 1 rows, 2 spheres, 3 mobility, 4 levels,
- * 5 candidates, 6 counters) and 7 the frame uniform (`rowFirst`). `params.rowCount` is the number
- * of blended rows.
+ * world switch, same candidate record): group 0 = that kernel's (0 params, 1 rows, 2 spheres, 3
+ * mobility, 4 levels, 5 candidates, 6 counters) and 7 the frame uniform (`rowFirst`), group 1 its
+ * (`VSM_RENDER_ROWS_WGSL`). `params.rowCount` is the number of blended rows.
  */
 export const vsmTransmissionCandidatesWgsl = () =>
   wgslProgram(

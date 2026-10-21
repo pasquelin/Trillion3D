@@ -1,9 +1,9 @@
 use super::*;
-use crate::compiler_primitive::triangles::read;
-use trillion3d_math::aabb::{aabb_of, corners};
-use trillion3d_math::vec2::{barycentric, double_area};
-use trillion3d_math::vec3::point_checked;
-use trillion3d_math::vecn::dot;
+use crate::compiler::primitive::triangles::read;
+use trillion3d_math::geometry::aabb::{aabb_of, corners};
+use trillion3d_math::vector::vec2::{barycentric, double_area};
+use trillion3d_math::vector::vec3::point_checked;
+use trillion3d_math::vector::vecn::dot;
 
 /// The triangles of a surface, flattened into the two axes of its own world plane. Built once per
 /// surface and reused by every pair it is tested against.
@@ -66,7 +66,7 @@ pub type Source = (Vec<f32>, Vec<u32>);
 /// more triangles than the stage is allowed to hold, which is reported rather than guessed at.
 pub fn footprint(
     inputs: &CoplanarInputs<'_>,
-    world: &crate::compiler_world::Mat4,
+    world: &crate::compiler::source::node_transform::Mat4,
     surface: &Surface,
     (xyz, indices): &Source,
     bounds: &CoplanarBounds,

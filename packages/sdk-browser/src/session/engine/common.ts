@@ -3,7 +3,8 @@
  * reads a host object, so this module names no rendering library — the host-library objects a
  * witness publishes live in the witness library.
  */
-import { MAX_PREFETCH_HORIZON_MS } from './prefetchHorizon.ts'
+import { DEFAULT_STREAMING_MAX_PENDING_PAGES } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
+import { STREAMING_PAGE_BYTES } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 /** The ratio a session's drawing buffer was sized at (`devicePixels`): read live, a resize
  *  rewrites it. Unset, the screen's of `view` (the canvas's window) when one is given, else 1:
  *  the one resolver of the ratio. */
@@ -16,45 +17,37 @@ export const DEFAULT_FOV = 55,
   DEFAULT_PIXEL_RATIO = 1,
   DEFAULT_WIDTH = 960,
   DEFAULT_HEIGHT = 540,
-  DEFAULT_PAGE_WORKERS = 32,
-  /** Addresses a frame issues at most, taken from the head of the priority-ordered list. */
-  PAGE_REQUEST_BATCH = 256,
-  /** Cache pages a frame queues at most in the arrival queue, and pages its drain delivers at most. */
-  ARRIVAL_QUEUE_BATCH = 64,
-  /** Index bytes the arrival queue's drain delivers at most a frame: a double of the frame's one
-   *  time budget, never its replacement (a packet's cluster count is unknown in advance). */
-  ARRIVAL_QUEUE_BYTES = 512 * 1024,
+  /** Page reads running at once: as many as the streaming may keep pending
+   *  (`streamingMaxPendingPages`, `../../geometry/residency/queue.ts`), so the reads are never what
+   *  bounds how many streaming pages are on their way. */
+  DEFAULT_PAGE_WORKERS = DEFAULT_STREAMING_MAX_PENDING_PAGES,
+  /** Bytes the transfer queue holds in flight: the pending streaming pages at their most bytes
+   *  each (`STREAMING_PAGE_BYTES`), so the bytes in flight never bound them either
+   *  (`../../geometry/streaming/pageStreamer.ts`). */
+  DEFAULT_PAGE_TRANSFER_BYTES = DEFAULT_STREAMING_MAX_PENDING_PAGES * STREAMING_PAGE_BYTES,
+  /** Root pages the geometry pool's root region opens with, the reference's first allocation,
+   *  within the root pages the catalogue has; it grows past them as HLOD cells hold theirs
+   *  (`../../frame/prepare/rootCover.ts`, `rootRegionOf`). */
+  DEFAULT_INITIAL_ROOT_PAGES = 2048,
+  /** Addresses a frame issues at most, taken from the head of the priority-ordered list: the
+   *  pages pending at once, a page still lacked keeping its read. */
+  PAGE_REQUEST_BATCH = DEFAULT_STREAMING_MAX_PENDING_PAGES,
+  /** Cache pages a frame queues at most in the arrival queue, and pages its drain installs at
+   *  most: as many as may be pending (`PAGE_REQUEST_BATCH`). Pages alone count, never bytes:
+   *  what a page's bytes cost is the frame's clock's to bound (`MAIN_THREAD_FRAME_MS`). */
+  ARRIVAL_QUEUE_BATCH = PAGE_REQUEST_BATCH,
   /**
    * The main thread's share of a frame, in milliseconds: ONE CLOCK its streaming stages spend in
-   * priority order — the arrived pages integrated, the row records and texture tiles, then the
-   * residency queue in the tasks before the next frame (`../../geometry/integration/frameBudget.ts`) —,
-   * each stage's first piece always admitted. The programme's 2 ms main-thread frame. Fetching and
-   * decoding run in workers and spend none of it.
+   * priority order — the cells and the arrived pages integrated, then the row records the cut's
+   * requests claim and the texture tiles (`../../geometry/integration/frameBudget.ts`) —, each
+   * stage's first piece always admitted. The programme's 2 ms main-thread frame, widened to the
+   * whole frame until the session's first image is shown (`../../frame/loop/firstImage.ts`).
+   * Fetching and decoding run in workers and spend none of it; the geometry pool's streaming pages
+   * neither, nor the rows of the pages they bring: a frame installs a count of streaming pages
+   * (`streamingMaxInstallsPerFrame`, `../../geometry/residency/queue.ts`) and writes their rows
+   * whole (`../../geometry/rows/rowPasses.ts`, `followArrivals`).
    */
-  MAIN_THREAD_FRAME_MS = 2,
-  /**
-   * Shares the residency queue opens at most between two frames of a visible page, each on what
-   * the frame's clock left (`MAIN_THREAD_FRAME_MS`): past them it waits for the next frame, so no burst of shares holds
-   * a frame back. A hidden page, where no frame comes, or a visible one whose frames stopped, keeps
-   * opening one per task.
-   */
-  STREAMING_SHARES_PER_FRAME = 2,
-  /**
-   * How far ahead of a moving camera the cut requests pages, in milliseconds: the programme's time
-   * to full detail after a stop. A page the camera reaches within it is asked for now, so the
-   * queue that fills a stopped view in that time has it when the view does (`../../gpu/core/aheadView.ts`).
-   */
-  PREFETCH_HORIZON_MS = 250
-/**
- * How far ahead of a moving camera the cut requests pages, in milliseconds: the published horizon
- * plus the pages' measured round trip (`../../geometry/streaming/roundTrip.ts`) — a page asked for now lands a
- * round trip later — at most `MAX_PREFETCH_HORIZON_MS`. No round trip measured, or none that reads
- * as a duration: the published horizon.
- */
-export const prefetchHorizonMs = (roundTripMs?: number) =>
-  roundTripMs! > 0
-    ? Math.min(PREFETCH_HORIZON_MS + roundTripMs!, MAX_PREFETCH_HORIZON_MS)
-    : PREFETCH_HORIZON_MS
+  MAIN_THREAD_FRAME_MS = 2
 /**
  * Device pixels of a logical dimension, at the ratio the host has set. Canvas creation and
  * resize both compute it: two separate truncations would have ended up with a canvas of one

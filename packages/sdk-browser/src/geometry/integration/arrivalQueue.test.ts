@@ -26,13 +26,13 @@ function target() {
   }
 }
 
-test('a drain stops at the byte budget and the next one resumes where it left off', () => {
+test('a drain stops at the page budget and the next one resumes where it left off', () => {
   const a = target()
-  // Three 8-byte pages for a budget of 12: the second exceeds the budget and closes the drain.
-  const queue = createArrivalQueue(12, 64, createFrameBudget(Infinity))
+  // Three pages for a budget of two: the third waits for the next drain.
+  const queue = createArrivalQueue(2, createFrameBudget(Infinity))
   for (const url of ['p0', 'p1', 'p2']) assert.equal(queue.queue(a, url, new Uint32Array(2)), true)
   assert.equal(queue.pending, 3)
-  assert.equal(queue.drain(), 2, 'the byte budget stops the drain')
+  assert.equal(queue.drain(), 2, 'the page budget stops the drain')
   assert.deepEqual(a.accepted, ['p0', 'p1'], 'arrival order preserved')
   assert.equal(a.syncs, 0, 'the next render synchronizes without an intermediate submit')
   assert.equal(queue.pending, 1)
@@ -46,7 +46,7 @@ test('a drain stops at the byte budget and the next one resumes where it left of
 test('a page already waiting for a target is queued once, and each target keeps its own residency', () => {
   const a = target(),
     b = target()
-  const queue = createArrivalQueue(1 << 20, 2, createFrameBudget(Infinity))
+  const queue = createArrivalQueue(2, createFrameBudget(Infinity))
   const page = new Uint32Array(1)
   assert.equal(queue.queue(a, 'p0', page), true)
   assert.equal(queue.queue(a, 'p0', page), false, 'already waiting for this target')
@@ -84,8 +84,8 @@ test('many duplicate targets across a drain deliver exactly like the reference',
     for (let d = 0; d < 3; d++) livrs += queue.drain()
     return { delivered, livrs }
   }
-  const optimized = arrivals(createArrivalQueue(1 << 20, 4096, createFrameBudget(Infinity)))
-  const reference = arrivals(referenceArrivalQueue(1 << 20, 4096))
+  const optimized = arrivals(createArrivalQueue(4096, createFrameBudget(Infinity)))
+  const reference = arrivals(referenceArrivalQueue(4096))
   assert.deepEqual(optimized, reference)
 })
 
@@ -100,7 +100,7 @@ test('the frame budget yields at its boundary and resumes in arrival order', (t)
     },
   }
   const budget = createFrameBudget(2)
-  const queue = createArrivalQueue(1 << 20, 64, budget)
+  const queue = createArrivalQueue(64, budget)
   for (const url of ['p0', 'p1', 'slow', 'p3']) queue.queue(receiver, url, new Uint32Array(1))
   const frame = () => (budget.open(), queue.drain())
   assert.equal(frame(), 2, 'two 1 ms deliveries reach the 2 ms ceiling')
@@ -119,7 +119,7 @@ test('a drain spends what its frame left of the budget, and never opens it again
   let now = 0
   t.mock.method(performance, 'now', () => now)
   const budget = createFrameBudget(2)
-  const queue = createArrivalQueue(1 << 20, 64, budget)
+  const queue = createArrivalQueue(64, budget)
   queue.queue({ acceptPage() {} }, 'p0', new Uint32Array(1))
   budget.open()
   budget.spend()
@@ -135,7 +135,7 @@ test('the cells a frame places and the pages it drains spend one budget, on one 
   t.mock.method(performance, 'now', () => now)
   const node = { parent: null, mesh: 0, matrix: null, rotation: null, scale: null }
   const body = (x: number) =>
-    JSON.stringify({ version: 2, nodes: [{ ...node, translation: [x, 0, 0] }] })
+    JSON.stringify({ version: 3, nodes: [{ ...node, translation: [x, 0, 0] }] })
   const records = [0, 1, 2].map((x) => ({
     url: `${x}.json`,
     sha256: '',
@@ -177,7 +177,7 @@ test('the cells a frame places and the pages it drains spend one budget, on one 
   const accepted: string[] = []
   const receiver = { acceptPage: (url: string) => void (accepted.push(url), (now += 1)) }
   const budget = createFrameBudget(2)
-  const queue = createArrivalQueue(1 << 20, 64, budget)
+  const queue = createArrivalQueue(64, budget)
   for (const url of ['p0', 'p1']) queue.queue(receiver, url, new Uint32Array(1))
   const frame = () => {
     budget.open()

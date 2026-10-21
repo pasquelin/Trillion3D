@@ -2,14 +2,23 @@
 use crate::bits::stream_words;
 use crate::deform::{morph_words, skin_words, FLAG_MORPH, FLAG_SKIN};
 use crate::triangles::CornerCode;
-pub(crate) use crate::{deform, Header, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1, HEADER_BYTES};
-/// Optional stream flags and float widths, after position: normal, UV, UV1, colour.
-pub const OPTIONAL: [(u32, usize); 4] = [
+pub(crate) use crate::{
+    deform, Header, FLAG_COLOR, FLAG_NORMAL, FLAG_TANGENT, FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3,
+    HEADER_BYTES, MAX_UV_SETS,
+};
+/// Optional stream flags and float widths, after position: normal, the four texture sets, colour,
+/// tangent (its direction and its bitangent's sign).
+pub const OPTIONAL: [(u32, usize); 7] = [
     (FLAG_NORMAL, 3),
     (FLAG_UV, 2),
     (FLAG_UV1, 2),
+    (FLAG_UV2, 2),
+    (FLAG_UV3, 2),
     (FLAG_COLOR, 4),
+    (FLAG_TANGENT, 4),
 ];
+/// The presence bit of each texture set, in set order.
+pub const UV_FLAGS: [u32; MAX_UV_SETS] = [FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3];
 /// Floats per vertex of each attribute rank, `None` for one the page does not carry: position,
 /// `OPTIONAL` in order, skin joints and weights (`influences` each), morph deltas (six per
 /// target). The one walk of a decoded vertex, which `attribute` and `Header::vertex_floats` read.
@@ -35,8 +44,6 @@ pub struct DecodedPage {
     /// Morph targets of the page: six floats each per vertex, after the skin's eight.
     pub morph_targets: usize,
     pub skin_influences: usize,
-    /// The header's largest position displacement, in object units.
-    pub quantization_error: f32,
 }
 impl DecodedPage {
     pub fn indices(&self) -> &[u32] {
@@ -88,10 +95,14 @@ pub struct Layout {
     pub position: [usize; 3],
     /// Vertex-to-position links when positions are shared (`positions.rs`).
     pub links: usize,
-    pub normal: usize,
-    pub uv: [usize; 2],
-    pub uv1: [usize; 2],
+    /// The normals' two streams, `x` then `y`, of the page's normal precision.
+    pub normal: [usize; 2],
+    /// Each texture set's two streams, `u` then `v`.
+    pub uv: [[usize; 2]; MAX_UV_SETS],
     pub color: [usize; 4],
+    /// The stored tangents, one code of the page's tangent precision plus one bits per vertex
+    /// (`bits::tangent_code`).
+    pub tangent: usize,
     /// The skin's first stream: all joint streams, then all float32 weight streams (`deform.rs`).
     pub skin: usize,
     /// The first morph target's first stream; each target's own start is in its record.
@@ -119,18 +130,21 @@ impl Layout {
         ];
         let position = h.position.bits.map(|b| stream(true, h.position_count, b));
         let links = stream(h.links_positions(), h.vertex_count, h.link_bits());
-        let normal = stream(h.flags & FLAG_NORMAL != 0, h.vertex_count, 16);
-        let uv =
-            h.uv.bits
-                .map(|b| stream(h.flags & FLAG_UV != 0, h.vertex_count, b));
-        let uv1 = h
-            .uv1
-            .bits
-            .map(|b| stream(h.flags & FLAG_UV1 != 0, h.vertex_count, b));
+        let has_normal = h.flags & FLAG_NORMAL != 0;
+        let normal = [0, 1].map(|_| stream(has_normal, h.vertex_count, h.normal_precision));
+        let uv = core::array::from_fn(|set| {
+            let present = h.flags & UV_FLAGS[set] != 0;
+            h.uv[set].bits.map(|b| stream(present, h.vertex_count, b))
+        });
         let color = h
             .color
             .bits
             .map(|b| stream(h.flags & FLAG_COLOR != 0, h.vertex_count, b));
+        let tangent = stream(
+            h.flags & FLAG_TANGENT != 0,
+            h.vertex_count,
+            h.tangent_precision + 1,
+        );
         let skinned = h.flags & FLAG_SKIN != 0;
         let (skin, morph) = (
             at,
@@ -153,8 +167,8 @@ impl Layout {
             links,
             normal,
             uv,
-            uv1,
             color,
+            tangent,
             skin,
             morph,
             header_bytes: h.bytes(),

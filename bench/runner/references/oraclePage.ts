@@ -60,7 +60,6 @@ export async function measureIrradiance(options: IrradianceOptions): Promise<Irr
     replicaCount: 1,
     detail: 'source',
     pixelError: options.pixelError,
-    lodAdaptive: false,
     maxResidentPages: options.maxPages,
     preload: 'visible',
     engine: factory,

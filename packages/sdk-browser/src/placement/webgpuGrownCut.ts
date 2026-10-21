@@ -6,7 +6,7 @@
  * new rows follow their owner's writes.
  */
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
-import { growWebgpuTables, tableRowsFor } from '../frame/prepare/growTables.ts'
+import { growRows, tableRowsFor } from '../frame/prepare/growTables.ts'
 import { blendedPagesOf } from '../frame/prepare/layout.ts'
 import { postPackedBases } from '../geometry/selection/placements.ts'
 import { mainViewGpu, viewGpu } from '../frame/backend/state/view.ts'
@@ -20,7 +20,6 @@ import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { adoptCut } from '../frame/prepare/cut.ts'
 import { coverHeldRoots, isWorldRoot } from '../frame/prepare/worldRoot.ts'
 import { takeGrownCopies } from './growth/webgpuGrowth.ts'
-import { heldPage } from './growth/grownCutStart.ts'
 import { growBlend, waitsForFrontDepth, waitsForRefraction } from '../blend/growth.ts'
 import { announceGrowth, replayMoves, type GrownRoots } from './growth/growthAnnounce.ts'
 import { joinDeformation, placeDeformation } from '../deformation/growth.ts'
@@ -87,7 +86,7 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   mainViewGpu(rt).temporal?.motion.grow()
   for (const view of rt.views.persistent) viewGpu(rt, view).temporal?.motion.grow()
   // Taken in place, the running cut already holds them; else the cut made over them replaces it.
-  if (!ready.inPlace) swapCut(rt, ready, added, firstRank)
+  if (!ready.inPlace) swapCut(rt, ready.cut, added, firstRank)
   // A world DAG among them is the session's (`append/webgpuAppendWorld.ts`): the roots its held cells add
   // follow the cells, as at the open.
   if (added.some(isWorldRoot)) coverHeldRoots(rt, rt.services.residencySets)
@@ -98,7 +97,7 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   // More rows than the table holds: it grows after them, the image going on meanwhile.
   const asked = tableRowsFor(rt, setup.cap)
   if (asked.drawSlots > layout.drawSlots || asked.blendSlots > rows.casterSlots - rows.blendFirst)
-    growWebgpuTables(rt, setup.cap).catch((error) =>
+    growRows(rt, setup.cap).catch((error) =>
       rt.diag.diagnosticFailure('page-tables-growth-failed', error),
     )
   announceGrowth(rt, added, firstRank)
@@ -121,15 +120,9 @@ function joinBlend(
 }
 
 /** `cut` replaces the running cut (`adoptCut`): it holds every root's park and mark word and the
- *  pool's residency; the views drawn aside cut on it anew. The pool was listed when the cut began:
- *  the pages it `moved` since are noted again, they alone. The roots `added` behind rank `first`
+ *  pool's residency; the views drawn aside cut on it anew. The roots `added` behind rank `first`
  *  are those it packed beyond the running cut's. */
-function swapCut(
-  rt: WebgpuPagesRuntime,
-  { cut, moved }: { cut: GpuSelection; moved: ReadonlySet<number> },
-  added: GrownRoots,
-  first: number,
-) {
+function swapCut(rt: WebgpuPagesRuntime, cut: GpuSelection, added: GrownRoots, first: number) {
   const { run, layout } = rt
   adoptCut(rt, cut)
   // Every view's cut aside was on the old tables: each makes its own anew at its next image.
@@ -145,7 +138,4 @@ function swapCut(
   // The poses named since the cut was packed — it holds them as they were then —: replayed.
   replayMoves(rt, cut, added, first)
   cut.updateResidency(layout.rows.residency, layout.rows.residentPages())
-  // The pool's slots taken or given back while the cut was made: a page whose held state moved.
-  for (const page of moved)
-    if (page < layout.packedPages.length) cut.notePool(page, heldPage(rt, page))
 }

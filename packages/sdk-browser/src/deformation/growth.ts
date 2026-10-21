@@ -1,16 +1,17 @@
 /**
  * THE DEFORMATION TAKES THE SOURCES ADDED TO THE SESSION (`addPlacements`, a growth of rows): the
- * placements a skeleton, morph weights or waves move, and the float geometries the passes read in
- * place of a quantized page. What the open built once — the stage's code and compute, the records
- * of the roots, the float pool's tail, the results of the pages — is made for the content a session
- * gains by the open's own functions, run on it:
+ * placements a skeleton, morph weights, waves or a bank's track move, and the float geometries the
+ * passes read in place of a quantized page. What the open built once — the stage's code and
+ * compute, the records of the roots and of the tracks, the float pool's tail, the results of the
+ * pages — is made for the content a session gains by the open's own functions, run on it:
  * - before the roots join (`prepareDeformationGrowth`): the code and the compute of a session
  *   opened with no deformation (`createDeformationCompute`), the float geometries of the pages
  *   placed in the pool's room (`place`, which grows it in place);
- * - between two images, once the roots hold their ranks (`growDeformation`): the records behind
- *   the others' (`SessionDeformation.append`), the pool's tail made wider by doubling and drawn
- *   again for the records and the float-pool blocks of the pages (`extendGeometry`), the rows that
- *   read them pointed at them (`followPoolGrowth`).
+ * - between two images, once the roots hold their ranks (`joinDeformation`): the records behind
+ *   the others' — those of the tracks of banks no record held yet first — and the result blocks
+ *   (`SessionDeformation.append`, `assignDeformationOutputs`), the pool's tail made wider by
+ *   doubling and drawn again for the records and the float-pool blocks of the pages
+ *   (`extendGeometry`), the rows that read them pointed at them (`followPoolGrowth`).
  *
  * Cost of a source of A' placements bringing F' floats of records and P' float vertices:
  * O(A' + F' + P') written, the tail drawn again over the records held (O(F) words, a doubling of
@@ -55,8 +56,9 @@ export function joinDeformation(
   const { deformation } = rt.vis
   if (!deformation) return
   if (deformation.ranks !== firstRank) throw new Error('DEFORMATION_RANKS')
-  // Each root's pages get results of their own, a row cloned from another's included.
-  rt.setup.deformationBlocks.push(...assignDeformationOutputs(added))
+  // Each root's pages get results of their own, a row cloned from another's included, and the
+  // blocks of the tracks they can play that no root of their page list made yet.
+  rt.setup.deformationBlocks.push(...assignDeformationOutputs(added, deformation.tracks.shared))
   deformation.append(added)
 }
 

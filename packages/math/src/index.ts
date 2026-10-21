@@ -1,5 +1,5 @@
 // Public entry point of the maths package: matrices, vectors, quaternions, colours, boxes,
-// frustums, cones, cameras and the batch forms of them. Pure functions; nothing here imports
+// frustums, cameras and the batch forms of them. Pure functions; nothing here imports
 // outside `packages/math`.
 export {
   IDENTITY_MATRIX4,
@@ -59,7 +59,6 @@ export {
   frustumPlanesFromMatrix,
 } from './geometry/frustum/frustum.ts'
 export { frustumClipBox, frustumExcludesBox } from './geometry/frustum/box.ts'
-export { CONE_LENGTH_RATIO, CONE_ORTHO_EPS } from './geometry/cone.ts'
 export {
   createCameraFrame,
   orthographicProjection,

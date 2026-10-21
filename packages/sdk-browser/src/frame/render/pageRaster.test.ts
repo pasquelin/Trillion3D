@@ -29,6 +29,7 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
     draws: graphDraws(source, associations),
   })
   draws.length = 0
+  dispatches.length = 0
   backend.render(camera())
   let pageMeshes = 0
   backend.scene.traverse((o) => {
@@ -39,24 +40,27 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
   assert.equal(backend.metrics().selectedTriangles, 2)
   assert.equal(backend.metrics().residentPages, 2)
   assert.ok(writes.length >= 2)
-  // The scene has one prepared material class, so its surface draw is one full-screen triangle that
-  // rejects the background itself; it wears no texture, so it writes no feedback.
-  const shade = draws.filter((d) => d.entryPoint === 'shade_vs')
+  // The scene has one prepared material class: what the frame composes once for the resolve (the
+  // material cache), the bins of the image, then one dispatch of its bin, and no surface draw.
   assert.deepEqual(
-    shade.map((d) => [d.fragment, d.vertexCount]),
-    [['shade_fs', 3]],
+    dispatchedEntries(dispatches).filter((entry) => /Bins$|^shade_/.test(entry)),
+    [
+      ...['shade_clear', 'shade_marks', 'shade_rows', 'shade_tris'],
+      ...['clearBins', 'countBins', 'reserveBins', 'scatterBins', 'shade_cs'],
+    ],
   )
-  // The hardware raster is the producer of the opaque image: the cut reaches it through the image
-  // mask, which its indirect commands consume as instances. The compute raster is not created in
-  // production — no binning, no opaque compute capability.
+  assert.ok(!draws.some((d) => d.entryPoint?.startsWith('shade_')))
+  // The cut reaches the hardware raster through the image mask, which its indirect commands consume
+  // as instances — each row twice: drawn by the main pass, then by the identifiers pass over
+  // everything drawn (`encodeWebgpuVisibilityPasses`) —, and the software raster through the
+  // cluster split, which bins each image's rows before either compaction reads them.
   assert.deepEqual(drawnPageIds(buffers, packed), [0, 1])
   const vis = indirectDraws(draws)
   assert.equal(
     vis.reduce((n, d) => n + (d.instanceCount ?? 0), 0),
-    2,
+    2 * 2,
   )
-  assert.equal(dispatchedEntries(dispatches).includes('bin'), false)
-  assert.ok(backend.capabilities.unsupported.includes('small-triangle compute raster'))
+  assert.equal(dispatchedEntries(dispatches).includes('bin'), true)
   backend.dispose()
   geometry.dispose()
   material.dispose()
@@ -87,12 +91,14 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
   // The two bins — front-only and double-sided — hold two indirect commands on a shared page
   // table, and read the SAME image mask.
   assert.deepEqual(drawnPageIds(buffers, packed), [0, 1])
-  assert.equal(dispatchedEntries(dispatches).includes('bin'), false)
+  // The cluster split bins the rows of every image, whichever raster draws them.
+  assert.equal(dispatchedEntries(dispatches).includes('bin'), true)
   const vis = indirectDraws(draws)
   assert.ok(vis.length >= 2)
   assert.equal(
     vis.reduce((n, draw) => n + (draw.instanceCount ?? 0), 0),
-    2,
+    2 * 2,
+    'each row drawn by the main pass, then by the identifiers pass',
   )
   assert.deepEqual([...new Set(vis.map((draw) => draw.bindOffset ?? 0))], [0])
   assert.ok(vis.every((draw) => draw.instanceBuffer && draw.groupsBuffer))
@@ -103,9 +109,10 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
   both.dispose()
 })
 
-// Root pages stay resident outside the pool: a budget smaller than root coverage
-// is raised to it, by name, and the image is complete — never refused.
-test('a budget under root coverage is raised to it, by name, and the image prepares', async () => {
+// Root pages stay resident beside the streaming slots: a page cap under root coverage bounds the
+// streaming slots alone, and the image is complete — never refused. The quad's two root pages and
+// its one streaming slot pass the scene's two pages: the pool is the scene's, by name.
+test('a page cap under root coverage keeps the cover beside it, and the image prepares', async () => {
   installGpuGlobals()
   const { device } = fakeDevice(BACKEND)
   const { fixture, backend } = quadBackend(device, {
@@ -113,7 +120,7 @@ test('a budget under root coverage is raised to it, by name, and the image prepa
   })
   await backend.prepare()
   const metrics = backend.metrics()
-  assert.equal(metrics.geometryPoolClamp, 'root-cover')
+  assert.equal(metrics.geometryPoolClamp, 'scene')
   assert.ok((metrics.geometryPoolSlots ?? 0) > 1, 'the slots hold root coverage')
   assert.equal(metrics.coverageReady, true)
   backend.dispose()

@@ -6,7 +6,6 @@ import {
   stagedOutputBytes,
 } from '../layout.ts'
 import { listWords, SELECTION_HEADER_WORDS } from '../readoutWords.ts'
-import { grownLength } from '../../../../../math/src/sequence/resized.ts'
 import { heldOpenSlots } from '../heldOpen.ts'
 import { makeDagBuffer, readoutRow } from '../bufferTable.ts'
 import type { CameraFrames } from '../cameraFrames.ts'
@@ -14,8 +13,9 @@ import { storageBufferCap } from '../../../session/memory/pools.ts'
 import { type Limits, deviceListCap } from '../deviceListCap.ts'
 import { keptRankRow } from '../keptRanks.ts'
 
-/** The cap a cut starts with: the readout's (`selectionListCap`, `../layout.ts`), within the device
- *  beside the `heldSlots` slots of open counts its readout holds (`../heldOpen.ts`). */
+/** The readout's cap, the cut's for its life (`selectionListCap`, `../layout.ts`), within the
+ *  device beside the `heldSlots` slots of open counts its readout holds (`../heldOpen.ts`): a cut
+ *  that lists more is read by its head (`../../cut/adoption/adoption.ts`), its mask drawn whole. */
 export const initialListCap = (limits: Limits, pageCount: number, heldSlots = 0) =>
   Math.min(selectionListCap(pageCount), deviceListCap(limits, heldSlots))
 
@@ -28,26 +28,6 @@ export const initialListCap = (limits: Limits, pageCount: number, heldSlots = 0)
 export function cutHeldSlots(limits: Limits, pageCount: number, rows: number) {
   const lists = stagedOutputBytes(initialListCap(limits, pageCount))
   return heldOpenSlots(rows, (storageBufferCap(limits) - lists) / 4)
-}
-
-/**
- * THE CAP A TRUNCATED READOUT GROWS TO. The list is sized for a wide cut, not for every cut: a
- * view that keeps more asks `needed` ranks — the camera's own: the view ahead has its own counter
- * and never grows the list (`../shader/snapshotWgsl.ts`) —, and the list grows by the one growth rule
- * to twice those ranks (`grownLength`, twice its cap at least): a list grown to what one view asked
- * would truncate again at the next rank. Within the catalogue and what one binding holds.
- * `undefined` when even that cannot hold the cut: the cut coarsens instead (`../coarsening.ts`); the GPU
- * cut is the engine's one.
- */
-export function grownListCap(
-  limits: Limits,
-  pageCount: number,
-  cap: number,
-  needed: number,
-  heldSlots = 0,
-) {
-  const next = Math.min(pageCount, deviceListCap(limits, heldSlots), grownLength(cap, 2 * needed))
-  return next > cap && next >= Math.min(needed, pageCount) ? next : undefined
 }
 
 /** Ranks the cut asked of its readout, kept or not: the camera requests' counter, and the drawn
@@ -69,10 +49,9 @@ export function createDagList(
   heldSlots = 0,
 ) {
   const outputBytes = listWords(listCap) * 4,
-    // The requests, the drawn list and one burst of the eviction queue (`EVICTION_BURST`).
+    // The requests, the drawn list, their differences, the rows' queue and the requests'
+    // priorities (`../readoutWords.ts`).
     readbackBytes = residentReadbackBytes(listCap)
-  // Behind the eviction queue, the requests wait for their sort, outside what the frame copies
-  // (`../shader/snapshotWgsl.ts`).
   const output = makeDagBuffer(own, readoutRow(listCap, regions, heldSlots))
   const ranks = [0, 1].map((l) => makeDagBuffer(own, keptRankRow(l, listCap)))
   return { listCap, outputBytes, readbackBytes, output, heldSlots, ranks }

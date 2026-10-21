@@ -13,18 +13,29 @@ use cells::{grids, Grids};
 use deformation::{join, page_deformation, write, Deformation};
 use vertices::{first_use, localise, stored_positions};
 
+use crate::attributes::UV_FLAGS;
+use crate::bits::grid::PageGrid;
+use crate::bits::PositionGrid;
 use crate::triangles::Spans;
 use crate::writer::BitWriter;
-use crate::{Header, Layout, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
+use crate::{
+    Header, Layout, FLAG_COLOR, FLAG_NORMAL, FLAG_TANGENT, FLAG_UV, FLAG_UV1, FLAG_UV2, FLAG_UV3,
+};
 
-/// The glTF attributes a page may carry, in the order the page writes them: the name the
-/// document gives each, its width (a colour may also be three-wide) and its presence bit.
-pub const PAGE_ATTRIBUTES: [(&str, usize, u32); 4] = [
+/// The glTF attributes every page carries when its primitive has them, in the order the page
+/// writes them: the name the document gives each, its width (a colour may also be three-wide) and
+/// its presence bit.
+pub const PAGE_ATTRIBUTES: [(&str, usize, u32); 6] = [
     ("NORMAL", 3, FLAG_NORMAL),
     ("TEXCOORD_0", 2, FLAG_UV),
     ("TEXCOORD_1", 2, FLAG_UV1),
+    ("TEXCOORD_2", 2, FLAG_UV2),
+    ("TEXCOORD_3", 2, FLAG_UV3),
     ("COLOR_0", 4, FLAG_COLOR),
 ];
+/// The glTF attribute a page carries beside `PAGE_ATTRIBUTES` only when its mesh stores its
+/// tangents (`FLAG_TANGENT`), written after them: the direction and the bitangent's sign.
+pub const TANGENT_ATTRIBUTE: (&str, usize, u32) = ("TANGENT", 4, FLAG_TANGENT);
 
 /// One optional attribute of a primitive: its presence bit, its source width (a colour may be
 /// three-wide) and its values, `width` per vertex.
@@ -35,45 +46,47 @@ pub struct Attribute {
     pub values: Vec<f32>,
 }
 
-/// A written page: its bytes, the header they open with and its normal cone, which is what the
-/// manifest says of it.
+/// A written page: its bytes, the header they open with and the box of its decoded positions,
+/// which is what the manifest says of it.
 #[derive(Debug)]
 pub struct Encoded {
     pub bytes: Vec<u8>,
     pub header: Header,
-    /// The cone of the triangles the page draws (`decoded_cone`), `[x, y, z, angle]`.
-    pub cone: [f64; 4],
+    /// The box of the positions its vertices decode to, `[low, high]` in metres: the bounds of a
+    /// page, as a reader draws it.
+    pub bounds: [[f32; 3]; 2],
 }
 
-/// The normal cone (`normal_cone::triangle_cone`) of the page's `corners` over the positions its
-/// `unique` vertices decode to on the grid `q` (`bits::dequant`, the floats every reader and the
-/// GPU draw), never over the source's: the grid turns a face, by up to its step over an edge of a
-/// few steps, and a cone of the source's faces then rejects a face that is drawn facing the view.
-fn decoded_cone(unique: &[cells::Cell], q: &crate::bits::Quant<3>, corners: &[u32]) -> [f64; 4] {
-    let step = q.step();
-    let decoded: Vec<f32> = (unique.iter())
-        .flat_map(|cell| {
-            (0..3).map(move |c| crate::bits::dequant(q.min[c], cell.position[c], step))
+/// The box of the positions `unique` vertices decode to on `grid` (`PositionGrid::metres`: a
+/// cell's float grows with the cell, so the extreme cells give the extreme floats).
+fn decoded_bounds(unique: &[cells::Cell], grid: &PositionGrid) -> [[f32; 3]; 2] {
+    let unit = grid.unit();
+    let extreme = |pick: fn(u32, u32) -> u32, empty: u32| {
+        core::array::from_fn(|c| {
+            let cell = unique.iter().map(|v| v.position[c]).fold(empty, pick);
+            grid.metres(c, cell, unit)
         })
-        .collect();
-    crate::normal_cone::triangle_cone(&decoded, corners)
+    };
+    [extreme(u32::min, u32::MAX), extreme(u32::max, 0)]
 }
 
 /**
- * A complete, independently decodable `WGP3` page: positions on the primitive grid of
- * `position_exponent`, each stored once when the vertices repeat them (`stored_positions`), texture coordinates on that of `uv_exponent`, octahedral normals, byte colours
- * and local indices coded by delta within blocks of triangles. Tangents are never stored — a reader rebuilds them from the
- * triangle's positions and texture coordinates.
+ * A complete, independently decodable `WGP3` page: positions on the primitive's `grid`, each stored
+ * once when the vertices repeat them (`stored_positions`), octahedral normals at its normal
+ * precision, texture coordinates as float codes and colours as bytes, each over the page's own
+ * range, and local indices coded by delta within blocks of triangles. Tangents are stored only
+ * when the attributes carry them (`TANGENT_ATTRIBUTE`), each an angle around its decoded normal
+ * and a sign (`bits::tangent_code`); otherwise a reader rebuilds the frame from the triangle's
+ * positions and texture coordinates.
  */
 pub fn encode(
     indices: &[u32],
     positions: &[f32],
     attributes: &[&Attribute],
-    position_exponent: i32,
-    uv_exponent: i32,
+    grid: PageGrid,
 ) -> Result<Encoded> {
-    let (none, exponents) = (Deformation::default(), (position_exponent, uv_exponent));
-    encode_deformed(indices, positions, attributes, (&none, &[]), exponents)
+    let none = Deformation::default();
+    encode_deformed(indices, positions, attributes, (&none, &[]), grid)
 }
 
 /// `encode`, with the joints, weights and morph targets the primitive's `deformation` carries; a
@@ -83,7 +96,7 @@ pub fn encode_deformed(
     positions: &[f32],
     attributes: &[&Attribute],
     (deformation, origin): (&Deformation, &[u32]),
-    (position_exponent, uv_exponent): (i32, i32),
+    grid: PageGrid,
 ) -> Result<Encoded> {
     if indices.len() < 3 || !indices.len().is_multiple_of(3) || !positions.len().is_multiple_of(3) {
         return Err(EncodeError::new(
@@ -97,8 +110,9 @@ pub fn encode_deformed(
     for attribute in attributes {
         let width_ok = match attribute.flag {
             FLAG_NORMAL => attribute.width == 3,
-            FLAG_UV | FLAG_UV1 => attribute.width == 2,
+            FLAG_UV | FLAG_UV1 | FLAG_UV2 | FLAG_UV3 => attribute.width == 2,
             FLAG_COLOR => attribute.width == 3 || attribute.width == 4,
+            FLAG_TANGENT => attribute.width == 4,
             _ => false,
         };
         if !width_ok || attribute.values.len() != vertices * attribute.width {
@@ -109,19 +123,19 @@ pub fn encode_deformed(
         }
         flags |= attribute.flag;
     }
+    // A stored tangent is an angle around its vertex's normal: no normal, nothing to turn around.
+    if flags & FLAG_TANGENT != 0 && flags & FLAG_NORMAL == 0 {
+        return Err(EncodeError::new(
+            "INVALID_PAGE_ATTRIBUTE",
+            "Page tangents need the page's normals",
+        ));
+    }
     let Grids {
         cells,
         position,
         uv: uv_records,
         color: color_record,
-        quantization_error,
-    } = grids(
-        &original,
-        positions,
-        attributes,
-        position_exponent,
-        uv_exponent,
-    )?;
+    } = grids(&original, positions, attributes, grid)?;
     // The deformation's fields join each vertex's cells: two vertices merge only when they
     // deform alike.
     let mut deformed = page_deformation(deformation, &original, origin)?;
@@ -132,17 +146,17 @@ pub fn encode_deformed(
     let (unique, remap) = first_use(cells.iter().copied());
     let corners: Vec<u32> = local.iter().map(|&i| remap[i as usize]).collect();
     let spans = Spans::of(&corners);
-    let cone = decoded_cone(&unique, &position, &corners);
+    let bounds = decoded_bounds(&unique, &position);
     let (stored, links) = stored_positions(&unique, position.bits);
     let mut header = Header {
         vertex_count: unique.len(),
         index_count: local.len(),
         flags,
         position,
-        uv: uv_records[0],
-        uv1: uv_records[1],
+        uv: uv_records,
         color: color_record,
-        quantization_error,
+        normal_precision: grid.normal,
+        tangent_precision: grid.tangent,
         corner_bits: spans.bits,
         position_count: stored.len(),
         skin: deformed.skin.unwrap_or_default(),
@@ -158,9 +172,11 @@ pub fn encode_deformed(
         out.stream(links.into_iter(), header.link_bits());
     }
     if flags & FLAG_NORMAL != 0 {
-        out.stream(unique.iter().map(|cell| cell.normal), 16);
+        for c in 0..2 {
+            out.stream(unique.iter().map(|cell| cell.normal[c]), grid.normal);
+        }
     }
-    for (set, flag) in [FLAG_UV, FLAG_UV1].into_iter().enumerate() {
+    for (set, flag) in UV_FLAGS.into_iter().enumerate() {
         if flags & flag != 0 {
             for c in 0..2 {
                 out.stream(
@@ -178,6 +194,9 @@ pub fn encode_deformed(
             );
         }
     }
+    if flags & FLAG_TANGENT != 0 {
+        out.stream(unique.iter().map(|cell| cell.tangent), grid.tangent + 1);
+    }
     let rows: Vec<&[u32]> = (unique.iter())
         .map(|cell| table[cell.extra as usize])
         .collect();
@@ -191,6 +210,6 @@ pub fn encode_deformed(
     Ok(Encoded {
         bytes,
         header,
-        cone,
+        bounds,
     })
 }

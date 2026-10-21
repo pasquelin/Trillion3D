@@ -127,8 +127,10 @@ test('targets refused aside fall back to the held grant, then drawn at the size 
 test('targets that do not fit beside those in place are asked the held way, those released first', async () => {
   const s = await session()
   try {
-    // Room for a few bytes more than what is held: never for a second set.
-    s.box.limit = s.ledger.bytes + 1024
+    // Room for a sixty-fourth more than what is held — the held way's peak: the targets made with
+    // the temporal pass's of the old render size still beside them (`ensureTaaTargets`), which the
+    // set's bytes do not count —, never for a second set, about half of it more.
+    s.box.limit = s.ledger.bytes + (s.ledger.bytes >> 6)
     s.rt.views.main.scale.set({ min: 0.5, max: 0.75 })
     const asked: boolean[] = []
     await s.frames(3, (held) => asked.push(held))

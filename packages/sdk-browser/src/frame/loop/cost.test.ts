@@ -93,7 +93,7 @@ test('queued page arrivals are integrated by the next render without a second GP
     const view = camera()
     backend.render(view)
     mock.submits.length = 0
-    const arrivals = createArrivalQueue(512 * 1024, 64, createFrameBudget(2))
+    const arrivals = createArrivalQueue(64, createFrameBudget(2))
     arrivals.queue(backend, '0', fixture.indices.get('0')!)
     assert.equal(arrivals.drain(), 1)
     assert.equal(mock.submits.length, 0, 'accepting bytes must not render an image')

@@ -7,7 +7,8 @@ import { lineProjection, LINE_VIEWPORT, toPixels } from './lineProjection.fixtur
 import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
-import { rasterSource } from '../raster/shader.ts'
+import { binSource } from '../raster/binWgsl.ts'
+import { FLAG_LINE, FLAG_SPRITE, FLAG_VOXEL } from '../types.ts'
 import { BLEND_ITEM_WGSL } from '../../blend/items.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
@@ -108,15 +109,8 @@ test('a segment seen end-on keeps no width', () => {
 test('every page-geometry raster widens a line page, and a triangle page draws as before', () => {
   // A row carries its line flag; its width is its surface's record's (`pageShape`).
   assert.doesNotMatch(wgslSource(PAGE_INFO_STRUCT_WGSL), /lineWidth/)
-  const raster = rasterSource(4, 16)
-  assert.match(
-    raster,
-    /let ca=pageClip\(vp,page,h,ia,shape\);let cb=pageClip\(vp,page,h,ib,shape\);/,
-  )
-  assert.match(
-    VIS_SHADER,
-    /computeTakes\(pageClip\(vp,page,h,ia,shape\),pageClip\(vp,page,h,ib,shape\)/,
-  )
+  // A line row is the hardware raster's: the split never hands it to the software raster.
+  assert.ok(binSource(4).includes(`(page.flags&${FLAG_LINE | FLAG_SPRITE | FLAG_VOXEL}u)==0u`))
   const hardware =
     ' out.position=uni.viewProj*world;\n if(shape.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position,shape.lineWidth);}'
   assert.equal(VIS_SHADER.split(hardware).length - 1, 1, 'the one hardware vertex stage')
@@ -129,7 +123,7 @@ test('every page-geometry raster widens a line page, and a triangle page draws a
   assert.match(BLEND_SHADER, /out\.position=uni\.viewProj\*world;out\.view=world\.xyz;/)
   assert.match(BLEND_SHADER, /if\(m\.lineWidth>0\.0\)\{out\.position=lineClip\(out\.position,/)
   assert.ok(BLEND_SHADER.includes(LINE_CLIP_WGSL.text))
-  for (const text of [VIS_SHADER, SHADE_SHADER, rasterSource(4, 16)]) {
+  for (const text of [VIS_SHADER, SHADE_SHADER]) {
     assert.ok(
       text.includes('lineClip(clip,vp*vec4f(along,0.0),width,uni.viewport.xy,uni.pixelRatio)'),
     )

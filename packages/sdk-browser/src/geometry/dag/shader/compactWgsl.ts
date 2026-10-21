@@ -25,8 +25,8 @@ import { BLOCK_MASK_WORDS_WGSL } from './floorWgsl.ts'
  *
  * No new buffer: a stage's ceiling is eight storage buffers, already reached. Block counts, block
  * offsets and draw masks live behind the `work` thresholds, the list behind the wanted pages of
- * `out` — a count, seven padding words, then the ranks — so the snapshot remains one contiguous
- * copy.
+ * `out` — a count, what the cut asked of its lists (`PEAK_NODES`, `../readoutWords.ts`), padding,
+ * then the ranks — so the snapshot remains one contiguous copy.
  */
 export const DAG_COMPACT_WGSL = wgslBlock(
   'DAG_COMPACT_WGSL',
@@ -49,14 +49,19 @@ fn blockBase()->u32{return 0u;}
 fn drawMaskBase()->u32{return blockCount()*2u;}
 /** The mask word that holds page \`i\`'s bit, and that bit. */
 fn drawMaskWord(i:u32)->u32{return drawMaskBase()+bitWord(i);}
-/** The mask the frame draws, behind the one the cut writes: the last cut that ran whole's
- *  (\`dagCommitMask\`), or the view a swap brought back (\`swapWgsl.ts\`). */
+/** The mask the frame draws, behind the one the cut writes: the cut's (\`dagCommitMask\`), or the
+ *  view a swap brought back (\`swapWgsl.ts\`). */
 fn liveMaskBase()->u32{return blockCount()*(2u+BLOCK_MASK_WORDS);}
 fn liveMaskWord(i:u32)->u32{return liveMaskBase()+bitWord(i);}
+/** The post pass's draws alone, behind the frame's mask: what the second raster pass draws. */
+fn postMaskBase()->u32{return blockCount()*(2u+2u*BLOCK_MASK_WORDS);}
+fn postMaskWord(i:u32)->u32{return postMaskBase()+bitWord(i);}
 fn drawBit(i:u32)->u32{return bitMask(i);}
 /** The drawn pages of \`mask\`, page \`i\`'s word, below page \`i\`. */
 fn drawnBefore(i:u32,mask:u32)->u32{return countOneBits(mask&(drawBit(i)-1u));}
-/** Each lane totals its run of blocks; the shared lane scan gives the run its offset. */
+/** Each lane totals its run of blocks; the shared lane scan gives the run its offset. Every pass has
+ *  run: the requests' list is armed for the difference, and the candidates and live entries for the
+ *  kernels that walk the whole of them, both passes' (\`../../rows/rowClosureWgsl.ts\`). */
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn dagDrawPrefix(@builtin(local_invocation_index) lane:u32){
  let count=blockCount();let base=blockBase();
@@ -64,13 +69,18 @@ fn dagDrawPrefix(@builtin(local_invocation_index) lane:u32){
  ${laneRunOffsets('b', 'run', 'lane', '', 'atomicLoad(&work[base+b])', 'atomicStore(&work[base+count+b],cursor)')}
  // The last lane's run ends the list, empty or not: its cursor is the total.
  if(lane==WORKGROUP_THREADS-1u){out.pages[views[0u].listCap]=cursor;armList(1u,min(cursor,views[0u].listCap));if(cursor>views[0u].listCap){atomicOr(&out.overflow,1u);}}
+ if(lane==0u){
+  armList(0u,min(atomicLoad(&out.count),views[0u].listCap));
+  armGroups(candGroups(),ceilDiv(min(atomicLoad(&work[candCounter()]),views[0u].candCap),WORKGROUP_THREADS));
+  armGroups(liveGroups(),ceilDiv(liveCount(),WORKGROUP_THREADS));
+ }
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let s=flatIndex(id,n,WORKGROUP_THREADS);if(s>=liveCount()){return;}
  // Only live clusters carry a non-zero draw flag; those of the block that are not in the list
  // are zero and add nothing to the rank, exactly as in yesterday's full walk.
- let i=entryIndex(liveAt(s));if((atomicLoad(&work[drawMaskWord(i)])&drawBit(i))==0u){return;}
+ let i=liveAt(s);if((atomicLoad(&work[drawMaskWord(i)])&drawBit(i))==0u){return;}
  // Rank in the block: the drawn pages before \`i\`, read off the block's mask — the sum of the
  // same 0/1 flags, a word at a time instead of a page: those of its word below it, and every
  // whole word of the block before its own.

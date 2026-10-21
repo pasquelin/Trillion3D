@@ -1,8 +1,7 @@
 use super::families::{families, FAMILIES};
 use super::*;
 use crate::split::{bisect_least_cost, sort_along};
-use trillion3d_math::aabb::half_area;
-use trillion3d_math::random::xorshift64;
+use trillion3d_math::sequence::random::xorshift64;
 
 /// `n` centres from `seed`, on a lattice of `cells` steps per axis so that many coincide, with a
 /// NaN coordinate every `nan` centres (none for 0).
@@ -84,94 +83,77 @@ fn a_selection_with_sorted_halves_is_the_full_sort() {
     }
 }
 
-/// Every cluster lies in exactly one leaf, a leaf holds at most `CULLING_LEAF` and an inner node at
-/// most `CULLING_BRANCHING` children past the root's level split, and every node's box, sphere and
-/// ceiling bound its subtree's.
+/// Every part lies in exactly one leaf, which names its ranks, an inner node holds at most
+/// `CULLING_FANOUT` children, and every node's box, sphere and errors bound its subtree's: its box
+/// and ball hold its children's, its least own error is no larger and its largest replacement
+/// error no smaller than theirs.
 #[test]
 fn every_family_is_owned_once_and_bounded() {
-    for clusters in families(FAMILIES) {
-        let (order, nodes) = build_culling_bvh(&clusters);
-        let mut sorted = order.clone();
-        sorted.sort_unstable();
-        assert_eq!(sorted, (0..clusters.len()).collect::<Vec<_>>());
-        let mut owned = vec![0; clusters.len()];
-        for (index, node) in nodes.iter().enumerate() {
-            assert!(index == 0 || node.child_count <= CULLING_BRANCHING);
-            let below: Vec<usize> = if node.child_count == 0 {
-                assert!(node.cluster_count <= CULLING_LEAF);
-                order[node.first_cluster..node.first_cluster + node.cluster_count].to_vec()
-            } else {
-                assert_eq!(node.cluster_count, 0);
-                let children = node.first_child..node.first_child + node.child_count;
-                children
-                    .flat_map(|child| {
-                        let c = &nodes[child];
-                        (0..3).for_each(|a| {
-                            assert!(c.min[a] >= node.min[a] && c.max[a] <= node.max[a])
-                        });
-                        assert!(c.max_parent_error <= node.max_parent_error);
-                        Vec::<usize>::new()
-                    })
-                    .collect()
-            };
-            for &id in &below {
-                owned[id] += 1;
-                let c = &clusters[id];
+    for parts in families(FAMILIES) {
+        let nodes = build_culling_bvh(&parts);
+        let mut owned = vec![0; parts.len()];
+        for node in &nodes {
+            assert!(node.child_count <= CULLING_FANOUT);
+            if node.child_count == 0 {
+                if node.cluster_count == 0 {
+                    continue;
+                }
+                let at = parts
+                    .iter()
+                    .position(|p| p.first == node.first_cluster)
+                    .unwrap();
+                assert_eq!(parts[at].count, node.cluster_count);
+                assert_eq!(CullingNode::leaf(&parts[at]), *node);
+                owned[at] += 1;
+                continue;
+            }
+            assert_eq!(node.cluster_count, 0);
+            for c in &nodes[node.first_child..node.first_child + node.child_count] {
                 (0..3).for_each(|a| assert!(c.min[a] >= node.min[a] && c.max[a] <= node.max[a]));
-                assert!(c.parent_error <= node.max_parent_error);
-                let s = c.parent_sphere;
+                assert!(c.max_parent_error <= node.max_parent_error);
+                assert!(c.min_error >= node.min_error);
+                let s = c.sphere;
                 let d = ((s[0] - node.sphere[0]).powi(2)
                     + (s[1] - node.sphere[1]).powi(2)
                     + (s[2] - node.sphere[2]).powi(2))
                 .sqrt();
-                assert!(d + s[3] <= node.sphere[3] * (1.0 + 1e-9));
+                // The ball of balls takes the larger of two nested within 1e-4 of their squared
+                // distance (`balls::balls_ball`): a hundredth at most outside.
+                assert!(d + s[3] <= node.sphere[3] + 1e-2);
             }
         }
         assert!(owned.iter().all(|&n| n == 1));
     }
 }
 
-/// A split takes the axis of least cost (`split::bisect_least_cost`), never the first on a tie of
-/// extents: a grid laid out by columns gets the tree its rows get, mirrored, of the same surface.
+/// Two parts of two levels: each level's tree is its one part, and the root holds both, its box,
+/// ball and errors those of the two (`CullingNode::over`).
 #[test]
-fn a_grid_by_rows_and_by_columns_get_trees_of_the_same_surface() {
-    let surface = |clusters: &[CullingCluster]| {
-        let (_, nodes) = build_culling_bvh(clusters);
-        nodes.iter().map(|n| half_area(n.min, n.max)).sum::<f64>()
-    };
-    let families = families(FAMILIES);
-    assert_eq!(surface(&families[0]), surface(&families[1]));
-}
-
-/// `node_bounds` is private; it is exercised through the public `build_culling_bvh`, which calls
-/// it once for the root span and once per queued node.
-#[test]
-fn node_bounds_merges_a_rejection_node_from_its_clusters() {
+fn the_root_merges_its_children() {
     let sphere_a = [0.0, 0.0, 0.0, 1.0];
     let sphere_b = [10.0, 10.0, 10.0, 0.5];
-    let clusters = [
-        CullingCluster {
-            min: [0.0, 0.0, 0.0],
-            max: [1.0, 1.0, 0.0],
-            level: 0,
-            parent_sphere: sphere_a,
-            parent_error: 2.0,
-        },
-        CullingCluster {
-            min: [10.0, 10.0, 10.0],
-            max: [11.0, 11.0, 10.0],
-            level: 1,
-            parent_sphere: sphere_b,
-            parent_error: 5.0,
-        },
+    let part = |min, max, level, sphere, min_error, parent_error, first| CullingPart {
+        min,
+        max,
+        level,
+        sphere,
+        min_error,
+        parent_error,
+        first,
+        count: 1,
+    };
+    let parts = [
+        part([0.0; 3], [1.0, 1.0, 0.0], 0, sphere_a, 0.0, 2.0, 0),
+        part([10.0; 3], [11.0, 11.0, 10.0], 1, sphere_b, 2.0, 5.0, 1),
     ];
-    let (_, nodes) = build_culling_bvh(&clusters);
+    let nodes = build_culling_bvh(&parts);
     let root = &nodes[0];
+    assert_eq!((root.first_child, root.child_count), (1, 2));
     assert_eq!(root.min, [0.0, 0.0, 0.0]);
     assert_eq!(root.max, [11.0, 11.0, 10.0]);
-    assert_eq!(root.max_parent_error, 5.0);
-    assert_eq!(root.sphere, ball_of_balls(&[sphere_a, sphere_b]));
+    assert_eq!((root.min_error, root.max_parent_error), (0.0, 5.0));
+    assert_eq!(root.sphere, crate::balls::balls_ball(&[sphere_a, sphere_b]));
     // The two spheres' own ball: on their axis, reaching both far sides (17.32 / 2 + 0.75).
     let reach = (300.0f64.sqrt() + 1.5) / 2.0;
-    assert!((root.sphere[3] - reach).abs() < 1e-9);
+    assert!((root.sphere[3] - reach).abs() < 1e-5);
 }

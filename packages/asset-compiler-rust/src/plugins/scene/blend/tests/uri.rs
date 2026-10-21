@@ -12,10 +12,10 @@ fn a_linked_image_is_named_by_an_escaped_uri() {
     let root = Path::new("/projet/scene");
     let declared = format!("//textures/{AWKWARD}");
     let relative = images::linked(&declared, root).expect("the image is under the served root");
-    let uri = crate::uri::encode_relative(Path::new(&relative));
+    let uri = crate::support::uri::encode_relative(Path::new(&relative));
     assert_eq!(uri, "textures/co%25lor%20%231%20rouge.png");
     assert_eq!(
-        crate::uri::decode(&uri).as_deref(),
+        crate::support::uri::decode(&uri).as_deref(),
         Some(format!("textures/{AWKWARD}").as_str())
     );
 }

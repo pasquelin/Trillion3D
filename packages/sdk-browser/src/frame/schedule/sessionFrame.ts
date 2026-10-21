@@ -11,6 +11,7 @@ import { createExplorerRender } from './render.ts'
 import type { ExplorerSession } from '../../session/session.ts'
 import { createExplorerStreaming } from '../../scene/drive/streaming.ts'
 import { createPartitionFrame } from '../../scene/drive/partitionFrame.ts'
+import { resolveWorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 
 type Inputs = {
   prepared: PreparedExplorer
@@ -48,6 +49,9 @@ export function createSessionFrame(session: ExplorerSession, inputs: Inputs) {
     ...{ camera, streamer, streaming, engine, hostBytes },
     drawViews: options.drawViews,
   })
+  // The session's streaming settings as they stand, read by their resolvers at each frame into one
+  // object, which each cell frame copies at once (`cells.ts`).
+  const streamingNow = resolveWorldStreaming()
   const followCells = createPartitionFrame({
     partitions,
     streamer,
@@ -55,6 +59,7 @@ export function createSessionFrame(session: ExplorerSession, inputs: Inputs) {
     engine,
     renew: options.onPartitionOutgrown,
     budget: frameBudget,
+    streaming: () => resolveWorldStreaming(prepared.context, streamingNow),
   })
   // Partitions joining the session while it runs: their pages catalogued, their roots counted and
   // bound, the cells the view reaches placed, as the open does (`prepareExplorer`).
@@ -62,7 +67,13 @@ export function createSessionFrame(session: ExplorerSession, inputs: Inputs) {
     async prime(cells: readonly PartitionCells[], roots: readonly WorldRootsHold[]) {
       holdPartitions(streamer, cells, roots)
       prepared.worldRoots.push(...roots)
-      await primeFirstView(session, { partitions: cells }, camera, streamer)
+      await primeFirstView(
+        session,
+        { partitions: cells },
+        camera,
+        streamer,
+        resolveWorldStreaming(prepared.context),
+      )
     },
     follow: followCells.follow,
     leave: followCells.leave,

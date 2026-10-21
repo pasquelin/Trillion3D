@@ -1,7 +1,8 @@
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 import { recordTextureWgsl } from '../../gpu/core/recordTextureWgsl.ts'
 import { COLD_TABLE } from '../../geometry/dag/cut/cutTables.ts'
-import { CELL_DRAW } from '../../geometry/dag/worlds/worldLinks.ts'
+import { ACTOR_ROW } from '../../geometry/dag/worlds/worldLinks.ts'
+import { linkDrawsWgsl } from '../../geometry/dag/shader/worldGateWgsl.ts'
 import { dSub } from '../../../../math/src/wgsl/double.ts'
 import { dExponent } from '../../../../math/src/wgsl/doubleWords.ts'
 import { toF32 } from '../../../../math/src/wgsl/f32.ts'
@@ -53,9 +54,10 @@ const BOUNDED_EXPONENT = 1023 + SINGLE_BOUND_LOG2
  * item's clusters and the expansion that reads the verdict (`../expand/expandWgsl.ts`).
  *
  * `keep(item) = drawn && listed`. `drawn` is the key record's bit (`../keyRecords.ts`) — the item's
- * node shown, its row not parked — and its row's HLOD 0 cell drawing its placements: the cell's
- * state word in the cut's cold words, the very word the descent gates an opaque placement by
- * (`../../geometry/dag/shader/worldGateWgsl.ts`), so a cell switch rewrites no record; `listed`, the
+ * node shown, its row not parked — and its row's cell file, shown as its main cell, or its HLOD 0
+ * cell drawing its placements: their words in the cut's cold words, the very words the descent
+ * gates an opaque placement by (`../../geometry/dag/shader/worldGateWgsl.ts`), so a switch
+ * rewrites no record; `listed`, the
  * table holds its clusters (`../statics.ts`). An item draws the clusters the cut selected, which is
  * the finer verdict: its box is not tested for that — a box test could only drop clusters the cut
  * kept while lying entirely outside the frustum, which
@@ -99,15 +101,25 @@ export const BLEND_VERDICT_SHADER = wgslProgram(
 @group(0) @binding(${VERDICT_BINDING.keep}) var<storage,read_write> keep:array<u32>;
 @group(0) @binding(${VERDICT_BINDING.verdict}) var<storage,read_write> verdict:array<atomic<u32>>;
 var<workgroup> bits:array<u32,${VERDICT_GROUP}>;
-/** Whether the HLOD 0 cell of the item whose record starts at word \`at\` draws its placements
- *  (\`CELL_DRAW\`): its state word, \`FRAME_CELL_COUNT\` per instance from \`FRAME_CELL_STATES\`. An
- *  item in no cell, or a cut that follows no world, is drawn. */
-fn cellDraws(at:u32)->bool{
+/** Whether the item whose record starts at word \`at\`, its flags \`flags\`, draws as the descent
+ *  opens a placement (\`worldCovers\`, by \`linkDraws\`): its cell file's word — from \`FRAME_FILE_STATES\`, its main
+ *  cell shown — or its HLOD 0 cell's — \`FRAME_CELL_COUNT\` per instance from \`FRAME_CELL_STATES\` —
+ *  draws its placements (\`CELL_DRAW\`). An item in neither, or a cut that follows no world, is
+ *  drawn; one whose file has no slot yet (\`KEY_FILED\`), by its HLOD 0 cell alone; a row of a
+ *  cell's actor (\`ACTOR_ROW\`) while its cell draws that actor. An instance the cut does not pack
+ *  (\`NO_INDEX\`, \`../keyRecords.ts\`) has no state word: its cell word is zero. */
+fn cellDraws(at:u32,flags:u32)->bool{
  let base=frame[FRAME_CELL_STATES];
  let cell=keyed[at+KEY_CELL];
- if(base==0u||cell==${NO_INDEX}u){return true;}
- let slot=base+keyed[at+KEY_INSTANCE]*frame[FRAME_CELL_COUNT]+cell;
- return (cellsWord(slot,0u).x&${CELL_DRAW.placements}u)!=0u;
+ let file=keyed[at+KEY_FILE];
+ let instance=keyed[at+KEY_INSTANCE];
+ if(base==0u||(cell==${NO_INDEX}u&&(flags&KEY_FILED)==0u)){return true;}
+ let slot=base+instance*frame[FRAME_CELL_COUNT];
+ var cellWord=0u;
+ if(cell!=${NO_INDEX}u&&instance!=${NO_INDEX}u){cellWord=cellsWord(slot+(cell&~${ACTOR_ROW}u),0u).x;}
+ var fileWord=0u;
+ if(file!=${NO_INDEX}u){fileWord=cellsWord(frame[FRAME_FILE_STATES]+file,0u).x;}
+ return linkDraws(cell,cellWord,fileWord);
 }
 var<workgroup> tally:array<atomic<u32>,2>;
 /** Whether double \`v\` enters the single-precision test: finite, below 2^60 in magnitude. */
@@ -153,7 +165,7 @@ fn judgeItem(item:u32)->u32{
  let flags=keyed[at+KEY_FLAGS];
  let d=draws[item];
  let listed=d.x!=${NO_INDEX}u;
- if((flags&KEY_DRAWN)==0u||!cellDraws(at)){return 0u;}
+ if((flags&KEY_DRAWN)==0u||!cellDraws(at,flags)){return 0u;}
  let transmits=(flags&KEY_TRANSMITS)!=0u;
  let excluded=(flags&KEY_HAS_BOX)!=0u&&transmits&&boxExcluded(at);
  let held=listed&&counts[d.x*4u+1u]!=0u;
@@ -201,6 +213,7 @@ fn judgeBlendItems(@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id
     dExponent,
     toF32,
     bitMask,
+    linkDrawsWgsl,
     FLAT_INDEX_WGSL,
     KEYED_WGSL,
     FRAME_HEAD_WGSL,

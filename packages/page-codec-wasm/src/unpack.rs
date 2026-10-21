@@ -3,10 +3,13 @@
 //! reads every field at random (`unpack/reference.rs`, a test oracle of another algorithm, never
 //! shipped), as the equivalence harness proves.
 
-use crate::bits::{dequant, le_words, oct_decode_stream, BitReader, Quant};
+use crate::attributes::UV_FLAGS;
+use crate::bits::{
+    color_value, le_words, normal_decode_stream, tangent_decode_stream, uv_value, BitReader,
+};
 use crate::deform::{decode_morphs, decode_skin};
 use crate::{DecodedPage, Header, Layout, PageError};
-use crate::{FLAG_COLOR, FLAG_MORPH, FLAG_NORMAL, FLAG_SKIN, FLAG_UV, FLAG_UV1};
+use crate::{FLAG_COLOR, FLAG_MORPH, FLAG_NORMAL, FLAG_SKIN, FLAG_TANGENT};
 
 /// A complete page, its streams unpacked and dequantized: the block `decodeGeometryPage` lays its views on.
 pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, PageError> {
@@ -20,7 +23,6 @@ pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, Page
         flags: header.flags,
         morph_targets: header.morphs.len(),
         skin_influences: header.skin.influences,
-        quantization_error: header.quantization_error,
     })
 }
 
@@ -40,19 +42,21 @@ pub(crate) fn decode_into(data: &[u8], header: &Header, out: &mut [u32]) -> Resu
     }
 }
 
-/// One dequantized vector attribute into `out`: component `c` of vertex `i` is field `i` of
-/// stream `c`. A component of zero width reads its minimum for every vertex.
-/// The header's bounds keep every value finite: a 24-bit field on the coarsest grid adds at
-/// most 2^88 to a finite minimum, which rounds back into the float's range.
+/// One attribute of `N` floats a vertex into `out`: component `c` of vertex `i` is
+/// `value(c, field)`, `field` being field `i` of stream `c`, `bits[c]` wide from word `starts[c]`.
+/// A component of zero width reads zero for every vertex, which `value` makes its range's least.
 #[inline(always)]
-fn vector<const N: usize>(out: &mut [u32], words: &[u32], starts: [usize; N], record: &Quant<N>) {
-    let step = record.step();
+fn decode_vectors<const N: usize>(
+    out: &mut [u32],
+    words: &[u32],
+    (starts, bits): ([usize; N], [u32; N]),
+    value: impl Fn(usize, u32) -> f32,
+) {
     let vertices = out.as_chunks_mut::<N>().0;
     for c in 0..N {
-        let (min, bits) = (record.min[c], record.bits[c]);
         let mut stream = BitReader::at(words, starts[c] * 32);
         for vertex in vertices.iter_mut() {
-            vertex[c] = dequant(min, stream.read(bits), step).to_bits();
+            vertex[c] = value(c, stream.read(bits[c])).to_bits();
         }
     }
 }
@@ -73,19 +77,38 @@ fn split(words: &[u32], h: &Header, out: &mut [u32]) -> Result<(), PageError> {
     if h.links_positions() {
         crate::positions::linked(positions, words, &layout, h);
     } else {
-        vector(positions, words, layout.position, &h.position);
+        let (grid, unit) = (&h.position, h.position.unit());
+        let streams = (layout.position, grid.bits);
+        decode_vectors(positions, words, streams, |c, offset| {
+            grid.metres(c, offset, unit)
+        });
     }
+    let mut normals: &mut [u32] = &mut [];
     if h.flags & FLAG_NORMAL != 0 {
-        oct_decode_stream(&words[layout.normal..], take(3));
+        normals = take(3);
+        normal_decode_stream(words, layout.normal, h.normal_precision, normals);
     }
-    if h.flags & FLAG_UV != 0 {
-        vector(take(2), words, layout.uv, &h.uv);
-    }
-    if h.flags & FLAG_UV1 != 0 {
-        vector(take(2), words, layout.uv1, &h.uv1);
+    for (set, flag) in UV_FLAGS.into_iter().enumerate() {
+        if h.flags & flag != 0 {
+            let range = &h.uv[set];
+            let streams = (layout.uv[set], range.bits);
+            decode_vectors(take(2), words, streams, |c, code| {
+                uv_value(range.min[c] + code)
+            });
+        }
     }
     if h.flags & FLAG_COLOR != 0 {
-        vector(take(4), words, layout.color, &h.color);
+        let range = &h.color;
+        let streams = (layout.color, range.bits);
+        decode_vectors(take(4), words, streams, |c, byte| {
+            color_value(range.min[c] + byte)
+        });
+    }
+    // Each stored tangent turns around its vertex's normal as decoded above (`Header::parse` keeps
+    // a page with tangents and no normals out).
+    if h.flags & FLAG_TANGENT != 0 {
+        let stream = &words[layout.tangent..];
+        tangent_decode_stream(stream, h.tangent_precision, normals, take(4));
     }
     if h.flags & FLAG_SKIN != 0 {
         decode_skin(words, layout.skin, &h.skin, take(2 * h.skin.influences));

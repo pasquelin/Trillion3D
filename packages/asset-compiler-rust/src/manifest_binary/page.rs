@@ -126,20 +126,6 @@ pub(super) fn encode_page(page: &Value, columns: &mut [Column]) -> Result<()> {
     ] {
         columns[GEOMETRY_U32].u32(as_u32(MANIFEST.integer(geometry.get(key), label)?, label)?);
     }
-    // Every page of version 9 has its cone; a hand-written page that names none rejects nothing.
-    let column = &mut columns[PAGE_CONE];
-    match item.get("cone") {
-        None => {
-            for value in trillion3d_page_codec::normal_cone::OPEN_CONE {
-                column.f64(value);
-            }
-        }
-        Some(cone) => {
-            let cone = MANIFEST.object(cone, "page.cone")?;
-            vector_into(cone.get("axis"), 3, "page.cone.axis", column)?;
-            column.f64(MANIFEST.number(cone.get("angle"), "page.cone.angle")?);
-        }
-    }
     columns[PAGE_U32].u32(flags);
     // Layer 0 is the untouched draw, so a cache with no coplanar surface writes a column of zeros.
     columns[PAGE_DEPTH_LAYER].u32(match item.get("depthLayer") {

@@ -1,17 +1,17 @@
-// Top-down pruning drops no cluster the cut would have taken, on the GPU. The subtree error floor
-// that `packCullingNodes` stores and `errorFloor` projects in WGSL is a lower bound of the
-// projected error of the whole subtree: an overestimated one silently drops geometry. The CPU
+// Top-down pruning drops no cluster the cut would have taken, on the GPU. The leaf error floor
+// the manifest carries (`packCullingNodes`) and `floorPrunes` projects in WGSL is a lower bound of
+// the projected error of the whole part: an overestimated one silently drops geometry. The CPU
 // works in f64 on the packed values, the kernel in f32: that gap is what this measures.
 //
 // Three cuts on an eight-level pyramid under five poses: the CPU cut (`selectVisiblePages`), the
-// kernel's Node oracle, and the WGSL kernel. Same pages, same triangle totals, the same request
-// priorities in the same order; and every pose prunes, or the proof would cover nothing.
+// kernel's Node oracle, and the WGSL kernel. Same drawn pages, same triangle totals, the same
+// requests at the same priorities, page for page; and every pose prunes, or the proof would cover
+// nothing.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { selectVisiblePages } from '../../../packages/sdk-browser/src/geometry/cut/cut.fixture.ts'
-import { cullingBounds } from '../../../packages/sdk-browser/src/geometry/cut/bounds.ts'
 import { descenteComptee } from '../../../packages/sdk-browser/src/geometry/dag/cut/cutFrontier.fixture.ts'
 import {
   scenePages,
@@ -23,6 +23,11 @@ import { runSelectionKernel } from './selectionKernel.ts'
 import { posedSelection } from './selectionCase.ts'
 
 const VIEWPORT: [number, number] = [1280, 720]
+
+/** Each request as its page and its priority word, by page: the GPU asks in its threads' order. */
+const byPage = (pages: readonly number[], priorities: readonly number[]) =>
+  pages.map((page, s) => [page, priorities[s]]).sort((a, b) => a[0] - b[0])
+
 /**
  * Name, camera x and z, threshold, and the depths the pyramid is placed at. One depth keeps one
  * level, hence one priority: placed far apart, the copies resolve to different levels and the
@@ -43,12 +48,11 @@ test('the GPU cut, its oracle and the CPU cut agree while every pose prunes', as
     const worlds = depths.map((depth) => new Matrix4().makeTranslation(0, 0, -depth))
     const roots = sceneRoots(pages, worlds)
     const { packed, uniforms } = posedSelection(camera, [x, z, threshold], VIEWPORT, roots)
-    // The CPU cut walks the same nodes with its own bounds, in f64: the reference.
+    // The CPU cut walks the same nodes, in f64: the reference.
     const culling = roots[0].culling
     assert.ok(culling, 'the scene root carries no culling nodes')
-    const bounds = cullingBounds(culling, pages)
     const cpu = selectVisiblePages(
-      worlds.map((world) => ({ world, pages, culling: { ...culling, bounds } })),
+      worlds.map((world) => ({ world, pages, culling })),
       engineCamera(camera),
       { pixelError: threshold, viewport: VIEWPORT },
     )
@@ -75,7 +79,7 @@ test('the GPU cut, its oracle and the CPU cut agree while every pose prunes', as
         name,
         pruned,
         cpu,
-        gpu: gpu.pages.length,
+        gpu: gpu.drawn.length,
         prioritySteps: new Set(priorities).size,
       })),
     }),
@@ -87,11 +91,15 @@ test('the GPU cut, its oracle and the CPU cut agree while every pose prunes', as
   )
   for (const { name, pruned, cpu, oracle, gpu, priorities } of rows) {
     assert.ok(pruned > 0, `${name}: no subtree pruned`)
-    assert.equal(gpu.pages.length, oracle.pageIds.length, `${name}: GPU and oracle diverge`)
-    assert.equal(gpu.pages.length, cpu, `${name}: the GPU loses from the cut`)
+    assert.deepEqual(gpu.drawn, oracle.drawablePageIds, `${name}: GPU and oracle diverge`)
+    assert.equal(gpu.drawn.length, cpu, `${name}: the GPU loses from the cut`)
     assert.ok(gpu.selectedTriangles > 0, `${name}: no triangle counted`)
     assert.equal(gpu.selectedTriangles, oracle.selectedTriangles, `${name}: totals diverge`)
     // Each request's priority decides which page the host uploads first.
-    assert.deepEqual(priorities, oracle.requestPriorities, `${name}: priorities diverge`)
+    assert.deepEqual(
+      byPage(gpu.requests, priorities),
+      byPage(oracle.pageIds, oracle.priorities),
+      `${name}: priorities diverge`,
+    )
   }
 })

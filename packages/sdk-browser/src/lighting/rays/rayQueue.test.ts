@@ -59,7 +59,7 @@ function rig(
   const rt = {
     run: { lost: false, gpuSelection: { cutTables: () => tables } },
     gpu: { cache: { buffer: buffer('pool') } },
-    vis: { pageTable: buffer('pages'), concatPos: buffer('positions'), zeroFlags: buffer('zero') },
+    vis: { pageTable: buffer('pages'), concatPos: buffer('positions'), zeroRows: buffer('zero') },
     layout: {
       rows,
       selectionRoots,

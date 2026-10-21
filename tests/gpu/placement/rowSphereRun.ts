@@ -82,7 +82,6 @@ export async function runSphere() {
       absent(),
       absent(),
       absent(),
-      absent(),
     ].map((held) => ({ buffer: held })),
   )
   const encoder = device.createCommandEncoder()

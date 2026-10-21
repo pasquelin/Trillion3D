@@ -4,6 +4,7 @@ import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { stagedOutputBytes } from './layout.ts'
 import { OPEN_SLOT_WORDS } from './heldOpen.ts'
 import { dagFlagShape } from './flagSections.ts'
+import { cutListCaps, type CutListCaps } from './lists/cutListCaps.ts'
 import { type PackedDag } from './types.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
@@ -25,20 +26,20 @@ export const makeDagBuffer = (make: (d: GPUBufferDescriptor) => GPUBuffer, row: 
  * THE BUFFERS OF A CAMERA CUT, as `createDagResources` makes them: one table read by the resources
  * and by the device check (`deviceRefusal.ts`), so the check can never judge a size the cut does
  * not ask for. `blockCount` is the kernel's `blockCount()`, word for word, and `workLayout` the layout
- * of `work` (`dagWorkLayout`); `shape`, what its flags are laid out for as the cut starts
+ * of `work` (`dagWorkLayout`); `shape`, what its flags are laid out for at the lists' `caps`
  * (`flagSections.ts`). Its other tables are record tables, no storage buffer (`cut/cutTables.ts`).
  */
 export function cameraCutBuffers(
-  packed: Pick<PackedDag, 'pageCount' | 'nodeCount'> &
-    Partial<Pick<PackedDag, 'entryCount' | 'candCount' | 'groupCount'>>,
+  packed: Parameters<typeof dagFlagShape>[0] & Pick<PackedDag, 'nodeCount'>,
+  caps: CutListCaps = cutListCaps(),
 ) {
   const blockCount = ceilDiv(packed.pageCount, WORKGROUP_THREADS),
-    workLayout = dagWorkLayout(blockCount, packed.groupCount)
+    workLayout = dagWorkLayout(blockCount)
   return {
     blockCount,
     workLayout,
-    /** What `flags` is laid out for: the cut's queues and lists as they start (`queueGrowth.ts`). */
-    shape: dagFlagShape(packed),
+    /** What `flags` is laid out for: the cut's lists at their caps (`flagSections.ts`). */
+    shape: dagFlagShape(packed, caps),
     rows: {
       work: { label: 'Trillion3D DAG work', size: Math.max(8, workLayout.words * 4) },
     } satisfies Record<string, DagBufferRow>,

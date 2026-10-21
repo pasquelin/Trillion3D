@@ -68,6 +68,29 @@ export const bitMask = wgslFn('bitMask', [], 'fn bitMask(i:u32)->u32{return 1u<<
 /** The `n` lowest bits set, `2^n - 1`, for `n` in [0, 31]; `n = 32` gives 0 (`1u << 32u` is `1u`). */
 export const lowBits = wgslFn('lowBits', [], 'fn lowBits(n:u32)->u32{return (1u<<n)-1u;}')
 
+/** The even bits of `word` side by side, the lowest first: bit `2k` of `word` is bit `k` of the
+ *  result, every odd bit dropped. */
+export const evenBits = wgslFn(
+  'evenBits',
+  [],
+  `fn evenBits(word:u32)->u32{
+ var x=word&0x55555555u;
+ x=(x^(x>>1u))&0x33333333u;
+ x=(x^(x>>2u))&0x0f0f0f0fu;
+ x=(x^(x>>4u))&0x00ff00ffu;
+ return (x^(x>>8u))&0x0000ffffu;
+}`,
+)
+
+/** The column and the row of index `i` along the Z-order curve: its even bits and its odd bits
+ *  (`evenBits`), so that the four indices from a multiple of four make a 2 × 2 square, the sixteen
+ *  from a multiple of sixteen a 4 × 4 one. */
+export const zOrderDecode = wgslFn(
+  'zOrderDecode',
+  [evenBits],
+  'fn zOrderDecode(i:u32)->vec2u{return vec2u(evenBits(i),evenBits(i>>1u));}',
+)
+
 /** The cell `i` of a rectangle `size` wide that starts at `rect.xy`, in row-major order: the row is
  *  read from `(i + 0.5) / size.x` in `f32`. */
 export const rectCell = wgslFn(

@@ -2,25 +2,21 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRasterBindings } from './bindings.ts'
 import type { GpuRasterInput } from './types.ts'
+import { RASTER_PASS_MAIN, RASTER_PASS_POST } from './contract.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
-test('raster variants compare their bound mask even when its selection owner stays', () => {
+test('the binning compares its bound mask even when its selection owner stays', () => {
   const { device, bindGroups } = fakeDevice()
-  const read = createRasterBindings(device, {} as GPUBindGroupLayout, {} as GPUBuffer)
-  const input = {
-    selection: { maskBuffer: {} },
-    groups: [],
-    groupKey: 0,
-  } as unknown as GpuRasterInput
-  const first = read(input)
-  assert.equal(read(input), first)
+  const layout = {} as GPUBindGroupLayout
+  const { bin } = createRasterBindings(device, { raster: layout, bin: layout }, {} as GPUBuffer)
+  const input = { selection: { maskBuffer: {} } } as unknown as GpuRasterInput
+  const first = bin(input, RASTER_PASS_MAIN)
+  assert.equal(bin(input, RASTER_PASS_MAIN), first)
   input.selection!.maskBuffer = {} as GPUBuffer
-  assert.notEqual(read(input), first)
-  input.groupKey = 1
-  const second = read(input)
-  input.groupKey = 0
-  read(input)
-  input.groupKey = 1
-  assert.equal(read(input), second, 'switching a variant does not remake its unchanged group')
-  assert.equal(bindGroups.length, 3)
+  assert.notEqual(bin(input, RASTER_PASS_MAIN), first)
+  const second = bin(input, RASTER_PASS_POST)
+  bin(input, RASTER_PASS_MAIN)
+  assert.equal(bin(input, RASTER_PASS_POST), second, 'switching a pass does not remake its group')
+  // The hardware raster's group, made with the bindings, then the binning's three.
+  assert.equal(bindGroups.length, 4)
 })

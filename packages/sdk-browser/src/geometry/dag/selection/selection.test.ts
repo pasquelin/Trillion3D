@@ -1,75 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
-import { clusterErrorPixels } from '../../../../../sdk-core/src/lod/screenErrorBound.ts'
-import { maxStretch } from '../../../../../math/src/projection/projectionOracles.ts'
-import { cameraSelectionUniforms } from '../../../gpu/core/selection.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { packDagSelection } from '../pack/pack.ts'
-import { DAG_SELECTION_SHADER } from '../shader/shader.ts'
 import { dagFixture, wideCamera } from '../../selection/dag.fixture.ts'
 import { dagCulling } from '../../selection/helpers.fixture.ts'
-import {
-  cpuUrls,
-  kernelUniforms,
-  kernelUrls,
-  packed,
-  VIEWPORT,
-} from './selectionHelpers.fixture.ts'
+import { cpuUrls, kernelUniforms, kernelUrls, packed } from './selectionHelpers.fixture.ts'
 import { mockDagDevice } from './selection.fixture.ts'
 import { dagPageUrls } from '../pack/pack.fixture.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
-import { engineCamera } from '../../../camera/camera.fixture.ts'
-import { ruleResidency } from '../readiness.fixture.ts'
+import { pageResidency, ruleResidency } from '../readiness.fixture.ts'
 import { evaluateDagSelectionKernel } from '../oracle/oracle.fixture.ts'
 import { hostStretches } from '../hostStretches.fixture.ts'
-
-test('the kernel projects a cluster error exactly like clusterErrorPixels', () => {
-  // The WGSL band test is the certified bound of `screenErrorBound`: minimum depth, side reach and
-  // the moved point's closest depth, with Infinity at the near plane. Replaying it against the
-  // published oracle keeps the GPU and CPU cuts on one formula.
-  const cam = wideCamera()
-  const uniforms = cameraSelectionUniforms(engineCamera(cam), 1, VIEWPORT)
-  const focal = Math.max(uniforms.pixelScale[0], uniforms.pixelScale[1])
-  const world = new Matrix4().makeRotationY(0.7).setPosition(1, -2, 3)
-  const view = new Matrix4().multiplyMatrices(cam.matrixWorldInverse, world),
-    e = view.elements
-  const stretch = maxStretch(world.elements) * (uniforms.cameraStretch as number)
-  assert.ok(Number.isFinite(stretch) && stretch > 0)
-  for (const [cx, cy, cz, radius, error] of [
-    [0, 0, 0, 0.6, 0.02],
-    [3, -1, 2, 1.2, 0.5],
-    [-4, 2, -6, 0.1, 7],
-    [0, 0, 4.9, 0.05, 1],
-    [0, 0, 0, 0.6, 0],
-  ] as const) {
-    const vx = e[0] * cx + e[4] * cy + e[8] * cz + e[12],
-      vy = e[1] * cx + e[5] * cy + e[9] * cz + e[13],
-      vz = e[2] * cx + e[6] * cy + e[10] * cz + e[14]
-    const expected = clusterErrorPixels(error, stretch, vx, vy, vz, radius, focal, cam.near)
-    // `projected` from `../shader/error.ts`, copied: same operands, same order.
-    const reach = radius * stretch,
-      shift = error * stretch
-    const nearest = -vz - reach,
-      closest = nearest - shift,
-      side = Math.sqrt(vx * vx + vy * vy) + reach
-    const slant = Math.sqrt(nearest * nearest + side * side)
-    const kernel =
-      error === 0
-        ? 0
-        : !(closest > cam.near) || !(slant >= nearest && slant < Infinity)
-          ? Infinity
-          : ((shift * focal) / nearest) * (slant / closest)
-    assert.equal(kernel, expected, `error ${error} radius ${radius}`)
-  }
-  // The shader carries the same terms, in the same order.
-  assert.match(
-    DAG_SELECTION_SHADER,
-    /let nearest=p\*\(-v\.z-reach\)\+flat;let closest=nearest-p\*shift;let side=p\*\(sqrt\(v\.x\*v\.x\+v\.y\*v\.y\)\+reach\);/,
-  )
-  assert.match(DAG_SELECTION_SHADER, /return \(\(shift\*focal\)\/nearest\)\*\(slant\/closest\);/)
-})
 
 test('the GPU flat cut selects the same single cluster per chain as the CPU cut', () => {
   const plain = dagFixture(),
@@ -116,12 +58,17 @@ test('a cut with nothing resident but the roots draws the root cover', () => {
     (result.drawablePageIds ?? []).map((id) => dag.pageUrlOf(id)),
     ['root'],
   )
-  // The wanted list still reports the detail the streamer has to fetch.
+  // The requests still report the detail the streamer has to fetch: every page of each leaf the
+  // descent keeps, the coarse ones too — their floors open, nothing finer resident — for the host
+  // to rank.
   assert.deepEqual((result.pageIds ?? []).map((id) => dag.pageUrlOf(id)).sort(), [
     'leaf0',
     'leaf1',
     'leaf2',
     'leaf3',
+    'mid-left',
+    'mid-right',
+    'root',
   ])
   fixture.geometry.dispose()
 })
@@ -170,7 +117,7 @@ test('an empty cluster set does not allocate a GPU selection', async () => {
   )
 })
 
-test('GPU selection readback page ids match the CPU oracle for the same camera', async () => {
+test('GPU selection readback drawn pages match the CPU oracle for the same camera', async () => {
   installGpuGlobals()
   const fixture = dagFixture()
   const { dag, roots } = packed(fixture)
@@ -182,10 +129,13 @@ test('GPU selection readback page ids match the CPU oracle for the same camera',
     roots: hostStretches(dag),
   })
   assert.ok(selection)
+  // Every page resident, as the CPU cut takes them: the drawn list is the cut.
+  selection.updateResidency(pageResidency(new Uint8Array(dag.pageCount).fill(1)))
   selection.dispatch(uniforms)
   const gpu = await selection.flush()
   assert.ok(gpu)
-  assert.deepEqual(gpu.pageIds.map((id) => dag.pageUrlOf(id)).sort(), cpuUrls(fixture, 3.4, cam))
+  const drawn = (gpu.drawablePageIds ?? []).map((id) => dag.pageUrlOf(id))
+  assert.deepEqual(drawn.sort(), cpuUrls(fixture, 3.4, cam))
   assert.equal(selection.peek()?.uniforms.pixelError, 3.4)
   selection.dispose()
   fixture.geometry.dispose()

@@ -132,7 +132,6 @@ export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRun
       'per-texture transforms, UV channels and sampler modes',
       'environment maps and light probes',
       'contract scene lights with shadow atlas',
-      'small-triangle compute raster',
       'physical VRAM instrumentation',
       BOUNCE_CAPABILITY,
       ...TAA_CAPABILITIES,

@@ -103,9 +103,9 @@ function slots(d: SurfaceDeclaration, { model, lit, standard, physical, sheet }:
   }
 }
 
-/** Its normal factors. A page stores no tangent: every engine pass rebuilds the frame from its
- *  triangle, which turns the second factor of a surface written for vertex tangents
- *  (`forVertexTangents`); a pass reading vertex tangents takes the factor as written. */
+/** Its normal factors. A page that stores no tangent (`FLAG_TANGENT`) has every engine pass rebuild
+ *  the frame from its triangle, which turns the second factor of a surface written for vertex
+ *  tangents (`forVertexTangents`); a pass reading vertex tangents takes the factor as written. */
 function relief(d: SurfaceDeclaration, { lit }: Reading) {
   const scale = (lit && d.normalScale) || undefined,
     y = scale ? scale.y : 1,

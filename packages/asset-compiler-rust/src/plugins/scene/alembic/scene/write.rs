@@ -4,7 +4,7 @@
 //! instancing, read from the content and not from a field the format does not always write.
 use super::super::mesh::{FaceSet, Part};
 use crate::hash;
-use crate::import::f32_bytes;
+use crate::plugins::scene::convert::f32_bytes;
 
 /// The digest of a mesh's content: its attribute bytes and the materials it names. Two objects
 /// that share it are the same mesh posed twice, whatever their names.

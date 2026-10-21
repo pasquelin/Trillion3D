@@ -1,5 +1,6 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
+import { COTANGENT_FRAME_WGSL } from '../../geometry/cluster/cotangentFrameWgsl.ts'
 import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
@@ -45,7 +46,7 @@ const VOXEL_PIXEL = ` // A voxel row's pixel shows the voxel its ray meets in th
   let o=voxelBoxPoint(box,k.x)*bary.x+voxelBoxPoint(box,k.y)*bary.y+voxelBoxPoint(box,k.z)*bary.z;
   let carry=voxelCarry(page,brick);
   let ray=voxelRay(mask,box,o,uni.viewProj*page.world*carry*voxelCells(page,brick));
-  let hit=voxelPixel(ray.from,ray.dir,ray.cells);
+  let hit=voxelPixel(ray.start,ray.dir,ray.cells);
   // A ray the raster met a voxel on and this one grazes past reads the brick's first voxel.
   voxel=voxelRank(base,brick,select(0u,hit.bit,hit.found));
   let n=voxelNormal(base,voxel);
@@ -74,9 +75,26 @@ const PLAIN_RECEIVER = `   rcvOffset=receiver.offset;
 const VOXEL_NORMAL = `  if(VOXEL){N=voxelN;Nx=N;Ny=N;}
 `
 
+/** The frame of the tangents a page stores (`pageTangent`) at the weights `bary` of triangle `tri`:
+ *  each corner's tangent turned to the world (`world3`) and to the row's `side`, its bitangent the
+ *  corner normal's cross with it by its sign, both blended. The one tangent source of a pixel whose
+ *  page stores tangents: its normal map and its lobes bend in it (`physicalValues`). */
+const STORED_TANGENT_FRAME_WGSL = wgslBlock(
+  'STORED_TANGENT_FRAME_WGSL',
+  [COTANGENT_FRAME_WGSL],
+  `fn storedTangentFrame(page:PageInfo,tri:u32,bary:vec3f,n0:vec3f,n1:vec3f,n2:vec3f,world3:mat3x3f,side:f32)->CotangentFrame{
+ let h=pageHeader(page);let k=pageTriangle(page,h,tri);
+ let ta=pageTangent(page,h,k.x);let tb=pageTangent(page,h,k.y);let tc=pageTangent(page,h,k.z);
+ let t0=normalize(world3*ta.xyz)*side;let t1=normalize(world3*tb.xyz)*side;let t2=normalize(world3*tc.xyz)*side;
+ let T=normalize(t0*bary.x+t1*bary.y+t2*bary.z);
+ let B=normalize(normalize(cross(n0,t0)*ta.w)*bary.x+normalize(cross(n1,t1)*tb.w)*bary.y+normalize(cross(n2,t2)*tc.w)*bary.z);
+ return CotangentFrame(T,B);
+}`,
+)
+
 /**
- * Surface resolve of one material class: the fragment stage every class pipeline compiles with its
- * own feature overrides (`materialClass.ts`), kept on that class's pixels only (`classAdmits`).
+ * Surface resolve of one material class: the compute stage every class pipeline compiles with its
+ * own feature overrides (`materialClass.ts`), run over that class's pixels alone (`binnedPixel`).
  * `HAS_UV`, `HAS_MAP` and the other class constants are pipeline overrides, never tested per pixel
  * on `page.flags`; a kept path runs the per-pixel test's arithmetic, operand for operand.
  */
@@ -85,7 +103,7 @@ export const shadeShader = ({
   voxel = false,
 }: { diagnostic?: WgslDecl; voxel?: boolean } = {}) =>
   wgslProgram(
-    `/** The surfaces of an admitted pixel (\`classAdmits\`), its storage values in the variables of
+    `/** The surfaces of a pixel of the class's bin (\`binnedPixel\`), its storage values in the variables of
  *  its entry (\`shadeEntryWgsl.ts\`); its surface's factors and maps its record's (\`materialAt\`). */
 fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  let pageIndex=visPageIndex(id);
@@ -194,6 +212,10 @@ ${voxel ? VOXEL_RECEIVER : PLAIN_RECEIVER}  }
   }
 ${voxel ? VOXEL_NORMAL : ''}  // The clear coat bends its own normal map from the normal before the base one (\`physicalWgsl.ts\`).
   let coatBase=N;
+  // The tangents the page stores, their frame at the pixel: the one frame the normal map and the
+  // lobes bend in (\`physicalValues\`), decoded once.
+  var tangents:CotangentFrame;
+  if(HAS_TANGENT&&(HAS_NORMAL_MAP||(HAS_PHYSICAL&&physicalOn))){tangents=storedTangentFrame(page,tri,bary,n0,n1,n2,world3,side);}
   if(HAS_NORMAL_MAP){
    let scale=vec3f(m.normalScale,select(m.normalScaleY,m.tangentNormalScaleY,HAS_TANGENT),1.0);
    let mapN=unitToSigned3(nrmSample.xyz)*scale;
@@ -201,14 +223,8 @@ ${voxel ? VOXEL_NORMAL : ''}  // The clear coat bends its own normal map from th
    let nc=${coordonnee('normal')};
    let mapNx=unitToSigned3(dataSample(m.normalIndex,nc.uv+nc.ddx,nc.ddx,nc.ddy,HAS_SAMPLING).xyz)*scale;
    let mapNy=unitToSigned3(dataSample(m.normalIndex,nc.uv+nc.ddy,nc.ddx,nc.ddy,HAS_SAMPLING).xyz)*scale;
-   var T=vec3f(0.0);var B=vec3f(0.0);
-   if(HAS_TANGENT){
-    let k=pageTriangle(page,pageHeaderFor(page,false),tri);
-    let ta=vertT(page.vertexBase,k.x);let tb=vertT(page.vertexBase,k.y);let tc=vertT(page.vertexBase,k.z);
-    let t0=normalize(world3*ta.xyz)*side;let t1=normalize(world3*tb.xyz)*side;let t2=normalize(world3*tc.xyz)*side;
-    T=normalize(t0*bary.x+t1*bary.y+t2*bary.z);
-    B=normalize(normalize(cross(n0,t0)*ta.w)*bary.x+normalize(cross(n1,t1)*tb.w)*bary.y+normalize(cross(n2,t2)*tc.w)*bary.z);
-   }else{
+   var T=tangents.T;var B=tangents.B;
+   if(!HAS_TANGENT){
     let c=${coordonnee('normal')};
     let frame=cotangentFrame(N,(w1-w0).xyz,(w2-w0).xyz,c.d1,c.d2);
     T=frame.T*screenFace;B=frame.B*screenFace;
@@ -243,6 +259,7 @@ ${voxel ? VOXEL_NORMAL : ''}  // The clear coat bends its own normal map from th
       modelFlag,
       EMISSIVE_AO_FLAG_WGSL,
       SHADE_DECL_WGSL,
+      STORED_TANGENT_FRAME_WGSL,
       ORM_LAW_WGSL,
       DIAGNOSTIC_PALETTE_WGSL,
       worldMatrix3,

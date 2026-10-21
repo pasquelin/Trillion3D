@@ -57,9 +57,11 @@ lighting pass (`lighting/shadows/vsm/frame/engineVsm.ts`, `vsmEncode.ts`), in th
 4. Page marking (`vsm/markingPass.ts`, `vsm/markingWgsl.ts`).
 5. Page allocation (`vsm/pageManagementPass.ts:encodeVsmPageMapping`, `vsm/physicalPagesWgsl.ts`).
 6. The shadow raster on the camera cut's resident rows (`render/renderPass.ts`,
-   `render/renderCullWgsl.ts`, `render/renderRasterWgsl.ts`), its chunks sized from histograms of the
-   rows' spheres the GPU bins after it and reads back a few frames late (`rows/rowBinsWgsl.ts`,
-   `rows/rowPageBound.ts`).
+   `render/renderCullWgsl.ts`, `render/renderRasterWgsl.ts`) — those its level of detail selects and
+   its HLOD switch draws (`geometry/dag/shader/worldGateWgsl.ts`, `worldDraws`): an HLOD actor the
+   view does not draw, or a cell's objects it does not draw, casts nothing —, its chunks sized
+   from histograms of the rows' spheres the GPU bins after it and reads back a few frames late
+   (`rows/rowBinsWgsl.ts`, `rows/rowPageBound.ts`).
 7. Post render (`vsm/pageManagementPass.ts:encodeVsmAfterRaster`), the blended casters' atlas
    (`transmission/transmissionPass.ts`), then the projection into the mask (`projection/projectionPass.ts`,
    `projection/projectionWgsl.ts`, `trace/traceWgsl.ts`).
@@ -69,7 +71,9 @@ lighting pass (`lighting/shadows/vsm/frame/engineVsm.ts`, `vsmEncode.ts`), in th
 Rules across passes: every page allocated and valid this frame is drawn this frame, no list
 overflows (`rows/rowPageBound.ts`); a still scene draws nothing after its first frames, every page
 keeping its static depth, and a static caster that moves redraws only the pages its box covers,
-into the dynamic slice (`VSM_STILL_FRAMES`).
+into the dynamic slice (`VSM_STILL_FRAMES`); a cell that switches between its objects and its HLOD
+actor redraws, in the same image, the pages the rows of both cover
+(`frame/prepare/lightResources.ts:shadowsFollowCells`).
 
 ## Reading the shadow
 

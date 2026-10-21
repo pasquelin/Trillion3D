@@ -148,7 +148,7 @@ async function make(
   // Its corners unchanged, a larger box serves the same pages again: nothing is cut.
   const again = held && fits(before.drawn, drawn, box)
   if (!again) state.counts.cuts++
-  const cut = again ? held.cut : await cutPagesOffThread(packDrawn(drawn, blended, { held: true }))
+  const cut = again ? held.cut : await cutPagesOffThread(packDrawn(drawn, blended))
   // Each page bounded by its own corners where they are now: a rewrite measures them again.
   const motion = createPageMotion(cut, new Float32Array(drawn.positions))
   const runtime = servePrimitive(cut, drawn, motion.boxes)

@@ -36,12 +36,3 @@ export const geometryPageAddress = (file: string, offset: number) => `${file}#${
 /** The catalogue name of the streaming bundle at `offset` of the container at `file`: never a
  *  page's, though its first page starts where it does. */
 export const streamBundleAddress = (file: string, offset: number) => `${file}#bundle-${offset}`
-/** The grid a primitive's pages were quantized on, and the largest displacement it caused. */
-export interface PrimitiveQuantization {
-  /** Position step is `2 ** positionExponent`, in object units. */
-  positionExponent: number
-  /** Texture coordinates sit on `2 ** uvExponent`. */
-  uvExponent: number
-  /** Largest distance between a source position and its decoded value; null without pages. */
-  maxPositionError: number | null
-}

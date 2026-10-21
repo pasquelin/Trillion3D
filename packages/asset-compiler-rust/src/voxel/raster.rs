@@ -2,24 +2,51 @@
 //! along the axis its normal leans on most, each from its plane's span over the column, every voxel
 //! kept by the separating-axis test (Akenine-Möller). A voxel the triangle only touches is kept, so
 //! a surface lying on a voxel face leaves no hole; the rays then give it to one side (`sample.rs`).
-use crate::proxy::tracer::{vertex, World};
-use std::collections::HashMap;
-use trillion3d_math::vec3::{cross, dominant_axis};
-use trillion3d_math::vecn::{dot, scale, sub};
+use crate::trace::tracer::{vertex, World};
+use trillion3d_math::vector::vec3::{cross, dominant_axis};
+use trillion3d_math::vector::vecn::{dot, scale, sub};
+use trillion3d_page_codec::hash::WordMap;
 
 /// A voxel: its corner nearest the origin over the side.
-pub(super) type Cell = [i32; 3];
+pub(crate) type Cell = [i32; 3];
 
 /// Slack of the spans, in voxels, so a corner on a face reaches the voxels on both sides.
 const SLACK: f64 = 1e-7;
 
 /// Calls `visit` with each voxel of side `side` the triangle `corners` overlaps.
-pub(super) fn cells(corners: [[f64; 3]; 3], side: f64, mut visit: impl FnMut(Cell)) {
+pub(crate) fn cells(corners: [[f64; 3]; 3], side: f64, visit: impl FnMut(Cell)) {
+    cells_within(corners, side, None, visit);
+}
+
+/// `cells`, kept within `[0, count)` on each axis when `count` is given: a triangle reaching far
+/// past a grid walks only the grid's columns.
+pub(crate) fn cells_within(
+    corners: [[f64; 3]; 3],
+    side: f64,
+    count: Option<Cell>,
+    mut visit: impl FnMut(Cell),
+) {
     let t = corners.map(|c| scale(c, 1.0 / side));
-    let low: Cell =
-        std::array::from_fn(|k| (t[0][k].min(t[1][k]).min(t[2][k]) - SLACK).floor() as i32);
-    let high: Cell =
-        std::array::from_fn(|k| (t[0][k].max(t[1][k]).max(t[2][k]) + SLACK).floor() as i32);
+    // A corner not finite overlaps no voxel.
+    if !t.iter().flatten().all(|x| x.is_finite()) {
+        return;
+    }
+    // Floored in floats, then clamped, so a far corner never wraps an `i32`.
+    let (floor_low, floor_high) = match count {
+        Some(n) => ([0.0; 3], n.map(|n| f64::from(n) - 1.0)),
+        None => ([f64::from(i32::MIN); 3], [f64::from(i32::MAX); 3]),
+    };
+    let low: Cell = std::array::from_fn(|k| {
+        let x = (t[0][k].min(t[1][k]).min(t[2][k]) - SLACK).floor();
+        x.max(floor_low[k]) as i32
+    });
+    let high: Cell = std::array::from_fn(|k| {
+        let x = (t[0][k].max(t[1][k]).max(t[2][k]) + SLACK).floor();
+        x.min(floor_high[k]) as i32
+    });
+    if (0..3).any(|k| low[k] > high[k]) {
+        return;
+    }
     let n = cross(sub(t[1], t[0]), sub(t[2], t[0]));
     let d = dominant_axis(n);
     let (u, v) = ((d + 1) % 3, (d + 2) % 3);
@@ -83,7 +110,7 @@ pub(super) fn binned(
     (candidates, side): (&[Cell], f64),
     triangles: impl Iterator<Item = usize>,
 ) -> Vec<Vec<u32>> {
-    let at: HashMap<Cell, usize> = (candidates.iter().enumerate())
+    let at: WordMap<Cell, usize> = (candidates.iter().enumerate())
         .map(|(i, &c)| (c, i))
         .collect();
     let mut bins: Vec<Vec<u32>> = vec![Vec::new(); candidates.len()];

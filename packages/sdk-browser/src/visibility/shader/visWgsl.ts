@@ -9,36 +9,38 @@ import {
   materialDeclarations,
 } from '../../materials/virtual/wgsl.ts'
 import { VIS_BINDINGS } from '../../gpu/bind/bindLayout.ts'
-import { maskUvWgsl } from './pageUv1Wgsl.ts'
-import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from '../raster/contract.ts'
+import { maskUvWgsl } from './pageUvSetWgsl.ts'
+import { VIS_WRITE_WGSL, pixelOffset } from '../raster/pixelWgsl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { wgslBlock, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { cornerBarycentric, wireframeEdge } from '../../../../math/src/wgsl/barycentric.ts'
 import { DIAGNOSTIC_WIRE_WGSL } from '../../diagnostic/colors.ts'
 import { FLAG_DYNAMIC, FLAG_MASK } from '../types.ts'
 import { visTriangle } from '../visWords.ts'
 
-/** The raster's one fragment stage, and the override that compiles its mask test out for a slot
- *  that holds no cutout row (`MASKED` false): the opaque twins' constants
- *  (`../passes/pipelines.ts`). */
+/** The raster's one fragment stage, the override that compiles its mask test out for a slot
+ *  that holds no cutout row (`MASKED` false), the opaque twins' constants, and the one that makes
+ *  it the identifier phase of the visibility write (`ID_PHASE`, `../passes/pipelines.ts`). */
 export const VIS_FRAGMENT = 'vis_hiz_fs'
 export const VIS_UNMASKED = { MASKED: 0 }
+export const VIS_ID_PHASE = 'ID_PHASE'
+
+/** The hardware raster's second group: the visibility buffer both rasters write
+ *  (`../raster/bindings.ts`, `hardwareWorkLayout`). */
+export const VIS_WORK_BINDING = `@group(1) @binding(0) var<storage,read_write> work:array<atomic<u32>>;`
 
 /** A vertex stage over the indirect slots, the hardware raster's (`vis_vs`) or the x-ray view's
- *  (`vis_xray_vs`): one text, which reads the compute share (`hardwareIdle`,
- *  `hardwareCorner`) only where `share` says, and ends with `tail`, what it writes into `tc`. */
-const visVertex = (entry: string, share: boolean, tail: string) =>
+ *  (`vis_xray_vs`): one text, ending with `tail`, what it writes into `tc`. */
+const visVertex = (entry: string, tail: string) =>
   `@vertex fn ${entry}(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
  var out:VSOut;
  let at=drawBatch(instanceIndex);let pageIndex=at.x;let corner=at.y+vertexIndex;
  let page=pages[pageIndex];
  out.instance=pageIndex;out.tc=vec3f(0.0);
- if(${share ? 'hardwareIdle(page,corner)' : 'corner>=page.indexCount'}){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ if(corner>=page.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let h=pageHeaderFor(page,pageSurfaceRead(page));
  let shape=pageShape(page);
- let id=${share ? 'hardwareCorner(page,h,corner,shape)' : 'pageCorner(page,h,corner)'};
- if(id==NO_INDEX){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ let id=pageCorner(page,h,corner);
  let p=pagePosition(page,h,id);
  let world=page.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;
@@ -49,11 +51,10 @@ ${tail} return out;
 }
 `
 
-/** The vertex stage of the hardware raster, both halves': a row the Hi-Z test rejected never
- *  reaches it (`GpuDraw.encodeTested`). */
+/** The vertex stage of the hardware raster, both halves': a row neither of the cut's masks holds
+ *  never reaches it (`GpuDraw.encode`, `GpuDraw.encodePost`). */
 const VIS_VERTEX = visVertex(
   'vis_vs',
-  true,
   ` if((page.flags&${UV_READ}u)==${UV_READ}u){out.tc=vec3f(pageMaskUv(page,h,id),0.0);}
  if((page.flags&${FLAG_MASK}u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
 `,
@@ -62,20 +63,20 @@ const VIS_VERTEX = visVertex(
 /**
  * THE X-RAY VIEW (`xray`), a see-through wireframe — every triangle's edges, the hidden ones
  * too, both faces, no culling — over what the GPU cut submitted this image: the same
- * indirect slots, both halves, the rows the frustum, the cut's levels and the Hi-Z test dropped
- * already gone (`GpuDraw.encodeTested`), drawn again with no depth test and added
- * (`../passes/xray.ts`). Its vertex stage is the raster's, the compute share left
- * out — a triangle the compute raster took was submitted too —, its `tc` the corner's
- * barycentric basis; its fragment the wireframe's coverage of the edges (`wireframeEdge`, the
- * barycentrics' change over one pixel as the blended wireframe takes it) times the primitive's wire
- * colour by its mobility (`diagnosticWireColor`).
+ * indirect slots, both halves, the rows the frustum, the cut's levels and its occlusion test
+ * dropped already gone (`GpuDraw.encode`, `GpuDraw.encodePost`), drawn again with no depth test
+ * and added
+ * (`../passes/xray.ts`) — the software raster's rows too, from their own slots. Its vertex stage
+ * is the raster's, its `tc` the corner's barycentric basis; its fragment the wireframe's
+ * coverage of the edges (`wireframeEdge`, the barycentrics' change over one pixel as the blended
+ * wireframe takes it) times the primitive's wire colour by its mobility (`diagnosticWireColor`).
  */
 export const VIS_XRAY_VERTEX = 'vis_xray_vs',
   VIS_XRAY_FRAGMENT = 'vis_xray_fs'
 const VIS_XRAY_WGSL = wgslBlock(
   'VIS_XRAY_WGSL',
   [wireframeEdge, cornerBarycentric, DIAGNOSTIC_WIRE_WGSL],
-  `${visVertex(VIS_XRAY_VERTEX, false, ' out.tc=cornerBarycentric(corner%3u);\n')}
+  `${visVertex(VIS_XRAY_VERTEX, ' out.tc=cornerBarycentric(corner%3u);\n')}
 @fragment fn ${VIS_XRAY_FRAGMENT}(in:VSOut)->@location(0) vec4f{
  let coverage=wireframeEdge(in.tc,max(fwidth(in.tc),vec3f(1e-6)));
  if(coverage==0.0){discard;}
@@ -85,10 +86,13 @@ const VIS_XRAY_WGSL = wgslBlock(
 )
 
 /**
- * Hardware raster of the visibility buffer, producer of the opaque and masked image. Under the
- * compute share (`uni.computeSpan`), it leaves to the compute raster the triangles that
- * one takes — the same predicate, read on the same vertices — and draws all the others; at
- * zero, it draws the whole cut without reading one more vertex.
+ * Hardware raster of the visibility buffer, for the clusters the split leaves it (`binWgsl.ts`):
+ * those that cross a clip plane, whose edges project at the hardware threshold or more, and the
+ * lines, sprites and voxel bricks. Its fragments write no attachment: each takes the visibility
+ * write both rasters share (`VIS_WRITE_WGSL`) into `work`, at its depth plus its row's coplanar
+ * units, the depth phase or the identifier phase as `ID_PHASE` says — the same slots drawn twice,
+ * the second time once every depth of the image is down. The two phases compute the same position
+ * (`@invariant`), so a fragment meets the key it wrote.
  */
 export const visShader = ({ diagnostic }: { diagnostic?: WgslDecl } = {}) =>
   wgslProgram(
@@ -99,37 +103,26 @@ ${PAGE_BINDING.uniforms}
 ${materialDeclarations()}
 ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
+${VIS_WORK_BINDING}
 // \`tc\` is the UV and, on a masked row, the vertex alpha of its cutout: one interpolant, as the UV
 // alone was.
-struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) @interpolate(flat) instance:u32,@location(2) tc:vec3f,}
-/** True when this vertex belongs to no triangle of the page, or when the compute raster draws
- *  the whole cut: neither case reads a page word, so neither decodes the page header. */
-fn hardwareIdle(page:PageInfo,vertexIndex:u32)->bool{
- return vertexIndex>=page.indexCount||uni.computeSpan>=${COMPUTE_ALL};
-}
-/** The page corner this vertex draws, or none (\`NO_INDEX\`) when hardware leaves its triangle to
- *  the compute raster, which takes it: without a share, only the vertex's own corner is decoded,
- *  with one, its triangle once, which the test and the corner both read. */
-fn hardwareCorner(page:PageInfo,h:ClusterHeader,vertexIndex:u32,shape:PageShape)->u32{
- if(uni.computeSpan<=0.0){return pageCorner(page,h,vertexIndex);}
- let corners=pageTriangle(page,h,vertexIndex/3u);let ia=corners.x;let ib=corners.y;let ic=corners.z;
- let vp=uni.viewProj*page.world;
- if(computeTakes(pageClip(vp,page,h,ia,shape),pageClip(vp,page,h,ib,shape),pageClip(vp,page,h,ic,shape))){return NO_INDEX;}
- return corners[vertexIndex%3u];
-}
-${VIS_VERTEX}struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
+struct VSOut{@builtin(position) @invariant position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) @interpolate(flat) instance:u32,@location(2) tc:vec3f,}
+${VIS_VERTEX}
 // A slot that holds no cutout row (no \`FLAG_MASK\`) is drawn with \`MASKED\` false: \`maskKeep\` keeps
-// every pixel of such a row, so the pipeline's constant removes the page read and the discard
-// before the stage is compiled, and a tile GPU's hidden-surface removal resolves its overdraw
-// before it runs (#831). One text, the mask test present only where a row can cut.
+// every pixel of such a row, so the pipeline's constant removes the page read and the cutout
+// before the stage is compiled. One text, the mask test present only where a row can cut.
 override MASKED:bool=true;
-@fragment fn ${VIS_FRAGMENT}(in:VSOut)->VisHizOut{
- var out:VisHizOut;
- if(MASKED){
-  let gx=dpdx(in.tc.xy);let gy=dpdy(in.tc.xy);
-  if(!maskKeep(pages[in.instance],in.tc.xy,in.tc.z,gx,gy)){discard;}
- }
- out.id=in.id;out.depth=in.position.z;return out;
+override ${VIS_ID_PHASE}:bool=false;
+@fragment fn ${VIS_FRAGMENT}(in:VSOut){
+ // The cutout's footprint, taken while every lane of the quad still runs.
+ var gx=vec2f(0.0);var gy=vec2f(0.0);
+ if(MASKED){gx=dpdx(in.tc.xy);gy=dpdy(in.tc.xy);}
+ let page=pages[in.instance];
+ let offset=pixelOffset(vec2u(in.position.xy));
+ let key=visKey(in.position.z,page.depthBias);
+ if(!visPasses(offset,key,${VIS_ID_PHASE})){return;}
+ if(MASKED&&!maskKeep(page,in.tc.xy,in.tc.z,gx,gy)){return;}
+ visWrite(offset,key,in.id,${VIS_ID_PHASE});
 }
 `,
     [
@@ -142,8 +135,8 @@ override MASKED:bool=true;
       maskKeepWgsl(maskAlphaWgsl(false)),
       PAGE_GEOMETRY_WGSL,
       maskUvWgsl(VIS_BINDINGS.normals),
-      COMPUTE_TAKES_WGSL,
-      NO_INDEX,
+      VIS_WRITE_WGSL,
+      pixelOffset,
       visTriangle,
       ...(diagnostic ? [diagnostic] : []),
     ],

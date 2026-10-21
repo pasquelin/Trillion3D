@@ -1,8 +1,9 @@
 // Each occluder pipeline has a twin of the same states but for its fragment stage, the one
-// that neither reads the page nor discards (`visOpaque.test.ts`: the same image), made with it at
+// that neither reads the page nor cuts (`visOpaque.test.ts`: the same image), made with it at
 // preparation; none under a diagnostic variant of the raster stage. `drawVis` draws each half's
-// opaque slots with the twin, then its cutout slots with the pipeline that discards — both halves
-// with the same pipelines —, and its voxel slots only on a frame whose table holds a voxel row.
+// opaque slots with the twin, then its cutout slots with the pipeline that cuts — both halves and
+// every coplanar layer with the same pipelines —, and its voxel slots only on a frame whose table
+// holds a voxel row.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -11,11 +12,7 @@ import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../geometry/pages/surface.ts'
 import { BASE_SLOTS, BIN_KIND, CULL_BINS, HALF_SLOTS } from '../draw/contract.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
-import {
-  createWebgpuCoplanarLayerPipelines,
-  createWebgpuVisibilityRasterPipelines,
-  twinOf,
-} from './pipelines.ts'
+import { createWebgpuVisibilityRasterPipelines, twinOf } from './pipelines.ts'
 import { drawVis } from './drawer.ts'
 import { createWebgpuVisState } from '../../frame/backend/state/vis.ts'
 import { replayBundles } from '../../../../../tests/kit/fakeDevice/fakeBundles.ts'
@@ -25,29 +22,29 @@ const build = async (variant?: 'geometry-flat') => {
   const { device } = fakeDevice()
   const [module, layout] = [{} as GPUShaderModule, {} as GPUBindGroupLayout]
   const raster = await createWebgpuVisibilityRasterPipelines(device, module, layout, variant)
-  const layers = await createWebgpuCoplanarLayerPipelines(device, module, layout, 2, variant)
-  return {
-    ...{ device, raster, layers, all: [...Object.values(raster), ...layers] as Made[] },
-  }
+  return { device, raster, all: Object.values(raster) as Made[] }
 }
 
 test("an occluder's twin is itself but for the opaque fragment stage", async () => {
   const { all } = await build()
   for (const pipeline of all) {
-    const twin = twinOf(pipeline, BIN_KIND.OPAQUE) as Made
-    assert.deepEqual(twin.fragment, { ...pipeline.fragment!, constants: { MASKED: 0 } })
+    const twin = twinOf(pipeline, BIN_KIND.OPAQUE, false) as Made
+    assert.deepEqual(twin.fragment, {
+      ...pipeline.fragment!,
+      constants: { MASKED: 0, ID_PHASE: 0 },
+    })
     assert.deepEqual({ ...twin, fragment: pipeline.fragment }, pipeline)
   }
 })
 
 test('a diagnostic raster stage imposes itself: no twin', async () => {
   const { all } = await build('geometry-flat')
-  assert.ok(all.every((pipeline) => !pipeline || !twinOf(pipeline, BIN_KIND.OPAQUE)))
+  assert.ok(all.every((pipeline) => !pipeline || !twinOf(pipeline, BIN_KIND.OPAQUE, false)))
 })
 
 /** The pipelines `drawVis` sets and the indirect offsets it draws. */
 async function drawn(rest: boolean) {
-  const { device, raster, layers } = await build()
+  const { device, raster } = await build()
   const set: Made[] = [],
     offsets: number[] = []
   const pass = {
@@ -62,11 +59,11 @@ async function drawn(rest: boolean) {
     vis: {
       ...raster,
       drawLayerSlots: 2,
-      visLayerPipelines: layers,
       visBindGroupLayout: {},
-      zeroFlags: {},
+      zeroRows: {},
       visSlotGroups: new Array(2 * BASE_SLOTS).fill({}),
       gpuDraw: { indirectBuffer: {} },
+      gpuRaster: { hardwareGroup: {} },
       visBundles: createWebgpuVisState().visBundles,
     },
     run: { gpuDrawCalls: 0 },
@@ -86,7 +83,7 @@ async function drawn(rest: boolean) {
       itemWordsHold: { voxelRows: 0 },
     },
   } as unknown as WebgpuPagesRuntime
-  drawVis(rt, device, pass, rest)
+  drawVis(rt, device, pass, rest, false)
   const stage = ({ fragment }: GPURenderPipelineDescriptor) =>
     fragment!.constants?.MASKED === 0 ? 'unmasked' : fragment!.entryPoint
   return { set: set.map(stage), offsets }

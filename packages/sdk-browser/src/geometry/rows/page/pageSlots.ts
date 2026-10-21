@@ -1,5 +1,7 @@
 import type { PageRec } from '../../selection/types.ts'
 import { alignUp } from '../../../../../math/src/scalar/integers.ts'
+import type { PageUnit } from '../../pages/pool/homes.ts'
+import type { RootSlots } from '../../pages/pool/placement.ts'
 
 /**
  * The address one pool slot is held, pinned and read under, for one cluster record.
@@ -18,6 +20,17 @@ export const pageAddress = (rec: Pick<PageRec, 'url' | 'geometryPage'>) =>
  *  (`../../hlod/worldRecords.ts`) — takes no slot, reads no vertex and draws nothing. */
 export const hasPage = (rec: Pick<PageRec, 'url' | 'geometryPage'>) => pageAddress(rec) !== ''
 
+/** The STREAMING PAGE `rec`'s address lies in, and where: its bundle (`PageRec.streamUrl`) at its
+ *  offset there — what one pool slot holds and the residency streams whole
+ *  (`../../residency/pageUnits.ts`) —, or for a record its cache gives no bundle, its own address
+ *  at its start. The one rule of the pool's census (`describePageSlots`) and the residency's. */
+export const pageUnit = (
+  rec: Pick<PageRec, 'url' | 'geometryPage' | 'streamUrl' | 'streamOffset'>,
+): PageUnit =>
+  rec.streamUrl !== undefined && hasPage(rec)
+    ? { unit: rec.streamUrl, offset: rec.streamOffset ?? 0 }
+    : { unit: pageAddress(rec), offset: 0 }
+
 /** The bytes a page takes in its pool slot, padded to a word: its geometry page's, else its
  *  index bytes. */
 export const paddedPageBytes = (page: Pick<PageRec, 'geometryPage' | 'array' | 'indexBytes'>) =>
@@ -31,31 +44,35 @@ export const pageCorners = (page: Pick<PageRec, 'geometryPage' | 'triangles'>) =
   page.geometryPage ? page.geometryPage.indexCount : page.triangles * 3
 
 /**
- * Starts the read of a cluster's geometry page ahead of its admission (`../../residency/admission.ts`)
- * through the host's page reader, the one the admission's own read goes through, which joins it.
- * A cluster without a geometry page is served from memory: nothing to start. A failed read is the
- * admission's to report, when its own read meets it.
+ * Starts the read of a cluster's geometry page as the streaming starts the page, ahead of its
+ * install (`../../residency/queue.ts`), through the host's page reader, the one the pool's own read
+ * goes through, which joins it: the read, or none for a cluster without a geometry page, served
+ * from memory.
  */
 export const readGeometryAhead =
   (
     geometryUrls: ReadonlyMap<string, string>,
     read: (url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>,
   ) =>
-  (rec: PageRec, signal: AbortSignal, priority?: number) => {
+  (rec: PageRec, signal?: AbortSignal) => {
     const url = geometryUrls.get(pageAddress(rec))
-    if (url !== undefined) read(url, signal, priority).catch(() => {})
+    return url === undefined ? undefined : read(url, signal)
   }
 
 /**
  * What the geometry pool holds for the scene, walked once from the catalogue, then from the
  * records of each source added to the session (`held`, the census so far).
  *
- * A slot holds a cluster's quantized geometry page where the cache carries one, its index page
- * otherwise, and it is as wide as the widest of them, so any admitted page fits. That width is a
- * BYTE count and says nothing about how many corners a cluster draws: a page under twelve packed
- * bytes per triangle is narrower than its own corner list. The draw ceiling is therefore the
- * catalogue's largest corner count, taken here and nowhere else — a draw bounded by the slot's
- * word count would silently drop the tail triangles of every cluster the format compresses well.
+ * A slot holds one STREAMING PAGE (`pageUnit`): its clusters' quantized geometry pages where the
+ * cache carries them, their index pages otherwise, each at its offset there, and it is as wide as
+ * the widest streaming page, so any admitted one fits (`pageBytes`; `units`, each address's page
+ * and offset; `unitWidths`, each page's width — the end of its last cluster —; `unitPages`, the
+ * most clusters one holds; `clusterBytes`, the widest cluster's page, which bounds a row's
+ * triangles). That width is a BYTE count and says nothing about how many corners a
+ * cluster draws: a page under twelve packed bytes per triangle is narrower than its own corner
+ * list. The draw ceiling is therefore the catalogue's largest corner count, taken here and nowhere
+ * else — a draw bounded by the slot's word count would silently drop the tail triangles of every
+ * cluster the format compresses well.
  *
  * The slot's content is chosen per cluster ADDRESS (`geometryUrls`), while the row's
  * `FLAG_CLUSTER_PAGE` is decided per RECORD (`pageRowMaterial.ts`, from `rec.geometryPage`).
@@ -63,11 +80,13 @@ export const readGeometryAhead =
  * `pageAddress` makes that impossible: a record's page is part of its address. The refusal below is
  * that invariant said out loud, on the one walk where both sides are read together.
  *
- * `homes` is each address's own width, its bytes padded to a word: what the pool gives the page
+ * `homes` is each address's own width, its bytes padded to a word: the room its page has in its
+ * streaming page, which a page joining the session later may not outgrow
+ * (`../../../frame/prepare/catalogueGrowth.ts`). The pool gives each streaming page its own width
  * when the whole catalogue fits (`../../pages/pool/homes.ts`).
  */
 export function describePageSlots(allPages: readonly PageRec[], held = pageSlotCensus()) {
-  const { geometryUrls, homes } = held
+  const { geometryUrls, homes, units, unitWidths, unitCounts } = held
   for (const page of allPages) {
     const geometry = page.geometryPage,
       address = pageAddress(page)
@@ -80,20 +99,55 @@ export function describePageSlots(allPages: readonly PageRec[], held = pageSlotC
     } else if (page.transparent) held.transparentClusters++
     else held.fromSourceGeometry++
     const padded = paddedPageBytes(page)
-    if (padded > held.pageBytes) held.pageBytes = padded
     if (padded > (homes.get(address) ?? 0)) homes.set(address, padded)
+    if (padded > held.clusterBytes) held.clusterBytes = padded
+    // An address keeps the streaming page it was first described in.
+    let placed = units.get(address)
+    if (!placed) {
+      units.set(address, (placed = pageUnit(page)))
+      const count = (unitCounts.get(placed.unit) ?? 0) + 1
+      unitCounts.set(placed.unit, count)
+      if (count > held.unitPages) held.unitPages = count
+    }
+    const end = placed.offset + padded
+    if (end > (unitWidths.get(placed.unit) ?? 0)) unitWidths.set(placed.unit, end)
+    if (end > held.pageBytes) held.pageBytes = end
     const corners = pageCorners(page)
     if (corners > held.maxCorners) held.maxCorners = corners
   }
   return held
 }
 
+/** The root region the streaming pages `addresses` lie in ask, as `census` describes them — the
+ *  root cover's, which the pool holds beside its streaming slots (`../../pages/pool/placement.ts`,
+ *  `RootSlots`) —: how many they are, each once, and the widest's bytes, a grain each. */
+export function rootSlotsOf(
+  census: Pick<PageSlotCensus, 'units' | 'unitWidths'>,
+  addresses: Iterable<string>,
+): RootSlots {
+  const units = new Set<string>()
+  let bytes = 0
+  for (const address of addresses) {
+    const unit = census.units.get(address)?.unit ?? address
+    units.add(unit)
+    bytes = Math.max(bytes, census.unitWidths.get(unit) ?? 0)
+  }
+  return { slots: units.size, bytes }
+}
+
+export type PageSlotCensus = ReturnType<typeof pageSlotCensus>
+
 /** What `describePageSlots` has described so far: nothing. A source added to the session later
  *  is described on the census the open made. */
 const pageSlotCensus = () => ({
   geometryUrls: new Map<string, string>(),
   pageBytes: 4,
+  clusterBytes: 4,
   homes: new Map<string, number>(),
+  units: new Map<string, PageUnit>(),
+  unitWidths: new Map<string, number>(),
+  unitCounts: new Map<string, number>(),
+  unitPages: 1,
   maxCorners: 1,
   fromGeometryPage: 0,
   fromSourceGeometry: 0,

@@ -56,10 +56,16 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // gone with its last reader, it no longer imports the matrix elements: four off the browser one.
   // The float module's three private double word views become the one `bits.ts` view: six off
   // the core and the package; the browser condition, which reaches `bits.ts` for its double words,
-  // now runs that module's float32 view too: 28 bytes on.
-  assert.equal(baseline.outputFiles[0].contents.length, 1_729)
+  // now runs that module's float32 view too: 28 bytes on. Every table the schemas and the settings
+  // build from rules and calls — the compile options' pieces, the run-time tools, the rule tables
+  // of the streaming, the cut, the raster, the animation, the shading and the mesh build, the
+  // partition's setting lists — is built by a call marked pure or written as literals, so a bundle
+  // that never reads one drops it, as it drops the schemas themselves. The light settings' two
+  // translucent-shadow fields (`translucentShadowQuality`, `translucentLocalShadows`) put 54
+  // bytes on the core: 1 791; the browser condition loses 38.
+  assert.equal(baseline.outputFiles[0].contents.length, 1_791)
   assert.equal(proposed.outputFiles[0].contents.length, 1_397)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_102)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_064)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )

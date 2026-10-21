@@ -1,10 +1,11 @@
 //! The gate of a page's header (`Header::parse`): its words read, every bound the JavaScript decoder
 //! checks refused in the same order, before any stream is read.
 
-use crate::bits::{self, Quant};
+use crate::bits::{self, ColorRange, PositionGrid, UvRange};
 use crate::{
-    deform, positions, triangles, Header, Layout, PageError, FLAGS_ALL, FLAG_SKIN,
-    FLAG_SOFT_SOURCE, HEADER_BYTES, HEADER_WORDS, MAGIC, MAX_VERTICES, VERSION,
+    deform, positions, triangles, Header, Layout, PageError, FLAGS_ALL, FLAG_NORMAL, FLAG_SKIN,
+    FLAG_SOFT_SOURCE, FLAG_TANGENT, HEADER_BYTES, HEADER_WORDS, MAGIC, MAX_NORMAL_PRECISION,
+    MAX_TANGENT_PRECISION, MAX_UV_SETS, MAX_VERTICES, VERSION,
 };
 
 impl Header {
@@ -21,17 +22,22 @@ impl Header {
         if w[0] != MAGIC || w[1] != VERSION {
             return Err(PageError::Version);
         }
-        let f = f32::from_bits;
+        let start = [w[6], w[7], w[8]].map(|cell| cell as i32);
         let records = (
-            Quant::unpack(w[5], [f(w[6]), f(w[7]), f(w[8])]),
-            Quant::unpack(w[9], [f(w[10]), f(w[11])]),
-            Quant::unpack(w[12], [f(w[13]), f(w[14])]),
-            Quant::unpack(w[15], [f(w[16]), f(w[17]), f(w[18]), f(w[19])]),
+            PositionGrid::unpack(w[5], start),
+            ColorRange::unpack(w[17], w[18] & 0xffff),
         );
-        let (Some(position), Some(uv), Some(uv1), Some(color)) = records else {
+        let (Some(position), Some(color)) = records else {
             return Err(PageError::Bounds);
         };
-        let Some((skin, morphs)) = deform::parse(w[4], w[23], data) else {
+        let mut uv = [UvRange::default(); MAX_UV_SETS];
+        for (set, range) in uv.iter_mut().enumerate() {
+            let Some(read) = UvRange::unpack([w[9 + 2 * set], w[10 + 2 * set]]) else {
+                return Err(PageError::Bounds);
+            };
+            *range = read;
+        }
+        let Some((skin, morphs)) = deform::parse(w[4], w[21], data) else {
             return Err(PageError::Bounds);
         };
         let header = Self {
@@ -40,11 +46,11 @@ impl Header {
             flags: w[4],
             position,
             uv,
-            uv1,
             color,
-            quantization_error: f(w[20]),
-            corner_bits: w[21] as usize,
-            position_count: w[22] as usize,
+            normal_precision: (w[18] >> 16) & 15,
+            tangent_precision: (w[18] >> 20) & 15,
+            corner_bits: w[19] as usize,
+            position_count: w[20] as usize,
             skin,
             morphs,
         };
@@ -57,8 +63,10 @@ impl Header {
             && header.corner_bits <= header.index_count.saturating_mul(triangles::MAX_WIDTH)
             && header.flags & !FLAGS_ALL == 0
             && (header.flags & FLAG_SOFT_SOURCE == 0 || header.flags & FLAG_SKIN != 0)
-            && header.quantization_error.is_finite()
-            && header.quantization_error >= 0.0
+            && (header.flags & FLAG_TANGENT == 0 || header.flags & FLAG_NORMAL != 0)
+            && w[18] >> 24 == 0
+            && (1..=MAX_NORMAL_PRECISION).contains(&header.normal_precision)
+            && header.tangent_precision <= MAX_TANGENT_PRECISION
             && header.decoded_bytes() <= max_decoded_bytes
             && layout.bytes() == data.len()
             && layout.morphs_at(&header)

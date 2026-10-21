@@ -6,7 +6,7 @@
 //! measurement is therefore shared here, with the ring, so each
 //! driver proves itself on the same polygon and the same area.
 use super::*;
-use trillion3d_math::triangle::triangle_area;
+use trillion3d_math::geometry::triangle::triangle_area;
 
 /// The U polygon: eight corners, area seven, a fan of eleven.
 pub(crate) const U_RING: [[f64; 2]; 8] = [

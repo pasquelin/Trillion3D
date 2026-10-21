@@ -53,8 +53,7 @@ const page = encodePage(
     JOINTS_0: { array: new Uint32Array(12), itemSize: 4 },
     WEIGHTS_0: { array: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], itemSize: 4 },
   },
-  -16,
-  -14,
+  7,
   [{ POSITION: { array: [0, 0, 1, 0, 0, 1, 0, 0, 1], itemSize: 3 } }],
 )
 /** The page's slot in the cache, and its vertices' results in the float pool, past two tag words. */

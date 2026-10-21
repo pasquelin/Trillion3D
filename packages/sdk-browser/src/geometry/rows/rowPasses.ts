@@ -1,7 +1,6 @@
 import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts'
 import { closeHoles } from './writers.ts'
 import { leadFirst, serveClaims } from './claims.ts'
-import type { FrameClock } from '../integration/frameBudget.ts'
 import type { RowSlots } from './slotOps.ts'
 
 // The row cache's passes over the whole table (`slots.ts`), each page through the per-page steps
@@ -70,8 +69,10 @@ export function rewriteRows(s: RowSlots) {
 
 /** Arrivals, the world DAG's first (`leadsRows`), each side in catalogue order: while the table has
  *  room, or the cut asked for them, or they hold their row. A page that holds its row takes no
- *  other: its record is owed at its own rank, whatever room is left. */
-export function followArrivals(s: RowSlots, budget?: FrameClock) {
+ *  other: its record is owed at its own rank, whatever room is left. Served whole, on no clock:
+ *  the pages a frame installs are bounded by its installs, a count of streaming pages
+ *  (`../residency/queue.ts`), never by the time their rows take. */
+export function followArrivals(s: RowSlots) {
   const { rows, claims, demand, free } = s
   sortPages(rows.touched.pages, rows.touched.count)
   leadFirst(rows.touched.pages, rows.touched.count, s.leads)
@@ -85,5 +86,5 @@ export function followArrivals(s: RowSlots, budget?: FrameClock) {
   // the GPU's queue has nothing more to give (`rowOrder.ts`), else it waits for the next.
   const refused = (page: number) =>
     void (demand.wanted(page) && s.order.denies(s.frame()) && s.denied++)
-  serveClaims(claims, s.release, s.place, budget, refused, s.leads)
+  serveClaims(claims, s.release, s.place, refused, s.leads)
 }

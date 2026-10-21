@@ -24,9 +24,9 @@ test('the drawn surface stands within a centimetre of the physics surface, now a
   const placed = deformedOf({ waves: surface }, undefined, WORLD)!
   const frame = createDeformationFrame([placed])
   surface.setTime(3.2)
-  frame.update(() => false)
+  frame.update()
   surface.setTime(3.2 + 1 / 60)
-  frame.update(() => false)
+  frame.update()
   const at = frame.bases[0] - 1 + recordLayout(placed.shape).wave
   const deformWaves = waveShader(frame.block)
   const expected = new Float64Array(3)
@@ -60,7 +60,7 @@ test('a sheared placement reaches its crest over its least singular value, past 
   })
   const placed = deformedOf({ waves: surface }, undefined, { elements })!
   const frame = createDeformationFrame([placed])
-  frame.update(() => false)
+  frame.update()
   const model = surface.waveModel,
     crest = model.amplitude[0] + model.lateral[0],
     column = Math.min(...[0, 4, 8].map((k) => Math.hypot(...elements.slice(k, k + 3))))
@@ -84,6 +84,6 @@ test('a sheared placement reaches its crest over its least singular value, past 
   )
   // A matrix moved in place is read again.
   elements.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
-  frame.update(() => false)
+  frame.update()
   assert.equal(frame.reach[0], crest)
 })

@@ -58,43 +58,57 @@ export const rowLodBuffer = (device: GPUDevice, casterSlots: number) => ({
  * first making (`ensureClusterSpheres`, `uploadDirtyRowMobility`, `ensureRowLods`) never resizes.
  * Every row is dirty then, and the mobility words are written whole: all are filled again, once —
  * the spheres and the detail by the rows pass, which derives every row of a buffer made anew.
+ * Each is a step the growth makes in turn (`../../../frame/prepare/growGpuTables.ts`): a refusal of
+ * one leaves those made before it to the growth, which frees them.
  */
 export function growShadowRows(
   lights: WebgpuLightState,
   device: GPUDevice,
   casterSlots: number,
-): PendingGrowth[] {
-  const grown: PendingGrowth[] = []
-  if (lights.spheres) {
-    const next = clusterSpheres(device, casterSlots)
-    grown.push(
-      pendingBuffers(device, [next.buffer], () => {
-        const old = lights.spheres
-        lights.spheres = next
-        spheresMadeAnew(lights)
-        return [old?.buffer]
-      }),
+): (() => PendingGrowth)[] {
+  /** The step growing the lights' `key` buffers: `make` them aside, `commit` putting them in
+   *  place — `after` run then — and retiring the old ones; `bufferOf` is a made one's GPU buffer. */
+  const step =
+    <K extends 'spheres' | 'mobilityRows' | 'rowLods'>(
+      key: K,
+      make: () => NonNullable<WebgpuLightState[K]>,
+      bufferOf: (held: NonNullable<WebgpuLightState[K]>) => GPUBuffer,
+      after?: () => void,
+    ) =>
+    () => {
+      const next = make()
+      return pendingBuffers(device, [bufferOf(next)], () => {
+        const old = lights[key]
+        lights[key] = next
+        after?.()
+        return [old && bufferOf(old)]
+      })
+    }
+  const steps: (() => PendingGrowth)[] = []
+  if (lights.spheres)
+    steps.push(
+      step(
+        'spheres',
+        () => clusterSpheres(device, casterSlots),
+        (held) => held.buffer,
+        () => spheresMadeAnew(lights),
+      ),
     )
-  }
-  if (lights.mobilityRows) {
-    const next = mobilityRows(device, casterSlots)
-    grown.push(
-      pendingBuffers(device, [next], () => {
-        const old = lights.mobilityRows
-        lights.mobilityRows = next
-        return [old]
-      }),
+  if (lights.mobilityRows)
+    steps.push(
+      step(
+        'mobilityRows',
+        () => mobilityRows(device, casterSlots),
+        (held) => held,
+      ),
     )
-  }
-  if (lights.rowLods) {
-    const next = rowLodBuffer(device, casterSlots)
-    grown.push(
-      pendingBuffers(device, [next.buffer], () => {
-        const old = lights.rowLods
-        lights.rowLods = next
-        return [old?.buffer]
-      }),
+  if (lights.rowLods)
+    steps.push(
+      step(
+        'rowLods',
+        () => rowLodBuffer(device, casterSlots),
+        (held) => held.buffer,
+      ),
     )
-  }
-  return grown
+  return steps
 }

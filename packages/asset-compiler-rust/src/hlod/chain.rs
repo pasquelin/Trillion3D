@@ -1,0 +1,226 @@
+//! The world's HLOD chains, each layer the parent of the one below. HLOD 0 is any layer's: an
+//! instanced layer's is the source meshes themselves, the placed objects' own pages, nothing to
+//! build; any other layer builds its HLOD 0 actor per main cell. Each layer above builds its
+//! actors per cell of the grids below (`cells.rs`), every level of the cell's original objects —
+//! every object under it, never an actor of a level below, its shape nor its texture —:
+//! approximated by a closed shell or merged, given unique texture coordinates and baked into one
+//! atlas of those objects' materials, voxelized, or instanced, each object its source mesh placed,
+//! a chain's top always loaded or streamed on its last grid (`../flatten.rs`, `builds.rs`). Each actor
+//! is its own DAG; its clusters
+//! wear its flattened material, a material of the published scene like any other, named by the
+//! actor's rank (`dag_records.rs`, the scene tables' `hlodMaterials`). Each cluster names
+//! its HLOD cell, whose switch shows it in place of the cells below once the view is far enough,
+//! and its layer. Nothing is pinned: each HLOD cell holds its own roots' pages (`bundles.rs`). An
+//! HLOD page is a `WGP3` page (`pages.rs`), drawn as any page.
+//! An instance, its merge screen size and its cooking live in `cook`.
+use crate::compiler::source::node_transform::Mat4;
+use crate::compiler::tables::partition::CellMembers;
+use crate::dag::DagStrategy;
+use crate::proxy::placement::Placement;
+use crate::*;
+
+mod builds;
+mod bundles;
+pub(crate) mod cover;
+mod dag_records;
+mod instances;
+pub(crate) mod merge;
+mod pages;
+pub(crate) mod place;
+mod records;
+#[cfg(test)]
+pub(crate) mod tests;
+pub(crate) mod voxels;
+pub(crate) use cover::SourceCover;
+mod cook;
+pub(crate) use cook::{cook, merged_lods, Cooked, Instance};
+
+/// Version of the world-roots products; what each version changed is told in `docs/FORMAT.md`
+/// (World HLOD).
+pub(crate) const WORLD_ROOTS_VERSION: u32 = 34;
+/// The table a load reads: bundles, pages and HLOD cells, as records (`records.rs`).
+pub(crate) const WORLD_ROOTS_FILE: &str = "world-roots.table";
+/// The world clusters and groups the world stream reads on its first use, as records.
+pub(crate) const WORLD_ROOTS_DAG: &str = "world-roots.dag";
+/// The HLOD bundles, end to end: each bundle's range and digest is in the table.
+pub(crate) const WORLD_ROOTS_BIN: &str = "world-roots.bin";
+
+/// What the world stage hands back: its products, its report, the published scene with the
+/// flattened materials and their glTF ranks, and their textures' chains.
+pub(crate) struct Staged {
+    pub products: Vec<Product>,
+    pub report: Value,
+    pub materials: crate::compiler::tables::WorldMaterials,
+    pub previews: Vec<crate::texture::TexturePreview>,
+}
+
+/// Compilation stage: the HLOD layers of the objects the partition placed, `cells` naming the
+/// published nodes of each cell, its HLOD 0 cell and the chain, `placement` their transforms and
+/// the primitives of each mesh, computed once for the job; `source` the input scene, its binary
+/// and its image root, whose materials the actors the layers build flatten. Written as
+/// `world-roots.bin`, `world-roots.table` and `world-roots.dag`, an atlas image a PNG only where
+/// its chain is not whole (`flatten::publish`); the report goes to the manifest, its measures to
+/// the job's metrics. Exact clusters are never simplified, so no HLOD is built of them. The
+/// builds run on the job's `pool`: its threads, its phase counters, in the job's RAM allowance
+/// less the `reserved` bytes the geometry holds, each actor's job told to `progress` as it ends.
+pub(crate) fn stage_world_roots(
+    (o, pool, reserved, progress): (&Options, &rayon::ThreadPool, usize, &(dyn Fn(Value) + Sync)),
+    (published, directory): (&Value, &Path),
+    (primitives, covers, placement): (&[Value], Vec<SourceCover>, &Placement),
+    cells: &CellMembers,
+    source: (&Value, &[u8], &Path),
+) -> Result<Staged> {
+    let nothing = || Staged {
+        products: Vec::new(),
+        report: Value::Null,
+        materials: None,
+        previews: Vec::new(),
+    };
+    let hlod = o.hlod()?;
+    // A job naming no HLOD builds no actor; neither does a job of exact clusters.
+    if DagStrategy::named(&o.simplification) == DagStrategy::ExactClusters || hlod.layers.is_empty()
+    {
+        return Ok(nothing());
+    }
+    let nodes = values(published, "nodes")?;
+    let instances = instances::gather(cells, (nodes, source.0), (primitives, &covers, placement))?;
+    if instances.iter().all(|i| i.cover.indices.is_empty()) {
+        return Ok(nothing());
+    }
+    let materials: BTreeSet<Option<u64>> = instances.iter().map(|i| i.material).collect();
+    let classes = crate::hlod::flatten::merge::classes(source.0, &materials);
+    let (cooked, actors) = pool.install(|| {
+        let library = crate::hlod::flatten::Library::new(source, &materials, (o, reserved))?;
+        // Its chains on the device before any job starts, when a layer bakes: the admission then
+        // measures them in what the process holds, never in a job's estimate.
+        if hlod.layers.iter().any(crate::hlod::flatten::bakes) {
+            library.pages()?;
+        }
+        // The room is the job's allowance whole: the admission measures what the process holds,
+        // the geometry `reserved` with it (`compiler::budget::admission::Room::Measured`).
+        let builder = builds::Builder {
+            checkpoint: &|| check(o),
+            progress,
+            library: &library,
+            classes: &classes,
+            o,
+            hlod,
+            room: o.ram_budget_bytes(),
+        };
+        cook(&instances, &cells.tree, &builder)
+    })?;
+    let mut report = cooked.report;
+    report["assignmentWarnings"] = json!(assignment_warnings(cells, hlod, nodes));
+    let mut products = vec![
+        product(directory, WORLD_ROOTS_BIN, &cooked.payload)?,
+        product(directory, WORLD_ROOTS_FILE, &cooked.table)?,
+        product(directory, WORLD_ROOTS_DAG, &cooked.dag)?,
+    ];
+    let (materials, previews) =
+        published_materials(actors, (cells, published, directory), &mut products)?;
+    Ok(Staged {
+        products,
+        report,
+        materials: Some(materials),
+        previews,
+    })
+}
+
+/// What the job tells of how its objects were assigned: each object whose mark won over a rule
+/// naming another layer, each node marked that no HLOD takes, and each object its settings make an
+/// instanced skinned one that stays a plain skinned one: told, never an error.
+fn assignment_warnings(cells: &CellMembers, hlod: &crate::Hlod, nodes: &[Value]) -> Vec<String> {
+    let name = |node: usize| {
+        nodes
+            .get(node)
+            .and_then(|n| n["name"].as_str())
+            .unwrap_or("")
+    };
+    let overruled = cells.overruled.iter().map(|&(node, layer, ruled)| {
+        format!(
+            "node {node} {}: its mark puts it in {}, over the rule naming {}",
+            name(node),
+            hlod.layers[layer].name,
+            hlod.layers[ruled].name
+        )
+    });
+    let unplaced = (cells.unplaced.iter()).map(|&node| {
+        format!(
+            "node {node} {}: marked, but no HLOD takes it — it moves, itself or through a node \
+             above it, or is not spatially loaded, a parent, hidden, held whole by no cell below a \
+             grid's top, or turned away by its layer's size filter",
+            name(node)
+        )
+    });
+    let banks = (cells.bank_warnings.iter()).map(|(node, why)| {
+        format!(
+            "node {node} {}: not an instanced skinned object — {why} —: its host's clips move it",
+            name(*node)
+        )
+    });
+    overruled.chain(unplaced).chain(banks).collect()
+}
+
+/// The scene `published` with the flattened materials of `actors` added, and each actor's glTF
+/// material rank in it, with the textures' chains: an actor wearing its own flattened material has
+/// it published (`products` gaining each image whose chain lacks a level: a whole chain stands in
+/// for its source), the others wear a material of the scene (`builds::Wears`), glTF's default
+/// material written out once for a source that names none.
+fn published_materials(
+    actors: Vec<builds::Actor>,
+    (cells, published, directory): (&CellMembers, &Value, &Path),
+    products: &mut Vec<Product>,
+) -> Result<((Value, Vec<usize>), Vec<crate::texture::TexturePreview>)> {
+    use crate::hlod::flatten::bake::publish::{self, Image, Published};
+    // Per actor, `None` for its own material, else the scene's it wears — its glTF rank, `None`
+    // for glTF's default.
+    let mut flattened: Vec<Published> = Vec::new();
+    let mut wears: Vec<Option<Option<u64>>> = Vec::with_capacity(actors.len());
+    for actor in actors {
+        match actor.wears {
+            builds::Wears::Flattened {
+                images,
+                double_sided,
+            } => {
+                let level = cells.tree[actor.cell].actor_level;
+                let name = format!("HLOD {level} cell {}", actor.cell);
+                flattened.push(Published {
+                    name,
+                    images,
+                    double_sided,
+                });
+                wears.push(None);
+            }
+            builds::Wears::Merged(material) => wears.push(Some(material)),
+        }
+    }
+    let name = |material: &Published, image: &Image| {
+        format!(
+            "{}-{}.png",
+            material.name.replace(' ', "-").to_lowercase(),
+            image.role.name()
+        )
+    };
+    for material in &flattened {
+        for image in &material.images {
+            if let Some(png) = &image.png {
+                products.push(product(directory, &name(material, image), png)?);
+            }
+        }
+    }
+    let mut scene = published.clone();
+    let (flat_ranks, previews) = publish::place(&mut scene, &mut flattened, &name);
+    // Each actor's glTF material, by its rank: its own flattened one, or the scene's it wears.
+    let mut flat_ranks = flat_ranks.into_iter();
+    let mut default = None;
+    let mut ranks: Vec<usize> = Vec::with_capacity(wears.len());
+    for worn in wears {
+        let rank = match worn {
+            None => flat_ranks.next().expect("a rank per flattened material"),
+            Some(Some(id)) => id as usize,
+            Some(None) => *default.get_or_insert_with(|| publish::default_material(&mut scene)),
+        };
+        ranks.push(rank);
+    }
+    Ok(((scene, ranks), previews))
+}

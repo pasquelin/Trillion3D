@@ -1,8 +1,8 @@
 // Every stage of the DAG selection kernel compiles and validates on the machine's device:
-// the text the engine compiles (`shader.ts`, the normal cone and the cut kernels it feeds), then the
-// engine's own stages (`createDagStages`). The Node gate only
-// parses the text; here the GPU's own WGSL compiler reads it. The proof can fail: a copy with a
-// WGSL syntax error in the cone, and one with a type error, must each be refused.
+// the text the engine compiles (`shader.ts`, the cut kernels), then the engine's own stages
+// (`createDagStages`). The Node gate only parses the text; here the GPU's own WGSL compiler reads
+// it. The proof can fail: a copy with a WGSL syntax error in a placement's scales
+// (`primitiveWgsl.ts`), and one with a type error, must each be refused.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
@@ -10,7 +10,8 @@ import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/geometry
 import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 import type { KernelText } from './kernelsCompilePage.ts'
 
-const CONE = 'let d=dot(axisWorld,view);'
+const SCALES =
+  'let s=vec3f(length(placedPose[0].xyz),length(placedPose[1].xyz),length(placedPose[2].xyz));'
 
 /** The kernel with `from` replaced by `to`: the edit must land. */
 function edited(from: string, to: string) {
@@ -20,8 +21,8 @@ function edited(from: string, to: string) {
 
 const SOURCES = {
   shipped: DAG_SELECTION_SHADER,
-  'syntax error': edited(CONE, 'let d=dot(axisWorld,view)'),
-  'type error': edited(CONE, 'let d:u32=dot(axisWorld,view);'),
+  'syntax error': edited(SCALES, SCALES.slice(0, -1)),
+  'type error': edited(SCALES, SCALES.replace('let s=', 'let s:u32=')),
 }
 const texts: KernelText[] = Object.entries(SOURCES).map(([name, code]) => ({ name, code }))
 
@@ -48,7 +49,7 @@ test('every DAG selection stage compiles and validates on the GPU', async () => 
   console.log(JSON.stringify({ adapter, verdicts: verdicts.length }))
 })
 
-test('a WGSL syntax error or type error in the cone is refused', async () => {
+test('a WGSL syntax error or type error in the kernel is refused', async () => {
   for (const source of ['syntax error', 'type error'])
     for (const { name, errors } of await verdictsOf(source))
       assert.ok(

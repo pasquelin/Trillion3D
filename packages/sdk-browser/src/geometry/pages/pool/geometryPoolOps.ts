@@ -106,7 +106,7 @@ export function claim(p: Pool, attributes: HostAttributes, dynamic: boolean) {
   const block: GeometryBlock = {
     ...{ vertexBase: p.used, count, hasUv: !!attributes.uv, hasNormal: !!attributes.normal },
     ...{ hasTangent: !!attributes.tangent, hasColor: !!attributes.color, dynamic },
-    hasUv1: !!attributes.uv1,
+    hasExtraUv: !!attributes.uv1,
   }
   p.blocks.set(attributes, block)
   p.used += count

@@ -93,7 +93,6 @@ test('a frozen cut holds its camera: held in the main view, aside elsewhere, unt
   assert.equal(cullStep(rt), 'held')
   assert.notEqual(rt.run.cullView!.camera, rt.run.gate.cam)
   assert.deepEqual(rt.run.cullView!.camera.eye, rt.run.gate.cam.eye)
-  assert.equal(rt.run.selectionUniforms.ahead, null)
   // Frozen twice: nothing more asked.
   freezeWebgpuCut(rt, true)
   assert.equal(changed(), 1)

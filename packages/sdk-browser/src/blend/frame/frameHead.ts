@@ -8,8 +8,9 @@ import { doubleWords, fieldLayout, u32Words } from '../../gpu/core/fieldLayout.t
  * entries' seeds and slots (`../order/order.ts`): the eye (four doubles), the frustum planes brought to the
  * eye in single precision and their forward-corner words (`framePlanes.ts`, what the verdict tests
  * with), the item count the verdict walks, and where the cut's cold words hold the world's HLOD
- * cell states with the cells per instance (`../../geometry/dag/worlds/worldLinks.ts`): zero for a cut that
- * follows no world, whose items no cell hides.
+ * cell states with the cells per instance, and its cell files' words
+ * (`../../geometry/dag/worlds/worldLinks.ts`): zero for a cut that follows no world, whose items no
+ * cell hides.
  */
 const HEAD = fieldLayout('FrameHead', [
   ['eye', doubleWords(4)],
@@ -18,6 +19,7 @@ const HEAD = fieldLayout('FrameHead', [
   ['items', 'u32'],
   ['cellStates', 'u32'],
   ['cellCount', 'u32'],
+  ['fileStates', 'u32'],
 ] as const)
 /** Each field's first word, laid out by the one record rule (`fieldLayout`), doubles on even
  *  words; and the head's words. */
@@ -41,6 +43,7 @@ export const FRAME_HEAD_WGSL = wgslBlock(
     FRAME_ITEMS: FRAME_HEAD.items,
     FRAME_CELL_STATES: FRAME_HEAD.cellStates,
     FRAME_CELL_COUNT: FRAME_HEAD.cellCount,
+    FRAME_FILE_STATES: FRAME_HEAD.fileStates,
     PLANE_USABLE,
   })}
 ${doubleReadFn('frameDouble', 'frame')}`,

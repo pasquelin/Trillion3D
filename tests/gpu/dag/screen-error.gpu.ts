@@ -104,7 +104,7 @@ test('CPU and GPU take the same clusters, but within the f32 rounding band', asy
   packedWorldsToRenderOrigin(packed, [{ world, pages: [] }], uniforms.cameraWorld)
   const { adapter, readings } = await runSelectionKernel([{ name: 'sample', packed, uniforms }])
   const onGpu = new Uint8Array(CLUSTERS)
-  for (const page of readings[0].pages) onGpu[page] = 1
+  for (const page of readings[0].drawn) onGpu[page] = 1
   const pixels = new Float64Array(2)
   /** The relative distance to the threshold of the nearer of a cluster's two errors. */
   const margin = (c: Cluster) =>
@@ -124,11 +124,11 @@ test('CPU and GPU take the same clusters, but within the f32 rounding band', asy
   console.log(
     JSON.stringify({
       adapter,
-      kept: readings[0].pages.length,
+      kept: readings[0].drawn.length,
       disagreements: disagreements.length,
       worst,
     }),
   )
-  assert.ok(readings[0].pages.length > 0, 'the GPU keeps nothing')
+  assert.ok(readings[0].drawn.length > 0, 'the GPU keeps nothing')
   assert.ok(worst < 1e-5, `a disagreement ${worst} off the threshold, outside f32 rounding`)
 })

@@ -1,27 +1,29 @@
-//! Generated cluster families the hierarchy is proved on, natively (`culling/tests.rs`) and against
+//! Generated part families the hierarchy is proved on, natively (`culling/tests.rs`) and against
 //! the SDK module (`golden/culling.rs`).
-use super::CullingCluster;
-use trillion3d_math::random::xorshift64;
+use super::CullingPart;
+use trillion3d_math::sequence::random::xorshift64;
 
-/// Generated clusters: a row-major grid of `rows × columns`, the same grid by columns, a random soup
+/// Generated parts: a row-major grid of `rows × columns`, the same grid by columns, a random soup
 /// of `soup`, a strip of `strip` and a stack of `stack` coincident boxes, over two levels with roots
-/// among them; then no cluster, and a lone root.
+/// among them; then no part, and a lone root. Each part holds one to three ranks, laid end to end
+/// in the family's order.
 /// The families' sizes the hierarchy's tests build.
 pub(crate) const FAMILIES: [usize; 5] = [40, 25, 700, 300, 90];
 
-pub(crate) fn families(
-    [rows, columns, soup, strip, stack]: [usize; 5],
-) -> Vec<Vec<CullingCluster>> {
-    let cluster = |x: f64, y: f64, z: f64, level: usize, root: bool| CullingCluster {
+pub(crate) fn families([rows, columns, soup, strip, stack]: [usize; 5]) -> Vec<Vec<CullingPart>> {
+    let cluster = |x: f64, y: f64, z: f64, level: usize, root: bool| CullingPart {
         min: [x, y, z],
         max: [x + 1.0, y + 1.0, z + 0.1],
         level,
-        parent_sphere: [x + 0.5, y + 0.5, z, 2.0],
+        sphere: [x + 0.5, y + 0.5, z, 2.0],
+        min_error: level as f64 * 0.25,
         parent_error: if root {
             f64::INFINITY
         } else {
             0.5 + level as f64
         },
+        first: 0,
+        count: 0,
     };
     let grid = |by_rows: bool| {
         let mut out = Vec::new();
@@ -49,7 +51,7 @@ pub(crate) fn families(
     let stack = (0..stack)
         .map(|_| cluster(3.0, 3.0, 3.0, 1, false))
         .collect();
-    vec![
+    let mut families = vec![
         grid(true),
         grid(false),
         soup,
@@ -57,5 +59,13 @@ pub(crate) fn families(
         stack,
         Vec::new(),
         vec![cluster(0.0, 0.0, 0.0, 0, true)],
-    ]
+    ];
+    for parts in &mut families {
+        let mut first = 0;
+        for (k, part) in parts.iter_mut().enumerate() {
+            (part.first, part.count) = (first, 1 + k % 3);
+            first += part.count;
+        }
+    }
+    families
 }

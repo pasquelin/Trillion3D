@@ -5,7 +5,7 @@
 //! stackless skip list (`flatten`) are two writings of this one tree.
 use super::{PROXY_CHILDREN, PROXY_LEAF_TRIANGLES, PROXY_TRIANGLE_FLOATS};
 use crate::split::{bisect_least_cost, centres_and_boxes, Boxed};
-use trillion3d_math::aabb::aabb_of_f32;
+use trillion3d_math::geometry::aabb::aabb_of_f32;
 
 /// A node: its bounds, and either a triangle range (a leaf) or its two to four children's ranks,
 /// held in place; `escape` is the rank past its subtree in preorder.
@@ -155,9 +155,9 @@ pub fn extent(triangles: &[f32]) -> [f64; 6] {
     if triangles.is_empty() {
         return [0.0; 6];
     }
-    let mut out = trillion3d_math::aabb::EMPTY_FLAT;
+    let mut out = trillion3d_math::geometry::aabb::EMPTY_FLAT;
     for vertex in triangles.as_chunks::<3>().0 {
-        trillion3d_math::aabb::extend_flat(&mut out, vertex.map(f64::from));
+        trillion3d_math::geometry::aabb::extend_flat(&mut out, vertex.map(f64::from));
     }
     out
 }

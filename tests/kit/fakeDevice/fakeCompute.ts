@@ -1,17 +1,10 @@
 import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
 import type { PackedDag } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
 import { compactDrawnPages, drawMask, writtenMask } from './globals.ts'
-import {
-  LIST_DROPPED,
-  QUEUE_DROPPED,
-  WORK_DROPPED,
-} from '../../../packages/sdk-browser/src/geometry/dag/shader/viewsWgsl.ts'
-import { viewWord } from '../../../packages/sdk-browser/src/geometry/dag/viewLayout.ts'
 import { TRANSPARENT_STAGES } from './fakeComputeBlend.ts'
 import { ROW_STAGES } from './fakeComputeRows.ts'
 import { boundResource, words, type BoundBuffer } from './fakeBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
-import { fakeEvictions, sortStagedRequests } from './fakeEvict.ts'
 import { poolSortReplayOf } from './fakePoolSorts.ts'
 import {
   DAG_SLOT,
@@ -27,22 +20,26 @@ import {
   writeTriangleTotals,
 } from '../../../packages/sdk-browser/src/geometry/dag/layout.fixture.ts'
 import { simulateScatterGroups } from './fakeDrawCompact.ts'
-import { stagedRequestsWord } from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
 import {
-  stagedPage,
-  stagedPriority,
-} from '../../../packages/sdk-browser/src/geometry/dag/request/request.fixture.ts'
+  listWords,
+  PEAK_CANDIDATES,
+  PEAK_NODES,
+  PEAK_VISIBLE,
+  priorityWord,
+  SELECTION_HEADER_WORDS,
+} from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
 import { LIST_KERNELS, mirrorListStage } from './fakeLists.ts'
 import { setBit } from '../../../packages/math/src/scalar/bits.ts'
 import { ROOT_WORD } from '../../../packages/sdk-browser/src/geometry/dag/frameTable.ts'
+import { drawModuleLabel } from '../../../packages/sdk-browser/src/visibility/draw/shader.ts'
+import { untag } from './fakeWebgpuDevice.ts'
 
 /** The camera cut's kernels the double replays, on the selection's bind group or one of its
- *  entries (a kept list's: `rankGroups`). */
+ *  entries (a kept list's: `rankGroups`), and the pool sorts' last dispatch, on their own group. */
 const DAG_STAGES = new Set([
   'dagMask',
   'dagDrawScatter',
   'dagCommitMask',
-  'dagSortRequests',
   'poolScatter',
   ...LIST_KERNELS,
 ])
@@ -53,7 +50,7 @@ export type ComputeBind = {
 }
 
 export function simulateComputeDispatch(
-  computePipeline: { entryPoint: string; module?: { code?: string } } | undefined,
+  computePipeline: { entryPoint: string; module?: { code?: string; label?: string } } | undefined,
   computeBind: ComputeBind | undefined,
   packed?: PackedDag,
   offsets?: readonly number[],
@@ -64,19 +61,24 @@ export function simulateComputeDispatch(
   if (transparent && computeBind) return transparent(computeBind, offsets, groups, rows)
   const rowStage = ROW_STAGES[computePipeline?.entryPoint ?? '']
   if (rowStage && computeBind?.entries) return rowStage(computeBind)
+  // The post half's kernels are the ones that place their rows in the post slots: its module says
+  // so by its label (`drawModuleLabel`), as the engine wrote it, without its session's tag.
   if (computePipeline?.entryPoint === 'scatterGroups' && computeBind)
-    return simulateScatterGroups(computeBind.entries)
+    return simulateScatterGroups(
+      computeBind.entries,
+      untag(computePipeline.module?.label) === drawModuleLabel(true),
+    )
   const stage = computePipeline?.entryPoint
   // A group a test wrote by hand, without entries, binds nothing the double could run on.
   if (!computeBind?.entries || !DAG_STAGES.has(stage ?? '')) return
   // A pool's queue on its sort's own group, by the program its pipeline runs (`fakePoolSorts.ts`).
-  const poolSort = poolSortReplayOf(computePipeline?.module?.code ?? '')
-  if (stage === 'poolScatter' && poolSort) return poolSort(computeBind.entries, offsets)
-  // The selection binds one table per `DAG_SLOT` name: one missing is a validation error. The
-  // pool sort's last dispatch is the geometry queue's only on the selection's group.
+  if (stage === 'poolScatter') {
+    const poolSort = poolSortReplayOf(computePipeline?.module?.code ?? '')
+    if (!poolSort) throw new Error('a pool sort the double does not replay')
+    return poolSort(computeBind.entries, offsets)
+  }
+  // The selection binds one table per `DAG_SLOT` name: one missing is a validation error.
   const slots = Object.keys(DAG_SLOT).length
-  if (stage === 'poolScatter' && computeBind.entries.length !== slots)
-    throw new Error('a pool sort the double does not replay')
   if (computeBind.entries.length !== slots)
     throw new Error(`dag selection bind group requires ${slots} entries`)
   // A record table reads as its texture's words, laid as its buffer was (`dag/cut/cutTables.ts`).
@@ -86,17 +88,14 @@ export function simulateComputeDispatch(
   // A test that hands no DAG reads the one the session uploaded (`fakeDag.ts`).
   const dag = packed ?? packedFromBindings(byBinding, boundWorlds, boundFrames),
     listCap = boundListCap(byBinding)
-  if (stage === 'dagSortRequests') return sortStagedRequests(byBinding, listCap)
   if (mirrorListStage(stage!, byBinding, dag, listCap)) return // the lists' and the journals' mirror
-  // The geometry queue whole on its last dispatch: `dagRaiseParents`, `poolCount` and `poolPlace`
-  // leave nothing the mirror does not redo (`fakeEvict.ts`).
-  if (stage === 'poolScatter') return fakeEvictions(byBinding, dag).list()
   // Compaction rereads the draw flags `dagMask` left, as `dagDrawPrefix` then `dagDrawScatter` do.
   if (stage === 'dagDrawScatter')
     return compactDrawnPages(
       byBinding.get(DAG_SLOT.work)!.data,
       byBinding.get(DAG_SLOT.out)!.data,
       dag.pageCount,
+      listCap,
     )
   if (stage === 'dagCommitMask') return commitMask(byBinding, dag.pageCount)
   if (stage !== 'dagMask') return
@@ -121,10 +120,6 @@ export function simulateComputeDispatch(
   // and the cut skips it as the shader does.
   const rootNodes = dag.rootNodes.map((_, w) => frameWord(boundFrames, w, ROOT_WORD))
   const result = evaluateDagSelectionKernel({ ...dag, worlds, rootNodes }, uniforms, resident)
-  fakeEvictions(byBinding, dag).stamp(
-    [...result.pageIds, ...(result.drawablePageIds ?? [])],
-    result.aheadPageIds,
-  )
   // `dagMask` sets a draw bit for every drawn page: `dagDrawScatter` compacts them.
   const mask = writtenMask(byBinding.get(DAG_SLOT.work)!.data, dag.pageCount)
   mask.fill(0, 0, bitWords(dag.pageCount))
@@ -133,29 +128,28 @@ export function simulateComputeDispatch(
   ints[1] = result.frustumRejected
   ints[2] = result.lodLevel
   writeTriangleTotals(ints, result)
-  // The camera's requests wait, in the order `dagWanted` emits them, where `dagSortRequests` reads:
-  // two words each, the page then its priority.
-  const list = result.requestWords,
-    at = stagedRequestsWord(listCap)
-  ints[0] = list.length
-  // Past the cap a request is dropped and the sample says it is truncated (`emitOne`).
-  ints[3] = list.length > listCap ? 1 : 0
-  // Past a queue's entries or a list's, the kernel drops work: the cut is not drawn.
-  const views = words(byBinding.get(DAG_SLOT.views)!.data),
+  // The camera's requests, in the order the oracle asks them (`requestPage`): each page at its rank
+  // of the first list, its priority at the same rank of the priority list (`priorityWord`).
+  const { pageIds, priorities } = result,
+    at = priorityWord(listCap)
+  ints[0] = pageIds.length
+  // Past the cap a request is dropped and the sample says it is truncated (`requestPage`).
+  ints[3] = pageIds.length > listCap ? 1 : 0
+  // What the cut asked of its lists, in the drawn list's header (`dagCommitMask`): the double's
+  // cut is whole, every node of its levels opened in one pass.
+  const peaks = listWords(listCap),
     { levels, candidates, live } = result.work
-  const entries = views[viewWord('queueCap')] / 2,
-    cap = views[viewWord('candCap')]
-  if (Math.max(...levels) > entries) ints[3] |= QUEUE_DROPPED
-  if (candidates > cap || live > cap) ints[3] |= LIST_DROPPED
-  list.slice(0, listCap).forEach((staged, s) => {
-    ints[at + 2 * s] = stagedPage(staged)
-    ints[at + 2 * s + 1] = stagedPriority(staged)
-  })
+  ints[peaks + PEAK_NODES] = levels.reduce((sum, level) => sum + level, 0)
+  ints[peaks + PEAK_CANDIDATES] = candidates
+  ints[peaks + PEAK_VISIBLE] = live
+  for (let s = 0; s < Math.min(listCap, pageIds.length); s++) {
+    ints[SELECTION_HEADER_WORDS + s] = pageIds[s]
+    ints[at + s] = priorities[s]
+  }
 }
 
-/** `dagCommitMask`: the mask the cut wrote made the frame's, unless it dropped work. */
+/** `dagCommitMask`: the mask the cut wrote made the frame's. */
 function commitMask(byBinding: Map<number, { data: Uint8Array }>, pageCount: number) {
-  if (words(byBinding.get(DAG_SLOT.out)!.data)[3] & WORK_DROPPED) return
   const work = byBinding.get(DAG_SLOT.work)!.data
   const written = writtenMask(work, pageCount).subarray(0, bitWords(pageCount))
   drawMask(work, pageCount).set(written)

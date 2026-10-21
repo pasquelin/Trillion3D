@@ -38,7 +38,7 @@ export function startGrownCut(rt: WebgpuPagesRuntime) {
     // One landed beside it, unadopted, is for fewer roots: released.
     dropLanded(growth)
     const roots = rt.layout.selectionRoots.length + growth.roots.length
-    growth.ready = { cut, roots, moved: new Set(), inPlace: true }
+    growth.ready = { cut, roots, inPlace: true }
     return
   }
   growth.making = makeCut(rt, growth).finally(() => (growth.making = undefined))
@@ -68,24 +68,17 @@ function dropLanded(growth: GrowthInFlight, roots?: number) {
 }
 
 /** The GPU cut over the session's roots and those waiting, made beside the running one, one at a
- *  time (`growth.making`). The pool's slots that move meanwhile are logged (`logTouched`) and replayed
- *  alone at the swap (`../webgpuGrownCut.ts`). */
+ *  time (`growth.making`): it takes the pool's residency at the swap (`../webgpuGrownCut.ts`). */
 async function makeCut(rt: WebgpuPagesRuntime, growth: GrowthInFlight): Promise<void> {
-  const roots = [...rt.layout.selectionRoots, ...growth.roots],
-    { rows } = rt.layout,
-    moved = new Set<number>()
+  const roots = [...rt.layout.selectionRoots, ...growth.roots]
   // A cut made for fewer roots, landed but never adopted, is no cut this one can wait for: its
   // tables are released before this one's are asked.
   dropLanded(growth, roots.length)
-  growth.moved = moved
-  rows.logTouched(moved)
   // The poses named while it is made reach it at its swap (`replayMoves`).
   keepMovesFor(rt)
-  // The pool as it stands, in one write; what moves meanwhile follows at adoption (`swapCut`).
-  const held = (page: number) => heldPage(rt, page)
   const capacity = grownCutCapacity(rt, roots)
   const make = (room: DagCapacity) =>
-    createSessionCut(rt, rt.gpu.device!, roots, held, room)
+    createSessionCut(rt, rt.gpu.device!, roots, room)
       .then((result) => ({ ...result, error: undefined as unknown }))
       .catch((failure: unknown) => ({ cut: undefined, refused: 'creation failed', error: failure }))
   let attempt = await make(capacity)
@@ -95,7 +88,6 @@ async function makeCut(rt: WebgpuPagesRuntime, growth: GrowthInFlight): Promise<
   if (!attempt.cut && !stopped(rt)) attempt = await make({ ...capacity, ahead: false })
   const { cut, refused, error } = attempt
   if (stopped(rt)) return cut?.dispose()
-  rows.logTouched(undefined)
   // The scene's roots no longer fit a cut this device holds: as an open would be, it is refused.
   // The running cut goes on and the roots wait parked, as for any content the session cannot take:
   // said by name by the owner (`onContentRefused`), never a lost device.
@@ -110,8 +102,5 @@ async function makeCut(rt: WebgpuPagesRuntime, growth: GrowthInFlight): Promise<
   }
   // The running cut that took roots in place stays the session's until this one replaces it.
   dropLanded(growth)
-  growth.ready = { cut, roots: roots.length, moved }
+  growth.ready = { cut, roots: roots.length }
 }
-
-/** Whether packed page `page` — of the roots the session holds — has its bytes in the pool. */
-export const heldPage = (rt: WebgpuPagesRuntime, page: number) => rt.layout.rows.offsetOf(page) >= 0

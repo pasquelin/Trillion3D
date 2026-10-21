@@ -21,9 +21,7 @@ import {
   VSM_RENDER_CORNER_TIERS,
   VSM_RENDER_COUNTS_HEAD,
   VSM_RENDER_PARAMS,
-  VSM_RENDER_TIER_CMDS,
-  VSM_RENDER_TIER_CORNERS,
-  VSM_RENDER_TIER_PAIRS,
+  vsmRenderTierCorners,
 } from './renderParamsWgsl.ts'
 import { uniformStride } from '../../../../session/memory/pools.ts'
 import { ceilDiv } from '../../../../../../math/src/scalar/integers.ts'
@@ -73,6 +71,10 @@ function argumentKernels(scope: {
     { ...wgslConstants(VSM_RENDER_ARGS_WGSL), GROUP_WIDTH: DEFAULT_GROUP_WIDTH, ...scope },
   )
 }
+
+/** Each tier's pairs and commands counters, from a chunk's first word, as the shader declares them. */
+const { VSM_RENDER_TIER_PAIRS: TIER_PAIRS, VSM_RENDER_TIER_CMDS: TIER_CMDS } =
+  wgslConstants(VSM_RENDER_ARGS_WGSL)
 
 test('200 000 rows resident, 100 chosen: past the first chunk, no group, no instance', () => {
   const fake = fakeDevice({
@@ -138,9 +140,9 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
     // Chunk 0's cull counted 12 commands, all of the lowest corner tier, whose expand listed 40
     // pairs.
     if (call.entryPoint === 'vsmRenderCull' && c === 0)
-      counts[VSM_RENDER_COUNTS_HEAD] = counts[VSM_RENDER_COUNTS_HEAD + VSM_RENDER_TIER_CMDS] = 12
+      counts[VSM_RENDER_COUNTS_HEAD] = counts[VSM_RENDER_COUNTS_HEAD + TIER_CMDS] = 12
     if (call.entryPoint === 'vsmRenderExpand' && c === 0)
-      counts[VSM_RENDER_COUNTS_HEAD + VSM_RENDER_TIER_PAIRS] = 40
+      counts[VSM_RENDER_COUNTS_HEAD + TIER_PAIRS] = 40
     let done: number
     if (call.entryPoint === 'vsmRenderArgsExpand' || call.entryPoint === 'vsmRenderArgsDraw') {
       // One thread, directly: the argument kernels write the buffer the others read.
@@ -164,7 +166,7 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
   // 40 pairs of the lowest tier's corners; every other chunk culls, bins, expands and draws nothing.
   // The corner tiers alone: the table holds no voxel row.
   const tiers = (first: number) => [first, ...Array<number>(VSM_RENDER_CORNER_TIERS - 1).fill(0)]
-  assert.deepEqual(work.get(0), [34, 1, 1, ...tiers(12), 1, ...tiers(40 * VSM_RENDER_TIER_CORNERS)])
+  assert.deepEqual(work.get(0), [34, 1, 1, ...tiers(12), 1, ...tiers(40 * vsmRenderTierCorners(0))])
   for (let c = 1; c < stats.chunks; c++)
     assert.deepEqual(work.get(c), [0, 1, 0, ...tiers(0), 1, ...tiers(0)], `chunk ${c}`)
 })

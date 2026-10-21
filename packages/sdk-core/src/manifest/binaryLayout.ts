@@ -39,7 +39,6 @@ const COLUMN_ROWS: Record<ColumnName, RowCount> = {
   pageU32: 'pages',
   geometryU32: 'pages',
   pageDepthLayer: 'pages',
-  pageCone: 'pages',
   cullingNodes: 'cullingNodes',
   groupLevel: 'groups',
   groupError: 'groups',

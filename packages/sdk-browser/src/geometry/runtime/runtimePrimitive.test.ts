@@ -55,10 +55,9 @@ test('the pages of a dashed line carry its distance along the line', async () =>
   for (const page of await read(false)) assert.equal(page.attributes.uv, undefined)
 })
 
-// A line longer than the format's texture grid holds on one page (2^24 steps of 2^-14, 1024
-// units) still draws, its dashes at their distances: the primitive keeps the format's grid and the
-// page alone takes the coarser one its own range fits (`page_uv_exponent`), never dropped. Every
-// dash text reads the decoded distance.
+// A line of 3000 units still draws, its dashes at their distances: a texture coordinate is a float
+// code whose precision follows its size, never dropped. Every dash text reads the decoded
+// distance.
 test('a dashed line past 1024 units keeps its dashes at their distances', async () => {
   const path = geometry.createBuffer({
     position: new BufferAttribute(new Float32Array([0, 0, 0, 1500, 0, 0, 3000, 0, 0]), 3),
@@ -69,14 +68,6 @@ test('a dashed line past 1024 units keeps its dashes at their distances', async 
     false,
   )
   assert.equal(cut.pages.length, 1)
-  // The primitive on the format's 2^-14, as a textured box; its one page holds 3000 units on 2^-11.
-  assert.equal(cut.uvExponent, -14)
-  const box = await cutDrawnTriangles(
-    drawnTriangles(geometry.box(1, 1, 1), 'triangles')!,
-    false,
-    false,
-  )
-  assert.equal(box.uvExponent, -14)
   const { uv } = decodeGeometryPage(new Uint8Array(cut.pages[0].geometry)).attributes
   const along = [...new Set(Array.from(uv!).filter((_, i) => i % 2 === 0))].sort((a, b) => a - b)
   assert.deepEqual(along, [0, 1500, 3000])
@@ -119,16 +110,4 @@ test("the pages of a sprite's quad are bounded by the cube of its radius", async
     )
     assert.equal(page.depthLayer, undefined)
   }
-})
-
-// A cut keeps the compiler's tiled grid (`cutGrid.ts`, the TypeScript twin of its rules): a
-// kilometre plane takes the finest grid a page holds, 2^-13, coarser than the tile's 2^-15 a page
-// of that width could not hold.
-test('a kilometre plane takes the finest grid a page holds', async () => {
-  const cut = await cutDrawnTriangles(
-    drawnTriangles(geometry.plane(1000, 1000), 'triangles')!,
-    false,
-    false,
-  )
-  assert.equal(cut.positionExponent, -13)
 })

@@ -27,7 +27,7 @@ export function raySourcesOf(rt: WebgpuPagesRuntime, records: RayRecords): RaySo
     geometry = gpu.cache?.buffer,
     // A scene without float geometry, or without blended entries, binds the zero words in their
     // place.
-    zero = vis.zeroFlags,
+    zero = vis.zeroRows,
     positions = vis.concatPos ?? zero,
     compaction = blendState.compaction,
     entries = compaction?.entriesBuffer ?? zero,

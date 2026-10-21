@@ -1,83 +1,103 @@
 import type { ClusterRoot, PageRec } from '../geometry/selection/types.ts'
 
-import type { DrawSource } from '../geometry/selection/drawSource.ts'
 import { createDeformationFrame, type DeformedMesh } from './frame.ts'
 import { placementDeformation } from './placementSource.ts'
 import { deformedOf } from './source.ts'
 import type { MatrixElements } from '../session/host/matrixElements.ts'
 import { rekeyRebound } from '../placement/growth/growth.ts'
-import type { EngineCamera } from '../camera/engineCamera.ts'
-import { createDeformationSkip } from './screen.ts'
-import { createRowsAnimate, rootHasOutputs } from './outputs.ts'
+import { createRowsAnimate, rootHasOutputs, unsourced } from './outputs.ts'
+import { createBankTracks } from './bankTracks.ts'
+import { createRootTracks } from './rootTracks.ts'
 
 type Capacities = Parameters<typeof placementDeformation>[2]
 
-/** The record `owner` drawing `draw` at `world` takes (`deformedOf`), or `null`. A source drawn at
- *  rows is moved by the owners of its rows, none by a node of its own. */
-function recordOf(
-  draw: DrawSource | undefined,
-  owner: ClusterRoot<PageRec>,
-  world: MatrixElements,
-  capacities: Capacities,
-) {
-  const source: DeformedMesh | undefined = draw?.node ?? (draw?.rows?.sources ? {} : undefined)
-  if (!source) return null
-  const { mesh, capacity } = placementDeformation(owner.placement, source, capacities)
-  return deformedOf(mesh, owner, world, capacity)
+/** What moves the pages `owner` draws (`placementDeformation`): the node drawing them, or the
+ *  sources and tracks of the rows placing them; none for a source drawn at rows holding neither. */
+function movedBy(owner: ClusterRoot<PageRec>, capacities: Capacities) {
+  const draw = owner.pages[0]?.drawSource,
+    rows = draw?.rows
+  const source: DeformedMesh | undefined =
+    draw?.node ?? (rows?.sources || rows?.banks ? {} : undefined)
+  return source && placementDeformation(owner, source, capacities)
+}
+
+/** The record `owner` takes of its own (`deformedOf`), or `null`. A source drawn at rows is moved
+ *  by the owners of its rows, none by a node of its own; rows whose sources can never be one
+ *  (`unsourced`) take none. */
+function recordOf(owner: ClusterRoot<PageRec>, capacities: Capacities) {
+  if (unsourced(owner.placement?.rows)) return null
+  const moved = movedBy(owner, capacities)
+  return moved ? deformedOf(moved.mesh, owner, owner.world, moved.capacity) : null
 }
 
 /**
- * Whether `roots` give the deformation work: a record (`recordOf`) or a page's results
- * (`rootHasOutputs`). The one rule that loads the stage's code, at the open as at a growth
- * (`loadDeformationCode`); its compute is made wherever the code is.
+ * Whether `roots` give the deformation work: a bank's track to play (`createRootTracks`), a
+ * record (`recordOf`) or a page's results (`rootHasOutputs`). The one rule that loads the stage's
+ * code, at the open as at a growth (`loadDeformationCode`); its compute is made wherever the code
+ * is.
  */
 export function deformsAny(roots: readonly ClusterRoot<PageRec>[]) {
   const capacities: Capacities = new Map()
-  const rowsAnimate = createRowsAnimate()
+  const rowsAnimate = createRowsAnimate(),
+    playable = createRootTracks()
   return roots.some(
     (root) =>
+      playable(root).length > 0 ||
       rootHasOutputs(root, rowsAnimate) ||
-      !!recordOf(root.pages[0]?.drawSource, root, root.world, capacities),
+      !!recordOf(root, capacities),
   )
 }
 
 /**
- * A session's GPU deformation: one record per deformed root of its cut (`frame.ts`), the
- * block of records placed in the float pool the page passes bind (`place`), and the word a row
- * carries to name its root's record (`PageInfo.deform`). Roots joining the session later take
- * records behind the others' (`append`), at the rank the cut gives them: a
- * root's rank names its record through `entryOf`, a transparent item's world through
- * `wordOfWorld`.
+ * A session's GPU deformation: one record per deformed root of its cut (`frame.ts`) and one per
+ * track of the animation banks its roots name (`bankTracks.ts`), the block of records placed in
+ * the float pool the page passes bind (`place`), and the word a row carries to name the record it
+ * reads (`PageInfo.deform`): its root's own, or, for a root playing a bank's track, the track's
+ * while it animates and none while it rests. Roots joining the session later take records behind
+ * the others' (`append`), at the rank the cut gives them, the tracks of the banks they name before
+ * theirs: a root's rank names its own record through `entryOf`, the word its rows carry through
+ * `rowWord`, a transparent item's world through `wordOfWorld`. A root playing a bank's tracks
+ * alone — no source of its rows moving it (`createRowsAnimate`) — takes no record of its own.
  */
-export function createSessionDeformation(roots: readonly ClusterRoot<PageRec>[]) {
+export function createSessionDeformation(roots: readonly ClusterRoot<PageRec>[] = []) {
   const capacities: Capacities = new Map()
   let base = 0
   const frame = createDeformationFrame()
-  /** The record of each root by its rank, and the root each record belongs to. */
+  const tracks = createBankTracks(frame)
+  /** The record of each root by its rank. */
   const rankEntry: number[] = []
-  const entryRoot: (ClusterRoot<PageRec> | undefined)[] = []
-  /** Each root's record by the world it reads: what a transparent item knows it by. */
+  /** Each root's rank by the world it reads: what a transparent item knows it by. */
   const byWorld = new Map<object, number>()
-  /** The placements `added` join the records. */
+  /** The placements `added` join the records, behind the tracks of the banks they name. */
   const append = (added: readonly ClusterRoot<PageRec>[]) => {
-    const first = frame.append(
-      added.map((root) => recordOf(root.pages[0]?.drawSource, root, root.world, capacities)),
-    )
+    const playable = createRootTracks(),
+      rowsAnimate = createRowsAnimate()
+    const plays = added.map(playable)
+    for (const named of plays) for (const track of named) tracks.join(track.banks)
+    const own = (root: ClusterRoot<PageRec>, k: number) =>
+      plays[k].length && !rowsAnimate(root.placement?.rows) ? null : recordOf(root, capacities)
+    const first = frame.append(added.map(own))
     added.forEach((root, k) => {
+      const rank = rankEntry.length
       rankEntry.push(first + k)
-      entryRoot[first + k] = root
-      byWorld.set(root.world, first + k)
+      byWorld.set(root.world, rank)
+      const moved = plays[k].length ? movedBy(root, capacities) : undefined
+      if (moved) tracks.add(rank, root, moved.mesh, first + k)
     })
   }
   append(roots)
-  const rankOf = (world: object) => byWorld.get(world) ?? -1
+  /** What the rows of root `rank` carry (`rowWord`). */
+  const wordOf = (rank: number) => {
+    const at = frame.bases[tracks.named(rank) ?? rankEntry[rank]] ?? 0
+    return at ? base + at : 0
+  }
   /** The placements whose world was `old` stand on `world` now (a growth of their rows): their
    *  records follow, found by the new view as the old. */
   const rebind = (rebound: ReadonlyMap<MatrixElements, MatrixElements>) =>
-    rekeyRebound(byWorld, rebound, frame.rebind)
-  const skip = createDeformationSkip()
+    rekeyRebound(byWorld, rebound, (rank, world) => frame.rebind(rankEntry[rank], world))
   return {
     frame,
+    tracks,
     append,
     rebind,
     /** The roots the session holds records for: the rank the next one joins at. */
@@ -86,22 +106,9 @@ export function createSessionDeformation(roots: readonly ClusterRoot<PageRec>[])
     },
     /** The record of the root at `rank`, -1 for a rank the session holds none of. */
     entryOf: (rank: number) => rankEntry[rank] ?? -1,
-    /** Frame `tick`'s records (`frame.update`), a root whose reach spans less than `pixelError`
-     *  drawn at rest (`screen.ts`). Returns whether a record moved. */
-    update(
-      cam: EngineCamera,
-      viewport: readonly number[] | undefined,
-      pixelError: number,
-      tick: number,
-    ) {
-      return frame.update(skip(entryRoot, cam, viewport, pixelError), tick)
-    },
-    changedOfWorld(world: object) {
-      return frame.dirty[rankOf(world)] === 1
-    },
-    reachOfWorld(world: object) {
-      return frame.reach[rankOf(world)] ?? 0
-    },
+    /** Frame `tick`'s records (`frame.update`): every one deforms. Returns whether a record
+     *  moved. */
+    update: (tick: number) => frame.update(tick),
     /** Whether any root deforms. */
     get any() {
       return frame.deforming > 0
@@ -118,16 +125,13 @@ export function createSessionDeformation(roots: readonly ClusterRoot<PageRec>[])
     get base() {
       return base
     },
-    /** What a row of `placement` carries: its record's first float in the pool plus one, zero
-     *  when it has none. */
-    rowWord(placement: number | undefined) {
-      const at = placement === undefined ? 0 : (frame.bases[rankEntry[placement]] ?? 0)
-      return at ? base + at : 0
-    },
+    /** What a row of `placement` carries: the first float in the pool plus one of the record it
+     *  reads (`tracks.named`, else its root's own), zero when it reads none. */
+    rowWord: (placement: number | undefined) => (placement === undefined ? 0 : wordOf(placement)),
     /** `rowWord` of the root placed by `world`: a transparent item's. */
     wordOfWorld(world: object) {
-      const at = frame.bases[rankOf(world)] ?? 0
-      return at ? base + at : 0
+      const rank = byWorld.get(world)
+      return rank === undefined ? 0 : wordOf(rank)
     },
   }
 }

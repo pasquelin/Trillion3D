@@ -5,6 +5,7 @@ import { createDagStages } from '../../../packages/sdk-browser/src/geometry/dag/
 import { dagArmLayout } from '../../../packages/sdk-browser/src/geometry/dag/arm.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/geometry/dag/shader/floorWgsl.ts'
 import { dagBindEntries } from '../../../packages/sdk-browser/src/geometry/dag/shader/bindings.ts'
+import { createCutOcclusion } from '../../../packages/sdk-browser/src/geometry/dag/occlusion.ts'
 import { shaderErrors } from '../../../packages/sdk-browser/src/gpu/core/shaderModule.ts'
 import { validationScope } from '../../../packages/sdk-browser/src/gpu/core/errorScope.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
@@ -19,6 +20,8 @@ export async function compileKernels(texts: KernelText[]) {
   if (!gpu) throw new Error('WebGPU must be available')
   const { device } = gpu
   const layout = device.createBindGroupLayout({ entries: dagBindEntries() })
+  // The pyramid's group the stages that read it bind, as the engine makes it.
+  const occlusion = createCutOcclusion(device)
   const verdicts: KernelVerdict[] = []
   for (const { name, code } of texts) {
     // Under its own scope, so a refused text leaves nothing to the device's uncaptured errors.
@@ -28,7 +31,7 @@ export async function compileKernels(texts: KernelText[]) {
     const compiled = (await shaderErrors(module)).map((message) => `module: ${message.message}`)
     // A stage compiled off the thread is refused by its promise, not in the scope.
     const { error } = await validationScope(device, () =>
-      createDagStages(device, layout, module, {
+      createDagStages(device, layout, occlusion.layout, module, {
         layout: dagArmLayout(device),
         words: dagWorkLayout(1),
       }),
@@ -36,6 +39,7 @@ export async function compileKernels(texts: KernelText[]) {
     const errors = error ? [...compiled, `stages: ${error.message}`] : compiled
     verdicts.push({ name, errors })
   }
+  occlusion.dispose()
   const { complet: adapter } = await gpu.fermer()
   return { adapter, verdicts, uncaptured: gpu.errors }
 }

@@ -26,21 +26,15 @@ function runtimeOver(run: ReturnType<typeof createWebgpuRunState>, gpu: object =
   } as unknown as WebgpuPagesRuntime
 }
 
-// The triangles drawn are the cut's selected less the occlusion test's rejected, its last sample
-// (`drawnTrianglesOf`), without the `pending` guard (`!gpuMetricsReady`) that hides
-// `submittedTriangles`; before any sample, nothing is subtracted.
-test('metricsOf publishes drawnTriangles as the selected less the occlusion rejects', () => {
+// The triangles drawn are the cut's selected, its drawn list taken after both its occlusion
+// passes, without the `pending` guard (`!gpuMetricsReady`) that hides `submittedTriangles`.
+test('metricsOf publishes drawnTriangles as the cut selected them', () => {
   const run = createWebgpuRunState()
   run.gpuMetricsReady = false // An image still in flight: submittedTriangles must be null.
   run.selectedTriangles = 4321
-  const rt = runtimeOver(run)
-  assert.equal(metricsOf(rt).drawnTriangles, 4321, 'no sample yet: nothing subtracted')
-  rt.vis.gpuPartition = {
-    counts: () => ({ rejectedTriangles: 321 }),
-  } as unknown as typeof rt.vis.gpuPartition
-  const metrics = metricsOf(rt)
+  const metrics = metricsOf(runtimeOver(run))
   assert.equal(metrics.selectedTriangles, 4321)
-  assert.equal(metrics.drawnTriangles, 4000)
+  assert.equal(metrics.drawnTriangles, 4321)
   assert.equal(metrics.submittedTriangles, null, 'witness: the pending guard does hide this one')
 })
 

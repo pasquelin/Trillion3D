@@ -6,6 +6,7 @@ import { Blends, type Blend } from './blend.ts'
 import { clipTimeOf, trackWidth, type Clip, type Track, type TrackBinding } from './clip.ts'
 import { difference, sample } from './sample.ts'
 import { HELD, UNRECORDED, WRITE, holdFrame, holdWalk, holdWritten } from './mixerHold.ts'
+import { advanceBankClocks } from './bankClock.ts'
 
 /** Every mixer with an action playing: what a world's loop advances each frame. */
 const playing = new Set<Mixer>()
@@ -258,9 +259,10 @@ export class Mixer {
   }
 }
 
-/** Advances the mixers whose root hangs under `scene`; true while one of them still plays. */
+/** Advances the mixers whose root hangs under `scene`, and the clocks of the animation banks one of
+ *  whose owners it holds (`advanceBankClocks`); true while one of them still plays. */
 export function advanceMixers(scene: Object3D, seconds: number) {
-  let active = false
+  let active = advanceBankClocks(scene, seconds)
   // From the length found: a listener of a written pose that advances again stacks its own walk.
   const from = advancing.length,
     outer = from === 0

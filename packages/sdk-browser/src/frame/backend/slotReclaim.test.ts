@@ -16,7 +16,6 @@ import { DAG_READBACK_SLOTS } from '../../geometry/dag/layout.ts'
 import type { ClusterManifest, Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
-import { PARTITION_UNI } from '../../geometry/partition/gpu/contract.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
@@ -49,9 +48,10 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
     textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
-    // Five slots of the widest page (24 bytes): below the eight clusters' 144, so the pool holds no
-    // home of each (`poolBytes`) and a jump between the quads evicts.
-    maxResidentPages: 5,
+    // Three streaming slots of the widest page (24 bytes) beside the two roots' (`geometryPoolFor`):
+    // five, below the eight clusters' 144, so the pool holds no home of each (`poolBytes`) and a
+    // jump between the quads evicts.
+    maxResidentPages: 3,
     viewport: [32, 32],
   })
   const cam = camera()
@@ -90,15 +90,16 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
   installGpuGlobals()
   const { device, writes, buffers, submits } = fakeDevice(BACKEND),
     fixture = scene()
-  // Eight clusters share five slots, four of them the floor, so every jump between the two
+  // Eight clusters share five slots, the two roots' among them, so every jump between the two
   // primitives recycles rows on eviction.
   const backend = webgpuPagesEngine({
     textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
-    // Five slots of the widest page (24 bytes): below the eight clusters' 144, so the pool holds no
-    // home of each (`poolBytes`) and a jump between the quads evicts.
-    maxResidentPages: 5,
+    // Three streaming slots of the widest page (24 bytes) beside the two roots' (`geometryPoolFor`):
+    // five, below the eight clusters' 144, so the pool holds no home of each (`poolBytes`) and a
+    // jump between the quads evicts.
+    maxResidentPages: 3,
     viewport: [32, 32],
   })
   const view = camera()
@@ -124,12 +125,13 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
       table.data.byteOffset,
       table.data.byteLength / 4,
     )
-    // The rows the image reads, `[0, rows)` of the partition's uniform (`../../geometry/rows/slots.ts`: ranks
-    // stay contiguous); a rank past them, left by a row moved down, is read by no pass.
-    const uniform = buffers.find((buffer) => buffer.label === 'Trillion3D partition uniform v1')!
-    const live = new Uint32Array(uniform.data.buffer, uniform.data.byteOffset, uniform.size / 4)[
-      PARTITION_UNI.at.rows
-    ]
+    // The rows the image reads, `[0, rows)` of the draw compaction, its uniform's first word
+    // (`encodeDraw`; `../../geometry/rows/slots.ts`: ranks stay contiguous) — the last made, a grown
+    // table's —; a rank past them, left by a row moved down, is read by no pass.
+    const uniform = buffers.findLast(
+      (buffer) => buffer.label === 'Trillion3D draw compaction uniform',
+    )!
+    const live = new Uint32Array(uniform.data.buffer, uniform.data.byteOffset, uniform.size / 4)[0]
     assert.ok(live > 0 && live <= table.size / PAGE_INFO_STRIDE, `${live} rows read`)
     const seen = new Set<number>(),
       slots = new Set<number>()

@@ -1,5 +1,4 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
-import { drawnTrianglesOf } from '../backend/state/drawnTriangles.ts'
 import { vsmSubmitted } from '../../lighting/shadows/vsm/frame/vsmFrameEnd.ts'
 import { gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
@@ -60,7 +59,9 @@ export function submitColorCopy(
   const { run, gpu, timing, capture, context } = rt
   // The off-screen variant does not touch the swap chain in any way: neither a composition target
   // nor a separate presentation pass. That is what isolates what Presentation actually contains.
-  const offscreen = composesOffscreen(context.diagnosticGpuVariant)
+  // Nor does an image withheld — till the view has loaded, or while a load blocks on slow
+  // streaming (`../loop/firstImage.ts`).
+  const offscreen = composesOffscreen(context.diagnosticGpuVariant) || run.imageWithheld
   if (!presented && !offscreen && gpu.presenter && gpu.displayTexture && !capture.capturing) {
     // The display colour at its size: a frame drawn below it is the resolve's input, never shown.
     const at = rt.views.active.rect
@@ -94,7 +95,6 @@ export function submitColorCopy(
   // What the image replaced as it was encoded goes, its last command submitted (`frameRetire.ts`).
   destroyRetired(device)
   // Counts of a sampled image are mapped only once the image that copied them is submitted.
-  rt.vis.gpuPartition?.countsSubmitted()
   rt.vis.voxelSteps?.submitted()
   // The transparents' verdict counts of the image map once it left (`verdictRead.ts`).
   rt.blendState.expand?.submitted()
@@ -120,7 +120,7 @@ export function submitColorCopy(
       width,
       height,
       drawCalls: run.gpuDrawCalls,
-      drawnTriangles: drawnTrianglesOf(run, rt.vis.gpuPartition?.counts()),
+      drawnTriangles: run.selectedTriangles,
       transparent: {
         drawCalls: run.blendDrawCalls,
         submittedTriangles: run.blendSubmittedTriangles,

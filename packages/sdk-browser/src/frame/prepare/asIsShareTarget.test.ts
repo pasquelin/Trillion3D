@@ -71,6 +71,8 @@ test('a blended scene with no debug view runs no share pass and makes no share t
 test('without a debug view the transparent pass binds no share and draws the shareless pipelines', () => {
   const { blendState, gpu, device } = prepared()
   targets(gpu)
+  // No temporal pass: nothing but a debug view reads the share.
+  gpu.temporalLevel = 'off'
   const { rt, encoder, passes } = replay(blendState, gpu)
   const asked: (ShareTargets | undefined)[] = []
   rt.vis.blendPipelines = {

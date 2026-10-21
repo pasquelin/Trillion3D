@@ -79,8 +79,8 @@ function stackOf(s: ClusterStructureIndex) {
  * whatever its placements, at a base a placement reads in its frame words (`worlds/worlds.ts`,
  * `STRUCTURE_WORD`) — no word per page, nor per placement but that one. Made as the roots are placed
  * (`baseOf`, the frame words written in placement order), appended behind the live ones, and sent by
- * what was placed since (`flush`), as the content keys are (`evict/evict.ts`). `stackBound` is the most a
- * walk of any of them holds on its stack: the closure kernel is compiled for it.
+ * what was placed since (`flush`). `stackBound` is the most a walk of any of them holds on its
+ * stack: the closure kernel is compiled for it.
  */
 function createStructureTable() {
   const bases = new Map<ClusterStructureIndex, number>(),

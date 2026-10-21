@@ -10,7 +10,9 @@ import { PAGE_INFO } from '../pageInfo.ts'
 
 /**
  * The five words of a draw record — the row, its pipeline bin, its page index in the catalogue, its
- * coplanar layer and its triangles — are properties of the ROW, not of the image. A moving camera
+ * coplanar layer and its triangles — are properties of the ROW, not of the image; the sixth, which
+ * raster draws the row, is the image's, written by the GPU (`DrawItem.raster`), and this witness
+ * sends it as zero. A moving camera
  * changes none of them; only a page that arrives, leaves or changes rank does, and the row table
  * already marks those rows (`rows.forEachDirtyRun`).
  *
@@ -94,8 +96,8 @@ function writeRun(rt: WebgpuPagesRuntime, from: number, to: number) {
     hold.voxelRows += voxel - hold.voxel[row]
     hold.voxel[row] = voxel
     // Triangles the row draws are those of its page-table row — what the GPU actually draws — not
-    // those the cluster declares. The GPU partition weighs an occlusion reject with them, and the
-    // table total follows without a per-image walk.
+    // those the cluster declares. The draw compaction batches the row by them (`batchesOf`), and
+    // the table total follows without a per-image walk.
     const triangles = ints ? ints[row * ROW_WORDS + PAGE_INFO.at.indexCount] / 3 : 0
     drawItemWords[word + 4] = triangles
     hold.total += triangles - hold.triangles[row]

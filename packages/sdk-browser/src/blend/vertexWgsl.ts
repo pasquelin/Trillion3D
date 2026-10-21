@@ -12,11 +12,13 @@ import { NORMAL_TRANSFORM_WGSL } from '../lighting/standardLighting.ts'
 import { DIAGNOSTIC_VIEWS } from '../visibility/shader/shadeMode.ts'
 import { DIAGNOSTIC_PALETTE_WGSL } from '../diagnostic/colors.ts'
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
-import { PAGE_UV1_WGSL } from '../visibility/shader/pageUv1Wgsl.ts'
+import { PAGE_UV_SET_WGSL } from '../visibility/shader/pageUvSetWgsl.ts'
+import { MAP_CHANNEL_WGSL } from '../visibility/shader/physicalWgsl.ts'
+import { SURFACE_MAP_FIELDS } from '../visibility/materialType.ts'
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts'
 import { FACING_DROP, FACING_MATERIAL_MASK, FACING_SHIFT, FACING_WGSL } from './facing.ts'
-import { ITEM_FLAG_BITS, ITEM_HISTORY_SHIFT, ITEM_HLOD_PROXY } from './items.ts'
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { ITEM_FLAG_BITS, ITEM_HISTORY_SHIFT, ITEM_HLOD } from './items.ts'
+import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
 import { lowBits } from '../../../math/src/wgsl/integer.ts'
 import { cornerBarycentric } from '../../../math/src/wgsl/barycentric.ts'
@@ -29,14 +31,46 @@ const BLEND_DIAGNOSTIC_CODE_WGSL = wgslBlock(
   `fn blendDiagnosticCode(flags:u32)->u32{return (flags>>${itemFlags.DIAGNOSTIC_CODE_SHIFT}u)&${itemFlags.DIAGNOSTIC_CODE_MASK}u;}`,
 )
 
-/** A lobed program's two UV sets of the vertex: the second where its surface carries a lobe or a
- *  map reading it (glTF's `texCoord`, the record's `channels`) and its geometry a second set —
- *  the only fragments that read it (`blendPhysicalBegin`, `blendUv`) —, and the channels word in
- *  `tri` (`TRI_CHANNELS_SHIFT`). All are read with the record the stage reads already
- *  (`materialAt`). */
+/** The texture set past the first that the least map of a channels word reading one names
+ *  (`channelsOf`, glTF's `texCoord`), 0 for none: the one set past the first a transparent vertex
+ *  carries (its varyings hold two sets). */
+const CHANNELS_ALT_WGSL = wgslFn(
+  'channelsAlt',
+  [MAP_CHANNEL_WGSL],
+  `fn channelsAlt(channels:u32)->u32{
+ var alt=0u;
+ for(var i=16u;i>0u;i--){
+  let s=mapChannel(channels,i-1u);
+  if(s!=0u){alt=s;}
+ }
+ return alt;
+}`,
+)
+
+/** The maps of a channels word that read a set past the first, one bit a map in
+ *  `SURFACE_MAP_FIELDS` order (what a fragment tests, `blendUv`). */
+const CHANNELS_READ_WGSL = wgslFn(
+  'channelsRead',
+  [MAP_CHANNEL_WGSL],
+  `fn channelsRead(channels:u32)->u32{
+ var read=0u;
+ for(var i=0u;i<${SURFACE_MAP_FIELDS.length}u;i++){
+  if(mapChannel(channels,i)!=0u){read|=1u<<i;}
+ }
+ return read;
+}`,
+)
+
+/** A lobed program's two UV sets of the vertex: the first, and the set its surface's maps or its
+ *  lobes' maps read past it (`channelsAlt`, the record's `channels`, glTF's `texCoord`) where its
+ *  geometry stores it — the only fragments that read it (`blendPhysicalBegin`, `blendUv`), every
+ *  map past the first set reading this one —, and the maps that read it in `tri`
+ *  (`TRI_CHANNELS_SHIFT`). All are read with the record the stage reads already (`materialAt`). */
 const UV_PAIR = `let uv0=pageUv(page,h,v);var uv1=uv0;
- if((m.lobes!=0u||m.channels!=0u)&&pageHasUv1(page,h)){uv1=pageUv1(page,h,v,normalTexels());}
- out.uv=vec4f(uv0,uv1);out.tri|=m.channels<<${TRI_CHANNELS_SHIFT}u;`
+ var alt=channelsAlt(m.channels);
+ if(alt==0u&&m.lobes!=0u){alt=channelsAlt(physicalAt(m.lobes).channels);}
+ if(alt!=0u&&pageHasUvSet(page,h,alt)){uv1=pageUvSet(page,h,v,alt,normalTexels());}
+ out.uv=vec4f(uv0,uv1);out.tri|=channelsRead(m.channels)<<${TRI_CHANNELS_SHIFT}u;`
 
 /** What a lobed program's vertex stage adds (`blendVertexWgsl`): the second UV set beside the
  *  first, the item's material word beside its ids and in its page, and their reads. */
@@ -46,7 +80,7 @@ const LAYOUTS = {
     ids: 'vec4u',
     word: ',it.material',
     page: 'page.material=it.material;',
-    read: [PAGE_UV1_WGSL],
+    read: [PAGE_UV_SET_WGSL, CHANNELS_ALT_WGSL, CHANNELS_READ_WGSL],
     write: UV_PAIR,
   },
   lobeless: {
@@ -64,8 +98,8 @@ const LAYOUTS = {
  * paged geometry and the plan's instances. Every module that draws the runs starts from it — the
  * blend stages (`shader.ts`), so each draws the same fragments; only their fragment stages differ.
  *
- * With `lobes`, a lobed program's (`physicalWgsl.ts`): `uv` carries the second UV set in its last
- * two lanes (`pageUv1`, the first where the geometry has none) and `ids` the item's material word
+ * With `lobes`, a lobed program's (`physicalWgsl.ts`): `uv` carries a second UV set in its last
+ * two lanes (`pageUvSet`, the first where the geometry has none) and `ids` the item's material word
  * in its fourth — no varying more, a fragment stage reading its front face holding fifteen of the
  * sixteen WebGPU guarantees. Without, the stage as it was, word for word.
  */
@@ -124,8 +158,8 @@ const VERTEX_CORNER = ` let v=corners[local%3u];
  // Read in a diagnostic view alone: a test of the image's view flags, the same for every lane.
  if((uni.viewFlags&${itemFlags.FLAG_DIAGNOSTIC_VIEW}u)!=0u){
   out.diagId=clusterDiagnostic[slot.y];
-  // The HLOD view's word, of a placement drawn as its cell's HLOD 0 actor (\`ITEM_HLOD_PROXY\`).
-  if(blendDiagnosticCode(uni.viewFlags)==${DIAGNOSTIC_VIEWS.hlod.code}u&&(it.flags&${ITEM_HLOD_PROXY}u)!=0u){out.diagId=diagnosticProxied(out.diagId);}
+  // The HLOD view's word, of a placement drawn as an HLOD level (\`ITEM_HLOD\`).
+  if(blendDiagnosticCode(uni.viewFlags)==${DIAGNOSTIC_VIEWS.hlod.code}u){out.diagId=diagnosticDrawnAs(out.diagId,(it.flags>>${ITEM_HLOD.shift}u)&${ITEM_HLOD.mask}u);}
   if(blendDiagnosticCode(uni.viewFlags)==${DIAGNOSTIC_VIEWS['screen-error'].code}u){out.diagId=bitcast<u32>(diagnosticWorldError(out.diagId,it.world));}
  }
  out.bary=cornerBarycentric(local%3u);
@@ -133,10 +167,10 @@ const VERTEX_CORNER = ` let v=corners[local%3u];
  if((flags&${itemFlags.FLAG_HAS_NORMAL}u)!=0u){out.normal=vec4f(xformNormal(it.world,pageNormal(page,h,v)),out.normal.w);}
  out.tangent=vec4f(vec3f(0.0),out.tangent.w);out.bitangent=vec4f(vec3f(0.0),out.bitangent.w);
  if((flags&${itemFlags.FLAG_BACK}u)!=0u){out.normal=vec4f(-out.normal.xyz,out.normal.w);}
- // A page stores no tangent: an item that reads one reads it as floats, and a quantized one never
- // carries the flag (\`prepare.ts\`), its frame rebuilt from the screen (\`shaderSurface.ts\`).
+ // An item that reads a tangent reads its page's stored one or its source's floats (\`pageTangent\`);
+ // one without carries no flag (\`prepare.ts\`), its frame rebuilt from the screen (\`shaderSurface.ts\`).
  if((flags&${itemFlags.FLAG_HAS_TANGENT}u)!=0u){
-  let t=vertT(page.vertexBase,v);
+  let t=pageTangent(page,h,v);
   out.tangent=vec4f(unitOrZero((it.world*vec4f(t.xyz,0.0)).xyz),out.tangent.w);
   if((flags&${itemFlags.FLAG_BACK}u)!=0u){out.tangent=vec4f(-out.tangent.xyz,out.tangent.w);}
   out.bitangent=vec4f(unitOrZero(cross(out.normal.xyz,out.tangent.xyz)*t.w),out.bitangent.w);

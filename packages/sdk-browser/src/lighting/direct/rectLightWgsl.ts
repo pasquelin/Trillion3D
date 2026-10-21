@@ -123,7 +123,7 @@ fn ltcSplitSum(f0:vec3f,rough:f32,NdotV:f32)->vec3f{return splitSumTerm(f0,ltcLo
  *  lobe's frame at a normal, view and roughness (\`RectFrame\`: the frame, M⁻¹ and the split-sum
  *  texel, two table lookups) is the pixel's, not the light's: taken once a pixel, on the first
  *  rectangle that lights it (\`pixelRectFrame\`), and read by every other. */
-export const RECT_SHADING_WGSL = wgslBlock(
+const RECT_SHADING_WGSL = wgslBlock(
   'RECT_SHADING_WGSL',
   [RECT_LIGHT_WGSL, PI, ndotvClamped, tangentSide, vectorRejection, LTC_WGSL],
   `

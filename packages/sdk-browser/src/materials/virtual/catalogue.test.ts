@@ -10,7 +10,7 @@ import type { TexturePreview } from '../../../../sdk-core/src/texture/previewCon
 
 import { previewLevels } from '../../../../../tests/fixtures/manifest/manifestBinaryLevels.ts'
 import { tileCatalogue } from './catalogue.ts'
-import { previewsByAtlas } from '../texture/textureCaches.ts'
+import { createTextureCaches } from '../texture/textureCaches.ts'
 import { poolEncoding, WHITE_TAIL } from '../texture/blockFormats.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
@@ -85,10 +85,17 @@ test('a catalogue routes each texture to the lane of its layout and hosts what h
 test('a coverage chain is filed as the colour entry of its texture and keeps its word', () => {
   const coverage = { ...preview(256, 128, 2), texture: 3, atlas: PREVIEW_ATLAS_COVERAGE }
   const data = { ...preview(256, 128, 2), texture: 3, atlas: PREVIEW_ATLAS_DATA }
-  const previewAt = previewsByAtlas([data, coverage])
-  assert.equal(previewAt(3, PREVIEW_ATLAS_COLOR), coverage)
-  assert.equal(previewAt(3, PREVIEW_ATLAS_DATA), data)
-  assert.equal(previewAt(3, PREVIEW_ATLAS_COVERAGE), undefined, 'filed by atlas, not by word')
+  const texture = map()
+  const caches = createTextureCaches(createPageCache())
+  caches.add({
+    ranks: new Map([[texture, 3]]),
+    metadata: { key: 'k', texturePreviews: [data, coverage] },
+    base: '',
+  })
+  const previewAt = (atlas: number) => caches.chainOf(texture, atlas)?.preview
+  assert.equal(previewAt(PREVIEW_ATLAS_COLOR), coverage)
+  assert.equal(previewAt(PREVIEW_ATLAS_DATA), data)
+  assert.equal(previewAt(PREVIEW_ATLAS_COVERAGE), undefined, 'filed by atlas, not by word')
   const [, entry] = tileCatalogue([map()], baked(coverage), poolEncoding('bc7'))
   assert.equal(entry.source.kind === 'baked' && entry.source.atlas, PREVIEW_ATLAS_COVERAGE)
 })

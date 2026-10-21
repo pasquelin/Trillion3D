@@ -22,7 +22,7 @@ fn one_island(seed: u64) -> Case {
 
 /// Every triangle its own chart in an atlas: three vertices per triangle, none shared, so every
 /// position is a seam corner written as many times as it has triangles. Each copy is a wedge of
-/// its own and keeps its own coordinates through every merge (`qem_simplifier.rs`).
+/// its own and keeps its own coordinates through every merge (`simplify/region/collapse.rs`).
 pub(super) fn island_per_face(seed: u64) -> Case {
     let mut rng = seeded(seed);
     let amplitude = amplitude(&mut rng);
@@ -49,7 +49,7 @@ pub(super) fn island_per_face(seed: u64) -> Case {
 }
 
 /// One chart per brick: every vertex is a seam corner, nothing shares a texture coordinate. The
-/// copies merge as wedges, each with its own coordinates (`qem_simplifier.rs`).
+/// copies merge as wedges, each with its own coordinates (`simplify/region/collapse.rs`).
 pub(super) fn island_per_brick(seed: u64) -> Case {
     let mut rng = seeded(seed);
     let amplitude = amplitude(&mut rng);

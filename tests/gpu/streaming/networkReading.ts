@@ -1,7 +1,6 @@
 // What the geometry network proof reads: the bench scenes served over HTTP, every answer held back by
 // a round trip, each cache object's transfer recorded where the network sees it; and one opening of
-// a scene over it — the pages the GPU pool admitted while the camera stood still, the horizons the
-// view ahead looked at while it moved, what failed.
+// a scene over it — the pages the GPU pool admitted while the camera stood still, what failed.
 import { createServer } from 'node:http'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { ASSETS } from '../../../bench/runner/assets/scene.ts'
@@ -48,15 +47,12 @@ export const sentAlongside = (transfers: readonly Transfer[]) =>
  *  frame. */
 export async function readOverNetwork(manifestUrl: string, poses: number, holdMs: number) {
   const admitted: string[] = [],
-    horizons: number[] = [],
     failures: string[] = []
   let moving = false
   const onDiagnostic = ({ phase, context }: EngineDiagnostic) => {
     // The pool's own record of a page written into a slot: the admission, in its order.
     if (phase === 'cache-gpu-page-upload') {
       if (!moving) admitted.push(String(context?.key))
-    } else if (phase === 'gpu-selection-current-frame') {
-      if (moving) horizons.push(Number(context?.aheadHorizonMs))
     }
     // A page read that failed, not one the view cancelled, would leave a page out of the pool.
     else if (phase === 'cache-gpu-page-error') {
@@ -95,7 +91,7 @@ export async function readOverNetwork(manifestUrl: string, poses: number, holdMs
     await world.flush()
     moving = true
     for (let pose = 1; pose <= poses; pose++) await frame(pose, true)
-    return { admitted, horizons, failures, held }
+    return { admitted, failures, held }
   } finally {
     world.dispose()
     canvas.remove()

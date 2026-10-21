@@ -3,9 +3,64 @@ import type { WorldControls } from './camera.ts'
 import type { WorldPhysicsOptions } from '../../physics/worldPhysicsOptions.ts'
 import type { RenderScale } from '../../frame/scale/renderScaleOption.ts'
 import type { WorldQualityOptions } from './quality.ts'
+import type {
+  HlodWarmupOptions,
+  WorldStreamingOptions,
+} from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
+import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.ts'
+import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animationOptions.ts'
+import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
+import type { RasterOptions } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
+import type { StreamingOptions } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
 
-/** What a page may set when it creates a world; saying nothing is the normal case. */
-export interface WorldOptions {
+/** What a page may set when it creates a world; saying nothing is the normal case. Beside the
+ *  options below, how the view streams a partitioned scene's cells and the warm-up an HLOD switch
+ *  waits on, each setting by its field with the reference's default
+ *  (`../../../../sdk-core/src/contracts/worldStreamingOptions.ts`): `worldStreamingMaxLoadingCells`
+ *  (4), `worldStreamingAngleWeight` (0.4), `worldStreamingSortByExtent` (true),
+ *  `worldStreamingSortByPriority` (true), `worldStreamingUseGridRange` (true),
+ *  `worldStreamingRangeScale` (1), `worldStreamingRadius` (100 m), `worldStreamingSector` (false),
+ *  `worldStreamingSectorAngle` (360°), `worldStreamingZCulling` (false),
+ *  `worldStreamingBlockOnSlowStreaming` (true),
+ *  `worldStreamingBlockOnSlowStreamingRatio` (0.25), `hlodEnabled` (true), `hlodWarmup` (true),
+ *  `hlodWarmupFrames` (5),
+ *  `hlodWarmupGeometry` (true), `hlodWarmupTextures` (true), `hlodWarmupTextureScale` (2),
+ *  `hlodWarmupTextureClamp` (2048).
+ *  Named here, each holds over the quality preset; changed later by `world.worldStreaming`, from
+ *  the next frame. The cut's settings likewise, each by its field with the reference's default
+ *  (`../../../../sdk-core/src/contracts/cutOptions.ts`): `cutTwoPassOcclusion` (true),
+ *  `cutOcclusionCulling` (true), `cutFrustumCulling` (true), `cutMinLodCulling` (true),
+ *  `cutLodBiasFollowsUpscale` (true), `cutLodBiasOffset` (0), `cutLodBiasMin` (-2),
+ *  `cutMaxNodes` (2097152), `cutMaxCandidateClusters` (16777216), `cutMaxVisibleClusters`
+ *  (4194304); changed later by `world.cut`. The animation's settings likewise
+ *  (`../../../../sdk-core/src/contracts/animationOptions.ts`): `animationMinScreenSize` (0.1),
+ *  `animationBankInterpolation` (true), `animationBankTimeScale` (1); changed later by
+ *  `world.animation`. The shading's likewise
+ *  (`../../../../sdk-core/src/contracts/shadingOptions.ts`): `shadeBinningMode` (`'auto'`, or
+ *  `'pixel'`, `'quad'`); changed later by `world.shading`. The cluster raster's split likewise
+ *  (`../../../../sdk-core/src/contracts/rasterOptions.ts`): `softwareRaster` (true) — a cluster
+ *  whose longest edge projects under `hardwareRasterEdgePixels` and whose box crosses neither clip
+ *  plane is rastered in compute, every other one by the hardware rasterizer; `false` hands every
+ *  cluster to the hardware — and `hardwareRasterEdgePixels` (32, in pixels: a finite number above
+ *  zero), the edge from which a cluster, seen at the nearest point of its level-of-detail sphere,
+ *  goes to the hardware rasterizer; changed later by `world.softwareRaster` and
+ *  `world.hardwareRasterEdgePixels`. The geometry streaming's likewise
+ *  (`../../../../sdk-core/src/contracts/streamingOptions.ts`): `streamingMaxPendingPages` (128, the
+ *  geometry pages kept started at once, a whole number from 1), `streamingMaxInstallsPerFrame`
+ *  (128, the pages a frame installs at most, never more than may be pending),
+ *  `streamingQualityMinPoolPercent` (70) and `streamingQualityMaxPoolPercent` (85, read no lower
+ *  than the low mark) — the pool's load, in percent of its pages, under which the quality rises
+ *  again and over which it falls, from 10 to 100 — and `streamingQualityMinScale` (0.3, from 0.1
+ *  to 1, 1 never scales). A value a setting does not take is refused. */
+export interface WorldOptions
+  extends
+    WorldStreamingOptions,
+    HlodWarmupOptions,
+    CutOptions,
+    AnimationOptions,
+    ShadingOptions,
+    RasterOptions,
+    StreamingOptions {
   /**
    * Whether the world runs its own loop: it draws when something changes and rests after 120
    * frames with nothing new. `false` lets the page call `world.render()` itself.

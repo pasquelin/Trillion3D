@@ -7,6 +7,9 @@
 import type { StdioOptions } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { currentCompilerExecutable } from '../../packages/sdk-node/src/compiler/executable.mts'
+import { compilerArguments } from '../../packages/sdk-node/src/compiler/arguments.mts'
+import type { HlodOptions } from '../../packages/sdk-core/src/contracts/hlodOptions.ts'
+import type { JobOptions } from '../../packages/sdk-core/src/contracts/jobOptions.ts'
 import { runChecked } from '../test/run.ts'
 
 /** The triangle budget of a `full` cache, the one every measured scene uses. */
@@ -22,8 +25,10 @@ export function requireNativeCompiler(): void {
     throw new Error(`native compiler absent: ${compiler} — run \`pnpm run build:native\``)
 }
 
-/** One `full` compile of `source` into `cache`, both relative to `cwd`. */
-export interface FullCompile {
+/** One `full` compile of `source` into `cache`, both relative to `cwd`, with the job's options
+ *  — its HLOD and the others the SDK's jobs name (`JobOptions`) —, each a flag as the SDK's own
+ *  compile writes it. */
+export interface FullCompile extends JobOptions {
   cwd: string
   source: string
   /** Where the cache is written: `cache` beside the source by default. */
@@ -35,6 +40,9 @@ export interface FullCompile {
   threads?: number
   ramMb?: number
   simplification?: 'none' | 'qem-endpoints'
+  /** The HLOD, either form (`resolveHlod`); none when left out. It needs `simplification:
+   *  'qem-endpoints'`: exact clusters build none, so the pair is refused. */
+  hlod?: HlodOptions | null
   stdio?: StdioOptions
   /** The compiler to run: this checkout's by default (`nativeCompiler`). */
   executable?: string
@@ -52,20 +60,32 @@ export function compileFullCache({
   simplification = 'none',
   stdio = 'inherit',
   executable = nativeCompiler(),
+  hlod,
+  ...options
 }: FullCompile) {
+  // Exact clusters (`none`) are never simplified, so the compiler builds no HLOD of them and
+  // ignores the flag: a job naming both is refused, not written and silently dropped.
+  if (hlod && simplification === 'none')
+    throw new Error(
+      "`hlod` needs `simplification: 'qem-endpoints'`: with `simplification: 'none'` the compiler " +
+        'builds exact clusters and no HLOD',
+    )
   runChecked(
     executable,
-    [
-      source,
-      cache,
-      'full',
-      TRIANGLE_BUDGET,
-      // Empty: the compiler's own default (`machine_threads`).
-      threads === undefined ? '' : String(threads),
-      String(ramMb),
-      resourceBase,
-      simplification,
-    ],
+    compilerArguments(
+      {
+        source,
+        cache,
+        scope: 'full',
+        triangleBudget: TRIANGLE_BUDGET,
+        // Empty: the compiler's own default (`machine_threads`).
+        threads: threads === undefined ? '' : String(threads),
+        ramBudgetMb: String(ramMb),
+        resourceBaseUrl: resourceBase,
+        simplification,
+      },
+      { hlod, ...options },
+    ),
     { cwd, stdio },
   )
 }

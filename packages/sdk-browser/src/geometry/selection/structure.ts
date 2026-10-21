@@ -1,5 +1,6 @@
 import type { ClusterStructure } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { ClusterStructureIndex } from './types.ts'
+import { halfNearest } from '../../../../math/src/float/half.ts'
 
 /**
  * Group links of a primitive, flattened once and shared by every instance of it: which group
@@ -8,8 +9,6 @@ import type { ClusterStructureIndex } from './types.ts'
 export function structureIndex(
   structure: ClusterStructure | null | undefined,
   pageCount: number,
-  /** Added to every group's band, exactly as `clusterErrorFields` adds it to a cluster's. */
-  quantizationError = 0,
 ): ClusterStructureIndex | undefined {
   if (!structure || !Array.isArray(structure.groups) || !Array.isArray(structure.roots))
     return undefined
@@ -31,7 +30,7 @@ export function structureIndex(
     const group = structure.groups[g]
     if (!(group.error >= 0) || !Array.isArray(group.sphere) || group.sphere.length !== 4)
       throw new Error(`Group ${g} without error or bounds`)
-    error[g] = group.error + quantizationError
+    error[g] = halfNearest(group.error)
     for (let a = 0; a < 4; a++) sphere[g * 4 + a] = group.sphere[a]
     let at = childOffsets[g]
     for (const child of group.children) {

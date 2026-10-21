@@ -1,4 +1,4 @@
-//! Reading one compile job from the command line or a batch file (`compiler_args.rs`).
+//! Reading one compile job from the command line or a batch file (`compiler/args.rs`).
 use super::*;
 
 /// The command line's job read from `line`, under a fresh cancellation flag.
@@ -110,7 +110,7 @@ fn a_mistyped_text_field_is_refused_by_name() {
 // leaves the stored family out.
 #[test]
 fn the_stored_block_family_alone_is_cooked_by_default() {
-    use crate::texture_preview::BlockFormat;
+    use crate::texture::BlockFormat;
     let formats = |extra: &[&str]| {
         parse(&[&["s", "c", "slice", "12", "/a/"][..], extra].concat()).map(|o| o.texture_formats)
     };
@@ -146,7 +146,7 @@ fn a_count_no_form_takes_is_refused_with_the_usage() {
 // form named the job; the textures-format refusal and the usage name every block family.
 #[test]
 fn one_refusal_names_each_missing_value_and_every_choice() {
-    use crate::texture_preview::BlockFormat;
+    use crate::texture::BlockFormat;
     let job = json!({"source":"s","cache":"c"});
     let read = read_job(&job).expect("read");
     let refusal = validate_compile_options(&read).expect_err("no resource base");

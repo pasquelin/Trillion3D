@@ -52,16 +52,6 @@ ${GROUP_VOTED}
 
 /** Pixel reconstruction from the depth. */
 export const VSM_PROJECTION_PIXEL_WGSL = /* wgsl */ `
-fn vsmUnpackEvenBits(xIn:u32)->u32{
- var x=xIn&0x55555555u;
- x=(x^(x>>1u))&0x33333333u;
- x=(x^(x>>2u))&0x0f0f0f0fu;
- x=(x^(x>>4u))&0x00ff00ffu;
- x=(x^(x>>8u))&0x0000ffffu;
- return x;
-}
-/** The 2D coordinates of a Z-order index: its even bits and its odd bits. */
-fn vsmZOrderDecode(m:u32)->vec2u{return vec2u(vsmUnpackEvenBits(m),vsmUnpackEvenBits(m>>1u));}
 /** A fragment's shifted position (projection rect = view rect). */
 fn vsmPixelToShifted(sv:vec4f)->vec3f{
  let p=(sv.xy-vec2f(vsmView.projectionRect.xy))*vsmView.viewPixels.zw;

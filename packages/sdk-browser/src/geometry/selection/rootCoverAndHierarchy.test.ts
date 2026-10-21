@@ -5,9 +5,9 @@ import { rootCoverage } from './selection.ts'
 import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { collectFixture, dagFixture, wideCamera, urls } from './dag.fixture.ts'
 import { dagCulling } from './helpers.fixture.ts'
+import { CULL_FIRST_PAGE, CULL_STRIDE } from '../dag/types.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { rootChildren } from '../../session/memory/minimumCapacity.ts'
-import type { ClusterRoot, PageRec } from './types.ts'
+import type { PageRec } from './types.ts'
 
 test('the root cover is what stays pinned for a flat cut', () => {
   const fixture = dagFixture()
@@ -54,7 +54,7 @@ test('the culling hierarchy accelerates the flat cut without changing it', () =>
 test('a culling hierarchy that does not match its pages is rejected', () => {
   const fixture = dagFixture()
   const broken = dagCulling()
-  broken.nodes[15 + 13] = 99 // the leaf child now claims pages past the end
+  broken.nodes[CULL_STRIDE + CULL_FIRST_PAGE] = 99 // the leaf child now claims pages past the end
   fixture.metadata.primitives[0].culling = broken
   assert.throws(() => collectFixture(fixture), /culling/i)
   const short = dagCulling()
@@ -79,7 +79,7 @@ for (const transparent of [true, false])
     fixture.geometry.dispose()
   })
 
-test("every root is covered, a held one with its holder; the floor reads the session's", () => {
+test('every root is covered, a held one with its holder', () => {
   const pages = [
     { url: 'top', parentError: null },
     { url: 'held', parentError: null, holder: 1 },
@@ -93,13 +93,6 @@ test("every root is covered, a held one with its holder; the floor reads the ses
       ['top', undefined],
       ['held', 1],
     ],
-  )
-  // Each root replaces its own child: the floor holds the session root's alone.
-  const structure = { roots: [0, 1], sources: [0, 1, -1, -1], childOffsets: [0, 1, 2] }
-  const root = { pages, structure: { ...structure, children: [2, 3] } }
-  assert.deepEqual(
-    rootChildren([root as unknown as ClusterRoot<PageRec>]).map((page) => page.url),
-    ['child'],
   )
   const none = pages.map((page) => ({ ...page, parentError: 1 }))
   assert.throws(() => rootCoverage([{ pages: none }]), /INVALID_ROOT_COVERAGE/)

@@ -1,6 +1,6 @@
 //! Golden of progressive previews: the only coverage of the full path real glTF →
 //! `compile()` → cache → binary sidecar for the `texturePreviews` section. The
-//! in-vitro tests in `texture_preview/tests/` fix the math on images built in
+//! in-vitro tests in `texture/tests/` fix the math on images built in
 //! memory; this one fixes the bytes an engine will actually read, PNG and JPEG
 //! decoders included.
 use super::*;
@@ -66,7 +66,7 @@ pub(in crate::tests) fn previews_digest(run: &GoldenRun) -> Value {
                 std::str::from_utf8(sha).expect("sha"),
                 word,
             );
-            let kept = texture_preview::preview_block_bytes(word(base + 8), word(base + 12));
+            let kept = crate::texture::preview_block_bytes(word(base + 8), word(base + 12));
             digest["blocks"] = TEXTURE_PREVIEW_BLOCKS
                 .iter()
                 .zip(blocks_at.iter_mut())
@@ -113,7 +113,7 @@ fn entry_digest(
     let mut at = pixels_at + word(base + 32) as usize;
     let mut levels = Vec::new();
     for level in first..first + word(base + 28) {
-        let (w, h) = texture_preview::preview_level_size(width, height, level);
+        let (w, h) = crate::texture::preview_level_size(width, height, level);
         let end = at + (w as usize) * (h as usize) * 4;
         levels.push(level_digest(level, w, h, &bytes[at..end]));
         at = end;

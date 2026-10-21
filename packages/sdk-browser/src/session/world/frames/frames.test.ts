@@ -154,7 +154,6 @@ test('the GPU frame time the engine measured reaches the page hook; an unmeasure
 test('before the first frame every metric key is there: the totals zero, every measure null', () => {
   const zero = new Set(['cpuFrameMs', 'pageLoads', 'pageBytesRead'])
   assert.ok(Object.isFrozen(NOT_DRAWN))
-  assert.equal(NOT_DRAWN.hizCulled, null)
   for (const [key, value] of Object.entries(NOT_DRAWN))
     assert.equal(value, zero.has(key) ? 0 : null, key)
   for (const key of ['displayRefreshMs', 'gpuPassMs', 'shadowVsmLights', 'textureResidentBytes'])

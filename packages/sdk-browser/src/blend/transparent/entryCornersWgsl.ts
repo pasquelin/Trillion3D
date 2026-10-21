@@ -2,11 +2,11 @@
  * THE TRANSPARENT ENTRIES' WORLD CORNERS ON THE GPU (`entryCorners.ts`): one thread an entry — every
  * entry of the table (`params.whole`), or those a list names —, its page's grown box carried by its
  * root's world as the GPU holds it in doubles (`../../placement/roots/rootWorlds.ts`), the eight corners
- * written as a row's are (`writeCorners`), each coordinate the single rounding then its residue. An
+ * written by `writeCorners`, each coordinate the single rounding then its residue. An
  * entry naming no page, or a page without a record, takes zero corners, which compaction drops.
  */
 import { BOX_CORNERS_WGSL } from '../../placement/compose/gpuComposeDerivedWgsl.ts'
-import { CORNER_VALUES } from '../../geometry/partition/gpu/contract.ts'
+import { CORNER_VALUES } from '../../gpu/core/boxProjectWgsl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { LISTED_AT_WGSL } from '../../placement/roots/listedRootsWgsl.ts'

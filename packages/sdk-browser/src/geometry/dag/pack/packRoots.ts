@@ -8,7 +8,7 @@ import {
   type PackedDag,
 } from '../types.ts'
 import { baseOpen, linksFor } from '../../cut/links.ts'
-import { cullingBoundsFor, packCullingNodes } from './packNodes.ts'
+import { packCullingNodes } from './packNodes.ts'
 import { hierarchyLevelSizes } from '../hierarchy.ts'
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import type { DagCapacity } from './packCapacity.ts'
@@ -25,7 +25,6 @@ export type Culling = NonNullable<DagRoot['culling']>
 export type PackShared = DagPackShared
 export const emptyShared = (): PackShared => ({
   levelSizesOf: new Map(),
-  boundsOf: new Map(),
   firstOf: new Map(),
   nodeBlocks: new Map(),
 })
@@ -74,10 +73,9 @@ function nodeBlockOf(p: Packing, root: DagRoot, culling: Culling) {
   const count = root.pages.length,
     nodeBase = p.live.nodes,
     owner = new Uint32Array(count).fill(NO_INDEX)
-  const bounds = cullingBoundsFor(culling, root.pages, p.shared.boundsOf)
   const open = root.structure && baseOpen(linksFor(culling, count), root.structure)
   const place = { nodeBase, pageBase: 0 }
-  const nodeCount = packCullingNodes(p.nodes, p.nodeInts, culling, bounds, place, owner, open)
+  const nodeCount = packCullingNodes(p.nodes, p.nodeInts, culling, place, owner, open)
   const block = { nodeBase, nodeCount, owner }
   p.shared.nodeBlocks.set(culling.nodes, block)
   p.live.nodes += nodeCount

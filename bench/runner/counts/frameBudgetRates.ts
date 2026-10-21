@@ -8,8 +8,6 @@ import type { Light } from '../lighting/lightTileCity.ts'
 
 /** Sponza's triangles, from its glTF's index accessors (103 primitives). */
 export const SPONZA_TRIANGLES = 262_267
-/** Material classes the atrium's boxes are drawn with (`lighting/materialTileCount.ts`). */
-export const CLASSES = 6
 
 /**
  * The rates, each from a measured number:

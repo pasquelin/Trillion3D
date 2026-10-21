@@ -11,11 +11,10 @@
  * conversely a kept node necessarily has a kept parent, which is useless to test.
  *
  * It also counts the other half of the problem: TOP-DOWN rejection. The node carries the
- * replacement error CEILING from the manifest — enough to reject a too-fine subtree — and, since
- * this batch, the own-error FLOOR, which `cullingBounds` derives from the pages at prepare time
- * and `packCullingNodes` stores in the node: enough to reject the too-coarse as well, as the
- * CPU cut already does (`../../cut/node.fixture.ts`). Nothing from the compiler, nothing from the
- * format. Both descents are launched from here so the difference is measured, not deduced.
+ * replacement error CEILING from the manifest — enough to reject a too-fine subtree — and its
+ * least own error, the FLOOR, which a leaf is rejected on as too coarse, as the CPU cut does
+ * (`../../cut/node.fixture.ts`). Both descents are launched from here so the difference is
+ * measured, not deduced.
  */
 import { DAG_NODE_FLOATS, type PackedDag } from '../types.ts'
 import { dagViewFrames, projectedError } from '../oracle/math.fixture.ts'
@@ -81,8 +80,8 @@ export function descenteComptee(
         count.rejectedFrontier++
         continue
       }
-      // The subtree error FLOOR, which the node does not yet carry as it carries its ceiling:
-      // none of its clusters is fine enough, so no candidate will come out of it.
+      // A leaf's least own error, which it carries beside its ceiling: over the threshold, none
+      // of its clusters is fine enough, so no candidate will come out of it.
       if (plancher && dagNodeFloor(frames, nodes, ints, n, w) > frames.pixelError) {
         count.plancherCoupe++
         count.rejectedFrontier++

@@ -1,7 +1,6 @@
-import { BOX_PROJECT_WGSL, PARTITION_UNI_WGSL } from './boxProjectWgsl.ts'
+import { BOX_PROJECT_WGSL, CORNER_VALUES, PROJECTION_UNI_WGSL } from './boxProjectWgsl.ts'
 import { HIZ_HIDDEN_WGSL } from '../../visibility/hiz/gpu/rectWgsl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
-import { CORNER_VALUES } from '../../geometry/partition/gpu/contract.ts'
 import { TRANSPARENT_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { bitIsSet, bitWord } from '../../../../math/src/wgsl/integer.ts'
@@ -9,10 +8,9 @@ import { bitIsSet, bitWord } from '../../../../math/src/wgsl/integer.ts'
 /**
  * Occlusion test of transparent clusters, one table entry per thread.
  *
- * This is the SAME rule as the opaques', to the letter: the same conservative projection
- * (`projectBox`), the same uniform — the buffer the partition wrote for this frame —, the same
- * rectangle pick (`hizRectPick`) and the same pyramid walk (`pyramidHides`), on the farthest layer of
- * the Hi-Z pyramid the frame just built. Nothing is proper to transparents except what fidelity requires:
+ * The conservative projection (`projectBox`) under the frame's projection uniform — the buffer the
+ * test wrote for this frame (`transparentOcclusion.ts`) —, the rectangle pick (`hizRectPick`) and the
+ * pyramid walk (`pyramidHides`), on the farthest layer of the Hi-Z pyramid the frame just built:
  *
  *  - the coplanar-layer bias is that of the HIGHEST layer the frame names, for every entry, and at
  *    least the layer the transparent passes draw on (`TRANSPARENT_DEPTH_LAYER`). A cluster does
@@ -39,16 +37,15 @@ export function transparentOcclusionShader() {
 fn testTransparentClusters(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let i=flatIndex(id,n,WORKGROUP_THREADS);if(i>=arrayLength(&corners)/${CORNER_VALUES}u){return;}
  let box=projectBox(i,max(uni.layerTop,${TRANSPARENT_DEPTH_LAYER}u));
- // Same rectangle clipping, same mip, same pyramid walk as the opaque main-pass cull
- // (\`hiddenByPyramid\`); only the layer bias is the highest the frame names, at least the
- // transparent passes' own.
+ // The rectangle clipped, its mip picked and the pyramid walked (\`hiddenByPyramid\`), the layer
+ // bias the highest the frame names, at least the transparent passes' own.
  let open=bitIsSet(unculled[bitWord(i)],i);
  let reject=!open&&box.clips==0u&&hiddenByPyramid(box.rect,box.nearest);
  occluded[i]=select(0u,1u,reject);
 }
 `,
     [
-      PARTITION_UNI_WGSL,
+      PROJECTION_UNI_WGSL,
       BOX_PROJECT_WGSL,
       HIZ_HIDDEN_WGSL,
       FLAT_INDEX_WGSL,

@@ -9,12 +9,11 @@ import {
   VIS_UNIFORM_BYTES,
 } from '../../../packages/sdk-browser/src/gpu/bind/bindLayout.ts'
 import { visLayoutEntries } from '../../../packages/sdk-browser/src/visibility/passes/shaders.ts'
-import { VIS_TARGETS } from '../../../packages/sdk-browser/src/visibility/passes/pipelines.ts'
-import { VIS_FRAGMENT } from '../../../packages/sdk-browser/src/visibility/shader/visWgsl.ts'
+import { visShader } from '../../../packages/sdk-browser/src/visibility/shader/visWgsl.ts'
 import { VIS_UNIFORM } from '../../../packages/sdk-browser/src/visibility/shader/uniformLayout.ts'
+import { wgslBlock } from '../../../packages/math/src/wgsl/decl.ts'
 import { bufferHolding } from '../../kit/device/computeReadback.ts'
 import { PAGE_INFO } from '../../../packages/sdk-browser/src/visibility/pageInfo.ts'
-import { NO_INDEX } from '../../../packages/math/src/constants.ts'
 
 /** Pages in the table, laid `COLUMNS` × `ROWS` over a target of `WIDTH` × `HEIGHT`. */
 const PAGES = 147,
@@ -24,11 +23,22 @@ const WIDTH = 256,
   HEIGHT = 160
 /** A page drawn by the direct path, past the indirect slots, under its canonical instance index. */
 export const DIRECT_PAGE = 122
+/** The engine's visibility module with one fragment stage more, which writes the identifier its
+ *  fragment carries into a slot's own target: what each slot drew, read slot by slot — the
+ *  engine's stage writes the one visibility buffer every slot shares. */
+const ID_FRAGMENT = 'vis_id_fs'
+export const VIS_ID_SHADER = visShader({
+  diagnostic: wgslBlock(
+    'VIS_ID_FRAGMENT',
+    [],
+    `@fragment fn ${ID_FRAGMENT}(in:VSOut)->@location(0) u32{return in.id;}`,
+  ),
+})
 /** The page a visibility identifier names: its packed row base, less one (`packedRowBase`). */
 export const pageOfId = (id: number) => (id >>> VIS_TRIANGLE_BITS) - 1
 
 /** The page table: each page's world matrix places its triangle in a grid cell, three indices,
- *  its identifiers' base, and no Hi-Z slot. */
+ *  and its identifiers' base. */
 function pageTable() {
   const table = new Float32Array(PAGES * ROW_WORDS),
     ints = new Uint32Array(table.buffer)
@@ -41,14 +51,13 @@ function pageTable() {
     table.set([0.8 / COLUMNS, 0, 0, 0, 0, 0.8 / ROWS, 0, 0, 0, 0, 1, 0, x, y, 0, 1], base)
     ints[base + PAGE_INFO.at.indexCount] = 3
     ints[base + PAGE_INFO.at.packedBase] = packedRowBase(page)
-    ints[base + PAGE_INFO.at.hizSlot] = NO_INDEX
   }
   return table
 }
 
 /** The visibility pipeline (both halves draw with it, as the engine's `visPipeline`), one bind
  *  group per slot and one for the direct page, the layered target each slot draws into, and the
- *  page table and Hi-Z verdicts the tested half's compaction reads (`GpuDraw.encodeTested`). */
+ *  page table. */
 export function setupVisibility(
   device: GPUDevice,
   module: GPUShaderModule,
@@ -60,10 +69,7 @@ export function setupVisibility(
   const table = upload(pageTable()),
     indices = upload(Uint32Array.of(0, 1, 2)),
     positions = upload(Float32Array.of(-1, -1, 0.5, 1, -1, 0.5, 0, 1, 0.5)),
-    flags = upload(new Uint32Array(1)),
     uvs = upload(new Float32Array(6)),
-    // No page has a Hi-Z slot: the tested half's compaction rejects none (`hizRejected`).
-    hizFlags = upload(new Uint32Array(1)),
     // No page carries a map: no lane pool is ever read, the atlas page table stays empty.
     colorPages = upload(new Uint32Array(64))
   const maps = device
@@ -83,8 +89,7 @@ export function setupVisibility(
   const pipeline = device.createRenderPipeline({
     layout: pipelineLayout,
     vertex: { module, entryPoint: 'vis_vs' },
-    // The engine's one visibility stage: the identifier, and the pyramid's level 0 beside it.
-    fragment: { module, entryPoint: VIS_FRAGMENT, targets: VIS_TARGETS },
+    fragment: { module, entryPoint: ID_FRAGMENT, targets: [{ format: 'r32uint' }] },
     primitive: { topology: 'triangle-list', cullMode: 'none' },
   })
   const b = VIS_BINDINGS
@@ -105,7 +110,6 @@ export function setupVisibility(
         { binding: b.cache, resource: { buffer: indices } },
         { binding: b.position, resource: { buffer: positions } },
         { binding: b.pageTable, resource: { buffer: table } },
-        { binding: b.flags, resource: { buffer: flags } },
         { binding: b.uniform, resource: { buffer: uniform } },
         { binding: b.uv, resource: { buffer: uvs } },
         ...b.color.lanes.map((binding) => ({ binding, resource: maps })),
@@ -122,22 +126,8 @@ export function setupVisibility(
     format: 'r32uint',
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
   })
-  const levels = device.createTexture({
-    size: [WIDTH, HEIGHT, slots + 1],
-    format: 'r32float',
-    usage: GPUTextureUsage.RENDER_ATTACHMENT,
-  })
-  const layer = (texture: GPUTexture) =>
-    Array.from({ length: slots + 1 }, (_, slot) =>
-      texture.createView({ dimension: '2d', baseArrayLayer: slot, arrayLayerCount: 1 }),
-    )
-  return {
-    pipeline,
-    groups,
-    table,
-    hizFlags,
-    target,
-    views: layer(target),
-    levelViews: layer(levels),
-  }
+  const views = Array.from({ length: slots + 1 }, (_, slot) =>
+    target.createView({ dimension: '2d', baseArrayLayer: slot, arrayLayerCount: 1 }),
+  )
+  return { pipeline, groups, table, target, views }
 }

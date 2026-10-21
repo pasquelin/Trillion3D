@@ -41,9 +41,9 @@ One WebGPU image is one command buffer, encoded in this order:
 | GPU deformation                                           | `deformation/compute.ts`                                                     |
 | Composed placements                                       | `compose/gpuCompose.ts`                                                    |
 | Cut: GPU selection, the engine's one cut                  | `src/frame/render/gpuCut.ts`                                              |
-| Partition and draw compaction                             | `visibility/passes/partition.ts`                                             |
-| Visibility raster, two-phase Hi-Z                         | `visibility/passes/passes.ts`                                                |
-| Material surfaces, one pass per class                     | `materials/classes/materialPasses.ts`                                              |
+| Draw compaction of the cut's main pass                    | `visibility/draw/drawOps.ts`                                                 |
+| Visibility raster, the cut's post pass between its halves | `visibility/passes/passes.ts`                                                |
+| Material surfaces, one dispatch per class                 | `materials/classes/materialPasses.ts`                                              |
 | Light buffer, bounce, light grid, virtual shadow maps     | `src/frame/render/encodeLights.ts`                                        |
 | Deferred resolve                                          | `lighting/deferred/deferred.ts`                                              |
 | Transparents, distortion, particles                       | `src/frame/render/encodeBlend.ts`                                         |
@@ -58,8 +58,8 @@ One WebGPU image is one command buffer, encoded in this order:
 A world draws its own camera as the runtime's main view, then each view `world.addView` made
 (`session/world/views.ts`), in the same frame and loop (`frame/schedule/draw.ts`). A view is a
 record of what a camera owns (`frame/backend/state/view.ts`): its cut and what its image made of it,
-motion, occlusion history and Hi-Z pyramid, frame targets, temporal history, effect chain,
-presenter (a canvas of its own, or a rectangle of the main canvas), GPU timer and render scale
+motion, Hi-Z pyramid (what its next image's cut occlusion reads), frame targets, temporal history,
+effect chain, presenter (a canvas of its own, or a rectangle of the main canvas), GPU timer and render scale
 (`view/viewScale.ts`, following the world's controller within its bounds). Drawing it trades
 those members into the runtime groups and back (`frame/backend/state/viewSwitch.ts`); every other
 member is the scene's and is shared: placements and their composition, the pages, their residency
@@ -82,8 +82,8 @@ A node whose parent moves and whose pose only follows it is composed once, on th
 a node flag (`NODE_WORLD_LAZY`, `packages/sdk-core/src/world/transform/nodeFlags.ts`) that the tree's walk
 leaves alone, and the placement's compose slot is the parent's. The roots pass writes, in exact
 double arithmetic, the world, the stretch, the world box and the motion of each linked root; the
-rows pass writes the page-table world words, the sphere, the Hi-Z corners and the world-dependent
-levels of detail of its rows (`compose/gpuCompose.ts`); the members pass writes the leaf boxes the
+rows pass writes the page-table world words, the sphere and the world-dependent levels of detail
+of its rows (`compose/gpuCompose.ts`); the members pass writes the leaf boxes the
 placement tree is fitted over, and the one tree refit (`dag/tree/treeRefit.ts`, a pass any caller
 names its dirty groups to) fits them and every node above, bottom up. A CPU reader — transparent
 depth, a winding — reads the composed world once a frame (`composedWorld`, a
@@ -97,16 +97,276 @@ engine exists (`partition/follow.ts`, `world/models/models.ts`); every product o
 world and a local matrix on the CPU is the one product `multiplyMatrix4` (`packages/math/src/matrix/matrix4.ts`), which the GPU composition reproduces word for word (`compose/gpuComposeWgsl.ts`). The refit and the members pass bind the cut's
 tables as the cut does, split tables in their parts (`geometry/dag/shader/bindings.ts`).
 
+## A partitioned scene
+
+A compiled scene's spatially loaded objects lie in the cells of the grids of its partition's
+scheme ([COMPILER.md](COMPILER.md#the-partitions-grids)), which its root names: the main grid's,
+and each HLOD level's. A cell places its objects on rows of their meshes: a static object under
+its core node — one with nodes under it under its own node —, an instanced skinned object at its
+skin's frame playing its track ([Animation banks](#animation-banks)), an animated object of the
+core at its node, its host mesh the row's animation source — its skeleton and morph weights as
+the page's clips leave them —, the row live while that mesh is shown. The camera is the scene's
+one streaming source (`geometry/partition/source.ts`): at its eye, seen from above, a circle of
+each grid's own loading range — scaled, or one radius for every grid —, or a sector of it around
+the view's axis. A cell is wished while that shape meets the bounds it streams by, and not wholly
+beside or behind the sector (`geometry/partition/plan.ts`, `geometry/hlod/hlodCells.ts`):
+
+- `hashSet`, the default: the bounds it streams by within or on the circle's radius, the sector
+  around the view's own axis without its up part — on grids the job does not lay flat, within or
+  on a sphere of that radius, the sector a cone around the view's axis that the box's bounding
+  sphere meets. The cells wished and not loaded load in
+  one order: the higher level on its grid first, then the lower grid priority — the main grid's,
+  each HLOD grid's 0 —, then the lower distance ratio: the squared distance from the eye to the
+  box over the squared radius, at most 1, times half the cosine of the view's axis with the way
+  from the box to the eye plus a half — 0 from within it —. The settings `sortByExtent`,
+  `sortByPriority` and `angleWeight` rank nothing under this scheme.
+- `spatialHash`: its square strictly within the circle's radius, the sector around the view's
+  heading on the ground, and, under `worldStreamingZCulling`, its content's height range meeting
+  the eye's within the radius; on a grid compiled with `pullCoarser`, a wished cell pulls in the
+  coarser cells overlapping it, and those in turn (`geometry/partition/coarser.ts`,
+  `geometry/hlod/hlodPulls.ts`). The cells wished and not loaded load in one order: the wider first (by
+  their half side, or by their level), then the lower grid priority — the main grid's, then each
+  HLOD grid's, 100 plus its level —, then the nearer, the squared distance to the cell's centre
+  times the angle the view turns to reach it, over a half turn, raised to the angle weight.
+
+At most `worldStreamingMaxLoadingCells` load at once, the next starting as one ends: those loading,
+less than that, are the room left; at 0 or less none is held back. The actors always loaded — held by no cell — make one unit a level; it ranks after every
+cell the view reaches, starts only while room is left and takes none, and counts among those loading
+till its actors are held (`geometry/hlod/hlodTops.ts`). Each cell that starts takes a turn, and its
+reads — a cell's files, an HLOD cell's actors' roots and rows — ask the session's queue by it, in a
+lane ahead of the cut's pages: the queue serves every cell's reads in the one load order, a page
+never ranked among them (`geometry/streaming/priority.ts`, `geometry/partition/loadSlots.ts`).
+The cells not started are ranked again at each frame; one loading keeps its turn, its reads staying
+where they were asked. The initial load — till the session's first image is shown — holds none back, and that image waits
+for it: every cell wished visible, its content placed and its roots resident
+(`frame/loop/firstImage.ts`).
+
+Each cell is visible or not, as a streamed level is (`geometry/dag/worlds/worldFollow.ts`): it
+turns visible once wished and loaded, invisible once wished no more. An HLOD actor is drawn while
+the cell it lies in is visible and the cell it stands for is not: a cell shown hides its actor at
+once, a cell hidden shows it if it is loaded. A cell file is a main grid cell's part of an HLOD 0
+cell: its rows draw while its main cell is visible — shown once wished on the main grid, placed and
+its roots resident, hidden once wished no more (`geometry/dag/worlds/worldFiles.ts`) — or while
+its HLOD 0 cell is, every file of it loaded, as that cell's HLOD 0 actor; a cell not visible draws
+nothing of its own and asks for nothing. The HLOD 0 cell of a layer not instanced is its main
+cell's own, on the main grid: its rows draw as that main cell's, and past its range the HLOD 0
+actor its layer built of them stands for them, as any cell's actor. The objects standing as
+themselves in an actor — an `instanced` layer's every one, any other's those marked
+`hlodInstance` — are its rows (`geometry/hlod/hlodRows.ts`): read with the actor, from the bundle
+its cell holds with its root pages, placed on their meshes' own rows — grown for the actors
+loaded, never for the world's rows — while the actor is loaded, each linked to the actor's cell (`ACTOR_ROW`,
+`geometry/dag/worlds/worldLinks.ts`), drawn while that cell draws the actor and counted in its
+readiness as its root pages are, painted in the HLOD view with the actor's HLOD level. A switch that draws an actor whose layer asks a warm-up —
+every builder's but `instanced`'s — waits so many frames in a row (`frame/prepare/hlodWarm.ts`);
+the actor stays warming till it is drawn or let go, and each image, while it is in the drawn
+view, asks its geometry — the pages of its first 16 bundles past its root page, ahead of the
+views' requests: for the frames of the count as it starts, for one while it stands at zero — and
+its textures at the size it covers in that view, its count advancing once a frame — the main
+view's image —, however many views draw. The initial load waits on none. A see-through item
+follows the same words: its key record names its row's cell file slot and HLOD 0 cell, and the
+verdict draws it while either draws its placements (`blend/verdict/verdictWgsl.ts`).
+
+A main grid compiled to block on slow streaming (`blockOnSlowStreaming`,
+[COMPILER.md](COMPILER.md)) waits for its cells near the view once the first image is shown
+(`geometry/partition/slowStreaming.ts`): a cell file wished and not yet shown whose ratio — on a
+square grid its content's distance from the eye less its half side over the grid's loading range,
+on a loose grid the distance to the bounds it streams by over the view's radius — is at most 0 or
+under `worldStreamingBlockOnSlowStreamingRatio` blocks. While one does, no image is presented, the
+loop taking the whole frame (`frame/loop/firstImage.ts`); only the blocking files start loading,
+all at once, a unit already loading going on; no HLOD cell turns visible, no other file shows and
+no switch waits on a warm-up. The HLOD grids never block. With `hlodEnabled` off, no HLOD cell is
+held or told, none draws its actor nor its HLOD 0 actor, and every cell file streams on the main
+grid alone.
+
+Every setting is the reference's by default, a world option by its field, held over the quality
+preset, changed later by `world.worldStreaming` from the next frame
+(`packages/sdk-core/src/contracts/worldStreamingOptions.ts`); a value a setting does not take is
+refused:
+
+```ts
+const world = createWorld(canvas, {
+  worldStreamingMaxLoadingCells: 8,
+  worldStreamingRangeScale: 1.5,
+  hlodWarmupFrames: 3,
+})
+world.worldStreaming = { worldStreamingSector: true, worldStreamingSectorAngle: 120 }
+world.worldStreaming = { worldStreamingMaxLoadingCells: 0 } // no limit: every cell wished starts at once
+world.worldStreaming = { worldStreamingSector: null } // back to the preset's, here the default
+// A scene compiled with `partitionGrid: { blockOnSlowStreaming: true }` waits for its near cells
+// within a tenth of the main grid's range; the HLOD actors switched off, then on again.
+world.worldStreaming = { worldStreamingBlockOnSlowStreamingRatio: 0.1 }
+world.worldStreaming = { hlodEnabled: false }
+world.worldStreaming = { hlodEnabled: null }
+```
+
+| Field                           | Meaning                                                                                   | Default |
+| ------------------------------- | ----------------------------------------------------------------------------------------- | ------- |
+| `worldStreamingMaxLoadingCells` | Cells that may load at once once the first image is shown, a whole number; 0 or less, no limit | `4`     |
+| `worldStreamingAngleWeight`     | How much the angle to the view's heading weighs in a cell's turn, from 0 to 1             | `0.4`   |
+| `worldStreamingSortByExtent`    | The wider cells first by their half side; `false`, by their level                         | `true`  |
+| `worldStreamingSortByPriority`  | A grid's priority ranks before the distance; `false`, after                               | `true`  |
+| `worldStreamingUseGridRange`    | The circle takes each grid's range times `worldStreamingRangeScale`; `false`, `worldStreamingRadius` | `true` |
+| `worldStreamingRangeScale`      | The scale of each grid's loading range, from 0                                            | `1`     |
+| `worldStreamingRadius`          | The circle's radius for every grid, metres, from 0                                        | `100`   |
+| `worldStreamingSector`          | Only a sector of the circle around the view's heading streams cells                       | `false` |
+| `worldStreamingSectorAngle`     | That sector's angle, degrees, from 0 to 360                                               | `360`   |
+| `worldStreamingZCulling`        | A square grid's cell (`spatialHash`) is wished only while its content's height range meets the eye's height within the radius | `false` |
+| `worldStreamingBlockOnSlowStreaming` | A grid compiled with `blockOnSlowStreaming` holds the images back while a cell near the view is not shown | `true` |
+| `worldStreamingBlockOnSlowStreamingRatio` | The ratio under which a cell of a blocking grid not yet shown blocks, from 0          | `0.25`  |
+| `hlodEnabled`                   | The HLOD actors load and draw; `false`, the main grid's cells draw alone                   | `true`  |
+| `hlodWarmup`                    | A switch that draws an HLOD actor whose layer asks one waits on its warm-up               | `true`  |
+| `hlodWarmupFrames`              | The frames in a row a warm-up lasts, a whole number from 0                                | `5`     |
+| `hlodWarmupGeometry`            | A warm-up asks the actor's geometry, ahead of the views' requests                         | `true`  |
+| `hlodWarmupTextures`            | A warm-up asks the actor's textures                                                       | `true`  |
+| `hlodWarmupTextureScale`        | The scale of the size the actor covers on screen its textures are asked at, from 0        | `2`     |
+| `hlodWarmupTextureClamp`        | The most texels asked along a texture's side, a whole number from 1                       | `2048`  |
+
 ## WebGPU page raster
 
 `webgpuPagesEngine` (`frame/backend/pages.ts`) draws from the bounded page cache of
 `pages/pool/pages.ts`. A compute pass selects the camera's resident cut and draws it through indirect
-commands into a visibility buffer (`src/frame/render/gpuCut.ts`); occlusion is two-phase Hi-Z
-(`visibility/passes/passes.ts`, CPU oracle `bench/oracles/browser/hizOcclusion.ts`). The render
+commands into a visibility buffer (`src/frame/render/gpuCut.ts`); occlusion is the cut's own, in two
+passes (below, `visibility/passes/passes.ts`). The render
 passes whose commands repeat from frame to frame — the raster's slot draws, the material surfaces —
 are render bundles, recorded once and replayed while the few identities and revisions they are
 keyed by hold (`gpu/core/renderBundles.ts`); their passes keep the timestamps. Which pages load and leave is
 [RESIDENCY.md](RESIDENCY.md).
+
+The cut (`geometry/dag/`) descends the placement tree's cells, then each placement's culling tree,
+level by level in one descent array, down to the clusters of its leaves; a node's children are
+queued only once it is kept. The culling tree is the compiler's ([FORMAT.md](FORMAT.md#cluster-dag)): one
+tree per level of four children a node, whose leaves are the group parts — the clusters of one
+group one streaming page holds —, the levels' roots under one root, every node carrying its box,
+its LOD ball, the largest replacement error and the least own error under it. A cell, node or
+cluster is kept when its box, grown by its deformation's reach, meets the frustum
+(`cutFrustumCulling`); a node when the error its subtree replaces shows at the threshold at its LOD
+ball, and, a leaf, when its least own error does not show even at its ball's nearest — unless one
+of its clusters' finer group is not resident (`cutMinLodCulling`); a cluster when the cut rule
+draws it. A deformed placement is cut at its rest pose's balls and errors: its deformation grows its
+boxes alone. Every error the cut compares is a half float, as the reference stores it: a cluster's
+own error and replacement error, a group's and a node's largest replacement error the nearest half,
+a node's least own error the greatest half at or below it (`geometry/selection/helpers.ts`).
+An error is projected at the placement's smallest axis scale, at the view's level-of-detail scale:
+half the projection's vertical scale times the render height, over the threshold — `pixelError`
+pixels (1 by default), divided by the streaming pool's quality scale
+([RESIDENCY.md](RESIDENCY.md)) and, while the temporal antialiasing upscales, by the bias
+`min(displayWidth / renderWidth · 2^-cutLodBiasOffset, 2^-cutLodBiasMin)`
+(`cutLodBiasFollowsUpscale`; `src/frame/render/gpuCut.ts`, `lodBiasFactor`). A leaf kept and seen
+asks for each of its pages at the threshold over the leaf's projected error, under the view's
+category (`geometry/dag/request/request.ts`); the descent opens no node of a world actor whose cell
+does not draw it — each actor its own subtree of the world's hierarchy —, so none of its clusters
+is drawn or asked for (`geometry/dag/shader/worldGateWgsl.ts`).
+
+Occlusion runs in two passes (`cutTwoPassOcclusion`, `cutOcclusionCulling`; `geometry/dag/shader/occlusionWgsl.ts`).
+The main pass tests every cell, node and cluster that passed the frustum against the previous
+image's depth pyramid, at the pose that image drew it at, projected by that image's matrices into
+that image's pixels: what it hides is held on the post lists, what it shows is drawn and descends.
+The children of a node it hides are held by their parent, one entry and the mask of them, within
+the post pass's node budget; a placement's root and a cell of the placement tree are held alone.
+A leaf below a placement's root it hides is held only with a resident page, the post pass asking
+for those pages alone; one without is dropped, neither tested again nor asked for. The raster
+draws the main pass's clusters, the pyramid is built from that depth, and the post pass
+(`GpuSelection.encodePost`, `geometry/dag/shader/postPassWgsl.ts`) tests what was held against it,
+at the current poses: what shows descends and is drawn by the raster's second pass, what stays
+hidden is neither drawn nor asked for. The pyramid built from the whole depth, read through the
+levels uniform it was built with, is what the view's next image's main pass reads
+(`src/frame/render/cutPyramid.ts`), whatever size that image draws at: a render scale that moves
+keeps it. The poses a frame draws are kept for the next one on the GPU
+(`geometry/dag/previousPoses.ts`), those that moved alone, copied as the next frame's main view
+opens it, before it sends a pose: every view of a frame tests against the same. A box that covers
+no pixel centre is culled in every pass; a box across the near plane is always seen; a placement
+no camera culls (a constant-size sprite) is never judged. Every view runs both passes, the main
+one and each view drawn aside (`geometry/dag/aside.ts`), against its own last pyramid; a view's
+first image — a capture's only one —, a pyramid made again by a resize of the targets and the
+switches off cut in one pass that occludes nothing. The readback counts what the main pass held
+(`occluded`) and what the post pass hid again (`postHidden`).
+
+The cut's lists hold fixed caps, laid out once in its flags (`geometry/dag/flagSections.ts`), never
+grown on demand: the nodes one pass opens (`cutMaxNodes`, rounded down to a multiple of 16), the
+candidate clusters of both passes with those the previous pyramid hid, which share the one list
+from its two ends (`cutMaxCandidateClusters`, rounded down to a multiple of 64), and the clusters
+drawn (`cutMaxVisibleClusters`). Every level of a pass lies in one descent array, behind the level
+before it, beside as many items held for the post pass; at the defaults the lists take the
+reference's 216 MiB — 2 Mi nodes of 8 bytes a pass and 12 held, 16 Mi candidates of 8, 4 Mi drawn
+clusters of 12 —, and 20 bytes for each root slot and cell of the placement tree. Each section is
+held to what the packing can ever ask of it — its entries, twice its pages, its pages —, a saving
+that changes no cut. A cut past a cap drops what is past it — a node with its subtree, a cluster
+neither tested nor drawn — and draws what fits (`geometry/dag/shader/listsWgsl.ts`,
+`commitWgsl.ts`); its readback brings back the most each pass asked of each list, and each list
+keeps its high-water mark: a cut past a cap that raises the mark is said
+once, as a `gpu-cut-lists` warning naming the list, its peak over its cap, the mark and the
+setting that raises the cap (`geometry/dag/lists/listFeedback.ts`). Caps changed at run time lay
+the flags out again between two frames; caps the device or the cut's share refuses keep the lists
+as they are, said once. The readout the host adopts the cut from keeps its own cap for the cut's
+life (`geometry/dag/lists/listCap.ts`): a cut that lists more is adopted by its head, its mask
+drawn whole.
+
+```ts
+const world = createWorld(canvas, { cutMaxVisibleClusters: 8 * 1048576 })
+world.cut = { cutMaxNodes: 4 * 1048576 } // its lists laid out again before the next cut
+```
+
+Every setting is the reference's by default, a world option by its field, held over the quality
+preset — no preset level writes one —, changed later by `world.cut` from the next frame
+(`packages/sdk-core/src/contracts/cutOptions.ts`); a value a setting does not take is refused:
+
+```ts
+const world = createWorld(canvas, { cutTwoPassOcclusion: false })
+world.cut = { cutLodBiasFollowsUpscale: false, cutLodBiasMin: -1 }
+world.cut = { cutTwoPassOcclusion: null } // back to the preset's, here the default
+```
+
+| Field                      | Meaning                                                                          | Default |
+| -------------------------- | -------------------------------------------------------------------------------- | ------- |
+| `cutTwoPassOcclusion`      | Each view's cut runs its two passes; `false`, one pass that occludes nothing      | `true`  |
+| `cutOcclusionCulling`      | The cut tests its boxes against the depth pyramids at all                         | `true`  |
+| `cutFrustumCulling`        | The cut rejects the boxes outside the frustum                                     | `true`  |
+| `cutMinLodCulling`         | The cut prunes a leaf whose least own error still shows at its nearest            | `true`  |
+| `cutLodBiasFollowsUpscale` | An upscaled image's threshold follows the display over the render width          | `true`  |
+| `cutLodBiasOffset`         | The bias's offset, in powers of two, any finite number                            | `0`     |
+| `cutLodBiasMin`            | The bias's floor, in powers of two, any finite number                             | `-2`    |
+| `cutMaxNodes`              | Most nodes one pass opens, a whole number from 1 to 2³¹ − 1                       | `2097152`  |
+| `cutMaxCandidateClusters`  | Most candidate clusters one cut lists, a whole number from 1 to 2³¹ − 1           | `16777216` |
+| `cutMaxVisibleClusters`    | Most clusters one cut draws, a whole number from 1 to 2³¹ − 1                     | `4194304`  |
+
+Two rasterizers write the one visibility buffer, chosen cluster by cluster (`visibility/raster/`).
+A binning kernel, one workgroup a drawable row (`visibility/raster/binWgsl.ts`), reads each row's
+longest edge, vertex box and level-of-detail sphere: a row whose box crosses the near or the far
+plane, or whose longest edge projects at `hardwareRasterEdgePixels` (32 by default) or more at the
+nearest point of its level-of-detail sphere, goes to the hardware rasterizer; every other one to the
+software raster. The sphere is the cluster's, written with its row (`PageInfo.lodSphere`); the edge
+and the box are measured from its triangles once, by the first binning after the row's upload, and
+kept in the row (`PageInfo.edgeLength`, zero in the CPU's copy, so every upload measures again). A
+row whose vertices move in place — a dynamic geometry, a deformation — is measured every image and
+judged at the sphere around its box. The software raster is a
+compute pass that snaps each triangle to an 8-bit sub-pixel grid, keeps the top-left fill rule and
+walks its box, at most 64 pixels a side, in one of three classes — fine, coarse, large
+(`visibility/raster/triWgsl.ts`, `visibility/raster/kernelsWgsl.ts`). The row's draw item carries
+the choice in its sixth word (`DrawItem.raster`): the compaction bins software rows apart, which the
+hardware slots skip and the x-ray view still walks. Lines, sprites and voxels always go to the
+hardware; `softwareRaster: false` hands it every row. Both settings are run-time ones, one contract
+and one resolver each (`packages/sdk-core/src/contracts/rasterOptions.ts`): world options and
+render settings of the world's registry (`session/world/settings.ts`, the page over the preset —
+no preset level writes them), session options, and the frame reads them from the engine context.
+
+Both rasterizers write a pixel by the one rule of `VIS_WRITE_WGSL`
+(`visibility/raster/pixelWgsl.ts`): the pixel holds two 32-bit words of a work buffer, a depth key —
+the reversed depth's bits raised by the row's coplanar layer units — and the identifier
+`(row + 1) << 8 | triangle`. WebGPU has no 64-bit atomic, so the write runs in two phases: the
+depth phase keeps the atomic maximum of the keys, the identifier phase the atomic maximum of the
+identifiers whose key is exactly the pixel's final one. The pixel ends with the 64-bit maximum of
+`(depth, identifier)` whatever the order of threads, passes and rasters: the nearest wins, a tie
+goes to the greater identifier. The hardware slots are drawn once a phase, their depth attachment
+read-only and untested.
+
+The cut draws in two passes (`visibility/passes/passes.ts`), and the raster follows them
+(`frame/render/encodeVisSetup.ts`): each pass has its own binning, its own software lists in the
+work buffer and its own half of the hardware slots, its rows those its mask holds — the main
+pass's the frame mask before the post pass, the post pass's the post mask
+(`GpuSelection.postMaskOffset`), read through a uniform entry of its own. No kernel reads a
+verdict. Resolves turn the work buffer into the depth level the Hi-Z is built from after each
+pass's depth, then, once both passes' depths are down, into the identifier and depth targets the
+material passes read (`visibility/raster/resolve.ts`).
 
 A voxel page ([FORMAT.md](FORMAT.md#voxels)) — a voxelized mesh's far levels, a `voxel` HLOD cell —
 is a page like any other: catalogued, streamed and chosen by the one cut at its voxels' error. Each
@@ -120,8 +380,8 @@ corners and the pixel gets its own by interpolation, so a voxel fragment runs th
 division, reads no buffer, builds no matrix (`visibility/shader/voxelHitWgsl.ts`). Voxel rows have
 slots and a shader module of their own (`visibility/shader/visVoxelWgsl.ts`), drawn after the opaque
 and cutout ones, on layer 0, and only on a frame whose table holds a voxel row: the other slots
-compile the text they compiled before voxels. WebGPU keeps no early depth test for a stage that
-writes its depth, so a voxel fragment always runs its trace. The shadow pages draw voxel rows in
+compile the text they compiled before voxels. The hardware raster runs no depth test — every
+fragment writes the work buffer by atomic maximum —, so a voxel fragment always runs its trace. The shadow pages draw voxel rows in
 tiers of their own, sized by the page's bricks as the corner tiers are by its triangles, their
 module apart (`render/renderVoxelWgsl.ts`), on the same sequence; the resolve of a voxel class, its
 module apart too, traces the pixel again to read its voxel's colour, roughness, occlusion and
@@ -131,14 +391,73 @@ first time the table holds a voxel row or a voxel class: a scene without voxels 
 compiled before them. A skinned mesh's
 bricks follow their joint rigidly and are traced at rest. Ray queries take the finer clusters a
 voxel page stands for, never the page. The `voxels` view paints each voxel in its level's colour;
-the metrics `voxelBricks`, `voxelStepsMean` and `voxelStepsMax` sample the bricks drawn and the DDA
-steps a pixel took.
+the metrics `voxelStepsMean` and `voxelStepsMax` sample the DDA steps a pixel took.
 
 ## Material surfaces
 
-The visibility buffer is resolved into the material surfaces one pass per material class, over the
-screen tiles that class holds (`materials/classes/materialPasses.ts`, `materials/classes/materialTiles.ts`).
-Lighting reads those surfaces and the depth; transparency and transmission are shaded apart.
+The visibility buffer is resolved into the material surfaces in compute, one indirect dispatch per
+material class over that class's pixels alone (`materials/classes/materialPasses.ts`). The surfaces
+and the feedback target are cleared first, by a pass of no draw; then one compute pass sorts every
+pixel into the bin of its class — the shading bins (`materials/classes/shadeBins.ts`,
+`visibility/shader/shadeBinsWgsl.ts`, `visibility/shader/shadeBinKernelsWgsl.ts`):
+
+- a count of each bin's elements, a workgroup a 16 × 16 tile, a lane a 2 × 2 quad of it along the
+  Z-order — four lanes in a row a 4 × 4 square, sixteen an 8 × 8 one —, the tile's bins voted one
+  at a time, the greatest first, one counter add a tile and a bin;
+- a reservation, a lane a bin, of each bin's range of the elements and its dispatch, a 64-lane
+  workgroup every 64 lanes;
+- a scatter of each element into its bin's range: the sixteen lanes of an 8 × 8 square all of the
+  voted bin's make a full tile, written from the range's start — one shading workgroup's 64 pixels
+  —, every other lane's elements loose, from its end, each in lane order.
+
+A bin holds pixels — one word each, its coordinates and its write mask — or quads — two words, the
+top-left pixel and a nibble a pixel of the quad —, the reference's two modes: a class whose shading
+reads a neighbour's derivative is binned by quad, any other by pixel. Every gradient a class reads
+is its triangle's own, analytic (`uvGradients`), so its bin holds pixels unless the
+`shadeBinningMode` setting forces quads; a quad's lane on a pixel of another class has nothing to
+write and nothing to give, and does nothing (`shadesPixel`). Each class present in the image's rows
+then shades its bin (`shade_cs`, `visibility/shader/shadeEntryWgsl.ts`) and stores its pixels
+(`storeSurface`, `visibility/shader/shadeOutputsWgsl.ts`): no pixel is shaded by a class it is not
+of, whatever the classes' count or where their borders run. The bins' head — the class word of each
+class key, each bin's element count, first word and mode, the surfaces' layers — and their elements
+are two record tables (`r32uint`, read by load), so the shading binds no ninth storage buffer.
+
+The surfaces are two layered targets (`materials/surface/surfaceAllocation.ts`): the colours,
+`rgba16float` — base colour and metalness, normal and roughness, the emission and occlusion while a
+surface of the image can mark it, the thin transmission while a sheet transmits — and the words,
+`r32uint` — the flags, the narrowest word a compute stage stores, and the shadow receiver's two
+words. A class stores every layer through two storage bindings, the feedback target and the lobes
+target through two more: four storage textures a stage, what every device holds. Each reader binds
+views, one layer each — the receiver's two —, in the formats it read before; a layer the frame does
+not hold is a 1×1 stand-in, and the head names to the classes the layers it holds, so no class
+writes one it has not made. Lighting reads those surfaces and the depth; transparency and
+transmission are shaded apart.
+
+The binning mode is a run-time setting, the reference's by default, a world option by its field,
+held over the quality preset — no preset level writes it —, changed later by `world.shading` from
+the next frame (`packages/sdk-core/src/contracts/shadingOptions.ts`); a value it does not take is
+refused:
+
+```ts
+const world = createWorld(canvas, { shadeBinningMode: 'quad' })
+world.shading = { shadeBinningMode: null } // back to the preset's, here the default
+```
+
+| Field              | Meaning                                                                         | Default  |
+| ------------------ | ------------------------------------------------------------------------------- | -------- |
+| `shadeBinningMode` | `'auto'` as each class asks, `'pixel'` every pixel alone, `'quad'` by 2 × 2 quad | `'auto'` |
+
+A normal map bends the normal in a tangent frame. A row whose geometry carries tangents
+(`FLAG_HAS_TANGENT`) reads them per vertex — a quantized page's stored ones (`FLAG_TANGENT`, decoded
+around the vertex's normal by `geometry/cluster/decodeWgsl.ts:clusterTangent`), a source buffer's
+floats otherwise (`pageTangent`, `visibility/shader/pageGeometryWgsl.ts`) — and interpolates them;
+any other row rebuilds the frame from the triangle's edges and texture deltas
+(`geometry/cluster/cotangentFrameWgsl.ts`). The stored frame is the pixel's one tangent source:
+decoded once (`storedTangentFrame` in the opaque resolve, `blendTangentFrame` in the blend pass), it
+is the frame the normal map bends in and the one the anisotropy direction and the clear coat's
+normal map take (`physicalValues`); only without stored tangents does each map build its frame from
+its own coordinates. A page stores tangents only for a mesh the compiler was
+told to (`meshBuild.storedTangents`, [docs/COMPILER.md](COMPILER.md#mesh-build-settings)).
 
 ## Temporal antialiasing
 
@@ -233,8 +552,42 @@ on the opaque depth, never hard-edged.
 ## GPU deformation
 
 The page's side is [SDK.md](SDK.md#gpu-deformation). One control record per deformed placement
-(`deformation/session.ts`); one compute pass before the cut writes deformed positions and normals
-that every later pass reads (`deformation/compute.ts`).
+(`deformation/session.ts`), and one per track of the animation banks, whose palettes the GPU poses
+(`deformation/bankTracks.ts`); one compute pass before the cut writes deformed positions and
+normals that every later pass reads (`deformation/compute.ts`). A skinned, morphed, wave-carried or
+soft placement always deforms, whatever its size on screen; only an instanced skinned object rests
+([Animation banks](#animation-banks)).
+
+## Animation banks
+
+An instanced skinned object ([COMPILER.md](COMPILER.md#object-settings)) plays a track of its
+scene's animation banks ([FORMAT.md](FORMAT.md#animation-banksbin)): every instance of one item is
+in one pose. The track's clock runs on the CPU with the scene's clips — a frame draws the second
+the track held when it began, then the track advances by the frame's seconds times its play rate
+times `animationBankTimeScale`, wrapping when it loops, held at its ends otherwise
+(`packages/sdk-core/src/world/animation/bankClock.ts`) —; the GPU evaluates it: one pass before the
+deformation turns each joint's two nearest keys, blended, and its inverse bind into the track's
+palette, this frame's and the last one's (`deformation/bankWgsl.ts`). Every instance of a track
+reads the same deformed vertices, made once an image. An instance whose screen size — its
+sampled bounds' diameter over the view's height — falls under its `animationMinScreenSize`, or
+under the run-time setting where its own is 0, is drawn in its rest pose; one whose own is negative
+always animates; one drawn as its cell's HLOD 0 actor takes the run-time setting. Its bounds, for
+every cut and its cell, are its item's sampled bounds.
+
+Every setting is the reference's by default, a world option by its field, held over the quality
+preset, changed later from the next frame
+(`packages/sdk-core/src/contracts/animationOptions.ts`); a value a setting does not take is
+refused:
+
+```ts
+const world = createWorld(canvas, { animationMinScreenSize: 0.05 })
+```
+
+| Field                        | Meaning                                                                                       | Default |
+| ---------------------------- | --------------------------------------------------------------------------------------------- | ------- |
+| `animationMinScreenSize`     | The screen size under which an instanced skinned object is drawn in its rest pose, from 0       | `0.1`   |
+| `animationBankInterpolation` | A track blends its two nearest keys; `false`, its pose is the earlier key's                    | `true`  |
+| `animationBankTimeScale`     | The scale of the world's seconds the tracks advance by                                         | `1`     |
 
 ## Diagnostics and timing
 

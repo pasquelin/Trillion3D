@@ -1,6 +1,6 @@
 /**
  * The integer arithmetic of the coverage-preserving alpha (docs/FORMAT.md, "Coverage-preserving
- * alpha", #44), written once: the compiler's chains (`texture_preview/coverage_math.rs`) and the
+ * alpha", #44), written once: the compiler's chains (`texture/coverage_math.rs`) and the
  * card's (`coverageMathWgsl.ts`) run these lines, printed from here
  * (`scripts/build/generate-shared-rules.ts`), so every builder lands on the same byte. Every value is
  * an unsigned 32-bit integer; a quotient truncates.

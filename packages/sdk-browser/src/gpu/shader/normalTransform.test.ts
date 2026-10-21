@@ -1,5 +1,5 @@
 // `NORMAL_TRANSFORM_WGSL` (../lighting/standardLighting.ts): the lighting normal transformation
-// shares `inverseTranspose3` with the selection kernel, whose threshold is relative. An absolute
+// reads the shared `inverseTranspose3`, whose threshold is relative. An absolute
 // threshold `abs(det)<1e-20` on the raw determinant would fail: a uniform scale
 // rotation s has determinant ±s³, so as soon as s ≲ 2.15e-7 the rendered normal would be the LOCAL
 // normal, unrotated, and the surface would read as if unrotated.
@@ -23,7 +23,6 @@ import {
 } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { NORMAL_TRANSFORM_WGSL } from '../../lighting/standardLighting.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { DAG_SELECTION_SHADER } from '../../geometry/dag/shader/shader.ts'
 import {
   DROPOUT_DEG,
   angleBetween,
@@ -82,27 +81,19 @@ test('singular poses: flattened face keeps normal, collapsed face has none', () 
 // --- Single writing and compilation --------------------------------------------------------------
 const occurrences = (text: string, motif: RegExp) => text.match(motif)?.length ?? 0
 
-test('selection kernel and lighting read exact same text, character for character', () => {
-  // The selection kernel lists the two functions it calls, the lighting the whole kernel and its
-  // unit-or-zero: each program holds the library's text of what it calls, once. A test-only check
-  // of what the assembler guarantees, read on the programs' final text.
-  for (const [nom, shader, calls] of [
-    [
-      'lighting',
-      NORMAL_TRANSFORM,
-      ['inverseTranspose3', 'invTranspose3Prep', 'invTranspose3Apply', 'unitOrZero'],
-    ],
-    ['DAG selection', DAG_SELECTION_SHADER, ['invTranspose3Prep', 'invTranspose3Apply']],
-  ] as const) {
-    for (const text of [invTranspose3Prep.text, invTranspose3Apply.text])
-      assert.ok(shader.includes(text), `${nom} : shared text absent`)
-    for (const fonction of calls)
-      assert.equal(
-        occurrences(shader, new RegExp(`fn ${fonction}\\(`, 'g')),
-        1,
-        `${nom} : « fn ${fonction} » declared twice, WGSL module would not compile`,
-      )
-  }
+test('the lighting reads the library text, character for character, once', () => {
+  // The lighting lists the whole kernel and its unit-or-zero: the program holds the library's
+  // text of what it calls, once. A test-only check of what the assembler guarantees, read on the
+  // program's final text.
+  for (const text of [invTranspose3Prep.text, invTranspose3Apply.text])
+    assert.ok(NORMAL_TRANSFORM.includes(text), 'lighting : shared text absent')
+  const calls = ['inverseTranspose3', 'invTranspose3Prep', 'invTranspose3Apply', 'unitOrZero']
+  for (const fonction of calls)
+    assert.equal(
+      occurrences(NORMAL_TRANSFORM, new RegExp(`fn ${fonction}\\(`, 'g')),
+      1,
+      `lighting : « fn ${fonction} » declared twice, WGSL module would not compile`,
+    )
 })
 
 test('lighting normal passes through shared inverse-transpose, without recomputing it', () => {

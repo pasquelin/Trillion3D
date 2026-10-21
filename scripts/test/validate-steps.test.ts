@@ -126,6 +126,6 @@ test('a documentation-only pull request skips the code jobs and still reports va
       ),
       job,
     )
-  assert.match(workflow, /node scripts\/code-change\.ts >> "\$GITHUB_OUTPUT"/)
+  assert.match(workflow, /node scripts\/test\/code-change\.ts >> "\$GITHUB_OUTPUT"/)
   assert.match(workflow, /\.result == "success" or \(\$code == "false" and \.result == "skipped"\)/)
 })

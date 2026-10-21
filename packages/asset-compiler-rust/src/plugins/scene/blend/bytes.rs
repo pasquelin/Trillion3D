@@ -4,7 +4,7 @@
 //! These three functions reread it assuming nothing more than the width of an element, and stop
 //! at what the block actually carries.
 use super::*;
-use crate::le::{u16_at, u32_at, u64_at, words};
+use crate::support::le::{u16_at, u32_at, u64_at, words};
 
 /// An integer read at the width and signedness the SDNA declares.
 pub(super) fn scalar(field: &Field, bytes: &[u8]) -> Option<i64> {

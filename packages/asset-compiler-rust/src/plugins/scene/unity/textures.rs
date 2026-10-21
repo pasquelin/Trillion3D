@@ -7,11 +7,11 @@
 //! is the `.meta`'s `TextureImporter` that declares it, axis by axis for wrap and as a single
 //! setting for filtering.
 use super::*;
-use crate::gltf_codes::{
+use crate::compiler::accessor::codes::{
     CLAMP_TO_EDGE, DEFAULT_FILTER, LINEAR, LINEAR_MIPMAP_NEAREST, MIRRORED_REPEAT, NEAREST,
     NEAREST_MIPMAP_NEAREST, REPEAT,
 };
-use crate::import::tables::media::relative_under;
+use crate::plugins::scene::convert::tables::media::relative_under;
 use std::collections::HashMap;
 
 /// glTF wrap modes, in the order Unity numbers them: repeat (the editor's default), clamp, mirror.

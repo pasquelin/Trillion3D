@@ -45,12 +45,10 @@ export interface InspectedCamera {
 
 /** What the cut decided of a cluster (`InspectedClusters.state`). */
 export const CLUSTER_STATE = {
-  /** Selected by the cut and drawn. */
+  /** Selected by the cut and drawn, by its main pass or its post pass. */
   kept: 0,
-  /** Selected by the cut, then rejected by the occlusion test: nothing of it was rasterised. */
-  occluded: 1,
-  /** Selected by the cut but not resident: its coarser ancestor drew in its place. */
-  missing: 2,
+  /** Asked by the cut and not drawn: not resident, its coarser ancestor drawn in its place. */
+  missing: 1,
 } as const
 
 /** The clusters of the main view's cut, one rank each across the arrays. */
@@ -65,6 +63,11 @@ export interface InspectedClusters {
   triangles: Uint32Array
   /** Clusters the cut rejected outside the frustum: a count, they are listed nowhere. */
   frustumRejected: number
+  /** Items of the cut — placement cells, DAG nodes, clusters — the previous image's pyramid hid
+   *  in its main pass, held for its post pass, and those the post pass's pyramid then hid for
+   *  good: counts, the items are listed nowhere. */
+  occluded: number
+  postHidden: number
   /** True when more clusters than `INSPECTION_CLUSTER_CAP` were cut: the arrays hold the first. */
   truncated: boolean
 }

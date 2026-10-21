@@ -1,4 +1,4 @@
-// The visibility raster and the material surfaces are executed as render bundles; the shadow
+// The visibility raster is executed as render bundles; the shadow
 // raster's chunk passes encode their four commands directly (a pass each, nothing to bundle). On the
 // generated facade the sun cuts sharp shadows into (`facade-7`), the settled street view drawn with
 // the bundles equals, pixel for pixel, the same view of a fresh world whose bundles are encoded as

@@ -51,9 +51,9 @@ function spriteCulling(culling: CullingHierarchy, box: { min: number[]; max: num
  *  culling hierarchy the cut built over them (`runtimeCut.ts`). The
  *  pages of line quads draw one coplanar layer over the faces they lie on (`LINE_DEPTH_LAYER`).
  *  A sprite's pages all take the box its radius gives (`drawnBounds`), and so does every node.
- * With `boxes`, the primitive is dynamic: index pages alone, no geometry page and no normal
- *  cone — its vertices, read as floats from the host geometry, are rewritten in place —, each page
- *  bounded by its own corners where they were cut (`restBounds`). */
+ * With `boxes`, the primitive is dynamic: index pages alone, no geometry page — its vertices,
+ *  read as floats from the host geometry, are rewritten in place —, each page bounded by its own
+ *  corners where they were cut (`restBounds`). */
 export function servePrimitive(cut: PageCutPayload, kind: DrawnShape, boxes?: Float64Array) {
   const urls: string[] = []
   const held = !!boxes
@@ -74,7 +74,6 @@ export function servePrimitive(cut: PageCutPayload, kind: DrawnShape, boxes?: Fl
     group: null,
     source: null,
     ...(kind.lines && { depthLayer: LINE_DEPTH_LAYER }),
-    ...(page.cone && !held && { cone: page.cone }),
     ...(!held && {
       geometry: {
         ...served(page.geometry, page.geometrySha256, urls),
@@ -93,11 +92,6 @@ export function servePrimitive(cut: PageCutPayload, kind: DrawnShape, boxes?: Fl
     pages,
     structure: { version: 1, roots: pages.map((page) => page.id), groups: [] },
     culling: sprite ? spriteCulling(cut.culling, sprite) : cut.culling,
-    quantization: {
-      positionExponent: cut.positionExponent,
-      uvExponent: cut.uvExponent,
-      maxPositionError: held ? 0 : cut.maxPositionError,
-    },
     ...(held && { dynamic: true }),
   }
   return { primitive, urls } satisfies RuntimePrimitive

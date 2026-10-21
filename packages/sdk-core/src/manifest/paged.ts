@@ -1,4 +1,4 @@
-/** The manifest as a page tree (`compiler_manifest_pages.rs`, FORMAT.md): the fixed-size root
+/** The manifest as a page tree (`pages/manifest.rs`, FORMAT.md): the fixed-size root
  *  `clusters.json`, its head page (every other field, the previews' sidecar) and its mesh pages
  *  (slim primitives, their sidecar), read whole through the scene partition's pager
  *  (`tablePartition.ts`, `readPagedManifest`). */

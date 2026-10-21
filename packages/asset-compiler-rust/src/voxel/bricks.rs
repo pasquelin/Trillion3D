@@ -14,11 +14,11 @@
 //! | 10–11 | zero |
 use super::raster::Cell;
 use super::solid::Voxel;
-use crate::texture_preview::linear_to_srgb;
-use trillion3d_math::octahedral::oct_encode;
+use crate::texture::linear_to_srgb;
 use trillion3d_math::scalar::unit_to_byte;
-use trillion3d_math::vec3::normalized_or;
-use trillion3d_math::vecn::{length, scale};
+use trillion3d_math::vector::octahedral::oct_encode;
+use trillion3d_math::vector::vec3::normalized_or;
+use trillion3d_math::vector::vecn::{length, scale};
 
 /// Bytes of a brick and of a voxel.
 pub(crate) const BRICK_BYTES: usize = 16;

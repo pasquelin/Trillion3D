@@ -8,11 +8,13 @@ import { grownLength } from '../../../../../../math/src/sequence/resized.ts'
 import {
   COMPUTE,
   computeBufferEntry,
+  computeTextureEntry,
   computeUniformEntry,
 } from '../../../../gpu/core/computeBindings.ts'
 import { writeChangedSlots } from '../../../../gpu/core/writeChanged.ts'
 import { uniformSlots, type UniformSlots } from '../../../../session/memory/pools.ts'
 import { VSM_RENDER_PARAMS } from '../render/renderParamsWgsl.ts'
+import type { VsmRenderScene } from '../render/renderPass.ts'
 
 /** The main view whose level of detail the casters take (the level of detail the main view
  *  draws). */
@@ -50,6 +52,13 @@ export const vsmCandidatesEntries = () => [
   computeBufferEntry(6, 'storage', COMPUTE),
 ]
 
+/** Group 1 of a candidates kernel (`VSM_RENDER_WORLD_WGSL`): the camera cut's cold words and its
+ *  frame words, record tables read as the cut reads them (`../../../../geometry/dag/shader/bindings.ts`). */
+export const vsmCandidatesWorldEntries = () => [
+  computeTextureEntry(0, 'uint', '2d-array'),
+  computeTextureEntry(1, 'uint', '2d-array'),
+]
+
 /** What sizes the chunks of a raster over caster rows: `chunks` chunks of `chunkRows` rows over
  *  `rowCount` rows and at most `viewCount` views (the GPU lists those with pages to draw), each chunk's lists holding `cmds` commands and `pairs`
  *  pages. Decided by its pass (`../render/renderPass.ts`, `../transmission/transmissionBinPlan.ts`), handed to
@@ -62,6 +71,9 @@ export interface VsmRenderChunking {
   cmds: number
   pairs: number
 }
+
+/** What the parameters take of a raster's scene: its camera, and its cut's world switch. */
+type VsmParamsScene = Pick<VsmRenderScene, 'camera' | 'world'>
 
 /** An image of parameter slots, its words seen as floats and as integers. */
 interface VsmRenderParamsImage {
@@ -77,10 +89,11 @@ const VIEW_ROWS = [
 ]
 
 /** The parameter slots of `chunking.chunks` chunks (`VsmRenderParams`), `slots` apart: the
- *  frame's values in every slot, the chunk's own index and range — into `image` (its words past the
- *  struct's left as they are: zero, as nothing else writes them). */
+ *  frame's values in every slot — the scene's camera and where its cut's world links start —, the
+ *  chunk's own index and range — into `image` (its words past the struct's left as they are: zero,
+ *  as nothing else writes them). */
 function vsmRenderParams(
-  camera: VsmRenderCamera,
+  { camera, world }: VsmParamsScene,
   chunking: VsmRenderChunking,
   image: VsmRenderParamsImage,
   slots: UniformSlots,
@@ -116,6 +129,7 @@ function vsmRenderParams(
     u[o + at.chunkCount] = chunks
     u[o + at.cmdCapacity] = chunking.cmds
     u[o + at.pairCapacity] = chunking.pairs
+    u[o + at.worldLinks] = world?.links ?? 0
   }
 }
 
@@ -126,18 +140,20 @@ const paramsImage: VsmRenderParamsImage = {
   f: new Float32Array(0),
   u: new Uint32Array(0),
 }
-/** The parameter slots of `chunking`, laid in `slots`, up to their buffer: each slot's words where
- *  they changed alone (`writeChangedSlots`). The views are the GPU's (`../render/renderViewsWgsl.ts`). */
+
+/** The parameter slots of `chunking` over `scene`, laid in `slots`, up to their buffer: each slot's
+ *  words where they changed alone (`writeChangedSlots`). The views are the GPU's
+ *  (`../render/renderViewsWgsl.ts`). */
 export function vsmWriteChunkParams(
   device: GPUDevice,
-  camera: VsmRenderCamera,
+  scene: VsmParamsScene,
   chunking: VsmRenderChunking,
   paramsBuffer: GPUBuffer,
   slots: UniformSlots,
 ) {
   const { chunks } = chunking
   vsmGrowParamsImage(paramsImage, chunks * slots.strideWords)
-  vsmRenderParams(camera, chunking, paramsImage, slots)
+  vsmRenderParams(scene, chunking, paramsImage, slots)
   writeChangedSlots(device, paramsBuffer, paramsImage.u, slots, 0, chunks)
 }
 

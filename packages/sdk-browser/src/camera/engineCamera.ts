@@ -43,7 +43,7 @@ export interface EngineCamera extends CameraFrame, RenderOriginFrame {
   /** The camera as ONE homogeneous point: `(eye, 1)` under a perspective projection, `(back, 0)`
    *  — the unit direction toward the camera — under an orthographic one. The vector from a
    *  point P toward the camera is `viewPoint.xyz − P·viewPoint.w` for both: the view vector of
-   *  the shading and the normal-cone test read it, never the eye alone. */
+   *  the shading reads it, never the eye alone. */
   viewPoint: Float64Array
 }
 
@@ -104,8 +104,8 @@ export function createEngineCamera(): EngineCamera {
  * Derives everything a frame reads from `into.world`, already set, and the declared optics:
  * the projection in the engine's depth convention, then the view, the view-projection and
  * the six frustum planes (`updateCameraFrame`), the render frame (`renderOrigin.ts`)
- * and the eye. `far` is kept for what still depends on it (adaptive threshold, shadow range,
- * frustum far plane); it enters no depth.
+ * and the eye. `far` is kept for what still depends on it (shadow range, frustum far plane); it
+ * enters no depth.
  */
 export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): EngineCamera {
   const { fov, aspect, near, far, zoom, orthographic: box } = optics

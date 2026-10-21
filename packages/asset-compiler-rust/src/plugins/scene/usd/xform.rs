@@ -5,9 +5,9 @@
 //! which cuts the parent stack and has no equivalent in a glTF graph, and the inverse of an
 //! arbitrary matrix, which is not computed so as not to invent a transform.
 use super::*;
-use trillion3d_math::euler::compose_turns_from_zero;
+use trillion3d_math::matrix::euler::compose_turns_from_zero;
+use trillion3d_math::matrix::rotation::turn;
 use trillion3d_math::matrix::{multiply_matrix4_from_zero, scaling, translation, IDENTITY};
-use trillion3d_math::rotation::turn;
 
 /// Prefix USD puts in front of an operation to invert.
 const INVERT: &str = "!invert!";

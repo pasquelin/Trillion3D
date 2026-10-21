@@ -3,7 +3,6 @@ import {
   holdCameraWorld,
   type EngineCamera,
 } from '../../camera/engineCamera.ts'
-import { holdAheadView } from '../../gpu/core/aheadView.ts'
 import type { CullStep } from '../../gpu/core/heldCopy.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
@@ -11,9 +10,10 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
  * THE MAIN VIEW'S CULL VIEW (`world.diagnostic.freeze`), apart from the camera it draws from: the
  * camera the cut and its occlusion were made from, the last image's when the cut froze. While it
  * stands, the main view's selection uniforms are no longer rewritten (`./gpuCut.ts`), so the cut —
- * its level of detail, its HLOD, its frustum, its requests — stays the one of that camera; its
- * occlusion too: the first frozen image tests once more and keeps its verdicts, rest bits and the
- * transparents' verdicts aside, every later one puts them back and tests nothing (`CullStep`,
+ * its level of detail, its HLOD, its frustum, its occlusion, its requests — stays the one of that
+ * camera: its uniforms unchanged, it stands and is not cut again (`../../geometry/dag/swap/swap.ts`,
+ * `stampMatches`). The transparents' verdicts too: the first frozen image tests once more and keeps
+ * them aside, every later one puts them back and tests nothing (`CullStep`,
  * `../../gpu/core/heldCopy.ts`), whatever a view drawn aside wrote in the buffers they share.
  * The image follows the camera that moves on: what the cut submitted and dropped can be walked
  * around, in the x-ray view best (`../../visibility/passes/xray.ts`). The shadow maps' marking and the
@@ -32,8 +32,6 @@ export function freezeWebgpuCut(rt: WebgpuPagesRuntime, frozen: boolean) {
   run.cullView = frozen
     ? { camera: holdCameraWorld(createEngineCamera(), run.gate.cam) }
     : undefined
-  // A frozen cut asks nothing ahead of a camera it no longer follows.
-  if (run.cullView) holdAheadView(run.selectionUniforms, run.cullView.camera)
   run.gate.resourcesChanged()
 }
 

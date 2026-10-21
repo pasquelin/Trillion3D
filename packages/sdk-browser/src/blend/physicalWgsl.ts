@@ -1,6 +1,12 @@
 import { BLEND_BINDINGS } from '../gpu/bind/bindLayout.ts'
-import { FLAG_DOUBLE, FLAG_HAS_NORMAL, FLAG_SAMPLED } from '../visibility/types.ts'
+import {
+  FLAG_DOUBLE,
+  FLAG_HAS_NORMAL,
+  FLAG_HAS_TANGENT,
+  FLAG_SAMPLED,
+} from '../visibility/types.ts'
 import { PHYSICAL_TEXEL_WGSL, physicalCoreWgsl } from '../visibility/shader/physicalWgsl.ts'
+import { BLEND_TANGENT_FRAME_WGSL } from './tangentFrameWgsl.ts'
 import { materialTableWgsl } from '../materials/table/materialWgsl.ts'
 import { LOBES_LIGHTING_WGSL } from '../lighting/direct/lobesWgsl.ts'
 import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
@@ -9,8 +15,8 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 /**
  * The anisotropic and clear-coat lobes of a blend, in the blend pass's lobed programs alone
  * (`shader.ts`, a key without `lobeless`): the opaque resolve's one implementation
- * (`physicalCoreWgsl`), its lobe extension read from the same table (`materialTableWgsl`), its two
- * UV sets the fragment's own (`vertexWgsl.ts`), and the frame's displacements its screen
+ * (`physicalCoreWgsl`), its lobe extension read from the same table (`materialTableWgsl`), its UV
+ * sets the fragment's own — two, the first and the one past it the vertex carries (`vertexWgsl.ts`) —, and the frame's displacements its screen
  * derivatives — the ones the blend's normal map is bent with (`shaderSurface.ts`), framebuffer y
  * running down, hence the side `-1`.
  *
@@ -27,9 +33,10 @@ export const BLEND_PHYSICAL_RECORD_WGSL = wgslBlock(
     physicalCoreWgsl('physicalSampled'),
     PHYSICAL_TEXEL_WGSL,
     materialTableWgsl(BLEND_BINDINGS.material),
+    BLEND_TANGENT_FRAME_WGSL,
   ],
   `var<private> physicalSampled:bool;
-/** The item's lobe extension and the fragment's two UV sets, before its tile request
+/** The item's lobe extension and the fragment's UV sets, before its tile request
  *  (\`blendRequest\`): none where its surface carries no lobe. */
 fn blendPhysicalBegin(in:VSOut,g:BlendGrads){
  let lobes=materialLobesOf(in.ids.w);
@@ -37,15 +44,18 @@ fn blendPhysicalBegin(in:VSOut,g:BlendGrads){
  physicalOn=true;
  physicalSampled=(in.ids.y&${FLAG_SAMPLED}u)!=0u;
  physicalRecord=physicalAt(lobes);
- physicalCoord0=PhysicalCoord(in.uv.xy,g.gradX,g.gradY,g.gradX,g.gradY);
- physicalCoord1=PhysicalCoord(in.uv.zw,g.uv1X,g.uv1Y,g.uv1X,g.uv1Y);
+ physicalCoords[0]=PhysicalCoord(in.uv.xy,g.gradX,g.gradY,g.gradX,g.gradY);
+ // The set past the first the vertex carries (\`channelsAlt\`) stands for every one.
+ let alt=PhysicalCoord(in.uv.zw,g.uv1X,g.uv1Y,g.uv1X,g.uv1Y);
+ physicalCoords[1]=alt;physicalCoords[2]=alt;physicalCoords[3]=alt;
 }
 /** The lobes of a fragment of surface \`s\` (\`blendSurface\`: its shading and geometric normals)
  *  whose record is read (\`physicalOn\`): the blend's. */
 fn blendPhysicalValues(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface)->PhysicalLobes{
  let flags=in.ids.y;
  let coatFace=select(1.0,select(-1.0,1.0,front),(flags&${FLAG_DOUBLE}u)!=0u&&(flags&${FLAG_HAS_NORMAL}u)!=0u);
- return physicalValues(s.N,s.geometric,g.q0,g.q1,-1.0,coatFace);
+ // The stored tangents' frame, the one the blend's normal map bends in, where its page has them.
+ return physicalValues(s.N,s.geometric,g.q0,g.q1,-1.0,coatFace,blendTangentFrame(in),(flags&${FLAG_HAS_TANGENT}u)!=0u);
 }
 /** The lobes of a fragment of surface \`s\` as the lobes target holds them, and whether it carries one:
  *  the front stage's texel (\`frontStageWgsl.ts\`), zero and false where it carries neither lobe. */

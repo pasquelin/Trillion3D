@@ -12,11 +12,10 @@ import {
   type InstanceClosure,
 } from './rowDemandState.ts'
 
-/** What a readback names that the rows ask for, as packed instances: the camera's requests, then
- *  the view ahead's, in the order the GPU ranked them (`../../dag/request/request.ts`). */
+/** What a readback names that the rows ask for, as packed instances: the camera's requests, in
+ *  the order the GPU listed them. */
 export type CutLists = {
   readonly pageIds: ArrayLike<number>
-  readonly aheadPageIds?: ArrayLike<number>
 }
 
 /**
@@ -48,10 +47,10 @@ export type CutLists = {
  * followed, so a nearer new request never waits behind an older one. A refusal counts the live
  * requests without a row: what the table grows by, when the GPU's queue has nothing more to give.
  *
- * Cost per readback adopted, for lists of A asked and H ahead ids and differences of ΔA and ΔH:
- * O(A + H) marks read, no record; O((ΔA + ΔH)·g) closure, g the pages a group holds; O(touched)
- * per sync for landings; O(wanted) served, amortized; O(A + H + P log P) more for the P live
- * entries a serve left. The drawn list costs nothing. A still camera adopts no readback: zero.
+ * Cost per readback adopted, for a list of A asked ids and a difference of ΔA: O(A) marks read, no
+ * record; O(ΔA·g) closure, g the pages a group holds; O(touched) per sync for landings; O(wanted)
+ * served, amortized; O(A + P log P) more for the P live entries a serve left. The drawn list costs
+ * nothing. A still camera adopts no readback: zero.
  */
 export function createRowDemand(
   /** The row table, read at each readback: each page's row and residency flag. */
@@ -64,7 +63,7 @@ export function createRowDemand(
   const d: DemandState = {
     table,
     drawsRow,
-    lists: { asked: createCutDelta(), ahead: createCutDelta() },
+    lists: { asked: createCutDelta() },
     asking: closure(),
     marks: createSparseInts(),
     list: new Int32Array(8),
@@ -121,7 +120,7 @@ export function createRowDemand(
     ) => serve(d, release, place, budget),
     /** Bytes of the marks, the list, the differences and the closure. */
     get bytes() {
-      const { asked, ahead } = d.lists,
+      const { asked } = d.lists,
         { keys, pages, by } = d.scratch
       return (
         d.marks.byteLength +
@@ -133,7 +132,6 @@ export function createRowDemand(
         pages.byteLength +
         by.byteLength +
         asked.hostBytes +
-        ahead.hostBytes +
         d.asking.hostBytes
       )
     },
@@ -141,8 +139,7 @@ export function createRowDemand(
 }
 
 /** Whether the readback just followed asks for `page` itself: a request, not a group-mate. */
-const isRequest = (d: DemandState, page: number) =>
-  d.lists.asked.has(page) || d.lists.ahead.has(page)
+const isRequest = (d: DemandState, page: number) => d.lists.asked.has(page)
 
 /** `delta` into the closure of the requests: what it brings wanted, in its order, each group-mate
  *  with the request before it — the first one after when none is —; what it lets go no longer. */
@@ -163,16 +160,12 @@ function followAsks(d: DemandState, delta: IdDelta) {
   }
 }
 
-const NONE: readonly number[] = []
-
 function follow(d: DemandState, cut: CutLists) {
   // Entries the last serve left: what this readback asks is ranked with them.
   const behind = d.count > d.next
-  const { asked, ahead } = d.lists
+  const { asked } = d.lists
   asked.apply(cut.pageIds)
-  ahead.apply(cut.aheadPageIds ?? NONE)
   followAsks(d, asked)
-  followAsks(d, ahead)
   // The budget or a refusal stopped the last serve: what is pending is ranked again, and served
   // again, this readback perhaps letting rows go.
   if (behind) {

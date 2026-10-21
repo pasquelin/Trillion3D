@@ -51,7 +51,7 @@ export function worldScene() {
   // Placement `u` lies in HLOD 0 cell `u` of the world's one instance, as the cut is told it
   // (`placeInCell`): its link, in the cold table where the kernel reads it.
   const placed = packed.world!,
-    cold = new Uint32Array(packed.pageCones.buffer)
+    cold = new Uint32Array(packed.coldWords.buffer)
   for (let u = 0; u < world.leaves; u++) setLink(placed, u, u, 0)
   cold.set(placed.links.subarray(0, world.leaves * LINK_WORDS), placed.linkBase)
   const cam = stripCamera(world)

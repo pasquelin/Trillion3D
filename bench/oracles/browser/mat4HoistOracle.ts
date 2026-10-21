@@ -1,6 +1,6 @@
 /**
  * Oracle D1/D2: `viewProj * world` product computed once and re-read for multiple vertices, against
- * the same product recomputed for each vertex. Both shaders (packages/sdk-browser/src/visibility/raster/shader.ts,
+ * the same product recomputed for each vertex. Both shaders (packages/sdk-browser/src/visibility/raster/triWgsl.ts,
  * packages/sdk-browser/src/visibility/shader/visWgsl.ts) apply exactly this transformation; this
  * module applies it with the maths library's product and point transform (column-major, like WGSL)
  * on hostile matrices — mirrored, near-singular, large scale — without depending on GPU execution.

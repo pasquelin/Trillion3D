@@ -1,13 +1,13 @@
 /**
  * THE CATALOGUE TAKES THE PAGES OF A SOURCE ADDED TO THE SESSION (`addPlacements`). The tables the
  * open made once for the pages it held — the request ranks and their stamps, the host's rank delta,
- * the residency keys, the pages by request, the slot widths, the root cover and the pool's floor —
+ * the residency keys, the pages by request, the slot widths and the root cover —
  * take the new records behind the ones they hold, by the rule the open numbered them with: an
  * address or a request key the session knows keeps its rank, a new one takes the next. Nothing is
  * walked but the records added.
  *
  * What the pool must hold for them is drawn again from the catalogue (`growWebgpuPagePool`): the
- * homes of the new addresses behind the others, a slot widened where a page asks it.
+ * homes of the new streaming pages behind the others, a slot widened where a page asks it.
  */
 import type { PageRec, ClusterRoot } from '../../geometry/selection/types.ts'
 import {
@@ -20,31 +20,29 @@ import {
   pageAddress,
   pageCorners,
   paddedPageBytes,
+  pageUnit,
 } from '../../geometry/rows/page/pageSlots.ts'
 import { indexSourceBytes } from '../io/catalogue.ts'
-import { KEY_PAGE_MAX } from '../../geometry/dag/evict/evict.ts'
 import { growCoverKeys } from '../../geometry/residency/coverKeys.ts'
 import type { GrownPages } from '../../geometry/pages/pool/resize.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
-import { coverPagesOf } from './rootCover.ts'
+import { addRootUrls, coverPagesOf, rootRegionOf } from './rootCover.ts'
 
 /** What a collection of a source brings the catalogue (`createCollector`). */
 export type Brought = { allPages: PageRec[]; roots: ClusterRoot<PageRec>[] }
 
 /** Why the catalogue cannot take `pages` where it stands, said by name; none when it can. */
 export function catalogueRefusal(rt: WebgpuPagesRuntime, pages: readonly PageRec[]) {
-  const { tracking, census, maxCorners } = rt.setup
-  const added = new Set<string>()
+  const { census, maxCorners } = rt.setup
   for (const page of pages) {
     if (pageCorners(page) > maxCorners) return 'a page wider than the draw batches'
     const address = pageAddress(page),
       home = census.homes.get(address)
-    if (home === undefined) added.add(address)
-    else if (census.geometryUrls.get(address) !== page.geometryPage?.url)
+    if (home === undefined) continue
+    if (census.geometryUrls.get(address) !== page.geometryPage?.url)
       return 'an address of two pages'
-    else if (paddedPageBytes(page) > home) return 'a page wider than its home'
+    if (paddedPageBytes(page) > home) return 'a page wider than its home'
   }
-  if (tracking.pageCatalog.length + added.size > KEY_PAGE_MAX) return 'KEY_PAGE_MAX'
   return undefined
 }
 
@@ -71,43 +69,48 @@ export function growCatalogue(rt: WebgpuPagesRuntime, brought: Brought) {
   indexPagesByUrl(allPages, setup.byUrl)
   indexSourceBytes(allPages, setup.sourceBytes)
   for (const page of allPages) setup.allPages.push(page)
-  // What the pool lays out: the pages' widths, the addresses they add.
+  // What the pool lays out: the streaming pages the records add, and their widths.
   const { census } = setup
   const fresh = new Set<string>()
-  for (const page of allPages)
-    if (!census.homes.has(pageAddress(page))) fresh.add(pageAddress(page))
+  for (const page of allPages) {
+    const { unit } = pageUnit(page)
+    if (!census.unitWidths.has(unit)) fresh.add(unit)
+  }
   describePageSlots(allPages, census)
   const widths = new Map<string, number>()
   let added = 0
-  for (const address of fresh) {
+  for (const unit of fresh) {
     // A record that is no page — a world record no mesh wears — has no home: it takes no slot.
-    const width = census.homes.get(address)
+    const width = census.unitWidths.get(unit)
     if (width === undefined) continue
-    widths.set(address, width)
+    widths.set(unit, width)
     added += width
   }
   setup.pageBytes = Math.max(setup.pageBytes, census.pageBytes)
   const cover = growCover(setup, roots)
+  // The root region the catalogue now asks: never fewer grains than it holds.
+  const asked = rootRegionOf(census, setup.coverUrls, setup.rootUrls)
+  const region = Object.assign(setup.rootRegion, asked)
   Object.assign(setup.geometryShape, {
     pageBytes: setup.pageBytes,
-    uniquePages: census.homes.size,
+    uniquePages: census.unitWidths.size,
     homeBytes: (setup.geometryShape.homeBytes ?? 0) + added,
-    rootPages: setup.floorPages,
+    rootPages: Math.max(setup.geometryShape.rootPages, region.least),
+    rootBytes: region.bytes,
   })
   return { grown: { pageBytes: setup.pageBytes, widths } satisfies GrownPages, cover }
 }
 
-/** The cover the roots added hold whatever the view, listed by the catalogue; the pages its groups
- *  replace raise the pool's floor. */
+/** The cover the roots added hold whatever the view, listed by the catalogue: the pool holds it
+ *  beside its streaming slots. Their root pages join the catalogue's (`addRootUrls`). */
 function growCover(setup: WebgpuPagesRuntime['setup'], roots: readonly ClusterRoot<PageRec>[]) {
-  const { bootstrap, children } = coverPagesOf(roots)
-  const covered = bootstrap.filter((page) => !setup.coverUrls.has(pageAddress(page)))
+  const covered = coverPagesOf(roots).filter((page) => !setup.coverUrls.has(pageAddress(page)))
   for (const page of covered) {
     setup.coverUrls.add(pageAddress(page))
-    setup.floorUrls.add(pageAddress(page))
+    setup.rootUrls.add(pageAddress(page))
     setup.bootstrap.push(page)
   }
-  for (const page of children) setup.floorUrls.add(pageAddress(page))
+  addRootUrls(roots, setup.rootUrls)
   return covered
 }
 

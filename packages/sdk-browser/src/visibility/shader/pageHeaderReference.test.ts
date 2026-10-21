@@ -19,8 +19,16 @@ import { FLAG_CLUSTER_PAGE } from '../types.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
+/** `code` with every decimal literal the single-precision value it names: `shaderRun` computes in
+ *  doubles, and a literal written with nine digits (`wgslF32`) is no `f32` until the processor
+ *  rounds it — the hundredth of a centimetre that scales a position's cell (`clusterUnit`). */
+const singleLiterals = (code: string) =>
+  code.replace(/(?<![\w.])\d+\.\d+(?:e[+-]?\d+)?(?![\w.])/g, (text) =>
+    String(Math.fround(Number(text))),
+  )
+
 /** The page geometry as a program holds it, its decode included. */
-const PAGE_GEOMETRY = wgslModule(PAGE_GEOMETRY_WGSL)
+const PAGE_GEOMETRY = singleLiterals(wgslModule(PAGE_GEOMETRY_WGSL))
 
 const random = lcgFloatRandom(831)
 const floats = (n: number, at: (i: number) => number) =>
@@ -44,8 +52,7 @@ function pool() {
       JOINTS_0: { itemSize: 4, array: floats(n * 4, (i) => (i * 3) % 5) },
       WEIGHTS_0: { itemSize: 4, array: floats(n * 4, () => 0.25) },
     },
-    -16,
-    -14,
+    7,
     [0, 1, 2].map(() => ({
       POSITION: { itemSize: 3, array: floats(n * 3, () => random() - 0.5) },
       NORMAL: { itemSize: 3, array: floats(n * 3, () => random() - 0.5) },
@@ -76,11 +83,11 @@ function pool() {
 
 const NAMES = [
   ...'pageHeader pageHeaderFor pageCorner pageRestPosition vertPos'.split(' '),
-  ...'clusterPointHeader clusterSurfaceHeader clusterStream clusterWidths clusterStep'.split(' '),
+  ...'clusterPointHeader clusterSurfaceHeader clusterStream clusterWidths clusterUnit'.split(' '),
   ...'pow2FromExponent bitLength ceilDiv clusterIndex clusterBlock clusterWindow clusterField'.split(
     ' ',
   ),
-  ...'clusterPosition clusterGrid'.split(' '),
+  ...'clusterPosition clusterHasUv'.split(' '),
 ]
 const flat = (v: unknown): number[] =>
   typeof v === 'object' && v ? Object.values(v).flatMap(flat) : [Number(v)]
@@ -131,13 +138,15 @@ test('the part and the whole of a page header are the reference of the format', 
 
 // What the reference must catch: each edit moves one word the part or the whole reads.
 const BREAKS: [string, string][] = [
-  ['indices[base+21u]', 'indices[base+20u]'],
+  ['indices[base+19u]', 'indices[base+18u]'],
   ['indices[base+6u]', 'indices[base+7u]'],
   ['(dw>>6u)&255u', '(dw>>5u)&255u'],
   ['h.indexBits+5u', 'h.indexBits+4u'],
-  ['h.influences=indices[base+24u]', 'h.influences=indices[base+23u]'],
+  ['h.influences=indices[base+22u]', 'h.influences=indices[base+21u]'],
   ['h.flags=indices[base+4u]', 'h.flags=indices[base+5u]'],
-  ['(h.flags&2u)!=0u', '(h.flags&4u)!=0u'],
+  ['(h.flags&1u)!=0u', '(h.flags&2u)!=0u'],
+  ['h.normalBits=(cb>>16u)&15u', 'h.normalBits=(cb>>17u)&15u'],
+  ['let u=indices[base+9u+2u*s]', 'let u=indices[base+10u+2u*s]'],
 ]
 for (const [from, to] of BREAKS)
   test(`the reference catches ${from} read as ${to}`, () => {

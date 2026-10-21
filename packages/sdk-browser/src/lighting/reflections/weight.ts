@@ -20,11 +20,7 @@ import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
 import { reflectionFrontWgsl } from './viewLayout.ts'
 
 /** What a surface's lobes reflect: the base lobe's radiance and the clear coat's. */
-export const REFLECTED_WGSL = wgslStruct(
-  'Reflected',
-  [],
-  'struct Reflected{base:vec3f,coat:vec3f,}',
-)
+const REFLECTED_WGSL = wgslStruct('Reflected', [], 'struct Reflected{base:vec3f,coat:vec3f,}')
 
 /**
  * What a lit surface keeps of the radiance it reflects (`reflectionWeighWgsl`). `reflectionWeight`
@@ -152,7 +148,7 @@ const FRONT_DEPTH_THRESHOLD = 1024
  * textures WebGPU guarantees. `surfaceReflection` is the blend's, weighed on the
  * reflectance `f0` as the opaque trace's is.
  */
-export const forwardReflectionWgsl = (group: number, lobes: boolean, traced: number) =>
+const forwardReflectionWgsl = (group: number, lobes: boolean, traced: number) =>
   wgslBlock(
     `forwardReflectionWgsl(${group}, ${lobes}, ${traced})`,
     [
@@ -204,7 +200,7 @@ export const REFLECTION_TARGET = loadOnlyTarget(
  *  through the base lobe, the coat's whole —, and the resolve adds the probes, gathered with its
  *  bounce in one read (`resolvedIndirect`). Any other pixel writes one; a target never written reads
  *  zero. */
-export const REFLECTION_PROBES_LEFT = -1
+const REFLECTION_PROBES_LEFT = -1
 export const REFLECTION_PROBES_LEFT_WGSL = wgslBlock(
   'REFLECTION_PROBES_LEFT_WGSL',
   [],

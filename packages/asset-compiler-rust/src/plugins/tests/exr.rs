@@ -3,7 +3,7 @@
 //! single precision together, since the half-float extends to `f32` without rounding. And what
 //! leaves the subset must come out by its name, never as a panic or as an approximated image.
 use super::super::image as registry;
-use super::{fixture, rgba_f32};
+use super::{f32_pixels, fixture};
 use std::path::PathBuf;
 
 /// Four pixels are enough to hold read order, the four channels and the missing-alpha case;
@@ -31,13 +31,7 @@ const DROIT: [[f32; 4]; 4] = [
 
 /// Pixels of a fixture, in read order of the decoded image.
 fn pixels(name: &str) -> Vec<[f32; 4]> {
-    let bytes = fixture("exr", name);
-    let decoder = registry::by_head(&bytes).expect("a driver claims these bytes");
-    assert_eq!(decoder.name(), "exr", "{name}");
-    let (width, height, data) =
-        rgba_f32(registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|e| panic!("{name}: {e}")));
-    assert_eq!((width, height), (2, 2), "{name}");
-    data.as_chunks::<4>().0.to_vec()
+    f32_pixels("exr", name, MAX_ALLOC, (2, 2))
 }
 
 // Driver golden: both precisions of the subset yield the same image, value by value, and a file

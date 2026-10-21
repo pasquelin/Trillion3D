@@ -1,21 +1,14 @@
 import type { ResidentPage } from './types.ts'
 
-/** An eviction order a GPU pool publishes (`../../../gpu/sort/sortWgsl.ts`), its keys read one at a time as
- *  victims are taken: a page address for geometry pages, a place for tiles, a row for rows. */
+/** An eviction order a GPU pool publishes (`../../../gpu/sort/sortWgsl.ts`), its keys read one at a
+ *  time as victims are taken: a place for tiles, a row for rows. */
 export type EvictionOrder<K = string> = {
   /** How many keys the order lists. */
   readonly count: number
   /** The key at rank `at`, the first victim at 0. */
   keyAt(at: number): K
-  /** How many of its first keys are OLD: older than any page the view ahead asks for; all of
-   *  them unless said — a pool no view ahead asks of (tiles). */
-  readonly old?: number
-  /** The cache's arrivals when its cut ran (`arrivals`): a page that arrived since is not in it,
-   *  whatever its key. */
+  /** The pool's arrivals when its cut ran: a key taken again since is not in it, whatever it is. */
   readonly arrivals: number
-  /** False while the cut the frames draw is older than the order (`../../../gpu/core/selection.ts`,
-   *  `cutHeld`): a page it lists may be drawn still, so none leaves. Always open unless said. */
-  open?(): boolean
 }
 
 /** What a pool holds of each resident key: the arrival count when it arrived. */
@@ -27,26 +20,18 @@ export type Accept<V extends Held = ResidentPage> = (page: V) => boolean
 /** Why no slot is given back: no order, or the order spent. */
 export type NoVictim = 'eviction-queue-spent'
 
-/** Whether `order` is there and lets its pages leave. */
-const opened = <K>(order: EvictionOrder<K> | undefined): order is EvictionOrder<K> =>
-  !!order && (order.open?.() ?? true)
-/** Where `order`'s victims end: its OLD head for `lower`, else every key it lists. */
-const endOf = <K>(order: EvictionOrder<K>, lower: boolean) =>
-  lower ? (order.old ?? order.count) : order.count
-
 /**
- * Which resident page an arrival takes the place of: the next page of the
- * order the pool's GPU sort published (`../../../gpu/sort/sortWgsl.ts`), which alone knows when each page was
- * last used by any view, and holds a page's parents as long as the page. Each entry is passed once;
- * one pinned or refused when passed waits in `held` for its unpin, and is offered before the
- * entries after it. A page that arrived after the order's cut is never its victim, nor one it does
- * not list. Before any order, or while the frames draw a cut older than it, there is no victim: the
- * arrival waits for the next readback. `lower` — a page of a lower tier asking — takes only from
- * the order's OLD head: it never evicts a page any view used of late.
- *
- * A pin is the cache's own hold: the root cover's pages, which the GPU never lists either
- * (`../../dag/poolList.ts`). No clock, no recency: the GPU's. The one victim taker of every GPU pool,
+ * Which resident key an arrival takes the place of: the next key of the order the pool's GPU sort
+ * published (`../../../gpu/sort/sortWgsl.ts`), which alone knows when each was last used by any
+ * view. Each entry is passed once; one pinned or refused when passed waits in `held` for its unpin,
+ * and is offered before the entries after it. A key taken again after the order's cut is never its
+ * victim, nor one it does not list. Before any order there is no victim: the arrival waits for the
+ * next readback. The victim taker of the tile pools and the row table (`../../../gpu/sort/slotOrder.ts`),
  * keyed `K`, each resident key's entry `V`.
+ *
+ * A pin is the pool's own hold. The geometry pool holds its pins here alone: its victims are the
+ * host's, the oldest of the residency's use order (`../../residency/streamedPages.ts`), named to each
+ * load (`load.ts`).
  */
 export function createEviction<K = string, V extends Held = ResidentPage>(
   resident: Pick<ReadonlyMap<K, V>, 'get'>,
@@ -79,17 +64,15 @@ export function createEviction<K = string, V extends Held = ResidentPage>(
   }
   return {
     /** The page whose place the next arrival takes among those `accept` takes, or why none is. */
-    victim(accept: Accept<V> = () => true, lower = false): V | NoVictim {
-      if (!opened(order)) return 'eviction-queue-spent'
-      const end = endOf(order, lower)
+    victim(accept: Accept<V> = () => true): V | NoVictim {
+      if (!order) return 'eviction-queue-spent'
       for (let i = 0; i < held.length; i++) {
-        if (held[i].rank >= end) continue
         const page = listed(held[i].key, accept)
         if (page === undefined) continue
         held.splice(i--, 1)
         if (page) return page
       }
-      while (at < end) {
+      while (at < order.count) {
         const rank = at++,
           key = keyAt(rank),
           page = listed(key, accept)
@@ -98,20 +81,11 @@ export function createEviction<K = string, V extends Held = ResidentPage>(
       }
       return 'eviction-queue-spent'
     },
-    /** How many victims the order may still give an arrival, `lower` or not: an upper bound, read
-     *  before a page is read for nothing. */
-    victims(lower = false) {
-      if (!opened(order)) return 0
-      return Math.max(0, endOf(order, lower) - at) + held.length
-    },
-    /** Whether `key`'s page may leave with a victim — the order lists it, in its old head for
-     *  `lower` —: what the allocator asks of every page beside a victim whose bytes an arrival
-     *  needs too (`placement.ts`). */
-    evictable(key: K, lower = false) {
-      const rank = rankOf(key)
-      if (rank === undefined || !opened(order) || pins.has(key)) return false
-      const page = resident.get(key)
-      return !!page && page.generation <= order.arrivals && rank < endOf(order, lower)
+    /** How many victims the order may still give an arrival: an upper bound, read before a page
+     *  is read for nothing. */
+    victims() {
+      if (!order) return 0
+      return Math.max(0, order.count - at) + held.length
     },
     /** `key`'s rank in the order, the first victim at 0; `undefined` for a key it does not list. */
     rankOf,

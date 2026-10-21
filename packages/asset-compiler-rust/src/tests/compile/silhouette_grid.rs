@@ -1,7 +1,8 @@
-//! The samples of one axis camera over a cooked cut: the nearest front face per sample, back faces
-//! culled as the renderer culls them, and a square filter around each sample.
+//! The samples of one axis camera over a cooked cut: the nearest face per sample — front faces
+//! alone, back faces culled as the renderer culls them, or both sides —, and a square filter
+//! around each sample.
 use super::silhouette::{Mesh, Point};
-use trillion3d_math::triangle::triangle_cross;
+use trillion3d_math::geometry::triangle::triangle_cross;
 
 /// Samples of one view: a square grid over the source's projection, `step` apart.
 pub(super) struct Grid {
@@ -16,14 +17,14 @@ impl Grid {
     fn plane(&self) -> [usize; 2] {
         [(self.axis + 1) % 3, (self.axis + 2) % 3]
     }
-    /// Nearest front-facing depth per sample (`sign · p[axis]`, larger is nearer), `-inf` where
-    /// no front face covers it.
-    pub fn raster(&self, mesh: &Mesh, indices: &[u32]) -> Vec<f64> {
+    /// Nearest depth per sample (`sign · p[axis]`, larger is nearer) of the faces turned to the
+    /// camera — of every face when `both_sides` —, `-inf` where none covers it.
+    pub fn raster(&self, mesh: &Mesh, indices: &[u32], both_sides: bool) -> Vec<f64> {
         let [u, v] = self.plane();
         let mut depth = vec![f64::NEG_INFINITY; self.size[0] * self.size[1]];
         for t in indices.chunks(3) {
             let p = [0, 1, 2].map(|k| mesh.positions[t[k] as usize]);
-            if self.sign * triangle_cross(p[0], p[1], p[2])[self.axis] <= 0.0 {
+            if !both_sides && self.sign * triangle_cross(p[0], p[1], p[2])[self.axis] <= 0.0 {
                 continue;
             }
             let area = (p[1][u] - p[0][u]) * (p[2][v] - p[0][v])

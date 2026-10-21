@@ -30,11 +30,16 @@ test('the cutout is the hard threshold: the mask test, with the dash, vertex alp
 })
 
 test('every raster calls it as before the stipple, and no shader reads a stipple', () => {
-  // The call sites themselves are pinned by `maskVertexAlpha.test.ts`. Camera: the fragment's own
-  // derivatives, in its one cutting stage (the pass always writes its depth pyramid, #1483).
-  // Compute raster: the shared analytic perspective-correct derivatives.
-  assert.equal(VIS_SHADER.split('let gx=dpdx(in.tc.xy);let gy=dpdy(in.tc.xy);').length, 2)
-  assert.match(ENGINE_SHADERS.RASTER!, /uvGradients/)
+  // The call sites themselves are pinned by `maskVertexAlpha.test.ts`. Hardware raster: the
+  // fragment's own derivatives, taken while every lane of the quad runs, in its one cutting stage.
+  // Software raster: the cutout read at the perspective-correct weights, its footprint the weights'
+  // screen steps (`RASTER_PIXEL_WGSL`).
+  assert.equal(VIS_SHADER.split('if(MASKED){gx=dpdx(in.tc.xy);gy=dpdy(in.tc.xy);}').length, 2)
+  assert.match(
+    ENGINE_SHADERS.RASTER!,
+    /let ddx=\(t\.ua\*t\.dx\.x\+t\.ub\*t\.dx\.y\+t\.uc\*t\.dx\.z\)\.xy;/,
+  )
+  assert.match(ENGINE_SHADERS.RASTER!, /maskKeep\(page,tc\.xy,tc\.z,ddx,ddy\)/)
   for (const [name, source] of Object.entries(ENGINE_SHADERS))
     assert.doesNotMatch(source, /stipple/i, name)
 })

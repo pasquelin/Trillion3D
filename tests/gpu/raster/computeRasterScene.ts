@@ -1,4 +1,4 @@
-// The tiled scene of the watertight compute-raster proof: tiles tilted at angles that do not
+// The tiled scene of the watertight cluster-split proof: tiles tilted at angles that do not
 // repeat, a face-on tile whose diagonal falls exactly on pixel centres, a huge tile whose vertices
 // round far outside the image, and a tile that crosses the near plane.
 import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'

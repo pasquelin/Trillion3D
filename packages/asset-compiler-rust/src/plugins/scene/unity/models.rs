@@ -5,7 +5,7 @@
 //! imported only once, whatever the number of instances that cite it, and a model that would
 //! itself be a Unity scene is refused: a driver does not call itself.
 use super::*;
-use crate::import::tables::media::relative_under;
+use crate::plugins::scene::convert::tables::media::relative_under;
 use std::collections::HashMap;
 
 #[derive(Default)]
@@ -95,7 +95,7 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
             notes.filter_map(|note| Some(format!("{name}: {}", note.as_str()?))),
         );
     }
-    let (gltf, binary) = match crate::compiler_source::flat_document(&directory.join(&file)) {
+    let (gltf, binary) = match crate::compiler::source::flat_document(&directory.join(&file)) {
         Ok(loaded) => loaded,
         Err(_) => {
             world.scene.report.add("unity-model-buffer-unreadable");
@@ -107,7 +107,7 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
     let prefix = asset
         .parent()
         .and_then(|parent| relative_under(&world.project.source_dir, parent))
-        .map(|relative| crate::uri::encode_relative(Path::new(&relative)))
+        .map(|relative| crate::support::uri::encode_relative(Path::new(&relative)))
         .unwrap_or_default();
     let parts = merge::merge(&gltf, binary.bytes(), &prefix, world.scene);
     world.scene.read_model(&name, plugin.name(), &key);

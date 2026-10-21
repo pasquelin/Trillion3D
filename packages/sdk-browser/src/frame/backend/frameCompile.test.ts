@@ -86,11 +86,11 @@ test('no image compiles a pipeline, whatever enters the scene after preparation'
     guides.lines({ positions: [0, 0, 0, 1, 0, 0] })
     await settle()
     assert.equal(counted.inFrame, 0, 'no image compiled a pipeline')
-    const shaded = gpu.renderPipelines.filter(({ fragment }) =>
-      fragment?.entryPoint?.startsWith('shade_fs'),
+    const shaded = gpu.computePipelines.filter(({ compute }) =>
+      compute.entryPoint?.startsWith('shade_cs'),
     )
     assert.ok(
-      shaded.some(({ fragment }) => fragment!.constants?.EMISSIVE_AO === undefined),
+      shaded.some(({ compute }) => compute.constants?.EMISSIVE_AO === undefined),
       'the classes writing the layer were compiled',
     )
     assert.ok(

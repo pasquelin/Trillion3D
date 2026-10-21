@@ -4,8 +4,8 @@
 //! Provenance: synthetic primitives — `columns` reads their counts and one culling node each, not
 //! their geometry — padded to a few hundred bytes each; the compiled worlds are `partition_pages.rs`'s.
 use super::*;
-use crate::compiler_manifest_pages::{write_mesh_pages, MANIFEST_PAGES};
-use crate::compiler_tables::partition::pages::*;
+use crate::compiler::pages::manifest::{write_mesh_pages, MANIFEST_PAGES};
+use crate::compiler::tables::partition::pages::*;
 
 /// Every region page of `kind` under `slots`, in record order, beside the slot that names it.
 fn leaves(kind: &Kind, directory: &Path, slots: &Value) -> Vec<(String, Value)> {
@@ -129,7 +129,7 @@ fn a_region_page_lists_exactly_the_mesh_pages_its_cells_use() {
         (2, vec![slot("c")]),
         (3, vec![]),
     ]);
-    let tree = crate::compiler_tables::partition::split::halving(0..records.len());
+    let tree = crate::compiler::tables::partition::split::halving(0..records.len());
     let partition = write_pages(&tree, &records, &bounds, &holding, &directory).expect("pages");
     assert_region_pages_name(&directory, &partition, &holding);
     let pages = leaves(&CELL_PAGES, &directory, &partition["pages"]);

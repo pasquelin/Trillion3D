@@ -12,7 +12,11 @@ import { shadowPageEntries } from '../../casters/pageGroup.ts'
 import type { VsmLayout } from '../layout.ts'
 import { vsmComputePipe } from '../passKit.ts'
 import { vsmBindGroupLayoutEntries } from '../resources.ts'
-import { vsmCandidatesEntries, vsmRenderParamsEntry } from '../chunks/chunkParams.ts'
+import {
+  vsmCandidatesEntries,
+  vsmCandidatesWorldEntries,
+  vsmRenderParamsEntry,
+} from '../chunks/chunkParams.ts'
 import {
   VSM_TRANSMISSION_CLEAR_SPECS,
   vsmTransmissionCandidatesWgsl,
@@ -35,7 +39,7 @@ function transmissionGroupTables(layout: VsmLayout) {
   const resolve = [[...buffers, computeStorageTextureEntry(5, VSM_TRANSMISSION_FORMAT)]]
   return {
     clear: [vsmBindGroupLayoutEntries(VSM_TRANSMISSION_CLEAR_SPECS, layout, COMPUTE), buffers],
-    candidates: [[...vsmCandidatesEntries(), buf(7, 'uniform')]],
+    candidates: [[...vsmCandidatesEntries(), buf(7, 'uniform')], vsmCandidatesWorldEntries()],
     pages: [
       vsmBindGroupLayoutEntries(VSM_TRANSMISSION_PAGES_SPECS, layout, COMPUTE),
       [

@@ -72,7 +72,7 @@ export const STAGE_LABELS: Readonly<Record<string, string>> = /* @__PURE__ */ Ob
   hostPages: 'Page lists handed to the host',
   uploads: 'Uploads',
   textures: 'Textures: order and transfers into the atlases',
-  partition: 'Occluders / tested partition',
+  partition: 'Draw compaction',
   encode: 'Pass encoding',
   submit: 'Submit',
   hiZ: 'Hi-Z (occlusion)',

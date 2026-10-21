@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { rasterSource } from './shader.ts'
+import { binSource } from './binWgsl.ts'
 import {
   hoisted,
   perVertex,
@@ -13,28 +13,20 @@ import {
 } from '../../../../../bench/oracles/browser/mat4HoistOracle.ts'
 import { linearPartDeterminant } from '../../../../math/src/matrix/matrix4.ts'
 
-// shader.ts computes viewProj*world and the linear determinant once per page
-// (per workgroup) instead of recomputing them for every triangle. Structure: the sharing really
-// exists in the shader. Behavior: the hoisted product and determinant equal exactly what per-triangle
+// The binning (`binWgsl.ts`) computes viewProj*world and the linear determinant once per page (per
+// workgroup) instead of recomputing them for every triangle. Structure: the sharing really exists in
+// the shader. Behavior: the hoisted product and determinant equal exactly what per-triangle
 // calculation would yield, on hostile matrices (mirror, near-singular, large scale) — no approximation.
 
-test('sorting pass computes vp/det once per workgroup and rereads them per triangle', () => {
-  const shader = rasterSource(4096, 16)
+test('binning computes vp/det once per workgroup and rereads them per triangle', () => {
+  const shader = binSource(4096)
   assert.match(shader, /var<workgroup> rowVp:mat4x4f;/)
   assert.match(shader, /var<workgroup> rowDet:f32;/)
-  assert.match(
-    shader,
-    /if\(live&&lane\.x==0u\)\{let page=pages\[row\];rowVp=pageTransform\(page\);rowDet=pageWinding\(page\);\}/,
-  )
-  assert.match(shader, /workgroupBarrier\(\);/)
-  assert.match(shader, /setupTriangle\(row,triangle,rowVp,rowDet\)/)
-  // The pageClip() function takes the precomputed product, it never recomputes it.
-  assert.match(
-    shader,
-    /fn pageClip\(vp:mat4x4f,page:PageInfo,h:ClusterHeader,vertex:u32,shape:PageShape\)->vec4f\{/,
-  )
-  assert.doesNotMatch(shader, /pageClip\(page,/)
-  assert.doesNotMatch(shader, /pageClip\(pageTransform/)
+  assert.match(shader, /rowVp=pageTransform\(page\);rowDet=pageWinding\(page\);/)
+  assert.match(shader, /workgroupUniformLoad\(&rowSoftware\)/)
+  assert.match(shader, /setupTriangle\(row,page,h,t,rowVp,rowDet\)/)
+  // The setup takes the precomputed product, it never recomputes it.
+  assert.match(shader, /subpixelOf\(vp\*vec4f\(pagePosition\(page,h,t\.corners\.x\),1\.0\)\)/)
 })
 
 function assertSameVertices(viewProj: Mat4, world: Mat4, vertices: readonly Point[]) {

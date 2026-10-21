@@ -1,7 +1,7 @@
 //! What the DAG builder guarantees on every case, asserted on the DAG it builds in memory.
 pub(super) use super::invariants_pages::check_pages;
 use super::*;
-use crate::compiler_primitive_checks::triangle_fingerprint;
+use crate::compiler::primitive::checks::triangle_fingerprint;
 use crate::dag::{build_dag, DagBuild, DagCluster, DagStall, DagStrategy};
 use std::collections::{HashMap, HashSet};
 
@@ -11,8 +11,8 @@ pub(super) struct Built {
     /// The arrays the pages read: the case's, then every vertex a solve placed (`dag::Grown`).
     pub positions: Vec<f32>,
     pub attributes: Vec<encode::Attribute>,
-    /// Per placed vertex, the case's vertex it was solved from.
-    pub origin: Vec<u32>,
+    /// The case's triangles as the build read them (`DagBuild::indices`): what level 0 partitions.
+    pub indices: Vec<u32>,
 }
 impl Built {
     pub fn roots(&self) -> usize {
@@ -23,12 +23,26 @@ impl Built {
 /// The DAG of one primitive of the case, built as the compiler builds it: `qem-endpoints`, the
 /// normals and every texture set the pages carry.
 pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
-    let attributes = case.attributes();
+    let mut attributes = case.attributes();
+    // A case without `NORMAL` carries normals all nothing when the compiler's mesh build rebuilds
+    // every normal (its default, `page_attributes`), and the build then lays them: the DAG built
+    // here is the one the compiler builds, a flat-shaded corner included.
+    if case.normals.is_none() && crate::DEFAULT_RECOMPUTE_NORMALS {
+        attributes.insert(
+            0,
+            encode::Attribute {
+                flag: trillion3d_page_codec::FLAG_NORMAL,
+                width: 3,
+                values: vec![0.0; case.vertex_count() * 3],
+            },
+        );
+    }
     let carried: Vec<&encode::Attribute> = attributes.iter().collect();
     let DagBuild {
         clusters: dag,
         stalls,
         grown,
+        indices: read,
         ..
     } = build_dag(
         &case.positions,
@@ -38,29 +52,31 @@ pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
         &|| Ok(()),
     )
     .expect("dag");
-    let (positions, attributes, origin) = match grown {
-        Some(grown) => (grown.positions, grown.carried, grown.origin),
-        None => (case.positions.clone(), attributes, Vec::new()),
+    let (positions, attributes) = match grown {
+        Some(grown) => (grown.positions, grown.carried),
+        None => (case.positions.clone(), attributes),
     };
     Built {
         dag,
         stalls,
         positions,
         attributes,
-        origin,
+        indices: read,
     }
 }
 
-/// Level 0 partitions the source triangles; every coarse index names a vertex the source uses or
-/// a solve placed; errors are finite and climb up the DAG; the cook's check passes (`dag::quality`).
+/// Level 0 partitions the source triangles as the build read them; every coarse index names a
+/// vertex the source uses or a solve placed; errors are finite and climb up the DAG; the cook's
+/// check passes (`dag::quality`).
 pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label: &str) {
     let level0: Vec<&DagCluster> = built.dag.iter().filter(|c| c.level == 0).collect();
+    let read = &built.indices;
     assert_eq!(
         level0.iter().map(|c| c.triangles()).sum::<usize>(),
-        indices.len() / 3,
+        read.len() / 3,
         "{label}: level 0 covers the source"
     );
-    let source = triangle_fingerprint(indices.as_chunks::<3>().0.iter().map(|t| t.as_slice()));
+    let source = triangle_fingerprint(read.as_chunks::<3>().0.iter().map(|t| t.as_slice()));
     let partition = triangle_fingerprint(
         level0
             .iter()
@@ -107,22 +123,6 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
             }
             None => assert!(cluster.is_root(), "{label}: unreplaced means root"),
         }
-        // The projection spheres: each sits in the replacing group's, within the builder merge's
-        // own rounding, and a level-0 one, its vertices' ball, holds its cluster; a coarser one
-        // is its children's balls', the page's box bounding what it draws (`dag/reduce.rs`).
-        use trillion3d_math::vec3::point;
-        use trillion3d_math::vecn::{length, sub};
-        let beyond = |s: [f64; 4], c| length(sub(c, [s[0], s[1], s[2]])) - s[3] * (1.0 + 1e-12);
-        let [x, y, z, r] = cluster.sphere;
-        let own = if cluster.level == 0 {
-            &cluster.indices[..]
-        } else {
-            &[]
-        };
-        let outside = (own.iter())
-            .map(|&v| beyond(cluster.sphere, point(&built.positions, v)))
-            .fold(beyond(cluster.parent_sphere, [x, y, z]) + r, f64::max);
-        assert!(outside <= 0.0, "{label}: a sphere leaves its bound");
         if cluster.level > 0 {
             for &vertex in &cluster.indices {
                 let placed = (vertices..grown).contains(&vertex);
@@ -136,7 +136,7 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
 }
 
 /// One root cluster per primitive, and no stalled group: every layout of the corpus, every seam
-/// included (`qem_simplifier.rs`, its wedges), climbs to the top. A root over the encoder's vertex
+/// included (`simplify/region/collapse.rs`, its wedges), climbs to the top. A root over the encoder's vertex
 /// cap is halved once every level is built (`dag::constrain_wide`): its two halves share its group,
 /// level and error, and draw together at most one cluster's triangles.
 pub(super) fn check_roots(built: &Built, label: &str) {

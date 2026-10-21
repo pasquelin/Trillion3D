@@ -81,7 +81,6 @@ test('a still camera is drawn again as each hold lands, never waiting for every 
   const { holds, frame } = stillFrame({
     hold: () => new Promise<void>((resolve) => lands.push(resolve)),
     release() {},
-    lift() {},
   })
   for (const cell of [0, 1, 2]) holds.hold(cell, PRIORITY_VISIBLE)
   frame()
@@ -105,7 +104,6 @@ test('a hold that fails for good asks one frame as it settles, then nothing is a
       throw new Error('PAGE_STREAM_FAILED: refused for good')
     },
     release() {},
-    lift() {},
   }
   const { holds, frame } = stillFrame(holder)
   holds.hold(0, PRIORITY_VISIBLE)

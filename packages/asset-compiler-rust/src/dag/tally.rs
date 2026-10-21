@@ -1,30 +1,23 @@
 //! Why a group stalls, and the group tally per outcome, level by level, as published in the DAG
 //! report.
 
-/// Why a group did not produce a coarser level. Its clusters then become roots.
+/// Why a group did not produce a coarser level. It keeps its children and its error, and makes
+/// no cluster: past that error its surface is drawn by nothing (`DagGroup`) — but for a level
+/// whose every group stalled, whose clusters stay the DAG's roots.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum StallCause {
     /// No target cluster size down to half a cluster re-splits what the simplifier left into the
     /// group's parents.
     Unreducible,
-    /// The simplifier returned a non-finite error.
-    UnusableError,
 }
 impl StallCause {
     /// Every cause, in the order the tally counts them.
-    pub const ALL: [StallCause; 2] = [Self::Unreducible, Self::UnusableError];
-    /// The key the tally's JSON counts the cause under.
-    pub fn key(self) -> &'static str {
-        match self {
-            Self::Unreducible => "unreducible",
-            Self::UnusableError => "unusableError",
-        }
-    }
-    /// The name the report, the CLI and the corpus give the cause.
+    pub const ALL: [StallCause; 1] = [Self::Unreducible];
+    /// The name the report, the CLI and the corpus give the cause, and the key the tally's JSON
+    /// counts it under.
     pub fn name(self) -> &'static str {
         match self {
             Self::Unreducible => "unreducible",
-            Self::UnusableError => "unusable-error",
         }
     }
 }
@@ -56,7 +49,7 @@ impl GroupTally {
         let mut out = serde_json::Map::new();
         out.insert("reduced".into(), self.reduced.into());
         for cause in StallCause::ALL {
-            out.insert(cause.key().into(), self.stalled[cause as usize].into());
+            out.insert(cause.name().into(), self.stalled[cause as usize].into());
         }
         serde_json::Value::Object(out)
     }

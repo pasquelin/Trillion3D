@@ -1,9 +1,10 @@
 //! The skin and morph streams of a page: written, read back, and refused when their records lie.
 
 use super::*;
+use crate::bits::{ColorRange, PositionGrid, UvRange};
 use crate::triangles::{CornerCode, Spans};
 use crate::writer::BitWriter;
-use crate::{decode, Header, Layout, PageError};
+use crate::{decode, Header, Layout, PageError, MAX_UV_SETS};
 
 const N: usize = 3;
 
@@ -12,28 +13,16 @@ fn page(start_shift: usize) -> Vec<u8> {
     let indices = [0u32, 1, 2];
     let spans = Spans::of(&indices);
     let code = CornerCode::of(N, 3, spans.bits);
-    let target = || Morph {
-        start: 0,
-        position: Quant {
-            min: [0.0; 3],
-            exponent: 0,
-            bits: [32; 3],
-        },
-        normal: Quant {
-            min: [0.0; 3],
-            exponent: 0,
-            bits: [32; 3],
-        },
-    };
+    let target = || Morph { start: 0 };
     let mut h = Header {
         vertex_count: N,
         index_count: 3,
         flags: FLAG_SKIN | FLAG_MORPH,
-        position: Quant::flat(-8),
-        uv: Quant::flat(-14),
-        uv1: Quant::flat(-14),
-        color: Quant::flat(-8),
-        quantization_error: 0.0,
+        position: PositionGrid::flat(4),
+        uv: [UvRange::default(); MAX_UV_SETS],
+        color: ColorRange::default(),
+        normal_precision: 8,
+        tangent_precision: 7,
         corner_bits: spans.bits,
         position_count: N,
         skin: Skin {
@@ -72,15 +61,15 @@ fn page(start_shift: usize) -> Vec<u8> {
 fn joints_weights_and_targets_decode_from_their_streams() {
     let decoded = decode(&page(0), 1 << 24).expect("page");
     assert_eq!(decoded.morph_targets, 2);
-    let skin = decoded.attribute(5).expect("joints");
+    let skin = decoded.attribute(8).expect("joints");
     // Vertex 1: joint fields 1, 2, 3, 0 on base 5; weights 128, 127, 0 and what they leave.
     assert_eq!(skin[4..8], [6.0, 7.0, 8.0, 5.0]);
-    let weights = decoded.attribute(6).expect("weights");
+    let weights = decoded.attribute(9).expect("weights");
     assert_eq!(weights[4..8], [0.5, 0.5, 0.0, 0.0]);
     // Vertex 0 stores 255 and 0, 0: its last weight is zero; vertex 2 stores 0, 100, 100: 55.
     assert_eq!(weights[3], 0.0);
     assert_eq!(weights[11], 0.5);
-    let morph = decoded.attribute(7).expect("targets");
+    let morph = decoded.attribute(10).expect("targets");
     assert_eq!(morph[24..30], [2.0 * 0.12345679; 6]);
     assert_eq!(morph[30], 2.0 * 0.12345679);
 }
@@ -92,11 +81,11 @@ fn a_record_that_lies_or_is_not_announced_refuses_the_page() {
     let mut unflagged = good.clone();
     unflagged[16] = 0; // word 4: no flag, records still there
     assert_eq!(decode(&unflagged, 1 << 24).unwrap_err(), PageError::Bounds);
-    // Word 23's low byte: the joint width in six bits, then the two low bits of the target count.
+    // Word 21's low byte: the joint width in six bits, then the two low bits of the target count.
     let mut none = good.clone();
-    none[92] = 2; // no target, the flag still set
+    none[84] = 2; // no target, the flag still set
     assert_eq!(decode(&none, 1 << 24).unwrap_err(), PageError::Bounds);
     let mut wide = good;
-    wide[92] = 17 | 128; // a joint seventeen bits wide
+    wide[84] = 17 | 128; // a joint seventeen bits wide
     assert_eq!(decode(&wide, 1 << 24).unwrap_err(), PageError::Bounds);
 }

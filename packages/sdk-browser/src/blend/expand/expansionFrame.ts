@@ -1,4 +1,4 @@
-import { writeKeyRecords, writeMovedKeyRecords } from '../keyRecords.ts'
+import { noteFileSlots, writeKeyRecords, writeMovedKeyRecords } from '../keyRecords.ts'
 import { BLEND_ORDER_PASS } from '../../diagnostic/stage/passLabels.ts'
 import type { BlendExpand } from './expand.ts'
 import type { WebgpuBlendState } from '../state.ts'
@@ -9,17 +9,22 @@ import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 
 /**
  * What the GPU verdict reads, sent where it moved: the plan with every key record, or the key
- * records noted stale since (`noteKeyRecord`); the frustum planes, compared with those the last
- * verdict judged; and where the cut's cold words hold the world's cell states, which the verdict
- * reads itself (`cellDraws`): a cell switch rewrites no record. Each move counts in
- * `verdictEpoch`, under which the verdict's counts come back (`../verdict/verdictRead.ts`) — a cell switch
- * only while a transmissive item lies in a cell, the in-view count then following it.
+ * records noted stale since (`noteKeyRecord`) — each one in a cell file once a file's slot moved
+ * (`noteFileSlots`); the frustum planes, compared with those the last verdict judged; and where the
+ * cut's cold words hold the world's cell and file words, which the verdict reads itself
+ * (`cellDraws`): a switch rewrites no record. Each move counts in `verdictEpoch`, under which the
+ * verdict's counts come back (`../verdict/verdictRead.ts`) — a switch only while a transmissive
+ * item lies in a cell file, the in-view count then following it.
  */
 function sendVerdictInputs(
   blendState: WebgpuBlendState,
   expand: BlendExpand,
   cut: GpuSelection | undefined,
 ) {
+  const world = cut?.world,
+    states = cut?.cellStates,
+    slots = world?.fileSlot
+  noteFileSlots(blendState, world, world?.slotRevision ?? -1)
   if (blendState.planMoved) {
     expand.uploadPlan({
       seeds: blendState.seeds,
@@ -27,12 +32,12 @@ function sendVerdictInputs(
       region: blendState.planRegion,
       scene: blendState,
       stepWords: blendState.orderStepWords,
-      keyWords: writeKeyRecords(blendState),
+      keyWords: writeKeyRecords(blendState, slots, states?.instances),
     })
     blendState.planMoved = false
     blendState.verdictEpoch++
   } else {
-    const moved = writeMovedKeyRecords(blendState)
+    const moved = writeMovedKeyRecords(blendState, slots, states?.instances)
     if (moved) {
       expand.uploadKeys(moved.first, moved.words)
       blendState.verdictEpoch++
@@ -42,14 +47,14 @@ function sendVerdictInputs(
     blendState.judgedPlanes.set(blendState.blendPlanes)
     blendState.verdictEpoch++
   }
-  const states = cut?.cellStates,
-    revision = cut?.world?.revision ?? -1
+  const revision = world?.revision ?? -1
   if (revision !== blendState.cellRevision) {
     blendState.cellRevision = revision
     if (blendState.cellTransmits) blendState.verdictEpoch++
   }
   blendState.frameWords[FRAME_HEAD.cellStates] = states?.base ?? 0
   blendState.frameWords[FRAME_HEAD.cellCount] = states?.cells ?? 0
+  blendState.frameWords[FRAME_HEAD.fileStates] = states?.files ?? 0
 }
 
 /**
@@ -77,7 +82,8 @@ export function encodeBlendExpansion(rt: WebgpuPagesRuntime, encoder: GPUCommand
   if (!expand) return
   // No slot to draw: a frame without an eye paints nothing (`../order/order.ts`).
   if (!runCount) return
-  // An item drawn only while its row's HLOD 0 cell draws its placements (`cellDraws`).
+  // An item drawn only while its cell file or its row's HLOD 0 cell draws its placements
+  // (`cellDraws`).
   const cut = rt.run.gpuSelection
   sendVerdictInputs(blendState, expand, cut)
   expand.uploadFrame(blendState.frameWords, blendState.frameLayout.words)

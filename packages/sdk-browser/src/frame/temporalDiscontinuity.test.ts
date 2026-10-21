@@ -7,7 +7,7 @@ import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { HostCamera } from '../camera/world.ts'
 
 const enter = (gate: ReturnType<typeof createFrameGateCore>, camera: HostCamera) =>
-  gate.enterFrame({}, camera, {}, [640, 480], new Object3D(), [])
+  gate.enterFrame({}, camera, [640, 480], new Object3D(), [])
 
 test('ordinary camera motion preserves history while an explicit cut invalidates it', () => {
   const gate = createFrameGateCore(1)

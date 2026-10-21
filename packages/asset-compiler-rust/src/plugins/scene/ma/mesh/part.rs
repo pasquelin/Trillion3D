@@ -9,7 +9,7 @@
 //! counted: giving `(0, 0)` to the others would invent a mapping the file does not write. What
 //! a face corner becomes is read in `corner`.
 use super::*;
-use crate::import::Vertices;
+use crate::plugins::scene::convert::Vertices;
 use crate::plugins::scene::{claims::Claims, corners::Corners};
 
 /// A material part: its glTF material, and the faces it carries.
@@ -108,7 +108,9 @@ fn build(world: &mut World<'_>, surface: &Surface, part: &Part) -> Option<(Value
             .map(|(rank, (key, corner))| (key, surface.point(*face, rank), corner));
         // The cutter rereads the token per face slice: a single huge mesh stops too. What is
         // already placed stays, and `convert` then refuses the whole scene.
-        let write = |vertices: &mut Vertices, corner: crate::import::Corner| corner.write(vertices);
+        let write = |vertices: &mut Vertices, corner: crate::plugins::scene::convert::Corner| {
+            corner.write(vertices)
+        };
         if out.face(corners, write, cancelled, false).is_none() {
             break;
         }

@@ -7,8 +7,8 @@
 //! the index pages, which a cooked world reaches only past eight pages of records.
 use super::partition::{cells, compiled, compiled_full, grid};
 use super::*;
-use crate::compiler_manifest_pages::{read_manifest, MANIFEST_PAGES};
-use crate::compiler_tables::partition::{pages::*, split::halving};
+use crate::compiler::pages::manifest::{read_manifest, MANIFEST_PAGES};
+use crate::compiler::tables::partition::{pages::*, split::halving};
 use crate::tests::cache::reuse::compile_with_events;
 
 /// Every file of `directory` whose name starts with `prefix`: its size and its body.
@@ -67,7 +67,7 @@ fn the_root_has_one_size_whatever_the_world_and_every_page_its_limit() {
         );
     }
     let size = |value: &Value| serde_json::to_vec(value).expect("json").len();
-    let slots = 1_391; // FORMAT.md, and the index-page root below
+    let slots = 1_392; // FORMAT.md, and the index-page root below
     for (options, tables, directory) in &worlds {
         let manifest = fs::read(directory.join(MANIFEST_FILE)).expect("clusters.json");
         assert_eq!(manifest.len(), 1_707, "the manifest's root, FORMAT.md");
@@ -86,11 +86,11 @@ fn the_root_has_one_size_whatever_the_world_and_every_page_its_limit() {
         fs::remove_dir_all(options.source.parent().expect("root")).expect("cleanup");
     }
     // Sixteen times the area at the same density: the whole tables keep their bytes, the root's
-    // lists with them: 1 816 bytes, one mesh placed under the scene and no HLOD named — the main
-    // grid's range and the HLOD 0 grid's alone (FORMAT.md).
+    // lists with them: 1 885 bytes, one mesh placed under the scene and no HLOD named — the
+    // scheme's name and the main grid alone (FORMAT.md).
     let (small, large) = (size(&worlds[0].1), size(&worlds[1].1));
     assert_eq!(small, large, "the core does not grow with the world");
-    assert_eq!(size(&worlds[0].1["partition"]), 1_816, "the grids' root");
+    assert_eq!(size(&worlds[0].1["partition"]), 1_885, "the grids' root");
 }
 
 #[test]
@@ -105,17 +105,17 @@ fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
     // The root names every page by its fingerprint: the cell index's pages, each naming its
     // mesh pages, byte for byte.
     let named = hash(&serde_json::to_vec(&root).expect("json"));
-    let pages = "2349d283d832ed920514d366461b4bd0925bf15fd62362b06dae32d47a984415";
+    let pages = "7684b9d59c32a34d1c66ce8bc1de14001f065ed09a227409734326eae677bd86";
     assert_eq!(
         named, pages,
-        "the index and region pages of partition version 6"
+        "the index and region pages of the partition's version"
     );
     let written = files(&directory, "scene-page-");
     let index = written.iter().filter(|(_, page)| page["pages"].is_array());
     assert!(index.count() > 0, "index pages are written");
     let root_bytes = serde_json::to_vec(&root).expect("json").len();
     assert_eq!(
-        root_bytes, 1_739,
+        root_bytes, 1_740,
         "the root of small worlds, index pages under it"
     );
     for (bytes, page) in &written {

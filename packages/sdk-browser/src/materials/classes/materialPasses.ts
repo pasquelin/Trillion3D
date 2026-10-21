@@ -6,95 +6,16 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { type PresentClasses, markPresentClasses } from '../../gpu/core/presentClasses.ts'
 import { MATERIAL_COMPUTE_PASS, MATERIAL_SURFACES_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts'
-import type { RecordBundle } from '../../gpu/core/renderBundles.ts'
-import type { SurfaceBuffer } from '../surface/surfaceBuffer.ts'
-import { shadeTargetFormats } from '../../visibility/passes/shadeTargets.ts'
-import type { MaterialTiles } from './materialTiles.ts'
-import type { ShadeClasses } from '../../visibility/passes/shadePipelines.ts'
+import { contextReader } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
+import { shadeBinningQuads } from './shadeBins.ts'
 
-/** The resolve's compute pass, opened by the first of its modules that dispatches. */
+/** The shading's setting `field` the session holds (`shadingOptions.ts`), by its one resolver,
+ *  read at each image. */
+const shadingSetting = contextReader(SHADING_RULES)
+
+/** The material pass's compute pass: the frame's cache, the shading bins and the classes' shading. */
 const materialPass = new LazyComputePass(MATERIAL_COMPUTE_PASS)
-
-/** The surfaces pass's bundle layouts, by feedback target (2) and emission layer (1): its
- *  attachments' formats, the layer's slot empty while it is the 1×1 stand-in
- *  (`shadeColorAttachments`). */
-const SURFACE_BUNDLES = [0, 1, 2, 3].map((at) => ({
-  label: 'Trillion3D material classes',
-  colorFormats: shadeTargetFormats(at >= 2).map((format, slot) =>
-    slot === 2 && !(at & 1) ? null : format,
-  ),
-}))
-const surfaceBundle = (rt: WebgpuPagesRuntime, surfaces: SurfaceBuffer) =>
-  SURFACE_BUNDLES[(rt.vis.writesFeedback ? 2 : 0) + (surfaces.hasEmissiveAo === false ? 0 : 1)]
-
-/** The surfaces bundle's key past its layout, in the order `encodeSurfaces` writes it. */
-type ClassKey = [
-  group: GPUBindGroup,
-  tileGroup: GPUBindGroup | undefined,
-  tiles: MaterialTiles | undefined,
-  single: GPURenderPipeline | undefined,
-  classes: ShadeClasses,
-  stamp: number,
-  keys: readonly number[],
-]
-
-/** Records the class draws a key names after its layout: the resolve's group, the tiles' group
- *  and the tiles, the sole class's direct pipeline, then the class set and the present classes'
- *  keys (after their stamp), each class's pipeline in slot order. */
-const recordClasses: RecordBundle<ClassKey> = (encoder, key) => {
-  const [, group, tileGroup, tiles, single, classes, , keys] = key
-  encoder.setBindGroup(0, group)
-  if (tileGroup) encoder.setBindGroup(1, tileGroup)
-  if (single) {
-    encoder.setPipeline(single)
-    encoder.draw(3)
-    return
-  }
-  // Each class was compiled before this image: the scene's at preparation, one a material
-  // changed into since at the frame entry that held the image on it (`../../frame/loop/framePipelines.ts`).
-  for (let at = 0; at < keys.length; at++) {
-    encoder.setPipeline(classes.of(keys[at]).get())
-    tiles!.draw(encoder, at)
-  }
-}
-
-/**
- * The surfaces pass: each class of `keys` draws its tiles, or the sole class `single` full
- * screen, as the pass's render bundle (`rt.vis.shadeBundles`). The key is the groups, the tiles,
- * the class set and the present classes' stamp — moved only when their rows were walked again
- * (`markPresentClasses`) —, never the classes' pipelines one by one: a held frame compares seven
- * words. Each class's tile count lives in the draw the classification wrote.
- */
-function encodeSurfaces(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  encoder: GPUCommandEncoder,
-  keys: readonly number[],
-  single: GPURenderPipeline | undefined,
-  tileGroup: GPUBindGroup | undefined,
-) {
-  const { gpu, vis } = rt,
-    surfaces = gpu.surfaces!
-  const pass = encoder.beginRenderPass({
-    label: MATERIAL_SURFACES_PASS,
-    colorAttachments: shadeColorAttachments(rt, surfaces),
-  })
-  pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
-  const bundles = vis.shadeBundles,
-    key = bundles.keyed<ClassKey>(surfaceBundle(rt, surfaces))
-  key.push(
-    vis.shadeBindGroup!,
-    tileGroup,
-    vis.materialTiles,
-    single,
-    vis.shadeClasses!,
-    vis.presentClasses.stamp,
-    keys,
-  )
-  if (keys.length) bundles.execute(pass, device, recordClasses)
-  pass.end()
-  rt.run.gpuDrawCalls += keys.length
-}
 
 export const createPresentClasses = (): PresentClasses => ({
   stamps: new Uint32Array(MATERIAL_CLASS_KEYS),
@@ -104,25 +25,23 @@ export const createPresentClasses = (): PresentClasses => ({
 })
 
 /**
- * Surfaces of the opaque image. A prepared one-class scene shades directly. Otherwise the material
- * tiles list the screen tiles each class holds (`materialTiles.ts`), then each class draws its
- * tiles. Either way a class's fragment stage rejects, before any write, a pixel of the background,
- * past the page table or of another class (`classAdmits`): the pixels a material depth tested
- * `equal` at the class's depth would keep, without that target or its pass. The surfaces and feedback
- * target are cleared once and then kept.
+ * Surfaces of the opaque image, shaded in compute as the reference shades them. The surfaces and
+ * the feedback target are cleared first, by a pass of no draw: the background keeps the clear.
+ * Then one compute pass: what many pixels compute alike, once (`../../visibility/passes/shadeCache.ts`);
+ * the shading bins, every pixel sorted by its class (`shadeBins.ts`), by pixel or by quad as the
+ * `shadeBinningMode` setting asks (`shadeBinningQuads`); and each class of the image's rows shades
+ * the pixels of its bin alone, one indirect dispatch a class, storing them in the surfaces. Each
+ * class was compiled before this image: the scene's at preparation, one a material changed into
+ * since at the frame entry that held the image on it (`../../frame/loop/framePipelines.ts`).
  */
-export function encodeMaterialPasses(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  encoder: GPUCommandEncoder,
-) {
-  const { gpu, vis } = rt,
+export function encodeMaterialPasses(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+  const { gpu, vis, run } = rt,
     { rows } = rt.layout,
     [width, height] = gpu.targetSize
   // The image checked its pipelines, table and surfaces before encoding; what the resolve adds is
-  // its bind group, its tiles and its classes, and it fails by name without them.
-  const tiles = vis.materialTiles
-  if (!vis.shadeBindGroup || !vis.shadeClasses || !tiles)
+  // its bind group, its bins and its classes, and it fails by name without them.
+  const bins = vis.shadeBins
+  if (!vis.shadeBindGroup || !vis.shadeClasses || !bins)
     throw new Error('MATERIAL_RESOLVE_UNAVAILABLE')
   const keys = markPresentClasses(
     rows.pageTableInts!,
@@ -132,19 +51,16 @@ export function encodeMaterialPasses(
   )
   // Its rows are written: one that came to emit or occlude brings the layer before this resolve.
   followEmissiveAo(rt)
-  // Read after the layer was followed: a surface that came to emit switched the classes.
-  const classes = vis.shadeClasses
-  const key = keys.length === 1 ? keys[0] : undefined,
-    direct = key === undefined ? undefined : classes.single(key)
-  // Compiled before this image, never by it: until it is, the tiles draw the class.
-  const singlePipeline = direct?.ready ? direct.get() : undefined
-  let tileGroup: GPUBindGroup | undefined
-  if (!singlePipeline) {
-    tiles.assign(keys)
-    tileGroup = tiles.layFor(width, height)
-  }
-  // What many pixels computed alike, computed once (`../../visibility/passes/shadeCache.ts`), and the
-  // classification of the tiles: one compute pass, opened only when one of them dispatches.
+  // Read after the layer was followed: a surface that came to emit switched the classes and the
+  // surfaces.
+  const classes = vis.shadeClasses,
+    surfaces = gpu.surfaces!
+  encoder
+    .beginRenderPass({
+      label: MATERIAL_SURFACES_PASS,
+      colorAttachments: shadeColorAttachments(rt, surfaces),
+    })
+    .end()
   const pass = materialPass.begin(encoder)
   vis.shadeCache?.encode(pass, {
     vis: vis.visView!,
@@ -156,8 +72,26 @@ export function encodeMaterialPasses(
     uniform: vis.shadeUniform!,
     material: vis.materialTable.view!,
   })
-  if (tileGroup)
-    tiles.encode(pass, { vis: vis.visView!, pages: vis.pageTable!, uniform: vis.shadeUniform! })
+  if (keys.length) {
+    bins.assign(keys, shadeBinningQuads(shadingSetting(rt, 'shadeBinningMode')))
+    bins.layFor(width, height)
+    run.gpuComputeDispatches += bins.encode(
+      pass,
+      vis.visView!,
+      vis.pageTable!,
+      vis.shadeUniform!,
+      width,
+      height,
+    )
+    const shading = pass.pass,
+      feedback = vis.writesFeedback ? gpu.feedbackView : undefined
+    shading.setBindGroup(0, vis.shadeBindGroup)
+    shading.setBindGroup(1, bins.outputs(surfaces, feedback))
+    for (let at = 0; at < keys.length; at++) {
+      shading.setPipeline(classes.of(keys[at]).get())
+      bins.dispatch(shading, at)
+    }
+    run.gpuComputeDispatches += keys.length
+  }
   pass.end()
-  encodeSurfaces(rt, device, encoder, keys, singlePipeline, tileGroup)
 }

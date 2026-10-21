@@ -72,7 +72,7 @@ function specifiersOf(file: string, text: string): string[] {
 function climbsAboveRoot(file: string, specifier: string): boolean {
   let depth = 0
   for (const part of (file.slice(0, file.lastIndexOf('/') + 1) + specifier).split('/')) {
-    if (part === '../..') depth--
+    if (part === '..') depth--
     else if (part !== '.' && part !== '') depth++
     if (depth < 0) return true
   }
@@ -82,10 +82,7 @@ function climbsAboveRoot(file: string, specifier: string): boolean {
 /** Whether a relative specifier names a folder: it ends in `../`, is `.` or `..`, or has no file
  *  extension. */
 const isFolder = (specifier: string) =>
-  specifier.endsWith('/') ||
-  specifier === '.' ||
-  specifier === '../..' ||
-  !/\.[^./]+$/.test(specifier)
+  specifier.endsWith('/') || specifier === '.' || specifier === '..' || !/\.[^./]+$/.test(specifier)
 
 /** Every import of a module of `packages/math/src` that leaves it, as `file: specifier`. */
 export function mathLayeringBreaks(files: Map<string, string>): string[] {

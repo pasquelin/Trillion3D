@@ -8,11 +8,12 @@ const buildSurfaces = (): SurfaceBuffer => {
   const views: GPUTextureView[] = [0, 1, 2, 3].map(() => ({}) as GPUTextureView)
   return {
     ...{ version: 1, width: 1, height: 1, allocationBytes: 0 },
-    ...{ baseMetal: DUMMY_TEXTURE, normalRough: DUMMY_TEXTURE, emissiveAo: DUMMY_TEXTURE },
-    ...{ flags: DUMMY_TEXTURE, subsurface: DUMMY_TEXTURE, subsurfaceView: {} as GPUTextureView },
-    ...{ hasEmissiveAo: true, receiver: DUMMY_TEXTURE, receiverView: {} as GPUTextureView },
+    ...{ colours: DUMMY_TEXTURE, words: DUMMY_TEXTURE, layers: 0 },
+    ...{ subsurfaceView: {} as GPUTextureView, receiverView: {} as GPUTextureView },
     ...{ lobes: DUMMY_TEXTURE, lobesView: {} as GPUTextureView },
+    ...{ hasEmissiveAo: true, hasSubsurface: false },
     views: () => views,
+    stores: () => [views[0], views[1]] as const,
     dispose: () => {},
   }
 }

@@ -6,11 +6,12 @@ pub(super) fn encode_primitive(
     columns: &mut [Column],
     files: usize,
 ) -> Result<Value> {
-    let mut slim = entry.clone();
-    slim.remove("pages");
-    slim.remove("culling");
-    slim.remove("structure");
-    slim.remove("streams");
+    // What the columns carry instead (`pages`, `culling`, `structure`, `streams`) is never copied.
+    const COLUMNED: [&str; 4] = ["pages", "culling", "structure", "streams"];
+    let kept = entry
+        .iter()
+        .filter(|(key, _)| !COLUMNED.contains(&key.as_str()));
+    let mut slim: Map<String, Value> = kept.map(|(k, v)| (k.clone(), v.clone())).collect();
     let mut binary = Map::new();
     binary.insert("pages".into(), json!(page_count));
     match entry.get("culling") {

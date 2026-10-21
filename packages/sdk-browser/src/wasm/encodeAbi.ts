@@ -4,10 +4,10 @@
 /**
  * Words of a request block. Offsets are bytes in linear memory, 0 for an absent array.
  */
-export const REQUEST_WORDS = 16
+export const REQUEST_WORDS = 17
 
 /**
- * Words of the block `encode_page` and the decoder's `page_check` (`wasm/decode.rs`) answer in.
+ * Words of the block `encode_page` and the decoder's `page_check` (`decode.rs`) answer in.
  */
 export const META_WORDS = 16
 
@@ -20,15 +20,16 @@ export const REQUEST = {
   NORMALS: 4,
   UV0: 5,
   UV1: 6,
-  COLORS: 7,
-  COLOR_WIDTH: 8,
-  POSITION_EXPONENT: 9,
-  UV_EXPONENT: 10,
-  JOINTS: 11,
-  WEIGHTS: 12,
-  INFLUENCES: 13,
-  TARGET_COUNT: 14,
-  TARGETS: 15,
+  UV2: 7,
+  UV3: 8,
+  COLORS: 9,
+  COLOR_WIDTH: 10,
+  POSITION_PRECISION: 11,
+  JOINTS: 12,
+  WEIGHTS: 13,
+  INFLUENCES: 14,
+  TARGET_COUNT: 15,
+  TARGETS: 16,
 } as const
 
 /** The answer's words on success. */
@@ -37,8 +38,8 @@ export const META = {
   INDEX_COUNT: 1,
   FLAGS: 2,
   DECODED_BYTES: 3,
-  QUANTIZATION_ERROR: 4,
-  MORPH_TARGETS: 5,
-  SKIN_INFLUENCES: 6,
-  CONE: 7,
+  MORPH_TARGETS: 4,
+  SKIN_INFLUENCES: 5,
+  LOW_X: 6,
+  HIGH_Z: 11,
 } as const

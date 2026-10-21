@@ -5,13 +5,9 @@
 //!
 //! A JSON line `{"cancel":"*"}` or `{"cancel":"<job>"}` on stdin cancels; killing the process is also safe
 //! because every output file is written atomically.
-mod cli_batch;
-mod cli_cancel;
-mod cli_spec;
-mod cli_stalls;
-mod messages;
-use cli_batch::run_batch;
-use cli_cancel::{listen_stdin, Cancellation};
+pub(crate) mod cli;
+use cli::batch::run_batch;
+use cli::cancel::{listen_stdin, Cancellation};
 use serde_json::{json, Value};
 use std::{
     collections::HashMap,
@@ -28,7 +24,7 @@ use trillion3d_compiler::{
 static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 fn emit(mut event: Value, job: &str) {
-    messages::decorate(&mut event);
+    cli::messages::decorate(&mut event);
     if let Some(object) = event.as_object_mut() {
         object.insert("job".into(), json!(job));
     }
@@ -37,7 +33,7 @@ fn emit(mut event: Value, job: &str) {
 /// A failure as hosts read it: its code, message and, from the catalogue, its public id.
 fn error_value(error: &CompilerError) -> Value {
     let mut value = json!({"status":"error","code":error.code,"message":error.message});
-    messages::decorate(&mut value);
+    cli::messages::decorate(&mut value);
     value
 }
 
@@ -55,7 +51,7 @@ fn pointer(result: &Value, options: &Options) -> Value {
   "compilerVersion":result["compilerVersion"],"selectedTriangles":result["selectedTriangles"],"sourceTriangles":result["sourceTriangles"],"selectedNodes":result["selectedNodes"],"totalNodes":result["totalNodes"],"primitives":result["primitives"].as_array().map(|a|a.len()).unwrap_or(0),"simplification":result["simplification"],
   "metrics":result["metrics"],"reusedPages":result["reused"].is_null().then(||result["primitives"].as_array().map(|a|a.iter().filter_map(|p|p["reusedPages"].as_u64()).sum::<u64>())),
   "unsupported":result["unsupported"],"textureSkipped":result["texturePreviews"]["skipped"],"textureNotes":result["texturePreviews"]["notes"],"reused":result["reused"]});
-    trillion3d_compiler::json::merge(&mut pointer, report);
+    trillion3d_compiler::support::json::merge(&mut pointer, report);
     pointer
 }
 
@@ -74,7 +70,7 @@ fn run_job(id: &str, options: &Options) -> Result<Value, CompilerError> {
     });
     match result {
         Ok(result) => {
-            cli_stalls::emit_worst(&result, id);
+            cli::stalls::emit_worst(&result, id);
             let pointer = pointer(&result, options);
             emit(
                 json!({"event":"complete","ratio":1.0,"pointer":pointer,"ms":elapsed_ms(started)}),

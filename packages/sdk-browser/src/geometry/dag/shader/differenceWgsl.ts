@@ -1,4 +1,3 @@
-import { EVICTION_BURST } from '../readoutWords.ts'
 import { KEPT_HEADER_WORDS } from '../layout.ts'
 import { KEPT_RANK_HEAD } from '../keptRanks.ts'
 import { OPEN_SLOT_WORDS } from '../heldOpen.ts'
@@ -53,15 +52,15 @@ const keptProbe = (step: string) =>
 export const DAG_DIFFERENCE_WGSL = wgslBlock(
   'DAG_DIFFERENCE_WGSL',
   [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, mixWord, halfLoadSlots, NO_INDEX],
-  `/** Word \`k\` of the difference in \`out.pages\`, behind the eviction burst (\`differenceWord\`). */
-fn differenceAt(k:u32)->u32{return 2u*views[0u].listCap+2u*HEAD+${EVICTION_BURST}u+k;}
+  `/** Word \`k\` of the difference in \`out.pages\`, behind the drawn list (\`differenceWord\`). */
+fn differenceAt(k:u32)->u32{return 2u*views[0u].listCap+HEAD+k;}
 /** List \`l\`'s difference (0 the camera's requests, 1 the drawn pages): the rank each of its pages
  *  held in the kept list. */
 fn fromAt(l:u32,s:u32)->u32{return differenceAt(l*views[0u].listCap+s);}
-/** Word \`k\` of the kept snapshot in \`out.pages\`, behind the staged requests ahead, two words
- *  each (\`keptSnapshotWord\`): the two lengths, then the requests' pages, then the drawn pages, a
+/** Word \`k\` of the kept snapshot in \`out.pages\`, behind the priority list, outside what the frame
+ *  copies (\`keptSnapshotWord\`): the two lengths, then the requests' pages, then the drawn pages, a
  *  word each. */
-fn keptAt(k:u32)->u32{return aheadStagedAt(aheadCap())+k;}
+fn keptAt(k:u32)->u32{return priorityAt(views[0u].listCap)+k;}
 fn keptPage(l:u32,s:u32)->u32{return keptAt(${KEPT_HEADER_WORDS}u+l*views[0u].listCap+s);}
 /** List \`l\` as long as the host reads it, and its page at rank \`s\`: the camera's requests, the
  *  drawn pages. */

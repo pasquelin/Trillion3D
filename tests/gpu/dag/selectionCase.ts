@@ -75,7 +75,7 @@ function withResidency(packed: PackedDag, resident: ArrayLike<number>, slots: nu
     heldSlots: slots,
   })
   upload(pageResidency(resident))
-  const { buffer, byteOffset, length } = packed.pageCones
+  const { buffer, byteOffset, length } = packed.coldWords
   return new Uint32Array(buffer, byteOffset, length).slice()
 }
 
@@ -89,14 +89,14 @@ function caseBuffers({ packed, uniforms, resident, heldSlots = HELD_SLOTS }: Sel
   const views = new Float32Array(DAG_UNIFORM_BYTES / 4)
   // The open counts behind the readout's lists, as the engine lays them (`listCap.ts`).
   const held = { listCap, heldSlots, swap: { regions: 0 } }
-  writeDagUniforms(views, packed, uniforms, listCap, undefined, undefined, heldOpenAt(held))
+  writeDagUniforms(views, packed, uniforms, listCap, undefined, heldOpenAt(held))
   const blockCount = ceilDiv(Math.max(1, packed.pageCount), WORKGROUP_THREADS),
     worldCount = Math.max(1, packed.worldCount)
   return {
     work: dagWorkLayout(blockCount),
     flagShape: dagFlagShape(packed),
-    /** `out` with the staged requests behind the readout, for a list of `listCap` ranks, then the
-     *  open counts the placements hold. */
+    /** `out` as the engine sizes it for a list of `listCap` ranks, then the open counts the
+     *  placements hold. */
     outBytes: readoutRow(listCap, 0, heldSlots).size,
     /** Where those counts lie in `out`, in bytes, and their words. */
     heldAt: savedJournalWord(listCap, 0) * 4,
@@ -112,17 +112,9 @@ function caseBuffers({ packed, uniforms, resident, heldSlots = HELD_SLOTS }: Sel
   }
 }
 
-/** Writes a case's output words before the kernel runs (requests staged by hand). */
-export type StageOutput = (out: Uint32Array, at: ReturnType<typeof caseBuffers>) => void
-
 /** `selection`'s buffers on `device` as the engine lays them out, and their bind group on
- *  `layout`; `stage`, when given, writes the output's words first. `destroy` frees them. */
-export function bindCase(
-  device: GPUDevice,
-  layout: GPUBindGroupLayout,
-  selection: SelectionCase,
-  stage?: StageOutput,
-) {
+ *  `layout`. `destroy` frees them. */
+export function bindCase(device: GPUDevice, layout: GPUBindGroupLayout, selection: SelectionCase) {
   const at = caseBuffers(selection)
   const made: { destroy(): void }[] = []
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
@@ -134,7 +126,6 @@ export function bindCase(
   }
   const out = new Uint32Array(at.outBytes / 4)
   out.set(at.heldWords, at.heldAt / 4)
-  stage?.(out, at)
   const uniform = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
   const buffers = {
     views: buffer(256, at.views, uniform),
@@ -148,7 +139,7 @@ export function bindCase(
     {
       clusters: at.clusters,
       nodes: at.nodes,
-      pageCones: new Float32Array(at.cold.buffer),
+      coldWords: new Float32Array(at.cold.buffer),
       pageCount: selection.packed.pageCount,
     },
     at.flagShape,
@@ -166,6 +157,8 @@ export function bindCase(
   made.push(worlds, tree, frames, ...Object.values(tables))
   const views = {
     worlds: worlds.view,
+    // The poses the previous image drew: a case moves nothing, so they are the worlds.
+    previous: worlds.view,
     frames: frames.view,
     tree: tree.view,
     clusters: tables.clusters.view,

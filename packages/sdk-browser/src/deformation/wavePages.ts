@@ -1,5 +1,6 @@
 import { BOX_VALUES, boxUnion } from '../../../math/src/geometry/box.ts'
 import { encloseTransform, ROUND, widenBox } from '../../../math/src/geometry/boxEnclosure.ts'
+import { appendTo } from '../../../math/src/sequence/counts.ts'
 import type { Waves } from '../../../sdk-core/src/fluids/waves.ts'
 import type { PageRec } from '../geometry/selection/types.ts'
 import { holdPageBoxes, releasePageBoxes } from '../frame/render/movedGeometry.ts'
@@ -74,11 +75,7 @@ function groupsOf(
     plan = plans.get(deformation)
   if (plan?.roots === roots.length) return plan.groups
   const byPages = new Map<readonly PageRec[], number[]>()
-  roots.forEach(({ pages }, i) => {
-    const ranks = byPages.get(pages)
-    if (ranks) ranks.push(i)
-    else byPages.set(pages, [i])
-  })
+  roots.forEach(({ pages }, i) => appendTo(byPages, pages, i))
   const groups: Group[] = []
   for (const [pages, ranks] of byPages)
     if (

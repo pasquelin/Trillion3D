@@ -10,19 +10,6 @@ import { countUnoccluded, createHizCounts } from '../hiz/unoccluded.fixture.ts'
 import { cameraAt } from '../../../../../tests/fixtures/hiz.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
-import { webgpuPagesEngine } from '../../frame/backend/pages.ts'
-import { quadScene, camera } from '../../frame/backend/testScenes.fixture.ts'
-import { PAGE_INFO_STRIDE, ROW_WORDS } from '../types.ts'
-import {
-  HIZ_REJECTED_WGSL,
-  ST_REJECTED,
-  VERDICT_KEPT,
-} from '../../geometry/partition/gpu/contract.ts'
-import { restampHizSlot } from '../../geometry/rows/page/pageRow.ts'
-import { HIZ_SHADER } from '../hiz/gpu/shader.ts'
-import { HIZ_TEST_PAGES_ENTRIES } from '../hiz/gpu/bindEntries.ts'
 import { transparentOcclusionShader } from '../../gpu/core/transparentOcclusionWgsl.ts'
 import { refreshTransparentCorners } from '../../blend/transparent/occlusionHost.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
@@ -36,12 +23,7 @@ import { blendVerdictCpu } from '../../blend/verdict/verdict.fixture.ts'
 import { surfaceOf } from '../../geometry/pages/surface.ts'
 import { identityRoots } from '../../geometry/selection/placements.fixture.ts'
 import { buildHizPyramid } from '../../../../../bench/oracles/browser/hizPyramid.ts'
-import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
-import { PAGE_INFO } from '../pageInfo.ts'
 import { createChangedRuns } from '../../geometry/residency/ranges.ts'
-import { NO_INDEX } from '../../../../math/src/constants.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 const sprite = (sizeAttenuation: boolean) => ({ rotation: 0, sizeAttenuation })
 const spriteSurface = (sizeAttenuation: boolean, parameters = {}) =>
@@ -65,69 +47,6 @@ test('the CPU Hi-Z test keeps a constant-size sprite whose box a nearer surface 
     createHizCounts(),
   )
   assert.deepEqual(kept, [constant], 'the attenuated sprite is rejected as before')
-})
-
-/** The Hi-Z slot word of every drawn row after one frame of the quad worn as `surface`. */
-async function rowHizSlots(sizeAttenuation?: boolean) {
-  installGpuGlobals()
-  const scene = quadScene()
-  if (sizeAttenuation !== undefined)
-    Object.assign(scene.material, { sprite: { rotation: 0, sizeAttenuation } })
-  const { device, buffers } = fakeDevice(BACKEND)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
-    ...scene,
-    gpuDevice: device,
-    maxResidentPages: 4,
-  })
-  try {
-    await backend.prepare()
-    backend.render(camera())
-    await backend.flush()
-    const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')!
-    const ints = new Uint32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
-    const slots: number[] = []
-    for (let row = 0; row < table.size / PAGE_INFO_STRIDE; row++)
-      if (ints[row * ROW_WORDS + PAGE_INFO.at.indexCount])
-        slots.push(ints[row * ROW_WORDS + PAGE_INFO.at.hizSlot])
-    return slots
-  } finally {
-    await backend.dispose()
-    scene.geometry.dispose()
-    scene.material.dispose()
-  }
-}
-
-test('a constant-size sprite row carries no Hi-Z slot, which every GPU reader draws unjudged', async () => {
-  const constant = await rowHizSlots(false)
-  assert.ok(constant.length > 0)
-  for (const slot of constant) assert.equal(slot, NO_INDEX)
-  assert.deepEqual(await rowHizSlots(true), [0, 1], 'an attenuated sprite keeps its rank')
-  const rejected = wgslSource(HIZ_REJECTED_WGSL)
-  assert.ok(rejected.includes('hizSlot!=NO_INDEX&&'))
-  assert.ok(rejected.includes(`const NO_INDEX:u32=0x${NO_INDEX.toString(16)}u;`))
-  // A row moved to another rank keeps having none; any other row takes its new rank.
-  const ints = new Uint32Array(64)
-  ints[PAGE_INFO.at.hizSlot] = NO_INDEX
-  ints[32 + PAGE_INFO.at.hizSlot] = 1
-  restampHizSlot(ints, 0, 7)
-  restampHizSlot(ints, 32, 7)
-  assert.deepEqual([ints[PAGE_INFO.at.hizSlot], ints[32 + PAGE_INFO.at.hizSlot]], [NO_INDEX, 7])
-})
-
-test('the GPU Hi-Z test counts no reject for a row with no Hi-Z slot, which it keeps', () => {
-  const kernel = HIZ_SHADER.slice(HIZ_SHADER.indexOf('fn testBox'))
-  assert.ok(HIZ_SHADER.includes(`const NO_INDEX:u32=0x${NO_INDEX.toString(16)}u;`))
-  const noVerdict = kernel.indexOf(
-      `if(pages[row].hizSlot==NO_INDEX){flags[row]=${VERDICT_KEPT}u;return;}`,
-    ),
-    kept = kernel.indexOf('return;}', noVerdict)
-  // The row's slot sends it down the branch that keeps a row the pyramid cannot judge, the kept
-  // verdict its own, before the test's verdict and the reject counters.
-  assert.ok(noVerdict > 0 && kept > noVerdict)
-  assert.ok(kernel.indexOf(`tallyAdd(${ST_REJECTED}u,`) > kept)
-  assert.ok(HIZ_SHADER.includes('@group(1) @binding(0) var<storage, read> pages:array<PageInfo>;'))
-  assert.equal(HIZ_TEST_PAGES_ENTRIES[0].buffer?.type, 'read-only-storage')
 })
 
 test('the transparent occlusion test rejects no entry a constant-size sprite holds', () => {

@@ -44,7 +44,7 @@ function rows(report: BenchReport) {
   const body: string[][] = []
   for (const series of report.series)
     for (const [side, r] of Object.entries(series.sides)) {
-      const hiz = r.hiZ
+      const { occlusion } = r
       body.push([
         `${series.view}`,
         `${series.pixelError}`,
@@ -55,7 +55,7 @@ function rows(report: BenchReport) {
         `${num(r.submittedTriangles)}/${num(r.totalSubmittedTriangles)}`,
         `${oui(r.frameHeld)}`,
         `${num(r.uncoveredTriangles)}`,
-        `${num(hiz.tested)}/${num(hiz.rejected)}/${num(hiz.beyond16Texels)} (${num(hiz.image)})`,
+        `${num(occlusion.occluded)}/${num(occlusion.postHidden)}`,
         `${r.selection.sha256 ? r.selection.sha256.slice(0, 12) : '—'} (${num(r.selection.source)})`,
         `${num(r.pageBudget.requested)} requested, ${num(r.pageBudget.resident)} resident`,
         `${mo(r.geometryBytes)}`,
@@ -73,7 +73,7 @@ function rows(report: BenchReport) {
         'submitted triangles opaque/total',
         'held image',
         'uncoveredTriangles',
-        'Hi-Z tested/rejected/>16 (image)',
+        'occluded/post hidden',
         'cut hash',
         'page budget',
         'geometry (MB)',

@@ -26,7 +26,8 @@ const layoutOf = (count: number) =>
       roots: shared(count),
       bootstrap: [],
       cap: 64,
-      pageBytes: 64,
+      // The census the layout reads: one page a slot, 64 bytes the widest cluster.
+      census: { unitPages: 1, clusterBytes: 64 },
     } as unknown as WebgpuPagesSetup,
     undefined,
     () => -1,

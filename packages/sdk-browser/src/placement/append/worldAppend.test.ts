@@ -1,7 +1,7 @@
 // A source added to a running session costs what it adds, never what the world holds: the words
 // written to the GPU while meshes of a held geometry wearing another material join (`addPlacements`,
 // the growth's adoption) follow the placements and the primitives added — page-table rows, worlds,
-// frames, cones, nodes —, on a world of a thousand placements as on one of two hundred and fifty
+// frames, cold words, nodes —, on a world of a thousand placements as on one of two hundred and fifty
 // thousand, and nothing opens the session again: the cut that drew the world draws it still, joined
 // in the room it kept. The one cut made over the world at the first growth (`grownCutCapacity`) and
 // the tables grown ahead (`rowsAhead`) are the O(N) a world pays O(log N) times, counted apart.
@@ -35,7 +35,7 @@ test('the words a source writes to join follow its placements, on a world of 1k 
   const small = await costs(1_000, COUNTS)
   const large = await costs(250_000, COUNTS)
   COUNTS.forEach((count, at) => {
-    // What it adds: a few hundred bytes a placement (worlds, frames, cones, table rows), and the
+    // What it adds: a few hundred bytes a placement (worlds, frames, cold words, table rows), and the
     // uniforms and headers every join writes, the same on any world.
     assert.ok(
       large.steady[at] <= 512 * count + 64 * 1024,

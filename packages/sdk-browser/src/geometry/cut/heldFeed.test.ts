@@ -97,7 +97,9 @@ for (const name of Object.keys(backends) as (keyof typeof backends)[]) {
 }
 
 test('the layout lets the feed route every move; a layout that does not is counted', () => {
-  const setup = { roots: placements(dag, 2), bootstrap: [], cap: 64, pageBytes: 64 }
+  // A slot of the pool holds one page, of 64 bytes at most (`describePageSlots`).
+  const census = { unitPages: 1, clusterBytes: 64 }
+  const setup = { roots: placements(dag, 2), bootstrap: [], cap: 64, census }
   const webgpu = createWebgpuPagesLayout(
     setup as unknown as WebgpuPagesSetup,
     undefined,

@@ -8,7 +8,7 @@
   },
   "case": "Three quads, three opaque materials, one KTX 2.0 texture each: an uncompressed 4 × 4 R8G8B8A8 sRGB level, a 16 × 16 UASTC LDR 4 × 4 payload, and a 256 × 256 ETC1S payload under BasisLZ supercompression.",
   "formatVersion": 11,
-  "manifestBinaryVersion": 13,
+  "manifestBinaryVersion": 18,
   "previews": [
     {
       "atlas": 0,
@@ -81,7 +81,7 @@
       "pixelBytes": 84,
       "pixelOffset": 0,
       "sourceKind": 0,
-      "sourceSha256": "09414b3582c0555e77567f224f789f5fe226725db36ef39b3f214a263358a18b",
+      "sourceSha256": "8c770aa413ca5fd21222ae94afc278566bf6e564d6f0c592c801dde01a3c5b07",
       "sourceView": 4294967295,
       "texture": 0,
       "width": 4
@@ -94,7 +94,7 @@
           "bytes": 368,
           "format": "bc7",
           "layout": 1,
-          "sha256": "01c511a94872a70555f8cc3b5f881a47a441d6267e52ea7438cc4babaedef886"
+          "sha256": "64dd906ecef451554324d1d2e8a6f72c187303e2e296259410c0bb88089c008c"
         },
         {
           "bytes": 0,
@@ -183,7 +183,7 @@
       "pixelBytes": 1364,
       "pixelOffset": 84,
       "sourceKind": 0,
-      "sourceSha256": "6b2bf042f1d6b4352c88eabf60405c017921ce6cdfb06b103c9ae3ceaf1d69b6",
+      "sourceSha256": "3d55fa2a45fd6e3a15eb8212def468b78b0498b8a814cc1d3a7ff0b2d53087e6",
       "sourceView": 4294967295,
       "texture": 1,
       "width": 16
@@ -196,7 +196,7 @@
           "bytes": 5488,
           "format": "bc7",
           "layout": 1,
-          "sha256": "0287bba01c8e28ffbeebae2fb1155185d3677e96ff27399af296e4cef61fa448"
+          "sha256": "59758dfd7ee0353923812a5a2cb35a49c0e77d7b23dbb9163eb9340d0e9eb1c6"
         },
         {
           "bytes": 0,
@@ -311,7 +311,7 @@
       "pixelBytes": 21844,
       "pixelOffset": 1448,
       "sourceKind": 0,
-      "sourceSha256": "e29c1477df999b3082254235887faf3b2f623dafaa945e76bd2673a6beacb944",
+      "sourceSha256": "412bfb129a1810dc62e9a89c062a6c21ebcad0574088dc095542a2e8f8c14604",
       "sourceView": 4294967295,
       "texture": 2,
       "width": 256
@@ -327,7 +327,7 @@
     "encoded": {
       "bc7": {
         "keptPsnrDb": {
-          "median": 46.95,
+          "median": 47.0,
           "min": 21.25,
           "p10": 21.25
         },

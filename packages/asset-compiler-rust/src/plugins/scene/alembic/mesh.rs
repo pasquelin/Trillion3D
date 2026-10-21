@@ -12,7 +12,7 @@
 use self::build::Builder;
 use super::geom::Geometry;
 use super::TOPOLOGY_INVALID;
-use crate::import::Vertices;
+use crate::plugins::scene::convert::Vertices;
 use crate::{CompilerError, Result};
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;

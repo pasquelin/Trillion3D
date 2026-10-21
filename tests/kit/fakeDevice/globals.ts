@@ -17,8 +17,7 @@ const STORAGE_OFFSET_ALIGN = 256
  * is its own — instances, bins, buffers.
  */
 export function indirectDraws(draws: readonly FakeDraw[]) {
-  // The material classes draw their tiles indirectly too (`materialTiles.ts`): not the raster's.
-  const vis = draws.filter((draw) => draw.indirect && draw.entryPoint !== 'shade_tile_vs')
+  const vis = draws.filter((draw) => draw.indirect)
   assert.ok(vis.length >= 1 && vis.length <= BASE_SLOTS)
   assert.ok(vis.every((draw) => draw.firstInstance === 0))
   assert.ok(vis.every((draw) => (draw.bindOffset ?? 0) % STORAGE_OFFSET_ALIGN === 0))
@@ -66,13 +65,21 @@ export function bytesOf(data: GPUAllowSharedBufferSource, dataOffset = 0, size?:
  * increasing order, like the kernels of `../../../packages/sdk-browser/src/geometry/dag/shader/compactWgsl.ts`. It extends the sample, behind the
  * wanted pages, in the same buffer.
  */
-export function compactDrawnPages(workBytes: Uint8Array, outBytes: Uint8Array, pageCount: number) {
+export function compactDrawnPages(
+  workBytes: Uint8Array,
+  outBytes: Uint8Array,
+  pageCount: number,
+  listCap: number,
+) {
   const marks = writtenMask(workBytes, pageCount),
     out = words(outBytes)
+  // The drawn list lies behind the requests', both of `listCap` ranks; the count goes past the cap
+  // and the ranks stop at it (`dagDrawPrefix`, `dagDrawScatter`).
   const head = SELECTION_HEADER_WORDS,
-    base = head + pageCount
+    base = head + listCap
   let found = 0
-  for (let id = 0; id < pageCount; id++) if (hasBit(marks, id)) out[base + head + found++] = id
+  for (let id = 0; id < pageCount; id++)
+    if (hasBit(marks, id) && found++ < listCap) out[base + head + found - 1] = id
   out[base] = found
 }
 
@@ -89,8 +96,7 @@ export const maskBit = (words: Uint32Array, offset: number, id: number) =>
 /**
  * Pages the CURRENT IMAGE's mask names, read where the GPU posts them: the draw mask's bits in the
  * cut's `work` (`drawMask`). That is the selection the image draws, whichever raster consumes it — hardware by
- * its indirect commands, or compute in place under the `raster-compute` variant — and not a past
- * image's sample.
+ * its indirect commands, or the software raster by its binned lists — and not a past image's sample.
  */
 export function drawnPageIds(
   buffers: ReadonlyArray<{ label?: string; data: Uint8Array }>,

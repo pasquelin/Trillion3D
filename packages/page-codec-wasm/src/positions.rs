@@ -5,7 +5,7 @@
 //! stores one position per vertex and no link. Either way a vertex decodes to the same
 //! floats: the link only says where its position lies.
 
-use crate::bits::{bits_for, dequant, le_words, stream_words, BitReader};
+use crate::bits::{bits_for, le_words, stream_words, BitReader};
 use crate::{Header, Layout};
 
 impl Header {
@@ -34,16 +34,17 @@ pub(crate) fn links_fit(body: &[u8], layout: &Layout, h: &Header) -> bool {
     (0..h.vertex_count).all(|_| (links.read(bits) as usize) < h.position_count)
 }
 
-/// The vertices' positions, each dequantized in place from the stored one its link names —
+/// The vertices' positions, each decoded in place from the stored one its link names —
 /// field `i` of the link stream for vertex `i` —, with no intermediate table.
 pub(crate) fn linked(out: &mut [u32], words: &[u32], layout: &Layout, h: &Header) {
-    let (q, step) = (&h.position, h.position.step());
+    let (grid, unit) = (&h.position, h.position.unit());
     let (bits, mut links) = (h.link_bits(), BitReader::at(words, layout.links * 32));
     for vertex in out.as_chunks_mut::<3>().0 {
         let at = links.read(bits) as usize;
         *vertex = core::array::from_fn(|c| {
-            let start = layout.position[c] * 32 + at * q.bits[c] as usize;
-            dequant(q.min[c], BitReader::at(words, start).read(q.bits[c]), step).to_bits()
+            let start = layout.position[c] * 32 + at * grid.bits[c] as usize;
+            let offset = BitReader::at(words, start).read(grid.bits[c]);
+            grid.metres(c, offset, unit).to_bits()
         });
     }
 }

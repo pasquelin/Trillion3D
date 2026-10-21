@@ -18,8 +18,8 @@ type PoolSortReplay = (entries: readonly BoundBuffer[], offsets?: readonly numbe
  */
 const notReplayed: PoolSortReplay = () => {}
 
-/** The pool sorts the double replays apart from the selection's, by the program their pipeline
- *  runs: the tile pools' (`materials/virtual/evictSort.ts`), and the rows' by name (`notReplayed`). */
+/** The pool sorts the double replays, by the program their pipeline runs: the tile pools'
+ *  (`materials/virtual/evictSort.ts`), and the rows' by name (`notReplayed`). */
 const POOL_SORT_REPLAYS = new Map<string, PoolSortReplay>([
   [TILE_SORT_WGSL, fakeTileSort],
   [ROW_SORT_WGSL, notReplayed],

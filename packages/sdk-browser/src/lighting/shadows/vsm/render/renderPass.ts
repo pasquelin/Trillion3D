@@ -38,7 +38,7 @@ import type { VsmComputePipe } from '../passKit.ts'
 import type { VsmResources } from '../resources.ts'
 import { vsmChunkRows, type VsmBoundLight, type VsmRowSpheres } from '../rows/rowPageBound.ts'
 import { type VsmChunkContext, type VsmChunkKernels } from '../chunks/chunkKernels.ts'
-import type { vsmChunkListGroups } from '../chunks/chunkGroups.ts'
+import { vsmWorldGroup, type vsmChunkListGroups } from '../chunks/chunkGroups.ts'
 import {
   vsmChunkRowsWithin,
   vsmContextBytes,
@@ -77,6 +77,11 @@ export interface VsmRenderScene {
   pageLayout: GPUBindGroupLayout
   pageGroup: GPUBindGroup
   camera: VsmRenderCamera
+  /** The camera cut's world switch, which the candidates obey as its descent does
+   *  (`../../../../geometry/dag/shader/worldGateWgsl.ts`, `worldDraws`): its cold words and its
+   *  frame words (`GpuSelection.cellStates`, `frames`), and the cold word its placements' links
+   *  start at. None while the cut follows no world: every row its level of detail selects casts. */
+  world?: { cold: GPUTextureView; frames: GPUTextureView; links: number }
   /** What changed in `spheres` (`lights.spheres`) since a frame: chunks are sized by where the rows
    *  are, from the GPU's histograms of them (`../rows/rowPageBound.ts`), or, where that cannot speak, by
    *  the worst case: every row reaching every page. */
@@ -178,11 +183,12 @@ export function encodeVsmRender(
   chunking.chunkRows = chunkRows
   chunking.cmds = chosen.cmds(chunkRows)
   chunking.pairs = chosen.pairs(chunkRows)
-  vsmWriteChunkParams(device, scene.camera, chunking, params, ctx.slots)
+  vsmWriteChunkParams(device, scene, chunking, params, ctx.slots)
   encoder.clearBuffer(counts, 0, size.counts)
 
   const tables = renderGroups(ctx, res, scene)
+  const world = vsmWorldGroup(device, ctx.world, ctx.candidates.groups[1], scene.world)
   const { pageGroup, rowCount, voxels } = scene
-  vsmEncodeChunks(encoder, ctx, tables, pageGroup, args, rowCount, chunks, viewCount, voxels)
+  vsmEncodeChunks(encoder, ctx, tables, world, pageGroup, args, rowCount, chunks, viewCount, voxels)
   return { chunks, chunkRows, roomLimited }
 }

@@ -6,8 +6,8 @@
 use super::shapes::{amplitude, Relief};
 use super::*;
 use crate::tests::fixtures::portable_sin;
-use trillion3d_math::vec3::{cross, divide};
-use trillion3d_math::vecn::length;
+use trillion3d_math::vector::vec3::{cross, divide};
+use trillion3d_math::vector::vecn::length;
 
 /// Parts scattered over the 64 × 64 relief.
 const PARTS: usize = 2400;

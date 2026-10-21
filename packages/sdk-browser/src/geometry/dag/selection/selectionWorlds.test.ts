@@ -22,7 +22,7 @@ test('updating an instance world matrix leaves the old GPU cut one pose late', a
   const { fixture, dag, uniforms, selection } = await cutOnce()
   assert.deepEqual([...selection.updateWorlds(moveRoot(dag, 0, 1000))], [0])
   // Still what to stream, cut under the pose before: no image is held on it (`adoption.ts`).
-  assert.equal(selection.peek()?.result.pageIds.length, 4)
+  assert.equal(selection.peek()?.result.pageIds.length, 7)
   assert.notEqual(selection.peek()?.worldRevision, selection.worldRevision)
   selection.dispatch(uniforms)
   assert.equal((await selection.flush())?.pageIds.length, 0)
@@ -67,7 +67,7 @@ test('worlds the GPU rewrote are cut again once announced, never under the last 
   packDoubles(worlds.words!, recordWordAt(WORLD_TABLE, worlds, 'Origin', 0), [1000, 0, 0])
   assert.equal(selection.updateWorlds(dag.worlds.slice()).length, 0, 'no CPU world moved')
   selection.dispatch(uniforms)
-  assert.equal((await selection.flush())?.pageIds.length, 4, 'unannounced: the stale cut')
+  assert.equal((await selection.flush())?.pageIds.length, 7, 'unannounced: the stale cut')
   selection.worldsMovedOnGpu([])
   selection.dispatch(uniforms)
   assert.equal((await selection.flush())?.pageIds.length, 0, 'announced: the composed world')

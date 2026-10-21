@@ -1,12 +1,9 @@
 import type { GpuSelection } from '../../../gpu/core/selection.ts'
 import { createDagResidencyUpload } from '../residencyUpload.ts'
-import { createDagPoolList } from '../poolList.ts'
 import { createDagDispatch } from '../dispatch.ts'
-import { followRows, growthAsked } from '../queueGrowth.ts'
+import { followRows, growthAsked, holdListCaps } from '../queueGrowth.ts'
 import { createDifferenceChain } from '../differenceChain.ts'
 import { createDagRuntimeState, recutMain } from './runtimeState.ts'
-import { coarsenTick } from '../coarsening.ts'
-import { dagWorkLayout } from '../shader/floorWgsl.ts'
 import { createAsideCut } from '../aside.ts'
 import { createTreeFollower } from '../tree/treeFollow.ts'
 import { createLinkFollower } from '../worlds/worldFollow.ts'
@@ -31,12 +28,9 @@ import { NO_PROXY_BOXES } from '../../../lighting/bounce/probes/probeSync.ts'
 
 export function createDagRuntime(
   resources: DagResources,
-  /** The pages the pool already holds, when the cut is made beside it (`../poolList.ts`). */
-  poolHeld: ((page: number) => boolean) | undefined,
   /** The session's roots on the GPU: the stretch's one writer and the tree's leaves. */
   roots: RootsOnGpu,
 ): GpuSelection {
-  const { packed } = resources
   const state = createDagRuntimeState()
   const chain = createDifferenceChain()
   const run: DagRun = {
@@ -46,7 +40,6 @@ export function createDagRuntime(
     // The cut rule's residency, derived from the pool's and uploaded by difference.
     uploadResidency: createDagResidencyUpload(resources),
     ...createDagDispatch(resources, state, chain),
-    poolList: createDagPoolList(packed, resources.cold, poolHeld),
     tree: createTreeFollower(resources, roots.leaves),
     // What a ray can meet of the run-time cuts, one instance a placement (`../proxy/proxyInstances.ts`).
     proxies: createProxyInstances(resources),
@@ -59,7 +52,7 @@ export function createDagRuntime(
 
 /** The camera cut's face (`GpuSelection`) over `run`. */
 function selectionOver(run: DagRun, roots: RootsOnGpu): GpuSelection {
-  const { resources, state, uploadResidency, poolList, links, chain } = run
+  const { resources, state, uploadResidency, links, chain } = run
   const { packed, pageCount, frames, buffers, textures } = resources
   const live = () => !state.disposed && !state.dead
   // The one step every cut on these tables takes before it encodes, the main view's and each view
@@ -82,13 +75,13 @@ function selectionOver(run: DagRun, roots: RootsOnGpu): GpuSelection {
       return cutBytes(resources)
     },
     get hostBytes() {
-      const pool = poolList.entries.byteLength
-      return frames.originBytes + uploadResidency.hostBytes + pool + (links?.hostBytes ?? 0)
+      return frames.originBytes + uploadResidency.hostBytes + (links?.hostBytes ?? 0)
     },
-    // The draw mask, a bit a page in `work` (`../shader/compactWgsl.ts`): its readers bind one buffer at
-    // one offset.
+    // The frame's draw mask and the post pass's, a bit a page in `work`
+    // (`../shader/compactWgsl.ts`): their readers bind one buffer at one offset each.
     maskBuffer: resources.work,
-    maskOffset: dagWorkLayout(resources.blockCount).drawMask,
+    maskOffset: resources.workLayout.drawMask,
+    postMaskOffset: resources.workLayout.postMask,
     get pageCount() {
       return packed.live?.pages ?? pageCount
     },
@@ -97,19 +90,7 @@ function selectionOver(run: DagRun, roots: RootsOnGpu): GpuSelection {
     get worlds() {
       return frames.worlds.view
     },
-    world: links && {
-      show: links.show,
-      visible: links.visible,
-      stands: links.stands,
-      moved: links.moved,
-      warmWith: links.warmWith,
-      get warming() {
-        return links.warming
-      },
-      get revision() {
-        return links.revision
-      },
-    },
+    world: links,
     cellStates: packed.world && {
       view: resources.group.cold,
       get base() {
@@ -118,11 +99,21 @@ function selectionOver(run: DagRun, roots: RootsOnGpu): GpuSelection {
       get cells() {
         return packed.world!.cells
       },
+      get instances() {
+        return packed.world!.roots.length
+      },
+      get files() {
+        return packed.world!.fileBase
+      },
+      get links() {
+        return packed.world!.linkBase
+      },
     },
     get worldRevision() {
       return state.worldRevision
     },
     updateWorlds: (next, named) => updateRuntimeWorlds(run, next, named),
+    keepPoses: () => live() && frames.previous.keep(),
     composedPlacement(w, composed) {
       if (!composed && live()) rewritePlacement(run, w)
       run.tree?.touch(w)
@@ -130,13 +121,20 @@ function selectionOver(run: DagRun, roots: RootsOnGpu): GpuSelection {
     treeFollowed: !!run.tree,
     groupOf: (w) => run.tree?.groupOf(w) ?? -1,
     groupsMoved: (groups) => run.tree?.groupsMoved(groups),
-    placeInCell: (w, cell, instance) => links?.placeInCell(w, cell, instance),
-    waitRow: (key, index, cell, instance) => links?.waitRow(key, index, cell, instance),
+    placeInCell: (w, cell, instance, file, main, actor) =>
+      links?.placeInCell(w, cell, instance, file, main, actor),
+    waitRow: (key, row, cell, instance, file, actor) =>
+      links?.waitRow(key, row, cell, instance, file, actor),
+    switchedPages: (visit) => links?.switched(visit),
     worldsMovedOnGpu(rows) {
       if (!live()) return
       state.worldRevision++
-      // The proxy's world boxes of those rows are made again; the others stand.
-      for (const w of rows) run.proxies.worldWritten(w)
+      // The proxy's world boxes of those rows are made again; the others stand. The next frame
+      // keeps their poses (`../previousPoses.ts`).
+      for (const w of rows) {
+        run.proxies.worldWritten(w)
+        frames.previous.moved(w)
+      }
     },
     get growing() {
       return state.growing
@@ -145,9 +143,7 @@ function selectionOver(run: DagRun, roots: RootsOnGpu): GpuSelection {
     get cutHeld() {
       return state.disposed || state.dead || state.growing || growthAsked(resources, state)
     },
-    get coarsen() {
-      return state.coarse.factor
-    },
+    holdLists: (caps) => live() && holdListCaps(resources, state, caps),
     appendRoots: (roots) => appendRoots(run, roots),
     followRows: (rows) => live() && followRows(resources, state, rows),
     parkWorld: (w, parked) => live() && parkRoot(run, w, parked),
@@ -165,19 +161,15 @@ function selectionOver(run: DagRun, roots: RootsOnGpu): GpuSelection {
     updateResidency: (next, changes, moved) => updateRuntimeResidency(run, next, changes, moved),
     isReady: (page) => uploadResidency.isReady(page),
     isChildReady: (page) => uploadResidency.isChildReady(page),
-    askEvictions() {
+    recut() {
       if (live()) recutMain(resources.swap, state)
-    },
-    notePool(page, held) {
-      // The next dispatch cuts and reads back again, the eviction queue with it; this cut stays.
-      if (live() && poolList.note(page, held)) recutMain(resources.swap, state)
     },
     dispatch(next, shared) {
       syncTables()
-      // One image: a coarsened view whose wait ran out tries its own threshold (`../coarsening.ts`).
-      if (live() && coarsenTick(state.coarse)) recutMain(resources.swap, state)
       return run.dispatch(next, shared)
     },
+    encodePost: (encoder, pyramid) => live() && run.encodePost(encoder, pyramid),
+    bindPyramid: (pyramid) => run.bindPyramid(pyramid),
     peek: () => (state.dead ? null : state.last),
     aside: () => createAsideCut(resources, state, { copyOwed: run.copyOwed, syncTables }),
     adopt: (cut) => (!state.dead && cut === state.last ? chain.adopt() : undefined),
@@ -194,6 +186,7 @@ function selectionOver(run: DagRun, roots: RootsOnGpu): GpuSelection {
       run.tree?.dispose()
       state.pending = state.pending.catch(() => {})
       run.proxies.dispose()
+      resources.occlusion.dispose()
       resources.readbacks.destroy()
       for (const buffer of buffers) buffer.destroy()
       for (const { texture } of textures) texture.destroy()

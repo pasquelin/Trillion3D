@@ -9,7 +9,6 @@ import { disposeBlendResources } from '../../blend/resources.ts'
 import { directLightTimings, passOwnMs } from '../../diagnostic/stage/mapping.ts'
 import { gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
 import { markWebgpuLost } from './lost.ts'
-import { drawnTrianglesOf } from '../backend/state/drawnTriangles.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { vsmFrameMetrics } from '../../lighting/shadows/vsm/frame/vsmStats.ts'
 import { destroyEngineVsm } from '../../lighting/shadows/vsm/frame/engineVsm.ts'
@@ -39,11 +38,9 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
   const pending = !run.gpuMetricsReady
   const blend = transparentCounts(rt)
   const deformation = timing.lastGpuPassMs?.passes.find((pass) => pass.name === DEFORMATION_PASS)
-  // What the occlusion test dropped, and the voxel trace's steps: the GPU's last sampled counts;
-  // `null` when it counted nothing, never an unmeasured 0.
+  // The voxel trace's steps: the GPU's last sampled counts; `null` when it counted nothing, never
+  // an unmeasured 0.
   const steps = vis.voxelSteps?.stats()
-  const hiz = vis.gpuPartition?.counts(),
-    hizCountedFrame = hiz?.frame ?? null
   return {
     coverageReady: services.bootstrapState.ready,
     coverageBudgetLimited: run.coverageBudgetLimited,
@@ -57,13 +54,15 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
     clusters: pending ? null : run.visible,
     selectedTriangles: run.selectedTriangles,
     uncoveredTriangles: null,
-    drawnTriangles: drawnTrianglesOf(run, hiz),
+    // The cut's drawn list is taken after both its occlusion passes: what it selected is drawn.
+    drawnTriangles: run.selectedTriangles,
     residentPages: stats?.residentPages ?? 0,
     cacheEvictions: stats?.evictions ?? 0,
     geometryAllocationBytes: (stats?.allocatedBytes ?? 0) + vertexBytes,
     frustumRejected: run.frustumRejected,
+    occluded: run.occluded,
+    postHidden: run.postHidden,
     lodLevel: run.lodLevel,
-    cutCoarsening: run.gpuSelection?.coarsen ?? null,
     submittedTriangles: pending ? null : run.submittedTriangles,
     totalSubmittedTriangles: pending ? null : run.submittedTriangles,
     transparentMeshes: blend.visibleMeshes,
@@ -90,16 +89,8 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
     geometryPoolSaturated: Math.max(0, services.residencySets.keepCount - geometryPool.slots),
     texturePoolClamp: rt.setup.texturePools?.pool.clamp ?? null,
     drawCalls: run.gpuDrawCalls,
-    hizTestedClusters: hiz?.tested ?? null,
-    hizRejectedClusters: hiz?.rejected ?? null,
-    hizOversizedClusters: hiz?.oversized ?? null,
-    hizTestedTriangles: hiz?.testedTriangles ?? null,
-    hizRejectedTriangles: hiz?.rejectedTriangles ?? null,
-    hizOversizedTriangles: hiz?.oversizedTriangles ?? null,
-    voxelBricks: hiz?.voxelBricks ?? null,
     voxelStepsMean: steps?.mean ?? null,
     voxelStepsMax: steps?.max ?? null,
-    hizCountedFrame,
     lightsActive: lights.lightsActive,
     ...directLightTimings(timing.lastGpuPassMs),
     ...lights.tiles?.poolMetrics(),

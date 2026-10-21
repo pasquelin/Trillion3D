@@ -13,14 +13,14 @@
 //! sphere. Those are the two defects this computation replaces.
 use super::cancel;
 use std::sync::atomic::AtomicBool;
-use trillion3d_math::triangle::newell_step;
-use trillion3d_math::vec3::{normalize_finite_f32, point_checked};
+use trillion3d_math::geometry::triangle::newell_step;
+use trillion3d_math::vector::vec3::{normalize_finite_f32, point_checked};
 
 mod weld;
 
 #[cfg(test)]
 mod tests;
-use crate::join::Join;
+use trillion3d_math::join::{Join, LeastRoot};
 
 /// What this computation reads of a mesh. Both mark tables are read by their rank when it is in
 /// them: an empty table therefore says “nothing sharp”, which is the fully smooth mesh.
@@ -65,7 +65,7 @@ fn corners_with(
         check(face)?;
         planes.push(surface.newell(face, check)?);
     }
-    let mut join = Join::new(surface.corners.len());
+    let mut join = Join::<LeastRoot>::new(surface.corners.len());
     surface.weld(&mut join, faces, check)?;
     let mut sums = vec![[0.0f32; 3]; surface.corners.len()];
     for (face, plane) in planes.iter().enumerate() {

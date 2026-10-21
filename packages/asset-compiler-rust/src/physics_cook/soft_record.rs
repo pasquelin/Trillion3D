@@ -4,9 +4,9 @@
 //! holds, or the declared mass spread so, its pins held, and a volume's pressure. Each stored value
 //! is rounded to 32 bits where the page's `Float32Array` rounds it: both weigh a vertex alike.
 use super::SOFT_VERTEX_WORDS;
-use crate::qem::welded_region;
-use trillion3d_math::triangle::triangle_area;
-use trillion3d_math::vecn::{length, sub};
+use crate::simplify::welded_region;
+use trillion3d_math::geometry::triangle::triangle_area;
+use trillion3d_math::vector::vecn::{length, sub};
 
 /// kg/m² of a cloth's or a volume's skin, and kg/m of a rope, left undeclared (`SOFT_AREAL_DENSITY`,
 /// `SOFT_LINEAR_DENSITY`).

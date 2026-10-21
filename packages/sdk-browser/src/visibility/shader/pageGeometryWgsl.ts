@@ -36,7 +36,7 @@ const VOXEL = `(page.flags&${FLAG_VOXEL}u)!=0u`
  * can read one geometry and another pass the other.
  *
  * The header is decoded once per invocation and passed down: twenty-three words of the page and a
- * chain of fifteen stream offsets. A vertex stage decodes it per corner, so it asks `pageHeaderFor`
+ * chain of twenty-one stream offsets. A vertex stage decodes it per corner, so it asks `pageHeaderFor`
  * for the nine words and five streams of corners and positions alone when its row draws no surface
  * attribute. `pageHeader` of a row that is not quantized costs nothing and returns zeroes.
  *
@@ -122,12 +122,8 @@ const PAGE_SURFACE_WGSL = wgslBlock(
   `/** First texture coordinate of a page vertex. */
 fn pageUv(page:PageInfo,h:ClusterHeader,vertex:u32)->vec2f{
  if(${VOXEL}){return vec2f(0.0);}
- if(${QUANTIZED}){return clusterUv(h,page.pageOffset,vertex);}
+ if(${QUANTIZED}){return clusterUv(h,page.pageOffset,vertex,0u);}
  return vertUv(page.vertexBase,vertex);
-}
-/** Second texture coordinate of a quantized page vertex, where its header says it has one. */
-fn clusterUv1(h:ClusterHeader,base:u32,vertex:u32)->vec2f{
- return vec2f(clusterGrid(base,h.uv1.x,vertex,h.uv1Bits.x,h.uv1Min.x,h.uv1Step),clusterGrid(base,h.uv1.y,vertex,h.uv1Bits.y,h.uv1Min.y,h.uv1Step));
 }
 /** Vertex colour of a page vertex. */
 fn pageColor(page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{
@@ -159,7 +155,9 @@ export const PAGE_GEOMETRY_WGSL = wgslBlock(
 /**
  * Vertex normal of a page, which the surface resolve and the transparent draw read: octahedral on the page,
  * three floats on the source buffer. Declared after `vertN` (`VERT_NORMAL_WGSL`, `pageWgsl.ts`),
- * which supplies the second half.
+ * which supplies the second half. And its tangent, where its row carries one
+ * (`FLAG_HAS_TANGENT`): stored on the page around its normal (`clusterTangent`), four floats on
+ * the source buffer (`vertT`), the bitangent's sign last.
  */
 export const PAGE_NORMAL_WGSL = wgslBlock(
   'PAGE_NORMAL_WGSL',
@@ -169,6 +167,10 @@ export const PAGE_NORMAL_WGSL = wgslBlock(
  if(${VOXEL}){return voxelVertexNormal(page.pageOffset,vertex);}
  if(${QUANTIZED}){return clusterNormal(h,page.pageOffset,vertex);}
  return vertN(page.vertexBase,vertex);
+}
+fn pageTangent(page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{
+ if(${QUANTIZED}){return clusterTangent(h,page.pageOffset,vertex);}
+ return vertT(page.vertexBase,vertex);
 }`,
 )
 

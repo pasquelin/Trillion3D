@@ -5,7 +5,7 @@
 //! materials are those of its slots; an object that replaces one is counted on the report, the
 //! driver following the mesh. Everything that is not rendered is counted, never silenced.
 use super::*;
-use trillion3d_math::linear::uniform_scale;
+use trillion3d_math::matrix::linear::uniform_scale;
 
 /// What the walk has at hand.
 pub(super) struct Scene<'a> {
@@ -85,7 +85,11 @@ impl Scene<'_> {
         else {
             return;
         };
-        self.under_root(crate::import::light_node(&name, json!(matrix), light));
+        self.under_root(crate::plugins::scene::convert::light_node(
+            &name,
+            json!(matrix),
+            light,
+        ));
     }
 
     /// Adds `node` to the scene, one more child of the root.
@@ -176,5 +180,5 @@ impl Scene<'_> {
 
 /// The pointer of rank `rank` in a pointer block.
 fn pointer_at(bytes: &[u8], rank: usize) -> u64 {
-    crate::le::u64_at(bytes, rank * POINTER).unwrap_or(0)
+    crate::support::le::u64_at(bytes, rank * POINTER).unwrap_or(0)
 }

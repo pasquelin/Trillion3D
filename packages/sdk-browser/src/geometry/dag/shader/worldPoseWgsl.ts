@@ -44,13 +44,17 @@ export const worldAtEyeWgsl = (name: string) =>
  * A primitive's world pose at the cut's eye, and its frustum planes' first vec4 in `frames`, per
  * view slot. The matrices hold the linear part; the translation is read where the cut reads it,
  * the worlds' record, at the view's eye (`eye`, the view's `cameraWorld` in doubles, `TRANSLATION_AT_EYE_WGSL`). No
- * pass brings every placement to a moving eye: the work follows the placements a cut reads.
+ * pass brings every placement to a moving eye: the work follows the placements a cut reads. The pose
+ * the previous image drew is read the same way, in the previous poses' record (`../previousPoses.ts`),
+ * at THIS image's eye, as the previous image's matrix is composed (`prevViewProj`).
  */
 export const DAG_WORLD_POSE_WGSL = wgslBlock(
   'DAG_WORLD_POSE_WGSL',
-  [worldAtEyeWgsl('worlds')],
+  [worldAtEyeWgsl('worlds'), worldAtEyeWgsl('previous')],
   `
 /** Primitive \`w\`'s world at the eye, read in its record (\`worldsWorldAtEye\`). */
 fn worldPose(w:u32)->mat4x4f{return worldsWorldAtEye(w,views[0u].eye[0],views[0u].eye[1]);}
+/** Primitive \`w\`'s world at the eye as the previous image drew it (\`previousWorldAtEye\`). */
+fn previousPose(w:u32)->mat4x4f{return previousWorldAtEye(w,views[0u].eye[0],views[0u].eye[1]);}
 `,
 )

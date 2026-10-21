@@ -8,7 +8,7 @@ import { softBodyOf, type SoftBodyOptions } from './soft.ts'
 import { softSettings } from './softSettings.ts'
 
 /**
- * The records the compiler's cook writes (`physics_cook/soft_tests.rs`, which mirrors
+ * The records the compiler's cook writes (`tests/soft.rs`, which mirrors
  * `softBodyOf` in `soft_record.rs`), each `u32` word count, `f32` words, `u32` corner count,
  * `u32` corners, `f64` pressure.
  */
@@ -35,7 +35,7 @@ async function cookedRecords() {
   return records
 }
 
-// The compiler's golden cloth (`physics_cook/soft_tests.rs`): 1 m of 2 × 2 squares, row by row.
+// The compiler's golden cloth (`tests/soft.rs`): 1 m of 2 × 2 squares, row by row.
 const cloth = plane(1, 1, 2, 2)
 const seam = fromArrays([0, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0.5, 0], [], [], [])
 const tetra = fromArrays(

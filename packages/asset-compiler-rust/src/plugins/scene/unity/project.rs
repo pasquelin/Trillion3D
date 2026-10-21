@@ -132,5 +132,5 @@ pub(super) fn assets_root(scene: &Path) -> PathBuf {
             found = Some(ancestor.to_path_buf());
         }
     }
-    found.unwrap_or_else(|| crate::compiler_safe_path::parent_or_dot(scene).to_path_buf())
+    found.unwrap_or_else(|| crate::compiler::source::safe_path::parent_or_dot(scene).to_path_buf())
 }

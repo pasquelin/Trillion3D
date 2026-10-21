@@ -28,30 +28,18 @@ test('cooked simulation uses the same frame record, preserves the previous image
     },
   ])
   const at = recordLayout(shape).simulation
-  assert.equal(
-    frame.update(() => false),
-    true,
-  )
+  assert.equal(frame.update(), true)
   assert.equal(new Uint32Array(frame.block.buffer)[0], KIND_SOFT)
   const moved = source.rest.map((v, i) => v + (i % 3 === 2 ? 20 : 0))
   assert.equal(receiveSoftSource(source, moved), true)
   assert.equal(frame.pending(), true)
-  assert.equal(
-    frame.update(() => false),
-    true,
-  )
+  assert.equal(frame.update(), true)
   assert.deepEqual(frame.block.slice(at, at + 9), moved)
   assert.deepEqual(frame.block.slice(at + 9, at + 18), source.rest)
   assert.equal(frame.reach[0], 20)
-  assert.equal(
-    frame.update(() => false),
-    true,
-  )
+  assert.equal(frame.update(), true)
   assert.deepEqual(frame.block.slice(at + 9, at + 18), moved)
-  assert.equal(
-    frame.update(() => false),
-    false,
-  )
+  assert.equal(frame.update(), false)
   assert.equal(receiveSoftSource(source, new Float32Array(3)), false)
 })
 
@@ -60,7 +48,10 @@ test("a compiled model's cooked soft body drawn at rows deforms by its row's own
   // simulation, as it reads its skeleton, morph weights and waves.
   const source = sourceOf()
   const rows = { sources: [{}, { softSource: source }] } as unknown as PlacementRows
-  const { mesh } = placementDeformation({ rows, index: 1 }, {}, new Map())
+  const { mesh } = placementDeformation({ placement: { rows, index: 1 } }, {}, new Map())
   assert.equal(mesh.softSource, source)
-  assert.equal(placementDeformation({ rows, index: 0 }, {}, new Map()).mesh.softSource, undefined)
+  assert.equal(
+    placementDeformation({ placement: { rows, index: 0 } }, {}, new Map()).mesh.softSource,
+    undefined,
+  )
 })

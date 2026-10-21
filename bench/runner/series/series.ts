@@ -64,16 +64,11 @@ export async function runSeries(
     // Was the recorded frame held? A held frame re-encodes only a present: its submitted
     // triangles are zero because it drew nothing, not because nothing counted. `null` outside this engine.
     frameHeld: metrics.frameHeld ?? null,
-    // Contract occlusion counters, under their contract names. `image` names the frame they
-    // describe — earlier on the GPU path. `null` = not counted.
-    hiZ: {
-      tested: metrics.hizTestedClusters ?? null,
-      rejected: metrics.hizRejectedClusters ?? null,
-      beyond16Texels: metrics.hizOversizedClusters ?? null,
-      testedTriangles: metrics.hizTestedTriangles ?? null,
-      rejectedTriangles: metrics.hizRejectedTriangles ?? null,
-      beyond16TexelsTriangles: metrics.hizOversizedTriangles ?? null,
-      image: metrics.hizCountedFrame ?? null,
+    // The cut's occlusion counts of the recorded frame, under their contract names. `null` = not
+    // counted.
+    occlusion: {
+      occluded: metrics.occluded ?? null,
+      postHidden: metrics.postHidden ?? null,
     },
     selection: {
       source: result.selection.source,

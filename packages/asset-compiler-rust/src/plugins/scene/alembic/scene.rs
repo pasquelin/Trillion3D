@@ -8,8 +8,8 @@
 use self::write::digest;
 use super::mesh::{FaceSet, Part};
 use super::*;
-use crate::import::materials::UNDECLARED_SURFACE;
-use crate::import::{primitive, SceneTables};
+use crate::plugins::scene::convert::materials::UNDECLARED_SURFACE;
+use crate::plugins::scene::convert::{primitive, SceneTables};
 use std::collections::HashMap;
 
 mod write;

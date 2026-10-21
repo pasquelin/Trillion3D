@@ -28,8 +28,7 @@ const POUR = `if(lane==0u){atomicAdd(&out.selectedTriangles,n);}else{atomicAdd(&
 export const DAG_TOTALS_WGSL = wgslBlock(
   'DAG_TOTALS_WGSL',
   [workgroupTallyWgsl('DAG_TALLY_WGSL', 2, 'true', POUR)],
-  `fn tallyDrawn(r:u32,flags:u32,drawn:bool){
- if(!drawn){return;}
+  `fn tallyDrawn(r:u32,flags:u32){
  let tri=trianglesOf(r);
  tallyAdd(0u,tri);
  if((flags&${CLUSTER_TRANSPARENT}u)!=0u){tallyAdd(1u,tri);}

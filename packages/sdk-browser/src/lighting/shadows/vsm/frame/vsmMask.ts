@@ -35,7 +35,7 @@ export interface VsmMask {
 
 /** The mask array's layers for `lights` shadowed lights: one per four, one at least, and no more
  *  than the projection's one pass reads (`VSM_PROJECTION_MAX_PASS_LIGHTS`, `vsmProject.ts`). */
-export const maskLayersFor = (lights: number) =>
+const maskLayersFor = (lights: number) =>
   workgroupCount(Math.min(lights, VSM_PROJECTION_MAX_PASS_LIGHTS), VSM_PROJECTION_MAX_LIGHTS)
 
 const maskDescriptor = (width: number, height: number, layers: number) => ({

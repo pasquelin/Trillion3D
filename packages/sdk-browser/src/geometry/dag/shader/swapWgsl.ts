@@ -30,13 +30,13 @@ export const DAG_SWAP_WGSL = wgslBlock(
   `const REGION_NONE:u32=${REGION_NONE}u;
 /** Region \`v\` of \`out.pages\`: its journal's length, then its pages (\`savedJournalWord\`). */
 fn savedAt(v:u32)->u32{return keptAt(${KEPT_HEADER_WORDS}u+2u*views[0u].listCap+v*(1u+views[0u].listCap));}
-/** The drawn log of the last cut that ran whole, saved into the region \`swapRegions\` names first
+/** The drawn log of the last cut committed, saved into the region \`swapRegions\` names first
  *  — its length as counted, its first \`listCap\` pages —, and the length of the one it names second
  *  armed for \`dagRestoreJournal\`. On a swap, its pages' draw flags are zeroed: the only ones that
  *  can be one; no other is visited, and none is walked in full. */
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let s=flatIndex(id,n,WORKGROUP_THREADS);let held=atomicLoad(&work[drawnCounter()]);
+ let s=flatIndex(id,n,WORKGROUP_THREADS);let held=min(atomicLoad(&work[drawnCounter()]),views[0u].visCap);
  let save=lowHalf(views[0u].swapRegions);let back=highHalf(views[0u].swapRegions);let cap=views[0u].listCap;
  if(s==0u){
   if(save!=REGION_NONE){out.pages[savedAt(save)]=held;}

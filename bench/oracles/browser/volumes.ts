@@ -2,8 +2,6 @@
 // Three.js objects — `Vector3`, `Vector4`, `Matrix4` — in the exact order the engine
 // called them.
 import * as THREE from 'three'
-import { coneRejects } from '../../../packages/math/src/projection/projectionOracles.ts'
-import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 
 /** Plane order of the host library's `extractPlanes`: left, right, bottom, top, near, far. */
 const ANCIEN_ORDRE = [1, 0, 2, 3, 5, 4]
@@ -25,45 +23,4 @@ export function referencePlanesToLocal(planes: Float32Array, elements: number[])
     sortie.push(plan.x, plan.y, plan.z, plan.w)
   }
   return sortie
-}
-
-const axis = new THREE.Vector3(),
-  center = new THREE.Vector3()
-
-/** `packages/sdk-browser/src/geometry/cone/cone.ts`, after its material, conformal and angle guards. */
-export function referenceConeRejects(
-  cone: { axis: number[]; angle: number },
-  world: THREE.Matrix4,
-  min: number[],
-  max: number[],
-  normal: THREE.Matrix3,
-  scale: number,
-  cam: number[],
-) {
-  center
-    .set((min[0] + max[0]) * 0.5, (min[1] + max[1]) * 0.5, (min[2] + max[2]) * 0.5)
-    .applyMatrix4(world)
-  const radius =
-    Math.hypot((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5) * scale
-  const d = Math.hypot(cam[0] - center.x, cam[1] - center.y, cam[2] - center.z)
-  let spread = Math.PI
-  if (d > radius) {
-    const t = radius / d
-    spread = Math.asin(t < 0 ? 0 : t > 1 ? 1 : t)
-  }
-  axis.fromArray(cone.axis).applyMatrix3(normal)
-  const al = axis.length()
-  if (!(al > 0)) return false
-  axis.multiplyScalar(1 / al)
-  const vx = cam[0] - center.x,
-    vy = cam[1] - center.y,
-    vz = cam[2] - center.z
-  const vl = Math.hypot(vx, vy, vz)
-  if (!(vl > 0)) return false
-  const dot = clamp((axis.x * vx + axis.y * vy + axis.z * vz) / vl, -1, 1)
-  try {
-    return coneRejects(dot, cone.angle, spread)
-  } catch {
-    return false
-  }
 }

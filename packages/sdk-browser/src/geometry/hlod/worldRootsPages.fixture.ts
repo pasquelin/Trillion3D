@@ -6,6 +6,7 @@ import {
 import type { ClusterGroup } from '../../../../sdk-core/src/contracts/geometry.ts'
 import {
   encodeWorldRoots,
+  noRows,
   type WorldRootsSpec,
 } from '../../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { readWorldRoots } from '../../../../sdk-core/src/manifest/worldRootsTable.ts'
@@ -17,9 +18,12 @@ import { inCullingOrder } from './worldCulling.fixture.ts'
  *  its offset, with its facts (`WorldRootsPageFacts`). */
 export function worldPage(x: number) {
   const array = Float32Array.of(x, 0, 0, x + 1, 0, 0, x, 1, 0)
-  // The world DAG records no cone of its pages: the page carries it (`WorldRootsPageFacts`).
-  const { data, cone: _, ...facts } = encodePage([0, 1, 2], { POSITION: { itemSize: 3, array } })
-  return { bytes: data as Uint8Array, facts: { bytes: data.byteLength, ...facts } }
+  // The world DAG records the page's counts alone: its box (`min`, `max`) the page carries.
+  const { data, vertexCount, indexCount, flags, uncompressedBytes } = encodePage([0, 1, 2], {
+    POSITION: { itemSize: 3, array },
+  })
+  const facts = { bytes: data.byteLength, vertexCount, indexCount, flags, uncompressedBytes }
+  return { bytes: data as Uint8Array, facts }
 }
 
 /** `bundles`, each a list of pages, laid end to end in one binary, bundle after bundle, each
@@ -50,17 +54,22 @@ export function packBundles(
 /** The world's HLOD 0 cells. */
 const CELLS = 3
 
-/** A chain of `count` HLOD 0 cells along x, one unit each, every one a top cell whose actor is
- *  built: always loaded (`WorldRoots.chain`). */
+/** A chain of `count` HLOD 0 cells along x, one unit each, on the first HLOD grid, every one a top
+ *  cell whose actor is built: always loaded (`WorldRoots.chain`). */
 export function flatChain(count: number): WorldRoots['chain'] {
+  const bounds = Float64Array.from({ length: 6 * count }, (_, at) => {
+    const [cell, k] = [Math.floor(at / 6), at % 6]
+    return k === 0 ? cell : k === 3 ? cell + 1 : k < 3 ? -1 : 1
+  })
   return {
     parent: new Int32Array(count).fill(-1),
     level: new Uint8Array(count),
+    actorLevel: new Uint16Array(count).fill(1),
+    grid: new Uint16Array(count).fill(1),
+    rung: new Uint8Array(count),
     actor: new Uint8Array(count).fill(CHAIN_ACTOR.built),
-    bounds: Float64Array.from({ length: 6 * count }, (_, at) => {
-      const [cell, k] = [Math.floor(at / 6), at % 6]
-      return k === 0 ? cell : k === 3 ? cell + 1 : k < 3 ? -1 : 1
-    }),
+    bounds,
+    content: bounds.slice(),
   }
 }
 /** The bundle holding HLOD 0 cell `cell`'s HLOD 1 root: cell 2's lies first in the binary. */
@@ -93,6 +102,7 @@ export function worldRootsFixture(sha256: (bytes: Uint8Array) => string = () => 
     ),
     hlod: [[1, 3], [2, 3], [0]],
     chain: flatChain(CELLS),
+    rows: noRows(CELLS),
   }
   const bytes = encodeWorldRoots(spec)
   return { spec, bytes, table: readWorldRoots(bytes), bin }
@@ -105,7 +115,7 @@ type WorldRootsCookedCluster = WorldRootsCluster & { units: [number, number] }
 /**
  * The world HLOD of three HLOD 0 cells along x, one unit each, as the cook publishes it
  * (`world-roots.dag`): per cell, its HLOD 1 merged from the cell's level 0 geometry
- * (`compiler_world_roots/world.rs`) — a level 0 cluster at error 0, its page in bundle 3, and the
+ * (`chain/builds.rs`) — a level 0 cluster at error 0, its page in bundle 3, and the
  * root replacing it at level 1, its page alone in its cell's bundle (`worldRootsFixture`) —, every
  * error the build's own. `units` spans the leaf unit each cluster covers, so a coverage check can
  * read it.
@@ -157,9 +167,9 @@ export function worldRootsDag() {
 }
 
 /** The fixture's binary as the world DAG names its pages: `world-roots.bin`, each bundle at its
- *  offset, over its HLOD 0 cells. */
-export const worldBinary = () => ({
-  url: 'world-roots.bin',
-  chain: flatChain(CELLS),
-  bundles: worldRootsFixture().table.bundles,
-})
+ *  offset, over its HLOD 0 cells, each holding its root pages. */
+export const worldBinary = () => {
+  const { table } = worldRootsFixture()
+  const { bundles, hlod, rows } = table
+  return { url: 'world-roots.bin', chain: flatChain(CELLS), bundles, hlod, rows }
+}

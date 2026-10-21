@@ -10,7 +10,10 @@
  * here. A row placed before any composition exists — `prime` places the cells before the engine
  * reads the rows — takes the pose the session opens on, `parent · local`, and is linked at the
  * first frame; from then on this module composes nothing.
- * A host mesh whose `castShadow` changed has its rows' flags written again.
+ * A row drawn from an animated core node's own mesh (`PlacedMesh.sources`) is shown only while
+ * that mesh is — it and every node above it visible —, the rule a loaded model's mesh follows
+ * (`session/world/models/models.ts`). A host mesh whose `castShadow` changed, and a source mesh
+ * shown or hidden, have their rows' flags written again: one rewrite of the mesh's rows.
  */
 import type { PlacementLink } from '../../placement/compose/gpuCompose.ts'
 import { writePlacementRow } from '../../placement/rows/rows.ts'
@@ -18,6 +21,7 @@ import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
 import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { resolveCameraWorld } from '../../camera/world.ts'
+import { rootedUnder } from '../../scene/host/world/rooted.ts'
 import type { PlacedMesh, RowLink, createTouchedRows } from './rows.ts'
 
 /** A cell's node on its row: its mesh, the row, the core node it hangs under and its pose there. */
@@ -47,6 +51,23 @@ function castsMoved(mesh: PlacedMesh) {
   })
   return moved
 }
+
+/** Whether row `row` of link `at` of `mesh` is shown: always, unless it is drawn from a source
+ *  mesh, then while that mesh and every node above it are visible. */
+const sourceShown = (mesh: PlacedMesh, at: number, row: number) => {
+  const source = mesh.sources?.[at][row]
+  return !source || rootedUnder(source, null, true)
+}
+
+/** Whether a row of `mesh` drawn from a source mesh is shown otherwise than its flag says: that
+ *  mesh was shown or hidden since the row was written. */
+const shownMoved = (mesh: PlacedMesh) =>
+  !!mesh.sources?.some((column, at) => {
+    const { live } = mesh.links[at].placements!
+    return column.some(
+      (source, row) => !!source && (live[row] === 1) !== sourceShown(mesh, at, row),
+    )
+  })
 
 export function createPlacementWrites(
   touched: ReturnType<typeof createTouchedRows>,
@@ -93,12 +114,13 @@ export function createPlacementWrites(
       slots.set(parent, made)
     }
   }
-  /** Row `placement` on each link of its mesh, by the one row writer (`writePlacementRow`): shown,
-   *  casting as its host mesh says, at `pose` when one is given. */
+  /** Row `placement` on each link of its mesh, by the one row writer (`writePlacementRow`): shown
+   *  — while its source mesh is, for a row drawn from one —, casting as its host mesh says, at
+   *  `pose` when one is given. */
   const writeRow = ({ mesh, row }: Placement, pose: Float64Array | null) =>
     mesh.links.forEach((link, at) => {
       const casts = mesh.nodes[at]?.castShadow !== false
-      writePlacementRow(link.placements!, row, pose, true, casts)
+      writePlacementRow(link.placements!, row, pose, sourceShown(mesh, at, row), casts)
       touched.touch(link, row)
     })
   /** Row `placement`: its flags, and — `linking` — its link to its parent, made at the next
@@ -136,7 +158,8 @@ export function createPlacementWrites(
     /** Each slot is sent its parent's world as it stands now — the composition alone decides
      *  whether it moved (`settleSlot`) —, a parent in use without a slot (its rows placed before
      *  the session composed) has one made, and the rows of a mesh whose host meshes'
-     *  `castShadow` changed have their flags written again. */
+     *  `castShadow` changed, or one of whose source meshes was shown or hidden, have their flags
+     *  written again. */
     follow(meshes: Iterable<PlacedMesh>, held: Iterable<readonly Placement[]>) {
       if (frame.compose) {
         opening.clear()
@@ -148,7 +171,8 @@ export function createPlacementWrites(
         if (opening.size) openSlots(opening, held)
       }
       stale.clear()
-      for (const mesh of meshes) if (castsMoved(mesh)) stale.add(mesh)
+      // `castsMoved` first: it records each host mesh's flag whatever the sources say.
+      for (const mesh of meshes) if (castsMoved(mesh) || shownMoved(mesh)) stale.add(mesh)
       if (!stale.size) return
       for (const placements of held)
         for (const at of placements) if (stale.has(at.mesh)) write(at, false)

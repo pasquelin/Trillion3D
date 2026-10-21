@@ -13,8 +13,7 @@ import { isAssignment, type AlphaChange } from '../../placement/engineSceneUpdat
  *  (`../../blend/prepare.ts`). No opaque page stands in for it; past its cell, its HLOD wears
  *  its material flattened opaque, or blended as it is on a merged layer's section
  *  (`../hlod/worldRecords.ts`). A material moved between draw classes later puts them in the
- *  family of its new class alone (`blendOf`): its pages are cut again on that class's grid
- *  (`classPages.ts`), as a fresh session of it compiles them. */
+ *  family of its new class alone (`blendOf`). */
 export const pagesBlend = (primitive: { pass?: string }, surface: BlendedSurface) =>
   primitive.pass === 'clustered-blend' || surfaceBlends(surface)
 

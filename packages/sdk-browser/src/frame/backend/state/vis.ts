@@ -4,7 +4,6 @@ import type * as DeformationCode from '../../../deformation/deformationCode.ts'
 import type { SessionDeformation } from '../../../deformation/session.ts'
 import type { HostAttributes } from '../../../session/host/resources.ts'
 import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
-import type { GpuPartition } from '../../../geometry/partition/gpu/types.ts'
 import { SHADE_UNIFORM_WORDS } from '../../../visibility/shader/request.ts'
 import type { GpuHiz } from '../../../visibility/hiz/gpu/types.ts'
 import type { ReflectionPipelines } from '../../../lighting/reflections/reflectionPipelines.ts'
@@ -23,7 +22,7 @@ import type { VertexPool } from '../../../geometry/pages/pool/geometryPool.ts'
 import type { prepareWebgpuGeometry } from '../../../geometry/pages/pool/geometryPrepare.ts'
 import type { BlendModePipelines } from '../../../blend/stagePipelines.ts'
 import type { PresentClasses } from '../../../gpu/core/presentClasses.ts'
-import type { MaterialTiles } from '../../../materials/classes/materialTiles.ts'
+import type { ShadeBins } from '../../../materials/classes/shadeBins.ts'
 import type { ShadeCache } from '../../../visibility/passes/shadeCache.ts'
 import type { VoxelSteps } from '../../../visibility/passes/voxelSteps.ts'
 import type { ShadeClasses } from '../../../visibility/passes/shadePipelines.ts'
@@ -53,8 +52,8 @@ export interface WebgpuVisState {
   shadeCensus: ShadeCensus | undefined
   /** Classes the image being encoded has rows of (`../../../materials/classes/materialPasses.ts`). */
   presentClasses: PresentClasses
-  /** The screen tiles each class draws (`../../../materials/classes/materialTiles.ts`). */
-  materialTiles: MaterialTiles | undefined
+  /** The image's pixels sorted by class, each class's bin (`../../../materials/classes/shadeBins.ts`). */
+  shadeBins: ShadeBins | undefined
   /** What the frame composes once for the resolve (`../../../visibility/passes/shadeCache.ts`). */
   shadeCache: ShadeCache | undefined
   /** The voxel trace's counters the resolve binds (`../../../visibility/passes/voxelSteps.ts`). */
@@ -73,42 +72,33 @@ export interface WebgpuVisState {
   gpuHiz: GpuHiz | undefined
   /** The reflection's kernels (`../../../lighting/reflections/gpu.ts`), made with the Hi-Z. */
   reflectionPipelines: ReflectionPipelines | undefined
+  /** The visibility buffer both rasters write, the cluster split and the software raster
+   *  (`../../../visibility/raster/raster.ts`). */
   gpuRaster: GpuRaster | undefined
-  /**
-   * Pipelines of coplanar layers above 0: same modules and same states as layer 0, plus the layer's
-   * depth bias in hardware units. A scene with no stacked coplanar surface creates none and draws
-   * with layer 0 alone.
-   */
-  visLayerPipelines: Array<GPURenderPipeline | undefined>
   /** One more than the scene's deepest coplanar layer; 1 when there is none. */
   drawLayerSlots: number
-  /** GPU partition of the image: projection, split and occlusion bounds per row. */
-  gpuPartition: GpuPartition | undefined
   visBindGroupLayout: GPUBindGroupLayout | undefined
-  /** The visibility raster's module: the coplanar layers' pipelines are made from it, at the open or
-   *  for layers a source brings (`../../prepare/layerGrowth.ts`). */
-  visModule: GPUShaderModule | undefined
   visUniform: GPUBuffer | undefined
-  zeroFlags: GPUBuffer | undefined
+  /** Zeros for every visibility row, bound where a pass has nothing to read
+   *  (`../../../visibility/passes/shaders.ts`). */
+  zeroRows: GPUBuffer | undefined
   // The textured forward pipelines share the visibility path's atlases and fall with it.
   blendBindGroupLayout: GPUBindGroupLayout | undefined
   blendPipelines: BlendModePipelines | undefined
   gpuDraw: GpuDraw | undefined
   shadeBindGroupLayout: GPUBindGroupLayout | undefined
   shadeBindGroup: GPUBindGroup | undefined
-  // Raster slots × tested-or-not, and the small-triangle groups by flag source × selection: both
-  // sets are built from buffers that outlive the frame, so a frame never rebuilds a bind group.
+  // The raster slots' groups, built from buffers that outlive the frame, so a frame never rebuilds
+  // a bind group; the software raster holds its own (`../../../visibility/raster/bindings.ts`).
   visSlotGroups: Array<GPUBindGroup | undefined>
   /** Moved each time the slot groups are voided: what the slot bundles are keyed by. */
   visGroupsRevision: number
-  rasterGroups: Array<unknown>
   /** What those groups, and the resolve's, currently name: a moved identity voids them. */
   visIdentity: WebgpuBindIdentity
-  /** The render bundles of the raster's slot draws, occluder half then tested half
-   *  (`../../../visibility/passes/drawer.ts`), and of the material surfaces (`../../../materials/classes/materialPasses.ts`):
-   *  recorded again only when what decides their commands moved. */
-  visBundles: [RenderBundles, RenderBundles]
-  shadeBundles: RenderBundles
+  /** The render bundles of the raster's slot draws — main pass's half then post pass's, in the depth
+   *  phase then in the identifier phase (`../../../visibility/passes/drawer.ts`): recorded again
+   *  only when what decides their commands moved. */
+  visBundles: [RenderBundles, RenderBundles, RenderBundles, RenderBundles]
   shadeIdentity: WebgpuBindIdentity
   concatPos: GPUBuffer | undefined
   concatUv: GPUBuffer | undefined
@@ -145,7 +135,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     shadeClasses: undefined,
     shadeCensus: undefined,
     presentClasses: createPresentClasses(),
-    materialTiles: undefined,
+    shadeBins: undefined,
     shadeCache: undefined,
     voxelSteps: undefined,
     writesFeedback: true,
@@ -154,13 +144,10 @@ export function createWebgpuVisState(): WebgpuVisState {
     gpuHiz: undefined,
     reflectionPipelines: undefined,
     gpuRaster: undefined,
-    visLayerPipelines: [],
     drawLayerSlots: 1,
-    gpuPartition: undefined,
     visBindGroupLayout: undefined,
-    visModule: undefined,
     visUniform: undefined,
-    zeroFlags: undefined,
+    zeroRows: undefined,
     blendBindGroupLayout: undefined,
     blendPipelines: undefined,
     gpuDraw: undefined,
@@ -168,11 +155,14 @@ export function createWebgpuVisState(): WebgpuVisState {
     shadeBindGroup: undefined,
     visSlotGroups: new Array(MAX_DRAW_SLOTS).fill(undefined),
     visGroupsRevision: 0,
-    rasterGroups: new Array(8).fill(undefined),
     visIdentity: createWebgpuBindIdentity(),
-    // Two keys each: a tested half compacted or not, a class set and the one it replaced.
-    visBundles: [new RenderBundles(2), new RenderBundles(2)],
-    shadeBundles: new RenderBundles(2),
+    // Two keys each: a tested half compacted or not.
+    visBundles: [
+      new RenderBundles(2),
+      new RenderBundles(2),
+      new RenderBundles(2),
+      new RenderBundles(2),
+    ],
     shadeIdentity: createWebgpuBindIdentity(),
     concatPos: undefined,
     concatUv: undefined,

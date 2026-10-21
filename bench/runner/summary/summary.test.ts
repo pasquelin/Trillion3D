@@ -10,7 +10,7 @@ import { baseSide, rapport, tableRow } from './summaryTestFixtures.ts'
 
 const SUBMITTED = 'submitted triangles opaque/total'
 const HELD = 'held image'
-const HIZ = 'Hi-Z tested/rejected/>16 (image)'
+const OCCLUSION = 'occluded/post hidden'
 const readings = (side: Partial<typeof baseSide>) =>
   tableRow(resume(rapport({ ...baseSide, ...side })), 'Readings')
 
@@ -19,22 +19,14 @@ test('measured counters are displayed as is, each under its own header', () => {
     submittedTriangles: 1500,
     totalSubmittedTriangles: 1800,
     frameHeld: true,
-    hiZ: {
-      tested: 200,
-      rejected: 40,
-      beyond16Texels: 5,
-      testedTriangles: null,
-      rejectedTriangles: null,
-      beyond16TexelsTriangles: null,
-      image: 42,
-    },
+    occlusion: { occluded: 40, postHidden: 5 },
   })
   assert.equal(row[SUBMITTED], '1500/1800', 'submitted triangles, opaque then total')
   assert.equal(row[HELD], 'yes')
-  assert.equal(row[HIZ], '200/40/5 (42)', 'Hi-Z tested/rejected/>16, then the counted image')
+  assert.equal(row[OCCLUSION], '40/5', 'held by the main pass, then hidden by the post pass')
 })
 
-test('an absent counter is a dash, never a zero: `frameHeld`, submitted triangles, Hi-Z', () => {
+test('an absent counter is a dash, never a zero: `frameHeld`, submitted triangles, occlusion', () => {
   const row = readings({
     submittedTriangles: null,
     totalSubmittedTriangles: null,
@@ -42,7 +34,7 @@ test('an absent counter is a dash, never a zero: `frameHeld`, submitted triangle
   })
   assert.equal(row[SUBMITTED], '—/—', 'no submitted triangles counted: two dashes, not two zeros')
   assert.equal(row[HELD], '—')
-  assert.equal(row[HIZ], '—/—/— (—)', 'nor Hi-Z an inferred zero')
+  assert.equal(row[OCCLUSION], '—/—', 'nor the occlusion an inferred zero')
 })
 
 test('frameHeld set to false is `no`, distinct from true and from absence', () => {

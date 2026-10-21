@@ -76,7 +76,7 @@ function texelsHide(p: PackedHiz, l: number, rect: number[], nearest: number) {
 }
 
 /** One clipped rectangle judged by the footprint minimum and by the coarse test, as
- *  `hiddenByPyramid` and the partition's packing then `testHiz` do. */
+ *  `hiddenByPyramid` does. */
 function judge(p: PackedHiz, rect: number[], levels: number, nearest: number, min: Min = Math.min) {
   const [x0, y0, x1, y1] = rect
   const l = levelFor(x0, y0, x1, y1, levels)

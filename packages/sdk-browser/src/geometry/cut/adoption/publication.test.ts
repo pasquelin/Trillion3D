@@ -4,7 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
 import { createWebgpuCutPublication } from './publication.ts'
-import { fixturePages, fixtureUniforms } from './adopter.fixture.ts'
+import { fixturePages, fixtureTotals, fixtureUniforms } from './adopter.fixture.ts'
 import type { CutDelta } from './delta.ts'
 import type { WebgpuPagesCore } from '../../../frame/backend/runtime.ts'
 import type { WebgpuResidencySets } from '../../residency/sets.ts'
@@ -18,12 +18,13 @@ const readback = (asked: number[], drawn: number[]) =>
     uniforms: fixtureUniforms(),
     result: {
       pageIds: asked,
+      priorities: asked.map(() => 1),
       drawablePageIds: drawn,
       frustumRejected: 0,
       lodLevel: 0,
-      selectedTriangles: 0,
-      drawnTriangles: 0,
-      transparentTriangles: 0,
+      occluded: 0,
+      postHidden: 0,
+      ...fixtureTotals(),
     },
     worldRevision: 0,
   }) as GpuCut
@@ -87,19 +88,10 @@ function banc(capturing = false) {
       rows: { watchTouched: () => {}, pageIndexOf: () => undefined },
     },
   } as unknown as WebgpuPagesCore
-  /** The lower tier, and every list handed to it. */
-  const aheadOffers: number[][] = []
-  const tiers = {
-    ahead: {
-      hostBytes: 0,
-      offerIds: (ids: ArrayLike<number>) => aheadOffers.push(Array.from(ids)),
-    },
-  }
   const publication = createWebgpuCutPublication(
     rt,
     residencySets,
     createGroupClosure([], { baseOfRoot: new Int32Array(0), packedCount: 0 }, packedPages),
-    tiers.ahead,
   )
   /** The view adopts `asked` and `drawn`, as its readback; the same object again for `same`. */
   const adopt = (asked: number[], drawn: number[], same = false) => {
@@ -112,21 +104,11 @@ function banc(capturing = false) {
     run,
     remue,
     shadowChanges,
-    tiers,
-    aheadOffers,
     resourceChanges: () => resourceChanges,
     residencySets,
     mainView,
   }
 }
-
-test('the lower tier counts in the host tables', () => {
-  const { publication, tiers } = banc()
-  const before = publication.hostTableBytes()
-  assert.ok(Number.isFinite(before), `every table reads a size (${before})`)
-  tiers.ahead.hostBytes = 32
-  assert.equal(publication.hostTableBytes(), before + 32)
-})
 
 test('a view ages its lists once per readback, and publishes its cut', () => {
   const { adopt, run } = banc()
@@ -168,7 +150,7 @@ test('a capture ranks its own wanted cut first: its packed ranks, at their count
   assert.deepEqual(run.desiredPacked, [0, 1, 2])
   adopt([3], [3])
   assert.deepEqual(run.desiredPacked, [3], 'the new cut, not a stale buffer')
-  // Admission reads the capture's readback apart, first; the main view has adopted none yet.
+  // The streaming reads the capture's readback apart, first; the main view has adopted none yet.
   const { cuts, first } = publication.viewReadbacks()
   assert.deepEqual([cuts.length, first?.result.pageIds], [0, [3]])
 })

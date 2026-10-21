@@ -1,4 +1,5 @@
 use super::*;
+use trillion3d_math::vector::vecn::length;
 
 /// The farthest point of `points` from `centre`: the radius a ball there needs.
 fn reach(points: &[[f64; 3]], centre: [f64; 3]) -> f64 {
@@ -48,7 +49,9 @@ fn the_edge_cases_give_their_known_ball() {
 fn a_random_cloud_is_enclosed_by_a_ball_no_nearby_centre_beats_in_any_order() {
     let mut state = trillion3d_math::GOLDEN;
     let mut next = move || {
-        (trillion3d_math::random::xorshift64(&mut state) >> 11) as f64 / (1u64 << 52) as f64 - 1.0
+        (trillion3d_math::sequence::random::xorshift64(&mut state) >> 11) as f64
+            / (1u64 << 52) as f64
+            - 1.0
     };
     for case in 0..200 {
         let squash = [1.0, 1e-3, 0.0][case % 3];

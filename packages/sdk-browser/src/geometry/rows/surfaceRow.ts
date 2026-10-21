@@ -1,5 +1,6 @@
 import { materialClassKey } from '../../visibility/shader/materialClass.ts'
 import { GEOMETRY_VOXEL } from '../../../../sdk-core/src/page/voxelPage.ts'
+import { MAX_UV_SETS } from '../../../../sdk-core/src/page/format.ts'
 import type { PageRec } from '../selection/types.ts'
 import {
   PHYSICAL_MAP_FIELDS,
@@ -32,7 +33,8 @@ import {
   FLAG_DYNAMIC,
   FLAG_SPRITE,
   FLAG_LINE,
-  FLAG_MAP_UV1,
+  FLAG_MAP_UV_HIGH,
+  FLAG_MAP_UV_LOW,
   FLAG_VOXEL,
   HISTORY_SHARE_SHIFT,
   historyShareCode,
@@ -56,8 +58,8 @@ export type SurfaceRow = {
   lobeMaps: [number, number, number, number]
   /** The surface carries an anisotropic or clear-coat lobe (`hasPhysicalLobes`). */
   physical: boolean
-  /** A map of the surface reads the second UV set (`channelsOf`, glTF's `texCoord`). */
-  readsUv1: boolean
+  /** A map of the surface reads a UV set past the first (`channelsOf`, glTF's `texCoord`). */
+  readsExtraUv: boolean
   vertexColors: boolean
   bits: number
 }
@@ -73,7 +75,7 @@ export const emptySurfaceRow = (): SurfaceRow => ({
   subsurface: 0,
   lobeMaps: [0, 0, 0, 0],
   physical: false,
-  readsUv1: false,
+  readsExtraUv: false,
   vertexColors: false,
   bits: 0,
 })
@@ -94,7 +96,7 @@ export function surfaceRow(
   into.physical = hasPhysicalLobes(mat)
   for (let i = 0; i < 4; i++)
     into.lobeMaps[i] = into.physical ? layerSlot(dataLayer, mat[PHYSICAL_MAP_FIELDS[i]]) : 0
-  into.readsUv1 = channelsOf(mat, SURFACE_MAP_FIELDS) !== 0
+  into.readsExtraUv = channelsOf(mat, SURFACE_MAP_FIELDS) !== 0
   into.vertexColors = !!mat.vertexColors
   let bits = 0
   if (mat.lit) bits |= FLAG_LIT
@@ -104,7 +106,9 @@ export function surfaceRow(
   if (into.map) bits |= FLAG_HAS_MAP
   // A dashed line cuts its gaps where a masked surface cuts its cutout (`maskKeep`).
   if (mat.alphaTest > 0 || mat.dashSize !== undefined) bits |= FLAG_MASK
-  if (mat.map?.channel === 1) bits |= FLAG_MAP_UV1
+  const baseSet = Math.min(mat.map?.channel ?? 0, MAX_UV_SETS - 1)
+  if (baseSet & 1) bits |= FLAG_MAP_UV_LOW
+  if (baseSet & 2) bits |= FLAG_MAP_UV_HIGH
   if (mat.side === 'back') bits |= FLAG_BACK
   if (into.rough || into.metal) bits |= FLAG_HAS_ORM
   if (into.normal) bits |= FLAG_HAS_NORMAL_MAP
@@ -136,7 +140,7 @@ export function rowFlags(
   // The anisotropy and coat maps read through the data atlas as the others do (`physicalWgsl.ts`).
   const lobe = s.lobeMaps
   if (s.physical) flags |= sampledFlag(textures, 0, 0, lobe[0], lobe[1], lobe[2], lobe[3])
-  const classKey = materialClassKey(flags, s, s.readsUv1 && !!geo?.hasUv1)
+  const classKey = materialClassKey(flags, s, s.readsExtraUv && !!geo?.hasExtraUv)
   // Where the row reads its geometry is not a material feature: it never splits a resolve class.
   if (geo?.quantized) flags |= FLAG_CLUSTER_PAGE
   if (geo?.dynamic) flags |= FLAG_DYNAMIC

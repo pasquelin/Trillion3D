@@ -14,8 +14,8 @@ function widened<T extends Int32Array | Float32Array>(from: T, to: T, fill: numb
  * words: no page moves and none is written again, so the rank allocator goes on from where it was
  * (`slots.ts`). The casters' rows now start after the new visibility rows: they are left empty
  * here and taken again at the next sync (`blendCasters.ts`), as on a new table. Every row is
- * declared dirty, so each reader of the table — the GPU page table, the draw records, the corners,
- * the spheres, the mobility words — takes its rows again, once. `generation` names the table.
+ * declared dirty, so each reader of the table — the GPU page table, the draw records, the spheres,
+ * the mobility words — takes its rows again, once. `generation` names the table.
  */
 export function growRowState(rows: WebgpuRowState, drawSlots: number, blendSlots: number) {
   const held = rows.blendFirst,

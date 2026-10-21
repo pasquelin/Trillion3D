@@ -4,7 +4,7 @@ import { geometryPoolFor } from './pools.ts'
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../../../sdk-core/src/contracts/poolBudgets.ts'
 import { MIB } from '../../../../math/src/constants.ts'
 
-test('the geometry pool is a fixed byte reservoir, 512 MiB by default', () => {
+test('the geometry pool is a fixed byte reservoir, 512 MiB by default, the root cover beside it', () => {
   assert.equal(DEFAULT_GEOMETRY_POOL_BUDGET, 512 * MIB)
   const pool = geometryPoolFor({
     budgetBytes: DEFAULT_GEOMETRY_POOL_BUDGET,
@@ -12,12 +12,12 @@ test('the geometry pool is a fixed byte reservoir, 512 MiB by default', () => {
     uniquePages: 1_000_000,
     rootPages: 300,
   })
-  assert.equal(pool.slots, Math.floor((512 * MIB) / 1500))
+  assert.equal(pool.slots, Math.floor((512 * MIB) / 1500) + 300)
   assert.equal(pool.allocatedBytes, pool.slots * 1500)
   assert.equal(pool.clamp, null)
 })
 
-test('the pool shrinks to the scene or the page cap, and rises to root coverage', () => {
+test('the pool shrinks to the scene or the page cap, the root cover always beside it', () => {
   const small = geometryPoolFor({
     budgetBytes: 512 * MIB,
     pageBytes: 1500,
@@ -32,16 +32,23 @@ test('the pool shrinks to the scene or the page cap, and rises to root coverage'
     rootPages: 2,
     maxResidentPages: 64,
   })
-  assert.deepEqual([capped.slots, capped.clamp], [64, 'page-cap'])
-  // An 8 MiB budget on 1,500-byte pages makes 5,592 slots: under 6,000 roots it is
-  // raised to them — roots are always resident, as they are outside the pool.
+  assert.deepEqual([capped.slots, capped.clamp], [66, 'page-cap'])
+  // An 8 MiB budget on 1,500-byte pages makes 5,592 slots, the 6,000 roots beside them.
   const roots = geometryPoolFor({
     budgetBytes: 8 * MIB,
     pageBytes: 1500,
-    uniquePages: 10_000,
+    uniquePages: 20_000,
     rootPages: 6000,
   })
-  assert.deepEqual([roots.slots, roots.clamp], [6000, 'root-cover'])
+  assert.deepEqual([roots.slots, roots.clamp], [11_592, null])
+  // A budget under one page holds the roots alone.
+  const bare = geometryPoolFor({
+    budgetBytes: 1000,
+    pageBytes: 1500,
+    uniquePages: 20_000,
+    rootPages: 6000,
+  })
+  assert.deepEqual([bare.slots, bare.clamp], [6000, 'root-cover'])
   assert.throws(
     () => geometryPoolFor({ budgetBytes: 0, pageBytes: 1500, uniquePages: 10, rootPages: 1 }),
     /INVALID_GEOMETRY_POOL_BUDGET/,
@@ -82,7 +89,7 @@ test('only the device limit bounds the pool, and it refuses only when even the r
     })
   const held = (pool: ReturnType<typeof cover>) => [pool.slots, pool.allocatedBytes, pool.clamp]
   assert.deepEqual(held(cover(512 * MIB, MIB / 2)), [3000, MIB / 2, 'scene'])
-  assert.deepEqual(held(cover(MIB, MIB / 2)), [3000, MIB / 2, 'device-limit'])
+  assert.deepEqual(held(cover(MIB, MIB / 2)), [3000, MIB / 2, 'scene'])
   assert.throws(() => cover(MIB, MIB + 4), /GEOMETRY_POOL_DEVICE_LIMIT/)
 })
 
@@ -96,8 +103,8 @@ test('a pool that holds the whole catalogue holds its pages at their own sizes, 
       homeBytes: 4000,
     })
   assert.deepEqual([pool(512 * MIB).slots, pool(512 * MIB).allocatedBytes], [10, 4000])
-  // Nine slots for ten pages: fixed slots.
-  assert.deepEqual([pool(9 * 1500).slots, pool(9 * 1500).allocatedBytes], [9, 9 * 1500])
-  // Exactly the scene in slots of the widest page: the homes.
-  assert.equal(pool(10 * 1500).allocatedBytes, 4000)
+  // Seven slots and the two roots for ten pages: fixed slots.
+  assert.deepEqual([pool(7 * 1500).slots, pool(7 * 1500).allocatedBytes], [9, 9 * 1500])
+  // Exactly the scene in slots of the widest page, the roots with them: the homes.
+  assert.equal(pool(8 * 1500).allocatedBytes, 4000)
 })

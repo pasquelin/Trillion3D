@@ -27,14 +27,18 @@ export function createGpuPagePins(context: GpuPageContext) {
         pinned: eviction.pinnedCount,
       }))
     },
-    /** Places a load can take now: the free ones (`placement.ts`), then the pages the published
-     *  order still gives — its old head alone for a page of a lower tier (`eviction.ts`). */
-    room: (lower = false) => placesFor(context, lower),
+    /** Places a load can take now without a victim: the free streaming slots (`placement.ts`). */
+    room: () => placesFor(context),
+    /** Whether the page `key` lands in a root grain, never a streaming slot nor a victim's: a root
+     *  page, the pool having a root region (`placement.ts`). */
+    rooted: (key: string) => context.placement.rooted(key),
+    /** The root grains a root page can take now (`placement.ts`). */
+    rootRoom: () => context.placement.rootFree,
     /** Whether the page `key` is pinned. */
     isPinned: eviction.isPinned,
-    /** Whether the pool holds the page `key` and keeps it: pinned, in use by some view, or not
-     *  given up by the order in hand (`eviction.ts`). */
-    holds: (key: string) => resident.has(key) && !eviction.evictable(key),
+    /** Whether the pool holds the page `key`: it keeps it until the host names it a victim
+     *  (`load.ts`). */
+    holds: (key: string) => resident.has(key),
     /** Unpins `key`; true when it was pinned. */
     unpin(key: string) {
       if (!eviction.unpin(key)) return false

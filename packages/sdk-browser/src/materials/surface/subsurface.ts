@@ -3,11 +3,13 @@ import { someRowSurface } from '../../geometry/pages/rowSurfaces.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { loadOnlyTarget } from '../../gpu/core/loadOnlyTarget.ts'
 import type { VisMaterial } from '../../visibility/materialType.ts'
+import { SURFACE_COLOURS_FORMAT } from './surfaceOutputs.ts'
 
 /** Independent diffuse transmission, disabled by black and restricted to thin double-sided matter. */
 export const SUBSURFACE_FLAG = 32
-/** The thin transmission colour's format, written by the shade pass and loaded by the lighting. */
-export const SUBSURFACE_FORMAT: GPUTextureFormat = 'rgba16float'
+/** The thin transmission colour's format, written by the shade pass and loaded by the lighting: a
+ *  layer of the surfaces' colours (`SurfaceBuffer.colours`). */
+export const SUBSURFACE_FORMAT: GPUTextureFormat = SURFACE_COLOURS_FORMAT
 /** The lighting's read of the thin transmission colour, by load alone; its bytes, one texel per
  *  pixel when wanted, a 1×1 placeholder otherwise (`bytes`). */
 export const SUBSURFACE_TARGET = loadOnlyTarget(

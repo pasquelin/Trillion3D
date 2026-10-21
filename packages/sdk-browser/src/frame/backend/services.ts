@@ -1,6 +1,5 @@
 import type { PageRec } from '../../geometry/selection/types.ts'
 import { createWebgpuResidencySets } from '../../geometry/residency/sets.ts'
-import { createLowerTier } from '../../geometry/residency/lowerTier.ts'
 import { createGroupClosure } from '../../geometry/cut/groupClosure.ts'
 import { createImageRelevance } from '../../geometry/residency/imageRelevance.ts'
 import { createWebgpuCutPublication } from '../../geometry/cut/adoption/publication.ts'
@@ -12,8 +11,9 @@ import { coverHeldRoots } from '../prepare/worldRoot.ts'
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>
 
-/** The residency machinery: the row table sync, the bootstrap cover, the pin updater, the upload
- *  queue and the GPU cut adopter. Each reads the runtime lazily, so none holds a stale frame. */
+/** The residency machinery: the row table sync, the bootstrap cover, the pin updater, the
+ *  streaming of the geometry pool and the GPU cut adopter. Each reads the runtime lazily, so none
+ *  holds a stale frame. */
 export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const { gpu } = rt,
     { packedPages, placement } = rt.layout,
@@ -34,9 +34,12 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     packedPages,
   })
   const bootstrapState = createBootstrapFor(rt, hasBytes)
-  const room = () => Math.max(0, rt.setup.slots - residencySets.coverSlots)
-  // The lower tier: the pages ahead of the camera.
-  const aheadTier = createLowerTier({ keyOf: tracking.keyOf, room, closeOver: closure.closeOver })
+  /** The streaming pool's pages: the pool's slots past its root region's grains, or past the root
+   *  cover it holds now where it takes more (a pool holding the catalogue, no grain apart). */
+  const streamingSlots = () => {
+    const grains = rt.setup.geometryPool.roots.slots
+    return Math.max(0, rt.setup.slots - Math.max(grains, residencySets.coverSlots))
+  }
   /** Whether an arrival can change the image; the held frame survives one that cannot. */
   const affectsImage = createImageRelevance({
     tracking,
@@ -46,9 +49,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   })
   // The roots the world's held cells add to the cover, followed for the backend's life.
   coverHeldRoots(rt, residencySets)
-  const parts = { residencySets, closure, hasBytes, lowerTier: aheadTier, room }
-  const { ensureResident, residency } = createResidencyFor(rt, parts)
-  const publication = createWebgpuCutPublication(rt, residencySets, closure, aheadTier)
+  const residency = createResidencyFor(rt, { residencySets, closure, hasBytes, streamingSlots })
+  const publication = createWebgpuCutPublication(rt, residencySets, closure)
   const { syncRows, followCut, rowsOwed, blendCasters, rowWords, followRowOrder } = rowSync
   return {
     syncRows,
@@ -59,19 +61,18 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
      *  the readbacks bring (`../../geometry/rows/rowOrder.ts`). */
     rowWords,
     followRowOrder,
-    /** Asks the cache for what the views' cuts want, ranked by the GPU when the pool is short. */
+    /** The frame's streaming update over the views' readbacks (`../../geometry/residency/queue.ts`). */
     queueCutResidency: () => residency.queueCuts(publication.viewReadbacks()),
     pageSource,
     hasBytes,
     poolHolds,
-    room,
     residencySets,
     bootstrapState,
-    ensureResident,
     residency,
     affectsImage,
     ...publication,
-    // The publication's tables (the residency sets and their ranked queue among them), then the rows'.
-    hostTableBytes: () => publication.hostTableBytes() + rowSync.cacheBytes,
+    // The publication's tables (the residency sets and the pages streamed among them), the
+    // streaming's requests, then the rows'.
+    hostTableBytes: () => publication.hostTableBytes() + residency.hostBytes + rowSync.cacheBytes,
   }
 }

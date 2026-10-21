@@ -5,7 +5,7 @@
 //! `EXT_mesh_gpu_instancing`. The expected positions are written here by hand from the file's
 //! numbers, never computed by the compiler's own walk.
 use super::*;
-use crate::compiler_world::world_matrices;
+use crate::compiler::source::node_transform::world_matrices;
 use trillion3d_math::matrix::transform_point;
 
 type Triangle = [[f64; 3]; 3];
@@ -131,7 +131,7 @@ fn a_morph_channel_on_an_instanced_node_drives_each_instance() {
         "samplers": [{"input": 0, "output": 0}],
         "channels": [{"sampler": 0, "target": {"node": 2, "path": "weights"}}],
     }]);
-    crate::compiler_instancing::expand_gpu_instances(&mut document, &bin).expect("expand");
+    crate::compiler::source::instancing::expand_gpu_instances(&mut document, &bin).expect("expand");
     // `wing` (node 2) gave its mesh to nodes 4 and 5, its two instances.
     let targets: Vec<&Value> = document["animations"][0]["channels"]
         .as_array()

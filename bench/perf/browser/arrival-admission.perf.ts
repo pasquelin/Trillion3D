@@ -77,14 +77,14 @@ interface QueueFactory {
   drain(): number
 }
 
-function arrivals(factory: (byteBudget: number, countBudget: number) => QueueFactory) {
+function arrivals(factory: (countBudget: number) => QueueFactory) {
   const delivered: string[] = []
   const targets: { acceptPage(url: string): void }[] = []
   for (let c = 0; c < 8; c++)
     targets.push({
       acceptPage: (url: string) => delivered.push(`${c}:${url}`),
     })
-  const queue = factory(64 * MIB, 4096)
+  const queue = factory(4096)
   const bytes = new Uint32Array(16)
   for (let i = 0; i < 5000; i++) queue.queue(targets[i % 8], `page-${i % 900}.bin`, bytes)
   let drained = 0
@@ -115,16 +115,16 @@ const resArrivals = await measure({
   name: 'arrival queue',
   fichier: 'packages/sdk-browser/src/geometry/integration/arrivalQueue.ts',
   cas: [{ name: '5 000 arrivals on 8 targets', input: null, size: 5000 }],
-  calculation: () => arrivals((bytes, count) => createArrivalQueue(bytes, count, frame)),
+  calculation: () => arrivals((count) => createArrivalQueue(count, frame)),
   expected: () => arrivals(referenceArrivalQueue),
   options: { tours: 60, budgetMs: 1500 },
 })
 
 await stress({
   name: 'createArrivalQueue extremes',
-  calculation: (size: number) => createArrivalQueue(size, 4096, frame),
+  calculation: (size: number) => createArrivalQueue(size, frame),
   extremes: [
-    { name: 'small', input: 4096 },
+    { name: 'small', input: 1 },
     { name: 'large', input: 1 << 28 },
   ],
 })

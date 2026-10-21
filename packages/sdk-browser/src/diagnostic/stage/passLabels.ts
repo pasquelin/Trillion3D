@@ -20,18 +20,20 @@ export const TREE_REFIT_PASS = 'Trillion3D placement tree refit'
 /** The DAG selection's compute pass, and the swap of its masks (`../../gpu/dag/`). */
 export const DAG_SELECTION_PASS = 'Trillion3D DAG selection'
 export const DAG_MASK_SWAP_PASS = 'Trillion3D DAG mask swap'
-/** The visibility's opening compute pass: the GPU partition, then the draw compaction that reads
- *  the rest bits and slot counts it wrote. */
+/** The visibility's opening compute pass: the main pass's draw compaction
+ *  (`../../frame/render/encodeVis.ts`). */
 export const PARTITION_PASS = 'Trillion3D partition'
 /** The occlusion step between the two visibility passes, one compute pass: the Hi-Z pyramid's
- *  build, the test of the tested half against it and the compaction of what survives. */
+ *  build from the depth drawn so far (`../../visibility/passes/passes.ts`). */
 export const HIZ_PASS = 'Trillion3D HiZ'
-/** The two visibility render passes, the occluders' then the tested half's
- *  (`../../visibility/passes/passes.ts`). */
+/** The hardware raster's render passes: the occluders' depth, the tested half's, then every
+ *  drawn half's identifiers (`../../frame/render/encodeVisSetup.ts`). */
 export const VISIBILITY_PRIMARY_PASS = 'Trillion3D visibility primary'
 export const VISIBILITY_SECONDARY_PASS = 'Trillion3D visibility secondary'
-/** The compute raster's passes (`../../visibility/raster/raster.ts`, `../../visibility/raster/resolve.ts`): they build
- *  the same buffer as the visibility passes. */
+export const VISIBILITY_IDENTIFIERS_PASS = 'Trillion3D visibility identifiers'
+/** The software raster's passes and the visibility buffer's resolves
+ *  (`../../visibility/raster/raster.ts`, `../../visibility/raster/resolve.ts`): they write the
+ *  same buffer as the hardware raster's passes. */
 export const RASTER_BINNING_PASS = 'Trillion3D raster binning'
 export const RASTER_OCCLUDER_DEPTH_PASS = 'Trillion3D raster occluder depth'
 export const RASTER_TESTED_DEPTH_PASS = 'Trillion3D raster tested depth'
@@ -41,12 +43,14 @@ export const RASTER_RESOLVE_PASS = 'Trillion3D raster resolve'
 /** The surfaces' clear when the image draws no material
  *  (`../../frame/render/encodeVisSetup.ts`). */
 export const EMPTY_SURFACES_PASS = 'Trillion3D empty surfaces'
-/** The material resolve pass, as the profile and the pass blocks read it. */
+/** The material resolve's clear of the surfaces and the feedback target, before its compute pass
+ *  stores the classes' pixels (`../../materials/classes/materialPasses.ts`). */
 export const MATERIAL_SURFACES_PASS = 'Trillion3D material surfaces v1'
 /** The resolve's compute pass: what the frame composes once for it
- *  (`../../visibility/shader/shadeCacheWgsl.ts`), then the material classification
- *  (`../../visibility/shader/materialTilesWgsl.ts`). */
-export const MATERIAL_COMPUTE_PASS = 'Trillion3D material cache and tiles'
+ *  (`../../visibility/shader/shadeCacheWgsl.ts`), the shading bins
+ *  (`../../visibility/shader/shadeBinKernelsWgsl.ts`), then each class's shading of its bin — the material
+ *  pass's time. */
+export const MATERIAL_COMPUTE_PASS = 'Trillion3D material cache, bins and shading'
 /** The texture feedback's reduction of the tile atlases (`../../webgpu/tile/`). */
 export const TEXTURE_FEEDBACK_REDUCE_PASS = 'Trillion3D texture feedback reduce'
 /** The tile pools' victim queues, ranked on the places the feedback stamped
@@ -148,6 +152,7 @@ export const ENGINE_PASSES = [
   definePass({ label: HIZ_PASS, stage: 'hiZ', block: 'visibility' }),
   definePass({ label: VISIBILITY_PRIMARY_PASS, stage: 'geometry', block: 'visibility' }),
   definePass({ label: VISIBILITY_SECONDARY_PASS, stage: 'geometry', block: 'visibility' }),
+  definePass({ label: VISIBILITY_IDENTIFIERS_PASS, stage: 'geometry', block: 'visibility' }),
   definePass({ label: RASTER_BINNING_PASS, stage: 'geometry', block: 'visibility' }),
   definePass({ label: RASTER_OCCLUDER_DEPTH_PASS, stage: 'geometry', block: 'visibility' }),
   definePass({ label: RASTER_TESTED_DEPTH_PASS, stage: 'geometry', block: 'visibility' }),

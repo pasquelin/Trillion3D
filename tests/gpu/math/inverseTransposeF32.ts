@@ -5,9 +5,8 @@
 // which compares, case by case, this model with the shipped shader's output on Dawn; without it the
 // model would be a second implementation, free to drift in silence.
 //
-// Written here rather than in a test: `normalTransform.test.ts` (lighting),
-// `packages/sdk-browser/src/geometry/dag/inverseTranspose.test.ts` (selection) and the GPU proof all read
-// the same arithmetic, instead of each holding a copy.
+// Written here rather than in a test: `normalTransform.test.ts` (lighting) and the GPU proof both
+// read the same arithmetic, instead of each holding a copy.
 import { DIVISOR_FLOOR } from '../../../packages/math/src/matrix/singular.ts'
 import type { Vec3, Mat3 } from '../../kit/device/vecTypes.ts'
 import { cross, dot } from './f32Vec3.ts'

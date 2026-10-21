@@ -9,8 +9,7 @@ export type ClusterCut = {
   group?: number | null
   source?: number | null
 }
-/** Projected screen error of one (error, object-space sphere) pair, in the frame given by `e`;
- *  the sphere grown by `reach`, a deformation's. */
+/** Projected screen error of one (error, object-space sphere) pair, in the frame given by `e`. */
 export function projectedClusterError(
   error: number | null | undefined,
   sphere: ArrayLike<number> | null | undefined,
@@ -20,7 +19,6 @@ export function projectedClusterError(
   focal: number,
   near: number,
   perspective = 1,
-  reach = 0,
 ) {
   // One extra guard over `projectedErrorAt`, which is left the projection: a missing sphere.
   // The other two stay here, before the projection's two square roots, because the most common
@@ -31,7 +29,7 @@ export function projectedClusterError(
     error,
     viewLateral(sphere, offset, e),
     viewDepth(sphere, offset, e),
-    sphere[offset + 3] + reach,
+    sphere[offset + 3],
     stretch,
     focal,
     near,

@@ -26,9 +26,9 @@ export type MotionRoot = { world: MatrixElements }
  * a frame reads those alone — a reset takes their poses as the reference, an update compares
  * them —, never the world's placements; never told, it scans every root as it must.
  *
- * Eye anchoring follows the partition: the position the pass reprojects is relative to the
- * frame's eye, so `M` is written `T(−eye) · M · T(eye)`, of which only the translation column
- * changes — `M · (eye, 1) − eye`, computed in double before the single-precision round.
+ * Eye anchoring: the position the pass reprojects is relative to the frame's eye, so `M` is
+ * written `T(−eye) · M · T(eye)`, of which only the translation column changes —
+ * `M · (eye, 1) − eye`, computed in double before the single-precision round.
  */
 export function createPlacementMotion(device: GPUDevice, roots: readonly MotionRoot[]) {
   let count = 0,

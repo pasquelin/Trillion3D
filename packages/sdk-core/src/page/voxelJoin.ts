@@ -43,9 +43,6 @@ export type VoxelJoined = { joins: Map<Primitive, VoxelJoin>; joined: number; ke
 /** The fields a new page takes from its group. */
 type Producer = Pick<Page, 'level' | 'lodError' | 'sphere' | 'source'>
 
-/** A voxel page culls nothing by its facing: its voxels face every way. */
-const ANY_FACING = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI }
-
 /** Page `index` of a primitive, its own or one `join` adds. */
 const pageAt = (join: VoxelJoin, index: number) => {
   const own = join.primitive.pages
@@ -59,7 +56,7 @@ function addPage(join: VoxelJoin, voxels: VoxelPage, producer: Producer) {
     ...{ id, url: '', sha256: '', bytes: voxels.bytes.byteLength },
     ...{ count: voxels.bricks * VOXEL_BRICK_INDICES, min: voxels.min, max: voxels.max },
     role: 'coarse',
-    ...{ ...producer, parentError: null, parentSphere: null, group: null, cone: ANY_FACING },
+    ...{ ...producer, parentError: null, parentSphere: null, group: null },
   })
   join.bytes.push(voxels.bytes)
   return id

@@ -15,10 +15,11 @@ import {
   preparedOccluderRun,
 } from '../backend/testOccluder.fixture.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
+import { MODE_DEPTH, rasterEntry } from '../../visibility/raster/contract.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
-test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the disoccluded vis pass', async () => {
+test('GPU Hi-Z builds the pyramid after the main pass, whose slots write the visibility buffer alone', async () => {
   installGpuGlobals()
   const scene = occluderScene()
   const { source, metadata: occluderMetadata, indices, associations, geometry, material } = scene
@@ -51,21 +52,21 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   draws.length = 0
   dispatches.length = 0
   backend.render(cam)
-  // Occluders clear the target, the tested half reloads it; pyramid build then test, in
-  // that order, between the two.
+  // Each pass's hardware slots write the one visibility buffer alone, their depth target held
+  // read-only; the pyramid is built once the main pass's software depth is down.
   const visPasses = passes.filter(
     (pass) =>
       pass.label === 'Trillion3D visibility primary' ||
       pass.label === 'Trillion3D visibility secondary',
   )
-  assert.ok(visPasses.length >= 2)
-  assert.equal(visPasses[visPasses.length - 2]?.colors[0]?.loadOp, 'clear')
-  assert.equal(visPasses[visPasses.length - 2]?.depth?.depthLoadOp, 'clear')
-  assert.equal(visPasses[visPasses.length - 1]?.colors[0]?.loadOp, 'load')
-  assert.equal(visPasses[visPasses.length - 1]?.depth?.depthLoadOp, 'load')
+  assert.ok(visPasses.length >= 1)
+  for (const pass of visPasses) {
+    assert.deepEqual(pass.colors, [])
+    assert.equal(pass.depth?.depthReadOnly, true)
+  }
   const at = (entry: string) => dispatchedEntries(dispatches).indexOf(entry)
-  assert.ok(at('buildHiz') >= 0)
-  assert.ok(at('testHiz') > at('buildHiz'))
+  assert.ok(at(rasterEntry('fine', MODE_DEPTH)) >= 0)
+  assert.ok(at('buildHiz') > at(rasterEntry('fine', MODE_DEPTH)))
   assert.deepEqual(backend.selectedPageIds().sort(), cpu.shown.map((page) => page.url).sort())
   assertOccluderImage(backend, cpu.shown, collected.roots, cam, viewport)
   indirectDraws(draws)

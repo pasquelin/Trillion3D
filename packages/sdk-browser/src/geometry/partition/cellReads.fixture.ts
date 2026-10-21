@@ -1,6 +1,9 @@
 import type { TestContext } from 'node:test'
 import { flatChain, packBundles, worldPage } from '../hlod/worldRootsPages.fixture.ts'
-import { encodeWorldRoots } from '../../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
+import {
+  encodeWorldRoots,
+  noRows,
+} from '../../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { readWorldRoots } from '../../../../sdk-core/src/manifest/worldRootsTable.ts'
 import { WORLD_ROOTS_VERSION } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
@@ -33,6 +36,7 @@ function gridRoots(count: number) {
     })),
     hlod: Array.from({ length: count }, (_, cell) => [2 * cell, 2 * cell + 1]),
     chain: flatChain(count),
+    rows: noRows(count),
   })
   return { bytes, bin, table: readWorldRoots(bytes) }
 }
@@ -51,7 +55,7 @@ const gridCell = (side: number, cell: number): TableCell => {
     parents: [[null, box]],
     grid: [0, 0, 0],
     bounds: box,
-    hlod: [cell, box, box],
+    hlod: [cell, box, 1, 0],
   }
 }
 
@@ -59,7 +63,8 @@ const gridCell = (side: number, cell: number): TableCell => {
  * A generated world of `side` × `side` cells 10 m apart, its roots served by `answer`
  * (`served`) and opened through a page streamer of `transfers` and `maxTransferBytes`
  * (`opened`), a read that keeps failing told `stalled`: its partition's cells, its world roots,
- * the streamer, the file each address reads, and an io of its frames.
+ * the streamer, the file each address reads, and an io of its frames — its cell files `held` once
+ * read, `asked` the urls it was asked.
  */
 export async function gridWorld(
   t: TestContext,
@@ -82,11 +87,11 @@ export async function gridWorld(
   const node = { parent: null, mesh: 0, matrix: null, translation: [1, 1, 1] }
   const pose = { rotation: [0, 0, 0, 1], scale: [1, 1, 1] }
   const cellFile = new TextEncoder().encode(
-    JSON.stringify({ version: 2, nodes: [{ ...node, ...pose }] }),
+    JSON.stringify({ version: 3, nodes: [{ ...node, ...pose }] }),
   )
   const bytes = (url: string) => files.get(url.split('/').at(-1)!) ?? cellFile
-  const { port } = io(bytes)
-  return { cells, roots, streamer, bytes, port }
+  const { port, held, asked } = io(bytes)
+  return { cells, roots, streamer, bytes, port, held, asked }
 }
 
 /** The cell whose run of `gridWorld`'s binary starts at byte `from`: its first bundle's. */

@@ -12,7 +12,7 @@
 //! projected area of its geometry — `π r²` for a sphere or a disk, `width × height` for a
 //! rectangle —, and the illuminance of a `DistantLight` is directly that radiance. glTF, for
 //! its part, is photometric: the conversion is the multiplication by `LUMENS_PER_WATT`, the
-//! constant that `compiler_lights` then divides again to return to the engine's radiometric.
+//! constant that `compiler::lights` then divides again to return to the engine's radiometric.
 //! Nothing is invented between the two, no spectrum is assumed.
 //!
 //! **Emitter radius** comes from the native datum: `inputs:radius` for a sphere or a disk, the
@@ -70,7 +70,7 @@ pub(super) fn build(
     let (area, radius) = extent(world, prim, &shape, scale);
     let normalized = flag(world, prim, "inputs:normalize").unwrap_or(false);
     let cone = cone(world, prim);
-    let source = crate::import::LightSource {
+    let source = crate::plugins::scene::convert::LightSource {
         name: prim.path().name().unwrap_or("Light").to_string(),
         kind: match (&shape, cone.is_some()) {
             (Shape::Distant, _) => "directional",
@@ -78,7 +78,7 @@ pub(super) fn build(
             (_, false) => "point",
         },
         colour: colour(world, prim),
-        intensity: crate::compiler_lights::radiometric_intensity(
+        intensity: crate::compiler::lights::radiometric_intensity(
             intensity,
             exposure,
             if normalized { 1.0 } else { area },
@@ -125,7 +125,7 @@ fn cone(world: &mut World<'_>, prim: &usd::Prim) -> Option<(f64, f64)> {
     } else {
         DEFAULT_CONE.to_radians()
     };
-    Some(crate::import::cone_angles(outer, softness))
+    Some(crate::plugins::scene::convert::cone_angles(outer, softness))
 }
 
 /// Light colour, finite and non-negative channels; white by default, like `UsdLux`.

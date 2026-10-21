@@ -1,9 +1,9 @@
 import {
   BLEND_ITEM_WORDS,
   ITEM_FLAGS_WORD,
-  ITEM_HLOD_PROXY,
+  ITEM_HLOD,
   ITEM_NEEDS,
-  itemProxyBit,
+  itemHlodBits,
   writeBlendItemRecord,
 } from './items.ts'
 import { refreshBlendPlan } from './plan/plan.ts'
@@ -85,8 +85,9 @@ function writeBlendPoses(
     const pose = items[i].matrix.elements,
       base = i * BLEND_ITEM_WORDS,
       flags = base + ITEM_FLAGS_WORD
-    // Its placement drawn as its cell's HLOD 0 actor or as itself (`ITEM_HLOD_PROXY`), beside it.
-    const proxied = ((ints[flags] & ~ITEM_HLOD_PROXY) | itemProxyBit(items[i])) >>> 0
+    // The HLOD index its placement draws as (`ITEM_HLOD`), beside it.
+    const proxied =
+      ((ints[flags] & ~(ITEM_HLOD.mask << ITEM_HLOD.shift)) | itemHlodBits(items[i])) >>> 0
     const still = sameMatrixFloat32(packed, pose, base)
     if (still && proxied === ints[flags]) continue
     packed.set(pose, base)

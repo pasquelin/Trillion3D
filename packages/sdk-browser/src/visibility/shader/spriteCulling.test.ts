@@ -68,7 +68,7 @@ test('the GPU cut reads the mark behind the record shift and opens its planes to
   assert.ok(DAG_SELECTION_SHADER.includes('fn unculledOf(w:u32)->bool{return (markOf(w)&2u)!=0u;}'))
   assert.ok(
     DAG_SELECTION_SHADER.includes(
-      'return select(grownPlane(placedT*views[v].planes[i],reachOf(w)),vec4f(0.0,0.0,0.0,1.0),unculledOf(w));',
+      'return select(grownPlane(placedT*views[0u].planes[i],reachOf(w)),vec4f(0.0,0.0,0.0,1.0),unculledOf(w));',
     ),
   )
   // The mark word of the placement's frame row, the one the host wrote the mark to above.

@@ -58,7 +58,7 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 719 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 765 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
@@ -86,8 +86,9 @@ test('generated inventory and explicit facade files are current', async () => {
   // exponent and index of refraction are engine values, never public. No standalone CPU `raycast`
   // stands beside `world.raycast`, which the GPU ray query answers; its `Intersection` stays public.
   // No CPU batch loop the engine never runs (invertMatrix4Batch, normalMatrix3Batch,
-  // decomposeMatrix4Batch, srgbToLinearBatch, linearToSrgbBatch), no CPU cone test beside the GPU
-  // cull (boxConeRejects), no full impostor walk beside the watch (planImpostors, ImpostorCard,
+  // decomposeMatrix4Batch, srgbToLinearBatch, linearToSrgbBatch), no normal-cone test where the
+  // cut tests none (boxConeRejects, coneRejects, CONE_LENGTH_RATIO, CONE_ORTHO_EPS), no full
+  // impostor walk beside the watch (planImpostors, ImpostorCard,
   // ImpostorPlan); the compile job's scopes are one public table (ASSET_SCOPES). The baked mesh a
   // section's lookup returns (BakedEntry) and the frame, prime and budget a partition's cells take
   // (CellFrameIo, CellPrimeIo, CellBudget) are named where the public signatures carry them. The
@@ -99,8 +100,28 @@ test('generated inventory and explicit facade files are current', async () => {
   // canvas point, as `world.raycast` and the move handles aim it, is public (canvasRay).
   // The temporal anti-aliasing option `world.temporalAntialiasing` and `WorldOptions` take
   // (TemporalAntialiasingOption), and the texture cache and world cells the engine's signatures
-  // carry (TextureCache, WorldCells), are named.
-  assert.equal(inventory.exports.length, 724)
+  // carry (TextureCache, WorldCells), are named. The compile job's settings each have their
+  // resolver and the types it takes and gives: the mesh build (resolveMeshBuild, MeshBuildOption,
+  // MeshBuildRule, MeshBuildSettings), the object settings (resolveObjectSettings, ObjectRule,
+  // ObjectSettings, ObjectSettingsOption, SkinnedInstanceOption, SkinnedInstanceSettings) and the
+  // partition's grid and scheme (resolvePartitionGrid, resolvePartitionScheme, PartitionGridOption,
+  // PartitionGridSettings, PartitionSchemeOption); the scene's animation banks name their
+  // descriptor (AnimationBanksDescriptor) and a cell's actor its warm-up (ActorWarmth). The types
+  // the signatures of those carry are named too: a mesh's bank track and what it holds
+  // (AnimationBanks, BankBake, BankClock, BankItem, BankTrack, DecodedBanks), the setting rules the
+  // run-time options are resolved by (RulesByField, SettingOptions, SettingRange, SettingValues), the
+  // pool's page units, roots and growth (PageUnit, PageUnitsOf, RootSlots, GrownPages) in the
+  // browser condition, and the wire forms the compile job's options are written in (HlodWire,
+  // HlodExpertOf, HlodMatchOf, HlodWireMatch, HlodWirePattern, HlodApproximation,
+  // HlodSimplifySettings, HlodMeshBuildWire, MaterialSettingsWire, MeshBuildSettingsWire,
+  // MeshBuildWire, MeshInputSettingsWire, ObjectSettingsJobWire, ObjectSettingsWire,
+  // SkinnedInstanceWire, PartitionGridWire, PartitionHlodGrid, NameMatch, NamePattern) in the node
+  // condition. Seven names
+  // left the code with their mechanisms, and so the API: the HLOD's simple form has no quality any
+  // more (HLOD_QUALITIES, HlodQuality), and the partition audit, the occlusion and world frame
+  // metrics, the primitives' quantization and the adaptive pixel error are gone (PartitionAudit,
+  // OcclusionFrameMetrics, WorldFrameMetrics, PrimitiveQuantization, adaptivePixelError).
+  assert.equal(inventory.exports.length, 765)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

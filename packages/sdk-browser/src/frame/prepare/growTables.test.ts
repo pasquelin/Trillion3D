@@ -35,8 +35,8 @@ const runtime = (
       viewRows,
       rows: { instances: { copiesMax: copies } },
     },
-    // A catalogue of no known widths: the pool holds a page a slot (`pagesHeld`).
-    setup: { pageBytes: 64, homes: undefined },
+    // A catalogue of pages alone: the pool holds a page a slot (`pagesHeld`).
+    setup: { census: { unitPages: 1 } },
     context: { gpuDevice: limits ? { limits } : undefined },
   }) as unknown as WebgpuPagesRuntime
 

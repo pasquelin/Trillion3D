@@ -20,13 +20,22 @@ import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/ta
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { hostWorldPlacements } from '../host/world/placements.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
+import {
+  assertAnimationBanks,
+  decodeAnimationBanks,
+  type AnimationBanks,
+} from '../../../../sdk-core/src/scene/core/animationBanks.ts'
+import { createBankClock } from '../../../../sdk-core/src/world/animation/bankClock.ts'
+import { ownBuffer } from '../../../../sdk-core/src/runtime/ownBuffer.ts'
+import { readWhole } from '../../geometry/hlod/worldRuns.ts'
 
 /** What a load that counts bytes adds: the meter of each read, and who hears the tables read. */
 type Metered = {
   meter?: ByteMeter
   onTables?: (tables: PreparedSceneTables) => void
-  /** The queue the scene's world roots are read through, bound to it: the session's it loads for,
-   *  or — a world's model, before any session — one of its own over its world's page cache. */
+  /** The queue the scene's world roots and its animation banks are read through, bound to it: the
+   *  session's it loads for, or — a world's model, before any session — one of its own over its
+   *  world's page cache. */
   queue: PageQueue
 }
 
@@ -57,10 +66,34 @@ async function readTables({ options, base, signal }: SceneLoad) {
   return { tables, bytes, readAt, buildAt }
 }
 
+/** The scene's animation banks (`animation-banks.bin`), `null` for a scene with none: its
+ *  manifest entry checked before a byte is asked, the file read whole through the load's queue —
+ *  checked against the length and digest that entry gives, as the world's HLOD table is
+ *  (`readWhole`) — and decoded, with the clock their tracks play by. */
+async function readBanks(load: SceneLoad): Promise<AnimationBanks | null> {
+  const { options, metadata, base, signal } = load
+  const entry = metadata.animationBanks
+  if (entry === undefined) return null
+  assertAnimationBanks(entry)
+  const { queue } = options
+  const url = new URL(entry.url, base).href
+  const page = { url, bytes: entry.bytes, sha256: entry.sha256 }
+  const decoded = decodeAnimationBanks(
+    ownBuffer(await readWhole(queue, page, signal ?? queue.signal)),
+    url,
+  )
+  return { ...decoded, clock: createBankClock(decoded) }
+}
+
 /** The scene the tables build and the world roots it opens, the top pinned when no partition
- *  places it. Images whose chain is baked whole are not read: a white pixel stands in their place,
- *  and the engine reads their levels from the cache. */
-async function buildScene(load: SceneLoad, tables: PreparedSceneTables) {
+ *  places it, its banked objects playing the tracks of `banks`. Images whose chain is baked whole
+ *  are not read: a white pixel stands in their place, and the engine reads their levels from the
+ *  cache. */
+async function buildScene(
+  load: SceneLoad,
+  tables: PreparedSceneTables,
+  banks: AnimationBanks | null,
+) {
   const { options, metadata, base, scope, signal, diagnose } = load
   const [built, worldRoots] = await Promise.all([
     buildPreparedScene({
@@ -71,6 +104,7 @@ async function buildScene(load: SceneLoad, tables: PreparedSceneTables) {
       track: resourceProgress(options, diagnose, scope, signal),
       meter: options.meter,
       readRange: options.queue.readRange,
+      banks,
     }),
     openWorldRoots(metadata, base, options.queue, { signal }),
   ])
@@ -108,6 +142,7 @@ function partitionsOf(
           root: built.source,
           parents: built.nodes,
           meshes: built.placed,
+          streamed: built.streamed,
           world: worldRoots,
         }),
       ]
@@ -160,9 +195,10 @@ async function replicated(
   return copied
 }
 
-/** Builds the scene a cache prepared: its tables, then the files they name. `options.meter` counts
- *  the bytes of each as they arrive, `onTables` hears the tables before those files are read;
- *  `onPreparation` hears the tables read, then each resource. */
+/** Builds the scene a cache prepared: its tables and its animation banks, read together, then the
+ *  files the tables name. `options.meter` counts the bytes of each as they arrive, `onTables`
+ *  hears the tables before those files are read; `onPreparation` hears the tables read, then each
+ *  resource. */
 export async function loadPreparedScene(
   options: MeasuredWorldOptions & Metered,
   metadata: ClusterManifest,
@@ -177,11 +213,11 @@ export async function loadPreparedScene(
   // lasts much longer; a refusal is told where the lots wait for it, below.
   const mathBatch = mathBatchModule()
   mathBatch.catch(() => {})
-  // The scene is built from the cache alone: its tables, the binary of the document it draws and
-  // the images they locate.
-  const read = await readTables(load)
+  // The scene is built from the cache alone: its tables, its animation banks, the binary of the
+  // document it draws and the images they locate.
+  const [read, banks] = await Promise.all([readTables(load), readBanks(load)])
   const { tables } = read
-  const scene = await buildScene(load, tables)
+  const scene = await buildScene(load, tables, banks)
   const { built, worldRoots } = scene
   const { associations, ranks } = built
   const replicas = options.replicaCount ?? 1
@@ -212,6 +248,9 @@ export async function loadPreparedScene(
     partitions,
     /** The clips the file plays (#357). */
     clips: built.clips,
+    /** The animation banks its instanced skinned objects play, with their clock; `null` for a
+     *  scene with none. */
+    banks,
     /** The world roots the scene holds, bound to each session's queue and counted in its CPU
      *  budget. */
     worldRoots: worldRoots ? [worldRoots] : [],

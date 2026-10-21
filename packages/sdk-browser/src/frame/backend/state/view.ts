@@ -16,8 +16,8 @@ import type { ScaleControl } from '../../scale/scaleControl.ts'
 
 /**
  * What one camera owns in the runtime groups: the cut it draws and what its image made of it, its
- * motion, its occlusion history, its frame targets, their temporal history and effect chain, the
- * canvas it presents into, its GPU timer and its render scale. Everything else is the scene's and
+ * occlusion history, its frame targets, their temporal history and effect chain, the canvas it
+ * presents into, its GPU timer and its render scale. Everything else is the scene's and
  * every view shares it: the gate's scene and resource revisions (so an invalidation reaches every
  * view), the GPU cut's tables (each view cuts there with uniforms and lists of its own,
  * `../../../geometry/dag/aside.ts`), the row cache, the residency sets, which ask for the union of the
@@ -26,7 +26,6 @@ import type { ScaleControl } from '../../scale/scaleControl.ts'
  */
 export const VIEW_RUN_KEYS = [
   'lastCamera',
-  'motion',
   'desired',
   'shown',
   'drawn',
@@ -36,7 +35,6 @@ export const VIEW_RUN_KEYS = [
   'drawnPacked',
   'drawnMirrorsShown',
   'noOccluderHistory',
-  'occluderSignature',
   'cutHeld',
   'gpuMetricsReady',
   'overBudget',
@@ -45,6 +43,8 @@ export const VIEW_RUN_KEYS = [
   'submittedTriangles',
   'frustumRejected',
   'lodLevel',
+  'occluded',
+  'postHidden',
   'selectionUniforms',
   'asideCut',
 ] as const satisfies readonly (keyof WebgpuRunState)[]

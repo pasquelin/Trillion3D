@@ -9,6 +9,7 @@ import {
   FORMAT_VERSION,
 } from '../../../packages/sdk-core/src/contracts/base.ts'
 import * as compiler from '../../../packages/sdk-core/src/contracts/compilerAbi.ts'
+import * as partition from '../../../packages/sdk-core/src/contracts/partitionOptions.ts'
 import { DEFAULT_PIXEL_ERROR } from '../../../packages/sdk-core/src/lod/policy.ts'
 import { REPOSITORY_ROOT, readJson } from '../../git/repository-files.ts'
 import { upper } from './printer.ts'
@@ -22,10 +23,20 @@ const strings = (words: readonly string[]) =>
 
 /** The compiler's shared constants, `shared_math/abi.rs`. */
 export function compilerAbiRust() {
+  const mesh = compiler.MESH_BUILD_RULES
+  const shape = compiler.HLOD_SHAPE_RULES
   return `${header(
     [
       'packages/sdk-core/src/contracts/base.ts',
       'packages/sdk-core/src/contracts/compilerAbi.ts',
+      'packages/sdk-core/src/contracts/hlodAbi.ts',
+      'packages/sdk-core/src/contracts/hlodApproximationAbi.ts',
+      'packages/sdk-core/src/contracts/hlodLayerAbi.ts',
+      'packages/sdk-core/src/contracts/materialAbi.ts',
+      'packages/sdk-core/src/contracts/meshBuildAbi.ts',
+      'packages/sdk-core/src/contracts/objectAbi.ts',
+      'packages/sdk-core/src/contracts/partitionAbi.ts',
+      'packages/sdk-core/src/contracts/partitionOptions.ts',
       'packages/sdk-core/src/lod/policy.ts',
     ],
     '//!',
@@ -62,16 +73,45 @@ pub const HLOD_FIELD: &str = ${JSON.stringify(compiler.HLOD_FIELD)};
 pub const HLOD_OPTION: &str = ${JSON.stringify(compiler.HLOD_OPTION)};
 /// The key of a glTF node's \`extras\` marking its object for an HLOD group or layer, by name.
 pub const HLOD_MARK: &str = ${JSON.stringify(compiler.HLOD_MARK)};
+/// The keys of a glTF node's \`extras\` making its object stand as itself in every HLOD actor its
+/// chain builds, and taking it out of every HLOD layer.
+pub const HLOD_INSTANCE_MARK: &str = ${JSON.stringify(compiler.HLOD_INSTANCE_MARK)};
+pub const HLOD_INCLUDE_MARK: &str = ${JSON.stringify(compiler.HLOD_INCLUDE_MARK)};
 /// How an HLOD layer builds its actors.
 pub const HLOD_BUILDERS: ${strings(compiler.HLOD_BUILDERS)};
 /// Which LOD of each source a merged layer takes.
 pub const HLOD_LOD_SELECTIONS: ${strings(compiler.HLOD_LOD_SELECTIONS)};
+/// How a merged layer generates the texture coordinates of a mesh baked on its own triangles that
+/// has none to reuse.
+pub const HLOD_MERGE_UV_METHODS: ${strings(compiler.HLOD_MERGE_UV_METHODS)};
+/// How an HLOD atlas bakes a translucent source, the value \`false\` names first, and the one
+/// \`true\` names.
+pub const HLOD_TRANSLUCENCIES: ${strings(compiler.HLOD_TRANSLUCENCIES)};
+pub const DEFAULT_HLOD_TRANSLUCENCY: &str = ${JSON.stringify(compiler.DEFAULT_HLOD_TRANSLUCENCY)};
+/// What an approximated layer's atlas holds where it holds no chart's value, the value \`false\`
+/// names first, and the one \`true\` names.
+pub const HLOD_EMPTY_TEXELS: ${strings(compiler.HLOD_EMPTY_TEXELS)};
+pub const DEFAULT_HLOD_EMPTY_TEXELS: &str = ${JSON.stringify(compiler.DEFAULT_HLOD_EMPTY_TEXELS)};
+/// How an approximated layer closes its scene's base and how a ground plane clips its shell, each
+/// the value \`false\` names first, and the one \`true\` names.
+pub const HLOD_BASE_CAPPINGS: ${strings(compiler.HLOD_BASE_CAPPINGS)};
+pub const DEFAULT_HLOD_BASE_CAPPING: &str = ${JSON.stringify(compiler.DEFAULT_HLOD_BASE_CAPPING)};
+pub const HLOD_GROUND_CLIPPINGS: ${strings(compiler.HLOD_GROUND_CLIPPINGS)};
+pub const DEFAULT_HLOD_GROUND_CLIPPING: &str = ${JSON.stringify(compiler.DEFAULT_HLOD_GROUND_CLIPPING)};
+/// How a simplified layer's vertex normals weigh the faces around a vertex, and how its transfer's
+/// rays pick their hit.
+pub const HLOD_NORMAL_METHODS: ${strings(compiler.HLOD_NORMAL_METHODS)};
+pub const HLOD_TRANSFER_RAYS: ${strings(compiler.HLOD_TRANSFER_RAYS)};
 /// The atlas sides, in texels, an approximated layer may name, and its side when it names none.
 pub const MIN_HLOD_TEXTURE_SIZE: usize = ${compiler.MIN_HLOD_TEXTURE_SIZE};
 pub const MAX_HLOD_TEXTURE_SIZE: usize = ${compiler.MAX_HLOD_TEXTURE_SIZE};
 pub const DEFAULT_HLOD_TEXTURE_SIZE: usize = ${compiler.DEFAULT_HLOD_TEXTURE_SIZE};
-/// An approximated layer's voxel, in pixels, when it names none.
-pub const DEFAULT_HLOD_VOXEL_PIXELS: f64 = ${compiler.DEFAULT_HLOD_VOXEL_PIXELS};
+/// An approximated layer's voxel and geometric deviation, metres, when it names none.
+pub const DEFAULT_HLOD_ACCURACY: f64 = ${compiler.DEFAULT_HLOD_ACCURACY.toFixed(1)};
+pub const DEFAULT_HLOD_DEVIATION: f64 = ${compiler.DEFAULT_HLOD_DEVIATION.toFixed(1)};
+/// A layer's grid cell side and loading range, metres, when it names none.
+pub const DEFAULT_HLOD_CELL_SIZE: f64 = ${compiler.DEFAULT_HLOD_CELL_SIZE.toFixed(1)};
+pub const DEFAULT_HLOD_LOADING_RANGE: f64 = ${compiler.DEFAULT_HLOD_LOADING_RANGE.toFixed(1)};
 /// The most levels a chain may have, HLOD 0 included.
 pub const MAX_HLOD_LEVELS: usize = ${compiler.MAX_HLOD_LEVELS};
 /// A 1×1 opaque white PNG, what a scene decodes in place of an image whose chain the cache bakes.
@@ -103,6 +143,100 @@ pub const MATERIAL_SETTINGS: ${strings(compiler.MATERIAL_SETTINGS)};
 pub const VOXELIZE_FIELD: &str = ${JSON.stringify(compiler.VOXELIZE_FIELD)};
 pub const VOXELIZE_OPTION: &str = ${JSON.stringify(compiler.VOXELIZE_OPTION)};
 pub const VOXELIZE_EXTRA: &str = ${JSON.stringify(compiler.VOXELIZE_EXTRA)};
+/// The job field setting the partition's main grid, the command line's flag holding it as JSON,
+/// the settings it may name, their defaults — the reference's main grid's — and the most a grid's
+/// priority may be.
+pub const PARTITION_GRID_FIELD: &str = ${JSON.stringify(compiler.PARTITION_GRID_FIELD)};
+pub const PARTITION_GRID_OPTION: &str = ${JSON.stringify(compiler.PARTITION_GRID_OPTION)};
+pub const PARTITION_GRID_SETTINGS: ${strings(partition.PARTITION_GRID_SETTINGS)};
+pub const DEFAULT_PARTITION_CELL_SIZE: f64 = ${compiler.DEFAULT_PARTITION_CELL_SIZE.toFixed(1)};
+pub const DEFAULT_PARTITION_LOADING_RANGE: f64 = ${compiler.DEFAULT_PARTITION_LOADING_RANGE.toFixed(1)};
+pub const DEFAULT_PARTITION_PRIORITY: u32 = ${compiler.DEFAULT_PARTITION_PRIORITY};
+pub const MAX_PARTITION_PRIORITY: u32 = ${compiler.MAX_PARTITION_PRIORITY};
+pub const DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING: bool = ${partition.DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING};
+/// The job field naming the world partition's scheme, the command line's flag holding it, a bare
+/// name, the schemes and the default one, the reference's.
+pub const PARTITION_SCHEME_FIELD: &str = ${JSON.stringify(partition.PARTITION_SCHEME_FIELD)};
+pub const PARTITION_SCHEME_OPTION: &str = ${JSON.stringify(partition.PARTITION_SCHEME_OPTION)};
+pub const PARTITION_SCHEMES: ${strings(partition.PARTITION_SCHEMES)};
+pub const DEFAULT_PARTITION_SCHEME: &str = ${JSON.stringify(partition.DEFAULT_PARTITION_SCHEME)};
+/// Each scheme's own settings of the main grid, the bounds a loose cell may stream by, an HLOD
+/// level's grid settings, and the defaults of a world the reference creates.
+pub const HASH_SET_GRID_SETTINGS: ${strings(partition.HASH_SET_GRID_SETTINGS)};
+pub const SPATIAL_HASH_GRID_SETTINGS: ${strings(partition.SPATIAL_HASH_GRID_SETTINGS)};
+pub const PARTITION_STREAM_BOUNDS: ${strings(partition.PARTITION_STREAM_BOUNDS)};
+pub const DEFAULT_PARTITION_STREAM_BOUNDS: &str = ${JSON.stringify(partition.DEFAULT_PARTITION_STREAM_BOUNDS)};
+pub const DEFAULT_PARTITION_FLAT: bool = ${partition.DEFAULT_PARTITION_FLAT};
+pub const PARTITION_HLOD_GRID_SETTINGS: ${strings(partition.PARTITION_HLOD_GRID_SETTINGS)};
+pub const DEFAULT_PARTITION_NESTED_LEVELS: bool = ${partition.DEFAULT_PARTITION_NESTED_LEVELS};
+pub const DEFAULT_PARTITION_PULL_COARSER: bool = ${partition.DEFAULT_PARTITION_PULL_COARSER};
+pub const DEFAULT_PARTITION_SMALL_BY_CENTRE: bool = ${partition.DEFAULT_PARTITION_SMALL_BY_CENTRE};
+/// The job field setting how each mesh is built, the command line's flag holding it as JSON, the
+/// key of its rules by object, its settings — each also the key of a glTF mesh's \`extras\` naming
+/// it — and their defaults, the reference's.
+pub const MESH_BUILD_FIELD: &str = ${JSON.stringify(compiler.MESH_BUILD_FIELD)};
+pub const MESH_BUILD_OPTION: &str = ${JSON.stringify(compiler.MESH_BUILD_OPTION)};
+pub const MESH_BUILD_OBJECTS: &str = ${JSON.stringify(compiler.MESH_BUILD_OBJECTS)};
+pub const STORED_TANGENTS_SETTING: &str = ${JSON.stringify(mesh.storedTangents.field)};
+pub const KEPT_TRIANGLES_SETTING: &str = ${JSON.stringify(mesh.keptTriangles.field)};
+pub const TRIMMED_ERROR_SETTING: &str = ${JSON.stringify(mesh.trimmedError.field)};
+pub const DROP_NEAR_COLLAPSED_SETTING: &str = ${JSON.stringify(mesh.dropNearCollapsed.field)};
+pub const ALWAYS_RESIDENT_SETTING: &str = ${JSON.stringify(mesh.alwaysResidentKib.field)};
+pub const RECOMPUTE_NORMALS_SETTING: &str = ${JSON.stringify(mesh.recomputeNormals.field)};
+pub const RECOMPUTE_TANGENTS_SETTING: &str = ${JSON.stringify(mesh.recomputeTangents.field)};
+pub const MIKK_TSPACE_SETTING: &str = ${JSON.stringify(mesh.useMikkTSpace.field)};
+pub const WEIGHTED_NORMALS_SETTING: &str = ${JSON.stringify(mesh.computeWeightedNormals.field)};
+pub const SKINNED_WELD_POSITION_SETTING: &str = ${JSON.stringify(mesh.skinnedWeldPosition.field)};
+pub const SKINNED_WELD_NORMAL_SETTING: &str = ${JSON.stringify(mesh.skinnedWeldNormal.field)};
+pub const SKINNED_WELD_TEXTURE_SETTING: &str = ${JSON.stringify(mesh.skinnedWeldTexture.field)};
+pub const POSITION_PRECISION_SETTING: &str = ${JSON.stringify(compiler.POSITION_PRECISION_SETTING)};
+pub const NORMAL_PRECISION_SETTING: &str = ${JSON.stringify(compiler.NORMAL_PRECISION_SETTING)};
+pub const TANGENT_PRECISION_SETTING: &str = ${JSON.stringify(compiler.TANGENT_PRECISION_SETTING)};
+pub const MESH_BUILD_SETTINGS: ${strings(compiler.MESH_BUILD_SETTINGS)};
+pub const DEFAULT_STORED_TANGENTS: bool = ${mesh.storedTangents.default};
+pub const DEFAULT_KEPT_TRIANGLES: f64 = ${mesh.keptTriangles.default.toFixed(1)};
+pub const DEFAULT_TRIMMED_ERROR: f64 = ${mesh.trimmedError.default.toFixed(1)};
+pub const DEFAULT_DROP_NEAR_COLLAPSED: bool = ${mesh.dropNearCollapsed.default};
+pub const DEFAULT_ALWAYS_RESIDENT_KIB: u32 = ${mesh.alwaysResidentKib.default};
+pub const MAX_ALWAYS_RESIDENT_KIB: u32 = ${compiler.MAX_ALWAYS_RESIDENT_KIB};
+pub const DEFAULT_RECOMPUTE_NORMALS: bool = ${mesh.recomputeNormals.default};
+pub const DEFAULT_RECOMPUTE_TANGENTS: bool = ${mesh.recomputeTangents.default};
+pub const DEFAULT_MIKK_TSPACE: bool = ${mesh.useMikkTSpace.default};
+pub const DEFAULT_WEIGHTED_NORMALS: bool = ${mesh.computeWeightedNormals.default};
+pub const DEFAULT_SKINNED_WELD_POSITION: f64 = ${mesh.skinnedWeldPosition.default};
+pub const DEFAULT_SKINNED_WELD_NORMAL: f64 = ${mesh.skinnedWeldNormal.default};
+pub const DEFAULT_SKINNED_WELD_TEXTURE: f64 = ${mesh.skinnedWeldTexture.default};
+/// How a mesh keeps its shape as its DAG is built — the keys of a glTF mesh's \`extras\` bounding
+/// its edges and holding its texture coordinates, and their defaults, the reference's —, and the
+/// settings a merged HLOD layer's \`meshBuild\` names for its actors' meshes, with the shapes it
+/// may keep.
+pub const EDGE_LENGTH_SETTING: &str = ${JSON.stringify(shape.edgeLengthBound.field)};
+pub const HOLD_TEXTURE_SETTING: &str = ${JSON.stringify(shape.holdTextureCoordinates.field)};
+pub const DEFAULT_EDGE_LENGTH_BOUND: f64 = ${shape.edgeLengthBound.default.toFixed(1)};
+pub const DEFAULT_HOLD_TEXTURE: bool = ${shape.holdTextureCoordinates.default};
+pub const HLOD_MESH_BUILD_SETTINGS: ${strings(compiler.HLOD_MESH_BUILD_SETTINGS)};
+pub const HLOD_SHAPE_PRESERVATIONS: ${strings(compiler.HLOD_SHAPE_PRESERVATIONS)};
+pub const DEFAULT_SHAPE_PRESERVATION: &str = ${JSON.stringify(shape.shapePreservation.default)};
+/// The job field setting each object's settings, the command line's flag holding it as JSON, the
+/// key of its rules by object, its settings — each also the key of a glTF node's \`extras\` naming
+/// it —, an instanced skinned object's settings, the mobilities it may name and the defaults, the
+/// reference's; the frames a second a bank samples and plays its clips at.
+pub const OBJECT_SETTINGS_FIELD: &str = ${JSON.stringify(compiler.OBJECT_SETTINGS_FIELD)};
+pub const OBJECT_SETTINGS_OPTION: &str = ${JSON.stringify(compiler.OBJECT_SETTINGS_OPTION)};
+pub const OBJECT_SETTINGS_OBJECTS: &str = ${JSON.stringify(compiler.OBJECT_SETTINGS_OBJECTS)};
+pub const SPATIALLY_LOADED_SETTING: &str = ${JSON.stringify(compiler.SPATIALLY_LOADED_SETTING)};
+pub const SKINNED_INSTANCE_SETTING: &str = ${JSON.stringify(compiler.SKINNED_INSTANCE_SETTING)};
+pub const OBJECT_SETTINGS: ${strings(compiler.OBJECT_SETTINGS)};
+pub const SKINNED_INSTANCE_SETTINGS: ${strings(compiler.SKINNED_INSTANCE_SETTINGS)};
+pub const OBJECT_MOBILITIES: ${strings(compiler.OBJECT_MOBILITIES)};
+pub const DEFAULT_SPATIALLY_LOADED: bool = ${compiler.DEFAULT_SPATIALLY_LOADED};
+pub const DEFAULT_BANK_LOOPING: bool = ${compiler.DEFAULT_BANK_LOOPING};
+pub const DEFAULT_BANK_PLAY_RATE: f64 = ${compiler.DEFAULT_BANK_PLAY_RATE.toFixed(1)};
+pub const DEFAULT_BANK_POSITION: f64 = ${compiler.DEFAULT_BANK_POSITION.toFixed(1)};
+pub const DEFAULT_BANK_BOUNDS_SCALE: f64 = ${compiler.DEFAULT_BANK_BOUNDS_SCALE.toFixed(1)};
+pub const DEFAULT_OBJECT_ANIMATION_MIN_SCREEN_SIZE: f64 = ${compiler.DEFAULT_OBJECT_ANIMATION_MIN_SCREEN_SIZE.toFixed(1)};
+pub const DEFAULT_OBJECT_MOBILITY: &str = ${JSON.stringify(compiler.DEFAULT_OBJECT_MOBILITY)};
+pub const ANIMATION_BANK_SAMPLE_RATE: f64 = ${compiler.ANIMATION_BANK_SAMPLE_RATE.toFixed(1)};
 `
 }
 

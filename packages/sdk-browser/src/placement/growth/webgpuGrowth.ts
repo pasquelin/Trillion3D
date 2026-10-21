@@ -5,8 +5,8 @@
  * session while a GPU cut over every root is packed and made — the DAG's tables are laid out at
  * their size —, the running cut drawing meanwhile what it drew: the new rows are parked, nothing of
  * them is lost. Between two images (`../webgpuGrownCut.ts`) the roots join every list the session
- * reads by rank, the new cut replaces the old one with the pool's residency and held pages, and the
- * new rows follow as any written row. Only the cut's tables are made again: no page is uploaded,
+ * reads by rank, the new cut replaces the old one with the pool's residency, and the new rows
+ * follow as any written row. Only the cut's tables are made again: no page is uploaded,
  * no texture tile moved; the pool, the row cache, the textures and the lights are the session's. One
  * cut is made at a time: a growth while one is made waits for it to land, then one is made over
  * every root, the landed one released unadopted first — the device never holds the tables of
@@ -14,8 +14,7 @@
  * the placements (#1232).
  *
  * One cut is made per image however many growths it brought (`startGrownCut`, at frame entry),
- * and the pool's slots that move while it is made are logged and replayed alone at the swap. That
- * cut is packed at a grown capacity (`grownLength`, twice what the session held at least): the
+ * and takes the pool's residency as it stands at the swap. That cut is packed at a grown capacity (`grownLength`, twice what the session held at least): the
  * growths after it append their roots into the room it kept, in place, O(added), no cut made
  * (`GpuSelection.appendRoots`); only one past that room packs again — a logarithmic number of
  * times.
@@ -46,8 +45,8 @@ export const webgpuPlacementApi = (rt: WebgpuPagesRuntime) => ({
   growPlacements: (from: PlacementRows, to: PlacementRows) => growWebgpuPlacements(rt, from, to),
 })
 /** The roots waiting to join, how many of them the running cut took in place, whether a cut over
- *  them is asked, the cut being made, the pages the pool moved since it began, and the one ready —
- *  made, or the running one that took them (`inPlace`) —, until adopted. */
+ *  them is asked, the cut being made, and the one ready — made, or the running one that took them
+ *  (`inPlace`) —, until adopted. */
 export type GrowthInFlight = {
   roots: ClusterRoot<PageRec>[]
   /** The blended and transmissive copies of the sources added, which join the pass once their
@@ -56,8 +55,7 @@ export type GrowthInFlight = {
   appended: number
   asked: boolean
   making?: Promise<void>
-  moved?: Set<number>
-  ready?: { cut: GpuSelection; roots: number; moved: Set<number>; inPlace?: true }
+  ready?: { cut: GpuSelection; roots: number; inPlace?: true }
 }
 /** The growth of `rt`, begun when none is. */
 const growing = (rt: WebgpuPagesRuntime) =>

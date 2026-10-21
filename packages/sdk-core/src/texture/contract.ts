@@ -39,7 +39,7 @@ export interface Texture {
   readonly placement: number
   /** The decoded image. Its container stays `unknown`: only the boundary that uploads it knows. */
   readonly image: unknown
-  /** UV set the sampler reads, `KHR_texture_transform`'s `texCoord`; the engine samples 0 and 1. */
+  /** UV set the sampler reads, `KHR_texture_transform`'s `texCoord`; the engine samples 0 to 3, the sets a page carries (`MAX_UV_SETS`). */
   readonly channel: number
   /** Repeat across. */
   readonly wrapS: WrapMode

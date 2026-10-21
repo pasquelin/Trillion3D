@@ -2,7 +2,7 @@
 use super::*;
 use crate::tests::directories::scratch;
 use crate::tests::textures::previews_source::encode;
-use crate::texture_preview::{collect, source};
+use crate::texture::{collect, source};
 
 fn write_sheet(directory: &Path, sheet: &Value) {
     fs::write(

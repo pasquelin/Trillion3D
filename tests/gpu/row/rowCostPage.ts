@@ -53,7 +53,7 @@ async function timed(
   const start = performance.now()
   for (let i = 0; i < count; i++) {
     clock.frame++
-    selection.askEvictions()
+    selection.recut()
     const encoder = device.createCommandEncoder()
     const settle = selection.dispatch({ ...uniforms, frame: clock.frame }, encoder)
     device.queue.submit([encoder.finish()])

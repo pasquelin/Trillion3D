@@ -1,10 +1,11 @@
 import { visUniformLayout } from '../../gpu/bind/bindLayout.ts'
 import { viewProj } from '../../frame/backend/helpers.ts'
 import { slotCount } from '../draw/contract.ts'
-import { computeSpanFor } from '../../diagnostic/gpuGeometry.ts'
-import { computeRasterReady } from '../../frame/render/encodeVisSetup.ts'
 import type { WebgpuVisState } from '../../frame/backend/state/vis.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { RASTER_RULES } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
+import { contextReader } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { SHADE_UNIFORM_BYTES } from '../shader/request.ts'
 import { SHADE_UNIFORM, VIS_UNIFORM } from '../shader/uniformLayout.ts'
 import { writeDepthRamp } from '../../camera/depthConvention.ts'
@@ -12,10 +13,21 @@ import { renderMipBias, renderPixelRatio } from '../../frame/backend/state/rende
 import { diagnosticCode } from '../shader/shadeMode.ts'
 import { wordViews } from '../../gpu/core/wordViews.ts'
 
-/** One entry per indirect draw slot, plus the direct path's. Size follows the scene's coplanar-layer
- *  count: with no layer, one layer's `BASE_SLOTS`. */
+/** The cluster raster's setting `field` the session holds (`rasterOptions.ts`), by its one
+ *  resolver, read at each image. */
+const rasterSetting = contextReader(RASTER_RULES)
+
+/** One entry per indirect draw slot, plus the direct path's first and the post pass's last
+ *  (`visPostEntry`). Size follows the scene's coplanar-layer count: with no layer, one layer's
+ *  `BASE_SLOTS`. */
 export const visUniformSlots = (vis: Pick<WebgpuVisState, 'drawLayerSlots'>) =>
-  slotCount(vis.drawLayerSlots) + 1
+  slotCount(vis.drawLayerSlots) + 2
+
+/** The entry the post pass's binning reads (`../raster/bindings.ts`): every word the others hold,
+ *  but its selection offset, the post mask's (`GpuSelection.postMaskOffset`) — the main pass's
+ *  binning reads the frame mask's through entry 0. */
+export const visPostEntry = (vis: Pick<WebgpuVisState, 'drawLayerSlots'>) =>
+  visUniformSlots(vis) - 1
 
 /** Highest coplanar layer an indirect slot names. The slot count is `1 + min(deepest layer,
  *  MAX_DEPTH_LAYER)` and falls back to 1 on any failure: it never goes below 1, so the top never goes
@@ -35,6 +47,7 @@ const shared = new Float32Array(VIS_UNIFORM.words),
 export function writeWebgpuVisibilityUniforms(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
+  cam: EngineCamera,
   tableRows: number,
 ) {
   const { vis, run } = rt,
@@ -55,23 +68,34 @@ export function writeWebgpuVisibilityUniforms(
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   }))
   const visInts = wordViews(visUniPacked.buffer, visUniPacked.byteOffset).u
-  const computeSpan = computeRasterReady(rt) ? computeSpanFor(rt.context?.diagnosticGpuVariant) : 0
   shared.fill(0)
   shared.set(viewProj, U.viewProj)
   shared[U.viewport] = width
   shared[U.viewport + 1] = height
-  // Split of the cut between the two rasters, read by both: zero while the compute raster does not
-  // exist, and hardware then reads not one extra vertex.
-  shared[U.computeSpan] = computeSpan
-  // The compute raster splits the page row over two dispatch dimensions; it needs the live count.
-  sharedInts[U.pageCount] = tableRows
+  // The binning's rows, split over two dispatch dimensions: the drawable ones, the compactions'.
+  sharedInts[U.pageCount] = rt.layout.rows.packedCount
+  // The cluster split's camera (`../raster/binWgsl.ts`): its eye and forward axis in the world the
+  // rows' matrices place pages in, the view's -z, its near plane and projection weight, and the
+  // pixels per unit at depth one over the edge a cluster goes to hardware at.
+  shared[U.near] = cam.near
+  shared[U.perspective] = cam.perspective
+  shared.set(cam.eye, U.eye)
+  shared[U.forward] = -cam.view[2]!
+  shared[U.forward + 1] = -cam.view[6]!
+  shared[U.forward + 2] = -cam.view[10]!
+  shared[U.hardwareEdge] =
+    (0.5 * cam.projection[5]! * height) / rasterSetting(rt, 'hardwareRasterEdgePixels')
+  sharedInts[U.softwareRaster] = rasterSetting(rt, 'softwareRaster') ? 1 : 0
   sharedInts[U.selectionOffset] = maskOffset
   sharedInts[U.selectionEnabled] = run.gpuSelection ? 1 : 0
   // Render pixels per CSS pixel: a line page's width counts CSS pixels (`lineClip`).
   shared[U.pixelRatio] = pixelRatio
   // Texture level offset of a frame drawn below the display (`tilePoolWgsl`).
   shared[U.mipBias] = mipBias
-  let changed = made
+  // The post pass's entry: its selection offset alone differs, the post mask's.
+  const postSelection = visPostEntry(vis) * slotWords + U.selectionOffset,
+    postMaskOffset = run.gpuSelection?.postMaskOffset ?? 0
+  let changed = made || visInts[postSelection] !== postMaskOffset
   for (let word = 0; word < shared.length; word++) {
     if (word === U.drawSlot || word === U.indirect) continue
     if (visInts[word] !== sharedInts[word]) {
@@ -89,6 +113,7 @@ export function writeWebgpuVisibilityUniforms(
         visInts[base + U.indirect] = slot === 0 ? 0 : 1
       }
     }
+    visInts[postSelection] = postMaskOffset
     device.queue.writeBuffer(visUniform, 0, visUniPacked)
   }
   const shadeUniform = (vis.shadeUniform ??= device.createBuffer({

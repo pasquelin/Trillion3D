@@ -12,7 +12,7 @@ const hasCode =
 /** Tables at the versions this runtime reads, every table empty. */
 const tables = () => ({
   version: 9,
-  nodeTableVersion: 6,
+  nodeTableVersion: 7,
   materialTableVersion: 5,
   geometryTableVersion: 1,
   scene: { name: null, nodes: [] },
@@ -39,6 +39,11 @@ test('tables of an unknown version are refused rather than half-read', () => {
   assert.throws(
     () => assertSceneTables({ ...tables(), nodeTableVersion: 3 }),
     hasCode('UNSUPPORTED_SCENE_TABLES', 'nodeTableVersion 3'),
+  )
+  // Nor a node table of version 6, which says no animated node that streams and no bank's node.
+  assert.throws(
+    () => assertSceneTables({ ...tables(), nodeTableVersion: 6 }),
+    hasCode('UNSUPPORTED_SCENE_TABLES', 'nodeTableVersion 6'),
   )
   // Nor a node table of version 5, whose lights `lights.json` alone now carries.
   assert.throws(
@@ -85,25 +90,33 @@ const mesh = (rank: number, total: number, rows: (rung: number) => number) =>
     .join('')
 /** The first rung's side, 16 m, as the bits of its `f64`. */
 const CUBE = '4030000000000000'
-/** The grids' loading ranges, 256, 512 and 1024 m, as the bits of their `f64`s, over no HLOD 0
- *  cell. */
+/** The grids, the main one then two HLOD ones: cell sides of 128, 256 and 512 m and loading ranges
+ *  of 256, 512 and 1024 m, as the bits of their `f64`s, every priority 0, HLOD levels 0, 0 and 1,
+ *  none blocking; over no HLOD 0 cell. */
 const HLOD = {
-  ranges: ['4070000000000000', '4080000000000000', '4090000000000000'],
+  grids: [
+    '4060000000000000' + '4070000000000000' + '00000000' + '00000000' + '00000000',
+    '4070000000000000' + '4080000000000000' + '00000000' + '00000000' + '00000000',
+    '4080000000000000' + '4090000000000000' + '00000000' + '00000001' + '00000000',
+  ],
+  coarser: [null, null, null],
   cells: '00000000',
 }
 const cells = (...ranks: number[]) =>
   ranks.map((at) => ({
     ...{ url: `${at}`, parents: [], meshes: [[at, 1]], grid: [0, at, 0] },
-    ...{ bounds: [at, 0, 0, at + 1, 1, 1], hlod: [0, [0, 0, 0, 1, 1, 1], [0, 0, 0, 1, 1, 1]] },
+    ...{ bounds: [at, 0, 0, at + 1, 1, 1], hlod: [0, [0, 0, 0, 1, 1, 1], 1, 0] },
   }))
 
 test('a partition root of another version or shape is refused, and a cell is read only at its own', () => {
   const partition = {
-    version: 6,
+    version: 13,
     pages: Array(8).fill(EMPTY),
     parents: Array(8).fill(''),
     meshes: [],
     cube: CUBE,
+    scheme: 'hashSet' as const,
+    flat: true,
     hlod: HLOD,
   }
   assert.deepEqual(assertSceneTables({ ...tables(), partition }).partition, partition)
@@ -122,8 +135,10 @@ test('a partition root of another version or shape is refused, and a cell is rea
     () => assertSceneTables({ ...tables(), partition: { ...partition, pages: [EMPTY] } }),
     hasCode('INVALID_SCENE_TABLES'),
   )
-  assert.deepEqual(assertCellNodes({ version: 2, nodes: [] }), [])
-  assert.throws(() => assertCellNodes({ version: 1, nodes: [] }), hasCode('INVALID_SCENE_TABLES'))
+  assert.deepEqual(assertCellNodes({ version: 3, nodes: [] }), [])
+  // A cell of version 2 names no animated object's track nor its source row.
+  for (const version of [1, 2])
+    assert.throws(() => assertCellNodes({ version, nodes: [] }), hasCode('INVALID_SCENE_TABLES'))
 })
 
 test('the root gives its slots, box, rows and parents; a page is read alone, checked', () => {
@@ -132,11 +147,13 @@ test('the root gives its slots, box, rows and parents; a page is read alone, che
   const [a, b] = [slot('a', [0, 0, 0, 2, 1, 1]), slot('b', [-3, 0, 0, -2, 5, 1])]
   const meshes = [mesh(0, 2, () => 2), mesh(3, 17, (rung) => Math.min(17, rung + 1))]
   const root = {
-    version: 6,
+    version: 13,
     pages: [a, b, ...Array(6).fill(EMPTY)],
     parents: ['0000000a', '0000000a00000002', ...Array(6).fill('')],
     meshes,
     cube: CUBE,
+    scheme: 'hashSet' as const,
+    flat: true,
     hlod: HLOD,
   }
   const partition = tablePartition(root)
@@ -163,7 +180,7 @@ test('the root gives its slots, box, rows and parents; a page is read alone, che
   )
   const read = (body: unknown) => readCellPage(new TextEncoder().encode(JSON.stringify(body)), 'p')
   const index = read({
-    version: 6,
+    version: 13,
     pages: [slot('c', [0, 0, 0, 1, 1, 1]), EMPTY],
     parents: ['', ''],
   })
@@ -173,10 +190,10 @@ test('the root gives its slots, box, rows and parents; a page is read alone, che
   )
   // An index page lists beside each page the parents its cells hang under.
   assert.throws(
-    () => read({ version: 6, pages: [EMPTY] }),
+    () => read({ version: 13, pages: [EMPTY] }),
     hasCode('INVALID_SCENE_TABLES', 'parents'),
   )
-  const region = read({ version: 6, first: 7, cells: cells(0, 1), meshPages: [m, n] })
+  const region = read({ version: 13, first: 7, cells: cells(0, 1), meshPages: [m, n] })
   assert.deepEqual(
     region.cells!.map(({ url, meshPages }) => [url, meshPages]),
     [
@@ -190,17 +207,17 @@ test('the root gives its slots, box, rows and parents; a page is read alone, che
     () => read({ version: 4, cells: [] }),
     hasCode('UNSUPPORTED_SCENE_TABLES', 'version 4'),
   )
-  assert.throws(() => read({ version: 6 }), hasCode('INVALID_SCENE_TABLES'))
-  const badSlot = { version: 6, first: 0, cells: cells(3), meshPages: ['e'] }
+  assert.throws(() => read({ version: 13 }), hasCode('INVALID_SCENE_TABLES'))
+  const badSlot = { version: 13, first: 0, cells: cells(3), meshPages: ['e'] }
   // A region page names the cook's rank of its first cell, which the world roots number it by.
   assert.equal(region.first, 7)
   assert.throws(
-    () => read({ version: 6, cells: cells(0), meshPages: [m] }),
+    () => read({ version: 13, cells: cells(0), meshPages: [m] }),
     hasCode('INVALID_SCENE_TABLES', 'first cell'),
   )
   assert.throws(() => read(badSlot), hasCode('INVALID_SCENE_TABLES', 'mesh pages'))
   assert.throws(
-    () => read({ version: 6, pages: ['z'.repeat(168)], parents: [''] }),
+    () => read({ version: 13, pages: ['z'.repeat(168)], parents: [''] }),
     hasCode('INVALID_SCENE_TABLES'),
   )
 })

@@ -1,14 +1,14 @@
-// The same scene rendered by the hardware raster, then by the compute raster under its two
-// variants — the whole cut, then the small/large split —, and the images compared pixel by pixel.
+// The same scene rendered by the hardware raster alone (`softwareRaster: false`), then under the
+// cluster split — the clusters whose edges project small to the software raster, the others and
+// the one that crosses the near plane to the hardware —, and the images compared pixel by pixel.
 // Each tile is two triangles that share a diagonal, in two distinct clusters: the shared edge par
-// excellence, under every slope. One more tile crosses the near plane, so the clip and its shards
-// are in it too. What may differ is the silhouette band of the hardware image alone — a pixel whose
-// neighbourhood holds both coverage and background, where two fill rules can differ by one pixel.
-// The band is read on an image the compute raster never touched: a stray triangle on the
-// background or a crack inside a tile falls outside it, and counts.
+// excellence, under every slope. What may differ is the silhouette band of the hardware image alone
+// — a pixel whose neighbourhood holds both coverage and background, where two rasterizers' sample
+// positions can differ by one pixel. The band is read on an image the software raster never
+// touched: a stray triangle on the background or a crack inside a tile falls outside it, and
+// counts.
 import type { EngineContext } from '../../../packages/sdk-browser/src/session/engine/types.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
-import type { DiagnosticGpuVariant } from '../../../packages/sdk-browser/src/diagnostic/gpuVariant.ts'
 import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { VIEWPORT, cameraFace, release, engine } from '../../kit/device/sharedSceneProof.ts'
 import { image } from '../../kit/device/sceneImageProof.ts'
@@ -72,9 +72,13 @@ async function render(
   }
 }
 
-/** The two ways of handing triangles to the compute raster: the whole cut, or the small ones only
- *  — the reference split, where each triangle has exactly one of the two rasters. */
-const VARIANTS: DiagnosticGpuVariant[] = ['raster-compute', 'raster-hybrid']
+/** The cluster split at its default threshold, and at 64 px: the longest edge whose triangles still
+ *  fit the 64-pixel box the software setup holds, which hands it every tile of the scene but the
+ *  huge one and the one across the near plane. */
+const SPLITS: Record<string, Partial<EngineContext>> = {
+  'split at 32 px': {},
+  'split at 64 px': { hardwareRasterEdgePixels: 64 },
+}
 
 interface RasterReading {
   covered: number
@@ -85,17 +89,14 @@ interface RasterReading {
 export function compareRasters() {
   return runOnDevice<RasterReading>(async (device, events, reading) => {
     const onDiagnostic = (e: EngineDiagnostic) => void events.push(e)
-    const hardware = await render(device, onDiagnostic, {})
+    const hardware = await render(device, onDiagnostic, { softwareRaster: false })
     const band = silhouetteBand(hardware.pixels)
     reading.variants = {}
-    for (const variant of VARIANTS) {
-      const compute = await render(device, onDiagnostic, {
-        diagnosticDetail: 'trace',
-        diagnosticGpuVariant: variant,
-      })
-      reading.variants[variant] = {
-        clusters: compute.clusters,
-        ...compare(hardware.pixels, compute.pixels, band),
+    for (const [split, options] of Object.entries(SPLITS)) {
+      const both = await render(device, onDiagnostic, options)
+      reading.variants[split] = {
+        clusters: both.clusters,
+        ...compare(hardware.pixels, both.pixels, band),
       }
     }
     let covered = 0

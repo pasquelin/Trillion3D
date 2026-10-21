@@ -18,6 +18,7 @@ import { VSM_RENDER_ARGS_WGSL } from '../../lighting/shadows/vsm/render/renderPa
 import { vsmRenderCandidatesWgsl } from '../../lighting/shadows/vsm/render/renderCandidatesWgsl.ts'
 import { vsmRenderExpandWgsl } from '../../lighting/shadows/vsm/render/renderExpandWgsl.ts'
 import { vsmRenderRasterWgsl } from '../../lighting/shadows/vsm/render/renderRasterWgsl.ts'
+import { vsmRenderVoxelWgsl } from '../../lighting/shadows/vsm/render/renderVoxelWgsl.ts'
 import { vsmTransmissionBinWgsl } from '../../lighting/shadows/vsm/transmission/transmissionBinWgsl.ts'
 import {
   vsmTransmissionCandidatesWgsl,
@@ -52,6 +53,7 @@ export function vsmVariants() {
     VSM_RENDER_EXPAND: vsmRenderExpandWgsl(layout),
     VSM_RENDER_ARGS_WGSL,
     VSM_RENDER_RASTER: vsmRenderRasterWgsl(layout),
+    VSM_RENDER_VOXEL: vsmRenderVoxelWgsl(layout),
     VSM_TRANSMISSION_CANDIDATES: vsmTransmissionCandidatesWgsl(),
     VSM_TRANSMISSION_CLEAR: vsmTransmissionClearWgsl(layout),
     VSM_TRANSMISSION_PAGES: vsmTransmissionPagesWgsl(layout),

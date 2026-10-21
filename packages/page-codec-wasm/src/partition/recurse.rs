@@ -108,8 +108,9 @@ fn bisect_graph(
 }
 
 /// The 30-bit Morton code of `p` on a grid of 1 024 cells along the longest side of the bounds
-/// from `low`, every axis on that one scale; a point outside the bounds, or bounds of no size,
-/// clamps to the grid.
+/// from `low`, every axis on that one scale: each offset from `low` divided by `extent`, that
+/// longest side (a division, not a product by its reciprocal: one rounding), 0 for bounds of no
+/// size; a point outside the bounds, or bounds of no size, clamps to the grid.
 pub(super) fn morton(p: [f32; 3], low: [f32; 3], extent: f32) -> u32 {
     let cell = |a: usize| {
         let unit = if extent > 0.0 {
@@ -122,8 +123,9 @@ pub(super) fn morton(p: [f32; 3], low: [f32; 3], extent: f32) -> u32 {
     spread(cell(0)) | spread(cell(1)) << 1 | spread(cell(2)) << 2
 }
 
-/// The ten bits of `x` two bits apart.
-fn spread(x: u32) -> u32 {
+/// The ten bits of `x` two bits apart: one axis of a 30-bit Morton code, here and in the
+/// compiler's page assignment (`asset-compiler-rust/src/compiler/pages/bundles/order.rs`).
+pub fn spread(x: u32) -> u32 {
     let mut x = x & 0x3ff;
     x = (x | x << 16) & 0x0300_00ff;
     x = (x | x << 8) & 0x0300_f00f;

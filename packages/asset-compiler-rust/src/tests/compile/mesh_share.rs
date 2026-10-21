@@ -1,8 +1,8 @@
 //! Meshes of identical content are shared before the cook: the bytes decide, never
 //! the names, and one differing bit keeps two meshes apart.
 use super::*;
-use crate::compiler_mesh_share::share_identical_meshes;
-use crate::import::f32_bytes;
+use crate::compiler::source::mesh_share::share_identical_meshes;
+use crate::plugins::scene::convert::f32_bytes;
 
 const TRIANGLE: [f32; 9] = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
 

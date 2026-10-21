@@ -5,7 +5,6 @@ import { askAsIsSeed } from '../../lighting/deferred/asIsShare.ts'
 import { askParticles } from '../../particles/gpu/webgpuParticleFrame.ts'
 import { wantsAsIsShare } from '../prepare/asIsShareTarget.ts'
 import { ensureGpuRaster } from '../render/encodeVisSetup.ts'
-import { requestsComputeRaster } from '../../diagnostic/gpuGeometry.ts'
 import { askComposedPlacements } from '../../placement/compose/gpuComposeFrame.ts'
 import { askRowWords } from '../../placement/rows/rowWordsPass.ts'
 import { askRootPasses } from '../../placement/roots/rootPasses.ts'
@@ -32,20 +31,14 @@ function askShadeClasses(rt: WebgpuPagesRuntime) {
   if (wantsEmissiveAo(rt) && !vis.writesEmissiveAo) {
     const layered = classes.withEmissiveAo()
     let ready = true
-    for (const key of census.keys) {
-      ready = layered.of(key).ask().ready && ready
-      layered.single(key)?.ask()
-    }
+    for (const key of census.keys) ready = layered.of(key).ask().ready && ready
     if (!ready) return
     // The drawn view's surfaces take the layer before the resolve (`followEmissiveAo`).
     vis.shadeClasses = layered
     vis.writesEmissiveAo = true
     asked.set(census, layered)
   } else if (retaken || asked.get(census) !== classes) {
-    for (const key of census.keys) {
-      classes.of(key).ask()
-      classes.single(key)?.ask()
-    }
+    for (const key of census.keys) classes.of(key).ask()
     asked.set(census, classes)
   }
 }
@@ -58,8 +51,8 @@ function askShadeClasses(rt: WebgpuPagesRuntime) {
  * entries' pass once a transparent table is made, the kernels
  * composing placements once a parent links rows, the roots' boxes and the tree's leaves — these
  * four once the session's cut is adopted, never queued ahead of its compiles —, the
- * lobe code of a lobed surface (`askLobedPrograms`), the compute raster a variant asks for on a
- * visibility path —,
+ * lobe code of a lobed surface (`askLobedPrograms`), the visibility raster once the targets it
+ * spans are made —,
  * each compiled off the thread (`PreparedPipeline.ask`): the frame is held while one compiles
  * (`deviceAnswering`), showing the previous image, never compiling one itself. Prepare asks them
  * the same way before the first frame. A session lost, or not prepared, asks nothing.
@@ -80,5 +73,5 @@ export function askFramePipelines(rt: WebgpuPagesRuntime) {
     askRootPasses(rt, device)
   }
   askLobedPrograms(rt, device)
-  if (requestsComputeRaster(rt.context?.diagnosticGpuVariant)) ensureGpuRaster(rt, device)
+  if (rt.gpu.depthView) ensureGpuRaster(rt, device)
 }

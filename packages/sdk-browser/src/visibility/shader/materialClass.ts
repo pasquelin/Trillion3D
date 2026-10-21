@@ -54,30 +54,27 @@ export function materialClassKey(flags: number, maps: MaterialClassMaps, secondU
 }
 
 /**
- * Pipeline overrides of the resolve: the class key, whether it is the image's only class, and one
- * boolean per feature, each an override expression the backend compiler folds. Without a class
- * — the module compiled alone — every feature is off.
+ * Pipeline overrides of the resolve: the class key and one boolean per feature, each an override
+ * expression the backend compiler folds. Without a class — the module compiled alone — every
+ * feature is off.
  */
 export const MATERIAL_CLASS_WGSL = wgslBlock(
   'MATERIAL_CLASS_WGSL',
-  [visPageIndex, visRowIn],
+  [],
   `override CLASS_KEY:u32=0u;
-override SINGLE_CLASS:bool=false;
 ${Object.entries(CLASS_FEATURE)
   .map(([name, bit]) => `override ${name}:bool=(CLASS_KEY&${bit}u)!=0u;`)
-  .join('\n')}
-/** A pixel's class key plus one, read off the page table, zero on the background: what the
- *  material tiles (\`materialTilesWgsl.ts\`) list a pixel under. */
-fn materialClassOf(id:u32)->u32{
+  .join('\n')}`,
+)
+
+/** A pixel's class key plus one, read off the page table (`pages`, the host's, and its uniform's
+ *  `pageCount`), zero on the background and past the table (`visRowIn`): what the shading bins
+ *  sort a pixel by (`shadeBinsWgsl.ts`). */
+export const MATERIAL_CLASS_OF_WGSL = wgslBlock(
+  'MATERIAL_CLASS_OF_WGSL',
+  [visPageIndex, visRowIn],
+  `fn materialClassOf(id:u32)->u32{
  if(!visRowIn(id,uni.pageCount)){return 0u;}
  return pages[visPageIndex(id)].materialClass+1u;
-}
-/** Whether this pipeline's class resolves the pixel of identifier \`id\`: not the background, a
- *  page of the table (\`visRowIn\`), and of the class — the image's only class needs no read of
- *  it. Every resolve stage asks it before any write: storage writes are not attachments, nothing
- *  else keeps another class's pixels from them. */
-fn classAdmits(id:u32)->bool{
- if(!visRowIn(id,uni.pageCount)){return false;}
- return SINGLE_CLASS||pages[visPageIndex(id)].materialClass==CLASS_KEY;
 }`,
 )

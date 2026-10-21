@@ -9,7 +9,6 @@ import { Mat } from '../../materials/texture/shaderRunMatrix.fixture.ts'
 import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { FLAG_HAS_COLOR, FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_MASK, FLAG_SAMPLED } from '../types.ts'
-import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 type Vec = number[]
 type Out = { tc: Vec }
@@ -32,33 +31,27 @@ const pageOf = (flags: number, cut: number, dashed: boolean) => ({
   indexCount: 3,
   world: IDENTITY,
   packedBase: 0,
-  hizSlot: 0xffffffff,
   material: { cut, opacity: 1, dash: dashed ? [0.5, 0.5] : [0, 0], mapIndex: 0 },
 })
 
 /** The shipped stages, translated once, over `pages[0]`; each UV read counted. */
 const pages: object[] = [],
   reads = { uv: 0 }
-const run = shaderRun<Run>(
-  VIS_SHADER,
-  ['vis_vs', 'hardwareIdle', 'maskKeep', 'lineDash', 'floorMod'],
-  {
-    pages,
-    uni: { viewProj: IDENTITY, computeSpan: 0 },
-    drawBatch: () => [0, 0],
-    pageHeaderFor: () => ({}),
-    pageSurfaceRead: () => true,
-    pageShape: () => ({ sprite: [0, 0], lineWidth: 0 }),
-    materialAt: (record: object) => record,
-    hardwareCorner: (_page: unknown, _h: unknown, vertex: number) => vertex,
-    NO_INDEX,
-    pagePosition: () => [0, 0, 0],
-    pageUv: () => (reads.uv++, [...UV]),
-    pageMaskAlpha: () => ALPHA,
-    // The map's alpha is the UV's first coordinate: a cutout read at another UV answers otherwise.
-    maskAlpha: (_map: number, uv: Vec) => uv[0],
-  },
-)
+const run = shaderRun<Run>(VIS_SHADER, ['vis_vs', 'maskKeep', 'lineDash', 'floorMod'], {
+  pages,
+  uni: { viewProj: IDENTITY },
+  drawBatch: () => [0, 0],
+  pageHeaderFor: () => ({}),
+  pageSurfaceRead: () => true,
+  pageShape: () => ({ sprite: [0, 0], lineWidth: 0 }),
+  materialAt: (record: object) => record,
+  pageCorner: (_page: unknown, _h: unknown, vertex: number) => vertex,
+  pagePosition: () => [0, 0, 0],
+  pageUv: () => (reads.uv++, [...UV]),
+  pageMaskAlpha: () => ALPHA,
+  // The map's alpha is the UV's first coordinate: a cutout read at another UV answers otherwise.
+  maskAlpha: (_map: number, uv: Vec) => uv[0],
+})
 
 /** What the vertex handed on while every row with UVs did: the UV, then a masked row's alpha. */
 function everyUv(flags: number): Vec {

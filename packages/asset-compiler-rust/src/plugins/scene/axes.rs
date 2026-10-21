@@ -27,7 +27,7 @@ pub(super) fn root(meters_per_unit: f64, z_up: bool) -> [f64; 16] {
 /// a matrix with a NaN or infinite component, which no node can carry — reported once.
 pub(super) fn node_matrix(
     matrix: [f64; 16],
-    report: &mut crate::import::Report,
+    report: &mut crate::plugins::scene::convert::Report,
 ) -> Option<[f64; 16]> {
     if !matrix.iter().all(|value| value.is_finite()) {
         report.add(super::codes::TRANSFORM_INVALID);
@@ -43,7 +43,7 @@ mod tests {
 
     #[test]
     fn node_matrix_omits_the_identity_and_reports_a_non_finite_matrix() {
-        let mut report = crate::import::Report::default();
+        let mut report = crate::plugins::scene::convert::Report::default();
         assert_eq!(node_matrix(IDENTITY, &mut report), None);
         let moved = translation([0.0, 1.0, 0.0]);
         assert_eq!(node_matrix(moved, &mut report), Some(moved));

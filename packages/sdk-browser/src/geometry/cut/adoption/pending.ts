@@ -4,6 +4,7 @@ import { createDenseKeySet } from './denseKeys.ts'
 import { createSparseInts } from '../sparseInts.ts'
 import { awaitsClosure, awaitsPageBytes, hasPage } from '../../rows/page/pageSlots.ts'
 import { createPageCatalogue, type PageList } from '../../selection/catalogue.ts'
+import { byRank } from '../../residency/coverHolders.ts'
 
 /**
  * Pages of the requested cut that do not yet have their bytes, held from one image to the next.
@@ -14,9 +15,11 @@ import { createPageCatalogue, type PageList } from '../../selection/catalogue.ts
  *
  * The set only moves here of what moves: the pages the cut difference names, and those whose
  * bytes just arrived or left — which the rank journal already names. `records` is the list of
- * missing records the pool accepted, and only the missing ones are walked: the rule that turns
- * them into addresses is everyone's (`collectPendingUrls`), not a copy. Membership in the cut is
- * that of the difference, to which this set is attached once and for all.
+ * missing records the pool accepted, in the order the streaming started them (`queueRank`: the
+ * cover, then the pages started, highest priority first, `../../residency/streamedPages.ts`), so
+ * the host fetches what the view misses most first; only the missing ones are walked: the rule
+ * that turns them into addresses is everyone's (`collectPendingUrls`), not a copy. Membership in
+ * the cut is that of the difference, to which this set is attached once and for all.
  */
 export function createCutPending(
   packedPages: PageList,
@@ -26,6 +29,8 @@ export function createCutPending(
   acceptedRevision: () => number = () => 0,
   /** The first packed rank of a record: one record serves many placements (#1235). */
   rankOf: (rec: PageRec) => number = () => -1,
+  /** Where a record stands in the upload queue, the lowest fetched first. */
+  queueRank: (rec: PageRec) => number = () => 0,
 ) {
   /** A packed rank back to its record: the one catalogue accessor (`../../selection/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages)
@@ -36,18 +41,27 @@ export function createCutPending(
     awaited: [],
     dependents: createDenseKeySet(),
     named: createSparseInts(),
-    ...{ settle: false, rescan: false, stale: true, revision: 0 },
+    ...{ settle: false, rescan: false, stale: true, revision: 0, ranked: true },
   }
   return {
-    /** Records the pool accepted that still await their bytes or those of their closure, and their
-     *  count: the held image only reads that count. */
+    /** Records the pool accepted that still await their bytes or those of their closure, in the
+     *  queue's order, and their count: the held image only reads that count. */
     get records() {
       reconcile(s)
+      if (!s.ranked) {
+        byRank(s.awaited, queueRank)
+        s.ranked = true
+      }
       return s.awaited
     },
     get count() {
       reconcile(s)
       return s.awaited.length
+    },
+    /** What the pool accepted, as one number that moves with it: a reader that keeps the list
+     *  compares it, the pool taking pages on without the cut moving. */
+    get accepted() {
+      return s.acceptedRevision()
     },
     /** Bytes of the sets above, all sized by the cut. */
     get hostBytes() {
@@ -89,6 +103,8 @@ type PendingState = {
   /** The awaited list no longer matches `missing` or `accepted`. */
   stale: boolean
   revision: number
+  /** The awaited list stands in the queue's order: false once rebuilt, until `records` reads it. */
+  ranked: boolean
 }
 
 function name(s: PendingState, id: number, step: number) {
@@ -118,6 +134,7 @@ function reconcile(s: PendingState) {
   if (!s.stale && now === s.revision) return
   s.stale = false
   s.revision = now
+  s.ranked = false
   s.awaited.length = 0
   for (let i = 0; i < missing.count; i++) if (s.accepted(records[i])) s.awaited.push(records[i])
 }

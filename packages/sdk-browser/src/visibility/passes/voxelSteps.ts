@@ -5,7 +5,7 @@ const VOXEL_STEPS_BYTES = 16
 
 /** The voxel trace's cost as the GPU last sampled it: the frame, the mean and the most DDA steps a
  *  counted pixel took (`VOXEL_STEPS_WGSL`). */
-export type VoxelStepsFrame = { frame: number; mean: number; max: number }
+type VoxelStepsFrame = { frame: number; mean: number; max: number }
 
 /**
  * The voxel trace's counters (`VOXEL_STEPS_WGSL`): the buffer the resolve binds, which frame counts

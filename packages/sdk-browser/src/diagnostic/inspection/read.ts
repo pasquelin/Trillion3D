@@ -1,7 +1,7 @@
 import { captureRead } from '../../gpu/core/heldReadback.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { inspectedCamera, type InspectedView } from './camera.ts'
-import { inspectedClusters, slotsRead, snapshotClusters } from './clusters.ts'
+import { inspectedClusters, snapshotClusters } from './clusters.ts'
 import { inspectedLights } from './lights.ts'
 import {
   decodeReflections,
@@ -11,6 +11,7 @@ import {
 } from './reflections.ts'
 import { decodeShadowMap, shadowTableRows, snapshotShadowMaps } from './shadows.ts'
 import type { FrameInspection } from './types.ts'
+import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 
 /** The inspection each runtime awaits, until its image is read. */
 const asked = new WeakMap<WebgpuPagesRuntime, Promise<FrameInspection | null>>()
@@ -18,12 +19,12 @@ const asked = new WeakMap<WebgpuPagesRuntime, Promise<FrameInspection | null>>()
 /**
  * What the main view's next image computes, and where (`FrameInspection`): asked here, read right
  * after that image is submitted (`../../frame/render/encoder.ts`, `run.inspect`) and before any view
- * aside overwrites what the views share — the occlusion verdicts, the page table. One request
+ * aside overwrites what the views share — the page table. One request
  * serves every caller until it is read; the image is drawn even where the view would have held.
  * `null` for a session lost or closed before it.
  *
  * Cost: none until asked — the frame tests one absent callback. Asked, the CPU copies the cut's
- * lists and places its boxes, and the device copies the verdict words, the page table's rows the
+ * lists and places its boxes, and the device copies the page table's rows the
  * maps hold and one reflection texel in `stride`², all at once through the capture ring
  * (`captureRead`), mapped a frame or so later; the frame never waits for it.
  */
@@ -58,11 +59,9 @@ const viewOf = (cam: InspectedView & { projection: Float64Array }) => ({
   perspective: cam.perspective,
 })
 
-/** The device words of an inspection, copied behind the image at once: the verdicts, the page
- *  table's rows, the reflection samples, in that order. */
+/** The device words of an inspection, copied behind the image at once: the page table's rows,
+ *  the reflection samples, in that order. */
 type DeviceWords = {
-  flags?: GPUBuffer
-  verdictBytes: number
   table?: GPUBuffer
   tableBytes: number
 }
@@ -76,9 +75,8 @@ async function readWords(
   grid: ReturnType<typeof sampleGrid> | undefined,
   signal: AbortSignal,
 ) {
-  const { verdictBytes, tableBytes } = words,
-    samplesAt = verdictBytes + tableBytes,
-    total = samplesAt + (grid ? sampleBytes(grid) : 0)
+  const { tableBytes } = words,
+    total = tableBytes + (grid ? sampleBytes(grid) : 0)
   if (total === 0) return new ArrayBuffer(0)
   let made: ReturnType<typeof encodeReflectionSamples> | undefined
   try {
@@ -87,13 +85,11 @@ async function readWords(
       total,
       'Trillion3D frame inspection',
       (encoder, staging) => {
-        if (words.flags) encoder.copyBufferToBuffer(words.flags, 0, staging, 0, verdictBytes)
-        if (words.table)
-          encoder.copyBufferToBuffer(words.table, 0, staging, verdictBytes, tableBytes)
+        if (words.table) encoder.copyBufferToBuffer(words.table, 0, staging, 0, tableBytes)
         if (!reflection || !grid) return
         const { grids, trace } = reflection
         made = encodeReflectionSamples(device, encoder, grids, trace.parity, grid)
-        encoder.copyBufferToBuffer(made.samples, 0, staging, samplesAt, total - samplesAt)
+        encoder.copyBufferToBuffer(made.samples, 0, staging, tableBytes, total - tableBytes)
       },
       (mapped) => mapped.slice(0, total),
       signal,
@@ -106,7 +102,7 @@ async function readWords(
 /** The main view's image just submitted, read: its CPU state taken now, its device words copied
  *  behind it. */
 async function readInspection(rt: WebgpuPagesRuntime): Promise<FrameInspection | null> {
-  const { run, gpu, lights, vis } = rt,
+  const { run, gpu, lights } = rt,
     device = gpu.device
   if (!device) return null
   const cam = viewOf(run.gate.cam),
@@ -114,41 +110,32 @@ async function readInspection(rt: WebgpuPagesRuntime): Promise<FrameInspection |
     frame = run.frame,
     camera = inspectedCamera(cam),
     cutCamera = run.cullView ? inspectedCamera(run.cullView.camera) : camera
-  const clusters = snapshotClusters(rt),
-    flags = vis.gpuHiz?.flags
+  const clusters = snapshotClusters(rt)
   const vsm = lights.vsm,
     maps = vsm
       ? snapshotShadowMaps(vsm.state.cache.entries.values(), (id) => lights.store.light(id)?.kind)
       : []
   const [tableWidth, tableHeight] = vsm?.res.layout.pageTableSize ?? [0, 0]
-  // The reflections of a perspective view alone: an orthographic one has no eye ray to place them
-  // on.
-  const reflection = cam.perspective === 1 ? gpu.reflection : undefined
+  // The reflections of a perspective view of the lit image alone: an orthographic one has no eye
+  // ray to place them on, and a view of no lit image traces none (`encodeReflections`).
+  const reflection = cam.perspective === 1 && drawsLit(run.diagnostic) ? gpu.reflection : undefined
   const rays = reflection?.grids.textures.at(-1)
   const grid = rays && sampleGrid(rays.width, rays.height)
-  const verdictBytes = flags ? Math.min(slotsRead(clusters) * 4, flags.size) : 0,
-    tableBytes = Math.min(shadowTableRows(maps), tableHeight) * tableWidth * 4
+  const tableBytes = Math.min(shadowTableRows(maps), tableHeight) * tableWidth * 4
   const table = vsm?.res.current.pageTable
-  const words = await readWords(
-    device,
-    { flags, verdictBytes, table, tableBytes },
-    reflection,
-    grid,
-    rt.signal,
-  )
-  const samplesAt = verdictBytes + tableBytes
+  const words = await readWords(device, { table, tableBytes }, reflection, grid, rt.signal)
   return {
     frame,
     camera,
     cutCamera,
     frozen: cutCamera !== camera,
-    clusters: inspectedClusters(clusters, new Uint32Array(words, 0, verdictBytes / 4)),
+    clusters: inspectedClusters(clusters),
     shadows: maps.map((map) =>
-      decodeShadowMap(map, new Uint32Array(words, verdictBytes, tableBytes / 4), tableWidth),
+      decodeShadowMap(map, new Uint32Array(words, 0, tableBytes / 4), tableWidth),
     ),
     reflections: grid
       ? decodeReflections(
-          new Float32Array(words, samplesAt, (words.byteLength - samplesAt) / 4),
+          new Float32Array(words, tableBytes, (words.byteLength - tableBytes) / 4),
           grid.count,
           grid.stride,
           cam,

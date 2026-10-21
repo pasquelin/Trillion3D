@@ -39,19 +39,14 @@ test('the GPU cut keeps choosing over missing pages, and covers each leaf once',
   assert.ok(first.length > 0, 'the first frame draws a cut')
   assert.notEqual(hole(first.slice(1)), -1, 'a missing page must read as a hole')
   assert.notEqual(hole([...first, 'root']), -1, 'a page with its ancestor must read as overdraw')
-  // The engine raises the pool to its floor — the root cover and the pages the root groups
-  // replace: residency is still the bottleneck while it stays at that floor, below the strip's
-  // pages.
-  const events = reading.events ?? []
-  const floor = events.find((e) => e.phase === 'minimum-capacity')?.context as
-    { floorPages?: number } | undefined
-  const capacity = Math.max(2, floor?.floorPages ?? 0)
+  // The pool holds the root cover beside its two streaming slots: residency stays the bottleneck,
+  // below the strip's pages.
   for (const { frame, drawn, residentPages, clusters } of frames) {
     assert.equal(hole(drawn), -1, `frame ${frame}: a leaf is not covered once by ${drawn}`)
     // Residency must be the bottleneck, or no ancestor stands in for a missing page.
     assert.ok(
-      (residentPages ?? 0) <= capacity && (residentPages ?? 0) < strip.pages.length,
-      `frame ${frame}: ${residentPages} resident pages for a floor of ${capacity}`,
+      (residentPages ?? 0) < strip.pages.length,
+      `frame ${frame}: ${residentPages} resident pages of ${strip.pages.length}`,
     )
     assert.ok((clusters ?? 0) > 0, `frame ${frame}: empty cut`)
   }

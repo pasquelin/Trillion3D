@@ -12,7 +12,6 @@ import {
   VSM_RENDER_ARGS_TIER_EXPAND,
   VSM_RENDER_CORNER_TIERS,
   VSM_RENDER_TIERS,
-  VSM_RENDER_VOXEL_TIER,
 } from './renderParamsWgsl.ts'
 import type { PreparedPipeline } from '../../../deferred/fullscreen.ts'
 import { VSM_RENDER_EXPAND_SPECS } from './renderExpandWgsl.ts'
@@ -98,7 +97,7 @@ function encodeVsmChunkRaster(
 function tiersDrawn(ctx: VsmRenderContext, voxels: boolean) {
   if (!voxels) return VSM_RENDER_CORNER_TIERS
   let ready = true
-  for (let t = VSM_RENDER_VOXEL_TIER; t < VSM_RENDER_TIERS; t++) {
+  for (let t = VSM_RENDER_CORNER_TIERS; t < VSM_RENDER_TIERS; t++) {
     const raster = ctx.raster.tiers[t],
       expand = ctx.expands[t].prepared
     if (raster.ready && expand.ready) continue
@@ -110,15 +109,17 @@ function tiersDrawn(ctx: VsmRenderContext, voxels: boolean) {
 }
 
 /**
- * The candidates' kernel over `rowCount` rows, then, for each of `chunks` — one at least, the rows
- * being some (`encodeVsmRender`) —, its compute pass (the cull and the expand) and its raster
- * pass. The candidates open chunk 0's pass: its dispatches read what theirs wrote, as a following
- * pass would, and no command of the encoder lies between them.
+ * The candidates' kernel over `rowCount` rows, the camera cut's world switch bound by `world`
+ * (`vsmWorldGroup`), then, for each of `chunks` — one at least, the rows being some
+ * (`encodeVsmRender`) —, its compute pass (the cull and the expand) and its raster pass. The
+ * candidates open chunk 0's pass: its dispatches read what theirs wrote, as a following pass
+ * would, and no command of the encoder lies between them.
  */
 export function vsmEncodeChunks(
   encoder: GPUCommandEncoder,
   ctx: VsmRenderContext,
   groups: RasterTables,
+  world: GPUBindGroup,
   pageGroup: GPUBindGroup,
   args: GPUBuffer,
   rowCount: number,
@@ -133,6 +134,7 @@ export function vsmEncodeChunks(
     first,
     ctx.candidates.pipeline,
     groups.cand,
+    world,
     ctx,
     groups.chunk,
     rowCount,

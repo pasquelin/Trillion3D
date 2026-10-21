@@ -1,0 +1,156 @@
+use super::*;
+
+#[test]
+fn every_group_owns_its_children_and_its_coarse_replacement() {
+    let (positions, indices) = grid(160);
+    let (dag, groups, ..) = build_of(&positions, &indices);
+    assert!(!groups.is_empty());
+    let mut owned = vec![0usize; dag.len()];
+    let mut produced = vec![0usize; dag.len()];
+    for (index, group) in groups.iter().enumerate() {
+        assert!(!group.children.is_empty() && !group.outputs.is_empty());
+        for &child in &group.children {
+            owned[child] += 1;
+            assert_eq!(
+                dag[child].group,
+                Some(index),
+                "a cluster must name the group that replaces it"
+            );
+            assert_eq!(dag[child].parent_error, group.error);
+            assert_eq!(dag[child].parent_sphere, group.sphere);
+        }
+        for &output in &group.outputs {
+            produced[output] += 1;
+            assert_eq!(
+                dag[output].lod_error, group.error,
+                "an output carries the error of the group that made it"
+            );
+            assert_eq!(dag[output].sphere, group.sphere);
+            assert_eq!(dag[output].level, group.level);
+            assert_eq!(
+                dag[output].source,
+                Some(index),
+                "an output must name the group that made it"
+            );
+        }
+    }
+    for (index, cluster) in dag.iter().enumerate() {
+        assert_eq!(
+            owned[index],
+            if cluster.is_root() { 0 } else { 1 },
+            "a cluster belongs to exactly one group unless it is a root"
+        );
+        assert!(
+            produced[index] <= 1,
+            "a cluster is produced by at most one group"
+        );
+        assert_eq!(
+            produced[index] == 0,
+            cluster.level == 0,
+            "only level 0 has no producing group"
+        );
+    }
+}
+
+#[test]
+fn a_group_and_its_replacement_cover_the_same_triangles_once() {
+    // Fallback safety: swapping a group's children for its outputs must not leave or duplicate area.
+    let (source, indices) = grid(160);
+    // The clusters index the source's vertices, then those the reductions placed.
+    let (dag, groups, _, positions) = build_of(&source, &indices);
+    let area = |ids: &[u32]| -> f64 {
+        ids.as_chunks::<3>()
+            .0
+            .iter()
+            .map(|tri| {
+                let p = |id: u32| {
+                    let i = id as usize * 3;
+                    [
+                        positions[i] as f64,
+                        positions[i + 1] as f64,
+                        positions[i + 2] as f64,
+                    ]
+                };
+                trillion3d_math::geometry::triangle::triangle_area(p(tri[0]), p(tri[1]), p(tri[2]))
+            })
+            .sum()
+    };
+    for group in &groups {
+        let fine: f64 = group
+            .children
+            .iter()
+            .map(|&id| area(&dag[id].indices))
+            .sum();
+        let coarse: f64 = group.outputs.iter().map(|&id| area(&dag[id].indices)).sum();
+        assert!(fine > 0.0 && coarse > 0.0);
+        // A planar-ish sheet keeps its area; a curved one loses a little to the flattening.
+        assert!(
+            coarse <= fine * 1.05 && coarse >= fine * 0.80,
+            "group area {fine} became {coarse}"
+        );
+    }
+}
+
+#[test]
+fn a_planar_sheet_keeps_its_exact_level_and_coarsens_within_its_step() {
+    // A plane simplifies without displacing its surface; level 0 must still be emitted.
+    let w = 65usize;
+    let positions: Vec<f32> = (0..w)
+        .flat_map(|y| (0..w).flat_map(move |x| [x as f32, y as f32, 0.0]))
+        .collect();
+    let mut indices = Vec::new();
+    for y in 0..(w - 1) as u32 {
+        for x in 0..(w - 1) as u32 {
+            let a = y * w as u32 + x;
+            indices.extend([
+                a,
+                a + 1,
+                a + w as u32,
+                a + 1,
+                a + 1 + w as u32,
+                a + w as u32,
+            ]);
+        }
+    }
+    let (dag, ..) = build_of(&positions, &indices);
+    let leaves: usize = dag
+        .iter()
+        .filter(|c| c.level == 0)
+        .map(|c| c.triangles())
+        .sum();
+    assert_eq!(
+        leaves,
+        indices.len() / 3,
+        "level 0 must keep the exact cover even when every error is zero"
+    );
+    assert!(
+        dag.iter().any(|c| c.level > 0),
+        "a plane must still coarsen"
+    );
+    // A collapse inside a plane displaces no surface, so no level may lift it by as much as the
+    // distance between two of its own vertices, the only length the sheet carries. What the
+    // simplifier reports on a plane is rounding, not exactly nil; it stays two orders of magnitude
+    // under the step.
+    let step = 1.0;
+    let worst = dag
+        .iter()
+        .map(|c| c.lod_error)
+        .filter(|error| error.is_finite())
+        .fold(0.0, f64::max);
+    assert!(worst < step * 1e-2, "a plane coarsened by {worst}");
+}
+
+#[test]
+fn build_honours_cancellation() {
+    let (positions, indices) = grid(32);
+    let error = build_dag(
+        &positions,
+        DagAttributes::default(),
+        &indices,
+        DagStrategy::QemEndpoints,
+        &|| Err(invalid("cancelled")),
+    )
+    .err()
+    .expect("cancelled");
+    assert!(error.to_string().contains("cancelled"));
+}

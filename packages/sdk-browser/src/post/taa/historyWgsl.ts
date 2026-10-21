@@ -10,7 +10,7 @@ export const MAX_HISTORY_SAMPLES = 16
 /** The display histories' resolution per axis, of the display's: they are made at its size
  *  (`createTaaHistoryTargets`, `allocate`d at the display size), so a history pixel is a display
  *  pixel (`historySampleLaws`). */
-export const HISTORY_TO_DISPLAY = 1
+const HISTORY_TO_DISPLAY = 1
 /** The most a history keeps after a full shading rejection, in samples of a display pixel: two,
  *  enough to damp the new shading's first noisy image without dragging the old one along. */
 const REJECTED_SAMPLES = 2
@@ -29,7 +29,7 @@ const MOVING_PIXEL_SPEED = 1
  * sliding `MOVING_PIXEL_SPEED` display pixels `MOVING_SAMPLES` of one (`movingDrop`) — each a
  * display pixel's samples over that square —, the speed read in display pixels (`speedInverse`).
  */
-export function historySampleLaws(historyToDisplay: number) {
+function historySampleLaws(historyToDisplay: number) {
   const square = historyToDisplay * historyToDisplay
   const samples = MAX_HISTORY_SAMPLES / square
   const hysteresis = 1 / samples

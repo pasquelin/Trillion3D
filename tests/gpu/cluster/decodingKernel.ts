@@ -4,6 +4,7 @@
 // page-table row —, then a readback. The page sits at a non-zero word offset, as in the engine's
 // pool: the addressing is proved too, not only the arithmetic.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
+import { MAX_UV_SETS } from '../../../packages/sdk-core/src/page/format.ts'
 import { COTANGENT_FRAME_WGSL } from '../../../packages/sdk-browser/src/geometry/cluster/cotangentFrameWgsl.ts'
 import { PAGE_GEOMETRY_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageWgsl.ts'
@@ -18,8 +19,8 @@ import { PAGE_INFO } from '../../../packages/sdk-browser/src/visibility/pageInfo
 /** Word the page sits at in its slot: never zero, so an accessor that forgot the offset fails. */
 const SLOT_WORDS = 13
 
-/** Words a decoded vertex occupies in the readback: position, normal, uv, uv1, colour. */
-export const VERTEX_WORDS = 14
+/** Words a decoded vertex occupies in the readback: position, normal, the four texture sets, colour. */
+export const VERTEX_WORDS = 18
 /** Words a triangle occupies: its three corners, then the tangent and bitangent of its frame. */
 export const TRIANGLE_WORDS = 9
 
@@ -45,8 +46,8 @@ fn put(at:u32,v:f32){out[at]=bitcast<u32>(v);}
   let p=pagePosition(page,h,i);put(base,p.x);put(base+1u,p.y);put(base+2u,p.z);
   let n=clusterNormal(h,slot,i);put(base+3u,n.x);put(base+4u,n.y);put(base+5u,n.z);
   let t=pageUv(page,h,i);put(base+6u,t.x);put(base+7u,t.y);
-  let s=clusterUv1(h,slot,i);put(base+8u,s.x);put(base+9u,s.y);
-  let c=clusterColor(h,slot,i);put(base+10u,c.x);put(base+11u,c.y);put(base+12u,c.z);put(base+13u,c.w);
+  for(var k=1u;k<${MAX_UV_SETS}u;k++){let s=clusterUv(h,slot,i,k);put(base+6u+2u*k,s.x);put(base+7u+2u*k,s.y);}
+  let c=clusterColor(h,slot,i);put(base+14u,c.x);put(base+15u,c.y);put(base+16u,c.z);put(base+17u,c.w);
  }
  if(i<h.indexCount/3u){
   let a=pageCorner(page,h,i*3u);let b=pageCorner(page,h,i*3u+1u);let c=pageCorner(page,h,i*3u+2u);

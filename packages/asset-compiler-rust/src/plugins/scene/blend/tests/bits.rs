@@ -11,7 +11,7 @@ const ROOF: &str = "d69cd9fe25f1404f21749971265c8e853e7c098b623e939dcc4793120382
 /// SHA-256 of the bits, in order: one string that moves with any of them.
 fn digest(bits: impl IntoIterator<Item = u32>) -> String {
     let bytes: Vec<u8> = bits.into_iter().flat_map(u32::to_le_bytes).collect();
-    crate::compiler_digest::hash(&bytes)
+    crate::compiler::cache::digest::hash(&bytes)
 }
 
 /// The fixture with all edges soft and each object posed in its own rotation mode: quaternion,

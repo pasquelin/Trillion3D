@@ -2,7 +2,7 @@
   "layout": "one case per line, read line by line: never reformatted",
   "regenerate": "pnpm run golden:write",
   "oct_encode": {
-    "about": "a normal to two octahedral bytes, x low and y high, the best of the four neighbouring cells; a zero or non-finite one +z (page-codec-wasm bits/oct.rs oct_encode, the compiler's)",
+    "about": "a normal to two octahedral bytes, x low and y high, the best of the four neighbouring cells; a zero or non-finite one +z (trillion3d-math vector/octahedral.rs oct_encode, the compiler's voxel bricks)",
     "inputs": "normal: 3 f32",
     "outputs": "1 u32",
     "cases": [
@@ -277,7 +277,7 @@
     ]
   },
   "oct_decode": {
-    "about": "two octahedral bytes, x low and y high, back to a unit normal (page-codec-wasm bits/oct.rs oct_decode, sdk-browser cluster decode WGSL)",
+    "about": "two octahedral bytes, x low and y high, back to a unit normal (trillion3d-math vector/octahedral.rs oct_decode, sdk-browser voxel WGSL)",
     "inputs": "q: u32",
     "outputs": "3 f32",
     "cases": [
@@ -2332,7 +2332,7 @@
     ]
   },
   "oct_round_trip": {
-    "about": "a normal encoded then decoded, the normal a page reader draws (oct_decode of oct_encode)",
+    "about": "a normal encoded then decoded, the normal a voxel's reader draws (oct_decode of oct_encode)",
     "inputs": "normal: 3 f32",
     "outputs": "3 f32",
     "cases": [

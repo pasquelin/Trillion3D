@@ -1,5 +1,5 @@
 /**
- * The world HLOD's records as the cook writes them (`compiler_world_roots/records.rs`), for a test
+ * The world HLOD's records as the cook writes them (`chain/records.rs`), for a test
  * that hands the reader a table or a DAG it states plainly: a header, fixed-size records, then the
  * `u32` pool their lists lie in.
  */
@@ -12,6 +12,12 @@ import { WORLD_ROOTS_VERSION } from '../contracts/writtenFormats.ts'
 export type WorldRootsSpec = Omit<WorldRoots, 'pages'> & {
   pages: { bundle: number; offset: number; bytes: number; level: number; lodError: number }[]
 }
+
+/** The rows of `cells` HLOD cells whose actors place none (`WorldRoots.rows`). */
+export const noRows = (cells: number): WorldRoots['rows'] => ({
+  bundle: new Int32Array(cells).fill(-1),
+  count: new Uint32Array(cells),
+})
 
 /** A records file being written: little-endian words, `f64`s, raw bytes, and the pool. */
 function writer(magic: string) {
@@ -28,6 +34,7 @@ function writer(magic: string) {
     word: (...values: number[]) => void parts.push(bytesOf(values, false)),
     float: (...values: number[]) => void parts.push(bytesOf(values, true)),
     raw: (bytes: Uint8Array) => void parts.push(bytes),
+    /** `list` in the pool, its first word and its length in the record. */
     pooled(list: readonly number[]) {
       r.word(pool.length, list.length)
       pool.push(...list)
@@ -62,11 +69,20 @@ export function encodeWorldRoots(spec: WorldRootsSpec) {
   spec.hlod.forEach((held, cell) => {
     r.pooled(held)
     const parent = spec.chain.parent[cell]
+    const warmup = spec.chain.actor[cell] & CHAIN_ACTOR.warmup ? 1 : 0
     r.word(
       parent < 0 ? 0xffffffff : parent,
-      spec.chain.level[cell] | (spec.chain.actor[cell] & CHAIN_ACTOR.failed ? 1 << 16 : 0),
+      spec.chain.level[cell] |
+        (warmup << 8) |
+        (spec.chain.rung[cell] << 9) |
+        (spec.chain.grid[cell] << 16),
+      spec.chain.actorLevel[cell],
     )
+    // Its actor's rows: the bundle holding them, none's `u32::MAX`, and their count.
+    const own = spec.rows.bundle[cell]
+    r.word(own < 0 ? 0xffffffff : own, spec.rows.count[cell])
     r.float(...spec.chain.bounds.subarray(6 * cell, 6 * cell + 6))
+    r.float(...spec.chain.content.subarray(6 * cell, 6 * cell + 6))
   })
   const { bytes } = spec.payload
   return r.end((poolWords) => [
@@ -100,7 +116,6 @@ export function encodeWorldRootsDag(
     r.float(...c.min, ...c.max)
     const p = c.page
     r.word(p.bytes, p.vertexCount, p.indexCount, p.flags, p.uncompressedBytes)
-    r.raw(new Uint8Array(Float32Array.of(p.quantizationError).buffer))
   }
   for (const g of groups) {
     r.word(g.level)

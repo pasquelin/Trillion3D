@@ -61,7 +61,7 @@ export function weigh(mesh: HostMesh, weights: readonly number[] | null) {
  *  scale as they are. */
 export function pose(
   node: Object3D,
-  declared: Pick<TableNode, 'matrix' | 'translation' | 'rotation' | 'scale'>,
+  declared: Partial<Pick<TableNode, 'matrix' | 'translation' | 'rotation' | 'scale'>>,
 ) {
   if (declared.matrix) node.applyMatrix4({ elements: declared.matrix })
   else {

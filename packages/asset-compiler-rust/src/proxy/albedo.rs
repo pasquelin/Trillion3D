@@ -1,5 +1,5 @@
-use crate::albedo::Palette;
-use crate::texture_preview::TexturePreview;
+use crate::compiler::materials::albedo::Palette;
+use crate::texture::TexturePreview;
 use serde_json::Value;
 use trillion3d_math::color::srgb_byte_to_linear;
 
@@ -21,5 +21,5 @@ fn average(previews: &[TexturePreview], texture: u64) -> Option<[f64; 3]> {
 
 /// Linear diffuse albedo of each scene material, in `materials` array order.
 pub fn material_albedo(g: &Value, previews: &[TexturePreview]) -> Palette {
-    crate::albedo::palette(g, |texture| average(previews, texture))
+    crate::compiler::materials::albedo::palette(g, |texture| average(previews, texture))
 }

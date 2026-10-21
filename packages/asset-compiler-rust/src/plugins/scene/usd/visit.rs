@@ -5,7 +5,7 @@
 //! that names the data, so two instances of the same prototype cite the same glTF mesh without
 //! walking the prototype separately.
 use super::*;
-use trillion3d_math::linear::uniform_scale;
+use trillion3d_math::matrix::linear::uniform_scale;
 use trillion3d_math::matrix::IDENTITY;
 
 /// Maximum depth of a hierarchy, unfolded instances included.
@@ -102,7 +102,7 @@ fn node(
     }
     if is_light(type_name) {
         if let Some(light) = light::build(world, prim, type_name, scale) {
-            node["extensions"] = crate::import::light_extension(light);
+            node["extensions"] = crate::plugins::scene::convert::light_extension(light);
         }
     }
     let children: Vec<usize> = prim

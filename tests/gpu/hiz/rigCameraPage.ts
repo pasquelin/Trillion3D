@@ -1,9 +1,9 @@
 // A moved host rig on the real engine: the scene does not move, the view does. The camera is the
 // child of a rig the host moves and walks nothing up; the engine's camera-pose contract must
-// resolve the chain. The GPU partition reprojects every resident row's screen rectangle each frame
-// from the matrices the frame sends it, so what is left to prove is the rig resolution: two frames
-// per pose — the one after the move and the one that does not move —, each compared byte for
-// byte to a fresh engine placed at once at the same world pose.
+// resolve the chain. The cut's occlusion projects its boxes each frame from the matrices the frame
+// sends it, so what is left to prove is the rig resolution: two frames per pose — the one after the
+// move and the one that does not move —, each compared byte for byte to a fresh engine placed at
+// once at the same world pose.
 import { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/session/engine/types.ts'
@@ -21,8 +21,8 @@ const differingBytes = (a: Uint8Array, b: Uint8Array) => {
   return n
 }
 
-/** Rows the frame's partition processed: every drawable row, each frame. */
-const rows = (backend: Engine) => countsStep(backend, 'partition')?.rows ?? null
+/** Draw calls the frame encoded: none on a held frame. */
+const draws = (backend: Engine) => countsStep(backend, 'encode')?.drawCalls ?? null
 
 /** A pose rendered by an engine that never saw another, its camera parentless: the witness. */
 async function freshPose(
@@ -39,13 +39,13 @@ async function freshPose(
   }
 }
 
-/** One rig pose: the cut, the rows each frame processed, whether the still frame was held, the
+/** One rig pose: the cut, the draw calls each frame encoded, whether the still frame was held, the
  *  slab's pixels, and the bytes each frame differs from the witness on. */
 interface RigStep {
   x: number
   clusters: number | null | undefined
-  rowsMoved: number | null
-  rowsStill: number | null
+  drawsMoved: number | null
+  drawsStill: number | null
   stillHeld: boolean | null | undefined
   slab: number
   gapMoved: number
@@ -64,15 +64,15 @@ export function runRigCamera() {
         // The host writes the rig and nothing else: neither `updateMatrixWorld` nor the camera.
         rig.position.x = x
         const moved = await image(backend, camera)
-        const rowsMoved = rows(backend)
+        const drawsMoved = draws(backend)
         // Nothing moves any more: the image must stay the witness's, drawn, not held.
         const still = await image(backend, camera)
         const witness = await freshPose(device, x, onDiagnostic)
         steps.push({
           x,
           clusters: moved.metrics.clusters,
-          rowsMoved,
-          rowsStill: rows(backend),
+          drawsMoved,
+          drawsStill: draws(backend),
           stillHeld: still.metrics.frameHeld,
           slab: slabPixels(moved.pixels),
           gapMoved: differingBytes(moved.pixels, witness),

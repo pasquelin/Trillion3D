@@ -12,7 +12,6 @@ import { collectedPages, dynamicWorld } from '../session/world/dynamic/dynamic.f
 import { describePageSlots, pageAddress } from '../geometry/rows/page/pageSlots.ts'
 import { assignDeformationOutputs } from './outputs.ts'
 import { rootCoverage } from '../geometry/selection/selection.ts'
-import { rootChildren } from '../session/memory/minimumCapacity.ts'
 import { pageHomes } from '../geometry/pages/pool/homes.ts'
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../../sdk-core/src/contracts/poolBudgets.ts'
 import { sessionGeometryPool } from '../session/memory/sessionPool.ts'
@@ -53,8 +52,7 @@ async function scene(scale: number) {
 function poolOf({ roots, records }: Awaited<ReturnType<typeof scene>>) {
   const slots = describePageSlots(records)
   const pageBytes = slots.pageBytes
-  const cover = rootCoverage(roots, pageAddress).map(pageAddress)
-  const rootPages = new Set([...cover, ...rootChildren(roots).map(pageAddress)]).size
+  const rootPages = new Set(rootCoverage(roots, pageAddress).map(pageAddress)).size
   const homeBytes = pageHomes(slots.homes)!.bytes,
     small = { maxBufferSize: 2 * homeBytes, maxStorageBufferBindingSize: 2 * homeBytes }
   const uniquePages = Math.max(1, new Set(records.map(pageAddress)).size)

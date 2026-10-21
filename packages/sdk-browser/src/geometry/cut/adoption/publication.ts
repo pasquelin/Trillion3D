@@ -7,7 +7,6 @@ import { markDrawnMirrored } from '../../../frame/backend/helpers.ts'
 import type { GpuCut } from '../../../gpu/core/selection.ts'
 import type { WebgpuResidencySets } from '../../residency/sets.ts'
 import type { WebgpuPagesCore } from '../../../frame/backend/runtime.ts'
-import { createEvictionFeed } from '../../residency/evictionFeed.ts'
 import type { WebgpuView } from '../../../frame/backend/state/view.ts'
 import { captureDrawn } from '../../../frame/view/viewTrade.ts'
 import {
@@ -31,13 +30,10 @@ export function createWebgpuCutPublication(
   rt: WebgpuPagesCore,
   residencySets: WebgpuResidencySets,
   closure: GroupClosure,
-  /** The lower tier (`../../residency/lowerTier.ts`), counted in the host tables: the view ahead's
-   *  requests, below the camera's. */
-  ahead: { offerIds(ids: ArrayLike<number>): void; readonly hostBytes: number },
 ) {
-  const { run, gpu, views } = rt
+  const { run, views } = rt
   const p = publicationOf(rt, residencySets, closure)
-  const cutAdopter = cutAdopterOf(p, ahead)
+  const cutAdopter = cutAdopterOf(p)
   // Before the first readback the image asks the cache for the pinned cover and nothing else.
   // Read here and not retained: this publication's lifetime is that of the engine, and a list that
   // only serves bootstrap has no reason to stay hooked on it. No GPU snapshot ever held it: the
@@ -56,16 +52,15 @@ export function createWebgpuCutPublication(
       }),
     )
   return {
-    followEvictions: createEvictionFeed(rt.layout.packedPages, () => gpu.cache),
     /** Pages of the requested cut that are still waiting for their bytes. */
     cutPending: p.cutPending,
-    hostTableBytes: () => publicationBytes(p, ahead),
+    hostTableBytes: () => publicationBytes(p),
     adoptGpuCut: adoptMain,
     adoptAsideCut: adoptAside,
     /** The drawn view adopts its readback: the main cut's, or its own beside it. */
     adoptViewCut: () => (views.active === views.main ? adoptMain() : adoptAside()),
-    /** Every view's readback last adopted, the drawn capture's apart: what admission ranks
-     *  (`../../residency/requestAdmission.ts`), the capture's first. */
+    /** Every view's readback last adopted, the drawn capture's apart: what the streaming reads its
+     *  requests from (`../../residency/queue.ts`), the capture's first. */
     viewReadbacks: createViewReadbacks(rt),
     /** `view`, not the main one, is released: its cut leaves the union, whatever it held. */
     releaseView(view: WebgpuView) {
@@ -88,14 +83,16 @@ function publicationOf(
   // The drawable cut writes its records itself; `run.shown` is only a copy of it, when adopted.
   const drawnPages: PageRec[] = []
   const drawnDelta = createCutDelta(packedPages, drawnPages)
-  // The cache is asked for the cut closed over its groups; the image waits for what the pool took.
+  // The cache is asked for the cut closed over its groups, in the order the streaming started what
+  // it waits on; the image waits for what the pool took.
   const rankOf = (rec: PageRec) => rows.pageIndexOf(rec) ?? -1
   const cutPending = createCutPending(
     packedPages,
     closure.delta,
     residencySets.accepts,
-    () => residencySets.acceptedRevision,
+    () => residencySets.acceptedRevision + residencySets.rankRevision,
     rankOf,
+    residencySets.queueRank,
   )
   // Every coverage flip — bytes in or out, a slot taken or given — goes through the rank journal.
   rows.watchTouched((page) => cutPending.touch(page))
@@ -107,7 +104,7 @@ function publicationOf(
 
 /** The main view's adopter: readback describes submitted work; the current GPU mask decides what
  *  a moving camera draws. */
-function cutAdopterOf(p: Publication, ahead: { offerIds(ids: ArrayLike<number>): void }) {
+function cutAdopterOf(p: Publication) {
   const { run } = p.rt,
     { cutDelta, drawnDelta, residencySets } = p
   return createWebgpuCutAdopter({
@@ -124,7 +121,6 @@ function cutAdopterOf(p: Publication, ahead: { offerIds(ids: ArrayLike<number>):
     drawnPages: p.drawnPages,
     onDrawnDelta: () => residencySets.applyDrawn(drawnDelta),
     onDrawnMirrored: () => markDrawnMirrored(run),
-    onAhead: ahead.offerIds,
     onCutDelta: () => {
       if (cutDelta.changed) publishCut(p, cutDelta)
       run.pagesEntered = cutDelta.enteredCount
@@ -133,8 +129,8 @@ function cutAdopterOf(p: Publication, ahead: { offerIds(ids: ArrayLike<number>):
   })
 }
 
-/** Bytes of the cut's host tables, the lower tier's and another view's differences included. */
-function publicationBytes(p: Publication, ahead: { readonly hostBytes: number }) {
+/** Bytes of the cut's host tables, another view's differences included. */
+function publicationBytes(p: Publication) {
   const { run, views } = p.rt
   return (
     p.closure.hostBytes +
@@ -143,7 +139,6 @@ function publicationBytes(p: Publication, ahead: { readonly hostBytes: number })
     p.cutDelta.hostBytes +
     p.drawnDelta.hostBytes +
     p.cutPending.hostBytes +
-    ahead.hostBytes +
     // Another view's differences, counted while it is drawn: a capture's live only for its call.
     (views.active === views.main
       ? 0

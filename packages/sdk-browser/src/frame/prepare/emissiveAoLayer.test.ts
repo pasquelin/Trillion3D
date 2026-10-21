@@ -46,31 +46,38 @@ async function opened(emits: boolean) {
   return { gpu, fixture, backend, material }
 }
 
-/** The live half-float surface targets' sizes, the resolve's pipelines and its last pass. */
+/** The live textures labelled `label`. */
+const live = (gpu: Gpu, label: string) =>
+  gpu.textures.filter((t) => t.label === label && !gpu.destroyed.includes(t))
+
+/** The live surface colours' sizes and layers, the live emission stand-ins, the resolve's
+ *  pipelines and its last pass. */
 function surfacesOf(gpu: Gpu) {
-  const layers = gpu.textures
-    .filter((t) => t.label === 'Trillion3D surface v1 rgba16float' && !gpu.destroyed.includes(t))
-    .map(({ width, height }) => `${width}×${height}`)
-  const shade = gpu.renderPipelines
-    .filter(({ fragment }) => fragment?.entryPoint?.startsWith('shade_fs'))
-    .map(({ fragment }) => ({
-      target: [...fragment!.targets][2] ?? null,
-      constant: fragment!.constants?.EMISSIVE_AO,
-    }))
+  const colours = live(gpu, 'Trillion3D surface colours').map(
+    ({ width, height, depthOrArrayLayers }) => `${width}×${height}×${depthOrArrayLayers}`,
+  )
+  const shade = gpu.computePipelines
+    .filter(({ compute }) => compute.entryPoint?.startsWith('shade_cs'))
+    .map(({ compute }) => ({ constant: compute.constants?.EMISSIVE_AO }))
   const pass = gpu.passes.filter(({ label }) => label === MATERIAL_SURFACES_PASS).at(-1)
-  return { layers, shade, slot: pass?.formats[2] }
+  return {
+    colours,
+    standIns: live(gpu, 'Trillion3D emission stand-in'),
+    shade,
+    slot: pass?.formats[2],
+  }
 }
 
 test('an image none of whose surfaces emits or occludes holds a 1×1 stand-in and writes no layer', async () => {
   const { gpu, fixture, backend } = await opened(false)
   try {
-    const seen = surfacesOf(gpu),
-      sets = seen.layers.length / 3
-    // Each frame set: two layers of the frame's size, the third a stand-in.
-    assert.equal(count(seen.layers, '1×1'), sets)
-    assert.equal(count(seen.layers, '32×32'), 2 * sets)
+    const seen = surfacesOf(gpu)
+    // Each frame set: colours of two layers of the frame's size, the third a stand-in.
+    assert.ok(seen.colours.length > 0)
+    assert.equal(count(seen.colours, '32×32×2'), seen.colours.length)
+    assert.equal(seen.standIns.length, seen.colours.length)
     assert.ok(seen.shade.length > 0)
-    for (const pipeline of seen.shade) assert.deepEqual(pipeline, { target: null, constant: 0 })
+    for (const pipeline of seen.shade) assert.deepEqual(pipeline, { constant: 0 })
     assert.equal(seen.slot, '', 'the attachment is empty')
   } finally {
     disposeQuadRun(backend, fixture)
@@ -81,9 +88,9 @@ test('an emitting surface keeps the layer, written by the pipelines of before', 
   const { gpu, fixture, backend } = await opened(true)
   try {
     const seen = surfacesOf(gpu)
-    assert.equal(count(seen.layers, '1×1'), 0)
-    for (const pipeline of seen.shade)
-      assert.deepEqual(pipeline, { target: { format: 'rgba16float' }, constant: undefined })
+    assert.equal(seen.standIns.length, 0)
+    assert.equal(count(seen.colours, '32×32×3'), seen.colours.length)
+    for (const pipeline of seen.shade) assert.deepEqual(pipeline, { constant: undefined })
     assert.equal(seen.slot, 'rgba16float')
   } finally {
     disposeQuadRun(backend, fixture)
@@ -96,10 +103,8 @@ test('a surface made to emit after open brings the layer before the image that d
     gpu.textures.filter((t) => t.label === 'Trillion3D HDR lighting' && !gpu.destroyed.includes(t))
   try {
     const lit = hdr(),
-      before = surfacesOf(gpu).layers,
-      standIn = gpu.textures.find(
-        ({ label, width }) => label === 'Trillion3D surface v1 rgba16float' && width === 1,
-      )!
+      before = surfacesOf(gpu),
+      standIn = before.standIns[0]!
     material.emissive = [0, 0.5, 1]
     surfaceWritten(material)
     backend.refreshMaterials?.(true)
@@ -112,15 +117,17 @@ test('a surface made to emit after open brings the layer before the image that d
     await backend.flush()
     const seen = surfacesOf(gpu)
     assert.equal(seen.slot, 'rgba16float', 'the first image drawn writes the emission')
-    assert.equal(count(seen.layers, '32×32'), count(before, '32×32') + 1, 'the drawn view grew one')
-    // The stand-in replaced is retired, destroyed once the frame that named it is submitted.
-    assert.equal(count(seen.layers, '1×1'), count(before, '1×1') - 1, 'its stand-in retired')
+    // The drawn view's colours are made again with the layer; those replaced and their stand-in
+    // are retired, destroyed once the frame that named them is submitted.
+    assert.equal(count(seen.colours, '32×32×3'), 1, 'the drawn view holds the layer')
+    assert.equal(count(seen.colours, '32×32×2'), count(before.colours, '32×32×2') - 1)
+    assert.equal(seen.standIns.length, before.standIns.length - 1, 'its stand-in retired')
     assert.equal(gpu.destroyed.includes(standIn), true, 'with the frame that replaced it')
     // The classes compiled since write it; the other targets stay in place.
-    assert.deepEqual(seen.shade.at(-1), { target: { format: 'rgba16float' }, constant: undefined })
-    // The scene's one class keeps its direct draw, now writing the layer: no tile classified.
-    const shaded = gpu.draws.filter(({ entryPoint }) => entryPoint?.startsWith('shade_'))
-    assert.equal(shaded.at(-1)?.entryPoint, 'shade_vs', 'drawn whole, as before it emitted')
+    assert.deepEqual(seen.shade.at(-1), { constant: undefined })
+    // The scene's one class shades its bin, now writing the layer, as before it emitted.
+    const shaded = gpu.dispatches.filter(({ entryPoint }) => entryPoint?.startsWith('shade_'))
+    assert.equal(shaded.at(-1)?.entryPoint, 'shade_cs', 'its bin shaded')
     assert.deepEqual(hdr(), lit, 'no frame target remade')
     backend.dispose()
   } finally {

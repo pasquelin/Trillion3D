@@ -1,3 +1,4 @@
+import { appendTo } from '../../../../math/src/sequence/counts.ts'
 import { createFrameKept } from '../streaming/frameKept.ts'
 import type { CellBudget } from './cellsPrime.ts'
 
@@ -56,15 +57,16 @@ type Taking = {
   io: {
     bytes(url: string): Uint8Array | undefined
     failed(url: string): boolean
-    request(urls: readonly string[]): void
+    request(urls: readonly string[], priority?: number): void
   }
   budget: CellBudget
 }
 
 /** Takes each file of `list` whose decode landed while the budget admits it (`taken`: false while
- *  it waits), hands the read ones to `decode`, and asks the unread ones of the streamer — never one
- *  refused for good, which waits for nothing: no frame is drawn again for it. True when one needed
- *  now is left for a later frame. */
+ *  it waits), hands the read ones to `decode`, and asks the unread ones of the streamer — each by
+ *  `priority`'s word for it, the files of one priority together, those of the first listed first;
+ *  never one refused for good, which waits for nothing: no frame is drawn again for it. True when
+ *  one needed now is left for a later frame. */
 export function takeDecoded<Key, Decoded extends object>(
   list: readonly Key[],
   { io, budget }: Taking,
@@ -72,9 +74,10 @@ export function takeDecoded<Key, Decoded extends object>(
   url: (key: Key) => string,
   decode: (bytes: Uint8Array, url: string) => Promise<Decoded>,
   taken: (key: Key, decoded: Decoded) => boolean,
+  priority?: (key: Key) => number | undefined,
 ) {
-  const ask: string[] = []
-  let later = false
+  let ask: Map<number | undefined, string[]> | undefined,
+    later = false
   for (const key of list) {
     const address = url(key)
     if (io.failed(address)) continue
@@ -85,7 +88,7 @@ export function takeDecoded<Key, Decoded extends object>(
     )
     if (!decoded || !budget.admits()) {
       // Asked again while on its way: the frame waits on its landing, never on nothing.
-      if (!files.has(key)) ask.push(address)
+      if (!files.has(key)) appendTo((ask ??= new Map()), priority?.(key), address)
       later = true
       continue
     }
@@ -93,6 +96,6 @@ export function takeDecoded<Key, Decoded extends object>(
     files.drop(key)
     budget.spend()
   }
-  if (ask.length) io.request(ask)
+  if (ask) for (const [by, urls] of ask) io.request(urls, by)
   return later
 }

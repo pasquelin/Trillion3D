@@ -1,16 +1,22 @@
 //! Shared decoder refusals, on pages the encoder would never write, and encoder refusals on
 //! attributes no page may carry.
 
-use trillion3d_page_codec::bits::grid::UV_EXPONENT;
+use trillion3d_page_codec::bits::grid::PageGrid;
 use trillion3d_page_codec::encode::{encode, Attribute};
 use trillion3d_page_codec::HEADER_BYTES;
-use trillion3d_page_codec::{FLAG_NORMAL, FLAG_UV};
+use trillion3d_page_codec::{FLAG_NORMAL, FLAG_UV, MAX_POSITION_BITS, MIN_POSITION_PRECISION};
 
 const TRIANGLE: [f32; 9] = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
+/// A grid of cells a sixteenth of a centimetre.
+const GRID: PageGrid = PageGrid {
+    position: 4,
+    normal: 8,
+    tangent: 7,
+};
 
 #[test]
 fn the_decoder_refuses_what_the_encoder_never_writes() {
-    let good = encode(&[0, 1, 2], &TRIANGLE, &[], -8, UV_EXPONENT)
+    let good = encode(&[0, 1, 2], &TRIANGLE, &[], GRID)
         .expect("encode")
         .bytes;
     assert!(trillion3d_page_codec::decode(&good, 1 << 20).is_ok());
@@ -22,17 +28,18 @@ fn the_decoder_refuses_what_the_encoder_never_writes() {
         trillion3d_page_codec::decode(&forged, 1 << 20).unwrap_err(),
         trillion3d_page_codec::PageError::Index
     );
-    // The widest field on the coarsest grid, from the largest minimum: still a finite float, so
-    // no page needs a nonfinite refusal and the decoder has none. Three corners on one cell make
-    // a single vertex, so the page is its header, the block table's one word (a zero width) and
-    // one word of `x`.
-    let mut extreme = encode(&[0, 1, 2], &[0.0; 9], &[], -8, UV_EXPONENT)
+    // The widest field on the finest grid, from the farthest start: still a finite float, so no
+    // page needs a nonfinite refusal and the decoder has none. Three corners on one cell make a
+    // single vertex, so the page is its header, the block table's one word (a zero width) and one
+    // word of `x`.
+    let mut extreme = encode(&[0, 1, 2], &[0.0; 9], &[], GRID)
         .expect("flat")
         .bytes;
     assert_eq!(extreme.len(), HEADER_BYTES + 4);
-    extreme[24..28].copy_from_slice(&f32::MAX.to_le_bytes());
-    extreme[20] = 24;
-    extreme[23] = 64;
+    let start = i32::MAX - ((1 << MAX_POSITION_BITS) - 1);
+    extreme[24..28].copy_from_slice(&start.to_le_bytes());
+    extreme[20] = MAX_POSITION_BITS as u8;
+    extreme[23] = MIN_POSITION_PRECISION as i8 as u8;
     extreme.extend([0xFFu8; 4]);
     let page = trillion3d_page_codec::decode(&extreme, 1 << 20).expect("finite");
     assert!(page
@@ -59,14 +66,14 @@ fn the_encoder_refuses_nonfinite_and_ill_shaped_attributes() {
     };
     let nan = normal(vec![0.0, 0.0, f32::NAN, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0]);
     assert_eq!(
-        encode(&[0, 1, 2], &TRIANGLE, &[&nan], -8, UV_EXPONENT)
+        encode(&[0, 1, 2], &TRIANGLE, &[&nan], GRID)
             .unwrap_err()
             .code,
         "INVALID_PAGE_ATTRIBUTE"
     );
     let short = normal(vec![0.0; 6]);
     assert_eq!(
-        encode(&[0, 1, 2], &TRIANGLE, &[&short], -8, UV_EXPONENT)
+        encode(&[0, 1, 2], &TRIANGLE, &[&short], GRID)
             .unwrap_err()
             .code,
         "INVALID_PAGE_ATTRIBUTE"
@@ -77,15 +84,13 @@ fn the_encoder_refuses_nonfinite_and_ill_shaped_attributes() {
         values: vec![0.0; 9],
     };
     assert_eq!(
-        encode(&[0, 1, 2], &TRIANGLE, &[&wide], -8, UV_EXPONENT)
+        encode(&[0, 1, 2], &TRIANGLE, &[&wide], GRID)
             .unwrap_err()
             .code,
         "INVALID_PAGE_ATTRIBUTE"
     );
     assert_eq!(
-        encode(&[0, 1], &TRIANGLE, &[], -8, UV_EXPONENT)
-            .unwrap_err()
-            .code,
+        encode(&[0, 1], &TRIANGLE, &[], GRID).unwrap_err().code,
         "INVALID_PAGE"
     );
 }

@@ -6,6 +6,7 @@ import { openingKeeps, sceneThrough, type ExplorerPageSources } from './pageSour
 import { releaseOwned } from './lifecycle.ts'
 import { loadPreparedScene } from '../scene/drive/scene.ts'
 import { primePartitions } from '../scene/drive/partitionFrame.ts'
+import { resolveWorldStreaming } from '../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import type { Inputs } from './prepare.ts'
 
 /** The scene the session draws: the one handed in, or the one the cache prepared, read through
@@ -43,12 +44,14 @@ export async function sessionScene(
 
 /** The pages and cells the first camera reaches, placed before the engine reads their rows: the
  *  first frame draws them (`partitionFrame.ts`, #575). That camera is the page's when it hands one
- *  in (a world), else the framing one, which sees the whole scene. */
+ *  in (a world), else the framing one, which sees the whole scene. The view streams them by
+ *  `streaming`, the session's settings as they stand — those it opened with by default. */
 export async function primeFirstView(
   session: ExplorerSession,
   scene: { partitions: readonly PartitionCells[] },
   camera: HostCamera,
   streamer: ExplorerPageSources['streamer'],
+  streaming = resolveWorldStreaming(session.options),
 ) {
   const { options, scope, signal, diagnose } = session
   if (!scene.partitions.length) return
@@ -58,6 +61,7 @@ export async function primeFirstView(
     streamer,
     !!options.onPartitionOutgrown,
     signal,
+    streaming,
   )
   diagnose('partition', 'Pages and cells read before the first frame', {
     kind: 'preparation',

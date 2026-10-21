@@ -48,7 +48,7 @@ fn a_posed_maya_scene_compiles_to_the_bits_of_the_pre_1150_compiler() {
             .flat_map(|part| part.to_bits().to_le_bytes()),
     );
     assert_eq!(
-        crate::compiler_digest::hash(&bytes),
+        crate::compiler::cache::digest::hash(&bytes),
         PINNED,
         "{:?} {written:?}",
         gltf["nodes"]

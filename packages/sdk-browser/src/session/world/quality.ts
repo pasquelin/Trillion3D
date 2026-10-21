@@ -13,7 +13,7 @@ import {
 } from '../../../../sdk-core/src/runtime/qualityLevels.ts'
 import type { RenderScale } from '../../frame/scale/renderScaleOption.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
-import type { WorldSettings } from './settings.ts'
+import { RULE_FIELDS, type WorldSettings } from './settings.ts'
 
 /** The resolution a world draws at: a mode, or a `scale` of the display per axis that replaces
  *  the mode's, fixed or `dynamic` — the frame budget then picks the scale between half of it and
@@ -78,15 +78,22 @@ export function createWorldQuality(
   const { table } = settings,
     names = Object.keys(table) as (keyof typeof table)[],
     page = new Map<QualityGroup, QualityLevel>()
-  /** The settings each group's levels write: its own, the editor's left out. */
+  /** The settings each group's levels write: its own, the editor's left out, and — a setting
+   *  declared by rule — only those a level of the group's table lists: no level writes the others,
+   *  so a group set or given back never overwrites or clears what the page set of them. */
   const groupNames = new Map(
-    QUALITY_GROUPS.map(
-      (group) =>
-        [
-          group,
-          names.filter((name) => table[name].group === group && !table[name].editorOnly),
-        ] as const,
-    ),
+    QUALITY_GROUPS.map((group) => {
+      const listed = new Set(Object.values(levels[group]).flatMap((values) => Object.keys(values)))
+      return [
+        group,
+        names.filter(
+          (name) =>
+            table[name].group === group &&
+            !table[name].editorOnly &&
+            (!RULE_FIELDS.has(name) || listed.has(name)),
+        ),
+      ] as const
+    }),
   )
   let preset: QualityPreset = 'max'
   /** What `level` of `group` writes into `source`: its values, the defaults where it has none — a

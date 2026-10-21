@@ -55,6 +55,10 @@
 // the uniform block one map count (no single-page count) and none of the page-table row words no
 // shader read, the cover size at word 12, two pad words before the mip offsets; `vsm.render.views`
 // no longer written by the CPU (`render/renderViewsWgsl.ts`), the render parameters carrying its bound.
+// Retaken when the raster took the voxel rows' four tiers beside the five of corners
+// (`VSM_RENDER_TIERS`, `render/renderParamsWgsl.ts`): each chunk's counters and indirect arguments
+// hold three words more per tier and their arguments seven (`chunks/chunkSizing.ts`): those
+// buffers are hashed at their new size and stride; every other buffer kept.
 import { mulberry32 } from '../../../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -62,14 +66,14 @@ import { planFrames, randomWorld } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
-    '3f8e6326efce79e9aec068fb2003abf164249c181a560f70f79cb5c52c403cad',
-    '292e35ab022be2de2ebcb48913e115429a837ff380a4fd69a1a1d32bb56c6740',
-    '256a3224d671b8a4b157424ab16a2b2905c39289ca9740b1ff2451bdeee44056',
+    '52daa154a42412c5c1024a4a485c7768fca965d3de723278e248c0d763f8814b',
+    '4a04dc4437fd2dc56858239e0424cb07beebef3ba1ebc4bf886499a80b3e43fb',
+    '46506dae9f329ded1d8197d96e010c82259dc6107a7844ec021d7f8a8a4afb54',
   ],
   2: [
-    'fbed468038d7cfeb71c59edfee8fb420715004886a6c597e83ee292b6b2e879d',
-    '54122da0c7c4cbbfed02d3d21d9059b46ffb7f147c01cef7a7f7c084d03d7cd7',
-    '8ee3dd4d5b922aec186ea1853a10408636c54e52f7aa13339407cdf213ff11bf',
+    'd5f49a35cdeefa9d2ce16763f98952db9c2a5fd95ca90735075857b278d82d2e',
+    '1ed65ec6dddfc88495e3601ac191f9c0651d84c445446ca82f05d1c1a88b917c',
+    'b73a07a5e7369014087860f09bc4bbde0df4a18c56f1285885f602391c011972',
   ],
 }
 

@@ -1,14 +1,13 @@
 // Packing a world at open costs the primitives, not the placements: a page array placed again on the
-// records it already has writes no record, counts no root cluster and names no content key again;
-// the residency bits with nothing resident come from the shared blank state; the pages read and
-// the records packed are the same words an unshared packing of every placement gives.
+// records it already has writes no record and counts no root cluster again; the residency bits with
+// nothing resident come from the shared blank state; the pages read and the records packed are the
+// same words an unshared packing of every placement gives.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
 import { packDagSelection } from './pack.ts'
 import { scenePages, sceneRoots } from '../cut/cutFrontierScene.fixture.ts'
 import { createDagReadiness } from '../readiness.ts'
-import { createDagPoolList } from '../poolList.ts'
 
 type Reads = { sphere: number; url: number; parentError: number }
 
@@ -47,11 +46,14 @@ test('the page reads of a packing follow the primitives, not the placements', ()
     many: Reads = { sphere: 0, url: 0, parentError: 0 }
   packDagSelection(world(12, 3, few))
   packDagSelection(world(600, 3, many))
-  assert.ok(few.sphere > 0 && few.url > 0 && few.parentError > 0)
+  assert.ok(few.sphere > 0 && few.parentError > 0)
+  // The url is no word of the packing: `pageUrlReader` reads it on demand (the content keys that
+  // walked every page's url are gone).
+  assert.equal(few.url, 0)
   assert.deepEqual(many, few)
 })
 
-test('a placement of a page array packed before shares its records, keys and root clusters', () => {
+test('a placement of a page array packed before shares its records and root clusters', () => {
   const reads: Reads = { sphere: 0, url: 0, parentError: 0 }
   const roots = world(30, 3, reads)
   const packed = packDagSelection(roots)
@@ -79,22 +81,4 @@ test('the blank residency of a placement is the pages its shared state reads rea
     assert.deepEqual(ready, expected(readiness.isReady))
     assert.deepEqual(child, expected(readiness.isChildReady))
   })
-})
-
-test('a cut made beside a pool lists its held pages by asking the keys, never every instance', () => {
-  const roots = world(60, 3, { sphere: 0, url: 0, parentError: 0 })
-  const packed = packDagSelection(roots)
-  const asked: number[] = []
-  const list = createDagPoolList(
-    packed,
-    () => {},
-    (page) => (asked.push(page), true),
-  )
-  assert.ok(asked.length <= packed.keyCount, `${asked.length} asked for ${packed.keyCount} keys`)
-  assert.ok(asked.length < packed.pageCount / 10)
-  assert.equal(
-    list.entries.size,
-    packed.keyCount,
-    'every key is listed once, at its canonical page',
-  )
 })

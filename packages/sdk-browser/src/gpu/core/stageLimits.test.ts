@@ -164,14 +164,14 @@ test("the cut's programs fit WebGPU's default limits, whatever the world", () =>
 test('a device whose binding holds two thirds of the frame words binds the cut at the defaults', () => {
   // The frame-ranges proof's split case (`tests/gpu/dag/frame-ranges.gpu.ts`): its binding holds
   // two thirds of 600 placements' frame words, once past what its stage bound in parts, and
-  // `work` whole: 8,704 bytes for a thousand pages — sixteen blocks of six words, thirty counters
-  // and rows, the eviction sort's 2,050 words (`POOL_SORT_WORDS`); its scratch lies in `flags`.
+  // `work` whole: 668 bytes for a thousand pages — sixteen blocks of eight words, twenty-seven frame
+  // counters and the lists' twelve group words (`dagWorkLayout`).
   const packed = {
     pageCount: 1000,
     nodeCount: 10,
     worldCount: 600,
     ...Object.fromEntries(
-      ['clusters', 'nodes', 'worlds', 'pageCones'].map((name) => [name, new Float32Array(16)]),
+      ['clusters', 'nodes', 'worlds', 'coldWords'].map((name) => [name, new Float32Array(16)]),
     ),
   } as unknown as PackedDag
   // Every other limit at WebGPU's default: the check reads a limit the device leaves out as such.
@@ -180,12 +180,10 @@ test('a device whose binding holds two thirds of the frame words binds the cut a
   withinDefaults([{ bindGroupLayouts: [{ entries: dagBindEntries() }] as never }], 'its culling')
 })
 
-test("both halves of the draw compaction fit WebGPU's default limits", () => {
-  // The tested half reads the page table and the Hi-Z verdicts beside the occluder half's six
-  // storage buffers: eight, the default, the groups' offsets, counts and slot totals in one.
-  for (const tested of [false, true])
-    withinDefaults(
-      [{ bindGroupLayouts: [{ entries: drawBindEntries(tested) }] as never }],
-      tested ? 'the tested draw compaction' : 'the occluder draw compaction',
-    )
+test("the draw compaction fits WebGPU's default limits", () => {
+  // Both halves bind the one layout: the groups' offsets, counts and slot totals in one buffer.
+  withinDefaults(
+    [{ bindGroupLayouts: [{ entries: drawBindEntries() }] as never }],
+    'the draw compaction',
+  )
 })

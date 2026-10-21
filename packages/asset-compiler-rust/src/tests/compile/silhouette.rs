@@ -1,21 +1,25 @@
 //! What six axis cameras see of a cooked cut, against its source.
 //!
 //! A cut at threshold `t` is every page whose own error is at most `t` and whose parent's is above
-//! it: the pages a renderer draws at that distance. Each camera looks along one signed axis and
-//! keeps, per sample, the nearest FRONT face, back faces culled as the renderer culls them. Where
-//! the source covers a whole disc of the cut's error — never under its pages' quantization error —
-//! around a sample, the cut must draw a front
-//! face within that disc, no further than the error behind the source: a wall wider than the error
-//! is neither pruned nor turned away, and a seam narrower than the error may open. The rest of the
-//! mesh, drawn beside the cut, covers for a part the cut removed in front of it, as the cook
-//! measures a removal against it (`physics_cook/hausdorff/backdrop.rs`). Separately, no
-//! cut triangle wider than the error may face against the normals its page decodes at its
-//! corners: a narrower one draws under a pixel wherever the cut is drawn (`dag/quality.rs`).
+//! it: the pages a renderer draws at that distance. On every cut, no triangle wider than the error
+//! may face against the normals its page decodes at its corners: a narrower one draws under a
+//! pixel wherever the cut is drawn (`dag/quality.rs`).
+//!
+//! The finest cut, the source as its pages decode it, must also cover the source's walls. Each
+//! camera looks along one signed axis and keeps, per sample, the nearest front face of the source.
+//! Where the source covers a whole disc of one sample around a sample, the cut must draw a face,
+//! of either side, within that disc, no further than two samples behind the source: the pages' grid
+//! moves a corner, never a wall. The rest of the mesh, drawn beside the cut, covers for a part the
+//! cut removed in front of it, as the cook measures a removal against it
+//! (`physics_cook/hausdorff/backdrop.rs`). A coarser cut is not held to its walls: its error is the
+//! largest cost a collapse paid — plane distances weighed by the area they span, plus the
+//! attributes' differences, plus the area a collapse lost —, which ranks the levels on screen but
+//! bounds no distance a wall may move, so a thin shape's wall may leave a coarse cut by more.
 use super::silhouette_grid::Grid;
 use super::*;
 use crate::proxy::cut::in_cut;
-use trillion3d_math::triangle::triangle_cross;
-use trillion3d_math::vecn::{dot, length, sub};
+use trillion3d_math::geometry::triangle::triangle_cross;
+use trillion3d_math::vector::vecn::{dot, length, sub};
 
 pub(super) type Point = [f64; 3];
 
@@ -45,27 +49,19 @@ impl Mesh {
 }
 
 /// Every cut of `primitive`, finest first: its threshold, what it draws — the pages
-/// `proxy::cut::in_cut` selects, each drawing its mesh of `drawn` (`cooked_pages::drawn`) — and
-/// the largest quantization error of those pages (`geometry.quantizationError`).
-pub(in crate::tests) fn page_cuts(drawn: &[Mesh], primitive: &Value) -> Vec<(f64, Mesh, f64)> {
+/// `proxy::cut::in_cut` selects, each drawing its mesh of `drawn` (`cooked_pages::drawn`).
+pub(in crate::tests) fn page_cuts(drawn: &[Mesh], primitive: &Value) -> Vec<(f64, Mesh)> {
     let pages = primitive["pages"].as_array().expect("pages");
     let error = |page: &Value, key: &str| page[key].as_f64().unwrap_or(f64::INFINITY);
     let mut thresholds: Vec<f64> = pages.iter().map(|p| error(p, "lodError")).collect();
     thresholds.sort_by(f64::total_cmp);
     thresholds.dedup();
-    let cut = |t: f64| -> (f64, Mesh, f64) {
+    let cut = |t: f64| -> (f64, Mesh) {
         let drawn = pages.iter().zip(drawn);
         let drawn: Vec<(&Value, &Mesh)> = drawn
             .filter(|(p, _)| in_cut(error(p, "lodError"), error(p, "parentError"), t))
             .collect();
-        let quantization = (drawn.iter())
-            .filter_map(|(p, _)| p["geometry"]["quantizationError"].as_f64())
-            .fold(0.0, f64::max);
-        (
-            t,
-            Mesh::merged(drawn.iter().map(|(_, mesh)| *mesh)),
-            quantization,
-        )
+        (t, Mesh::merged(drawn.iter().map(|(_, mesh)| *mesh)))
     };
     thresholds.into_iter().map(cut).collect()
 }
@@ -79,10 +75,10 @@ pub(in crate::tests) fn cut_defects(
     mesh: &Mesh,
     rest: &Mesh,
 ) -> Vec<String> {
-    let (low, high) = trillion3d_math::aabb::aabb_of(mesh.positions.iter().copied());
-    let diagonal = trillion3d_math::aabb::diagonal(low, high);
+    let (low, high) = trillion3d_math::geometry::aabb::aabb_of(mesh.positions.iter().copied());
+    let diagonal = trillion3d_math::geometry::aabb::diagonal(low, high);
     let mut defects = Vec::new();
-    for (t, cut, quantization) in page_cuts(drawn, primitive) {
+    for (rank, (t, cut)) in page_cuts(drawn, primitive).into_iter().enumerate() {
         for c in cut.indices.chunks(3) {
             let p = [0, 1, 2].map(|k| cut.positions[c[k] as usize]);
             let n = [0, 1, 2].map(|k| cut.normals[c[k] as usize]);
@@ -96,12 +92,16 @@ pub(in crate::tests) fn cut_defects(
                 defects.push(format!("cut {t}: triangle {p:?} faces against its normals"));
             }
         }
+        // Walls are held on the finest cut alone (the module's rule).
+        if rank > 0 {
+            continue;
+        }
         // An eighth of the error, never finer than the object's own 1/256th: the check's resolution.
         let step = (t / 8.0).max(diagonal / 256.0);
-        // The disc a wall must cover: the cut's error, never under the format's own tolerance —
-        // the pages' grid moves a corner by up to their quantization error, even at the exact
-        // cut, where an error of zero would ask every sample on the source's edge to stay covered.
-        let radius = (t.max(quantization) / step).ceil() as usize;
+        // The disc a wall must cover: the cut's error, never under one sample — the pages' grid
+        // moves a corner, even at the exact cut, where an error of zero would ask every sample on
+        // the source's edge to stay covered.
+        let radius = ((t / step).ceil() as usize).max(1);
         for axis in 0..3 {
             for sign in [-1.0, 1.0] {
                 let [u, v] = [(axis + 1) % 3, (axis + 2) % 3];
@@ -115,11 +115,14 @@ pub(in crate::tests) fn cut_defects(
                     step,
                     size,
                 };
-                let source = grid.raster(mesh, &mesh.indices);
-                let behind = grid.raster(rest, &rest.indices);
-                let drawn: Vec<f64> = (grid.raster(&cut, &cut.indices).into_iter().zip(behind))
-                    .map(|(own, rest)| own.max(rest))
-                    .collect();
+                let source = grid.raster(mesh, &mesh.indices, false);
+                let behind = grid.raster(rest, &rest.indices, true);
+                let drawn: Vec<f64> = (grid
+                    .raster(&cut, &cut.indices, true)
+                    .into_iter()
+                    .zip(behind))
+                .map(|(own, rest)| own.max(rest))
+                .collect();
                 let solid = grid.filter(&source, radius, f64::min);
                 let reach = grid.filter(&drawn, radius, f64::max);
                 let slack = t + 2.0 * step;

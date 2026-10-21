@@ -51,20 +51,22 @@ test('a geometry pool the device refuses is drawn at half its bytes until grante
   const { device, made, scopes } = refusingDevice(200)
   const { seen, diagnose } = diagnostics()
   const granted = await grantedGeometryPool(device, 800, geometry, diagnose, geometryProbe(device))
-  // 800 → 400 → 200 bytes: the first two refused, the third granted.
-  assert.equal(granted?.pool.allocatedBytes, 200)
+  // The scene's 800 bytes, then 400, 200 and 100 bytes of streaming slots, each beside the root
+  // cover's 16: 800 → 416 → 216 → 112 bytes, the first three refused, the fourth granted.
+  assert.equal(granted?.pool.allocatedBytes, 112)
   assert.deepEqual(
     made().map((entry) => [entry.bytes, entry.destroyed]),
     [
       [800, true],
-      [400, true],
-      [200, false],
+      [416, true],
+      [216, true],
+      [112, false],
     ],
     'what the device refused is released; what it granted is kept, allocated once',
   )
   assert.equal(scopes.length, 0, 'every scope opened is closed')
   assert.deepEqual(seen, [
-    { kind: 'warning', pool: 'geometry', requestedBytes: 800, grantedBytes: 200, clamp: null },
+    { kind: 'warning', pool: 'geometry', requestedBytes: 800, grantedBytes: 112, clamp: null },
   ])
 })
 
@@ -72,12 +74,13 @@ test('a budget pays first for the bytes held beside its pool, and a refusal halv
   // The pages of the scene: 2,848 bytes, beside 48 bytes of vertex buffers.
   const rule = (budgetBytes: number) =>
     geometryPoolFor({ budgetBytes, pageBytes: 2848, uniquePages: 276, rootPages: 4 })
+  // The streaming slots are what the budget pays for: the root cover's four are beside them.
   for (const budget of [393_048, 393_024, 300_001, 4 * 2848 + 48]) {
     const drawn = rule(budgetBeside(budget, 48).bytes)
-    assert.ok(drawn.allocatedBytes + 48 <= budget, `${budget}`)
-    assert.equal(drawn.slots, Math.floor((budget - 48) / 2848))
+    assert.ok(drawn.allocatedBytes - 4 * 2848 + 48 <= budget, `${budget}`)
+    assert.equal(drawn.slots, 4 + Math.floor((budget - 48) / 2848))
   }
-  // Held past the budget: drawn from one byte, the pool is raised to its root cover, by name.
+  // Held past the budget: drawn from one byte, the pool holds its root cover alone, by name.
   const raised = rule(budgetBeside(100, 400).bytes)
   assert.deepEqual([raised.slots, raised.clamp], [4, 'root-cover'])
   const { device } = refusingDevice(200)
@@ -86,8 +89,8 @@ test('a budget pays first for the bytes held beside its pool, and a refusal halv
   const { bytes } = budgetBeside(1200, 400)
   const probe = geometryProbe(device)
   const granted = await grantedGeometryPool(device, bytes, small, diagnostics().diagnose, probe)
-  // 800 → 400 → 200 bytes of slots, beside the 400 held: not straight down to the root cover.
-  assert.deepEqual([granted?.pool.allocatedBytes, granted?.pool.clamp], [200, null])
+  // 800 → 416 → 216 → 112 bytes of slots, beside the 400 held: not straight down to the root cover.
+  assert.deepEqual([granted?.pool.allocatedBytes, granted?.pool.clamp], [112, null])
 })
 
 test('a pool granted at once is drawn as asked and says nothing', async () => {

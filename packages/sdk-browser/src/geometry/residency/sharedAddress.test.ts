@@ -1,8 +1,8 @@
 // A cut delta of the estate's scale: 2 754 primitives, 15.8 M triangles. Index pages are
 // content-addressed (`../rows/page/pageSlots.ts`), so two primitives whose clusters carry the same index
-// bytes share one cache key while each cluster keeps its own level. A key weighed at one level
-// and released by a placement of another must not leave the wrong level list, drive its count
-// below zero and throw "Invalid array length" out of `applyCut`.
+// bytes share one cache key while each cluster keeps its own level. A key held by a placement of
+// one level and released by a placement of another must stay counted once, its count never below
+// zero, out of `applyCut`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { PageRec } from '../selection/types.ts'
@@ -28,7 +28,7 @@ function estate() {
 }
 
 test('a cut delta of the estate applies when placements of one address differ in level', () => {
-  const { packed, tracking, sets, delta, cut: publish, budget } = estate()
+  const { packed, tracking, sets, delta, cut: publish, stream } = estate()
   const ids = (keep: (level: number) => boolean) => {
     const cut: number[] = []
     for (let id = 0; id < packed.length; id++) if (keep(packed[id].level ?? 0)) cut.push(id)
@@ -46,11 +46,8 @@ test('a cut delta of the estate applies when placements of one address differ in
     publish()
     const keys = new Set(cut.map((id) => tracking.keyOf(packed[id])))
     assert.equal(sets.requestedCount, keys.size, `${label}: requested pages`)
-    // A budget below the cut ranks it: every queued key belongs to the cut, once.
-    const room = keys.size >> 1
-    assert.equal(budget(room), true, `${label}: over budget`)
-    const queued = keysOf(tracking.wanted)
-    assert.equal(queued.size, room, `${label}: queue fills the budget`)
-    for (const key of queued) assert.ok(keys.has(key), `${label}: key ${key} left the cut`)
+    // The pool takes on every key of the cut, once, and none that left it.
+    stream()
+    assert.deepEqual(keysOf(tracking.wanted), keys, `${label}: the cut's keys`)
   }
 })

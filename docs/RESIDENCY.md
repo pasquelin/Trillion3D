@@ -35,69 +35,116 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 | Mechanism                                               | Where                                                             |
 | ------------------------------------------------------- | ----------------------------------------------------------------- |
 | The fixed split of the world's GPU and CPU totals       | `memory/memoryBudget.ts`, `memory/pools.ts`                 |
-| The floor: root cover plus the group each root replaces | `memory/minimumCapacity.ts`                                    |
-| WebGPU slots beside the vertex buffers, and a resize    | `src/frame/io/memory.ts`, `src/frame/prepare/growTables.ts` |
+| The root cover, held beside the streamed pages          | `frame/prepare/rootCover.ts`, `geometry/residency/coverHolders.ts` |
+| WebGPU slots, a streaming page each, and a resize       | `src/frame/io/memory.ts`, `pages/pool/resize.ts`, `src/frame/prepare/growTables.ts` |
 | The world HLOD's table, DAG and held bundles            | `hlod/worldRoots.ts`, `hlod/worldBundles.ts`                    |
 | The world HLOD actors the cut draws                     | `hlod/worldHlod.ts`, `dag/worlds/worldFollow.ts`                    |
-| Eviction by last use, parents after children            | `dag/evict/evict.ts`, `geometry/dag/shader/lastUseWgsl.ts`               |
+| Eviction by least recent use, never a page depended on  | `geometry/residency/streamedPages.ts`, `geometry/residency/queue.ts` |
 
-- Past the pool, the cut keeps the host's screen error: the pool loads what fits, coarsest first,
-  and the cut rule draws the rest (`coverage-budget`). Memory never forces a cut the view refuses:
-  the engine admits the floor's pages before any other, and a budget under the floor is raised
-  to it by name (`root-cover`).
+- The pool's unit is the STREAMING PAGE: a compiled page of 128 KiB and 256 clusters at most
+  ([FORMAT.md](FORMAT.md#cluster-dag)), a run-time cut's page alone where the cache gives none
+  (`geometry/rows/page/pageSlots.ts:pageUnit`, `geometry/residency/pageUnits.ts`). One slot holds
+  one, its clusters packed at their offsets in it, never one a slot (`pages/pool/placement.ts`).
+  The pool holds the root pages apart: its slots are the streaming pages `geometryPoolBytes` holds,
+  each slot the widest streaming page, then its ROOT REGION of grains, each as wide as the widest
+  root page — a compiled root page's 32 KiB at most (`pages/pool/placement.ts`, `RootSlots`). A
+  ROOT PAGE — the root cover's, or an HLOD cell's while its actor is loaded — takes a free grain,
+  never a streaming slot nor a victim's, and gives it back when its cell lets it go
+  (`residency/pinUpdater.ts`). The region opens at 2048 grains (`DEFAULT_INITIAL_ROOT_PAGES`)
+  within the catalogue's root pages, the root cover's at least (`frame/prepare/rootCover.ts`,
+  `rootRegionOf`), and grows while the scene runs when the cells hold more: to the grains asked
+  rounded up to two significant bits, within every root page the catalogue has
+  (`frame/io/memory.ts`, `growWebgpuRootRegion`).
+  `geometryPoolBytes` (512 MiB by default) counts the streaming slots alone, nothing else taken
+  from it; a budget that holds none of them says so by name (`root-cover`), the root cover still
+  whole.
+- Past the pool, the cut keeps the host's screen error: the pool holds what the views asked for
+  most recently, and the cut rule draws the rest by its resident parents (`coverage-budget`).
+  Memory never forces a cut the view refuses; the pool's pressure scales the screen error alone
+  (`geometry/residency/poolPressure.ts`).
 - The runtime pins the world top alone; object roots are pages the view holds. The session counts
   those bytes in its CPU budget.
 - A resize copies what fits on the GPU and keeps the image complete; a refusal keeps the pool.
 
-### WebGPU: admission and eviction
+### WebGPU: streaming and eviction
 
-| Mechanism                                           | Where                                                                         |
-| --------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Install order: a page after the pages it depends on | `geometry/residency/admission.ts`                                               |
-| Past the pool, the requests in the GPU's ranking    | `dag/request/request.ts`, `geometry/residency/requestAdmission.ts`                  |
-| Rows, a cache of what the GPU cut draws and asks    | `geometry/rows/slots.ts`, `rows/demand/rowDemand.ts`, `geometry/rows/rowOrder.ts`    |
-| Requests ahead of a moving camera, a lower tier     | `gpu/core/aheadView.ts`, `geometry/residency/lowerTier.ts`                      |
-| The main thread's share                             | `geometry/integration/frameBudget.ts`                                             |
-| The eviction queue the GPU cut publishes            | `dag/evict/evict.ts`, `geometry/dag/poolList.ts`, `geometry/residency/evictionFeed.ts` |
-| The cache's one hold: the root cover's pins         | `geometry/residency/pinUpdater.ts`, `pages/pool/eviction.ts`                      |
+| Mechanism                                                 | Where                                                                       |
+| --------------------------------------------------------- | --------------------------------------------------------------------------- |
+| The pages each view asks for, at the GPU's priorities     | `dag/request/request.ts`, `gpu/core/selection.ts`                           |
+| The requests and what they depend on, one higher a group  | `geometry/residency/pageRequests.ts`, `geometry/cut/groupClosure.ts`        |
+| The update: new pages, victims, installs                  | `geometry/residency/queue.ts`                                               |
+| The use order of the streamed pages and their dependents  | `geometry/residency/streamedPages.ts`                                       |
+| The quality under the pool's pressure                     | `geometry/residency/poolPressure.ts`, `frame/render/gpuCut.ts`              |
+| The streaming's five settings                             | `packages/sdk-core/src/contracts/streamingOptions.ts`                       |
+| The engine's frames, which pace the installs              | `geometry/integration/frameBudget.ts` (`createFrameGate`)                   |
+| Rows, a cache of what the GPU cut draws and asks          | `geometry/rows/slots.ts`, `rows/demand/rowDemand.ts`, `geometry/rows/rowOrder.ts` |
+| The cache's one hold: the root cover's pins               | `geometry/residency/pinUpdater.ts`, `pages/pool/eviction.ts`                |
 
-- A region keeps a complete resident representation until every replacement page is uploaded. A
-  page's dependencies are requested with it ([FORMAT.md](FORMAT.md#cluster-dag)); until they
-  arrive, it is not loaded.
-- Last use is the GPU's alone: every view's cut stamps, with the host's frame, the group of each
-  page it draws or asks for, and raises the groups replacing it up to the roots, so a group is
-  never older than one it replaces. The queue lists the pool's pages oldest use first, finer level
-  first among equal ages; a page any view used this frame or the one before is never listed. The
-  host keeps no clock: it pins the root cover alone, takes victims in the queue's order, never a
-  page arrived since the queue's cut, and none while the frames draw a held cut. A load refused for
-  lack of a place asks the GPU a new queue.
-- The lower tier is never pinned and never evicts a page a view used of late: its requests count
-  as used two frames ago, and it takes only the queue's old head. It empties once the camera
-  stops.
+- Every count below counts streaming pages: requests, pending, installs, the use order, its
+  victims and the pool's pressure (`geometry/residency/queue.ts`, `queueStarts.ts`,
+  `queueInstalls.ts`).
+- One update a frame, its requests read again whenever a view's readback is new, the capture's
+  first. The requests are the streaming pages of the pages every view asks for, each at the
+  highest priority any view gives one of its pages, and of the pages they depend on, each at one
+  more than the highest of its dependents ([FORMAT.md](FORMAT.md#cluster-dag)). The requested ones
+  already started or resident move to the end of the use order, the views' own first, in their
+  order.
+- The unique requests, as a percent of the streaming pool's slots, scale the cut's screen error:
+  over `streamingQualityMaxPoolPercent` (85) two updates running, the scale falls by 3 % an update,
+  down to `streamingQualityMinScale` (0.3); under `streamingQualityMinPoolPercent` (70) thirty
+  updates running, it rises by 1 % an update, up to 1. The GPU cut divides its pixel threshold by
+  it.
+- The new streaming pages — requested, neither started nor resident — are started highest priority
+  first, at most `streamingMaxPendingPages` (128) less those pending, every page of each read by one
+  read of it. Each takes a free slot, else the slot of the first streaming page of the use order
+  this update does not request, that has landed, holds no root cover page and that no started or
+  resident one depends on — every page of it leaves as the arrival is written —; none left, the
+  update starts no more. There is no other clock and no other ranking: a streaming page past the
+  pool waits for a later update to free a slot.
+- The started streaming pages are installed in the order started, each once its pages' bytes are
+  in — none passes one still waiting —, at most `streamingMaxInstallsPerFrame` (128, never more
+  than may be pending) a frame, and no time budget: a page costs its frame what it costs. One whose
+  bytes fail for good is never started again by the session.
+- The reads keep up: as many run at once as may be pending (`DEFAULT_PAGE_WORKERS`, 128), the
+  transfer queue holding those pending pages at 128 KiB each (`DEFAULT_PAGE_TRANSFER_BYTES`,
+  16 MiB, `session/engine/common.ts`), so neither bounds the streaming below its own settings.
+- A region keeps a complete resident representation until every replacement page is uploaded: a
+  streaming page is never a victim while a started or resident one depends on it.
 - An instance is resident for the cut once its bytes are and it holds a row. The table holds what
   the cut draws and asks for, sized by the view, never by the placements: a request for an instance
   without a row takes a free row, or one no readback used for a while; one the table cannot serve
-  grows it. Past the pool, the GPU ranks the requests by admission — the floor's pages, then the
-  coarsest level —, and the host walks them in that order.
-- Fetching and decoding stay in workers; admission yields past its share.
+  grows it. The rows of the pages a frame installs are written that frame, whole, on no clock — its
+  installs bound them (`geometry/rows/rowPasses.ts`, `followArrivals`) —; the rows the cut's
+  requests claim spend the main-thread clock.
+- Fetching and decoding stay in workers. The five settings are world options, session options and
+  render settings of the view distance's group; `explorer.setStreaming` changes them from the next
+  update.
 
 ### Partitioned scenes
 
 A partitioned scene ([FORMAT.md](FORMAT.md#world-partition)) is read as the camera reaches it,
 never whole (`partition/`, `scene/drive/partitionFrame.ts`).
 
-| Mechanism                               | Where                                                           |
-| --------------------------------------- | --------------------------------------------------------------- |
-| The reach and its margin (`KEEP`)       | `partition/plan.ts:placedReach`, `partition/plan.ts:keepRadius` |
-| The cell index walk and the cell decode | `partition/cellIndex.ts`, `partition/cellDecode.ts`             |
-| Rows sized for the view, grown in place | `partition/sizing.ts`, `growth/growth.ts`                    |
-| The world bundles the HLOD cells hold   | `partition/cellHolds.ts`                                        |
-| Each HLOD cell wished, held and told    | `hlod/hlodCells.ts`, `dag/worlds/worldFollow.ts`              |
+| Mechanism                               | Where                                                             |
+| --------------------------------------- | ----------------------------------------------------------------- |
+| The reach and its margin (`KEEP`)       | `partition/reach.ts:placedReach`, `partition/reach.ts:keepRadius` |
+| The cell index walk and the cell decode | `partition/cellIndex.ts`, `partition/cellDecode.ts`               |
+| Rows sized for the view, grown in place | `partition/sizing.ts`, `growth/growth.ts`                         |
+| The world bundles the HLOD cells hold   | `partition/cellHolds.ts`                                          |
+| Each HLOD cell wished, held and told    | `hlod/hlodCells.ts`, `dag/worlds/worldFollow.ts`                  |
+| The rows an instanced HLOD actor places | `hlod/hlodRows.ts`, `partition/placements.ts:placeActor`          |
 
 - The error target never shortens the reach: a cell left unread would be missing, not coarser.
 - The first frame reads the view's bytes, not the world's (`primePartitions`); cells, arrivals,
-  row records, texture tiles and the residency queue spend one main-thread clock per frame, in that
-  order (`MAIN_THREAD_FRAME_MS`).
+  the row records the cut's requests claim and texture tiles spend one main-thread clock per
+  frame, in that order (`MAIN_THREAD_FRAME_MS`). The geometry pool's streaming pages spend none
+  of it, nor the rows of their pages: a frame installs at most `streamingMaxInstallsPerFrame` of
+  them.
+- No image is presented before the main view has loaded once: every HLOD cell wished showing its
+  own content, none on its actor nor asking, the cut waiting on no page, the residency queue and
+  the row table still (`viewLoading`, `WorldCells.shown`). Meanwhile every image is drawn unshown
+  and that clock is the whole frame (`frame/loop/firstImage.ts`); once shown, none is withheld
+  again.
 - Rows are sized by reach, cell size and stretch, never by the world; outgrown, they grow in place
   (`growsInPlace`): the new placements appended into the room the GPU cut's tables kept, O(added)
   (`dag/pack/pack.ts`, `appendDagRoots`), or, past it, the cut made again over every root beside

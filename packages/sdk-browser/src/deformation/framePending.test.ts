@@ -17,15 +17,13 @@ function morphed() {
   return { mesh, frame: createDeformationFrame([placed]) }
 }
 
-const quiet = () => false
-
 test('an update after pending writes the records an update alone writes', () => {
   const asked = morphed(),
     alone = morphed()
   for (const [tick, weight] of [0.5, 0.75, 0.75, 0.25, 0.25, 0.25].entries()) {
     asked.mesh.morphTargetInfluences[0] = alone.mesh.morphTargetInfluences[0] = weight
     asked.frame.pending(tick)
-    assert.equal(asked.frame.update(quiet, tick), alone.frame.update(quiet))
+    assert.equal(asked.frame.update(tick), alone.frame.update())
     assert.deepEqual([...asked.frame.block], [...alone.frame.block])
     assert.deepEqual(
       [asked.frame.moving[0], asked.frame.dirty[0], asked.frame.reach[0]],
@@ -36,23 +34,23 @@ test('an update after pending writes the records an update alone writes', () => 
 
 test('a frame held after a quiet pending reads its inputs again at the next', () => {
   const { mesh, frame } = morphed()
-  frame.update(quiet)
-  frame.update(quiet)
+  frame.update()
+  frame.update()
   assert.equal(frame.pending(), false)
   mesh.morphTargetInfluences[0] = 1
   assert.equal(frame.pending(), true, 'the weight moved while the frame was held')
-  assert.equal(frame.update(quiet), true)
+  assert.equal(frame.update(), true)
   assert.equal(frame.moving[0], 1)
 })
 
 test('an answer noted for another frame, or outside any, is read again', () => {
   for (const noted of [3, undefined]) {
     const { mesh, frame } = morphed()
-    frame.update(quiet, 1)
-    frame.update(quiet, 2)
+    frame.update(1)
+    frame.update(2)
     assert.equal(frame.pending(noted), false)
     mesh.morphTargetInfluences[0] = 1
-    assert.equal(frame.update(quiet, 4), true, 'the weight moved after the barrier read it')
+    assert.equal(frame.update(4), true, 'the weight moved after the barrier read it')
     assert.equal(frame.moving[0], 1)
   }
 })
@@ -69,11 +67,11 @@ test('a world the host moves after pending is written by the update once the ans
   })
   const placed = deformedOf({ waves }, undefined, world)!
   const frame = createDeformationFrame([placed])
-  frame.update(quiet, 0)
-  frame.update(quiet, 1)
+  frame.update(0)
+  frame.update(1)
   assert.equal(frame.pending(2), false, 'still: the hold reads the world before the refresh')
   world.elements[12] = 5
   frame.forget()
-  assert.equal(frame.update(quiet, 2), true, 'the moved world is uploaded')
+  assert.equal(frame.update(2), true, 'the moved world is uploaded')
   assert.equal(frame.moving[0], 1)
 })

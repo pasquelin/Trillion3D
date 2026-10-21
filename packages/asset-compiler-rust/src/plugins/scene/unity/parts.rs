@@ -5,7 +5,7 @@
 //! matrix that locates it in the model — its local transform composed with those of its parents —
 //! and it is that matrix which then composes with the instance's.
 use super::*;
-use crate::compiler_world::Mat4;
+use crate::compiler::source::node_transform::Mat4;
 use trillion3d_math::matrix::IDENTITY;
 
 /// What a poured model leaves to instantiate: its mesh-bearing nodes.
@@ -21,7 +21,7 @@ pub(super) struct Parts {
 /// does not compose (index out of table, node with two parents, endless tree) is poured without
 /// a transform, and the fact is counted rather than guessed.
 pub(super) fn model_matrices(gltf: &Value, scene: &mut SceneTables) -> Vec<Mat4> {
-    match crate::compiler_world::world_matrices(gltf) {
+    match crate::compiler::source::node_transform::world_matrices(gltf) {
         Ok(matrices) => matrices,
         Err(_) => {
             scene.report.add("unity-model-hierarchy-invalid");

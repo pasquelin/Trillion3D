@@ -30,12 +30,8 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   steps[CPU_STEP.syncRowsMs] = m.rowsEnd - m.queueEnd
   steps[CPU_STEP.residencyUploadMs] = m.residencyUploadEnd - m.rowsEnd
   steps[CPU_STEP.selectionDispatchMs] = m.selectionEnd - m.tilesEnd
-  steps[CPU_STEP.partitionMs] = timing.lastPartitionMs
   // Remaining encode excludes submit itself: the two steps never overlap.
-  steps[CPU_STEP.encodeRestMs] = Math.max(
-    0,
-    submitMs - timing.lastPartitionMs - transparentMs - timing.lastQueueSubmitMs,
-  )
+  steps[CPU_STEP.encodeRestMs] = Math.max(0, submitMs - transparentMs - timing.lastQueueSubmitMs)
   steps[CPU_STEP.queueSubmitMs] = timing.lastQueueSubmitMs
   steps[CPU_STEP.encodeSubmitMs] = submitMs
   // The row total covers the engine's whole image, prepare included: the `cpuStart` bound only
@@ -87,8 +83,9 @@ export function traceGpuCutFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     residentCandidates: rows.candidateCount,
     readbackPurpose: 'streaming-and-metrics',
     metricsReady: run.gpuMetricsReady,
-    /** How far ahead the view ahead looked, the pages' round trip included (`prefetchHorizonMs`). */
-    aheadHorizonMs: run.motion.horizonMs,
+    /** What the adopted cut's two-pass occlusion held for its post pass, and hid for good. */
+    occluded: run.occluded,
+    postHidden: run.postHidden,
   }))
   diag.traceDiagnostic('frame', 'Complete WebGPU frame snapshot', () =>
     frameTraceSnapshot(

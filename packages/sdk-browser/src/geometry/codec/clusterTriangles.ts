@@ -57,12 +57,6 @@ export function clusterTriangles(
   const ends = new Uint32Array(built)
   return {
     indices: new Uint32Array(ordered),
-    ranges: givenClusters(ends),
+    ranges: Array.from(ends, (end, k): [number, number] => [k ? ends[k - 1] : 0, end]),
   }
 }
-
-/** The index ranges clusters take, `ends[k]` the end of cluster `k`: the clusterer's answer, and a
- *  compiled primitive's own clusters, which the run-time cutter keeps
- *  (`../runtime/runtimeCut.ts`). */
-export const givenClusters = (ends: Uint32Array): [number, number][] =>
-  Array.from(ends, (end, k) => [k ? ends[k - 1] : 0, end])

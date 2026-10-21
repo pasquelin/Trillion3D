@@ -1,14 +1,11 @@
-import { FULLSCREEN_X, FULLSCREEN_Y } from '../../gpu/shader/fullscreenTriangle.ts'
 import { PIXEL_TRIANGLE_WGSL, SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { fragmentMembers } from '../../gpu/core/fragmentOutputs.ts'
-import { REQUEST_OUTPUT, SURFACE_OUTPUTS } from '../../materials/surface/surfaceOutputs.ts'
 import { COTANGENT_FRAME_WGSL } from '../../geometry/cluster/cotangentFrameWgsl.ts'
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
 import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
 import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
 import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts'
-import { PAGE_UV1_WGSL } from './pageUv1Wgsl.ts'
+import { PAGE_UV_SET_WGSL } from './pageUvSetWgsl.ts'
 import {
   COLOR_SAMPLE_WGSL,
   DATA_SAMPLE_WGSL,
@@ -19,10 +16,9 @@ import { TILE_REQUEST_WGSL } from '../../materials/virtual/requestWgsl.ts'
 import { SHADE_REQUEST_WGSL } from './request.ts'
 import { SHADE_BINDINGS } from '../../gpu/bind/bindLayout.ts'
 import { MATERIAL_CLASS_WGSL } from './materialClass.ts'
-import { MATERIAL_TILE_DRAW_WGSL } from './materialTilesWgsl.ts'
+import { SHADE_OUTPUTS_WGSL } from './shadeOutputsWgsl.ts'
 import { SURFACE_MODEL_SHADE_WGSL } from '../../materials/surface/surfaceModel.ts'
 import { SHADING_POINT_WGSL } from './shadingPoint.ts'
-import { receiverStoreWgsl } from './receiverTargetWgsl.ts'
 import { shadeCacheReadWgsl } from './shadeCacheLayout.ts'
 import { PHYSICAL_RESOLVE_WGSL } from './physicalWgsl.ts'
 
@@ -50,18 +46,18 @@ export const UV_GRADIENTS_WGSL = wgslBlock(
 )
 
 /**
- * Declarations of the surface resolve: its bindings, the page reads, the atlas reads, the tile
- * request, the class overrides, and the full-screen vertex stage every class pass shares.
+ * Declarations of the surface resolve: its bindings — its outputs and its class's bin among them
+ * (`shadeOutputsWgsl.ts`) —, the page reads, the atlas reads, the tile request and the class
+ * overrides.
  */
 export const SHADE_DECL_WGSL = wgslBlock(
   'SHADE_DECL_WGSL',
   [
-    receiverStoreWgsl(SHADE_BINDINGS.receiver),
     PAGE_GEOMETRY_WGSL,
     shadeCacheReadWgsl(SHADE_BINDINGS.shadeCache),
     PIXEL_TRIANGLE_WGSL,
     PHYSICAL_RESOLVE_WGSL,
-    MATERIAL_TILE_DRAW_WGSL,
+    SHADE_OUTPUTS_WGSL,
     PAGE_INFO_STRUCT_WGSL,
     SHADING_POINT_WGSL,
     SHADE_UNI_WGSL,
@@ -70,7 +66,7 @@ export const SHADE_DECL_WGSL = wgslBlock(
     TRIANGLE_PALETTE_WGSL,
     PAGE_SCREEN_WGSL,
     PAGE_NORMAL_WGSL,
-    PAGE_UV1_WGSL,
+    PAGE_UV_SET_WGSL,
     edgeFunction,
     UV_GRADIENTS_WGSL,
     TILE_POOL_WGSL,
@@ -81,11 +77,7 @@ export const SHADE_DECL_WGSL = wgslBlock(
     COTANGENT_FRAME_WGSL,
     SURFACE_MODEL_SHADE_WGSL,
   ],
-  `@group(0) @binding(${SHADE_BINDINGS.subsurface}) var subsurfaceOutput:texture_storage_2d<rgba16float,write>;
-fn storeSubsurface(pos:vec2f,color:vec3f){
- if(all(vec2u(pos)<textureDimensions(subsurfaceOutput))){textureStore(subsurfaceOutput,vec2i(pos),vec4f(color,1.0));}
-}
-@group(0) @binding(${SHADE_BINDINGS.visView}) var vis:texture_2d<u32>;
+  `@group(0) @binding(${SHADE_BINDINGS.visView}) var vis:texture_2d<u32>;
 @group(0) @binding(${SHADE_BINDINGS.cache}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${SHADE_BINDINGS.position}) var<storage, read> positions:array<f32>;
 @group(0) @binding(${SHADE_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
@@ -94,9 +86,6 @@ ${tileDeclarations(SHADE_BINDINGS.color, 'color')}
 @group(0) @binding(${SHADE_BINDINGS.sampler}) var mapsSampler:sampler;
 @group(0) @binding(${SHADE_BINDINGS.uniform}) var<uniform> uni:ShadeUni;
 ${tileDeclarations(SHADE_BINDINGS.data, 'data')}
-// The fifth output is the tile rank this pixel asks of virtual textures, placed in the
-// feedback target that transparents complete and that a compute pass reduces into counters.
-struct SurfaceOut{${fragmentMembers([...SURFACE_OUTPUTS, REQUEST_OUTPUT])}}
 /** A surface with nothing to light and nothing to ask: a triangle index past its page. The
  *  cutout is the raster's alone (maskKeep), never tested again here. */
 fn emptySurface()->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u,0u);}
@@ -104,10 +93,5 @@ fn emptySurface()->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0)
 fn diagnosticSurface(color:vec3f,request:u32)->SurfaceOut{return SurfaceOut(vec4f(color,0.0),vec4f(0.0),vec4f(0.0),3u,request);}
 /** A diagnostic pixel that draws nothing — the view's background shows —, its request kept. */
 fn diagnosticEmpty(request:u32)->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u,request);}
-/** Full-screen triangle: the fragment stage keeps the class's pixels only (\`classAdmits\`). */
-fn classTriangle(i:u32)->vec4f{
- let x=${FULLSCREEN_X};let y=${FULLSCREEN_Y};return vec4f(x,y,0.0,1.0);
-}
-@vertex fn shade_vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return classTriangle(i);}
 `,
 )

@@ -1,14 +1,11 @@
 import { DEFAULT_CACHED_BYTES } from '../../streaming/pageCache.ts'
 // The camera cut's tables hold their share of the GPU total (`../../../session/memory/cutTableBytes.ts`):
-// a cut that would pass it is refused by name before the buffer past it is made, and a growth that
-// would pass it is not made — the view coarsens instead, no cut dropped ever drawn.
+// a cut that would pass it is refused by name before the buffer past it is made.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuDagSelection } from '../selection/selection.ts'
 import { gridScene } from '../gridScene.fixture.ts'
-import { kernelUniforms } from '../selection/selectionHelpers.fixture.ts'
 import { mockDagDevice } from '../selection/selection.fixture.ts'
-import { pageResidency } from '../readiness.fixture.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
 import { CUT_TABLE_BYTES } from '../../../session/memory/cutTableBytes.ts'
 import { defaultGpuBudget, splitMemoryBudget } from '../../../session/memory/memoryBudget.ts'
@@ -76,29 +73,6 @@ test('a cut past its share is refused by name, before the buffer past it is made
   assert.match(reason, /GPU_CUT_TABLES_PAST_SHARE/)
   assert.ok(held.most <= share, `${held.most} bytes made, the share ${share}`)
   assert.equal(held.now, 0, 'nothing made outlives the refusal')
-})
-
-test('a growth past the share is not made: the view coarsens, and a dropped cut is never drawn', async () => {
-  installGpuGlobals()
-  const { roots, camera, dag } = gridScene()
-  // Lists the fine cut passes, and a share they cannot grow in.
-  Object.assign(dag, { queueEntries: 100, candCount: 1000 })
-  const probe = (await createGpuDagSelection(mockDagDevice(dag).device, dag, {
-    roots: hostStretches(dag),
-  }))!
-  const share = probe.gpuBytes! + 64
-  probe.dispose()
-  const selection = (await createGpuDagSelection(mockDagDevice(dag).device, dag, {
-    roots: hostStretches(dag),
-    share,
-  }))!
-  selection.updateResidency(pageResidency(new Uint32Array(dag.pageCount).fill(1)))
-  selection.dispatch(kernelUniforms(dag, roots, camera, 0.5))
-  const result = await selection.flush()
-  assert.ok(selection.coarsen > 1, 'the view coarsens past the share')
-  assert.ok(selection.gpuBytes! <= share, 'nothing grew past it')
-  assert.ok(result && !result.dropped, 'the cut adopted ran whole')
-  selection.dispose()
 })
 
 test('each buffer of the cut is asked of the budget before it is made, and a refusal makes none', async () => {

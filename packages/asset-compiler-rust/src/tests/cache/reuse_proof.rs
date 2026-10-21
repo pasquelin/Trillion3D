@@ -3,8 +3,8 @@
 //! several textures share one image.
 use super::reuse::{compile_with_events, textured};
 use super::*;
-use crate::compiler_manifest_pages::{sidecar_file, MANIFEST_PAGES};
-use crate::compiler_tables::partition::pages::{read_slot, write_page};
+use crate::compiler::pages::manifest::{sidecar_file, MANIFEST_PAGES};
+use crate::compiler::tables::partition::pages::{read_slot, write_page};
 
 // Behaviour: a folder whose compile could not write a level file — the report
 // notes it, the entry carries no baked level — is not proven: the reuse would
@@ -18,7 +18,7 @@ fn an_unfinished_bake_is_not_reused() {
     let mut manifest = read_json(&manifest_path);
     let head = read_slot(pages, &directory, &manifest["head"], "root");
     let (_, mut head) = head.unwrap().unwrap();
-    head["texturePreviews"]["notes"][texture_preview::LEVEL_WRITE_FAILED] = json!(1);
+    head["texturePreviews"]["notes"][crate::texture::LEVEL_WRITE_FAILED] = json!(1);
     let tampered = json!(write_page(pages, &directory, &head, &[]).expect("head"));
     manifest["head"] = tampered.clone();
     fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).expect("tamper");
@@ -35,7 +35,7 @@ fn an_unfinished_bake_is_not_reused() {
     );
     let notes = &paged(&directory).manifest["texturePreviews"]["notes"];
     assert!(
-        notes[texture_preview::LEVEL_WRITE_FAILED].is_null(),
+        notes[crate::texture::LEVEL_WRITE_FAILED].is_null(),
         "rebuilt whole"
     );
     // The same state read from the sidecar words: fewer levels baked than the tail starts at.
@@ -46,7 +46,7 @@ fn an_unfinished_bake_is_not_reused() {
         baked: 0,
         layouts: [0; 3],
     };
-    let refused = compiler_reuse_proof::check_textures(
+    let refused = crate::compiler::cache::reuse_proof::check_textures(
         &native_dir(&options.cache),
         &json!({}),
         &[unfinished],
@@ -125,9 +125,9 @@ fn corrupted_entry_is_rejected_and_rebuilt() {
     } = manifest_binary::texture_levels(&sidecars[0])
         .expect("levels")
         .remove(0);
-    let level = native.join(texture_preview::level_path(
+    let level = native.join(crate::texture::level_path(
         &level_sha,
-        texture_preview::AtlasKind::from_word(kind).unwrap(),
+        crate::texture::AtlasKind::from_word(kind).unwrap(),
         0,
         "bc7",
     ));

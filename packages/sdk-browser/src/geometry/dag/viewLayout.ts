@@ -1,9 +1,7 @@
 import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
-import type { SelectionUniforms } from '../../gpu/core/selection.ts'
-import { AHEAD_VIEW } from './shader/aheadWgsl.ts'
 
 /**
- * One view's uniform block, described once.
+ * The cut's uniform block, described once.
  *
  * The kernels read the block through a WGSL `struct`, and the host fills it by word: `writeDagUniforms`
  * wrote `target[42]` and `ints[54]` against a struct that named every field. Nothing tied the two
@@ -13,27 +11,45 @@ import { AHEAD_VIEW } from './shader/aheadWgsl.ts'
  * So the field table below is the only description of the block. `fieldLayout` makes of it the WGSL
  * struct text (`VIEW_UNIFORM_STRUCT`) and the word offsets the host writes. Adding a field means
  * adding one line here, and both sides follow. Offsets follow WGSL's own layout rules; the `vec3`
- * rule is the one that bites: `cameraWorld` is twelve bytes yet cannot start at word 47, it waits
- * for word 48.
+ * rule is the one that bites: `cameraWorld` is twelve bytes yet starts on a four-word boundary.
  */
 /** The block, in order. `as const` is what makes `FieldName` a union of the field names rather
  *  than `string`: a typo in `viewWord` is then a type error, not a throw mid-frame. */
 const VIEW_FIELDS = [
   ['planes', 'array<vec4f,6>'],
   ['view', 'mat4x4f'],
+  // The render matrix the image draws with, its jitter included, from the render frame — the eye
+  // at zero — to clip space, and the previous image's composed at this image's eye: what the
+  // occlusion projects a box with (`shader/occlusionWgsl.ts`).
+  ['viewProj', 'mat4x4f'],
+  ['prevViewProj', 'mat4x4f'],
+  // `pixelScale.y` is the view's pixels per unit at unit depth vertically, the level of detail's
+  // scale before the threshold divides it (`shader/error.ts`).
   ['pixelScale', 'vec2f'],
   ['pixelError', 'f32'],
   ['near', 'f32'],
+  // Each projection's clip depth along its clip weight, `z = depthMap.x * w + depthMap.y`, and the
+  // view's size in pixels then and now.
+  ['depthMap', 'vec2f'],
+  ['prevDepthMap', 'vec2f'],
+  ['viewSize', 'vec2u'],
+  ['prevSize', 'vec2u'],
   ['clusterCount', 'u32'],
   ['nodeCount', 'u32'],
   ['worldCount', 'u32'],
+  // What the occlusion runs (`OCCLUSION_TWO_PASS`), and the culls the host turned off
+  // (`CULL_FRUSTUM_OFF`, `CULL_MIN_LOD_OFF`, `shader/viewsWgsl.ts`).
+  ['occlusion', 'u32'],
+  ['cullOff', 'u32'],
+  // The live list and the drawn log hold \`visCap\` entries each, and one pass opens \`nodeBudget\`
+  // nodes at most (`shader/listsWgsl.ts`, `../flagSections.ts`): in the words `cameraWorld`'s
+  // alignment leaves.
+  ['visCap', 'u32'],
+  ['nodeBudget', 'u32'],
   ['cameraWorld', 'vec3f'],
-  ['cameraStretch', 'f32'],
   ['listCap', 'u32'],
   ['perspective', 'f32'],
   ['queueCap', 'u32'],
-  ['ahead', 'u32'],
-  ['admitByLevel', 'u32'],
   ['swapRegions', 'u32'],
   ['treeTop', 'u32'],
   ['cellBase', 'u32'],
@@ -42,22 +58,14 @@ const VIEW_FIELDS = [
   // \`out.pages\`, and its slots less one.
   ['heldBase', 'u32'],
   ['heldMask', 'u32'],
-  // The candidates and the live list hold \`candCap\` entries each (\`shader/levelWgsl.ts\`); the
-  // cold table's unique records and content keys (\`layout.ts\`).
+  // The candidates hold \`candCap\` entries (\`shader/listsWgsl.ts\`, \`../flagSections.ts\`); then
+  // the host's frame, the clock the rows' closure stamps a row's use with
+  // (`../rows/rowClosureWgsl.ts`).
   ['candCap', 'u32'],
-  ['recordCount', 'u32'],
-  ['keyCount', 'u32'],
-  // The keys' groups and the links to the groups replacing them, in the cold table (`evict/evict.ts`);
-  // then the host's frame, the clock a use is stamped with (`shader/lastUseWgsl.ts`).
-  ['groupCount', 'u32'],
-  ['groupEdges', 'u32'],
   ['frame', 'u32'],
   // The placement tree's members drawn whatever the view (`placement/placementTree.ts`, `drawnAlways`): how
-  // many its list holds (`tree/treeTable.ts`), in the gap before the next vec4.
+  // many its list holds (`tree/treeTable.ts`).
   ['alwaysCount', 'u32'],
-  ['lightOriginHigh', 'vec4f'],
-  ['lightOriginLow', 'vec4f'],
-  ['lightPlanes', 'array<vec4f,6>'],
   // The eye the cut reads its translations at, \`cameraWorld\` in doubles, high word then low word
   // (\`shader/worldPoseWgsl.ts\`): x and y in the first, z in the second.
   ['eye', 'array<vec4u,2>'],
@@ -65,14 +73,14 @@ const VIEW_FIELDS = [
 
 const LAYOUT = fieldLayout('Uniforms', VIEW_FIELDS)
 
-/** Words one view's block holds: the stride of the uniform array, and the size the host allocates. */
+/** Words the block holds: the size the host allocates. */
 export const VIEW_BLOCK_WORDS = LAYOUT.words
 
-/** The word a field starts at. `viewWord('ahead')` is where the host writes what the kernels read
- *  as `views[vi].ahead`; nothing else may hold that number. */
+/** The word a field starts at. `viewWord('occlusion')` is where the host writes what the kernels
+ *  read as `views[0u].occlusion`; nothing else may hold that number. */
 export const viewWord = (field: FieldName): number => {
   const at: number | undefined = LAYOUT.at[field]
-  if (at === undefined) throw new Error(`${field} is not a field of a view's uniform block`)
+  if (at === undefined) throw new Error(`${field} is not a field of the cut's uniform block`)
   return at
 }
 
@@ -81,19 +89,3 @@ export type FieldName = (typeof VIEW_FIELDS)[number][0]
 
 /** The WGSL struct the kernels bind, built from the same table the host writes against. */
 export const VIEW_UNIFORM_STRUCT = LAYOUT.wgsl
-
-/** The view ahead of a moving camera (`shader/aheadWgsl.ts`): block 1 repeats the camera's with the
- *  planes and view ahead, block 0 says it is there. */
-export function writeAheadBlock(
-  target: Float32Array,
-  ints: Uint32Array,
-  uniforms: SelectionUniforms,
-) {
-  const ahead = uniforms.ahead,
-    at = AHEAD_VIEW * VIEW_BLOCK_WORDS
-  if (!ahead || target.length < at + VIEW_BLOCK_WORDS) return
-  target.copyWithin(at, 0, VIEW_BLOCK_WORDS)
-  target.set(ahead.planes, at + viewWord('planes'))
-  target.set(ahead.view, at + viewWord('view'))
-  ints[viewWord('ahead')] = 1
-}

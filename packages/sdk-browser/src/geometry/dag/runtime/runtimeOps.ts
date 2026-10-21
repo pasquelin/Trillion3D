@@ -1,6 +1,5 @@
 import { type ResidencyChanges, type SelectionUniforms } from '../../../gpu/core/selection.ts'
 import type { createDagResidencyUpload } from '../residencyUpload.ts'
-import type { createDagPoolList } from '../poolList.ts'
 import type { createDagDispatch } from '../dispatch.ts'
 import { readFor } from '../dispatchRead.ts'
 import type { createDifferenceChain } from '../differenceChain.ts'
@@ -17,14 +16,12 @@ import { MARK_WORD, ROOT_WORD } from '../frameTable.ts'
 import { markWithdraws } from '../placement/placementTree.ts'
 
 /** What a camera cut's methods share (`runtime.ts`): its tables, its state, the difference chain,
- *  the residency upload, the pool list, the tree's and the world cells' followers, and the
- *  main view's dispatch. */
+ *  the residency upload, the tree's and the world cells' followers, and the main view's dispatch. */
 export type DagRun = ReturnType<typeof createDagDispatch> & {
   resources: DagResources
   state: DagRuntimeState
   chain: ReturnType<typeof createDifferenceChain>
   uploadResidency: ReturnType<typeof createDagResidencyUpload>
-  poolList: ReturnType<typeof createDagPoolList>
   /** The placement tree's follower (`../tree/treeFollow.ts`), none without a tree. */
   tree: TreeFollower | undefined
   /** The run-time cuts' instances, one a placement (`../proxy/proxyInstances.ts`). */
@@ -98,30 +95,25 @@ export function writeMark({ resources, state, tree, proxies }: DagRun, w: number
   else if (mark >>> 16 > before >>> 16) voidCuts(state, false)
 }
 
-/** `GpuSelection.flush`: the reads in flight drained, a list grown or a cut coarsened and the cut
- *  made again on it, the cut made again under the poses in place. */
+/** `GpuSelection.flush`: the reads in flight drained, the lists laid out again for caps the session
+ *  asked and the cut made again on them, the cut made again under the poses in place. */
 export async function flushRuntime(
   { resources, state }: DagRun,
   /** The main view's cut under `uniforms`, the tables synced first: no image of its own. */
   cut: (uniforms: SelectionUniforms) => void,
 ) {
   await state.pending
-  // A cut past its list grows it, a cut that dropped work its queues or lists (`../queueGrowth.ts`),
-  // or past the device it coarsens (`../lists/listCap.ts`): the drain grows them, then cuts again on them,
-  // rather than hand back the cut before; a factor that moved back cuts again under it too. It
-  // rises √2 at least to its coarsest, and falls only to a factor that did not overflow for the
-  // view as it stands (`../coarsening.ts`): the drain ends. A turn whose cut the tables held for
-  // their growth (`tablesHeld`) cut nothing: the next turn cuts on the grown ones.
+  // Caps asked since the lists were laid out lay them out again (`../queueGrowth.ts`): the drain
+  // makes them, then cuts again on them, rather than hand back the cut before. A turn whose cut
+  // the tables held while they were made (`tablesHeld`) cut nothing: the next turn cuts on the new
+  // ones.
   const { swap } = resources,
     { cuts } = swap
   let held = false
   const again = (asked: SelectionUniforms) =>
     !state.dead &&
     !state.disposed &&
-    (!!state.grow ||
-      !!state.growFlags ||
-      state.factorMoved ||
-      (held && !sameCut(swap, MAIN_VIEW, asked, state)))
+    (!!state.reshape || (held && !sameCut(swap, MAIN_VIEW, asked, state)))
   for (const asked = cuts[MAIN_VIEW - 1]?.uniforms; asked && again(asked);) {
     const serial = swap.cut
     cut(asked)

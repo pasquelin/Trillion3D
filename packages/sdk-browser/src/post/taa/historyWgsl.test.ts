@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { CATMULL_ROM_TAPS_WGSL, HISTORY_LAWS, historySampleLaws } from './historyWgsl.ts'
+import { CATMULL_ROM_TAPS_WGSL, HISTORY_LAWS } from './historyWgsl.ts'
 import { REACTIVE_TARGET } from '../../lighting/deferred/asIsShare.ts'
 import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -101,15 +101,6 @@ test('the display history holds 16 samples a pixel: an image weighs one, a rejec
     hysteresis: 1 / 16,
     rejectedDrop: 1 - 2 / 16,
     movingDrop: 1 - 4 / 16,
-    speedInverse: 1,
-  })
-  // A history at twice the display's resolution: four samples a history pixel, still sixteen, two
-  // and four a display pixel; the speed read in display pixels whatever its resolution.
-  assert.deepEqual(historySampleLaws(2), {
-    samples: 4,
-    hysteresis: 1 / 4,
-    rejectedDrop: 1 - 0.5 / 4,
-    movingDrop: 1 - 1 / 4,
     speedInverse: 1,
   })
 })

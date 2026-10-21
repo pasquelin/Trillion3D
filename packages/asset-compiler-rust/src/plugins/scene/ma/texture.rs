@@ -9,7 +9,7 @@
 //! here, and following it would leave the served directory: only its file name is kept, looked
 //! up at the image root then in `sourceimages`, the folder Maya gives a project's textures.
 use super::*;
-use crate::gltf_codes::{CLAMP_TO_EDGE, REPEAT};
+use crate::compiler::accessor::codes::{CLAMP_TO_EDGE, REPEAT};
 
 /// Directory a Maya project reserves for textures.
 const IMAGES_DIRECTORY: &str = "sourceimages";

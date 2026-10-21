@@ -3,17 +3,13 @@ import { createWebgpuVisibilityShaders } from '../../visibility/passes/shaders.t
 import { visUniformSlots } from '../../visibility/passes/uniforms.ts'
 import { MAX_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { createGpuHiz } from '../../visibility/hiz/gpu/factory.ts'
-import type { GpuHiz } from '../../visibility/hiz/gpu/types.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
 import { createGpuDraw } from '../../visibility/draw/factory.ts'
-import { createGpuPartition } from '../../geometry/partition/gpu/factory.ts'
 import { prepareTransparentOcclusion } from '../../blend/transparent/occlusionHost.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
-import { partitionSourcesOf } from './drawSources.ts'
 import {
   bindShade,
   prepareBlendPipelines,
-  prepareLayerPipelines,
   prepareRasterPipelines,
   prepareShadeClasses,
 } from './visibilitySteps.ts'
@@ -25,9 +21,9 @@ export function depthLayerSlots(pages: readonly { depthLayer: number }[]) {
   return 1 + Math.min(deepest, MAX_DEPTH_LAYER)
 }
 
-/** Builds the blend pipelines, the visibility raster and shade pipelines, the Hi-Z pyramid, the
- *  indirect draw and the partition; throws by name when one of them cannot be made: the visibility
- *  pass is the one image (#1483). */
+/** Builds the blend pipelines, the visibility raster and shade pipelines, the Hi-Z pyramid and the
+ *  indirect draw; throws by name when one of them cannot be made: the visibility pass is the one
+ *  image (#1483). */
 export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { vis } = rt,
     { drawSlots } = rt.layout
@@ -43,16 +39,14 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   )
   vis.shadeUniform = shaders.shadeUniform
   vis.visBindGroupLayout = shaders.visBindGroupLayout
-  vis.zeroFlags = shaders.zeroFlags
+  vis.zeroRows = shaders.zeroRows
   vis.visUniform = shaders.visUniform
-  vis.visModule = shaders.visModule
-  const hiz = await createHizFor(rt, gpuDevice)
+  await createHizFor(rt, gpuDevice)
   await prepareRasterPipelines(rt, gpuDevice, shaders, variant)
-  await prepareLayerPipelines(rt, gpuDevice, shaders, variant)
   const classes = await prepareShadeClasses(rt, gpuDevice, shaders, variant)
   await bindShade(rt, gpuDevice, shaders, classes)
-  await prepareDrawPath(rt, gpuDevice, hiz)
-  // Transparent occlusion last: it borrows the pyramid, partition uniform and compaction verdicts.
+  await prepareDrawPath(rt, gpuDevice)
+  // Transparent occlusion last: it borrows the pyramid and the compaction's verdicts.
   await prepareTransparentOcclusion(rt, gpuDevice)
 }
 
@@ -60,7 +54,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
  *  size refuses the scene by name, as one that cannot build the raster that writes it. */
 async function createHizFor(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const [width, height] = rt.setup.viewport
-  const hiz = await createGpuHiz(gpuDevice, 1, 1, rt.layout.drawSlots)
+  const hiz = await createGpuHiz(gpuDevice, 1, 1)
   const size = () => hiz?.resize(gpuDevice, Math.max(1, width), Math.max(1, height)) || undefined
   if (!hiz || !(await validated(gpuDevice, size, 'out-of-memory'))) {
     hiz?.dispose()
@@ -71,22 +65,13 @@ async function createHizFor(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   // is refused.
   rt.vis.reflectionPipelines = await createReflectionPipelines(gpuDevice)
   if (!rt.vis.reflectionPipelines) throw new Error('WEBGPU_REFLECTIONS_UNAVAILABLE')
-  return hiz
 }
 
-/** Indirect draws and the partition are the one draw path: without them nothing draws. */
-async function prepareDrawPath(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, hiz: GpuHiz) {
+/** Indirect draws are the one draw path: without them nothing draws. */
+async function prepareDrawPath(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { vis } = rt,
     { drawSlots } = rt.layout
   const gpuDraw = await createGpuDraw(gpuDevice, drawSlots, vis.drawLayerSlots, rt.setup.maxCorners)
   if (!gpuDraw) throw new Error('WEBGPU_DRAW_UNAVAILABLE')
   vis.gpuDraw = gpuDraw
-  // The partition mounts last: it writes compaction buffers and rereads pyramid verdicts.
-  const partition = await createGpuPartition(gpuDevice, drawSlots, {
-    ...partitionSourcesOf(gpuDraw, hiz),
-    pyramid: () => vis.gpuHiz?.pyramidView(),
-  })
-  if (!partition) throw new Error('WEBGPU_PARTITION_UNAVAILABLE')
-  vis.gpuPartition = partition
-  hiz.attach(partition.tested, partition.state)
 }

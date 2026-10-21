@@ -125,7 +125,9 @@ test('vis pipeline layout stores the page table at binding 2', async () => {
   fixture.material.dispose()
 })
 
-// The indirect slots instance every packed row of the page table: their counts are the GPU's.
+// The indirect slots instance every packed row of the page table: their counts are the GPU's. A row
+// is drawn by the main pass, then by the identifiers pass over everything drawn
+// (`encodeWebgpuVisibilityPasses`); the post pass draws what the main pass's pyramid hid: none here.
 test('vis draws instance each packed page from the page table', async () => {
   installGpuGlobals()
   const { device, draws } = fakeDevice(BACKEND)
@@ -138,8 +140,8 @@ test('vis draws instance each packed page from the page table', async () => {
   const image = draws.slice(before).filter((draw) => draw.indirect && draw.entryPoint === 'vis_vs')
   assert.equal(
     image.reduce((rows, draw) => rows + (draw.instanceCount ?? 0), 0),
-    2,
-    'both packed rows, instanced by the slots',
+    2 * 2,
+    'both packed rows, instanced by the slots of the main pass and of the identifiers pass',
   )
   backend.dispose()
   fixture.geometry.dispose()

@@ -1,6 +1,6 @@
-import { KEY_PAGE_MAX } from '../dag/evict/evict.ts'
+import { SPARSE_IDS } from '../cut/sparseInts.ts'
 
-/** A buffer of bytes that is resized in place, up to the pages a key word names. */
+/** A buffer of bytes that is resized in place, up to a byte for every key a catalogue holds. */
 type ResizableBuffer = ArrayBuffer & { resize(bytes: number): void }
 const ResizableBuffer = ArrayBuffer as unknown as new (
   bytes: number,
@@ -14,7 +14,7 @@ const ResizableBuffer = ArrayBuffer as unknown as new (
  * keys it held untouched. Its length follows its buffer's.
  */
 export function createCoverKeys(count: number): Uint8Array {
-  return new Uint8Array(new ResizableBuffer(count, { maxByteLength: KEY_PAGE_MAX }))
+  return new Uint8Array(new ResizableBuffer(count, { maxByteLength: SPARSE_IDS }))
 }
 
 /** `keys` holds `count` keys at least; the new ones are held by none. */

@@ -56,8 +56,8 @@ test('twelve placements of one primitive store its records once', () => {
   assert.equal(alone.recordCount, PLACEMENTS * pages.length)
   // Hot records shrink by the placement count; the cold buffer keeps no word per page.
   assert.equal(alone.clusters.byteLength / packed.clusters.byteLength, PLACEMENTS)
-  const words = coldBase(packed) + pages.length * COLD_WORDS
-  assert.equal(packed.pageCones.length, words)
+  const words = coldBase(packed.pageCount) + pages.length * COLD_WORDS
+  assert.equal(packed.coldWords.length, words)
 })
 
 test('every page decodes the same record, owner and placement shared or not', () => {

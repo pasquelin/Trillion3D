@@ -7,7 +7,7 @@ import { createWebgpuPageTracking } from '../../geometry/rows/page/pageTracking.
 import { describePageSlots } from '../../geometry/rows/page/pageSlots.ts'
 import { indexPageRequests, RequestStamps } from '../../geometry/selection/requests.ts'
 import { createHostRankDelta } from '../../geometry/streaming/hostRanks.ts'
-import { rootCoverOf } from './rootCover.ts'
+import { rootCoverOf, rootRegionOf } from './rootCover.ts'
 import { catalogueRefusal, growCatalogue } from './catalogueGrowth.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
@@ -55,7 +55,10 @@ function session(held: number) {
     sourceBytes: new Map<string, Uint8Array>(),
     pageBytes: census.pageBytes,
     maxCorners: 384,
-    geometryShape: { uniquePages: census.homes.size, homeBytes: 0, rootPages: 0, pageBytes: 0 },
+    rootRegion: rootRegionOf(census, cover.coverUrls, cover.rootUrls),
+    geometryShape: {
+      ...{ uniquePages: census.unitWidths.size, homeBytes: 0, rootPages: 0, pageBytes: 0 },
+    },
   }
   return { setup, rt: { setup } as unknown as WebgpuPagesRuntime, reads }
 }
@@ -73,13 +76,13 @@ for (const held of [100, 20_000]) {
       const before = {
         keys: setup.tracking.pageCatalog.length,
         urls: setup.requestUrls.length,
-        floor: setup.floorUrls.size,
+        cover: setup.coverUrls.size,
         read: reads.count,
       }
       const { grown, cover } = growCatalogue(rt, { allPages: pages, roots })
       assert.equal(setup.tracking.pageCatalog.length - before.keys, added * PER)
       assert.equal(setup.requestUrls.length - before.urls, added * PER)
-      assert.equal(setup.floorUrls.size - before.floor, added * PER, 'the cover is the floor')
+      assert.equal(setup.coverUrls.size - before.cover, added * PER, 'the cover takes the roots')
       assert.equal(cover.length, added * PER)
       assert.equal(grown.widths.size, added * PER)
       assert.equal(reads.count - before.read, 2 * added * PER, 'two reads of the rank map a page')
@@ -109,7 +112,7 @@ test('a page read as floats joins the catalogue by its index bytes, as a quantiz
   assert.equal(setup.census.homes.get(pages[0].url), 1200)
 })
 
-test('a page deeper than those held raises the levels ranked; a record that is no page takes no slot', () => {
+test('a page deeper than those held is taken; a record that is no page takes no slot', () => {
   const { setup, rt } = session(2)
   const pages = primitive(10)
   pages[1].level = 12
@@ -117,7 +120,6 @@ test('a page deeper than those held raises the levels ranked; a record that is n
   const none = { url: '', triangles: 4, indexBytes: 0, level: 3, parentError: null } as PageRec
   assert.equal(catalogueRefusal(rt, [...pages, none]), undefined, 'no refusal for the depth')
   const { grown } = growCatalogue(rt, { allPages: [...pages, none], roots: [rootOf(pages)] })
-  assert.equal(setup.tracking.topLevel, 12, 'the admission reads the levels as they rise')
   assert.equal(grown.widths.size, PER, 'the pages alone are laid out: no slot of no bytes')
   assert.ok([...grown.widths.values()].every((width) => width > 0))
 })

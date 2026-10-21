@@ -3,7 +3,7 @@
  * (`math/src/projection/projectionOracles.ts`), which the root boxes pass writes — its one writer —
  * into the `Stretch` field of the cut's frame words (`roots/rootBoxesWgsl.ts`, `../geometry/dag/frameTable.ts`),
  * the number the cut projects every error through. The CPU's memo of it (`worldStretch`) serves the
- * CPU's own readers alone (`../deformation/screen.ts`), never the cut; it takes
+ * CPU's own readers alone (the shadow box of a deformation, `noteDeformed`), never the cut; it takes
  * the largest singular value of the linear part in doubles — the symmetric matrix `AᵀA`, its
  * eigenvalue by the trigonometric solution of a cubic —; so does this, in the same doubles
  * (`math/src/wgsl/double.ts`), every product and sum rounded once as the CPU rounds it, and the

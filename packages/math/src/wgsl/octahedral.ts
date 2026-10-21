@@ -84,8 +84,8 @@ export const OCT_BYTE_STEP = wgslConst(
   `const OCT_BYTE_STEP:f32=${wgslF32(BYTE_STEP)};`,
 )
 
-/** The unit vector of the two octahedral bytes at byte `k` of `word` (`OCT_BYTE_STEP`): a page's
- *  normals and a voxel's contour normal, read the one way. */
+/** The unit vector of the two octahedral bytes at byte `k` of `word` (`OCT_BYTE_STEP`): a voxel's
+ *  contour normal. */
 export const octBytesDecode = wgslFn(
   'octBytesDecode',
   [octDecode, byteOf, OCT_BYTE_STEP],

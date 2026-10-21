@@ -29,7 +29,7 @@ test('a packing of the world DAG keeps room: placements append in place, linked 
   const added = appendDagRoots(grown, later)
   assert.ok(added, 'appended in place')
   assert.deepEqual(added.worlds, [before.length, after.length])
-  for (const table of ['clusters', 'nodes', 'pageCones', 'worlds', 'levelSizes'] as const)
+  for (const table of ['clusters', 'nodes', 'coldWords', 'worlds', 'levelSizes'] as const)
     assert.deepEqual(grown[table], whole[table], table)
   assert.deepEqual(grown.world!.roots, [before.length - 1], 'the world DAG where it was packed')
   assert.equal(

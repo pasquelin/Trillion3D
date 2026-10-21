@@ -1,16 +1,21 @@
 import { cpuNow } from '../../diagnostic/stopwatch.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { cameraSelectionUniforms } from '../../gpu/core/selection.ts'
-import { prefetchHorizonMs } from '../../session/engine/common.ts'
+import { CULL_FRUSTUM_OFF, CULL_MIN_LOD_OFF } from '../../geometry/dag/shader/viewsWgsl.ts'
+import { taaRenderMatrix } from '../../post/taa/frame.ts'
+import { writeCutOcclusion } from './cutPyramid.ts'
+import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
+import { contextReader } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { mirrorDrawnFromShown } from '../backend/helpers.ts'
 import { abandonFrameEncoder, openFrameEncoder } from './encoder.ts'
 import { encodeDraws, followRows } from './encodeDraws.ts'
 import { admitGpuCut } from './gpuCutAdmission.ts'
-import { dispatchCut, dispatchWaitingSelection, streamCutResidency } from './gpuCutStream.ts'
+import { cutOf, dispatchCut, dispatchWaitingSelection, streamCutResidency } from './gpuCutStream.ts'
 import { keepWebgpuFrame } from '../loop/hold.ts'
 import { adoptPendingFreeze, cullStep } from './cutFreeze.ts'
 import { recordGpuCutTiming, traceGpuCutFrame, traceGpuCutWaiting } from './gpuCutTrace.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { cutListCaps } from '../../geometry/dag/lists/cutListCaps.ts'
 
 /** Logs the configuration of the first image once. */
 function logFirstRenderPath(rt: WebgpuPagesRuntime) {
@@ -54,38 +59,84 @@ export function renderGpuCut(
     run.gate.resourcesChanged()
     run.gpuMetricsReady = false
     streamCutResidency(rt, gpuDevice)
+    // No image follows, nor a post pass: the cut runs in one.
+    if (cullStep(rt) !== 'held') run.selectionUniforms.occlusion = 0
     if (!dispatchWaitingSelection(rt)) dropFailedView(rt)
     traceGpuCutWaiting(rt)
     return
   }
   streamCutResidency(rt, gpuDevice)
-  if (cutFrame(rt, gpuDevice)) encodeImage(rt, gpuDevice, cam)
+  if (cutFrame(rt, gpuDevice, cam)) encodeImage(rt, gpuDevice, cam)
 }
 
-/** The camera's motion the view's cut reads its view ahead from: the main view's alone, which
- *  looks a round trip further for pages that come from further away; none for a view aside. */
-function cutMotion(rt: WebgpuPagesRuntime) {
-  const { run, context, views } = rt
-  run.motion.horizonMs = prefetchHorizonMs(context.pageRoundTripMs?.())
-  return views.active === views.main ? run.motion : undefined
+/**
+ * The drawn view's occlusion, decided once its rows are followed: two passes when the host asks
+ * them (`cutTwoPassOcclusion`, `cutOcclusionCulling`), the image draws rows — its visibility
+ * passes then encode the post pass (`../../visibility/passes/passes.ts`) — and the view's last
+ * pyramid stands for it (`./cutPyramid.ts`); that pyramid bound for the next dispatch of the drawn
+ * view's cut, the main one or its own aside (`cutOf`). A frozen cut keeps what it froze with.
+ */
+function decideOcclusion(rt: WebgpuPagesRuntime, cam: EngineCamera) {
+  const { run, layout } = rt
+  if (cullStep(rt) === 'held') return
+  const asked =
+    cutSetting(rt, 'cutTwoPassOcclusion') &&
+    cutSetting(rt, 'cutOcclusionCulling') &&
+    layout.rows.packedCount > 0
+  const pyramid = writeCutOcclusion(rt, cam, run.selectionUniforms, asked)
+  cutOf(rt)?.bindPyramid(pyramid)
+}
+
+/** The cut's setting `field` the session holds (`cutOptions.ts`), by its one resolver. */
+const cutSetting = contextReader(CUT_RULES)
+
+/**
+ * The level of detail's factor of the drawn view (`cutLodBiasFollowsUpscale`): an image the
+ * temporal pass reconstructs to a wider display is cut as the display would be — its threshold
+ * divided by the width's ratio, shifted by `2^-cutLodBiasOffset` —, never finer than
+ * `2^-cutLodBiasMin`; any other image at its own size.
+ */
+function lodBiasFactor(rt: WebgpuPagesRuntime) {
+  const { gpu } = rt
+  if (!gpu.temporal?.frame.active || !cutSetting(rt, 'cutLodBiasFollowsUpscale')) return 1
+  const upscale = gpu.displaySize[0] / Math.max(1, gpu.targetSize[0])
+  return Math.min(
+    upscale * 2 ** -cutSetting(rt, 'cutLodBiasOffset'),
+    2 ** -cutSetting(rt, 'cutLodBiasMin'),
+  )
+}
+
+/**
+ * The drawn view's selection uniforms under `cam`: its pixels at the size the image is drawn at,
+ * the image's render matrix — its jitter included — the boxes' pixel centres are found with, the
+ * culls the host turned off, the frame. The threshold the cut reads is the host's pixels per edge
+ * divided by the view's level-of-detail factor (`lodBiasFactor`) and the streaming quality scale
+ * (`../../geometry/residency/poolPressure.ts`): residency coarsens, one DAG level where a page is
+ * missing (`../../geometry/cut/rule.ts`).
+ */
+function writeCutUniforms(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: number) {
+  const { run, gpu, services } = rt,
+    uniforms = run.selectionUniforms,
+    size = gpu.targetSize
+  const threshold = pixelError / (lodBiasFactor(rt) * services.residency.qualityScale)
+  cameraSelectionUniforms(cam, threshold, size, uniforms, taaRenderMatrix(rt, cam))
+  uniforms.cullOff =
+    (cutSetting(rt, 'cutFrustumCulling') ? 0 : CULL_FRUSTUM_OFF) |
+    (cutSetting(rt, 'cutMinLodCulling') ? 0 : CULL_MIN_LOD_OFF)
+  // The clock every view's cut of this frame stamps the rows it uses with
+  // (`../../geometry/rows/rowClosureWgsl.ts`), and a cut in two passes is known by.
+  uniforms.frame = run.frame
 }
 
 /** The view's selection uniforms written, its last readback adopted and its cut admitted. */
 function adoptAndAdmit(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: number) {
   const { run, services } = rt,
-    { viewport } = rt.setup,
     marks = rt.timing.marks
-  // The host's threshold, and no other: residency coarsens, one DAG level where a page is missing
-  // (`../../geometry/cut/rule.ts`).
-  const uniforms = run.selectionUniforms
   // A frozen cut keeps the uniforms of the camera it froze at (`./cutFreeze.ts`).
-  if (cullStep(rt) !== 'held')
-    cameraSelectionUniforms(cam, pixelError, viewport, uniforms, cutMotion(rt))
+  if (cullStep(rt) !== 'held') writeCutUniforms(rt, cam, pixelError)
+  // The caps the session's settings give the cut's lists, from its next cut on.
+  run.gpuSelection?.holdLists(cutListCaps(rt.context))
   adoptPendingFreeze(rt)
-  // A pool short of the views' cuts has the GPU rank the requests by admission (`request.ts`).
-  uniforms.admitByLevel = services.residency.short()
-  // The clock every view's cut of this frame stamps what it uses with (`../../geometry/dag/evict/evict.ts`).
-  uniforms.frame = run.frame
   // An image that adopts no readback moves no page; the adoption reports what it actually moved.
   run.pagesEntered = 0
   run.pagesExited = 0
@@ -98,13 +149,15 @@ function adoptAndAdmit(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: nu
   marks.admissionEnd = cpuNow()
 }
 
-/** The frame's encoder opened, the rows followed, and the cut dispatched into it; false when the image stops there. */
-function cutFrame(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
+/** The frame's encoder opened, the rows followed, the occlusion decided and the cut dispatched into
+ *  it; false when the image stops there. */
+function cutFrame(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, cam: EngineCamera) {
   let cut: boolean
   try {
     const encoder = openFrameEncoder(rt, gpuDevice)
     followRows(rt, gpuDevice)
     rt.vis.deformationCode?.encodeDeformation(rt, encoder)
+    decideOcclusion(rt, cam)
     cut = dispatchCut(rt, encoder)
   } catch (error) {
     abandonFrameEncoder(rt)

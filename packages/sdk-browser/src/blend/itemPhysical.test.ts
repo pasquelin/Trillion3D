@@ -23,7 +23,7 @@ import type { BlendGpuItem } from './state.ts'
 import { emptyGeometryBlock } from '../geometry/rows/page/pageRowMaterial.ts'
 
 /** The material word an item of `surface` writes, and what it returns. */
-function wordOf(surface: PageSurface, item: Partial<BlendGpuItem> = {}, hasUv1 = false) {
+function wordOf(surface: PageSurface, item: Partial<BlendGpuItem> = {}, hasExtraUv = false) {
   const floats = new Float32Array(BLEND_ITEM_WORDS),
     ints = new Uint32Array(floats.buffer)
   const geometry = new Geometry()
@@ -38,7 +38,9 @@ function wordOf(surface: PageSurface, item: Partial<BlendGpuItem> = {}, hasUv1 =
     mapLayer: new Map(),
     dataLayer: new Map(),
     materialTable: createMaterialTable(),
-    geometryBlocks: new Map([[geometry.attributes, { ...emptyGeometryBlock(), count: 3, hasUv1 }]]),
+    geometryBlocks: new Map([
+      [geometry.attributes, { ...emptyGeometryBlock(), count: 3, hasExtraUv }],
+    ]),
   })
   // The record's material word: its twentieth (`itemRecord.test.ts`).
   return {

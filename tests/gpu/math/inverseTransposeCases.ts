@@ -1,31 +1,13 @@
-// Defect 6's cases (`inverseTranspose3`, DAG selection kernel): geometry, camera, raw orientation
-// and CPU decision, shared by its proof, defect 10's (`pages/culled-face-mirrored.gpu.ts`) and
-// the engine's own draw (`engineDraws.ts`).
+// Defect 6's cases: geometry, camera and raw orientation, shared by defect 10's proof
+// (`pages/culled-face-mirrored.gpu.ts`) and the engine's own draw (`engineDraws.ts`).
 import { boxCenter } from '../../../packages/math/src/geometry/box.ts'
-import { triangleCone } from '../../kit/reference/cone.ts'
 import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import type { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
-import { Box3 } from '../../../packages/sdk-core/src/world/math/box3.ts'
-import { frustumExcludesBox } from '../../../packages/math/src/geometry/frustum/box.ts'
-import { frustumPlanesFromMatrix } from '../../../packages/math/src/geometry/frustum/frustum.ts'
-import { frustumPlanesToLocal } from '../../../packages/sdk-browser/src/geometry/dag/oracle/math.fixture.ts'
-import type { NormalCone } from '../../../packages/sdk-browser/src/geometry/cone/cone.ts'
-import {
-  coneCullsPageWith,
-  coneContextFor,
-  createConeContext,
-} from '../../../packages/sdk-browser/src/geometry/cone/cone.fixture.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
-import { selectVisiblePages } from '../../../packages/sdk-browser/src/geometry/cut/cut.fixture.ts'
-import type { DagRoot } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
 import { createEngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import { readCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts'
-import { surfaceOf } from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
-import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.fixture.ts'
 import { project } from '../../kit/device/cameraRig.ts'
 import { worldPose, type PoseParams } from './lightingNormalCases.ts'
-import { cullingInPlace } from '../../../packages/sdk-browser/src/geometry/dag/culling.fixture.ts'
 
 type Vec3 = [number, number, number]
 /** A case's pose: `PoseParams`, its world size, and whether it is mirrored. */
@@ -38,12 +20,11 @@ export interface Case extends CaseInput {
   indices: number[]
   min: Vec3
   max: Vec3
-  cone: NormalCone
   world: Matrix4
   mirrored: boolean
 }
 
-export const VIEWPORT: [number, number] = [1000, 1000]
+const VIEWPORT: [number, number] = [1000, 1000]
 /** The fixed camera on −Z, looking at the origin where each object is centred whatever its
  *  rotation (`buildCase`): only orientation changes from case to case. */
 export const camera = G.perspectiveCamera(60, 1, 0.1, 100)
@@ -52,11 +33,9 @@ camera.lookAt(0, 0, 0)
 camera.updateMatrixWorld(true)
 /** The engine's view of that camera, posed once: the CPU and the GPU kernel read the same one. */
 export const view = readCameraWorld(createEngineCamera(), camera)
-const WORLD_PLANES = new Float64Array(24)
-frustumPlanesFromMatrix(WORLD_PLANES, view.viewProjection)
 
-/** Two triangles sharing the local origin: normals (±1,0,1)/√2, a local cone of axis (0,0,1) and
- *  half-angle 45°. `L` scales the local coordinates; the world size stays whatever `s`. */
+/** Two triangles sharing the local origin: normals (±1,0,1)/√2. `L` scales the local
+ *  coordinates; the world size stays whatever `s`. */
 function localGeometry(L: number) {
   const positions = [0, 0, 0, L, 0, -L, 0, L, 0, 0, 0, 0, -L, 0, -L, 0, -L, 0]
   return {
@@ -85,11 +64,9 @@ export function buildCase({
   boxCenter(mid, 0, min[0], min[1], min[2], max[0], max[1], max[2])
   const centre = new Vector3(mid[0], mid[1], mid[2]).applyMatrix4(world).negate()
   world.setPosition(centre.x, centre.y, centre.z)
-  const cone = triangleCone(positions, indices)
   return {
     positions,
     indices,
-    cone,
     min,
     max,
     world,
@@ -128,68 +105,4 @@ export function rawOrientation(lit: Case) {
   })
   const frontVisible = triangles.some((t) => t.facing > 0 && t.inView && t.areaPixels > 1)
   return { triangles, frontVisible }
-}
-
-/** What a case's page always carries: its local box, its cone, a zero level error. */
-const pageOf = (lit: Case) => ({
-  url: '0',
-  lodError: 0,
-  min: lit.min,
-  max: lit.max,
-  cone: lit.cone,
-})
-
-/** The cases packed for the GPU kernel: one root and one page per case, the case's sphere for
- *  radius; packed worlds brought back to the eye, as the engine feeds them — relative view and
- *  absolute world would mix otherwise. */
-export const packCases = (cases: Case[]) =>
-  packedWorldsToRenderOrigin(
-    packDagSelection(
-      cases.map((lit): DagRoot => {
-        const pages = [{ ...pageOf(lit), parentError: null, sphere: [0, 0, 0, lit.worldSize] }]
-        return { world: lit.world, pages, culling: cullingInPlace(pages) }
-      }),
-    ),
-    cases.map((lit): DagRoot => ({ world: lit.world, pages: [] })),
-    view.eye,
-  )
-
-/** Whether the cluster is in the frustum: its local box against the planes taken to local space. */
-export function inFrustum(lit: Case): boolean {
-  const local = new Float64Array(24)
-  frustumPlanesToLocal(local, WORLD_PLANES, lit.world.elements)
-  return !frustumExcludesBox(local, ...lit.min, ...lit.max)
-}
-
-/** Whether the CPU's normal cone culls the case's page (`coneCullsPageWith`), and whether its
- *  transform is conformal. */
-export function coneDecision(lit: Case) {
-  const context = coneContextFor(createConeContext(), lit.world, view.eye)
-  return {
-    conformal: context.conformal,
-    coneCulls: coneCullsPageWith(context, lit.cone, lit.world, lit.min, lit.max),
-  }
-}
-
-/** `coneCullsPageWith` and `selectVisiblePages` on the same page: the CPU's two entries. */
-export function cpuDecision(lit: Case) {
-  const { conformal, coneCulls } = coneDecision(lit)
-  const box = new Box3(new Vector3(...lit.min), new Vector3(...lit.max)).applyMatrix4(lit.world)
-  const page = {
-    ...pageOf(lit),
-    id: '0',
-    triangles: 2,
-    matrix: lit.world,
-    material: surfaceOf(G.basicSurface({ side: G.FRONT_SIDE })),
-  }
-  const root = {
-    world: lit.world,
-    pages: [page],
-    worldBox: new Float64Array([...box.min.toArray(), ...box.max.toArray()]),
-  }
-  const triangles = selectVisiblePages([root], view, {
-    pixelError: 0,
-    viewport: VIEWPORT,
-  }).displayedTriangles
-  return { conformal, coneCulls, culls: triangles === 0, triangles }
 }

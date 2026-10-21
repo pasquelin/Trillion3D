@@ -8,11 +8,14 @@
 //   packages/asset-compiler-rust/src/cutout.rs
 //   packages/asset-compiler-rust/src/voxel.rs
 //   packages/asset-compiler-rust/src/voxel/bricks.rs
-//   packages/asset-compiler-rust/src/voxel/page.rs
-//   packages/asset-compiler-rust/src/compiler_world_roots.rs
-//   packages/asset-compiler-rust/src/texture_preview.rs
-//   packages/asset-compiler-rust/src/texture_preview/levels.rs
+//   packages/page-codec-wasm/src/voxel.rs
+//   packages/asset-compiler-rust/src/hlod/chain.rs
+//   packages/asset-compiler-rust/src/hlod/chain/builds/instanced.rs
+//   packages/asset-compiler-rust/src/lib.rs
+//   packages/asset-compiler-rust/src/texture.rs
+//   packages/asset-compiler-rust/src/texture/levels.rs
 //   packages/asset-compiler-rust/src/physics_cook.rs
+//   packages/asset-compiler-rust/src/compiler/tables/motion/bank.rs
 // Edit the source, then run `pnpm run generate:shared-rules`.
 /**
  * Version 4 turns the fixed 16×16 preview entries into the variable progressive levels: the pixel
@@ -31,8 +34,8 @@
  * Version 8 adds the page dependencies of the streaming bundles: a count per bundle, then the
  * flat lists, closed up to the root cover (`docs/FORMAT.md` §Cluster DAG), that WebGPU requests
  * and retains with a bundle. A version-7 reader cannot read the lists, so it refuses.
- * Version 9 adds each page's normal cone, cooked by the compiler (`Page.cone`), in a column a
- * version-8 reader lacks.
+ * Version 9 adds each page's normal cone, in a column a version-8 reader lacks; version 18 drops
+ * it again.
  * Version 10 cuts the manifest into pages (`paged.ts`): a sidecar holds the columns of one page,
  * the head's the texture previews alone.
  * Version 11 widens a preview entry to fifteen words and adds a block column after ASTC's: the
@@ -47,10 +50,33 @@
  * a version-12 reader would look for objects that no longer exist, so it refuses. 13 also rounded
  * the clusters the one clusterer cut free, its upper cuts across the longest side (both since
  * replaced by the parts of the triangles' graph, `page-codec-wasm/src/partition.rs`): the
- * level-0 clusters, hence every page, differ from a version-12 cook's for the same source; and it measures each page's cone on the positions the page decodes
- * to (`page-codec-wasm/src/encode.rs:decoded_cone`), not the source's, so the cone column differs.
+ * level-0 clusters, hence every page, differ from a version-12 cook's for the same source.
+ * Version 14 keeps every column; a pinned bundle holds the DAG's whole root page — its roots, then
+ * whole groups, coarsest first, up to `ROOT_PAGE_BYTES` and `ROOT_PAGE_CLUSTERS`
+ * (`compiler/pages/bundles.rs`) —, not its roots alone: the bundles and their dependency lists
+ * differ from a version-13 cook's for the same source.
+ * Version 15 keeps every column; the clusters are assigned to streaming pages as the runtime's
+ * unit: the groups from the coarsest along a Morton curve, a group spreading over several pages,
+ * root pages of 32 KiB and 64 clusters — as many as `meshBuild.alwaysResidentKib` asks, one at
+ * least —, others of 128 KiB and 256 (`compiler/pages/bundles.rs`), and a page lists every page of
+ * the groups holding its groups' outputs: the pages, the `stream` and `streamOffset` columns and
+ * the dependency lists differ from a version-14 cook's for the same source.
+ * Version 16 lays the clusters in the order their streaming pages are filled in, and the culling
+ * column holds sixteen numbers a node — the least own error beside the ceiling —, one tree per
+ * level of four children a node over the group parts, the clusters of one group a page holds
+ * (`page-codec-wasm/src/culling.rs`): a version-15 reader would read a node off its stride.
+ * Version 17 keeps every column; the pages are the `WGP3` format 9 — positions in centimetres on
+ * the cells of one precision a primitive, normals and tangents at their own precisions, colour
+ * bytes, up to four texture sets — and the boxes of the culling columns bound the positions the
+ * pages decode to: the pages, the box columns and the page sizes differ from a
+ * version-16 cook's for the same source, and no record carries a quantization error any more.
+ * Version 18 drops the page normal-cone column, the last, which the runtime read none of: a
+ * sidecar holds 27 columns, and a version-17 reader would expect 28, so it refuses. A position a
+ * simplification leaves on a source vertex's now comes back from the build's frame bit for bit
+ * (`simplify/region.rs`): the coarse pages of a simplified cook differ from a version-17 cook's
+ * for the same source.
  */
-export const MANIFEST_BINARY_VERSION = 13
+export const MANIFEST_BINARY_VERSION = 18
 
 /**
  * 'W','G','M','B' read as a little-endian u32.
@@ -107,26 +133,31 @@ export const PROXY_NODE_WORDS = 12
 export const PROXY_META_WORDS = 4
 
 /**
+ * Children of an inner node.
+ */
+export const CULLING_FANOUT = 4
+
+/**
  * Numbers per node in the flat layout the manifest and the run-time cut carry: box, sphere,
- * replacement error ceiling (-1 over a subtree holding a root), first child, child count, first
- * cluster, cluster count.
+ * replacement error ceiling (-1 over a subtree holding a root), least own error, first child,
+ * child count, first cluster, cluster count.
  */
-export const CULLING_STRIDE = 15
+export const CULLING_STRIDE = 16
 
 /**
- * Numbers per cluster record, the run-time cut's input (`wasm/culling.rs`): the box's least corner
- * then its greatest, the sphere of what replaces it, its replacement error (infinite for a root)
- * and its level.
+ * Numbers per part record, the run-time cut's input (`wasm/culling.rs`): the box's least corner
+ * then its greatest, the LOD ball, the least own error, the replacement error (infinite for a
+ * root), the level, the first rank and the count.
  */
-export const CULLING_RECORD_FLOATS = 12
+export const CULLING_RECORD_FLOATS = 15
 
 /**
- * `cluster_build`'s order word for clusters free to reorder the triangles (`clusters.rs`).
+ * `cluster_build`'s order word for clusters free to reorder the triangles (`../clusters.rs`).
  */
 export const CLUSTER_SPATIAL = 0
 
 /**
- * `cluster_build`'s order word for clusters held to the source order (`clusters.rs`).
+ * `cluster_build`'s order word for clusters held to the source order (`../clusters.rs`).
  */
 export const CLUSTER_ORDERED = 1
 
@@ -179,29 +210,23 @@ export const VOXEL_BRICK_TRIANGLES = 12
 export const GEOMETRY_VOXEL = 256
 
 /**
- * Version of the world-roots products: 2 since their records, 3 since an object root names its
- * object by its table rank, 4 since a placed object is one level-0 cluster and a super-root a
- * `WGP3` page carrying its attributes, 5 since a cell names each node's first object, 6 since the
- * DAG lies in the order of the world's culling hierarchy and carries its nodes, 7 since a placed
- * object's record no longer lists its own roots' bundles, 8 since a placed object is written at
- * error 0 and every band and ceiling raised by the world grid's displacement, and a blended
- * primitive enters no world DAG, 9 since a placed object stands at its coarsest level and the
- * world's levels count on from it, 10 since the world is HLOD 1: one merged DAG per HLOD 0
- * cell from its objects' full geometry, each cluster naming its cell and layer, the table its
- * cells' bundles and nothing pinned, 11 since the chain runs HLOD 1 to HLOD 3, each table cell
- * naming its parent, layer and bounds, 12 since each actor above HLOD 0 wears its own flattened
- * material, a cluster naming its actor's rank in the scene tables' `hlodMaterials` where it named
- * the primitive whose material it wore, 13 since a merged layer's actor may wear a material of
- * the scene or another actor's flattened one, its rank in `hlodMaterials` naming it, and the
- * world's pages carry every attribute its actors carry, 14 since a cluster no longer names its HLOD
- * layer — its cell's level, which the table carries, gives it, 15 since each table cell's level
- * word carries in its high 16 bits whether its actor's build failed, so a failed top keeps its
- * content standing where a cell of objects in no layer follows its range alone, 16 since a
- * cluster of a voxel layer's actor holds a voxel page, flagged `GEOMETRY_VOXEL`, its triangles
- * its bricks' boxes', 17 since that page's head is six words, its bricks five — the rank of their
- * first voxel added —, its voxels twelve bytes (`trillion3d_page_codec::voxel`).
+ * Version of the world-roots products; what each version changed is told in `docs/FORMAT.md`
+ * (World HLOD).
  */
-export const WORLD_ROOTS_VERSION = 17
+export const WORLD_ROOTS_VERSION = 34
+
+/**
+ * Bytes a row takes in its cell's rows bundle (`lay_rows`), little-endian: its mesh's published
+ * rank and the item of the animation banks it plays (`u32::MAX` for none), as `u32`s, then its
+ * world matrix as sixteen `f64`.
+ */
+export const WORLD_ROOTS_ROW_BYTES = 136
+
+/**
+ * The most bytes of one streaming page — the unit a runtime reads, installs, keeps and drops, one
+ * geometry pool slot (`compiler/pages/bundles.rs`) —, and of one file of the scene index's cells.
+ */
+export const STREAMING_PAGE_BYTES = 131072
 
 /**
  * Section contract: moving level scale, order, reduction rule, color space,
@@ -256,6 +281,49 @@ export const PHYSICS_FORMAT_VERSION = 2
 export const PIECES_FORMAT_VERSION = 3
 
 /**
+ * Version of the animation banks' file: one of another version is refused, never guessed.
+ */
+export const ANIMATION_BANKS_VERSION = 1
+
+/**
+ * 'T','B','N','K' read as an unsigned 32-bit integer little-endian.
+ */
+export const ANIMATION_BANKS_MAGIC = 0x4b4e4254
+
+/**
+ * Header words of the animation banks' file: magic, version, the bakes, the items, and the
+ * floats of the pool.
+ */
+export const ANIMATION_BANKS_HEADER_WORDS = 5
+
+/**
+ * Words of a bake: its joints, its frames, and the pool floats its inverse binds and its keys
+ * start at.
+ */
+export const ANIMATION_BANK_BAKE_WORDS = 4
+
+/**
+ * Words of an item: its bake, its flags, its start position, play rate and screen size, its
+ * bounds' low then high corner, and its published mesh.
+ */
+export const ANIMATION_BANK_ITEM_WORDS = 12
+
+/**
+ * Floats of a key: the translation `x, y, z`, then the rotation quaternion `x, y, z, w`.
+ */
+export const ANIMATION_BANK_KEY_FLOATS = 7
+
+/**
+ * Floats of an inverse bind: the three rows of its affine part, four floats each, row-major.
+ */
+export const ANIMATION_BANK_INVERSE_FLOATS = 12
+
+/**
+ * The flag of an item whose track wraps at its end; one without it holds its last pose.
+ */
+export const ANIMATION_BANK_LOOPING = 1
+
+/**
  * Cutout response sheet, mirroring `packages/asset-compiler-rust/src/cutout.rs`.
  *
  * The compiler writes this file and re-reads it; a host updates it with human responses.
@@ -263,6 +331,11 @@ export const PIECES_FORMAT_VERSION = 3
  * interprets it: unknown versions are rejected rather than guessed.
  */
 export const CUTOUT_SHEET_FILE = 'decoupes.json'
+
+/**
+ * The animation banks' file, beside the scene tables.
+ */
+export const ANIMATION_BANKS_FILE = 'animation-banks.bin'
 
 /**
  * The Jolt commit the engine's physics module is built from: the pin of the submodule

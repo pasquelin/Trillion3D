@@ -11,8 +11,9 @@
 use super::raster::Cell;
 use super::sample::{sample, symmetric, Moments, Probe, FACES};
 use std::cmp::Reverse;
-use std::collections::{BinaryHeap, HashMap};
-use trillion3d_math::vecn::squared_length;
+use std::collections::BinaryHeap;
+use trillion3d_math::vector::vecn::squared_length;
+use trillion3d_page_codec::hash::WordMap;
 
 /// A sampled voxel, as the compiler alone holds it: its coverage, each face's sums and, once
 /// solid, the sums it shows, and the joint most of its triangles follow. Its record keeps what
@@ -49,7 +50,7 @@ impl Voxel {
 /// The solid voxels of `voxels`, in their order.
 pub(super) fn solid(voxels: Vec<Voxel>) -> Vec<Voxel> {
     let mut voxels: Vec<Voxel> = voxels.into_iter().filter(|v| v.coverage > 0.0).collect();
-    let at: HashMap<Cell, usize> = (voxels.iter().enumerate())
+    let at: WordMap<Cell, usize> = (voxels.iter().enumerate())
         .map(|(i, v)| (v.cell, i))
         .collect();
     let mut alive = vec![true; voxels.len()];

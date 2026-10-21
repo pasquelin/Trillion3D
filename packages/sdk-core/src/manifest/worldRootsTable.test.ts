@@ -1,5 +1,5 @@
 // The world roots are records read straight from their bytes (`worldRootsTable.ts`), as the
-// cook writes them (`compiler_world_roots/records.rs`): every field back at its rank, a binary past
+// cook writes them (`chain/records.rs`): every field back at its rank, a binary past
 // 4 GiB named whole, and a file that breaks its contract refused whole.
 import test from 'node:test'
 import assert from 'node:assert/strict'

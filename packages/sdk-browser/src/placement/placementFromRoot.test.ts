@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
-import { placedSession, scaleDown } from './growth/webgpuGrowth.fixture.ts'
+import { GROWN_ROWS, placedSession, scaleDown } from './growth/webgpuGrowth.fixture.ts'
 import { rootOf, rootOfPacked } from '../geometry/selection/placements.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../lighting/shadows/sphereContract.ts'
 import { MOBILITY_CORNER_SHIFT, MOBILITY_MOVING } from '../lighting/shadows/mobilityBits.ts'
@@ -25,8 +25,8 @@ const OFFSET_WORD = PAGE_INFO.at.pageOffset
 const heldBytes = (buffer: GPUBuffer) =>
   (buffer as unknown as { data: Uint8Array }).data.slice().buffer
 
-/** What the image is drawn from: the rows, the draw items, the corners and the cut, as the GPU
- *  holds them — the rows pass writes every word a row's world decides (`rows/rowWords.ts`). The pool's
+/** What the image is drawn from: the rows, the draw items and the cut, as the GPU holds them — the
+ *  rows pass writes every word a row's world decides (`rows/rowWords.ts`). The pool's
  *  layout is the pool's (`geometry/pages/pool/homes.ts`): `homes` reads the offsets, which the digest leaves
  *  out. */
 function digest({ rt }: Session) {
@@ -36,8 +36,7 @@ function digest({ rt }: Session) {
   // the pool's offset is the placement oracle's.
   const table = new Float32Array(heldBytes(rt.vis.pageTable!))
   for (let row = 0; row < table.length; row += ROW_WORDS) table[row + OFFSET_WORD] = 0
-  const corners = new Float32Array(heldBytes(rt.vis.gpuPartition!.corners))
-  for (const words of [table, rows.packedPageIndex, drawItemWords, corners])
+  for (const words of [table, rows.packedPageIndex, drawItemWords])
     hash.update(new Uint8Array(words.buffer, words.byteOffset, words.byteLength))
   // The instances as packed ranks, rank by rank: a record serves every placement.
   hash.update(
@@ -93,7 +92,7 @@ function casterRows({ rt }: Session) {
 /** The session at open, once its core node moved every placement under it, once grown: what
  *  `look` reads of each. */
 async function steps<T>(look: (session: Session) => T, light?: SceneLight) {
-  const session = await placedSession(5, light)
+  const session = await placedSession(GROWN_ROWS, light)
   const { core, cells, io, draw } = session
   try {
     const seen = [look(session)]
@@ -117,15 +116,17 @@ const noBudget = { admits: () => true, spend() {} }
 test('rows, draw items and cut of repeated and moved placements are those of develop', async () => {
   // The digests exclude the pool's offsets (`OFFSET_WORD`).
   assert.deepEqual(await steps(digest), [
-    '5ce2528d811d9785',
-    'dbc74ee1f893c68a',
+    '7ac41f5064b20155',
+    '6b27769d22bc82c5',
     // Grown in place on the GPU cut (#1483): the table holds the GPU cut's readout, so every taken
     // leaf draws — develop's five-row table left the two new placements out. Recorded on #1483's
     // first run with the grown cut adopted: its seven rows are those the homes test below names.
     // The tables grow ahead of the rows (`rowsAhead`): the digest holds their spare rows too, so it
     // was recorded again at their new length — the seven rows alone digest as they did. Recorded
-    // again when a row became its geometry and its surface's rank, 32 words (#1527).
-    'ae21a2d2df9d909a',
+    // again when a row became its geometry and its surface's rank, 32 words (#1527), and once more
+    // when it became 44 words — the Hi-Z slot out, the cluster's LOD sphere and box in
+    // (`PAGE_INFO`) —, the binding that holds the grown rows now the session's own (`GROWN_ROWS`).
+    'b647b06febcf42b6',
   ])
 })
 

@@ -1,12 +1,15 @@
 // Random cuts through every way a readback lands: adopted, overwritten before it was, voided by a
-// moved residency, cut past its list and grown, or never copied from a dropped command buffer. The
-// publication is the hashed difference's at every adoption (`readbackChain.fixture.ts`). The
-// lookups are counted against a model of the chain (`../../dag/differenceChain.ts`): a page is
+// moved residency, cut past its list and read by its head, or never copied from a dropped command
+// buffer. The publication is the hashed difference's at every adoption (`readbackChain.fixture.ts`).
+// The lookups are counted against a model of the chain (`../../dag/differenceChain.ts`): a page is
 // named by a rank when the list held and every list landed since, each as long as the list it was
 // cut on, hold it; any other page is looked up once. Exactly, without repeats or pages lacking a
-// record; with them, at most once more for each rank of a page without a record — never held — and
-// twice for each page a list since the one adopted repeats — named at its last rank, which the list
-// held skipped —, never the whole tail behind a skip.
+// record, or a cut read by its head; with them, at most once more for each rank of a page without a
+// record — never held — and twice for each page a list since the one adopted repeats — named at
+// its last rank, which the list held skipped —, never the whole tail behind a skip. A cut read by
+// its head keeps the pages it leaves of the list held behind it (`./headUnion.ts`): no rank of the
+// GPU's list names them, and a stale claim in the buffers, which proves its page where it is held
+// (`./claimedDifference.ts`), may save the lookup — at most one each.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mountReadbackChain, settle } from './readbackChain.fixture.ts'
@@ -20,8 +23,8 @@ const meet = (a: Set<number>, b: Iterable<number>) => {
   return new Set([...a].filter((page) => keep.has(page)))
 }
 
-/** The pages each list's ranks can name, landing after landing. */
-function chainModel() {
+/** The pages each list's ranks can name, landing after landing, and the lists the host holds. */
+function chainModel(held: [number[], number[]]) {
   // Before the host adopts a readback it holds lists of its own: no rank names them.
   let stable: Pair = both(() => new Set()),
     claimable = stable,
@@ -32,14 +35,21 @@ function chainModel() {
       if (adoptable) [claimable, since] = [stable, null]
       else since = both((l) => (since ? meet(since[l], lists[l]) : new Set(lists[l])))
     },
-    /** The lookups adopting the readback in hand takes, `lists` its lists. */
-    adopted(lists: [number[], number[]]) {
+    /** The lookups adopting the readback in hand takes, `lists` its lists, a truncated cut's being
+     *  its heads: those of its pages no rank names, and the pages they leave of the lists held,
+     *  which follow them and cost one lookup at most each. */
+    adopted(lists: [number[], number[]], truncated: boolean, hasRecord: (page: number) => boolean) {
+      const behind = [0, 1].map((l) =>
+        truncated ? held[l].filter((page) => !lists[l].includes(page)) : [],
+      )
       const lookups = [0, 1].reduce(
         (sum, l) => sum + lists[l].filter((page) => !claimable[l].has(page)).length,
         0,
       )
       stable = both((l) => (since ? meet(new Set(lists[l]), since[l]) : new Set(lists[l])))
-      return lookups
+      // What the host holds now: the head, its pages with a record once, then what it kept behind.
+      for (const l of [0, 1]) held[l] = [...new Set(lists[l].filter(hasRecord)), ...behind[l]]
+      return { lookups, behind: behind[0].length + behind[1].length }
     },
   }
 }
@@ -53,14 +63,18 @@ const repeats = (list: number[]) => new Set(list.filter((page, i) => list.indexO
 async function run(seed: number, messy: boolean) {
   const next = lcgRandom(seed),
     m = await mountReadbackChain(48, messy ? MESSY_RECORDS : 300),
-    model = chainModel()
+    held: [number[], number[]] = [[], []],
+    model = chainModel(held),
+    hasRecord = (page: number) => page < (messy ? MESSY_RECORDS : 300)
   /** Pages the asked lists repeat since the one adopted, that one included. */
   let repeated = new Set<number>()
   const pick = (count: number) => Array.from({ length: count }, () => Math.floor(next() * 260))
   let pages = [...new Set(pick(30))],
     inHand: GpuCut | null = null,
     adopted: GpuCut | null = null
-  m.hold(pick(6))
+  const bootstrap = pick(6)
+  m.hold(bootstrap)
+  held[0] = [...new Set(bootstrap.filter(hasRecord))]
   for (let step = 0; step < STEPS; step++) {
     // Most pages stay, a few leave and enter; now and then a reorder or a cut past the list.
     pages = [...new Set([...pages.filter(() => next() < 0.85), ...pick(Math.floor(next() * 8))])]
@@ -87,11 +101,14 @@ async function run(seed: number, messy: boolean) {
     const lookups = m.adopt()
     if (!cut || cut === adopted) continue
     const lists: [number[], number[]] = [cut.result.pageIds, cut.result.drawablePageIds!],
-      expected = model.adopted(lists)
-    if (!messy) assert.equal(lookups, expected)
-    else {
+      { lookups: expected, behind } = model.adopted(lists, !!cut.result.truncated, hasRecord)
+    if (!messy) {
+      assert.ok(lookups >= expected && lookups <= expected + behind, `step ${step}`)
+      if (!cut.result.truncated) assert.equal(lookups, expected)
+    } else {
       const unrecorded = [...lists[0], ...lists[1]].filter((page) => page >= MESSY_RECORDS)
-      assert.ok(lookups <= expected + unrecorded.length + 2 * repeated.size, `step ${step}`)
+      const most = expected + behind + unrecorded.length + 2 * repeated.size
+      assert.ok(lookups <= most, `step ${step}`)
     }
     repeated = repeats(lists[0])
     adopted = cut

@@ -10,8 +10,8 @@
 //! The scene binary the packed images join stays under the job's RAM budget: an image that would
 //! take it past is refused by name, never dropped in silence — and so is a mesh.
 use super::*;
-use crate::gltf_codes::REPEAT;
-use crate::import::tables::media::relative_under;
+use crate::compiler::accessor::codes::REPEAT;
+use crate::plugins::scene::convert::tables::media::relative_under;
 
 /// Images already poured, by the address of the block that holds them.
 #[derive(Default)]

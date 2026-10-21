@@ -27,8 +27,8 @@ test('SHADE_SHADER implements mat3 inverse-transpose without the missing WGSL in
 })
 
 test('SHADE_SHADER early returns on an invalid triangle before texture sampling', () => {
-  // The background and the pages a class does not own never reach the resolve: the class reject
-  // keeps them out (`classAdmits`, `shader/materialClass.ts`). What remains is a triangle beyond
+  // The background and the pages a class does not own never reach the resolve: its bin holds none
+  // (`shader/shadeBinsWgsl.ts`). What remains is a triangle beyond
   // the page's index count, and it exits before any atlas read — `colorSample` and `dataSample`
   // are declared before `shadeSurface`, none is reached first.
   const fs = SHADE_SHADER.slice(SHADE_SHADER.indexOf('fn shadeSurface'))

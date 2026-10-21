@@ -2,13 +2,9 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { shadeColorAttachments } from '../../frame/prepare/attachments.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
-import { shadeTargetFormats } from '../../visibility/passes/shadeTargets.ts'
 import { blendTargets } from '../../blend/blendTargets.ts'
 
-test('opaque and blend pipelines omit exactly the feedback output', () => {
-  assert.equal(shadeTargetFormats(true).length, 5)
-  assert.equal(shadeTargetFormats(false).length, 4)
-  assert.equal(shadeTargetFormats(true)[4], 'r32uint')
+test('blend pipelines omit exactly the feedback output', () => {
   // The colour, the feedback, the share, the two display layers' slots, the history given up: no
   // front target, the front pass writes the transparents' front alone (`frontLayer.ts`). One module
   // serves both variants (override `FEEDBACK`): without the feedback its location stays, an empty slot.

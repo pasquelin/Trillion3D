@@ -17,6 +17,7 @@ pub(super) fn cluster(
             f64::INFINITY
         },
         sphere: [0.0; 4],
+        whole_box: None,
         parent_sphere: [0.0; 4],
         source_rank: 0,
         group,
@@ -34,17 +35,6 @@ pub(super) fn group(level: usize, children: Vec<usize>, outputs: Vec<usize>) -> 
     }
 }
 
-/// The bundles of `dag` packed by weight of indices alone, every root pinned, on a DAG without cells.
-pub(super) fn pack(
-    dag: &[DagCluster],
-    groups: &[DagGroup],
-    order: &[usize],
-    bound: usize,
-) -> Result<(Vec<Vec<usize>>, usize, Vec<usize>)> {
-    let size = |rank: usize| dag[order[rank]].indices.len() * 4;
-    crate::compiler_page_bundles::pack_bundles(dag, groups, order, bound, (&size, &|_| None))
-}
-
 #[test]
 fn a_dependency_cycle_is_refused_with_the_bundle_named() {
     let error = close_dependencies(&[vec![], vec![2], vec![1]]).expect_err("refused");
@@ -57,51 +47,15 @@ fn a_page_whose_parent_bundle_is_not_listed_is_refused_with_the_page_named() {
     // Slot 0 is the root, slot 1 its child: bundle 1 must list bundle 0.
     let dag = vec![cluster(1, 3, None, Some(0)), cluster(0, 3, Some(0), None)];
     let groups = vec![group(1, vec![1], vec![0])];
-    let error = verify_dependencies(&dag, &groups, &[0, 1], &[0, 1], &[vec![], vec![]], 1)
+    let root = [true, false];
+    let error = verify_dependencies(&dag, &groups, (&[0, 1], &root), &[vec![], vec![]])
         .expect_err("refused");
     assert!(
-        error.message.contains("Page 1") && error.message.contains("bundle 0"),
+        error.message.contains("Cluster 1") && error.message.contains("bundle 0"),
         "{error}"
     );
-    assert!(verify_dependencies(&dag, &groups, &[0, 1], &[0, 1], &[vec![], vec![0]], 1).is_ok());
-}
-
-#[test]
-fn siblings_are_packed_together_so_a_bundle_depends_on_one_bundle_per_level() {
-    // One root; sixteen 64 KiB clusters under it, one group, packed whole in one bundle past the
-    // budget; sixty-four 16 KiB clusters, four per level-1 parent — a group of 64 KiB —, two groups
-    // per bundle. The culling order interleaves the families, so packing by rank alone would
-    // spread each fine bundle's parents over eight level-1 clusters.
-    let mut dag = vec![cluster(2, 3, None, Some(0))];
-    let mut groups = vec![group(2, (1..17).collect(), vec![0])];
-    for parent in 0..16 {
-        dag.push(cluster(1, 16 * 1024, Some(0), Some(1 + parent)));
-        groups.push(group(
-            1,
-            (0..4).map(|k| 17 + parent * 4 + k).collect(),
-            vec![1 + parent],
-        ));
-    }
-    for child in 0..64 {
-        dag.push(cluster(0, 4 * 1024, Some(1 + child / 4), None));
-    }
-    let mut order: Vec<usize> = (0..17).collect();
-    order.extend((0..64).map(|rank| 17 + (rank % 16) * 4 + rank / 16));
-    let bound = dependency_bound(&dag, &groups);
-    let (bundles, pinned, bundle_of) = pack(&dag, &groups, &order, bound).expect("packed");
-    assert_eq!((bundles.len(), pinned), (10, 1));
-    assert_eq!(bundles[1].len(), 16, "the level-1 group, never cut");
-    let direct = direct_dependencies(&dag, &groups, &bundle_of, bundles.len());
-    let closed = close_dependencies(&direct).expect("acyclic");
-    verify_dependencies(&dag, &groups, &order, &bundle_of, &closed, pinned).expect("listed");
-    for bundle in 2..10 {
-        assert_eq!(
-            direct[bundle].len(),
-            1,
-            "fine bundle {bundle} has one parent bundle"
-        );
-        assert_eq!(closed[bundle].len(), 2, "and the root cover above it");
-    }
+    let listed = [vec![], vec![0]];
+    assert!(verify_dependencies(&dag, &groups, (&[0, 1], &root), &listed).is_ok());
 }
 
 #[test]
@@ -148,22 +102,26 @@ fn a_cancellation_met_inside_a_primitive_keeps_its_message() {
 
 #[test]
 fn a_bundle_is_banded_in_metres_whatever_its_mesh_scale() {
-    // One root, pinned and unbanded, and its child replaced at an error of 1 object unit: placed at
-    // a scale of 1024, that unit is 1024 m, ten bands coarser, so containers order across meshes.
+    // One root, pinned and unbanded, and its child — too large for the root page — replaced at an
+    // error of 1 object unit: placed at a scale of 1024, that unit is 1024 m, ten bands coarser, so
+    // containers order across meshes.
     let dag = vec![cluster(1, 3, None, Some(0)), cluster(0, 3, Some(0), None)];
     let groups = vec![group(1, vec![1], vec![0])];
+    let child = crate::compiler::pages::bundles::ROOT_PAGE_BYTES;
     let band = |scale: f64| {
-        let pages = vec![Some([7u8; 12]), Some([9u8; 12])];
-        let laid = crate::compiler_page_bundles::lay_bundles(
-            (&dag, &groups),
-            &[0, 1],
-            pages,
-            &|_| None,
+        let pages = vec![vec![7u8; 12], vec![9u8; child]];
+        let laying = crate::compiler::pages::bundles::Laying {
+            positions: &[0.0; 3],
+            held: &|_| None,
+            root_pages: &|_| 1,
             scale,
-        )
-        .expect("laid");
-        assert_eq!(laid.at, [Some((0, 0)), Some((1, 0))]);
-        assert_eq!(laid.payload, [[7u8; 12], [9u8; 12]].concat());
+        };
+        use crate::compiler::pages::bundles::{assign_pages, lay_bundles};
+        let size = |slot: usize| pages[slot].len();
+        let assigned = assign_pages((&dag, &groups), &laying, &size).expect("assigned");
+        let laid = lay_bundles((&dag, &groups), pages, (assigned, &laying)).expect("laid");
+        assert_eq!(laid.at, [(0, 0), (1, 0)]);
+        assert_eq!(laid.payload, [vec![7u8; 12], vec![9u8; child]].concat());
         laid.bundles
             .iter()
             .map(|bundle| bundle.band)

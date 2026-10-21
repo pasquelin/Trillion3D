@@ -40,7 +40,6 @@ export function settledRt() {
     blendDrawCalls: 0,
     blendSubmittedTriangles: 0,
     blendFrustumRejected: 0,
-    occluderSignature: 0,
   }
   const rows = {
     rowsChanged: false,
@@ -77,7 +76,6 @@ export function settledRt() {
     },
     timing: {
       frameEncoder: undefined as unknown,
-      partitionCounts: { occluders: 0, tested: 0, previousOccluders: 0 },
       // `recordHeldFrameWork` writes the row of a held frame in the real profile, as in production: a
       // hand-built object would not have the exact width of `CPU_STEP`.
       profiler: createWebgpuTimingState().profiler,

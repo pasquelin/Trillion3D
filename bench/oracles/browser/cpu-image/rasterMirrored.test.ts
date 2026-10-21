@@ -1,8 +1,8 @@
 // Defect 10: under a negative-determinant transform, the CPU visbuffer rasterizer kept the
 // face that every other path drops — WebGPU pipelines via the `frontFace` that `windingCw`
 // inverts, the witness library via `frontFaceCW = determinant() < 0`, its own shading
-// (`visibilityLighting`) via the sign of `face`. It therefore drew exactly the faces that
-// cone rejection drops, which was read as a cone defect.
+// (`visibilityLighting`) via the sign of `face`. It therefore drew exactly the faces every
+// other path drops.
 //
 // Two opposite-winding triangles, placed in the plane z = 0 and separated on screen: the
 // mirror `scale(1,1,-1)` leaves them in the same place and only changes orientation. The
@@ -80,7 +80,7 @@ test('under a mirror, the dropped face is the other one, as for WebGPU pipelines
   assert.deepEqual(
     [...face.keys()],
     [1],
-    'a mirror swaps the shown face; without that the cone dropped what the CPU drew',
+    'a mirror swaps the shown face; without that the CPU drew what every other path drops',
   )
   const back = drawnTriangles(MIRROR, G.BACK_SIDE)
   assert.deepEqual([...back.keys()], [0], 'and it swaps it for a back material too')

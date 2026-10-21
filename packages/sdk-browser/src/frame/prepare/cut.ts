@@ -11,6 +11,7 @@ import { deriveEveryRoot } from '../../placement/roots/rootMoves.ts'
 import { admitCutTables } from './targetFunding.ts'
 import { log } from '../../diagnostic/log.ts'
 import { createRowEviction } from '../../geometry/rows/rowEviction.ts'
+import { cutListCaps } from '../../geometry/dag/lists/cutListCaps.ts'
 
 /**
  * The GPU cut, the engine's one cut (#1483): one thread per cluster, each with its own error band.
@@ -34,20 +35,19 @@ export async function prepareGpuCut(
 
 /** The session's GPU cut over `roots` — at open, exactly theirs, or beside the running one for a
  *  growth in place (`../../placement/growth/webgpuGrowth.ts`), at the grown `capacity` later growths
- *  append into, the pages the pool holds listed at once (`poolHeld`) —, or why the device refused
- *  it, said by name. Before each of its cuts the roots' worlds, boxes and stretches are written on
- *  the GPU, and its placement tree's leaves from them (`rootsOnGpu`). */
+ *  append into —, or why the device refused it, said by name. Before each of its cuts the roots'
+ *  worlds, boxes and stretches are written on the GPU, and its placement tree's leaves from them
+ *  (`rootsOnGpu`). */
 export async function createSessionCut(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
   roots: readonly ClusterRoot<PageRec>[],
-  poolHeld?: (page: number) => boolean,
   capacity?: DagCapacity,
 ) {
   let refused = 'camera cut creation failed'
   // At open, each sub-step is prepare's step too: an opening that waits names the one it waits
   // in. A growth beside a running cut prepares nothing.
-  const progress = poolHeld
+  const progress = capacity
     ? undefined
     : (note: string) => rt.context.preparationStep?.(`GPU cut: ${note}`)
   progress?.('pack, at 0.0 s')
@@ -64,7 +64,6 @@ export async function createSessionCut(
         ...details,
       })
     },
-    poolHeld,
     roots: rootsOnGpu(rt),
     rows: rt.layout.rows.casterSlots,
     admit: (bytes) => admitCutTables(rt, bytes),
@@ -78,6 +77,10 @@ export async function createSessionCut(
       frame: () => rt.run.frame,
       order: rt.services.followRowOrder,
     }),
+    // Its lists at the session's caps, their warnings said as the engine's (`cutMaxNodes`, …).
+    lists: cutListCaps(rt.context),
+    onListNote: (message, details) =>
+      rt.diag.engineDiagnostic('gpu-cut-lists', message, { kind: 'warning', ...details }),
   })
   return { cut, refused }
 }

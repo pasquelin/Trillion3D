@@ -161,12 +161,16 @@ export class LoadedModel extends Object3D {
     if (!nodes?.[index]) return null
     return { node: this.nodeOf(nodes[index]), ...graphSubtree(nodes, index) }
   }
+  /** Every model of `record` — the one its manifest was read for (`loadModel`), each placement of
+   *  it since (`placeModel`) — owns its scene's bank clock, when it has banks: their tracks advance
+   *  while a world's scene holds one of them (`BankClock.own`). */
   constructor(record: ModelRecord) {
     super()
     this.record = record
     this.type = 'LoadedModel'
     const flat = hostWorldBounds(record.scene.source, emptyWorldBox())
     this.bounds = boxFromFlat(new Box3(), flat)
+    record.scene.banks?.clock.own(this)
   }
   /** Refused: a model is loaded again with `scene.load`, never cloned. */
   protected override blank(): this {

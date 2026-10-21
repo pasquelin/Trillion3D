@@ -1,41 +1,50 @@
 import { ROW_WORDS } from '../../visibility/types.ts'
 import { createPresentClasses } from './materialPasses.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
-import { RenderBundles } from '../../gpu/core/renderBundles.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { commandArgs, type FakePass } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
+import {
+  commandArgs,
+  type PassCommands,
+} from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
-/** The pipelines `pass` set, in order. */
-export const pipelinesOf = (pass: FakePass) =>
+/** The pipelines a pass set, in order. */
+export const pipelinesOf = (pass: { commands: PassCommands }) =>
   commandArgs(pass.commands, 'setPipeline').map(([pipeline]) => pipeline)
-/** How many draws `pass` made, its bundles' among them. */
-export const drawsOf = (pass: FakePass) => commandArgs(pass.commands, 'draw').length
+/** How many draws a pass made. */
+export const drawsOf = (pass: { commands: PassCommands }) =>
+  commandArgs(pass.commands, 'draw').length
 
 /** A runtime reduced to what the resolve reads, on the kit's device and one of its encoders: its
- *  render passes and compute passes are the device's records. Its class set holds
- *  `compiled`; `made` names each class a pipeline's `get` had to compile — one nothing asked
- *  (`PreparedPipeline.get`). */
-export function resolveFixture(classes: number[], compiled: number[], single: number[] = []) {
+ *  render passes and compute passes are the device's records. Its class set holds `compiled`;
+ *  `made` names each class a pipeline's `get` had to compile — one nothing asked
+ *  (`PreparedPipeline.get`). Its bins record what the resolve asks of them (`bins`): the keys
+ *  assigned, the images laid, binned and the classes dispatched, by their rank among the keys. */
+export function resolveFixture(classes: number[], compiled: number[]) {
   const ints = new Uint32Array(ROW_WORDS * classes.length)
   classes.forEach((key, row) => (ints[row * ROW_WORDS + PAGE_INFO.at.materialClass] = key))
   const made: number[] = []
-  const tiles = { assigned: [] as number[][], classified: 0, slots: [] as number[] }
+  const bins = {
+    assigned: [] as number[][],
+    laid: [] as number[][],
+    binned: 0,
+    shaded: [] as number[],
+  }
   const pipeline = (key: number) => ({ key }),
-    ordinary = new Map(compiled.map((key) => [key, pipeline(key)])),
-    direct = new Map(single.map((key) => [key, pipeline(key)]))
+    ordinary = new Map(compiled.map((key) => [key, pipeline(key)]))
   const rt = {
     gpu: {
       surfaces: { views: () => ['a', 'b', 'c', 'd'] },
       targetSize: [8, 4],
       feedbackView: 'feedback',
     },
-    run: { feedbackWritten: false, gpuDrawCalls: 0 },
+    run: { feedbackWritten: false, gpuComputeDispatches: 0 },
+    // The shading's settings at their defaults (`shadingOptions.ts`).
+    context: {},
     layout: { rows: { pageTableInts: ints, packedCount: classes.length } },
     vis: {
       writesFeedback: true,
       shadeBindGroup: 'bind group',
-      shadeBundles: new RenderBundles(2),
       shadeClasses: {
         of: (key: number) => ({
           get: () => {
@@ -44,23 +53,22 @@ export function resolveFixture(classes: number[], compiled: number[], single: nu
           },
         }),
         keys: () => ordinary.keys(),
-        single: (key: number) =>
-          direct.has(key) ? { ready: true, get: () => direct.get(key) } : undefined,
       },
       presentClasses: createPresentClasses(),
       visView: 'ids',
       pageTable: 'pages',
       shadeUniform: 'uniform',
-      materialTiles: {
-        assign: (keys: number[]) => tiles.assigned.push([...keys]),
-        layFor: () => 'tile group',
-        // A classification dispatches: it opens the frame's pass.
-        encode: (open: { pass: unknown }) => void (open.pass, tiles.classified++),
-        draw: (pass: { draw(): void }, at: number) => (tiles.slots.push(at), pass.draw()),
+      shadeBins: {
+        assign: (keys: number[]) => bins.assigned.push([...keys]),
+        layFor: (width: number, height: number) => bins.laid.push([width, height]),
+        // The binning dispatches: it opens the frame's pass, four kernels.
+        encode: (open: { pass: unknown }) => (open.pass, bins.binned++, 4),
+        outputs: () => 'output group',
+        dispatch: (_: unknown, at: number) => bins.shaded.push(at),
       },
     },
   } as unknown as WebgpuPagesRuntime
-  const { device, bundles, passes, computePasses } = fakeDevice()
+  const { device, passes, computePasses } = fakeDevice()
   const encoder = device.createCommandEncoder()
-  return { rt, device, bundles, encoder, passes, computePasses, made, ordinary, direct, tiles }
+  return { rt, encoder, passes, computePasses, made, ordinary, bins }
 }

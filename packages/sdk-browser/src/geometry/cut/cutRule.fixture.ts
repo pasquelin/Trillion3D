@@ -9,9 +9,19 @@
  * outputs carry the group's error and sphere, and a group's sphere encloses its members' — the
  * projected error is then monotone up the DAG, as the cook guarantees.
  */
-import { cullingBounds } from './bounds.ts'
 import { cullingLinks } from './links.ts'
-import { CULL_STRIDE } from '../dag/types.ts'
+import {
+  CULL_CEIL,
+  CULL_CHILD_COUNT,
+  CULL_FIRST_CHILD,
+  CULL_FIRST_PAGE,
+  CULL_FLOOR,
+  CULL_MAX,
+  CULL_MIN,
+  CULL_PAGE_COUNT,
+  CULL_SPHERE,
+  CULL_STRIDE,
+} from '../dag/types.ts'
 import { structureIndex } from '../selection/structure.ts'
 import { IDENTITY_WORLD } from '../../session/host/matrixElements.ts'
 
@@ -122,11 +132,7 @@ export function ruleDag(leaves = 64, leafError = 0.002) {
     pages.length,
   )!
   const hierarchy = levelHierarchy(pages)
-  const culling = {
-    ...hierarchy,
-    bounds: cullingBounds(hierarchy, pages),
-    links: cullingLinks(hierarchy, pages.length),
-  }
+  const culling = { ...hierarchy, links: cullingLinks(hierarchy, pages.length) }
   return { pages, structure, culling, world: IDENTITY_WORLD, leaves }
 }
 export type RuleDag = ReturnType<typeof ruleDag>
@@ -148,9 +154,12 @@ export function coverFault(dag: UnitSpans, drawn: Iterable<number>) {
 }
 
 /**
- * The culling hierarchy a compiler gives such a DAG: one node per level under the root, each over
- * leaves of two neighbouring clusters, so a leaf near the eye is small and top-down pruning bites.
- * No replacement ceiling (-1): only the floor prunes, which is what the rule's tests exercise.
+ * A culling hierarchy shaped as the compiler's, each level its own subtree: one node per level
+ * under the root, each over leaves of two neighbouring clusters, so a leaf near the eye is small
+ * and top-down pruning bites.
+ * Each node holds its clusters' box, the sphere enclosing their replacements' (their own for a
+ * root) and the least of their own errors, as the compiler's node does. No replacement ceiling
+ * (-1): only the floor prunes, which is what the rule's tests exercise.
  */
 function levelHierarchy(pages: readonly RulePage[]) {
   const levels: Array<[number, number]> = []
@@ -160,27 +169,30 @@ function levelHierarchy(pages: readonly RulePage[]) {
   const leaves = levels.map(([a, b]) => Math.ceil((b - a + 1) / 2))
   const count = 1 + levels.length + leaves.reduce((n, l) => n + l, 0)
   const nodes = new Float64Array(count * CULL_STRIDE)
-  const box = (at: number, first: number, pageCount: number) => {
-    const base = at * CULL_STRIDE
+  const node = (at: number, first: number, pageCount: number) => {
+    const base = at * CULL_STRIDE,
+      held = pages.slice(first, first + pageCount)
     for (let a = 0; a < 3; a++) {
-      nodes[base + a] = Math.min(...pages.slice(first, first + pageCount).map((p) => p.min[a]))
-      nodes[base + 3 + a] = Math.max(...pages.slice(first, first + pageCount).map((p) => p.max[a]))
+      nodes[base + CULL_MIN + a] = Math.min(...held.map((p) => p.min[a]))
+      nodes[base + CULL_MAX + a] = Math.max(...held.map((p) => p.max[a]))
     }
-    nodes[base + 10] = -1
+    nodes.set(held.map((p) => p.parentSphere ?? p.sphere).reduce(enclose), base + CULL_SPHERE)
+    nodes[base + CULL_CEIL] = -1
+    nodes[base + CULL_FLOOR] = Math.min(...held.map((p) => p.lodError))
   }
-  box(0, 0, pages.length)
-  nodes[11] = 1
-  nodes[12] = levels.length
+  node(0, 0, pages.length)
+  nodes[CULL_FIRST_CHILD] = 1
+  nodes[CULL_CHILD_COUNT] = levels.length
   let next = 1 + levels.length
   levels.forEach(([a, b], k) => {
     const at = 1 + k
-    box(at, a, b - a + 1)
-    nodes[at * CULL_STRIDE + 11] = next
-    nodes[at * CULL_STRIDE + 12] = leaves[k]
+    node(at, a, b - a + 1)
+    nodes[at * CULL_STRIDE + CULL_FIRST_CHILD] = next
+    nodes[at * CULL_STRIDE + CULL_CHILD_COUNT] = leaves[k]
     for (let first = a; first <= b; first += 2, next++) {
-      box(next, first, Math.min(2, b - first + 1))
-      nodes[next * CULL_STRIDE + 13] = first
-      nodes[next * CULL_STRIDE + 14] = Math.min(2, b - first + 1)
+      node(next, first, Math.min(2, b - first + 1))
+      nodes[next * CULL_STRIDE + CULL_FIRST_PAGE] = first
+      nodes[next * CULL_STRIDE + CULL_PAGE_COUNT] = Math.min(2, b - first + 1)
     }
   })
   return { nodes, stride: CULL_STRIDE }

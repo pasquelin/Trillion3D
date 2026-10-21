@@ -17,8 +17,8 @@ import { CULL_CHILD_COUNT, CULL_FIRST_CHILD } from './types.ts'
  * own pass behind two off-pass copies, and about 1.5 µs when it is a flat dispatch in the head
  * pass. The cost of the children that leave at once is bounded: a level announced at 100,000 nodes
  * costs as much as a level of 657, and it takes announcing 1,000,000 to recover the previous
- * level's price. The widest level is about `clusterCount / CULLING_BRANCHING`, so the margin holds
- * up to millions of clusters per primitive.
+ * level's price. The widest level holds about one leaf per group part, a few clusters each
+ * (`page-codec-wasm/src/culling.rs`), so the margin holds up to millions of clusters per primitive.
  */
 export function hierarchyLevelSizes(nodes: Float64Array, stride: number) {
   const count = nodes.length / stride

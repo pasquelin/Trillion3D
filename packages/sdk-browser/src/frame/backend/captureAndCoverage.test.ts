@@ -115,9 +115,10 @@ test('camera jumps and obsolete uploads preserve coverage while detail slots are
     ...fixture,
     metadata,
     gpuDevice: device,
-    // Five slots of the widest page (24 bytes): below the eight clusters' 144, so the pool holds no
-    // home of each (`poolBytes`) and a jump between the quads evicts.
-    maxResidentPages: 5,
+    // Three streaming slots of the widest page (24 bytes) beside the two roots' (`geometryPoolFor`):
+    // five, below the eight clusters' 144, so the pool holds no home of each (`poolBytes`) and a jump
+    // between the quads evicts.
+    maxResidentPages: 3,
     viewport: [32, 32],
   }) as Engine
   const cam = camera()

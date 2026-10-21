@@ -133,8 +133,9 @@ fn main() -> std::io::Result<()> {
     println!("cargo:rerun-if-changed=src");
     let mut digest = Sha256::new();
     let output = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR"));
-    // The inputs as hashed, one per line: what the compiler's own test reads (`compiler_identity`)
-    // and what `trillion3d-compiler --build-inputs` prints for a launch to call it stale.
+    // The inputs as hashed, one per line: what the compiler's own test reads
+    // (`compiler/cache/identity`) and what `trillion3d-compiler --build-inputs` prints for a launch
+    // to call it stale.
     let inputs: Vec<String> = files
         .iter()
         .map(|path| path.display().to_string())

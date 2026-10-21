@@ -7,6 +7,7 @@ import { createPrimitiveTemplates } from '../geometry/selection/template.ts'
 import type { ClusterManifest, Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../geometry/selection/drawSource.ts'
 import { rootWorldBox } from '../geometry/selection/rootWorld.ts'
+import { CULL_STRIDE } from '../geometry/dag/types.ts'
 
 /** The same primitive, given a one-leaf-node culling hierarchy. */
 function primitiveWithCulling(metadata: ClusterManifest) {
@@ -16,8 +17,8 @@ function primitiveWithCulling(metadata: ClusterManifest) {
   primitive.culling = {
     version: 1,
     count: 1,
-    stride: 15,
-    nodes: [-2, -0.5, 0, 2, 0.5, 0, 0, 0, 0, 2.3, 0.2, 0, 0, 0, primitive.pages.length],
+    stride: CULL_STRIDE,
+    nodes: [-2, -0.5, 0, 2, 0.5, 0, 0, 0, 0, 2.3, 0.2, 0, 0, 0, 0, primitive.pages.length],
   }
   return primitive
 }
@@ -34,7 +35,7 @@ test('a primitive’s template is computed once and returned as-is to the next p
   assert.equal(second, first)
   const shape = templates.shapeOf(primitive, first)
   assert.equal(templates.shapeOf(primitive, second), shape)
-  assert.ok(shape.culling && shape.bounds)
+  assert.ok(shape.culling && shape.links)
   // A page shorter than its manifest entry is refused at the template that reads it.
   const short = new Map(fixture.indices)
   const head = primitive.pages[0]
@@ -44,7 +45,7 @@ test('a primitive’s template is computed once and returned as-is to the next p
   })
 })
 
-// Behaviour: two instances of an object share the shape of its DAG — hierarchy, per-node bounds,
+// Behaviour: two instances of an object share the shape of its DAG — hierarchy, its links,
 // group links, cluster identities — and never what places them: world matrix, world box. The
 // local box belongs to the primitive and is shared, read never written.
 test('two instances share the DAG shape, never what places them', () => {
@@ -64,7 +65,7 @@ test('two instances share the DAG shape, never what places them', () => {
   // One record per primitive page per placement: this object has its own pages.
   assert.equal(allPages.length, roots[0].pages.length * 2)
   assert.equal(roots[0].culling!.nodes, roots[1].culling!.nodes)
-  assert.equal(roots[0].culling!.bounds, roots[1].culling!.bounds)
+  assert.equal(roots[0].culling!.links, roots[1].culling!.links)
   assert.equal(roots[0].structure, roots[1].structure)
   // The local box belongs to the primitive, read never written: the instances share it.
   assert.equal(roots[0].localBox, roots[1].localBox)

@@ -2,7 +2,7 @@
 //! and means. Two interpolations give different floats and keep apart: `lerp`, `a + (b − a)·t`,
 //! exact at `t = 0`; `mix`, `a·(1 − t) + b·t`, exact at both ends.
 
-use crate::real::Real;
+use crate::scalar::real::Real;
 
 /// `a + (b − a) · t`.
 #[inline]
@@ -148,6 +148,9 @@ pub fn normalized_bits(value: f32) -> u32 {
     }
 }
 
+pub mod acos;
+pub mod js;
+pub mod real;
 #[cfg(test)]
-#[path = "scalar_tests.rs"]
 mod tests;
+pub mod trig;

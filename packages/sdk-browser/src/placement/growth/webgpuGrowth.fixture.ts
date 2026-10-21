@@ -79,6 +79,10 @@ function placedScene(links: readonly RowLink[]) {
 
 /** Pages the scene packs, grown: the ground and four leaf rows of two pages. */
 const SCENE_PAGES = 9
+/** The page-table rows the scene holds grown: the ground's, and one for each of the six leaf
+ *  placements it draws (the near cell's four, the two grown in place). The binding a session that
+ *  holds them all needs at least. */
+export const GROWN_ROWS = 7
 
 /**
  * The partition of `cells.fixture` — its near cell's two nodes on rows sized at open, its far one
@@ -101,10 +105,9 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
     scene.indices,
   )
   // A binding of `bindingRows` table rows, no smaller than the GPU cut's readout at the scene's list
-  // cap nor its `work` — the eviction sort's constant words included —, grown or not, a key group
-  // a page at most of a capacity grown twice (`grownCutCapacity`): the cut is the engine's one cut, and a device that cannot hold it
-  // refuses the scene (#1483).
-  const work = 4 * dagWorkLayout(ceilDiv(2 * SCENE_PAGES, WORKGROUP_THREADS), 2 * SCENE_PAGES).words
+  // cap nor its `work`, grown or not, at a capacity grown twice (`grownCutCapacity`): the cut is the
+  // engine's one cut, and a device that cannot hold it refuses the scene (#1483).
+  const work = 4 * dagWorkLayout(ceilDiv(2 * SCENE_PAGES, WORKGROUP_THREADS)).words
   const binding = Math.max(bindingRows * PAGE_INFO_STRIDE, readoutRow(SCENE_PAGES).size, work)
   // The double runs the cut on the DAG the session uploads, the grown one too (`fakeDag.ts`).
   const gpu = fakeDevice({

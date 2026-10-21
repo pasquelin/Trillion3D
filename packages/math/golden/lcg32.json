@@ -2,7 +2,7 @@
   "layout": "one case per line, read line by line: never reformatted",
   "regenerate": "pnpm run golden:write",
   "lcg32": {
-    "about": "lcgRandom (math sequence/random.ts), lcg32 (math/rust random.rs): one step of the 32-bit congruential generator",
+    "about": "lcgRandom (math sequence/random.ts), lcg32 (math/rust sequence/random.rs): one step of the 32-bit congruential generator",
     "inputs": "state: u32",
     "outputs": "1 u32",
     "cases": [

@@ -6,6 +6,7 @@ import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { layerSlot } from '../../geometry/rows/page/pageRowMaterial.ts'
 import { FAR_VALUE } from '../../../../math/src/constants.ts'
 import { nameCastRow } from '../../placement/rows/rowWords.ts'
+import { rootPageRow } from '../../placement/compose/composedRows.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 const EVERYWHERE_MIN = [-FAR_VALUE, -FAR_VALUE, -FAR_VALUE],
@@ -75,6 +76,23 @@ export function shadowsFollowSurfaces(
     shadowsFollowRows(rt, rows, (row) =>
       surfaces.has(rows.packedRecs[row]?.material as PageSurface),
     )
+}
+
+/**
+ * The world's cells that switched between their placements and their HLOD actors since the last
+ * image (`GpuSelection.switchedPages`): the rows of the representation a cell draws now cast where
+ * they stand, those of the one it left no more — the casters obey the cut's switch
+ * (`../../geometry/dag/shader/worldGateWgsl.ts`, `worldDraws`) —, so each is named to the rows'
+ * shadow changes (`nameCastRow`): the pages its sphere covers are drawn again in the same image, as
+ * a primitive added or removed stales its bounds. Without the list no shadow page was drawn from a
+ * row yet: the switches wait, and the buffer made stales every page (`spheresMadeAnew`).
+ */
+export function shadowsFollowCells(rt: ShadowRuntime & Pick<WebgpuPagesRuntime, 'run' | 'layout'>) {
+  if (!rt.lights.casts) return
+  rt.run.gpuSelection?.switchedPages((world, rank) => {
+    const row = rootPageRow(rt, world, rank)
+    if (row >= 0) nameCastRow(rt, row)
+  })
 }
 
 /**

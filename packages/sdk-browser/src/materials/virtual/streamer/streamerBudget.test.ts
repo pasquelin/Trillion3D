@@ -75,7 +75,7 @@ function streamer(budgetMs: number) {
     encoding: poolEncoding(undefined),
     budgetBytes: Number.MAX_SAFE_INTEGER,
     budgetMs,
-    clock: createFrameBudget(Infinity, now),
+    clock: createFrameBudget(Infinity, { now }),
     onFailure: (phase, error) => assert.fail(`${phase}: ${String(error)}`),
     onColorChanged: follow,
   })

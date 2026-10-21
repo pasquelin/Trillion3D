@@ -10,7 +10,6 @@ import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fix
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 import { Quaternion } from '../../../packages/sdk-core/src/world/math/quaternion.ts'
-import { OPEN_CONE } from '../../kit/reference/cone.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
@@ -53,8 +52,7 @@ function selectionCase(
   sphere: number[],
   uniforms: ReturnType<typeof view>,
 ) {
-  const page = { url: '0', lodError: 0, parentError: null, sphere, min: MIN, max: MAX }
-  const pages = [{ ...page, cone: OPEN_CONE }]
+  const pages = [{ url: '0', lodError: 0, parentError: null, sphere, min: MIN, max: MAX }]
   const packed = packDagSelection([{ world, pages, culling: cullingInPlace(pages) }])
   const roots = [{ world, pages: [] }]
   return {

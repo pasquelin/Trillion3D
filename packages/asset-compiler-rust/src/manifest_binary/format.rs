@@ -1,5 +1,7 @@
+#[cfg(test)]
+pub(crate) mod tests;
 use super::*;
-use crate::compiler_validate::Fields;
+use crate::compiler::validate::Fields;
 
 /// The readers of a manifest, each refusal an invalid manifest.
 pub(super) const MANIFEST: Fields = Fields("INVALID_MANIFEST");
@@ -85,7 +87,3 @@ pub(super) fn as_u32(value: i64, what: &str) -> Result<u32> {
         ))
     })
 }
-
-#[cfg(test)]
-#[path = "format_tests.rs"]
-mod tests;

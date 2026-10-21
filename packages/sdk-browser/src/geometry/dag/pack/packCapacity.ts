@@ -13,23 +13,18 @@ export type DagCapacity = {
   pages: number
   nodes: number
   worlds: number
-  /** Primitive nodes, records and content keys past the live ones, for the primitives a growth
-   *  brings (`appendDagRoots`): none when absent, the live ones alone. */
+  /** Primitive nodes and records past the live ones, for the primitives a growth brings
+   *  (`appendDagRoots`): none when absent, the live ones alone. */
   primitiveNodes?: number
   records?: number
-  keys?: number
-  /** The groups of content keys and the parent edges between them past the live ones
-   *  (`createContentKeys`). */
-  groups?: number
-  edges?: number
-  /** A growth's room: past what the roots hold, as many primitive nodes, records and keys again
+  /** A growth's room: past what the roots hold, as many primitive nodes and records again
    *  (`grownLength`), at least `AHEAD_MIN` more, for the primitives and sources the growths after
    *  it bring — each doubling of them packs the roots again, O(log) times in all. The absolute
    *  counts above add to it. */
   ahead?: boolean
 }
 
-/** The least primitive nodes, records and keys a growth's room (`DagCapacity.ahead`) keeps past the
+/** The least primitive nodes and records a growth's room (`DagCapacity.ahead`) keeps past the
  *  live ones: a few primitives joining a large world pack nothing again. */
 const AHEAD_MIN = 64
 const roomAhead = (held: number) => Math.max(grownLength(held, held + 1), held + AHEAD_MIN)

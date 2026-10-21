@@ -23,11 +23,8 @@ test('fixed-clock translation/rotation and moving-clock controls preserve comple
   const placed = deformedOf({ waves: water }, undefined, world)!
   const frame = createDeformationFrame([placed]),
     layout = recordLayout(placed.shape)
-  frame.update(() => false)
-  assert.equal(
-    frame.update(() => false),
-    false,
-  )
+  frame.update()
+  assert.equal(frame.update(), false)
   const deformWaves = waveShader(frame.block)
   const rest = [0.7, 0, 1.3]
   const drawnWorld = (previous: boolean, pose: Matrix4) => {
@@ -70,10 +67,7 @@ test('fixed-clock translation/rotation and moving-clock controls preserve comple
   ]) {
     update()
     assert.equal(frame.pending(), true)
-    assert.equal(
-      frame.update(() => false),
-      true,
-    )
+    assert.equal(frame.update(), true)
     assert.equal(frame.moving[0], 1)
     const prior = drawnWorld(true, before)
     assert.ok(Math.hypot(...prior.map((value, i) => value - previousDraw[i])) < 1e-6)
@@ -85,15 +79,8 @@ test('fixed-clock translation/rotation and moving-clock controls preserve comple
     assert.ok(Math.hypot(...current.map((value, i) => value - expected[i])) < 1e-6)
     previousDraw = current
     before = world.clone()
-    assert.equal(
-      frame.update(() => false),
-      true,
-      'previous GPU state settles once',
-    )
-    assert.equal(
-      frame.update(() => false),
-      false,
-    )
+    assert.equal(frame.update(), true, 'previous GPU state settles once')
+    assert.equal(frame.update(), false)
   }
   assert.match(DEFORM_WGSL.text, /a\.world\+=select\(0u,32u,previous\)/)
 })

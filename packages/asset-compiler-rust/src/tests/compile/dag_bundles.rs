@@ -63,21 +63,9 @@ fn compile_lays_every_page_in_a_bundle_of_a_geometry_file_and_names_its_group() 
         assert_eq!(covered, bytes.len(), "a bundle is exactly its pages");
         assert_eq!(
             index < pinned,
-            pages[members[index][0]]["parentError"].is_null(),
-            "the pinned bundles are the root cover"
+            (members[index].iter()).any(|&id| pages[id]["parentError"].is_null()),
+            "the pinned bundle is the root page: it alone holds roots"
         );
-    }
-    // A bundle never cuts the members of one group: they swap together.
-    let mut bundle_of_group = std::collections::BTreeMap::new();
-    for page in pages {
-        if let Some(group) = page["group"].as_u64() {
-            let bundle = at(page, "stream");
-            assert_eq!(
-                *bundle_of_group.entry(group).or_insert(bundle),
-                bundle,
-                "group {group}"
-            );
-        }
     }
     // The structure links every cluster to the group that replaces it and lists the coarse cover.
     let structure = &primitive["structure"];

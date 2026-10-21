@@ -4,9 +4,9 @@ import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import {
   SURFACE_BYTES_PER_PIXEL,
   checkSurfaceSize,
-  holds,
   type SurfaceCapture,
 } from '../../materials/surface/surfaceBuffer.ts'
+import { SURFACE_WORDS } from '../../materials/surface/surfaceOutputs.ts'
 import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
 import { createSurfaceBuffer } from '../../materials/surface/surfaceAllocation.ts'
 import { collectPendingUrls } from '../../geometry/selection/requests.ts'
@@ -30,7 +30,7 @@ function copySurfaces(
     eye = rt.run.gate.cam.eye
   if (!gpu.surfaces || !gpu.depthTexture) throw new Error('SURFACE_CAPTURE_UNAVAILABLE')
   const owned = createSurfaceBuffer(gpuDevice, options.width, options.height, {
-    subsurface: holds(gpu.surfaces, gpu.surfaces.subsurface),
+    subsurface: gpu.surfaces.hasSubsurface,
   })
   let depth: GPUTexture
   try {
@@ -66,30 +66,30 @@ function copySurfaces(
       })
     },
   }
-  const encoder = gpuDevice.createCommandEncoder()
+  const encoder = gpuDevice.createCommandEncoder(),
+    { surfaces } = gpu,
+    size = [options.width, options.height] as const
+  /** Layer `from` of `source`'s target `target` copied into layer `to` of the owned one's. */
+  const copyLayer = (target: 'colours' | 'words', from: number, to = from) =>
+    encoder.copyTextureToTexture(
+      { texture: surfaces[target], origin: [0, 0, from] },
+      { texture: owned[target], origin: [0, 0, to] },
+      size,
+    )
+  copyLayer('colours', 0)
+  copyLayer('colours', 1)
+  copyLayer('words', SURFACE_WORDS.flags)
+  encoder.copyTextureToTexture({ texture: gpu.depthTexture }, { texture: depth }, size)
   // A view without the emission-and-occlusion layer holds `(0, 0, 0, 1)` in every texel of it
   // (`SurfaceBuffer.hasEmissiveAo`): the owned layer is cleared to that, never copied from the 1×1.
-  const layer = gpu.surfaces.hasEmissiveAo,
-    { surfaces } = gpu
-  const copies = [
-    [surfaces.baseMetal, owned.baseMetal],
-    [surfaces.normalRough, owned.normalRough],
-    ...(layer ? [[surfaces.emissiveAo, owned.emissiveAo]] : []),
-    [surfaces.flags, owned.flags],
-    [gpu.depthTexture, depth],
-  ] as const
-  for (const [from, to] of copies)
-    encoder.copyTextureToTexture({ texture: from }, { texture: to }, [
-      options.width,
-      options.height,
-    ])
-  if (!layer)
+  if (surfaces.hasEmissiveAo) copyLayer('colours', surfaces.layers & 255, owned.layers & 255)
+  else
     encoder
       .beginRenderPass({
         label: CAPTURE_PASS,
         colorAttachments: [
           {
-            view: owned.emissiveAo.createView(),
+            view: owned.views()[2],
             loadOp: 'clear',
             clearValue: [0, 0, 0, 1],
             storeOp: 'store',
@@ -97,11 +97,7 @@ function copySurfaces(
         ],
       })
       .end()
-  encoder.copyTextureToTexture(
-    { texture: gpu.surfaces.subsurface },
-    { texture: owned.subsurface },
-    [owned.subsurface.width, owned.subsurface.height],
-  )
+  if (surfaces.hasSubsurface) copyLayer('colours', surfaces.layers >> 8, owned.layers >> 8)
   gpuDevice.queue.submit([encoder.finish()])
   return result
 }

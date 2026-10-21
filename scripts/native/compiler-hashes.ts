@@ -4,7 +4,7 @@
  * platforms of one commit, and a branch against `develop`. What a cook writes beside its bytes is
  * not compared: the run's report (a key ending in `Ms`, `peakRssBytes`, `reusedPages` and the run's
  * settings `threads`, `ramBudgetMb`, `admissionEstimatedBytes`, `compileWaited`, as
- * `compiler_manifest_pages` names them, and `found`, whether a run found a cutout sheet) and the
+ * `compiler/pages/manifest` names them, and `found`, whether a run found a cutout sheet) and the
  * folder it was written to. A name made of a SHA-256 — the cache key, which hashes the compiler's
  * own sources, and each content-addressed file — reads `<sha>`: such files are still compared by
  * content, the hashes of the files one pattern names listed together. The Jolt collider shapes a

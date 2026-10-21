@@ -17,8 +17,7 @@ function page(weights = Array(8).fill(0.125)) {
       JOINTS_1: attr(Array(3).fill([4, 5, 6, 7]).flat(), 4),
       WEIGHTS_1: attr(Array(3).fill(weights.slice(4)).flat(), 4),
     },
-    -8,
-    undefined,
+    0,
     [
       {
         POSITION: attr(

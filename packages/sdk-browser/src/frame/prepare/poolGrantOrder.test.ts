@@ -18,8 +18,8 @@ const TEXTURES = ['createTexture', 'texture pool'] as const
 
 type Answer = (raise: (message: string) => void) => void
 
-/** The deep quad — a root over a coarse page over two leaves, a pool of four slots at most and two
- *  at its floor, the root and the page its group replaces — on a device that runs `during` when the first of `pool` is made (the geometry pool's
+/** The deep quad — a root over a coarse page over two leaves, a pool of four slots at most and the
+ *  root cover at its floor, beside no streaming slot — on a device that runs `during` when the first of `pool` is made (the geometry pool's
  *  buffer by default), inside the grant's out-of-memory scope, and `after` for the next ones;
  *  disposed once `t` ends. */
 function granting(

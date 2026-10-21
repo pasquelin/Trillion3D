@@ -7,10 +7,11 @@ type Watch = { reading: Map<string, number>; landed: Set<string>; heard: () => v
 /**
  * Every page read of a streamer passes here (`read`), whoever asks it: the host's own batches and
  * the reads an engine makes on its own — the WebGPU residency reads its pages one by one.
- * `watch` counts those the view waits on — a prefetch, read behind them, is not — while it runs,
- * each page once: asked when its first read starts, landed when one resolves; a page whose every
- * read was dropped before landing is no longer asked. What changes within a task is heard once;
- * `landed` never goes back.
+ * `watch` counts those the view waits on — one read behind them, past `PRIORITY_VISIBLE`, is not;
+ * one ahead of them, in the cells' lane (`cellPriority`: a cell's files, an HLOD actor's roots),
+ * is, a page like any other — while it runs, each page once: asked when its first read starts,
+ * landed when one resolves; a page whose every read was dropped before landing is no longer asked.
+ * What changes within a task is heard once; `landed` never goes back.
  */
 export function createReadWatch(
   subscribe: (url: string, signal: AbortSignal, priority?: number) => Promise<Uint8Array>,

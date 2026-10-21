@@ -122,7 +122,7 @@ impl ImageDecoder for Psd {
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(SIGNATURE)
             && matches!(
-                crate::le::be16_at(head, SIGNATURE.len()),
+                crate::support::le::be16_at(head, SIGNATURE.len()),
                 Some(VERSION_PSD | VERSION_PSB)
             )
     }
@@ -163,8 +163,8 @@ fn header(bytes: &[u8]) -> std::result::Result<(Header, &[u8]), &'static str> {
         return Err(HEADER_INVALID);
     }
     // `head` holds the whole header: every field below lies inside it.
-    let word = |at: usize| crate::le::be16_at(head, at).unwrap_or(0);
-    let long = |at: usize| crate::le::be32_at(head, at).unwrap_or(0);
+    let word = |at: usize| crate::support::le::be16_at(head, at).unwrap_or(0);
+    let long = |at: usize| crate::support::le::be32_at(head, at).unwrap_or(0);
     let psb = match word(4) {
         VERSION_PSD => false,
         VERSION_PSB => true,

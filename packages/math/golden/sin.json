@@ -2,7 +2,7 @@
   "layout": "one case per line, read line by line: never reformatted",
   "regenerate": "pnpm run golden:write",
   "sin": {
-    "about": "fdlibm's sine below 2^20 * pi/2 (math/rust trig.rs, math trig.ts fdlibmSin)",
+    "about": "fdlibm's sine below 2^20 * pi/2 (math/rust scalar/trig.rs, math trig.ts fdlibmSin)",
     "inputs": "x: f64",
     "outputs": "1 f64",
     "cases": [

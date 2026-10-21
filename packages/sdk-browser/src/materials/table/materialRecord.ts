@@ -4,6 +4,7 @@ import {
   type PHYSICAL_MAP_FIELDS,
   type VisMaterial,
 } from '../../visibility/materialType.ts'
+import { MAX_UV_SETS } from '../../../../sdk-core/src/page/format.ts'
 import { FOG_FREE_MODEL_BIT } from '../surface/surfaceModel.ts'
 import { frameNormalScaleY } from '../../visibility/frameNormal.ts'
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts'
@@ -86,14 +87,15 @@ export function writeMaterialRecord(
   return copyChanged(ints, at, scratchInts)
 }
 
-/** The UV channels word of `mat`'s maps `fields`: bit `i` set where map `i` reads the second UV
- *  set (glTF's `texCoord` 1, `Texture.channel`). */
+/** The UV channels word of `mat`'s maps `fields`: two bits a map, map `i`'s at bit `2i`, the texture
+ *  set it reads (glTF's `texCoord`, `Texture.channel`), held to the last set a page carries. */
 export function channelsOf(
   mat: VisMaterial,
   fields: readonly ((typeof SURFACE_MAP_FIELDS)[number] | (typeof PHYSICAL_MAP_FIELDS)[number])[],
 ) {
   let channels = 0
-  for (let i = 0; i < fields.length; i++) if (mat[fields[i]]?.channel === 1) channels |= 1 << i
+  for (let i = 0; i < fields.length; i++)
+    channels |= Math.min(mat[fields[i]]?.channel ?? 0, MAX_UV_SETS - 1) << (2 * i)
   return channels
 }
 

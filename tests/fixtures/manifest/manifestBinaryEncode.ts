@@ -73,7 +73,7 @@ export function encodeManifestBinary(
       page++
     }
     if (primitive.culling) {
-      cullingNodes.set(primitive.culling.nodes, node * 15)
+      cullingNodes.set(primitive.culling.nodes, node * written.CULLING_STRIDE)
       node += primitive.culling.count
     }
     for (const item of primitive.structure?.groups ?? []) {

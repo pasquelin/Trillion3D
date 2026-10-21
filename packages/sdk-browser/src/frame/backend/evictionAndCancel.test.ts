@@ -8,47 +8,66 @@ import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { dagLevel } from '../../session/engine/pagesEngine.fixture.ts'
 import { quadScene, camera, flushedImage } from './testScenes.fixture.ts'
-import { coarseQuadScene } from './coarseQuads.fixture.ts'
+import { coarseQuadScene, twoCoarseQuadsScene } from './coarseQuads.fixture.ts'
+import { deepQuadScene } from './deepQuad.fixture.ts'
 import { settledImage } from './settledImage.fixture.ts'
-import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
+import type { ClusterManifest, Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
+import { DEFAULT_SCOPE } from '../../../../sdk-core/src/contracts/base.ts'
 import type { Engine } from '../../session/engine/types.ts'
-import { EVICT_IN_USE } from '../../gpu/sort/rank.ts'
-import { DAG_READBACK_SLOTS } from '../../geometry/dag/layout.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
 import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
-test('a host eviction deferred for coverage is applied once the GPU order gives the page up', async () => {
+test('a host drop deferred for coverage is applied once the pool gives the page its slot to another', async () => {
   installGpuGlobals()
-  const fixture = coarseQuadScene(),
-    { device } = fakeDevice(BACKEND)
+  const { device } = fakeDevice(BACKEND),
+    fixture = twoCoarseQuadsScene(deepQuadScene)
+  // `twoCoarseQuadsScene` narrows its pages to their url in its type alone: the page objects keep
+  // every field at runtime, and the manifest is read no further than its primitives.
+  const metadata: ClusterManifest = {
+    formatVersion: 0,
+    status: 'ready',
+    key: 'test-two-coarse-quads',
+    scope: DEFAULT_SCOPE,
+    sourceTriangles: 0,
+    selectedTriangles: 0,
+    selectedNodes: 0,
+    totalNodes: 0,
+    primitives: fixture.metadata.primitives as Primitive[],
+  }
   const backend = webgpuPagesEngine({
     textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
+    metadata,
     gpuDevice: device,
+    // Two streaming slots beside the two roots' grains: a jump between the quads recycles them.
     maxResidentPages: 3,
     viewport: [32, 32],
   }) as Engine
+  const cam = camera()
+  const settle = async (x: number) => {
+    cam.position.set(x, 0, 5)
+    cam.lookAt(x, 0, 0)
+    cam.updateMatrixWorld()
+    for (let image = 0; image < 6; image++) await settledImage(backend, cam, { arrived: false })
+    return backend.selectedPageIds().sort()
+  }
   try {
     await backend.prepare()
-    // The GPU cut's readback lands one image later (#1483): the first asks for the leaves, which
-    // enter the residency the image after their bytes; drawn and drained until they are drawn.
-    await settledImage(backend)
+    assert.deepEqual(await settle(0), ['0', '1'])
+    // The pool holds the page and the view draws it: the drop waits, no hole opens.
     backend.dropPage('0')
-    assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'])
-    const cam = camera()
-    cam.lookAt(0, 0, 10)
-    // The drop waits until the GPU's order gives the page up: unused by any view for
-    // `EVICT_IN_USE` frames, and that order read back.
-    for (let i = 0; i <= EVICT_IN_USE + DAG_READBACK_SLOTS; i++) await flushedImage(backend, cam)
-    await flushedImage(backend)
-    backend.render(camera())
-    assert.deepEqual(backend.selectedPageIds(), ['2'])
+    assert.deepEqual(await settle(0), ['0', '1'])
+    assert.deepEqual(backend.pendingUrls!(), [])
+    // The other quad's arrivals take the slots of the leaves: the pool gave the page up, the drop
+    // is applied, and the view back asks it again, the coarse page drawn meanwhile.
+    assert.deepEqual(await settle(100), ['b0', 'b1'])
+    assert.ok(backend.metrics().cacheEvictions! > 0)
+    assert.deepEqual(await settle(0), ['2'])
     assert.deepEqual(backend.pendingUrls!(), ['0'])
   } finally {
     backend.dispose()
-    fixture.geometry.dispose()
-    fixture.material.dispose()
+    fixture.dispose()
   }
 })
 

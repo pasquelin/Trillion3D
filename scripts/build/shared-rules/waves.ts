@@ -111,7 +111,7 @@ constexpr uint32_t WAVE_DOUBLES = ${WAVE_FIELDS.length};
 void sinCos(double x, double &s, double &c);
 
 /// The rest point \`[x, ·, z]\` the waves carry to the world position \`(x, z)\`, into \`restX\` and
-/// \`restZ\`: \`waveRest\` printed (\`scripts/generate-shared-rules.ts\`).
+/// \`restZ\`: \`waveRest\` printed (\`scripts/build/generate-shared-rules.ts\`).
 inline void waveRest(const Wave *waves, uint32_t count, double x, double z, double &restX,
                      double &restZ) {
 ${lines.join('\n')}

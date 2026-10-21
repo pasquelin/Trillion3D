@@ -39,8 +39,10 @@ test('drawing another view every frame never resets the main view’s hold, nor 
   }
   let frames = 0
   while (!(await frame())) assert.ok(frames++ < 8, 'the main view holds')
-  // The side view's own pass is rigged in the background meanwhile: its targets come once.
+  // The side view's own pass is rigged in the background meanwhile: its targets come once, the
+  // image after the visibility raster its targets span is compiled (`ensureGpuRaster`).
   for (let turn = 0; turn < 5; turn++) await new Promise(setImmediate)
+  await frame()
   await frame()
   const made = textures.length
   for (let i = 0; i < 3; i++) assert.equal(await frame(), true, 'and stays held')
@@ -65,17 +67,21 @@ test('a target grant lands on the view that asked for it, whichever is drawn', a
 
 test('a persistent view accumulates its own history, the main view’s left as it was', async () => {
   const { rt } = await drawnQuad()
-  const main = rt.gpu.temporal!,
-    frame = { ...main.frame }
+  const main = rt.gpu.temporal!
   const { view: side } = await addWebgpuView(rt, { rect: RECT })
-  for (let i = 0; i < 2; i++) {
+  // Its first image asks its targets, its second is held on the visibility raster they span
+  // (`ensureGpuRaster`): the third accumulates. The flush after a held image waits for that compile
+  // and draws the main view's pose again, a main image of its own: only the side view's images are
+  // told apart from it.
+  for (let i = 0; i < 3; i++) {
+    const frame = { ...main.frame }
     renderWebgpuView(rt, side, camera(), 0)
+    assert.deepEqual({ ...main.frame }, frame, 'the main view’s history is untouched')
     await flushWebgpuPages(rt)
   }
   const own = side.gpu.temporal
   assert.ok(own && own !== main, 'a pass of its own')
   assert.equal(own.frame.active, true, 'no capture: it accumulates')
-  assert.deepEqual({ ...main.frame }, frame, 'the main view’s history is untouched')
   assert.equal(rt.gpu.temporal, main)
   await removeWebgpuView(rt, side)
 })
@@ -86,8 +92,9 @@ test('a persistent view is no capture: it draws the effect chain, with its own t
   const chain = rt.gpu.effects
   assert.ok(chain, 'the main view draws the chain')
   const { view: side } = await addWebgpuView(rt, { rect: RECT })
-  // Its first image makes its region of the cut's readout (`geometry/dag/swap/swap.ts`), then it cuts.
-  for (let i = 0; i < 3; i++) {
+  // Its first image asks its targets, its second is held on the visibility raster they span
+  // (`ensureGpuRaster`), the third draws and the fourth has made its chain.
+  for (let i = 0; i < 4; i++) {
     renderWebgpuView(rt, side, camera(), 0)
     await flushWebgpuPages(rt)
   }

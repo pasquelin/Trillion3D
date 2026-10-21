@@ -19,7 +19,7 @@ test('every row of a model placed again reads its bones in the graph, not in its
   const { rows } = models.drawsOf(again).rowed[0]
   assert.equal(rows.capacity >= 2, true, 'the rows grew for the second placement')
   for (const index of [0, 1]) {
-    const { mesh } = placementDeformation({ rows, index }, {}, new Map())
+    const { mesh } = placementDeformation({ placement: { rows, index } }, {}, new Map())
     assert.equal(mesh.frame, drawn[0].matrixWorld.elements, `row ${index}`)
   }
 })

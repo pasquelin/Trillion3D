@@ -102,8 +102,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   loadedScene.framingLot?.release()
   inputs.placeCamera?.(cameraState.camera)
   await primeFirstView(session, loadedScene, cameraState.camera, pageSources.streamer)
-  // The frame's one main-thread clock: cells, arrivals, the engine's row records and texture tiles,
-  // then the residency queue between frames.
+  // The frame's one main-thread clock: cells, arrivals, the engine's row records and texture tiles.
   const frameBudget = createFrameBudget(MAIN_THREAD_FRAME_MS)
   await renderer // the engine is built once its renderer has arrived
   const { viewport, context, engine, hostBytes } = await prepareExplorerEngine(session, {

@@ -13,6 +13,14 @@ import {
   temporalAntialiasingLevel,
   type TemporalAntialiasingOption,
 } from '../../../../sdk-core/src/contracts/materialOptions.ts'
+import type {
+  HlodWarmupOptions,
+  WorldStreamingOptions,
+} from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
+import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.ts'
+import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animationOptions.ts'
+import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
+import { worldFamilies } from './ruledSwitches.ts'
 
 /** What of the world's runtime the switches reach: its open session and a frame. */
 interface SwitchedRuntime {
@@ -22,8 +30,15 @@ interface SwitchedRuntime {
 
 /**
  * The world's render switches — bounced light, temporal antialiasing, the cut's screen error, the
- * render scale, the effect chain — and its guides: held by the world, given to every session it
- * opens (`held`), the switches written into the open one in place. The first three are settings of the world's registry (`settings`): the page
+ * software raster and its hardware edge (`rasterOptions.ts`), the geometry streaming's five
+ * settings (`streamingOptions.ts`), the partition's streaming and the HLOD warm-up
+ * (`worldStreamingOptions.ts`), the cut's occlusion, culls and level-of-detail bias
+ * (`cutOptions.ts`), the animation's rest-pose screen size and how its banks play their tracks
+ * (`animationOptions.ts`), the shading bins' mode (`shadingOptions.ts`) — each of those six
+ * families by rule (`ruledSwitches`) —, the render scale, the effect chain — and its guides: held
+ * by the world, given to every session it opens (`held` and the families), the switches written
+ * into the open one in place, the streaming's read at its next update. All but the last two are
+ * settings of the world's registry (`settings`): the page
  * writes them at its priority, a quality preset (`quality`) below it, the first loaded scene whose
  * manifest names a temporal anti-aliasing level below that (`scene`), and each is applied once its
  * resolved value changes.
@@ -44,6 +59,10 @@ export function worldSwitches(
   // The page's own level, `true` included: it holds over a scene's and a preset's.
   if (options.temporalAntialiasing != null)
     settings.set('antialiasing', temporalAntialiasingLevel(options.temporalAntialiasing), 'page')
+  // The families by rule (`worldFamilies`): the page's settings of each, read by its one
+  // resolver; they hold over a preset's.
+  const families = worldFamilies(settings)
+  for (const family of Object.values(families)) family.page(options)
   const scale = {
     asked: () => held.renderScale,
     ask: (next: RenderScale) => void (switches.renderScale = next),
@@ -82,6 +101,7 @@ export function worldSwitches(
     runtime().explorer?.setPixelError(value)
     invalidate()
   })
+  for (const family of Object.values(families)) family.watch(() => runtime().explorer, invalidate)
   const switches = {
     held,
     settings,
@@ -93,6 +113,7 @@ export function worldSwitches(
       if (held.temporalAntialiasing !== given.temporalAntialiasing)
         opened.setTemporalAntialiasing(held.temporalAntialiasing)
       if (held.pixelError !== given.pixelError) opened.setPixelError(held.pixelError)
+      for (const family of Object.values(families)) family.apply(opened, given)
       if (held.renderScale !== given.renderScale) opened.setRenderScale(held.renderScale)
       if (held.maxFrameRate !== given.maxFrameRate) opened.setMaxFrameRate(held.maxFrameRate)
     },
@@ -124,6 +145,55 @@ export function worldSwitches(
     },
     set pixelError(value: number) {
       settings.set('pixelError', value, 'page')
+    },
+    /** The software raster, resolved over the page and the preset. */
+    get softwareRaster(): boolean {
+      return families.raster.get('softwareRaster')
+    },
+    /** The page's software raster; `undefined` or `null` gives the setting back to the preset. */
+    set softwareRaster(option: boolean | null | undefined) {
+      families.raster.set({ softwareRaster: option })
+    },
+    /** The hardware raster edge in pixels, resolved over the page and the preset. */
+    get hardwareRasterEdgePixels(): number {
+      return families.raster.get('hardwareRasterEdgePixels')
+    },
+    /** The page's hardware raster edge; `undefined` or `null` gives the setting back to the
+     *  preset. */
+    set hardwareRasterEdgePixels(option: number | null | undefined) {
+      families.raster.set({ hardwareRasterEdgePixels: option })
+    },
+    // Each family by rule: read, its settings resolved over the page and the preset, by field —
+    // what a session opens with —; written, the page's settings the options name (`ruledSwitches`).
+    get raster() {
+      return families.raster.values()
+    },
+    get streaming() {
+      return families.streaming.values()
+    },
+    get worldStreaming() {
+      return families.worldStreaming.values()
+    },
+    set worldStreaming(options: WorldStreamingOptions & HlodWarmupOptions) {
+      families.worldStreaming.set(options)
+    },
+    get cut() {
+      return families.cut.values()
+    },
+    set cut(options: CutOptions) {
+      families.cut.set(options)
+    },
+    get animation() {
+      return families.animation.values()
+    },
+    set animation(options: AnimationOptions) {
+      families.animation.set(options)
+    },
+    get shading() {
+      return families.shading.values()
+    },
+    set shading(options: ShadingOptions) {
+      families.shading.set(options)
     },
     /** The scale of the image the open session drew last, 1 before one opens. */
     get renderScale(): number {

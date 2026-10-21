@@ -26,13 +26,11 @@ function mount() {
     shadeUniform: {},
     shadeCache: { buffer: {} },
     voxelSteps: { buffer: {} },
-    zeroFlags: {},
-    gpuHiz: { flags: {} },
+    zeroRows: {},
     textures: { color: { views, pages }, data: { views: dataViews, pages } },
     mapsSampler: {},
     shadeBindGroup: undefined as unknown,
     visSlotGroups: [undefined, undefined] as unknown[],
-    rasterGroups: [undefined] as unknown[],
     visIdentity: createWebgpuBindIdentity(),
     shadeIdentity: createWebgpuBindIdentity(),
     materialTable: createMaterialTable(),
@@ -55,16 +53,14 @@ function mount() {
 test('a resized page pool voids every group that named it, by identity alone', () => {
   const { vis, gpu, ensure } = mount()
   assert.equal(ensure(), 1, "the resolve group built once: slot groups are their passes'")
-  // Slot and raster groups are built by their own passes on the same resources.
+  // Slot groups are built by their own passes on the same resources.
   vis.visSlotGroups.fill({})
-  vis.rasterGroups.fill({})
   assert.equal(ensure(), 1, 'a still image rebuilds nothing')
   assert.deepEqual(vis.visSlotGroups, [{}, {}], 'the slot groups are held with them')
   // The pool was resized: another buffer, in the same place, and no drop by name anywhere.
   gpu.cache = { buffer: {} }
   assert.equal(ensure(), 2, 'the resolve group is rebuilt')
   assert.deepEqual(vis.visSlotGroups, [undefined, undefined])
-  assert.deepEqual(vis.rasterGroups, [undefined])
 })
 
 test('an atlas that changed layers voids only the groups that sample it', () => {
