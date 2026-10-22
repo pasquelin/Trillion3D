@@ -25,6 +25,7 @@ import {
 } from './proxyInstances.fixture.ts'
 import { INSTANCE } from '../../../lighting/bounce/runtime/runtimeLayout.ts'
 import { hostStretches } from '../hostStretches.fixture.ts'
+import { createProxyBoxes } from './proxyBoxes.ts'
 
 test('no placement wears a proxy: no buffer, nothing for the trace to read', async () => {
   const { gpu, selection } = await open(() => undefined)
@@ -161,4 +162,24 @@ test('the trace reads the culling’s worlds and tree: a moved placement sends n
   selection.worldsMovedOnGpu([3, 4])
   assert.equal(writes(gpu).length, sent, 'no write')
   selection.dispose()
+})
+
+test('the placements that wear a proxy and the triangles they wear are counted, a parked one none', () => {
+  // Eighty-one placements, each wearing a cut of two triangles.
+  const roots = placementField(9, 3)
+  roots.forEach(
+    (root) => (root.proxy = { primitive: { runtimeProxy: cut(2, 1, 1) }, surface: surface(1) }),
+  )
+  const packed = packDagSelection(roots)
+  const boxes = createProxyBoxes(packed, packed.worldCount, () => packed.worldSources.length)
+  roots.forEach((_, w) => boxes.mark(w))
+  assert.deepEqual(boxes.worldBoxes().worn, { placements: 81, triangles: 162 })
+  // One takes another cut: its triangles replace those it wore, the placements are as many.
+  roots[0].proxy = { primitive: { runtimeProxy: cut(5, 1, 1) }, surface: surface(1) }
+  boxes.mark(0)
+  assert.deepEqual(boxes.worldBoxes().worn, { placements: 81, triangles: 165 })
+  // Parked, none wears a proxy.
+  roots.forEach((root) => (root.proxy = undefined))
+  roots.forEach((_, w) => boxes.mark(w))
+  assert.deepEqual(boxes.worldBoxes().worn, { placements: 0, triangles: 0 })
 })

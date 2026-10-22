@@ -15,7 +15,7 @@ const BOUNCE_APPROXIMATIONS = [
   'the proxy carries a certified geometric error, so a bounce leaves the coarse surface',
   'the proxy carries diffuse albedo only: emission, transparency and specular are not bounced',
   'a probe update reads the levels as they stand, so one update may see a neighbour already updated',
-  'a ray that exhausts the published traversal bound, or whose shadow ray does, carries no weight: a probe renormalises over the rays that answered',
+  'a probe ray that exhausts the published traversal bound ends as a hit where it stopped, lit by the cascades alone, and a shadow ray that exhausts it is a blocker: the point is shaded',
   'a probe ray lights the surface it lands on at the point it lands, every light and its shadow, so the cost of a ray grows with the lights',
   'a probe buried in a surface or lost in open sky goes to sleep and is skipped until a light or the sky changes',
   'a frame traces a fixed count of probes (`probesPerFrame`) whatever the time the pass takes: a slow device lowers the count, nothing lowers it for it',

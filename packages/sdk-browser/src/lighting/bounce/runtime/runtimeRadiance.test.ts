@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
-import { RAY_SPREAD_FLOOR, SURFACE_BLENDED } from './runtimeLayout.ts'
+import { RAY_SPREAD_FLOOR, RAY_WORK, SURFACE_BLENDED } from './runtimeLayout.ts'
 import { NO_SKY, along, ahead, origin, runOver } from './runtimeRun.fixture.ts'
 import { world } from './runtimeScene.fixture.ts'
 import { SKY_SLOT } from '../../../../../sdk-core/src/scene/core/environmentSky.ts'
@@ -73,16 +73,55 @@ test('a deformed placement is met at its rest shape, its reach taking confidence
   assert.ok(Math.abs(wide - known(1)) < 1e-6 && wide > 10 * narrow.confidence, `${wide}`)
 })
 
-test('a ray that spends its budget answers nothing, never a miss that darkens', () => {
-  // Four hundred cubes in a row the ray crosses: the budget runs out before the tree does.
+/** Four hundred cubes in a row a ray along `ahead` crosses: its budget runs out before the tree does. */
+const crowd = () => {
   const count = 400
   const places = Array.from({ length: count }, (_, k) =>
     new Matrix4().makeTranslation(k * 0.02 + 1, 0, 0),
   )
-  const w = world(count, 1, { places, surfaces: [[0, 0, 0, 0.0001, 1, 1, 1, SURFACE_BLENDED]] })
-  const seen = runOver(w).rtRadiance(origin, ahead, 1000, 0.01)
+  return world(count, 1, { places, surfaces: [[0, 0, 0, 0.0001, 1, 1, 1, SURFACE_BLENDED]] })
+}
+
+test('a reflection’s ray that spends its budget answers nothing, never a miss that darkens', () => {
+  const seen = runOver(crowd()).rtRadiance(origin, ahead, 1000, 0.01)
   assert.equal(seen.confidence, 0)
   assert.deepEqual(seen.color, [0, 0, 0])
+})
+
+test('a probe’s ray that spends its walk ends as a hit where the walk stopped, its weight kept', () => {
+  // Four hundred cubes one on another: the ray meets the front face at 2.5 and every box on it, so the
+  // walk spends the probe's budget (cut to 512 units here) with nothing more to learn. It is neither
+  // dropped nor a miss: it brings the light the cascades hold where it stopped (the stub reads a surface
+  // of no tint as its light, one), at the distance the walk had reached.
+  const places = Array.from({ length: 400 }, () => new Matrix4().makeTranslation(3, 0, 0))
+  const stacked = world(400, 1, { places })
+  const run = runOver(stacked, NO_SKY, { RT_PROBE_WORK: RAY_WORK })
+  assert.deepEqual(run.rtProbeRay(origin, ahead, 1000), [1, 1, 1, 2.5])
+  assert.equal(run.testCause(), 1, 'the walk spent its units')
+  assert.equal(run.testReached(), 2.5)
+  assert.equal(run.testShadowCause(), 0, 'no shadow ray was cast')
+  // The reflections' own budget under the same walk answers nothing, the next stage's.
+  assert.equal(runOver(stacked).rtRadiance(origin, ahead, 1000, 0.01).confidence, 0)
+  // Given the whole walk the ray ends where the exhausted one did: the same hit.
+  const whole = runOver(stacked, NO_SKY, { RT_PROBE_WORK: 1e5, RT_PROBE_TRIANGLES: 1e5 })
+  assert.deepEqual(whole.rtProbeRay(origin, ahead, 1000), [1, 1, 1, 2.5])
+  assert.equal(whole.testCause(), 0)
+  // A probe inside the boxes (four hundred cubes scaled to twenty, the origin within each) enters them at
+  // zero: its exhausted ray ends at the surface it had found, ten metres out and of its tint as the whole walk
+  // finds it, never at a distance of zero, which would bury the probe, nor of no tint.
+  const around = world(400, 1, {
+    places: Array.from({ length: 400 }, () => new Matrix4().makeScale(20, 20, 20)),
+    surfaces: [[0.5, 0.25, 0, 1, 0, 0, 0, 0]],
+  })
+  const spentInside = runOver(around, NO_SKY, { RT_PROBE_WORK: RAY_WORK })
+  const stopped = spentInside.rtProbeRay(origin, ahead, 1000)
+  assert.equal(spentInside.testCause(), 1, 'the walk spent its units')
+  assert.equal(spentInside.testReached(), 0, 'the origin lies in every box')
+  const wholeInside = runOver(around, NO_SKY, { RT_PROBE_WORK: 1e5, RT_PROBE_TRIANGLES: 1e5 })
+  const found = wholeInside.rtProbeRay(origin, ahead, 1000)
+  assert.ok(Math.abs(found[3] - 10) < 1e-9, `${found}`)
+  assert.deepEqual(stopped, found, 'the exhausted ray ends where the whole walk finds the surface')
+  assert.deepEqual(stopped.slice(0, 3), [0.5, 0.25, 0])
 })
 
 /** A light buffer whose sky light gives the probes the flat sky `upper`, black below the horizon. */

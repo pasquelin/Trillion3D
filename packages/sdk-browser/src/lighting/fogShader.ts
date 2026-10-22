@@ -27,6 +27,8 @@ const fog = (slot: number) => `directLights.fog[${slot}]`
 const air = (slot: number) => `directLights.atmosphere[${slot}]`
 /** The sky's mean radiance at the fog's altitude, the GPU writes each image. */
 const SKY_MEAN = `directLights.atmosphereView[${VIEW_SLOT.haze}].xyz`
+/** Whether an atmosphere shows: its planet's block is written. */
+const AIR_SHOWN = `${air(ATMOSPHERE_SLOT.planet)}.x!=0.0`
 /** What the atmosphere gives the fog of the sky: its mean radiance, the atmosphere's contribution
  *  and the fog's own factor. */
 const SKY_AMBIENT = `${fog(FOG_SLOT.sky)}.rgb*${SKY_MEAN}*${air(ATMOSPHERE_SLOT.sunTransmittance)}.w`
@@ -50,7 +52,8 @@ const SUN_ON_GROUND = `${air(ATMOSPHERE_SLOT.sunIlluminance)}.rgb*${air(ATMOSPHE
  *  air. A ray that rises keeps what the density above the eye lets through, nothing near the
  *  horizon; a level or falling one, through a density that grows without end, keeps nothing, so
  *  that from the horizon down the pixel is the fog's colour alone. A distance fog leaves the sky
- *  as it is. */
+ *  as it is. `fogsBackground`: whether the pixels no surface drew are fogged by the lighting
+ *  itself, because no sky is drawn on them — a height fog and no atmosphere. */
 export const FOG_WGSL = wgslBlock(
   'FOG_WGSL',
   [HAZE_READ_WGSL],
@@ -103,10 +106,11 @@ fn heightFog(P:vec3f,eye:vec3f,withSky:bool)->vec4f{
 fn fogBeyond(dir:vec3f,eye:vec3f)->vec4f{
  if(${fog(FOG_SLOT.color)}.w<${FOG_MODE.exponential - 0.5}){return vec4f(0.0,0.0,0.0,1.0);}
  let observer=fogObserver(eye.y);
- return heightFogAlong(vec3f(dir.x*FOG_ENDLESS,dir.y*FOG_ENDLESS+(eye.y-observer),dir.z*FOG_ENDLESS),observer,true);
+ return heightFogAlong(vec3f(dir.x*FOG_ENDLESS,dir.y*FOG_ENDLESS+(eye.y-observer),dir.z*FOG_ENDLESS),observer,${AIR_SHOWN});
 }
+fn fogsBackground()->bool{return ${fog(FOG_SLOT.color)}.w>${FOG_MODE.exponential - 0.5}&&!(${AIR_SHOWN});}
 fn fogOver(P:vec3f,eye:vec3f)->vec4f{
- let withSky=${air(ATMOSPHERE_SLOT.planet)}.x!=0.0;
+ let withSky=${AIR_SHOWN};
  let mode=${fog(FOG_SLOT.color)}.w;
  var over=vec4f(0.0,0.0,0.0,1.0);
  if(mode>${FOG_MODE.exponential - 0.5}){over=heightFog(P,eye,withSky);}
@@ -116,7 +120,7 @@ fn fogOver(P:vec3f,eye:vec3f)->vec4f{
  return vec4f(over.rgb+haze.rgb*over.a,over.a*haze.a);
 }
 fn fogged(rgb:vec3f,P:vec3f,eye:vec3f)->vec3f{
- if(${fog(FOG_SLOT.color)}.w==${FOG_MODE.none}.0&&${air(ATMOSPHERE_SLOT.planet)}.x==0.0){return rgb;}
+ if(${fog(FOG_SLOT.color)}.w==${FOG_MODE.none}.0&&!(${AIR_SHOWN})){return rgb;}
  let over=fogOver(P,eye);
  return rgb*over.a+over.rgb;
 }`,

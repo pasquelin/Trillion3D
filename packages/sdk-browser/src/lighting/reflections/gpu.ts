@@ -1,7 +1,7 @@
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
-import { createReflectionCensus } from './census.ts'
+import { REFLECTION_CENSUS_BYTES, createReflectionCensus } from './census.ts'
 import { createFrontLayer, frontLayerBytes } from './frontLayer.ts'
 import { createRadiancePyramid, radianceBytes } from './radiance/radiance.ts'
 import { createTraceGroups, type TraceInputs } from './trace/traceGroups.ts'
@@ -20,7 +20,6 @@ import { REFLECTION_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { createSurroundings } from '../toneUnmap.ts'
 import { viewProj } from '../../frame/backend/helpers.ts'
 import { REFLECTION_VIEW_BYTES } from './viewLayout.ts'
-import { REFLECTION_CENSUS_BYTES } from './census.ts'
 import { REFLECTION_TARGET } from './weight.ts'
 
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its

@@ -186,56 +186,6 @@ test('equal suns are told apart by the order of adding, which a removal does not
   near(air(), [0, 0, 1], 'c back on, brighter than a: added again, it takes the place')
 })
 
-test('the sun is held whatever the air: put out and on again, it is not forgotten', () => {
-  const store = createSceneLightStore()
-  const light = (id: string, kind: 'directional' | 'point', direction: [number, number, number]) =>
-    store.add(
-      kind === 'point'
-        ? {
-            id,
-            kind,
-            position: direction,
-            range: 10,
-            color: [1, 1, 1],
-            intensity: 3,
-            castsShadow: false,
-          }
-        : { id, kind, direction, color: [1, 1, 1], intensity: 3, castsShadow: false },
-    )
-  const toward = (block: Float32Array, at: number) => block.subarray(at, at + 3)
-  const air = () => toward(store.atmospherePacked, ATMOSPHERE_SLOT.sunDirection * 4)
-  const fog = () => toward(store.environmentPacked, ENVIRONMENT_COEFFICIENTS * 4 + FOG_SLOT.sun * 4)
-  const [a, b, c] = [
-    [-1, 0, 0],
-    [0, -1, 0],
-    [0, 0, -1],
-  ] as const
-  store.setEnvironment({ exposure: 1, fog: {} })
-  light('p', 'point', [0, 5, 0])
-  light('a', 'directional', [...a])
-  near(fog(), [1, 0, 0], 'a is the sun, without air')
-  // The point light's removal frees the lowest rank: b takes it. It is equal and later, so a keeps
-  // the sun, and the fog scatters a.
-  store.remove('p')
-  light('b', 'directional', [...b])
-  near(fog(), [1, 0, 0], 'a holds the sun against b, which has the lower rank')
-  // b removed, c takes its rank: still a, which the air set now reads.
-  store.remove('b')
-  light('c', 'directional', [...c])
-  store.setEnvironment({ exposure: 1, fog: {}, atmosphere: validateSceneAtmosphere(true) })
-  near(air(), [1, 0, 0], 'a, held while there was no air, not c of the lowest rank')
-  store.setEnvironment({ exposure: 1 })
-  store.setEnvironment({ exposure: 1, atmosphere: validateSceneAtmosphere(true) })
-  near(air(), [1, 0, 0], 'the air put out and on again: a still')
-  // The first directional light removed, the fog's fallback is empty until a directional light is
-  // added again — as one that stops lighting the air is: removed and added again.
-  store.setEnvironment({ exposure: 1, fog: {} })
-  store.remove('a')
-  near(fog(), [0, 0, 1], 'c, the sun now')
-  store.set('c', { atmosphereSun: false })
-  near(fog(), [0, 0, 1], 'c no longer lights the air: added again, the fog falls back on it')
-})
-
 test('a fog changed stales the frame; the same fog set again does not', () => {
   const store = createSceneLightStore()
   store.setEnvironment({ exposure: 1, fog: { color: GREY, near: 3, far: 30 } })

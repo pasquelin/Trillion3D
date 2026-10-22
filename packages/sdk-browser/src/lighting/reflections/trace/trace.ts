@@ -119,20 +119,19 @@ export const REFLECTION_TRACE_SHADER = wgslProgram(
 @group(0) @binding(${B.rayDataOut}) var rayDataOut:texture_storage_2d<${REFLECTION_GRID_FORMAT},write>;
 var<workgroup> pendingCount:atomic<u32>;
 var<workgroup> pendingBase:u32;
-/** The screen stage's tally of a ray (\`reflectionCensus\`): cast, past the near field, met by the
- *  screen in part, then answered whole by it or left to the scene stage. */
+/** The screen stage's tally of a ray (\`reflectionCensus\`): met by the screen in part, then past the
+ *  near field, answered whole by the screen or left to the scene stage. */
 fn countScreen(far:bool,b:ReflectionChain){
- censusAdd(REFLECTION_CENSUS_RAYS);
- if(b.bound<REFLECTION_FAR){censusAdd(REFLECTION_CENSUS_SCREEN);}
- if(far){censusAdd(REFLECTION_CENSUS_FAR);}
- else{censusAdd(select(REFLECTION_CENSUS_LEFT,REFLECTION_CENSUS_WHOLE,b.rest<=REFLECTION_EPSILON));}
+ if(b.bound<REFLECTION_FAR){censusAdd(REFLECTION_CENSUS_SCREEN,1u);}
+ if(far){censusAdd(REFLECTION_CENSUS_FAR,1u);}
+ else{censusAdd(select(REFLECTION_CENSUS_LEFT,REFLECTION_CENSUS_WHOLE,b.rest<=REFLECTION_EPSILON),1u);}
 }
 /** The scene stage's tally of a ray: how its walk of the proxy ended, and the units it spent where
  *  it walked. */
 fn countScene(){
- censusAdd(REFLECTION_CENSUS_FATES+reflectionFate);
+ censusAdd(REFLECTION_CENSUS_FATES+reflectionFate,1u);
  if(reflectionFate!=REFLECTION_FATE_NO_PROXY&&reflectionFate!=REFLECTION_FATE_BOUND){
-  censusAdd(REFLECTION_CENSUS_WORK+censusWorkBucket(reflectionWork));
+  censusAdd(REFLECTION_CENSUS_WORK+censusWorkBucket(reflectionWork),1u);
  }
 }
 /** The screen stage of grid texel \`g\` of the surface \`layer\`, cast from the pixel of its block that

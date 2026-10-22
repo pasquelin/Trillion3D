@@ -40,21 +40,37 @@ export interface BounceFrameMetrics {
   nonZeroProbes: number | null
   darkProbes: number | null
   buriedProbes: number | null
-  /** Totals since the probes were made: probes whose update fired its rays, rays fired, rays that
-   *  answered (not exhausted), rays that brought light back; probes written, and written buried. */
+  /** Totals since the probes were made: probes whose update fired its rays, rays fired (every one
+   *  answers: an exhausted ray as a hit), rays that brought light back; probes written, and written
+   *  buried. */
   probesFiredTotal: number | null
   raysFired: number | null
-  raysAnswered: number | null
   raysLit: number | null
   probesWrittenTotal: number | null
   probesBuriedTotal: number | null
-  /** The rays that carried no weight, by what spent them: the ray's own work, its triangle tests, its
-   *  walk of the placement tree, a mesh's walk; then the same four for its shadow ray (totals). */
-  raysLostBy: number[] | null
+  /** The rays that spent their budget, by what spent it: the ray's own work, its triangle tests, its
+   *  walk of the placement tree, a mesh's walk; then the same four for its shadow ray (totals). An
+   *  exhausted walk ends as a hit where it stopped, an exhausted shadow ray as a blocker. */
+  raysExhaustedBy: number[] | null
   /** Every ray by the work it spent: under 64 units, 128, 256, 512, 1024, 2048, 4096, more (totals). */
   rayWork: number[] | null
+  /** Rays that answered by meeting no surface, so that the sky answered them; shadow rays of the rays'
+   *  hits that found nothing on their segment (the point is lit); those that found a surface (totals). */
+  raysEscaped: number | null
+  shadowRaysFree: number | null
+  shadowRaysBlocked: number | null
+  /** The work, in units, that the rays of the image the last census counted spent: all of it, and the part
+   *  the placement tree's groups took (a ray that meets a group's box reads every member of it); the rest
+   *  went to the tree's cells and the placements' cuts. One image, not a total. */
+  imageRayWork: number | null
+  imageRayMembers: number | null
   /** The furthest a probe's ray looks for a surface, in metres. */
   rayReach: number | null
+  /** What the proxy the rays meet held at the last sync of the probes with the placements: the
+   *  placements that wear a proxy (a parked placement does not), and the triangles of the meshes they
+   *  wear, one count each. */
+  proxyPlacements: number | null
+  proxyTriangles: number | null
 }
 
 /**

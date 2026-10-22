@@ -29,8 +29,9 @@ const VERTEX = '4527231df79be64432298d76dcf283c314a39b64fa2f846f9f6ed30dd9a64ead
 // then a probe's distance along a direction came to be read from its two distance vectors
 // (`distanceAlong`), the one rule its neighbours' filter reads them by too, and then the fog's height
 // law came to be written over a ray apart from its point (`heightFogAlong`), for the sky's ray that
-// leaves the scene (`fogBeyond`).
-const BLEND = '8363aae7cf90997c0d76ce1d854ab589aa99d3689d5297cbd22b122cffb8d8d1'
+// leaves the scene (`fogBeyond`), and then the fog read whether an atmosphere shows by one text, and
+// gained the test of a background no sky is drawn on (`fogsBackground`).
+const BLEND = 'cd675409d1938dbc772be35223096a8147c241ed2880bf35fc8c24bf7458dc12'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */

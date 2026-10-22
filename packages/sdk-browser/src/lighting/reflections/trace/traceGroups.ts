@@ -67,6 +67,9 @@ export type TraceResources = {
   trace: ReturnType<typeof createTraceGroups>
 }
 
+/** A buffer as a binding resource. */
+const list = (buffer: GPUBuffer) => ({ buffer })
+
 /** The classification's group: the surface's pixels, the ray words it picks them into and the four
  *  lists it fills. */
 function classifyGroup(
@@ -76,7 +79,6 @@ function classifyGroup(
   grids: ReflectionGrids,
   bounceGrid: Named['bounceGrid'],
 ) {
-  const list = (buffer: GPUBuffer) => ({ buffer })
   return device.createBindGroup({
     layout,
     entries: namedEntries(REFLECTION_TRACE_BINDINGS, {
@@ -107,7 +109,6 @@ function surfaceGroups(
 ): SurfaceGroups {
   const { flags, normals, lobes } = surface
   const { rays, history } = grids
-  const list = (buffer: GPUBuffer) => ({ buffer })
   const field = { bounceGrid: scene.bounceGrid, probes: scene.probes, lights: scene.lights }
   // The ray words sampled (`raysRead`) but by their writers, the classification, the screen stage and
   // the clear of the unused tracing tiles, which bind them as storage.

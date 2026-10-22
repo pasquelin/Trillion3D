@@ -65,12 +65,15 @@ export const SURFACE_BLENDED = 1
  * lighting casts (`rtBlocked`) spend the same budget: a ray, its lighting included, costs `RAY_WORK`
  * units at most, whatever the lights its hits see — never one budget more a light.
  *
- * ONE RULE FOR AN EXHAUSTED RAY, the physically safe one: a ray that spends its budget — or whose
- * hit's lighting casts a shadow ray that spends its own — carries zero weight. It is never a miss
- * (which would darken) nor an unblocked shadow (which would leak light): a reflection's ray answers
- * zero confidence, its share left to the next stage of the chain (`rtRadiance`), and a probe's ray
- * is dropped from the probe's estimate, which is renormalised over the rays that answered
- * (`rtProbeRay`, `../probes/probeWgsl.ts`).
+ * AN EXHAUSTED RAY IS A HIT, never a ray that is dropped: a trace that runs out of budget has not found
+ * the light, nor the shade, so it answers as one that met a surface where it stopped. A shadow ray that
+ * spends the budget (`rtBlocked`) is a blocker: the point it was cast from is shaded, and the ray it was
+ * cast for keeps its weight. A probe's ray whose own walk spends it ends as an opaque hit at the
+ * distance the walk had reached (`rtReached`), carrying the light the cascades hold there
+ * (`rtLayers`, `rtProbeRay`): the estimate of a probe counts every ray it fired, none renormalised away.
+ * A reflection's ray keeps answering zero confidence, its share left to the next stage of the chain
+ * (`rtRadiance`): its budget (`REFLECTION_PROXY_WORK`) is under one node of the placement tree, so the
+ * walk that ends it has entered no placement yet and would end as a hit on the surface it left.
  */
 export const RAY_WORK = 512
 export const RAY_TRIANGLES = 128

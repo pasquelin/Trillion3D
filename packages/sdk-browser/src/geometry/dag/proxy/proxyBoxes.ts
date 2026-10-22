@@ -2,21 +2,49 @@
  * THE PLACEMENTS' WORLD BOXES THE PROBES' OCCUPANCY MAP KEEPS (`lighting/bounce/probes/probes.ts`), beside the run-time proxy
  * (`proxyInstances.ts`), kept from call to call: a placement's box is its mesh's root bounds through the world
  * it stands at, made again for a row marked since (`mark`), the rows whose box moved listed, the extent kept as
- * the boxes change. A row that wears no proxy, or stands parked, holds the empty box.
+ * the boxes change, the placements that wear a proxy counted with the triangles they wear. A row that wears no
+ * proxy, or stands parked, holds the empty box.
  */
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import { boxTransform } from '../../../../../math/src/geometry/box.ts'
 import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
 import type { RuntimeCutProxy } from '../../../../../sdk-core/src/contracts/proxy.ts'
+import { PROXY_TRIANGLE_FLOATS } from '../../../../../sdk-core/src/contracts/writtenFormats.ts'
 import { createChangedRuns } from '../../residency/ranges.ts'
 import type { ProxyBoxes } from '../../../lighting/bounce/probes/probeSync.ts'
 import type { DagRoot, PackedDag } from '../types.ts'
+
+/** The cut each placement wears, none for one that wears no proxy, and what they hold: the placements that wear
+ *  a proxy and the triangles of the meshes they wear, one count a placement — what a ray can meet of the scene. */
+function createWornCuts(slots: number) {
+  const cuts: (RuntimeCutProxy | undefined)[] = new Array(slots)
+  let placements = 0,
+    triangles = 0
+  const trianglesOf = (cut: RuntimeCutProxy) => cut.triangles.length / PROXY_TRIANGLE_FLOATS
+  return {
+    cuts,
+    /** Placement `w` wears `cut` from now on, none if it is left out. */
+    wear(w: number, cut?: RuntimeCutProxy) {
+      const before = cuts[w]
+      if (before) {
+        placements--
+        triangles -= trianglesOf(before)
+      }
+      if (cut) {
+        placements++
+        triangles += trianglesOf(cut)
+      }
+      cuts[w] = cut
+    },
+    now: () => ({ placements, triangles }),
+  }
+}
 
 /** The boxes of the `slots` placements of `packed`, the `live()` first of them standing. */
 export function createProxyBoxes(packed: PackedDag, slots: number, live: () => number) {
   const boxes = new Float64Array(slots * 6),
     box = new Float64Array(6),
-    boxedCuts: (RuntimeCutProxy | undefined)[] = new Array(slots)
+    worn = createWornCuts(slots)
   for (let w = 0; w < slots; w++)
     boxes.fill(Infinity, w * 6, w * 6 + 3).fill(-Infinity, w * 6 + 3, w * 6 + 6)
   const boxed = createChangedRuns(),
@@ -26,8 +54,7 @@ export function createProxyBoxes(packed: PackedDag, slots: number, live: () => n
   let extentStale = true,
     extentHolds = false
 
-  /** Placement `w`'s box made again: whether it moved — a world that moved and left the box where it was
-   *  moves none. */
+  /** Placement `w`'s box made again; whether it moved (a world that left the box in place moved none). */
   function rebox(w: number) {
     const root = packed.worldSources[w] as DagRoot | undefined
     const cut = root?.proxy?.primitive.runtimeProxy
@@ -35,14 +62,14 @@ export function createProxyBoxes(packed: PackedDag, slots: number, live: () => n
     const wears =
       w < live() && !!root && !!cut?.nodeBounds.length && packed.rootNodes[w] !== NO_INDEX
     if (!wears) {
-      if (!boxedCuts[w]) return false
-      boxedCuts[w] = undefined
+      if (!worn.cuts[w]) return false
+      worn.wear(w)
       boxes.fill(Infinity, at, at + 3).fill(-Infinity, at + 3, at + 6)
       return true
     }
     boxTransform(box, 0, cut!.nodeBounds, 0, root!.world.elements)
-    if (boxedCuts[w] === cut && sameValues(box, boxes.subarray(at, at + 6))) return false
-    boxedCuts[w] = cut
+    if (worn.cuts[w] === cut && sameValues(box, boxes.subarray(at, at + 6))) return false
+    worn.wear(w, cut)
     boxes.set(box, at)
     return true
   }
@@ -60,7 +87,7 @@ export function createProxyBoxes(packed: PackedDag, slots: number, live: () => n
     extent.fill(0)
     let first = true
     for (let w = 0; w < slots; w++) {
-      if (!boxedCuts[w]) continue
+      if (!worn.cuts[w]) continue
       for (let axis = 0; axis < 3; axis++) {
         const low = boxes[w * 6 + axis],
           high = boxes[w * 6 + 3 + axis]
@@ -70,6 +97,7 @@ export function createProxyBoxes(packed: PackedDag, slots: number, live: () => n
       first = false
     }
     extentHolds = !first
+    extentStale = false
   }
 
   return {
@@ -85,11 +113,11 @@ export function createProxyBoxes(packed: PackedDag, slots: number, live: () => n
       const { count, pairs } = boxed.runs()
       for (let r = 0; r < count; r++)
         for (let w = pairs[2 * r]; w <= pairs[2 * r + 1]; w++) {
-          const edge = !!boxedCuts[w] && onEdge(w)
+          const edge = !!worn.cuts[w] && onEdge(w)
           if (!rebox(w)) continue
           movedBoxes.mark(w)
-          if (edge || extentStale || !extentHolds || !boxedCuts[w]) {
-            extentStale ||= edge || (!extentHolds && !!boxedCuts[w])
+          if (edge || extentStale || !extentHolds || !worn.cuts[w]) {
+            extentStale ||= edge || (!extentHolds && !!worn.cuts[w])
             continue
           }
           for (let axis = 0; axis < 3; axis++) {
@@ -99,12 +127,12 @@ export function createProxyBoxes(packed: PackedDag, slots: number, live: () => n
         }
       boxed.clear()
       if (extentStale) fitExtent()
-      extentStale = false
       const moved = movedBoxes.runs()
       const result = {
         boxes,
         moved: { count: moved.count, pairs: moved.pairs },
         extent: extent.slice(),
+        worn: worn.now(),
       }
       movedBoxes.clear()
       return result

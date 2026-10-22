@@ -3,6 +3,7 @@
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createGpuLightTiles } from '../tiles/tiles.ts'
 import { createGpuBounceProbes } from './probes/probes.ts'
+import { NO_PROXY_BOXES } from './probes/probeSync.ts'
 import { BOUNCE_PROBE_QUEUE } from '../../../../sdk-core/src/bounce/contracts.ts'
 
 /** The eye the floor is read from: the tests encode with it. */
@@ -48,8 +49,8 @@ export async function floorProbes(tiled = false, read = true) {
   const scene = {
     proxy: () => ({ buffer: lights, worlds, tree }),
     boxes: () => ({
+      ...NO_PROXY_BOXES,
       boxes: Float64Array.from([0, 0, 0, 8, 0.1, 4]),
-      moved: { count: 0, pairs: new Int32Array(0) },
       extent: [0, 0, 0, 8, 0.1, 4],
     }),
   }

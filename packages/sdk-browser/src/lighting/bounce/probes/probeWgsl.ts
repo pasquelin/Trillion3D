@@ -87,38 +87,42 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
   workgroupBarrier();
  }
  var sums:array<vec3f,PROBE_SUMS>;
- var travelled=0.0;
- var answered=0.0;
  // One thread per ray, the group as wide as the probe's rays (\`PROBE_THREADS\`): a probe at
  // sixty-four rays occupies a whole group, where a single thread chained them and left the GPU idle.
  let d=rayDirection(lane,jitter,rotation);
  let sample=rtProbeRay(origin,d,reach);
- atomicAdd(&census[CENSUS_WORK+min(CENSUS_BUCKETS-1u,firstLeadingBit(max((rtWork+rtExtra)>>5u,1u)))],1u);
- // An exhausted ray carries zero weight: the estimate is renormalised over the rays that answered.
- if(sample.w<0.0){atomicAdd(&census[CENSUS_LOST_BY+u32(-sample.w)-1u],1u);}
- if(!(sample.w<0.0)){
-  let span=sample.w;
-  travelled+=span;
-  answered+=1.0;
-  atomicAdd(&census[CENSUS_ANSWERED],1u);
-  if(any(sample.rgb>vec3f(0.0))){atomicAdd(&census[CENSUS_LIT],1u);}
-  ${radianceProjectionShader((k) => `sums[${k}]`, 'sample.rgb', 'd')}
-  let weight=abs(d);
-  let positive=select(vec3f(0.0),weight,d>vec3f(0.0));
-  sums[9]+=positive*span;
-  sums[10]+=positive;
-  sums[11]+=(weight-positive)*span;
-  sums[12]+=weight-positive;
-  if(PROBE_FILTER){
-   let shares=filterShares(d,span,spacing);
-   sums[13]+=shares.low;
-   sums[14]+=shares.high;
-  }
+ // The ray counted in the group's tally (\`censusAdd\`), flushed once: the work it and its shadow rays spent, by
+ // bucket and in all, the part the tree's groups took (this image's rays only), what its shadow rays found.
+ let spent=rtWork+rtExtra;
+ censusAdd(CENSUS_WORK+min(CENSUS_BUCKETS-1u,firstLeadingBit(max(spent>>5u,1u))),1u);
+ censusAdd(CENSUS_WALK_WORK,spent);
+ censusAdd(CENSUS_WALK_MEMBERS,rtMembers);
+ censusAdd(CENSUS_SHADOW_FREE,rtShadowFree);
+ censusAdd(CENSUS_SHADOW_BLOCKED,rtShadowHit);
+ // What spent a ray's walk and its shadow ray is counted: the ray answers all the same (\`rtProbeRay\`), an
+ // exhausted walk as a hit where it stopped and an exhausted shadow ray as a blocker, none left out.
+ if(rtCause!=0u){censusAdd(CENSUS_EXHAUSTED_BY+rtCause-1u,1u);}
+ if(rtShadowCause!=0u){censusAdd(CENSUS_EXHAUSTED_BY+3u+rtShadowCause,1u);}
+ let span=sample.w;
+ if(any(sample.rgb>vec3f(0.0))){censusAdd(CENSUS_LIT,1u);}
+ // A ray that met no surface answers with its whole reach: the sky is all it brings.
+ if(span>=reach){censusAdd(CENSUS_ESCAPED,1u);}
+ ${radianceProjectionShader((k) => `sums[${k}]`, 'sample.rgb', 'd')}
+ let weight=abs(d);
+ let positive=select(vec3f(0.0),weight,d>vec3f(0.0));
+ sums[9]+=positive*span;
+ sums[10]+=positive;
+ sums[11]+=(weight-positive)*span;
+ sums[12]+=weight-positive;
+ if(PROBE_FILTER){
+  let shares=filterShares(d,span,spacing);
+  sums[13]+=shares.low;
+  sums[14]+=shares.high;
  }
  // The group's thread sums gather by successive halves: one barrier per
  // round, and thread zero writes the probe.
  for(var k=0u;k<PROBE_SUMS;k++){partial[k][lane]=sums[k];}
- partialTravelled[lane]=vec2f(travelled,answered);
+ partialTravelled[lane]=span;
  for(var stride=PROBE_THREADS/2u;stride>0u;stride>>=1u){
   workgroupBarrier();
   if(lane<stride){
@@ -127,14 +131,14 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
   }
  }
  workgroupBarrier();
+ censusFlush(lane);
  if(lane!=0u){return;}
  for(var k=0u;k<PROBE_SUMS;k++){sums[k]=partial[k][0];}
- answered=partialTravelled[0].y;
+ // Every ray answered (\`rtProbeRay\`): the mean is over the group's rays.
+ let rays=f32(PROBE_THREADS);
  atomicAdd(&census[CENSUS_UPDATED],1u);
  atomicAdd(&census[CENSUS_FIRED],PROBE_THREADS);
- // No ray answered: the probe keeps what it holds.
- if(answered==0.0){return;}
- travelled=partialTravelled[0].x/answered;
+ let travelled=partialTravelled[0]/rays;
  // A probe locked in a surface hits something in every direction, at point-blank
  // range; a probe in open sky hits nothing. The criterion is a distance, never a winding
  // order: that is reliable on no imported scene, and the proxy is two-sided.
@@ -142,8 +146,8 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let asleep=buried||travelled>reach*BOUNCE_SKY;
  let usable=select(1.0,0.0,buried);
  atomicAdd(&census[select(CENSUS_WRITTEN,CENSUS_BURIED,buried)],1u);
- // Monte-Carlo estimator over the whole sphere: 4π divided by the count of the rays that answered.
- let scale=2.0*TWO_PI/answered;
+ // Monte-Carlo estimator over the whole sphere: 4π divided by the count of the rays.
+ let scale=2.0*TWO_PI/rays;
  let meanPositive=sums[9]/max(sums[10],vec3f(1e-6));
  let meanNegative=sums[11]/max(sums[12],vec3f(1e-6));
  // The estimate: the basis the rays gave, averaged with the neighbours' that filter, each by its weight
@@ -154,7 +158,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
   var total=1.0;
   for(var n=0u;n<FILTER_NEIGHBOURS;n++){
    let pair=select(sums[13],sums[14],n>=3u);
-   let weight=filterWeight(n,pair[n%3u]/answered,meanPositive,meanNegative,spacing);
+   let weight=filterWeight(n,pair[n%3u]/rays,meanPositive,meanNegative,spacing);
    if(weight<=0.0){continue;}
    let neighbour=poolProbe(filterSlot[n]-1u);
    for(var k=0u;k<9u;k++){estimate[k]+=weight*probeAt(neighbour,k).xyz;}

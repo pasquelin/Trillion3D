@@ -8,7 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FOG_WGSL } from './fogShader.ts'
 import { DIRECT_LIGHT_WGSL } from './direct/lightWgsl.ts'
-import { AIR_BUFFER_STRUCT, ATMOSPHERE_VIEW_SLOTS, VIEW_SLOT } from './atmosphere/layout.ts'
+import { AIR_BUFFER_STRUCT, VIEW_SLOT } from './atmosphere/layout.ts'
 import { LIGHT_BUFFER_AT } from '../frame/backend/state/lightBufferLayout.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import {
@@ -69,7 +69,9 @@ function wgslFogged(fog: SceneFog | undefined, rgb: V3, P: V3, eye: V3, scene: S
   const { sun, air } = scene
   if (sun) block[FOG_SLOT.sun] = [...sun.toward, sun.luminance]
   const atmosphere = Array.from({ length: ATMOSPHERE_SLOTS }, () => [0, 0, 0, 0])
-  const view = Array.from({ length: ATMOSPHERE_VIEW_SLOTS }, () => [0, 0, 0, 0])
+  // The view's block as the light buffer declares it.
+  const viewSlots = Number(/atmosphereView:array<vec4f,(\d+)>/.exec(AIR_BUFFER_STRUCT)![1])
+  const view = Array.from({ length: viewSlots }, () => [0, 0, 0, 0])
   if (air) {
     atmosphere[ATMOSPHERE_SLOT.planet] = [1, 6360, 6420, 0]
     atmosphere[ATMOSPHERE_SLOT.sunIlluminance] = [...air.ground, 1]

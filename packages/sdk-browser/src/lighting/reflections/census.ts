@@ -40,7 +40,8 @@ function countedBy(words: Uint32Array, reads: number, frame: number): Reflection
     ...WAITING,
     censusReads: reads,
     censusFrame: frame,
-    rays: words[at.rays],
+    // Every ray the screen stage casts ends in exactly one of these three.
+    rays: words[at.far] + words[at.whole] + words[at.left],
     farRays: words[at.far],
     screenRays: words[at.screen],
     screenWholeRays: words[at.whole],
@@ -65,7 +66,8 @@ function countedBy(words: Uint32Array, reads: number, frame: number): Reflection
  * before an image's trace and copied after it to a staging buffer of a ring, which maps once the image
  * is submitted, a few images late. No image waits: when the ring's buffers are all in flight, that
  * image counts nothing. `metrics` is the last census that came back, the same object until the next
- * one does.
+ * one does, and `null` while the view traces nothing: an image that traces says so with its copy
+ * (`copy`), every image first says it does not (`idle`).
  */
 export function createReflectionCensus(device: GPUDevice) {
   const buffer = device.createBuffer({
@@ -78,7 +80,7 @@ export function createReflectionCensus(device: GPUDevice) {
     frame = 0,
     shownReads = 0,
     shown = WAITING,
-    staging: GPUBuffer | undefined
+    tracing = false
   const ring = createReadbackRing(
     device,
     {
@@ -94,21 +96,25 @@ export function createReflectionCensus(device: GPUDevice) {
   )
   return {
     buffer,
-    /** Image `image` counts if a staging buffer is free; its copy (`copy`) follows its trace. */
-    begin(image: number) {
-      staging = ring.take(image)
+    /** The image being encoded traces nothing, until its trace's copy (`copy`) says it does. */
+    idle() {
+      tracing = false
     },
     /** The counters emptied, before the image's trace. */
     clear: (encoder: GPUCommandEncoder) => encoder.clearBuffer(buffer),
-    /** The counts copied to the staging buffer `begin` took, after the trace. */
-    copy(encoder: GPUCommandEncoder) {
+    /** The image `image` traced: its counts copied to a staging buffer of the ring, if one is free,
+     *  after its trace. */
+    copy(encoder: GPUCommandEncoder, image: number) {
+      tracing = true
+      const staging = ring.take(image)
       if (staging) encoder.copyBufferToBuffer(buffer, 0, staging, 0, REFLECTION_CENSUS_BYTES)
-      staging = undefined
     },
     /** After the image's submit: its copy maps. */
     submitted: () => ring.submitted(),
-    /** What the last census that came back counted; no count before the first. */
-    metrics(): ReflectionFrameMetrics {
+    /** What the last census that came back counted, none before the first; null while the view
+     *  traces nothing. */
+    metrics(): ReflectionFrameMetrics | null {
+      if (!tracing) return null
       if (shownReads !== reads) {
         shown = countedBy(words, reads, frame)
         shownReads = reads

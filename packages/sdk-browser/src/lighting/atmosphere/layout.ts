@@ -41,14 +41,14 @@ export const AERIAL_VOLUME = {
  *  most). The same marching as the sky's capture, for a thousand times the directions. */
 export const SKY_RAYS = { azimuth: 128, elevation: 64, altitudeKm: 0.001 } as const
 /** Texels of the sky table. */
-export const SKY_RAYS_TEXELS = SKY_RAYS.azimuth * SKY_RAYS.elevation
+const SKY_RAYS_TEXELS = SKY_RAYS.azimuth * SKY_RAYS.elevation
 
 /** Cells of the haze volume. */
-export const AERIAL_TEXELS = AERIAL_VOLUME.width * AERIAL_VOLUME.height * AERIAL_VOLUME.slices
+const AERIAL_TEXELS = AERIAL_VOLUME.width * AERIAL_VOLUME.height * AERIAL_VOLUME.slices
 /** Bytes of a cell: four half floats. */
 const AERIAL_TEXEL_BYTES = 8
 /** `vec4` slots of the view's block: four columns of the view-projection, then the haze's head. */
-export const ATMOSPHERE_VIEW_SLOTS = 8
+const ATMOSPHERE_VIEW_SLOTS = 8
 /** `vec4` slots before the fog: the header, the environment's coefficients (the fog, then the sky's
  *  block follow, up to the atmosphere's: `LIGHT_BUFFER_AT`, `frame/backend/state/lightBuffer.ts`,
  *  reads the same floats). */
@@ -72,10 +72,14 @@ const SKY_RAYS_BYTES = SKY_RAYS_TEXELS * 8
 export const ATMOSPHERE_REGION_BYTES =
   ATMOSPHERE_BYTES + ATMOSPHERE_VIEW_BYTES + AERIAL_BYTES + SKY_RAYS_BYTES
 
+/** The members of the light buffer from the fog to the sky by direction, which `DirectLights`
+ *  (`../direct/lightWgsl.ts`) and the atmosphere's own programs' `AirBuffer` declare by one text. */
+export const LIGHT_AIR_MEMBERS = `fog:array<vec4f,${FOG_SLOTS}>,sky:array<vec4f,${SKY_SLOTS}>,atmosphere:array<vec4f,${ATMOSPHERE_SLOTS}>,atmosphereView:array<vec4f,${ATMOSPHERE_VIEW_SLOTS}>,aerial:array<vec2u,${AERIAL_TEXELS}>,skyRays:array<vec2u,${SKY_RAYS_TEXELS}>,`
+
 /** The light buffer's front as the atmosphere's own programs declare it: the same bytes as
  *  `DirectLights` up to the sky by direction, nothing of the lights themselves, and the same names
  *  where a member is read, so that the fog's and the haze's reads (`../fogShader.ts`) run on it. */
-export const AIR_BUFFER_STRUCT = `struct AirBuffer{lead:array<vec4f,${LIGHT_LEAD_SLOTS}>,fog:array<vec4f,${FOG_SLOTS}>,sky:array<vec4f,${SKY_SLOTS}>,atmosphere:array<vec4f,${ATMOSPHERE_SLOTS}>,atmosphereView:array<vec4f,${ATMOSPHERE_VIEW_SLOTS}>,aerial:array<vec2u,${AERIAL_TEXELS}>,skyRays:array<vec2u,${SKY_RAYS_TEXELS}>,}`
+export const AIR_BUFFER_STRUCT = `struct AirBuffer{lead:array<vec4f,${LIGHT_LEAD_SLOTS}>,${LIGHT_AIR_MEMBERS}}`
 
 /** The tables the sky and the haze are drawn from, as the marching builds them: size and samples. */
 export const TRANSMITTANCE_LUT = { width: 256, height: 64, samples: 10 } as const

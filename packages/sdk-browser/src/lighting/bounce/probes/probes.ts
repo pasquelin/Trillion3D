@@ -12,7 +12,7 @@ import { createBounceMarks } from '../marks.ts'
 import { createBounceCensus } from '../census.ts'
 import { createProbeStorage } from './probeStorage.ts'
 import { createTableWrite } from './tableWrite.ts'
-import { syncBounceProbes } from './probeSync.ts'
+import { createProxyFollow } from './probeSync.ts'
 import { createProbeEncoder, type ProbeParts, type ProbeScene } from './probeEncode.ts'
 import { createCheckedShaderModule } from '../../../gpu/core/shaderModule.ts'
 import { buildComputeStage } from '../../../gpu/core/computeStages.ts'
@@ -132,7 +132,7 @@ export async function createGpuBounceProbes(
   const readbacks = [marks, census]
   const encoder = createProbeEncoder(rig, scene, lights, probesPerFrame, noLists)
   const restart = () => (encoder.restart(), marks.stale())
-  const parts = { boxes: () => scene.boxes(), cascades, restart }
+  const follow = createProxyFollow({ boxes: () => scene.boxes(), cascades, restart })
   return {
     cascades,
     pool,
@@ -150,9 +150,10 @@ export async function createGpuBounceProbes(
     get lastTexels() {
       return encoder.lastTexels
     },
-    /** The placements moved or arrived: the light grid and the reach re-placed, the series restarted,
-     *  the cells the image reads marked again (`probeSync.ts`). Whether anything did. */
-    sync: () => syncBounceProbes(parts),
+    /** The placements moved or arrived: the light grid and the reach re-placed, the series restarted, the
+     *  cells the image reads marked again (`probeSync.ts`), whether any did; `worn`: what the proxy held then. */
+    sync: follow.sync,
+    worn: () => follow.boxes.worn,
     /** Probes alive holding nothing yet: zero once every cell the image reads holds light. */
     get unfilled() {
       return pool.unfilled

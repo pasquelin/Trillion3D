@@ -6,10 +6,7 @@ import {
   POINT_FACES,
 } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts'
-import { FOG_SLOTS } from '../../../../sdk-core/src/scene/core/fog.ts'
-import { ATMOSPHERE_SLOTS } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
-import { AERIAL_TEXELS, ATMOSPHERE_VIEW_SLOTS, SKY_RAYS_TEXELS } from '../atmosphere/layout.ts'
-import { SKY_SLOTS } from '../../../../sdk-core/src/scene/core/environmentSky.ts'
+import { LIGHT_AIR_MEMBERS } from '../atmosphere/layout.ts'
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -81,7 +78,7 @@ struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,
  *  (\`../atmosphere/layout.ts\`), all zero without an atmosphere; the fitted specular lobe a
  *  rectangle is integrated with, written once (\`ltcTable.ts\`); then every light, as many as the
  *  scene holds. */
-struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,fog:array<vec4f,${FOG_SLOTS}>,sky:array<vec4f,${SKY_SLOTS}>,atmosphere:array<vec4f,${ATMOSPHERE_SLOTS}>,atmosphereView:array<vec4f,${ATMOSPHERE_VIEW_SLOTS}>,aerial:array<vec2u,${AERIAL_TEXELS}>,skyRays:array<vec2u,${SKY_RAYS_TEXELS}>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,items:array<DirectLight${slots ? `,${slots}` : ''}>,}
+struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,${LIGHT_AIR_MEMBERS}ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,items:array<DirectLight${slots ? `,${slots}` : ''}>,}
 /** Each kind's test reads the rank through \`isKind\` (\`isRect\` too, \`rectLightWgsl.ts\`). */
 fn isSunKind(kind:f32)->bool{return isKind(kind,KIND_SUN);}
 fn isSun(light:DirectLight)->bool{return isSunKind(light.params.x);}

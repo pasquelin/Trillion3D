@@ -20,7 +20,7 @@ for (const count of [5, 64, 65, 400]) {
       const cost = freshSpent()
       const got = traceScene(world, origin, direction, 100, cost)
       const want = bruteForce(world, origin, direction, 100)
-      // A ray that spent its budget answers nothing: that is the rule, not a miss.
+      // A walk that spent its budget cannot vouch for what it found, or missed: only the walks that finished are compared.
       if (spent(cost)) continue
       assert.equal(
         got.found,

@@ -24,26 +24,35 @@ const IN_FLIGHT = 2
 export type BounceCensus = {
   /** Censuses that came back, since the probes were made. */
   reads: number
-  /** Probes whose update fired its rays, the rays it fired, those that answered, those that brought
-   *  light back: totals. */
+  /** Probes whose update fired its rays, the rays it fired (every one answers: an exhausted ray as a hit),
+   *  those that brought light back: totals. */
   updated: number
   fired: number
-  answered: number
   lit: number
   /** Probes written lit, and written buried, by an update: totals. */
   written: number
   buried: number
-  /** The rays that carried no weight, by what spent them: the ray's own work, its triangle tests, its
-   *  walk of the placement tree, a mesh's walk; then the same four for its shadow ray: totals. */
-  lostBy: number[]
+  /** The rays that spent their budget, by what spent it: the ray's own work, its triangle tests, its
+   *  walk of the placement tree, a mesh's walk; then the same four for its shadow ray: totals. An exhausted
+   *  walk ends as a hit where it stopped, an exhausted shadow ray as a blocker; a ray may count in two. */
+  exhaustedBy: number[]
   /** Every ray by the work it spent: under 64 units, 128, 256, 512, 1024, 2048, 4096, more: totals. */
   work: number[]
+  /** The rays that answered by meeting no surface (the sky answers them), and the shadow rays that came
+   *  back finding nothing on their segment (the point is lit) or a surface (it is shaded): totals. */
+  escaped: number
+  shadowFree: number
+  shadowBlocked: number
   /** The pool as the census found it: probes that hold light, probes that hold none, probes buried, and the
    *  entries of the table that name a probe. */
   litProbes: number
   darkProbes: number
   buriedProbes: number
   publishedSlots: number
+  /** The work the rays of the image counted spent, in units (`runtime/runtimeLayout.ts`): all of it, and the
+   *  part the placement tree's groups took, the rest being the tree's cells and the cuts'. */
+  walkWork: number
+  walkMembers: number
 }
 
 /** The field's census pass over the whole pool and the whole table: its pipeline, compiled off the
@@ -77,16 +86,20 @@ function censusOf(words: Uint32Array, reads: number): BounceCensus {
     reads,
     updated: words[CENSUS.updated],
     fired: words[CENSUS.fired],
-    answered: words[CENSUS.answered],
     lit: words[CENSUS.lit],
     written: words[CENSUS.written],
     buried: words[CENSUS.buried],
-    lostBy: Array.from(words.subarray(CENSUS.lostBy, CENSUS.lostBy + CENSUS_CAUSES)),
+    exhaustedBy: Array.from(words.subarray(CENSUS.exhaustedBy, CENSUS.exhaustedBy + CENSUS_CAUSES)),
     work: Array.from(words.subarray(CENSUS.work, CENSUS.work + CENSUS_BUCKETS)),
+    escaped: words[CENSUS.escaped],
+    shadowFree: words[CENSUS.shadowFree],
+    shadowBlocked: words[CENSUS.shadowBlocked],
     litProbes: words[CENSUS.fieldLit],
     darkProbes: words[CENSUS.fieldDark],
     buriedProbes: words[CENSUS.fieldBuried],
     publishedSlots: words[CENSUS.fieldPublished],
+    walkWork: words[CENSUS.walkWork],
+    walkMembers: words[CENSUS.walkMembers],
   }
 }
 

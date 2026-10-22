@@ -846,7 +846,8 @@ falloff is divided by 10 (they are per 1000 centimetres), a distance by 100.
 With `scene.atmosphere` on, the default fog is coloured by the sky and scatters the sun's light: a
 fog of `{}` over `atmosphere = true` and a `light.directional` is the reference's default fog. A
 height fog lies over the atmosphere's sky too: from the horizon down, where the scene draws no
-ground, a pixel is the fog's colour alone (a distance fog leaves the sky as it is). Without an
+ground, a pixel is the fog's colour alone (a distance fog leaves the sky as it is); with no
+atmosphere it lies over the background colour the same way. Without an
 atmosphere, the fog is its declared `color` and, if the lobe's colour is not black, the sun's: the
 one the scene holds (the brightest directional light, below), else the first directional light
 added. The extinction form `{ color, density, heightFalloff?, baseHeight? }` stays: a medium of `density` per metre (`T = exp(−density · d)` where nothing falls off) divided by e every

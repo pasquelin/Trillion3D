@@ -35,8 +35,15 @@ export const REFLECTION_PROXY_WGSL = wgslBlock(
     runtimeRadianceWgsl(REFLECTION_PROXY_BINDINGS),
   ],
   `struct ReflectionProxied{answer:RadianceAnswer,open:f32,}
+/** How a walk that spent its budget ended, by what spent it (\`rtCause\`, \`RT_CAUSE_*\`). */
+fn reflectionSpentFate()->u32{
+ if(rtCause==RT_CAUSE_WORK){return REFLECTION_FATE_WORK;}
+ if(rtCause==RT_CAUSE_TESTS){return REFLECTION_FATE_TESTS;}
+ if(rtCause==RT_CAUSE_TREE){return REFLECTION_FATE_TREE;}
+ return REFLECTION_FATE_MESH;
+}
 fn reflectionFateOf(confidence:f32,open:f32)->u32{
- if(rtSpent()){return rtCause;}
+ if(rtSpent()){return reflectionSpentFate();}
  if(confidence>0.0){return REFLECTION_FATE_HIT;}
  return select(REFLECTION_FATE_MISS,REFLECTION_FATE_OPEN,open>0.0);
 }

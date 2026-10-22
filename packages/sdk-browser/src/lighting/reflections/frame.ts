@@ -66,6 +66,8 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     hiz = vis.gpuHiz,
     depth = hiz?.depth(),
     lightView = reflectionLightView(rt)
+  // This image traces nothing until its trace says so (`census.copy`).
+  reflection?.census.idle()
   if (!reflection || !stages || !lightView) return
   const surfaces = gpu.surfaces,
     deferred = gpu.deferred,
@@ -93,7 +95,8 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     inputs.probes = contract.probes ?? deferred.placeholders.probes
     inputs.proxy = reflectionProxy(rt)!
     const group = reflectionGroup(reflection, depth, lightView)
-    reflection.census.begin(run.frame)
+    // The rays count this image's alone: the counters emptied before the trace, copied after it.
+    reflection.census.clear(encoder)
     encodeReflectionTrace(
       encoder,
       reflection,
@@ -103,6 +106,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
       gpu.targetSize,
       !!reflection.frame.front,
     )
+    reflection.census.copy(encoder, run.frame)
   }
 }
 

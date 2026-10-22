@@ -58,6 +58,9 @@ function rigState(bounce: WebgpuBounceState) {
     passMs: probes ? bounce.passMs : null,
     converged: probes ? !probes.working : null,
     rayReach: probes?.cascades.reach ?? null,
+    // What the proxy held at the last sync of the probes with the placements.
+    proxyPlacements: probes ? probes.worn().placements : null,
+    proxyTriangles: probes ? probes.worn().triangles : null,
   }
 }
 
@@ -72,12 +75,16 @@ function censusState(counted: BounceCensus | undefined) {
     buriedProbes: counted?.buriedProbes ?? null,
     probesFiredTotal: counted?.updated ?? null,
     raysFired: counted?.fired ?? null,
-    raysAnswered: counted?.answered ?? null,
     raysLit: counted?.lit ?? null,
     probesWrittenTotal: counted?.written ?? null,
     probesBuriedTotal: counted?.buried ?? null,
-    raysLostBy: counted?.lostBy ?? null,
+    raysExhaustedBy: counted?.exhaustedBy ?? null,
     rayWork: counted?.work ?? null,
+    raysEscaped: counted?.escaped ?? null,
+    shadowRaysFree: counted?.shadowFree ?? null,
+    shadowRaysBlocked: counted?.shadowBlocked ?? null,
+    imageRayWork: counted?.walkWork ?? null,
+    imageRayMembers: counted?.walkMembers ?? null,
   }
 }
 

@@ -12,11 +12,32 @@ import { PHYSICAL_SURFACE_FLAG } from '../../materials/surface/physicalLobes.ts'
 import { readLobesStatement } from '../direct/lobesWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { RESOLVED_INDIRECT_WGSL } from '../reflections/weight.ts'
+import { FOG_WGSL } from '../fogShader.ts'
+import { WORLD_AT_WGSL } from './worldAtWgsl.ts'
 
 /** The lighting's entry and its camera fog. */
 export const LIGHT_SURFACE_ENTRY =
   '@fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{'
 const CAMERA_FOG = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}`
+
+/**
+ * A pixel no surface drew, where no sky is drawn (an atmosphere draws it, `../atmosphere/skyWgsl.ts`):
+ * a height fog lies over it as over any pixel (`fogBeyond`, `../fogShader.ts`), as a layer of the
+ * fog's inscattering whose coverage is what the fog's transmittance leaves, which the composition lays
+ * over the background colour (`composeAt`, `shaders.ts`); the pixel is empty, and shows that colour as
+ * it is, anywhere else: without a height fog, in the raw output of a diagnostic view, and under an
+ * orthographic camera, whose rays meet no horizon.
+ */
+const BACKGROUND_FOG_WGSL = wgslBlock(
+  'BACKGROUND_FOG_WGSL',
+  [WORLD_AT_WGSL, FOG_WGSL],
+  `fn backgroundFog(pixel:vec2f)->vec4f{
+ if(view.viewport.z!=0.0||view.camera.w==0.0||!fogsBackground()){return vec4f(0.0);}
+ let eye=view.display.yzw;
+ let beyond=fogBeyond(normalize(worldAt(pixel,0.5)-eye),eye);
+ return vec4f(beyond.rgb,1.0-beyond.a);
+}`,
+)
 
 /**
  * What a shadow read needs of its pixel: the pixel the frame's shadow mask and its transmission are
@@ -77,13 +98,14 @@ export const contractSurfaceBody = (bounce: boolean) => {
     `contractSurfaceBody(${bounce})`,
     [
       receiverTargetReadWgsl(0, DEFERRED_BINDINGS.receiver),
+      BACKGROUND_FOG_WGSL,
       SURFACE_EMISSIVE_AO_WGSL,
       SHADOW_SETUP_WGSL,
       ...blocks,
     ],
     `${LIGHT_SURFACE_ENTRY}
  let coord=vec2i(pixel.xy);let surfaceFlag=textureLoad(flags,coord,0).r;let flag=surfaceFlag&${SURFACE_MODEL_MASK}u;
- if(flag==0u){return vec4f(0.0);}
+ if(flag==0u){return backgroundFog(pixel.xy);}
  let base=textureLoad(baseMetal,coord,0);
  if(flag==${AS_IS_FLAG}u){return vec4f(base.rgb,1.0);}
  let z=textureLoad(depth,coord,0);

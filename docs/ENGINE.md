@@ -732,15 +732,22 @@ shadow ray that meets nothing has no hit to stop it, so the budget is the whole 
 learn of the light. A shadow ray asks only whether anything stands on its segment: it walks the placement
 tree once, in index order, and stops at the first surface (`placementTreeAnyHit`,
 `geometry/dag/tree/treeWalkWgsl.ts`), where the rays that need the nearest surface walk it front to
-back and read a node again for every four of its children they meet. A ray that spends it carries no weight and a probe none of whose rays answered
-keeps what it held, which is nothing on its first update. The marks follow what the image draws: a view
+back and read a node again for every four of its children they meet. A ray that spends it has not
+finished, and an unfinished trace counts as a hit, never as a ray left out: a shadow ray that spends it is
+a blocker, its point shaded, and the ray it was cast for keeps its weight; a probe's ray whose own walk
+spends it ends as an opaque hit, at the surface the walk had found or else at the distance it had reached,
+bringing the light the probes hold there, so a probe averages every ray it fired. A reflection's ray keeps answering nothing when it spends
+its much smaller budget, which is under one node of the tree, and the probes answer it. The marks follow what the image draws: a view
 that stands still but whose cut refines, or whose pages arrive, marks the cells of its new surfaces
 again (`lighting/bounce/marks.ts`, `frame/render/encodeLights.ts`). The frame metrics publish the state
 of the field as `metrics.bounce` (`BounceFrameMetrics`): whether the probes exist, the probes alive,
 those still unfilled, the entries of the table that name a probe, the probes that hold light, and,
-counted on the GPU a few images late, the rays fired, those that answered, those that brought light
-back, those that carried no weight by what spent them, and every ray by the work it spent
-(`lighting/bounce/census.ts`).
+counted on the GPU a few images late, the rays fired, those that brought light back, those that spent their
+budget by what spent it, and every ray by the work it spent, and, for the image counted, the part of that
+work the placement tree's groups took (a ray that meets a group's box reads every member of it)
+(`lighting/bounce/census.ts`). The probes' update counts in the memory of its workgroup and adds to the
+buffer once, as the reflections' trace does (`lighting/censusTallyWgsl.ts`). The placements that wear a
+proxy and the triangles they wear are published beside (`geometry/dag/proxy/proxyBoxes.ts`).
 
 ## Fog
 
@@ -791,7 +798,11 @@ heightFogContribution) · (1 − T)`, `skyMean` the sky's mean radiance at 6 km 
   without end and `T = 1 − maxOpacity`: the fog's colour alone, so the horizon is a line at
   elevation 0, and the ground that is not drawn, past the scene's own, has that colour. The sky's
   table below the horizon — the air before a ground that is not drawn, almost dark — shows only
-  where the scene has no height fog. A distance fog leaves the sky as it is.
+  where the scene has no height fog. A distance fog leaves the sky as it is. With no atmosphere the
+  lighting fogs the pixels no surface drew itself (`fogsBackground`, `backgroundFog` in
+  `lighting/deferred/surfaceWgsl.ts`) with the same law: a layer of the fog's inscattering whose
+  coverage is `1 − T`, which the composition lays over the background colour — the colour as it is
+  looking up, the fog's alone from the horizon down.
 - **Old fields.** `{ color, density, heightFalloff?, baseHeight? }`, the extinction form — `T =
 exp(−density · d)` where nothing falls off, the density divided by e every `1 / heightFalloff`
   metres up — is a spelling of this law, mapped exactly: `baseDensity = density / (ln 2)²`,

@@ -110,8 +110,8 @@ fn ${t.name}(origin:vec3f,direction:vec3f,limit:f32${t.params})->${t.returns}{
 /**
  * The constants of a wide traversal and the blocks it reads: the leaf's triangles and the stack. Three
  * bounds known before the frame: visited nodes (the walk's own steps), triangles of a leaf, and stack
- * depth — a wide node stacks three at most, and the tree is balanced by construction, so the stack does not overflow; if it did, the ray would be exhausted (`overflow`), the one rule
- * of a ray past its bounds: zero weight, never a darkening nor a leak.
+ * depth — a wide node stacks three at most, and the tree is balanced by construction, so the stack does not overflow; if it did, the ray would be exhausted (`overflow`) and answer as any exhausted ray does
+ * (`lighting/bounce/runtime/runtimeLayout.ts`).
  */
 export const WIDE_TRAVERSAL_WGSL = wgslBlock(
   'WIDE_TRAVERSAL_WGSL',

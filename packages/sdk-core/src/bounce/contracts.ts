@@ -125,8 +125,8 @@ export const BOUNCE_SETTINGS = {
    * Units of work and triangle tests a probe's ray may spend, its shadow rays included
    * (`runtime/runtimeLayout.ts`, `RAY_WORK`): a unit a box tested, a node visited, a triangle tested.
    * A street's rays cross many overlapping boxes, and a shadow ray that meets nothing has no hit to
-   * stop it: a ray that spends them carries no weight, so the budget is the whole of what the probes
-   * can learn of the light.
+   * stop it: a ray that spends them has not finished, which counts as a hit (its shadow ray, as a
+   * blocker), so the budget is the whole of what the probes can learn of the light.
    */
   probeRayWork: 4096,
   probeRayTriangles: 1024,

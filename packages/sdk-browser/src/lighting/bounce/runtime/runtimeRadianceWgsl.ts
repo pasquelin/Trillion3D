@@ -77,14 +77,26 @@ fn rtFacing(hit:RtHit,direction:vec3f,world:mat3x3f)->vec3f{
  * `lit` (probe) ray, lit by the lights and the bounce (`surfaceLit`), its emission not bounced — the
  * lamp lights the room directly —, one light loop a ray; on every other, read: its tint under the
  * irradiance the cascades already hold (`surfaceSeen`), plus a reflection's emission, no light
- * evaluated and no shadow ray cast. Exhausted — its `budget` of units spent, `RT_WORK` at most — is
- * no answer at all, confidence zero (`runtimeLayout.ts`).
+ * evaluated and no shadow ray cast. A walk that spends its `budget` of units (`RT_WORK` at most) has
+ * not finished (`runtimeLayout.ts`): a probe's ray (`lit`) ends as an opaque hit where the walk stopped, at
+ * the surface it had found, else at the distance reached (`rtReached`), its radiance what the cascades hold
+ * there (`rtStoppedSeen`); a reflection's answers nothing, confidence zero, the next stage's, its budget
+ * being under one node.
  */
 const rtLayersWgsl = (scene: SceneBindings) =>
   wgslBlock(
     `rtLayersWgsl(${sceneKey(scene)})`,
     [RADIANCE_ANSWER, rtSurfaceWgsl(scene), SURFACE_RAY_WGSL, worldMatrix3, markReachWgsl],
     `
+/** The light an exhausted walk brings back (\`rtLayers\`): the cascades' light at \`stop\` along \`direction\` from
+ *  \`start\`, read by the surface the walk had found — its tint, its face that looks at the ray —, or, where it
+ *  had found none, by a surface of no tint turned to the ray (no surface it can vouch for is known). */
+fn rtStoppedSeen(hit:RtHit,start:vec3f,direction:vec3f,stop:f32)->vec3f{
+ let at=start+direction*stop;
+ if(!hit.found){return surfaceSeen(vec3f(1.0),at,-direction);}
+ let surface=rtSurfaceOf(rtWorldsInstance(hit.placement,0u)[RT_INSTANCE_SURFACE]);
+ return surfaceSeen(surface.tint,at,rtFacing(hit,direction,worldMatrix3(rtWorldOf(hit.placement))));
+}
 /** The run-time proxy's one walk of a ray (\`rtLayers\`), the layers it crosses. */
 struct RtWalk{answer:RadianceAnswer,stopped:f32,open:f32,}
 fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,tests:u32,lit:bool)->RtWalk{
@@ -100,7 +112,18 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,tests:
  var left=reach;
  for(var layer=0u;layer<RT_LAYERS;layer++){
   let hit=rtScene(start,direction,left);
-  if(rtSpent()){rtCause=rtWhy();return RtWalk(RadianceAnswer(vec3f(0.0),0.0,first),0.0,0.0);}
+  if(rtSpent()){
+   // Its own walk spent no more than its share: the shadow rays it shares the budget with did (\`rtBlocked\`).
+   if(rtWork<rtBudget&&rtTests<rtTestBudget){if(rtShadowCause==0u){rtShadowCause=rtWhy();}}
+   else{rtCause=rtWhy();}
+   if(!lit){return RtWalk(RadianceAnswer(vec3f(0.0),0.0,first),0.0,0.0);}
+   let stop=select(rtReached,hit.distance,hit.found);
+   if(layer==0u){first=stop;}
+   color+=through*rtStoppedSeen(hit,start,direction,stop);
+   answered+=through;
+   through=0.0;
+   break;
+  }
   if(!hit.found){open=through;break;}
   if(layer==0u){first=hit.distance;}
   let instance=rtWorldsInstance(hit.placement,0u);
@@ -154,13 +177,11 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32)->Ra
 /** The light a probe's ray brings back (\`rtLayers\`, lit): from \`origin\` along \`direction\`, \`reach\`
  *  far, its first surface lit and those a blended one lets it reach read behind it, weighed by what
  *  they stop, the sky for the share that leaves the scene (\`RtWalk.open\`), and the distance to the
- *  first, \`reach\` where it meets nothing. An exhausted ray, or one whose shadow rays spent its
- *  budget, carries zero weight (\`runtimeLayout.ts\`): its distance is then negative — minus what
- *  spent it, one to four for the ray itself (\`RT_CAUSE_*\`), five to eight for its shadow ray —, and
- *  the probe leaves it out of its estimate. */
+ *  first, \`reach\` where it meets nothing. Every ray answers: one whose walk spent its budget ends as a hit
+ *  where it stopped, one whose shadow ray did lit its hit as blocked (\`runtimeLayout.ts\`); what spent
+ *  them is left in \`rtCause\` and \`rtShadowCause\`, for the census. */
 fn rtProbeRay(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  let walk=rtLayers(origin,direction,reach,0.0,RT_PROBE_WORK,RT_PROBE_TRIANGLES,true);
- if(rtSpent()||rtLost){return vec4f(0.0,0.0,0.0,-f32(rtWhy()+select(0u,4u,rtLost)));}
  var seen=walk.answer.color*walk.stopped;
  if(walk.open>0.0){seen+=walk.open*skyProbeRadiance(direction);}
  return vec4f(seen,walk.answer.distance);

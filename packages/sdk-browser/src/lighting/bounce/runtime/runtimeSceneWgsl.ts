@@ -27,7 +27,8 @@ import { sceneKey, type SceneBindings } from '../sceneBindings.ts'
 /**
  * THE RAY'S STATE: the constants the proxy's rays share and what one ray spends and finds — the units
  * and triangle tests it has spent (`rtWork`, `rtTests`), those its shadow rays did (`rtExtra`), its
- * budget, what exhausted it, the first surface it hit —, none of it bound to a scene.
+ * budget, what exhausted it, how far its walk had reached, the first surface it hit —, none of it
+ * bound to a scene.
  */
 const RT_RAY_WGSL = wgslBlock(
   'RT_RAY_WGSL',
@@ -56,17 +57,25 @@ var<private> rtTests:u32;
 var<private> rtExtra:u32;
 /** Whether the cuts' traversal answers the first surface it meets, not the nearest (\`rtBlocked\`). */
 var<private> rtAnyHit:bool;
-/** Whether a shadow ray the ray's lighting cast (\`rtBlocked\`) spent its budget: the ray then
- *  carries zero weight, as one that spent its own (\`runtimeLayout.ts\`). */
-var<private> rtLost:bool;
 /** The units and the triangle tests the ray may spend, its shadow rays' included: \`RT_WORK\` and
  *  \`RT_TRIANGLES\`, or fewer (\`rtRadiance\`) or more (\`rtProbeRay\`). */
 var<private> rtBudget:u32;
 var<private> rtTestBudget:u32;
-/** Why a ray was exhausted, the first thing that spent it (\`RT_CAUSE_*\`), zero while it is not. */
+/** Why a ray's own walk was exhausted, the first thing that spent it (\`RT_CAUSE_*\`), zero while it is not. */
 var<private> rtCause:u32;
-/** A ray begins: nothing spent, nothing charged, nothing lost, the whole budget before it. */
-fn rtBegin(){rtWork=0u;rtTests=0u;rtExtra=0u;rtLost=false;rtBudget=RT_WORK;rtTestBudget=RT_TRIANGLES;rtCause=0u;}
+/** How far along the ray the walk of the scene (\`rtScene\`) had entered a placement's box when it last
+ *  stopped, in metres: where the walk was, if its budget ran out. */
+var<private> rtReached:f32;
+/** What the shadow rays its hits' lighting cast found, for the census: those that found nothing on their segment,
+ *  those that found a surface, and what spent the first that spent the budget (\`RT_CAUSE_*\`, zero while none did). */
+var<private> rtShadowFree:u32;
+var<private> rtShadowHit:u32;
+var<private> rtShadowCause:u32;
+/** The units of the ray's work, its shadow rays' included, spent reading the members of the tree's groups, for the
+ *  census: the rest went to the tree's cells and the cuts. */
+var<private> rtMembers:u32;
+/** A ray begins: nothing spent, nothing charged, the whole budget before it. */
+fn rtBegin(){rtWork=0u;rtTests=0u;rtExtra=0u;rtBudget=RT_WORK;rtTestBudget=RT_TRIANGLES;rtCause=0u;rtReached=0.0;rtShadowFree=0u;rtShadowHit=0u;rtShadowCause=0u;rtMembers=0u;}
 fn rtSpent()->bool{return rtWork+rtExtra>=rtBudget||rtTests>=rtTestBudget;}
 /** What spent the ray: a cause already named, else its units or its triangle tests. */
 fn rtWhy()->u32{
@@ -147,9 +156,12 @@ fn rtEntry(w:u32,origin:vec3f,inverse:vec3f,limit:f32)->f32{
  let extent=transformHalfExtent(m,(local.high-local.low)*0.5);
  return rayBoxEntry(c-extent,c+extent,origin,inverse,limit);
 }
-/** The ray against placement \`w\`: its world box first (\`rtEntry\`), then its cut's tree in its space. */
+/** The ray against placement \`w\`: its world box first (\`rtEntry\`), where the walk has then reached (\`rtReached\`),
+ *  then its cut's tree in its space. */
 fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
- if(rtEntry(w,origin,inverse,best.distance)>best.distance){return best;}
+ let entry=rtEntry(w,origin,inverse,best.distance);
+ if(entry>best.distance){return best;}
+ rtReached=max(rtReached,entry);
  let instance=rtWorldsInstance(w,0u);
  let m=rtWorldOf(w);
  let placed=placementRay(worldMatrix3(m),origin-m[3].xyz,direction);
@@ -160,6 +172,14 @@ fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
 }
 `,
   )
+
+/** What both walks of the placement tree spend: a unit a child or a member read (the members counted apart). */
+const TREE_WALK_SPENDING = {
+  stop: 'if(rtSpent()){done=true;break;}',
+  visit: 'rtWork+=1u;rtMembers+=select(0u,1u,group);',
+  steps: '2u*rtBudget',
+  cut: 'rtWork=rtBudget;rtCause=RT_CAUSE_TREE;',
+}
 
 /** The nearest hit: the placement tree walked front to back. */
 const runtimeWalkWgsl = (scene: SceneBindings) =>
@@ -174,10 +194,11 @@ const runtimeWalkWgsl = (scene: SceneBindings) =>
     `
 /** The nearest hit of the ray over every placement that draws a proxy, within \`limit\`: the
  *  placement tree walked front to back, a cell's children and a group's members nearest entry first.
- *  \`found\` is false past the budget, with the ray's counters spent: ask \`rtSpent\`. A packing with no
- *  tree holds a few placements, tried in turn. */
+ *  \`found\` is false past the budget, with the ray's counters spent: ask \`rtSpent\`, and \`rtReached\` says how
+ *  far the walk had got. A packing with no tree holds a few placements, tried in turn. */
 fn rtScene(origin:vec3f,direction:vec3f,limit:f32)->RtHit{
  var best=RtHit(limit,0u,0u,false);
+ rtReached=0.0;
  if(rtProxy.instances==0u){return best;}
  let inverse=rayInverseDirection(direction);
  if(rtProxy.treeRoot==NO_INDEX){
@@ -192,10 +213,7 @@ ${placementTreeWalk({
   table: 'rtTree',
   enter: 'best=rtEnter(w,origin,direction,inverse,best);',
   entry: 'rtEntry(w,origin,inverse,best.distance)',
-  stop: 'if(rtSpent()){done=true;break;}',
-  visit: 'rtWork+=1u;',
-  steps: '2u*rtBudget',
-  cut: 'rtWork=rtBudget;rtCause=RT_CAUSE_TREE;',
+  ...TREE_WALK_SPENDING,
 })}
  }
  return best;
@@ -216,7 +234,12 @@ ${placementTreeWalk({
  * the first surface.
  *
  * ONE BUDGET A RAY (`RAY_WORK`, `RAY_TRIANGLES`): every box, node and triangle, its shadow rays' too, spends
- * from the same counters; a ray that spends them is exhausted and carries zero weight (`runtimeLayout.ts`).
+ * from the same counters; a ray that spends them is exhausted, which ends it as a hit (`runtimeLayout.ts`).
+ * `rtBlocked` asks the shadow ray: it spends what the ray it is cast for left of their one budget, charged to it
+ * (`rtExtra`). A shadow ray that spends it has not finished: it counts as a blocker, as a trace that runs out of
+ * steps counts as a hit, which spares the rest of its lighting, and the ray it is cast for keeps its weight. A
+ * surface found answers whatever it cost. What spent a shadow ray is kept (`rtShadowCause`), the ray's own cause
+ * (`rtCause`) left as it was.
  */
 export const runtimeSceneWgsl = (scene: SceneBindings) =>
   wgslBlock(
@@ -246,32 +269,30 @@ ${placementTreeAnyHit({
   root: 'rtProxy.treeRoot',
   table: 'rtTree',
   enter: 'best=rtEnter(w,origin,direction,inverse,best);if(best.found){return best;}',
-  stop: 'if(rtSpent()){done=true;break;}',
-  visit: 'rtWork+=1u;',
-  steps: '2u*rtBudget',
-  cut: 'rtWork=rtBudget;rtCause=RT_CAUSE_TREE;',
+  ...TREE_WALK_SPENDING,
 })}
  }
  return best;
 }
 /** Whether anything of the proxy stands on the segment of length \`span\` from \`origin\` along \`direction\`: the
- *  first surface met answers, not the nearest. The ray spends what the ray the lighting is cast for left of
- *  their one budget, and is charged to it (\`rtExtra\`). A ray that spends its budget marks that ray lost (\`rtLost\`):
- *  its answer carries zero weight, and this one reports a blocker, which spares the rest of its lighting. */
+ *  first surface met answers, and a shadow ray that spends the ray's budget (\`rtExtra\`) counts as a blocker. */
 fn rtBlocked(origin:vec3f,direction:vec3f,span:f32)->bool{
  let work=rtWork;
  let tests=rtTests;
+ let cause=rtCause;
  rtTests=0u;
  rtAnyHit=true;
  let hit=rtSceneAny(origin,direction,span);
  rtAnyHit=false;
- let lost=rtSpent();
- if(lost&&!rtLost){rtCause=rtWhy();}
- rtLost=rtLost||lost;
+ let spent=rtSpent();
+ if(hit.found){rtShadowHit++;}
+ else if(!spent){rtShadowFree++;}
+ else if(rtShadowCause==0u){rtShadowCause=rtWhy();}
+ rtCause=cause;
  rtExtra+=max(rtWork,work)-work;
  rtWork=work;
  rtTests=tests;
- return hit.found||lost;
+ return hit.found||spent;
 }
 `,
   )
