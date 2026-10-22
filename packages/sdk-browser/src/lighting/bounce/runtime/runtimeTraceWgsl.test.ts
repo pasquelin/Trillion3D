@@ -2,19 +2,13 @@
 // CPU oracle walks (`runtimeSceneOracle.fixture.ts`): the two give the same hit and spend the same budget.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fieldRay, world } from './runtimeScene.fixture.ts'
+import { fieldRay, joinedCubes, world } from './runtimeScene.fixture.ts'
 import { freshSpent } from './runtimeOracle.fixture.ts'
 import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
 import { NO_SKY, ahead, along, origin, runOver } from './runtimeRun.fixture.ts'
 import { RAY_TRIANGLES, RAY_WORK, SURFACE_BLENDED } from './runtimeLayout.ts'
 import { bruteForce, traceAny, traceScene } from './runtimeSceneOracle.fixture.ts'
 import type { Vec3 } from '../../../../../math/src/vector/vectorTuple.ts'
-import { NO_INDEX } from '../../../../../math/src/constants.ts'
-import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
-import { buildCutProxy } from '../../../geometry/runtime/runtimeProxy.ts'
-import { cubeGeometry } from '../../../geometry/runtime/cube.fixture.ts'
-import { sdkWasm } from '../../../wasm/sdkWasm.fixture.ts'
-import { proxyArena, proxyHeader } from '../proxyBuffer.fixture.ts'
 
 for (const count of [5, 400]) {
   test(`${count} placements: the shipped WGSL walks the tree and the cuts as the oracle does`, () => {
@@ -140,8 +134,8 @@ test('a shadow ray that spends its own budget in the work is lit, and the probe 
   assert.equal(free.testShadowFree(), 1)
   assert.equal(free.testShadowCause(), 0)
   // One unit short of what the shadow ray needs: it has not finished, and an unfinished shadow ray has found
-  // nothing that stands in the light: lit, counted free and by what spent it, neither found nor blocked, the ray
-  // it was cast for as it was (its distance is the hit's, its own walk finished).
+  // nothing that stands in the light: lit, counted free and by what spent it, the ray it was cast for as it was
+  // (its distance is the hit's, its own walk finished).
   const spent = shadowed(w, 1e6, cost - 1)
   assert.deepEqual(spent.rtProbeRay(origin, ahead, 1000), [1, 1, 1, 3.5], 'lit, not shaded')
   assert.equal(spent.testShadowCause(), 1, 'its work')
@@ -153,27 +147,11 @@ test('a shadow ray that spends its own budget in the work is lit, and the probe 
 
 /** One placement of one mesh, `side` by `side` small cubes a metre apart in the plane z = 0: the mesh's own tree has
  *  inner nodes, and a ray between two rows of cubes meets their boxes and none of their triangles. */
-const lattice = (side: number) => {
-  const { indices, positions } = cubeGeometry()
-  const count = side * side
-  const moved = new Float32Array(positions.length * count),
-    joined = new Uint32Array(indices.length * count)
-  for (let k = 0; k < count; k++) {
-    const [x, y] = [k % side, Math.floor(k / side)]
-    positions.forEach((p, i) => {
-      const axis = i % 3
-      moved[k * positions.length + i] = p * 0.2 + (axis === 0 ? x : axis === 1 ? y : 0)
-    })
-    indices.forEach((v, i) => (joined[k * indices.length + i] = v + 8 * k))
-  }
-  const surfaces = [[0.5, 0.25, 0, 1, 0, 0, 0, 0]]
-  const arena = proxyArena(buildCutProxy(sdkWasm, joined, moved), surfaces)
-  const header = proxyHeader(arena, { instances: 1, treeRoot: NO_INDEX, members: 1 })
-  return {
-    ...world(1, 1, { places: [new Matrix4()], surfaces }),
-    header: { ...header, words: arena.words },
-  }
-}
+const lattice = (side: number) =>
+  joinedCubes(
+    Array.from({ length: side * side }, (_, k): Vec3 => [k % side, Math.floor(k / side), 0]),
+    0.2,
+  )
 
 test('a shadow ray whose placement’s cut ran out of stack is blocked, one that finished the same walk is lit', () => {
   const mesh = lattice(6)
@@ -189,7 +167,8 @@ test('a shadow ray whose placement’s cut ran out of stack is blocked, one that
   overflowed.rtBegin()
   assert.equal(overflowed.rtBlocked(between, ahead, 100), true, 'blocked')
   assert.equal(overflowed.testShadowCause(), 4, 'a mesh’s walk')
-  assert.equal(overflowed.testShadowFree() + overflowed.testShadowHit(), 0, 'neither lit nor found')
+  assert.equal(overflowed.testShadowHit(), 1, 'the point is shaded: counted blocked')
+  assert.equal(overflowed.testShadowFree(), 0)
 })
 
 test('a probe ray’s own walk is as long with its shadow rays as without them, whatever its budget', () => {

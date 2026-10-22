@@ -94,7 +94,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  // The ray counted in the group's tally (\`tallyAdd\`), flushed once: the work it and its shadow rays spent (each
  // its own budget), by bucket and in all, the part the tree's groups took (this image's rays only), what its
  // shadow rays found.
- let spent=rtWork+rtExtra;
+ let spent=rtWork+rtShadowWork;
  tallyAdd(CENSUS_WORK+min(CENSUS_BUCKETS-1u,firstLeadingBit(max(spent>>5u,1u))),1u);
  tallyAdd(CENSUS_WALK_WORK,spent);
  tallyAdd(CENSUS_WALK_MEMBERS,rtMembers);

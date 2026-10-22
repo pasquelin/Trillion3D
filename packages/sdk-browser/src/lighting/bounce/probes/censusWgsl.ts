@@ -26,8 +26,8 @@ const FIELD = ESCAPED + 3
  * (`work`: under 64 units, 128, 256, 512, 1024, 2048, 4096, more); the rays that answered by
  * meeting no surface (`escaped`: the sky answers them) and the shadow rays that came back, by what they
  * found (`shadowFree`: no surface stood on the segment that the ray found, the point is lit, those that spent their
- * budget before they found one included; `shadowBlocked`: a surface did; a ray blocked by a mesh's walk that ran
- * out of stack is neither, only counted by what spent it).
+ * budget before they found one included; `shadowBlocked`: the point is shaded, by a surface found or by a mesh's
+ * walk that ran out of stack: each shadow ray counts in one of the two).
  * The last words are the field as the last census found it, cleared then counted by `countField`
  * over the whole pool and the whole table: the probes that hold light, those that hold none, those
  * buried, the entries of the table that name a probe; and, cleared with them, the work the rays of

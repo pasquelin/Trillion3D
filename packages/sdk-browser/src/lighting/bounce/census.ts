@@ -41,8 +41,8 @@ export type BounceCensus = {
   /** Every ray by the work it spent: under 64 units, 128, 256, 512, 1024, 2048, 4096, more: totals. */
   work: number[]
   /** The rays that answered by meeting no surface (the sky answers them), and the shadow rays that came
-   *  back lit (no surface found on their segment, those that spent their budget first included) or finding
-   *  a surface (the point is shaded): totals. */
+   *  back lit (no surface found on their segment, those that spent their budget first included) or shaded
+   *  (a surface found, or a mesh's walk that ran out of stack): each shadow ray is one of the two: totals. */
   escaped: number
   shadowFree: number
   shadowBlocked: number

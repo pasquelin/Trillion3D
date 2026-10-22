@@ -28,7 +28,7 @@ import { sceneKey, type SceneBindings } from '../sceneBindings.ts'
 /**
  * THE RAY'S STATE: the constants the proxy's rays share and what one ray spends and finds — the units
  * and triangle tests it has spent (`rtWork`, `rtTests`), those its shadow rays did, counted apart
- * (`rtExtra`), its budget, what exhausted it, how far its walk had reached, the first surface it hit —,
+ * (`rtShadowWork`), its budget, what exhausted it, how far its walk had reached, the first surface it hit —,
  * none of it bound to a scene.
  */
 const RT_RAY_WGSL = wgslBlock(
@@ -57,7 +57,7 @@ var<private> rtWork:u32;
 var<private> rtTests:u32;
 /** The work of the shadow rays a hit's lighting cast (\`rtBlocked\`), for the census alone: each spends its own
  *  budget (\`runtimeLayout.ts\`), none of the ray's, which \`rtSpent\` never counts it against. */
-var<private> rtExtra:u32;
+var<private> rtShadowWork:u32;
 /** Whether the cuts' traversal answers the first surface it meets, not the nearest (\`rtBlocked\`). */
 var<private> rtAnyHit:bool;
 /** The units and the triangle tests the ray may spend: \`RT_WORK\` and \`RT_TRIANGLES\`, or fewer
@@ -71,17 +71,18 @@ var<private> rtCause:u32;
 var<private> rtReached:f32;
 var<private> rtReachedPlacement:u32;
 fn rtAdvance(at:f32,w:u32){if(at>=rtReached){rtReached=at;rtReachedPlacement=w;}}
-/** What the shadow rays its hits' lighting cast found, for the census: those that lit the point (found nothing on
- *  their segment, or ran out of their budget before they found a surface), those that found a surface, and what spent
- *  the first that spent its own budget (\`RT_CAUSE_*\`, zero while none did). */
+/** What the shadow rays its hits' lighting cast found, for the census, each in one of two words: those that lit
+ *  the point (found nothing on their segment, or ran out of their budget before they found a surface) and those
+ *  that shaded it (found a surface, or a cut ran out of stack); and what spent the first that spent its own
+ *  budget (\`RT_CAUSE_*\`, zero while none did). */
 var<private> rtShadowFree:u32;
 var<private> rtShadowHit:u32;
 var<private> rtShadowCause:u32;
 /** The units of the ray's work, its shadow rays' included, spent reading the members of the tree's groups, for the
  *  census: the rest went to the tree's cells and the cuts. */
 var<private> rtMembers:u32;
-/** A ray begins: nothing spent, nothing charged, the whole budget before it. */
-fn rtBegin(){rtWork=0u;rtTests=0u;rtExtra=0u;rtBudget=RT_WORK;rtTestBudget=RT_TRIANGLES;rtCause=0u;rtShadowFree=0u;rtShadowHit=0u;rtShadowCause=0u;rtMembers=0u;}
+/** A ray begins: nothing spent, the whole budget before it. */
+fn rtBegin(){rtWork=0u;rtTests=0u;rtShadowWork=0u;rtBudget=RT_WORK;rtTestBudget=RT_TRIANGLES;rtCause=0u;rtShadowFree=0u;rtShadowHit=0u;rtShadowCause=0u;rtMembers=0u;}
 fn rtSpent()->bool{return rtWork>=rtBudget||rtTests>=rtTestBudget;}
 /** What spent the ray: a cause already named, else its units or its triangle tests. */
 fn rtWhy()->u32{
@@ -132,7 +133,7 @@ ${wideTraversal({
   )
 
 /** One placement: its world read in its record, where the ray enters its box and the ray against its cut. */
-export const runtimePlacementWgsl = (scene: SceneBindings) =>
+const runtimePlacementWgsl = (scene: SceneBindings) =>
   wgslBlock(
     `runtimePlacementWgsl(${sceneKey(scene)})`,
     [

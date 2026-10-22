@@ -53,7 +53,7 @@ export const BINDINGS = { group: 0, proxy: 12, worlds: 13, tree: 14 }
 /** Helpers the tests call: a ray's work, with its shadow rays' and its own, and triangle tests, what exhausted its
  *  walk and how far the walk had reached, what its shadow rays found and what exhausted the first that did, and
  *  the units the tree's groups took of its work (`rtBegin` clears them). */
-const HELPERS = `fn testWork()->u32{return rtWork+rtExtra;}
+const HELPERS = `fn testWork()->u32{return rtWork+rtShadowWork;}
 fn testOwnWork()->u32{return rtWork;}
 fn testTests()->u32{return rtTests;}
 fn testCause()->u32{return rtCause;}
@@ -111,7 +111,7 @@ export function runOver(
     rtTree: w.tree,
     rtWork: 0,
     rtTests: 0,
-    rtExtra: 0,
+    rtShadowWork: 0,
     rtBudget: RAY_WORK,
     rtTestBudget: RAY_TRIANGLES,
     rtCause: 0,

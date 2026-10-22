@@ -96,3 +96,23 @@ test('a rectangle light behind a wall lights no cell through it: one ray toward 
   assert.equal(at(3, false), 2, 'a rectangle that casts no shadow lights it through the wall')
   assert.equal(rect.scene.rays, 0, 'and traces no ray')
 })
+
+test('a lamp’s shadow ray stops short of the lamp: a surface the lamp stands against does not shade the cell', () => {
+  // The ray starts 2 cm along the light and walks the lamp's distance from the cell: it used to end 2 cm past
+  // the lamp, in a wall 1 cm behind it.
+  const lamp = [{ height: 3, energy: 1 }]
+  assert.equal(irradiance(lamp, 3.01), 1, 'a wall 1 cm behind the lamp')
+  assert.equal(irradiance(lamp, 2.9), 0, 'a wall between the cell and the lamp still shades it')
+  // A cell nearer the lamp than the bias starts its ray halfway to it, not past it.
+  assert.equal(irradiance([{ height: 0.01, energy: 1 }], 0.025), 1, 'a cell 1 cm under the lamp')
+})
+
+test('a lamp’s shadow ray stops short of the lamp: a surface the lamp stands against does not shade the cell', () => {
+  // The ray starts 2 cm along the light and walks the lamp's distance from the cell: it used to end 2 cm past
+  // the lamp, in a wall 1 cm behind it.
+  const lamp = [{ height: 3, energy: 1 }]
+  assert.equal(irradiance(lamp, 3.01), 1, 'a wall 1 cm behind the lamp')
+  assert.equal(irradiance(lamp, 2.9), 0, 'a wall between the cell and the lamp still shades it')
+  // A cell nearer the lamp than the bias starts its ray halfway to it, not past it.
+  assert.equal(irradiance([{ height: 0.01, energy: 1 }], 0.025), 1, 'a cell 1 cm under the lamp')
+})

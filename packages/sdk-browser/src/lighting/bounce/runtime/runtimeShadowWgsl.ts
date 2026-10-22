@@ -1,12 +1,7 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
-import {
-  PLACEMENT_TREE_WALK_WGSL,
-  placementTreeAnyHit,
-} from '../../../geometry/dag/tree/treeWalkWgsl.ts'
-import { treeTableWgsl } from '../../../geometry/dag/tree/treeTable.ts'
+import { placementTreeAnyHit } from '../../../geometry/dag/tree/treeWalkWgsl.ts'
 import { sceneKey, type SceneBindings } from '../sceneBindings.ts'
-import { TREE_WALK_SPENDING, runtimePlacementWgsl } from './runtimeSceneWgsl.ts'
+import { TREE_WALK_SPENDING, runtimeSceneWgsl } from './runtimeSceneWgsl.ts'
 
 /**
  * THE PROXY'S SHADOW RAYS: whether anything of the proxy (`runtimeSceneWgsl.ts`) stands on a segment — a
@@ -16,23 +11,19 @@ import { TREE_WALK_SPENDING, runtimePlacementWgsl } from './runtimeSceneWgsl.ts'
  * A SHADOW RAY HAS ITS BUDGET (`SHADOW_RAY_WORK`, `SHADOW_RAY_TRIANGLES`): `rtBlocked` sets the counters of the
  * ray it is cast for aside, walks from zero against its own and gives them back, so the walk of the ray never
  * pays for its lighting, and a ray that meets nothing, which walks its whole segment, is not cut by what the
- * ray spent before it. What it spends is counted for the census (`rtExtra`), never against the ray.
+ * ray spent before it. What it spends is counted for the census (`rtShadowWork`), never against the ray.
  *
  * A SHADOW RAY THAT SPENDS ITS BUDGET IS LIT: it has found nothing that stands in the light, as a point no
  * object was tested against has no shadow of any. Only a cut of one placement that ran out of stack
  * (`RT_CAUSE_MESH`) shades the point: that placement's own walk could not say. A surface found answers
  * whatever it cost. What spent a shadow ray is kept (`rtShadowCause`), the ray's own cause (`rtCause`) left as
- * it was.
+ * it was. The census's two words share the points between them: shaded (`rtShadowHit`: a surface found, or a
+ * cut out of stack) or lit (`rtShadowFree`).
  */
 export const runtimeShadowWgsl = (scene: SceneBindings) =>
   wgslBlock(
     `runtimeShadowWgsl(${sceneKey(scene)})`,
-    [
-      runtimePlacementWgsl(scene),
-      treeTableWgsl('rtTree', { group: scene.group, binding: scene.tree, access: 'read' }),
-      PLACEMENT_TREE_WALK_WGSL,
-      NO_INDEX,
-    ],
+    [runtimeSceneWgsl(scene)],
     `
 /** The first surface of the proxy the ray meets within \`limit\`, any of them: the placement tree walked
  *  once in index order (\`placementTreeAnyHit\`), the first placement whose cut the ray meets answering.
@@ -67,14 +58,10 @@ fn rtBlocked(origin:vec3f,direction:vec3f,span:f32)->bool{
  rtAnyHit=true;
  let hit=rtSceneAny(origin,direction,span);
  rtAnyHit=false;
- let spent=rtSpent();
- let blocked=hit.found||(spent&&rtCause==RT_CAUSE_MESH);
- if(hit.found){rtShadowHit++;}
- else{
-  if(!blocked){rtShadowFree++;}
-  if(spent&&rtShadowCause==0u){rtShadowCause=rtWhy();}
- }
- rtExtra+=rtWork;
+ let blocked=hit.found||rtCause==RT_CAUSE_MESH;
+ if(blocked){rtShadowHit++;}else{rtShadowFree++;}
+ if(rtSpent()&&rtShadowCause==0u){rtShadowCause=rtWhy();}
+ rtShadowWork+=rtWork;
  rtWork=work;rtTests=tests;rtCause=cause;rtBudget=budget;rtTestBudget=testBudget;
  return blocked;
 }

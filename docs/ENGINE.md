@@ -730,30 +730,35 @@ a triangle tested — and `probeRayTriangles` triangle tests (`lighting/bounce/r
 street a ray crosses many overlapping boxes. Each shadow ray its hits cast has a budget of its own
 (`shadowRayWork` units, `shadowRayTriangles` triangle tests), spent from nothing, never from the ray's: a
 shadow ray that meets nothing has no hit to stop it and walks its whole segment, the only kind that does, so
-sharing the ray's budget would cut exactly the rays that reach the light. A shadow ray asks only whether
-anything stands on its segment: it walks the placement tree once, in index order, and stops at the first
-surface (`placementTreeAnyHit`, `geometry/dag/tree/treeWalkWgsl.ts`), where the rays that need the nearest
-surface walk it front to back and read a node again for every four of its children they meet. A ray that
-spends its budget has not finished: a probe's ray whose own walk spends it ends as an opaque hit, at the
-surface the walk had found or else at the furthest entry it had reached, of a placement's box or of a leaf its cut
-tested, in that placement (a walk that entered none reads a surface of no tint), bringing the light the probes hold there, so
-a probe averages every ray it fired; a shadow ray that spends its own is lit, as a point no object was tested
-against is, and the ray it was cast for keeps its weight. Only a mesh whose walk ran out of its stack inside
-one placement shades the point, as that placement's own walk could not tell. The shadow ray starts off its
-point along the light, 2 cm at normal incidence up to 6 cm at grazing incidence, not along the normal. A
-reflection's ray keeps answering nothing when it spends its much smaller budget, which is about one node's
-scan of the tree (a full node of 64 children costs 64 units), and the probes answer it. The marks follow what the image draws: a view
-that stands still but whose cut refines, or whose pages arrive, marks the cells of its new surfaces
-again (`lighting/bounce/marks.ts`, `frame/render/encodeLights.ts`). The frame metrics publish the state
-of the field as `metrics.bounce` (`BounceFrameMetrics`): whether the probes exist, the probes alive,
-those still unfilled, the entries of the table that name a probe, the probes that hold light, and,
-counted on the GPU a few images late, the rays fired, those that brought light back, those that met no surface
-and so reached the sky (`raysEscaped`), the shadow rays of their hits that came back lit — no surface found on
-their segment, those that spent their own budget first included — (`shadowRaysFree`) and those that found a
-surface (`shadowRaysBlocked`), those that spent their budget by what spent it (`raysExhaustedBy`), and every ray by the work it spent (`rayWork`), and, for the image counted, the
-work all of them spent (`imageRayWork`) and the part of it the placement tree's groups took (`imageRayMembers`:
-a ray that meets a group's box reads every member of it) (`lighting/bounce/census.ts`). The probes' update and their census count in the memory of
-their workgroup and add to the buffer once, as the reflections' trace, the blended items' verdict and the cut's
+sharing the ray's budget would cut exactly the rays that reach the light. A probe's ray therefore costs at
+most its own budget plus one shadow budget for each shadow-casting light that adds light at its first surface.
+A shadow ray asks only whether anything stands on its segment: it walks the placement tree once, in index
+order, and stops at the first surface (`placementTreeAnyHit`, `geometry/dag/tree/treeWalkWgsl.ts`), where the
+rays that need the nearest surface walk it front to back and read a node again for every four of its children
+they meet. A ray that spends its budget has not finished: a probe's ray whose own walk spends it ends as an
+opaque hit, at the surface the walk had found or else at the furthest entry it had reached, of a placement's
+box or of a leaf its cut tested, in that placement (a walk that entered none reads a surface of no tint),
+bringing the light the probes hold there, so a probe averages every ray it fired; a shadow ray that spends its
+own is lit, as a point no object was tested against is, and the ray it was cast for keeps its weight. Only a
+mesh whose walk ran out of its stack inside one placement shades the point, as that placement's own walk could
+not tell. The shadow ray starts off its point along the light, `shadowBiasMetres` (2 cm) at normal incidence
+up to `shadowBiasSlopeMetres` (4 cm) more at grazing incidence, not along the normal, at most half the way to
+a lamp, and a lamp's ray ends `shadowBiasMetres` short of it, so a surface the lamp stands against does not
+shade the point. A reflection's ray keeps answering nothing when it spends its much smaller budget, which is
+about one node's scan of the tree (a full node of 64 children costs 64 units), and the probes answer it. The
+marks follow what the image draws: a view that stands still but whose cut refines, or whose pages arrive,
+marks the cells of its new surfaces again (`lighting/bounce/marks.ts`, `frame/render/encodeLights.ts`). The
+frame metrics publish the state of the field as `metrics.bounce` (`BounceFrameMetrics`): whether the probes
+exist, the probes alive, those still unfilled, the entries of the table that name a probe, the probes that
+hold light, and, counted on the GPU a few images late, the rays fired, those that brought light back, those
+that met no surface and so reached the sky (`raysEscaped`), the shadow rays of their hits that came back lit —
+no surface found on their segment, those that spent their own budget first included — (`shadowRaysFree`) and
+those that shaded the point, by a surface found or by a mesh's walk that ran out of stack
+(`shadowRaysBlocked`), those that spent their budget by what spent it (`raysExhaustedBy`), and every ray by
+the work it spent (`rayWork`), and, for the image counted, the work all of them spent (`imageRayWork`) and the
+part of it the placement tree's groups took (`imageRayMembers`: a ray that meets a group's box reads every
+member of it) (`lighting/bounce/census.ts`). The probes' update and their census count in the memory of their
+workgroup and add to the buffer once, as the reflections' trace, the blended items' verdict and the cut's
 totals do: one reduction, a lane a counter (`gpu/core/workgroupTallyWgsl.ts`); a histogram wider than its
 workgroup (the coverage of the texture levels) pours its bins in a loop of its own. The placements that wear a
 proxy and the triangles they wear are published beside (`geometry/dag/proxy/proxyBoxes.ts`).

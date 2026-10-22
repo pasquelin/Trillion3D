@@ -113,6 +113,14 @@ export const BOUNCE_SETTINGS = {
   visibilityMargin: 0.6,
   /** Surface normal offset bias as fraction of level spacing. */
   normalBias: 0.35,
+  /**
+   * Where a bounce point's shadow ray starts, in metres along the light, off the point: this far where the
+   * surface faces the light. A lamp's ray ends this far short of the lamp, so a surface the lamp stands
+   * against does not shade the point.
+   */
+  shadowBiasMetres: 0.02,
+  /** The shadow ray starts up to this much further along the light, in metres, where the surface grazes it. */
+  shadowBiasSlopeMetres: 0.04,
   /** Probe ray reach as fraction of scene bounding diagonal. */
   rayReachFraction: 1,
   /**
@@ -134,6 +142,9 @@ export const BOUNCE_SETTINGS = {
    * own: it never takes them from the ray it is cast for. A shadow ray that meets nothing has no hit to
    * stop it and walks its whole segment, the only kind that does. One that spends them has not finished:
    * it counts as lit, where only a cut of one placement that ran out of stack counts as a blocker.
+   * A probe's ray therefore costs at most `probeRayWork` plus one `shadowRayWork` for each shadow-casting
+   * light that adds light at its first surface (the lighting runs there, once a ray): raising this raises
+   * that bound by as many units as the scene has such lights.
    */
   shadowRayWork: 4096,
   shadowRayTriangles: 1024,

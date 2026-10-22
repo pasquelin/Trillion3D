@@ -102,7 +102,7 @@ fn rtStoppedSeen(hit:RtHit,start:vec3f,direction:vec3f,stop:f32)->vec3f{
  * irradiance the cascades already hold (`surfaceSeen`), plus a reflection's emission, no light
  * evaluated and no shadow ray cast. A walk that spends its `budget` of units (`RT_WORK` at most) has
  * not finished (`runtimeLayout.ts`): a probe's ray (`lit`) ends as an opaque hit where the walk stopped, at
- * the surface it had found, else at the distance reached (`rtReached`) in the placement it had reached,
+ * the surface it had found, else at the distance reached (`rtReached`) in the placement of its furthest entry,
  * its radiance what the cascades hold there (`rtStoppedSeen`); a reflection's answers nothing, confidence
  * zero, the next stage's, its budget being about one node's scan.
  */

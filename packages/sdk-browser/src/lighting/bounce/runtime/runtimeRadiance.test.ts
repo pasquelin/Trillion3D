@@ -4,15 +4,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
-import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import type { Vec3 } from '../../../../../math/src/vector/vectorTuple.ts'
-import { buildCutProxy } from '../../../geometry/runtime/runtimeProxy.ts'
-import { cubeGeometry } from '../../../geometry/runtime/cube.fixture.ts'
-import { sdkWasm } from '../../../wasm/sdkWasm.fixture.ts'
-import { proxyArena, proxyHeader } from '../proxyBuffer.fixture.ts'
 import { RAY_SPREAD_FLOOR, RAY_WORK, SURFACE_BLENDED } from './runtimeLayout.ts'
 import { NO_SKY, along, ahead, origin, runOver } from './runtimeRun.fixture.ts'
-import { world } from './runtimeScene.fixture.ts'
+import { joinedCubes, world } from './runtimeScene.fixture.ts'
 import { SKY_SLOT } from '../../../../../sdk-core/src/scene/core/environmentSky.ts'
 
 test('a ray returns the emission and the lit tint of the first opaque surface it meets', () => {
@@ -132,22 +127,11 @@ test('a probe’s ray that spends its walk ends as a hit where the walk stopped,
 
 /** One placement of one mesh, two cubes three metres either side of its origin: the box of the placement holds the
  *  origin, the boxes of the mesh's leaves (a cube's faces each) do not. The placements are tried in turn. */
-const barbell = () => {
-  const { indices, positions } = cubeGeometry()
-  const moved = new Float32Array(positions.length * 2),
-    joined = new Uint32Array(indices.length * 2)
-  ;[-3, 3].forEach((x, k) => {
-    positions.forEach((p, i) => (moved[k * positions.length + i] = p + (i % 3 === 0 ? x : 0)))
-    indices.forEach((v, i) => (joined[k * indices.length + i] = v + 8 * k))
-  })
-  const surfaces = [[0.5, 0.25, 0, 1, 0, 0, 0, 0]]
-  const arena = proxyArena(buildCutProxy(sdkWasm, joined, moved), surfaces)
-  const header = proxyHeader(arena, { instances: 1, treeRoot: NO_INDEX, members: 1 })
-  return {
-    ...world(1, 1, { places: [new Matrix4()], surfaces }),
-    header: { ...header, words: arena.words },
-  }
-}
+const barbell = () =>
+  joinedCubes([
+    [-3, 0, 0],
+    [3, 0, 0],
+  ])
 
 test('a probe’s ray that spends its walk before it finds a surface ends in the placement it had reached', () => {
   // The origin lies in the box of the placement, in the box of neither leaf: the ray, a little off the x axis,

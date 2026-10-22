@@ -57,7 +57,8 @@ export interface BounceFrameMetrics {
   rayWork: number[] | null
   /** Rays that answered by meeting no surface, so that the sky answered them; shadow rays of the rays'
    *  hits that came back lit (no surface found on their segment, those that spent their budget before
-   *  they found one included); those that found a surface (totals). */
+   *  they found one included); those that shaded the point, by a surface found or by a mesh's walk that ran
+   *  out of stack (totals): each shadow ray is one of the two. */
   raysEscaped: number | null
   shadowRaysFree: number | null
   shadowRaysBlocked: number | null

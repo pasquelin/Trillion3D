@@ -124,6 +124,25 @@ export function world(
   }
 }
 
+/** One placement of one mesh made of unit cubes joined, one `scale`d and moved to each of `offsets`: a mesh whose
+ *  own tree has inner nodes, one opaque surface, the placements tried in turn (no tree). */
+export function joinedCubes(offsets: Vec3[], scale = 1) {
+  const { indices, positions } = cubeGeometry()
+  const moved = new Float32Array(positions.length * offsets.length),
+    joined = new Uint32Array(indices.length * offsets.length)
+  offsets.forEach((offset, k) => {
+    positions.forEach((p, i) => (moved[k * positions.length + i] = p * scale + offset[i % 3]))
+    indices.forEach((v, i) => (joined[k * indices.length + i] = v + 8 * k))
+  })
+  const surfaces = [[0.5, 0.25, 0, 1, 0, 0, 0, 0]]
+  const arena = proxyArena(buildCutProxy(sdkWasm, joined, moved), surfaces)
+  const header = proxyHeader(arena, { instances: 1, treeRoot: NO_INDEX, members: 1 })
+  return {
+    ...world(1, 1, { places: [new Matrix4()], surfaces }),
+    header: { ...header, words: arena.words },
+  }
+}
+
 /** A random ray over the field of `count` cubes `world` lays three metres apart: from 4 to 6 m
  *  above it, toward a point of it half a metre up, both drawn by `random` in one fixed order. */
 export function fieldRay(random: () => number, count: number) {
