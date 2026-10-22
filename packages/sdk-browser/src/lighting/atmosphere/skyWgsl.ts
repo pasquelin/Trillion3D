@@ -1,6 +1,7 @@
 import { ATMOSPHERE_SLOT } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
 import { FULLSCREEN_XY } from '../../gpu/shader/fullscreenTriangle.ts'
 import { SURFACE_MODEL_MASK } from '../../materials/surface/surfaceModel.ts'
+import { FOG_WGSL } from '../fogShader.ts'
 import { airProgram } from './programs.ts'
 import { SKY_VIEW_COORDINATES } from './tablesWgsl.ts'
 
@@ -15,6 +16,12 @@ import { SKY_VIEW_COORDINATES } from './tablesWgsl.ts'
  * angular radius: the disk's luminance — the sun's illuminance over its solid angle — times the
  * air's transmittance toward it, its rim softened over its outer half so it does not flicker under
  * the temporal resolve. What a half float holds bounds the radiance, as it bounds the table.
+ *
+ * The fog of the scene lies over the sky as over any pixel (`fogBeyond`, `../fogShader.ts`): the
+ * ray leaves the scene, it meets nothing in any distance. Looking up, the fog's density thins
+ * with height and leaves the sky but at the horizon; looking level or down, the density below the
+ * eye grows without end and the fog's colour alone is seen — the sky's table below the horizon,
+ * which is the air in front of a ground that is not drawn, shows only where the scene has no fog.
  *
  * The pass draws premultiplied over the image, an alpha of one: the empty pixel becomes the sky.
  */
@@ -41,6 +48,8 @@ fn sunDisk(p:vec3f,dir:vec3f)->vec3f{
  let hitsGround=raySphereNearest(vec3f(0.0,0.0,height),dirTable,vec3f(0.0),bottomRadius())>=0.0;
  var radiance=textureSampleLevel(skyViewTable,tableSampler,skyViewUv(hitsGround,dirTable,height),0.0).rgb*atmo(${ATMOSPHERE_SLOT.skyFactor}u).xyz;
  if(raySphereNearest(frame.camera.xyz,dir,vec3f(0.0),bottomRadius())<0.0){radiance+=sunDisk(frame.camera.xyz,dir);}
- return vec4f(min(radiance,vec3f(MAX_RADIANCE)),1.0);
+ let beyond=fogBeyond(dir,frame.eye.xyz);
+ return vec4f(min(radiance*beyond.a+beyond.rgb,vec3f(MAX_RADIANCE)),1.0);
 }`,
+  [FOG_WGSL],
 )

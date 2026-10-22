@@ -27,8 +27,10 @@ const VERTEX = '4527231df79be64432298d76dcf283c314a39b64fa2f846f9f6ed30dd9a64ead
 // then the probes came to be held by a pool, named by a table of the atlas (`tableEntry`,
 // `poolProbe`) with the level each carries, over levels that follow the eye (`bounceRead`), and
 // then a probe's distance along a direction came to be read from its two distance vectors
-// (`distanceAlong`), the one rule its neighbours' filter reads them by too.
-const BLEND = '87b4e9908b8b71dc37f02e2b089635f6448b74c9a21108adff76c3aa7cc0ca3d'
+// (`distanceAlong`), the one rule its neighbours' filter reads them by too, and then the fog's height
+// law came to be written over a ray apart from its point (`heightFogAlong`), for the sky's ray that
+// leaves the scene (`fogBeyond`).
+const BLEND = '8363aae7cf90997c0d76ce1d854ab589aa99d3689d5297cbd22b122cffb8d8d1'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */

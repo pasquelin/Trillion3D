@@ -44,13 +44,15 @@ export type AirBindings = {
 
 const b = AIR_BINDING
 
-/** The declarations of a program that binds `bindings`: the buffer's front and the accessors the
- *  march reads the air through (`opticsWgsl.ts`); a table the program does not bind answers as no
- *  air would (nothing scattered, nothing lost). */
+/** The declarations of a program that binds `bindings`: the buffer's front, named as the lighting
+ *  names the whole buffer (`directLights`), so that the fog's and the haze's reads run in a program
+ *  of the air as they do in the lighting, and the accessors the march reads the air through
+ *  (`opticsWgsl.ts`); a table the program does not bind answers as no air would (nothing
+ *  scattered, nothing lost). */
 const declarations = (bindings: AirBindings) => `
 ${AIR_BUFFER_STRUCT}
-@group(0) @binding(${b.air}) var<storage,${bindings.air}> air:AirBuffer;
-fn atmo(slot:u32)->vec4f{return air.atmosphere[slot];}
+@group(0) @binding(${b.air}) var<storage,${bindings.air}> directLights:AirBuffer;
+fn atmo(slot:u32)->vec4f{return directLights.atmosphere[slot];}
 ${bindings.table ? `@group(0) @binding(${b.table}) var table:texture_storage_2d<rgba16float,write>;` : ''}
 ${bindings.transmittance || bindings.multiScatter || bindings.skyView ? `@group(0) @binding(${b.sampler}) var tableSampler:sampler;` : ''}
 ${

@@ -9,18 +9,14 @@ import { createProbeSlots, type ProbeSlots } from './probeSlots.ts'
  *
  * Each image marks the cells it reads (`mark`: the eight probes around the surface points the
  * screen shows): a marked cell with no probe takes one from the pool, a marked cell keeps its
- * own. So do the probes' own rays: the surface one hits is read through the levels, and the eight
- * probes around that point are marked too, at the frame `KEPT`. A probe is given back when its
- * cell leaves its level — the level slid under the eye: `slide` — or when no mark read it for
- * `probeKeptMarks` marks (`expire`), the cells it kept in between being the ones a turn of the head
- * shows again; a cell a ray hit is not given back by age: the surface the ray lit stays where it
- * is, whether the screen shows it or not. A pool with none left refuses a mark: the cell goes
- * unanswered, and the next level or the sky light answers for it. What is traced and in what order
- * is `probes`' (`probePlan.ts`); what the GPU is told, the table of its entries.
+ * own. A probe is given back when its cell leaves its level — the level slid under the eye:
+ * `slide` — or when no mark read it for `probeKeptMarks` marks (`expire`), the cells it kept in
+ * between being the ones a turn of the head shows again. A pool with none left refuses a mark: the
+ * cell goes unanswered, and the next level or the sky light answers for it. What is traced and in
+ * what order is `probes`' (`probePlan.ts`); what the GPU is told, the table of its entries.
  *
- * Marks come from the GPU a few images late (`lighting/bounce/marks.ts`, `hitMarks.ts`): `frame` is
- * the image they were made in, the clock every age here is in; an image that marks nothing advances
- * no age.
+ * Marks come from the GPU a few images late (`lighting/bounce/marks.ts`): `frame` is the image
+ * they were made in, the clock every age here is in; an image that marks nothing advances no age.
  */
 export interface ProbePool {
   /** Probes the pool holds at most. */
@@ -35,8 +31,7 @@ export interface ProbePool {
   readonly refused: number
   /** Whether the pool still has work: a probe to trace or a texel of the table to tell the GPU. */
   readonly working: boolean
-  /** The cell `x, y, z` of `level` was read at `frame` (`KEPT`: by a probe's ray): it holds a probe
-   *  from now on, kept. */
+  /** The cell `x, y, z` of `level` was read at `frame`: it holds a probe from now on. */
   mark(level: number, x: number, y: number, z: number, frame: number): void
   /** The levels slid: the probes whose cell left its level are given back. */
   slide(): void
@@ -59,9 +54,6 @@ export interface ProbePool {
   table(limit: number, emit: TableEmit): number
 }
 
-/** The frame of a mark no age takes back: the cell it names stays while its level holds it. */
-export const KEPT = 0xffffffff
-
 /** The cell `x, y, z` of `level` holds a probe, read at `frame`: the one it held, or a new one. */
 function mark(
   slots: ProbeSlots,
@@ -78,7 +70,7 @@ function mark(
   if (slot >= 0) {
     const at = slot * 3
     if (slots.cell[at] === x && slots.cell[at + 1] === y && slots.cell[at + 2] === z) {
-      slots.usedAt[slot] = Math.max(slots.usedAt[slot], frame)
+      slots.usedAt[slot] = frame
       return
     }
     // The cell this entry names was another one, which left the level: its probe goes.

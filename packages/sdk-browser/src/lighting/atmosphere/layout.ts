@@ -20,8 +20,9 @@
  * each is sampled is what makes the air cheap enough for every image.
  */
 import { ATMOSPHERE_SLOTS } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
-import { SCENE_ENVIRONMENT_FLOATS } from '../../../../sdk-core/src/scene/core/environment.ts'
+import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { SKY_SLOTS } from '../../../../sdk-core/src/scene/core/environmentSky.ts'
+import { FOG_SLOTS } from '../../../../sdk-core/src/scene/core/fog.ts'
 import { SCENE_LIGHT_HEADER_FLOATS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 
 /** The haze volume: cells across and down the screen, slices along the distance, the distance the
@@ -48,10 +49,10 @@ export const AERIAL_TEXELS = AERIAL_VOLUME.width * AERIAL_VOLUME.height * AERIAL
 const AERIAL_TEXEL_BYTES = 8
 /** `vec4` slots of the view's block: four columns of the view-projection, then the haze's head. */
 export const ATMOSPHERE_VIEW_SLOTS = 8
-/** `vec4` slots before the atmosphere's block: the header, the environment's coefficients and fog,
- *  then the sky's block (`LIGHT_BUFFER_AT`, `frame/backend/state/lightBuffer.ts`, reads the same
- *  floats). */
-const LIGHT_HEAD_SLOTS = (SCENE_LIGHT_HEADER_FLOATS + SCENE_ENVIRONMENT_FLOATS) / 4 + SKY_SLOTS
+/** `vec4` slots before the fog: the header, the environment's coefficients (the fog, then the sky's
+ *  block follow, up to the atmosphere's: `LIGHT_BUFFER_AT`, `frame/backend/state/lightBuffer.ts`,
+ *  reads the same floats). */
+const LIGHT_LEAD_SLOTS = SCENE_LIGHT_HEADER_FLOATS / 4 + ENVIRONMENT_COEFFICIENTS
 
 /** The slots of the view's block. */
 export const VIEW_SLOT = {
@@ -72,8 +73,9 @@ export const ATMOSPHERE_REGION_BYTES =
   ATMOSPHERE_BYTES + ATMOSPHERE_VIEW_BYTES + AERIAL_BYTES + SKY_RAYS_BYTES
 
 /** The light buffer's front as the atmosphere's own programs declare it: the same bytes as
- *  `DirectLights` up to the haze volume, nothing of the lights themselves. */
-export const AIR_BUFFER_STRUCT = `struct AirBuffer{head:array<vec4f,${LIGHT_HEAD_SLOTS}>,atmosphere:array<vec4f,${ATMOSPHERE_SLOTS}>,view:array<vec4f,${ATMOSPHERE_VIEW_SLOTS}>,aerial:array<vec2u,${AERIAL_TEXELS}>,skyRays:array<vec2u,${SKY_RAYS_TEXELS}>,}`
+ *  `DirectLights` up to the sky by direction, nothing of the lights themselves, and the same names
+ *  where a member is read, so that the fog's and the haze's reads (`../fogShader.ts`) run on it. */
+export const AIR_BUFFER_STRUCT = `struct AirBuffer{lead:array<vec4f,${LIGHT_LEAD_SLOTS}>,fog:array<vec4f,${FOG_SLOTS}>,sky:array<vec4f,${SKY_SLOTS}>,atmosphere:array<vec4f,${ATMOSPHERE_SLOTS}>,atmosphereView:array<vec4f,${ATMOSPHERE_VIEW_SLOTS}>,aerial:array<vec2u,${AERIAL_TEXELS}>,skyRays:array<vec2u,${SKY_RAYS_TEXELS}>,}`
 
 /** The tables the sky and the haze are drawn from, as the marching builds them: size and samples. */
 export const TRANSMITTANCE_LUT = { width: 256, height: 64, samples: 10 } as const

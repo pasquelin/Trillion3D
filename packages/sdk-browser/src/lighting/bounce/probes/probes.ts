@@ -9,7 +9,6 @@ import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts'
 import { createSnapshotFollow } from '../snapshotFollow.ts'
 import { createBounceSchedule } from '../schedule.ts'
 import { createBounceMarks } from '../marks.ts'
-import { createHitMarks } from '../hitMarks.ts'
 import { createBounceCensus } from '../census.ts'
 import { createProbeStorage } from './probeStorage.ts'
 import { createTableWrite } from './tableWrite.ts'
@@ -31,14 +30,12 @@ type ProbeRig = ProbeParts & {
 export type GpuBounceProbes = Awaited<ReturnType<typeof createGpuBounceProbes>>
 
 /** The pass's pipelines, each compiled off the thread: the update, the snapshot's follow-up, the
- *  table's writes, the marks, the readback of the cells the rays hit (`hitBits`: their bitmap) and the
- *  census of the field. */
+ *  table's writes, the marks and the census of the field. */
 async function buildPasses(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   parts: Pick<ProbeParts, 'cascades' | 'pool' | 'queue' | 'records' | 'uniform' | 'counts'>,
   views: ProbeRig['views'],
-  hitBits: GPUBuffer,
 ) {
   const { cascades, pool, queue, records, uniform, counts } = parts
   const module = await createCheckedShaderModule(device, BOUNCE_PROBE_SHADER, 'BOUNCE_PROBE')
@@ -47,16 +44,15 @@ async function buildPasses(
     follow: await createSnapshotFollow(device, uniform.buffer, queue, views.probes, views.snapshot),
     table: await createTableWrite(device, records, views.probes, views.snapshot),
     marks: await createBounceMarks(device, cascades, pool, uniform.buffer, views.probes),
-    hits: createHitMarks(device, cascades, pool, hitBits),
     census: await createBounceCensus(device, cascades, uniform.buffer, views.probes, counts),
   }
 }
 
 /** The storage released whole: the levels' uniform, every buffer and both atlases. */
 function releaseStorage(storage: ReturnType<typeof createProbeStorage>) {
-  const { uniform, queue, records, census, hits, probes, snapshot } = storage
+  const { uniform, queue, records, census, probes, snapshot } = storage
   uniform.dispose()
-  for (const resource of [queue, records, census, hits, probes, snapshot]) resource.destroy()
+  for (const resource of [queue, records, census, probes, snapshot]) resource.destroy()
 }
 
 /**
@@ -85,19 +81,18 @@ async function createProbeRig(
     schedule.records.byteLength,
     extent,
   )
-  const { uniform, queue, records, census: counts, hits: hitBits, views } = storage
+  const { uniform, queue, records, census: counts, views } = storage
   const release = () => releaseStorage(storage)
   const layout = probeLayout(device)
   const bind = probeBinder(device, layout, {
     grid: uniform.buffer,
     queue,
     census: counts,
-    hits: hitBits,
     ...views,
   })
   const parts = { cascades, pool, queue, records, uniform, counts }
   try {
-    const passes = await buildPasses(device, layout, parts, views, hitBits)
+    const passes = await buildPasses(device, layout, parts, views)
     const lists = worldLightLists(tiles, lights, uniform)
     return {
       ...parts,
@@ -134,7 +129,7 @@ export async function createGpuBounceProbes(
 ) {
   const rig = await createProbeRig(device, bounds, lights, tiles)
   const { cascades, pool, uniform, marks, census } = rig
-  const readbacks = [marks, rig.hits, census]
+  const readbacks = [marks, census]
   const encoder = createProbeEncoder(rig, scene, lights, probesPerFrame, noLists)
   const restart = () => (encoder.restart(), marks.stale())
   const parts = { boxes: () => scene.boxes(), cascades, restart }
@@ -172,7 +167,7 @@ export async function createGpuBounceProbes(
     probes: rig.views.probes,
     probeBytes: atlasBytes(rig.extent),
     setIrradianceView: uniform.setIrradianceView,
-    /** After the image's submit: its marks, the cells its rays hit and its census map. */
+    /** After the image's submit: its marks and its census map. */
     submitted: () => readbacks.forEach((readback) => readback.submitted()),
     dispose: () => (readbacks.forEach((readback) => readback.dispose()), rig.release()),
   }

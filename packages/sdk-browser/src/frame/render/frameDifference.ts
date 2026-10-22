@@ -4,19 +4,24 @@ import { FRAME_DIFFERENCE_PASS } from '../../diagnostic/stage/passLabels.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { FRAME_DIFFERENCE_WGSL } from './frameDifferenceWgsl.ts'
 
+/** The arguments of a copy of one texture into another. */
+type TextureCopy = Parameters<GPUCommandEncoder['copyTextureToTexture']>
+
 /**
  * The display image before the current one, kept at the display's size and format with the bind
  * group that reads both. Made again when the display is another texture: that first image is
  * compared with itself.
  */
 function createKeptDisplay(device: GPUDevice, layout: GPUBindGroupLayout) {
-  let kept: { source: GPUTexture; previous: GPUTexture; group: GPUBindGroup } | undefined
-  const copy = (encoder: GPUCommandEncoder, display: GPUTexture, previous: GPUTexture) =>
-    encoder.copyTextureToTexture(
-      { texture: display },
-      { texture: previous },
-      { width: display.width, height: display.height },
-    )
+  /** `copy`: the copy of `source` into `previous`, its arguments made once with the group. */
+  let kept:
+    | {
+        source: GPUTexture
+        previous: GPUTexture
+        group: GPUBindGroup
+        copy: TextureCopy
+      }
+    | undefined
   const release = () => {
     kept?.previous.destroy()
     kept = undefined
@@ -39,13 +44,18 @@ function createKeptDisplay(device: GPUDevice, layout: GPUBindGroupLayout) {
           { binding: 1, resource: previous.createView() },
         ],
       })
-      kept = { source: display, previous, group }
-      copy(encoder, display, previous)
+      const copy: TextureCopy = [
+        { texture: display },
+        { texture: previous },
+        { width: display.width, height: display.height },
+      ]
+      kept = { source: display, previous, group, copy }
+      encoder.copyTextureToTexture(...copy)
       return group
     },
-    /** Keeps `display` as the image before the next one. */
-    keep(encoder: GPUCommandEncoder, display: GPUTexture) {
-      if (kept) copy(encoder, display, kept.previous)
+    /** Keeps the display of the last `groupOf` as the image before the next one. */
+    keep(encoder: GPUCommandEncoder) {
+      if (kept) encoder.copyTextureToTexture(...kept.copy)
     },
     release,
   }
@@ -105,7 +115,7 @@ export function createFrameDifference(device: GPUDevice) {
       pass.setBindGroup(0, group)
       pass.draw(3)
       pass.end()
-      held.keep(encoder, display)
+      held.keep(encoder)
     },
     dispose: held.release,
   }

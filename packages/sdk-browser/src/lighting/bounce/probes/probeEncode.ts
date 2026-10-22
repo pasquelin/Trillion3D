@@ -3,7 +3,6 @@ import type { ProbePool } from '../../../../../sdk-core/src/bounce/probePool.ts'
 import { BOUNCE_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import type { ProxyResources } from '../../../geometry/dag/cut/cutReaders.ts'
 import type { createBounceCensus } from '../census.ts'
-import type { createHitMarks } from '../hitMarks.ts'
 import type { createBounceMarks, MarkSurface } from '../marks.ts'
 import type { createBounceSchedule } from '../schedule.ts'
 import type { SnapshotFollow } from '../snapshotFollow.ts'
@@ -37,20 +36,16 @@ export type ProbeParts = {
   follow: SnapshotFollow
   table: TableWrite
   marks: Awaited<ReturnType<typeof createBounceMarks>>
-  /** The cells the update's rays hit, read back (`../hitMarks.ts`). */
-  hits: ReturnType<typeof createHitMarks>
   census: Awaited<ReturnType<typeof createBounceCensus>>
   /** The census's buffer: the update adds its counts to it. */
   counts: GPUBuffer
   lists: ReturnType<typeof worldLightLists>
 }
 
-/** The work of an image: whether it marks, the probes it queues, the texels of the table it writes,
- *  whether it reads back the cells those probes' rays hit and whether it counts the field after their
- *  update. */
+/** The work of an image: whether it marks, the probes it queues, the texels of the table it writes and
+ *  whether it counts the field after their update. */
 type Work = {
   marking: boolean
-  hitting: boolean
   counting: boolean
   groups: number
   texels: number
@@ -72,9 +67,9 @@ function upload(parts: ProbeParts, work: Work, generation: number, frame: number
   parts.uniform.write(generation, work.groups, frame)
 }
 
-/** The bounce pass of an image: the cells it reads marked, the table's writes, the probes' update — the cells
- *  their rays hit marked as it goes — and its snapshot's follow-up — the snapshot equals the probes here, the
- *  last update's texels followed it: the update reads it — and the field's census. */
+/** The bounce pass of an image: the cells it reads marked, the table's writes, the probes' update and its
+ *  snapshot's follow-up — the snapshot equals the probes here, the last update's texels followed it: the
+ *  update reads it — and the field's census. */
 function encodePass(
   parts: ProbeParts,
   encoder: GPUCommandEncoder,
@@ -82,7 +77,7 @@ function encodePass(
   surface: MarkSurface | undefined,
   work: Work,
 ) {
-  const { marks, hits, table, pipeline, follow, census } = parts
+  const { marks, table, pipeline, follow, census } = parts
   if (work.marking) marks.clear(encoder)
   if (work.counting) census.clear(encoder)
   const pass = encoder.beginComputePass({ label: BOUNCE_PASS })
@@ -97,13 +92,11 @@ function encodePass(
   }
   pass.end()
   if (work.marking) marks.copy(encoder)
-  if (work.hitting) hits.copy(encoder)
   if (work.counting) census.copy(encoder)
 }
 
 /** What image `frame` traces, filled into `work`: the probes queued for an eye at `viewpoint`, the texels of
- *  the table to write, whether the cells their rays hit are read back and whether the field is counted
- *  after the update. */
+ *  the table to write and whether the field is counted after the update. */
 function plan(
   parts: ProbeParts,
   work: Work,
@@ -111,9 +104,8 @@ function plan(
   viewpoint: ArrayLike<number>,
   probesPerFrame: number,
 ) {
-  const { schedule, hits, census } = parts
+  const { schedule, census } = parts
   work.groups = schedule.plan(frame, viewpoint, probesPerFrame)
-  work.hitting = work.groups > 0 && hits.begin(frame)
   work.counting = work.groups > 0 && census.begin(frame)
   work.texels = schedule.texels
 }
@@ -131,11 +123,11 @@ export function createProbeEncoder(
   /** The empty lists bound where no grid holds them. */
   noLists: GPUBuffer,
 ) {
-  const { cascades, pool, marks, hits, lists } = parts
+  const { cascades, pool, marks, lists } = parts
   let generation = 1,
     frame = 0
   /** The work of the image in hand, refilled each image: what the last one did when it is over. */
-  const work: Work = { marking: false, hitting: false, counting: false, groups: 0, texels: 0 }
+  const work: Work = { marking: false, counting: false, groups: 0, texels: 0 }
   return {
     /** A light changed: every probe is updated again, sleeping probes wake. */
     restart() {
@@ -144,9 +136,9 @@ export function createProbeEncoder(
       lists.stale()
     },
     /** The series is open: a probe holding nothing or short of its updates, a texel of the table to
-     *  write, a mark owed or in flight, the cells the rays hit still on their way. */
+     *  write, a mark owed or in flight. */
     get working() {
-      return pool.working || marks.pending || hits.pending
+      return pool.working || marks.pending
     },
     get lastProbes() {
       return work.groups

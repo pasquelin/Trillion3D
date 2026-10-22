@@ -107,7 +107,7 @@ function createBlurPasses(device: GPUDevice, targets: GaussianTargets) {
       identity.next[2] = across
       identity.next[3] = uniforms[0]
       identity.next[4] = uniforms[1]
-      if (identity.moved() || !groups.length)
+      if (identity.moved())
         groups = [
           group(filter, uniforms[0], programs.empty),
           group(across, uniforms[1], extra ?? programs.empty),

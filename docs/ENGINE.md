@@ -661,19 +661,6 @@ point of every tile, so a cell one point missed is found by the next; a still, m
 A pool with none left refuses a mark: that cell goes unanswered, and the next level or the sky light
 answers for it (`refusedMarks` in the diagnostic).
 
-**Probes for the surfaces the probes see.** A surface near the eye is lit by the light its neighbours
-cast on it whether the screen shows it or not, so the cells round it need probes too. A probe's ray
-that hits a surface reads the light the levels hold there (below), and the update marks the eight
-probes round that point by the very rule the image's marks follow (`markPoint`, `bounce/markWgsl.ts`):
-at the finest level that holds it, at most one mark a ray, a hit past every level marking nothing.
-Each image that traces probes copies that bitmap to a second readback ring and clears it
-(`bounce/hitMarks.ts`), and a few images later each cell it names takes a probe, so the surfaces the
-probes see get probes of their own over the next images, and those probes' rays reach further still,
-until no new cell is hit or the pool is full. These cells are kept while their level holds them: no
-age takes them back, since the surface a ray lit stays where it is whether the screen shows it or not
-(`KEPT`, `probePool.ts`); the image's own marks keep their age (`probeKeptMarks`). The pool refuses what
-it cannot hold, counted in `refusedMarks`, and `raysMarked` counts the rays whose hit a level held.
-
 **What the lit passes read.** The atlas of the probes holds, in a second layer, a table naming the slot
 of the pool that holds each cell of each level, by its remainder modulo the side, so that sliding by a
 cell changes only the entries that come in (`bounce/atlas.ts`, `bounce/probes/tableWgsl.ts`). The table
@@ -729,10 +716,13 @@ probes hold there and no more, nothing for the share they do not answer. The sky
 probes through their own rays, occluded by the scene, so the unoccluded sky added to a hit would count
 it a second time for a surface the sky does not reach and light every street from above. A surface
 whose probes hold nothing yet is dark for the rays that read it, and fills as its probes do, update
-after update; those probes are asked for by the hits themselves (above). The frame's bounce counts
-publish how many probes are alive and how many hold nothing yet (`liveProbes`, `unfilledProbes`, zero
-once the light the image reads is filled), and the probe series stays open until none is, until every
-probe has its updates and the marks owed, the image's and the rays', are in.
+after update. The probes are the cells the image reads (above), so a surface the image does not show
+has none of its own: a ray that lands on it reads only what the probes round it hold, nothing where
+none was made, and the surfaces out of view get no second bounce of their own. A cache of the light on
+every surface near the eye, seen by the image or not, is the way to it, and is not built. The frame's
+bounce counts publish how many probes are alive and how many hold nothing yet (`liveProbes`,
+`unfilledProbes`, zero once the light the image reads is filled), and the probe series stays open until
+none is, until every probe has its updates and the marks owed are in.
 
 A probe's ray is cut at `rayReachMetres` (200 m by default), past which the sky answers, and so is the
 shadow ray its hit casts. A ray, shadow rays included, spends at most `probeRayWork` units — a box
@@ -749,8 +739,8 @@ again (`lighting/bounce/marks.ts`, `frame/render/encodeLights.ts`). The frame me
 of the field as `metrics.bounce` (`BounceFrameMetrics`): whether the probes exist, the probes alive,
 those still unfilled, the entries of the table that name a probe, the probes that hold light, and,
 counted on the GPU a few images late, the rays fired, those that answered, those that brought light
-back, those whose hit marked the cells round it (`raysMarked`), those that carried no weight by what
-spent them, and every ray by the work it spent (`lighting/bounce/census.ts`).
+back, those that carried no weight by what spent them, and every ray by the work it spent
+(`lighting/bounce/census.ts`).
 
 ## Fog
 
@@ -790,9 +780,18 @@ heightFogContribution) · (1 − T)`, `skyMean` the sky's mean radiance at 6 km 
   weights of the sRGB primaries), `E_ground` the sun's illuminance after the air, `T_lobe` the
   transmittance of the same mean density over the length past `directional.startDistance` (none
   before it). So the sun's light is scattered by the default fog over an atmosphere, its declared
-  colour black. The sun is the atmosphere's, else the first directional light added
-  (`scene/light/fogSun.ts`, written in the fog block by the store). With no atmosphere the colour is
-  the declared one and the lobe the declared lobe.
+  colour black. The sun is the one the store holds, with an atmosphere or none, else the first
+  directional light added (`scene/light/fogSun.ts`, written in the fog block by the store). With no
+  atmosphere the colour is the declared one and the lobe the declared lobe.
+- **The sky.** The sky's pixels are fogged as any (`fogBeyond`, `lighting/fogShader.ts`, called by
+  the sky's draw): a ray that leaves the scene meets nothing in any distance, a ray of 10¹¹ m that
+  gathers the whole height integral, without the haze — the sky is the air. Looking up, with `dirY`
+  the ray's rise, `T = 2^(−X)` and `X = baseDensity · 2^(−falloff · (yEye − baseHeight)) / (falloff · dirY)`:
+  about 1, but within a degree of the horizon. Level or down, the density below the eye grows
+  without end and `T = 1 − maxOpacity`: the fog's colour alone, so the horizon is a line at
+  elevation 0, and the ground that is not drawn, past the scene's own, has that colour. The sky's
+  table below the horizon — the air before a ground that is not drawn, almost dark — shows only
+  where the scene has no height fog. A distance fog leaves the sky as it is.
 - **Old fields.** `{ color, density, heightFalloff?, baseHeight? }`, the extinction form — `T =
 exp(−density · d)` where nothing falls off, the density divided by e every `1 / heightFalloff`
   metres up — is a spelling of this law, mapped exactly: `baseDensity = density / (ln 2)²`,
@@ -810,8 +809,11 @@ planet are kilometres, the scene stays in metres. Where it is on, `scene.backgro
 
 **Units.** The sun is the brightest directional light not flagged `atmosphereSun: false` — its
 colour times its intensity, each channel weighed by the eye's sensitivity (the sRGB luminance
-weights, the fog's sun the same) —, an illuminance `E`. Of equals the first added is the sun, and a
-light added later replaces it only if brighter; a removal moves no one's place in that order. The radiance reaching the eye through the air is `L = E · ∫ T(eye→p) · T(p→sun) ·
+weights, the fog's sun the same) —, an illuminance `E`. The store holds the sun as lights come and
+go, whether or not there is air: a light added replaces it only if brighter; the sun removed gives
+its place to the brightest of the others, the first added of equals (a removal moves no one's place
+in that order); a light changed is judged again the same way, the sun keeping its place against an
+equal. The radiance reaching the eye through the air is `L = E · ∫ T(eye→p) · T(p→sun) ·
 (σs_R φ_R + σs_M φ_M) dt`, plus the multiply-scattered share, per steradian — the scale a surface
 reads (`L = albedo / π · E · cosθ`), so a 10-lux sun gives the same sky-to-sun ratio at any
 intensity. A surface is lit by `E · T(ground→sun)`, written into the sun's own slot of the light
@@ -828,7 +830,8 @@ buffer) when the sun or the air moves. About 20 000 and 16 000 short marches per
 readback in the frame, no pipeline compiled on it.
 
 **Drawing.** The sky is premultiplied radiance over the HDR image where the resolve left the
-background, so exposure, the curve and the temporal resolve treat it as any surface. The haze
+background, under the fog's height law like any pixel ([Fog](#fog), the sky), so exposure, the curve
+and the temporal resolve treat it as any surface. The haze
 (aerial perspective) is read by every surface through the light buffer — the volume lives behind
 the fog's block (`lighting/atmosphere/layout.ts`) —, over the fog: `L' = L · T + S`, opaque and
 transparent alike (`fogged`, `fogOver`, `lighting/fogShader.ts`); the fog takes the sky's mean

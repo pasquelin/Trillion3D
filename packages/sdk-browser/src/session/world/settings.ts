@@ -57,11 +57,24 @@ const ruleEntries = <R extends Readonly<Record<string, SettingRule>>>(rules: R) 
     Object.entries(rules).map(([field, rule]) => [field, ruleEntry(rule)]),
   ) as unknown as { [F in keyof R]: RuleEntry<R[F]['default']> }
 
-/** Every render setting of the engine, by name. The settings declared by rule — the cluster
- *  raster's, the geometry streaming's, the partition's streaming and the HLOD warm-up's, the cut's,
- *  the animation's, the shading's, the exposure's, the temporal pass's — are read at each frame, or at each update of the streaming,
- *  from the session's context; no level of the view distance's writes them, as the reference's
- *  scalability groups leave every one at its default. */
+/** The rules of every setting declared by rule, by field: the cluster raster's, the geometry
+ *  streaming's, the partition's streaming and the HLOD warm-up's, the cut's, the animation's, the
+ *  shading's, the exposure's, the temporal pass's. Both the table below and `RULE_FIELDS` read this
+ *  one object, so no table is listed twice. */
+const RULES = {
+  ...RASTER_RULES,
+  ...STREAMING_RULES,
+  ...WORLD_STREAMING_RULES,
+  ...CUT_RULES,
+  ...ANIMATION_RULES,
+  ...SHADING_RULES,
+  ...EXPOSURE_RULES,
+  ...TEMPORAL_RULES,
+}
+
+/** Every render setting of the engine, by name. The settings declared by rule (`RULES`) are read at
+ *  each frame, or at each update of the streaming, from the session's context; no level of the view
+ *  distance's writes them, as the reference's scalability groups leave every one at its default. */
 const WORLD_SETTINGS = {
   // Wired: the world applies them (`switches.ts`).
   pixelError: {
@@ -79,30 +92,12 @@ const WORLD_SETTINGS = {
     ...base('edgeSmoothing'),
   },
   bounce: flag(true, 'indirectLight'),
-  ...ruleEntries(RASTER_RULES),
-  ...ruleEntries(STREAMING_RULES),
-  ...ruleEntries(WORLD_STREAMING_RULES),
-  ...ruleEntries(CUT_RULES),
-  ...ruleEntries(ANIMATION_RULES),
-  ...ruleEntries(SHADING_RULES),
-  ...ruleEntries(EXPOSURE_RULES),
-  ...ruleEntries(TEMPORAL_RULES),
+  ...ruleEntries(RULES),
 } as const satisfies Readonly<Record<string, RenderSettingEntry>>
 
 /** The fields of every setting declared by rule: no quality level writes one unless its table
  *  lists it (`quality.ts`). */
-export const RULE_FIELDS: ReadonlySet<string> = new Set(
-  [
-    RASTER_RULES,
-    STREAMING_RULES,
-    WORLD_STREAMING_RULES,
-    CUT_RULES,
-    ANIMATION_RULES,
-    SHADING_RULES,
-    EXPOSURE_RULES,
-    TEMPORAL_RULES,
-  ].flatMap((rules) => Object.keys(rules)),
-)
+export const RULE_FIELDS: ReadonlySet<string> = new Set(Object.keys(RULES))
 
 /** A world's registry over the engine's settings. */
 export const createWorldSettings = () => createRenderSettings(WORLD_SETTINGS)

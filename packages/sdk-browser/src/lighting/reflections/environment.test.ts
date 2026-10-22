@@ -273,7 +273,7 @@ test('the atmosphere writes the sky by direction where the readers find it, brig
     SKY_RAYS_PROGRAM.code,
     ['skyRaysMain'],
     {
-      air: { atmosphere, skyRays },
+      directLights: { atmosphere, skyRays },
       transmittanceAt: () => [1, 1, 1],
       multiScatterAt: () => [0, 0, 0],
     },

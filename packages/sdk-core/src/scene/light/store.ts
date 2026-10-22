@@ -17,20 +17,6 @@ import { createLightKinds } from './kinds.ts'
 import { createLightRanks } from './lightRanks.ts'
 import { createEnvironmentBlock } from './environmentBlock.ts'
 
-/** Lights casting a shadow that are suns, that are local lights; lights that are rectangles:
- *  counted at every add, change and removal (`createLightKinds`). */
-const kindCounts = (kinds: ReturnType<typeof createLightKinds>) => ({
-  get shadowedSuns() {
-    return kinds.shadowedSuns
-  },
-  get shadowedLocals() {
-    return kinds.shadowedLocals
-  },
-  get rects() {
-    return kinds.rects
-  },
-})
-
 /** The atmosphere's block as the GPU reads it, behind the environment's (`atmospherePack.ts`), and
  *  its versions. */
 const airReads = (air: ReturnType<typeof createSunBlocks>['air']) => ({
@@ -180,7 +166,7 @@ export function createSceneLightStore() {
       // A new slot is zero in the buffer; without a slice, the published value is −1.
       writeSlice(slot, -1)
       header[0] = ids.length
-      suns.touched(validated.kind === 'directional')
+      suns.added(validated)
       epoch++
       return slot
     },
@@ -199,7 +185,7 @@ export function createSceneLightStore() {
       records.set(id, merged)
       revision[slot]++
       write(slot, merged)
-      suns.touched(merged.kind === 'directional' || current.kind === 'directional')
+      suns.changed(current, merged)
       epoch++
     },
     /** Removes a light. */
@@ -225,8 +211,7 @@ export function createSceneLightStore() {
       revision[last] = 0
       packed.fill(0, baseOf(last), baseOf(last + 1))
       header[0] = ids.length
-      // The sun, or the light that took its place in the buffer, changed: it is picked again.
-      suns.touched(removed.kind === 'directional' || suns.picked)
+      suns.removed(removed)
       epoch++
     },
     /** Sets the environment. */
@@ -249,5 +234,5 @@ export function createSceneLightStore() {
       notTransport++
     },
   }
-  return joined(store, kindCounts(kinds), airReads(suns.air))
+  return joined(store, kinds.counts, airReads(suns.air))
 }

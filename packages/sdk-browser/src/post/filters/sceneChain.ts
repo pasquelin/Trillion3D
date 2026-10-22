@@ -84,6 +84,10 @@ export function createSceneChain(device: GPUDevice) {
     get bytes() {
       return half.bytes + chain.bytes
     },
+    /** The size, width then height, of the image the last `begin` took. */
+    get imageSize(): readonly number[] {
+      return sized
+    },
     /** Takes the frame's image `input` of `width × height` texels, nothing drawn yet: the levels
      *  of the last frame are forgotten, and a new size makes them again. */
     begin(encoder: GPUCommandEncoder, input: GPUTextureView, width: number, height: number) {

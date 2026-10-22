@@ -113,6 +113,8 @@ const HEAD_BYTES = 16
  * over the resolve tiles, and answered by the field over the clear ones. Every kernel after the
  * classification is dispatched indirectly: over a list of tiles, the scene stage over the rays left.
  * `depthGroup` is the reflection group over the depth pyramid. The history's parity turns every call.
+ * The census (`../census.ts`) is cleared before the passes, so the rays count this image's alone, and
+ * copied for the host after them.
  */
 export function encodeReflectionTrace(
   encoder: GPUCommandEncoder,
@@ -131,6 +133,7 @@ export function encodeReflectionTrace(
     // Each head as an image starts it, the third argument one: one copy a list.
     for (const list of lists) encoder.copyBufferToBuffer(head, 0, list, 0, HEAD_BYTES)
   }
+  reflection.census.clear(encoder)
   for (const { label, kernels } of PASSES) {
     const pass = encoder.beginComputePass({ label })
     // The depth pyramid's group, every kernel's: set once, kept across their pipelines.
@@ -151,4 +154,5 @@ export function encodeReflectionTrace(
     }
     pass.end()
   }
+  reflection.census.copy(encoder)
 }

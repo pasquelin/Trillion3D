@@ -92,6 +92,7 @@ export const ENGINE_METRIC_KEYS = [
   'gpuShadowsMs',
   'gpuLightingMs',
   'bounce',
+  'reflections',
 ] as const
 
 /** Measurements the engine publishes of every frame beside the host's own counters: `null`

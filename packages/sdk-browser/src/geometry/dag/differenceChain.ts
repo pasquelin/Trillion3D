@@ -42,17 +42,18 @@ function startsOf(starts: Uint32Array<ArrayBuffer>, ints: Uint32Array, at: numbe
 }
 
 /** The camera's claims by request, `by` — `count` of them —, as pages in `claims.asked`: each
- *  request's pages claim those of the request it claims in the list the host holds (`heldStarts`),
- *  page for page, none when the claim lies past that list. */
+ *  request's pages claim those of the request it claims in the list the host holds (`heldStarts`,
+ *  `held` requests: the buffer may be longer), page for page, none when the claim lies past that
+ *  list. */
 function claimPages(
   claims: CutClaims,
   by: Uint32Array,
   starts: Uint32Array,
   heldStarts: Uint32Array,
   count: number,
+  held: number,
 ) {
-  const total = starts[count],
-    held = heldStarts.length - 1
+  const total = starts[count]
   claims.asked = resized(claims.asked, total)
   for (let r = 0; r < count; r++) {
     const first = starts[r],
@@ -102,9 +103,11 @@ export function createDifferenceChain() {
   let since: Uint32Array[] = [new Uint32Array(0), new Uint32Array(0)],
     sinceSpare: Uint32Array[] = [new Uint32Array(0), new Uint32Array(0)]
   /** The first page of each request, and the pages in all behind them, of the readback in hand and
-   *  of the one the host holds. */
+   *  of the one the host holds, and how many requests each has (the buffers may be longer). */
   let starts = new Uint32Array(1),
-    heldStarts = new Uint32Array(1)
+    heldStarts = new Uint32Array(1),
+    inHand = 0,
+    heldRequests = 0
   /** Whether the last readback landed was not adoptable, and what the host holds. */
   let sinceLast = false,
     holds = HOLDS_NONE
@@ -129,10 +132,10 @@ export function createDifferenceChain() {
         }
       }
       if (adoptable) {
-        const requests = Math.min(asked, listCap)
-        starts = startsOf(starts, ints, countWord(listCap), requests)
+        inHand = Math.min(asked, listCap)
+        starts = startsOf(starts, ints, countWord(listCap), inHand)
         if (holds !== HOLDS_NONE) {
-          claimPages(claims, ranks[0], starts, heldStarts, requests)
+          claimPages(claims, ranks[0], starts, heldStarts, inHand, heldRequests)
           claims.drawn = ranks[1]
         }
       } else [since, sinceSpare] = [sinceSpare, since]
@@ -145,6 +148,7 @@ export function createDifferenceChain() {
       const held = holds
       holds = HOLDS_LAST
       ;[heldStarts, starts] = [starts, heldStarts]
+      heldRequests = inHand
       return held === HOLDS_NONE ? undefined : claims
     },
   }

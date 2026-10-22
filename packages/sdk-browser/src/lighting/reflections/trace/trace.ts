@@ -16,6 +16,7 @@ import { REFLECTION_RESOLVE_WGSL } from '../resolveWgsl.ts'
 import { REFLECTION_BILATERAL_WGSL } from '../bilateralWgsl.ts'
 import { REFLECTION_SAMPLE_WGSL } from '../sampleWgsl.ts'
 import { REFLECTION_SURFACES_WGSL } from '../surfacesWgsl.ts'
+import { reflectionCensusWgsl } from '../censusWgsl.ts'
 import { REFLECTION_GROUP, reflectionLightViewWgsl } from '../viewLayout.ts'
 import { REFLECTION_LOBE_RAYS_WGSL } from '../weight.ts'
 import { REFLECTION_CLASSIFY_WGSL } from '../tiles.ts'
@@ -103,6 +104,11 @@ import { reflectionStagesWgsl } from '../wgsl.ts'
  * - t ≈ R · (K̄ / r_m + p_miss · W̄ / r_w) + P · (c_r + c_t + c_b), bounded by the view's pixels —
  *   at most R · (50 / r_m + 64 / r_w) for the rays —, never by the scene nor its lights. Every image
  *   drawn pays it, still or moving.
+ *
+ * CENSUS (`../censusWgsl.ts`): the two ray stages tally their rays in the workgroup's own memory —
+ * the screen stage where each ray ended, the scene stage how each walk of the proxy ended and the
+ * units it spent — and add them to one buffer of counters per workgroup, which the host reads back
+ * a few images late (`../census.ts`).
  */
 export const REFLECTION_TRACE_SHADER = wgslProgram(
   `@group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
@@ -113,6 +119,22 @@ export const REFLECTION_TRACE_SHADER = wgslProgram(
 @group(0) @binding(${B.rayDataOut}) var rayDataOut:texture_storage_2d<${REFLECTION_GRID_FORMAT},write>;
 var<workgroup> pendingCount:atomic<u32>;
 var<workgroup> pendingBase:u32;
+/** The screen stage's tally of a ray (\`reflectionCensus\`): cast, past the near field, met by the
+ *  screen in part, then answered whole by it or left to the scene stage. */
+fn countScreen(far:bool,b:ReflectionChain){
+ censusAdd(REFLECTION_CENSUS_RAYS);
+ if(b.bound<REFLECTION_FAR){censusAdd(REFLECTION_CENSUS_SCREEN);}
+ if(far){censusAdd(REFLECTION_CENSUS_FAR);}
+ else{censusAdd(select(REFLECTION_CENSUS_LEFT,REFLECTION_CENSUS_WHOLE,b.rest<=REFLECTION_EPSILON));}
+}
+/** The scene stage's tally of a ray: how its walk of the proxy ended, and the units it spent where
+ *  it walked. */
+fn countScene(){
+ censusAdd(REFLECTION_CENSUS_FATES+reflectionFate);
+ if(reflectionFate!=REFLECTION_FATE_NO_PROXY&&reflectionFate!=REFLECTION_FATE_BOUND){
+  censusAdd(REFLECTION_CENSUS_WORK+censusWorkBucket(reflectionWork));
+ }
+}
 /** The screen stage of grid texel \`g\` of the surface \`layer\`, cast from the pixel of its block that
  *  traces this image (\`reflectionTracedPixel\`): its ray marched on the screen, its direction written
  *  and, beside it, its surface's depth and its pdf (\`rayDataOut\`),
@@ -131,7 +153,9 @@ fn traceScreenTexel(g:vec2u,layer:u32)->vec4u{
  let own=reflectingPixelAt(layer,coord,surfaceFlagsAt(coord));
  let ray=reflectionTopRay(own.N,own.V,own.rough,reflectionSampleAt(id,layer));
  // Past the near field the field answers here all the screen left, in the gather of the whole lobe.
- let b=reflectionScreenStage(own.P,own.topN,own.V,ray,!reflectionNearField(own.P));
+ let far=!reflectionNearField(own.P);
+ let b=reflectionScreenStage(own.P,own.topN,own.V,ray,far);
+ countScreen(far,b);
  textureStore(surfaceRays,texel,vec4u(rayPack(ray.R,word),0u,0u,0u));
  // What the resolve weighs the ray by, beside it: its surface's depth and its pdf.
  let q=lobeAlpha(own.top);
@@ -156,6 +180,7 @@ fn traceScreen(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) groups
  var slot=0u;
  if(left.y!=0u){slot=atomicAdd(&pendingCount,1u);}
  workgroupBarrier();
+ censusFlush(lane);
  if(lane==0u){
   let n=atomicLoad(&pendingCount);
   if(n>0u){pendingBase=pendingOutAppend(n,${REFLECTION_SIDE * REFLECTION_SIDE}u);}
@@ -163,14 +188,10 @@ fn traceScreen(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) groups
  workgroupBarrier();
  if(left.y!=0u){pendingOut.entries[pendingBase+slot]=left;}
 }
-/** One thread a ray the screen stage left (\`pendingIn\`): its ray drawn again from the same pixel — the
- *  same numbers, the same ray —, traced through the scene from where the screen left it, and its
- *  texel's fresh radiance written whole. */
-@compute @workgroup_size(${REFLECTION_SIDE * REFLECTION_SIDE})
-fn traceScene(@builtin(global_invocation_id) thread:vec3u,@builtin(num_workgroups) groups:vec3u){
- let at=flatIndex(thread,groups,${REFLECTION_SIDE * REFLECTION_SIDE}u);
- if(at>=pendingIn.count){return;}
- let left=pendingIn.entries[at];
+/** The ray the screen stage left, \`left\`: drawn again from the same pixel — the same numbers, the
+ *  same ray —, traced through the scene from where the screen left it, and its texel's fresh
+ *  radiance written whole. */
+fn traceSceneRay(left:vec4u){
  let g=vec2u(left.x&0xffffu,left.x>>16u);
  let texel=vec2i(g);
  let id=reflectionTracedPixel(g);
@@ -180,6 +201,16 @@ fn traceScene(@builtin(global_invocation_id) thread:vec3u,@builtin(num_workgroup
  let partial=texelRadiance(textureLoad(partialIn,texel,0).xy);
  let b=reflectionSceneStage(own.P,own.topN,ray,ReflectionChain(partial,bitcast<f32>(left.y),bitcast<f32>(left.z),bitcast<f32>(left.w)));
  textureStore(traceOut,texel,freshPack(b.radiance,b.hit));
+ countScene();
+}
+/** One thread a ray the screen stage left (\`pendingIn\`); the workgroup's tally flushed after its
+ *  rays. */
+@compute @workgroup_size(${REFLECTION_SIDE * REFLECTION_SIDE})
+fn traceScene(@builtin(global_invocation_id) thread:vec3u,@builtin(num_workgroups) groups:vec3u,@builtin(local_invocation_index) lane:u32){
+ let at=flatIndex(thread,groups,${REFLECTION_SIDE * REFLECTION_SIDE}u);
+ if(at<pendingIn.count){traceSceneRay(pendingIn.entries[at]);}
+ workgroupBarrier();
+ censusFlush(lane);
 }`,
   [
     // The lights' struct its group declares: what a proxy hit and a lobe's weight read of them.
@@ -200,6 +231,7 @@ fn traceScene(@builtin(global_invocation_id) thread:vec3u,@builtin(num_workgroup
     REFLECTION_TEMPORAL_WGSL,
     REFLECTION_BILATERAL_WGSL,
     REFLECTION_CLASSIFY_WGSL,
+    reflectionCensusWgsl(B.census),
     listWgsl({ name: 'pendingOut', group: 0, binding: B.pendingOut, entry: 'vec4u', append: true }),
     listWgsl({ name: 'pendingIn', group: 0, binding: B.pendingIn, entry: 'vec4u', append: false }),
   ],

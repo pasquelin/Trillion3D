@@ -15,7 +15,6 @@ import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { QUEUED_PROBE_WGSL } from './probeQueueWgsl.ts'
 import { PROBE_GROUP_WGSL } from './probeGroupWgsl.ts'
 import { censusWgsl } from './censusWgsl.ts'
-import { marksWgsl } from '../markWgsl.ts'
 import { PROBE_FILTER_WGSL } from './probeFilterWgsl.ts'
 
 /**
@@ -30,9 +29,8 @@ import { PROBE_FILTER_WGSL } from './probeFilterWgsl.ts'
  * the scene lets through: the streets lit from above, the arcades dark.
  *
  * The surface a ray hit reads only the light the levels hold there (`surfaceLit`, nothing for what no
- * probe holds yet), and asks for the probes it lacks: the eight probes round the hit are marked
- * (`markPoint`, a hit a level holds, once a ray), so the surfaces the probes see get probes of
- * their own, as the surfaces the image shows do (`../hitMarks.ts`).
+ * probe holds yet): the probes are the cells the image reads (`../marks.ts`), so a surface the image
+ * does not show has no light of its own to give back.
  *
  * The probes updated are the queue's (`../schedule.ts`): the ones that hold nothing yet first, then
  * those the longest untouched. A probe taken for another cell, or traced for the first time, starts
@@ -95,7 +93,6 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  // sixty-four rays occupies a whole group, where a single thread chained them and left the GPU idle.
  let d=rayDirection(lane,jitter,rotation);
  let sample=rtProbeRay(origin,d,reach);
- if(rtHitFound&&markPoint(rtHitAt,rtHitNormal)){atomicAdd(&census[CENSUS_MARKED],1u);}
  atomicAdd(&census[CENSUS_WORK+min(CENSUS_BUCKETS-1u,firstLeadingBit(max((rtWork+rtExtra)>>5u,1u)))],1u);
  // An exhausted ray carries zero weight: the estimate is renormalised over the rays that answered.
  if(sample.w<0.0){atomicAdd(&census[CENSUS_LOST_BY+u32(-sample.w)-1u],1u);}
@@ -202,7 +199,6 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
     PROBE_GROUP_WGSL,
     PROBE_FILTER_WGSL,
     censusWgsl(PROBE_BINDINGS.census),
-    marksWgsl(PROBE_BINDINGS.hits),
     TWO_PI,
     hashUnit,
     ACCUMULATION_WGSL,

@@ -33,11 +33,11 @@ fn packCell(radiance:vec3f,transmittance:f32)->vec2u{
 @compute @workgroup_size(4,4,4)
 fn hazeMain(@builtin(global_invocation_id) id:vec3u){
  if(id.x==0u&&id.y==0u&&id.z==0u){
-  air.view[${VIEW_SLOT.projection}]=frame.viewProj[0];
-  air.view[${VIEW_SLOT.projection + 1}]=frame.viewProj[1];
-  air.view[${VIEW_SLOT.projection + 2}]=frame.viewProj[2];
-  air.view[${VIEW_SLOT.projection + 3}]=frame.viewProj[3];
-  air.view[${VIEW_SLOT.haze}].w=frame.eye.w;
+  directLights.atmosphereView[${VIEW_SLOT.projection}]=frame.viewProj[0];
+  directLights.atmosphereView[${VIEW_SLOT.projection + 1}]=frame.viewProj[1];
+  directLights.atmosphereView[${VIEW_SLOT.projection + 2}]=frame.viewProj[2];
+  directLights.atmosphereView[${VIEW_SLOT.projection + 3}]=frame.viewProj[3];
+  directLights.atmosphereView[${VIEW_SLOT.haze}].w=frame.eye.w;
  }
  if(frame.eye.w==0.0||id.x>=${AERIAL_VOLUME.width}u||id.y>=${AERIAL_VOLUME.height}u||id.z>=${AERIAL_VOLUME.slices}u){return;}
  let uv=(vec2f(id.xy)+0.5)/vec2f(${AERIAL_VOLUME.width}.0,${AERIAL_VOLUME.height}.0);
@@ -77,16 +77,16 @@ fn hazeMain(@builtin(global_invocation_id) id:vec3u){
  if(length(start)>=topRadius()){
   let before=start;
   let top=moveToTopAtmosphere(start,dir);
-  if(top.w==0.0){air.aerial[(id.z*${AERIAL_VOLUME.height}u+id.y)*${AERIAL_VOLUME.width}u+id.x]=packCell(vec3f(0.0),1.0);return;}
+  if(top.w==0.0){directLights.aerial[(id.z*${AERIAL_VOLUME.height}u+id.y)*${AERIAL_VOLUME.width}u+id.x]=packCell(vec3f(0.0),1.0);return;}
   start=top.xyz;
   let entered=length(before-start);
-  if(reach<entered){air.aerial[(id.z*${AERIAL_VOLUME.height}u+id.y)*${AERIAL_VOLUME.width}u+id.x]=packCell(vec3f(0.0),1.0);return;}
+  if(reach<entered){directLights.aerial[(id.z*${AERIAL_VOLUME.height}u+id.y)*${AERIAL_VOLUME.width}u+id.x]=packCell(vec3f(0.0),1.0);return;}
   marched=max(0.0,reach-entered);
  }
  var march:Marching;
  march.samples=max(1.0,(f32(id.z)+1.0)*max(1.0,min(2.0*atmo(${ATMOSPHERE_SLOT.sunIlluminance}u).w,${AERIAL_VOLUME.samplesPerSlice}.0)));
  let illuminance=atmo(${ATMOSPHERE_SLOT.sunIlluminance}u).xyz*atmo(${ATMOSPHERE_SLOT.scatteredFactor}u).xyz;
  let r=integrateAir(start,dir,false,march,true,sunDirection(),illuminance,atmo(${ATMOSPHERE_SLOT.skyFactor}u).w,marched);
- air.aerial[(id.z*${AERIAL_VOLUME.height}u+id.y)*${AERIAL_VOLUME.width}u+id.x]=packCell(r.radiance,dot(r.transmittance,vec3f(1.0/3.0)));
+ directLights.aerial[(id.z*${AERIAL_VOLUME.height}u+id.y)*${AERIAL_VOLUME.width}u+id.x]=packCell(r.radiance,dot(r.transmittance,vec3f(1.0/3.0)));
 }`,
 )

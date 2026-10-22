@@ -27,7 +27,7 @@ fn skyRaysMain(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=SKY_RAYS_AZIMUTH||id.y>=SKY_RAYS_ELEVATION){return;}
  let dir=skyRaysDirection(id.xy);${groundSkyMarch(SKY_RAYS.altitudeKm)}
  let radiance=min(${GROUND_SKY_RADIANCE},vec3f(65000.0));
- air.skyRays[id.y*SKY_RAYS_AZIMUTH+id.x]=vec2u(pack2x16float(radiance.xy),pack2x16float(vec2f(radiance.z,0.0)));
+ directLights.skyRays[id.y*SKY_RAYS_AZIMUTH+id.x]=vec2u(pack2x16float(radiance.xy),pack2x16float(vec2f(radiance.z,0.0)));
 }`,
   [SKY_RAYS_COORDINATES_WGSL],
 )

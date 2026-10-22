@@ -93,6 +93,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     inputs.probes = contract.probes ?? deferred.placeholders.probes
     inputs.proxy = reflectionProxy(rt)!
     const group = reflectionGroup(reflection, depth, lightView)
+    reflection.census.begin(run.frame)
     encodeReflectionTrace(
       encoder,
       reflection,

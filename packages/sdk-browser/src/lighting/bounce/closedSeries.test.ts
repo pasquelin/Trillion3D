@@ -20,10 +20,6 @@ test('a closed bounce series encodes and writes nothing: a redraw reads what the
   while (probes.working) {
     assert.ok(++frames < 100_000, 'the series closes')
     probes.encode(encoder, 1, eye)
-    // As the engine does after each submit (`frame/render/encoder.ts`): the cells the rays hit come back
-    // through the ring, and the series is open until they have.
-    probes.submitted()
-    await new Promise((resolve) => setTimeout(resolve, 0))
   }
   assert.ok(gpu.dispatches.length > 0, 'the series traced probes before it closed')
   const writes = gpu.writes.length,
@@ -204,34 +200,4 @@ test('the cells an image reads are marked by its pass, read back a few images la
     false,
     'then a still image marks nothing',
   )
-})
-
-test('the cells the probes’ rays hit come back with the batch, take probes of their own and are kept', async () => {
-  const { gpu, probes, encoder } = await floorProbes()
-  const landed = () => new Promise((resolve) => setTimeout(resolve, 0))
-  const staged = () => gpu.buffers.filter((b) => b.label === 'Trillion3D bounce hit marks readback')
-  const floor = probes.pool.live
-  assert.ok(floor > 0)
-  // An image that traces probes copies the bitmap of the cells their rays hit, then clears it.
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE), true)
-  assert.ok(probes.lastProbes > 0)
-  assert.equal(staged().length, 1, 'a staging buffer of its own ring')
-  assert.deepEqual(
-    gpu.commands.filter((command) => command === 'clear' || command === 'copy'),
-    ['clear', 'copy', 'clear', 'copy'],
-    'the census cleared, the pass, the hits copied then cleared — never before —, the census copied',
-  )
-  // The pass set one bit, as a ray that hit a surface far above the floor would (level 0, 24 cells in).
-  const words = markWords(probes.cascades)
-  const cell = probes.cascades.levels[0].base.map((b) => b + 24)
-  const wrap = (v: number) => ((v % 48) + 48) % 48
-  const entry = (wrap(cell[2]) * 48 + wrap(cell[1])) * 48 + wrap(cell[0])
-  new Uint32Array(staged()[0].data!.buffer, 0, words)[entry >> 5] |= 1 << (entry & 31)
-  assert.equal(probes.working, true, 'the series is open until they came')
-  probes.submitted()
-  await landed()
-  assert.equal(probes.pool.live, floor + 1, 'the cell the ray hit holds a probe')
-  // No age takes it back: the floor, read by the image at frame 1, goes after the kept marks.
-  probes.pool.expire(1_000_000)
-  assert.equal(probes.pool.live, 1, 'only the cell a ray hit is kept')
 })

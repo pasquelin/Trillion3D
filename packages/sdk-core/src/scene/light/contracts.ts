@@ -45,8 +45,8 @@ export interface SceneLight {
   angularRadius?: number
   /** Directional only: whether the light is a candidate to light the atmosphere (`SceneAtmosphere`);
    *  absent, it is. Of the candidates the brightest is the atmosphere's sun: its light reaches
-   *  surfaces through the air, and the sky is drawn from it. Without an atmosphere it changes
-   *  nothing. */
+   *  surfaces through the air, and the sky is drawn from it; the fog scatters it as well, with an
+   *  atmosphere or none. */
   atmosphereSun?: boolean
   /** Rect only: the unit axis its width runs along, perpendicular to `direction`. */
   right?: [number, number, number]

@@ -286,10 +286,13 @@ test('the light buffer’s regions sit where the lighting, the air’s programs 
   assert.equal(lights.atmosphere, LIGHT_BUFFER_AT.atmosphere)
   assert.equal(lights.ltc, LIGHT_BUFFER_AT.ltc)
   assert.equal(lights.items, LIGHT_BUFFER_AT.items)
-  // The air's programs read the front of the same bytes: its block, the view's, the haze volume and
-  // the sky by direction, which they write.
+  // The air's programs read the front of the same bytes, by the same names — the fog and the sky's
+  // block the sky's draw reads the fog through —, its block, the view's, the haze volume and the
+  // sky by direction, which they write.
+  assert.equal(air.fog, lights.fog)
+  assert.equal(air.sky, lights.sky)
   assert.equal(air.atmosphere, lights.atmosphere)
-  assert.equal(air.view, lights.atmosphereView)
+  assert.equal(air.atmosphereView, lights.atmosphereView)
   assert.equal(air.aerial, lights.aerial)
   assert.equal(air.skyRays, lights.skyRays)
 })

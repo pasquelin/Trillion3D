@@ -43,11 +43,22 @@ function poolMetricsOf(rt: WebgpuPagesRuntime) {
   }
 }
 
+/** What the device's ledger counts: the bytes allocated, in all and by label, the allocations of a
+ *  format it does not know, and the view targets' bytes. */
+function ledgerMetricsOf(gpu: WebgpuPagesRuntime['gpu']) {
+  const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot()
+  return {
+    gpuAllocatedBytes: ledger?.bytes ?? null,
+    gpuAllocatedByLabel: ledger?.byLabel ?? null,
+    gpuAllocationsUnknownFormat: ledger?.unknownFormats ?? null,
+    gpuFrameTargetBytes: viewTargetBytes(gpu) || null,
+  }
+}
+
 function frameMetricsOf(rt: WebgpuPagesRuntime) {
   const { run, gpu, vis, timing, services, lights } = rt
   const stats = gpu.cache?.stats()
   const vertexBytes = vertexBytesOf(vis)
-  const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot()
   const pending = !run.gpuMetricsReady
   const blend = transparentCounts(rt)
   const deformation = timing.lastGpuPassMs?.passes.find((pass) => pass.name === DEFORMATION_PASS)
@@ -91,16 +102,14 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
     gpuIdleMs: timing.lastGpuIdleMs,
     gpuDeviceLost: run.lostCause ?? null,
     vramBytes: null,
-    gpuAllocatedBytes: ledger?.bytes ?? null,
-    gpuAllocatedByLabel: ledger?.byLabel ?? null,
-    gpuAllocationsUnknownFormat: ledger?.unknownFormats ?? null,
-    gpuFrameTargetBytes: viewTargetBytes(gpu) || null,
+    ...ledgerMetricsOf(gpu),
     ...poolMetricsOf(rt),
     drawCalls: run.gpuDrawCalls,
     voxelStepsMean: steps?.mean ?? null,
     voxelStepsMax: steps?.max ?? null,
     lightsActive: lights.lightsActive,
     bounce: bounceState(rt.bounce),
+    reflections: gpu.reflection?.census.metrics() ?? null,
     ...directLightTimings(timing.lastGpuPassMs),
     ...lights.tiles?.poolMetrics(),
   }

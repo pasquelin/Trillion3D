@@ -2,6 +2,7 @@ import { namedEntries } from '../../../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../../../gpu/bind/bindIdentity.ts'
 import type { ProxyResources } from '../../../geometry/dag/cut/cutReaders.ts'
 import type { FrontLayer } from '../frontLayer.ts'
+import type { ReflectionCensus } from '../census.ts'
 import type { ReflectionGrids } from '../grids.ts'
 import { REFLECTION_TRACE_BINDINGS, traceLayouts } from './traceBindings.ts'
 
@@ -54,15 +55,40 @@ export const createTraceGroups = () => ({
 })
 
 /** What a view's trace holds: the target the opaque last pass writes, the resolved pixels both
- *  surfaces resolve into in turn, the opaque surface's grids, the transparents' front layer and its
- *  groups. */
+ *  surfaces resolve into in turn, the opaque surface's grids, the counters its rays add to
+ *  (`../census.ts`), the transparents' front layer and its groups. */
 export type TraceResources = {
   device: GPUDevice
   targetView: GPUTextureView
   resolvedView: GPUTextureView
   grids: ReflectionGrids
+  census: ReflectionCensus
   front: Pick<FrontLayer, 'views' | 'grids'>
   trace: ReturnType<typeof createTraceGroups>
+}
+
+/** The classification's group: the surface's pixels, the ray words it picks them into and the four
+ *  lists it fills. */
+function classifyGroup(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  surface: { flags: GPUTextureView; normals: GPUTextureView; lobes: GPUTextureView },
+  grids: ReflectionGrids,
+  bounceGrid: Named['bounceGrid'],
+) {
+  const list = (buffer: GPUBuffer) => ({ buffer })
+  return device.createBindGroup({
+    layout,
+    entries: namedEntries(REFLECTION_TRACE_BINDINGS, {
+      ...surface,
+      bounceGrid,
+      rays: grids.rays,
+      tracingOut: list(grids.tracing),
+      clearTracingOut: list(grids.clearTracing),
+      resolveOut: list(grids.resolve),
+      clearOut: list(grids.clear),
+    }),
+  })
 }
 
 /** The groups of one surface — its targets `surface`, its grids `grids` — over the resolved pixels
@@ -105,22 +131,7 @@ function surfaceGroups(
     // the clear tiles empties the resolved pixels and the history the accumulation writes, the resolve
     // reads the fresh grid into the resolved pixels, the accumulation reads them and the last history
     // into the other, and the last pass reads both.
-    classify: shared(
-      device.createBindGroup({
-        layout: layouts.classify,
-        entries: namedEntries(REFLECTION_TRACE_BINDINGS, {
-          flags,
-          normals,
-          lobes,
-          bounceGrid: scene.bounceGrid,
-          rays,
-          tracingOut: list(grids.tracing),
-          clearTracingOut: list(grids.clearTracing),
-          resolveOut: resolve,
-          clearOut: list(grids.clear),
-        }),
-      }),
-    ),
+    classify: shared(classifyGroup(device, layouts.classify, surface, grids, scene.bounceGrid)),
     screen: shared(
       group(layouts.screen, {
         rays,
@@ -130,6 +141,7 @@ function surfaceGroups(
         partialOut: grids.partial,
         rayDataOut: grids.rayData,
         pendingOut: list(grids.pending),
+        census: scene.census,
       }),
     ),
     clearTracing: shared(group(layouts.clearTracing, { rays, tiles: list(grids.clearTracing) })),
@@ -186,10 +198,10 @@ export function traceGroups(
   layouts: TraceLayouts,
   inputs: TraceInputs,
 ) {
-  const { device, targetView, resolvedView, grids, trace, front } = reflection
+  const { device, targetView, resolvedView, grids, trace, front, census } = reflection
   const { next } = trace.identity
   next.length = 0
-  next.push(stages, targetView, resolvedView, grids, front.grids, front.views.flags)
+  next.push(stages, targetView, resolvedView, grids, front.grids, front.views.flags, census.buffer)
   next.push(front.views.normals, front.views.lobes, front.views.traced, inputs.base, inputs.flags)
   next.push(inputs.normals, inputs.lobes, inputs.lights, inputs.lightLists, inputs.bounceGrid)
   next.push(inputs.probes, inputs.proxy.buffer, inputs.proxy.worlds, inputs.proxy.tree)
@@ -200,6 +212,7 @@ export function traceGroups(
     lightLists: { buffer: inputs.lightLists },
     bounceGrid: { buffer: inputs.bounceGrid },
     probes: inputs.probes,
+    census: { buffer: census.buffer },
     proxy: { buffer: inputs.proxy.buffer },
     worlds: inputs.proxy.worlds,
     tree: inputs.proxy.tree,

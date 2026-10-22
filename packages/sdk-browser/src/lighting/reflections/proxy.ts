@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { runtimeRadianceWgsl } from '../bounce/runtime/runtimeRadianceWgsl.ts'
+import { REFLECTION_FATE_WGSL } from './censusWgsl.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_LOBE_WGSL } from './field.ts'
 import { REFLECTION_REACH_WGSL } from './reach.ts'
@@ -21,6 +22,8 @@ import { REFLECTION_PROXY_BINDINGS } from './trace/traceBindings.ts'
  * within its units (`RtWalk.open`), which leaves the scene — the environment's alone, no probe stands
  * in the way —; none for a ray cut by `bound`, out of units, stopped on its layers or with no proxy to
  * walk; what a hit stops without being known (a deformed body's) is neither, and the field answers it.
+ * How the walk ended and the units it spent are left in `reflectionFate` and `reflectionWork`
+ * (`censusWgsl.ts`), for the trace's census to count.
  */
 export const REFLECTION_PROXY_WGSL = wgslBlock(
   'REFLECTION_PROXY_WGSL',
@@ -28,19 +31,30 @@ export const REFLECTION_PROXY_WGSL = wgslBlock(
     REFLECTION_LOBE_WGSL,
     REFLECTION_CONSTANTS_WGSL,
     REFLECTION_REACH_WGSL,
+    REFLECTION_FATE_WGSL,
     runtimeRadianceWgsl(REFLECTION_PROXY_BINDINGS),
   ],
   `struct ReflectionProxied{answer:RadianceAnswer,open:f32,}
+fn reflectionFateOf(confidence:f32,open:f32)->u32{
+ if(rtSpent()){return rtCause;}
+ if(confidence>0.0){return REFLECTION_FATE_HIT;}
+ return select(REFLECTION_FATE_MISS,REFLECTION_FATE_OPEN,open>0.0);
+}
 fn reflectionProxied(P:vec3f,N:vec3f,lobe:ReflectionLobe,bound:f32)->ReflectionProxied{
  let none=ReflectionProxied(RadianceAnswer(vec3f(0.0),0.0,0.0),0.0);
+ reflectionFate=REFLECTION_FATE_NO_PROXY;
+ reflectionWork=0u;
  if(rtProxy.instances==0u){return none;}
  let lift=rtProxy.error;
  let edge=reflectionSceneReach();
  // Never past the surface the screen met, its slab and the proxy's error on either side of it.
  let far=min(edge,bound+2.0*lift);
- if(far<=lift){return none;}
+ if(far<=lift){reflectionFate=REFLECTION_FATE_BOUND;return none;}
  var walk=rtLayers(P+N*lift,lobe.R,far-lift,reflectionReadTangent(lobe),REFLECTION_PROXY_WORK,RT_TRIANGLES,false);
  walk.answer.distance+=lift;
- return ReflectionProxied(walk.answer,select(0.0,walk.open,far>=edge));
+ let open=select(0.0,walk.open,far>=edge);
+ reflectionWork=rtWork;
+ reflectionFate=reflectionFateOf(walk.answer.confidence,open);
+ return ReflectionProxied(walk.answer,open);
 }`,
 )

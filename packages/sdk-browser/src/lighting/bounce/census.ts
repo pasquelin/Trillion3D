@@ -38,8 +38,6 @@ export type BounceCensus = {
   lostBy: number[]
   /** Every ray by the work it spent: under 64 units, 128, 256, 512, 1024, 2048, 4096, more: totals. */
   work: number[]
-  /** The rays whose hit a level held, which marked the cells round it for probes of their own: total. */
-  marked: number
   /** The pool as the census found it: probes that hold light, probes that hold none, probes buried, and the
    *  entries of the table that name a probe. */
   litProbes: number
@@ -85,7 +83,6 @@ function censusOf(words: Uint32Array, reads: number): BounceCensus {
     buried: words[CENSUS.buried],
     lostBy: Array.from(words.subarray(CENSUS.lostBy, CENSUS.lostBy + CENSUS_CAUSES)),
     work: Array.from(words.subarray(CENSUS.work, CENSUS.work + CENSUS_BUCKETS)),
-    marked: words[CENSUS.marked],
     litProbes: words[CENSUS.fieldLit],
     darkProbes: words[CENSUS.fieldDark],
     buriedProbes: words[CENSUS.fieldBuried],

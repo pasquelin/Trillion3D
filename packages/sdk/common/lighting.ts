@@ -24,7 +24,7 @@ export type {
   SceneProxyColumns,
   SceneProxyDescriptor,
 } from '../../sdk-core/src/contracts/proxy.ts'
-export { createProbePool, KEPT } from '../../sdk-core/src/bounce/probePool.ts'
+export { createProbePool } from '../../sdk-core/src/bounce/probePool.ts'
 export type { ProbePool } from '../../sdk-core/src/bounce/probePool.ts'
 export { createSceneLightStore } from '../../sdk-core/src/scene/light/store.ts'
 export type { SceneLightStore } from '../../sdk-core/src/scene/light/store.ts'

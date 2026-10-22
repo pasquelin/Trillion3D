@@ -63,9 +63,9 @@ fn distantSkyMain(@builtin(local_invocation_index) li:u32){
  workgroupBarrier();${SUM_WORKGROUP(DISTANT_SKY.directions)}
  if(li==0u){
   let mean=part[0]/${DISTANT_SKY.directions}.0;
-  air.view[${VIEW_SLOT.haze}].x=mean.x;
-  air.view[${VIEW_SLOT.haze}].y=mean.y;
-  air.view[${VIEW_SLOT.haze}].z=mean.z;
+  directLights.atmosphereView[${VIEW_SLOT.haze}].x=mean.x;
+  directLights.atmosphereView[${VIEW_SLOT.haze}].y=mean.y;
+  directLights.atmosphereView[${VIEW_SLOT.haze}].z=mean.z;
  }
 }`,
 )

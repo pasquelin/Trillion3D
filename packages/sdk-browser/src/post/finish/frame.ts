@@ -24,8 +24,6 @@ const written: FinishInput = {
 }
 /** What the frame's passes share, refilled at each image: an image allocates none. */
 const shared = {} as PostFrame
-/** The size of the image finished. */
-let drawn: readonly number[] = [0, 0]
 
 /** Whether the composition that carries the finishing — the local exposure, the bloom's glow and
  *  the vignette — is compiled: the first call starts its compile, and its failure is told to the
@@ -88,7 +86,6 @@ export function encodeFinish(
       settings.localExposureBlurSize,
       settings.localExposureBlurBlend > 0,
     )
-  drawn = size
   shared.scene = finish.scene
   shared.bare = finish.bare
   shared.layers = finish.groupFor(local)
@@ -122,7 +119,7 @@ export function finishedGroup(
   written.auto = environmentExposure(environment) === 'auto'
   written.local = post.local
   written.glow = !!glow
-  written.size = drawn
+  written.size = post.scene.imageSize
   finish.write(written)
   return finish.groupFor(post.local, glow)
 }

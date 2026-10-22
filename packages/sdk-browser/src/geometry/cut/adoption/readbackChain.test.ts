@@ -6,7 +6,10 @@
 // every page of both lists.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { NO_INDEX } from '../../../../../math/src/constants.ts'
+import { createDifferenceChain } from '../../dag/differenceChain.ts'
 import type { RigCut } from '../../dag/differenceRig.fixture.ts'
+import { copiedWords, countWord, differenceWord } from '../../dag/readoutWords.ts'
 import { mountReadbackChain, range, settle } from './readbackChain.fixture.ts'
 
 /** A cut whose two lists are `pages`. */
@@ -88,4 +91,24 @@ test('a repeated page and one without a record are read as the hashed difference
   m.send({ asked: [7, ...moved, 250], drawn: moved })
   await settle()
   m.adopt()
+})
+
+test('a claim past the requests of the list held is none, whatever the buffer holds', () => {
+  const cap = 8
+  const chain = createDifferenceChain()
+  /** A readback of `claims.length` requests of one page each, claiming `claims` in the list held. */
+  const land = (claims: number[]) => {
+    const ints = new Uint32Array(copiedWords(cap)).fill(NO_INDEX)
+    claims.forEach((rank, i) => {
+      ints[differenceWord(cap) + i] = rank
+      ints[countWord(cap) + i] = 1
+    })
+    chain.land(ints, cap, claims.length, 0, true)
+    return chain.adopt()
+  }
+  // Six requests held first, then two twice over: the held list is two long in a buffer of six.
+  land([0, 1, 2, 3, 4, 5])
+  land([0, 1])
+  land([0, 1])
+  assert.deepEqual(Array.from(land([3, 0])!.asked.subarray(0, 2)), [NO_INDEX, 0])
 })

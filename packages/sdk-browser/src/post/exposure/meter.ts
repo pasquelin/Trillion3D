@@ -1,6 +1,7 @@
 import { cpuNow } from '../../diagnostic/stopwatch.ts'
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { settingsDiffer } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { createReadbackRing } from '../../gpu/core/readbackRing.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { EXPOSURE_PASS } from '../../diagnostic/stage/passLabels.ts'
@@ -65,24 +66,24 @@ function createMeterBuffers(device: GPUDevice, programs: MeterPrograms) {
 
 type MeterBuffers = ReturnType<typeof createMeterBuffers>
 
-/** The group of the measure over an image, made once for each image the meter is given: with the
- *  temporal resolve the image alternates, so one group is not enough, and none is made per frame. */
+/** The group of the measure over an image, kept for each of the few images the meter is given in
+ *  turn: with the temporal resolve the image alternates, so one group is not enough, and none is
+ *  made per frame. */
 function measureGroupsOver(
   device: GPUDevice,
   programs: MeterPrograms,
   { uniform, histogram }: MeterBuffers,
 ) {
-  const made = new WeakMap<GPUTextureView, GPUBindGroup>()
+  const identity = createWebgpuBindIdentity(4),
+    groups: GPUBindGroup[] = []
   return (image: GPUTextureView) => {
-    let group = made.get(image)
-    if (!group) {
-      group = device.createBindGroup({
+    identity.next[0] = image
+    if (identity.moved())
+      groups[identity.slot] = device.createBindGroup({
         layout: programs.measureLayout,
         entries: sequentialEntries([image, { buffer: uniform }, { buffer: histogram }]),
       })
-      made.set(image, group)
-    }
-    return group
+    return groups[identity.slot]
   }
 }
 

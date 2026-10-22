@@ -844,10 +844,12 @@ falloff is divided by 10 (they are per 1000 centimetres), a distance by 100.
 | `skyContribution` | `[1, 1, 1]` | The factor of the atmosphere's sky radiance the fog takes on, per channel, ≥ 0. |
 
 With `scene.atmosphere` on, the default fog is coloured by the sky and scatters the sun's light: a
-fog of `{}` over `atmosphere = true` and a `light.directional` is the reference's default fog.
-Without one, the fog is its declared `color` and, if the lobe's colour is not black, the first
-directional light's. The extinction form `{ color, density, heightFalloff?, baseHeight? }` stays: a
-medium of `density` per metre (`T = exp(−density · d)` where nothing falls off) divided by e every
+fog of `{}` over `atmosphere = true` and a `light.directional` is the reference's default fog. A
+height fog lies over the atmosphere's sky too: from the horizon down, where the scene draws no
+ground, a pixel is the fog's colour alone (a distance fog leaves the sky as it is). Without an
+atmosphere, the fog is its declared `color` and, if the lobe's colour is not black, the sun's: the
+one the scene holds (the brightest directional light, below), else the first directional light
+added. The extinction form `{ color, density, heightFalloff?, baseHeight? }` stays: a medium of `density` per metre (`T = exp(−density · d)` where nothing falls off) divided by e every
 `1 / heightFalloff` metres up; it is mapped exactly to the height law (`baseDensity = density /
 (ln 2)²`, `falloff = heightFalloff / ln 2`) and shows the image it always showed.
 
@@ -875,7 +877,9 @@ world.scene.atmosphere = null // No atmosphere.
 ```
 
 The sun is the brightest directional light, its colour times its intensity weighed by the eye's
-sensitivity to each channel, the first added of equals; `atmosphereSun: false` leaves one out. Where it is on,
+sensitivity to each channel, held as lights are added and removed (with an atmosphere or none): a
+light added replaces it only if brighter, and the sun removed gives its place to the brightest of
+the others, the first added of equals; `atmosphereSun: false` leaves one out. Where it is on,
 `background` is not shown, and `light.sky()` lights the scene from the sky (without an atmosphere,
 from the background colour; `groundColor`, black, from below). The bounce is on by default
 (`world.bounce`, `false` turns it off): the sky light then reaches a surface only where the scene

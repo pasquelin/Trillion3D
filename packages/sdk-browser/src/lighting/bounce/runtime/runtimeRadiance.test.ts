@@ -122,18 +122,3 @@ test('a probe ray reaches the sky for the share of it the scene lets through, no
   seen.slice(0, 3).forEach((c, i) => assert.ok(Math.abs(c - want[i]) < 1e-6, `${seen}`))
   assert.equal(seen[3], 3.5, 'the distance is the first surface’s')
 })
-
-test('a probe ray leaves the surface it hit, where and which way it faces, for the probe to mark; a read ray and a miss leave none', () => {
-  const opaque = world(2, 1, { places: along(2, 4), surfaces: [[0.5, 0.25, 0, 1, 0, 0, 0, 0]] })
-  const run = runOver(opaque, skyLit([0.2, 0.4, 0.8]))
-  // The front face of the first cube, 3.5 metres out, looks back at the origin.
-  run.rtProbeRay(origin, ahead, 1000)
-  assert.deepEqual(run.testHit(), [3.5, 0, 0, 1])
-  assert.deepEqual(run.testHitNormal(), [-1, 0, 0])
-  // Each ray begins with nothing hit: a ray that finds nothing, a reflection's (read) ray, leave none.
-  run.rtProbeRay(origin, [-1, 0, 0], 1000)
-  assert.deepEqual(run.testHit(), [0, 0, 0, 0], 'a miss')
-  run.rtProbeRay(origin, ahead, 1000)
-  run.rtRadiance(origin, ahead, 1000, 0.01)
-  assert.deepEqual(run.testHit(), [0, 0, 0, 0], 'a read ray marks nothing')
-})

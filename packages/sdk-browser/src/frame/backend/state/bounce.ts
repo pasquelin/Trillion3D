@@ -74,7 +74,6 @@ function censusState(counted: BounceCensus | undefined) {
     raysFired: counted?.fired ?? null,
     raysAnswered: counted?.answered ?? null,
     raysLit: counted?.lit ?? null,
-    raysMarked: counted?.marked ?? null,
     probesWrittenTotal: counted?.written ?? null,
     probesBuriedTotal: counted?.buried ?? null,
     raysLostBy: counted?.lostBy ?? null,

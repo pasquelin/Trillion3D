@@ -13,7 +13,6 @@ import {
   namedEntries,
 } from '../../gpu/core/computeBindings.ts'
 import { atlasEntry } from './atlas.ts'
-import { createMarkTags, type MarkTag } from './markTags.ts'
 import { BOUNCE_MARK_SHADER, MARK_GROUP } from './markWgsl.ts'
 import { MARK_BINDINGS } from './probes/probeBindings.ts'
 
@@ -52,6 +51,10 @@ export const createMarkSurface = (): MarkSurface => ({
 /** What the marks that came back did: how many came back, and the cells named by the last one. */
 type MarkStats = { reads: number; cells: number }
 
+/** What a bitmap in flight remembers: the image it was made in and the lowest cell of each level then,
+ *  the window its bits name their cells in (`applyMarks`). */
+type MarkTag = { frame: number; bases: Int32Array }
+
 /** The mark pass's layout and pipeline, compiled off the thread. */
 async function compileMarks(device: GPUDevice) {
   const module = await createCheckedShaderModule(device, BOUNCE_MARK_SHADER, 'BOUNCE_MARK')
@@ -73,7 +76,8 @@ async function compileMarks(device: GPUDevice) {
  * The ring the bitmaps come back through (`../../gpu/core/readbackRing.ts`): a few images later each
  * lands in the pool (`applyMarks`) in the window it was made in — its tag holds the lowest cell of
  * each level then — and the probes no mark read for a while are given back. `take` hands the staging
- * buffer of image `frame`, none while all are in flight.
+ * buffer of image `frame`, none while all are in flight; the tags are one more than the ring holds
+ * buffers, so that a tag a read still holds is never filled again.
  */
 function createMarkRing(
   device: GPUDevice,
@@ -82,7 +86,12 @@ function createMarkRing(
   bytes: number,
   stats: MarkStats,
 ) {
-  const tags = createMarkTags(cascades, IN_FLIGHT)
+  const levels = cascades.levels.length
+  const tags: MarkTag[] = Array.from({ length: IN_FLIGHT + 1 }, () => ({
+    frame: 0,
+    bases: new Int32Array(levels * 3),
+  }))
+  let next = 0
   const ring = createReadbackRing<MarkTag>(
     device,
     { label: 'Trillion3D bounce marks readback', bytes, count: IN_FLIGHT },
@@ -98,7 +107,18 @@ function createMarkRing(
       pool.expire(tag.frame)
     },
   )
-  return { ring, take: (frame: number) => tags.take(ring, bytes, frame) }
+  const take = (frame: number) => {
+    const tag = tags[next]
+    const buffer = ring.take(tag, bytes)
+    if (!buffer) return undefined
+    next = (next + 1) % tags.length
+    tag.frame = frame
+    for (let level = 0; level < levels; level++)
+      for (let axis = 0; axis < 3; axis++)
+        tag.bases[level * 3 + axis] = cascades.levels[level].base[axis]
+    return buffer
+  }
+  return { ring, take }
 }
 
 /** The mark pass's group: the resources that stay (`fixed`: the levels' uniform, the atlas, the bitmap) and

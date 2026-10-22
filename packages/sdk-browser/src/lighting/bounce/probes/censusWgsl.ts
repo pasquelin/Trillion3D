@@ -12,13 +12,12 @@ import { CENSUS_BINDINGS } from './probeBindings.ts'
  * written, the probes written buried; the rays that carried no weight, by what spent them
  * (`lostBy`: the ray's own work, its triangle tests, its walk of the placement tree, a mesh's walk;
  * then the same four for its shadow ray); every ray by the work it spent (`work`: under 64
- * units, under 128, 256, 512, 1024, 2048, 4096, more); and the rays whose hit a level held, which
- * marked the cells round it (`marked`, `../markWgsl.ts`). The last words are the field as the last
+ * units, under 128, 256, 512, 1024, 2048, 4096, more). The last words are the field as the last
  * census found it, cleared then counted by `countField` over the whole pool and the whole table: the
  * probes that hold light, those that hold none, those buried, the entries of the table that name a
  * probe.
  */
-export const CENSUS_WORDS = 32
+export const CENSUS_WORDS = 26
 /** Words the loss causes and the work buckets take. */
 export const CENSUS_CAUSES = 8
 export const CENSUS_BUCKETS = 8
@@ -31,13 +30,12 @@ export const CENSUS = {
   buried: 5,
   lostBy: 6,
   work: 14,
-  marked: 22,
   /** The field's words begin here: they are cleared before each census. */
-  field: 24,
-  fieldLit: 24,
-  fieldDark: 25,
-  fieldBuried: 26,
-  fieldPublished: 27,
+  field: 22,
+  fieldLit: 22,
+  fieldDark: 23,
+  fieldBuried: 24,
+  fieldPublished: 25,
 } as const
 
 /** The counters' names in a shader, and their buffer at binding `binding` of group 0. */
@@ -55,7 +53,6 @@ export const censusWgsl = (binding: number) =>
       CENSUS_LOST_BY: CENSUS.lostBy,
       CENSUS_WORK: CENSUS.work,
       CENSUS_BUCKETS,
-      CENSUS_MARKED: CENSUS.marked,
       CENSUS_FIELD_LIT: CENSUS.fieldLit,
       CENSUS_FIELD_DARK: CENSUS.fieldDark,
       CENSUS_FIELD_BURIED: CENSUS.fieldBuried,

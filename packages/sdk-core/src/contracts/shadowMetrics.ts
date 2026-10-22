@@ -1,3 +1,5 @@
+import type { ReflectionFrameMetrics } from './reflectionMetrics.ts'
+
 /**
  * The state of the bouncing light's probes, as the frame leaves them (`ShadowFrameMetrics.bounce`):
  * whether they exist, what they hold, and what their updates did. The GPU counts (`census*`, `*Total`
@@ -39,13 +41,11 @@ export interface BounceFrameMetrics {
   darkProbes: number | null
   buriedProbes: number | null
   /** Totals since the probes were made: probes whose update fired its rays, rays fired, rays that
-   *  answered (not exhausted), rays that brought light back, rays whose hit a level held and marked
-   *  the cells round it for probes of their own; probes written, and written buried. */
+   *  answered (not exhausted), rays that brought light back; probes written, and written buried. */
   probesFiredTotal: number | null
   raysFired: number | null
   raysAnswered: number | null
   raysLit: number | null
-  raysMarked: number | null
   probesWrittenTotal: number | null
   probesBuriedTotal: number | null
   /** The rays that carried no weight, by what spent them: the ray's own work, its triangle tests, its
@@ -127,4 +127,7 @@ export interface ShadowFrameMetrics {
   gpuLightingMs?: number | null
   /** The bouncing light's probes: whether they exist, what they hold, what their updates did. */
   bounce?: BounceFrameMetrics | null
+  /** The reflections' rays of the last image counted: where each ended, how the proxy's walks ended
+   *  and what they spent. `null` while the view makes no reflections. */
+  reflections?: ReflectionFrameMetrics | null
 }

@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
-import { BOUNCE_MARK_SHADER, marksWgsl } from './markWgsl.ts'
+import { BOUNCE_MARK_SHADER } from './markWgsl.ts'
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import { createBounceCascades } from '../../../../sdk-core/src/bounce/cascades.ts'
 import { createProbePool } from '../../../../sdk-core/src/bounce/probePool.ts'
@@ -273,27 +273,4 @@ test('the mark pass names the eight probes around each surface the image shows, 
   assert.deepEqual(marked([900, 0.3, 0]).cells, [])
   assert.deepEqual(marked(P, { depth: 0 }).cells, [], 'reverse depth: zero is the background')
   assert.deepEqual(marked(P, { normal: [0, 0, 0, 0] }).cells, [])
-})
-
-test('a point a level holds marks its eight probes and says so, one no level reaches marks nothing and says so', () => {
-  const cascades = createBounceCascades([-2000, -10, -2000, 2000, 100, 2000])
-  cascades.follow([0, 1.7, 0])
-  const bits = new Uint32Array(markWords(cascades))
-  const { markPoint } = shaderRun<{ markPoint: (P: number[], N: number[]) => boolean }>(
-    wgslModule(marksWgsl(5)),
-    ['markPoint'],
-    {
-      bounce: {
-        counts: [cascades.size, cascades.levels.length, cascades.cells, cascades.probes],
-        frame: [1, 0, 5, 0],
-        levels: cascades.levels.map(({ base, spacing }) => ({ base, spacing })),
-      },
-      marks: bits,
-    },
-  )
-  const count = () => bits.reduce((sum, word) => sum + word.toString(2).replace(/0/g, '').length, 0)
-  assert.equal(markPoint([10.2, 0.3, -4.7], [0, 1, 0]), true)
-  assert.equal(count(), 8, 'the eight probes round the point, in the finest level that holds it')
-  assert.equal(markPoint([900, 0.3, 0], [0, 1, 0]), false)
-  assert.equal(count(), 8, 'a point past every level marks nothing: the sky light answers there')
 })

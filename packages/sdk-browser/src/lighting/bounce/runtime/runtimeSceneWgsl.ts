@@ -65,13 +65,8 @@ var<private> rtBudget:u32;
 var<private> rtTestBudget:u32;
 /** Why a ray was exhausted, the first thing that spent it (\`RT_CAUSE_*\`), zero while it is not. */
 var<private> rtCause:u32;
-/** The first surface a lit ray hit (\`rtProbeRay\`): where, which way it faces, and whether it met one — the
- *  probe that cast the ray marks the cells round it (\`markPoint\`). */
-var<private> rtHitAt:vec3f;
-var<private> rtHitNormal:vec3f;
-var<private> rtHitFound:bool;
-/** A ray begins: nothing spent, nothing charged, nothing lost, nothing hit, the whole budget before it. */
-fn rtBegin(){rtWork=0u;rtTests=0u;rtExtra=0u;rtLost=false;rtHitFound=false;rtBudget=RT_WORK;rtTestBudget=RT_TRIANGLES;rtCause=0u;}
+/** A ray begins: nothing spent, nothing charged, nothing lost, the whole budget before it. */
+fn rtBegin(){rtWork=0u;rtTests=0u;rtExtra=0u;rtLost=false;rtBudget=RT_WORK;rtTestBudget=RT_TRIANGLES;rtCause=0u;}
 fn rtSpent()->bool{return rtWork+rtExtra>=rtBudget||rtTests>=rtTestBudget;}
 /** What spent the ray: a cause already named, else its units or its triangle tests. */
 fn rtWhy()->u32{

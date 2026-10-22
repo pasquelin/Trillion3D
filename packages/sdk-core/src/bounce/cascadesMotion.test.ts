@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createBounceCascades } from './cascades.ts'
 import { BOUNCE_SETTINGS } from './contracts.ts'
-import { createProbePool, KEPT } from './probePool.ts'
+import { createProbePool } from './probePool.ts'
 import { applyMarks, markWords } from './probeMarks.ts'
 import { TABLE_LANES } from './probeSlots.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
@@ -147,24 +147,6 @@ test('a probe nothing reads for the kept marks is given back, one that is read i
   pool.mark(0, read[0], read[1], read[2], 1 + probeKeptMarks)
   pool.expire(1 + probeKeptMarks)
   assert.equal(pool.live, 1)
-})
-
-test('a cell a probe’s ray hit is kept at any age, one the image read after it as well; a slide still gives it back', () => {
-  const { pool, cascades, around } = poolAt([5, 5, 5])
-  const hit = around(0, 0, 0, 0),
-    read = around(0, 1, 0, 0),
-    both = around(0, 2, 0, 0)
-  pool.mark(0, hit[0], hit[1], hit[2], KEPT)
-  pool.mark(0, read[0], read[1], read[2], 1)
-  pool.mark(0, both[0], both[1], both[2], KEPT)
-  // The image reads a cell a ray hit: its age is no longer the image's, nor does a later, older mark lower it.
-  pool.mark(0, both[0], both[1], both[2], 2)
-  pool.expire(1_000_000)
-  assert.equal(pool.live, 2, 'the cell the image read alone is given back, the two hit are kept')
-  // Past its level, a cell a ray hit goes like any other.
-  assert.equal(cascades.follow([5 + cascades.levels[0].spacing * (SIDE + 8), 5, 5]), true)
-  pool.slide()
-  assert.equal(pool.live, 0)
 })
 
 test('a probe traced before is traced again by the age it has, over its level plus one', () => {

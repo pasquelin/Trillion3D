@@ -75,8 +75,7 @@ fn rtFacing(hit:RtHit,direction:vec3f,world:mat3x3f)->vec3f{
  * lobe covers at a metre, against that reach takes CONFIDENCE from the hit (`known`), never opacity —
  * an opaque mesh stops the ray whatever its deformation. A hit's radiance: on the first surface of a
  * `lit` (probe) ray, lit by the lights and the bounce (`surfaceLit`), its emission not bounced — the
- * lamp lights the room directly —, one light loop a ray, and the place it was hit left for the probe to
- * mark (`rtHitAt`, `rtHitNormal`); on every other, read: its tint under the
+ * lamp lights the room directly —, one light loop a ray; on every other, read: its tint under the
  * irradiance the cascades already hold (`surfaceSeen`), plus a reflection's emission, no light
  * evaluated and no shadow ray cast. Exhausted — its `budget` of units spent, `RT_WORK` at most — is
  * no answer at all, confidence zero (`runtimeLayout.ts`).
@@ -113,7 +112,7 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,tests:
   let opacity=select(1.0,surface.opacity,surface.blended);
   let at=start+direction*hit.distance;let N=rtFacing(hit,direction,world);
   var radiance:vec3f;
-  if(lit&&layer==0u){rtHitAt=at;rtHitNormal=N;rtHitFound=true;radiance=surfaceLit(surface.tint,at,N,reach);}
+  if(lit&&layer==0u){radiance=surfaceLit(surface.tint,at,N,reach);}
   else{radiance=surfaceSeen(surface.tint,at,N)+select(surface.emission,vec3f(0.0),lit);}
   let share=through*opacity;
   color+=share*known*radiance;
@@ -141,8 +140,7 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,tests:
  * (`rtLayers`), its first surface lit by the lights — shadows traced against the proxy (`rtBlocked`) — and
  * the bounce (`surfaceLit`), what the cascades are made of, the sky for the share of the ray that leaves
  * the scene (`skyProbeRadiance`: the cascades hold the sky the scene lets through), and the distance to
- * the first surface. The place it hit is left to the probe that cast it (`rtHitAt`, `rtHitNormal`), which marks
- * the cells round it.
+ * the first surface.
  */
 export const runtimeRadianceWgsl = (scene: SceneBindings) =>
   wgslBlock(

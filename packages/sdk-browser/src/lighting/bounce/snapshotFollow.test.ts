@@ -122,14 +122,13 @@ test('a working image copies no atlas: one bounce pass updates, then the snapsho
   assert.equal(gpu.textureCopies.length, 0, 'no copy of the atlas')
   // One pass: the table's writes (the probes the first update tells the shaders of come after them,
   // the entries of the cells named before the update reads the snapshot), the probes' update, the
-  // snapshot's follow-up, the census of the field; then the bitmap of the cells the rays hit copied for
-  // the CPU and cleared, and the census's counts copied.
+  // snapshot's follow-up, the census of the field; then the census's counts copied for the CPU.
   const at = work.indexOf(`pass ${BOUNCE_PASS}`)
   assert.deepEqual(
     work.slice(at).map((step) => step.split(' ')[0]),
-    ['pass', 'writeTable', 'updateProbes', 'followSnapshot', 'countField', 'copy', 'clear', 'copy'],
+    ['pass', 'writeTable', 'updateProbes', 'followSnapshot', 'countField', 'copy'],
   )
-  assert.deepEqual(work.slice(at + 1, -3), [
+  assert.deepEqual(work.slice(at + 1, -1), [
     `writeTable ${Math.ceil(probes.lastTexels / WORKGROUP_THREADS)}`,
     `updateProbes ${groups}`,
     `followSnapshot ${snapshotGroups(groups)}`,

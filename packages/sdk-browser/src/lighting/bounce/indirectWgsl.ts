@@ -20,9 +20,9 @@ import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
  * rest. The sky reaches the probes through their own rays, occluded by the scene
  * (`skyProbeRadiance`); the unoccluded sky added to a hit would count it a second time for a surface
  * the sky does not reach, and light every street of a canyon from above. A surface whose probes hold
- * nothing yet gives what it holds, which is nothing, and fills as they do, update after update.
- * Those probes are asked for: the cells round a hit are marked (`markPoint`), so the surfaces the
- * probes see get probes of their own.
+ * nothing yet gives what it holds, which is nothing, and fills as they do, update after update. The
+ * probes are the cells the image reads (`marks.ts`): a surface the image does not show has none of
+ * its own, and gives no second bounce.
  */
 export const INDIRECT_WGSL = wgslBlock(
   'INDIRECT_WGSL',

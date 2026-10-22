@@ -1,6 +1,7 @@
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
+import { createReflectionCensus } from './census.ts'
 import { createFrontLayer, frontLayerBytes } from './frontLayer.ts'
 import { createRadiancePyramid, radianceBytes } from './radiance/radiance.ts'
 import { createTraceGroups, type TraceInputs } from './trace/traceGroups.ts'
@@ -19,14 +20,15 @@ import { REFLECTION_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { createSurroundings } from '../toneUnmap.ts'
 import { viewProj } from '../../frame/backend/helpers.ts'
 import { REFLECTION_VIEW_BYTES } from './viewLayout.ts'
+import { REFLECTION_CENSUS_BYTES } from './census.ts'
 import { REFLECTION_TARGET } from './weight.ts'
 
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
  *  radiance pyramid — the lit image of the HDR targets' turn about, its level 0, then the levels
  *  after it in the mips of both targets (`radianceBytes`) —, its grids (`gridBytes`), the resolved
  *  pixels both surfaces share (`resolvedBytes`), its uniform and the transparents' front layer
- *  (`frontLayerBytes`, which `blends` sizes); the depth it marches is the Hi-Z's, the front layer's
- *  covering depth folded in. */
+ *  (`frontLayerBytes`, which `blends` sizes) and its census (`census.ts`); the depth it marches is the
+ *  Hi-Z's, the front layer's covering depth folded in. */
 export function reflectionBytes(width: number, height: number, blends: boolean) {
   return (
     REFLECTION_TARGET.bytes(width, height, true) +
@@ -34,8 +36,34 @@ export function reflectionBytes(width: number, height: number, blends: boolean) 
     frontLayerBytes(width, height, blends) +
     gridBytes(width, height) +
     resolvedBytes(width, height) +
-    REFLECTION_VIEW_BYTES
+    REFLECTION_VIEW_BYTES +
+    REFLECTION_CENSUS_BYTES
   )
+}
+
+/** The target the last pass writes, the view uniform, and the resolved pixels the opaque surface's
+ *  resolve then the front one's write in turn, in the same pass (`trace/trace.ts`). */
+function createReflectionTargets(device: GPUDevice, width: number, height: number) {
+  // `COPY_SRC` and `COPY_DST` serve only the proof tools, which reread the target and set it first;
+  // no frame copies it.
+  const target = device.createTexture({
+    label: 'Trillion3D reflection',
+    size: [width, height],
+    format: HDR_FORMAT,
+    usage: loadOnlyUsage() | GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST,
+  })
+  const uniform = device.createBuffer({
+    label: 'Trillion3D reflection view',
+    size: REFLECTION_VIEW_BYTES,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  })
+  const resolved = createKernelTexture(
+    device,
+    'Trillion3D reflection resolved',
+    [width, height],
+    REFLECTION_GRID_FORMAT,
+  )
+  return { target, uniform, resolved }
 }
 
 /**
@@ -52,29 +80,11 @@ export function createScreenReflection(
   height: number,
   blends: boolean,
 ) {
-  // `COPY_SRC` and `COPY_DST` serve only the proof tools, which reread the target and set it first;
-  // no frame copies it.
-  const target = device.createTexture({
-    label: 'Trillion3D reflection',
-    size: [width, height],
-    format: HDR_FORMAT,
-    usage: loadOnlyUsage() | GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST,
-  })
-  const uniform = device.createBuffer({
-    label: 'Trillion3D reflection view',
-    size: REFLECTION_VIEW_BYTES,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
+  const { target, uniform, resolved } = createReflectionTargets(device, width, height)
   const radiance = createRadiancePyramid(device, width, height)
   let grids: ReflectionGrids | undefined
-  // The resolved pixels, the opaque surface's then the front one's in the same pass (`trace/trace.ts`).
-  const resolved = createKernelTexture(
-    device,
-    'Trillion3D reflection resolved',
-    [width, height],
-    REFLECTION_GRID_FORMAT,
-  )
   const front = createFrontLayer(device, width, height, blends)
+  const census = createReflectionCensus(device)
   return {
     device,
     target,
@@ -102,6 +112,8 @@ export function createScreenReflection(
     /** The trace's bind groups, every kernel's, kept while their inputs stay
      *  (`encodeReflectionTrace`). */
     trace: createTraceGroups(),
+    /** The counters the trace's rays add to, read back a few images late (`census.ts`). */
+    census,
     /** What the image tells its view, what the trace and the radiance build read, and the radiance
      *  a ray leaving the scene reaches (`createSurroundings`): written in place each image. */
     frame: { viewProjection: viewProj, size: [0, 0], depthDrawn: false } as ReflectionFrame,
@@ -117,6 +129,7 @@ export function createScreenReflection(
       resolved.destroy()
       uniform.destroy()
       front.dispose()
+      census.dispose()
     },
   }
 }

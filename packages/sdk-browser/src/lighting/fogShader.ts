@@ -43,7 +43,14 @@ const SUN_ON_GROUND = `${air(ATMOSPHERE_SLOT.sunIlluminance)}.rgb*${air(ATMOSPHE
  *  contribution, adds to the fog's colour, the sun's light on the ground to the lobe's, and the
  *  haze of the air (`aerialPerspective`, `../atmosphere/hazeReadWgsl.ts`) lies over the fog's: the
  *  fog's inscattering and transmittance first, then the haze's light through the fog's
- *  transmittance, the two transmittances multiplied. Without one, nothing of it is read. */
+ *  transmittance, the two transmittances multiplied. Without one, nothing of it is read.
+ *
+ *  `fogBeyond`: the same fog over a ray that leaves the scene along the unit `dir` and meets
+ *  nothing, the sky's pixel — a ray `FOG_ENDLESS` metres long, with no haze, for the sky is the
+ *  air. A ray that rises keeps what the density above the eye lets through, nothing near the
+ *  horizon; a level or falling one, through a density that grows without end, keeps nothing, so
+ *  that from the horizon down the pixel is the fog's colour alone. A distance fog leaves the sky
+ *  as it is. */
 export const FOG_WGSL = wgslBlock(
   'FOG_WGSL',
   [HAZE_READ_WGSL],
@@ -51,6 +58,7 @@ export const FOG_WGSL = wgslBlock(
 const FOG_LN2:f32=${Math.LN2};
 const FOG_UNIFORM_PHASE:f32=${1 / (2 * TAU)};
 const FOG_OBSERVER_REACH:f32=655.36;
+const FOG_ENDLESS:f32=1e11;
 fn linearFog(P:vec3f,eye:vec3f,withSky:bool)->vec4f{
  let law=${fog(FOG_SLOT.law)};
  let kept=clamp((law.y-length(P-eye))/max(law.y-law.x,1e-6),0.0,1.0);
@@ -58,12 +66,10 @@ fn linearFog(P:vec3f,eye:vec3f,withSky:bool)->vec4f{
  if(withSky){colour+=${SKY_AMBIENT};}
  return vec4f(colour*(1.0-kept),kept);
 }
-fn heightFog(P:vec3f,eye:vec3f,withSky:bool)->vec4f{
+fn heightFogAlong(ray:vec3f,observer:f32,withSky:bool)->vec4f{
  let law=${fog(FOG_SLOT.law)};
  let range=${fog(FOG_SLOT.range)};
  let sun=${fog(FOG_SLOT.sun)};
- let observer=min(eye.y,law.z+FOG_OBSERVER_REACH);
- let ray=vec3f(P.x-eye.x,P.y-observer,P.z-eye.z);
  let invLength=inverseSqrt(max(dot(ray,ray),1e-8));
  let d=dot(ray,ray)*invLength;
  if(range.y>0.0&&d>range.y){return vec4f(0.0,0.0,0.0,1.0);}
@@ -73,7 +79,8 @@ fn heightFog(P:vec3f,eye:vec3f,withSky:bool)->vec4f{
  let low=observer+along*ray.y+min(rise,0.0);
  let f=abs(law.y*rise);
  let gathered=law.x*min(exp2(clamp(-law.y*(low-law.z),-126.0,126.0)),1e30)*select(FOG_LN2-0.5*FOG_LN2*FOG_LN2*f,(1.0-exp2(-f))/f,f>0.01);
- let kept=max(saturate(exp2(-min(gathered*rayLength,126.0))),1.0-law.w);
+ let thick=min(gathered,1e20);
+ let kept=max(saturate(exp2(-min(thick*rayLength,126.0))),1.0-law.w);
  var colour=${fog(FOG_SLOT.color)}.rgb;
  var lobeColour=${fog(FOG_SLOT.lobe)}.rgb*sun.w;
  if(withSky){
@@ -83,10 +90,20 @@ fn heightFog(P:vec3f,eye:vec3f,withSky:bool)->vec4f{
  var lobe=vec3f(0.0);
  if(dot(lobeColour,vec3f(1.0))>0.0){
   let toward=pow(saturate(dot(ray*invLength,sun.xyz)),range.z);
-  let through=saturate(exp2(-min(gathered*max(rayLength-range.w,0.0),126.0)));
+  let through=saturate(exp2(-min(thick*max(rayLength-range.w,0.0),126.0)));
   lobe=lobeColour*(toward*FOG_UNIFORM_PHASE*(1.0-through));
  }
  return vec4f(colour*(1.0-kept)+lobe,kept);
+}
+fn fogObserver(eyeHeight:f32)->f32{return min(eyeHeight,${fog(FOG_SLOT.law)}.z+FOG_OBSERVER_REACH);}
+fn heightFog(P:vec3f,eye:vec3f,withSky:bool)->vec4f{
+ let observer=fogObserver(eye.y);
+ return heightFogAlong(vec3f(P.x-eye.x,P.y-observer,P.z-eye.z),observer,withSky);
+}
+fn fogBeyond(dir:vec3f,eye:vec3f)->vec4f{
+ if(${fog(FOG_SLOT.color)}.w<${FOG_MODE.exponential - 0.5}){return vec4f(0.0,0.0,0.0,1.0);}
+ let observer=fogObserver(eye.y);
+ return heightFogAlong(vec3f(dir.x*FOG_ENDLESS,dir.y*FOG_ENDLESS+(eye.y-observer),dir.z*FOG_ENDLESS),observer,true);
 }
 fn fogOver(P:vec3f,eye:vec3f)->vec4f{
  let withSky=${air(ATMOSPHERE_SLOT.planet)}.x!=0.0;

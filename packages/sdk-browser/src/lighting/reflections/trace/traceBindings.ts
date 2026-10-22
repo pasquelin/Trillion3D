@@ -41,8 +41,9 @@ export const REFLECTION_LAYER_WGSL = wgslBlock(
  * `clearOut` as it fills them, `tiles` as a kernel runs over one), and the rays the screen stage left
  * (`pendingOut`, `pendingIn`) with their partial answers (`partialOut`, `partialIn`), which the scene
  * stage runs over; the depth and pdf of each ray, which the screen stage writes beside it (`rayDataOut`) and
- * the resolve reads (`rayDataIn`). The opaque last pass writes the reflection target the resolve reads, the front one
- * the radiance the forward fragments read.
+ * the resolve reads (`rayDataIn`); the counters both ray stages add to (`census`, `../censusWgsl.ts`).
+ * The opaque last pass writes the reflection target the resolve reads, the front one the radiance the
+ * forward fragments read.
  */
 export const REFLECTION_TRACE_BINDINGS = {
   flags: 0,
@@ -78,6 +79,7 @@ export const REFLECTION_TRACE_BINDINGS = {
   clearOut: 35,
   rayDataOut: 36,
   rayDataIn: 37,
+  census: 38,
 } as const
 
 const B = REFLECTION_TRACE_BINDINGS
@@ -130,6 +132,21 @@ const scene = () => [
   ...sceneLayoutEntries(REFLECTION_PROXY_BINDINGS),
 ]
 
+/** The classification's layout: the pixels, the bounce grid, the ray words it picks them into and the
+ *  four lists it fills. */
+const classifyLayout = (device: GPUDevice) =>
+  device.createBindGroupLayout({
+    entries: [
+      ...pixels(),
+      computeBufferEntry(B.bounceGrid, 'uniform'),
+      rays(),
+      computeBufferEntry(B.tracingOut, 'storage'),
+      computeBufferEntry(B.clearTracingOut, 'storage'),
+      computeBufferEntry(B.resolveOut, 'storage'),
+      computeBufferEntry(B.clearOut, 'storage'),
+    ],
+  })
+
 /** The layouts of each kernel's group 0: the classification, the trace's two stages and the clear of
  *  its unused tiles, the resolve, the temporal accumulation, and each surface's last pass and clear,
  *  each writing its surface's answer. */
@@ -153,17 +170,7 @@ export const traceLayouts = (device: GPUDevice) => {
   const history = computeStorageTextureEntry(B.historyOut, REFLECTION_HISTORY_FORMAT)
   const clear = [storage(B.resolvedOut), history]
   return {
-    classify: device.createBindGroupLayout({
-      entries: [
-        ...pixels(),
-        computeBufferEntry(B.bounceGrid, 'uniform'),
-        rays(),
-        computeBufferEntry(B.tracingOut, 'storage'),
-        computeBufferEntry(B.clearTracingOut, 'storage'),
-        computeBufferEntry(B.resolveOut, 'storage'),
-        computeBufferEntry(B.clearOut, 'storage'),
-      ],
-    }),
+    classify: classifyLayout(device),
     screen: layout(
       [
         ...field(),
@@ -171,6 +178,7 @@ export const traceLayouts = (device: GPUDevice) => {
         storage(B.partialOut),
         storage(B.rayDataOut),
         computeBufferEntry(B.pendingOut, 'storage'),
+        computeBufferEntry(B.census, 'storage'),
       ],
       rays(),
     ),
@@ -178,6 +186,7 @@ export const traceLayouts = (device: GPUDevice) => {
     scene: layout(
       [
         ...scene(),
+        computeBufferEntry(B.census, 'storage'),
         storage(B.traceOut),
         sampled(B.partialIn),
         computeBufferEntry(B.pendingIn, 'read-only-storage'),

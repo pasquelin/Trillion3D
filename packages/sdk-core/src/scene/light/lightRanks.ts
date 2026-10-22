@@ -3,8 +3,8 @@
  * that leaves a hole when an entry goes. A light added takes the rank freed last, else the next
  * one; a light changed keeps its own. The light store's table packs its lights without holes
  * (the last one fills the removed one's slot), so its order is not the order of adding; the rank
- * is: what picks the atmosphere's sun and the fog's among lights of the same luminance
- * (`atmosphereSun.ts`, `fogSun.ts`).
+ * is: what settles, among lights of the same luminance, who takes the sun's place when the sun is
+ * removed (`atmosphereSun.ts`).
  */
 export function createLightRanks() {
   const ranks = new Map<string, number>()

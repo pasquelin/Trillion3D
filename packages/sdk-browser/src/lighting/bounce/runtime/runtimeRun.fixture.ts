@@ -48,12 +48,9 @@ const FUNCTIONS = [
 /** The proxy's bindings the run declares. */
 export const BINDINGS = { group: 0, proxy: 12, worlds: 13, tree: 14 }
 
-/** Helpers the tests call: a ray's work and triangle tests (`rtBegin` clears both), and the first
- *  surface it hit: where, which way it faces, whether it met one. */
+/** Helpers the tests call: a ray's work and triangle tests (`rtBegin` clears both). */
 const HELPERS = `fn testWork()->u32{return rtWork+rtExtra;}
 fn testTests()->u32{return rtTests;}
-fn testHit()->vec4f{return vec4f(select(vec3f(0.0),rtHitAt,rtHitFound),select(0.0,1.0,rtHitFound));}
-fn testHitNormal()->vec3f{return rtHitNormal;}
 `
 
 /** The light buffer's sky of a scene that shows none: every slot zero, no air. */
@@ -81,10 +78,8 @@ export function runOver(w: ReturnType<typeof world>, directLights: object = NO_S
     rtBlocked: (o: Vec3, d: Vec3, span: number) => boolean
     testWork: () => number
     testTests: () => number
-    testHit: () => number[]
-    testHitNormal: () => number[]
     rtBegin: () => void
-  }>(text, [...FUNCTIONS, 'testWork', 'testTests', 'testHit', 'testHitNormal'], {
+  }>(text, [...FUNCTIONS, 'testWork', 'testTests'], {
     directLights,
     rtProxy: header,
     rtWorlds: w.worlds,
@@ -95,9 +90,6 @@ export function runOver(w: ReturnType<typeof world>, directLights: object = NO_S
     rtBudget: RAY_WORK,
     rtTestBudget: RAY_TRIANGLES,
     rtCause: 0,
-    rtHitAt: [0, 0, 0],
-    rtHitNormal: [0, 0, 0],
-    rtHitFound: false,
     rtAnyHit: false,
     rtLost: false,
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.

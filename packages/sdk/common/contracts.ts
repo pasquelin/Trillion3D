@@ -75,6 +75,10 @@ export type { GpuMemoryFrameMetrics } from '../../sdk-core/src/contracts/gpuMemo
 export { LOD_QUALITY, lodQuality } from '../../sdk-core/src/lod/policy.ts'
 export type { LodQualityId } from '../../sdk-core/src/lod/policy.ts'
 export type {
+  ReflectionFrameMetrics,
+  ReflectionProxyEnded,
+} from '../../sdk-core/src/contracts/reflectionMetrics.ts'
+export type {
   ResolvedAtmosphere,
   SceneAtmosphere,
   SceneOzoneLayer,

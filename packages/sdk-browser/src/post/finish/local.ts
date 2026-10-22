@@ -111,6 +111,11 @@ type LocalPrograms = ReturnType<typeof localPrograms>
 function createGridPass(device: GPUDevice, uniform: GPUBuffer, programs: LocalPrograms) {
   const layer = createLayer(device, gridTexture, '3d')
   const computing = { label: `${LOCAL_EXPOSURE_PASS} grid` }
+  const group = (first: GPUTextureView, grid: GPUTextureView) =>
+    device.createBindGroup({
+      layout: programs.gridLayout,
+      entries: sequentialEntries([first, { buffer: uniform, size: FINISH_BYTES }, grid]),
+    })
   return {
     get view() {
       return layer.view
@@ -123,14 +128,9 @@ function createGridPass(device: GPUDevice, uniform: GPUBuffer, programs: LocalPr
       const tilesX = ceilDiv(size[0], GRID_TILE),
         tilesY = ceilDiv(size[1], GRID_TILE)
       layer.fit(tilesX, tilesY)
-      if (layer.moved(first))
-        layer.group = device.createBindGroup({
-          layout: programs.gridLayout,
-          entries: sequentialEntries([first, { buffer: uniform, size: FINISH_BYTES }, layer.view!]),
-        })
       const pass = encoder.beginComputePass(computing)
       pass.setPipeline(programs.grid.get())
-      pass.setBindGroup(0, layer.group!)
+      pass.setBindGroup(0, layer.groupOver(first, group))
       pass.dispatchWorkgroups(tilesX, tilesY)
       pass.end()
     },
@@ -145,6 +145,8 @@ function createBlurredLight(device: GPUDevice, programs: LocalPrograms, bare: GP
   const targets = createGaussianTargets(device, 'r16float', LOCAL_EXPOSURE_PASS)
   const blur = createGaussianStage(device, { edge: 'mirror', targets })
   const draw = fullscreenDraw(LOCAL_EXPOSURE_PASS)
+  const group = (source: GPUTextureView) =>
+    device.createBindGroup({ layout: programs.lightLayout, entries: sequentialEntries([source]) })
   return {
     /** The blur, at the level's size. */
     get view() {
@@ -163,12 +165,7 @@ function createBlurredLight(device: GPUDevice, programs: LocalPrograms, bare: GP
       percent: number,
     ) {
       layer.fit(size[0], size[1])
-      if (layer.moved(source))
-        layer.group = device.createBindGroup({
-          layout: programs.lightLayout,
-          entries: sequentialEntries([source]),
-        })
-      draw(encoder, layer.view!, programs.light.get(), layer.group!, bare)
+      draw(encoder, layer.view!, programs.light.get(), layer.groupOver(source, group), bare)
       blur.resize(size[0], size[1], percent)
       blur.encode(encoder, layer.view!)
     },
