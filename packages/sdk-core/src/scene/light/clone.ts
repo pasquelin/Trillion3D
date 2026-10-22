@@ -12,6 +12,7 @@ export function cloneSceneLight(light: SceneLight): SceneLight {
   if (light.position) copy.position = [...light.position]
   if (light.direction) copy.direction = [...light.direction]
   if (light.right) copy.right = [...light.right]
+  if (light.emitterAxis) copy.emitterAxis = [...light.emitterAxis]
   if (light.size) copy.size = [...light.size]
   return copy
 }

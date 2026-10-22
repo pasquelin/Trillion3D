@@ -57,11 +57,16 @@ export { resolveVoxelize } from '../../sdk-core/src/contracts/voxelizeOptions.ts
 export type { VoxelizeOption } from '../../sdk-core/src/contracts/voxelizeOptions.ts'
 export {
   resolvePartitionGrid,
+  resolvePartitionGrids,
   resolvePartitionScheme,
 } from '../../sdk-core/src/contracts/partitionOptions.ts'
 export type {
+  PartitionGridEntry,
   PartitionGridOption,
   PartitionGridSettings,
+  PartitionGridSettingsWire,
+  PartitionGridsOption,
+  PartitionGridsWire,
   PartitionGridWire,
   PartitionHlodGrid,
   PartitionSchemeOption,
@@ -106,6 +111,7 @@ export type {
 export type { HlodBuilder, HlodLayer } from '../../sdk-core/src/contracts/compilerAbi.ts'
 // The wire forms a job's options are written in, named where the resolvers' signatures carry them.
 export type {
+  DrawDistanceWire,
   HlodApproximation,
   HlodExpertOf,
   HlodMatchOf,
@@ -118,6 +124,7 @@ export type {
   MeshBuildSettingsWire,
   MeshBuildWire,
   MeshInputSettingsWire,
+  MeshVoxelSettingsWire,
   ObjectSettingsJobWire,
   ObjectSettingsWire,
   SkinnedInstanceWire,

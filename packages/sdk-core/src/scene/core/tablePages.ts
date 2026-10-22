@@ -11,6 +11,8 @@ import { EngineError } from '../../contracts/cache.ts'
 export interface PageKind {
   prefix: string
   version: number
+  /** Another version it reads (`partition/pages.rs`, `GRIDS_CELL_PAGES`). */
+  alsoVersion?: number
   records: string
   unsupported: string
   invalid: string
@@ -40,7 +42,7 @@ type PageBody = { version?: number; pages?: readonly string[]; [records: string]
 /** `body` at `kind`'s version, or a named refusal; `what` names it. */
 export function versioned(kind: PageKind, body: unknown, what: string): PageBody {
   const page = body as PageBody | null
-  if (page?.version !== kind.version)
+  if (page?.version !== kind.version && page?.version !== kind.alsoVersion)
     throw new EngineError(
       kind.unsupported,
       `${what} version ${String(page?.version)} is not the ${kind.version} this runtime reads`,

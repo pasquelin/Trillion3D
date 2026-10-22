@@ -26,7 +26,8 @@ import {
 import { DAG_NODE_FLOATS, FRAME_ROW_WORDS, type PackedDag } from '../types.ts'
 import { recordTable } from '../../../gpu/core/recordTexture.fixture.ts'
 import { TREE_TABLE } from './treeTable.ts'
-import { FRAME_TABLE, MARK_WORD, ROOT_WORD } from '../frameTable.ts'
+import { DRAW_FAR_WORD, DRAW_NEAR_WORD, FRAME_TABLE, MARK_WORD, ROOT_WORD } from '../frameTable.ts'
+import { f32Bits } from '../../../../../math/src/float/bits.ts'
 
 /** `tree`'s record table as the host writes it: its nodes, then its order. */
 function treeTableOf(tree: PlacementTree) {
@@ -39,12 +40,15 @@ function treeTableOf(tree: PlacementTree) {
   return { table, words }
 }
 
-/** Each placement's frame words the refit reads: its root, its mark. */
+/** Each placement's frame words the refit reads: its root, its mark, the distances it is drawn at. */
 const frameWords = (dag: PackedDag) =>
   Array.from({ length: dag.worldSources.length * FRAME_ROW_WORDS }, (_, k) => {
     const w = Math.floor(k / FRAME_ROW_WORDS),
       at = k % FRAME_ROW_WORDS
-    return at === ROOT_WORD ? dag.rootNodes[w] : at === MARK_WORD ? dag.mark[w] : 0
+    if (at === ROOT_WORD) return dag.rootNodes[w]
+    if (at === MARK_WORD) return dag.mark[w]
+    if (at === DRAW_NEAR_WORD) return f32Bits(dag.drawDistance?.[2 * w] ?? 0)
+    return at === DRAW_FAR_WORD ? f32Bits(dag.drawDistance?.[2 * w + 1] ?? 0) : 0
   })
 
 /** Every placement's leaf as the GPU writes it (`../../../placement/tree/treeLeavesWgsl.ts`, proven word

@@ -7,7 +7,7 @@
 //! defaulted (`HlodMerging::default`). The layer's JSON is the cache's identity (`Hlod::named`): a
 //! setting named changes the key, one left out keeps it.
 use super::approximation::{atlas_sizing, HlodAtlasSizing, MERGE_SIZING};
-use super::fields::{chosen, counted, maps_with, named, set, switch};
+use super::fields::{chosen_of, counted, maps_with, named, set, switch};
 use super::*;
 use crate::compiler::validate::{Fields, OPTIONS};
 use crate::hlod::flatten::bake::Maps;
@@ -32,18 +32,21 @@ pub enum HlodTextureSizing {
 /// The words `textureSizing` takes, in `HlodTextureSizing`'s order.
 pub const HLOD_TEXTURE_SIZINGS: [&str; 4] = ["fixed", "texelDensity", "screenSize", "drawDistance"];
 
-/// The methods the generator offers that no merged layer takes (`HLOD_MERGE_UV_METHODS` names
-/// those it does: `default`, the patches unwrap, what the generator names its default; `xAtlas`,
-/// the charts unwrap, `approximation.uvMethod: 'charts'`; `patchBuilder`, the patches unwrap), and
-/// why: the compiler holds neither the old chart packer nor a spectral chart method that charts a
-/// mesh of any soup, only a simplified layer's, which needs a manifold one.
-const UNAVAILABLE_UV_METHODS: [(&str, &str); 2] = [
-    ("legacy", "the old chart packer is not provided"),
-    (
-        "uvAtlas",
-        "the spectral charts chart a simplified layer's manifold mesh only",
-    ),
+/// The method each word of `HLOD_MERGE_UV_METHODS` names, in its order: `default`, the patches
+/// unwrap, what the generator names its default; `xAtlas`, the charts unwrap
+/// (`approximation.uvMethod: 'charts'`); `patchBuilder`, the patches unwrap; `legacy`, the old
+/// chart layout of the mesh's own first texture set, the patches unwrap where it finds no layout;
+/// `uvAtlas`, the spectral charts.
+const MERGE_UV_METHODS: [HlodUvMethod; 5] = [
+    HlodUvMethod::Patches,
+    HlodUvMethod::Charts,
+    HlodUvMethod::Patches,
+    HlodUvMethod::Legacy,
+    HlodUvMethod::UvAtlas,
 ];
+
+// A word the contract adds without a method here would index past `MERGE_UV_METHODS` (`chosen_of`).
+const _: () = assert!(HLOD_MERGE_UV_METHODS.len() == MERGE_UV_METHODS.len());
 
 /// A merged layer's settings, each the layer's own or its default:
 /// - `lod_screen_size`: the share of the view a source's bounding sphere spans when the LOD
@@ -62,7 +65,8 @@ const UNAVAILABLE_UV_METHODS: [(&str, &str); 2] = [
 /// - `reuse_lightmap_uvs`: whether such an entry bakes on its mesh's texture set at its lightmap
 ///   index where it has one, its unique coordinates, else on generated ones (`reuseLightmapUVs`,
 ///   true);
-/// - `uv_method`: how those are generated (`uvMethod`, `default`, the patches unwrap);
+/// - `uv_method`: how those are generated (`uvMethod`, `default`, the patches unwrap, `legacy`, the
+///   old chart layout, and `uvAtlas`, the spectral charts, among its words);
 /// - `double_sided`: whether the flattened material may draw both faces (`allowDoubleSided`,
 ///   true);
 /// - `maps`: the images baked beside the base colour (`maps`, the normal map alone).
@@ -113,25 +117,11 @@ const MAP_FIELDS: [&str; 10] = [
     "tangent",
 ];
 
-/// The generation method of merged layer `map` (`what` naming it): a word of
-/// `HLOD_MERGE_UV_METHODS`, `default` when absent; a word the generator offers that no merged layer
-/// takes is refused saying why (`UNAVAILABLE_UV_METHODS`).
+/// The generation method of merged layer `map` (`what` naming it): the one a word of
+/// `HLOD_MERGE_UV_METHODS` names (`MERGE_UV_METHODS`), `default` when absent.
 fn uv_method(map: &Map<String, Value>, what: &str) -> Result<HlodUvMethod> {
-    let key = "uvMethod";
-    let word = OPTIONS.optional(map.get(key), &format!("{what}.{key}"), Fields::text)?;
-    if let Some((word, why)) = UNAVAILABLE_UV_METHODS
-        .iter()
-        .find(|(w, _)| Some(*w) == word)
-    {
-        let allowed = HLOD_MERGE_UV_METHODS.join(", ");
-        return Err(OPTIONS.bad(format!(
-            "{what}.{key}: {word} is not available, {why}; use {allowed}"
-        )));
-    }
-    Ok(match chosen(map, key, what, &HLOD_MERGE_UV_METHODS)? {
-        Some(1) => HlodUvMethod::Charts,
-        _ => HlodUvMethod::Patches,
-    })
+    let words = (&HLOD_MERGE_UV_METHODS[..], &MERGE_UV_METHODS[..]);
+    Ok(chosen_of(map, "uvMethod", what, words)?.unwrap_or(HlodUvMethod::Patches))
 }
 
 /// The merged layer settings of `map` (`what` naming the layer): the screen size and the collapse

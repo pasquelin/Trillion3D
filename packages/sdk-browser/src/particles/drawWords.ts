@@ -6,8 +6,9 @@ import { ADD_ONE, OVER } from '../blend/equations.ts'
 
 /** The words the particle draw gives a pool: clip matrix from its origin and inverse, made
  *  in double precision, eye from the origin, radius, colour at birth, softness; words 41–43 the
- *  image's exposure, display curve and unlit flag, 44–45 the size it draws, written by the draw. */
-export const DRAW_FLOATS = 48
+ *  image's exposure, display curve and unlit flag, 44–45 the size it draws, written by the draw;
+ *  words 48–51 the view's clip plane from the pool's origin (`writeDrawWords`). */
+export const DRAW_FLOATS = 52
 
 /** Each blend's factors, one table for both draws: smoke covers colour and coverage alike, fire
  *  adds light and lays its coverage over the target's, so a fire over the background leaves its
@@ -18,10 +19,19 @@ export const BLENDS: Record<ParticlePool['blend'], GPUBlendState> = {
 }
 
 type Vec = ArrayLike<number>
+const NO_PLANE: Vec = [0, 0, 0, 0]
 const [clip, unclip] = [new Float64Array(16), new Float64Array(16)]
 
-/** Writes `pool`'s draw words into `out` from the image's world `viewProj` and `eye`. */
-export function writeDrawWords(out: Float32Array, pool: ParticlePool, viewProj: Vec, eye: Vec) {
+/** Writes `pool`'s draw words into `out` from the image's world `viewProj` and `eye`, and the view's
+ *  clip plane `plane` — `dot(xyz, p) + w` at least 0 drawn in the world, none for all zeros — moved
+ *  to the pool's origin: its particles' positions are read from there. */
+export function writeDrawWords(
+  out: Float32Array,
+  pool: ParticlePool,
+  viewProj: Vec,
+  eye: Vec,
+  plane: Vec = NO_PLANE,
+) {
   const o = pool.origin
   inverseAtRenderOrigin(unclip, clip, viewProj, o)
   out.set(clip, 0)
@@ -30,6 +40,8 @@ export function writeDrawWords(out: Float32Array, pool: ParticlePool, viewProj: 
   out[35] = pool.size
   out.set(pool.color, 36)
   out[40] = pool.softness
+  for (let i = 0; i < 3; i++) out[48 + i] = plane[i]
+  out[51] = plane[3] + plane[0] * o[0] + plane[1] * o[1] + plane[2] * o[2]
 }
 
 const keys: number[] = []

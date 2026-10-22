@@ -17,6 +17,7 @@ import {
 } from '../../placement/rows/rows.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { countBy } from '../../../../math/src/sequence/counts.ts'
+import { nodeCasting } from '../../visibility/shader/castingMark.ts'
 import type { PlacementGrowth } from '../../placement/engineSceneUpdates.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { createChangedRuns, type ChangedRuns } from '../residency/ranges.ts'
@@ -42,8 +43,8 @@ export type PlacedMesh = {
   readonly links: readonly RowLink[]
   readonly nodes: readonly Object3D[]
   readonly free: number[]
-  /** The `castShadow` of each host mesh its rows were last written with. */
-  readonly casts: boolean[]
+  /** How each host mesh casts (`nodeCasting`) as its rows were last written. */
+  readonly casting: number[]
   /** Per link, each row's animation source — the streamed core node's host mesh of that
    *  primitive a row is drawn from, `null` or unset for any other row —: the very column its rows'
    *  `sources` is (`PlacementRows.sources`), kept by a growth. Absent for a mesh no streamed node
@@ -59,8 +60,8 @@ export function placedMesh(
   sources?: readonly (Mesh<object> | null)[][],
 ): PlacedMesh {
   for (const link of links) link.placements = createPlacementRows(1)
-  const casts = nodes.map((node) => node.castShadow)
-  return { links, nodes, free: [0], casts, ...(sources && { sources }) }
+  const casting = nodes.map(nodeCasting)
+  return { links, nodes, free: [0], casting, ...(sources && { sources }) }
 }
 
 /** How many rows every buffer of `mesh` holds. */

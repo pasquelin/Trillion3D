@@ -20,18 +20,18 @@ import { airProgram } from './programs.ts'
  */
 
 /** The statements that set a march of the sky's rays seen from `altitudeKm` above the ground: the
- *  sun's illuminance through the air (`illuminance`), the ray's `start` and its `march`, the sky
- *  table's own — so a capture, a table by direction and the sky drawn agree —, and the expression
- *  of one ray's radiance along `dir`, the sun's disk not in it (it is a light of its own). */
+ *  air's lights (`suns`), the ray's `start` and its `march`, the sky table's own — so a capture, a
+ *  table by direction and the sky drawn agree —, and the expression of one ray's radiance along
+ *  `dir`, the disks of the lights not in it (they are lights of their own). */
 export const groundSkyMarch = (altitudeKm: number) => `
- let illuminance=atmo(${ATMOSPHERE_SLOT.sunIlluminance}u).xyz*atmo(${ATMOSPHERE_SLOT.scatteredFactor}u).xyz;
+ let suns=airSuns();
  let start=vec3f(0.0,bottomRadius()+${altitudeKm},0.0);
  var march:Marching;
  march.variable=true;
  march.minSamples=${SKY_VIEW_LUT.minSamples}.0;
  march.maxSamples=max(min(32.0*atmo(${ATMOSPHERE_SLOT.sunIlluminance}u).w,${SKY_VIEW_LUT.maxSamples}.0),march.minSamples);
  march.distanceInv=1.0/${SKY_VIEW_LUT.distanceKm}.0;`
-export const GROUND_SKY_RADIANCE = `integrateAir(start,dir,false,march,true,sunDirection(),illuminance,1.0,9000000.0).radiance*atmo(${ATMOSPHERE_SLOT.skyFactor}u).xyz`
+export const GROUND_SKY_RADIANCE = `integrateAir(start,dir,false,march,true,suns,1.0,9000000.0).radiance*atmo(${ATMOSPHERE_SLOT.skyFactor}u).xyz`
 
 /** The `n`th of `count` directions spread evenly over the sphere, up the scene's y. */
 const SPHERE_DIRECTION = (n: string, count: number) => `
@@ -56,9 +56,9 @@ fn distantSkyMain(@builtin(local_invocation_index) li:u32){
  let n=f32(li);${SPHERE_DIRECTION('n', DISTANT_SKY.directions)}
  var march:Marching;
  march.samples=${DISTANT_SKY.samples}.0;
- let illuminance=atmo(${ATMOSPHERE_SLOT.sunIlluminance}u).xyz*atmo(${ATMOSPHERE_SLOT.scatteredFactor}u).xyz;
+ let suns=airSuns();
  let start=vec3f(0.0,bottomRadius()+${DISTANT_SKY.altitudeKm}.0,0.0);
- let r=integrateAir(start,dir,false,march,false,sunDirection(),illuminance,1.0,9000000.0);
+ let r=integrateAir(start,dir,false,march,false,suns,1.0,9000000.0);
  part[li]=r.radiance*atmo(${ATMOSPHERE_SLOT.skyFactor}u).xyz;
  workgroupBarrier();${SUM_WORKGROUP(DISTANT_SKY.directions)}
  if(li==0u){

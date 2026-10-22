@@ -111,7 +111,8 @@ function encodeRootsPass(
   // write does, and the dispatch that follows in this command buffer cuts again under them.
   if (state.moving && state.frameCount)
     selection.worldsMovedOnGpu(state.frameRanks.subarray(0, state.frameCount))
-  const motionBuffer = rt.gpu.temporal?.frame.active ? rt.gpu.temporal.motion.buffer : undefined
+  const velocity = rt.gpu.velocity
+  const motionBuffer = velocity?.active ? velocity.motion.buffer : undefined
   // A motion buffer bound anew holds rows the motion pass never wrote, and no reference it took:
   // every composed root is owed both.
   const { reference, motion } = state.owed

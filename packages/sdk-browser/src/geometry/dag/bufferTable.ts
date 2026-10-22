@@ -34,7 +34,7 @@ export function cameraCutBuffers(
   caps: CutListCaps = cutListCaps(),
 ) {
   const blockCount = ceilDiv(packed.pageCount, WORKGROUP_THREADS),
-    workLayout = dagWorkLayout(blockCount)
+    workLayout = dagWorkLayout(blockCount, packed.worldCount ?? 0)
   return {
     blockCount,
     workLayout,

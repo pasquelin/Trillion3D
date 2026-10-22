@@ -221,3 +221,68 @@ test('the root gives its slots, box, rows and parents; a page is read alone, che
     hasCode('INVALID_SCENE_TABLES'),
   )
 })
+
+test('a root counts its main grids and says which grid lies flat unlike the first, a cell names its main grid', () => {
+  const root = {
+    ...{ version: 13, pages: Array(8).fill(EMPTY), parents: Array(8).fill('') },
+    ...{ meshes: [], cube: CUBE, scheme: 'hashSet' as const, flat: true },
+  }
+  const grids = (hlod: object, flat = true) =>
+    tablePartition({ ...root, flat, hlod: { ...HLOD, ...hlod } }).hlod.grids
+  // A root counting none has the one main grid, the first, and every grid lies flat as it does.
+  assert.deepEqual(
+    grids({}).map(({ main }) => main),
+    [true, false, false],
+  )
+  assert.deepEqual(
+    grids({ mains: 2 }).map(({ main }) => main),
+    [true, true, false],
+  )
+  // The flags of the second grid say it lies flat unlike the root's `flat` (4); the root's says
+  // the first's.
+  const unlike = HLOD.grids.map(
+    (grid, at) => grid.slice(0, 48) + (at === 1 ? '00000004' : '00000000'),
+  )
+  const flats = (flat: boolean) => grids({ grids: unlike, mains: 2 }, flat).map((grid) => grid.flat)
+  assert.deepEqual(
+    [flats(true), flats(false)],
+    [
+      [true, false, true],
+      [false, true, false],
+    ],
+  )
+  // A count that is no whole number of the grids listed is no root this runtime reads.
+  for (const shape of [{ mains: 0 }, { mains: 4 }, { mains: 1.5 }])
+    assert.throws(
+      () => assertSceneTables({ ...tables(), partition: { ...root, hlod: { ...HLOD, ...shape } } }),
+      hasCode('INVALID_SCENE_TABLES'),
+      JSON.stringify(shape),
+    )
+  // Several main grids are pages of version 14, which this runtime reads beside 13 and no other.
+  const grid1 = { ...root, hlod: { ...HLOD, mains: 2 } }
+  assert.equal(
+    assertSceneTables({ ...tables(), partition: { ...grid1, version: 14 } }).partition?.version,
+    14,
+  )
+  assert.throws(
+    () => assertSceneTables({ ...tables(), partition: { ...grid1, version: 15 } }),
+    hasCode('UNSUPPORTED_SCENE_TABLES', 'version 15'),
+  )
+  const [m, n] = [slot('e', [0, 0, 0, 0, 0, 0]), slot('f', [0, 0, 0, 0, 0, 0])]
+  const read = (main: unknown) =>
+    readCellPage(
+      new TextEncoder().encode(
+        JSON.stringify({
+          version: 13,
+          first: 0,
+          cells: [{ ...cells(0)[0], main }],
+          meshPages: [m, n],
+        }),
+      ),
+      'p',
+    ).cells![0].main
+  assert.equal(read(1), 1)
+  assert.equal(read(undefined), 0, 'a cell of the first main grid names none')
+  assert.throws(() => read(1.5), hasCode('INVALID_SCENE_TABLES'))
+  assert.throws(() => read(-1), hasCode('INVALID_SCENE_TABLES'))
+})

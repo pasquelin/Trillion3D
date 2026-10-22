@@ -22,6 +22,7 @@ test('a row names its cell and node while it holds them, grown or not', () => {
     locals: new Float64Array(32),
     tracks: Int32Array.of(-1, -1),
     sources: new Uint8Array(2),
+    drawDistances: new Float32Array(4),
   }
   assert.ok(placements.place(9, cell, 'scene-cell-9.json', 3))
   const held = placements.held.get(9)!
@@ -37,4 +38,39 @@ test('a row names its cell and node while it holds them, grown or not', () => {
   assert.equal(rowCell(links[0].placements!, held[1].row)?.node, 1)
   placements.leave(9)
   for (const { row } of held) assert.equal(rowCell(links[1].placements!, row), undefined)
+})
+
+test('the distances a node names are seated on its rows, grown with them and cleared when left', () => {
+  const links: RowLink[] = [
+    { meshes: 4, primitives: 0 },
+    { meshes: 4, primitives: 1 },
+  ]
+  const meshes = new Map([[4, placedMesh(links)]])
+  sizeRows(meshes, new Map([[4, 4]]))
+  const placements = createCellPlacements(G.mesh(), [], meshes, {}, () => 0)
+  const cell = (drawDistances: number[]) => ({
+    nodes: 2,
+    ranks: Int32Array.of(-1, 4, -1, 4),
+    locals: new Float64Array(32),
+    tracks: Int32Array.of(-1, -1),
+    sources: new Uint8Array(2),
+    drawDistances: Float32Array.from(drawDistances),
+  })
+  const distances = (row: number, link = 0) =>
+    Array.from(links[link].placements!.drawDistance?.subarray(2 * row, 2 * row + 2) ?? [])
+  // No node names one: no column is made.
+  assert.ok(placements.place(8, cell([0, 0, 0, 0]), 'scene-cell-8.json', 3))
+  assert.equal(links[0].placements!.drawDistance, undefined, 'a scene without distances pays none')
+  // The second node names its own, on the rows of every primitive.
+  assert.ok(placements.place(9, cell([0, 0, 2, 50]), 'scene-cell-9.json', 3))
+  const held = placements.held.get(9)!
+  for (const link of [0, 1]) assert.deepEqual(distances(held[1].row, link), [2, 50])
+  assert.deepEqual(distances(held[0].row), [0, 0])
+  // Grown in place, the rows keep their distances.
+  sizeRows(meshes, new Map([[4, 8]]))
+  assert.deepEqual(distances(held[1].row), [2, 50])
+  // Left, the rows name none.
+  const rows = [...held].map(({ row }) => row)
+  placements.leave(9)
+  for (const row of rows) assert.deepEqual(distances(row), [0, 0])
 })

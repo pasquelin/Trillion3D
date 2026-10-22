@@ -131,6 +131,8 @@ export async function createDagResources(
       listNote: undefined as ListNote | undefined,
       /** The ranks its readout holds, followed after each readback (`lists/requestSize.ts`). */
       requestSize: createRequestSize(bounds),
+      /** The filter bits `work` holds for the cut in hand (`viewFilterRegion.ts`). */
+      filterHeld: { bits: undefined as Uint32Array | undefined },
     }
     // The frame's copies of the lists, read back in order: made last, within what the tables leave.
     const readbacks = createMainReadbacks(resources, made.readbackBytes)

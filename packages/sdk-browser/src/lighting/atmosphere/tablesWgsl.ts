@@ -53,8 +53,9 @@ fn multiScatterMain(@builtin(global_invocation_id) id:vec3u){
  var march:Marching;
  march.samples=${MULTISCATTERING_LUT.samples}.0;
  // A unit white sun: the table is a transfer, independent of the light.
- let up=integrateAir(start,vec3f(0.0,0.0,1.0),true,march,false,toSun,vec3f(1.0),1.0,9000000.0);
- let down=integrateAir(start,vec3f(0.0,0.0,-1.0),true,march,false,toSun,vec3f(1.0),1.0,9000000.0);
+ let sun=singleSun(toSun,vec3f(1.0));
+ let up=integrateAir(start,vec3f(0.0,0.0,1.0),true,march,false,sun,1.0,9000000.0);
+ let down=integrateAir(start,vec3f(0.0,0.0,-1.0),true,march,false,sun,1.0,9000000.0);
  // The two rays stand for the sphere: the illuminance they bring, then the radiance an isotropic
  // phase scatters it into, and the orders after the first as a geometric series.
  let sphere=4.0*PI;
@@ -115,7 +116,8 @@ fn skyViewMain(@builtin(global_invocation_id) id:vec3u){
  let uv=(vec2f(id.xy)+0.5)/SKY_VIEW_SIZE;
  let height=frame.camera.w;
  let dir=skyViewDirection(height,uv);
- let toSun=eyeToTable(sunDirection());
+ var suns=airSuns();
+ for(var k=0u;k<suns.count;k++){suns.list[k].toward=eyeToTable(suns.list[k].toward);}
  let top=moveToTopAtmosphere(vec3f(0.0,0.0,height),dir);
  if(top.w==0.0){textureStore(table,id.xy,vec4f(0.0));return;}
  var march:Marching;
@@ -123,8 +125,7 @@ fn skyViewMain(@builtin(global_invocation_id) id:vec3u){
  march.minSamples=${SKY_VIEW_LUT.minSamples}.0;
  march.maxSamples=max(min(32.0*atmo(${ATMOSPHERE_SLOT.sunIlluminance}u).w,${SKY_VIEW_LUT.maxSamples}.0),march.minSamples);
  march.distanceInv=1.0/${SKY_VIEW_LUT.distanceKm}.0;
- let illuminance=atmo(${ATMOSPHERE_SLOT.sunIlluminance}u).xyz*atmo(${ATMOSPHERE_SLOT.scatteredFactor}u).xyz;
- let r=integrateAir(top.xyz,dir,false,march,true,toSun,illuminance,1.0,9000000.0);
+ let r=integrateAir(top.xyz,dir,false,march,true,suns,1.0,9000000.0);
  textureStore(table,id.xy,vec4f(r.radiance,dot(r.transmittance,vec3f(1.0/3.0))));
 }`,
 )

@@ -10,6 +10,7 @@ import { VSM_RENDER_ARGS_EXPAND, VSM_RENDER_ARGS_STRIDE_WORDS } from '../render/
 import {
   encodeVsmCandidates,
   encodeVsmChunkCommands,
+  encodeVsmViews,
   vsmChunkListGroups,
   vsmSceneRowsMoved,
   vsmWorldGroup,
@@ -144,16 +145,9 @@ export function encodeBin(
 ) {
   const lists = ctx.lists!,
     args = ctx.buffers.args!
-  encodeVsmCandidates(
-    pass,
-    ctx.candidates.pipeline,
-    lists.cand,
-    vsmWorldGroup(ctx.device, ctx.world, ctx.candidates.groups[1], scene.world),
-    ctx,
-    tables,
-    plan.rowCount,
-    plan.viewCount,
-  )
+  const world = vsmWorldGroup(ctx.device, ctx.world, ctx.candidates.groups[1], scene.world)
+  encodeVsmCandidates(pass, ctx.candidates.pipeline, lists.cand, world, plan.rowCount)
+  encodeVsmViews(pass, ctx, tables, ctx.passes.chunk(0).offset, plan.passes[0].maps)
   for (let c = 0; c < plan.chunks; c++) {
     const { offset } = ctx.passes.chunk(c)
     encodeVsmChunkCommands(pass, ctx, tables, args, c, offset)

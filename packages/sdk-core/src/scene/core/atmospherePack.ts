@@ -3,10 +3,12 @@
  * builders, the sky, the haze a surface is seen through — finds in the light buffer, behind the
  * fog.
  *
- * Thirteen `vec4`, written by the CPU when the atmosphere or the sun changes (`packAtmosphere`),
+ * Seventeen `vec4`, written by the CPU when the atmosphere or the suns change (`packAtmosphere`),
  * the slots below by number. The sun is the directional light that lights the air: its direction
  * toward it, its illuminance outside the air, the luminance of its disk, and the transmittance of
- * the air toward it at the ground (what tints the light surfaces receive, `SunLight`).
+ * the air toward it at the ground (what tints the light surfaces receive, `SunLight`). The air
+ * holds a second light in the same four, a moon or a second sun: its disk slot says, by its last
+ * lane, whether there is one; where there is none, the programs read nothing of it.
  */
 import type { ResolvedAtmosphere } from './atmosphere.ts'
 import { coefficientsOf, diskSolidAngle, type Rgb } from './atmosphereOptics.ts'
@@ -39,15 +41,23 @@ export const ATMOSPHERE_SLOT = {
   sunDisk: 11,
   /** The transmittance of the air toward the sun at the ground, then the fog's contribution. */
   sunTransmittance: 12,
+  /** The unit direction toward the second light, then the cosine of its disk's angular radius. */
+  secondDirection: 13,
+  /** The second light's illuminance outside the air. */
+  secondIlluminance: 14,
+  /** The luminance of the second light's disk, then 1 when there is a second light. */
+  secondDisk: 15,
+  /** The transmittance of the air toward the second light at the ground. */
+  secondTransmittance: 16,
 } as const
 
 /** `vec4` slots of the block. */
-export const ATMOSPHERE_SLOTS = 13
+export const ATMOSPHERE_SLOTS = 17
 /** Floats of the block: four to a slot. Written as a literal, so a bundle that reads none keeps
  *  none. */
-export const ATMOSPHERE_FLOATS = 52
+export const ATMOSPHERE_FLOATS = 68
 
-/** The sun of the atmosphere: the directional light that lights the air. */
+/** A light of the atmosphere: a directional light that lights the air. */
 export interface AtmosphereSun {
   /** Where its light goes, a unit vector. */
   direction: readonly number[]
@@ -55,27 +65,68 @@ export interface AtmosphereSun {
   illuminance: Rgb
   /** The angular radius of its disk, radians, above 0. */
   angularRadius: number
+  /** The transmittance of the air toward it at the ground, per channel. */
+  transmittance: Rgb
 }
 
 /** The largest disk luminance written: what a half float holds with room for bloom and the
  *  temporal resolve (`65504 / 2`). */
 const MAX_DISK_LUMINANCE = 32256
 
+/** The slots a light's numbers go to: its direction toward it, its illuminance, its disk, the
+ *  transmittance of the air toward it. */
+interface SunSlots {
+  direction: number
+  illuminance: number
+  disk: number
+  transmittance: number
+}
+
+/** The slots of each light of the air, by index: the sun's, then the second light's. */
+const SUN_SLOTS: readonly SunSlots[] = [
+  {
+    direction: ATMOSPHERE_SLOT.sunDirection,
+    illuminance: ATMOSPHERE_SLOT.sunIlluminance,
+    disk: ATMOSPHERE_SLOT.sunDisk,
+    transmittance: ATMOSPHERE_SLOT.sunTransmittance,
+  },
+  {
+    direction: ATMOSPHERE_SLOT.secondDirection,
+    illuminance: ATMOSPHERE_SLOT.secondIlluminance,
+    disk: ATMOSPHERE_SLOT.secondDisk,
+    transmittance: ATMOSPHERE_SLOT.secondTransmittance,
+  },
+]
+
+/** Writes `values` from the start of `slot`: the lanes after them keep what they hold. */
+const putSlot = (out: Float32Array, slot: number, ...values: number[]) => out.set(values, slot * 4)
+
+/** Writes a light into its slots: the direction toward it and its disk's cosine, its illuminance,
+ *  the luminance of its disk and a one (there is a light), the air's transmittance toward it. */
+function putSun(out: Float32Array, at: SunSlots, sun: AtmosphereSun) {
+  const solidAngle = diskSolidAngle(sun.angularRadius)
+  const disk = sun.illuminance.map((c) => Math.min(c / solidAngle, MAX_DISK_LUMINANCE))
+  putSlot(out, at.direction, ...sun.direction.map((c) => -c), Math.cos(sun.angularRadius))
+  putSlot(out, at.illuminance, ...sun.illuminance)
+  putSlot(out, at.disk, ...disk, 1)
+  putSlot(out, at.transmittance, ...sun.transmittance)
+}
+
 /**
- * Writes the block: all zero, the atmosphere off, without one. `transmittance` is the air's
- * toward the sun (`sunTransmittance`); without a sun the block holds the air alone and the sky
- * is dark.
+ * Writes the block: all zero, the atmosphere off, without one. `suns` holds the lights of the air
+ * by index, none where there is none: a light writes its slots (`SUN_SLOTS`), and the programs
+ * read nothing of a light whose disk slot says there is none. Without a light the block holds the
+ * air alone and the sky is dark; the transmittance toward the sun is one.
  */
 export function packAtmosphere(
   atmosphere: ResolvedAtmosphere | undefined,
-  sun: AtmosphereSun | undefined,
-  transmittance: Rgb,
+  suns: readonly (AtmosphereSun | undefined)[],
   out: Float32Array,
 ) {
   out.fill(0, 0, ATMOSPHERE_FLOATS)
   if (!atmosphere) return out
   const k = coefficientsOf(atmosphere)
-  const put = (slot: number, ...values: number[]) => out.set(values, slot * 4)
+  const put = (slot: number, ...values: number[]) => putSlot(out, slot, ...values)
   put(ATMOSPHERE_SLOT.planet, 1, k.bottomRadius, k.topRadius, atmosphere.groundHeight)
   put(ATMOSPHERE_SLOT.rayleigh, ...k.rayleigh, k.rayleighExp)
   put(ATMOSPHERE_SLOT.mieScattering, ...k.mieScattering, k.mieExp)
@@ -93,14 +144,10 @@ export function packAtmosphere(
     ...atmosphere.skyAndAerialPerspectiveLuminanceFactor,
     atmosphere.aerialPerspectiveStartDepth,
   )
-  put(ATMOSPHERE_SLOT.sunTransmittance, ...transmittance, atmosphere.heightFogContribution)
+  put(ATMOSPHERE_SLOT.sunTransmittance, 1, 1, 1, atmosphere.heightFogContribution)
   put(ATMOSPHERE_SLOT.sunIlluminance, 0, 0, 0, atmosphere.sampleCountScale)
-  if (!sun) return out
-  const toward = sun.direction.map((c) => -c)
-  const solidAngle = diskSolidAngle(sun.angularRadius)
-  const disk = sun.illuminance.map((c) => Math.min(c / solidAngle, MAX_DISK_LUMINANCE))
-  put(ATMOSPHERE_SLOT.sunDirection, ...toward, Math.cos(sun.angularRadius))
-  put(ATMOSPHERE_SLOT.sunIlluminance, ...sun.illuminance, atmosphere.sampleCountScale)
-  put(ATMOSPHERE_SLOT.sunDisk, ...disk, 1)
+  suns.forEach((sun, index) => {
+    if (sun) putSun(out, SUN_SLOTS[index], sun)
+  })
   return out
 }

@@ -5,13 +5,13 @@
 // fog scatters.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { near } from '../../../../math/src/float/near.fixture.ts'
 import { createSceneLightStore } from '../light/store.ts'
-import { validateSceneAtmosphere } from './atmosphere.ts'
-import { ATMOSPHERE_SLOT } from './atmospherePack.ts'
 import { ENVIRONMENT_COEFFICIENTS, SCENE_ENVIRONMENT_FLOATS } from './environment.ts'
-import { FOG_MODE, FOG_SLOT, packFog, validateSceneFog } from './fog.ts'
+import { FOG_MODE, FOG_SLOT, FOG_SLOTS, packFog, sameSceneFog, validateSceneFog } from './fog.ts'
+import { clampEditedFog } from './fogBounds.ts'
+import { cubemapMipCount, faceAverages } from './fogCubemap.ts'
 import { heightFogOf } from './fogHeight.ts'
+import { VOLUMETRIC_FOG_DEFAULTS } from './fogVolumetric.ts'
 
 const GREY = [0.5, 0.5, 0.5] as const
 
@@ -21,6 +21,10 @@ test('the fog block follows the irradiance: colour and mode, then the law and th
   packFog(undefined, written, 0)
   const fogFloats = written.findIndex(Number.isNaN)
   assert.equal(SCENE_ENVIRONMENT_FLOATS, ENVIRONMENT_COEFFICIENTS * 4 + fogFloats)
+  // The three literals one fact is written as (the slots, their floats, the environment's), and the
+  // order of `FOG_SLOT` the block is laid out by.
+  assert.deepEqual([FOG_SLOTS * 4, fogFloats, Object.keys(FOG_SLOT).length], [40, 40, FOG_SLOTS])
+  assert.deepEqual(Object.values(FOG_SLOT), [...Array(FOG_SLOTS).keys()])
   const store = createSceneLightStore()
   const block = () => Array.from(store.environmentPacked.subarray(36, 36 + fogFloats))
   const slot = (n: number) => block().slice(n * 4, n * 4 + 4)
@@ -83,140 +87,18 @@ test('the height fog’s defaults are the converted numbers: centimetres to metr
 })
 
 test('a height fog that hides nothing is no fog', () => {
-  const written = new Float32Array(24).fill(NaN)
+  const written = new Float32Array(FOG_SLOTS * 4).fill(NaN)
   assert.equal(packFog({ baseDensity: 0 }, written, 0)[3], FOG_MODE.none)
   assert.equal(packFog({ maxOpacity: 0 }, written, 0)[3], FOG_MODE.none)
   assert.equal(packFog({ color: GREY, density: 0 }, written, 0)[3], FOG_MODE.none)
   assert.equal(packFog({ baseDensity: 0.001 }, written, 0)[3], FOG_MODE.exponential)
-})
-
-test('the store writes the sun the fog scatters: the one it holds, else the first directional light', () => {
-  const store = createSceneLightStore()
-  const sun = (
-    id: string,
-    direction: [number, number, number],
-    intensity: number,
-    atmosphereSun?: boolean,
-  ) =>
-    store.add({
-      id,
-      kind: 'directional',
-      direction,
-      color: [1, 0.5, 0],
-      intensity,
-      castsShadow: false,
-      atmosphereSun,
-    })
-  const sunSlot = () =>
-    Array.from(store.environmentPacked.subarray(36 + FOG_SLOT.sun * 4, 36 + FOG_SLOT.sun * 4 + 4))
-  store.setEnvironment({ exposure: 1, fog: {} })
-  assert.deepEqual(sunSlot(), [0, 0, 0, 0])
-  sun('first', [0, -1, 0], 2)
-  // Toward the sun, then the luminance of its colour times its intensity.
-  const luminance = 2 * (0.2126390059 + 0.5 * 0.7151686788)
-  near(sunSlot(), [0, 1, 0, luminance], 'the first sun', 1e-6)
-  // The brightest is the sun, with an atmosphere or none.
-  sun('second', [1, 0, 0], 20)
-  near(sunSlot(), [-1, 0, 0, 10 * luminance], 'the brighter light, without air', 1e-5)
-  store.setEnvironment({ exposure: 1, fog: {}, atmosphere: validateSceneAtmosphere(true) })
-  near(sunSlot().slice(0, 3), [-1, 0, 0], 'the atmosphere’s sun, the brightest')
-  store.remove('second')
-  near(sunSlot().slice(0, 3), [0, 1, 0], 'the sun removed, the next light')
-  // A light left out of the air's candidates is the fog's only where none is a candidate.
-  store.remove('first')
-  sun('off', [0, 0, -1], 50, false)
-  near(sunSlot().slice(0, 3), [0, 0, 1], 'no candidate: the first directional light added')
-  sun('on', [1, 0, 0], 1)
-  near(sunSlot().slice(0, 3), [-1, 0, 0], 'a candidate, however dim, is the sun')
-  // No fog, no write: a scene without a fog pays nothing.
-  store.setEnvironment({ exposure: 1 })
-  assert.deepEqual(sunSlot(), [0, 0, 0, 0])
-})
-
-test('equal suns are told apart by the order of adding, which a removal does not change', () => {
-  const store = createSceneLightStore()
-  const sun = (id: string, direction: [number, number, number], intensity = 3) =>
-    store.add({
-      id,
-      kind: 'directional',
-      direction,
-      color: [1, 1, 1],
-      intensity,
-      castsShadow: false,
-    })
-  const toward = (block: Float32Array, at: number) => block.subarray(at, at + 3)
-  const air = () => toward(store.atmospherePacked, ATMOSPHERE_SLOT.sunDirection * 4)
-  const fog = () => toward(store.environmentPacked, ENVIRONMENT_COEFFICIENTS * 4 + FOG_SLOT.sun * 4)
-  const [a, b, c, d] = [
-    [-1, 0, 0],
-    [0, -1, 0],
-    [0, 0, -1],
-    [0, 1, 0],
-  ] as const
-  // The sun is the first of equals, held without air: the fog scatters it.
-  store.setEnvironment({ exposure: 1, fog: {} })
-  sun('a', [...a])
-  sun('b', [...b])
-  sun('c', [...c])
-  near(fog(), [1, 0, 0], 'the first added')
-  // The sun removed: b, which was added before c, though the table packs c into a's slot.
-  store.remove('a')
-  near(fog(), [0, 1, 0], 'a removed, b was added before c')
-  // A light added takes the rank a removal freed; equal to the sun held, it does not replace it.
-  sun('d', [...d])
-  near(fog(), [0, 1, 0], 'd is equal and later: it does not replace b')
-  store.remove('b')
-  near(fog(), [0, -1, 0], 'b removed: d, which holds the rank a freed, ahead of c')
-  // The air set afterwards reads the sun held all along.
-  store.setEnvironment({ exposure: 1, atmosphere: validateSceneAtmosphere(true) })
-  near(air(), [0, -1, 0], 'the sun held before the air was set')
-  store.remove('d')
-  near(air(), [0, 0, 1], 'd removed: c')
-  sun('a', [...a])
-  near(air(), [0, 0, 1], 'a is equal and later: it does not replace c')
-  // A change of brightness, colour or direction never chooses the sun again.
-  store.set('a', { intensity: 4 })
-  near(air(), [0, 0, 1], 'a brightened does not take the sun held')
-  store.set('c', { intensity: 1 })
-  near(air(), [0, 0, 1], 'c dimmed keeps its place')
-  // A light that stops lighting the air leaves the place as a removal does; back, it is added again.
-  store.set('c', { atmosphereSun: false })
-  near(air(), [1, 0, 0], 'c set off: the brightest of the others, a')
-  store.set('c', { atmosphereSun: true, intensity: 5 })
-  near(air(), [0, 0, 1], 'c back on, brighter than a: added again, it takes the place')
-})
-
-test('a fog changed stales the frame; the same fog set again does not', () => {
-  const store = createSceneLightStore()
-  store.setEnvironment({ exposure: 1, fog: { color: GREY, near: 3, far: 30 } })
-  const epoch = store.epoch
-  store.setEnvironment({ exposure: 1, fog: { color: [0.5, 0.5, 0.5], near: 3, far: 30 } })
-  assert.equal(store.epoch, epoch)
-  store.setEnvironment({ exposure: 1, fog: { color: GREY, near: 3, far: 31 } })
-  assert.equal(store.epoch, epoch + 1)
-  store.setEnvironment({ exposure: 1 })
-  assert.equal(store.epoch, epoch + 2)
-})
-
-test('a change of fog alone leaves light transport, and the bounce probes, as they were', () => {
-  const store = createSceneLightStore()
-  store.setEnvironment({ exposure: 1 })
-  const transport = store.transportEpoch
-  store.setEnvironment({ exposure: 1, fog: { color: GREY, density: 0.1 } })
-  store.setEnvironment({ exposure: 1, fog: { color: GREY, near: 3, far: 30 } })
-  store.setEnvironment({ exposure: 1 })
-  assert.equal(store.transportEpoch, transport)
-  store.setEnvironment({ exposure: 1, irradiance: Array(27).fill(0.1) })
-  assert.equal(store.transportEpoch, transport + 1)
-  store.add({
-    id: 'sun',
-    kind: 'directional',
-    direction: [0, -1, 0],
-    color: [1, 1, 1],
-    intensity: 1,
-    castsShadow: false,
-  })
-  assert.equal(store.transportEpoch, transport + 2)
+  // A second layer counts: the fog shows where the two densities sum past nothing.
+  const second = { baseDensity: 0, secondLayer: { baseDensity: 0.001 } }
+  assert.equal(packFog(second, written, 0)[3], FOG_MODE.exponential)
+  assert.equal(
+    packFog({ ...second, secondLayer: { baseDensity: 0 } }, written, 0)[3],
+    FOG_MODE.none,
+  )
 })
 
 test('a fog out of range is refused by name', () => {
@@ -252,4 +134,159 @@ test('a fog out of range is refused by name', () => {
     heightFalloff: 0,
     baseHeight: 0,
   })
+})
+
+/** A cubemap of one texel a face: six colours. */
+const CUBE = { size: 1, texels: new Float32Array(18).fill(0.5), tint: [0.5, 1, 2] as const }
+
+test('the second layer, the end distance, the cubemap and the volume have their slots, none showing by default', () => {
+  const slot = (fog: Parameters<typeof packFog>[0], n: number) =>
+    Array.from(packFog(fog, new Float32Array(FOG_SLOTS * 4), 0).subarray(n * 4, n * 4 + 4))
+  // Off by default: a fog that names none of them writes nothing in them but the second layer's
+  // falloff, at no density.
+  for (const n of [FOG_SLOT.reach, FOG_SLOT.cubemap, FOG_SLOT.cubeBlend])
+    assert.deepEqual(slot({}, n), [0, 0, 0, 0])
+  assert.deepEqual(slot({}, FOG_SLOT.second), [0, 0.02, 0, 0].map(Math.fround))
+  // The second layer's base is the first's plus its offset; the reach, the end distance first.
+  const fog = {
+    baseHeight: 4,
+    secondLayer: { baseDensity: 0.1, falloff: 0.05, heightShift: 6 },
+    horizontalLimit: 80,
+  }
+  assert.deepEqual(slot(fog, FOG_SLOT.second), [0.1, 0.05, 10, 0].map(Math.fround))
+  assert.deepEqual(slot(fog, FOG_SLOT.reach), [80, 0, 0, 0])
+  // The volume: its far end the start and the distance, its start, and the switch.
+  const volume = slot({ volumetric: { startAt: 5 } }, FOG_SLOT.reach)
+  assert.deepEqual(volume, [0, 65, 5, 1])
+  assert.deepEqual(slot({ volumetric: { reach: 0 } }, FOG_SLOT.reach), [0, 0, 0, 0])
+  // The cubemap: the tint takes the colour's place; its rotation, its levels, its blend by length.
+  const big = { size: 4, texels: new Float32Array(288).fill(0.5) }
+  const cube = { ...CUBE, ...big, turn: 90, sharpFrom: 100, averageUntil: 20 }
+  const withCube = { color: [9, 9, 9] as const, cubemap: cube }
+  assert.deepEqual(slot(withCube, FOG_SLOT.color), [0.5, 1, 2, FOG_MODE.exponential])
+  const [sin, cos, levels, on] = slot(withCube, FOG_SLOT.cubemap)
+  assert.deepEqual(
+    [Math.round(sin), Math.round(cos * 1e6), levels, on],
+    [1, 0, cubemapMipCount(4), 1],
+  )
+  assert.deepEqual(slot(withCube, FOG_SLOT.cubeBlend).slice(0, 2), [0.0125, -0.25].map(Math.fround))
+})
+
+test('the second layer is held to its bounds at every run; an edit holds the whole fog to its own', () => {
+  // Bounds in metres: the editor's density 10 and falloff 2 per 1000 centimetres, ÷ 10.
+  const held = heightFogOf({ secondLayer: { baseDensity: 5, falloff: 3, heightShift: -7 } }).second
+  assert.deepEqual(held, { baseDensity: 1, falloff: 0.2, heightShift: -7 })
+  // A script's first layer is as written; a person's edit holds it.
+  assert.equal(heightFogOf({ baseDensity: 5 }).baseDensity, 5)
+  const edited = clampEditedFog({
+    baseDensity: 5,
+    falloff: 3,
+    startDistance: -1,
+    maxOpacity: 2,
+    horizontalLimit: 1e30,
+    cubemap: { ...CUBE, turn: 400, sharpFrom: 50, averageUntil: 80 },
+  })
+  assert.deepEqual(
+    [edited.baseDensity, edited.falloff, edited.startDistance, edited.maxOpacity],
+    [1, 0.2, 0, 1],
+  )
+  assert.equal(edited.horizontalLimit, 879609302220.8)
+  // The average-colour distance never passes the direct-use distance: the one the edit left.
+  assert.deepEqual(
+    [edited.cubemap!.turn, edited.cubemap!.averageUntil, edited.cubemap!.sharpFrom],
+    [360, 50, 50],
+  )
+  assert.equal(
+    clampEditedFog({ cubemap: { ...CUBE, averageUntil: 5000 } }).cubemap!.averageUntil,
+    1000,
+  )
+})
+
+test('the cubemap holds levels down to one texel a face, whose colour is the face’s mean', () => {
+  assert.deepEqual([1, 2, 4, 5, 64, 100].map(cubemapMipCount), [1, 2, 3, 3, 7, 7])
+  const size = 4
+  const texels = Float32Array.from({ length: 6 * size * size * 3 }, (_, i) => i)
+  const averages = faceAverages({ size, texels })
+  assert.equal(averages.length, 18)
+  // The smallest level is what the chain of two-by-two box means down to one texel holds.
+  const boxes = (level: number[], side: number) =>
+    Array.from({ length: (side / 2) ** 2 * 6 * 3 }, (_, k) => {
+      const [c, rest] = [k % 3, Math.floor(k / 3)]
+      const [x, y, f] = [
+        rest % (side / 2),
+        Math.floor(rest / (side / 2)) % (side / 2),
+        Math.floor(rest / (side / 2) ** 2),
+      ]
+      const at = (dx: number, dy: number) =>
+        level[((f * side + 2 * y + dy) * side + 2 * x + dx) * 3 + c]
+      return (at(0, 0) + at(1, 0) + at(0, 1) + at(1, 1)) / 4
+    })
+  const chain = boxes(boxes(Array.from(texels), 4), 2)
+  assert.deepEqual(Array.from(averages), chain)
+})
+
+test('the volume is off by default and, on, has the defaults of its numbers', () => {
+  assert.equal(heightFogOf({}).volumetric, undefined)
+  assert.equal(heightFogOf({ volumetric: false }).volumetric, undefined)
+  const v = heightFogOf({ volumetric: true }).volumetric!
+  assert.equal(v.anisotropy, VOLUMETRIC_FOG_DEFAULTS.anisotropy)
+  assert.deepEqual([v.particleColor, v.farEnd, v.startAt], [[1, 1, 1], 60, 0])
+  // The glow is per metre, the engines' number per centimetre, divided by 10 000: × 1/100.
+  assert.deepEqual(
+    heightFogOf({ volumetric: { glow: [100, 0, 50] } }).volumetric!.glow,
+    [1, 0, 0.5],
+  )
+  // The scatter is held short of ±1; the volume reaches `reach` past its start; no fade is a
+  // hundred million per metre.
+  const named = heightFogOf({
+    volumetric: { anisotropy: 5, startAt: 10, fadeInLength: 4 },
+  })
+  assert.deepEqual(
+    [named.volumetric!.anisotropy, named.volumetric!.farEnd, named.volumetric!.fadeInRate],
+    [0.99, 70, 0.25],
+  )
+  assert.equal(v.fadeInRate, 1e8)
+  // What the block does not hold still tells two fogs apart: the particles' colour, and the cubemap's picture.
+  assert.equal(
+    sameSceneFog({ volumetric: true }, { volumetric: { particleColor: [1, 1, 0.5] } }),
+    false,
+  )
+  assert.equal(sameSceneFog({ volumetric: true }, { volumetric: {} }), true)
+  assert.equal(
+    sameSceneFog({ cubemap: CUBE }, { cubemap: { ...CUBE, texels: CUBE.texels.slice() } }),
+    false,
+  )
+  assert.equal(sameSceneFog({ cubemap: CUBE }, { cubemap: { ...CUBE } }), true)
+})
+
+test('the new fields are refused by name where out of range', () => {
+  const refused = (fog: unknown) =>
+    assert.throws(() => validateSceneFog(fog as never), { code: 'INVALID_SCENE_ENVIRONMENT' })
+  refused({ secondLayer: { baseDensity: -1 } })
+  refused({ secondLayer: { falloff: Number.NaN } })
+  refused({ secondLayer: { heightShift: Infinity } })
+  refused({ secondLayer: 3 })
+  refused({ horizontalLimit: -1 })
+  refused({ cubemap: { size: 2, texels: new Float32Array(3) } })
+  refused({ cubemap: { size: 0, texels: [] } })
+  // Past the size a face may have, the picture is refused whatever its texels: the buffer a device holds.
+  refused({ cubemap: { size: 2048, texels: new Float32Array(6 * 2048 * 2048 * 3) } })
+  refused({ cubemap: { ...CUBE, turn: 361 } })
+  refused({ cubemap: { ...CUBE, tint: [1, 1] } })
+  refused({ cubemap: { size: 1, texels: new Float32Array(18).fill(-1) } })
+  refused({ volumetric: { particleColor: [2, 1, 1] } })
+  refused({ volumetric: { reach: -5 } })
+  refused({ volumetric: { useFogColors: 1 } })
+  refused({ volumetric: 'yes' })
+  const kept = {
+    secondLayer: { baseDensity: 5 },
+    horizontalLimit: 10,
+    cubemap: CUBE,
+    volumetric: true,
+  }
+  const done = validateSceneFog(kept) as typeof kept
+  // A density past the bound is held, not refused; the picture is kept, not copied.
+  assert.equal(done.secondLayer.baseDensity, 5)
+  assert.equal(done.cubemap.texels, CUBE.texels)
+  assert.equal(validateSceneFog({ volumetric: false }).volumetric, false)
 })

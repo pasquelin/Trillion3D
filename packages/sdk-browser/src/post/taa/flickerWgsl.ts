@@ -3,7 +3,7 @@ import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { TAA_VIEW_WGSL } from './bindingsWgsl.ts'
 import { DISPLAY_STEP_ERROR, FLICKER_LUMA_WGSL } from './colorSpaceWgsl.ts'
 import { FLICKER_FORMAT, REPROJECTED_WORD_WGSL } from './reprojectWgsl.ts'
-import { VECTOR_FORMAT } from './velocityWgsl.ts'
+import { CLOSEST_FORMAT } from './velocityWgsl.ts'
 import { THIN_MASK_BITS, THIN_RUNS } from './thinGeometryWgsl.ts'
 import { SAFE_RCP_WGSL } from './historyWgsl.ts'
 import { GUARANTEED_WORKGROUP_BYTES } from '../../gpu/core/textureLimits.ts'
@@ -40,8 +40,9 @@ export const FLICKER_BINDINGS = {
   thin: 9,
 } as const
 
-/** The flicker error of each render texel, an f32's bits (`flickerShader`). */
-export const FLICKER_ERROR_FORMAT = VECTOR_FORMAT
+/** The flicker error of each render texel, an f32's bits (`flickerShader`), written over the closest
+ *  depth word of the texel (`CLOSEST_FORMAT`), which the reprojection read before. */
+export const FLICKER_ERROR_FORMAT = CLOSEST_FORMAT
 
 /** The share of the image a ghosting update of the flicker history takes, and the fade of its
  *  totals every image: 5 %. */

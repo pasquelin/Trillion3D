@@ -40,6 +40,7 @@ test('PAGE_INFO_STRUCT_WGSL declares struct PageInfo only once in every shader t
     VIS_SHADER,
     // The temporal resolve's page reader: its velocity pass (`../../post/taa/velocityWgsl.ts`).
     TAA_VELOCITY: ENGINE_SHADERS.TAA_VELOCITY,
+    SURFACE_VELOCITY_WGSL: ENGINE_SHADERS.SURFACE_VELOCITY_WGSL,
   })
 })
 

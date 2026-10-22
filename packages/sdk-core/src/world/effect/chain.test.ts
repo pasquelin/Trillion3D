@@ -7,6 +7,14 @@ import { EffectChain } from './chain.ts'
 import { effect } from './index.ts'
 import { createWorldEffects } from './defaultChain.ts'
 import { Bloom } from './bloom.ts'
+import { MotionBlur } from './motionBlur.ts'
+import {
+  BLOOM_PRESET_LEVELS,
+  BLOOM_QUALITY_LEVELS,
+  BLOOM_QUALITY_STAGES,
+  BLOOM_RULES,
+} from '../../contracts/bloomRules.ts'
+import { resolveSetting, resolveSettings } from '../../contracts/settingRules.ts'
 
 test('passes run in the order they were added, or at the index given', () => {
   const chain = new EffectChain()
@@ -95,14 +103,195 @@ test('a bloom of intensity 0 is idle: the engine passes it by', () => {
   assert.equal(bloom.idle, true)
 })
 
-test('a world starts with the default bloom in its chain, which one can remove', () => {
+test('the bloom has two methods, a convolution and a dirt mask, off by the reference’s defaults', () => {
+  const bloom = effect.bloom()
+  assert.deepEqual([bloom.method, bloom.gaussianIntensity], ['gaussian', 1])
+  const { convolution, dirtMask } = bloom
+  assert.deepEqual(
+    [convolution.intensity, convolution.scatterDispersion, convolution.size, convolution.kernel],
+    [1, 1, 1, undefined],
+  )
+  assert.deepEqual(
+    [convolution.preFilterMin, convolution.preFilterMax, convolution.preFilterMult],
+    [7, 15000, 15],
+  )
+  assert.equal(convolution.bufferScale, 0.133)
+  assert.deepEqual(
+    [dirtMask.image, dirtMask.intensity, [...dirtMask.tint]],
+    [undefined, 0, [0.5, 0.5, 0.5]],
+  )
+  assert.throws(
+    () => effect.bloom({ method: 'fft' as never }),
+    /method must be one of gaussian, convolution/,
+  )
+  assert.throws(() => effect.bloom({ gaussianIntensity: -1 }), /BLOOM_GAUSSIAN_INTENSITY/)
+  assert.throws(() => effect.bloom({ convolution: { size: -1 } }), /BLOOM_CONVOLUTION_SIZE/)
+  assert.throws(() => effect.bloom({ dirtMask: { tint: [1, 2] as never } }), /BLOOM_DIRT_TINT/)
+  assert.throws(
+    () => effect.bloom({ dirtMask: { image: { width: 0, height: 4 } } }),
+    /dirtMask.image/,
+  )
+  const wrong = { width: 2, height: 2, pixels: new Float32Array(3) }
+  assert.throws(() => effect.bloom({ convolution: { kernel: wrong } }), /pixels a Float32Array/)
+})
+
+test('a write to the convolution or the dirt mask names what it changes, and the method decides what idles it', () => {
+  const bloom = effect.bloom()
+  const kernel = { width: 2, height: 2, pixels: new Float32Array(16) }
+  bloom.convolution = { size: 0.5, kernel }
+  bloom.convolution = { preFilterMult: 3 }
+  assert.deepEqual(
+    [bloom.convolution.size, bloom.convolution.kernel, bloom.convolution.preFilterMult],
+    [0.5, kernel, 3],
+  )
+  bloom.convolution = { kernel: null }
+  assert.equal(bloom.convolution.kernel, undefined, 'null gives the engine’s own back')
+  bloom.dirtMask = { intensity: 2 }
+  assert.deepEqual([bloom.dirtMask.intensity, [...bloom.dirtMask.tint]], [2, [0.5, 0.5, 0.5]])
+  // The Gaussian glow is idle at a Gaussian intensity of 0; the convolution at its own intensity of 0.
+  bloom.gaussianIntensity = 0
+  assert.equal(bloom.idle, true)
+  bloom.method = 'convolution'
+  assert.equal(bloom.idle, false, 'the Gaussian intensity is not the convolution’s')
+  bloom.convolution = { intensity: 0 }
+  assert.equal(bloom.idle, true)
+})
+
+test('the bloom is drawn at the reference’s defaults: all six levels, no cross, the full convolution', () => {
+  assert.deepEqual(resolveSettings(BLOOM_RULES, {}), {
+    bloomQuality: 'highest',
+    bloomCross: 0,
+    bloomScreenPercentage: 100,
+    bloomApplyLocalExposure: true,
+    bloomCacheKernel: true,
+  })
+  // A quality names how many of the six levels draw, the widest first: 3, 3, 4, 5 and 6.
+  assert.deepEqual(BLOOM_QUALITY_LEVELS, ['off', 'lowest', 'low', 'medium', 'high', 'highest'])
+  assert.deepEqual(Object.values(BLOOM_QUALITY_STAGES), [3, 3, 4, 5, 6])
+  // Like the anti-aliasing level: true is the default, false is off, a stranger is refused.
+  assert.equal(resolveSetting(BLOOM_RULES.bloomQuality, true), 'highest')
+  assert.equal(resolveSetting(BLOOM_RULES.bloomQuality, false), 'off')
+  assert.throws(
+    () => resolveSetting(BLOOM_RULES.bloomQuality, 'q9' as never),
+    /bloomQuality: must be one of 'off'/,
+  )
+  assert.throws(
+    () => resolveSetting(BLOOM_RULES.bloomScreenPercentage, -1),
+    /bloomScreenPercentage/,
+  )
+  // The presets write the scalability rows' quality and resolution; the top level writes nothing.
+  assert.deepEqual(BLOOM_PRESET_LEVELS.smooth, { bloomQuality: 'high', bloomScreenPercentage: 25 })
+  assert.deepEqual(BLOOM_PRESET_LEVELS.balanced, {
+    bloomQuality: 'high',
+    bloomScreenPercentage: 35.355,
+  })
+  assert.deepEqual(BLOOM_PRESET_LEVELS.fine, { bloomQuality: 'highest', bloomScreenPercentage: 50 })
+})
+
+test('a world starts with the default motion blur and bloom in its chain, which one can remove', () => {
   let asked = 0
   const chain = createWorldEffects(() => void asked++)
-  const [bloom] = chain.passes
-  assert.deepEqual([chain.size, chain.revision, asked], [1, 0, 0], 'a start is no change')
+  const [blur, bloom] = chain.passes
+  assert.deepEqual([chain.size, chain.revision, asked], [2, 0, 0], 'a start is no change')
+  assert.ok(blur instanceof MotionBlur)
   assert.ok(bloom instanceof Bloom)
   assert.deepEqual([bloom.intensity, bloom.threshold, bloom.sizeScale], [0.675, -1, 4])
+  assert.deepEqual(chain.stage('after-resolve'), [blur], 'the blur runs on the resolved image')
   assert.deepEqual(chain.stage('before-tone-mapping'), [bloom])
   chain.clear()
   assert.deepEqual([chain.size, chain.revision, asked], [0, 1, 1], 'a removal is')
+})
+
+test('motion blur takes the reference defaults and refuses a value outside its range', () => {
+  const blur = effect.motionBlur()
+  assert.deepEqual(
+    [blur.amount, blur.max, blur.targetFps, blur.cameraMotion, blur.perObjectSize],
+    [0.5, 5, 30, true, 0],
+    'defaults',
+  )
+  assert.equal(blur.stage, 'after-resolve')
+  assert.equal(effect.motionBlur({ amount: 1, targetFps: 0, max: 100 }).max, 100)
+  assert.equal(effect.motionBlur({ cameraMotion: false }).cameraMotion, false)
+  assert.throws(() => effect.motionBlur({ amount: 1.5 }), /amount.*from 0 to 1, got 1.5/)
+  assert.throws(() => effect.motionBlur({ max: -1 }), /max.*from 0 to 100, got -1/)
+  assert.throws(() => effect.motionBlur({ targetFps: 24.5 }), /targetFps.*whole number/)
+  assert.throws(() => effect.motionBlur({ targetFps: 121 }), /targetFps.*from 0 to 120/)
+  assert.equal(effect.motionBlur({ perObjectSize: 4 }).perObjectSize, 4)
+  assert.throws(() => effect.motionBlur({ perObjectSize: -1 }), /perObjectSize.*at least 0/)
+  assert.throws(() => (blur.amount = Number.NaN), /amount/)
+  assert.throws(() => (blur.cameraMotion = 1 as never), /cameraMotion.*true or false/)
+  assert.equal(
+    effect.motionBlur({ amount: null, max: undefined }).amount,
+    0.5,
+    'null is the default',
+  )
+  // How the blur is drawn is the view's (`MOTION_BLUR_RULES`), not the pass's.
+  for (const drawn of ['quality', 'halfResGather', 'halfResInput', 'separable', 'scatter'])
+    assert.equal(drawn in blur, false, drawn)
+})
+
+test('a motion blur writes reach the chain, and it is idle where it blurs nothing', () => {
+  let asked = 0
+  const chain = new EffectChain(() => void asked++)
+  const blur = effect.motionBlur()
+  chain.add(blur)
+  assert.equal(blur.idle, false)
+  blur.max = 0.001
+  assert.equal(blur.idle, true, 'the reference blurs nothing at a longest streak of 0.001')
+  blur.max = 5
+  blur.amount = 0
+  assert.equal(blur.idle, true, 'nor at an amount of 0')
+  blur.amount = 0.5
+  blur.targetFps = 0
+  assert.deepEqual([blur.idle, blur.targetFps], [false, 0])
+  assert.deepEqual([chain.revision, asked], [6, 6], 'every write asks for a frame')
+})
+
+test('the passes on the resolved image come first in the order they were added', () => {
+  const chain = new EffectChain()
+  const first = effect.motionBlur(),
+    second = effect.motionBlur({ amount: 0.2 }),
+    bloom = effect.bloom()
+  chain.add(bloom).add(first, 0).add(second)
+  assert.deepEqual(chain.stage('after-resolve'), [first, second])
+  assert.deepEqual(chain.stage('before-tone-mapping'), [bloom])
+})
+
+test('the depth of field takes the reference lens, is off until it has a focus or a depth blur, and runs on the resolved image', () => {
+  let asked = 0
+  const chain = new EffectChain(() => void asked++)
+  const dof = effect.depthOfField()
+  chain.add(dof)
+  assert.deepEqual([dof.kind, dof.stage, dof.idle], ['depthOfField', 'after-resolve', true])
+  assert.deepEqual(
+    [dof.aperture, dof.minAperture, dof.bladeCount, dof.sensorWidth, dof.squeezeFactor],
+    [4, 1.2, 5, 24.576, 1],
+  )
+  dof.focusDistance = 5
+  assert.equal(dof.idle, false)
+  dof.focusDistance = 0
+  dof.depthBlurRadius = 3
+  assert.equal(dof.idle, false, 'a depth blur alone')
+  dof.enabled = false
+  assert.deepEqual([dof.idle, chain.revision, asked], [true, 5, 5], 'every write asks for a frame')
+  assert.throws(() => effect.depthOfField({ aperture: 0.5 }), /aperture/)
+  assert.throws(() => effect.depthOfField({ matteBox: [{ pitch: 91 }] }), /matteBox\[0\].pitch/)
+  dof.matteBox = [{ length: 4 }, { roll: 90 }]
+  assert.deepEqual(
+    dof.matteBox.map((flag) => [flag.pitch, flag.roll, flag.length]),
+    [
+      [0, 0, 4],
+      [0, 90, 0],
+      [0, 0, 0],
+    ],
+  )
+  // How it is drawn is the view's (`DEPTH_OF_FIELD_RULES`); no world starts with a depth of field.
+  assert.equal('quality' in dof, false)
+  const world = createWorldEffects()
+  assert.ok(!world.passes.some((pass) => pass.kind === 'depthOfField'))
+  world.add(effect.depthOfField(), 0)
+  assert.deepEqual(
+    world.stage('after-resolve').map((pass) => pass.kind),
+    ['depthOfField', 'motionBlur'],
+  )
 })

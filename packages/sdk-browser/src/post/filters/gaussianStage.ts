@@ -3,7 +3,7 @@ import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { madeTextureBytes } from '../../gpu/core/textureBytes.ts'
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { filterPrograms } from './filterPrograms.ts'
-import { createBlurUniforms, WHITE } from './blurUniforms.ts'
+import { createBlurUniforms, NO_CROSS, WHITE } from './blurUniforms.ts'
 import { BLUR_BYTES, type BLUR_EDGES } from './gaussianWgsl.ts'
 import { fullscreenDraw } from './fullscreenDraw.ts'
 
@@ -145,7 +145,9 @@ export function createGaussianStage(device: GPUDevice, { edge, targets }: Gaussi
      * Sizes the stage for an image of `width × height` texels blurred over `percent` of its width,
      * its reads weighted by `tint` in the second pass, which adds an image to its sum when `adds`;
      * its targets follow. The uniforms are written again only when the size, the percent, the
-     * tint or `adds` change, the second pass's alone when the tint or `adds` did.
+     * tint, `adds` or `cross` change, the second pass's alone when the tint or `adds` did. `cross`
+     * gives the centre texel of the first and the second pass a share of their weight
+     * (`gaussianKernel`).
      */
     resize(
       width: number,
@@ -153,9 +155,10 @@ export function createGaussianStage(device: GPUDevice, { edge, targets }: Gaussi
       percent: number,
       tint: ArrayLike<number> = WHITE,
       adds = false,
+      cross: readonly number[] = NO_CROSS,
     ) {
       targets.resize(width, height)
-      uniforms.resize(width, height, percent, tint, adds)
+      uniforms.resize(width, height, percent, tint, adds, cross)
     },
     /** Draws both passes over `filter`, adding `extra` to the second's sum when the stage adds. */
     encode(encoder: GPUCommandEncoder, filter: GPUTextureView, extra?: GPUTextureView) {

@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createTemporalAntialiasing } from './temporalAntialiasing.ts'
+import { createVelocity } from './velocity.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
@@ -9,14 +10,14 @@ import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 // them with the analysis's targets and render-resolution histories.
 test('each history is a colour and its share target, written together and counted', async () => {
   const { device, textures, renderPipelines } = fakeDevice()
-  const temporal = await createTemporalAntialiasing(device, [])
+  const temporal = await createTemporalAntialiasing(device, createVelocity(device, []))
   assert.deepEqual(
     [...renderPipelines[0].fragment!.targets].map((target) => target!.format),
     ['rgba16float', 'rg8unorm'],
   )
   temporal.resize(8, 4, 8, 4)
   // First the 1×1 zero a frame without reactive value reads, then the two histories, then the
-  // analysis's targets — the closest depth, the nearest vectors then flicker error, the
+  // analysis's targets — the closest depth, which the flicker error is later written over, the
   // hole-filled vectors, the reprojection word, the velocity marks, the reprojected shading
   // history, the reprojected flicker history then LDR luma, the rejection, the held measure's
   // filtered input, filtered history and clamp error —, the spatial
@@ -33,7 +34,6 @@ test('each history is a colour and its share target, written together and counte
       'r32uint',
       'r32uint',
       'r32uint',
-      'r32uint',
       'rgba8uint',
       'rgba8unorm',
       'rgba8unorm',
@@ -47,17 +47,23 @@ test('each history is a colour and its share target, written together and counte
       'rgba8uint',
     ],
   )
-  // The histories, then the analysis: eight words of targets and three of the held measure's half
+  // The vectors the reprojection starts from are the velocity stage's, which the motion blur reads
+  // after the pass: the analysis keeps none, nor a target for the flicker error, which is written
+  // over the closest depth.
+  const named = (name: string) =>
+    textures.filter(({ label }) => label === `Trillion3D TAA ${name}`).length
+  assert.deepEqual(['vectors', 'flickerError', 'closest', 'filled'].map(named), [0, 0, 1, 1])
+  // The histories, then the analysis: seven words of targets and three of the held measure's half
   // floats, the anti-aliaser's two bytes, one of each render-resolution history and a
   // perspective's occluder word.
-  assert.equal(temporal.historyBytes, 8 * 4 * (2 * 8 + 2 * 2 + (8 * 4 + 3 * 8 + 2 + 12 + 4)))
+  assert.equal(temporal.historyBytes, 8 * 4 * (2 * 8 + 2 * 2 + (7 * 4 + 3 * 8 + 2 + 12 + 4)))
   temporal.dispose()
 })
 
 test('filtered histories fit portable attachment bytes and release every history with their targets', async () => {
   // Every resolve draws, its filtered twin into the most targets.
   const { device, textures, destroyed, renderPipelines } = fakeDevice()
-  const temporal = await createTemporalAntialiasing(device, [])
+  const temporal = await createTemporalAntialiasing(device, createVelocity(device, []))
   temporal.resize(8, 4, 8, 4)
   const view = () => ({}) as GPUTextureView,
     buffer = {} as GPUBuffer

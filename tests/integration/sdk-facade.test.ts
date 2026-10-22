@@ -58,7 +58,7 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 780 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 798 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
@@ -105,9 +105,10 @@ test('generated inventory and explicit facade files are current', async () => {
   // carry (TextureCache, WorldCells), are named. The compile job's settings each have their
   // resolver and the types it takes and gives: the mesh build (resolveMeshBuild, MeshBuildOption,
   // MeshBuildRule, MeshBuildSettings), the object settings (resolveObjectSettings, ObjectRule,
-  // ObjectSettings, ObjectSettingsOption, SkinnedInstanceOption, SkinnedInstanceSettings) and the
-  // partition's grid and scheme (resolvePartitionGrid, resolvePartitionScheme, PartitionGridOption,
-  // PartitionGridSettings, PartitionSchemeOption); the scene's animation banks name their
+  // DrawDistanceSettings, ObjectSettings, ObjectSettingsOption, SkinnedInstanceOption,
+  // SkinnedInstanceSettings) and the partition's grid, grids and scheme (resolvePartitionGrid,
+  // resolvePartitionGrids, resolvePartitionScheme, PartitionGridEntry, PartitionGridOption,
+  // PartitionGridSettings, PartitionGridsOption, PartitionSchemeOption); the scene's animation banks name their
   // descriptor (AnimationBanksDescriptor) and a cell's actor its warm-up (ActorWarmth). The types
   // the signatures of those carry are named too: a mesh's bank track and what it holds
   // (AnimationBanks, BankBake, BankClock, BankItem, BankTrack, DecodedBanks), the setting rules the
@@ -116,8 +117,9 @@ test('generated inventory and explicit facade files are current', async () => {
   // browser condition, and the wire forms the compile job's options are written in (HlodWire,
   // HlodExpertOf, HlodMatchOf, HlodWireMatch, HlodWirePattern, HlodApproximation,
   // HlodSimplifySettings, HlodMeshBuildWire, MaterialSettingsWire, MeshBuildSettingsWire,
-  // MeshBuildWire, MeshInputSettingsWire, ObjectSettingsJobWire, ObjectSettingsWire,
-  // SkinnedInstanceWire, PartitionGridWire, PartitionHlodGrid, NameMatch, NamePattern) in the node
+  // MeshBuildWire, MeshInputSettingsWire, MeshVoxelSettingsWire, ObjectSettingsJobWire,
+  // ObjectSettingsWire, DrawDistanceWire, SkinnedInstanceWire, PartitionGridSettingsWire,
+  // PartitionGridsWire, PartitionGridWire, PartitionHlodGrid, NameMatch, NamePattern) in the node
   // condition. Seven names
   // left the code with their mechanisms, and so the API: the HLOD's simple form has no quality any
   // more (HLOD_QUALITIES, HlodQuality), and the partition audit, the occlusion and world frame
@@ -125,8 +127,13 @@ test('generated inventory and explicit facade files are current', async () => {
   // OcclusionFrameMetrics, WorldFrameMetrics, PrimitiveQuantization, adaptivePixelError). The
   // scene's sky, height fog and exposure carry their own names (SceneAtmosphere, ResolvedAtmosphere,
   // SceneOzoneLayer, SceneSky, SceneHeightFog, SceneFogDirectional, SceneExposure), and the bloom its
-  // levels (BloomLevelOptions, BloomTint, ResolvedBloomLevel).
-  assert.equal(inventory.exports.length, 780)
+  // levels (BloomLevelOptions, BloomTint, ResolvedBloomLevel). The atmosphere's second light is
+  // named by its two indices (ATMOSPHERE_SUN_INDICES, AtmosphereSunIndex), the sun's shadows by
+  // their rules, their options and the distance a light names (SHADOW_RULES, ShadowOptions,
+  // ShadowDistanceOption, SHADOW_DISTANCE_DEFAULT). The motion blur
+  // (MotionBlur, MotionBlurOptions, ResolvedMotionBlur) and the screen probes' frame metrics
+  // (ScreenProbeFrameMetrics) leave with the barrels of their families.
+  assert.equal(inventory.exports.length, 798)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

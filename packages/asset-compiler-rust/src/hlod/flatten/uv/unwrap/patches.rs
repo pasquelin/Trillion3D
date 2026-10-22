@@ -25,7 +25,7 @@ use trillion3d_math::vector::vec3::{cross, unit_or_itself};
 use trillion3d_math::vector::vecn::{add, dot, length, scale, sub};
 
 /// The rounds the patches' borders are evened in at most.
-const BORDER_ROUNDS: usize = 25;
+pub(super) const BORDER_ROUNDS: usize = 25;
 
 /// The alignment above which a normal's turn is raised to its power.
 const ALIGNMENT_FLOOR: f64 = 0.001;
@@ -37,7 +37,7 @@ const LEAST_WEIGHT: f64 = 0.001;
 /// the triangles across its sides, and its links.
 pub(super) struct Faces {
     centroids: Vec<[f64; 3]>,
-    normals: Vec<[f64; 3]>,
+    pub(super) normals: Vec<[f64; 3]>,
     areas: Vec<f64>,
     pub(super) across: Vec<[usize; 3]>,
     links: Vec<Vec<usize>>,
@@ -86,9 +86,18 @@ impl Faces {
 /// taking the last triangle found and adding those across its sides, in their order: each a list
 /// of its triangles in the order taken.
 fn components(faces: &Faces) -> Vec<Vec<usize>> {
-    let mut reached = vec![false; faces.across.len()];
+    components_where(&faces.across, |_, _| true)
+}
+
+/// The components of a mesh whose triangles have the triangles `across` their sides, grown as
+/// `components` grows them but across a side only where `joined` says the two triangles are.
+pub(super) fn components_where(
+    across: &[[usize; 3]],
+    joined: impl Fn(usize, usize) -> bool,
+) -> Vec<Vec<usize>> {
+    let mut reached = vec![false; across.len()];
     let mut out = Vec::new();
-    for start in 0..faces.across.len() {
+    for start in 0..across.len() {
         if reached[start] {
             continue;
         }
@@ -96,8 +105,8 @@ fn components(faces: &Faces) -> Vec<Vec<usize>> {
         let (mut stack, mut component) = (vec![start], Vec::new());
         while let Some(t) = stack.pop() {
             component.push(t);
-            for &m in &faces.across[t] {
-                if m != NONE && !reached[m] {
+            for &m in &across[t] {
+                if m != NONE && !reached[m] && joined(t, m) {
                     reached[m] = true;
                     stack.push(m);
                 }

@@ -23,39 +23,54 @@ const MERGE_PATCHES: HlodPatches = HlodPatches {
     max_angle_deviation: 45.0,
 };
 
-/// `topology` cut and flattened as `method` names: into charts, cut and packed (`uv::charts`), a
-/// triangle set aside held by none and left at the origin; or into patches unwrapped at `patches`'
-/// settings, packed as that unwrap packs them (`uv::unwrap`) — as its maps made them where the
-/// packer finds no layout. Per corner in triangle order its coordinates, the islands as lists of
-/// triangles, and whether an island holds each triangle.
-fn laid(topology: &Topology, (method, patches): (HlodUvMethod, &HlodPatches)) -> unwrap::Unwrapped {
-    match method {
-        HlodUvMethod::Patches => unwrap::unwrap(topology, patches),
+/// The most stretch the `uvAtlas` charts of a merged mesh may reach: what the unwrap the merge
+/// drives is given by default, on the library's scale from 0 (none) to 1 (any).
+const MERGE_STRETCH: f32 = 0.11;
+
+/// How a mesh's texture coordinates are generated: the method, the patches unwrap's settings and
+/// the `uvAtlas` charts' stretch bound.
+struct UvSettings<'a> {
+    method: HlodUvMethod,
+    patches: &'a HlodPatches,
+    stretch: f32,
+}
+
+/// `topology` cut and flattened as the settings' `method` names: into charts, cut and packed
+/// (`uv::charts`), a triangle set aside held by none and left at the origin; into patches unwrapped
+/// at the settings' `patches`, packed as that unwrap packs them (`uv::unwrap`) — as its maps made
+/// them where the packer finds no layout —, which is also what a `legacy` mesh takes where the old
+/// layout finds none (`merge::flat::laid_out`); or into the spectral charts packed for an atlas,
+/// their stretch kept under the settings' `stretch` (`unwrap::atlas`), none where they fail. Per
+/// corner in triangle order its coordinates, the islands as lists of triangles, and whether an
+/// island holds each triangle.
+fn laid(topology: &Topology, settings: &UvSettings) -> Option<unwrap::Unwrapped> {
+    match settings.method {
+        HlodUvMethod::Patches | HlodUvMethod::Legacy => {
+            Some(unwrap::unwrap(topology, settings.patches))
+        }
+        HlodUvMethod::UvAtlas => unwrap::atlas(topology, settings.stretch),
         HlodUvMethod::Charts => {
             let (corners, islands) = charts::charts(topology);
             let held = (corners.as_chunks::<3>().0.iter())
                 .map(|corners| corners.iter().any(|&uv| uv != [0.0; 2]))
                 .collect();
-            unwrap::Unwrapped {
+            Some(unwrap::Unwrapped {
                 corners,
                 islands,
                 held,
-            }
+            })
         }
     }
 }
 
 /// Unique texture coordinates in the square of a `texture_size` atlas for an approximated shell's
-/// `topology`, one per corner in triangle order: cut by `how` (`laid`), then packed onto a grid of
-/// the atlas's compressed blocks, a packing texel one block: each chart lands on whole blocks, its
-/// dilation keeping a block between two, so no block holds two charts and its endpoints serve one.
-/// A packing that finds no layout leaves the coordinates as they were (`pack::pack`).
-fn unwrapped_by(
-    topology: &Topology,
-    texture_size: usize,
-    how: (HlodUvMethod, &HlodPatches),
-) -> Vec<[f64; 2]> {
-    let mut unwrapped = laid(topology, how);
+/// `topology`, one per corner in triangle order: cut by `how` (`laid`) — a box projection where
+/// the spectral charts fail (`unwrap::boxed`) —, then packed onto a grid of the atlas's compressed
+/// blocks, a packing texel one block: each chart lands on whole blocks, its dilation keeping a
+/// block between two, so no block holds two charts and its endpoints serve one. A packing that
+/// finds no layout leaves the coordinates as they were (`pack::pack`).
+fn unwrapped_by(topology: &Topology, texture_size: usize, how: &UvSettings) -> Vec<[f64; 2]> {
+    let mut unwrapped = laid(topology, how).unwrap_or_else(|| unwrap::boxed(topology));
     let blocks = texture_size as u32 / crate::plugins::image::blocks::BLOCK_SIDE;
     pack::pack(&mut unwrapped.corners, &unwrapped.islands, blocks);
     unwrapped.corners
@@ -65,16 +80,28 @@ fn unwrapped_by(
 /// over them, one per corner in triangle order, and whether the unwrap's mesh holds each triangle,
 /// as a merged layer's `uvMethod` names the unwrap (`method`): its patches unwrapped at the
 /// merge's settings (`MERGE_PATCHES`) and packed as that unwrap packs them (`uv::unwrap`) — as its
-/// maps made them where the packer finds no layout —; or its charts cut and packed (`uv::charts`),
-/// a triangle set aside at the origin held by no chart.
+/// maps made them where the packer finds no layout —; its charts cut and packed (`uv::charts`), a
+/// triangle set aside at the origin held by no chart; or its spectral charts (`MERGE_STRETCH`).
+/// Where those fail no triangle is held: each keeps its mesh's own first texture set, as the
+/// unwrap's mesh leaves it.
 pub(super) fn unwrapped(
     points: &[[f64; 3]],
     triangles: &[[usize; 3]],
     method: HlodUvMethod,
 ) -> (Vec<[f64; 2]>, Vec<bool>) {
     let topology = Topology { points, triangles };
-    let unwrapped = laid(&topology, (method, &MERGE_PATCHES));
-    (unwrapped.corners, unwrapped.held)
+    let settings = UvSettings {
+        method,
+        patches: &MERGE_PATCHES,
+        stretch: MERGE_STRETCH,
+    };
+    match laid(&topology, &settings) {
+        Some(unwrapped) => (unwrapped.corners, unwrapped.held),
+        None => (
+            vec![[0.0; 2]; triangles.len() * 3],
+            vec![false; triangles.len()],
+        ),
+    }
 }
 
 /// A mesh's points, its triangles over them and one normal per corner.
@@ -91,8 +118,12 @@ fn charted(
     (texture_size, approximation): (usize, &HlodApproximation),
 ) -> Flat {
     let topology = Topology { points, triangles };
-    let method = (approximation.uv_method, &approximation.patches);
-    let corners = unwrapped_by(&topology, texture_size, method);
+    let settings = UvSettings {
+        method: approximation.uv_method,
+        patches: &approximation.patches,
+        stretch: approximation.uv_atlas_stretch as f32,
+    };
+    let corners = unwrapped_by(&topology, texture_size, &settings);
     split((points, triangles, normals), corners)
 }
 

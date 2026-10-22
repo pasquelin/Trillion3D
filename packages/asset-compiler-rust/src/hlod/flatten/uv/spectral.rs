@@ -53,6 +53,10 @@ mod spectrum;
 mod stretch;
 mod util;
 
+/// Every face's integrated metric tensor when the charts follow the surface's own lengths: the
+/// identity, `[1, 0, 1]`.
+pub(crate) const IDENTITY_METRIC: [f32; 3] = [1.0, 0.0, 1.0];
+
 /// How the geodesic distances of the partition are measured: by the exact window propagation on
 /// every mesh without a signal, or (the library's default) exactly below 25 000 faces and by the
 /// fast edge-path propagation above.

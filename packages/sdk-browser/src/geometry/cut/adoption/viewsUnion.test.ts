@@ -15,7 +15,9 @@ import {
 import { useWebgpuView } from '../../../frame/backend/state/viewSwitch.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import type { GpuCut } from '../../../gpu/core/selection.ts'
-import { copySelectionUniforms } from '../../../gpu/core/selectionCopy.ts'
+import { copySelectionUniforms, sameSelectionUniforms } from '../../../gpu/core/selectionCopy.ts'
+import { createSelectionUniforms } from '../../../gpu/core/selection.ts'
+import { holdViewFilter, writeViewFilter } from '../../dag/viewFilterRegion.ts'
 import { createScaleControl } from '../../../frame/scale/scaleControl.ts'
 
 /** Eight pages, levels 0 to 3 twice over. */
@@ -127,4 +129,71 @@ test('one view asks and keeps what it did before views existed', () => {
     assert.deepEqual(keysOf(tracking.keep), keysOf(before.tracking.keep))
     assert.equal(sets.requestedCount, before.sets.requestedCount)
   }
+})
+
+test('a cut stands for another view’s only under the same plane and the same filter', () => {
+  const a = createSelectionUniforms(),
+    b = copySelectionUniforms(a)
+  assert.equal(sameSelectionUniforms(a, b), true)
+  // A plane of zeros and no plane are the one view; another plane, or a filter, is another.
+  b.clipPlane = [0, 0, 0, 0]
+  assert.equal(sameSelectionUniforms(a, b), true)
+  b.clipPlane = [0, 0, 1, 2]
+  assert.equal(sameSelectionUniforms(a, b), false)
+  const kept = copySelectionUniforms(b)
+  b.clipPlane[3] = 9
+  assert.deepEqual(kept.clipPlane, [0, 0, 1, 2], 'the copy is its own')
+  assert.equal(sameSelectionUniforms(a, kept), false)
+  const bits = new Uint32Array(1)
+  a.filter = bits
+  assert.equal(sameSelectionUniforms(a, copySelectionUniforms(a)), true, 'by identity')
+  assert.equal(sameSelectionUniforms(a, { ...a, filter: new Uint32Array(1) }), false)
+  assert.equal(sameSelectionUniforms(a, { ...a, filter: undefined }), false)
+})
+
+test('the filter’s bits go up when the region does not hold them, once, and are never sent for a view without', () => {
+  const writes: { offset: number; bytes: number }[] = []
+  const resources = {
+    device: {
+      queue: {
+        writeBuffer: (_b: unknown, offset: number, _d: unknown, _o: number, bytes: number) =>
+          void writes.push({ offset, bytes }),
+      },
+    },
+    work: {},
+    workLayout: { filter: 100, words: 102 },
+    filterHeld: { bits: undefined as Uint32Array | undefined },
+  } as unknown as Parameters<typeof writeViewFilter>[0]
+  const mine = new Uint32Array(2),
+    theirs = new Uint32Array(2)
+  writeViewFilter(resources, undefined)
+  assert.deepEqual(writes, [], 'a view without a filter sends nothing')
+  writeViewFilter(resources, mine)
+  writeViewFilter(resources, mine)
+  assert.deepEqual(writes, [{ offset: 400, bytes: 8 }], 'once, at the layout’s word')
+  writeViewFilter(resources, theirs)
+  writeViewFilter(resources, mine)
+  assert.equal(writes.length, 3, 'a view that cuts after another sends its own again')
+  // Bits past the room the region has are not sent.
+  writeViewFilter(resources, new Uint32Array(5))
+  assert.deepEqual(writes[3], { offset: 400, bytes: 8 })
+})
+
+test('a reader beside the cut holds a view’s bits where the cut reads them, none for a view without or a cut with no room', () => {
+  const writes: number[] = []
+  const work = {} as GPUBuffer
+  const resources = (words: number) =>
+    ({
+      device: { queue: { writeBuffer: (_b: unknown, offset: number) => void writes.push(offset) } },
+      work,
+      workLayout: { filter: 100, words },
+      filterHeld: { bits: undefined as Uint32Array | undefined },
+    }) as unknown as Parameters<typeof holdViewFilter>[0]
+  const bits = new Uint32Array(2),
+    room = resources(102)
+  assert.equal(holdViewFilter(room, undefined), undefined)
+  assert.deepEqual(holdViewFilter(room, bits), { buffer: work, base: 100 })
+  assert.deepEqual(holdViewFilter(room, bits), { buffer: work, base: 100 })
+  assert.deepEqual(writes, [400], 'sent once')
+  assert.equal(holdViewFilter(resources(100), bits), undefined, 'a cut with no room for them')
 })

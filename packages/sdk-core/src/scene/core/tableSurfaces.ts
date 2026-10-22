@@ -3,6 +3,7 @@
  * `packages/asset-compiler-rust/src/compiler/tables/materials.rs`): each material the prepared
  * scene wears, in the engine's own words, and the sampler state of each texture it samples.
  */
+import type { DisplacementWire } from '../../contracts/materialAbi.ts'
 import type { TextureFilter, WrapMode } from '../../texture/contract.ts'
 
 /** The six map slots the engine reads of a surface, in the engine's own field names. */
@@ -82,6 +83,10 @@ export interface TableTexture {
   /** Filter when smaller. */
   minFilter: TableFilter
 }
+/** A material's displacement in the tables: the slot of its height map, read in its first channel
+ *  as a data texture, and what the compiler resolved of the material's `extras` (`DISPLACEMENT_EXTRA`):
+ *  the magnitude and the centre, the fade range in pixels or `null` for no fade. */
+export type TableDisplacement = DisplacementWire & { map: TableTextureSlot }
 /**
  * A surface as the engine reads it. One glTF material is one entry per tangent variant: a primitive
  * that declares no tangent is shaded in a frame rebuilt from its triangle, which flips
@@ -131,6 +136,9 @@ export type TableMaterial = {
    *  compiler's one resolution of the job's `materials`, its `responsive` match and the material's
    *  `extras` —; written only below 1, absent for the engine's own blend. */
   temporalAntialiasing?: number
+  /** The displacement the material names and switches on, absent for every other material: the
+   *  tessellation draws it displaced (`tessellation`, `TESSELLATION_RULES`). */
+  displacement?: TableDisplacement
 } & Record<(typeof TABLE_FLAGS)[number], boolean> &
   Record<(typeof TABLE_NUMBERS)[number], number> &
   Record<(typeof TABLE_TRIPLETS)[number], readonly [number, number, number]> &

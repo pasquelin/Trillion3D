@@ -8,6 +8,7 @@
 //!   packages/sdk-core/src/contracts/meshBuildAbi.ts
 //!   packages/sdk-core/src/contracts/objectAbi.ts
 //!   packages/sdk-core/src/contracts/partitionAbi.ts
+//!   packages/sdk-core/src/contracts/partitionGridOptions.ts
 //!   packages/sdk-core/src/contracts/partitionOptions.ts
 //!   packages/sdk-core/src/lod/policy.ts
 //! Edit the source, then run `pnpm run generate:shared-rules`.
@@ -69,7 +70,8 @@ pub const HLOD_BUILDERS: [&str; 5] = ["instanced", "approximate", "merge", "voxe
 pub const HLOD_LOD_SELECTIONS: [&str; 2] = ["calculate", "lowest"];
 /// How a merged layer generates the texture coordinates of a mesh baked on its own triangles that
 /// has none to reuse.
-pub const HLOD_MERGE_UV_METHODS: [&str; 3] = ["default", "xAtlas", "patchBuilder"];
+pub const HLOD_MERGE_UV_METHODS: [&str; 5] =
+    ["default", "xAtlas", "patchBuilder", "legacy", "uvAtlas"];
 /// How an HLOD atlas bakes a translucent source, the value `false` names first, and the one
 /// `true` names.
 pub const HLOD_TRANSLUCENCIES: [&str; 2] = ["surfaceOnly", "seenThrough"];
@@ -130,6 +132,16 @@ pub const MATERIAL_SETTINGS: [&str; 2] = ["temporalAntialiasing", "responsive"];
 pub const VOXELIZE_FIELD: &str = "voxelize";
 pub const VOXELIZE_OPTION: &str = "--voxelize=";
 pub const VOXELIZE_EXTRA: &str = "shapePreservation";
+/// The key of a glTF material's `extras` naming its displacement, the keys it may hold and the
+/// keys of its fade range, and the defaults, the reference's: the magnitude, the centre and the
+/// fade range's two ends.
+pub const DISPLACEMENT_EXTRA: &str = "displacement";
+pub const DISPLACEMENT_KEYS: [&str; 5] = ["texture", "tessellation", "magnitude", "center", "fade"];
+pub const DISPLACEMENT_FADE_KEYS: [&str; 2] = ["start", "end"];
+pub const DEFAULT_DISPLACEMENT_MAGNITUDE: f64 = 4.0;
+pub const DEFAULT_DISPLACEMENT_CENTER: f64 = 0.5;
+pub const DEFAULT_DISPLACEMENT_FADE_START: f64 = 4.0;
+pub const DEFAULT_DISPLACEMENT_FADE_END: f64 = 1.0;
 /// The job field setting the partition's main grid, the command line's flag holding it as JSON,
 /// the settings it may name, their defaults — the reference's main grid's — and the most a grid's
 /// priority may be.
@@ -153,6 +165,14 @@ pub const DEFAULT_PARTITION_LOADING_RANGE: f64 = 256.0;
 pub const DEFAULT_PARTITION_PRIORITY: u32 = 0;
 pub const MAX_PARTITION_PRIORITY: u32 = 4294967295;
 pub const DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING: bool = false;
+/// The job field naming several streaming grids, the command line's flag holding it as JSON, the
+/// key of a grid's name in it, the characters it may not hold and the first grid's name when it
+/// names none, the reference's.
+pub const PARTITION_GRIDS_FIELD: &str = "partitionGrids";
+pub const PARTITION_GRIDS_OPTION: &str = "--partition-grids=";
+pub const PARTITION_GRID_NAME_KEY: &str = "name";
+pub const PARTITION_GRID_NAME_FORBIDDEN: &str = ":.";
+pub const DEFAULT_PARTITION_GRID_NAME: &str = "MainPartition";
 /// The job field naming the world partition's scheme, the command line's flag holding it, a bare
 /// name, the schemes and the default one, the reference's.
 pub const PARTITION_SCHEME_FIELD: &str = "partitionScheme";
@@ -188,10 +208,17 @@ pub const WEIGHTED_NORMALS_SETTING: &str = "computeWeightedNormals";
 pub const SKINNED_WELD_POSITION_SETTING: &str = "skinnedWeldPosition";
 pub const SKINNED_WELD_NORMAL_SETTING: &str = "skinnedWeldNormal";
 pub const SKINNED_WELD_TEXTURE_SETTING: &str = "skinnedWeldTexture";
+pub const VOXEL_RAYS_SETTING: &str = "voxelRays";
+pub const VOXEL_LEVEL_SETTING: &str = "voxelLevel";
+pub const VOXEL_BACK_UP_SETTING: &str = "voxelBackUp";
+pub const VOXEL_SEPARABLE_SETTING: &str = "voxelSeparable";
+pub const VOXEL_NDF_SETTING: &str = "voxelNdf";
+pub const VOXEL_OPACITY_SETTING: &str = "voxelOpacity";
+pub const ALLOW_ASSEMBLIES_SETTING: &str = "allowAssemblies";
 pub const POSITION_PRECISION_SETTING: &str = "positionPrecision";
 pub const NORMAL_PRECISION_SETTING: &str = "normalPrecision";
 pub const TANGENT_PRECISION_SETTING: &str = "tangentPrecision";
-pub const MESH_BUILD_SETTINGS: [&str; 15] = [
+pub const MESH_BUILD_SETTINGS: [&str; 22] = [
     "storedTangents",
     "keptTriangles",
     "trimmedError",
@@ -204,6 +231,13 @@ pub const MESH_BUILD_SETTINGS: [&str; 15] = [
     "skinnedWeldPosition",
     "skinnedWeldNormal",
     "skinnedWeldTexture",
+    "voxelRays",
+    "voxelLevel",
+    "voxelBackUp",
+    "voxelSeparable",
+    "voxelNdf",
+    "voxelOpacity",
+    "allowAssemblies",
     "positionPrecision",
     "normalPrecision",
     "tangentPrecision",
@@ -221,6 +255,19 @@ pub const DEFAULT_WEIGHTED_NORMALS: bool = false;
 pub const DEFAULT_SKINNED_WELD_POSITION: f64 = 2e-7;
 pub const DEFAULT_SKINNED_WELD_NORMAL: f64 = 0.00002;
 pub const DEFAULT_SKINNED_WELD_TEXTURE: f64 = 0.0009765625;
+/// How a voxelized mesh's voxels are sampled: the defaults, the reference's, and the rays a voxel
+/// casts at most, the packet they are cast in, and the count below which a voxel no ray hit is
+/// sampled again a level up.
+pub const DEFAULT_VOXEL_RAYS: u32 = 64;
+pub const DEFAULT_VOXEL_LEVEL: i32 = 0;
+pub const DEFAULT_VOXEL_BACK_UP: f64 = 0.0;
+pub const DEFAULT_VOXEL_SEPARABLE: bool = false;
+pub const DEFAULT_VOXEL_NDF: bool = true;
+pub const DEFAULT_VOXEL_OPACITY: bool = false;
+pub const DEFAULT_ALLOW_ASSEMBLIES: bool = false;
+pub const MAX_VOXEL_RAYS: u32 = 1024;
+pub const VOXEL_RAY_PACKET: u32 = 16;
+pub const VOXEL_REMEMBER_BELOW_RAYS: u32 = 32;
 /// How a mesh keeps its shape as its DAG is built — the keys of a glTF mesh's `extras` bounding
 /// its edges and holding its texture coordinates, and their defaults, the reference's —, and the
 /// settings a merged HLOD layer's `meshBuild` names for its actors' meshes, with the shapes it
@@ -249,7 +296,17 @@ pub const OBJECT_SETTINGS_OPTION: &str = "--object-settings=";
 pub const OBJECT_SETTINGS_OBJECTS: &str = "objects";
 pub const SPATIALLY_LOADED_SETTING: &str = "spatiallyLoaded";
 pub const SKINNED_INSTANCE_SETTING: &str = "skinnedInstance";
-pub const OBJECT_SETTINGS: [&str; 2] = ["spatiallyLoaded", "skinnedInstance"];
+pub const RUNTIME_GRID_SETTING: &str = "runtimeGrid";
+pub const DRAW_DISTANCE_SETTING: &str = "drawDistance";
+pub const DRAW_DISTANCE_SETTINGS: [&str; 2] = ["min", "max"];
+pub const DEFAULT_DRAW_DISTANCE_MIN: f64 = 0.0;
+pub const DEFAULT_DRAW_DISTANCE_MAX: f64 = 0.0;
+pub const OBJECT_SETTINGS: [&str; 4] = [
+    "spatiallyLoaded",
+    "skinnedInstance",
+    "drawDistance",
+    "runtimeGrid",
+];
 pub const SKINNED_INSTANCE_SETTINGS: [&str; 7] = [
     "clip",
     "looping",

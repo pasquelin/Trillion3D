@@ -8,7 +8,7 @@ import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts
 import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
 import type { RuntimeCutProxy } from '../../../../../sdk-core/src/contracts/proxy.ts'
 import type { PageSurface } from '../../pages/surface.ts'
-import type { RootProxy } from '../../selection/types.ts'
+import type { DrawDistance, RootProxy } from '../../selection/types.ts'
 import {
   RUNTIME_HEADER,
   RUNTIME_HEADER_WORDS,
@@ -80,10 +80,15 @@ function headerOf(gpu: ReturnType<typeof fakeDevice>) {
 export const region = (gpu: ReturnType<typeof fakeDevice>, name: keyof typeof RUNTIME_HEADER) =>
   headerOf(gpu)[RUNTIME_HEADER[name]]
 
-export async function open(wear: (w: number) => RootProxy | undefined) {
+/** The packing and the cut over the field of sixteen placements, each wearing `wear(w)` and, when
+ *  `distance` is given, naming it as the distances it is drawn at. */
+export async function open(wear: (w: number) => RootProxy | undefined, distance?: DrawDistance) {
   installGpuGlobals()
   const roots = placementField(4, 3)
-  roots.forEach((root, w) => (root.proxy = wear(w)))
+  roots.forEach((root, w) => {
+    root.proxy = wear(w)
+    root.drawDistance = distance
+  })
   const packed = packDagSelection(roots)
   const gpu = fakeDevice({ ...BACKEND, packed, limits: LIMITS })
   const selection = (await createGpuDagSelection(gpu.device, packed, {

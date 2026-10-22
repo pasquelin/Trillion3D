@@ -17,6 +17,11 @@ import {
 } from '../../../../math/src/wgsl/projection.ts'
 import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
 import { DIVISOR_FLOOR } from '../../../../math/src/wgsl/constants.ts'
+import {
+  CLIP_DISTANCES_WGSL,
+  clippedStructText,
+  guardedFragments,
+} from '../../gpu/core/clipDistances.ts'
 
 // The particle kernels: the step (`webgpuParticles.ts`) and the draw (`webgpuParticleDraw.ts`).
 
@@ -134,24 +139,25 @@ fn bound(@builtin(local_invocation_index) local: u32) {
  *  (#833), so the temporal pass keeps no trail of it. `fsRouted`, an image with display layers
  *  (`../../blend/display/displayFilter.ts`): where the mask is set, the disc maps the tint and the added
  *  value by its display colour, not the lit image. */
-export const PARTICLE_DRAW_WGSL = wgslProgram(
-  /* wgsl */ `struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4f, softness: f32, exposure: f32, curve: f32, unlit: f32, drawn: vec2f }
+const particleDrawWgsl = (clip: boolean) =>
+  wgslProgram(
+    /* wgsl */ `struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4f, softness: f32, exposure: f32, curve: f32, unlit: f32, drawn: vec2f, clipPlane: vec4f }
 @group(0) @binding(0) var<uniform> draw: Draw;
 @group(0) @binding(1) var<storage, read> state: State;
 @group(0) @binding(2) var depth: texture_depth_2d;
-struct Out { @builtin(position) at: vec4f, @location(0) corner: vec2f, @location(1) local: vec3f, @location(2) life: f32 }
-@vertex fn vs(@builtin(vertex_index) v: u32, @builtin(instance_index) i: u32) -> Out {
+struct Out { ${PARTICLE_OUT.join(', ')} }${clip ? `\n${clippedStructText('Out', PARTICLE_OUT)}` : ''}
+@vertex fn vs(@builtin(vertex_index) v: u32, @builtin(instance_index) i: u32) -> ${clip ? 'OutClipped' : 'Out'} {
   let p = state.particles[state.window.first + i];
   var o: Out;
   o.at = vec4f(2, 2, 2, 1);
-  if (!(p.position.w < p.velocity.w)) { return o; }
+  if (!(p.position.w < p.velocity.w)) { return ${clip ? 'OutWithClip(o, 1)' : 'o'}; }
   let toEye = normalize(draw.eye - p.position.xyz);
   let right = tangentBillboard(toEye);
   o.corner = unitToSigned2(vec2f(f32(v & 1u), f32(v >> 1u)));
   o.local = p.position.xyz + (right * o.corner.x + cross(toEye, right) * o.corner.y) * draw.size;
   o.at = draw.clip * vec4f(o.local, 1);
   o.life = 1 - p.position.w / p.velocity.w;
-  return o;
+  return ${clip ? 'OutWithClip(o, dot(draw.clipPlane.xyz, o.local) + draw.clipPlane.w)' : 'o'};
 }
 fn particle(in: Out) -> vec4f {
   let size = draw.drawn;
@@ -162,7 +168,7 @@ fn particle(in: Out) -> vec4f {
   let k = saturate(1 - dot(in.corner, in.corner)) * soft * in.life * draw.color.a;
   return vec4f(draw.color.rgb, 1) * k;
 }
-struct Lit { @location(0) color: vec4f, @location(1) reactive: vec4f }
+${clip ? '' : 'fn particleClipped(in: Out) -> bool { return dot(draw.clipPlane.xyz, in.local) + draw.clipPlane.w < 0.0; }\n'}struct Lit { @location(0) color: vec4f, @location(1) reactive: vec4f }
 @fragment fn fs(in: Out) -> Lit { let c = particle(in); return Lit(c, vec4f(0, 1, 0, c.a)); }
 struct Routed { @location(0) color: vec4f, @location(1) tint: vec4f, @location(2) add: vec4f, @location(3) reactive: vec4f }
 @fragment fn fsRouted(in: Out) -> Routed {
@@ -170,15 +176,37 @@ struct Routed { @location(0) color: vec4f, @location(1) tint: vec4f, @location(2
   let r = displayRoute(draw.color.rgb, draw.exposure, u32(draw.curve), draw.unlit != 0, c.a, maskAt(in.at));
   return Routed(c * r.keep, r.tint, r.add, vec4f(0, 1, 0, c.a));
 }`,
-  [
-    STATE_WGSL,
-    DISPLAY_ROUTE_WGSL,
-    displayMaskWgsl(1),
-    tangentBillboard,
-    perspectiveDivide,
-    transformHomogeneousPoint,
-    DIVISOR_FLOOR,
-    pixelToNdc,
-    unitToSigned2,
-  ],
+    [
+      STATE_WGSL,
+      DISPLAY_ROUTE_WGSL,
+      displayMaskWgsl(1),
+      tangentBillboard,
+      perspectiveDivide,
+      transformHomogeneousPoint,
+      DIVISOR_FLOOR,
+      pixelToNdc,
+      unitToSigned2,
+      ...(clip ? [CLIP_DISTANCES_WGSL] : []),
+    ],
+  )
+
+/** The members of the draw's vertex output, as the struct both stages share (`Out`). */
+const PARTICLE_OUT = [
+  '@builtin(position) at: vec4f',
+  '@location(0) corner: vec2f',
+  '@location(1) local: vec3f',
+  '@location(2) life: f32',
+]
+
+/** The draw's module for a device without `clip-distances`, the portable text: each fragment entry
+ *  leaves a pixel behind the view's plane (`particleClipped`); a device that has the feature
+ *  compiles `particleDrawWgsl(true)`, whose vertex stage cuts the disc at the plane. */
+export const PARTICLE_DRAW_WGSL = guardedFragments(
+  particleDrawWgsl(false),
+  'Out',
+  'if (particleClipped(in)) { discard; }',
 )
+
+/** The draw's module for a device with the feature (`clip`) or without (`PARTICLE_DRAW_WGSL`). */
+export const particleDrawShader = (clip: boolean) =>
+  clip ? particleDrawWgsl(true) : PARTICLE_DRAW_WGSL

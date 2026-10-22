@@ -6,7 +6,8 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/g
  * The kernel that follows the descent, and that visits only what it kept.
  *
  * `dagWanted` walks the pages of the leaves the running pass kept and saw — every one of them asked
- * for already (`depositLeaf`, `levelWgsl.ts`): it drops those the frustum rejects, applies the cut
+ * for already (`depositLeaf`, `levelWgsl.ts`): it drops those wholly behind the view's clip plane
+ * (`clipPlaneWgsl.ts`) and those the frustum rejects, applies the cut
  * rule — the error the cluster replaces shows, its own does not, or the finer group is not resident
  * (`../../cut/rule.ts`), on the residency `../readiness.ts` derives —, and judges what it draws
  * under the pyramid (`occlusionWgsl.ts`): seen, the cluster is deposited in the live list
@@ -27,6 +28,7 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:
  let i=flagAt(candBase()+2u*s);let w=flagAt(candBase()+2u*s+1u);
  deformReach=reachOf(w);let r=recordOf(i,w);
  let cluster=clusterAt(r);
+ if(outsideClipPlane(w,boxMin(r),boxMax(r))){return;}
  if(!visible(r,w,cluster)){atomicAdd(&out.frustumRejected,1u);return;}
  let rule=clusterRule(cluster,viewWorld(w));
  if(rule.x&&rule.y){atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);}

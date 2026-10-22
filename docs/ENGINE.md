@@ -102,8 +102,9 @@ tables as the cut does, split tables in their parts (`geometry/dag/shader/bindin
 ## A partitioned scene
 
 A compiled scene's spatially loaded objects lie in the cells of the grids of its partition's
-scheme ([COMPILER.md](COMPILER.md#the-partitions-grids)), which its root names: the main grid's,
-and each HLOD level's. A cell places its objects on rows of their meshes: a static object under
+scheme ([COMPILER.md](COMPILER.md#the-partitions-grids)), which its root names: the main grid's —
+one, or one for each entry of a job's `partitionGrids` —, and each HLOD level's. A cell places its
+objects on rows of their meshes: a static object under
 its core node — one with nodes under it under its own node —, an instanced skinned object at its
 skin's frame playing its track ([Animation banks](#animation-banks)), an animated object of the
 core at its node, its host mesh the row's animation source — its skeleton and morph weights as
@@ -117,7 +118,7 @@ beside or behind the sector (`geometry/partition/plan.ts`, `geometry/hlod/hlodCe
   around the view's own axis without its up part — on grids the job does not lay flat, within or
   on a sphere of that radius, the sector a cone around the view's axis that the box's bounding
   sphere meets. The cells wished and not loaded load in
-  one order: the higher level on its grid first, then the lower grid priority — the main grid's,
+  one order: the higher level on its grid first, then the lower grid priority — its main grid's,
   each HLOD grid's 0 —, then the lower distance ratio: the squared distance from the eye to the
   box over the squared radius, at most 1, times half the cosine of the view's axis with the way
   from the box to the eye plus a half — 0 from within it —. The settings `sortByExtent`,
@@ -127,7 +128,7 @@ beside or behind the sector (`geometry/partition/plan.ts`, `geometry/hlod/hlodCe
   the eye's within the radius; on a grid compiled with `pullCoarser`, a wished cell pulls in the
   coarser cells overlapping it, and those in turn (`geometry/partition/coarser.ts`,
   `geometry/hlod/hlodPulls.ts`). The cells wished and not loaded load in one order: the wider first (by
-  their half side, or by their level), then the lower grid priority — the main grid's, then each
+  their half side, or by their level), then the lower grid priority — its main grid's, then each
   HLOD grid's, 100 plus its level —, then the nearer, the squared distance to the cell's centre
   times the angle the view turns to reach it, over a half turn, raised to the angle weight.
 
@@ -178,8 +179,50 @@ under `worldStreamingBlockOnSlowStreamingRatio` blocks. While one does, no image
 loop taking the whole frame (`frame/loop/firstImage.ts`); only the blocking files start loading,
 all at once, a unit already loading going on; no HLOD cell turns visible, no other file shows and
 no switch waits on a warm-up. The HLOD grids never block. With `hlodEnabled` off, no HLOD cell is
-held or told, none draws its actor nor its HLOD 0 actor, and every cell file streams on the main
-grid alone.
+held or told, none draws its actor nor its HLOD 0 actor, and every cell file streams on its own
+main grid alone.
+
+**Several main grids.** A scene compiled with `partitionGrids`
+([COMPILER.md](COMPILER.md#several-streaming-grids-partitiongrids)) has one main grid for each entry,
+and reads as before with one. A cell file streams within the loading range of the main grid its
+record names (`main`), ranks by that grid's priority, is tested from above or in space as that grid
+lies flat or not, and — while the session's `worldStreamingBlockOnSlowStreaming` is on — holds the
+first images back when that grid was compiled to block (`blockOnSlowStreaming`) and the cell is near
+and not yet shown. Coarser cells (`pullCoarser`) are pulled in per main grid.
+
+**When the wishes are worked out again.** The cells the view wishes are not planned again at every
+step of the eye or the axis (`packages/sdk-browser/src/geometry/partition/streamingUpdate.ts`). Each
+frame the view is reduced to a key: its position in metres of the world the camera stands in (before
+the frame of the scene's root: a model scaled to a hundredth still skips within 4 world metres), cut
+into squares of `worldStreamingLocationQuantization` (its two ground axes, and its height too when
+the key is 3D: always on `hashSet`, on `spatialHash` under `worldStreamingZCulling`), its yaw cut
+into steps of `worldStreamingRotationQuantization` degrees (and its pitch in 3D; the view has no
+roll), and the settings that shape what it wishes (`worldStreamingTargetState`,
+`worldStreamingForce2D`, `worldStreamingExtraRadius`, `worldStreamingExtraAngle`, the shape's own
+settings, `worldStreamingBlockOnSlowStreaming`, `hlodEnabled`). The wishes are planned again when
+that key changed since the last update, or when the scene root's world or a core parent moved (the
+cells hanging under them move with them), and at every frame while they may not be skipped:
+`worldStreamingUpdateOptimization` off (or both quantizations at 0), the last frame left work (a
+cell wished still loading or not yet shown, a page of the index left for a later frame, a placed
+file waiting for its HLOD 0 cell to be hidden), a load blocking on slow streaming, the initial load,
+or every `worldStreamingForceUpdateFrameCount`th frame (0, never). The first update after such a
+frame always runs. A frame that skips the update goes on with the last plan, from the eye it was
+made from; the source stays where that update put it. The position and the rotation the key reads
+are the view's own when it lies farther than a quantum from the world's origin, and none otherwise,
+afresh at each frame; the yaw is always the view's own.
+
+**The shape of the view.** `worldStreamingExtraRadius` (metres) lengthens the radius of the view's
+circle or sphere, whichever way it is taken (the grid's range times the scale, or
+`worldStreamingRadius`); `worldStreamingExtraAngle` (degrees) widens the sector
+(`worldStreamingSector`), a whole turn at most, and does nothing without one.
+`worldStreamingForce2D` makes a loose grid (`hashSet`) that streams in 3D wish its cells by their
+footprint on the ground, the view's height ignored, as a flat grid does; it changes nothing on a
+flat grid or a square grid (`spatialHash`). `worldStreamingTargetState` is what the view asks of the
+cells it reaches: `activated` loads and draws them; `loaded` loads them and keeps them placed in
+memory without activating any of them: every cell file, every HLOD 0 actor and every HLOD actor
+stays loaded, wished and switched as ever, and draws nothing; none holds the images back. Only the
+placed rows and cells the world DAG of the cut draws are hidden: a scene whose cut packs no world
+DAG (compiled without HLOD) has nothing to hide and stays drawn.
 
 Every setting is the reference's by default, a world option by its field, held over the quality
 preset, changed later by `world.worldStreaming` from the next frame
@@ -200,29 +243,56 @@ world.worldStreaming = { worldStreamingSector: null } // back to the preset's, h
 world.worldStreaming = { worldStreamingBlockOnSlowStreamingRatio: 0.1 }
 world.worldStreaming = { hlodEnabled: false }
 world.worldStreaming = { hlodEnabled: null }
+// The view must move 8 m or turn 20 degrees before the wishes are worked out again; a frame forced
+// every 120 frames.
+world.worldStreaming = {
+  worldStreamingLocationQuantization: 8,
+  worldStreamingRotationQuantization: 20,
+  worldStreamingForceUpdateFrameCount: 120,
+}
+// Every frame, as before: no quantization.
+world.worldStreaming = { worldStreamingUpdateOptimization: false }
+// 50 m more around the view, a sector 30 degrees wider, a 3D grid wished by its footprint on the ground.
+world.worldStreaming = {
+  worldStreamingExtraRadius: 50,
+  worldStreamingSector: true,
+  worldStreamingSectorAngle: 90,
+  worldStreamingExtraAngle: 30,
+  worldStreamingForce2D: true,
+}
+// Preload only: the cells load and stay in memory, none is activated.
+world.worldStreaming = { worldStreamingTargetState: 'loaded' }
 ```
 
-| Field                                     | Meaning                                                                                                                       | Default |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `worldStreamingMaxLoadingCells`           | Cells that may load at once once the first image is shown, a whole number; 0 or less, no limit                                | `4`     |
-| `worldStreamingAngleWeight`               | How much the angle to the view's heading weighs in a cell's turn, from 0 to 1                                                 | `0.4`   |
-| `worldStreamingSortByExtent`              | The wider cells first by their half side; `false`, by their level                                                             | `true`  |
-| `worldStreamingSortByPriority`            | A grid's priority ranks before the distance; `false`, after                                                                   | `true`  |
-| `worldStreamingUseGridRange`              | The circle takes each grid's range times `worldStreamingRangeScale`; `false`, `worldStreamingRadius`                          | `true`  |
-| `worldStreamingRangeScale`                | The scale of each grid's loading range, from 0                                                                                | `1`     |
-| `worldStreamingRadius`                    | The circle's radius for every grid, metres, from 0                                                                            | `100`   |
-| `worldStreamingSector`                    | Only a sector of the circle around the view's heading streams cells                                                           | `false` |
-| `worldStreamingSectorAngle`               | That sector's angle, degrees, from 0 to 360                                                                                   | `360`   |
-| `worldStreamingZCulling`                  | A square grid's cell (`spatialHash`) is wished only while its content's height range meets the eye's height within the radius | `false` |
-| `worldStreamingBlockOnSlowStreaming`      | A grid compiled with `blockOnSlowStreaming` holds the images back while a cell near the view is not shown                     | `true`  |
-| `worldStreamingBlockOnSlowStreamingRatio` | The ratio under which a cell of a blocking grid not yet shown blocks, from 0                                                  | `0.25`  |
-| `hlodEnabled`                             | The HLOD actors load and draw; `false`, the main grid's cells draw alone                                                      | `true`  |
-| `hlodWarmup`                              | A switch that draws an HLOD actor whose layer asks one waits on its warm-up                                                   | `true`  |
-| `hlodWarmupFrames`                        | The frames in a row a warm-up lasts, a whole number from 0                                                                    | `5`     |
-| `hlodWarmupGeometry`                      | A warm-up asks the actor's geometry, ahead of the views' requests                                                             | `true`  |
-| `hlodWarmupTextures`                      | A warm-up asks the actor's textures                                                                                           | `true`  |
-| `hlodWarmupTextureScale`                  | The scale of the size the actor covers on screen its textures are asked at, from 0                                            | `2`     |
-| `hlodWarmupTextureClamp`                  | The most texels asked along a texture's side, a whole number from 1                                                           | `2048`  |
+| Field                                     | Meaning                                                                                                                             | Default     |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `worldStreamingMaxLoadingCells`           | Cells that may load at once once the first image is shown, a whole number; 0 or less, no limit                                      | `4`         |
+| `worldStreamingAngleWeight`               | How much the angle to the view's heading weighs in a cell's turn, from 0 to 1                                                       | `0.4`       |
+| `worldStreamingSortByExtent`              | The wider cells first by their half side; `false`, by their level                                                                   | `true`      |
+| `worldStreamingSortByPriority`            | A grid's priority ranks before the distance; `false`, after                                                                         | `true`      |
+| `worldStreamingUseGridRange`              | The circle takes each grid's range times `worldStreamingRangeScale`; `false`, `worldStreamingRadius`                                | `true`      |
+| `worldStreamingRangeScale`                | The scale of each grid's loading range, from 0                                                                                      | `1`         |
+| `worldStreamingRadius`                    | The circle's radius for every grid, metres, from 0                                                                                  | `100`       |
+| `worldStreamingSector`                    | Only a sector of the circle around the view's heading streams cells                                                                 | `false`     |
+| `worldStreamingSectorAngle`               | That sector's angle, degrees, from 0 to 360                                                                                         | `360`       |
+| `worldStreamingZCulling`                  | A square grid's cell (`spatialHash`) is wished only while its content's height range meets the eye's height within the radius       | `false`     |
+| `worldStreamingBlockOnSlowStreaming`      | A grid compiled with `blockOnSlowStreaming` holds the images back while a cell near the view is not shown                           | `true`      |
+| `worldStreamingBlockOnSlowStreamingRatio` | The ratio under which a cell of a blocking grid not yet shown blocks, from 0                                                        | `0.25`      |
+| `hlodEnabled`                             | The HLOD actors load and draw; `false`, the cells of the main grids draw alone                                                      | `true`      |
+| `worldStreamingUpdateOptimization`        | The wishes are worked out again only once the view moved or turned enough, or while work is left; `false`, at every frame           | `true`      |
+| `worldStreamingLocationQuantization`      | Metres: the squares the view's position is cut into to tell whether it moved enough; 0, its exact position                          | `4`         |
+| `worldStreamingRotationQuantization`      | Degrees: the steps the view's yaw (and pitch in 3D) is cut into to tell whether it turned enough; 0, its exact angle                | `10`        |
+| `worldStreamingForceUpdateFrameCount`     | Every that many frames the wishes are worked out again whatever the view did, a whole number from 0; 0, never                       | `0`         |
+| `worldStreamingForce2D`                   | A loose grid (`hashSet`) that streams in 3D wishes its cells by their footprint on the ground; no effect on a flat or a square grid | `false`     |
+| `worldStreamingExtraRadius`               | Metres added to the radius of the view's circle (a sphere in 3D), from 0                                                            | `0`         |
+| `worldStreamingExtraAngle`                | Degrees added to the angle of the view's sector, from 0, a whole turn at most                                                       | `0`         |
+| `worldStreamingTargetState`               | `activated`: the cells the view reaches load and draw; `loaded`: they load and stay in memory, none is activated                    | `activated` |
+| `hlodWarmup`                              | A switch that draws an HLOD actor whose layer asks one waits on its warm-up                                                         | `true`      |
+| `hlodWarmupFrames`                        | The frames in a row a warm-up lasts, a whole number from 0                                                                          | `5`         |
+| `hlodWarmupGeometry`                      | A warm-up asks the actor's geometry, ahead of the views' requests                                                                   | `true`      |
+| `hlodWarmupTextures`                      | A warm-up asks the actor's textures                                                                                                 | `true`      |
+| `hlodWarmupTextureScale`                  | The scale of the size the actor covers on screen its textures are asked at, from 0                                                  | `2`         |
+| `hlodWarmupTextureClamp`                  | The most texels asked along a texture's side, a whole number from 1                                                                 | `2048`      |
 
 ## WebGPU page raster
 
@@ -289,6 +359,21 @@ first image — a capture's only one —, a pyramid made again by a resize of th
 switches off cut in one pass that occludes nothing. The readback counts what the main pass held
 (`occluded`) and what the post pass hid again (`postHidden`).
 
+An object that names a draw distance (`objectSettings.drawDistance`,
+[COMPILER.md](COMPILER.md#object-settings)) is tested first, before its frustum test: the centre of
+its root's bounds, from the eye, nearer than its `min` or farther than its `max` culls it
+(`cutDrawDistanceCulling`), both distances multiplied by `cutViewDistanceScale` first. A group of 64
+placements of the placement tree holds the nearest and the farthest distance of its placements and
+is culled only where none can be drawn — its box's centre distance, nearer or farther by the box's
+half diagonal, lies outside them —, so a distant group costs its placements nothing; a group with a
+placement that names no distance is never culled by it, and a cut in one pass (above) tests its
+placements alone. The post pass tests none again: what it holds passed in the main pass, the eye
+unchanged. The sun's shadows and the rays' scene take the same test, from the same eye, with the
+same scale: an object out of its distances casts no shadow in the virtual shadow maps and is not
+met by the bounce and reflection rays (their scene is the objects' proxies); `cutDrawDistanceCulling`
+off turns the three off. The shadow of an object is tested at the centre of its bounds, the main
+view's eye; the rays' at the centre of its root's bounds.
+
 The cut's lists hold fixed caps, laid out once in its flags (`geometry/dag/flagSections.ts`), never
 grown on demand: the nodes one pass opens (`cutMaxNodes`, rounded down to a multiple of 16), the
 candidate clusters of both passes with those the previous pyramid hid, which share the one list
@@ -322,7 +407,8 @@ world.cut = { cutMaxNodes: 4 * 1048576 } // its lists laid out again before the 
 ```
 
 Every setting is the reference's by default, a world option by its field, held over the quality
-preset — no preset level writes one —, changed later by `world.cut` from the next frame
+preset — only `cutViewDistanceScale` is written by a level, the view distance's —, changed later by
+`world.cut` from the next frame
 (`packages/sdk-core/src/contracts/cutOptions.ts`); a value a setting does not take is refused:
 
 ```ts
@@ -331,18 +417,31 @@ world.cut = { cutLodBiasFollowsUpscale: false, cutLodBiasMin: -1 }
 world.cut = { cutTwoPassOcclusion: null } // back to the preset's, here the default
 ```
 
-| Field                      | Meaning                                                                      | Default    |
-| -------------------------- | ---------------------------------------------------------------------------- | ---------- |
-| `cutTwoPassOcclusion`      | Each view's cut runs its two passes; `false`, one pass that occludes nothing | `true`     |
-| `cutOcclusionCulling`      | The cut tests its boxes against the depth pyramids at all                    | `true`     |
-| `cutFrustumCulling`        | The cut rejects the boxes outside the frustum                                | `true`     |
-| `cutMinLodCulling`         | The cut prunes a leaf whose least own error still shows at its nearest       | `true`     |
-| `cutLodBiasFollowsUpscale` | An upscaled image's threshold follows the display over the render width      | `true`     |
-| `cutLodBiasOffset`         | The bias's offset, in powers of two, any finite number                       | `0`        |
-| `cutLodBiasMin`            | The bias's floor, in powers of two, any finite number                        | `-2`       |
-| `cutMaxNodes`              | Most nodes one pass opens, a whole number from 1 to 2³¹ − 1                  | `2097152`  |
-| `cutMaxCandidateClusters`  | Most candidate clusters one cut lists, a whole number from 1 to 2³¹ − 1      | `16777216` |
-| `cutMaxVisibleClusters`    | Most clusters one cut draws, a whole number from 1 to 2³¹ − 1                | `4194304`  |
+The view distance's levels write `cutViewDistanceScale`: 0.4 at `smooth`, 0.6 at `balanced`, 0.8 at
+`fine`; `max` writes nothing (1). `pixelError` and the cut's other settings stay at their defaults
+at every level.
+
+```ts
+const world = createWorld(canvas, { quality: { preset: 'balanced' } })
+// cutViewDistanceScale is 0.6: every draw distance is 60 % of what the scene names
+world.cut = { cutViewDistanceScale: 1 } // the page's value holds over the preset
+world.cut = { cutDrawDistanceCulling: false } // every object drawn at every distance
+```
+
+| Field                      | Meaning                                                                                               | Default    |
+| -------------------------- | ----------------------------------------------------------------------------------------------------- | ---------- |
+| `cutTwoPassOcclusion`      | Each view's cut runs its two passes; `false`, one pass that occludes nothing                          | `true`     |
+| `cutOcclusionCulling`      | The cut tests its boxes against the depth pyramids at all                                             | `true`     |
+| `cutFrustumCulling`        | The cut rejects the boxes outside the frustum                                                         | `true`     |
+| `cutMinLodCulling`         | The cut prunes a leaf whose least own error still shows at its nearest                                | `true`     |
+| `cutDrawDistanceCulling`   | The cut culls an object outside the draw distances it names (`drawDistance`); `false`, none is culled | `true`     |
+| `cutViewDistanceScale`     | The scale every draw distance, min and max, is multiplied by, a finite number of at least 0           | `1`        |
+| `cutLodBiasFollowsUpscale` | An upscaled image's threshold follows the display over the render width                               | `true`     |
+| `cutLodBiasOffset`         | The bias's offset, in powers of two, any finite number                                                | `0`        |
+| `cutLodBiasMin`            | The bias's floor, in powers of two, any finite number                                                 | `-2`       |
+| `cutMaxNodes`              | Most nodes one pass opens, a whole number from 1 to 2³¹ − 1                                           | `2097152`  |
+| `cutMaxCandidateClusters`  | Most candidate clusters one cut lists, a whole number from 1 to 2³¹ − 1                               | `16777216` |
+| `cutMaxVisibleClusters`    | Most clusters one cut draws, a whole number from 1 to 2³¹ − 1                                         | `4194304`  |
 
 Two rasterizers write the one visibility buffer, chosen cluster by cluster (`visibility/raster/`).
 A binning kernel, one workgroup a drawable row (`visibility/raster/binWgsl.ts`), reads each row's
@@ -629,6 +728,8 @@ shadow rays are the projection's, paid once, so the resolve never draws a subset
 shadowed or rectangular light runs a program built without that code
 (`lighting/deferred/contractVariants.ts`). Shadows are [SHADOWS.md](SHADOWS.md).
 
+<!-- wave-1: W1-1/W1-3/W1-9 docs pending -->
+
 ## Light that bounces
 
 Dynamic, on by default (`bounce: false` turns it off): irradiance probes trace
@@ -832,9 +933,10 @@ whose coefficients and defaults are `packages/sdk-core/src/scene/core/atmosphere
 planet of 6360 km, air 60 km thick, ground at `y = groundHeight`, 0 by default). Distances of the
 planet are kilometres, the scene stays in metres. Where it is on, `scene.background` is not shown.
 
-**Units.** The sun is the brightest directional light not flagged `atmosphereSun: false` — its
-colour times its intensity, each channel weighed by the eye's sensitivity (the sRGB luminance
-weights, the fog's sun the same) —, an illuminance `E`. The store holds the sun as lights come and
+**Units.** The sun is the brightest directional light of index 0 (`atmosphereSunIndex`, 0 by
+default; the second light, below, has index 1) not flagged `atmosphereSun: false` — its colour times
+its intensity, each channel weighed by the eye's sensitivity (the sRGB luminance weights, the fog's
+sun the same) —, an illuminance `E`. The store holds the sun as lights come and
 go, whether or not there is air: a light added replaces it only if brighter; the sun removed gives
 its place to the brightest of the others, the first added of equals (a removal moves no one's place
 in that order); a light changed is judged again the same way, the sun keeping its place against an
@@ -845,6 +947,21 @@ intensity. A surface is lit by `E · T(ground→sun)`, written into the sun's ow
 buffer by the store (`atmosphereSun.ts`; the declared light is untouched, the transmittance
 integrated on the CPU over 15 samples, once when the air or the sun moves). The sun's disk is drawn
 at `E / (2π(1 − cos α))`, `α` its angular radius, times the transmittance toward it.
+
+**Two lights.** The air holds up to two lights, one per index (`SceneLight.atmosphereSunIndex`, 0 or
+1, 0 by default), each chosen among the lights that may light the air as the sun is (brightest,
+strictly, at adding; the brightest of its index at removal; a light that changes index is removed
+and added again). Their directions, illuminances and disks are slots of the atmosphere's block
+(`ATMOSPHERE_SLOT`, the second in `second*`, its disk slot's last lane saying that there is one).
+Every march of the air (`integrateAir`) adds, per step, the second light's own scattering — its
+phase, its planet shadow, its transmittance from the table, its multiple scattering — to the first's,
+and, where the ray ends on the ground, its bounce; the sky table, the haze volume, the mean sky at
+6 km, the sky light's capture and the sky by direction all march both. The multiple-scattering and
+transmittance tables depend on the air alone. The sky draws both disks. A surface lit by the second
+light receives its illuminance times the transmittance toward it, written into its own slot as the
+sun's is. Where there is no second light the marches run their per-light loops once and read nothing
+of it. A saved world keeps each light's index (`SavedNode.light.atmosphereSunIndex`, written only
+for index 1).
 
 **The tables** (`lighting/atmosphere/`): a transmittance table (256 × 64) and a multiple-scattering
 table (32 × 32), built when the air changes; the sky seen from the eye (192 × 104, 4 to 32 samples

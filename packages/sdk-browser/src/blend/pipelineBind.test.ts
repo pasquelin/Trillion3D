@@ -77,7 +77,14 @@ function joue(items: ReturnType<typeof item>[]) {
       cache: { buffer: {} },
       zeroUv: {},
       deferred: {
-        placeholders: { slices: {}, atlasView: {}, sampler: {}, bounceGrid: {}, probes: {} },
+        placeholders: {
+          slices: {},
+          atlasView: {},
+          sampler: {},
+          bounceGrid: {},
+          probes: {},
+          fog: {},
+        },
       },
     },
     lights: { buffer: {}, shadows: undefined, store: { count: 0, epoch: 0, unlit: false } },

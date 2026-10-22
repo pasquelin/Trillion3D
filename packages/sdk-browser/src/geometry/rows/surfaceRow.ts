@@ -30,6 +30,7 @@ import {
   FLAG_HAS_ORM,
   FLAG_HAS_NORMAL_MAP,
   FLAG_FOG_FREE,
+  FLAG_DISPLACED,
   FLAG_DYNAMIC,
   FLAG_SPRITE,
   FLAG_LINE,
@@ -112,6 +113,9 @@ export function surfaceRow(
   if (mat.side === 'back') bits |= FLAG_BACK
   if (into.rough || into.metal) bits |= FLAG_HAS_ORM
   if (into.normal) bits |= FLAG_HAS_NORMAL_MAP
+  // The tessellation draws a displaced surface whose height map the atlas holds
+  // (`../../visibility/tessellation/`).
+  if (mat.displacement && layerSlot(dataLayer, mat.displacementMap)) bits |= FLAG_DISPLACED
   // What every raster reads its record for (`pageShape`): a sprite, a line of a width.
   if (mat.sprite) bits |= FLAG_SPRITE
   if ((mat.lineWidth ?? 0) !== 0) bits |= FLAG_LINE

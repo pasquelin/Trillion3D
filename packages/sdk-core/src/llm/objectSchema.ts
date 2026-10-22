@@ -3,13 +3,18 @@ import {
   DEFAULT_BANK_LOOPING,
   DEFAULT_BANK_PLAY_RATE,
   DEFAULT_BANK_POSITION,
+  DEFAULT_DRAW_DISTANCE_MAX,
+  DEFAULT_DRAW_DISTANCE_MIN,
   DEFAULT_OBJECT_ANIMATION_MIN_SCREEN_SIZE,
   DEFAULT_OBJECT_MOBILITY,
   DEFAULT_SPATIALLY_LOADED,
+  DRAW_DISTANCE_SETTING,
   OBJECT_MOBILITIES,
   OBJECT_SETTINGS_OBJECTS,
+  RUNTIME_GRID_SETTING,
   SKINNED_INSTANCE_SETTING,
   SPATIALLY_LOADED_SETTING,
+  type DrawDistanceWire,
   type ObjectSettingsWire,
   type SkinnedInstanceWire,
 } from '../contracts/compilerAbi.ts'
@@ -49,6 +54,20 @@ const skinnedInstanceSettings: Record<keyof SkinnedInstanceWire, JsonSchemaPrope
     },
   }))()
 
+/** The distances of an object's draw distance (`objectOptions.ts`, `DrawDistanceSettings`), one for
+ *  each key the compiler reads. */
+const drawDistanceSettings: Record<keyof DrawDistanceWire, JsonSchemaProperty> =
+  /* @__PURE__ */ (() => ({
+    min: num(
+      `The distance, from the eye to the centre of the object's bounds, under which it is not drawn, in the scene's units (default ${DEFAULT_DRAW_DISTANCE_MIN}).`,
+      0,
+    ),
+    max: num(
+      `The distance, from the eye to the centre of the object's bounds, past which it is not drawn, in the scene's units: 0 none, the object is drawn at every distance, whatever its min (default ${DEFAULT_DRAW_DISTANCE_MAX}).`,
+      0,
+    ),
+  }))()
+
 /** The settings of one source of `objectSettings` (`objectOptions.ts`): the scene's or a rule's. */
 const objectSettingsOf: Record<keyof ObjectSettingsWire, JsonSchemaProperty> =
   /* @__PURE__ */ (() => ({
@@ -66,6 +85,23 @@ const objectSettingsOf: Record<keyof ObjectSettingsWire, JsonSchemaProperty> =
           properties: skinnedInstanceSettings,
         },
       ],
+    },
+    [DRAW_DISTANCE_SETTING]: {
+      description:
+        'The distances the object is drawn at, culled nearer than min and farther than max from the eye, measured to the centre of its bounds: false (the default) none, the object is drawn at every distance, or the distances it names over their defaults. The run-time setting cutDrawDistanceCulling turns the cull off, cutViewDistanceScale scales the distances.',
+      anyOf: [
+        flag('false: none, the object is drawn at every distance; true is refused.'),
+        {
+          type: 'object',
+          description: 'The distances it names over the defaults.',
+          properties: drawDistanceSettings,
+        },
+      ],
+    },
+    [RUNTIME_GRID_SETTING]: {
+      type: 'string',
+      description:
+        "The name of the streaming grid the object streams on (partitionGrids), a text with no ':' or '.': the first grid when it names none or a grid the job does not hold (default the first grid). An object attached under another streams on its topmost object's grid.",
     },
   }))()
 

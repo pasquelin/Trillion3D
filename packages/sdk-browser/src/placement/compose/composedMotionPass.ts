@@ -60,7 +60,7 @@ export function encodeComposedMotion(
   const state = rt.compose,
     gpu = state?.gpu
   if (!state || !gpu || state.frame !== rt.run.frame) return
-  if (!state.motionBound || state.motionBound !== rt.gpu.temporal?.motion.buffer) return
+  if (!state.motionBound || state.motionBound !== rt.gpu.velocity?.motion.buffer) return
   const mode = !history ? MOTION_RESET : scan ? MOTION_SCAN : MOTION_KEEP
   state.motionMode[0] = mode
   packDoubles(state.motionMode, 2, eye, 0, 3)

@@ -4,7 +4,7 @@
  * chain on such a grid — an HLOD 0 cell or one above — that the view's shape for its grid's range
  * meets (`StreamingSource.meets`) pulls in the cells of the chain at the coordinates it pulls,
  * wished then though the shape misses them (`pulled`): the plan's HLOD 0 cells
- * (`../partition/plan.ts`), and the cells above (`hlodCells.ts`). The main grid's cells pull theirs
+ * (`../partition/plan.ts`), and the cells above (`hlodCells.ts`). The main grids' cells pull theirs
  * in the plan, which alone knows them.
  *
  * Cost: O(C) at creation, C the chain's cells on such grids, then O(C + c) per move of the view
@@ -12,7 +12,7 @@
  * chain on no such grid.
  */
 import type { WorldRootsHold } from './worldRoots.ts'
-import { MAIN_GRID, NO_CELLS, type CoarserPull } from '../partition/coarser.ts'
+import { NO_CELLS, type CoarserPull } from '../partition/coarser.ts'
 import type { StreamingSource } from '../partition/source.ts'
 import type { PartitionGrid } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
 import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
@@ -33,7 +33,7 @@ export function createHlodPulls(
   for (let cell = 0; cell < count; cell++) {
     const grid = chain!.grid[cell],
       pull = pulls[grid]
-    if (grid === MAIN_GRID || !pull) continue
+    if (grids[grid].main || !pull) continue
     let cells = on.get(grid)
     if (!cells) on.set(grid, (cells = { cells: [], at: new Map() }))
     const key = (keys[cell] = pull.key(chain!.rung[cell], chain!.bounds, BOX_VALUES * cell))
@@ -54,9 +54,9 @@ export function createHlodPulls(
       seenRevision = source.revision
       pulled.fill(0)
       for (const [grid, { cells, at }] of on) {
-        const range = grids[grid].range
+        const shape = grids[grid]
         for (const cell of cells)
-          met[cell] = Number(source.meets(chain!.bounds, BOX_VALUES * cell, range))
+          met[cell] = Number(source.meets(chain!.bounds, BOX_VALUES * cell, shape))
         seen.clear()
         for (const cell of cells) {
           if (!met[cell]) continue

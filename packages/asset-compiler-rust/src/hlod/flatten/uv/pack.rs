@@ -12,13 +12,18 @@
 //!   search (`Layout::find`) where its right plus its top is least, keeping the square's corner
 //!   filled first.
 //!
-//! The raster lives in `raster`, the layout in `layout`, the packer in `packer`.
+//! The raster lives in `raster`, the layout in `layout`, the packer in `packer`, what it shares
+//! with the old layout's packer in `search`.
 use trillion3d_math::geometry::aabb::aabb_of;
 use trillion3d_math::vector::vec2::double_area;
 mod layout;
 mod packer;
 mod raster;
+mod search;
+pub(crate) use layout::Layout;
 use packer::{Chart, Packer};
+pub(crate) use raster::Raster;
+pub(crate) use search::{best_placement, covering, rebalance, search_scale, Starts};
 
 /// A segment of a run: its start and length.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -38,11 +43,11 @@ struct Run {
 
 /// A chart's placement in the square, in texels.
 #[derive(Clone, Copy)]
-struct Rect {
-    x: u32,
-    y: u32,
-    w: u32,
-    h: u32,
+pub(crate) struct Rect {
+    pub(crate) x: u32,
+    pub(crate) y: u32,
+    pub(crate) w: u32,
+    pub(crate) h: u32,
 }
 
 /// `corners`, per corner of the triangles, packed by `islands` into `[0, 1]²` for a `resolution`

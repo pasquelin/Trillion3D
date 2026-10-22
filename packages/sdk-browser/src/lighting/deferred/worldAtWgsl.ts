@@ -10,7 +10,9 @@ import { pixelToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection
  *  (`viewJitterWords`, `jitterWords.ts`); `source` the composition's image: its pixels per display
  *  pixel on each axis (`xy`), and its last pixel (`zw`) (`view.ts`, `writeSource`); `views` the
  *  lighting term a view of the lit image shows in place of the surface (`x`, `LIT_VIEWS`,
- *  `../../visibility/shader/shadeMode.ts`, `writeLightView`; `yzw` unused). The
+ *  `../../visibility/shader/shadeMode.ts`, `writeLightView`; `y` how the ambient occlusion applies, 0 none,
+ *  1 to the emission and the sky light, 2 to the screen probes' light, and `z` the share it applies at,
+ *  `writeAmbientOcclusion`; `w` unused). The
  *  environment's irradiance and fog travel with the lights. */
 export const VIEW_LAYOUT = fieldLayout('View', [
   ['inverseViewProjection', 'mat4x4f'],

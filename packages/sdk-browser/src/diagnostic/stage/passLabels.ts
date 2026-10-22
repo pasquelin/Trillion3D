@@ -83,6 +83,9 @@ export const BOUNCE_PASS = 'Trillion3D bounce v1'
 /** The light grid pass over the bounce's world lattice (`../../lighting/tiles/tiles.ts`, `world`):
  *  timed with the bounce, which reads its lists. */
 export const BOUNCE_LIGHT_LISTS_PASS = 'Trillion3D bounce light lists v1'
+/** The screen probes' compute pass: the probes placed on the image, traced, filtered, read by each pixel
+ *  and blended with its history (`../../lighting/bounce/screen/encode.ts`); timed with the bounce. */
+export const SCREEN_PROBE_PASS = 'Trillion3D screen probes'
 /** The reflections' compute pass of the depth pyramid's nearest mips (`../../lighting/reflections/frame.ts`). */
 export const REFLECTION_PASS = 'Trillion3D reflections'
 /** The reflections' tile classification and screen stage, both surfaces' (`../../lighting/reflections/trace/trace.ts`). */
@@ -98,8 +101,17 @@ export const PROXY_POSE_PASS = 'Trillion3D proxy pose'
 export const REFLECTION_RADIANCE_PASS = 'Trillion3D reflection radiance'
 /** The deferred lighting pass; `gpuLightingMs` is read under this name. */
 export const DEFERRED_LIGHTING_PASS = 'Trillion3D deferred lighting'
+/** The fog's volume, built before the lighting reads it: the furthest depth of its cells, the light
+ *  each scatters, the sum along each column (`../../lighting/fog/passes.ts`). */
+export const FOG_VOLUME_PASS = 'Trillion3D fog volume'
+/** The screen-space ambient occlusion's passes — the setups of the coarser resolutions, the searches and the last
+ *  one that writes the texture the lighting reads (`../../lighting/ao/frame.ts`). */
+export const AMBIENT_OCCLUSION_PASS = 'Trillion3D ambient occlusion'
 /** The seed of the as-is share the temporal resolve reads (`../../lighting/deferred/asIsShare.ts`). */
 export const AS_IS_SHARE_PASS = 'Trillion3D as-is share seed'
+/** The velocity stage: the motion of every render texel, drawn before the lighting for the passes
+ *  that read it (`../../post/taa/velocity.ts`). */
+export const VELOCITY_PASS = 'Trillion3D velocity'
 /** The temporal resolve; its timestamp duration absorbs that of the passes that precede it on
  *  some devices (apple metal-3), and is only read safely by envelope difference. */
 export const TAA_PASS = 'Trillion3D temporal antialiasing'
@@ -111,6 +123,13 @@ export const DOWNSAMPLE_PASS = 'Trillion3D scene downsample'
 /** The local exposure's grid of the image's log luminance, its blurred luminance and its blur
  *  (`../../post/finish/local.ts`). */
 export const LOCAL_EXPOSURE_PASS = 'Trillion3D local exposure'
+/** Every pass of the motion blur: the flattening of the motion, the spread of its tiles, the
+ *  classifying of the filter tiles and the filter itself (`../../post/effects/webgpuMotionBlur.ts`). */
+export const MOTION_BLUR_PASS = 'Trillion3D motion blur'
+/** Every pass of the depth of field: the setup of the circles of confusion, their tiles, the reduction of
+ *  the setup, the bokeh tables, the gather of each layer and its post-filter, the scattered sprites, the
+ *  recombine (`../../post/effects/webgpuDepthOfField.ts`). */
+export const DEPTH_OF_FIELD_PASS = 'Trillion3D depth of field'
 /** Every pass of the bloom: the threshold and local exposure setup, the levels' downsample and
  *  blur, their sum (`../../post/effects/webgpuBloom.ts`). */
 export const BLOOM_PASS = 'Trillion3D bloom'
@@ -184,6 +203,7 @@ export const ENGINE_PASSES = [
   definePass({ label: LIGHT_TILES_PASS, stage: 'lightLists', block: 'other' }),
   definePass({ label: BOUNCE_PASS, stage: 'bounce', block: 'other' }),
   definePass({ label: BOUNCE_LIGHT_LISTS_PASS, stage: 'bounce', block: 'other' }),
+  definePass({ label: SCREEN_PROBE_PASS, stage: 'bounce', block: 'other' }),
   definePass({ label: PROXY_POSE_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_TRACE_PASS, stage: 'reflections', block: 'other' }),
@@ -192,11 +212,16 @@ export const ENGINE_PASSES = [
   definePass({ label: REFLECTION_RADIANCE_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: PARTICLES_PASS, stage: 'physics', block: 'other' }),
   definePass({ label: DEFERRED_LIGHTING_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: FOG_VOLUME_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: AMBIENT_OCCLUSION_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: AS_IS_SHARE_PASS, stage: 'antialiasing', block: 'other' }),
+  definePass({ label: VELOCITY_PASS, stage: 'antialiasing', block: 'other' }),
   definePass({ label: TAA_PASS, stage: 'antialiasing', block: 'other' }),
   definePass({ label: EXPOSURE_PASS, stage: 'effects', block: 'other' }),
   definePass({ label: DOWNSAMPLE_PASS, stage: 'effects', block: 'other' }),
   definePass({ label: LOCAL_EXPOSURE_PASS, stage: 'effects', block: 'other' }),
+  definePass({ label: MOTION_BLUR_PASS, stage: 'effects', block: 'other' }),
+  definePass({ label: DEPTH_OF_FIELD_PASS, stage: 'effects', block: 'other' }),
   definePass({ label: BLOOM_PASS, stage: 'effects', block: 'other' }),
   definePass({ label: OUTLINE_PASS, stage: 'effects', block: 'other' }),
   definePass({ label: HDR_COMPOSITION_PASS, stage: 'present', block: 'other' }),

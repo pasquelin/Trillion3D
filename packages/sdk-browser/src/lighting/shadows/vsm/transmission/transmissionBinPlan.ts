@@ -57,7 +57,7 @@ export function vsmTransmissionFloorBytes(
   const slots = vsmChunkParamSlots(limits)
   return vsmDrawFloorBytes(
     rows,
-    vsmSizingFor(sizing, used, rowCount, viewWords, holds, slots).sizes,
+    vsmSizingFor(sizing, used, rowCount, viewWords, holds, slots, 1).sizes,
   )
 }
 
@@ -69,15 +69,19 @@ export interface BinPlan extends VsmRenderChunking {
   used: number
   within: VsmWithin<VsmListSizes>
 }
+/** The bin's one view pass, over every map of the frame: the layout's maps at most
+ *  (`layout.mapSlots`, the page table's blocks and 8192), far under the rows of a dispatch
+ *  (`vsmViewsPerPass`), so the bin is never split. */
+const onePass = { first: 0, maps: 0 }
 const plan: BinPlan = {
   used: 0,
   within: sizing.within,
   rowCount: 0,
-  viewCount: 0,
   chunks: 0,
   chunkRows: 0,
   cmds: 0,
   pairs: 0,
+  passes: [onePass],
 }
 
 /** The frame's bin: the blended rows' chunks the GPU budget's room holds (`vsmChunkRowsWithin`),
@@ -102,7 +106,7 @@ export function binPlan(
   worst.pages = pages
   worst.cap = CHUNK_ROWS * pages
   const chosen = vsmChunkRows(ctx.rowBound, scene.rowSpheres, range, frame.lights, worst)
-  const sized = vsmSizingFor(sizing, used, rowCount, 4 * views, chosen, ctx.slots)
+  const sized = vsmSizingFor(sizing, used, rowCount, 4 * views, chosen, ctx.slots, 1)
   const within = vsmChunkRowsWithin(
     frame.device,
     ctx.buffers,
@@ -112,7 +116,7 @@ export function binPlan(
   )
   const chunkRows = within.rows
   plan.rowCount = rowCount
-  plan.viewCount = views
+  onePass.maps = views
   plan.used = used
   plan.chunks = within.size ? ceilDiv(used, chunkRows) : 0
   plan.chunkRows = chunkRows

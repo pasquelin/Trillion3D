@@ -40,14 +40,14 @@ type Ladder = { cube: number; rows: (mesh: number, total: number, rung: number) 
 const RANGES = [2000, 4000, 8000]
 
 /** A cell as a test states it: its grid fields, when it gives none, its own (`gridded`). */
-export type CellRecord = Omit<TableCell, 'grid' | 'bounds' | 'hlod'> & Partial<TableCell>
+export type CellRecord = Omit<TableCell, 'grid' | 'bounds' | 'hlod' | 'main'> & Partial<TableCell>
 
 /** `cell` as the cook writes it, its grid fields its own when the test gives none: its own grid
  *  cell, streaming by its declared `box`, its own HLOD 0 cell, rank `rank`, on the HLOD 0 grid's
  *  finest level, streaming by that box too — the HLOD 0 cell holds its cells' content. */
 function gridded(cell: CellRecord, rank: number, box: Box): TableCell {
-  const { grid = [0, 0, 0], bounds = box, hlod = [rank, box, 1, 0] } = cell
-  return { ...cell, grid, bounds, hlod }
+  const { grid = [0, 0, 0], bounds = box, hlod = [rank, box, 1, 0], main = 0 } = cell
+  return { ...cell, grid, bounds, hlod, main }
 }
 
 /**

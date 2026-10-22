@@ -11,7 +11,8 @@ export interface SceneLink {
    *  out of the world included. A node the world never knew is read with its parent. */
   entered?(node: Object3D): void
   /** A node's shape or material changed. */ content(node: Object3D): void
-  /** A node's `castShadow` changed: nothing moved. */ shadow?(node: Object3D): void
+  /** A node's `castShadow` or `castFarShadow` changed: nothing moved. */
+  shadow?(node: Object3D): void
   /**
    * The row `node` is drawn from, or `null` when it holds none: sixteen column-major floats at
    * `row * 16` of `batch.rows.matrices`, read in place by the renderer. An owner placing nodes by

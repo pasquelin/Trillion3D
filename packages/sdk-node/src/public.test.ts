@@ -34,6 +34,7 @@ test('a batch job names the fields of one compile job, as the single job names t
     | 'voxelize'
     | 'partitionScheme'
     | 'partitionGrid'
+    | 'partitionGrids'
     | 'meshBuild'
     | 'objectSettings'
     | (typeof MATERIAL_SETTINGS)[number]

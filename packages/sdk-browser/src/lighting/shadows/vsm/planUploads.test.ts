@@ -59,6 +59,12 @@
 // (`VSM_RENDER_TIERS`, `render/renderParamsWgsl.ts`): each chunk's counters and indirect arguments
 // hold three words more per tier and their arguments seven (`chunks/chunkSizing.ts`): those
 // buffers are hashed at their new size and stride; every other buffer kept.
+// Retaken when a sun's far-shadow distance took a word of its own at the end of the projection record
+// (`farShadowDistance`, 304 bytes a map for 288; 0 where a light names none, as every map here): the
+// projection buffers are hashed at their new size, each record's other words kept; the render
+// parameters' new far drop (`farDrop`) is 0 here, and the draw-distance scale they took beside it
+// (`viewDistanceScale`) is 1 where a frame holds no distance: that one word moves the chunk
+// parameters; every other buffer kept.
 import { mulberry32 } from '../../../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -66,14 +72,14 @@ import { planFrames, randomWorld } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
-    '52daa154a42412c5c1024a4a485c7768fca965d3de723278e248c0d763f8814b',
-    '4a04dc4437fd2dc56858239e0424cb07beebef3ba1ebc4bf886499a80b3e43fb',
-    '46506dae9f329ded1d8197d96e010c82259dc6107a7844ec021d7f8a8a4afb54',
+    'af27059debf41b13b073c6f3dab1398c34d9c659a3b480e678e13246a22f552f',
+    'bac0b39a61902fa71e6e22f4cfd6804ea3a7360201eaf3dd4f809b3a2a173357',
+    'ded882d071cd1bb4ad4f376a4e6a854fd04a27b649ce455e743c0c6c52943efc',
   ],
   2: [
-    'd5f49a35cdeefa9d2ce16763f98952db9c2a5fd95ca90735075857b278d82d2e',
-    '1ed65ec6dddfc88495e3601ac191f9c0651d84c445446ca82f05d1c1a88b917c',
-    'b73a07a5e7369014087860f09bc4bbde0df4a18c56f1285885f602391c011972',
+    '0ca5575be2b779b1e86af6a3eb75efcc34e0f569ec2506bbbe8a22ccc4aa8113',
+    '111e3021f0b8ca84a77002b2acd0fefd79a01ab053a2e6aa0e0c06adbc6732fd',
+    '1c03d5a1f2c412d6a414c4641958e6e560b606b820ba118be0c4d288274b1e43',
   ],
 }
 

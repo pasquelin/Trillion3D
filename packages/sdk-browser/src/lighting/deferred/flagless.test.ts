@@ -1,6 +1,7 @@
 // A frame with no as-is pixel composes through flagless variants, compiled with the others,
 // that bind and read no share. Their `composeColor` is the shipped text run as JavaScript: at every
 // flag but the as-is one, and at an accumulated share of 0, it gives the flag-reading one's value.
+// The finishing's variant of it, run over vectors, reads the colour fringe and adds the dither.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDeferredLighting } from './deferred.ts'
@@ -8,6 +9,14 @@ import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from './shaders.ts'
 import { AS_IS_FLAG } from '../../materials/surface/surfaceModel.ts'
 import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
 import { shaderFunctions } from '../../materials/texture/shaderRule.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
+import { linearToSrgb } from '../../../../math/src/color/color.ts'
+import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
+import { FILM_RULES, type FilmSettings } from '../../../../sdk-core/src/contracts/filmOptions.ts'
+import { resolveSettings } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { FINISH } from '../../post/finish/finishLayout.ts'
+import { writeFinishParams } from '../../post/finish/finishParams.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { commandArgs } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 
@@ -22,8 +31,12 @@ function composed(source: string, value: object, read: object, view: object) {
     asIs,
     view,
     textureLoad: (texture: object) => (texture === hdr ? value : read),
-    // The source at the display's size: its pixel as it is (`sourceValue`).
+    // The source at the display's size: its pixel as it is (`sourceValue`), with no colour fringe
+    // (`sceneColor`) and no local exposure (`gainOf`), no grain (`finished`) and no dither.
     sourceValue: () => value,
+    sceneColor: () => value,
+    gainOf: () => 1,
+    ditherOf: () => 0,
     finished: (image: object) => image,
     vec2i: (xy: unknown) => xy,
     vec2f: (xy: unknown) => xy,
@@ -115,4 +128,62 @@ test('a flagless frame composes with its own pipelines and binds no share, compi
   assert.equal(bindings[2][2], flags, 'a frame with an as-is pixel reads the flags')
   assert.equal(bindings[3][2], image.share, 'and an accumulated one its share')
   lighting.dispose()
+})
+
+test('a finishing composition reads the fringe’s taps, and adds the dither to the colour before the coverage weighs it', () => {
+  type Run = { composeColor: (pixel: number[]) => number[]; ditherOf: (uv: number[]) => number }
+  // An image of 8 × 4 texels, a ramp: each channel steps by its own amount along x and y.
+  const ramp = (x: number, y: number) => [0.1 * x + 0.05, 0.2 * y + 0.05, 0.02 * (x + y) + 0.1]
+  const view = {
+    source: [1, 1, 7, 3],
+    viewport: [8, 4, 0, 0],
+    lightParams: [0, 0, 0, 1],
+    display: [0, 0, 0, 0],
+    background: [0, 0, 0, 1],
+  }
+  const settings = resolveSettings(EXPOSURE_RULES, {})
+  const compose = (film: FilmSettings, alpha = 1) => {
+    const input = { settings, film: resolveSettings(FILM_RULES, film), vignette: 0, auto: false }
+    const words = new Float32Array(FINISH.words)
+    writeFinishParams(words, {
+      ...input,
+      ...{ local: false, glow: false, size: [8, 4], format: 'rgba8unorm', frame: 0 },
+    })
+    const finish = Object.fromEntries(
+      Object.entries(FINISH.at).map(([name, at]) => [name, [...words.subarray(at, at + 4)]]),
+    )
+    const textureLoad = (_: unknown, [x, y]: number[]) => [
+      ...ramp(x, y).map((v) => v * alpha),
+      alpha,
+    ]
+    const scope = { hdr: 'hdr', view, finish, textureLoad }
+    return shaderRun<Run>(
+      CONTRACT_COMPOSITIONS.finish.flagless,
+      ['composeColor', 'ditherOf'],
+      scope,
+    )
+  }
+  const bare = { quantizationDitheringBits: 32 } // a step too small to show
+  // The pixel (7, 1) of 8 × 4: q = (0.875, −0.25). The red and the green are read nearer the centre
+  // by 5 % of 0.007 a nanometre from the blue's wavelength, the blue where the pixel is.
+  const pixel = [7.5, 1.5, 0, 1]
+  const q = [pixel[0] / 4 - 1, pixel[1] / 2 - 1]
+  const tap = (nanometres: number) =>
+    q.map((v, i) => (((1 - 0.05 * 0.007 * (nanometres - 464.3)) * v + 1) / 2) * [8, 4][i] - 0.5)
+  const [red, green] = [tap(611.3), tap(549.1)]
+  const expected = [ramp(red[0], red[1])[0], ramp(green[0], green[1])[1], ramp(7, 1)[2]]
+  const fringed = compose({ ...bare, chromaticAberration: 5 }).composeColor(pixel)
+  near(fringed.slice(0, 3), expected.map(linearToSrgb), 'the fringed colour', 1e-6)
+  const plain = compose(bare).composeColor(pixel)
+  near(plain.slice(0, 3), ramp(7, 1).map(linearToSrgb), 'no fringe', 1e-6)
+  // The dither is added to the colour shown, and the coverage weighs it with the rest.
+  const dithered = compose({ quantizationDitheringBits: 1 }, 0.5)
+  const noise = dithered.ditherOf([pixel[0] / 8, pixel[1] / 4])
+  const [shown, undithered] = [dithered.composeColor(pixel), compose(bare, 0.5).composeColor(pixel)]
+  near(
+    shown.slice(0, 3),
+    undithered.slice(0, 3).map((v) => v + noise / 2),
+    'dither',
+    1e-6,
+  )
 })

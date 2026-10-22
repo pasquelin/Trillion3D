@@ -5,24 +5,36 @@ use super::{Run, Segment};
 /// row and column, the rows and the columns by longest run first. Kept apart from the raster's
 /// bits, so the one a chart is placed by is copied without them.
 #[derive(Clone, Default)]
-pub(super) struct Footprint {
-    pub(super) width: u32,
-    pub(super) height: u32,
+pub(crate) struct Footprint {
+    pub(crate) width: u32,
+    pub(crate) height: u32,
     pub(super) rows: Vec<Run>,
     pub(super) columns: Vec<Run>,
     pub(super) sorted_rows: Vec<u32>,
     pub(super) sorted_columns: Vec<u32>,
 }
 
+impl Footprint {
+    /// What identifies the raster, in `key`: each row's count of segments, then its segments'
+    /// starts and lengths, row after row — two rasters laid alike have one key.
+    pub(crate) fn key(&self, key: &mut Vec<u32>) {
+        key.clear();
+        for row in &self.rows {
+            key.push(row.segments.len() as u32);
+            key.extend(row.segments.iter().flat_map(|s| [s.start, s.length]));
+        }
+    }
+}
+
 /// A chart's raster: its bits and the runs of texels it uses.
-pub(super) struct Raster {
+pub(crate) struct Raster {
     pub(super) size: u32,
     pub(super) bits: Vec<bool>,
-    pub(super) used: Footprint,
+    pub(crate) used: Footprint,
 }
 
 impl Raster {
-    pub(super) fn new(size: u32) -> Self {
+    pub(crate) fn new(size: u32) -> Self {
         Raster {
             size,
             bits: vec![false; (size * size) as usize],
@@ -30,7 +42,7 @@ impl Raster {
         }
     }
 
-    pub(super) fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         for y in 0..self.used.height {
             for x in 0..self.size {
                 self.bits[(y * self.size + x) as usize] = false;
@@ -50,9 +62,52 @@ impl Raster {
         self.used.width = self.used.width.max(x + 1);
     }
 
+    /// The raster cleared and `triangles` rasterized into it, dilated, within `width × height`
+    /// texels, its segments made.
+    pub(crate) fn fill(
+        &mut self,
+        triangles: impl IntoIterator<Item = [[f32; 2]; 3]>,
+        (width, height): (u32, u32),
+    ) {
+        self.clear();
+        for points in triangles {
+            rasterize_triangle(self, points, width, height);
+        }
+        self.create_used_segments();
+    }
+
+    /// The raster turned about its vertical middle, within the columns it uses, its segments made
+    /// again from the bits, as a flip changes every run: each row's bits in the reverse order. A
+    /// raster of no texel is left as it is.
+    pub(crate) fn flip_x(&mut self) {
+        let (width, height) = (self.used.width as usize, self.used.height);
+        for y in 0..height {
+            let row = (y * self.size) as usize;
+            self.bits[row..row + width].reverse();
+        }
+        self.create_used_segments();
+    }
+
+    /// The raster turned about its horizontal middle, within the rows it uses, its segments made
+    /// again from the bits: the first row exchanged with the last, and so on inward.
+    pub(crate) fn flip_y(&mut self) {
+        let (width, height) = (self.used.width, self.used.height);
+        for low in 0..height / 2 {
+            let high = height - 1 - low;
+            for x in 0..width {
+                let (a, b) = (
+                    (low * self.size + x) as usize,
+                    (high * self.size + x) as usize,
+                );
+                self.bits.swap(a, b);
+            }
+        }
+        self.create_used_segments();
+    }
+
     /// The used segments of each row and column of the raster, and the rows
     /// and columns sorted longest segment first.
-    pub(super) fn create_used_segments(&mut self) {
+    pub(crate) fn create_used_segments(&mut self) {
         let runs = |count: u32, length: u32, at: &dyn Fn(u32, u32) -> bool| -> Vec<Run> {
             (0..count)
                 .map(|i| {
@@ -98,12 +153,7 @@ impl Raster {
 
 /// The triangle in 28.4 fixed point, dilated by a pixel, its
 /// covered pixels set within `width × height`.
-pub(super) fn rasterize_triangle(
-    raster: &mut Raster,
-    points: [[f32; 2]; 3],
-    width: u32,
-    height: u32,
-) {
+fn rasterize_triangle(raster: &mut Raster, points: [[f32; 2]; 3], width: u32, height: u32) {
     const DILATE: i64 = 16;
     let half = 0.5f32;
     let mut p = points.map(|q| [q[0] - half, q[1] - half]);
@@ -142,5 +192,34 @@ pub(super) fn rasterize_triangle(
                 raster.set(x as u32, y as u32);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A raster of the texels `at`, its segments made.
+    fn raster_of(at: &[(u32, u32)]) -> Raster {
+        let mut raster = Raster::new(8);
+        for &(x, y) in at {
+            raster.set(x, y);
+        }
+        raster.create_used_segments();
+        raster
+    }
+
+    #[test]
+    fn a_flip_turns_the_raster_within_the_texels_it_uses() {
+        let mut raster = raster_of(&[(0, 0), (2, 0), (0, 1)]);
+        raster.flip_x();
+        assert!(raster.get(2, 0) && raster.get(0, 0) && !raster.get(1, 0));
+        assert!(raster.get(2, 1) && !raster.get(0, 1));
+        raster.flip_y();
+        assert!(raster.get(2, 0) && !raster.get(0, 0));
+        assert!(raster.get(0, 1) && raster.get(2, 1));
+        // The segments are made again from the bits.
+        assert_eq!(raster.used.rows[0].segments.len(), 1);
+        assert_eq!(raster.used.rows[1].segments.len(), 2);
     }
 }

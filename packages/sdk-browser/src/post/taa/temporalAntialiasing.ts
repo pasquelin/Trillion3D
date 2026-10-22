@@ -4,8 +4,7 @@ import { createTaaHistoryTargets } from './historyTargets.ts'
 import { AS_IS_SHARE_FORMAT } from '../../lighting/deferred/asIsShare.ts'
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { INPUTS, taaGroupEntries, type TaaInputs } from './inputs.ts'
-import { createTaaFrameState } from './frameState.ts'
-import { createPlacementMotion, type MotionRoot } from './motion.ts'
+import type { Velocity } from './velocity.ts'
 import { createTaaFilterHistory, type DisplayLayers } from './layers.ts'
 import { createTaaAnalysis } from './analysis.ts'
 import type { AnalysisWork } from './levels.ts'
@@ -22,9 +21,8 @@ import { standInTexture } from '../../gpu/core/standInTexture.ts'
  * history update, a fullscreen draw into the display targets, one program for every render scale
  * (`resolveWgsl.ts`).
  */
-export async function createTemporalAntialiasing(device: GPUDevice, roots: readonly MotionRoot[]) {
+export async function createTemporalAntialiasing(device: GPUDevice, velocity: Velocity) {
   const resolves = await createTaaResolves(device)
-  const motion = createPlacementMotion(device, roots)
   const filterHistory = createTaaFilterHistory(device, resolveTargetUsage())
   const uniform = device.createBuffer({
     label: 'Trillion3D TAA view v1',
@@ -56,7 +54,8 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
   /** What the groups name: the layout, then each of `INPUTS` (`bindIdentity.ts`); two held, the
    *  HDR targets' turns. */
   const identity = createWebgpuBindIdentity(2)
-  const frame = createTaaFrameState()
+  /** The view's last image, which the velocity stage keeps with it (`velocity.frame`). */
+  const frame = velocity.frame
   /** The size the render-resolution histories are allocated at, the uniform's analysis grid. */
   const analysisSize = [0, 0]
   /** Each history's update pass, made once its targets are: without the display layers, and with
@@ -86,7 +85,6 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
   }
   return {
     uniform,
-    motion,
     filterHistory,
     /** The size the analysis's targets and render-resolution histories are made at. */
     get analysisSize(): readonly number[] {
@@ -167,7 +165,6 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
     release: dropTargets,
     dispose() {
       dropTargets()
-      motion.dispose()
       uniform.destroy()
       noReactive.destroy()
       this.inputs = {} as TaaInputs

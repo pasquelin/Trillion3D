@@ -1,5 +1,6 @@
 import { directLightResources } from '../frame/prepare/contractLight.ts'
 import type { BlendLighting } from '../gpu/bind/blendBindEntries.ts'
+import { vsmOrStandIns } from '../lighting/shadows/vsm/frame/vsmConsumers.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 
 /**
@@ -12,21 +13,27 @@ export function blendLightResources(
   contract = directLightResources(rt),
 ): BlendLighting {
   const { placeholders } = rt.gpu.deferred!
+  const fog = contract.fog ?? placeholders.fog
+  const vsm = vsmOrStandIns(contract.vsm, placeholders)
   return {
     directLights: contract.lights!,
-    shadowData: contract.vsm?.pageTable ?? placeholders.vsmPageTable,
-    shadowAtlas: contract.vsm?.projectionData ?? placeholders.vsmProjectionData,
-    shadowSampler: contract.vsm?.uniforms ?? placeholders.vsmUniforms,
+    shadowData: vsm.pageTable,
+    shadowAtlas: vsm.projectionData,
+    shadowSampler: vsm.uniforms,
     // The translucent casters' transmission atlas on the transmittance layer's number.
     shadowTransmittance: contract.vsmTransmission ?? placeholders.transmittanceView,
-    shadowPool: contract.vsm?.pool ?? placeholders.vsmPool,
+    shadowPool: vsm.pool,
     // What a fragment traces with past the maps: the projection's view and noise (`vsmTraceFactor`).
-    shadowView: contract.vsm?.view ?? placeholders.vsmProjectionView,
-    shadowNoise: contract.vsm?.noise ?? placeholders.vsmBlueNoise,
+    shadowView: vsm.view,
+    shadowNoise: vsm.noise,
     bounceGrid: contract.bounceGrid ?? placeholders.bounceGrid,
     probes: contract.probes ?? placeholders.probes,
     tileLights: contract.tiles ?? placeholders.tiles,
     // The front's radiance the trace wrote (`frontLayer.ts`), a texel until a transparent reflects.
     frontTraced: rt.gpu.reflection!.front.views.traced,
+    // The fog's cubemap and volume this image built, or their stand-ins.
+    fogCubemap: fog.cubemap,
+    fogVolume: fog.volume,
+    fogSampler: fog.sampler,
   }
 }

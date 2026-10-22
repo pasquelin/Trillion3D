@@ -3,6 +3,7 @@ import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { AIR_BUFFER_STRUCT } from './layout.ts'
 import { FRAME_WGSL } from './frame.ts'
 import { SCATTER_WGSL } from './scatterWgsl.ts'
+import { fogReadLayoutEntries } from '../fog/read.ts'
 
 /** Where every atmosphere program binds what it reads and writes, in group 0: one table of
  *  numbers, so that the passes and their shaders agree. A program binds only what it names. */
@@ -25,6 +26,20 @@ export const AIR_BINDING = {
   skyView: 7,
   /** The surface flags, which tell the sky's pixels from a surface's. */
   flags: 8,
+  /** What the fog laid over the sky reads past the light buffer (`AIR_FOG_BINDINGS`): the sampler
+   *  its cubemap and volume are read through, the cubemap and the volume. */
+  fogSampler: 9,
+  fogCubemap: 10,
+  fogVolume: 11,
+} as const
+
+/** Where a program that binds the fog (`AirBindings.fog`) reads its cubemap and volume
+ *  (`fogResourcesWgsl`), in group 0. */
+export const AIR_FOG_BINDINGS = {
+  group: 0,
+  sampler: AIR_BINDING.fogSampler,
+  cubemap: AIR_BINDING.fogCubemap,
+  volume: AIR_BINDING.fogVolume,
 } as const
 
 /** What a program binds, by name: its tables are bound as the shader names them. */
@@ -40,6 +55,9 @@ export type AirBindings = {
   frame?: boolean
   capture?: boolean
   flags?: boolean
+  /** The fog's cubemap and volume, which the fog the program lays over the sky reads
+   *  (`AIR_FOG_BINDINGS`, `skyWgsl.ts`). */
+  fog?: boolean
 }
 
 const b = AIR_BINDING
@@ -119,5 +137,6 @@ export function airLayoutEntries(
   if (bindings.capture)
     entries.push({ binding: b.capture, visibility, buffer: { type: 'storage' } })
   if (bindings.flags) sampled(b.flags, 'uint')
+  if (bindings.fog) entries.push(...fogReadLayoutEntries(AIR_FOG_BINDINGS, visibility))
   return entries
 }

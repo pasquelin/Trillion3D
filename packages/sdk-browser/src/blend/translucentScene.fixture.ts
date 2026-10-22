@@ -128,7 +128,9 @@ export function targets(gpu: WebgpuGpuState) {
     backdrop: { color: {}, colorView: {}, distortion: {}, distortionView: {}, active: true },
     deferred: {
       uniform: {},
-      placeholders: Object.fromEntries(['bounceGrid', 'probes', 'tiles'].map((k) => [k, {}])),
+      placeholders: Object.fromEntries(
+        ['bounceGrid', 'probes', 'tiles', 'fog'].map((k) => [k, {}]),
+      ),
     },
   })
 }

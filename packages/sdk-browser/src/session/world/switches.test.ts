@@ -86,9 +86,13 @@ test('the effect chain is given to every session, and a change of it asks for a 
   const switches = worldSwitches({}, () => runtime, unseen)
   const chain = switches.held.effects
   assert.equal(sessionOptions({}, switches.held).effects, chain)
-  assert.deepEqual([chain.size, chain.passes[0]?.kind, invalidated], [1, 'bloom', 0], 'a start')
+  assert.deepEqual(
+    [chain.size, chain.passes.map(({ kind }) => kind), invalidated],
+    [2, ['motionBlur', 'bloom'], 0],
+    'a start',
+  )
   chain.add(effect.bloom())
-  ;(chain.passes[0] as ReturnType<typeof effect.bloom>).sizeScale = 2
+  ;(chain.passes[1] as ReturnType<typeof effect.bloom>).sizeScale = 2
   assert.equal(sessionOptions({}, switches.held).effects, chain, 'the same chain on reopen')
   assert.deepEqual([invalidated, renewed], [2, 0])
 })
@@ -116,6 +120,166 @@ test('the screen error and the bounce are the page’s settings, applied once ea
   switches.bounce = true
   switches.settings.set('bounce', false, 'quality')
   assert.equal(switches.bounce, true, 'a preset does not overwrite the page')
+})
+
+// The motion blur's drawing is a family by rule of the world's registry (`MOTION_BLUR_RULES`): the
+// page's settings are written into the session once opened and, after, in place, once each.
+test('how the motion blur is drawn is the page’s setting, applied once each', () => {
+  const written: unknown[][] = []
+  // An open session that takes every switch and records the motion blur's.
+  const setters = { setMotionBlur: (...write: unknown[]) => void written.push(write) }
+  const explorer = new Proxy(setters, {
+    get: (held, name) => held[name as keyof typeof held] ?? (() => {}),
+  }) as unknown as MeasuredWorld
+  const runtime = { explorer: null as MeasuredWorld | null, renew() {}, invalidate() {} }
+  const switches = worldSwitches({ motionBlurQuality: 'medium' }, () => runtime, unseen)
+  assert.deepEqual(
+    [switches.motionBlur.motionBlurQuality, switches.motionBlur.motionBlurHalfResInput],
+    ['medium', true],
+    'the page’s quality, the reference’s default for the rest',
+  )
+  switches.apply(explorer, sessionOptions({}, {}))
+  assert.deepEqual(
+    written.filter(([field]) => field === 'motionBlurQuality'),
+    [['motionBlurQuality', 'medium']],
+    'written into the session once it is open',
+  )
+  written.length = 0
+  runtime.explorer = explorer
+  switches.motionBlur = { motionBlurQuality: 'off' }
+  switches.motionBlur = { motionBlurQuality: 'off' }
+  assert.deepEqual(written, [['motionBlurQuality', 'off']], 'once, in place')
+  switches.motionBlur = { motionBlurQuality: null }
+  assert.equal(switches.motionBlur.motionBlurQuality, 'veryHigh', 'given back: the preset’s')
+  // The level reads like the anti-aliasing's: `true` its default, `false` off.
+  switches.motionBlur = { motionBlurQuality: false }
+  assert.equal(switches.motionBlur.motionBlurQuality, 'off')
+  switches.motionBlur = { motionBlurQuality: true }
+  assert.equal(switches.motionBlur.motionBlurQuality, 'veryHigh')
+  assert.throws(() => (switches.motionBlur = { motionBlurQuality: 'ultra' as never }), /ultra/)
+  // The directions are one or two, one by default.
+  assert.equal(switches.motionBlur.motionBlurDirections, 1)
+  switches.motionBlur = { motionBlurDirections: 2 }
+  assert.equal(switches.motionBlur.motionBlurDirections, 2)
+  assert.throws(() => (switches.motionBlur = { motionBlurDirections: 3 }), /motionBlurDirections/)
+})
+
+// The film effects' settings are a family by rule (`FILM_RULES`), in the image effects' quality group:
+// the page's are written into the session once opened and, after, in place; a preset writes two.
+test('the film effects are the page’s setting, applied once each, over the preset’s', () => {
+  const written: unknown[][] = []
+  const setters = { setFilm: (...write: unknown[]) => void written.push(write) }
+  const explorer = new Proxy(setters, {
+    get: (held, name) => held[name as keyof typeof held] ?? (() => {}),
+  }) as unknown as MeasuredWorld
+  const runtime = { explorer: null as MeasuredWorld | null, renew() {}, invalidate() {} }
+  const switches = worldSwitches({ filmGrainIntensity: 0.3 }, () => runtime, unseen)
+  assert.deepEqual(
+    [switches.film.filmGrainIntensity, switches.film.filmGrainShadowsMax],
+    [0.3, 0.09],
+    'the page’s grain, the reference’s default for the rest',
+  )
+  switches.apply(explorer, sessionOptions({}, {}))
+  assert.deepEqual(
+    written.filter(([field]) => field === 'filmGrainIntensity'),
+    [['filmGrainIntensity', 0.3]],
+    'written into the session once it is open',
+  )
+  written.length = 0
+  runtime.explorer = explorer
+  switches.film = { chromaticAberration: 2 }
+  switches.film = { chromaticAberration: 2 }
+  assert.deepEqual(written, [['chromaticAberration', 2]], 'once, in place')
+  switches.film = { chromaticAberration: null }
+  assert.equal(switches.film.chromaticAberration, 0, 'given back: the default, off')
+  // A preset writes the tonemapper's quality and the fringe's; the page's setting holds over it.
+  switches.quality.preset = 'smooth'
+  assert.deepEqual(
+    [switches.film.tonemapperQuality, switches.film.chromaticAberrationQuality],
+    [0, 'off'],
+  )
+  switches.film = { tonemapperQuality: 5, chromaticAberrationQuality: true }
+  assert.deepEqual(
+    [switches.film.tonemapperQuality, switches.film.chromaticAberrationQuality],
+    [5, 'high'],
+  )
+  assert.throws(() => (switches.film = { tonemapperQuality: 6 }), /tonemapperQuality/)
+})
+
+// The screen-space ambient occlusion's settings are a family by rule (`AMBIENT_OCCLUSION_RULES`), in the
+// image effects' quality group: the page's are written into the session once opened and, after, in place.
+test('how the ambient occlusion is set is the page’s setting, applied once each', () => {
+  const written: unknown[][] = []
+  const setters = { setAmbientOcclusion: (...write: unknown[]) => void written.push(write) }
+  const explorer = new Proxy(setters, {
+    get: (held, name) => held[name as keyof typeof held] ?? (() => {}),
+  }) as unknown as MeasuredWorld
+  const runtime = { explorer: null as MeasuredWorld | null, renew() {}, invalidate() {} }
+  const switches = worldSwitches({ ambientOcclusionIntensity: 0.8 }, () => runtime, unseen)
+  assert.deepEqual(
+    [
+      switches.ambientOcclusion.ambientOcclusionIntensity,
+      switches.ambientOcclusion.ambientOcclusionRadius,
+    ],
+    [0.8, 2],
+    'the page’s intensity, the reference’s default (200 cm) for the radius, in metres',
+  )
+  switches.apply(explorer, sessionOptions({}, {}))
+  assert.deepEqual(
+    written.filter(([field]) => field === 'ambientOcclusionIntensity'),
+    [['ambientOcclusionIntensity', 0.8]],
+    'written into the session once it is open',
+  )
+  written.length = 0
+  runtime.explorer = explorer
+  switches.ambientOcclusion = { ambientOcclusionPower: 3 }
+  switches.ambientOcclusion = { ambientOcclusionPower: 3 }
+  assert.deepEqual(written, [['ambientOcclusionPower', 3]], 'once, in place')
+  switches.ambientOcclusion = { ambientOcclusionPower: null }
+  assert.equal(switches.ambientOcclusion.ambientOcclusionPower, 2, 'given back: the default')
+  assert.throws(() => (switches.ambientOcclusion = { ambientOcclusionIntensity: 2 }), /Intensity/)
+  assert.throws(() => (switches.ambientOcclusion = { ambientOcclusionLevels: 4 }), /Levels/)
+})
+
+// The volumetric fog's settings are a family by rule too (`VOLUMETRIC_FOG_RULES`), in the shadows'
+// quality group: the page's are written into the session once opened and, after, in place, once each.
+test('how the volumetric fog is drawn is the page’s setting, applied once each', () => {
+  const written: unknown[][] = []
+  const setters = { setVolumetricFog: (...write: unknown[]) => void written.push(write) }
+  const explorer = new Proxy(setters, {
+    get: (held, name) => held[name as keyof typeof held] ?? (() => {}),
+  }) as unknown as MeasuredWorld
+  const runtime = { explorer: null as MeasuredWorld | null, renew() {}, invalidate() {} }
+  const switches = worldSwitches({ volumetricFogQuality: 'low' }, () => runtime, unseen)
+  assert.deepEqual(
+    [switches.volumetricFog.volumetricFogQuality, switches.volumetricFog.volumetricFogHistoryShare],
+    ['low', 0.9],
+    'the page’s quality, the default for the rest',
+  )
+  switches.apply(explorer, sessionOptions({}, {}))
+  assert.deepEqual(
+    written.filter(([field]) => field === 'volumetricFogQuality'),
+    [['volumetricFogQuality', 'low']],
+    'written into the session once it is open',
+  )
+  written.length = 0
+  runtime.explorer = explorer
+  switches.volumetricFog = { volumetricFogQuality: 'ultra', volumetricFogHistoryShare: 0.8 }
+  switches.volumetricFog = { volumetricFogQuality: 'ultra' }
+  assert.deepEqual(
+    written,
+    [
+      ['volumetricFogQuality', 'ultra'],
+      ['volumetricFogHistoryShare', 0.8],
+    ],
+    'once each, in place',
+  )
+  switches.volumetricFog = { volumetricFogQuality: null }
+  assert.equal(switches.volumetricFog.volumetricFogQuality, 'high', 'given back: the preset’s')
+  assert.throws(
+    () => (switches.volumetricFog = { volumetricFogQuality: 'cinematic' as never }),
+    /cinematic/,
+  )
 })
 
 test('the resolution asked at creation is the render scale, unless the page gives one', () => {

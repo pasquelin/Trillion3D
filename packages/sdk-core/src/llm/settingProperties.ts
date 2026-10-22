@@ -1,7 +1,7 @@
 /**
  * The schema of the run-time settings declared by rule (`../contracts/settingRules.ts`) — the
  * geometry streaming, the cluster raster, a partitioned scene's streaming and the HLOD warm-up, the
- * cut, the animation the GPU plays, the material shading, the exposure, the temporal pass —, each by its field with its kind,
+ * cut, the animation the GPU plays, the material shading, the exposure, the temporal pass, the sun's shadows —, each by its field with its kind,
  * default, bounds or names and meaning, as the explorer's options name them
  * (`explorerOptionsSchema.ts`). The meanings live here, not in the rules: a bundle that never
  * reads the schema drops them.
@@ -13,43 +13,42 @@ import {
 } from '../contracts/worldStreamingOptions.ts'
 import type { SettingRule } from '../contracts/settingRules.ts'
 import { CUT_RULES, type CutField } from '../contracts/cutOptions.ts'
+import { CUT_VIEW_MEANINGS, type CutViewField } from './cutViewMeanings.ts'
+import { CUT_BUDGET_MEANINGS, type CutBudgetField } from './cutBudgetMeanings.ts'
 import { ANIMATION_RULES, type AnimationField } from '../contracts/animationOptions.ts'
 import { SHADING_RULES, type ShadingField } from '../contracts/shadingOptions.ts'
 import { EXPOSURE_RULES, type ExposureField } from '../contracts/exposureOptions.ts'
 import { TEMPORAL_RULES, type TemporalField } from '../contracts/temporalOptions.ts'
-import {
-  DEFAULT_STREAMING_MAX_INSTALLS_PER_FRAME,
-  DEFAULT_STREAMING_MAX_PENDING_PAGES,
-  DEFAULT_STREAMING_MAX_REQUESTS,
-  DEFAULT_STREAMING_MIN_REQUESTS,
-  DEFAULT_STREAMING_NUM_RETRIES,
-  DEFAULT_STREAMING_QUALITY_MAX_POOL_PERCENT,
-  DEFAULT_STREAMING_QUALITY_MIN_POOL_PERCENT,
-  DEFAULT_STREAMING_QUALITY_MIN_SCALE,
-  STREAMING_RULES,
-  type StreamingField,
-} from '../contracts/streamingOptions.ts'
+import { SHADOW_RULES, type ShadowField } from '../contracts/shadowOptions.ts'
+import { SHADOW_VIEW_MEANINGS, type ShadowViewField } from './shadowViewMeanings.ts'
+import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
+import { MOTION_BLUR_MEANINGS } from './motionBlurMeanings.ts'
+import { DEPTH_OF_FIELD_RULES } from '../contracts/depthOfFieldRules.ts'
+import { DEPTH_OF_FIELD_MEANINGS } from './depthOfFieldMeanings.ts'
+import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
+import { TESSELLATION_MEANINGS } from './tessellationMeanings.ts'
+import { BLOOM_RULES } from '../contracts/bloomRules.ts'
+import { BLOOM_MEANINGS } from './bloomMeanings.ts'
+import { FILM_RULES } from '../contracts/filmOptions.ts'
+import { FILM_MEANINGS } from './filmMeanings.ts'
+import { VOLUMETRIC_FOG_RULES, type VolumetricFogField } from '../contracts/volumetricFogOptions.ts'
+import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
+import { SCREEN_PROBE_MEANINGS } from './screenProbeMeanings.ts'
+import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
+import { REFLECTION_MEANINGS } from './reflectionMeanings.ts'
+import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
+import { AMBIENT_OCCLUSION_MEANINGS } from './ambientOcclusionMeanings.ts'
+import { choiceSchema } from './schemaParts.ts'
+import { STREAMING_RULES } from '../contracts/streamingOptions.ts'
+import { streamingMeanings } from './streamingMeanings.ts'
 import {
   DEFAULT_HARDWARE_RASTER_EDGE_PIXELS,
   RASTER_RULES,
   type RasterField,
 } from '../contracts/rasterOptions.ts'
 
-/** What each setting of the geometry streaming means (`../contracts/streamingOptions.ts`): a
- *  function, its defaults read when the schema is built. */
-const streamingMeanings = (): Readonly<Record<StreamingField, string>> => ({
-  streamingMaxPendingPages: `Streaming pages of 128 KiB the streaming keeps started at once, read and not yet installed (default ${DEFAULT_STREAMING_MAX_PENDING_PAGES}). Each update starts the new streaming pages the views ask for, highest priority first, while fewer are pending. Any other value is refused.`,
-  streamingMaxInstallsPerFrame: `Streaming pages of 128 KiB a frame installs at most, in the order they were started (default ${DEFAULT_STREAMING_MAX_INSTALLS_PER_FRAME}, never more than streamingMaxPendingPages). No time budget bounds them. Any other value is refused.`,
-  streamingQualityMinPoolPercent: `Streaming pool load, in percent of its slots (a 128 KiB streaming page each), under which the quality rises again: after 30 updates under it, the screen error scale grows by 1 % an update (default ${DEFAULT_STREAMING_QUALITY_MIN_POOL_PERCENT}). Any other value is refused.`,
-  streamingQualityMaxPoolPercent: `Streaming pool load, in percent of its slots (a 128 KiB streaming page each), over which the quality falls: after 2 updates over it, the screen error scale shrinks by 3 % an update (default ${DEFAULT_STREAMING_QUALITY_MAX_POOL_PERCENT}, read no lower than streamingQualityMinPoolPercent). Any other value is refused.`,
-  streamingQualityMinScale: `Lowest scale of the screen error the pool pressure falls to (default ${DEFAULT_STREAMING_QUALITY_MIN_SCALE}); 1 never scales: an overcommitted pool then draws the coarser parents of what does not fit. Any other value is refused.`,
-  streamingNumRetries: `Times a failed read of a streaming page is tried again, each after a longer wait (default ${DEFAULT_STREAMING_NUM_RETRIES}); after the last, the object the page belongs to is given up: no page of it is asked for again. A negative value tries without end. Any other value is refused.`,
-  streamingMinRequests: `Least requests the readout of the camera's cut holds (default ${DEFAULT_STREAMING_MIN_REQUESTS}, from 4096 to 1048576); a request is a leaf the cut keeps and sees, and the readout also bounds the clusters listed drawn. It starts at this size, grows to a quarter over what the cut asks of it and shrinks by 2 % a readback after 30 under half its size, never under this value nor over streamingMaxRequests. Any other value is refused.`,
-  streamingMaxRequests: `Most requests the readout of the camera's cut holds (default ${DEFAULT_STREAMING_MAX_REQUESTS}, from 4096 to 1048576), read no lower than streamingMinRequests: a cut past it is read by its head. Any other value is refused.`,
-})
-
 /** What each setting of the cluster raster means (`../contracts/rasterOptions.ts`): a function,
- *  as `streamingMeanings`. */
+ *  as `streamingMeanings` (`./streamingMeanings.ts`). */
 const rasterMeanings = (): Readonly<Record<RasterField, string>> => ({
   softwareRaster:
     'Rasterizes in compute the clusters whose longest edge projects under hardwareRasterEdgePixels and that cross neither clip plane; the others go to the hardware rasterizer. false draws every cluster with the hardware rasterizer.',
@@ -82,6 +81,22 @@ const WORLD_STREAMING_MEANINGS: Readonly<Record<WorldStreamingField, string>> = 
     'Whether a grid compiled with blockOnSlowStreaming blocks: once the first image is shown, a cell of it wished and not yet shown near the eye (its ratio under worldStreamingBlockOnSlowStreamingRatio) holds the images back till it shows, only such cells loading meanwhile, no HLOD cell nor warm-up among them. false, no grid blocks.',
   worldStreamingBlockOnSlowStreamingRatio:
     "Ratio under which a cell of a blocking grid not yet shown blocks: on a square grid, its content's distance from the eye less its half side, over the grid's loading range; on a loose grid, the distance to the bounds it streams by over the view's radius for the grid.",
+  worldStreamingUpdateOptimization:
+    'Whether the cells the view wishes are worked out again only once its position or heading moved enough (worldStreamingLocationQuantization, worldStreamingRotationQuantization), at once while a cell wished is still loading or not yet shown or the initial load runs; false, at every frame. Both quantizations at 0 count as false.',
+  worldStreamingLocationQuantization:
+    "Metres: the squares the view's position is cut into on the ground, and in height on a grid that streams in 3D, to tell whether it moved enough for the cells to be wished again; 0, its exact position.",
+  worldStreamingRotationQuantization:
+    "Degrees: the steps the view's yaw is cut into, and its pitch on a grid that streams in 3D, to tell whether it turned enough for the cells to be wished again; 0, its exact angle.",
+  worldStreamingForceUpdateFrameCount:
+    'Frames: every that many frames the cells the view wishes are worked out again whatever the view did (worldStreamingUpdateOptimization); 0, never forced.',
+  worldStreamingForce2D:
+    "Whether a loose grid (partitionScheme hashSet) that streams in 3D wishes its cells by their footprint on the ground, the view's height ignored, as a flat grid does; no effect on a flat or a square grid.",
+  worldStreamingExtraRadius:
+    "Metres added to the radius of the view's streaming circle (a sphere on a grid that streams in 3D).",
+  worldStreamingExtraAngle:
+    "Degrees added to the angle of the view's sector (worldStreamingSector), a whole turn at most.",
+  worldStreamingTargetState:
+    'What the view asks of the cells it reaches: activated, to load and draw them; loaded, to load them and keep them placed in memory without activating them: nothing of them draws, no HLOD cell, HLOD 0 actor nor cell file, and none holds the images back. Cells of a scene whose cut packs no world DAG have nothing to hide and stay drawn.',
   hlodEnabled:
     "Whether the HLOD actors load and draw; false, no HLOD cell is held, none draws its actor, and the main grid's cells draw alone.",
   hlodWarmup:
@@ -96,7 +111,7 @@ const WORLD_STREAMING_MEANINGS: Readonly<Record<WorldStreamingField, string>> = 
 }
 
 /** What each setting of the cut means (`../contracts/cutOptions.ts`). */
-const CUT_MEANINGS: Readonly<Record<CutField, string>> = {
+const CUT_MEANINGS: Readonly<Record<Exclude<CutField, CutViewField | CutBudgetField>, string>> = {
   cutTwoPassOcclusion:
     "Whether each view's cut tests its cells, nodes and clusters against the previous image's depth pyramid, draws what it shows, then tests what it hid again against the pyramid of what it drew: what stays hidden is neither drawn nor streamed. false, or without a previous pyramid, one pass that occludes nothing.",
   cutOcclusionCulling:
@@ -104,6 +119,10 @@ const CUT_MEANINGS: Readonly<Record<CutField, string>> = {
   cutFrustumCulling: 'Whether the cut culls the cells, nodes and clusters outside the view.',
   cutMinLodCulling:
     'Whether the cut culls a leaf too coarse for the threshold, its least own error showing even at its nearest; false, such a leaf is kept and streams its pages.',
+  cutDrawDistanceCulling:
+    "Whether the cut culls an object that names a draw distance (drawDistance, in the compile job's object settings) when its centre lies nearer than the distance's min or farther than its max from the eye, and a group of 64 placements when none of its objects can be drawn at its distance; false, every object is drawn at every distance.",
+  cutViewDistanceScale:
+    "Scale every object's draw distance, min and max, is multiplied by: 2 doubles the distances, 0 culls every object that names one; objects that name none are not affected. The quality presets write it: 0.4 at smooth, 0.6 at balanced, 0.8 at fine, 1 (nothing written) at max.",
   cutLodBiasFollowsUpscale:
     "Whether an image the temporal pass reconstructs to a wider display is cut at the display's level of detail: its threshold divided by the width ratio; false, at the size it is drawn at.",
   cutLodBiasOffset:
@@ -138,6 +157,51 @@ const SHADING_MEANINGS: Readonly<Record<ShadingField, string>> = {
 const TEMPORAL_MEANINGS: Readonly<Record<TemporalField, string>> = {
   temporalThinGeometry:
     "Whether the temporal anti-aliasing looks for geometry thinner than a pixel — a wire, a rail — and relaxes its history there, so it flickers less; off by default, the finding costing every image some work. Applies at any level of temporalAntialiasing but 'off'.",
+}
+
+/** What each setting of the sun's shadows means (`../contracts/shadowOptions.ts`). */
+const SHADOW_MEANINGS: Readonly<Record<Exclude<ShadowField, ShadowViewField>, string>> = {
+  shadowDistanceScale:
+    'Factor from 0 to 2 on the shadow distance of every directional light (its shadowDistance, 400 metres by default): the quality levels write 0.6, 0.7 and 0.85 below the top one. 0 leaves the far-shadow culling nothing to test against: it culls nothing.',
+  farShadowCulling:
+    "Whether a directional light's shadow maps leave out the casters past the edge of its shadow distance, scaled — a little farther than the distance, 427 metres at 400 —: a caster whose depth along the view, less its bounding radius, is past the edge is left out unless its object sets castFarShadow. The far part of the shadows is then not drawn; false draws every caster at any distance.",
+  farShadowCullsAllMeshes:
+    "Whether that test reaches every caster, or, false, the default, only the merged far-field shells of the world's coarser levels of detail: the objects drawn as themselves, at the finest level and as the instanced actors of the first, keep casting at any distance.",
+  shadowNearLevels:
+    "How many near levels a directional light's shadows have, from 0 to 10, never more than the light's own four: they shape the edge of the far-shadow test. 10, the default, is the light's four; the quality levels write 1 at the two coarser ones and 4 below the top. 0 leaves no near level, so no edge: nothing is culled.",
+  shadowOverlapScale:
+    'Factor from 0 to 2 on the tenth of its span the last near level overlaps into the next: it moves the edge of the far-shadow test past the shadow distance, when a far-field shadow follows. The quality levels write 0, 0.25 and 0.8 below the top one.',
+  shadowFarField:
+    'Whether a far-field shadow follows the near levels of a directional light whose scaled shadow distance is under 512 metres: the edge of the far-shadow test then lies past the distance by the overlap of the last near level; false puts the edge at the distance. The quality levels turn it off at the two coarser ones.',
+}
+
+/** What each setting of the fog's volume means (`../contracts/volumetricFogOptions.ts`); they apply
+ *  where the scene's fog turns its volume on (`scene.fog.volumetric`). */
+const VOLUMETRIC_FOG_MEANINGS: Readonly<Record<VolumetricFogField, string>> = {
+  volumetricFogQuality:
+    "The quality of the fog's volume, which fixes its grid: off draws none (the analytic fog alone); low cells of 16 pixels, 64 slices deep, 4 lighting samples where a cell has no history; high, the default, 8 pixels, 128 slices, 4 samples; ultra 4 pixels, 128 slices, 16 samples.",
+  volumetricFogReadFilter:
+    "How a surface reads the fog's volume: trilinear, one read; bicubic, a cubic B-spline across the screen from four reads; tricubic, across the depth too from eight.",
+  volumetricFogUsesHistory:
+    "Whether the fog's volume of the image before is blended into this one, so that the samples of many images average: smoother, at the cost of some lag on a light that moves.",
+  volumetricFogMovesSamples:
+    "Whether each image's lighting samples sit at another place in the cell (a low-discrepancy sequence), so that the blend over images averages them; effective with volumetricFogUsesHistory.",
+  volumetricFogHistoryShare:
+    'The share of the previous volume kept in each cell, from 0 to 1: the nearer 1, the smoother and the slower to follow.',
+  volumetricFogSliceSpread:
+    "How the slices are spread along the depth of the fog's volume: the smaller, the more of them lie near the eye.",
+  volumetricFogGlow:
+    'Whether the light the fog emits by itself (scene.fog.volumetric.glow) is read.',
+  volumetricFogSkipHidden:
+    'Whether a cell wholly behind the surfaces of its pixels is left unlit, which spares its lighting and keeps what stands behind a wall out of the history.',
+  volumetricFogLampSoftening:
+    "Scale of the cell's size added to the distance a local light's inverse-square falloff is taken at, against the spike near the light.",
+  volumetricFogSampleScatter:
+    'A random offset, in cells, added to each lighting sample, 0 none; effective with volumetricFogMovesSamples.',
+  volumetricFogSurfaceLift:
+    "Cells: how far a cell's sample is moved out of the depth buffer along the depth, so that a cell on a surface does not light itself with what stands behind it; -1, not at all.",
+  volumetricFogLiftRange:
+    'Cells: how far behind the depth buffer a sample is still brought forward (volumetricFogSurfaceLift); only the cells the surface cuts are moved at 1.',
 }
 
 /** What each setting of the exposure means (`../contracts/exposureOptions.ts`); the first twelve
@@ -200,12 +264,7 @@ function ruleProperties<F extends string>(
     const rule = rules[field],
       description = meanings[field]
     if (rule.kind === 'choice') {
-      properties[field] = {
-        type: 'string',
-        enum: [...rule.choices],
-        default: rule.default,
-        description,
-      }
+      properties[field] = { ...choiceSchema(rule, description), default: rule.default }
       continue
     }
     if (rule.kind === 'flag') {
@@ -228,7 +287,7 @@ function ruleProperties<F extends string>(
   return properties
 }
 
-/** The schema of the geometry streaming's eight settings, by field. */
+/** The schema of the geometry streaming's nine settings, by field. */
 export const streamingProperties = () => ruleProperties(STREAMING_RULES, streamingMeanings())
 
 /** The schema of the cluster raster's two settings, by field. */
@@ -236,12 +295,22 @@ export const rasterProperties = () => ruleProperties(RASTER_RULES, rasterMeaning
 
 /** The schema of every other run-time setting declared by rule, by its field: the partition's
  *  streaming and the HLOD warm-up's, then the cut's, then the animation's, then the shading's, then
- *  the exposure's, then the temporal pass's. */
+ *  the exposure's, then the temporal pass's, then the sun's shadows', then the motion blur's. */
 export const settingRuleProperties = () => ({
   ...ruleProperties(WORLD_STREAMING_RULES, WORLD_STREAMING_MEANINGS),
-  ...ruleProperties(CUT_RULES, CUT_MEANINGS),
+  ...ruleProperties(CUT_RULES, { ...CUT_MEANINGS, ...CUT_VIEW_MEANINGS, ...CUT_BUDGET_MEANINGS }),
   ...ruleProperties(ANIMATION_RULES, ANIMATION_MEANINGS),
   ...ruleProperties(SHADING_RULES, SHADING_MEANINGS),
   ...ruleProperties(EXPOSURE_RULES, EXPOSURE_MEANINGS),
   ...ruleProperties(TEMPORAL_RULES, TEMPORAL_MEANINGS),
+  ...ruleProperties(SHADOW_RULES, { ...SHADOW_MEANINGS, ...SHADOW_VIEW_MEANINGS }),
+  ...ruleProperties(MOTION_BLUR_RULES, MOTION_BLUR_MEANINGS),
+  ...ruleProperties(DEPTH_OF_FIELD_RULES, DEPTH_OF_FIELD_MEANINGS),
+  ...ruleProperties(TESSELLATION_RULES, TESSELLATION_MEANINGS),
+  ...ruleProperties(BLOOM_RULES, BLOOM_MEANINGS),
+  ...ruleProperties(FILM_RULES, FILM_MEANINGS),
+  ...ruleProperties(VOLUMETRIC_FOG_RULES, VOLUMETRIC_FOG_MEANINGS),
+  ...ruleProperties(SCREEN_PROBE_RULES, SCREEN_PROBE_MEANINGS),
+  ...ruleProperties(REFLECTION_RULES, REFLECTION_MEANINGS),
+  ...ruleProperties(AMBIENT_OCCLUSION_RULES, AMBIENT_OCCLUSION_MEANINGS),
 })

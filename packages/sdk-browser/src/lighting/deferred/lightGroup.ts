@@ -2,7 +2,8 @@
  * THE LIGHT GROUP of a deferred program (`program.ts`): the frame's resources named, an absent one
  * by its stand-in, and the group made again only when one of them was replaced.
  */
-import { DEFERRED_BINDINGS } from './bindings.ts'
+import { DEFERRED_BINDINGS, DEFERRED_FOG_BINDINGS } from './bindings.ts'
+import { fogReadBindEntries, type FogRead } from '../fog/read.ts'
 import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
 import type { DeferredPlaceholders } from './setup.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/shadowBindings.ts'
@@ -59,7 +60,10 @@ export function bindLight(
     through = direct.vsmThrough ?? placeholders.vsmThrough,
     probes = direct.probes,
     receiver = direct.receiver ?? placeholders.receiver,
-    reflection = direct.reflection ?? placeholders.reflection
+    reflection = direct.reflection ?? placeholders.reflection,
+    fog = direct.fog ?? placeholders.fog,
+    screen = direct.screenIndirect,
+    occlusion = direct.ambientOcclusion ?? placeholders.ambientOcclusion
   state.boundHdr = hdr
   const { next } = state.identity
   next[0] = surface
@@ -71,6 +75,9 @@ export function bindLight(
   next[6] = through
   next[7] = maskTiles
   next[8] = reflection
+  next[9] = screen
+  next[10] = fog
+  next[11] = occlusion
   state.boundSurface = surface
   if (reboundLight(state)) return
   state.boundFlags = surface.views()[3]
@@ -88,19 +95,26 @@ export function bindLight(
       through,
       receiver,
       reflection,
+      fog,
+      occlusion,
     }
     entries.push(...contractEntries(placeholders, surface, contract))
   }
   if (sources.bounce && direct.bounceGrid && direct.probes)
     entries.push(
-      ...namedEntries(DEFERRED_BINDINGS, {
-        bounceGrid: { buffer: direct.bounceGrid },
-        probes: direct.probes,
-      }),
+      ...bounceEntries(direct.bounceGrid, direct.probes, screen ?? placeholders.screenIndirect),
     )
   state.lightGroup = parts.device.createBindGroup({ layout: parts.lightingLayout, entries })
   state.held[state.identity.slot] = { group: state.lightGroup, flags: state.boundFlags }
 }
+
+/** The bounce program's entries: the probe grid and its atlas, and what the screen probes left of
+ *  the pixels' indirect light, or the stand-in that says none ran. */
+const bounceEntries = (
+  bounceGrid: GPUBuffer,
+  probes: GPUTextureView,
+  screenIndirect: GPUTextureView,
+) => namedEntries(DEFERRED_BINDINGS, { bounceGrid: { buffer: bounceGrid }, probes, screenIndirect })
 
 /** Whether the light group made for the identity this frame names is held: it is then bound
  *  again, with the flags it was made with, and nothing is made. */
@@ -118,7 +132,7 @@ function reboundLight(state: ProgramState) {
 }
 
 /** The light group's entries a contract program adds: its receiver, its surface's subsurface and
- *  lobes, its lights, their tiles and shadows. */
+ *  lobes, its lights, their tiles and shadows, its fog and its ambient occlusion. */
 function contractEntries(
   placeholders: DeferredPlaceholders,
   surface: SurfaceBuffer,
@@ -130,6 +144,8 @@ function contractEntries(
     through: GPUTextureView
     receiver: GPUTextureView
     reflection: GPUTextureView
+    fog: FogRead
+    occlusion: GPUTextureView
   },
 ): GPUBindGroupEntry[] {
   return [
@@ -144,5 +160,7 @@ function contractEntries(
     { binding: DEFERRED_BINDINGS.maskTiles, resource: r.maskTiles },
     { binding: DEFERRED_BINDINGS.transmissionResolve, resource: r.through },
     { binding: DEFERRED_BINDINGS.reflection, resource: r.reflection },
+    { binding: DEFERRED_BINDINGS.ambientOcclusion, resource: r.occlusion },
+    ...fogReadBindEntries(DEFERRED_FOG_BINDINGS, r.fog),
   ]
 }

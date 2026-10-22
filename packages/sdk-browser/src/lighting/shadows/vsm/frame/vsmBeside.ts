@@ -22,6 +22,8 @@ import { engineVsmSideBytes, type EngineVsm } from './engineVsm.ts'
 import { ensureMasks, masksGrowth, sharedMaskSize } from './vsmMask.ts'
 import { vsmRenderContextBytes } from '../render/renderPass.ts'
 import { vsmRenderFloorBytes } from '../render/renderBudget.ts'
+import { vsmViewsPerPass } from '../render/renderViewPasses.ts'
+import { shadowSetting } from './vsmFarShadow.ts'
 import { vsmLayout, type VsmLayout } from '../layout.ts'
 import { vsmResourceBytes } from '../layoutBytes.ts'
 import { vsmTransmissionBytes } from '../transmission/transmissionLayout.ts'
@@ -55,11 +57,19 @@ export function bytesBeside(
   mask = true,
 ) {
   const [width, height] = sharedMaskSize(rt, ...rt.gpu.allocatedSize)
-  const { viewWords, viewMips } = renderViewBound(lights)
+  const limit = vsmViewsPerPass(device.limits, shadowSetting(rt, 'shadowMultipassViews'))
+  const { viewWords, viewMips, raster: views } = renderViewBound(lights, limit)
   const pages = layout.poolPages
   const casters = rt.layout.rows,
     used = rt.services.blendCasters.used
-  const raster = vsmRenderFloorBytes(device.limits, casters.packedCount, viewWords, viewMips, pages)
+  const raster = vsmRenderFloorBytes(
+    device.limits,
+    casters.packedCount,
+    views.viewWords,
+    views.viewMips,
+    pages,
+    views.passes,
+  )
   const blended = Math.max(0, casters.casterSlots - casters.blendFirst)
   const transmission =
     used > 0

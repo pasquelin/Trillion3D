@@ -54,8 +54,10 @@ pub(super) fn node_parents(nodes: &[Value]) -> Result<Vec<Option<usize>>> {
 }
 
 /// One entry per node of the document: its name, its children, the mesh, camera and skin it carries,
-/// its local pose as declared, and whether it declares itself visible (`KHR_node_visibility`).
-pub(super) fn node_table(g: &Value) -> Result<Vec<Value>> {
+/// its local pose as declared, whether it declares itself visible (`KHR_node_visibility`), and,
+/// for a node that draws a mesh, the distances its settings say it is drawn at (`"drawDistance"`,
+/// `objects`, `DrawDistance`), left out when they name none.
+pub(super) fn node_table(g: &Value, objects: &crate::ObjectSettings) -> Result<Vec<Value>> {
     let nodes = values(g, "nodes")?;
     let meshes = g
         .get("meshes")
@@ -90,7 +92,7 @@ pub(super) fn node_table(g: &Value) -> Result<Vec<Value>> {
             return Err(invalid("node.camera index is out of bounds"));
         }
         let source_rank = u32::try_from(id).map_err(|_| invalid("source node rank exceeds u32"))?;
-        table.push(json!({
+        let mut entry = json!({
             "name": name_of(node),
             "sourceNode": format!("{source_rank:08x}"),
             "children": crate::compiler::source::nodes::children_of(nodes, id)?,
@@ -103,7 +105,15 @@ pub(super) fn node_table(g: &Value) -> Result<Vec<Value>> {
             "rotation": declared(node, "rotation"),
             "scale": declared(node, "scale"),
             "visible": !crate::compiler::source::nodes::declared_hidden(node),
-        }));
+        });
+        let distance = match mesh {
+            Some(_) => objects.node(g, id)?.draw_distance,
+            None => None,
+        };
+        if let Some(distance) = distance {
+            entry["drawDistance"] = distance.entry();
+        }
+        table.push(entry);
     }
     Ok(table)
 }

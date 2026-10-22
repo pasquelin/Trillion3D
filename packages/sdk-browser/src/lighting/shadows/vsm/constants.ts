@@ -71,10 +71,11 @@ export const VSM_FEEDBACK_POOL = 0
 
 /**
  * Bytes of a map's projection record (`projection/projectionData.ts`, `VsmProjectionRecord`): its three 4×4
- * float matrices, four rows of a 3-vector and a word, and eight words (four scalars, the two-word
- * corner, the range, the table's origin), at the 16-byte alignment its matrices give the struct.
+ * float matrices, four rows of a 3-vector and a word, and nine words (four scalars, the two-word
+ * corner, the range, the table's origin, a sun's far-shadow distance), at the 16-byte alignment its
+ * matrices give the struct.
  */
-export const VSM_PROJECTION_RECORD_BYTES = 3 * 64 + 4 * 16 + alignUp(8 * 4, 16) // 288
+export const VSM_PROJECTION_RECORD_BYTES = 3 * 64 + 4 * 16 + alignUp(9 * 4, 16) // 304
 /** Byte size of `VsmUniforms` (`uniforms.ts`, uniform address space). */
 export const VSM_UNIFORMS_BYTES = 144
 

@@ -10,7 +10,7 @@ import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import { createShadowMobility } from '../lighting/shadows/casters/mobility.ts'
 import { createPlacementRows, placementWorld } from './rows/rows.ts'
 import { followPlacementRows } from './update.ts'
-import { SHADOWLESS_ROOT } from '../visibility/shader/shadowlessRoot.ts'
+import { FAR_SHADOW_ROOT, SHADOWLESS_ROOT } from '../visibility/shader/castingMark.ts'
 
 /** A small caster, the ground under it, a box far off: local boxes, placed at the origin. */
 const BOXES = [
@@ -71,16 +71,23 @@ test('a row parked or taken back where it stands is drawn again, and is no move'
   assert.equal(mobility.moves(2), false, 'shown or hidden in place: never moving')
 })
 
-test('a row that stops or starts casting flips its mark, whatever its pose', () => {
-  // `castShadow` written on a world mesh reaches its row (`poses/poseSeat.ts`); its root leaves
-  // or enters every light cut, and the pages it covered are drawn again without it, or with it.
+test('a row that changes how it casts flips its mark, whatever its pose', () => {
+  // `castShadow` and `castFarShadow` written on a world mesh reach its row (`poses/poseSeat.ts`);
+  // its root leaves or enters every light cut, or keeps or loses the far bit the shadow raster's
+  // rows read, and the pages it covered are drawn again without it, or with it.
   const { rows, write, mobility } = placed(),
     marks: [number, number | undefined][] = []
   const flip = (rank: number, root: { mark?: number }) => marks.push([rank, root.mark])
-  for (const shadowless of [1, 0]) {
-    rows.shadowless[1] = shadowless
+  for (const casting of [
+    SHADOWLESS_ROOT,
+    0,
+    FAR_SHADOW_ROOT,
+    SHADOWLESS_ROOT | FAR_SHADOW_ROOT,
+    0,
+  ]) {
+    rows.casting[1] = casting
     assert.equal(write([], flip), true, 'a change of casting, whatever its pose')
-    assert.deepEqual(marks, [[1, shadowless ? SHADOWLESS_ROOT : undefined]])
+    assert.deepEqual(marks, [[1, casting || undefined]], 'each bit is its own')
     assert.equal(mobility.moves(1), false, 'the root never made moving')
     marks.length = 0
     assert.equal(write([], flip), false, 'written again unchanged: nothing')
@@ -91,7 +98,26 @@ test('a moving row that stops casting as it moves stays moving', () => {
   // The static layer leaves a moving placement out (`mobility.ts`), so it has nothing of it.
   const { rows, write, mobility } = placed()
   write([[0, 0.1]])
-  rows.shadowless[0] = 1
+  rows.casting[0] = SHADOWLESS_ROOT
   assert.equal(write([[0, 0.2]]), true)
   assert.equal(mobility.moves(0), true)
+})
+
+test('a row that names other draw distances hands its root the distances it names now', () => {
+  // Rows are seated before their cells stream in: the distances come with the cell, or change at
+  // run time, and reach the cut through the flip (`GpuSelection.drawDistanceWorld`).
+  const { rows, write, mobility } = placed(),
+    seen: [number, unknown][] = []
+  const flip = (rank: number, root: { drawDistance?: unknown }) =>
+    seen.push([rank, root.drawDistance])
+  rows.drawDistance = new Float32Array(2 * BOXES.length)
+  rows.drawDistance.set([2, 50], 2)
+  assert.equal(write([], flip), true, 'a distance named: the root is flipped')
+  assert.deepEqual(seen, [[1, { min: 2, max: 50 }]])
+  seen.length = 0
+  assert.equal(write([], flip), false, 'written again unchanged: nothing')
+  rows.drawDistance.set([0, 0], 2)
+  assert.equal(write([], flip), true, 'the distance taken back')
+  assert.deepEqual(seen, [[1, undefined]])
+  assert.equal(mobility.moves(1), false, 'no distance makes a root move')
 })

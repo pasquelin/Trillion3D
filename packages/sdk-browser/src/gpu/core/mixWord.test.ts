@@ -1,6 +1,8 @@
 // The one word hash (`mixWord`): the processor's twin follows the shipped WGSL word for word, and
 // the salt every second coordinate of a hash takes (`GOLDEN_U32`) decorrelates as the odd constant
-// the temporal pass took before.
+// the temporal pass took before. The other words the passes keep their values in are tested here too: the
+// 11-11-10 small floats (`smallFloatWgsl.ts`), and the workgroup's sort and sum they are ordered and
+// reduced by (`workgroupSortWgsl.ts`, `workgroupSumWgsl.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
@@ -10,6 +12,9 @@ import { hashUnit, mixWord as mixWordWgsl } from '../../../../math/src/wgsl/samp
 import { mixWord } from '../../../../math/src/scalar/integers.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { cpuHashUnit } from '../../../../math/src/scalar/hashUnit.fixture.ts'
+import { packLight, unpackLight } from './smallFloatWgsl.ts'
+import { workgroupSortWgsl } from './workgroupSortWgsl.ts'
+import { workgroupSumLoop } from './workgroupSumWgsl.ts'
 
 /** The reference, in big integers: the definition of the hash without a wrapped product. */
 const mixBig = (x: number) => {
@@ -109,4 +114,77 @@ test('the golden salt decorrelates the temporal pass second coordinate as the co
     assert.ok(Math.abs(r) < 4 / Math.sqrt(1 << 20), `correlation ${r} for ${salt.toString(16)}`)
     assert.ok(chi > 37 && chi < 103, `chi-square ${chi} for ${salt.toString(16)}`)
   }
+})
+
+test("a colour packs into the 11-11-10 word to the format's precision, and is held to its range, never negative", () => {
+  const { packLight: pack, unpackLight: unpack } = shaderRun<{
+    packLight: (c: number[]) => number
+    unpackLight: (w: number) => number[]
+  }>(wgslModule(packLight, unpackLight), ['packLight', 'unpackLight'], {})
+  for (const c of [
+    [0.5, 0.25, 0.125],
+    [3.7, 12.25, 0.9],
+    [1000, 40, 0.001],
+    [65000, 1, 64000],
+  ]) {
+    const back = unpack(pack(c))
+    // Six bits of mantissa a channel (five on the last): within 1/64 of itself (1/32).
+    back.forEach((v, i) =>
+      assert.ok(Math.abs(v - c[i]) <= c[i] / (i === 2 ? 32 : 64) + 1e-9, `${c} -> ${back}`),
+    )
+  }
+  assert.deepEqual(unpack(pack([0, 0, 0])), [0, 0, 0])
+  assert.deepEqual(unpack(pack([-1, -5, -0.5])), [0, 0, 0], 'a negative channel is none')
+  assert.deepEqual(
+    unpack(pack([1e9, 1e9, 1e9])),
+    [65024, 65024, 64512],
+    "held to the format's largest",
+  )
+  assert.equal(pack([1, 0, 0]) >>> 11, 0, 'the first channel is in the low bits')
+})
+
+test('the workgroup sort orders entries by their f32 key and, for one key, by their x descending: the network on any count of a power of two', () => {
+  const sorted = (keys: number[]) => {
+    const count = keys.length
+    const view = new DataView(new ArrayBuffer(4))
+    const bits = (key: number) => (view.setFloat32(0, key), view.getUint32(0))
+    const rays = keys.map((key, x) => [x, bits(key)])
+    const sort = shaderRun<{ raysStep: (lane: number, k: number, j: number) => void }>(
+      wgslModule(workgroupSortWgsl('rays', count)),
+      ['raysStep'],
+      { rays },
+    )
+    // Every thread of a step, the steps in the network's order: a compare-exchange touches a pair, so the lanes of a step are independent.
+    for (let k = 2; k <= count; k <<= 1)
+      for (let j = k >> 1; j > 0; j >>= 1)
+        for (let lane = 0; lane < count; lane++) sort.raysStep(lane, k, j)
+    return rays.map(([x, y]) => [x, y])
+  }
+  const lcg = lcgRandom(5)
+  for (const count of [4, 16, 64]) {
+    const keys = Array.from({ length: count }, () => Math.fround(Math.floor(lcg() * 6) / 4))
+    const out = sorted(keys)
+    const expected = keys
+      .map((key, x) => [x, key])
+      .sort((a, b) => a[1] - b[1] || b[0] - a[0])
+      .map(([x]) => x)
+    assert.deepEqual(
+      out.map(([x]) => x),
+      expected,
+      `${count} entries, ties by x descending`,
+    )
+  }
+  assert.throws(() => workgroupSortWgsl('rays', 12), RangeError)
+})
+
+test('the workgroup sum halves a power of two: the loop is the barriered one, and a width that is not is refused', () => {
+  const text = workgroupSumLoop(64, 'sums[lane]+=sums[lane+stride];')
+  assert.ok(text.includes('stride=32u'), 'half the group, first')
+  assert.equal(
+    text.split('workgroupBarrier()').length - 1,
+    2,
+    'one before each step, one after the last',
+  )
+  assert.ok(workgroupSumLoop('SP_RAYS', 'x').includes('(SP_RAYS)/2u'), 'a width the shader names')
+  for (const bad of [0, 1, 12, 2.5]) assert.throws(() => workgroupSumLoop(bad, 'x'), RangeError)
 })

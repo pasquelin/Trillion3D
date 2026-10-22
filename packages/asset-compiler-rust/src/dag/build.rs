@@ -72,8 +72,22 @@ pub fn build_dag(
     settings: impl Into<DagSettings>,
     checkpoint: &(dyn Fn() -> Result<()> + Sync),
 ) -> Result<DagBuild> {
+    let mut build = build_levels(positions, attributes, indices, settings.into(), checkpoint)?;
+    finish(&mut build, positions);
+    Ok(build)
+}
+
+/// The DAG of `build_dag` before the encoder's steps: the source read, level 0 cut and every level
+/// above built, the clusters as the reductions made them (`finish` lays them). An assembly builds
+/// each block so, and the levels above its blocks over their roots (`assembly.rs`).
+pub(super) fn build_levels(
+    positions: &[f32],
+    attributes: DagAttributes,
+    indices: &[u32],
+    settings: DagSettings,
+    checkpoint: &(dyn Fn() -> Result<()> + Sync),
+) -> Result<DagBuild> {
     checkpoint()?;
-    let settings = settings.into();
     // The seam weld's key holds the texture sets a page can carry, no more.
     if attributes.uv_sets().len() > trillion3d_page_codec::MAX_UV_SETS {
         return Err(invalid("a page carries at most four texture sets"));
@@ -136,7 +150,7 @@ pub fn build_dag(
             });
         dag.push(DagCluster::leaf(cluster, 0.0, sphere, source_rank));
     }
-    let mut build = if settings.strategy == DagStrategy::ExactClusters || dag.len() < 2 {
+    let build = if settings.strategy == DagStrategy::ExactClusters || dag.len() < 2 {
         DagBuild {
             clusters: dag,
             groups: Vec::new(),
@@ -151,12 +165,16 @@ pub fn build_dag(
         let level0 = (dag, identities, outer);
         super::levels::coarsen(source, (welds, grown), level0, settings, checkpoint)?
     };
-    // The encoder's steps, once every level is built: the triangles with two equal corners go, then
-    // the strips and the vertex cap, which the partition never read.
+    Ok(build)
+}
+
+/// The encoder's steps, once every level is built: the triangles with two equal corners go, then
+/// the strips and the vertex cap, which the partition never read, and the vertices the pages read
+/// are held within range. `positions` are the source's, which a build that placed nothing draws.
+pub(super) fn finish(build: &mut DagBuild, positions: &[f32]) {
     remove_degenerate(&mut build.clusters);
     let drawn = build.grown.as_ref().map_or(positions, |g| &g.positions[..]);
     constrain_wide(drawn, &mut build.clusters, &mut build.groups);
     // What the pages read, the vertices the solves placed with the source's, within range.
     input::held(&mut build.grown);
-    Ok(build)
 }

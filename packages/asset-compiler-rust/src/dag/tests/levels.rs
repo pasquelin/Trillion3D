@@ -155,3 +155,130 @@ fn every_threshold_selects_exactly_one_cluster_per_ancestor_chain() {
         }
     }
 }
+
+/// A grid and a copy of it a hundred units along x, laid end to end: the arrays of an assembly
+/// primitive whose blocks are the grid, then its copy.
+fn two_grids(n: usize) -> (Vec<f32>, Vec<u32>, [crate::dag::assembly::Block; 2]) {
+    let (mut positions, mut indices) = grid(n);
+    let (vertices, corners) = (positions.len() / 3, indices.len());
+    let copy: Vec<f32> = positions
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .flat_map(|p| [p[0] + 100.0, p[1], p[2]])
+        .collect();
+    positions.extend(copy);
+    let carried: Vec<u32> = indices[..corners]
+        .iter()
+        .map(|v| v + vertices as u32)
+        .collect();
+    indices.extend(carried);
+    let block = |at: usize| crate::dag::assembly::Block {
+        vertices: (at * vertices, vertices),
+        indices: (at * corners, corners),
+    };
+    (positions, indices, [block(0), block(1)])
+}
+
+// Behaviour: the blocks of an assembly are built apart and joined under levels built over their
+// roots: level 0 covers every triangle once, errors stay monotone, the roots of the blocks are
+// replaced by a level above them, and every cluster's vertices lie in the arrays handed on.
+#[test]
+fn an_assembly_joins_its_blocks_under_levels_built_over_their_roots() {
+    let (positions, indices, blocks) = two_grids(48);
+    let assembly = AssemblyBlocks {
+        base: false,
+        blocks: blocks.to_vec(),
+    };
+    let settings = DagSettings::from(DagStrategy::QemEndpoints);
+    let attributes = DagAttributes::default();
+    let built = build_assembly(
+        &positions,
+        attributes,
+        &indices,
+        &assembly,
+        settings,
+        &|| Ok(()),
+    )
+    .expect("assembly");
+    let level0: usize = (built.clusters.iter())
+        .filter(|c| c.level == 0)
+        .map(|c| c.triangles())
+        .sum();
+    assert_eq!(level0, indices.len() / 3);
+    crate::dag::quality::check(&built.clusters).expect("errors never drop to a parent");
+    let (half_positions, half_indices) = (
+        &positions[..positions.len() / 2],
+        &indices[..indices.len() / 2],
+    );
+    let (alone, _, _, _) = build_of(half_positions, half_indices);
+    let one_grid_top = alone.iter().map(|c| c.level).max().expect("levels");
+    let top = built
+        .clusters
+        .iter()
+        .map(|c| c.level)
+        .max()
+        .expect("clusters");
+    assert!(top > one_grid_top, "a level joins the two blocks");
+    let drawn = built
+        .grown
+        .as_ref()
+        .expect("the arrays the pages read")
+        .positions
+        .len()
+        / 3;
+    assert!(built
+        .clusters
+        .iter()
+        .all(|c| c.indices.iter().all(|&v| (v as usize) < drawn)));
+    assert!(built.clusters.iter().filter(|c| c.is_root()).count() <= 2);
+}
+
+// Behaviour: a build that makes no coarse level makes none over the blocks either.
+#[test]
+fn an_assembly_of_exact_clusters_climbs_no_level() {
+    let (positions, indices, blocks) = two_grids(16);
+    let assembly = AssemblyBlocks {
+        base: true,
+        blocks: blocks.to_vec(),
+    };
+    let settings = DagSettings::from(DagStrategy::ExactClusters);
+    let attributes = DagAttributes::default();
+    let built = build_assembly(
+        &positions,
+        attributes,
+        &indices,
+        &assembly,
+        settings,
+        &|| Ok(()),
+    )
+    .expect("assembly");
+    assert!(built.groups.is_empty());
+    assert!(built.clusters.iter().all(|c| c.level == 0 && c.is_root()));
+    let triangles: usize = built.clusters.iter().map(|c| c.triangles()).sum();
+    assert_eq!(triangles, indices.len() / 3);
+}
+
+// Behaviour: the blocks a primitive names must lie in order, whole triangles, within its arrays.
+#[test]
+fn the_blocks_a_primitive_names_lie_in_order_and_within_its_arrays() {
+    use serde_json::json;
+    let named = |blocks: serde_json::Value| json!({"extras": {"assembly": {"base": true, "blocks": blocks}}});
+    let read = |blocks| AssemblyBlocks::of(&named(blocks), 6, 6);
+    let both = read(json!([[0, 3, 0, 3], [3, 3, 3, 3]]))
+        .expect("reads")
+        .expect("named");
+    assert!(both.base);
+    assert_eq!(both.blocks.len(), 2);
+    assert!(AssemblyBlocks::of(&json!({"attributes": {}}), 6, 6)
+        .expect("reads")
+        .is_none());
+    for refused in [
+        json!([[0, 3, 0, 3], [2, 3, 3, 3]]),
+        json!([[0, 3, 0, 2]]),
+        json!([[0, 7, 0, 3]]),
+        json!([[0, 3, 0, 9]]),
+    ] {
+        assert!(read(refused).is_err());
+    }
+}

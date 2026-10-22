@@ -6,7 +6,7 @@ use crate::compiler::pages::manifest::MeshPages;
 use crate::compiler::primitive::compiled::DepthLayerScene;
 use crate::hlod::chain::SourceCover;
 use crate::texture::TexturePreview;
-use crate::voxel::{stage_voxels, VoxelInputs, VoxelSeed};
+use crate::voxel::{stage_voxels, VoxelInputs, VoxelSampling, VoxelSeed};
 
 /// What the products stage hands the manifest and its publication.
 pub(super) struct Staged {
@@ -84,6 +84,10 @@ pub(super) fn stage_products(
         json!({"phase":"proxy","completed":1,"total":1,"triangles":scene_proxy.triangle_count(),
         "nodes":scene_proxy.node_count(),"errorMetres":scene_proxy.error_metres}),
     );
+    // How each source mesh's voxels are sampled: its build's.
+    let sampling: Vec<VoxelSampling> = (o.mesh_build()?.meshes(g)?.iter())
+        .map(|build| build.voxels)
+        .collect();
     let voxel_inputs = VoxelInputs {
         g,
         bin,
@@ -91,6 +95,7 @@ pub(super) fn stage_products(
         mesh_map,
         primitives,
         seeds: voxel_seeds,
+        sampling: &sampling,
     };
     let (voxel_file, voxels) = pool.install(|| stage_voxels(&voxel_inputs, directory, progress))?;
     // The proxy is its own cache object: a manifest stays readable without its tens of megabytes.

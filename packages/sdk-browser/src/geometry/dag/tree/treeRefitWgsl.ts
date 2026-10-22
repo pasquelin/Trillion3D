@@ -9,6 +9,11 @@
  * slot no placement holds, holds nothing; a node that holds nothing takes the empty box, its bounds
  * crossed at the finite sentinel (`FINITE_SENTINEL`), which every union passes over.
  *
+ * With its box a group takes the draw distances of its placements (`TREE_DRAW_NEAR`,
+ * `TREE_DRAW_FAR`), read in their frame words: the nearest and the farthest of those they name,
+ * both 0 when a member is drawn at every distance or it holds none (`shader/drawDistanceWgsl.ts`).
+ * A cell holds none.
+ *
  * Group 0 binds the tree's record table (`treeTable.ts`) as a storage texture read and written in
  * place — the WGSL feature `readonly_and_readwrite_storage_textures`, which the engine asks of every
  * browser before it starts (`WEBGPU_REQUIRED_WGSL_FEATURES`) —: its nodes (`treeWord`,
@@ -26,9 +31,9 @@ import { D_INFINITY, D_NEG_INFINITY, D_ZERO } from '../../../../../math/src/wgsl
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { treeTableWgsl } from './treeTable.ts'
-import { frameTableWgsl, ROOT_WORD } from '../frameTable.ts'
+import { DRAW_FAR_WORD, DRAW_NEAR_WORD, frameTableWgsl, ROOT_WORD } from '../frameTable.ts'
 import { MARGIN, TREE_SPAN } from '../placement/placementTree.ts'
-import { NODE_MAX, NODE_MIN } from '../nodeLayout.ts'
+import { NODE_MAX, NODE_MIN, TREE_DRAW_FAR, TREE_DRAW_NEAR } from '../nodeLayout.ts'
 import { FINITE_SENTINEL } from '../../../../../math/src/wgsl/constants.ts'
 import { f64WordsInto } from '../../../../../math/src/float/bits.ts'
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
@@ -68,7 +73,7 @@ fn writeBox(n:u32,lo:array<vec2u,3>,hi:array<vec2u,3>){
 
 const FIT_WGSL = wgslBlock(
   'FIT_WGSL',
-  [WRITE_BOX_WGSL, fromF32, dMin, dMax, D_INFINITY, D_NEG_INFINITY],
+  [WRITE_BOX_WGSL, fromF32, dMin, dMax, D_INFINITY, D_NEG_INFINITY, FINITE_SENTINEL],
   `
 fn fitGroup(j:u32){
  let first=j*${TREE_SPAN}u;
@@ -76,6 +81,9 @@ fn fitGroup(j:u32){
  if(params.live>first){gm=min(params.live-first,${TREE_SPAN}u);}
  var lo:array<vec2u,3>;
  var hi:array<vec2u,3>;
+ // The nearest of the nearest distances, the farthest of the farthest, from the identity elements
+ // of the two; a placement that names none is (0, FINITE_SENTINEL): both leave it.
+ var found=vec2f(FINITE_SENTINEL,0.0);
  for(var a=0u;a<3u;a++){lo[a]=D_INFINITY;hi[a]=D_NEG_INFINITY;}
  for(var k=0u;k<gm;k++){
   let w=treeMember(first+k);
@@ -85,8 +93,14 @@ fn fitGroup(j:u32){
    lo[a]=dMin(lo[a],members[w*6u+a]);
    hi[a]=dMax(hi[a],members[w*6u+3u+a]);
   }
+  let far=bitcast<f32>(framesWord(w,${DRAW_FAR_WORD}u));
+  if(far>0.0){found=vec2f(min(found.x,bitcast<f32>(framesWord(w,${DRAW_NEAR_WORD}u))),max(found.y,far));}
+  else{found=vec2f(0.0,FINITE_SENTINEL);}
  }
  writeBox(params.base+j,lo,hi);
+ let named=found.y>0.0&&found.y<FINITE_SENTINEL;
+ treeSetWord(params.base+j,${TREE_DRAW_NEAR}u,bitcast<u32>(select(0.0,found.x,named)));
+ treeSetWord(params.base+j,${TREE_DRAW_FAR}u,bitcast<u32>(select(0.0,found.y,named)));
 }
 fn fitCell(j:u32){
  let first=j*${TREE_SPAN}u;

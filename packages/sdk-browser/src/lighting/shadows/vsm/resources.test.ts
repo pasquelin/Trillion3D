@@ -155,7 +155,7 @@ test("no pass binds a shared member as last frame's: such a spec is refused at i
   for (const specs of lists) assert.doesNotThrow(() => vsmBindingsWgsl(0, specs, layout))
 })
 
-test('the projection buffer is a 288-byte record a slot, and the shadows hold 413 MiB of the GPU', () => {
+test('the projection buffer is a 304-byte record a slot, and the shadows hold 413 MiB of the GPU', () => {
   // `shadowBudgetBytes.ts` and `budget.fixture.ts` are both built from `vsmResourceBytes`, so a
   // record size that moved would move both and pass `world/budget.test.ts`: the numbers are here.
   const fake = deviceFor()
@@ -167,7 +167,7 @@ test('the projection buffer is a 288-byte record a slot, and the shadows hold 41
     /^vsm\.projectionData\d$/.test(buffer.label ?? ''),
   )
   assert.equal(records.length, 2, 'one a frame')
-  for (const buffer of records) assert.equal(buffer.size, res.layout.mapSlots * 288)
+  for (const buffer of records) assert.equal(buffer.size, res.layout.mapSlots * 304)
   assert.equal(
     vsmResourceBytes(res.layout),
     fake.buffers.reduce((sum, buffer) => sum + buffer.size, 0),

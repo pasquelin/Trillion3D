@@ -130,7 +130,8 @@ fn a_region_page_lists_exactly_the_mesh_pages_its_cells_use() {
         (3, vec![]),
     ]);
     let tree = crate::compiler::tables::partition::split::halving(0..records.len());
-    let partition = write_pages(&tree, &records, &bounds, &holding, &directory).expect("pages");
+    let partition =
+        write_pages(&CELL_PAGES, &tree, &records, &bounds, &holding, &directory).expect("pages");
     assert_region_pages_name(&directory, &partition, &holding);
     let pages = leaves(&CELL_PAGES, &directory, &partition["pages"]);
     let firsts = pages

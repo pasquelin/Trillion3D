@@ -2,25 +2,21 @@
 //! version, walked down to the region pages in record order.
 use super::*;
 
-/// Every cell record under `root`, of `CELL_PAGES`' version, in cell order.
+/// Every cell record under `root`, of the version of `CELL_PAGES` or `GRIDS_CELL_PAGES`, in cell
+/// order.
 pub(crate) fn read_records(
     directory: &Path,
     root: &Value,
 ) -> std::result::Result<Vec<Value>, String> {
-    if root["version"] != json!(CELL_PAGES.version) {
-        return Err("the partition root is of another version".into());
-    }
+    let kind = [&CELL_PAGES, &GRIDS_CELL_PAGES]
+        .into_iter()
+        .find(|kind| root["version"] == json!(kind.version))
+        .ok_or("the partition root is of another version")?;
     let mut pages = Vec::new();
-    read_leaves(
-        &CELL_PAGES,
-        directory,
-        &root["pages"],
-        "the root",
-        &mut pages,
-    )?;
+    read_leaves(kind, directory, &root["pages"], "the root", &mut pages)?;
     let mut records = Vec::new();
     for mut page in pages {
-        if let Value::Array(cells) = page[CELL_PAGES.records].take() {
+        if let Value::Array(cells) = page[kind.records].take() {
             records.extend(cells);
         }
     }

@@ -26,6 +26,16 @@ export const SURFACE_MAP_FIELDS = [
  *  a map): what both resolves read its coordinate by. */
 export const SUBSURFACE_MAP_BIT = SURFACE_MAP_FIELDS.indexOf('subsurfaceMap')
 
+/** A displaced surface's numbers, as its material declares them: the distance the height 1 lies
+ *  from the height `center` along the normal, the height that stays on the surface, and the fade
+ *  range in pixels — the on-screen size of the largest displacement at which it starts to fade and
+ *  at which it is gone — or `null` for a displacement that never fades. */
+export type SurfaceDisplacement = {
+  readonly magnitude: number
+  readonly center: number
+  readonly fade: { readonly start: number; readonly end: number } | null
+}
+
 export type VisMaterial = {
   baseColor: [number, number, number]
   metalness: number
@@ -61,6 +71,10 @@ export type VisMaterial = {
   clearcoatRoughnessMap?: Texture
   clearcoatNormalMap?: Texture
   clearcoatNormalScale?: readonly [number, number]
+  /** The height map of a displaced surface and its numbers (`SurfaceDisplacement`): what the
+   *  tessellation reads (`../visibility/tessellation/`); absent on a surface drawn flat. */
+  displacementMap?: Texture
+  displacement?: SurfaceDisplacement
   clearcoat?: number
   clearcoatRoughness?: number
   transmission: number

@@ -69,3 +69,36 @@ export type TemporalAntialiasingShareName = keyof typeof TEMPORAL_AA_SHARES
 export const MATERIAL_SETTINGS = ['temporalAntialiasing', 'responsive'] as const
 /** One material's settings as the compiler reads them: the history share as a number. */
 export type MaterialSettingsWire = { temporalAntialiasing?: number; responsive?: boolean }
+
+/** The key of a glTF material's `extras` naming its displacement — `"extras": { "displacement":
+ *  { "texture": { "index": 3 }, "tessellation": true } }` —, the only source of it: glTF has no
+ *  displacement map of its own. The material is displaced only when it names the map AND switches
+ *  its tessellation on (`tessellation`, off by default, as the reference's own material switch is);
+ *  one that names the map alone draws flat. */
+export const DISPLACEMENT_EXTRA = 'displacement'
+/** What a material's `displacement` names: `texture`, a glTF `textureInfo` (`index`, and `texCoord`
+ *  for the set it reads, 0 unless it names another) of an image whose first channel holds the
+ *  height, 0 to 1; `tessellation`, a boolean; `magnitude`, how far the height 1 lies from the
+ *  height `center` along the normal, in the units of the scene, a number of at least 0; `center`,
+ *  the height that stays on the surface, from 0 to 1; `fade`, how the displacement fades with
+ *  distance: `false` never — the default —, `true` the default range, or `{ start, end }`, the
+ *  on-screen size in pixels of the largest displacement at which it starts to fade and at which it
+ *  is gone, each above 0. */
+export const DISPLACEMENT_KEYS = ['texture', 'tessellation', 'magnitude', 'center', 'fade'] as const
+/** The keys of a displacement's `fade` range. */
+export const DISPLACEMENT_FADE_KEYS = ['start', 'end'] as const
+/** A displacement's magnitude and center when it names none: the reference's own, 4 and a half. */
+export const DEFAULT_DISPLACEMENT_MAGNITUDE = 4
+export const DEFAULT_DISPLACEMENT_CENTER = 0.5
+/** A displacement's fade range when it names `true` or leaves a bound out: it starts at 4 pixels
+ *  and is gone at 1, the reference's own. */
+export const DEFAULT_DISPLACEMENT_FADE_START = 4
+export const DEFAULT_DISPLACEMENT_FADE_END = 1
+/** A material's displacement as the compiler writes it in the scene's material table: absent when
+ *  the material is not displaced. The map is a table slot (`TableTextureSlot`); `fade` is `null`
+ *  for a displacement that never fades. */
+export type DisplacementWire = {
+  magnitude: number
+  center: number
+  fade: { start: number; end: number } | null
+}

@@ -15,6 +15,7 @@ import { writeChangedSlots } from '../../../../gpu/core/writeChanged.ts'
 import { uniformSlots, type UniformSlots } from '../../../../session/memory/pools.ts'
 import { VSM_RENDER_PARAMS } from '../render/renderParamsWgsl.ts'
 import type { VsmRenderScene } from '../render/renderPass.ts'
+import type { VsmViewPass } from '../render/renderViewPasses.ts'
 
 /** The main view whose level of detail the casters take (the level of detail the main view
  *  draws). */
@@ -53,27 +54,39 @@ export const vsmCandidatesEntries = () => [
 ]
 
 /** Group 1 of a candidates kernel (`VSM_RENDER_WORLD_WGSL`): the camera cut's cold words and its
- *  frame words, record tables read as the cut reads them (`../../../../geometry/dag/shader/bindings.ts`). */
+ *  frame words, record tables read as the cut reads them (`../../../../geometry/dag/shader/bindings.ts`),
+ *  and the words its `work` holds the main view's filter in. */
 export const vsmCandidatesWorldEntries = () => [
   computeTextureEntry(0, 'uint', '2d-array'),
   computeTextureEntry(1, 'uint', '2d-array'),
+  computeBufferEntry(2, 'read-only-storage', COMPUTE),
 ]
 
 /** What sizes the chunks of a raster over caster rows: `chunks` chunks of `chunkRows` rows over
- *  `rowCount` rows and at most `viewCount` views (the GPU lists those with pages to draw), each chunk's lists holding `cmds` commands and `pairs`
- *  pages. Decided by its pass (`../render/renderPass.ts`, `../transmission/transmissionBinPlan.ts`), handed to
- *  `vsmWriteChunkParams`. */
+ *  `rowCount` rows, each chunk's lists holding `cmds` commands and `pairs` pages. Decided by its
+ *  pass (`../render/renderPass.ts`, `../transmission/transmissionBinPlan.ts`), handed to
+ *  `vsmWriteChunkParams`. Each of the `passes` view passes (`../render/renderViewPasses.ts`: the
+ *  maps it lists, at most those the GPU then lists as having pages to draw) runs the same `chunks`
+ *  chunks over its own maps. */
 export interface VsmRenderChunking {
   rowCount: number
-  viewCount: number
   chunks: number
   chunkRows: number
   cmds: number
   pairs: number
+  passes: readonly Pick<VsmViewPass, 'first' | 'maps'>[]
 }
 
-/** What the parameters take of a raster's scene: its camera, and its cut's world switch. */
-type VsmParamsScene = Pick<VsmRenderScene, 'camera' | 'world'>
+/** The parameter slot of chunk `chunk` of view pass `pass`: the chunks of the passes, one after the
+ *  other. Also its counters' and its arguments'. */
+export const vsmChunkSlot = (chunks: number, pass: number, chunk: number) => pass * chunks + chunk
+
+/** What the parameters take of a raster's scene: its camera, its cut's world switch, which
+ *  casters its suns' far-shadow test reaches and the draw distances its casters take. */
+type VsmParamsScene = Pick<
+  VsmRenderScene,
+  'camera' | 'world' | 'farMeshes' | 'farDrop' | 'drawDistance'
+>
 
 /** An image of parameter slots, its words seen as floats and as integers. */
 interface VsmRenderParamsImage {
@@ -88,49 +101,59 @@ const VIEW_ROWS = [
   VSM_RENDER_PARAMS.at.viewRow2,
 ]
 
-/** The parameter slots of `chunking.chunks` chunks (`VsmRenderParams`), `slots` apart: the
- *  frame's values in every slot — the scene's camera and where its cut's world links start —, the
- *  chunk's own index and range — into `image` (its words past the struct's left as they are: zero,
- *  as nothing else writes them). */
+/** The parameter slots of `chunking` (a chunk of each pass, `vsmChunkSlot`; `VsmRenderParams`), `slots` apart: the
+ *  frame's values in every slot — the scene's camera, where its cut's world links start and which
+ *  casters its suns' far-shadow test reaches and the distance past which every view leaves a caster
+ *  out —, the slot's own index, the range of its rows and the maps of its view pass — into `image`
+ *  (its words past the struct's left as they are: zero, as nothing else writes them). */
 function vsmRenderParams(
-  { camera, world }: VsmParamsScene,
+  { camera, world, farMeshes, farDrop, drawDistance }: VsmParamsScene,
   chunking: VsmRenderChunking,
   image: VsmRenderParamsImage,
   slots: UniformSlots,
 ) {
-  const { chunks, chunkRows } = chunking
+  const { chunks, chunkRows, passes } = chunking
   const slotWords = slots.strideWords
   const { f, u } = image
   const { at } = VSM_RENDER_PARAMS
   for (let a = 0; a < 3; a++) writeSplitDouble(eye, a, 4 + a, camera.eye[a])
-  for (let c = 0; c < chunks; c++) {
-    const o = c * slotWords
-    for (let a = 0; a < 3; a++) {
-      f[o + at.eyeHigh + a] = eye[a]
-      f[o + at.eyeLow + a] = eye[4 + a]
+  for (let p = 0; p < passes.length; p++)
+    for (let c = 0; c < chunks; c++) {
+      const slot = vsmChunkSlot(chunks, p, c),
+        o = slot * slotWords,
+        pass = passes[p]
+      for (let a = 0; a < 3; a++) {
+        f[o + at.eyeHigh + a] = eye[a]
+        f[o + at.eyeLow + a] = eye[4 + a]
+      }
+      f[o + at.perspective] = camera.perspective ? 1 : 0
+      f[o + at.focal] = camera.focalPixels
+      // World-to-view rotation rows (column-major m[c*4+r]).
+      for (let r = 0; r < 3; r++) {
+        const row = o + VIEW_ROWS[r]
+        f[row] = camera.view[r]
+        f[row + 1] = camera.view[4 + r]
+        f[row + 2] = camera.view[8 + r]
+        f[row + 3] = 0
+      }
+      f[o + at.near] = camera.near
+      f[o + at.threshold] = camera.threshold
+      u[o + at.rowCount] = chunking.rowCount
+      u[o + at.viewCount] = pass.maps
+      u[o + at.viewFirst] = pass.first
+      u[o + at.chunk] = slot
+      u[o + at.chunkFirst] = c * chunkRows
+      u[o + at.chunkRows] = chunkRows
+      u[o + at.chunkCount] = chunks
+      u[o + at.cmdCapacity] = chunking.cmds
+      u[o + at.pairCapacity] = chunking.pairs
+      u[o + at.worldLinks] = world?.links ?? 0
+      u[o + at.farMeshes] = farMeshes ? 1 : 0
+      f[o + at.farDrop] = farDrop ?? 0
+      u[o + at.filterBase] = world?.filter?.base ?? 0
+      u[o + at.drawDistances] = drawDistance ? 1 : 0
+      f[o + at.viewDistanceScale] = drawDistance?.scale ?? 1
     }
-    f[o + at.perspective] = camera.perspective ? 1 : 0
-    f[o + at.focal] = camera.focalPixels
-    // World-to-view rotation rows (column-major m[c*4+r]).
-    for (let r = 0; r < 3; r++) {
-      const row = o + VIEW_ROWS[r]
-      f[row] = camera.view[r]
-      f[row + 1] = camera.view[4 + r]
-      f[row + 2] = camera.view[8 + r]
-      f[row + 3] = 0
-    }
-    f[o + at.near] = camera.near
-    f[o + at.threshold] = camera.threshold
-    u[o + at.rowCount] = chunking.rowCount
-    u[o + at.viewCount] = chunking.viewCount
-    u[o + at.chunk] = c
-    u[o + at.chunkFirst] = c * chunkRows
-    u[o + at.chunkRows] = chunkRows
-    u[o + at.chunkCount] = chunks
-    u[o + at.cmdCapacity] = chunking.cmds
-    u[o + at.pairCapacity] = chunking.pairs
-    u[o + at.worldLinks] = world?.links ?? 0
-  }
 }
 
 // The frame's scratch of the raster and the transmission's draw (one after the other, never
@@ -151,10 +174,10 @@ export function vsmWriteChunkParams(
   paramsBuffer: GPUBuffer,
   slots: UniformSlots,
 ) {
-  const { chunks } = chunking
-  vsmGrowParamsImage(paramsImage, chunks * slots.strideWords)
+  const total = chunking.chunks * chunking.passes.length
+  vsmGrowParamsImage(paramsImage, total * slots.strideWords)
   vsmRenderParams(scene, chunking, paramsImage, slots)
-  writeChangedSlots(device, paramsBuffer, paramsImage.u, slots, 0, chunks)
+  writeChangedSlots(device, paramsBuffer, paramsImage.u, slots, 0, total)
 }
 
 /** `image` grown to hold `slotWords` words, by the engine's one rule (`grownLength`). */

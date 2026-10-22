@@ -24,8 +24,9 @@ import { refusal } from './nameMatch.ts'
  *
  * RUN-TIME SETTINGS. The eight families listed first are the engine's own, read again at each frame,
  * or at each update of the streaming: no compiler job names them, so no manifest carries them and
- * no cache key holds them. None has quality levels: the scalability groups of the reference leave
- * every one at its default, so a quality preset writes none (`../runtime/qualityLevels.ts`). Each
+ * no cache key holds them. Only the cut's view distance scale has quality levels
+ * (`VIEW_DISTANCE_SCALE_LEVELS`): the scalability groups of the reference leave every other one at
+ * its default, so a quality preset writes none (`../runtime/qualityLevels.ts`). Each
  * is a world option (`WorldOptions`), a session option (`MeasuredWorldOptions`), a render setting
  * of the view distance's group (`packages/sdk-browser/src/session/world/settings.ts`), and the LLM
  * schemas name it by its field and say what it means (`../llm/settingProperties.ts`). Each is read
@@ -63,16 +64,28 @@ export type SettingValues<T extends SettingRules> = { -readonly [K in keyof T]: 
 export type RulesByField<T extends SettingRules> = {
   readonly [K in keyof T as T[K]['field']]: T[K]
 }
+/** What a LEVEL rule — a choice whose first name is `'off'` — takes besides its names: a switch, `true` its
+ *  default level, `false` `'off'` (the reference's anti-aliasing option reads its levels so); none for any other. */
+type LevelSwitch<R> = R extends {
+  readonly kind: 'choice'
+  readonly choices: readonly ['off', ...string[]]
+}
+  ? boolean
+  : never
 /** The settings of the rules by field `R` as a host writes them: each its value, or nothing for its
  *  default. */
-export type SettingOptions<R extends SettingRules> = { [F in keyof R]?: R[F]['default'] | null }
+export type SettingOptions<R extends SettingRules> = {
+  [F in keyof R]?: R[F]['default'] | LevelSwitch<R[F]> | null
+}
 /** The settings of the rules `T` — by any names — as a host writes them, by their fields. */
 type FieldOptions<T extends SettingRules> = {
-  [K in keyof T as T[K]['field']]?: T[K]['default'] | null
+  [K in keyof T as T[K]['field']]?: T[K]['default'] | LevelSwitch<T[K]> | null
 }
 
 /** Any finite number. */
 export const ANY_NUMBER: SettingRange = [-1.7976931348623157e308, 1.7976931348623157e308]
+/** Any whole number a signed 32-bit word holds. */
+export const INT32_RANGE: SettingRange = [-2147483648, 2147483647]
 
 /** A switch of field `field` and default `value`. */
 export const flagSetting = <F extends string>(field: F, value: boolean) =>
@@ -123,10 +136,14 @@ export const rulesOf = <const T extends readonly SettingRule[]>(rules: T) =>
     readonly [R in T[number] as R['field']]: R
   }
 
+/** Whether `rule` is a level rule: a choice whose first name is `'off'` (`LevelSwitch`). */
+const isLevelRule = (rule: SettingRule) => rule.kind === 'choice' && rule.choices[0] === 'off'
+
 /** What `rule` takes, in words. */
 export function settingTakes(rule: SettingRule) {
   if (rule.kind === 'flag') return 'true or false'
-  if (rule.kind === 'choice') return `one of ${rule.choices.map((name) => `'${name}'`).join(', ')}`
+  if (rule.kind === 'choice')
+    return `one of ${rule.choices.map((name) => `'${name}'`).join(', ')}${isLevelRule(rule) ? ', true or false' : ''}`
   return (
     rule.takes ??
     `${rule.kind === 'int' ? 'a whole number' : 'a number'} from ${rule.range[0]} to ${rule.range[1]}`
@@ -135,17 +152,20 @@ export function settingTakes(rule: SettingRule) {
 
 /**
  * The value `option` names of the setting `rule`: one it takes as itself, `undefined` or `null`
- * its default. The one reading of every setting declared by rule.
+ * its default; for a level rule (`LevelSwitch`) `true` too is its default and `false` is `'off'`.
+ * The one reading of every setting declared by rule.
  * @throws TypeError naming the field and the values it takes when it is none of them.
  */
 export function resolveSetting<R extends SettingRule>(
   rule: R,
-  option?: R['default'] | null,
+  option?: R['default'] | LevelSwitch<R> | null,
 ): R['default'] {
   if (option === undefined || option === null) return rule.default
+  if (typeof option === 'boolean' && isLevelRule(rule))
+    return (option ? rule.default : 'off') as R['default']
   if (!settingFits(rule, option))
     refusal(rule.field)(`must be ${settingTakes(rule)}, got ${String(option)}`)
-  return option
+  return option as R['default']
 }
 
 /** Whether `value` is one `rule` takes: a switch a boolean, a number a finite one in its range,
@@ -191,7 +211,7 @@ function writeSetting<R extends SettingRules, F extends keyof R>(
   rules: R,
   options: SettingOptions<R>,
   field: F,
-  option?: R[F]['default'] | null,
+  option?: SettingOptions<R>[F],
 ) {
   options[field] = resolveSetting(rules[field], option)
 }
@@ -200,7 +220,7 @@ function writeSetting<R extends SettingRules, F extends keyof R>(
  *  each write: `write(field, option)` is `writeSetting`, the session's setter of a family. */
 export const settingWriter =
   <R extends SettingRules>(rules: R, options: SettingOptions<R>, before?: () => void) =>
-  <F extends keyof R>(field: F, option: R[F]['default'] | null | undefined) => {
+  <F extends keyof R>(field: F, option: SettingOptions<R>[F]) => {
     before?.()
     writeSetting(rules, options, field, option)
   }
@@ -244,3 +264,27 @@ export function settingsDiffer<T extends SettingRules>(
 /** Every setting of `rules` read from `options`, in a new object (`resolveSettingsInto`). */
 export const resolveSettings = <T extends SettingRules>(rules: T, options: FieldOptions<T>) =>
   resolveSettingsInto(rules, options, {} as SettingValues<T>)
+
+/**
+ * The watch of a family's settings a pass keeps beside its own state (`settingsWatch`): `read(options)` reads
+ * every setting of `rules` into one object and `moved` then says whether any differs from the last reading
+ * that moved — the first reading always does. What a pass that rebuilds its derived values or its resources
+ * only when a setting changed asks each image: nothing is resolved twice, nothing allocated past the two
+ * objects it holds.
+ */
+export function settingsWatch<T extends SettingRules>(rules: T) {
+  const now = {} as SettingValues<T>
+  let used: SettingValues<T> | undefined
+  const watch = {
+    /** Whether the last reading differs from the one before it that moved. */
+    moved: false,
+    /** The settings `options` hold, resolved into one object that the next reading overwrites. */
+    read(options: FieldOptions<T>) {
+      resolveSettingsInto(rules, options, now)
+      watch.moved = !used || settingsDiffer(rules, used, now)
+      if (watch.moved) used = { ...now }
+      return now
+    },
+  }
+  return watch
+}

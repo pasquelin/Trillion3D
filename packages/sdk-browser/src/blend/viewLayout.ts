@@ -10,7 +10,8 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
  * and the display height; `clipW` the render matrix's last row, a point's
  * clip `w` its dot with the point; `eye` the
  * point the fog is measured from, `pixelError` the cut's threshold the screen-error view measures
- * against (`diagnosticScreenError`).
+ * against (`diagnosticScreenError`); `clipPlane` the view's clip plane in the world, `dot(xyz, p) + w`
+ * at least 0 drawn, all zero for a view that clips nothing (`../frame/render/viewClip.ts`).
  */
 const BLEND_VIEW_FIELDS = [
   ['viewProj', 'mat4x4f'],
@@ -29,6 +30,7 @@ const BLEND_VIEW_FIELDS = [
   ['exposure', 'f32'],
   ['toneCurve', 'u32'],
   ['pixelError', 'f32'],
+  ['clipPlane', 'vec4f'],
 ] as const
 const LAYOUT = fieldLayout('BlendView', BLEND_VIEW_FIELDS)
 

@@ -35,7 +35,8 @@ pub use sizing::{
 ///   fast pass goes first on a dense shell (geometric tolerance, true);
 /// - `hard_normals`, `hard_normal_angle`: whether faces turning past the angle, degrees, get
 ///   separate normals, else one normal a vertex (true, 60);
-/// - `uv_method`, `patches`: how the shell is unwrapped (charts) and the patches' settings;
+/// - `uv_method`, `patches`, `uv_atlas_stretch`: how the shell is unwrapped (charts), the patches'
+///   settings and the most stretch the `uvAtlas` charts may reach (0.1);
 /// - `capture`: the bake's views; `maps`: the atlas images baked beside the base colour;
 /// - `empty_texels`: what the atlas holds where it holds no chart's value (the nearest chart's);
 /// - `base`: how the scene's base is closed before the solid is read (none);
@@ -64,6 +65,7 @@ pub struct HlodApproximation {
     pub hard_normal_angle: f64,
     pub uv_method: HlodUvMethod,
     pub patches: HlodPatches,
+    pub uv_atlas_stretch: f64,
     pub capture: HlodCapture,
     pub(crate) maps: Maps,
     pub empty_texels: HlodEmptyTexels,
@@ -94,6 +96,7 @@ impl Default for HlodApproximation {
             hard_normal_angle: 60.0,
             uv_method: HlodUvMethod::Charts,
             patches: HlodPatches::default(),
+            uv_atlas_stretch: 0.1,
             capture: HlodCapture::default(),
             maps: Maps::default(),
             empty_texels: HlodEmptyTexels::default(),
@@ -106,7 +109,7 @@ impl Default for HlodApproximation {
 }
 
 /// The fields `approximation` admits.
-const FIELDS: [&str; 33] = [
+const FIELDS: [&str; 34] = [
     "voxelClamp",
     "autoThicken",
     "thicknessMultiplier",
@@ -124,6 +127,7 @@ const FIELDS: [&str; 33] = [
     "hardNormals",
     "hardNormalAngle",
     "uvMethod",
+    "uvAtlasStretch",
     "initialPatches",
     "curvatureAlignment",
     "mergingThreshold",
@@ -229,23 +233,12 @@ pub(super) fn approximation(entry: Option<&Value>, what: &str) -> Result<HlodApp
         &mut read.uv_method,
         chosen_of(map, "uvMethod", what, methods)?,
     );
-    let patches = &mut read.patches;
+    // The stretch bound of the library's scale, from 0 (none) to 1 (any).
     set(
-        &mut patches.initial,
-        counted(map, "initialPatches", what, (1, 99_999_999))?,
+        &mut read.uv_atlas_stretch,
+        ranged(map, "uvAtlasStretch", what, (0.0, 1.0))?,
     );
-    set(
-        &mut patches.curvature_alignment,
-        ranged(map, "curvatureAlignment", what, (0.01, 100.0))?,
-    );
-    set(
-        &mut patches.merging_threshold,
-        ranged(map, "mergingThreshold", what, (1.0, f64::MAX))?,
-    );
-    set(
-        &mut patches.max_angle_deviation,
-        ranged(map, "maxAngleDeviation", what, (0.0, 180.0))?,
-    );
+    read.patches = HlodPatches::read(map, what)?;
     // Zero: each view as large as the atlas.
     let resolution = counted(map, "captureResolution", what, (0, 16384))?;
     set(

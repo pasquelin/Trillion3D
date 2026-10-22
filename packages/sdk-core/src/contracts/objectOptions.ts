@@ -11,6 +11,13 @@
  * - `skinnedInstance`: the skinned object plays a clip baked into the scene's animation banks on
  *   the GPU, every instance of one clip, mesh and settings in one pose (`SkinnedInstanceSettings`)
  *   — `true` every default, `false` (the default) a skinned object its host's clips move.
+ * - `drawDistance`: the nearest and the farthest distance from the eye the object is drawn at, in
+ *   the scene's units, tested on the centre of its bounds (`DrawDistanceSettings`) — `false` (the
+ *   default) none: it is drawn at every distance. The cut applies it (`cutDrawDistanceCulling`,
+ *   `cutOptions.ts`).
+ * - `runtimeGrid`: the name of the streaming grid the object streams on (`partitionGrids`) — the
+ *   first grid when it names none or one the job does not hold, the reference's rule; an object
+ *   attached under another streams on its topmost object's grid.
  * Its `objects` are rules `{ match, …settings }`, `match` naming objects as `meshBuild` does: each
  * sets its settings for the objects it matches. For each setting of an object, the first that
  * names it wins: the first rule matching it, the scene's setting, its node's own glTF `extras`
@@ -18,19 +25,26 @@
  * A value left out or `null` names nothing, as the compiler reads it.
  */
 import {
+  DEFAULT_DRAW_DISTANCE_MAX,
+  DRAW_DISTANCE_SETTING,
+  DRAW_DISTANCE_SETTINGS,
   OBJECT_MOBILITIES,
   OBJECT_SETTINGS,
   OBJECT_SETTINGS_FIELD,
   OBJECT_SETTINGS_OBJECTS,
   OBJECT_SETTINGS_OPTION,
+  PARTITION_GRID_NAME_FORBIDDEN,
+  RUNTIME_GRID_SETTING,
   SKINNED_INSTANCE_SETTING,
   SKINNED_INSTANCE_SETTINGS,
   SPATIALLY_LOADED_SETTING,
+  type DrawDistanceWire,
   type ObjectMobility,
   type ObjectSettingsJobWire,
   type ObjectSettingsWire,
   type SkinnedInstanceWire,
 } from './compilerAbi.ts'
+import { isGridName } from './partitionGridOptions.ts'
 import {
   fieldsOf,
   isRecord,
@@ -67,12 +81,28 @@ export type SkinnedInstanceSettings = {
 /** An object's skinned instance: `true` every default, `false` none, or its settings. */
 export type SkinnedInstanceOption = boolean | SkinnedInstanceSettings
 
+/** The distances an object is drawn at, from the eye to the centre of its bounds, in the scene's
+ *  units. */
+export type DrawDistanceSettings = {
+  /** The distance under which the object is not drawn. @defaultValue 0 */
+  min?: number
+  /** The distance past which the object is not drawn: 0 none, the object is drawn at every
+   *  distance, whatever its `min`. @defaultValue 0 */
+  max?: number
+}
+
 /** One source's object settings, each the next source's, or its default, when left out. */
 export type ObjectSettings = {
   /** Whether the object streams on the main grid. @defaultValue true */
   spatiallyLoaded?: boolean
   /** Whether a skinned object plays a baked clip on the GPU, and how. @defaultValue false */
   skinnedInstance?: SkinnedInstanceOption
+  /** The distances the object is drawn at: `false` none, it is drawn at every distance, or its
+   *  `min` and `max`. @defaultValue false */
+  drawDistance?: false | DrawDistanceSettings
+  /** The name of the streaming grid it streams on (`partitionGrids`), not empty.
+   *  @defaultValue the first grid */
+  runtimeGrid?: string
 }
 
 /** A rule of `objects`: the objects it names — a node's name (exact), a regular expression on it,
@@ -86,6 +116,12 @@ export type ObjectSettingsOption = ObjectSettings & { objects?: readonly ObjectR
 const finite = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value)
 
+/** What a distance, or a position in a clip, takes. */
+const NON_NEGATIVE: [string, (v: unknown) => boolean] = [
+  'a finite number of at least 0',
+  (value) => finite(value) && value >= 0,
+]
+
 /** What each setting of an instanced skinned object takes, as a refusal names it, and whether a
  *  value is one of them. */
 const SKINNED_TAKES: Record<
@@ -98,7 +134,7 @@ const SKINNED_TAKES: Record<
   ],
   looping: ['true or false', (value) => typeof value === 'boolean'],
   playRate: ['a finite number', finite],
-  position: ['a finite number of at least 0', (value) => finite(value) && value >= 0],
+  position: NON_NEGATIVE,
   boundsScale: ['a finite number above 0', (value) => finite(value) && value > 0],
   animationMinScreenSize: ['a finite number', finite],
   mobility: [
@@ -107,21 +143,56 @@ const SKINNED_TAKES: Record<
   ],
 }
 
+/** What each key of a draw distance takes. */
+const DRAW_DISTANCE_TAKES: Record<
+  (typeof DRAW_DISTANCE_SETTINGS)[number],
+  [string, (v: unknown) => boolean]
+> = {
+  min: NON_NEGATIVE,
+  max: NON_NEGATIVE,
+}
+
+/** The settings of `keys` the object `value` names, each read as its `takes` entry says and a
+ *  refusal naming it under `what`; the ones left out or null are not in the wire. */
+function recordOf<K extends string>(
+  value: unknown,
+  keys: readonly K[],
+  takes: Record<K, [string, (v: unknown) => boolean]>,
+  what: string,
+  refuse: Refuse,
+) {
+  const named = fieldsOf(value, keys, what, refuse)
+  const wire: Record<string, unknown> = {}
+  for (const name of keys) {
+    const setting = named[name]
+    if (setting === undefined || setting === null) continue
+    const [words, fits] = takes[name]
+    if (!fits(setting)) refuse(`${what}.${name} must be ${words}, got ${JSON.stringify(setting)}`)
+    wire[name] = setting
+  }
+  return wire
+}
+
 /** The skinned instance `value` names, as the compiler reads it, `what` naming it in a refusal. */
 function skinnedOf(value: unknown, what: string, refuse: Refuse): boolean | SkinnedInstanceWire {
   if (typeof value === 'boolean') return value
   if (!isRecord(value))
     refuse(`${what} must be true, false or an object of ${SKINNED_INSTANCE_SETTINGS.join(', ')}`)
-  const named = fieldsOf(value, SKINNED_INSTANCE_SETTINGS, what, refuse)
-  const wire: Record<string, unknown> = {}
-  for (const name of SKINNED_INSTANCE_SETTINGS) {
-    const setting = named[name]
-    if (setting === undefined || setting === null) continue
-    const [takes, fits] = SKINNED_TAKES[name]
-    if (!fits(setting)) refuse(`${what}.${name} must be ${takes}, got ${JSON.stringify(setting)}`)
-    wire[name] = setting
-  }
+  const wire = recordOf(value, SKINNED_INSTANCE_SETTINGS, SKINNED_TAKES, what, refuse)
   return wire as SkinnedInstanceWire
+}
+
+/** The draw distance `value` names, as the compiler reads it, `what` naming it in a refusal: `false`
+ *  none, or an object of `min` and `max`, each a finite number of at least 0. An object whose `max`
+ *  is left out or 0 names no farthest distance: it is `false` too, one form for none. */
+function drawDistanceOf(value: unknown, what: string, refuse: Refuse): false | DrawDistanceWire {
+  if (value === false) return false
+  if (!isRecord(value))
+    refuse(`${what} must be false or an object of ${DRAW_DISTANCE_SETTINGS.join(', ')}`)
+  const wire = recordOf(value, DRAW_DISTANCE_SETTINGS, DRAW_DISTANCE_TAKES, what, refuse)
+  return ((wire.max as number | undefined) ?? DEFAULT_DRAW_DISTANCE_MAX) > 0
+    ? (wire as DrawDistanceWire)
+    : false
 }
 
 /** The settings of `named` the compiler reads, `what` naming them in a refusal. */
@@ -138,6 +209,18 @@ function settingsOf(named: Record<string, unknown>, what: string, refuse: Refuse
   const skinned = named[SKINNED_INSTANCE_SETTING]
   if (skinned !== undefined && skinned !== null)
     wire.skinnedInstance = skinnedOf(skinned, `${what}${SKINNED_INSTANCE_SETTING}`, refuse)
+  const drawn = named[DRAW_DISTANCE_SETTING]
+  if (drawn !== undefined && drawn !== null)
+    wire.drawDistance = drawDistanceOf(drawn, `${what}${DRAW_DISTANCE_SETTING}`, refuse)
+  const grid = named[RUNTIME_GRID_SETTING]
+  if (grid !== undefined && grid !== null) {
+    if (!isGridName(grid))
+      refuse(
+        `${what}${RUNTIME_GRID_SETTING} must be the name of a streaming grid, a text with none of ` +
+          `${PARTITION_GRID_NAME_FORBIDDEN}, got ${JSON.stringify(grid)}`,
+      )
+    wire.runtimeGrid = grid
+  }
   return wire
 }
 

@@ -1,25 +1,33 @@
-//! A job's world partition as the compiler reads it (`resolvePartitionScheme` and
-//! `resolvePartitionGrid` write it): its scheme (`partitionScheme`, `PartitionScheme`) and the
-//! main grid every spatially loaded object streams on (`partitionGrid`,
-//! `compiler/tables/partition/grid.rs`) — its cell side and loading range, metres, its load
-//! priority among the grids, the lower the sooner, its origin, glTF's `x` and `z` or `x`, `y`,
-//! `z`, whether a load waits for its cells near the view (`blockOnSlowStreaming`), and its
-//! scheme's own settings (`settings.rs`) —, each the reference's when the job leaves it out
-//! (`DEFAULT_PARTITION_SCHEME`, `DEFAULT_PARTITION_CELL_SIZE`, `DEFAULT_PARTITION_LOADING_RANGE`,
-//! `DEFAULT_PARTITION_PRIORITY`, the origin, `DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING`, and the
-//! defaults of a world the reference creates). For the scheme `true` names the default; for the grid `true` names every default
-//! and `false` turns the streaming off: every object is loaded with the scene, no cell is cut and
-//! no HLOD is built.
+//! A job's world partition as the compiler reads it (`resolvePartitionScheme`,
+//! `resolvePartitionGrid` and `resolvePartitionGrids` write it): its scheme (`partitionScheme`,
+//! `PartitionScheme`) and the grids every spatially loaded object streams on (`partitionGrid`, or
+//! `partitionGrids`, `compiler/tables/partition/grid.rs`). A grid has its cell side and loading
+//! range, metres, its load priority among the grids, the lower the sooner, its origin, glTF's `x`
+//! and `z` or `x`, `y`, `z`, whether a load waits for its cells near the view
+//! (`blockOnSlowStreaming`), and its scheme's own settings (`settings.rs`): each the reference's
+//! when the job leaves it out (`DEFAULT_PARTITION_SCHEME`, `DEFAULT_PARTITION_CELL_SIZE`,
+//! `DEFAULT_PARTITION_LOADING_RANGE`, `DEFAULT_PARTITION_PRIORITY`, the origin,
+//! `DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING`, and the defaults of a world the reference
+//! creates). For the scheme `true` names the default; for the grid `true` names every default and
+//! `false` turns the streaming off: every object is loaded with the scene, no cell is cut and no
+//! HLOD is built.
 //!
-//! A job naming neither keeps its cache key. Read and checked here once; what does not read is
-//! the job's refusal (`INVALID_OPTIONS`, `validate_compile_options`), never the batch's.
+//! A job may name several grids instead (`partitionGrids`, `grids.rs`): a list of the settings a
+//! grid takes, each under a name, the first the default grid. An object streams on the grid its
+//! `runtimeGrid` setting names (`ObjectSetting::runtime_grid`, `PartitionGrid::rank_of`).
+//!
+//! A job naming none of them keeps its cache key. Read and checked here once; what does not read
+//! is the job's refusal (`INVALID_OPTIONS`, `validate_compile_options`), never the batch's.
 use super::name_match::present;
 use super::*;
 pub(crate) use settings::SquareSettings;
 pub use settings::StreamBounds;
-use settings::{positive_metres, scheme_settings, LooseSettings};
+use settings::{origin_of, positive_metres, scheme_settings, unknown_setting, LooseSettings};
 
+mod grids;
 mod settings;
+
+pub(crate) use grids::is_grid_name;
 
 /// How the spatially loaded objects are cut into cells and streamed (`PARTITION_SCHEMES`): a loose
 /// hierarchical grid with no top, each cell streaming by its content, the HLOD grids doubling the
@@ -43,22 +51,47 @@ impl PartitionScheme {
     }
 }
 
-/// A job's partition: its scheme, whether its objects stream, the main grid's settings — its
-/// origin as glTF's `x`, `y` (up) and `z`, whether a load blocks on its slow streaming, and each
-/// scheme's own (`LooseSettings`, `SquareSettings`) —, and what the job named of each, their cache
+/// One grid's settings: its name — the one `runtimeGrid` names —, cell side and loading range,
+/// priority, origin as glTF's `x`, `y` (up) and `z`, whether a load blocks on its slow streaming,
+/// and each scheme's own (`LooseSettings`, `SquareSettings`).
+#[derive(Clone, Debug)]
+pub(crate) struct GridSettings {
+    pub name: String,
+    pub cell_size: f64,
+    pub loading_range: f64,
+    pub priority: u32,
+    pub origin: [f64; 3],
+    pub block_on_slow_streaming: bool,
+    pub loose: LooseSettings,
+    pub square: SquareSettings,
+}
+
+impl Default for GridSettings {
+    /// The reference's main grid.
+    fn default() -> Self {
+        Self {
+            name: DEFAULT_PARTITION_GRID_NAME.to_string(),
+            cell_size: DEFAULT_PARTITION_CELL_SIZE,
+            loading_range: DEFAULT_PARTITION_LOADING_RANGE,
+            priority: DEFAULT_PARTITION_PRIORITY,
+            origin: [0.0; 3],
+            block_on_slow_streaming: DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING,
+            loose: LooseSettings::default(),
+            square: SquareSettings::default(),
+        }
+    }
+}
+
+/// A job's partition: its scheme, whether its objects stream, its grids — one or more, the first
+/// the default one — and what the job named of the grids and of the scheme, their cache
 /// identities.
 #[derive(Clone, Debug)]
 pub struct PartitionGrid {
     pub(crate) scheme: PartitionScheme,
     pub(crate) streams: bool,
-    pub(crate) cell_size: f64,
-    pub(crate) loading_range: f64,
-    pub(crate) priority: u32,
-    pub(crate) origin: [f64; 3],
-    pub(crate) block_on_slow_streaming: bool,
-    pub(crate) loose: LooseSettings,
-    pub(crate) square: SquareSettings,
+    pub(crate) grids: Vec<GridSettings>,
     identity: Option<Value>,
+    grids_identity: Option<Value>,
     scheme_identity: Option<Value>,
 }
 
@@ -68,14 +101,9 @@ impl Default for PartitionGrid {
         Self {
             scheme: PartitionScheme::HashSet,
             streams: true,
-            cell_size: DEFAULT_PARTITION_CELL_SIZE,
-            loading_range: DEFAULT_PARTITION_LOADING_RANGE,
-            priority: DEFAULT_PARTITION_PRIORITY,
-            origin: [0.0; 3],
-            block_on_slow_streaming: DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING,
-            loose: LooseSettings::default(),
-            square: SquareSettings::default(),
+            grids: vec![GridSettings::default()],
             identity: None,
+            grids_identity: None,
             scheme_identity: None,
         }
     }
@@ -100,18 +128,29 @@ fn scheme(value: Option<&Value>) -> std::result::Result<PartitionScheme, String>
 }
 
 impl PartitionGrid {
-    /// The partition the job's `partitionScheme` and `partitionGrid` fields name, the default for
-    /// none; `Err` with the job's refusal when one does not read.
+    /// The partition the job's `partitionScheme`, `partitionGrid` and `partitionGrids` fields
+    /// name, the default for none; `Err` with the job's refusal when one does not read, or when
+    /// the job names both `partitionGrid` and `partitionGrids`.
     pub fn read(job: &Map<String, Value>) -> std::result::Result<Self, String> {
         let scheme_identity = present(job.get(PARTITION_SCHEME_FIELD)).cloned();
         let scheme = scheme(job.get(PARTITION_SCHEME_FIELD))?;
+        let listed = present(job.get(PARTITION_GRIDS_FIELD));
         let Some(value) = present(job.get(PARTITION_GRID_FIELD)) else {
-            return Ok(Self {
-                scheme,
-                scheme_identity,
-                ..Self::default()
-            });
+            return match listed {
+                Some(list) => Self::listed(list, scheme, scheme_identity),
+                None => Ok(Self {
+                    scheme,
+                    scheme_identity,
+                    ..Self::default()
+                }),
+            };
         };
+        if listed.is_some() {
+            return Err(format!(
+                "{PARTITION_GRIDS_FIELD}: {PARTITION_GRID_FIELD} and {PARTITION_GRIDS_FIELD} both \
+                 name the grids: name them once"
+            ));
+        }
         let identity = Some(value.clone());
         let fields = match value {
             Value::Bool(streams) => {
@@ -132,15 +171,49 @@ impl PartitionGrid {
                 ))
             }
         };
-        let named = |key: &&String| PARTITION_GRID_SETTINGS.contains(&key.as_str());
-        if let Some(key) = fields.keys().find(|key| !named(key)) {
-            return Err(format!(
-                "{PARTITION_GRID_FIELD}: the grid has no field {key}: {}",
-                PARTITION_GRID_SETTINGS.join(", ")
-            ));
+        if let Some(refusal) =
+            unknown_setting(fields, &PARTITION_GRID_SETTINGS, PARTITION_GRID_FIELD)
+        {
+            return Err(refusal);
         }
+        Ok(Self {
+            identity,
+            scheme_identity,
+            grids: vec![GridSettings::from_fields(
+                fields,
+                scheme,
+                PARTITION_GRID_FIELD,
+            )?],
+            ..Self::default()
+        })
+    }
+
+    /// What named the grid, for the cache key: `None` when the job names none.
+    pub fn identity(&self) -> Option<&Value> {
+        self.identity.as_ref()
+    }
+
+    /// What named the grids, for the cache key: `None` when the job names none.
+    pub fn grids_identity(&self) -> Option<&Value> {
+        self.grids_identity.as_ref()
+    }
+
+    /// What named the scheme, for the cache key: `None` when the job names none.
+    pub fn scheme_identity(&self) -> Option<&Value> {
+        self.scheme_identity.as_ref()
+    }
+}
+
+impl GridSettings {
+    /// The grid `fields` name, each setting its default when left out, `field` naming where it was
+    /// read from; `Err` with the job's refusal for a setting that does not read. It has no name.
+    fn from_fields(
+        fields: &Map<String, Value>,
+        scheme: PartitionScheme,
+        field: &str,
+    ) -> std::result::Result<Self, String> {
         let refuse = |name: &str, takes: &str, got: &Value| {
-            format!("{PARTITION_GRID_FIELD}: {name} must be {takes}, got {got}")
+            format!("{field}: {name} must be {takes}, got {got}")
         };
         let metres = |name: &str, fallback: f64| match present(fields.get(name)) {
             None => Ok(fallback),
@@ -156,31 +229,9 @@ impl PartitionGrid {
                 .map(|p| p as u32)
                 .ok_or_else(|| refuse("priority", &whole, v))?,
         };
-        // `[x, z]` on the ground, its height 0; or, a loose grid's, `[x, y, z]`: a square grid
-        // lies on the ground.
-        let (lengths, takes): (&[usize], _) = match scheme {
-            PartitionScheme::HashSet => (&[2, 3], "two or three finite numbers"),
-            PartitionScheme::SpatialHash => (&[2], "two finite numbers"),
-        };
         let origin = match present(fields.get("origin")) {
             None => [0.0; 3],
-            Some(v) => (v.as_array())
-                .filter(|point| lengths.contains(&point.len()))
-                .and_then(|point| {
-                    point
-                        .iter()
-                        .map(Value::as_f64)
-                        .collect::<Option<Vec<f64>>>()
-                })
-                .filter(|point| point.iter().all(|c| c.is_finite()))
-                .map(|p| {
-                    if p.len() == 2 {
-                        [p[0], 0.0, p[1]]
-                    } else {
-                        [p[0], p[1], p[2]]
-                    }
-                })
-                .ok_or_else(|| refuse("origin", takes, v))?,
+            Some(v) => origin_of(v, scheme).map_err(|takes| refuse("origin", takes, v))?,
         };
         let block_on_slow_streaming = match present(fields.get("blockOnSlowStreaming")) {
             None => DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING,
@@ -188,10 +239,8 @@ impl PartitionGrid {
                 (v.as_bool()).ok_or_else(|| refuse("blockOnSlowStreaming", "true or false", v))?
             }
         };
-        let (loose, square) = scheme_settings(fields, scheme)?;
+        let (loose, square) = scheme_settings(fields, scheme, field)?;
         Ok(Self {
-            scheme,
-            streams: true,
             cell_size: metres("cellSize", DEFAULT_PARTITION_CELL_SIZE)?,
             loading_range: metres("loadingRange", DEFAULT_PARTITION_LOADING_RANGE)?,
             priority,
@@ -199,18 +248,7 @@ impl PartitionGrid {
             block_on_slow_streaming,
             loose,
             square,
-            identity,
-            scheme_identity,
+            ..Self::default()
         })
-    }
-
-    /// What named the grid, for the cache key: `None` when the job names none.
-    pub fn identity(&self) -> Option<&Value> {
-        self.identity.as_ref()
-    }
-
-    /// What named the scheme, for the cache key: `None` when the job names none.
-    pub fn scheme_identity(&self) -> Option<&Value> {
-        self.scheme_identity.as_ref()
     }
 }

@@ -25,7 +25,7 @@ pub use crate::hlod::options::{marked, Hlod, HlodBuilder, HlodLayer, HlodLodSele
 pub use materials::MaterialOptions;
 pub use mesh_build::MeshBuildOptions;
 pub use objects::ObjectSettings;
-pub(crate) use partition::SquareSettings;
+pub(crate) use partition::{GridSettings, SquareSettings};
 pub use partition::{PartitionGrid, PartitionScheme, StreamBounds};
 pub use voxelize::VoxelizeOptions;
 
@@ -65,8 +65,9 @@ pub const ID_FIELD: &str = "id";
 
 /// The fields a job names as JSON, beside `JOB_FIELDS`: the HLOD, the scene's temporal
 /// anti-aliasing, the responsive objects, the settings by material name, the voxelized objects,
-/// the partition's scheme and main grid, the mesh build settings and each object's settings.
-const JSON_FIELDS: [&str; 9] = [
+/// the partition's scheme and main grid or its several grids, the mesh build settings and each
+/// object's settings.
+const JSON_FIELDS: [&str; 10] = [
     HLOD_FIELD,
     TEMPORAL_AA_FIELD,
     RESPONSIVE_FIELD,
@@ -74,6 +75,7 @@ const JSON_FIELDS: [&str; 9] = [
     VOXELIZE_FIELD,
     PARTITION_SCHEME_FIELD,
     PARTITION_GRID_FIELD,
+    PARTITION_GRIDS_FIELD,
     MESH_BUILD_FIELD,
     OBJECT_SETTINGS_FIELD,
 ];
@@ -159,6 +161,7 @@ pub fn parse_compiler_args(
         (VOXELIZE_OPTION, VOXELIZE_FIELD),
         (PARTITION_SCHEME_OPTION, PARTITION_SCHEME_FIELD),
         (PARTITION_GRID_OPTION, PARTITION_GRID_FIELD),
+        (PARTITION_GRIDS_OPTION, PARTITION_GRIDS_FIELD),
         (MESH_BUILD_OPTION, MESH_BUILD_FIELD),
         (OBJECT_SETTINGS_OPTION, OBJECT_SETTINGS_FIELD),
     ];

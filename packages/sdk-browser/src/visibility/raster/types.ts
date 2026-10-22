@@ -1,4 +1,5 @@
 import type { WebgpuTileStreamer } from '../../materials/virtual/streamer/streamer.ts'
+import type { TessellationInput } from '../tessellation/input.ts'
 
 /** What a frame gives the raster: every one of these resources outlives it. */
 export type GpuRasterInput = {
@@ -27,4 +28,8 @@ export type GpuRasterInput = {
   /** The cut's masks, whose offsets the uniform entries hold: none, and every row is drawn by the
    *  main pass. */
   selection?: { maskBuffer: GPUBuffer }
+  /** Where the image tessellates its displaced surfaces (`../tessellation/wanted.ts`): the view's
+   *  numbers and the records. Absent, the image tessellates nothing and the raster allocates and
+   *  encodes nothing for it. */
+  tessellation?: TessellationInput
 }

@@ -70,6 +70,7 @@ function wakingWorld(world: WorldCells, wake: () => void) {
       warmWith: world.warmWith,
       firstImageShown: world.firstImageShown,
       hlodEnabled: world.hlodEnabled,
+      activated: world.activated,
       blockingLoad: world.blockingLoad,
       get warming() {
         return world.warming

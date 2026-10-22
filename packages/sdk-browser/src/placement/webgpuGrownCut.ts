@@ -83,8 +83,8 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
     rows.casterSlots,
     (rank) => selectionRoots[rank].world.elements,
   )
-  mainViewGpu(rt).temporal?.motion.grow()
-  for (const view of rt.views.persistent) viewGpu(rt, view).temporal?.motion.grow()
+  mainViewGpu(rt).velocity?.motion.grow()
+  for (const view of rt.views.persistent) viewGpu(rt, view).velocity?.motion.grow()
   // Taken in place, the running cut already holds them; else the cut made over them replaces it.
   if (!ready.inPlace) swapCut(rt, ready.cut, added, firstRank)
   // A world DAG among them is the session's (`append/webgpuAppendWorld.ts`): the roots its held cells add

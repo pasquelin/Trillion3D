@@ -78,6 +78,8 @@ export const VIEW_GPU_KEYS = [
   'finish',
   'effects',
   'effectsRevision',
+  // The fog's volume and its history, which follow the camera of the view that built them.
+  'fogVolume',
   // The canvas the view presents into: the main view's, or one of its own (`./persistentView.ts`).
   'presenter',
 ] as const satisfies readonly (keyof WebgpuGpuState)[]

@@ -126,6 +126,7 @@ function saveNode(o: Object3D, tables: Tables): SavedNode {
     scale: o.scale.toArray(),
     visible: o.visible,
     castShadow: o.castShadow,
+    ...(o.castFarShadow ? { castFarShadow: true as const } : {}),
     receiveShadow: o.receiveShadow,
     renderOrder: o.renderOrder,
     userData: plain(o.userData),
@@ -146,6 +147,7 @@ function saveNode(o: Object3D, tables: Tables): SavedNode {
       target: lamp.target.position.toArray() as Triple,
       sh: lamp.sh ? [...lamp.sh] : null,
       ...(lamp.atmosphereSun ? {} : { atmosphereSun: false as const }),
+      ...(lamp.atmosphereSunIndex ? { atmosphereSunIndex: lamp.atmosphereSunIndex } : {}),
     }
   if (model.isLoadedModel) saved.model = { url: model.record.manifestUrl }
   return saved

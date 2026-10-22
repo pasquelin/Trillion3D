@@ -29,6 +29,9 @@ export interface VsmFrameLight {
   /** False when the light is culled this frame (`vsmLightSeen`): its cache entry lives on
    *  unreferenced. */
   visible?: boolean
+  /** A sun: how far from the eye, in metres, its maps take every caster, 0 or absent for no limit
+   *  (`sunFarShadowDistance`, `frame/vsmFarShadow.ts`). */
+  farShadowDistance?: number
 }
 
 /** Where each light's maps landed this frame. */

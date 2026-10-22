@@ -48,6 +48,11 @@ export function createMaterialTable() {
       // Written by `refresh` at the latest above.
       return p.seen.get(mat)!
     },
+    /** The displaced surfaces' records by rank, which the tessellation binds beside the table
+     *  (`displacementRecord.ts`); empty while no surface is displaced. */
+    get displaced() {
+      return p.displaced
+    },
     /** The records of the surfaces written since the last call, and of every surface after an
      *  atlas census (`forget`), written again; true when one changed what its rows or items read
      *  beside its record — their flags, their resolve class, a fact the frame derives from them —,

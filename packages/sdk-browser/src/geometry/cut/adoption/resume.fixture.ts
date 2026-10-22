@@ -3,6 +3,7 @@
 import { IDENTITY_MATRIX4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { renderGpuCut } from '../../../frame/render/gpuCut.ts'
+import { createScaleControl } from '../../../frame/scale/scaleControl.ts'
 import { fixtureTotals, mountCutAdopter } from './adopter.fixture.ts'
 import { cameraSelectionUniforms, createSelectionUniforms } from '../../../gpu/core/selection.ts'
 import { createEngineCamera, writeEngineCamera } from '../../../camera/engineCamera.ts'
@@ -32,6 +33,8 @@ export function banc(panne?: 'envoi') {
     transparent: false,
   } as unknown as PageRec & { array?: Uint32Array }
   const comptes = { queue: 0, sync: 0, residence: 0, envois: 0, attentes: 0, disposes: 0 }
+  // What the rays' scene was told of the draw distances at each image: the main eye, the scale.
+  const proxied: [number[], number | undefined][] = []
   const codes: string[] = []
   const residentFlags = new Uint32Array(1)
   const bootstrapState = { ready: false }
@@ -55,6 +58,8 @@ export function banc(panne?: 'envoi') {
     worldRevision: 0,
     // The lists' caps the session's settings give the cut: this bench's selection has no lists.
     holdLists() {},
+    proxyDistance: (eye: ArrayLike<number>, scale: number | undefined) =>
+      void proxied.push([Array.from(eye), scale]),
     updateResidency(flags: PageResidency) {
       comptes.residence++
       const change = vueResidence !== flags.flag(0)
@@ -102,7 +107,8 @@ export function banc(panne?: 'envoi') {
     residencyChanges: undefined,
     clearResidencyChanges: () => {},
   }
-  const mainView = {}
+  // The world's render scale: the cut asks it for the edge scale's fraction.
+  const mainView = { scale: createScaleControl(undefined) }
   const rt = {
     run: {
       gpuSelection: selection,
@@ -163,6 +169,7 @@ export function banc(panne?: 'envoi') {
   return {
     camera,
     comptes,
+    proxied,
     codes,
     shown,
     desired,

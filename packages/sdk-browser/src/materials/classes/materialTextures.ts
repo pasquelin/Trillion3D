@@ -41,6 +41,8 @@ export function collectWebgpuMaterialTextures(
     addData(mat.aoMap)
     // The anisotropic and clear-coat maps of a surface that carries a lobe (`physicalWgsl.ts`).
     if (hasPhysicalLobes(mat)) for (const field of PHYSICAL_MAP_FIELDS) addData(mat[field])
+    // The height map of a displaced surface (`../../visibility/tessellation/`).
+    if (mat.displacement) addData(mat.displacementMap)
   }
   for (const rec of allPages) collect(rec.material)
   for (const copy of blendCopies) collect(copy.surface)

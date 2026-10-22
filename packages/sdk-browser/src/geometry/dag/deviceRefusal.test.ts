@@ -43,7 +43,7 @@ test('every table past one binding is a record table: two storage buffers, whate
     'storage bindings',
   )
   // The flags too: every section at its cap, past one binding if it must, in its record table.
-  // The binding holds `work` — 672 bytes, a thousand pages' blocks and counters — and no more; two
+  // The binding holds `work` — 676 bytes, a thousand pages' blocks and counters, the placements' filter bits — and no more; two
   // thousand roots' descent array, their root slots beside as many nodes, is 32,000 bytes.
   const roots = { ...dag(), worldCount: 2000, nodeCount: 2000 }
   const section = { maxStorageBufferBindingSize: cameraCutBuffers(roots).rows.work.size }
@@ -56,14 +56,15 @@ test('every table past one binding is a record table: two storage buffers, whate
 })
 
 test('`work` holds no word per page: a binding past one list section holds the cut', () => {
-  // 8,000 bytes the live list of `flags`, past `work`'s 672 (the first test); the kept lists'
+  // 8,000 bytes the live list of `flags`, past `work`'s 676 (the first test); the kept lists'
   // ranks follow the readout's list (`keptRanks.ts`), never the pages.
   const pages = dag(),
     limits = { maxStorageBufferBindingSize: 8000 }
   assert.equal(dagDeviceRefusal(limits, pages), undefined, 'each list its own ranks')
   const rows = cameraCutBuffers(pages).rows
-  // 672 bytes: sixteen blocks of eight words, twenty-eight frame counters and twelve group counts.
-  assert.equal(rows.work.size, 672, `\`work\` is ${rows.work.size} bytes for a thousand pages`)
+  // 676 bytes: sixteen blocks of eight words, twenty-eight frame counters and twelve group counts,
+  // then the word of the filter's bits that the one placement takes (a bit a placement).
+  assert.equal(rows.work.size, 676, `\`work\` is ${rows.work.size} bytes for a thousand pages`)
   assert.deepEqual(
     Object.keys(rows).filter((name) => name.startsWith('ranks')),
     [],

@@ -6,9 +6,9 @@
 //! - its triangles appended in turn (`Mesh`): one naming a point twice, or repeating a triangle's
 //!   corners, left out; one on a side two triangles hold already appended again on copies of the
 //!   points of each such side, so that it holds that side alone.
-use super::Topology;
+use super::{Topology, Unwrapped};
 use crate::hlod::flatten::mesh::{Mesh, Refusal};
-use crate::hlod::flatten::units::swap_axes;
+use crate::hlod::flatten::units::{swap_axes, CENTIMETRES};
 
 /// The unwrap's mesh: its points, the welded ones then the copies; its triangles; and each
 /// triangle's rank in the topology.
@@ -56,6 +56,46 @@ impl Base {
             points,
             mesh,
             source,
+        }
+    }
+
+    /// `topology` made a mesh with its points in centimetres, the frame the unwraps that follow a
+    /// reference measure in.
+    pub(super) fn in_centimetres(topology: &Topology) -> Self {
+        let points: Vec<[f64; 3]> = (topology.points.iter())
+            .map(|p| p.map(|x| x * CENTIMETRES))
+            .collect();
+        Self::of(&Topology {
+            points: &points,
+            triangles: topology.triangles,
+        })
+    }
+
+    /// The unwrap of the topology's `count` triangles in which the mesh's triangle `b` has the
+    /// coordinates `uv(b, k)` at its corner `k`, and the mesh's triangles `islands` (ranks in the
+    /// mesh) are the islands, named by the topology's triangles. A triangle the mesh does not hold
+    /// is held by none, is no island's and has its coordinates at zero.
+    pub(super) fn unwrapped(
+        &self,
+        count: usize,
+        uv: impl Fn(usize, usize) -> [f64; 2],
+        islands: Vec<Vec<usize>>,
+    ) -> Unwrapped {
+        let mut corners = vec![[0.0f64; 2]; 3 * count];
+        let mut held = vec![false; count];
+        for (b, &t) in self.source.iter().enumerate() {
+            held[t] = true;
+            for k in 0..3 {
+                corners[3 * t + k] = uv(b, k);
+            }
+        }
+        let islands = (islands.into_iter())
+            .map(|island| island.into_iter().map(|b| self.source[b]).collect())
+            .collect();
+        Unwrapped {
+            corners,
+            islands,
+            held,
         }
     }
 

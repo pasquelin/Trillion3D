@@ -5,6 +5,7 @@ import { routedFilter } from '../../blend/display/displayFilter.ts'
 import { particleCode } from '../particleFamily.ts'
 import { opensDisplayFilter } from '../../frame/render/encodeDisplayFilter.ts'
 import { keepsBeautyChain } from '../../visibility/shader/shadeMode.ts'
+import { viewClipPlane } from '../../frame/render/viewClip.ts'
 
 /** True while one of the world's pools moves: the image changes, and is not held. */
 export const particlesMoved = (rt: WebgpuPagesRuntime) => anyMoving(rt.context.particles)
@@ -77,5 +78,6 @@ export function drawParticles(
     filter: routedFilter(rt.gpu.displayFilter),
     tone,
     unlit: rt.lights.store.unlit,
+    clipPlane: viewClipPlane(rt, run.gate.cam),
   })
 }

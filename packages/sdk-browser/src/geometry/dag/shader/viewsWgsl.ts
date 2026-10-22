@@ -20,10 +20,14 @@ const ENTRY_TEST = 0x80000000
 export const DAG_UNIFORM_BYTES = DAG_MAX_VIEWS * VIEW_BLOCK_WORDS * 4
 
 /** The block's `cullOff` word: the cut's culls the host turned off (`cutFrustumCulling`,
- *  `cutMinLodCulling`, `../../../../../sdk-core/src/contracts/cutOptions.ts`) — the frustum's, and
- *  the too coarse subtree's (`floorWgsl.ts`). None by default. */
+ *  `cutMinLodCulling`, `cutDrawDistanceCulling`, `cutClipPlaneCulling`,
+ *  `../../../../../sdk-core/src/contracts/cutOptions.ts`) — the frustum's, the too coarse subtree's
+ *  (`floorWgsl.ts`), the draw distance's (`drawDistanceWgsl.ts`) and the clip plane's
+ *  (`clipPlaneWgsl.ts`). None by default. */
 export const CULL_FRUSTUM_OFF = 1,
-  CULL_MIN_LOD_OFF = 2
+  CULL_MIN_LOD_OFF = 2,
+  CULL_DRAW_DISTANCE_OFF = 4,
+  CULL_CLIP_PLANE_OFF = 8
 
 export const DAG_VIEWS_WGSL = wgslBlock(
   'DAG_VIEWS_WGSL',
@@ -36,6 +40,8 @@ export const DAG_VIEWS_WGSL = wgslBlock(
 ${wgslConsts({
   CULL_FRUSTUM_OFF,
   CULL_MIN_LOD_OFF,
+  CULL_DRAW_DISTANCE_OFF,
+  CULL_CLIP_PLANE_OFF,
 })}
 /** Whether the host turned the cull \`bit\` off (\`cullOff\`). */
 fn cullOff(bit:u32)->bool{return (views[0u].cullOff&bit)!=0u;}

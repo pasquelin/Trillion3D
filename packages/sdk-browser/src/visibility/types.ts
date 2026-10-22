@@ -67,6 +67,11 @@ export const FLAG_LIT = 1,
   /** A blended cluster's shadow-only row (`../geometry/rows/blendCasters.ts`): no depth, only the
    *  transmittance of its surface's coverage (`../lighting/shadows/transmittanceWgsl.ts`). */
   FLAG_BLEND_CASTER = 65536,
+  /** The row's surface is displaced and its height map is in the atlas
+   *  (`SurfaceDisplacement`): the tessellation draws its triangles diced and pushed along their
+   *  normals, where `tessellation` is on, and every raster leaves them to it
+   *  (`./tessellation/`). The high bit: a word's other 31 are taken. */
+  FLAG_DISPLACED = 0x80000000,
   /** Frame flag of the transparent draw: a diagnostic view is shown, the surface's own lighting is
    *  not (`../blend/uniforms.ts`, `diagnosticBits`). */
   FLAG_DIAGNOSTIC_VIEW = 0x40000000

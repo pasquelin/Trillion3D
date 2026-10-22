@@ -3,6 +3,7 @@ import {
   inverseAtRenderOrigin,
 } from '../../../../math/src/projection/renderOrigin.ts'
 
+import { RAD2DEG } from '../../../../math/src/constants.ts'
 import { transformDirectionRow } from '../../../../math/src/vector/vector.ts'
 import { TAA_VIEW, TAA_VIEW_BYTES } from './bindingsWgsl.ts'
 import { MAX_HISTORY_SAMPLES } from './historyWgsl.ts'
@@ -54,7 +55,7 @@ function writeReprojection(
  * render pixel's world radius is `1 / (|p₀| · width)` per unit of depth under a perspective, at any
  * depth under an orthographic projection (`radius.w`).
  */
-function writeDepthTerms(
+export function writeDepthTerms(
   into: Float32Array,
   projection: ArrayLike<number>,
   perspective: boolean,
@@ -69,6 +70,31 @@ function writeDepthTerms(
   into[T.radius + 1] = perspective ? 0 : radius
   into[T.radius + 2] = perspective ? Math.sign(projection[11]) : -Math.sign(projection[10]) || 1
   into[T.radius + 3] = perspective ? 0 : 1
+}
+
+/** The degrees of the field of view the objects' size is relative to: the reference view's. */
+const DEFAULT_FOV_DEGREES = 90
+
+/**
+ * The size test of the velocity passes (`view.rates.zw`, `smallObject`, `nearestSurfaceWgsl.ts`)
+ * from the column-major `projection`: the projected size of a unit of an object's radius at a unit
+ * of distance, as a share of the screen — half the larger of the two scales —, and the least
+ * radius of an object, squared, that is measured: `perObjectSize` percent of the screen, as a
+ * radius, scaled by the perspective's field of view over `DEFAULT_FOV_DEGREES`. The least is 0 —
+ * no object left out — at a size of 0.
+ */
+function writeObjectSize(
+  into: Float32Array,
+  projection: ArrayLike<number>,
+  perspective: boolean,
+  percent: number,
+) {
+  const fovScale = perspective
+    ? (2 * Math.atan(1 / Math.abs(projection[0] || 1)) * RAD2DEG) / DEFAULT_FOV_DEGREES
+    : 1
+  const least = ((percent * 0.5) / 100) * fovScale
+  into[T.rates + 2] = 0.5 * Math.max(projection[0], projection[5])
+  into[T.rates + 3] = least * least
 }
 
 /**
@@ -134,7 +160,7 @@ export function writeTaaView(
   packed[T.rates] = flickerParallaxInverse(render[0], frameIntervalMs)
   // The blend factor of a render pixel's history holding the image's samples, at this render scale.
   packed[T.rates + 1] = 1 / (1 + MAX_HISTORY_SAMPLES / (render[0] / display[0]) ** 2)
-  packed.fill(0, T.rates + 2, T.rates + 4)
+  writeObjectSize(packed, cam.projection, cam.perspective !== 0, state.objectSize)
   writeDepthTerms(packed, cam.projection, cam.perspective !== 0, render[0])
   writeGrid(packed, T.prevRender, state.previousRender[0] > 0 ? state.previousRender : render)
   writeGrid(packed, T.analysisGrid, analysisGrid)

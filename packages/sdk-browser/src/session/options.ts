@@ -16,6 +16,16 @@ import type { AnimationOptions } from '../../../sdk-core/src/contracts/animation
 import type { ShadingOptions } from '../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { ExposureOptions } from '../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { TemporalOptions } from '../../../sdk-core/src/contracts/temporalOptions.ts'
+import type { ShadowOptions } from '../../../sdk-core/src/contracts/shadowOptions.ts'
+import type { MotionBlurSettings } from '../../../sdk-core/src/contracts/motionBlurOptions.ts'
+import type { DepthOfFieldSettings } from '../../../sdk-core/src/contracts/depthOfFieldRules.ts'
+import type { BloomSettings } from '../../../sdk-core/src/contracts/bloomRules.ts'
+import type { FilmSettings } from '../../../sdk-core/src/contracts/filmOptions.ts'
+import type { AmbientOcclusionOptions } from '../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import type { ScreenProbeOptions } from '../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import type { ReflectionOptions } from '../../../sdk-core/src/contracts/reflectionOptions.ts'
+import type { VolumetricFogOptions } from '../../../sdk-core/src/contracts/volumetricFogOptions.ts'
+import type { TessellationOptions } from '../../../sdk-core/src/contracts/tessellationOptions.ts'
 import type { RasterOptions } from '../../../sdk-core/src/contracts/rasterOptions.ts'
 import type { StreamingOptions } from '../../../sdk-core/src/contracts/streamingOptions.ts'
 
@@ -41,7 +51,35 @@ export type PointOfInterest = {
  *  transition, black bucket, luminance, then the local exposure's contrasts, detail, blur,
  *  middle grey and thresholds), set by `explorer.setExposure`, and the temporal pass's
  *  (`temporalThinGeometry`, `../../../sdk-core/src/contracts/temporalOptions.ts`), set by
- *  `explorer.setTemporal`. The software raster (`softwareRaster`, on by default: a cluster whose
+ *  `explorer.setTemporal`, and the sun's shadows' (`shadowDistanceScale`, 1: the factor on every
+ *  sun's shadow distance, from 0 to 2; `farShadowCulling`, true: whether a sun's shadow maps leave
+ *  out the casters past the edge of that distance; `farShadowCullsAllMeshes`, false: whether the
+ *  test reaches every caster, not only the world's merged shells; and the three that shape its
+ *  edge: `shadowNearLevels`, 10, from 0 to 10, capped by the light's four; `shadowOverlapScale`, 1,
+ *  from 0 to 2; `shadowFarField`, true, `../../../sdk-core/src/contracts/shadowOptions.ts`), set by
+ *  `explorer.setShadows`. The motion
+ *  blur's drawing (`motionBlurQuality`, `'veryHigh'`;
+ *  `motionBlurHalfResGather`, false; `motionBlurHalfResInput`, true; `motionBlurSeparable`, false;
+ *  `motionBlurScatter`, false; `motionBlurDirections`, 1,
+ *  `../../../sdk-core/src/contracts/motionBlurOptions.ts`), set by
+ *  `explorer.setMotionBlur`. The depth of field's drawing (`depthOfFieldQuality`, `'high'`: `'off'`, `'low'`,
+ *  `'high'`, `'veryHigh'` or `'extreme'`; `depthOfFieldRingCount`, 4; `depthOfFieldAccumulator`, `'high'`; and the others of
+ *  `../../../sdk-core/src/contracts/depthOfFieldRules.ts`), set by `explorer.setDepthOfField`. The bloom's drawing (`bloomQuality`, `'highest'`: `'off'`, `'lowest'`,
+ *  `'low'`, `'medium'`, `'high'` or `'highest'`; `bloomCross`, 0; `bloomScreenPercentage`, 100;
+ *  `bloomApplyLocalExposure`, true; `bloomCacheKernel`, true,
+ *  `../../../sdk-core/src/contracts/bloomRules.ts`), set by `explorer.setBloom`. The film effects' (`filmGrain…`, `chromaticAberration…`,
+ *  `vignette…`, `tonemapperQuality`, `tonemapperSharpen`, `sceneColorTint…`,
+ *  `quantizationDitheringBits`, `../../../sdk-core/src/contracts/filmOptions.ts`), set by
+ *  `explorer.setFilm`. The volumetric fog's quality (`volumetricFogQuality`, `'max'`: `'off'`,
+ *  `'high'`, `'max'` or `'cinematic'`) and its eleven other settings
+ *  (`../../../sdk-core/src/contracts/volumetricFogOptions.ts`), set by `explorer.setVolumetricFog`;
+ *  the volume exists only in a scene whose fog sets `volumetric`. The reflections' trace
+ *  (`reflectionScreenSteps`, 50: the iterations of a reflected ray's march of the screen, from 1 to 256;
+ *  `reflectionRingSteps`, 256: the steps it takes in each of the scene's four rings, from 1 to 4096,
+ *  `../../../sdk-core/src/contracts/reflectionOptions.ts`), set by `explorer.setReflections`. The screen-space
+ *  ambient occlusion's (`ambientOcclusion`, true; `ambientOcclusionIntensity`, 0.5; `ambientOcclusionRadius`, 2 m;
+ *  `ambientOcclusionQuality`, 50; and the others of `../../../sdk-core/src/contracts/ambientOcclusionOptions.ts`),
+ *  set by `explorer.setAmbientOcclusion`. The software raster (`softwareRaster`, on by default: a cluster whose
  *  longest edge projects under `hardwareRasterEdgePixels` and that crosses neither clip plane is
  *  rastered in compute, every other one by the hardware rasterizer; `false` draws every cluster
  *  with the hardware) and the edge it goes to the hardware at (`hardwareRasterEdgePixels`, 32 by
@@ -70,6 +108,16 @@ export interface MeasuredWorldOptions
     ShadingOptions,
     ExposureOptions,
     TemporalOptions,
+    ShadowOptions,
+    MotionBlurSettings,
+    DepthOfFieldSettings,
+    BloomSettings,
+    FilmSettings,
+    VolumetricFogOptions,
+    TessellationOptions,
+    ScreenProbeOptions,
+    ReflectionOptions,
+    AmbientOcclusionOptions,
     RasterOptions,
     StreamingOptions {
   /** Own controls, CSS/DPR sizing and demand-driven rendering. Off by default. */

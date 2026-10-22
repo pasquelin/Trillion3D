@@ -10,9 +10,11 @@ import { OPTICS_WGSL } from './opticsWgsl.ts'
  * farther (`transmittance`), and adds what it scatters toward the eye: the sun's light, through
  * the air between the step and the sun (the transmittance table), times the share of it the
  * phase sends along the ray, in shadow where the planet hides the sun, plus the light already
- * scattered more than once (the multi-scattering table). The step's sum is integrated in closed
- * form against the extinction, so a thick step does not overshoot. A ray that ends on the
- * ground adds the light the ground bounces: its albedo over π times what reaches it.
+ * scattered more than once (the multi-scattering table). The air's second light, where there is
+ * one (`Suns.count` 2), adds the same sum of its own to the step's, with its own direction, phase,
+ * shadow and multiple scattering, and a ground that ends the ray bounces it too. The step's sum is
+ * integrated in closed form against the extinction, so a thick step does not overshoot. A ray that
+ * ends on the ground adds the light the ground bounces: its albedo over π times what reaches it.
  *
  * Steps are `samples` even ones, or, `variable`, as many as the length asks between
  * `minSamples` and `maxSamples`, thicker the farther they lie so that the near air, where the
@@ -30,7 +32,24 @@ struct Marching{variable:bool,samples:f32,minSamples:f32,maxSamples:f32,distance
 /** Where in a step its sample lies: a little before its middle, as the integration of the table's
  *  rays has always sampled. */
 const SAMPLE_OFFSET:f32=0.3;
-fn integrateAir(start:vec3f,dir:vec3f,ground:bool,march:Marching,miePhase:bool,toSun:vec3f,illuminance:vec3f,distanceScale:f32,reach:f32)->Scatter{
+const UNIFORM_PHASE:f32=1.0/(4.0*PI);
+/** What a light gives the phase along a ray that makes \`cosTheta\` with it: the haze's share, then
+ *  the air's. */
+fn phasesOf(cosTheta:f32)->vec2f{return vec2f(hgPhase(atmo(${ATMOSPHERE_SLOT.mieExtinction}u).w,-cosTheta),rayleighPhase(cosTheta));}
+/** What a light scatters into the ray at \`p\` (\`up\` there), in the medium \`m\`: its illuminance times
+ *  the air between it and \`p\` (none in the planet's shadow) times the phase \`phase\`, plus the
+ *  light scattered more than once. \`bottom\` is the planet's radius. */
+fn sunScatter(p:vec3f,up:vec3f,m:Medium,sun:Sun,phase:vec2f,miePhase:bool,bottom:f32)->vec3f{
+ let phased=select(m.scattering*UNIFORM_PHASE,m.mieScattering*phase.x+m.rayScattering*phase.y,miePhase);
+ let shadow=select(1.0,0.0,raySphereNearest(p,sun.toward,up*PLANET_OFFSET,bottom)>=0.0);
+ return sun.illuminance*(shadow*transmittanceToward(p,sun.toward)*phased+multiScatter(p,dot(sun.toward,up))*m.scattering);
+}
+/** What a light gives a ray that ends on the ground at \`p\` (\`up\` there): its illuminance through
+ *  the air toward it, by the cosine at the ground, times what the ray kept and the albedo over pi. */
+fn groundBounce(p:vec3f,up:vec3f,sun:Sun,throughput:vec3f)->vec3f{
+ return sun.illuminance*transmittanceToward(p,sun.toward)*throughput*saturate(dot(up,sun.toward))*atmo(${ATMOSPHERE_SLOT.ground}u).xyz/PI;
+}
+fn integrateAir(start:vec3f,dir:vec3f,ground:bool,march:Marching,miePhase:bool,suns:Suns,distanceScale:f32,reach:f32)->Scatter{
  var r:Scatter;
  r.radiance=vec3f(0.0);
  r.transmittance=vec3f(1.0);
@@ -55,10 +74,8 @@ fn integrateAir(start:vec3f,dir:vec3f,ground:bool,march:Marching,miePhase:bool,t
   tMaxFloor=tMax*sampleFloor/sampleCount;
  }
  var dt=tMax/sampleCount;
- let uniformPhase=1.0/(4.0*PI);
- let cosTheta=dot(toSun,dir);
- let miePhaseValue=hgPhase(atmo(${ATMOSPHERE_SLOT.mieExtinction}u).w,-cosTheta);
- let rayPhaseValue=rayleighPhase(cosTheta);
+ var phases:array<vec2f,2>;
+ for(var k=0u;k<suns.count;k++){phases[k]=phasesOf(dot(suns.list[k].toward,dir));}
  var radiance=vec3f(0.0);
  var throughput=vec3f(1.0);
  for(var i:f32=0.0;i<sampleCount;i+=1.0){
@@ -77,11 +94,8 @@ fn integrateAir(start:vec3f,dir:vec3f,ground:bool,march:Marching,miePhase:bool,t
   let up=p/length(p);
   let m=mediumAt(p);
   let stepT=exp(-m.extinction*dt*distanceScale);
-  let sunCos=dot(toSun,up);
-  let toSunT=transmittanceToward(p,toSun);
-  let phased=select(m.scattering*uniformPhase,m.mieScattering*miePhaseValue+m.rayScattering*rayPhaseValue,miePhase);
-  let shadow=select(1.0,0.0,raySphereNearest(p,toSun,up*PLANET_OFFSET,bottom)>=0.0);
-  let scattered=illuminance*(shadow*toSunT*phased+multiScatter(p,sunCos)*m.scattering);
+  var scattered=vec3f(0.0);
+  for(var k=0u;k<suns.count;k++){scattered+=sunScatter(p,up,m,suns.list[k],phases[k],miePhase,bottom);}
   let safe=max(m.extinction,vec3f(1e-9));
   r.multiAs1+=throughput*m.scattering*dt;
   radiance+=throughput*((scattered-scattered*stepT)/safe);
@@ -90,7 +104,7 @@ fn integrateAir(start:vec3f,dir:vec3f,ground:bool,march:Marching,miePhase:bool,t
  if(ground&&tMax==tBottom){
   let p=start+tBottom*dir;
   let up=p/length(p);
-  radiance+=illuminance*transmittanceToward(p,toSun)*throughput*saturate(dot(up,toSun))*atmo(${ATMOSPHERE_SLOT.ground}u).xyz/PI;
+  for(var k=0u;k<suns.count;k++){radiance+=groundBounce(p,up,suns.list[k],throughput);}
  }
  r.radiance=radiance;
  r.transmittance=throughput;

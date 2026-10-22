@@ -8,6 +8,13 @@ import { encodeReflectionTrace } from './trace/traceEncode.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 import { environmentCurve } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { appliedExposureOf } from '../../post/exposure/applied.ts'
+import {
+  readReflectionSetting,
+  reflectionRingTests,
+  reflectionRingWork,
+} from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
+import { readSetting } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { SCREEN_PROBE_RULES } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 
 /** Stages the image's reflection view (`stageReflectionImage`), which the trace and the forward
  *  programs read: `traced`, whether the trace runs this image; unchanged, nothing is sent. */
@@ -24,6 +31,16 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced
   )
   // The transparents' front surface, answered where this very image's pass wrote it (`encodeFrontPass`).
   frame.front = traced && reflection.front.reflected === frontStamp(run.frame)
+  // What a ray may spend, from the session's settings (`reflectionOptions.ts`).
+  frame.screenSteps = readReflectionSetting(rt, 'reflectionScreenSteps')
+  frame.ringSteps = readReflectionSetting(rt, 'reflectionRingSteps')
+  // The scene trace's one switch, the screen probes' own (`screenProbeSceneTraces`): the reflections' rays and
+  // the probes' go to the scene by it alone.
+  frame.sceneTraces = readSetting(SCREEN_PROBE_RULES, rt.context, 'screenProbeSceneTraces')
+  reflection.census.budget(
+    reflectionRingWork(frame.ringSteps),
+    reflectionRingTests(frame.ringSteps),
+  )
   stageReflectionImage(reflection, frame)
 }
 
@@ -47,6 +64,17 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
   if (!run.depthDrawn || !reflection) return
   hiz.encodeNearest(reflection.depthPass.begin(encoder))
   reflection.depthPass.end()
+}
+
+/** The depth pyramid's resources where this image built its finished-depth layers from the opaque
+ *  depth alone — after the raster's rest pass, by `encodeDepthPyramid`; the fog's furthest depth is
+ *  read from them —, none where the image drew no depth or its transparents' front is folded into
+ *  them: a cell behind a pane is not hidden. */
+export function opaquePyramidOf(rt: WebgpuPagesRuntime) {
+  const { gpu, vis, run } = rt,
+    reflection = gpu.reflection
+  if (!run.depthDrawn || !reflection || reflection.front.drawn === frontStamp(run.frame)) return
+  return vis.gpuHiz?.depth()
 }
 
 /**

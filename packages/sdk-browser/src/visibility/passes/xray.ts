@@ -5,6 +5,7 @@ import { VIS_XRAY_FRAGMENT, VIS_XRAY_VERTEX, visXrayShader } from '../shader/vis
 import { ADD_ONE } from '../../blend/equations.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { walkSlots } from './slotWalk.ts'
+import { hasClipDistances } from '../../gpu/core/clipDistances.ts'
 
 /** Each visibility group layout's x-ray pipeline: made with the first see-through image of its
  *  device, dropped with the layout. */
@@ -16,7 +17,10 @@ const xrayPipelines = new WeakMap<GPUBindGroupLayout, PreparedPipeline<GPURender
 function xrayPipeline(device: GPUDevice, layout: GPUBindGroupLayout) {
   let pipeline = xrayPipelines.get(layout)
   if (!pipeline) {
-    const module = device.createShaderModule({ label: XRAY_PASS, code: visXrayShader() })
+    const module = device.createShaderModule({
+      label: XRAY_PASS,
+      code: visXrayShader(hasClipDistances(device)),
+    })
     pipeline = preparedPipeline(device, {
       label: XRAY_PASS,
       layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),

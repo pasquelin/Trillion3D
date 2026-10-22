@@ -41,7 +41,8 @@ pub(crate) fn absorb(
 /// A material binding, and the channels its shader reads: the base colour's
 /// alpha only when the material is not opaque; metallic in B, roughness in G;
 /// occlusion in R; the normal's three, Z included, since the shader rebuilds
-/// it from X and Y and the gate must measure that against the map's own.
+/// it from X and Y and the gate must measure that against the map's own; the
+/// height of a displaced material in R (`tables/displacement.rs`).
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Role {
     BaseColor,
@@ -49,6 +50,7 @@ enum Role {
     MetalRough,
     Normal,
     Occlusion,
+    Displacement,
 }
 
 impl Role {
@@ -59,6 +61,7 @@ impl Role {
             Self::MetalRough => material.pointer("/pbrMetallicRoughness/metallicRoughnessTexture"),
             Self::Normal => material.get("normalTexture"),
             Self::Occlusion => material.get("occlusionTexture"),
+            Self::Displacement => crate::compiler::tables::displacement::height_map(material),
         }
     }
     /// The chain the role asks for: the one role whose alpha the shader reads for
@@ -76,23 +79,25 @@ impl Role {
             Self::BaseColor => [true, true, true, !opaque],
             Self::Emissive | Self::Normal => [true, true, true, false],
             Self::MetalRough => [false, true, true, false],
-            Self::Occlusion => [true, false, false, false],
+            Self::Occlusion | Self::Displacement => [true, false, false, false],
         }
     }
 }
 
-const ROLES: [Role; 5] = [
+const ROLES: [Role; 6] = [
     Role::BaseColor,
     Role::Emissive,
     Role::MetalRough,
     Role::Normal,
     Role::Occlusion,
+    Role::Displacement,
 ];
 
 /// Textures that feed the engine atlases, sorted by texture then by atlas —
 /// exactly what `collectWebgpuMaterialTextures` puts there: base colour and
-/// emissive in the colour atlas; metal-roughness, normal and occlusion in the
-/// data atlas. The base colour of a cutout material and the emissive of another
+/// emissive in the colour atlas; metal-roughness, normal, occlusion and the
+/// height map of a displaced material in the data atlas. The base colour of a
+/// cutout material and the emissive of another
 /// are one entry: the atlas does not know the binding, and neither does the mip
 /// chain — the entry reads both roles' channels and every cutoff. Its chain is
 /// `Coverage` only while every reader asks for it: one opaque or emissive reader

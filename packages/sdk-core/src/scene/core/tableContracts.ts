@@ -12,6 +12,7 @@ import { EngineError } from '../../contracts/cache.ts'
 import type { TableDocument } from './tableDocuments.ts'
 import type { TableMaterial, TableTexture } from './tableSurfaces.ts'
 import type { TableAnimation, TableSkin } from './tableMotion.ts'
+import type { TableDrawDistance } from './tableCell.ts'
 import {
   assertTablePartition,
   type TablePartition,
@@ -75,6 +76,9 @@ export interface TableNode {
   /** An instanced skinned node loaded with the scene: the item of the scene's animation banks its
    *  mesh plays (`./animationBanks.ts`); the node hangs under its skin's frame at no pose. */
   bank?: number
+  /** The distances its mesh is drawn at, left out for a node that names none
+   *  (`CellNode.drawDistance`). */
+  drawDistance?: TableDrawDistance
 }
 /** A camera as the glTF file declares it, each silent field `null`. */
 export interface TableCamera {

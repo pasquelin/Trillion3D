@@ -88,6 +88,8 @@ export async function createDeferredLighting(
     setJitter: view.setJitter,
     /** The lighting term a view of the lit image shows in place of the surface (`writeLightView`). */
     setLightView: view.writeLightView,
+    /** How the resolve applies the ambient occlusion of this image (`writeAmbientOcclusion`). */
+    setAmbientOcclusion: view.writeAmbientOcclusion,
     /** Writes the view uniform of this image (`view.ts`). */
     update: viewUpdate(state, view),
     /** Select and lazily compile the active lighting program. */

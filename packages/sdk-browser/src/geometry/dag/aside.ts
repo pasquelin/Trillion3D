@@ -19,6 +19,7 @@ import {
   takeAsideView,
 } from './swap/swap.ts'
 import { cutTablesAt, tablesHeld } from './queueGrowth.ts'
+import { writeViewFilter } from './viewFilterRegion.ts'
 import { encodeSwap } from './swap/swapEncode.ts'
 import { settleOnce } from './settleOnce.ts'
 import { asideCopyBytes, createAsideSlots, type AsideCopy, type AsideSlots } from './asideSlots.ts'
@@ -145,6 +146,7 @@ function cutAside(
   const region = saveRegionFor(swap, view)
   writeDagUniforms(uniformData, packed, uniforms, listCap, region, cutTablesAt(resources))
   resources.device.queue.writeBuffer(resources.uniforms, 0, uniformData)
+  writeViewFilter(resources, uniforms.filter)
   const post = twoPassOf(uniforms)
   encodeDagKernels(shared, resources, { post, pyramid })
   // One copy of the uniforms, kept by the swap and by the readback alike: none is written after.

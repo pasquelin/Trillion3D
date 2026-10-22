@@ -57,6 +57,10 @@ export type WorldCells = {
   /** The HLOD actors load and draw (`hlodEnabled`), or not: off, no cell draws its actor nor its
    *  placements as its HLOD 0 actor, and no switch waits on a warm-up. */
   hlodEnabled(on: boolean): void
+  /** The cells and files the partition places draw (`activated`), or are loaded and not activated:
+   *  placed, counted and switched as ever, and drawing nothing — no file, no HLOD 0 actor, no HLOD
+   *  actor (`worldFiles.ts`, `hide`). */
+  activated(on: boolean): void
   /** The cell files of instance `instance` a load blocking on slow streaming waits for, read as
    *  they stand at each cut, none once it blocks no more (`../../partition/slowStreaming.ts`):
    *  meanwhile no HLOD cell turns visible, no other file shows and no switch waits on a warm-up. */

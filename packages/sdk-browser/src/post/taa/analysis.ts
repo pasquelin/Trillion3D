@@ -17,16 +17,10 @@ import { retire } from '../../gpu/core/frameRetire.ts'
 import { resolveTargetUsage, taaPass } from './resolve.ts'
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { GUARANTEED_WORKGROUP_BYTES, workgroupStorageBytes } from '../../gpu/core/textureLimits.ts'
-import type { TaaInputs } from './inputs.ts'
+import { velocityInputEntries, velocityInputResources, type TaaInputs } from './inputs.ts'
 import type { TilePlan } from './tileWgsl.ts'
-import {
-  CLOSEST_FORMAT,
-  VELOCITY_BINDINGS,
-  MARKS_FORMAT,
-  TEXEL_TILE,
-  VECTOR_FORMAT,
-  velocityShader,
-} from './velocityWgsl.ts'
+import { CLOSEST_FORMAT, MARKS_FORMAT, TEXEL_TILE, VECTOR_FORMAT } from './velocityWgsl.ts'
+import { VELOCITY_BINDINGS, velocityShader } from './nearestVelocityWgsl.ts'
 import {
   REPROJECT_BINDINGS,
   REPROJECTED_FORMAT,
@@ -69,11 +63,13 @@ import {
  *  under an orthographic projection (`velocityWgsl.ts`), made by the first orthographic image. */
 const OCCLUDER_BYTES = 4
 
-/** The render-resolution targets of one image, each named by what it holds between which passes —
- *  the nearest vectors' word reused once the reprojection read it: the flicker error. */
+/** The render-resolution targets of one image, each named by what it holds between which passes:
+ *  the hole-filled vectors (`filled`) are the history's; the flicker error is written over the
+ *  closest depth word, which the reprojection last reads (`FLICKER_ERROR_FORMAT`). The vectors the
+ *  reprojection starts from are the velocity stage's (`../velocity.ts`), which the motion blur reads
+ *  after the pass: none is kept here. */
 const TRANSIENT_FORMATS = {
   closest: CLOSEST_FORMAT,
-  vectorsError: VECTOR_FORMAT,
   filled: VECTOR_FORMAT,
   reprojected: REPROJECTED_FORMAT,
   marks: MARKS_FORMAT,
@@ -110,9 +106,11 @@ const ANALYSIS_INPUTS = [
   'ids',
   'pages',
   'motion',
+  'vectors',
   'pool',
   'positions',
   'uvs',
+  'boxes',
   'reactive',
 ] as const
 
@@ -191,19 +189,9 @@ export async function createTaaAnalysis(
   const layoutOf = (entries: GPUBindGroupLayoutEntry[]) => device.createBindGroupLayout({ entries })
   const readOnly = (binding: number) => computeBufferEntry(binding, 'read-only-storage', compute)
   const velocityLayout = layoutOf([
-    computeUniformEntry(VELOCITY_BINDINGS.view),
-    computeTextureEntry(VELOCITY_BINDINGS.depth, 'depth'),
-    computeTextureEntry(VELOCITY_BINDINGS.ids, 'uint'),
-    ...[
-      VELOCITY_BINDINGS.pages,
-      VELOCITY_BINDINGS.motion,
-      VELOCITY_BINDINGS.indices,
-      VELOCITY_BINDINGS.positions,
-      VELOCITY_BINDINGS.uvs,
-    ].map(readOnly),
+    ...velocityInputEntries(),
     computeStorageTextureEntry(VELOCITY_BINDINGS.closest, CLOSEST_FORMAT),
     computeStorageTextureEntry(VELOCITY_BINDINGS.marks, MARKS_FORMAT),
-    computeStorageTextureEntry(VELOCITY_BINDINGS.vectors, VECTOR_FORMAT),
     computeBufferEntry(VELOCITY_BINDINGS.occluders, 'storage', compute),
   ])
   const reprojectLayout = layoutOf([
@@ -340,8 +328,7 @@ export async function createTaaAnalysis(
   ]
   const textures: GPUTexture[] = []
   const identity = createWebgpuBindIdentity(2),
-    /** Per identity slot: each dispatch's group, in the order of `tiles` — the reprojection's, which
-     *  names no input, the targets' own. */
+    /** Per identity slot: each dispatch's group, in the order of `tiles`. */
     held: (GPUBindGroup[] | undefined)[] = []
   type Targets = Record<keyof typeof TRANSIENT_FORMATS, GPUTextureView> &
     Record<keyof typeof RENDER_HISTORY_FORMATS, GPUTextureView> & {
@@ -349,7 +336,6 @@ export async function createTaaAnalysis(
       occluders: GPUBuffer
       /** The occluder words a render texel has: one, two once an orthographic image was drawn. */
       occluderSlices: number
-      reprojectGroup: GPUBindGroup
       aaGroup: GPUBindGroup
       aaPass: GPURenderPassDescriptor
       /** The anti-aliaser's target cleared to no offset and no noise filtering, no draw: what the
@@ -380,15 +366,16 @@ export async function createTaaAnalysis(
       size: slices * width * height * OCCLUDER_BYTES,
       usage: GPUBufferUsage.STORAGE,
     })
-  /** The reprojection's group: it reads the render-resolution histories into the image's targets. */
-  const reprojectGroupOf = (t: Omit<Targets, 'reprojectGroup'>) =>
+  /** The reprojection's group: it reads the render-resolution histories and the velocity stage's
+   *  `vectors` into the image's targets. */
+  const reprojectGroupOf = (vectors: GPUTextureView, t: Targets) =>
     device.createBindGroup({
       layout: reprojectLayout,
       entries: namedEntries(REPROJECT_BINDINGS, {
         view: { buffer: uniform },
         marks: t.marks,
         closest: t.closest,
-        vectors: t.vectorsError,
+        vectors,
         occluders: { buffer: t.occluders },
         prevShading: t.shading,
         historySampler: sampler,
@@ -406,7 +393,6 @@ export async function createTaaAnalysis(
     retire(device, t.occluders)
     t.occluders = occluderBuffer(2)
     t.occluderSlices = 2
-    t.reprojectGroup = reprojectGroupOf(t)
     identity.clear()
     held.length = 0
   }
@@ -422,21 +408,13 @@ export async function createTaaAnalysis(
       device.createBindGroup({
         layout: velocityLayout,
         entries: namedEntries(VELOCITY_BINDINGS, {
-          view: uniformEntry,
-          depth: inputs.depth,
-          ids: inputs.ids,
-          pages: { buffer: inputs.pages },
-          motion: { buffer: inputs.motion },
-          indices: { buffer: inputs.pool },
-          positions: { buffer: inputs.positions },
-          uvs: { buffer: inputs.uvs },
+          ...velocityInputResources(inputs, uniform),
           closest: t.closest,
           marks: t.marks,
-          vectors: t.vectorsError,
           occluders: { buffer: t.occluders },
         }),
       }),
-      t.reprojectGroup,
+      reprojectGroupOf(inputs.vectors, t),
       device.createBindGroup({
         layout: thinLayout,
         entries: namedEntries(THIN_GEOMETRY_BINDINGS, {
@@ -461,7 +439,7 @@ export async function createTaaAnalysis(
           flicker: t.flickerThenLuma,
           marks: t.marks,
           flickerOut: t.flicker,
-          error: t.vectorsError,
+          error: t.closest,
           thin: t.thin,
         }),
       }),
@@ -485,7 +463,7 @@ export async function createTaaAnalysis(
           current: inputs.current,
           word: t.reprojected,
           shading: t.shadingReprojected,
-          flicker: t.vectorsError,
+          flicker: t.closest,
           shadingOut: t.shading,
           rejection: t.rejection,
           luma: t.flickerThenLuma,
@@ -575,7 +553,7 @@ export async function createTaaAnalysis(
           ],
         },
       }
-      made = { ...own, reprojectGroup: reprojectGroupOf(own) }
+      made = own
     },
     /** Each render texel's hole-filled reprojection vector (`TAA_BINDINGS.vectors`). */
     get vectors() {

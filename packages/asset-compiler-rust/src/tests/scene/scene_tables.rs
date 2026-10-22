@@ -169,3 +169,50 @@ fn the_format_number_is_raised_and_an_earlier_cache_is_refused_by_it() {
         "manifest format 3 is not one this compiler writes"
     );
 }
+
+#[test]
+fn an_object_naming_a_draw_distance_carries_it_in_its_core_node_or_its_cell_row() {
+    // Provenance: the job's `objectSettings.drawDistance`, read like every object setting. "left"
+    // streams in a cell row; "right" is always loaded, so the core keeps it; "behind" names a
+    // nearest distance alone and "zero" a farthest of 0 — no farthest, no distance, as `false`
+    // says —, "plain" names none.
+    let (_root, mut options) = fixture();
+    let mut gltf = read_gltf(&options);
+    with_bounds(&mut gltf);
+    gltf["scenes"] = json!([{"nodes": [0]}]);
+    gltf["nodes"] = json!([
+        {"name": "root", "children": [1, 2, 3, 4, 5]},
+        {"name": "left", "mesh": 0},
+        {"name": "right", "mesh": 0},
+        {"name": "behind", "mesh": 0},
+        {"name": "plain", "mesh": 0},
+        {"name": "zero", "mesh": 0},
+    ]);
+    write_gltf(&options, &gltf, None);
+    options.object_settings = crate::ObjectSettings::read(Some(&json!({"objects": [
+        {"match": "left", "drawDistance": {"min": 5.0, "max": 120.0}},
+        {"match": "right", "spatiallyLoaded": false, "drawDistance": {"max": 30.0}},
+        {"match": "behind", "drawDistance": {"min": 5.0}},
+        {"match": "zero", "drawDistance": {"min": 5.0, "max": 0.0}},
+    ]})));
+    let (_options, tables, directory) = partition::compiled_full(options);
+    let core = tables["nodes"].as_array().expect("nodes");
+    let named = core.iter().find(|node| node["name"] == json!("right"));
+    assert_eq!(
+        named.map(|node| node["drawDistance"].clone()),
+        Some(json!({"min": 0.0, "max": 30.0})),
+        "{tables}"
+    );
+    assert_eq!(
+        core.iter()
+            .filter(|node| node.get("drawDistance").is_some())
+            .count(),
+        1,
+        "no other core node names one: {tables}"
+    );
+    let rows = partition::cell_nodes(&directory);
+    let drawn: Vec<_> = (rows.iter())
+        .filter_map(|row| row.get("drawDistance"))
+        .collect();
+    assert_eq!(drawn, [&json!({"min": 5.0, "max": 120.0})], "{rows:?}");
+}

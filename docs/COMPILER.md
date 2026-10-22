@@ -38,7 +38,7 @@ trillion3d-compiler --build-inputs
 
 Exactly 5, 7 or 8 positional arguments, plus `--textures-format=`, `--hlod=`,
 `--temporal-antialiasing=`, `--responsive=`, `--materials=`, `--voxelize=`, `--partition-scheme=`,
-`--partition-grid=`, `--mesh-build=` and `--object-settings=` anywhere, the last of each kept
+`--partition-grid=`, `--partition-grids=`, `--mesh-build=` and `--object-settings=` anywhere, the last of each kept
 (`compiler/args.rs`); a JSON flag that is not JSON is refused (`INVALID_OPTIONS`):
 the fields of one job, named as a batch job names them and in the order `JOB_FIELDS` declares
 (`packages/sdk-core/src/contracts/compilerAbi.ts`, printed into the compiler's `shared_math/abi.rs`).
@@ -67,8 +67,9 @@ scripts and the cargo configuration.
 | `--voxelize=`        | The objects whose meshes are voxelized far away, as JSON: a node's exact name, `{ "regex", "flags" }` on it, or a match ([Voxels far away](#voxels-far-away))                                     | none |
 | `--partition-scheme=` | How the objects are cut into cells and streamed, `hashSet` or `spatialHash`, or `true` the default ([The partition's grids](#the-partitions-grids)) | none: `hashSet` |
 | `--partition-grid=`  | The partition's main grid, as JSON: `{ "cellSize", "loadingRange", "priority", "origin" }` and its scheme's own settings, `true` every default, `false` the streaming off ([The partition's grids](#the-partitions-grids)) | none: 128 m cells loaded within 256 m, priority 0, centred on the origin |
-| `--mesh-build=`      | How each mesh is built, as JSON: `{ "storedTangents", "keptTriangles", "trimmedError", "dropNearCollapsed", "alwaysResidentKib", "recomputeNormals", "recomputeTangents", "useMikkTSpace", "computeWeightedNormals", "skinnedWeldPosition", "skinnedWeldNormal", "skinnedWeldTexture", "positionPrecision", "normalPrecision", "tangentPrecision", "objects" }` ([Mesh build settings](#mesh-build-settings))         | none: no stored tangent, every triangle kept, no near-collapsed triangle dropped, one root page resident, every normal rebuilt, tangents by MikkTSpace, a skinned weld within 200 nm, 2·10⁻⁵ and 1/1024, positions on a grid following the mesh's density, normals of 8 bits an axis, tangents of 7 bits |
-| `--object-settings=` | Each object's settings, as JSON: `{ "spatiallyLoaded", "skinnedInstance", "objects" }` ([Object settings](#object-settings))                                                                       | none: every object streams, no skinned instance |
+| `--partition-grids=` | Several main grids instead, as a JSON list of `partitionGrid`'s settings each under a `name`, the first the default grid, never beside `--partition-grid=` ([Several streaming grids](#several-streaming-grids-partitiongrids)) | none: one grid |
+| `--mesh-build=`      | How each mesh is built, as JSON: `{ "storedTangents", "keptTriangles", "trimmedError", "dropNearCollapsed", "alwaysResidentKib", "recomputeNormals", "recomputeTangents", "useMikkTSpace", "computeWeightedNormals", "skinnedWeldPosition", "skinnedWeldNormal", "skinnedWeldTexture", "positionPrecision", "normalPrecision", "tangentPrecision", "voxelRays", "voxelLevel", "voxelBackUp", "voxelSeparable", "voxelNdf", "voxelOpacity", "objects" }` ([Mesh build settings](#mesh-build-settings))         | none: no stored tangent, every triangle kept, no near-collapsed triangle dropped, one root page resident, every normal rebuilt, tangents by MikkTSpace, a skinned weld within 200 nm, 2·10⁻⁵ and 1/1024, positions on a grid following the mesh's density, normals of 8 bits an axis, tangents of 7 bits, voxels of 64 rays |
+| `--object-settings=` | Each object's settings, as JSON: `{ "spatiallyLoaded", "skinnedInstance", "drawDistance", "runtimeGrid", "objects" }` ([Object settings](#object-settings))                                                                       | none: every object streams, no skinned instance |
 
 ```sh
 trillion3d-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
@@ -121,6 +122,7 @@ process, each with its own cache:
 | `jobs[].voxelize`                                                            | As `--voxelize=`, a string or a JSON object                                | none                                                          |
 | `jobs[].partitionScheme`                                                     | As `--partition-scheme=`, a scheme's name or `true`                        | none                                                          |
 | `jobs[].partitionGrid`                                                       | As `--partition-grid=`, a boolean or a JSON object                         | none                                                          |
+| `jobs[].partitionGrids`                                                      | As `--partition-grids=`, a JSON list                                       | none                                                          |
 | `jobs[].meshBuild`                                                           | As `--mesh-build=`, a JSON object                                          | none                                                          |
 | `jobs[].objectSettings`                                                      | As `--object-settings=`, a JSON object                                     | none                                                          |
 
@@ -134,7 +136,7 @@ code.
 
 Every object — a visible node that places a mesh, no camera — is spatially loaded unless its
 settings say otherwise ([Object settings](#object-settings)): it is drawn while the view lies
-within the main grid's loading range of its cell ([ENGINE.md](ENGINE.md#a-partitioned-scene)). A
+within its main grid's loading range of its cell ([ENGINE.md](ENGINE.md#a-partitioned-scene)). A
 static leaf leaves the table the runtime reads first and is written in its cell, under its nearest
 core node, even one an animation moves: its row follows it. A static object with nodes under it
 stays in the core for them, without its mesh, and its cell draws that mesh under it; its mesh
@@ -192,6 +194,7 @@ keeps a cell out of range only when the session culls square cells by height
 The job sets the main grid (`partitionGrid`, `--partition-grid=`, `jobs[].partitionGrid`), each
 setting the reference's main grid's when left out; `true` names every default, and `false` turns
 the streaming off: every object is loaded with the scene, no cell is cut and no HLOD is built.
+Several main grids are `partitionGrids`, [below](#several-streaming-grids-partitiongrids).
 
 ```ts
 await prepare(source, cache, 'full', 150000, {
@@ -237,15 +240,61 @@ its layer's grid the scheme gives it; under `spatialHash`, an instanced layer's 
 below its grid's top holds keeps its objects in the core, any other layer's is then always
 loaded. The partition's root names its scheme, whether its grids lie flat, every grid — its cell
 side, loading range, priority, HLOD level, whether a load blocks on its slow streaming and whether
-cell files stream on it: the main grid, and each grid an HLOD 0 cell lies on — and
+cell files stream on it: the main grids, and each grid an HLOD 0 cell lies on — and
 what each square grid that pulls coarser cells
 finds them by; each cell file names the bounds it streams by and its HLOD 0 cell with the level of
-its cell on its grid ([FORMAT.md](FORMAT.md#world-partition)). A job naming a scheme or a grid
-moves the cache key; one naming neither keeps it. A scheme that is none of the names, a grid value
+its cell on its grid, and the main grid it lies on when that is not the first
+([FORMAT.md](FORMAT.md#world-partition)). A job naming a scheme, a grid or grids
+moves the cache key; one naming none keeps it. A scheme that is none of the names, a grid value
 that is none of the forms, a field the grid does not hold, a setting of the other scheme, a size or
 range not above 0, a priority out of its range, a `streamBounds` none of its names, an HLOD level's
 grid that is neither an object of its two sizes nor `null`, or an origin that is not two finite
 numbers — or three under `hashSet` — refuses the job (`INVALID_OPTIONS`).
+
+### Several streaming grids (`partitionGrids`)
+
+A scene streams on one grid by default (`partitionGrid`). A job that wants objects on grids of
+different cell sides, loading ranges or priorities — a fine grid for small props, a coarse one for
+towers — names several: `partitionGrids` (`--partition-grids=`, `jobs[].partitionGrids`), a list
+whose entries take the settings of `partitionGrid` under a `name`. The first grid is the default:
+every object that names no grid, or names one the list does not hold, streams on it. A job names
+`partitionGrid` or `partitionGrids`, not both.
+
+An object picks its grid with the `runtimeGrid` setting of `objectSettings` (a rule by object, the
+scene's setting, or the node's own glTF `extras`, like every object setting). An object attached
+under another streams on the grid of the topmost object above it, as a batch is placed in one cell.
+
+```ts
+await prepare(source, cache, 'full', 150000, {
+  resourceBaseUrl: '/assets/city/',
+  partitionGrids: [
+    { cellSize: 128, loadingRange: 256 }, // the default grid, named MainPartition
+    { name: 'towers', cellSize: 1024, loadingRange: 4096, priority: 1 },
+  ],
+  objectSettings: { objects: [{ match: /^tower/, runtimeGrid: 'towers' }] },
+})
+```
+
+`trillion3d-compile '--partition-grids=[{},{"name":"towers","cellSize":1024,"loadingRange":4096}]' '--object-settings={"objects":[{"match":{"regex":"^tower"},"runtimeGrid":"towers"}]}' …`
+
+| Entry field | Meaning | Default |
+| --- | --- | --- |
+| `name` | The grid's name: a text, not empty, holding neither `:` nor `.`, told from another's without regard to case; required but of the first grid | `"MainPartition"` (first grid) |
+| every setting of `partitionGrid` | `cellSize`, `loadingRange`, `priority`, `origin`, `blockOnSlowStreaming`, and each scheme's own | as `partitionGrid` |
+
+Each grid has its own cells, its own loading range and priority, whether it lies flat (`flat`: a
+flat grid and a grid cut in space may live side by side) and — under `hashSet` — its own chain of
+HLOD grids, each level the grid's `hlodGrids` or its cell and range times `2 << i`, built only for a
+grid that owns an object. Under `spatialHash` the HLOD layers keep the grids their `cellSize` and
+`loadingRange` name, shared by the objects of every main grid, and the three square settings
+(`nestedLevels`, `pullCoarser`, `smallByCentre`) are the whole partition's: the first grid's, which
+a later grid may name alike or not at all. A `partitionGrids` that is no list, is empty or comes beside `partitionGrid`, an entry
+that is no object or holds a field no entry holds, a setting of the other scheme, a name that is
+missing (past the first grid), not a text, held by two grids or holding `:` or `.`, a square setting
+a later grid names unlike the first's, and a `runtimeGrid` that is no grid name (it holds `:` or
+`.`) refuse the job (`INVALID_OPTIONS`); a `runtimeGrid` that names no grid of the job streams on
+the first grid, and the compile tells it in its assignment warnings. A job naming no
+`partitionGrids` compiles, and writes, as before.
 
 ### Object settings
 
@@ -273,8 +322,10 @@ on a node.
 
 | Setting           | Meaning                                                                                                                         | Default |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `spatiallyLoaded` | `true`: the object streams on the main grid; `false`: it is loaded with the scene and always drawn                               | `true`  |
+| `spatiallyLoaded` | `true`: the object streams on its main grid; `false`: it is loaded with the scene and always drawn                               | `true`  |
 | `skinnedInstance` | A skinned object plays a clip baked into the [animation banks](#animation-banks) on the GPU: `true` every default, `false` none, or the settings below | `false` |
+| `drawDistance` | The distances an object is drawn at, from the eye to the centre of its bounds, in the scene's units: `false` none, or `{ min, max }` — the cut does not draw the object nearer than `min` nor farther than `max`; a `max` of 0 or left out names no farthest distance: it is `false` too, one form for none, so `min` alone culls nothing. Each is a finite number of at least 0 | `false` |
+| `runtimeGrid` | The name of the streaming grid the object streams on ([Several streaming grids](#several-streaming-grids-partitiongrids)): a text holding neither `:` nor `.`; none, or a name no grid of the job holds, the first grid. An object attached under another streams on the grid of the topmost object above it | the first grid |
 
 An instanced skinned object's settings:
 
@@ -288,9 +339,36 @@ An instanced skinned object's settings:
 | `animationMinScreenSize` | The screen size — its bounds' diameter over the view's height — under which it is drawn in its rest pose; 0 the run-time setting `animationMinScreenSize` (0.1, [ENGINE.md](ENGINE.md#animation-banks)), a negative value never | `0` |
 | `mobility`               | `static` or `stationary`: its cell's HLOD 0 actor plays it on past the main range; `movable`: no HLOD stands for it          | `movable`                                  |
 
+A draw distance culls at run time: the settings `cutDrawDistanceCulling` and
+`cutViewDistanceScale` ([ENGINE.md](ENGINE.md#webgpu-page-raster)) turn the cull off and scale every
+distance, and change no byte of the compiled scene. The compiler writes the distances of each object
+that names a farthest one into the scene's node table (`nodes[].drawDistance`, `{ min, max }`) and,
+for an object that streams, into its cell's node row; a scene naming none carries no byte of it.
+
+```ts
+await prepare(source, cache, 'full', 150000, {
+  resourceBaseUrl: '/assets/meadow/',
+  objectSettings: {
+    // Every object of the scene is drawn at every distance, unless a rule below says otherwise.
+    drawDistance: false,
+    objects: [
+      // Grass is drawn up to 150 m from the eye.
+      { match: /^Grass/, drawDistance: { max: 150 } },
+      // A lamp post is drawn between 5 m and 400 m.
+      { match: 'LampPost', drawDistance: { min: 5, max: 400 } },
+    ],
+  },
+})
+```
+
+On the command line: `trillion3d-compile '--object-settings={"objects":[{"match":{"regex":"^Grass"},"drawDistance":{"max":150}}]}' …`;
+in the glTF, on the node: `"extras": { "drawDistance": { "min": 5, "max": 400 } }`.
+
 A job naming `objectSettings` moves the cache key; one naming none keeps it. A field it does not
 hold, a value of another type, a clip naming no animation, a negative position, a bounds scale not
-above 0 or another mobility refuses the job (`INVALID_OPTIONS`).
+above 0, another mobility, a draw distance that is neither `false` nor an object of `min` and `max`
+each a finite number of at least 0, or a `runtimeGrid` that is no text without `:` or `.` refuses
+the job (`INVALID_OPTIONS`).
 
 ### Animation banks
 
@@ -375,7 +453,7 @@ reads (`--hlod=`, `jobs[].hlod`): a string is an exact name, a regular expressio
 form's JSON, for instance
 `trillion3d-compile '--hlod={"levels":4,"groups":{"foliage":{"mesh":{"regex":"tree"}}}}' …`. It
 refuses, in the words written, a field either form does not hold, an unknown group,
-`levels` that is not a whole number from 2 to 256, and the simple form's fields beside `layers`.
+`levels` that is not a whole number from 1 to 256, and the simple form's fields beside `layers`.
 
 The simple form, for most uses; with marks on the objects, `{ levels }` alone: HLOD 0 is the objects
 themselves (`instanced`), every coarser level a `merge` layer with the settings of the reference's
@@ -390,8 +468,8 @@ await prepare(source, cache, 'slice', 150000, {
 
 | Field     | Meaning                                                                                                                                                                                                             | Default      |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| `levels`  | The main chain's levels, HLOD 0 included, 2 to 256: the first `instanced`, every other `merge`                                                                                                                                                                 | `2`          |
-| `groups`  | The objects of each group by name, for those no mark names: `buildings`, the main chain; `foliage`, a chain of two levels — the objects themselves, then one `voxel` actor per HLOD 0 cell, its objects voxelized together, their meshes candidates for voxels far away too — a group turns to voxels only where they beat its triangles ([Voxels far away](#voxels-far-away)); `props`, their own instanced cells absorbed by the main chain's first merged layer. Each the node's exact name (a string), a regular expression on it, or `{ node, mesh, material, extras }`; the first group in key order that matches an object takes it | none         |
+| `levels`  | The main chain's levels, HLOD 0 included, 1 to 256: the first `instanced`, every other `merge`; one level is the objects themselves, instanced and always loaded                                                                                                                                                                 | `2`          |
+| `groups`  | The objects of each group by name, for those no mark names: `buildings`, the main chain; `foliage`, a chain of two levels — the objects themselves, then one `voxel` actor per HLOD 0 cell, its objects voxelized together, their meshes candidates for voxels far away too — a group turns to voxels only where they beat its triangles ([Voxels far away](#voxels-far-away)); `props`, their own instanced cells absorbed by the main chain's first merged layer (always loaded when the main chain has one level). Each the node's exact name (a string), a regular expression on it, or `{ node, mesh, material, extras }`; the first group in key order that matches an object takes it | none         |
 
 The main chain of `{ levels: 3 }` stands for these expert layers; each merged level takes the settings of the
 reference's default merged layer — the LOD of each source its lowest, the materials in one atlas
@@ -410,6 +488,18 @@ hlod: {
     { name: 'hlod1', ...merged, parent: 'hlod2', cellSize: 512, loadingRange: 1024 },
     { name: 'hlod2', ...merged, spatiallyLoaded: false },
   ],
+  default: 'hlod0',
+}
+```
+
+One level is the objects themselves, instanced and always loaded: no merged layer, no grid.
+
+```ts
+// One level.
+hlod: { levels: 1 }
+// stands for
+hlod: {
+  layers: [{ name: 'hlod0', builder: 'instanced', spatiallyLoaded: false } /* + foliage and props chains */],
   default: 'hlod0',
 }
 ```
@@ -433,14 +523,14 @@ hlod: {
 | Field                                                | Meaning                                                                                                                                                                                           |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `layers[].name`                                      | Unique name                                                                                                                                                                                       |
-| `layers[].builder`                                   | `instanced` (the objects themselves, each its source mesh at its own detail — at the last LOD of its mesh with `clusterDag: false`), `approximate` (one closed shell per cell, its materials baked), `merge` (the cell's objects merged into one mesh), `voxel` (the cell's objects voxelized together, no setting: [Voxels far away](#voxels-far-away)), `simplify` (the cell's objects remeshed through their volume, simplified for the distance the actor is first drawn from, their materials transferred onto its atlas: [Simplified layers](#simplified-layers)) |
+| `layers[].builder`                                   | `instanced` (the objects themselves, each its source mesh at its own detail — at the last LOD of its mesh with `clusterDag: false`), `approximate` (one closed shell per cell, its materials baked), `merge` (the cell's objects merged into one mesh), `voxel` (the cell's objects voxelized together, its `meshBuild` the voxels' sampling alone: [Voxels far away](#voxels-far-away)), `simplify` (the cell's objects remeshed through their volume, simplified for the distance the actor is first drawn from, their materials transferred onto its atlas: [Simplified layers](#simplified-layers)) |
 | `layers[].parent`                                    | The layer its cells' actors are built by; none at a chain's top, whose actors, one per cell of the level below, are always loaded; an `instanced` layer, or a `merge` layer keeping its materials, builds nothing above a layer whose actors wear materials of their own |
 | `layers[].spatiallyLoaded`                           | Whether the layer's actors stream on a grid of its own; `false`, always loaded, nothing built of them — its `parent` let go —, so the layer names no `cellSize` nor `loadingRange`; an `instanced` layer's objects (its `clusterDag` left `true`) then stay loaded with the scene; default `true` |
 | `layers[].cellSize`, `loadingRange`                  | Under the `spatialHash` scheme ([The partition's grids](#the-partitions-grids)): the side of the finest cell of the layer's grid and the distance within which a cell loads, metres, above 0; layers of one level, cell and range share one grid, its cells loaded after the main grid's (priority 100 plus the level); default 256 m and 512 m. The default `hashSet` scheme ignores them: HLOD level `i` streams on a grid of `2 << i` times the main grid's cell and range |
 | `layers[].accuracy`                                  | An `approximate` layer's voxel, metres, whatever the distance its actors are first seen from: its solid's grid holds the cell's diagonal over it, from 64 voxels to its `voxelClamp`; default 1 m |
 | `layers[].deviation`                                 | An `approximate` layer's deviation, metres, what its shell is simplified within; default 0.1 m                                                                                                    |
 | `layers[].textureSize`                               | The atlas side of an `approximate` layer, or of a `merge` layer merging its materials or a `simplify` layer sized `fixed` or `biased`, a power of two from 16 to 8192; default 1024 |
-| `layers[].approximation`                             | An `approximate` layer's other steps, each its default when left out: `voxelClamp` (most voxels across, 64–1290, 1024); `autoThicken` (true), `thicknessMultiplier` (voxels, 1.5); `ignoreTinyParts` (true), `tinyPartMultiplier` (0.05); `windingThreshold` (0.01–0.99, 0.5); `fillGaps` (true), `gapDistance` (metres, 0.1); `occlusion` (`visibility` or `none`), `occludeFromBelow` (true); `simplification` (`geometricTolerance` to `deviation`, `trianglesPerArea` to `trianglesPerSquareMetre` (0.01 up to the largest single-precision number, 2), `fixedTriangleCount` to `triangleCount` (16–2147483647, 2000)), `simplifyPrePass` (true); `hardNormals` (true), `hardNormalAngle` (degrees, 60); `uvMethod` (`charts` or `patches`), the patches' `initialPatches` (1–99999999, 250), `curvatureAlignment` (0.01–100, 1), `mergingThreshold` (1 or more, 1.5), `maxAngleDeviation` (degrees, 0–180, 45); the bake's views: `captureResolution` (pixels, 0–16384, 0 the atlas side, 2048), `captureFieldOfView` (degrees, 5–160, 30), `nearPlane` (metres, 0.00001–10, 0.01), `multiSampling` (0–8, 0), `captureAnisotropy` (most samples a texture read takes along its footprint, the views' sampler anisotropy clamp, 1–16, 8); `maps` beside the base colour: `normal` (true), `roughness` (false), `metallic` (false), `specular` (false), `emissive` (false) — a channel not baked is roughness 0.5, metallic 0; the roughness, metallic and specular share one packed image (G, B, R); the emission is its own map over its strength; `baseCapping` (`none`, `convexPolygon` — the convex hull of the vertices within `baseHeight` above the scene's lowest point, flat there and facing down, the scene then read as open meshes —, `convexSolid` — that hull extruded up by `baseThickness`; `true` is `none`, `false` `none`; default `none`), `baseHeight` (metres, 0 or more, 0 twice the `accuracy`), `baseThickness` (metres, 0 or more, 0 the thickening's thickness when `autoThicken`, else 1.25 voxels); `groundClipping` (`none`, `discard` — the triangles whose corners all lie on or under the plane dropped with the hidden ones, only where the occlusion filter drops some —, `cut` — the shell cut along the plane, what lies under removed —, `cutAndFill` — cut and each cut loop filled flat by a constrained Delaunay triangulation; `true` is `none`, `false` `none`; default `none`), `groundHeight` (the plane's height, the world's up coordinate, metres, 0); `useRenderLODMeshes` (each source mesh read as its vertex buffers hold it, split where its attributes are, rather than welded by position; false) |
+| `layers[].approximation`                             | An `approximate` layer's other steps, each its default when left out: `voxelClamp` (most voxels across, 64–1290, 1024); `autoThicken` (true), `thicknessMultiplier` (voxels, 1.5); `ignoreTinyParts` (true), `tinyPartMultiplier` (0.05); `windingThreshold` (0.01–0.99, 0.5); `fillGaps` (true), `gapDistance` (metres, 0.1); `occlusion` (`visibility` or `none`), `occludeFromBelow` (true); `simplification` (`geometricTolerance` to `deviation`, `trianglesPerArea` to `trianglesPerSquareMetre` (0.01 up to the largest single-precision number, 2), `fixedTriangleCount` to `triangleCount` (16–2147483647, 2000)), `simplifyPrePass` (true); `hardNormals` (true), `hardNormalAngle` (degrees, 60); `uvMethod` (`charts`, `patches` or `uvAtlas`), `uvAtlasStretch` (the most stretch the `uvAtlas` charts may reach, from 0, none, to 1, any; 0.1), the patches' `initialPatches` (1–99999999, 250), `curvatureAlignment` (0.01–100, 1), `mergingThreshold` (1 or more, 1.5), `maxAngleDeviation` (degrees, 0–180, 45); the bake's views: `captureResolution` (pixels, 0–16384, 0 the atlas side, 2048), `captureFieldOfView` (degrees, 5–160, 30), `nearPlane` (metres, 0.00001–10, 0.01), `multiSampling` (0–8, 0), `captureAnisotropy` (most samples a texture read takes along its footprint, the views' sampler anisotropy clamp, 1–16, 8); `maps` beside the base colour: `normal` (true), `roughness` (false), `metallic` (false), `specular` (false), `emissive` (false) — a channel not baked is roughness 0.5, metallic 0; the roughness, metallic and specular share one packed image (G, B, R); the emission is its own map over its strength; `baseCapping` (`none`, `convexPolygon` — the convex hull of the vertices within `baseHeight` above the scene's lowest point, flat there and facing down, the scene then read as open meshes —, `convexSolid` — that hull extruded up by `baseThickness`; `true` is `none`, `false` `none`; default `none`), `baseHeight` (metres, 0 or more, 0 twice the `accuracy`), `baseThickness` (metres, 0 or more, 0 the thickening's thickness when `autoThicken`, else 1.25 voxels); `groundClipping` (`none`, `discard` — the triangles whose corners all lie on or under the plane dropped with the hidden ones, only where the occlusion filter drops some —, `cut` — the shell cut along the plane, what lies under removed —, `cutAndFill` — cut and each cut loop filled flat by a constrained Delaunay triangulation; `true` is `none`, `false` `none`; default `none`), `groundHeight` (the plane's height, the world's up coordinate, metres, 0); `useRenderLODMeshes` (each source mesh read as its vertex buffers hold it, split where its attributes are, rather than welded by position; false) |
 | `layers[].lodSelection`, `lodScreenSize`             | A `merge` layer's LOD of each source, its merged mesh never simplified: `calculate`, the LOD a source shows when its bounding sphere spans `lodScreenSize` of the view (above 0, 1 at most; default 0.25), or `lowest`, its fallback mesh; default `calculate` |
 | `layers[].collapseEquivalentMaterials`               | Whether a `merge` layer collapses equivalent materials — one definition under two names — into the first its sources name; default `true`                                                       |
 | `layers[].mergeMaterials`                            | Whether a `merge` layer merges its sources' materials into one atlas, one cell per material and what it bakes on; default `false`, each section wearing its source's material                     |
@@ -449,10 +539,10 @@ hlod: {
 | `layers[].textureSizing`                             | How an `approximate` layer, a `merge` layer merging its materials, or a `simplify` layer, sizes its atlas: `fixed` (`textureSize`), `texelDensity` (the power of two whose texels a metre over its mesh come nearest `texelsPerMetre`, 0.1–1024, default 5 — an approximated shell's over its charts' share of the square), `screenSize` (those its bounding sphere spans filling `atlasScreenSize` of a 1920-texel view, 0.01–1, default 0.5), `drawDistance` (where its actor is first drawn); every layer also `biased` (the normal map at `textureSize`, the base colour at half, 32 at least — 8 for a `merge` layer, which puts its tangent map at half too —, its other maps at a quarter, 16 at least — 4 for a `merge` layer) and `manual` (each map at its `mapSizes` side, 16–8192 rounded up to a power of two, 1024 each: `base`, `normal`, `roughness`, `metallic`, `specular`, `emissive` for an `approximate` layer — the packed metal-roughness map at the largest of its three —, those and `opacity` and `opacityMask` for a `simplify` layer, and for a `merge` layer also `tangent`, `anisotropy`, `ambientOcclusion` — an image taking the largest side of the maps it packs that the layer bakes: the base colour with `opacity` or `opacityMask`, the metal-roughness map with its three, the anisotropy map with `tangent`), the atlas baked at the largest side and each map averaged down to its own; an `approximate` layer's `textureSize` still sizes its views and its packing, a `merge` or `simplify` layer's sizes only a `fixed` or `biased` atlas; default `fixed` |
 | `layers[].atlasGutter`, `binByTextureSize`           | A `merge` layer's atlas cells: each cell's gutter, texels, up to 64, default 2; squares sized by their materials' largest textures rather than a grid, default `false`. A `simplify` layer's `atlasGutter` is the texels kept between two of its charts, default 4 |
 | `layers[].bakeOnMesh`, `allowDoubleSided`, `maps`     | A `merge` layer's bake: a material whose look its mesh decides — coordinates leaving the unit square, a vertex colour, a baked map reading a second set — baked on that mesh rather than on a quad, default `true`; both faces drawn when one of its materials draws them, default `true`; `maps` beside the base colour: `normal` (true), `roughness`, `metallic`, `specular` (the packed metal-roughness map's red channel), `emissive` (a map of its own over its strength), `opacity` or `opacityMask` — at most one, the base image's alpha, the material drawn blended or masked at 0.3333 —, `ambientOcclusion` (glTF's occlusion map, red), `anisotropy` and `tangent` (one image, `KHR_materials_anisotropy`'s texture: the direction in red and green, the strength in blue; the runtime does not draw it yet), each false unless named. A `simplify` layer takes `allowDoubleSided` and `maps` too, the first seven maps (`normal` to `opacityMask`: a proxy's transfer writes no occlusion nor anisotropy map) |
-| `layers[].reuseLightmapUVs`, `uvMethod`              | A `merge` layer's coordinates for a mesh baked on its own triangles: where `reuseLightmapUVs` is `true` (the default) and the mesh has a texture set at its lightmap index, it is baked at that set, and its merged coordinates are that set's; else, or with `false`, at coordinates generated per mesh by `uvMethod`: `default` or `patchBuilder` (the patches unwrap), `xAtlas` (the charts unwrap); `legacy` and `uvAtlas`, which the generator also offers, are refused. A mesh imported without generated lightmap coordinates has its lightmap index at its first open set — as many as it has sets, 1 when it holds eight —, which it lacks: a glTF mesh gets generated coordinates, as before. The generator's whole-mesh unwrap, for `reuseLightmapUVs: false`, is not provided: each mesh is unwrapped alone. A `simplify` layer reads `reuseLightmapUVs` too (default `true`): an object whose every primitive has a texture set at its lightmap index bakes on those sets, else on coordinates generated for the whole object |
+| `layers[].reuseLightmapUVs`, `uvMethod`              | A `merge` layer's coordinates for a mesh baked on its own triangles: where `reuseLightmapUVs` is `true` (the default) and the mesh has a texture set at its lightmap index, it is baked at that set, and its merged coordinates are that set's; else, or with `false`, at coordinates generated per mesh by `uvMethod`: `default` or `patchBuilder` (the patches unwrap), `xAtlas` (the charts unwrap), `legacy` (the old chart layout of the mesh's own first texture set: its triangles are joined into charts wherever two share an edge whose coordinates and winding agree, charts that meet along a whole side of their boxes are joined, and the charts are packed, in their eight orientations, into a square a quarter of the atlas's side wide — 32 to 512 texels —; each corner takes the coordinates of its own chart, and the whole is then scaled to fill the unit square, an axis of no span, or of no finite span, only moved; a mesh with no first texture set, or whose charts have no area, an area that is no number, or outnumber the texels of the square, takes the patches unwrap instead, scaled the same way) or `uvAtlas` (charts cut by spectral analysis of the surface at a stretch bound of 0.11 and packed into 512 texels with a 2.5-texel gutter; a mesh the cut fails on — one with a vertex shared by two fans of triangles — keeps its own first texture set). A mesh imported without generated lightmap coordinates has its lightmap index at its first open set — as many as it has sets, 1 when it holds eight —, which it lacks: a glTF mesh gets generated coordinates, as before. The generator's whole-mesh unwrap, for `reuseLightmapUVs: false`, is not provided: each mesh is unwrapped alone. A `simplify` layer reads `reuseLightmapUVs` too (default `true`): an object whose every primitive has a texture set at its lightmap index bakes on those sets, else on coordinates generated for the whole object |
 | `layers[].groupIdenticalMeshes`, `allowVertexColors` | A `simplify` layer's proxy settings. `groupIdenticalMeshes` (default `false`): the objects that place one mesh are baked once, from the first of them — its images and the coordinates generated for its triangles, which each other object's primitives read at their own triangles —, faster and sharper, but a material that reads its world position or per-instance data looks as the first object's. `allowVertexColors` (default `false`): the simplified mesh carries its sources' vertex colours — each vertex the colour of the source triangle nearest it, blended at its projection and set back to the triangle's mean luminance, white where no source answers —, else none; the atlas holds the sources' colours already, so a material that draws vertex colours shows them twice |
 | `layers[].clusterDag`                                | Whether each actor an `approximate`, `merge` or `simplify` layer builds gets a cluster DAG, its coarser levels drawn within the pixel error; `false`, its mesh drawn whole at every distance; an `instanced` layer builds no mesh while it is `true`, its objects keeping their own DAG: `false` draws each object it takes at the last LOD of its mesh, its fallback: the layer is then read as a `merge` layer that keeps its materials and takes each source's fallback (`lodSelection: 'lowest'`), building one mesh per cell and material, drawn whole; it still names an `instanced` layer's settings alone; default `true` |
-| `layers[].meshBuild`                                 | How a `merge` or `simplify` layer builds each actor's mesh, as the reference reads it from those layers alone (an `approximate` layer's actors take every default): `keptTriangles`, `trimmedError`, `dropNearCollapsed` and `alwaysResidentKib` as [`meshBuild`](#mesh-build-settings) names them for a mesh — `alwaysResidentKib` the root pages the actor's HLOD cell holds while the actor is loaded —, `shapePreservation` (`none` or `area`), `edgeLengthBound` and `holdTextureCoordinates` as a mesh's `extras` names them ([How a mesh coarsens](#how-a-mesh-coarsens)); each its default when left out. An object standing as itself keeps its own mesh's |
+| `layers[].meshBuild`                                 | How a `merge` or `simplify` layer builds each actor's mesh, as the reference reads it from those layers alone (an `approximate` layer's actors take every default): `keptTriangles`, `trimmedError`, `dropNearCollapsed` and `alwaysResidentKib` as [`meshBuild`](#mesh-build-settings) names them for a mesh — `alwaysResidentKib` the root pages the actor's HLOD cell holds while the actor is loaded —, `shapePreservation` (`none` or `area`), `edgeLengthBound` and `holdTextureCoordinates` as a mesh's `extras` names them ([How a mesh coarsens](#how-a-mesh-coarsens)); each its default when left out. A `voxel` layer's names how its cells' voxels are sampled, the six `voxel…` settings of [`meshBuild`](#how-voxels-are-sampled) and no other. An object standing as itself keeps its own mesh's |
 | `layers[].translucency`                              | How an `approximate` layer's atlas, a `merge` layer's merging its materials, or a `simplify` layer's flattened sources, bake a translucent source (one that transmits light or one drawn alpha-blended): `seenThrough`, over what lies behind it ([Translucent sources](#translucent-sources)); `surfaceOnly`, its surface alone — an approximation sees what lies behind it, a merged atlas bakes its own colour; `true` is `seenThrough`, `false` `surfaceOnly`; default `seenThrough` |
 | `layers[].emptyTexels`                               | What an `approximate` or `simplify` layer's atlas holds where it holds no chart's value — its empty texels, outside every chart, and its gutter's copies of texels no view sees: `nearestChart`, the nearest chart's values on every map, the normal map's too, given before the holes are filled and the atlas averaged down, so no black reaches a chart's border nor a mip; `black`, black (the frame's up on the normal map, zero on a baked roughness or metallic), which the holes beside a chart, the averaging down and the mips then read, so a chart's border darkens on far levels; `true` is `nearestChart`, `false` `black`; default `nearestChart` |
 | `layers[].sizeFilter`, `minExtent`, `minArea`, `minVolume` | Which objects an `instanced` layer takes by their world box: `none`, `extent` (largest half extent, metres), `area` (surface, m²), `volume` (m³), each at least its setting (default 0); an object turned away enters no HLOD, an [instanced skinned object](#animation-banks) is never turned away; default `none` |
@@ -486,6 +576,35 @@ hlod: {
 }
 ```
 
+The old chart layout on a `merge` layer, the spectral charts on an `approximate` one:
+
+```ts
+hlod: {
+  layers: [
+    // Each cell's meshes merged into one atlas, a mesh baked on its own triangles laid out by the
+    // old chart layout of its first texture set.
+    {
+      name: 'blocks',
+      builder: 'merge',
+      mergeMaterials: true,
+      reuseLightmapUVs: false,
+      uvMethod: 'legacy',
+      parent: 'far',
+    },
+    // The far shells unwrapped by spectral charts at a looser stretch bound.
+    {
+      name: 'far',
+      builder: 'approximate',
+      spatiallyLoaded: false,
+      approximation: { uvMethod: 'uvAtlas', uvAtlasStretch: 0.2 },
+    },
+  ],
+  default: 'blocks',
+}
+```
+
+A job that names no `uvMethod` keeps its cache key and its bytes.
+
 The compiler refuses the job (`INVALID_OPTIONS`, never the whole batch) for a field a layer's
 builder does not take, a name given twice, a parent or a rule naming no layer, a cycle, a parent
 wearing its sources' own materials above a layer whose actors wear materials of their own, a
@@ -494,7 +613,7 @@ world table writes a level in 8 bits —, a match naming nothing, a regular expr
 on a `merge` layer that keeps its materials, `bakeVertexColors` on one that merges them, a sizing's
 setting beside another sizing (a `merge` layer's `textureSize` beside a sizing other than `fixed`
 and `biased` included), a size filter's setting beside another filter, `opacity` and `opacityMask`
-both baked, a `uvMethod` of `legacy` or `uvAtlas`, an `extras.hlodInclude` that is no boolean, and
+both baked, an `extras.hlodInclude` that is no boolean, and
 values out of bounds. The HLOD is part of the cache key.
 
 A `merge` layer merging its materials makes one entry per material and what it is baked on: a
@@ -516,7 +635,8 @@ coordinates move into its entry's cell.
 
 A mesh's generated coordinates — those of a mesh that has no texture set to reuse, or of a layer
 with `reuseLightmapUVs: false`, by default its patches (`uvMethod` `default` or `patchBuilder`; `xAtlas` cuts
-and packs its charts instead, as an `approximate` layer's `uvMethod: 'charts'` does) — are
+and packs its charts instead, as an `approximate` layer's `uvMethod: 'charts'` does; `legacy` and
+`uvAtlas` as above) — are
 unwrapped at fixed settings, whatever the layer:
 a hundred initial patches, the normal's turn weighed once, islands merged up to a mean squared
 area distortion of 1.5 and a normal turn of 45°. The mesh is first welded and held as a mesh
@@ -544,6 +664,16 @@ and the mesh is baked all the same, reading what of them lies in the square. An 
 layer's `uvMethod: 'patches'` unwraps its shell the same way at its own patch settings, then packs
 the islands again onto its atlas's blocks; there too, a packing that finds no layout keeps the
 coordinates as they were.
+
+An `approximate` layer's `uvMethod: 'uvAtlas'` cuts its shell into charts by spectral analysis of
+the surface: the shell is held as a mesh, turned over, and cut into as many charts as keep their
+stretch under `uvAtlasStretch`, every face's metric the identity; the charts are packed into 512
+texels with a 2.5-texel gutter, then packed again onto the atlas's blocks as every method's are. The
+shell is not cleaned first: a vertex shared by two fans of triangles makes the cut fail, and a shell
+whose cut fails is projected from the faces of its bounding box instead — each triangle onto the
+face its normal is nearest, a region of one triangle joining the neighbour that holds more —, then
+packed the same way. A `merge` layer's `uvAtlas` unwraps a mesh the same way at a fixed stretch
+bound (0.11); a mesh whose cut fails keeps its own first texture set.
 
 The atlases of the `approximate` layers are baked on the GPU, and their shells are built there too:
 each point the solid is sampled at learns whether it lies inside, and the gaps are closed from each
@@ -820,6 +950,12 @@ built (`compiler/args/mesh_build.rs`):
 | `skinnedWeldPosition` | A number of at least 0, metres: how far on every axis two corners of a skinned mesh may lie apart and be welded into one vertex | `2e-7` |
 | `skinnedWeldNormal` | A number of at least 0: how far on every axis two unit normals, tangents or bitangents of a skinned mesh may differ and their corners be welded | `2e-5` |
 | `skinnedWeldTexture` | A number of at least 0: how far two texture coordinates of a skinned mesh may differ and their corners be welded | `1/1024` |
+| `voxelRays` | A whole number of at least 0: how many rays are cast across each voxel of a voxelized mesh to sample its surface. At most 1024 are cast and a count past 1 is rounded up to a multiple of 16, so 17 casts 32; 0 or 1 casts one ray, the voxel then covered whole or not at all and no coverage handed over to its neighbours. Read only for a voxelized mesh | `64` |
+| `voxelLevel` | A whole number: the level of the mesh's DAG from which every group is voxels, whatever its triangles' error. 0 leaves a group voxels only where they are finer than its triangles; 1 is the first level, so from 1 every group is voxels, and a level below 0 acts as 1. Read only for a voxelized mesh | `0` |
+| `voxelBackUp` | A number, in voxel sides: how far back each ray of a voxel starts before it. A ray whose nearest hit lies in that stretch counts neither as a hit nor as a miss; the rays are traced against every triangle of the mesh within their reach, not only those overlapping the voxel. Not read with `voxelSeparable`, nor by a voxel that casts one ray | `0` |
+| `voxelSeparable` | `true`: the rays of a voxel run along its three axes alone, each through one face of it and a point of that face, one side before the face and three long; only a hit within the voxel's depth counts and a ray that hits outside it is left out of the count. A voxel whose rays along one axis all hit is covered whole when a ray through its centre along an axis hits too; a voxel that casts one ray is covered when the first of those three rays hits. `false`: rays in every direction | `false` |
+| `voxelNdf` | `true`: a voxel keeps the spread of the normals its rays hit — its normal is their mean and its record carries the mean's length, which the shading reads as roughness. `false`: the record carries the direction of the mean alone, the spread dropped | `true` |
+| `voxelOpacity` | `true`: no coverage is handed over to the neighbours of a voxel dropped — every voxel a ray hit is kept — and each voxel's record carries its coverage as its opacity (byte 7 of its 12-byte record). The engine draws no voxel by it: the opacity is written and no pass reads it. `false`: the coverage is handed over until no more voxels are left than it sums to | `false` |
 | `keptTriangles`     | A number from 0 to 1: under 1, once the DAG is built its finest detail is cut away — the cut is grown from the roots, the cluster of largest error replaced by the clusters its group was made of, until the cut holds more than this share of the source's triangles and the next replacement would lower its error further; every cluster under the cut is dropped, and the cut's clusters become leaves, drawn wherever their parent is too coarse | `1`     |
 | `trimmedError`      | A number of at least 0, percent of the mesh's size — the square root of the smaller of twice its area and a quarter of its box's surface —: above 0, the same cut, grown until its error falls under this share                                                                                         | `0`     |
 | `dropNearCollapsed` | `true`: a triangle two of whose corners lie within 200 nanometres of each other on every axis is dropped before the build. `false`: only one two of whose corners are one point                                                                                                              | `false` |
@@ -874,14 +1010,14 @@ Far away a tree's leaves are thinner than a pixel: simplified triangles drop the
 shell closes them into a blob that loses their cut-outs. A voxelized mesh's DAG goes on in voxels
 where they hold the error better than its triangles: from that level up each group is bricks of
 4³ voxels, a voxel one pixel wide where the cut draws it — no cross-fade, no pop, nothing authored
-(`asset-compiler-rust/src/voxel`). Each voxel is crossed by 64 rays of every direction against the
-mesh's level-0 triangles through their materials — a cut texel lets a ray through, so a leaf
-card's cut-out thins the voxel as it thins the pixel —; the least covered voxels hand their
-coverage to their neighbours until no more are left than the coverage sums to, so a crown stays
-as dense as its leaves. A voxel keeps its prefiltered base colour, occlusion, roughness and
-metalness, its normals' spread and, for a skinned mesh, its brick's joint, so wind bending a tree's
-bones bends its voxels. The engine draws each brick as its box and traces its voxels pixel by
-pixel.
+(`asset-compiler-rust/src/voxel`). Each voxel is crossed by `voxelRays` (64 by default) rays of
+every direction against the mesh's level-0 triangles through their materials — a cut texel lets a
+ray through, so a leaf card's cut-out thins the voxel as it thins the pixel —; the least covered
+voxels hand their coverage to their neighbours until no more are left than the coverage sums to, so
+a crown stays as dense as its leaves ([How voxels are sampled](#how-voxels-are-sampled) sets each
+of these steps). A voxel keeps its prefiltered base colour, occlusion, roughness and metalness, its
+normals' spread and, for a skinned mesh, its brick's joint, so wind bending a tree's bones bends its
+voxels. The engine draws each brick as its box and traces its voxels pixel by pixel.
 
 A mesh is voxelized, the first source naming it winning:
 
@@ -896,7 +1032,7 @@ when its voxels beat its triangles, and every group above it then too —, so a 
 triangles always hold the error stays triangles to its top. The `voxel` layer is apart: it
 voxelizes each cell's objects together, whatever each mesh did.
 
-A `voxel` layer (`builder: 'voxel'`, no setting) builds one actor per cell: the cell's original
+A `voxel` layer (`builder: 'voxel'`; its `meshBuild` names how its voxels are sampled, [below](#how-voxels-are-sampled)) builds one actor per cell: the cell's original
 objects voxelized together from the pixel where the cell is first seen, every level twice the one
 below until one brick holds the cell, no shell and no atlas — at every HLOD level, every object
 under the cell, never the actors of the level below.
@@ -915,6 +1051,61 @@ The same job from the command line:
 A `voxelize` naming nothing, or a regular expression that does not compile, refuses the job
 (`INVALID_OPTIONS`), as `responsive` does. The runtime's `voxels` view paints each voxel in its
 level's colour, the triangles in grey.
+
+### How voxels are sampled
+
+The six `voxel…` settings of `meshBuild` say how the voxels of a voxelized mesh — one a `voxelize`
+match, its own glTF `extras` (`shapePreservation: "voxelize"`) or the job names — are sampled. Like
+every mesh build setting each is read, for a mesh, from the first rule of `meshBuild.objects` that
+matches one of its objects, then `meshBuild`'s own setting, then the mesh's `extras`, then the
+default shown [above](#mesh-build-settings); a job naming none keeps its cache key and samples every
+voxel as before. A `merge` or `simplify` layer's `meshBuild` names none of them (its shape
+preservation stays `none` or `area`: voxels far away are a `voxel` layer's). A `voxel` layer's
+`meshBuild` names these six alone, for the voxels of its cells, as the merged and proxy meshes of a
+layer carry their own settings; `voxelLevel` changes nothing there, every level of a cell being
+voxels. A voxel layer naming none samples every cell by the defaults.
+
+```json
+{
+  "voxelize": { "node": { "regex": "^Tree" } },
+  "meshBuild": {
+    "voxelRays": 128,
+    "objects": [
+      { "match": { "node": { "regex": "^Hedge" } }, "voxelRays": 16, "voxelOpacity": true },
+      { "match": { "node": { "regex": "^Tower" } }, "voxelLevel": 2, "voxelNdf": false }
+    ]
+  }
+}
+```
+
+Here every voxelized mesh casts 128 rays per voxel; the hedges cast 16 and keep every voxel a ray
+hit, with its coverage as opacity; the towers draw every group from the second level up as voxels
+and keep only the direction of each voxel's mean normal.
+
+From Node, `prepare(source, cache, 'slice', budget, { resourceBaseUrl, voxelize: /^Tree/, meshBuild:
+{ voxelRays: 128, objects: [{ match: /^Hedge/, voxelRays: 16 }] } })`; on the command line,
+`trillion3d-compile '--mesh-build={"voxelRays":128}' …`; on a mesh, `"extras": { "shapePreservation":
+"voxelize", "voxelRays": 32, "voxelNdf": false }`.
+
+A voxel layer's own sampling:
+
+```json
+{
+  "hlod": {
+    "layers": [
+      { "name": "far", "builder": "voxel", "meshBuild": { "voxelRays": 32, "voxelNdf": false } }
+    ]
+  }
+}
+```
+
+- A count of rays under 32 (after the rounding to a multiple of 16) is too few to tell that a voxel
+  no ray hit holds nothing: the cells of a `voxel` layer sampled again one level up then include
+  those no ray hit. From 32 rays only the cells a ray hit, or whose coverage was handed over, are
+  sampled again. A mesh's voxels are byte-identical under the defaults; a `voxel` layer's upper
+  levels follow that rule.
+- `voxelOpacity` writes the coverage into the voxel record; no pass of the engine reads it.
+- A setting of the wrong kind refuses the job (`INVALID_OPTIONS`), a mesh's `extras` one too.
 
 ## Cancellation
 

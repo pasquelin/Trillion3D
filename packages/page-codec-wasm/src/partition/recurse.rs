@@ -120,11 +120,17 @@ pub(super) fn morton(p: [f32; 3], low: [f32; 3], extent: f32) -> u32 {
         };
         ((unit * 1023.0) as u32).min(1023)
     };
-    spread(cell(0)) | spread(cell(1)) << 1 | spread(cell(2)) << 2
+    morton3([cell(0), cell(1), cell(2)])
 }
 
-/// The ten bits of `x` two bits apart: one axis of a 30-bit Morton code, here and in the
-/// compiler's page assignment (`asset-compiler-rust/src/compiler/pages/bundles/order.rs`).
+/// The 30-bit Morton code of `cell`, three cells of 10 bits (`spread` masks the rest): `x` in the
+/// lowest bit of each triple, then `y`, then `z`. Here, in the compiler's page assignment
+/// (`asset-compiler-rust/src/compiler/pages/bundles/order.rs`) and in its voxel rays.
+pub fn morton3(cell: [u32; 3]) -> u32 {
+    spread(cell[0]) | spread(cell[1]) << 1 | spread(cell[2]) << 2
+}
+
+/// The ten bits of `x` two bits apart: one axis of a 30-bit Morton code.
 pub fn spread(x: u32) -> u32 {
     let mut x = x & 0x3ff;
     x = (x | x << 16) & 0x0300_00ff;

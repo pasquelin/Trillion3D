@@ -2,7 +2,7 @@ import type { PlacementOf } from '../../placement/rows/rows.ts'
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/page/contracts.ts'
 import type { MatrixElements } from '../../session/host/matrixElements.ts'
 import type { PageSurface } from '../pages/surface.ts'
-import type { ClusterStructureIndex, RootProxy } from '../selection/types.ts'
+import type { ClusterStructureIndex, DrawDistance, RootProxy } from '../selection/types.ts'
 import type { CullingLinks } from '../cut/links.ts'
 import type { PlacementTree } from './placement/placementTree.ts'
 import type { PackedWorld } from './worlds/worldLinks.ts'
@@ -32,7 +32,7 @@ export const CULL_MIN = 0,
   CULL_PAGE_COUNT = 15
 /** Words of a placement's row of `frames`, the host's words (`frameTable.ts`): nothing is derived
  *  into it (`shader/primitiveWgsl.ts`). */
-export const FRAME_ROW_WORDS = 7
+export const FRAME_ROW_WORDS = 9
 type DagCluster = {
   url: string
   /** Its quantized page: with `url`, the content key the pool holds it under
@@ -62,6 +62,8 @@ export type DagRoot = {
   placement?: PlacementOf
   /** Its root mark (`ClusterRoot.mark`): one never culled takes planes no box leaves. */
   mark?: number
+  /** The distances it is drawn at (`ClusterRoot.drawDistance`): none when absent. */
+  drawDistance?: DrawDistance
   /** Its primitive's culling hierarchy, with its upward links when the host derived them, shared
    *  by every placement of the primitive (`../cut/links.ts`). */
   culling?: { nodes: Float64Array; stride: number; links?: CullingLinks }
@@ -131,6 +133,10 @@ export type PackedDag = {
    *  in the low sixteen bits, the deformation reach as a half float above (`rootMark`) —, as
    *  `markWorld` last wrote it, else the root's mark. */
   mark: Uint32Array
+  /** Per placement, two floats — the distances it is drawn at (`DagRoot.drawDistance`): the
+   *  nearest, then the farthest, 0 for none (`writePrimitiveWords`). Made by the first placement
+   *  that names a farthest one: absent, none does and the cut tests no distance. */
+  drawDistance?: Float32Array
   /** Nodes of each stage, all primitives together: the upper bound of each pass's queue. Its
    *  LENGTH is the depth of the deepest hierarchy, hence the number of descent passes; a second
    *  field to restate it would only be state to keep in agreement. */

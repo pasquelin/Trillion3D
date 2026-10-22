@@ -3,27 +3,43 @@ import {
   environmentVignette,
 } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
-import { settingsDiffer } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { FILM_RULES, type FilmValues } from '../../../../sdk-core/src/contracts/filmOptions.ts'
+import {
+  resolveSettingsInto,
+  settingsDiffer,
+} from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { DISPLAY_FORMAT } from '../../scene/targetFormats.ts'
 import { wantsContractLighting } from '../../frame/prepare/contractLight.ts'
 import { beautyImage } from '../../frame/backend/state/renderScale.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { EXPOSURE_AT, exposureSettings } from '../exposure/frame.ts'
 import type { ExposureSettings } from '../exposure/meterParams.ts'
 import { createFinish, type PostFrame } from './finish.ts'
+import { grainOn } from './filmParams.ts'
 import { localExposureOn, type FinishInput } from './finishParams.ts'
 import { askLocalPrograms, localProgramsReady } from './local.ts'
 
 /** What the finishing's uniform is written from, refilled at each image. */
 const written: FinishInput = {
   settings: {} as ExposureSettings,
+  film: {} as FilmValues,
   vignette: 0,
   auto: false,
   local: false,
   glow: false,
   size: [0, 0],
+  format: DISPLAY_FORMAT,
+  frame: 0,
 }
 /** What the frame's passes share, refilled at each image: an image allocates none. */
 const shared = {} as PostFrame
+/** The film settings of the view, read again by each call into one object. */
+const resolvedFilm = {} as FilmValues
+
+/** The film effects' settings, resolved from the view's context: the one place they are read by
+ *  the finishing. The object is the same at each call. */
+const filmSettings = (rt: WebgpuPagesRuntime) =>
+  resolveSettingsInto(FILM_RULES, rt.context, resolvedFilm)
 
 /** Whether the composition that carries the finishing — the local exposure, the bloom's glow and
  *  the vignette — is compiled: the first call starts its compile, and its failure is told to the
@@ -34,7 +50,7 @@ export function composesFinish(rt: WebgpuPagesRuntime) {
 
 /** Whether the image is finished at all: lit by declared lamps and the beauty one. A view that
  *  shows the albedo, a diagnostic view and a capture show the image as it is. */
-const wanted = (rt: WebgpuPagesRuntime) => wantsContractLighting(rt) && beautyImage(rt)
+export const wanted = (rt: WebgpuPagesRuntime) => wantsContractLighting(rt) && beautyImage(rt)
 
 /** Asks the local exposure's programs of `device` off the frame once an image needs them, the
  *  frame held until they landed (`../../frame/loop/framePipelines.ts`). */
@@ -51,7 +67,10 @@ export function finishMoving(rt: WebgpuPagesRuntime) {
   if (gpu.finishPending) return true
   const finish = gpu.finish
   if (!finish) return false
-  return settingsDiffer(EXPOSURE_RULES, finish.used, exposureSettings(rt))
+  return (
+    settingsDiffer(EXPOSURE_RULES, finish.used, exposureSettings(rt)) ||
+    settingsDiffer(FILM_RULES, finish.usedFilm, filmSettings(rt))
+  )
 }
 
 /**
@@ -75,6 +94,7 @@ export function encodeFinish(
   if (raw || !wanted(rt) || !gpu.deferred || size[0] < 1 || size[1] < 1) return undefined
   const finish = (gpu.finish ??= createFinish(device))
   Object.assign(finish.used, settings)
+  Object.assign(finish.usedFilm, filmSettings(rt))
   written.settings = settings
   finish.copyExposure(encoder, gpu.deferred.uniform, EXPOSURE_AT)
   finish.scene.begin(encoder, image, size[0], size[1])
@@ -95,9 +115,12 @@ export function encodeFinish(
 
 /**
  * The group the composition reads to finish the image: the local exposure's layers, the bloom's
- * `glow` the effect chain left, the vignette and the settings they are written from. None where
- * the finishing draws nothing — the plain composition —, and while the composition that carries
- * it compiles (`finishPending`: the image is drawn without it, and drawn again once it has).
+ * `glow` the effect chain left, the grain's texture where the grain is drawn, the vignette, the
+ * film and the settings they are written from. The dither is drawn on every image the finishing
+ * shows, so the group is never absent but while the composition that carries it compiles
+ * (`finishPending`: the image is drawn without it, and drawn again once it has). The film's
+ * settings and the image's number are written into the uniform: the grain and the dither follow
+ * the number.
  */
 export function finishedGroup(
   rt: WebgpuPagesRuntime,
@@ -108,18 +131,19 @@ export function finishedGroup(
   gpu.finishPending = false
   const { finish, deferred } = gpu
   if (!post || !finish || !deferred) return undefined
-  const { environment } = rt.lights.store
-  const vignette = environmentVignette(environment)
-  if (!post.local && !glow && !(vignette > 0)) return undefined
   if (!composesFinish(rt)) {
     gpu.finishPending = true
     return undefined
   }
-  written.vignette = vignette
+  const { environment } = rt.lights.store
+  const film = filmSettings(rt)
+  written.film = film
+  written.vignette = environmentVignette(environment)
   written.auto = environmentExposure(environment) === 'auto'
   written.local = post.local
   written.glow = !!glow
   written.size = post.scene.imageSize
+  written.frame = rt.run.frame
   finish.write(written)
-  return finish.groupFor(post.local, glow)
+  return finish.groupFor(post.local, glow, grainOn(film))
 }

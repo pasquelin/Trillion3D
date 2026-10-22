@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FRAME_ROW_WORDS } from '../types.ts'
-import { RECORD_SHIFT_WORD, ROOT_WORD } from '../frameTable.ts'
+import { DRAW_FAR_WORD, DRAW_NEAR_WORD, RECORD_SHIFT_WORD, ROOT_WORD } from '../frameTable.ts'
 import { primitiveFrameWords, primitiveWordAt, changedWorlds } from './worlds.ts'
 
 const WORLDS = 4
@@ -58,4 +58,24 @@ test('the frame words carry each primitive root and record shift, as the kernel 
     assert.equal(ints[at + RECORD_SHIFT_WORD], packed.recordShift[w])
   }
   assert.equal((12 + ints[primitiveWordAt(1) + RECORD_SHIFT_WORD]) >>> 0, 2)
+})
+
+test('the frame words carry the distances each placement is drawn at as floats, none as zero', () => {
+  const placed = { world: { elements: new Float64Array(16) } }
+  const packed = {
+    worldCount: 3,
+    worldSources: [placed, placed, placed],
+    rootNodes: Uint32Array.of(0, 0, 0),
+    recordShift: Uint32Array.of(0, 0, 0),
+    // The first names no distance, the second a nearest and a farthest, the third a farthest alone.
+    drawDistance: Float32Array.of(0, 0, 12.5, 400.25, 0, 90),
+  }
+  const frames = primitiveFrameWords(packed)
+  const word = (w: number, k: number) => frames[primitiveWordAt(w) + k]
+  assert.deepEqual([word(0, DRAW_NEAR_WORD), word(0, DRAW_FAR_WORD)], [0, 0])
+  assert.deepEqual([word(1, DRAW_NEAR_WORD), word(1, DRAW_FAR_WORD)], [12.5, 400.25])
+  assert.deepEqual([word(2, DRAW_NEAR_WORD), word(2, DRAW_FAR_WORD)], [0, 90])
+  // A packing that names none leaves both words zero, a placement drawn at every distance.
+  const none = primitiveFrameWords({ ...packed, drawDistance: undefined })
+  assert.equal(none[primitiveWordAt(1) + DRAW_FAR_WORD], 0)
 })

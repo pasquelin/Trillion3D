@@ -15,18 +15,26 @@
  * `{ color, density, heightFalloff?, baseHeight? }`, a medium of `density` per metre
  * (Beer-Lambert, `T = exp(−density · d)` where nothing falls off), divided by e every
  * `1 / heightFalloff` metres up: a spelling of the height law, mapped to it exactly.
+ * The height fog also takes a second layer, an end distance, a cubemap and a volume
+ * (`fogHeight.ts`), each off by default.
  */
-import { EngineError } from '../../contracts/cache.ts'
 import type { LinearRgb } from '../../contracts/material.ts'
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
+import { DEG2RAD } from '../../../../math/src/constants.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { colourOf, finite, objectOf, rangedFields, refuse, type FogRange } from './fogChecks.ts'
+import { cubemapMipCount, validateFogCubemap } from './fogCubemap.ts'
 import {
   heightFogOf,
   isExtinctionFog,
+  type ResolvedHeightFog,
   type SceneFogDirectional,
   type SceneHeightFog,
 } from './fogHeight.ts'
+import { validateSecondLayer } from './fogSecond.ts'
+import { validateVolumetricFog } from './fogVolumetric.ts'
 
+export { finite }
 export type { SceneFogDirectional, SceneHeightFog } from './fogHeight.ts'
 
 /** Fog that starts at `near` and hides everything from `far` on, distances from the eye. */
@@ -62,41 +70,39 @@ export type SceneFog = SceneLinearFog | SceneExponentialFog | SceneHeightFog
  *  is the height law. */
 export const FOG_MODE = { none: 0, linear: 1, exponential: 2 } as const
 
-/** The `vec4` slots of a fog in a GPU block, by number: the colour and the mode; the law's four
- *  numbers (`near, far`, or `baseDensity, falloff, baseHeight, maxOpacity`); `startDistance,
- *  cutoffDistance`, then the lobe's exponent and start distance; the lobe's colour; the factor of
- *  the sky's radiance; the unit direction toward the sun and its luminance, written by the light
- *  store (`../light/fogSun.ts`), not by `packFog`. */
-export const FOG_SLOT = { color: 0, law: 1, range: 2, lobe: 3, sky: 4, sun: 5 } as const
+/** The `vec4` slots of a fog in a GPU block, by number: the colour — a cubemap's tint where there
+ *  is a cubemap — and the mode; the law's four numbers (`near, far`, or `baseDensity, falloff,
+ *  baseHeight, maxOpacity`); `startDistance, cutoffDistance`, then the lobe's exponent and start
+ *  distance; the lobe's colour; the factor of the sky's radiance; the unit direction toward the sun
+ *  and its luminance, written by the light store (`../light/fogSun.ts`), not by `packFog`; the
+ *  second layer's `baseDensity, falloff, baseHeight`; the reach — `horizontalLimit`, the volume's
+ *  `farEnd` and `startAt`, and 1 where the scene turns the volume on; the cubemap's
+ *  rotation `sin, cos`, its size in texels and 1 where there is one; its blend, `1 / range` and
+ *  `bias`. */
+export const FOG_SLOT = {
+  color: 0,
+  law: 1,
+  range: 2,
+  lobe: 3,
+  sky: 4,
+  sun: 5,
+  second: 6,
+  reach: 7,
+  cubemap: 8,
+  cubeBlend: 9,
+} as const
 /** `vec4` slots of a fog in a GPU block. */
-export const FOG_SLOTS = 6
+export const FOG_SLOTS = 10
 /** Floats of a fog in a GPU block: four to a slot. Written as a literal, so a bundle that packs no
  *  fog keeps none. */
-const SCENE_FOG_FLOATS = 24
+const SCENE_FOG_FLOATS = 40
 
 /** The thinnest density and the lowest opacity a fog that shows may have: at or below them it
  *  hides nothing, and is not drawn. */
 const MIN_DENSITY = 1e-9
 const MIN_OPACITY = 1e-5
-/** What a linear fog leaves of its law's last two floats, the range slot and the lobe slot. */
-const NO_RANGE = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 /** The lobe's exponent, held where a power of it stays defined. */
 const LOBE_EXPONENT = [1e-6, 1000] as const
-
-/** A finite number, the one test every scene contract field is read with. */
-export const finite = (value: unknown): value is number =>
-  typeof value === 'number' && isFinite(value)
-const refuse = (message: string, fog: unknown): never => {
-  throw new EngineError('INVALID_SCENE_ENVIRONMENT', `fog: ${message}`, { fog })
-}
-
-/** A colour of three finite numbers ≥ 0, a copy. */
-function colourOf(color: unknown, name: string, fog: unknown): LinearRgb {
-  if (!Array.isArray(color) || color.length !== 3 || !color.every((c) => finite(c) && c >= 0))
-    refuse(`${name} expects three finite numbers ≥ 0`, fog)
-  const [r, g, b] = color as number[]
-  return [r, g, b]
-}
 
 /** The numbers of a height fog, each with the range it must lie in. */
 const HEIGHT_RANGES = {
@@ -106,50 +112,54 @@ const HEIGHT_RANGES = {
   maxOpacity: [0, 1],
   startDistance: [0, Infinity],
   cutoffDistance: [0, Infinity],
-} as const
-
-/** `value` where it lies in `[lo, hi]`, else the fog refused by `name`. */
-function ranged(value: unknown, name: string, [lo, hi]: readonly number[], fog: unknown) {
-  if (finite(value) && value >= lo && value <= hi) return value
-  const wanted = lo === -Infinity ? 'finite' : hi === Infinity ? `≥ ${lo}` : `in [${lo}, ${hi}]`
-  return refuse(`${name} must be ${wanted}`, fog)
-}
+  horizontalLimit: [0, Infinity],
+} as const satisfies Record<string, FogRange>
 
 /** A height fog checked, a copy of what it declares: its colours of three numbers ≥ 0, `baseHeight`
  *  finite, the other numbers ≥ 0, `maxOpacity` in [0, 1], the lobe's exponent above 0. */
 function validateHeightFog(fog: SceneHeightFog): SceneHeightFog {
   const out: SceneHeightFog = {}
   if (fog.color !== undefined) out.color = colourOf(fog.color, 'color', fog)
-  for (const [name, range] of Object.entries(HEIGHT_RANGES)) {
-    const key = name as keyof typeof HEIGHT_RANGES
-    if (fog[key] !== undefined) out[key] = ranged(fog[key], name, range, fog)
-  }
+  rangedFields(fog, out, HEIGHT_RANGES, fog)
   if (fog.skyContribution !== undefined)
     out.skyContribution = colourOf(fog.skyContribution, 'skyContribution', fog)
-  const lobe = fog.directional
-  if (lobe !== undefined) {
-    if (typeof lobe !== 'object' || lobe === null) refuse('directional expects an object', fog)
+  if (fog.directional !== undefined) {
+    const lobe = objectOf<SceneFogDirectional>(fog.directional, 'directional', fog)
     const kept: SceneFogDirectional = {}
     if (lobe.exponent !== undefined) {
       if (!finite(lobe.exponent) || lobe.exponent <= 0)
         refuse('directional.exponent must be > 0', fog)
       kept.exponent = lobe.exponent
     }
-    if (lobe.startDistance !== undefined)
-      kept.startDistance = ranged(
-        lobe.startDistance,
-        'directional.startDistance',
-        [0, Infinity],
-        fog,
-      )
+    rangedFields(lobe, kept, { startDistance: [0, Infinity] }, fog, 'directional.')
     if (lobe.color !== undefined) kept.color = colourOf(lobe.color, 'directional.color', fog)
     out.directional = kept
   }
+  if (fog.secondLayer !== undefined) out.secondLayer = validateSecondLayer(fog.secondLayer, fog)
+  if (fog.cubemap !== undefined) out.cubemap = validateFogCubemap(fog.cubemap, fog)
+  if (fog.volumetric !== undefined) out.volumetric = validateVolumetricFog(fog.volumetric, fog)
   return out
 }
 
 /** Whether a fog is the linear one: it declares a `near` or a `far`. */
 const isLinear = (fog: SceneFog): fog is SceneLinearFog => 'near' in fog || 'far' in fog
+
+/** The height fog a scene's fog is, every field set: none for no fog or a distance fog, which has
+ *  neither a volume nor a cubemap. */
+export const sceneHeightFog = (fog: SceneFog | undefined) =>
+  fog && !isLinear(fog) ? heightFogOf(fog) : undefined
+
+/** Whether a height fog shows: its densities, the two layers' summed, above the thinnest, and its
+ *  opacity above the lowest. The one predicate the block is written by and the volume is built by:
+ *  a fog that shows nothing has no block and no volume. */
+export const fogShows = (h: ResolvedHeightFog) =>
+  h.baseDensity + h.second.baseDensity > MIN_DENSITY && h.maxOpacity > MIN_OPACITY
+
+/** The height fog a scene's fog is where it shows (`fogShows`), none otherwise. */
+export function shownHeightFog(fog: SceneFog | undefined) {
+  const h = sceneHeightFog(fog)
+  return h && fogShows(h) ? h : undefined
+}
 
 /** Checks a fog and returns it validated, a copy: a linear fog, a colour of three finite numbers
  *  ≥ 0 and `0 ≤ near < far`; an extinction-form fog, its colour, `density ≥ 0`,
@@ -172,32 +182,76 @@ export function validateSceneFog(fog: SceneFog): SceneFog {
   return { color: rgb, near, far }
 }
 
-/** The floats of a fog's first five slots, the order `FOG_SLOT` gives; none where the fog hides
- *  nothing. A distance fog takes the sky's radiance as it is (the factor 1). */
-function numbersOf(fog: SceneFog | undefined): number[] {
+/** The fog's cubemap block: its rotation, its levels and the switch, then its blend — the inverse
+ *  of the range between its two distances (a metre of them is never narrower than a hundred
+ *  thousandth of a centimetre) and its bias; none where there is no cubemap. */
+function cubemapSlots(h: ResolvedHeightFog) {
+  const cube = h.cubemap
+  if (!cube) return {}
+  const radians = cube.turn * DEG2RAD
+  const inverse = 1 / Math.max(cube.sharpFrom - cube.averageUntil, 1e-7)
+  return {
+    cubemap: [Math.sin(radians), Math.cos(radians), cubemapMipCount(cube.size), 1],
+    cubeBlend: [inverse, -cube.averageUntil * inverse],
+  }
+}
+
+/** The slots of a fog's block by name (`FOG_SLOT`), each its numbers from the first lane. */
+type FogSlots = Partial<Record<keyof typeof FOG_SLOT, readonly number[]>>
+
+/** The floats of the slots, each padded to four, in the order `FOG_SLOT` gives; the sun's slot, which
+ *  the light store writes, and every slot left out are zero. */
+function floatsOf(slots: FogSlots): number[] {
+  return (Object.keys(FOG_SLOT) as (keyof typeof FOG_SLOT)[]).flatMap((name) => {
+    const lanes = slots[name] ?? []
+    return [0, 1, 2, 3].map((lane) => lanes[lane] ?? 0)
+  })
+}
+
+/** The floats of a fog's block (`floatsOf`) from its resolved height fog `h` where it is one; none
+ *  where the fog hides nothing. A distance fog takes the sky's radiance as it is (the factor 1). */
+function numbersOf(fog: SceneFog | undefined, h = sceneHeightFog(fog)): number[] {
   if (!fog) return []
   if (isLinear(fog))
-    return [...fog.color, FOG_MODE.linear, fog.near, fog.far, ...NO_RANGE, 1, 1, 1, 0]
-  const h = heightFogOf(fog)
-  if (h.baseDensity <= MIN_DENSITY || h.maxOpacity <= MIN_OPACITY) return []
+    return floatsOf({
+      color: [...fog.color, FOG_MODE.linear],
+      law: [fog.near, fog.far],
+      sky: [1, 1, 1],
+    })
+  if (!h || !fogShows(h)) return []
   const { exponent, startDistance, color } = h.directional
-  return [
-    ...h.color,
-    FOG_MODE.exponential,
-    h.baseDensity,
-    h.falloff,
-    h.baseHeight,
-    h.maxOpacity,
-    h.startDistance,
-    h.cutoffDistance,
-    clamp(exponent, LOBE_EXPONENT[0], LOBE_EXPONENT[1]),
-    startDistance,
-    ...color,
-    0,
-    ...h.skyContribution,
-    0,
-  ]
+  const volume = h.volumetric
+  return floatsOf({
+    color: [...(h.cubemap ? h.cubemap.tint : h.color), FOG_MODE.exponential],
+    law: [h.baseDensity, h.falloff, h.baseHeight, h.maxOpacity],
+    range: [h.startDistance, h.cutoffDistance, clamp(exponent, ...LOBE_EXPONENT), startDistance],
+    lobe: color,
+    sky: h.skyContribution,
+    second: [h.second.baseDensity, h.second.falloff, h.baseHeight + h.second.heightShift],
+    reach: [
+      h.horizontalLimit,
+      volume?.farEnd ?? 0,
+      volume?.startAt ?? 0,
+      volume && volume.farEnd > 0 ? 1 : 0,
+    ],
+    ...cubemapSlots(h),
+  })
 }
+
+/** What a volume carries that the block does not: the scatter, the particleColor, the glow, the
+ *  extinction scale, the fade-in and the switch of the light colours; empty where it is off. Two
+ *  fogs that differ in it light the volume differently. */
+const volumeNumbers = (v: ResolvedHeightFog['volumetric']): number[] =>
+  v
+    ? [
+        v.anisotropy,
+        ...v.particleColor,
+        ...v.glow,
+        v.densityScale,
+        v.fadeInRate,
+        v.useFogColors ? 1 : 0,
+      ]
+    : []
 
 /** Writes a fog into its GPU block at `offset` (`FOG_SLOT`); all zero, mode none, without one or
  *  where it hides nothing. The sun's slot is left to the light store. */
@@ -207,6 +261,16 @@ export function packFog(fog: SceneFog | undefined, out: Float32Array, offset: nu
   return out
 }
 
-/** True when two validated fogs, or their absence, read the same in the GPU block. */
-export const sameSceneFog = (a: SceneFog | undefined, b: SceneFog | undefined) =>
-  a === b || sameValues(numbersOf(a), numbersOf(b))
+/** True when two validated fogs, or their absence, read the same: in the GPU block, in the volume's
+ *  numbers, and in the cubemap's picture (the array itself, so that a picture set again, though it
+ *  be the same size, is a change). Each is resolved once. */
+export function sameSceneFog(a: SceneFog | undefined, b: SceneFog | undefined) {
+  if (a === b) return true
+  const ha = sceneHeightFog(a),
+    hb = sceneHeightFog(b)
+  return (
+    sameValues(numbersOf(a, ha), numbersOf(b, hb)) &&
+    sameValues(volumeNumbers(ha?.volumetric), volumeNumbers(hb?.volumetric)) &&
+    ha?.cubemap?.texels === hb?.cubemap?.texels
+  )
+}

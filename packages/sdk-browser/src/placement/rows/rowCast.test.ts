@@ -15,7 +15,11 @@ import { LOD_BIT } from '../../lighting/shadows/casters/rowLodWords.ts'
 import { DOUBLE_HELPERS, pair } from '../compose/composeDoubles.fixture.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
-import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../../lighting/shadows/mobilityBits.ts'
+import {
+  MOBILITY_FAR_SHADOW,
+  MOBILITY_MOVING,
+  MOBILITY_SHADOWLESS,
+} from '../../lighting/shadows/mobilityBits.ts'
 import { CAST_HEADER_WORDS, CAST_RECORD_WORDS } from '../../lighting/shadows/casters/castChanges.ts'
 
 const ROWS = 2,
@@ -163,6 +167,23 @@ test('a caster hidden stales where it stood, shown again where it stands, releas
   const arrived = taken()
   assert.equal(arrived.length, 1)
   assert.ok(holds(arrived[0], 10), 'an arrival: the pose it enters, the CPU declaring none')
+})
+
+// A sun's far-shadow test keeps a caster that casts far shadows (`MOBILITY_FAR_SHADOW`) and leaves
+// out the one that does not: the pages it was drawn into hold it, or not, by that flag alone.
+test('a caster that starts or stops casting far shadows stales where it stands, and no more', () => {
+  const { run, mobility, taken } = rig()
+  run.deriveRow(1)
+  taken()
+  for (const word of [MOBILITY_FAR_SHADOW, 0]) {
+    mobility[1] = word
+    run.deriveRow(1)
+    const flipped = taken()
+    assert.equal(flipped.length, 1, 'its one box: the pose it stands at')
+    assert.ok(holds(flipped[0], 10) && !flipped[0].moving)
+    run.deriveRow(1)
+    assert.deepEqual(taken(), [], 'derived again with the same flag: nothing')
+  }
 })
 
 test('a change past the list sets its overflow flag, which stales every page', () => {

@@ -18,8 +18,9 @@ export const VIS_VOXEL_VERTEX = 'vis_voxel_vs',
  * hands its pixels the ray through it (`voxelRay`); the pixel traces it (`voxelPixel`) and takes
  * the visibility write (`VIS_WRITE_WGSL`) at the depth of the first voxel it meets, its identifier
  * the box's triangle — the resolve finds the voxel again from there —, or nothing: a hit in front
- * of the near plane or behind the far one is none. Both phases trace the same ray, so a pixel meets
- * the key it wrote. Rows draw here on layer 0 alone (`itemWords.ts`): no coplanar units raise
+ * of the near plane or behind the far one is none, and so is one behind the view's clip plane — the
+ * plane brought into the brick's cells, which the hit's point is read in. Both phases trace the same
+ * ray, so a pixel meets the key it wrote. Rows draw here on layer 0 alone (`itemWords.ts`): no coplanar units raise
  * their key. These slots are drawn last of a half, and only on a frame whose table holds a voxel
  * row (`drawVis`).
  */
@@ -33,7 +34,7 @@ ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
 ${VIS_WORK_BINDING}
 override ${VIS_ID_PHASE}:bool=false;
-struct VisVoxelIn{@builtin(position) @invariant position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) start:vec3f,@location(2) dir:vec3f,@location(3) depth:vec4f,@location(4) @interpolate(flat) cells:vec3u,}
+struct VisVoxelIn{@builtin(position) @invariant position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) start:vec3f,@location(2) dir:vec3f,@location(3) depth:vec4f,@location(4) @interpolate(flat) cells:vec3u,@location(5) @interpolate(flat) plane:vec4f,}
 @vertex fn ${VIS_VOXEL_VERTEX}(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VisVoxelIn{
  var out:VisVoxelIn;
  let at=drawBatch(instanceIndex);let page=pages[at.x];let corner=at.y+vertexIndex;
@@ -43,6 +44,7 @@ struct VisVoxelIn{@builtin(position) @invariant position:vec4f,@location(0) @int
  let o=voxelBoxPoint(box,v);
  let m=uni.viewProj*page.world*voxelCarry(page,brick)*voxelCells(page,brick);
  out.position=m*vec4f(o,1.0);
+ out.plane=transpose(page.world*voxelCarry(page,brick)*voxelCells(page,brick))*uni.clipPlane;
  let r=voxelRay(mask,box,o,m);
  out.start=r.start;out.dir=r.dir;out.depth=r.depth;out.cells=r.cells;
  out.id=page.packedBase|visTriangle(corner/3u);
@@ -52,6 +54,7 @@ struct VisVoxelIn{@builtin(position) @invariant position:vec4f,@location(0) @int
  let hit=voxelPixel(in.start,in.dir,in.cells);
  let z=voxelDepth(in.depth,hit.t);
  if(!hit.found||!(z>=0.0&&z<=1.0)){return;}
+ if(dot(in.plane.xyz,in.start+in.dir*hit.t)+in.plane.w<0.0){return;}
  let offset=pixelOffset(vec2u(in.position.xy));
  let key=visKey(z,0u);
  if(!visPasses(offset,key,${VIS_ID_PHASE})){return;}

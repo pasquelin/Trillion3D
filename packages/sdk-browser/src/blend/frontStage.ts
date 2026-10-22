@@ -6,6 +6,7 @@ import { blendFrontShader, blendReflects } from './frontStageWgsl.ts'
 import { hasPhysicalLobes } from '../materials/surface/physicalLobes.ts'
 import { cullOf } from './plan/planCull.ts'
 import type { PageSurface } from '../geometry/pages/surface.ts'
+import { hasClipDistances } from '../gpu/core/clipDistances.ts'
 
 /** What a front pass of the transparents `items` writes (`FrontOutputs`): nothing past the covering
  *  depth and flags unless one reflects, the lobes too where one carries a lobe. The one decision of
@@ -33,7 +34,7 @@ export function createFrontStages(device: GPUDevice, layout: GPUBindGroupLayout)
       if (culls) return culls
       const module = device.createShaderModule({
         label: 'Trillion3D front stage',
-        code: blendFrontShader(outputs),
+        code: blendFrontShader(outputs, hasClipDistances(device)),
       })
       const fragment = {
         module,

@@ -29,7 +29,7 @@
  * base map's read, the material's where they reflect, no lighting —; the trace over the view, T pixels
  * traced, reused and accumulated as the opaque surface's (`trace/trace.ts`), the rest a flag load each; a
  * forward fragment of the front layer, a depth texel and an 8-byte load. Worst case of
- * a fragment: a deeper one, the screen march (`REFLECTION_MARCH_STEPS` iterations) and the probes, no proxy
+ * a fragment: a deeper one, the screen march (`reflectionScreenSteps` iterations) and the probes, no proxy
  * ray. Floor: the opaque trace's own cost, on the T pixels the reflecting transparents cover.
  *
  * Bytes: 4 + 4 a pixel (depth, flags) with blends; 8 + 8 + 23 more (normals, radiance, the grid's 28
@@ -47,13 +47,13 @@ import { HIZ_LEVEL0_FORMAT } from '../../visibility/hiz/gpu/level0.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { TRANSPARENT_FRONT_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { createKernelTexture, createReflectionGrids, gridBytes } from './grids.ts'
+import { storageTextureLayout } from '../../gpu/core/computeBindings.ts'
 
 /** The format of the front's traced radiance: the base's and the coat's words. */
 export const FRONT_TRACED_FORMAT: GPUTextureFormat = 'rg32uint'
-/** How a fragment binds it: words, read by load (the blend's group). */
-export const FRONT_TRACED_LAYOUT: { texture: GPUTextureBindingLayout } = {
-  texture: { sampleType: 'uint' },
-}
+/** How a fragment binds it: words, read by load alone, as a read-only storage texture (the blend's
+ *  group, `loadOnlyTarget`): none of the sixteen sampled textures of the stage is spent on it. */
+export const FRONT_TRACED_LAYOUT = storageTextureLayout(FRONT_TRACED_FORMAT)
 /** The front pass's outputs in their locations' order, each written from the `FrontOutputs` it names
  *  on: the Hi-Z front layer's covering depth, the surface buffer's flags and normal, the lobes'. */
 const FRONT_OUTPUT = {

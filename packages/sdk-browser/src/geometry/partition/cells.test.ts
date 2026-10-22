@@ -4,8 +4,10 @@ import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { pose } from '../../scene/host/prepared/nodes.ts'
 import { chainWorld } from '../../../../../tests/kit/assert/chainWorld.ts'
 import type { PlacementRows } from '../../placement/rows/rows.ts'
+import { resolveWorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import { between, cellUrl, io, noBudget, opened, settled, world } from './cells.fixture.ts'
 import { sizedWhole } from './cells.fixture.ts'
+import { rowCell } from './rowCells.ts'
 
 const row = (rows: PlacementRows, at: number) => [...rows.matrices.subarray(at * 16, at * 16 + 16)]
 
@@ -142,4 +144,82 @@ test('a world that poses the scene root reads the cells its camera sees there', 
   const { port, asked } = io(bytes)
   await settled(cells, [2, 0, 0], port, noBudget)
   assert.deepEqual([...new Set(asked)], [cellUrl('far.json')])
+})
+
+test('a view moving within a step keeps its wishes, one past it plans them again', async () => {
+  // Ranges of 2 802 m: the far cell, 5 000 m away, is wished from x = 2 198 on, the squares of the
+  // update (4 m wide) cut it at 2 196 and 2 200: 2 199 and 2 197 lie in one.
+  const { cells, bytes } = await sizedWhole(world(0, null, [], [2802, 2802, 5600]))
+  const { port, held } = io(bytes)
+  ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
+  const ahead = [0, 0, -1]
+  const frame = (x: number) => cells.frame([x, 0, 0], port, noBudget, ahead)
+  await settled(cells, [2199, 0, 0], port, noBudget, ahead)
+  // The first frame left no work, the next keeps the square: the update skips from there on.
+  frame(2199)
+  frame(2199)
+  assert.equal(cells.stats().held, 2, 'both cells are placed')
+  frame(2197)
+  assert.equal(cells.stats().held, 2, 'the far cell, out of range by 1 m, stays: the square holds')
+  frame(2193)
+  assert.equal(cells.stats().held, 1, 'the square left: the far cell leaves')
+})
+
+test('a view that asks to load only tells the cut its cells are not activated, and loads them as ever', async () => {
+  for (const state of ['activated', 'loaded'] as const) {
+    const { cells, bytes } = await sizedWhole(world())
+    const { port, held } = io(bytes)
+    const told: boolean[] = []
+    port.world = {
+      activated: (on: boolean) => void told.push(on),
+      hlodEnabled() {},
+      blockingLoad() {},
+      fileShown: () => false,
+    } as never
+    port.streaming = resolveWorldStreaming({ worldStreamingTargetState: state })
+    ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
+    await settled(cells, between, port, noBudget)
+    cells.frame(between, port, noBudget)
+    assert.equal(cells.stats().held, 2, `${state}: both cells are placed`)
+    assert.deepEqual([...new Set(told)], [state === 'activated'], state)
+  }
+})
+
+test('the update is keyed on the camera in the world: a scene shrunk a hundred times still skips', async () => {
+  // The root at a hundredth: a unit of the cells' frame is a centimetre of the world. The far cell,
+  // 5 000 units off, is wished from 21.98 m of the world on (ranges of 2 802 units); the squares of
+  // the update are 4 m of the world wide, 20 to 24 holding 22.5 and 21.9.
+  const { cells, root, bytes } = await sizedWhole(world(0, null, [], [2802, 2802, 5600]))
+  root.scale.set(0.01, 0.01, 0.01)
+  const { port, held } = io(bytes)
+  ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
+  const ahead = [0, 0, -1]
+  const frame = (x: number) => cells.frame([x, 0, 0], port, noBudget, ahead)
+  await settled(cells, [22.5, 0, 0], port, noBudget, ahead)
+  frame(22.5)
+  frame(22.5)
+  assert.equal(cells.stats().held, 2, 'both cells are placed')
+  frame(21.9)
+  assert.equal(cells.stats().held, 2, 'out of range by 0.08 m, in the square: the far cell stays')
+  frame(19)
+  assert.equal(cells.stats().held, 1, 'the square left: the far cell leaves')
+})
+
+test('a cell placed in the last frame before a still view gets its HLOD word at the next frame', async () => {
+  // The main grid reaches 2 000, the HLOD 0 grid 4 000: from x = 1 500 the far cell, 3 500 away, is
+  // placed for its HLOD 0 cell and draws as its actor; the near one draws its source meshes.
+  const { cells, links, bytes } = await sizedWhole(world(0, null, [], [2000, 4000, 8000]))
+  const { port, held } = io(bytes)
+  ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
+  const ahead = [0, 0, -1]
+  await settled(cells, [1500, 0, 0], port, noBudget, ahead)
+  cells.frame([1500, 0, 0], port, noBudget, ahead)
+  assert.equal(cells.stats().held, 2, 'both cells are placed')
+  const rows = links[0].placements!
+  const proxies = new Map<number, boolean[]>()
+  for (let index = 0; index < 3; index++) {
+    const at = rowCell(rows, index)!
+    proxies.set(at.cell, [...(proxies.get(at.cell) ?? []), at.proxy])
+  }
+  assert.deepEqual([...proxies.values()].sort(), [[false, false], [true]])
 })

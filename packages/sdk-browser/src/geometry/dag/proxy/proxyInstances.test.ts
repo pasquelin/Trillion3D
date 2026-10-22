@@ -183,3 +183,30 @@ test('the placements that wear a proxy and the triangles they wear are counted, 
   roots.forEach((_, w) => boxes.mark(w))
   assert.deepEqual(boxes.worldBoxes().worn, { placements: 0, triangles: 0 })
 })
+
+test('a proxy instance out of its object’s draw distances is met by no ray, back in it is met again', async () => {
+  const c = cut(2, 1, 1),
+    s = surface(1)
+  const { gpu, selection } = await open(() => ({ primitive: { runtimeProxy: c }, surface: s }), {
+    min: 0,
+    max: 5,
+  })
+  const node = (w: number) => instanceAt(gpu, w, INSTANCE.node)
+  // Sixteen placements 3 m apart on x and -z: the eye at the first meets those within 5 m of it.
+  selection.proxyDistance([0, 0, 0], 1)
+  assert.deepEqual([0, 1, 4, 5].map(node), [0, 0, 0, 0], 'within 5 m')
+  assert.deepEqual([2, 10, 15].map(node), [NO_INDEX, NO_INDEX, NO_INDEX], 'past 5 m')
+  // The eye moves to the last: the others are met again, the first out of reach.
+  selection.proxyDistance([9, 0, -9], 1)
+  assert.deepEqual([node(15), node(0)], [0, NO_INDEX])
+  // The view's scale multiplies the distances; the cull off, every instance is met.
+  selection.proxyDistance([0, 0, 0], 3)
+  assert.equal(node(15), 0, '3 times 5 m reaches 12.7 m')
+  selection.proxyDistance([0, 0, 0], undefined)
+  assert.deepEqual([node(2), node(15)], [0, 0], 'the cull off')
+  selection.proxyDistance([0, 0, 0], 1)
+  selection.parkWorld(2, true)
+  selection.parkWorld(2, false)
+  assert.equal(node(2), NO_INDEX, 'taken back out of its distance, a placement stays unmet')
+  selection.dispose()
+})

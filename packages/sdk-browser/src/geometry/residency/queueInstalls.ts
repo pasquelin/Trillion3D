@@ -3,8 +3,10 @@
 // its failure leaves.
 import type { GpuPageCache } from '../pages/pool/pages.ts'
 import type { PageRec } from '../selection/types.ts'
-import { pageAddress } from '../rows/page/pageSlots.ts'
+import { pageAddress, paddedPageBytes } from '../rows/page/pageSlots.ts'
 import { isCancelled } from '../../session/engine/common.ts'
+import { cpuNow } from '../../diagnostic/stopwatch.ts'
+import { MIB } from '../../../../math/src/constants.ts'
 import type { QueueState, Started } from './queueState.ts'
 import { dependOn, letGo, residentAddress, takeDesired, unloadStranded } from './queueHold.ts'
 
@@ -61,20 +63,27 @@ function keepVictim(s: QueueState, entry: Started) {
   takeDesired(s, victim.unit)
 }
 
-/**
- * `entry`'s streaming page never came whole: its start ends, the pages of it that landed let go
- * with it, its victim kept. A loss withdraws the device and ends the loop; a cancellation is no
- * failure; a pool that had no slot after all leaves it to a later update; any other failure is the
- * streaming page's for good — never started again — and said.
- */
-function missed(s: QueueState, entry: Started, error: unknown) {
-  if (s.cache !== entry.cache) return
+/** `entry`'s start ends with no install: the pages of it that landed let go with it, its victim
+ *  kept. False for a start of another pool, which is no business of this one. */
+function undone(s: QueueState, entry: Started) {
+  if (s.cache !== entry.cache) return false
   if (entry.cover) s.covering.delete(entry.unit)
   else {
     letGo(s, entry.unit)
     unloadStranded(s, entry.cache, entry.unit)
   }
   keepVictim(s, entry)
+  return true
+}
+
+/**
+ * `entry`'s streaming page never came whole: its start ends (`undone`). A loss withdraws the device
+ * and ends the loop; a cancellation is no failure; a pool that had no slot after all leaves it to
+ * a later update; any other failure is the streaming page's for good — never started again — and
+ * said.
+ */
+function missed(s: QueueState, entry: Started, error: unknown) {
+  if (!undone(s, entry)) return
   if (/LOST|DISPOSED/i.test(String(error))) {
     // The withdrawal precedes the report: a host reading the canvas finds nothing stale.
     s.lost ??= error
@@ -85,6 +94,13 @@ function missed(s: QueueState, entry: Started, error: unknown) {
   if (isCancelled(s.o.signal) || String(error).includes('POOL_FULL')) return
   s.refused.add(entry.unit)
   s.o.diagnosticFailure('coverage-upload-failed', error)
+}
+
+/** `entry`'s bytes came, but its object went invalid meanwhile — another page of it was given up:
+ *  its start ends (`undone`) and its streaming page is refused, never started again. The failure
+ *  that made the object invalid was said when it happened. */
+function skipped(s: QueueState, entry: Started) {
+  if (undone(s, entry)) s.refused.add(entry.unit)
 }
 
 /** The install loop, started when there is work and none runs. */
@@ -98,11 +114,52 @@ export function pumpOn(s: QueueState) {
 /** Refills the frame's installs at each new frame, `maxInstallsPerFrame` streaming pages, and
  *  returns the installs left to it now. */
 function refillInstalls(s: QueueState) {
-  if (s.installFrame !== s.gate.count) {
-    s.installFrame = s.gate.count
-    s.installsLeft = s.limits.maxInstallsPerFrame
+  const p = s.pacing
+  if (p.installFrame !== s.gate.count) {
+    p.installFrame = s.gate.count
+    p.installsLeft = s.limits.maxInstallsPerFrame
   }
-  return s.installsLeft
+  return p.installsLeft
+}
+
+/**
+ * The bytes the simulated bandwidth (`streamingBandwidthLimit`, megabytes a second, negative for
+ * none) gives the frame the engine is on: the seconds since the frame it was last paced for, at
+ * that rate, whole bytes — none the first time. Paced once a frame, by the update that begins it
+ * or, when the gate counts a frame no update began, by the first page that asks, with the time that
+ * frame really took. No clock is read while no limit holds.
+ */
+export function paceFrame(s: QueueState, now?: number) {
+  const p = s.pacing,
+    limit = s.limits.bandwidthLimit
+  if (limit < 0) {
+    p.bandwidthAt = undefined
+    return
+  }
+  if (p.bandwidthFrame === s.gate.count) return
+  const at = now ?? cpuNow()
+  p.bandwidthFrame = s.gate.count
+  p.bytesLeft =
+    p.bandwidthAt === undefined ? 0 : Math.floor(((at - p.bandwidthAt) / 1000) * limit * MIB)
+  p.bandwidthAt = at
+}
+
+/**
+ * `entry` takes its bytes from the frame's (`paceFrame`), before its install — the pages of one
+ * frame share them, in the order started, so the rate is the setting's whatever the pages' sizes:
+ * its pages' bytes in the pool's size, whole, counted at its first look. A root page is
+ * installed whole. True while it has bytes left: it and the pages behind it wait for the next
+ * frame.
+ */
+function takeBandwidth(s: QueueState, entry: Started) {
+  if (s.limits.bandwidthLimit < 0 || entry.root) return false
+  paceFrame(s)
+  const p = s.pacing
+  entry.bytesLeft ??= entry.pages.reduce((sum, page) => sum + paddedPageBytes(page), 0)
+  const taken = Math.min(entry.bytesLeft, p.bytesLeft)
+  entry.bytesLeft -= taken
+  p.bytesLeft -= taken
+  return entry.bytesLeft > 0
 }
 
 /** Whether every page of `entry` has its bytes at hand: its reads done, or served from memory. */
@@ -119,7 +176,8 @@ export function hostPages(s: QueueState): PageRec[] {
 }
 
 /** Hands the started streaming pages to the pool in the order started, each once its pages'
- *  bytes are in, at most the frame's installs; ends once none is started nor loading. A page whose
+ *  bytes are in, at most the frame's installs — one whose object went invalid meanwhile is
+ *  dropped (`skipped`), not installed —; ends once none is started nor loading. A page whose
  *  bytes the host has not given yet ends it too: that page and those after it stay started, in
  *  their order, and the next update (`pumpOn`) looks again — nothing waits on the host, no loop
  *  spins on it. */
@@ -145,12 +203,18 @@ async function run(s: QueueState) {
         await (head.read ?? Promise.all(s.loads))
         continue
       }
-      if (refillInstalls(s) === 0) {
+      if (head.pages.some(s.o.invalid)) {
+        s.pending.shift()
+        skipped(s, head)
+        freed(s, head)
+        continue
+      }
+      if (refillInstalls(s) === 0 || takeBandwidth(s, head)) {
         await s.gate.next()
         continue
       }
       s.pending.shift()
-      s.installsLeft--
+      s.pacing.installsLeft--
       install(s, head.cache, head)
     }
   } finally {

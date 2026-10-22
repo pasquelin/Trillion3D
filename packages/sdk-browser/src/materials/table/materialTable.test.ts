@@ -4,6 +4,7 @@ import { setFlagsFromString } from 'node:v8'
 import { runInNewContext } from 'node:vm'
 import { createMaterialTable, materialWord } from './materialTable.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
+import { DISPLACEMENT_RECORD, DISPLACEMENT_WORDS } from './displacementRecord.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import { surfaceOf } from '../../geometry/pages/surface.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
@@ -179,4 +180,44 @@ test('the rank of a surface the collector took goes to the next surface', async 
   }
   assert.ok(taken, 'the first surface was never collected')
   assert.equal(materialWord(table.surface(held[0], l).rank, false), 1)
+})
+
+test('a displaced surface has its record written at its rank beside the table, and cleared with it', () => {
+  const table = createMaterialTable()
+  const height = { channel: 2 } as Texture
+  const l = { mapLayer: new Map<Texture, number>(), dataLayer: new Map([[height, 6]]) }
+  const D = DISPLACEMENT_RECORD.at
+  assert.equal(table.displaced.count, 0, 'a scene without one holds none')
+  assert.equal(table.displaced.ints.length, 0, 'and allocates none')
+  table.surface(lit(), l)
+  const surface = {
+    ...lit(),
+    version: 0,
+    displacementMap: height,
+    displacement: { magnitude: 4, center: 0.5, fade: { start: 4, end: 1 } },
+  }
+  const { rank } = table.surface(surface, l)
+  const words = table.displaced.ints,
+    floats = new Float32Array(words.buffer),
+    at = rank * DISPLACEMENT_WORDS
+  assert.equal(rank, 1)
+  assert.deepEqual([...floats.slice(at + D.scale, at + D.scale + 4)], [4, 0.5, 4, 1])
+  assert.deepEqual([words[at + D.map], words[at + D.map + 1]], [6, 2], 'the slot, the texture set')
+  assert.equal(table.displaced.count, 1)
+  // A fade that never fades writes zero for both ends; the count holds, the version moves.
+  const version = table.displaced.version
+  surface.displacement = { magnitude: 2, center: 0, fade: null }
+  surface.version = 1
+  table.surface(surface, l)
+  assert.deepEqual([...floats.slice(at, at + 4)], [2, 0, 0, 0])
+  assert.deepEqual([table.displaced.count, table.displaced.version > version], [1, true])
+  // A surface that stops being displaced, or whose height map the atlas lost, is drawn flat.
+  surface.version = 2
+  l.dataLayer.delete(height)
+  table.surface(surface, l)
+  assert.deepEqual(
+    [...words.slice(at, at + DISPLACEMENT_WORDS)],
+    new Array(DISPLACEMENT_WORDS).fill(0),
+  )
+  assert.equal(table.displaced.count, 0)
 })

@@ -12,6 +12,7 @@ import {
   type RenderOriginFrame,
 } from './renderOrigin.ts'
 import { clipWindowMatrix4 } from '../../../math/src/projection/clip.ts'
+import { NO_VIEW_SET, type ViewSet } from '../../../sdk-core/src/world/camera/viewSet.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
 
 /**
@@ -45,6 +46,10 @@ export interface EngineCamera extends CameraFrame, RenderOriginFrame {
    *  point P toward the camera is `viewPoint.xyz − P·viewPoint.w` for both: the view vector of
    *  the shading reads it, never the eye alone. */
   viewPoint: Float64Array
+  /** The clip plane and the lists of hidden and shown objects the host's camera carries: the
+   *  object it was last read as, replaced at each write, so its identity is its revision
+   *  (`ViewSet`). */
+  viewSet: ViewSet
 }
 
 /** The box an orthographic camera sees, in its own frame, before its zoom. */
@@ -97,6 +102,7 @@ export function createEngineCamera(): EngineCamera {
     aspect: 1,
     perspective: 1,
     viewPoint: new Float64Array(4),
+    viewSet: NO_VIEW_SET,
   }
 }
 

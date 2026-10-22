@@ -1,8 +1,8 @@
 /**
  * The compile options besides the HLOD that a job names — the scene's temporal anti-aliasing, the
  * responsive objects, the settings by material name, the voxelized objects, the partition's scheme
- * and main grid, the mesh build settings and the object settings —, each read by its own contract
- * (`./materialOptions.ts`, `./voxelizeOptions.ts`, `./partitionOptions.ts`,
+ * and main grid or grids, the mesh build settings and the object settings —, each read by its own
+ * contract (`./materialOptions.ts`, `./voxelizeOptions.ts`, `./partitionOptions.ts`,
  * `./meshBuildOptions.ts`, `./objectOptions.ts`) and written in the compiler's form: as job fields
  * (`jobOptionFields`) or as command-line flags (`jobOptionFlags`), each left out when the job names
  * none. What does not read is refused with a `TypeError`.

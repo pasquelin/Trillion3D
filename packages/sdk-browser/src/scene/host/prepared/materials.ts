@@ -7,7 +7,9 @@
  * - the table entry already carries the tangent variant (`normalScaleY`); the variants a primitive
  *   adds — vertex colours, flat shading where it has no normal, both faces where a cloth draws
  *   it — are the variants of its one record (`../../../geometry/pages/surfaceVariant.ts`);
- * - the physical extensions are applied under the parameter names the table writes them with.
+ * - the physical extensions are applied under the parameter names the table writes them with;
+ * - a displaced material declares its height map beside the numbers the compiler resolved
+ *   (`displacementMap`, `displacement`), which the tessellation draws it with.
  */
 import type {
   TableMaterial,
@@ -107,6 +109,12 @@ async function build(materials: readonly TableMaterial[], rank: number, slot: Sl
   if (entry.doubleSided) params.side = 'double'
   if (entry.temporalAntialiasing !== undefined)
     params.temporalAntialiasing = entry.temporalAntialiasing
+  // A displaced material: its height map, a data texture, and the numbers it was resolved to.
+  if (entry.displacement) {
+    const { map, ...numbers } = entry.displacement
+    assign('displacementMap', map)
+    params.displacement = numbers
+  }
   Object.assign(
     params,
     alphaModeFields(entry.alphaMode.toLowerCase() as AlphaMode, entry.alphaTest),

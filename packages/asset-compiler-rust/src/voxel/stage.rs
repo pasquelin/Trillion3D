@@ -26,11 +26,13 @@
 //! is opaque voxels. A group keeps at least one voxel; a mesh none of whose sides keeps one has no
 //! far group, its roots drawn at every distance.
 //! A mesh's voxelization lives in `mesh`, the surface sampling in `surface`, the encoding and report in
-//! `encode`.
+//! `encode`. How a mesh's voxels are sampled — its rays, the level from which every group is
+//! voxels, the spread of its normals, its opacity — is its build's (`VoxelSampling`), one per
+//! source mesh (`VoxelInputs::sampling`).
 use super::bricks::Brick;
 use super::seed::VoxelSeed;
 use super::solid::Voxel;
-use super::{ERROR_PER_SIZE, VOXEL_FILE};
+use super::{VoxelSampling, ERROR_PER_SIZE, VOXEL_FILE};
 use crate::compiler::cache::storage::{product, Product};
 use crate::texture::TexturePreview;
 use crate::Result;
@@ -53,7 +55,7 @@ const GROUP_BYTES: usize = 48;
 const GROWTH: f64 = 1.1;
 
 /// What the stage reads: the scene, its previews, its meshes' map, the compiled primitives and,
-/// beside each, its seed.
+/// beside each, its seed, and how each source mesh's voxels are sampled (its build's).
 pub(crate) struct VoxelInputs<'a> {
     pub g: &'a Value,
     pub bin: &'a [u8],
@@ -61,6 +63,7 @@ pub(crate) struct VoxelInputs<'a> {
     pub mesh_map: &'a BTreeMap<usize, usize>,
     pub primitives: &'a [Value],
     pub seeds: &'a [VoxelSeed],
+    pub sampling: &'a [VoxelSampling],
 }
 
 /// A group drawn as voxels — of a primitive's DAG, or a mesh's far group (`primitive` `None`, `group`
@@ -135,12 +138,14 @@ impl Voxelized {
     }
 }
 
-/// A mesh's groups drawn as voxels, its far group last, and the error from which it draws nothing
-/// else: the largest a triangle cluster of any of its primitives is replaced at.
+/// A mesh's groups drawn as voxels, its far group last, the error from which it draws nothing
+/// else — the largest a triangle cluster of any of its primitives is replaced at — and how its
+/// voxels were sampled, which their records follow.
 struct Voxelled {
     mesh: usize,
     groups: Vec<Voxelized>,
     voxels_from: f64,
+    sampling: VoxelSampling,
 }
 
 /// Voxelizes every seeded group, then every mesh's far group, and writes `voxels.bin` in

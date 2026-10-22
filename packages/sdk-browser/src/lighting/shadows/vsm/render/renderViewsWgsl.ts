@@ -1,14 +1,15 @@
 /**
- * THE RASTER'S VIEWS, LISTED ON THE GPU (`../chunks/chunkGroups.ts` `encodeVsmCandidates`): a thread a map of
- * the frame, which lists the map as a view (VSM id, mips, flags, layers) where one of its mips has a
- * page to draw this frame (a stale rect, `vsmStaleRects`, not empty; `layers` bit 0 where one of its
- * dynamic layer, bit 1 its static layer's: the cull drops a caster of a layer it has none of) — the
- * views the cull runs over,
+ * THE RASTER'S VIEWS, LISTED ON THE GPU (`../chunks/chunkGroups.ts` `encodeVsmViews`): a thread a map
+ * of the view pass (`renderViewPasses.ts`: the `params.viewCount` maps from `params.viewFirst`, the
+ * whole frame's in a pass that holds every light), which lists the map as a view (VSM id, mips,
+ * flags, layers) where one of its mips has a page to draw this frame (a stale rect,
+ * `vsmStaleRects`, not empty; `layers` bit 0 where one of its dynamic layer, bit 1 its static
+ * layer's: the cull drops a caster of a layer it has none of) — the views the cull runs over,
  * their count in the counters' `VSM_RENDER_COUNT_VIEWS` word. A map whose pages are all cached is
  * no view: a still far light costs the raster nothing, however many lights the frame holds. A
  * map's mips are those the raster draws of it (`vsmMapViewMips`, `../mapViews.ts`): one for a clipmap
  * level, every mip from its finest for a local map. The list holds `params.viewCount` views at
- * most, the CPU's bound (`vsmRenderViewBound`).
+ * most, the pass's maps.
  *
  * Group 0: `VSM_RENDER_VIEWS_SPECS`; group 1: 0 params (uniform, dynamic), 1 views (rw), 2 counters
  * (rw atomic).
@@ -34,8 +35,9 @@ export const vsmRenderViewsWgsl = (layout: VsmLayout) =>
 @group(1) @binding(1) var<storage,read_write> views:array<vec4u>;
 @group(1) @binding(2) var<storage,read_write> counts:array<atomic<u32>>;
 @compute @workgroup_size(WORKGROUP_THREADS) fn vsmRenderViews(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
- let id=flatIndex(wid,nwg,1u)*WORKGROUP_THREADS+lane;
- if(id>=vsm.mapCount){return;}
+ let local=flatIndex(wid,nwg,1u)*WORKGROUP_THREADS+lane;
+ let id=params.viewFirst+local;
+ if(local>=params.viewCount||id>=vsm.mapCount){return;}
  let pd=vsmProjectionData[id];
  let directional=pd.lightKind==LIGHT_KIND_DIRECTIONAL;
  let mips=select(VSM_MIPS,1u,directional);

@@ -89,6 +89,8 @@ const HANDED_IN = new Set([
   'materials/texture/coverageMips.ts',
   'lighting/deferred/program.ts',
   'lighting/deferred/compositions.ts',
+  'lighting/bounce/screen/kernels.ts',
+  'lighting/ao/pipelines.ts',
   'lighting/shadows/vsm/invalidation/castStale.ts',
   'lighting/shadows/vsm/chunks/chunkKernels.ts',
   'lighting/shadows/vsm/markingPass.ts',

@@ -2,7 +2,6 @@ import { jitterViewProjection, taaJitter, upscalePhases } from './jitter.ts'
 import { taaExposure, writeTaaView } from './view.ts'
 import { appliedExposureOf } from '../exposure/applied.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
-import { sameMatrixBits } from '../../../../math/src/matrix/matrixElements.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { AccumulatedImage } from '../../lighting/deferred/program.ts'
@@ -11,13 +10,15 @@ import { writtenFilter } from '../../blend/display/displayFilter.ts'
 import { drawFrameAt, scalesTargets, taaRuns } from '../../frame/backend/state/renderScale.ts'
 import { dropTaaHistory } from './landing.ts'
 import type { TaaFrameState } from './frameState.ts'
-import { encodeComposedMotion } from '../../placement/compose/composedMotionPass.ts'
+import type { TaaInputs } from './inputs.ts'
+import { followVelocity, keepImage, readVelocityInputs } from './velocityFrame.ts'
 import { taaViewCode } from '../../visibility/shader/shadeMode.ts'
 import { FULL_ANALYSIS, taaKnobs } from './levels.ts'
 import { contextReader } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import { FIRST_ANALYSIS_VIEW } from './rejectionWgsl.ts'
 import { writesGivenUp } from '../../frame/prepare/asIsShareTarget.ts'
+import { viewClips } from '../../frame/render/viewClip.ts'
 
 /** The temporal pass's setting `field` the session holds (`temporalOptions.ts`), by its one
  *  resolver, read at each image. */
@@ -57,6 +58,8 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   // Switched off, the pass is kept but nothing accumulates (`setWebgpuTemporalAntialiasing`).
   const active = taaRuns(rt)
   if (temporal) temporal.frame.active = active
+  // The motion the passes read is measured once, by the velocity stage (`encodeVelocity`).
+  followVelocity(rt, active)
   if (!temporal || !active) {
     // No temporal upscaler: the dynamic scale still steers a beauty image, which the composition
     // upscales spatially; a capture or a
@@ -78,6 +81,9 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { targetSize, displaySize } = rt.gpu
   state.phases = upscalePhases(targetSize[0], displaySize[0])
   taaJitter(state.sample, state.jitter, state.phases)
+  // A view that clips by a plane draws at the centre of its pixels: the plane cuts the geometry
+  // exactly where it is, and no jitter moves the cut.
+  if (viewClips(rt, cam)) state.jitter.fill(0)
   state.jitterGrid[0] = targetSize[0]
   state.jitterGrid[1] = targetSize[1]
   jitterViewProjection(
@@ -110,12 +116,29 @@ export function taaRenderProjection(rt: WebgpuPagesRuntime, cam: EngineCamera, o
     jitterGrid[1],
   )
 }
+/** Writes into `inputs` the lit image and what the blends wrote beside it: the as-is flags, or the
+ *  share where the frame has one, the reactive value and what they give up of the history. */
+function readSharedInputs(
+  rt: WebgpuPagesRuntime,
+  inputs: TaaInputs,
+  current: GPUTextureView,
+  asIs: boolean,
+  share?: AsIsShare,
+) {
+  inputs.current = current
+  inputs.flags = asIs ? rt.gpu.surfaces!.views()[3] : undefined
+  inputs.share = asIs ? share?.view : undefined
+  inputs.reactive = share?.view
+  // Bound where the blends wrote it; else the 1×1 zero: nothing given up (`writesGivenUp`).
+  inputs.givenUp = writesGivenUp(rt) ? share?.givenUpView : undefined
+}
+
 /**
  * Encodes this image's temporal pass and its display layers; returns the accumulated image
- * composition reads, `undefined` when none. Writes the uniform, updates motion, advances the
- * jitter, keeps the unjittered view-projection, the render grid and the exposure the
- * render-resolution histories are kept at; `asIs` false reads no as-is flags; the image is reconstructed to the display from whatever size it
- * was drawn at. `share`, seeded when blends or particles draw,
+ * composition reads, `undefined` when none. Writes the uniform, advances the jitter, keeps the
+ * unjittered view-projection, the render grid and the exposure the render-resolution histories are
+ * kept at; its motion is the velocity stage's (`encodeVelocity`); `asIs` false reads no as-is flags;
+ * the image is reconstructed to the display from whatever size it was drawn at. `share`, seeded when blends or particles draw,
  * holds the as-is share and the reactive value the blends, particles and water wrote
  * (`../../lighting/deferred/asIsShare.ts`), which shortens a moving pixel's history, and beside it
  * what the blends and transmissive layers give up of that history, which caps it.
@@ -130,34 +153,22 @@ export function encodeTaaPass(
   share?: AsIsShare,
 ): AccumulatedImage | undefined {
   const temporal = rt.gpu.temporal,
+    velocity = rt.gpu.velocity,
     { gpu, vis, run } = rt
-  const pool = gpu.cache?.buffer
-  if (!temporal?.frame.active || !gpu.depthView || !gpu.surfaces || !vis.visView || !vis.pageTable)
-    return undefined
-  if (!pool || !vis.concatPos || !vis.concatUv) return undefined
-  const state = temporal.frame,
-    scene = run.gate.revisions.scene
-  const scan = state.sceneSeen !== scene
-  if (!state.hasHistory) temporal.motion.reset()
-  else temporal.motion.update(cam.eye, scan)
-  // The linked placements' motion, which the GPU composes, follows the same decision.
-  encodeComposedMotion(rt, device, encoder, cam.eye, state.hasHistory, scan)
-  const { targetSize, displaySize } = gpu
+  // The vectors and the placements' motion are the velocity stage's, drawn before the lighting
+  // (`encodeVelocity`): the pass reads them, and its decisions about this image.
+  if (!temporal?.frame.active || !gpu.surfaces || !velocity?.measured) return undefined
   const { inputs, filterHistory } = temporal
+  if (!readVelocityInputs(rt, inputs, velocity)) return undefined
+  inputs.vectors = velocity.vectors
+  const state = temporal.frame,
+    { moved, still } = velocity
+  const { targetSize, displaySize } = gpu
   inputs.filter = writtenFilter(gpu.displayFilter) // `displayFilter.ts`
   const exposure = taaExposure(appliedExposureOf(rt))
   const knobs = taaKnobs(gpu.temporalLevel),
-    viewCode = taaViewCode(run.diagnostic),
-    moved = temporal.motion.moved || !!rt.compose?.moving
+    viewCode = taaViewCode(run.diagnostic)
   const work = analysisFor(rt, state, knobs, viewCode)
-  // A still image adds to the count its convergence is told by; any motion starts it again.
-  const still =
-    state.hasHistory &&
-    !scan &&
-    run.gate.revisions.resources === state.resourcesSeen &&
-    !moved &&
-    !vis.deformationCompute &&
-    sameMatrixBits(state.previousViewProjection, cam.viewProjection)
   writeTaaView(
     device,
     temporal.uniform,
@@ -176,33 +187,15 @@ export function encodeTaaPass(
     knobs,
     work,
   )
-  inputs.current = current
-  inputs.depth = gpu.depthView
-  inputs.ids = vis.visView
-  inputs.pages = vis.pageTable
-  inputs.motion = temporal.motion.buffer
-  inputs.pool = pool
-  inputs.positions = vis.concatPos
-  inputs.uvs = vis.concatUv
-  inputs.flags = asIs ? gpu.surfaces.views()[3] : undefined
-  inputs.share = asIs ? share?.view : undefined
-  inputs.reactive = share?.view
-  // Bound where the blends wrote it; else the 1×1 zero: nothing given up (`writesGivenUp`).
-  inputs.givenUp = writesGivenUp(rt) ? share?.givenUpView : undefined
+  readSharedInputs(rt, inputs, current, asIs, share)
   const output = temporal.encode(encoder, inputs, targetSize, cam.perspective === 0, work)
   if (inputs.filter) gpu.targetBytes += filterHistory.uncounted()
   // Its draws, the spatial anti-aliaser where the level runs one and the history update; the
   // analysis' passes are dispatches.
   run.gpuDrawCalls += work.antiAlias ? 2 : 1
-  state.sceneSeen = scene
-  state.previousViewProjection.set(cam.viewProjection)
-  state.previousEye.set(cam.eye)
-  state.previousRender[0] = targetSize[0]
-  state.previousRender[1] = targetSize[1]
+  keepImage(rt, state, cam, targetSize)
   state.previousExposure = exposure
   state.accumulated = still ? state.accumulated + 1 : 1
-  state.resourcesSeen = run.gate.revisions.resources
-  state.hasHistory = true
   state.sample = (state.sample + 1) % state.phases
   state.stochasticSample++
   return output

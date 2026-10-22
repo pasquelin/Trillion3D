@@ -1,11 +1,13 @@
 /**
- * Where a pass sits relative to the display curve: on the scene's linear radiance, before the
- * exposure and the curve bring it into the display range, or on the display image they made.
+ * Where a pass sits relative to the display curve: on the image the temporal pass resolved, before
+ * its exposure is measured and before every other pass (`after-resolve`); on the scene's linear
+ * radiance, before the exposure and the curve bring it into the display range; or on the display
+ * image they made.
  */
-export type EffectStage = 'before-tone-mapping' | 'after-tone-mapping'
+export type EffectStage = 'after-resolve' | 'before-tone-mapping' | 'after-tone-mapping'
 
 /** The built-in passes an engine knows how to draw. */
-export type EffectKind = 'bloom' | 'outline'
+export type EffectKind = 'depthOfField' | 'motionBlur' | 'bloom' | 'outline'
 
 /**
  * One pass of the chain. A pass says which built-in it is and where it runs; its settings are
@@ -31,8 +33,9 @@ export abstract class EffectPass {
 
 /**
  * `world.effects`: the ordered passes drawn over the image after temporal antialiasing and before
- * it reaches the canvas. The passes that run before tone mapping read the linear radiance, in the
- * order they were added; those that run after draw over the display image, in theirs. An empty
+ * it reaches the canvas. The passes that run on the resolved image read it first, in the order they
+ * were added; those that run before tone mapping read the linear radiance, in theirs; those that
+ * run after draw over the display image, in theirs. An empty
  * chain, or one whose passes are all idle, costs nothing: no pass, no copy, no target. A
  * transparent surface blending in `multiply` or `subtractive` is drawn under the chain like any
  * other.

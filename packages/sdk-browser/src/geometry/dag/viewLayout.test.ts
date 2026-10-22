@@ -3,9 +3,10 @@ import assert from 'node:assert/strict'
 import { VIEW_BLOCK_WORDS, VIEW_UNIFORM_STRUCT, viewWord, type FieldName } from './viewLayout.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { writeDagUniforms } from './uniforms.ts'
+import { CULL_DRAW_DISTANCE_OFF } from './shader/viewsWgsl.ts'
 
-test('the block holds the hundred and sixteen words the host allocates', () => {
-  assert.equal(VIEW_BLOCK_WORDS, 116)
+test('the block holds the hundred and twenty-four words the host allocates', () => {
+  assert.equal(VIEW_BLOCK_WORDS, 124)
   // The buffer is allocated from the same number the kernels read by: one source, no drift.
 })
 
@@ -53,9 +54,15 @@ test('every field starts where WGSL puts it, by its own alignment', () => {
     ['heldMask', 103],
     ['candCap', 104],
     ['frame', 105],
-    // The tree's members drawn whatever the view, in the gap: no word behind them moves.
+    // The tree's members drawn whatever the view, then the scale of the draw distances, in the gap:
+    // no word behind them moves.
     ['alwaysCount', 106],
+    ['viewDistanceScale', 107],
     ['eye', 108],
+    // Behind them, the view's clip plane, a vec4 on its own boundary, and where its filter's bits
+    // start in `work` (`shader/clipPlaneWgsl.ts`, `shader/viewFilterWgsl.ts`).
+    ['clipPlane', 116],
+    ['filterBase', 120],
   ]
   for (const [field, word] of asWritten) assert.equal(viewWord(field), word, field)
 })
@@ -81,7 +88,8 @@ test('the struct the kernels bind is the one the table describes, in order', () 
       'visCap:u32,nodeBudget:u32,cameraWorld:vec3f,' +
       'listCap:u32,perspective:f32,queueCap:u32,swapRegions:u32,' +
       'treeTop:u32,cellBase:u32,worldLinks:u32,' +
-      'heldBase:u32,heldMask:u32,candCap:u32,frame:u32,alwaysCount:u32,eye:array<vec4u,2>,}',
+      'heldBase:u32,heldMask:u32,candCap:u32,frame:u32,alwaysCount:u32,viewDistanceScale:f32,' +
+      'eye:array<vec4u,2>,clipPlane:vec4f,filterBase:u32,}',
   )
   // And the shipped shader carries that exact struct, not a copy of it.
   assert.ok(DAG_SELECTION_SHADER.includes(VIEW_UNIFORM_STRUCT))
@@ -101,7 +109,7 @@ test('a field the table does not name is a type error, not a lookup that returns
 test('the host writes each field at the word the kernels read, values unchanged', () => {
   const target = new Float32Array(VIEW_BLOCK_WORDS)
   const packed = { pageCount: 11, nodeCount: 22, worldCount: 33 } as never
-  const uniforms = {
+  const named = {
     planes: new Float32Array(24).fill(0.5),
     view: new Float32Array(16).fill(0.25),
     pixelScale: [2, 3],
@@ -111,8 +119,13 @@ test('the host writes each field at the word the kernels read, values unchanged'
     viewProj: new Float32Array(16).fill(0.125),
     depthMap: [-1, 0.2],
     viewSize: [1280, 720],
-  } as never
-  writeDagUniforms(target, packed, uniforms, 64)
+  }
+  writeDagUniforms(target, packed, named as never, 64)
+  // No scale named, the draw distances are taken at their own size.
+  assert.equal(target[viewWord('viewDistanceScale')], 1)
+  writeDagUniforms(target, packed, { ...named, viewDistanceScale: 2.5 } as never, 64)
+  assert.equal(target[viewWord('viewDistanceScale')], 2.5)
+  writeDagUniforms(target, packed, named as never, 64)
 
   assert.equal(target[viewWord('pixelScale')], 2)
   assert.equal(target[viewWord('pixelScale') + 1], 3)
@@ -133,4 +146,66 @@ test('the host writes each field at the word the kernels read, values unchanged'
   // The planes and the matrix are copied whole, at their own first words.
   assert.equal(target[0], 0.5)
   assert.equal(target[viewWord('view')], 0.25)
+})
+
+test('a packing that names no draw distance turns their cull off, one that names any leaves it on', () => {
+  const target = new Float32Array(VIEW_BLOCK_WORDS)
+  const named = {
+    planes: new Float32Array(24),
+    view: new Float32Array(16),
+    pixelScale: [1, 1],
+    pixelError: 1,
+    near: 0.1,
+    cameraWorld: [0, 0, 0],
+    viewProj: new Float32Array(16),
+    depthMap: [-1, 0.2],
+    viewSize: [1280, 720],
+  }
+  const cullOff = () => new Uint32Array(target.buffer)[viewWord('cullOff')]
+  writeDagUniforms(target, { worldCount: 2 } as never, named as never, 64)
+  assert.equal(cullOff() & CULL_DRAW_DISTANCE_OFF, CULL_DRAW_DISTANCE_OFF)
+  const drawDistance = new Float32Array(4)
+  writeDagUniforms(target, { worldCount: 2, drawDistance } as never, named as never, 64)
+  assert.equal(cullOff() & CULL_DRAW_DISTANCE_OFF, 0)
+})
+
+test('a view’s plane and the region of its filter reach the block, none for a view without them', () => {
+  const target = new Float32Array(VIEW_BLOCK_WORDS)
+  const named = {
+    planes: new Float32Array(24),
+    view: new Float32Array(16),
+    pixelScale: [1, 1],
+    pixelError: 1,
+    near: 0.1,
+    cameraWorld: [0, 0, 0],
+    viewProj: new Float32Array(16),
+    depthMap: [-1, 0.2],
+    viewSize: [1280, 720],
+  }
+  const at = { base: 0, mask: 0, filter: 5000 },
+    packed = { worldCount: 2 } as never
+  const plane = () => Array.from(target.subarray(viewWord('clipPlane'), viewWord('clipPlane') + 4))
+  const filter = () => new Uint32Array(target.buffer)[viewWord('filterBase')]
+  writeDagUniforms(target, packed, named as never, 64, undefined, at)
+  assert.deepEqual(plane(), [0, 0, 0, 0], 'no plane: all zero, which the cut reads as none')
+  assert.equal(filter(), 0, 'no filter: no region named')
+  const bits = new Uint32Array(1)
+  writeDagUniforms(
+    target,
+    packed,
+    { ...named, clipPlane: [0, 1, 0, -2.5], filter: bits } as never,
+    64,
+    undefined,
+    at,
+  )
+  assert.deepEqual(plane(), [0, 1, 0, -2.5])
+  assert.equal(
+    filter(),
+    5000,
+    'the region the layout allocates, named by the view that has a filter',
+  )
+  // A cut written again for a view without them clears both: the block is rewritten whole.
+  writeDagUniforms(target, packed, named as never, 64, undefined, at)
+  assert.deepEqual(plane(), [0, 0, 0, 0])
+  assert.equal(filter(), 0)
 })

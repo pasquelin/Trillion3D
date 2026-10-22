@@ -39,8 +39,9 @@ pub(crate) struct Traceable {
     pub primitives: Vec<(usize, std::ops::Range<usize>)>,
 }
 
-/// What a kept hit carries to the texel.
+/// What a kept hit carries to the texel, and how far along the ray it lies.
 pub(crate) struct Sample {
+    pub distance: f64,
     pub colour: [f64; 3],
     pub normal: [f64; 3],
     pub orm: [f64; 3],
@@ -179,6 +180,7 @@ impl Traceable {
         let tint = self.vertex_colour(hit.triangle, hit.barycentric);
         let colour = surface.colour(read[0].0, read[0].1);
         let sample = Sample {
+            distance: hit.distance,
             colour: [0, 1, 2].map(|c| colour[c] * tint[c]),
             normal,
             orm: surface.orm(read.map(|r| r.0), read.map(|r| r.1)),

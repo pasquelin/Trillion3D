@@ -1,11 +1,17 @@
 // The reflection's view uniform, as each image writes it: the pixel scale, the geometry of a surface's
-// thickness, the held image and whether the screen traces, written only when they changed, and
-// nothing in them turning with the frame.
+// thickness, the held image and whether the screen traces, what a ray may spend, written only when
+// they changed, and nothing in them turning with the frame; and the budget the census reports.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 import { heldImage } from './heldImage.fixture.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
+import { createReflectionCensus } from './census.ts'
+import {
+  REFLECTION_RULES,
+  reflectionRingTests,
+  reflectionRingWork,
+} from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import { perspectiveProjection } from '../../../../math/src/projection/camera.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { FakeBuffer } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
@@ -142,4 +148,33 @@ test('the reflections’ turn is the view’s, and an unchanged view sends nothi
   const writes = sent.writes
   write(frame, held, 6)
   assert.equal(sent.writes, writes, 'the turn held: nothing sent')
+})
+
+test('a ray’s budget travels with the view: the reference’s steps by default, the settings’ otherwise', () => {
+  const lanes = (extra: object) => {
+    const { sent, write, held, frame } = stillView(extra)
+    write(frame, held, 6)
+    return [...sent.bits.slice(REFLECTION_VIEW_AT.scene, REFLECTION_VIEW_AT.scene + 4)]
+  }
+  // 50 iterations of the screen, 256 steps a ring: a step is four units of work and one triangle test.
+  assert.deepEqual(lanes({}), [50, 1024, 256, 1])
+  assert.deepEqual(lanes({ screenSteps: 20, ringSteps: 100 }), [20, 400, 100, 1])
+  assert.deepEqual(lanes({ sceneTraces: false }), [50, 1024, 256, 0], 'the scene trace off')
+  assert.equal(REFLECTION_RULES.reflectionScreenSteps.default, 50)
+  assert.equal(reflectionRingWork(REFLECTION_RULES.reflectionRingSteps.default), 1024)
+  assert.equal(reflectionRingTests(REFLECTION_RULES.reflectionRingSteps.default), 256)
+})
+
+test('the census reports the ring’s budget the rays were spent against, and the one the settings give', () => {
+  const { device } = fakeDevice()
+  const census = createReflectionCensus(device)
+  census.copy(device.createCommandEncoder(), 1)
+  assert.deepEqual(
+    [census.metrics()?.proxyUnits, census.metrics()?.proxyTriangles],
+    [1024, 256],
+    'the defaults, before any image set a budget',
+  )
+  census.budget(400, 100)
+  assert.deepEqual([census.metrics()?.proxyUnits, census.metrics()?.proxyTriangles], [400, 100])
+  census.dispose()
 })

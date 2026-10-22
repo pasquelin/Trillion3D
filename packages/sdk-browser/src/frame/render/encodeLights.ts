@@ -3,6 +3,8 @@ import {
   environmentCurve,
   environmentSharpness,
 } from '../../../../sdk-core/src/scene/core/environment.ts'
+import { FILM_RULES, tonemapperSharpness } from '../../../../sdk-core/src/contracts/filmOptions.ts'
+import { readSetting } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { appliedExposureOf } from '../../post/exposure/applied.ts'
 import { uploadSceneLights } from '../backend/state/lightBuffer.ts'
 import { ensureBounce, syncLightingProxies } from '../prepare/bounce.ts'
@@ -76,7 +78,10 @@ export function encodeDirectLights(
   directParams[4] = environmentCurve(environment)
   // The eye itself, under any projection: an orthographic camera's view point is a direction.
   directParams.set(cam.eye, 5)
-  directParams[8] = environmentSharpness(environment)
+  directParams[8] = tonemapperSharpness(
+    readSetting(FILM_RULES, rt.context, 'tonemapperSharpen'),
+    environmentSharpness(environment),
+  )
   // The unlit view reads neither light lists nor a shadow map: it therefore encodes none of them.
   // A representation change held for the camera to rest is released to the list now: the first
   // lit frame's invalidation stales its pages, whatever the camera does.

@@ -1,9 +1,11 @@
 import {
   HLOD_SHAPE_PRESERVATIONS,
   HLOD_SHAPE_RULES,
+  MAX_VOXEL_RAYS,
   MESH_BUILD_OBJECTS,
   MESH_BUILD_RULES as rules,
   type MeshBuildSettingsWire,
+  VOXEL_RAY_PACKET,
 } from '../contracts/compilerAbi.ts'
 import {
   DEFAULT_NORMAL_PRECISION,
@@ -13,7 +15,7 @@ import {
   MAX_TANGENT_PRECISION,
   MIN_POSITION_PRECISION,
 } from '../page/format.ts'
-import { int, ruleSchema, sceneAndRules } from './schemaParts.ts'
+import { int, num, ruleSchema, sceneAndRules } from './schemaParts.ts'
 import type { JsonSchemaProperty } from './types.ts'
 
 /** The settings of one source of `meshBuild` (`meshBuildOptions.ts`): the scene's or a rule's. Each
@@ -69,6 +71,34 @@ const meshBuildSettings: Record<keyof MeshBuildSettingsWire, JsonSchemaProperty>
       rules.skinnedWeldTexture,
       `How far two texture coordinates of a skinned mesh may differ and their corners be welded into one vertex (default ${rules.skinnedWeldTexture.default}).`,
     ),
+    voxelRays: ruleSchema(
+      rules.voxelRays,
+      `How many rays are cast across each voxel of a voxelized mesh to sample its surface: at most ${MAX_VOXEL_RAYS}, a count past 1 rounded up to a multiple of ${VOXEL_RAY_PACKET}; 0 or 1 casts one ray, a voxel then covered whole or not at all and no coverage handed over to its neighbours (default ${rules.voxelRays.default}).`,
+    ),
+    voxelLevel: ruleSchema(
+      rules.voxelLevel,
+      `The level of the mesh's DAG from which every group is voxels, whatever its triangles' error: 0 leaves a group voxels only where they are finer than its triangles; from 1, every group of that level or above is voxels (default ${rules.voxelLevel.default}).`,
+    ),
+    // Any finite number: the schema bounds nothing, as the rule (`ANY_NUMBER`) does not.
+    voxelBackUp: num(
+      `How far back, in voxel sides, each ray of a voxel starts before it: a ray whose nearest hit lies in that stretch counts neither as a hit nor as a miss. Not read with voxelSeparable (default ${rules.voxelBackUp.default}).`,
+    ),
+    voxelSeparable: ruleSchema(
+      rules.voxelSeparable,
+      `Whether the rays of a voxel run along its three axes alone, each through one face and a hit counting only within the voxel's depth, the voxel covered whole where every ray along an axis hits and a ray through its centre does; false casts rays in every direction (default ${rules.voxelSeparable.default}).`,
+    ),
+    voxelNdf: ruleSchema(
+      rules.voxelNdf,
+      `Whether a voxel keeps the spread of the normals its rays hit — its normal their mean, the shading roughening with the spread —; false keeps the direction of their mean alone (default ${rules.voxelNdf.default}).`,
+    ),
+    voxelOpacity: ruleSchema(
+      rules.voxelOpacity,
+      `Whether a voxel's record carries its coverage as its opacity, no coverage handed over to its neighbours and every voxel a ray hit kept; false hands the coverage over until no more voxels are left than it sums to. The reference only gives that opacity to a material as the vertex colour and draws no voxel by it: the engine does not either (default ${rules.voxelOpacity.default}).`,
+    ),
+    allowAssemblies: ruleSchema(
+      rules.allowAssemblies,
+      `Whether the assembly the mesh's glTF extras.assembly names is built: parts (meshes by their rank, each with an optional materialRemap, a glTF material for each of its primitives) and nodes (a part and a glTF node's matrix, or translation, rotation and scale each); the mesh is then its own triangles and every node's part carried by its transform, its levels of detail built over the nodes. False draws the mesh's own triangles alone (default ${rules.allowAssemblies.default}).`,
+    ),
     positionPrecision: int(
       `The position grid of the mesh's pages: every position sits on cells of 2^-n centimetre. Left out, the precision follows the mesh's density — seven less the mean base-2 logarithm of the half-diagonal, in centimetres, of its finest clusters' boxes, never finer than a sixteenth of a centimetre — and falls as far as the widest cluster needs to fit 2^21 cells an axis.`,
       MIN_POSITION_PRECISION,
@@ -86,14 +116,15 @@ const meshBuildSettings: Record<keyof MeshBuildSettingsWire, JsonSchemaProperty>
     ),
   }))()
 
-/** A `merge` or `simplify` layer's `meshBuild` (`HLOD_MESH_BUILD_SETTINGS`): a mesh's own build
- *  settings but its tangents, and its shape's (`HLOD_SHAPE_RULES`). */
+/** A layer's `meshBuild`: a `merge` or `simplify` layer's (`HLOD_MESH_BUILD_SETTINGS`), a mesh's
+ *  own build settings but its tangents, and its shape's (`HLOD_SHAPE_RULES`); a `voxel` layer's,
+ *  the six voxel settings alone. */
 export const hlodMeshBuild: JsonSchemaProperty = /* @__PURE__ */ (() => {
   const shape = HLOD_SHAPE_RULES
   return {
     type: 'object',
     description:
-      "How a merge or simplify layer builds the mesh of each actor it makes, as the reference reads it from those layers alone (an approximate layer's actors are built at every default): each setting its default when left out. alwaysResidentKib is what the actor's HLOD cell keeps resident while the actor is loaded.",
+      "How a merge or simplify layer builds the mesh of each actor it makes, as the reference reads it from those layers alone (an approximate layer's actors are built at every default): each setting its default when left out. alwaysResidentKib is what the actor's HLOD cell keeps resident while the actor is loaded. A voxel layer names only the six voxel settings (voxelRays, voxelLevel, voxelBackUp, voxelSeparable, voxelNdf, voxelOpacity), how its cells' voxels are sampled (voxelLevel changes nothing there: every level of a cell is voxels); a merge or simplify layer names none of them.",
     properties: {
       keptTriangles: meshBuildSettings.keptTriangles,
       trimmedError: meshBuildSettings.trimmedError,
@@ -111,6 +142,12 @@ export const hlodMeshBuild: JsonSchemaProperty = /* @__PURE__ */ (() => {
         shape.holdTextureCoordinates,
         `Whether texture coordinates are taken from the vertices a collapse keeps instead of solved, counting nothing in the error, for texture sets holding values that do not blend (default ${shape.holdTextureCoordinates.default}).`,
       ),
+      voxelRays: meshBuildSettings.voxelRays,
+      voxelLevel: meshBuildSettings.voxelLevel,
+      voxelBackUp: meshBuildSettings.voxelBackUp,
+      voxelSeparable: meshBuildSettings.voxelSeparable,
+      voxelNdf: meshBuildSettings.voxelNdf,
+      voxelOpacity: meshBuildSettings.voxelOpacity,
     },
   }
 })()

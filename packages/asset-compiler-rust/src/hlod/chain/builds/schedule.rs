@@ -113,7 +113,9 @@ pub(crate) fn world_dag(
         let made = match recipe {
             Recipe::Voxel => {
                 let library = (builder.library, builder.checkpoint);
-                let made = voxels::voxel_actor(instances, (seen, cell), members, library)?;
+                let sampling = hlod.mesh_build.voxels;
+                let made =
+                    voxels::voxel_actor(instances, (seen, cell), (members, sampling), library)?;
                 let mut spent = Spent::default();
                 spent.ms[VOXEL] = crate::hlod::flatten::millis(started);
                 Job {

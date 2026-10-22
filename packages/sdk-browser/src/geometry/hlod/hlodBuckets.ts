@@ -61,13 +61,13 @@ export function createGridBuckets(
       if (!grid) return
       frame++
       const { side, buckets } = grid,
-        range = grids[at].range
+        shape = grids[at]
       for (let ix = Math.floor((x - side) / side); ix <= Math.floor((x + side) / side); ix++)
         for (let iz = Math.floor((z - side) / side); iz <= Math.floor((z + side) / side); iz++) {
           for (const cell of buckets.get(bucketKey(ix, iz)) ?? NO_CELLS) {
             if (metAt[cell] === frame) continue
             metAt[cell] = frame
-            if (source.meets(bounds, BOX_VALUES * cell, range)) visit(cell)
+            if (source.meets(bounds, BOX_VALUES * cell, shape)) visit(cell)
           }
         }
     },

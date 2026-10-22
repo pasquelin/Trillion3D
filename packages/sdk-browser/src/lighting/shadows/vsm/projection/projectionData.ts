@@ -1,6 +1,6 @@
 /**
  * Host side of the projection shader data: the packer of the record of
- * `VSM_PROJECTION_RECORD_BYTES` (288) read by `VsmProjectionRecord`, and the helpers that fill it.
+ * `VSM_PROJECTION_RECORD_BYTES` (304) read by `VsmProjectionRecord`, and the helpers that fill it.
  * The record holds what some shader reads, nothing else.
  *
  * The layout is the WGSL struct's (`VsmProjectionRecord`, `projectionDataWgsl.ts`); `RECORD_OFFSET`
@@ -8,8 +8,8 @@
  * uploaded by the words that changed (`writeChanged`), and the words between two changed ones
  * go up with them: the words a light keeps while it lives (its kind, emitter, finest mip and level)
  * open the record, those its view and its turn move follow, the origin shift and the clipmap's
- * origin, which move with the eye every frame, lie together, and the corner, the range and the
- * table's origin close it.
+ * origin, which move with the eye every frame, lie together, and the corner, the range, the
+ * table's origin and a sun's far-shadow distance close it.
  *
  * Matrices: 16 floats in the engine's column-major, column-vector convention (`m[column·4 + row]`),
  * as WGSL's mat4x4f reads them. All distances in metres.
@@ -41,6 +41,7 @@ const RECORD_OFFSET = {
   cornerSteps: 272,
   lightRange: 280,
   tableOrigin: 284,
+  farShadowDistance: 288,
 } as const
 
 /** A map's record, its matrices and vectors its own: a writer fills them in place frame after
@@ -73,6 +74,9 @@ export interface VsmProjectionDataValues {
   /** Where the map's page table lies in the global one (x | y << 16, `../tableBlocks.ts`), the
    *  frame's. */
   tableOrigin: number
+  /** A sun's far-shadow distance from the eye, in metres, 0 for none: its raster leaves out the
+   *  casters past it (`vsmFarShadowSkipped`). A local light's is 0. */
+  farShadowDistance: number
 }
 
 /** Default record, every array its own. */
@@ -96,6 +100,7 @@ export function vsmDefaultProjectionData(): VsmProjectionDataValues {
     ditherTexels: 0,
     finestMip: 0,
     tableOrigin: 0,
+    farShadowDistance: 0,
   }
 }
 
@@ -135,6 +140,7 @@ export function writeVsmProjectionData(
   f[base + O.ditherTexels / 4] = d.ditherTexels
   u[base + O.finestMip / 4] = d.finestMip
   u[base + O.tableOrigin / 4] = d.tableOrigin >>> 0
+  f[base + O.farShadowDistance / 4] = d.farShadowDistance
 }
 
 /** Clip space to shadow UV: x·0.5+0.5, y·−0.5+0.5, z kept, column-vector form. */

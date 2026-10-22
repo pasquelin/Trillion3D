@@ -2,6 +2,7 @@ import { shaderErrors } from '../../gpu/core/shaderModule.ts'
 import { SHADE_UNIFORM_BYTES } from '../shader/request.ts'
 import { SHADE_SHADER, shadeShader } from '../shader/shadeWgsl.ts'
 import { VIS_SHADER, visShader } from '../shader/visWgsl.ts'
+import { hasClipDistances } from '../../gpu/core/clipDistances.ts'
 import {
   VIS_BINDINGS,
   VIS_UNIFORM_BYTES,
@@ -82,8 +83,15 @@ export async function createWebgpuVisibilityShaders(
   const visUniform = visUniformBuffer(device, slotCount)
   // With no variant, the two modules are exactly those from before: production compiles no
   // diagnostic stage.
+  // Cutting a primitive at the view's plane is the hardware's where the device grants it
+  // (`../../gpu/core/clipDistances.ts`).
+  const clipDistances = hasClipDistances(device)
   const visModule = device.createShaderModule({
-    code: variesVisibility(variant) ? visShader({ diagnostic: DIAGNOSTIC_VIS_WGSL }) : VIS_SHADER,
+    code: variesVisibility(variant)
+      ? visShader({ diagnostic: DIAGNOSTIC_VIS_WGSL, clipDistances })
+      : clipDistances
+        ? visShader({ clipDistances })
+        : VIS_SHADER,
   })
   const shadeModule = device.createShaderModule({
     code: variesShade(variant) ? shadeShader({ diagnostic: DIAGNOSTIC_SHADE_WGSL }) : SHADE_SHADER,

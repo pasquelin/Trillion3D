@@ -121,7 +121,7 @@ impl ShapePreservation {
 }
 
 /// The groups of one primitive that may be drawn as voxels, in level order, the group above its
-/// roots last — every group, or none (`of`) —, and every DAG group's error, at which its children
+/// roots last — every group, or none (`of`) — and every DAG group's error, at which its children
 /// are replaced while it is drawn as triangles.
 #[derive(Default)]
 pub(crate) struct VoxelSeed {

@@ -42,7 +42,10 @@ test('a particle routes its straight colour, where the mask is set', () => {
   const color = [0.6, 0.3, 0.2, 0.5]
   const scope = {
     ...routeScope(1, leftHalf),
-    draw: { drawn: [8, 8], unclip: new Mat([...IDENTITY_MATRIX4]), eye: [0, 0, 5], softness: 1 },
+    draw: {
+      ...{ drawn: [8, 8], unclip: new Mat([...IDENTITY_MATRIX4]), eye: [0, 0, 5], softness: 1 },
+      clipPlane: [0, 0, 0, 0],
+    },
     depth: () => 0,
     Routed: (lit: number[], tint: number[], add: number[], reactive: number[]) => ({
       ...layers(lit, tint, add),
@@ -52,7 +55,7 @@ test('a particle routes its straight colour, where the mask is set', () => {
   type Particle = { fsRouted: (at: object) => Layers & { reactive: number[] } }
   const { fsRouted } = shaderRun<Particle>(
     PARTICLE_DRAW_WGSL,
-    ['fsRouted', 'particle', 'perspectiveDivide', ...ROUTE_FUNCTIONS],
+    ['fsRouted', 'particle', 'particleClipped', 'perspectiveDivide', ...ROUTE_FUNCTIONS],
     scope,
   )
   // The uniform is read at each call: one run serves both views.
@@ -95,7 +98,7 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
         // The diagnostic palettes' lookups, never reached by a beauty item.
         diagnosticLevel: () => [0, 0, 0],
         diagnosticHlod: () => [0, 0, 0],
-        uni: { camPos: [0, 0, 5, 1], exposure: 1, toneCurve: ACES },
+        uni: { camPos: [0, 0, 5, 1], exposure: 1, toneCurve: ACES, clipPlane: [0, 0, 0, 0] },
         BlendOut: (
           color: number[],
           request: number,

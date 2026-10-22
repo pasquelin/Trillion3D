@@ -93,7 +93,9 @@ export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
  *   turned.
  * - `rates`: the inverse of the parallax speed past which a pixel is moving to the flicker measure,
  *   in render pixels an image (`x`), and the blend factor a history fully kept takes the image at
- *   (`y`).
+ *   (`y`); the velocity passes' size test of an object (`writeObjectSize`): the share of the screen
+ *   a unit of radius at a unit of distance takes (`z`) and the least radius that is measured,
+ *   squared (`w`, 0 leaves no object out).
  * - `depth`: the projection's third and fourth rows' depth terms `(z·z, z·w, w·z, w·w)`, which turn a
  *   device depth into a scene depth and back (`depthWgsl.ts`); `radius`: a render pixel's world
  *   radius per unit of scene depth and at none (`xy`), and the sign of the view axis (`z`).

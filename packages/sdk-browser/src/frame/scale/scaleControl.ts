@@ -21,6 +21,10 @@ import { recordFrame, refreshFraction } from './dynamicResolution.ts'
  *   frame of the history, then the fraction refreshed (`observe`).
  *   Without GPU times the dynamic resolution records nothing and the image is drawn at the bounds'
  *   maximum (`scaleTick.ts`).
+ * - The cut's edge scale, one more budget of the same heuristic: a fraction of its screen error
+ *   (`edgeScale`), fitted to the GPU time of the passes that build the visibility buffer
+ *   (`observe`) while the host gives it a budget. It is forgotten, and back at 1, where the render
+ *   scale's history is.
  *
  * Its members: `drawn`, the scale of the last image drawn (1 before any); `steered`, whether that
  * image was drawn at the controller's scale, which its cost then measures; `refreshMs`, the
@@ -35,8 +39,12 @@ import { recordFrame, refreshFraction } from './dynamicResolution.ts'
  * targets' scale, their memory cap and the clock its refusals are asked again by
  * (`scaleMemory.ts`); `drew(scale, steered)`, an image was drawn; `tick(now, timed)`, a frame of
  * the display began at `now`, ms, its rAF timestamp, `timed`: the device has a GPU timer
- * (`tickScale`); `observe(gpuMs, scale, steered)`, the GPU busy time of an image drawn at `scale`,
- * a few frames late, null where the timer read none.
+ * (`tickScale`); `observe(gpuMs, scale, steered, edgeMs, edge)`, the GPU busy time of an image drawn
+ * at `scale`, a few frames late, null where the timer read none, and the time of its visibility
+ * passes (NaN where there is none to fit) drawn at the edge fraction `edge`; `edge`, that fraction
+ * now, to stamp an image with; `edgeScale(budgetMs, percent)`, the budget the host gives the cut's
+ * passes and the lowest fraction it takes the screen error to, in percent: the fraction the cut
+ * divides its threshold by, 1 for a budget of 0 or less; `edgeBudgetMs`, the budget last given.
  */
 export function createScaleControl(option: RenderScale | undefined, maxFrameRate?: number) {
   const display = { width: 0, height: 0, ratio: 0 }
@@ -101,6 +109,17 @@ export function createScaleControl(option: RenderScale | undefined, maxFrameRate
       forgetHistory(w)
     },
     wanted: () => (w.bounds.auto ? Math.min(w.s, w.max) : w.bounds.max),
+    get edge() {
+      return w.edge
+    },
+    get edgeBudgetMs() {
+      return w.edgeBudgetMs
+    },
+    edgeScale(budgetMs: number, percent: number) {
+      w.edgeBudgetMs = budgetMs
+      w.edgeMin = percent / 100
+      return budgetMs > 0 ? w.edge : 1
+    },
     allocated: memory.allocated,
     capMemory: memory.cap,
     uncapMemory: memory.uncap,
@@ -118,11 +137,11 @@ export function createScaleControl(option: RenderScale | undefined, maxFrameRate
     /** Whether the interactive loop leaves out the display frame that begins at `now`, ms, its rAF
      *  timestamp, under the frame cap: it draws nothing and counts no frame. */
     skips: (now: number) => skipsDisplayFrame(cap, refresh, now),
-    observe(gpuMs: number | null, scale: number, steered = true) {
+    observe(gpuMs: number | null, scale: number, steered = true, edgeMs = Number.NaN, edge = 1) {
       if (gpuMs === null) return
       w.timedAt = w.images
       if (!steered || !w.bounds.auto || !w.timed || !(scale > 0)) return
-      recordFrame(w.dynamic, gpuMs, scale)
+      recordFrame(w.dynamic, gpuMs, scale, edgeMs, edge)
       w.dynamic.budgetMs = frameTimeBudget(cap, refresh.display)
       refreshFraction(w.dynamic, w)
     },

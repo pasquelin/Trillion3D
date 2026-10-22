@@ -1,6 +1,7 @@
 import { EngineError } from '../../contracts/cache.ts'
-import type { SceneLight } from './contracts.ts'
+import { ATMOSPHERE_SUN_INDICES, type AtmosphereSunIndex, type SceneLight } from './contracts.ts'
 import { finite } from '../core/fog.ts'
+import { isShadowDistance } from '../../contracts/shadowOptions.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import { hypot3 } from '../../../../math/src/float/hypot.ts'
 import { addScaledVector3, dotVector3 } from '../../../../math/src/vector/vector.ts'
@@ -40,11 +41,16 @@ function unused(
     | 'range'
     | 'coneAngle'
     | 'emitterRadius'
+    | 'emitterLength'
+    | 'emitterSoftRadius'
+    | 'emitterAxis'
     | 'angularRadius'
+    | 'shadowDistance'
     | 'penumbra'
     | 'right'
     | 'size'
-    | 'atmosphereSun',
+    | 'atmosphereSun'
+    | 'atmosphereSunIndex',
   why: string,
 ) {
   if (light[field] !== undefined)
@@ -70,6 +76,25 @@ function emitterRadius(value: unknown, range: number, id: string): number {
     })
   return value
 }
+/** A point or spot's tube and soft radius: each strictly positive, the soft radius below the range
+ *  as the envelope's is; the axis, a unit direction, belongs to a tube alone. */
+function validateSource(light: SceneLight, validated: SceneLight, range: number) {
+  const { id } = light
+  const bad = (what: string, field: string, value: unknown) =>
+    new EngineError('INVALID_SCENE_LIGHT', `${id}: ${what}`, { [field]: value, range })
+  if (light.emitterSoftRadius !== undefined) {
+    const soft = light.emitterSoftRadius
+    if (!finite(soft) || soft <= 0 || soft >= range)
+      throw bad('emitter soft radius expected in (0, range)', 'emitterSoftRadius', soft)
+    validated.emitterSoftRadius = soft
+  }
+  if (light.emitterLength === undefined)
+    return unused(light, 'emitterAxis', 'exists only with an emitterLength')
+  if (!finite(light.emitterLength) || light.emitterLength <= 0)
+    throw bad('emitter length must be > 0', 'emitterLength', light.emitterLength)
+  validated.emitterLength = light.emitterLength
+  if (light.emitterAxis !== undefined) validated.emitterAxis = direction(light.emitterAxis, id)
+}
 /** Half-angle of a spot cone, in radians, strictly in `(0, π/2)`. */
 function coneAngle(value: unknown, id: string): number {
   if (!finite(value) || value <= 0 || value >= HALF_PI)
@@ -78,9 +103,18 @@ function coneAngle(value: unknown, id: string): number {
     })
   return value
 }
+/** The index of the air's light a directional light is a candidate for: 0 or 1, no other — the air
+ *  holds two. */
+export function validateAtmosphereSunIndex(value: unknown, who: string): AtmosphereSunIndex {
+  if (!ATMOSPHERE_SUN_INDICES.includes(value as AtmosphereSunIndex))
+    throw new EngineError('INVALID_SCENE_LIGHT', `${who}: atmosphereSunIndex expects 0 or 1`, {
+      atmosphereSunIndex: value,
+    })
+  return value as AtmosphereSunIndex
+}
 /**
- * The fields of a directional light: whether it is the atmosphere's sun, its angular radius, and
- * its direction, required. It has neither position nor range, and says so by refusing them.
+ * The fields of a directional light: whether it is the atmosphere's sun and which, its angular
+ * radius, and its direction, required. It has neither position nor range, and says so by refusing them.
  */
 function validateDirectional(light: SceneLight, validated: SceneLight): SceneLight {
   const { id } = light
@@ -91,6 +125,8 @@ function validateDirectional(light: SceneLight, validated: SceneLight): SceneLig
       })
     validated.atmosphereSun = light.atmosphereSun
   }
+  if (light.atmosphereSunIndex !== undefined)
+    validated.atmosphereSunIndex = validateAtmosphereSunIndex(light.atmosphereSunIndex, id)
   if (light.angularRadius !== undefined) {
     if (!finite(light.angularRadius) || light.angularRadius < 0 || light.angularRadius >= HALF_PI)
       throw new EngineError('INVALID_SCENE_LIGHT', `${id}: invalid angularRadius`, {
@@ -98,11 +134,22 @@ function validateDirectional(light: SceneLight, validated: SceneLight): SceneLig
       })
     validated.angularRadius = light.angularRadius
   }
+  if (light.shadowDistance !== undefined) {
+    if (!isShadowDistance(light.shadowDistance))
+      throw new EngineError(
+        'INVALID_SCENE_LIGHT',
+        `${id}: shadowDistance expects a finite number of metres of at least 0`,
+        { shadowDistance: light.shadowDistance },
+      )
+    validated.shadowDistance = light.shadowDistance
+  }
   unused(light, 'position', 'does not exist for a directional light')
   unused(light, 'range', 'does not exist for a directional light: it carries everywhere')
   unused(light, 'coneAngle', 'exists only for a spot')
   unused(light, 'penumbra', 'exists only for a spot')
   unused(light, 'emitterRadius', 'does not exist for a directional light: it has no position')
+  for (const field of ['emitterLength', 'emitterSoftRadius', 'emitterAxis'] as const)
+    unused(light, field, 'does not exist for a directional light: it has no position')
   validated.direction = requiredDirection(
     light.direction,
     id,
@@ -141,15 +188,19 @@ export function validateSceneLight(light: SceneLight): SceneLight {
     unused(light, 'right', 'exists only for a rect')
     unused(light, 'size', 'exists only for a rect')
   }
-  if (light.kind !== 'directional')
+  if (light.kind !== 'directional') {
     unused(light, 'atmosphereSun', 'exists only for a directional light')
+    unused(light, 'atmosphereSunIndex', 'exists only for a directional light')
+  }
   if (light.kind === 'directional') return validateDirectional(light, validated)
   unused(light, 'angularRadius', 'exists only for a directional light')
+  unused(light, 'shadowDistance', 'exists only for a directional light')
   validated.position = vector(light.position, 'position', id)
   validated.range = range(light.range, id)
   if (light.emitterRadius !== undefined)
     validated.emitterRadius = emitterRadius(light.emitterRadius, validated.range, id)
   if (light.kind === 'rect') return validateRect(light, validated)
+  validateSource(light, validated, validated.range)
   if (light.kind === 'spot') {
     validated.direction = requiredDirection(light.direction, id, 'a spot requires a direction')
     validated.coneAngle = coneAngle(light.coneAngle, id)
@@ -177,6 +228,8 @@ function validateRect(light: SceneLight, validated: SceneLight): SceneLight {
   unused(light, 'coneAngle', 'exists only for a spot')
   unused(light, 'penumbra', 'exists only for a spot')
   unused(light, 'emitterRadius', 'bounds a shadow map, which a rect does not have')
+  for (const field of ['emitterLength', 'emitterSoftRadius', 'emitterAxis'] as const)
+    unused(light, field, 'exists only for a point or a spot')
   if (light.castsShadow)
     throw new EngineError('INVALID_SCENE_LIGHT', `${id}: a rect casts no shadow`, {})
   const normal = requiredDirection(light.direction, id, 'a rect requires the normal of its face')

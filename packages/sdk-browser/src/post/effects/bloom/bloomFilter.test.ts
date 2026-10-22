@@ -17,6 +17,8 @@ import {
 } from '../../filters/gaussianKernel.ts'
 import { BLUR_EDGES, BLUR_PARAMS, GAUSSIAN_WGSL } from '../../filters/gaussianWgsl.ts'
 import { BLOOM_COMPOSITE_WGSL, BLOOM_SETUP_WGSL } from './bloomWgsl.ts'
+import { CONVOLUTION_INPUT_WGSL } from './convolution/inputWgsl.ts'
+import { GLOW_FINISH_WGSL } from './glowFinishWgsl.ts'
 import { bellOf, bilinear, texelsOf, type Image } from './bloom.fixture.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
@@ -238,4 +240,60 @@ test('the composite adds the glow to the pixel, light and coverage, coverage up 
   )
   const out = composite([2.5, 1.5, 0, 1])
   assert.deepEqual(out, [1 + 2.5 / 8, 2 + 1.5 / 4, 3.5, 1], 'a coverage of 1')
+})
+
+test('a cross gives the centre texel a share of each pass, the plain bell at 0', () => {
+  const kernel = (cross?: number) => {
+    const taps = gaussianTapsOf()
+    return texelsOf(taps.offsets, taps.weights, gaussianKernel(9.6, taps, cross))
+  }
+  assert.deepEqual(kernel(0), kernel()) // no cross: the same bell
+  for (const cross of [1, 2.5]) assert.equal(kernel(cross).get(0), 1) // blurs nothing
+  assert.ok(kernel(0.5).get(0)! > kernel(0).get(0)! && kernel(0.5).get(0)! < 1)
+})
+
+type Fragment = Record<string, (pixel: number[]) => number[]>
+const fragment = (code: typeof BLOOM_SETUP_WGSL, name: string, scope: object) =>
+  shaderRun<Fragment>(code, [name], scope)[name]([2.5, 1.5, 0, 1])
+
+test('the convolution reads the image with the local exposure, then boosts what is bright', () => {
+  const read = (c: number[], { layers = 0, exposure = 1, boost = 1 } = {}) =>
+    fragment(CONVOLUTION_INPUT_WGSL, 'convolutionInput', {
+      image: 'image',
+      reader: 'reader',
+      input: { outTexel: [1 / 8, 1 / 4], layers, lift: [7, 15000, 15, boost] },
+      finish: { look: [0, exposure, 0, 0] },
+      textureSampleLevel: () => c,
+      lightLog: () => 0,
+      localGain: () => 2,
+    })
+  const near = (c: number[], v: number, o = {}) => assert.ok(Math.abs(read(c, o)[0] - v) < 0.01)
+  assert.deepEqual(read([3, 3, 3, 1]), [3, 3, 3, 1]) // under 7 in exposed luminance: as it is
+  near([20, 20, 20, 1], 202) // 15 × (20 − 7) + 7
+  near([20, 20, 20, 1], 104, { exposure: 0.5 }) // 10 exposed → 52, the colour scaled by 5.2
+  near([1e4, 1e4, 1e4, 1], 15000) // held to the most
+  assert.deepEqual(read([20, 20, 20, 1], { boost: 0 }), [20, 20, 20, 1]) // a max under the min: off
+  assert.deepEqual(read([1, 2, 4, 1], { layers: 1 }), [2, 4, 8, 1]) // the local exposure first
+  assert.deepEqual(read([-1, NaN, 2, NaN]), [0, 0, 2, 0]) // no negative light, no number that is none
+})
+
+test('the glow is finished with the dirt mask and the light the image gives up', () => {
+  const finish = (shape: object) =>
+    fragment(GLOW_FINISH_WGSL, 'glowFinish', {
+      scene: 'scene',
+      glow: 'glow',
+      dirtImage: 'dirt',
+      reader: 'reader',
+      shape,
+      finish: { tint: [0.5, 1, 2, 1] },
+      textureSampleLevel: () => [1, 2, 3, 0.25],
+      textureSample: () => [0.5, 0.25, 1, 1],
+      textureLoad: () => [4, 8, 16, 1],
+      localGainOf: () => 3,
+    })
+  const none = { keep: [0, 0, 0, 0], dirt: [0, 0, 0, 0], mode: [0, 8, 4, 0] }
+  const keep = { ...none, keep: [-0.5, -0.25, 0, 1] }
+  assert.deepEqual(finish({ ...none, dirt: [2, 2, 2, 1] }), [2, 3, 9, 0.25]) // glow × (1 + mask × tint)
+  assert.deepEqual(finish(keep), [-1, 0, 3, 0.25]) // the glow less what the image gave up
+  assert.deepEqual(finish({ ...keep, mode: [1, 8, 4, 0] }), [-2, -4, 3, 0.25]) // × tint × gain
 })

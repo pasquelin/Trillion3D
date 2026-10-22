@@ -29,7 +29,11 @@ test('the blend fragment stage writes nothing to memory', () => {
   assert.doesNotMatch(BLEND_SHADER, /var<storage,\s*read_write>/)
   // No ray of the proxy in a fragment: the trace cast it, and the front surface reads what it wrote.
   assert.doesNotMatch(BLEND_SHADER, /\brtProxy\b/, 'no proxy bound, no ray traced')
-  assert.match(BLEND_SHADER, /var frontTraced:texture_2d<u32>;/, 'the front radiance, read by load')
+  assert.match(
+    BLEND_SHADER,
+    /var frontTraced:texture_storage_2d<rg32uint,read>;/,
+    'the front radiance, read by load',
+  )
 })
 
 test('the blend layout declares no writable storage buffer', async () => {

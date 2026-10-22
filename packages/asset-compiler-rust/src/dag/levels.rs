@@ -24,25 +24,55 @@ struct Made {
     source_rank: u32,
 }
 
+/// Where a climb starts: the clusters `current` the first level above reads, the groups already
+/// kept (those of the DAGs the clusters come from) and that level's rank, one past the highest of
+/// the levels the clusters lie at.
+pub(super) struct Climb {
+    pub current: Vec<usize>,
+    pub groups: Vec<DagGroup>,
+    pub first_level: usize,
+}
+
 /// Builds every level above the level-0 clusters `dag`, their `identities` and their external
 /// edges `outer` (`clusters.rs`), which index the source's `positions` through its `indices` as
 /// the build read them, `welds` their welds and `grown` the source's arrays as the build reads
 /// them, none when they are the source's own (`input::finished`); `triangle_source` the source
 /// rank of each of those triangles, which `DagBuild` hands on with them.
 pub(super) fn coarsen(
+    source: (&[f32], DagAttributes, Vec<u32>, Vec<u32>),
+    state: (welds::Welds, Option<Grown>),
+    level0: (Vec<DagCluster>, Vec<u64>, Vec<Vec<u8>>),
+    settings: DagSettings,
+    checkpoint: &(dyn Fn() -> Result<()> + Sync),
+) -> Result<DagBuild> {
+    let climb = Climb {
+        current: (0..level0.0.len()).collect(),
+        groups: Vec::new(),
+        first_level: 1,
+    };
+    coarsen_from(source, state, level0, climb, settings, checkpoint)
+}
+
+/// `coarsen` over the clusters `climb` names among `dag`, whose `outer` edges are one list each, in
+/// its order: the clusters below them are the DAG's already, their `identities` all given.
+pub(super) fn coarsen_from(
     (positions, attributes, indices, triangle_source): (&[f32], DagAttributes, Vec<u32>, Vec<u32>),
     (mut welds, mut grown): (welds::Welds, Option<Grown>),
     (mut dag, mut identities, mut outer): (Vec<DagCluster>, Vec<u64>, Vec<Vec<u8>>),
+    climb: Climb,
     settings: DagSettings,
     checkpoint: &(dyn Fn() -> Result<()> + Sync),
 ) -> Result<DagBuild> {
     let mut tallies: Vec<GroupTally> = Vec::new();
     let mut stalls: Vec<DagStall> = Vec::new();
-    let mut reductions_kept: Vec<DagGroup> = Vec::new();
-    let mut current: Vec<usize> = (0..dag.len()).collect();
+    let Climb {
+        mut current,
+        groups: mut reductions_kept,
+        first_level,
+    } = climb;
     // The box every level's clusters have reached so far.
     let mut reached = ([f32::INFINITY; 3], [f32::NEG_INFINITY; 3]);
-    for level in 1.. {
+    for level in first_level.. {
         checkpoint()?;
         if current.len() < 2 {
             break;

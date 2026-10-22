@@ -135,12 +135,12 @@ mod vector;
 
 use chart::{build_charts, UvChart};
 use groups::{face_groups, source_mesh};
-use mesh::{TriMesh, NONE};
+use mesh::NONE;
 use vector::most;
 
 /// The builder's corner of each caller corner: every triangle is turned, its first two corners
-/// swapped.
-const TURN: [usize; 3] = [1, 0, 2];
+/// swapped (the spectral unwrap turns its triangles over the same way).
+pub(crate) const TURN: [usize; 3] = [1, 0, 2];
 
 /// Per corner of `topology`'s triangles (`t · 3 + k`, in their own corner order), its texture
 /// coordinates in `[0, 1]²` — each axis over the atlas's side on that axis, all at the origin when
@@ -187,18 +187,22 @@ pub(crate) fn charts(topology: &Topology) -> (Vec<[f64; 2]>, Vec<Vec<usize>>) {
             [f64::from(u) / width, f64::from(v) / height]
         })
         .collect();
-    (corners, islands(&source, &vertex_of))
+    let ignored = |face: usize| source.is_ignored(face);
+    (corners, islands(source.face_count(), &vertex_of, ignored))
 }
 
-/// The triangles joined across every edge whose two texture vertices they share, set-aside
-/// triangles alone.
-fn islands(source: &TriMesh, vertex_of: &[usize]) -> Vec<Vec<usize>> {
-    let face_count = source.face_count();
+/// The `face_count` triangles joined across every edge whose two texture vertices, `vertex_of` per
+/// corner, they share, the `ignored` ones alone.
+pub(crate) fn islands(
+    face_count: usize,
+    vertex_of: &[usize],
+    ignored: impl Fn(usize) -> bool,
+) -> Vec<Vec<usize>> {
     let mut join = Join::<LeastRoot>::new(face_count);
     // Per texture edge, the first triangle along it; there are no more texture vertices than
     // corners, so each fits a word.
-    let mut sides: WordMap<u64, usize> = word_map(source.indices.len());
-    for face in (0..face_count).filter(|&face| !source.is_ignored(face)) {
+    let mut sides: WordMap<u64, usize> = word_map(vertex_of.len());
+    for face in (0..face_count).filter(|&face| !ignored(face)) {
         for k in 0..3 {
             let (a, b) = (vertex_of[face * 3 + k], vertex_of[face * 3 + (k + 1) % 3]);
             let other = *sides.entry(edge_key(a as u32, b as u32)).or_insert(face);

@@ -171,6 +171,14 @@ export type {
   SettingRange,
   SettingValues,
 } from '../../sdk-core/src/contracts/settingRules.ts'
+// The sun's shadow settings (`world.shadows`, `WorldOptions`): their rules, the shadow distance a
+// light names (`LightParameters.shadowDistance`) and its default.
+export {
+  SHADOW_DISTANCE_DEFAULT,
+  SHADOW_RULES,
+  type ShadowDistanceOption,
+  type ShadowOptions,
+} from '../../sdk-core/src/contracts/shadowOptions.ts'
 export { createPageStreamer } from './geometry/streaming/pageStreamer.ts'
 // The page cache a streamer reads through, its owner's (`PageStreamerOptions.cache`).
 export {

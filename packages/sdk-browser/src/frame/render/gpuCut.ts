@@ -1,9 +1,15 @@
 import { cpuNow } from '../../diagnostic/stopwatch.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { cameraSelectionUniforms } from '../../gpu/core/selection.ts'
-import { CULL_FRUSTUM_OFF, CULL_MIN_LOD_OFF } from '../../geometry/dag/shader/viewsWgsl.ts'
+import {
+  CULL_CLIP_PLANE_OFF,
+  CULL_DRAW_DISTANCE_OFF,
+  CULL_FRUSTUM_OFF,
+  CULL_MIN_LOD_OFF,
+} from '../../geometry/dag/shader/viewsWgsl.ts'
 import { taaRenderMatrix } from '../../post/taa/frame.ts'
 import { writeCutOcclusion } from './cutPyramid.ts'
+import { writeCutViewSet } from './cutViewSet.ts'
 import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import { contextReader } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { mirrorDrawnFromShown } from '../backend/helpers.ts'
@@ -109,20 +115,43 @@ function lodBiasFactor(rt: WebgpuPagesRuntime) {
 /**
  * The drawn view's selection uniforms under `cam`: its pixels at the size the image is drawn at,
  * the image's render matrix — its jitter included — the boxes' pixel centres are found with, the
- * culls the host turned off, the frame. The threshold the cut reads is the host's pixels per edge
- * divided by the view's level-of-detail factor (`lodBiasFactor`) and the streaming quality scale
+ * culls the host turned off, the scale of the draw distances, the view's clip plane and filter, the
+ * frame. The threshold the cut
+ * reads is the host's pixels per edge divided by the view's level-of-detail factor (`lodBiasFactor`) and the streaming quality scale
  * (`../../geometry/residency/poolPressure.ts`): residency coarsens, one DAG level where a page is
- * missing (`../../geometry/cut/rule.ts`).
+ * missing (`../../geometry/cut/rule.ts`) — or, where a GPU time budget asks it, by the lesser of
+ * that scale and the edge scale's fraction (`../scale/scaleControl.ts`, `cutEdgeScaleBudgetMs`).
  */
 function writeCutUniforms(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: number) {
   const { run, gpu, services } = rt,
     uniforms = run.selectionUniforms,
     size = gpu.targetSize
-  const threshold = pixelError / (lodBiasFactor(rt) * services.residency.qualityScale)
+  const scale = Math.min(
+    services.residency.qualityScale,
+    rt.views.main.scale.edgeScale(
+      cutSetting(rt, 'cutEdgeScaleBudgetMs'),
+      cutSetting(rt, 'cutEdgeScaleMinPercent'),
+    ),
+  )
+  const threshold = pixelError / (lodBiasFactor(rt) * scale)
   cameraSelectionUniforms(cam, threshold, size, uniforms, taaRenderMatrix(rt, cam))
   uniforms.cullOff =
     (cutSetting(rt, 'cutFrustumCulling') ? 0 : CULL_FRUSTUM_OFF) |
-    (cutSetting(rt, 'cutMinLodCulling') ? 0 : CULL_MIN_LOD_OFF)
+    (cutSetting(rt, 'cutMinLodCulling') ? 0 : CULL_MIN_LOD_OFF) |
+    (cutSetting(rt, 'cutDrawDistanceCulling') ? 0 : CULL_DRAW_DISTANCE_OFF) |
+    (cutSetting(rt, 'cutClipPlaneCulling') ? 0 : CULL_CLIP_PLANE_OFF)
+  // The view's clip plane and its lists of hidden and shown objects (`./cutViewSet.ts`).
+  writeCutViewSet(rt, cam, uniforms, {
+    clipPlane: cutSetting(rt, 'cutClipPlane'),
+    filtering: cutSetting(rt, 'cutViewFiltering'),
+  })
+  const distances = cutSetting(rt, 'cutViewDistanceScale')
+  uniforms.viewDistanceScale = distances
+  // What the rays' scene meets of the objects out of their draw distances, from the same eye.
+  run.gpuSelection?.proxyDistance(
+    cam.eye,
+    cutSetting(rt, 'cutDrawDistanceCulling') ? distances : undefined,
+  )
   // The clock every view's cut of this frame stamps the rows it uses with
   // (`../../geometry/rows/rowClosureWgsl.ts`), and a cut in two passes is known by.
   uniforms.frame = run.frame

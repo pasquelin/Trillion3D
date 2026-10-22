@@ -58,7 +58,7 @@ test('a row neither deformed nor moving is unchanged: static, no invalidation', 
 })
 
 test('the coloured transmission sorts its candidates by the same rule', () => {
-  const call = 'vsmRenderCandidateFlags(mobility[row],page.deformOutput)'
+  const call = 'vsmRenderCandidateFlags(word,page.deformOutput)'
   for (const code of [candidates, vsmTransmissionCandidatesWgsl()]) {
     assert.ok(code.includes(call))
     assert.ok(!code.includes('flags|=VSM_RENDER_CAND_DEFORMING'), 'no second rule beside it')

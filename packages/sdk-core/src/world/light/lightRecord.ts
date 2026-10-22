@@ -5,6 +5,7 @@ import {
   addUniformIrradiance,
   type IrradianceSum,
 } from '../../scene/core/environment.ts'
+import { SHADOW_DISTANCE_DEFAULT } from '../../contracts/shadowOptions.ts'
 import { Vector3 } from '../math/vector3.ts'
 import { Light } from './light.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
@@ -20,6 +21,8 @@ const WIDEST_CONE = HALF_PI - 1e-9
 const eye = new Vector3(),
   aim = new Vector3(),
   right = new Vector3()
+/** The scene's up, which a tube lies along while its node is not turned. */
+const UP = new Vector3(0, 1, 0)
 /** `colour` times `scale`: read when the lights change, never per frame. */
 const scaled = (colour: { r: number; g: number; b: number }, scale: number) => [
   colour.r * scale,
@@ -66,6 +69,11 @@ export function lampRecord(
   if (kind === 'directional') {
     if (light.angularRadius > 0) record.angularRadius = light.angularRadius
     if (!light.atmosphereSun) record.atmosphereSun = false
+    if (light.atmosphereSunIndex !== 0) record.atmosphereSunIndex = light.atmosphereSunIndex
+    // The default distance stays out of the record, as the default disk does: a light that names
+    // none keeps the record it had.
+    if (light.shadowDistance !== SHADOW_DISTANCE_DEFAULT)
+      record.shadowDistance = light.shadowDistance
     return record
   }
   record.position = eye.toArray()
@@ -74,9 +82,19 @@ export function lampRecord(
     record.coneAngle = Math.min(light.angle, WIDEST_CONE)
     if (light.penumbra > 0) record.penumbra = Math.min(1, light.penumbra)
   }
-  const radius = rectangle ? 0 : light.radius
-  if (radius > 0 && radius < record.range) record.emitterRadius = radius
+  if (!rectangle) writeSource(record, light, record.range)
   return record
+}
+
+/** A point or spot's source: its radius and soft radius, each only below the range as the record
+ *  holds them, and its tube along the light's own up in the world (the node's local y). */
+function writeSource(record: SceneLight, light: Light, range: number) {
+  if (light.radius > 0 && light.radius < range) record.emitterRadius = light.radius
+  if (light.softRadius > 0 && light.softRadius < range) record.emitterSoftRadius = light.softRadius
+  if (!(light.tubeLength > 0)) return
+  const m = light.matrixWorld.elements
+  record.emitterLength = light.tubeLength
+  record.emitterAxis = right.set(m[4], m[5], m[6]).normalize().toArray()
 }
 
 /** What a sky light sees of the sky: the atmosphere's radiance as the engine captured it — nine
@@ -181,7 +199,14 @@ export function lightFromRecord(record: SceneLight): Light {
     penumbra: record.penumbra,
     radius: record.emitterRadius,
     angularRadius: record.angularRadius,
+    shadowDistance: record.shadowDistance,
+    atmosphereSun: record.atmosphereSun,
+    atmosphereSunIndex: record.atmosphereSunIndex,
+    softRadius: record.emitterSoftRadius,
+    tubeLength: record.emitterLength,
   })
   node.name = record.id
+  // A tube lies along the node's own up: turned there from the scene's.
+  if (record.emitterAxis) node.quaternion.setFromUnitVectors(UP, aim.set(...record.emitterAxis))
   return node
 }

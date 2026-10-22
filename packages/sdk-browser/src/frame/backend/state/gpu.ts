@@ -6,6 +6,11 @@ import type { SurfaceBuffer } from '../../../materials/surface/surfaceBuffer.ts'
 import type { AsIsShare } from '../../../lighting/deferred/asIsShare.ts'
 import type { DisplayFilter } from '../../../blend/display/displayFilter.ts'
 import type { TemporalAntialiasing } from '../../../post/taa/temporalAntialiasing.ts'
+import type { Velocity } from '../../../post/taa/velocity.ts'
+import type { ScreenProbeView } from '../../../lighting/bounce/screen/view.ts'
+import type { AmbientOcclusion } from '../../../lighting/ao/frame.ts'
+import type { BlurWatch, DepthOfFieldWatch } from '../../../post/effects/blurPlan.ts'
+import type { BloomWatch } from '../../../post/effects/bloom/bloomSettings.ts'
 import type { ExposureMeter } from '../../../post/exposure/meter.ts'
 import type { Finish } from '../../../post/finish/finish.ts'
 import { isTaaLevelOn } from '../../../post/taa/levels.ts'
@@ -19,6 +24,7 @@ import type { WebgpuParticles } from '../../../particles/gpu/webgpuParticles.ts'
 import type { TargetGrant } from '../../prepare/targetsSet.ts'
 import type { FrameDifference } from '../../render/frameDifference.ts'
 import type { AtmosphereGpu } from '../../../lighting/atmosphere/gpu.ts'
+import type { FogVolumeState } from '../../render/encodeFogVolume.ts'
 
 /** GPU resources of the image: page cache, frame targets and presentation. */
 export interface WebgpuGpuState {
@@ -73,6 +79,17 @@ export interface WebgpuGpuState {
   /** Temporal-antialiasing pass and its two history targets; absent when the host refuses it or the
    *  device does not host it. */
   temporal: TemporalAntialiasing | undefined
+  /** The velocity stage: the motion of the render texels, which the passes that read it share —
+   *  the indirect light, the temporal pass, the motion blur; made at the first image that asks
+   *  (`../../../post/taa/velocityFrame.ts`). */
+  velocity: Velocity | undefined
+  /** The view's screen probes — the pixels' indirect light, at the size its targets are made at —, made at the first image
+   *  that casts them and given back with a level `'off'` (`../../../lighting/bounce/screen/view.ts`). */
+  screenProbes: ScreenProbeView | undefined
+  /** The view's screen-space ambient occlusion — its textures at the size its targets are made at, and what the lighting
+   *  reads this image —, made at the first image that draws it and given back when none does
+   *  (`../../../lighting/ao/frame.ts`). */
+  ambientOcclusion: AmbientOcclusion | undefined
   /** The level the host wants the pass at (`../../../post/taa/levels.ts`), `'off'` none: set at
    *  preparation, then by `setTemporalAntialiasing` (`taaWanted`). */
   temporalLevel: TemporalAntialiasingLevel
@@ -90,6 +107,14 @@ export interface WebgpuGpuState {
   /** Revision of the chain the last encoded image drew, -1 while its programs compile: another
    *  one breaks the hold. */
   effectsRevision: number
+  /** The view's reading of the motion blur's settings (`MOTION_BLUR_RULES`): another reading breaks
+   *  the hold (`../../../post/effects/blurPlan.ts`); none before the first image. */
+  motionBlurWatch: BlurWatch | undefined
+  /** The same for the depth of field's settings (`DEPTH_OF_FIELD_RULES`). */
+  depthOfFieldWatch: DepthOfFieldWatch | undefined
+  /** The view's reading of the bloom's settings (`BLOOM_RULES`): another reading breaks the hold
+   *  (`../../../post/effects/bloom/bloomSettings.ts`); none before the first image. */
+  bloomWatch: BloomWatch | undefined
   /** The guide pass, built by the first image that shows a guide (`guidePass.ts`). */
   guides: WebgpuGuidePass | undefined
   /** Revision of the page's guides the last encoded image drew (`encodeGuides.ts`). */
@@ -102,6 +127,9 @@ export interface WebgpuGpuState {
   /** The scene's atmosphere: its tables, passes and the sky's capture, made once a scene declares
    *  one (`../../render/encodeAtmosphere.ts`). */
   atmosphere?: AtmosphereGpu
+  /** The scene's fog volume and cubemap, made once a scene turns the volume on or sets a cubemap
+   *  (`../../render/encodeFogVolume.ts`). */
+  fogVolume?: FogVolumeState
 }
 
 /** The copy of the opaque scene the distortion rereads and the offsets it accumulates, with their
@@ -147,12 +175,18 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     presenter: undefined,
     deferred: undefined,
     temporal: undefined,
+    velocity: undefined,
+    screenProbes: undefined,
+    ambientOcclusion: undefined,
     temporalLevel: DEFAULT_TEMPORAL_AA_LEVEL,
     exposure: undefined,
     finish: undefined,
     finishPending: false,
     effects: undefined,
     effectsRevision: 0,
+    motionBlurWatch: undefined,
+    depthOfFieldWatch: undefined,
+    bloomWatch: undefined,
     guides: undefined,
     guideRevision: 0,
     particles: undefined,
@@ -176,6 +210,24 @@ export function swapSurfaces(
   gpu.targetBytes += next.allocationBytes - old.allocationBytes
 }
 
-/** Bytes of a view's frame targets: those it made, its effect chain's and its finishing's. */
-export const viewTargetBytes = (gpu: Pick<WebgpuGpuState, 'targetBytes' | 'effects' | 'finish'>) =>
-  gpu.targetBytes + (gpu.effects?.bytes ?? 0) + (gpu.finish?.bytes ?? 0)
+/** Bytes of a view's frame targets: those it made, its effect chain's, its finishing's, its
+ *  velocity stage's, its screen probes', its ambient occlusion's and its fog's. */
+export const viewTargetBytes = (
+  gpu: Pick<
+    WebgpuGpuState,
+    | 'targetBytes'
+    | 'effects'
+    | 'finish'
+    | 'velocity'
+    | 'screenProbes'
+    | 'ambientOcclusion'
+    | 'fogVolume'
+  >,
+) =>
+  gpu.targetBytes +
+  (gpu.effects?.bytes ?? 0) +
+  (gpu.finish?.bytes ?? 0) +
+  (gpu.velocity?.bytes ?? 0) +
+  (gpu.screenProbes?.bytes ?? 0) +
+  (gpu.ambientOcclusion?.bytes ?? 0) +
+  (gpu.fogVolume?.bytes ?? 0)

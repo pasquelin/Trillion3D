@@ -66,6 +66,25 @@ impl Default for SquareSettings {
     }
 }
 
+impl SquareSettings {
+    /// The first setting `named` accepts in which these settings and `first`'s differ: the square
+    /// settings are the whole partition's, one for every grid.
+    pub(super) fn differing(
+        &self,
+        first: &Self,
+        named: impl Fn(&str) -> bool,
+    ) -> Option<&'static str> {
+        let [nested, pull, small] = SPATIAL_HASH_GRID_SETTINGS;
+        [
+            (nested, self.nested_levels != first.nested_levels),
+            (pull, self.pull_coarser != first.pull_coarser),
+            (small, self.small_by_centre != first.small_by_centre),
+        ]
+        .into_iter()
+        .find_map(|(name, differs)| (differs && named(name)).then_some(name))
+    }
+}
+
 /// The stream bounds `PARTITION_STREAM_BOUNDS` names `name`, `None` for another name.
 fn bounds_named(name: &str) -> Option<StreamBounds> {
     let at = PARTITION_STREAM_BOUNDS.iter().position(|b| *b == name)?;
@@ -77,11 +96,57 @@ pub(super) fn positive_metres(value: &Value) -> Option<f64> {
     value.as_f64().filter(|m| m.is_finite() && *m > 0.0)
 }
 
+/// The origin `value` names under `scheme` as glTF's `x`, `y` (up) and `z`: `[x, z]` on the ground,
+/// its height 0; or, a loose grid's, `[x, y, z]`, a square grid lying on the ground. `Err` with
+/// what the origin takes, for any other value.
+pub(super) fn origin_of(
+    value: &Value,
+    scheme: PartitionScheme,
+) -> std::result::Result<[f64; 3], &'static str> {
+    let (lengths, takes): (&[usize], _) = match scheme {
+        PartitionScheme::HashSet => (&[2, 3], "two or three finite numbers"),
+        PartitionScheme::SpatialHash => (&[2], "two finite numbers"),
+    };
+    let point = (value.as_array())
+        .filter(|point| lengths.contains(&point.len()))
+        .and_then(|point| {
+            point
+                .iter()
+                .map(Value::as_f64)
+                .collect::<Option<Vec<f64>>>()
+        })
+        .filter(|point| point.iter().all(|c| c.is_finite()))
+        .ok_or(takes)?;
+    Ok(if point.len() == 2 {
+        [point[0], 0.0, point[1]]
+    } else {
+        [point[0], point[1], point[2]]
+    })
+}
+
+/// The first key of `fields` that `accepted` does not name, as the job's refusal of a grid read
+/// from `field` words it.
+pub(super) fn unknown_setting(
+    fields: &Map<String, Value>,
+    accepted: &[&str],
+    field: &str,
+) -> Option<String> {
+    let key = fields
+        .keys()
+        .find(|key| !accepted.contains(&key.as_str()))?;
+    Some(format!(
+        "{field}: the grid has no field {key}: {}",
+        accepted.join(", ")
+    ))
+}
+
 /// The settings of `scheme` the grid's `fields` name, each its default when left out; `Err` with
-/// the job's refusal for a setting of the other scheme or one that does not read.
+/// the job's refusal for a setting of the other scheme or one that does not read, `field` naming
+/// where the grid was read from.
 pub(super) fn scheme_settings(
     fields: &Map<String, Value>,
     scheme: PartitionScheme,
+    field: &str,
 ) -> std::result::Result<(LooseSettings, SquareSettings), String> {
     let (foreign, other) = match scheme {
         PartitionScheme::HashSet => (
@@ -96,11 +161,11 @@ pub(super) fn scheme_settings(
     {
         let other = other.name();
         return Err(format!(
-            "{PARTITION_GRID_FIELD}: {name} is read by {PARTITION_SCHEME_FIELD} {other} alone"
+            "{field}: {name} is read by {PARTITION_SCHEME_FIELD} {other} alone"
         ));
     }
     let refuse = |name: &str, takes: &str, got: &Value| {
-        format!("{PARTITION_GRID_FIELD}: {name} must be {takes}, got {got}")
+        format!("{field}: {name} must be {takes}, got {got}")
     };
     let flag = |name: &str, fallback: bool| match present(fields.get(name)) {
         None => Ok(fallback),
@@ -118,7 +183,7 @@ pub(super) fn scheme_settings(
             .as_array()
             .ok_or_else(|| refuse("hlodGrids", "an array", v))?;
         loose.hlod_grids = (levels.iter().enumerate())
-            .map(|(at, level)| hlod_grid(level, at))
+            .map(|(at, level)| hlod_grid(level, (field, at)))
             .collect::<std::result::Result<_, _>>()?;
     }
     let square = SquareSettings {
@@ -129,10 +194,14 @@ pub(super) fn scheme_settings(
     Ok((loose, square))
 }
 
-/// HLOD level `at`'s grid as `value` names it: its cell side and loading range, each `None` left
-/// out, `null` naming neither; `Err` for a field it does not hold or a size not above 0.
-fn hlod_grid(value: &Value, at: usize) -> std::result::Result<[Option<f64>; 2], String> {
-    let what = format!("{PARTITION_GRID_FIELD}: hlodGrids[{at}]");
+/// HLOD level `at`'s grid as `value` names it, read from `field`: its cell side and loading range,
+/// each `None` left out, `null` naming neither; `Err` for a field it does not hold or a size not
+/// above 0.
+fn hlod_grid(
+    value: &Value,
+    (field, at): (&str, usize),
+) -> std::result::Result<[Option<f64>; 2], String> {
+    let what = format!("{field}: hlodGrids[{at}]");
     let Some(value) = present(Some(value)) else {
         return Ok([None, None]);
     };

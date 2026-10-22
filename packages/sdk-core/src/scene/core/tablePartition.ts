@@ -6,11 +6,10 @@
  * unit, boxed in the frame of each core parent it hangs nodes under, and naming the world bounds
  * its grid cell streams by and its HLOD 0 cell's. The tables keep only a root: its slots, the core
  * ranks the cells under each hang nodes under, per mesh the nodes placed and the rows a view
- * holds, the partition's scheme — which the runtime tests and ranks its cells by —, whether its
- * grids lie flat, every grid's cell side, loading range, priority and HLOD level, and what each
- * square grid whose wished cells pull in the coarser ones finds those by; the cells' records lie
- * in pages beside them (`partition/pages.rs`), which the runtime reads as its view reaches them
- * (`readCellPage`).
+ * holds, the partition's scheme — which the runtime tests and ranks its cells by —, every grid's
+ * cell side, loading range, priority, HLOD level and flatness, and what each square grid whose
+ * wished cells pull in the coarser ones finds those by; the cells' records lie in pages beside
+ * them (`partition/pages.rs`), which the runtime reads as its view reaches them (`readCellPage`).
  */
 import { EngineError } from '../../contracts/cache.ts'
 import { PARTITION_SCHEMES, type PartitionScheme } from '../../contracts/partitionOptions.ts'
@@ -28,13 +27,15 @@ import {
 } from './tablePages.ts'
 
 /** The version of the partition and of its pages this runtime reads: 13, the one that names per
- *  grid whether cell files stream on it (`PartitionGrid.files`). What each version changed is
- *  listed in `docs/FORMAT.md` (the partition's versions). */
+ *  grid whether cell files stream on it (`PartitionGrid.files`), and 14, which adds several main
+ *  grids (`PartitionGrid.main`). What each version changed is listed in `docs/FORMAT.md` (the
+ *  partition's versions). */
 const PARTITION_VERSION = 13
-/** The bits of a grid's flags in the root: a load blocks on its slow streaming, and cell files
- *  stream on it. */
+/** The bits of a grid's flags in the root: a load blocks on its slow streaming, cell files stream
+ *  on it, and it lies flat unlike the root's `flat`, the first grid's. */
 const GRID_BLOCKS = 1,
-  GRID_FILES = 2
+  GRID_FILES = 2,
+  GRID_FLAT_UNLIKE = 4
 /** The hexadecimal digits of a grid in the root: its cell side and its loading range, `f64` bits
  *  of sixteen digits each, then its priority, its HLOD level and its flags, eight each; and of the
  *  coarser-cell record of a square grid: its centre's two coordinates, sixteen each, then its
@@ -45,6 +46,7 @@ const GRID_DIGITS = 16 + 16 + 3 * 8,
 const CELL_PAGES: PageKind = {
   prefix: 'scene-page-',
   version: PARTITION_VERSION,
+  alsoVersion: PARTITION_VERSION + 1,
   records: 'cells',
   unsupported: 'UNSUPPORTED_SCENE_TABLES',
   invalid: 'INVALID_SCENE_TABLES',
@@ -73,8 +75,11 @@ export interface TableCell {
    *  which a runtime holding the manifest by the view reads with the cell. */
   meshPages: readonly string[]
   /** Its main grid cell: level, then its coordinates on glTF's `x` and `z` — or `x`, `y`, `z` on
-   *  grids that do not lie flat (`TablePartition.flat`, `partition/grid.rs`). */
+   *  a grid that does not lie flat (`PartitionGrid.flat`, `partition/grid.rs`). */
   grid: readonly [number, number, number] | readonly [number, number, number, number]
+  /** The rank, among `TablePartition.hlod.grids`, of the main grid it lies on: 0, the default
+   *  grid, where the file leaves it out. */
+  main: number
   /** The world bounds its grid cell streams by, at the declared poses: the box around its
    *  content, its cell's box, or the first clipped to the second, as the job names (`hashSet`),
    *  or its square on the plane with its content's up axis (`spatialHash`). */
@@ -102,6 +107,10 @@ export type PartitionGrid = {
   level: number
   blocks: boolean
   files: boolean
+  /** Whether it is one of the main grids the objects stream on, the first grids of the root. */
+  main: boolean
+  /** Whether it lies flat: a cell of it is tested from above, its up axis dropped (`source.ts`). */
+  flat: boolean
 }
 
 /** What a square grid whose wished cells pull in the coarser cells overlapping them finds those
@@ -130,18 +139,20 @@ export interface TablePartition {
   /** How its cells were cut, which says how the runtime tests and ranks them
    *  (`PARTITION_SCHEMES`, `../../../../sdk-browser/src/geometry/partition/source.ts`). */
   scheme: PartitionScheme
-  /** Whether the grids lie flat on the ground — a cell then tested from above, its up axis
-   *  dropped —, as a square grid always does. */
+  /** Whether the first grid lies flat; every grid says it for itself (`PartitionGrid.flat`). */
   flat: boolean
-  /** The grids, the main one first (`PartitionGrid`), per grid what its wished cells pull the
-   *  coarser ones overlapping them in by (`CoarserGrid`), `null` when they pull none, and how many
-   *  HLOD 0 cells the cells name. */
+  /** The grids, the main ones first (`PartitionGrid.main`), per grid what its wished cells pull
+   *  the coarser ones overlapping them in by (`CoarserGrid`), `null` when they pull none, and how
+   *  many HLOD 0 cells the cells name. */
   hlod: {
     grids: readonly PartitionGrid[]
     coarser: readonly (CoarserGrid | null)[]
     cells: number
   }
 }
+
+/** A cell as a page lists it: its rank of main grid left out for the first. */
+type RawCell = Omit<TableCell, 'main'> & { main?: number }
 
 /** The partition as the tables carry it: its version, `FAN_OUT` slots, empty ones zeros, beside
  *  each the core ranks under it, eight hexadecimal digits each run together, per mesh its rank,
@@ -154,14 +165,19 @@ export type TablePartitionRoot = {
   cube: string
   /** The partition's scheme, one of `PARTITION_SCHEMES`. */
   scheme: PartitionScheme
-  /** Whether the grids lie flat on the ground. */
+  /** Whether the first grid lies flat on the ground. */
   flat: boolean
   /** Per grid its cell side and loading range as `f64` bits, sixteen hexadecimal digits each,
-   *  then its priority, its HLOD level and its flags (`GRID_BLOCKS`) in eight each; per grid
+   *  then its priority, its HLOD level and its flags (`GRID_BLOCKS`…) in eight each; per grid
    *  whose wished cells pull in the coarser ones its centre on the ground as `f64` bits, sixteen
-   *  each, then its finest level's cells per side in eight, `null` for any other; and the HLOD 0
-   *  cells' count in eight. */
-  hlod: { grids: readonly string[]; coarser: readonly (string | null)[]; cells: string }
+   *  each, then its finest level's cells per side in eight, `null` for any other; the HLOD 0
+   *  cells' count in eight; and how many of the first grids are main ones, if more than one. */
+  hlod: {
+    grids: readonly string[]
+    coarser: readonly (string | null)[]
+    cells: string
+    mains?: number
+  }
 }
 /** The root, `null` when the scene has none, or a named refusal of another version or shape. */
 export function assertTablePartition(value: unknown): TablePartitionRoot | null {
@@ -181,7 +197,12 @@ export function assertTablePartition(value: unknown): TablePartitionRoot | null 
     Array.isArray(coarser) &&
     coarser.length === grids.length &&
     coarser.every((grid) => grid === null || hexes([grid], COARSER_DIGITS)) &&
-    hexes([root.hlod?.cells], 8)
+    hexes([root.hlod?.cells], 8) &&
+    // The count of main grids, if the root says it, is one of the grids it lists.
+    (root.hlod?.mains === undefined ||
+      (Number.isInteger(root.hlod.mains) &&
+        root.hlod.mains >= 1 &&
+        root.hlod.mains <= grids.length))
   if (!shaped || !Array.isArray(root.pages) || root.pages.length !== FAN_OUT)
     throw new EngineError(CELL_PAGES.invalid, 'scene partition misses its root', {})
   return root as TablePartitionRoot
@@ -199,7 +220,8 @@ export function tablePartition(root: TablePartitionRoot): TablePartition {
   const rows = new Map(listed.map(([mesh, , ...rungs]) => [mesh, rungs]))
   const parents = [...new Set(pages.flatMap((slot) => slot.parents))].sort((a, b) => a - b)
   const cube = float64(root.cube)
-  const grids = root.hlod.grids.map((grid) => {
+  const mains = root.hlod.mains ?? 1
+  const grids: PartitionGrid[] = root.hlod.grids.map((grid, at) => {
     const [priority, level, flags] = eights(grid.slice(32))
     return {
       cell: float64(grid.slice(0, 16)),
@@ -208,6 +230,8 @@ export function tablePartition(root: TablePartitionRoot): TablePartition {
       level,
       blocks: (flags & GRID_BLOCKS) !== 0,
       files: (flags & GRID_FILES) !== 0,
+      main: at < mains,
+      flat: root.flat !== ((flags & GRID_FLAT_UNLIKE) !== 0),
     }
   })
   const coarser = root.hlod.coarser.map((grid) =>
@@ -248,18 +272,19 @@ export function readCellPage(bytes: Uint8Array, url: string) {
   }
   const { meshPages, cells, first } = body as {
     meshPages?: unknown
-    cells?: TableCell[]
+    cells?: RawCell[]
     first?: unknown
   }
   if (!Number.isSafeInteger(first) || (first as number) < 0)
     throw new EngineError(CELL_PAGES.invalid, `${url} misses the rank of its first cell`, {})
   if (!Array.isArray(meshPages) || !meshPages.every(isSlot))
     throw new EngineError(CELL_PAGES.invalid, 'a region page misses its mesh pages', {})
-  const valid = (cell: TableCell) =>
+  const valid = (cell: RawCell) =>
     Array.isArray(cell?.meshes) &&
     Array.isArray(cell.parents) &&
     Array.isArray(cell.bounds) &&
     cell.bounds.length === 6 &&
+    (cell.main === undefined || (Number.isSafeInteger(cell.main) && cell.main >= 0)) &&
     (cell.hlod === null ||
       (Array.isArray(cell.hlod) &&
         Number.isSafeInteger(cell.hlod[0]) &&
@@ -269,7 +294,7 @@ export function readCellPage(bytes: Uint8Array, url: string) {
     throw new EngineError(CELL_PAGES.invalid, `${url} lists neither pages nor cells`, {})
   return {
     pages: null,
-    cells: cells.map((cell) => ({ ...cell, meshPages })),
+    cells: cells.map((cell) => ({ ...cell, main: cell.main ?? 0, meshPages })),
     first: first as number,
   }
 }

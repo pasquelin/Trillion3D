@@ -51,6 +51,16 @@ test('runtime tools accept host commands and refuse invalid arguments before dis
       { enabled: true },
       [{}, { enabled: 1 }, { enabled: true, extra: 1 }],
     ],
+    trillion3d_set_film: [
+      { filmGrainIntensity: 0.2, chromaticAberrationQuality: 'off', vignetteType: 'oval' },
+      [
+        { filmGrainIntensity: -1 },
+        { tonemapperQuality: 6 },
+        { chromaticAberrationStartOffset: 2 },
+        { vignetteType: 'texture' },
+        { quantizationDitheringBits: 1.5 },
+      ],
+    ],
     trillion3d_remove_light: [{ id: 'lamp' }, [{}, { id: 2 }, { id: 'lamp', extra: 1 }]],
     trillion3d_get_metrics: [{}, [{ extra: 1 }]],
   }
@@ -159,4 +169,44 @@ test('a light that says nothing of shadows gets what the engine makes of that si
   const engine = validateSceneLight({ ...light } as unknown as SceneLight)
   assert.equal(validate(light), true)
   assert.equal(light.castsShadow, engine.castsShadow)
+})
+
+test('the film tool names every film setting with the reference’s default', () => {
+  const defaults = Object.fromEntries(
+    Object.entries(tool('trillion3d_set_film').parameters.properties).map(([name, property]) => [
+      name,
+      property.default,
+    ]),
+  )
+  assert.deepEqual(defaults, {
+    filmGrainIntensity: 0,
+    filmGrainIntensityShadows: 1,
+    filmGrainIntensityMidtones: 1,
+    filmGrainIntensityHighlights: 1,
+    filmGrainShadowsMax: 0.09,
+    filmGrainHighlightsMin: 0.5,
+    filmGrainHighlightsMax: 1,
+    filmGrainScaleX: 1,
+    filmGrainScaleY: 1,
+    filmGrainSequenceLength: 97,
+    chromaticAberration: 0,
+    chromaticAberrationStartOffset: 0,
+    chromaticAberrationQuality: 'high',
+    chromaticAberrationMax: -1,
+    vignetteType: 'cosineFourthLaw',
+    vignetteColorRed: 0,
+    vignetteColorGreen: 0,
+    vignetteColorBlue: 0,
+    vignetteCenterX: 0.5,
+    vignetteCenterY: 0.5,
+    vignetteSizeX: 1,
+    vignetteSizeY: 1,
+    vignetteSoftness: 5,
+    tonemapperQuality: 5,
+    tonemapperSharpen: -1,
+    sceneColorTintRed: 1,
+    sceneColorTintGreen: 1,
+    sceneColorTintBlue: 1,
+    quantizationDitheringBits: 0,
+  })
 })

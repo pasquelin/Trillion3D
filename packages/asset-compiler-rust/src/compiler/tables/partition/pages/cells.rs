@@ -22,15 +22,16 @@ pub(crate) fn slots_of(
 /// cell by, whatever page a view opens first. It lists too the slots of the mesh pages its
 /// cells' primitives lie in, `mesh_pages` by mesh rank, each once; an index page and the
 /// root list beside each page the core parents its cells hang under, which is all a moved
-/// parent may carry them by; the root also lists the rows a view holds (`view_rows`).
+/// parent may carry them by; the root also lists the rows a view holds (`view_rows`). The pages
+/// are of `kind`'s version.
 pub(crate) fn write_pages(
+    kind: &Kind,
     tree: &Region,
     records: &[Value],
     bounds: &[Box6],
     mesh_pages: &MeshSlots,
     directory: &Path,
 ) -> Result<Value> {
-    let kind = &CELL_PAGES;
     let leaf = |cells: Range<usize>, measured: Option<Value>| {
         if let Some(page) = measured {
             return Ok(page);

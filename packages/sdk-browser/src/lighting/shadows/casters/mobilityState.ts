@@ -1,5 +1,5 @@
 import { poseHoldsBox, sameElements } from '../../../../../math/src/matrix/matrixElements.ts'
-import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../mobilityBits.ts'
+import { MOBILITY_MOVING } from '../mobilityBits.ts'
 import { createTravel } from './mobilityTravel.ts'
 
 /**
@@ -46,8 +46,8 @@ export function createMobilityState() {
 
 export type MobilityState = ReturnType<typeof createMobilityState>
 
-/** Placement `rank`'s rows must be written again: it starts or stops casting, or is parked or
- *  taken (`MOBILITY_SHADOWLESS`). */
+/** Placement `rank`'s rows must be written again: it starts or stops casting, or casting far
+ *  shadows, or is parked or taken (`MOBILITY_SHADOWLESS`, `MOBILITY_FAR_SHADOW`). */
 export function touchRank(s: MobilityState, rank: number) {
   if (rank < 0 || rank >= s.dirty.length || s.dirty[rank]) return
   s.dirty[rank] = 1
@@ -64,13 +64,12 @@ export function promoteRank(s: MobilityState, rank: number) {
   touchRank(s, rank)
 }
 
-/** The bits a placement gives each of its rows. A blended caster follows its placement like any
+/** The bits a placement gives each of its rows: moving, and how it casts (`castFlags`, its
+ *  `MOBILITY_SHADOWLESS` and `MOBILITY_FAR_SHADOW`). A blended caster follows its placement like any
  *  caster: the VSM transmission atlas keeps a still one in the static slice
  *  (`../vsm/transmission/transmissionClearWgsl.ts`). */
-export const rankBits = (s: MobilityState, rank: number, shadowless: (rank: number) => boolean) =>
-  rank < 0
-    ? 0
-    : (s.moving[rank] === 1 ? MOBILITY_MOVING : 0) | (shadowless(rank) ? MOBILITY_SHADOWLESS : 0)
+export const rankBits = (s: MobilityState, rank: number, castFlags: (rank: number) => number) =>
+  rank < 0 ? 0 : (s.moving[rank] === 1 ? MOBILITY_MOVING : 0) | castFlags(rank)
 
 /** Whether `world` leaves placement `rank` where it was last seen: the same pose, or, given its
  *  local `box`, one that moves it by less than a float32 step (`poseHoldsBox`). */

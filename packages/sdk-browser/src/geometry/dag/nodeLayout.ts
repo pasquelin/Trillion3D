@@ -24,6 +24,11 @@ export const NODE_MIN = 0,
 export const NODE_KIND = 18
 /** The pad word that brings the node to eighty bytes, vec4-aligned. */
 export const NODE_PAD = 19
+/** On a group of the placement tree — whose page words no page uses — the distances its placements
+ *  are drawn at: the bits of two floats, the nearest and the farthest of them, both 0 when a
+ *  placement is drawn at every distance (`tree/treeRefitWgsl.ts`, `shader/drawDistanceWgsl.ts`). */
+export const TREE_DRAW_NEAR = NODE_FIRST_PAGE,
+  TREE_DRAW_FAR = NODE_PAGE_COUNT
 
 /** The low and high corners of node `n`'s box, `<name>Low(n)` and `<name>High(n)`, from the words
  *  `<name>Word(n,k)` of the table `name` names: the one corner reader of every walk, emitted by each

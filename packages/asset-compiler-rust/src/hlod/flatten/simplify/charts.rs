@@ -8,13 +8,10 @@
 //! the library cannot chart is not charted, and the actor fails.
 use super::clean::cleaned;
 use super::proxy::Proxy;
-use crate::hlod::flatten::uv::spectral::{chart, pack, ChartQuality};
+use crate::hlod::flatten::uv::spectral::{chart, pack, ChartQuality, IDENTITY_METRIC};
 
 /// The most stretch a chart may reach, on the library's scale from 0 (none) to 1 (any).
 const MOST_STRETCH: f32 = 0.125;
-
-/// Every face's integrated metric tensor: the identity, `[1, 0, 1]`.
-const IDENTITY: [f32; 3] = [1.0, 0.0, 1.0];
 
 /// `values`, one per vertex before the partition, as the partition's vertices take them.
 fn remapped(values: &[[f32; 3]], remap: &[u32]) -> Vec<[f32; 3]> {
@@ -28,7 +25,7 @@ pub(super) fn charted(proxy: &mut Proxy, side: usize, gutter: f32) -> bool {
         return false;
     };
     let faces = proxy.indices.len() / 3;
-    let signal: Vec<f32> = IDENTITY.repeat(faces);
+    let signal: Vec<f32> = IDENTITY_METRIC.repeat(faces);
     let limits = (0, MOST_STRETCH);
     let partition = chart(
         &proxy.points,

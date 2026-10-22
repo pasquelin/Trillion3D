@@ -3,7 +3,9 @@
 // the draw of a chunk read the one argument buffer the candidates' kernels write — run here in
 // JavaScript on the shipped WGSL (`shaderRun`): with 200 000 rows resident and 100 chosen, every
 // chunk past the first culls, expands and draws nothing. The encoder is the kit's, under the
-// device's usage scopes: no dispatch reads its arguments from a buffer it binds writable.
+// device's usage scopes: no dispatch reads its arguments from a buffer it binds writable. A frame
+// whose lights pass the maps a dispatch of the cull lists is drawn in view passes, each over the
+// same chunks, each chunk its own slot of the parameters and of the arguments.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -12,14 +14,16 @@ import { commandArgs } from '../../../../../../../tests/kit/fakeDevice/fakeRende
 import { shaderRun } from '../../../../materials/texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../../../materials/texture/shaderRule.fixture.ts'
 import { createVsmResources } from '../resources.ts'
-import { encodeVsmRender } from './renderPass.ts'
+import { encodeVsmRender, type VsmRenderScene } from './renderPass.ts'
 import { emptyRowSpheres } from '../rows/rowPageBound.fixture.ts'
+import { encodeLights, LOW_DISPATCH, manyLights } from '../recordingRaster.fixture.ts'
 import {
   VSM_RENDER_ARGS_STRIDE_WORDS,
   VSM_RENDER_ARGS_WGSL,
   VSM_RENDER_CHUNK_COUNTS,
   VSM_RENDER_CORNER_TIERS,
   VSM_RENDER_COUNTS_HEAD,
+  VSM_RENDER_COUNT_VIEWS,
   VSM_RENDER_PARAMS,
   vsmRenderTierCorners,
 } from './renderParamsWgsl.ts'
@@ -27,8 +31,16 @@ import { uniformStride } from '../../../../session/memory/pools.ts'
 import { ceilDiv } from '../../../../../../math/src/scalar/integers.ts'
 import { groupWidth } from '../../../../gpu/dispatch/grid.ts'
 
-/** The raster of 200 000 rows under 17 sun views on `device`, encoded into `encoder`: its stats. */
-function encodeRows(device: GPUDevice, encoder: GPUCommandEncoder) {
+/** The raster of 200 000 rows under 17 sun views on `device`, encoded into `encoder`: its stats. A
+ *  sun's far-shadow test reaches every caster when `farMeshes`; the casters take the draw
+ *  distances their objects name, scaled by `drawDistance.scale`, when it is given. */
+function encodeRows(
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  farMeshes?: boolean,
+  drawDistance?: { scale: number },
+  world?: VsmRenderScene['world'],
+) {
   const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
   const rows = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
   return encodeVsmRender(
@@ -37,6 +49,10 @@ function encodeRows(device: GPUDevice, encoder: GPUCommandEncoder) {
     { device, lights: [{ kind: 'directional', firstId: 8192, count: 17 }] },
     {
       rowCount: 200_000,
+      farMeshes,
+      drawDistance,
+      world,
+      multipassViews: true,
       ...{ pageTable: rows, spheres: rows, mobility: rows, rowLods: rows },
       pageLayout: {} as GPUBindGroupLayout,
       pageGroup: {} as GPUBindGroup,
@@ -202,4 +218,109 @@ test('a device aligning at 512 lays the chunks’ parameter slots 512 bytes apar
     [...offsets].sort((a, b) => a - b),
     Array.from({ length: chunks }, (_, c) => c * 512),
   )
+})
+
+test('every chunk’s parameters say which casters a sun’s far-shadow test reaches', () => {
+  for (const farMeshes of [undefined, false, true]) {
+    const fake = fakeDevice({
+      limits: { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27 },
+    })
+    const { device } = fake
+    const { chunks } = encodeRows(device, device.createCommandEncoder(), farMeshes)
+    const paramsBuffer = fake.buffers.find((b) => b.label === 'vsm.render.params')!
+    const slots = new Uint32Array(paramsBuffer.size / 4)
+    replayWrites(
+      slots.buffer,
+      fake.writes.filter((w) => w.buffer === (paramsBuffer as unknown as GPUBuffer)),
+    )
+    const stride = uniformStride(device.limits) / 4
+    for (let c = 0; c < chunks; c++)
+      assert.equal(slots[c * stride + VSM_RENDER_PARAMS.at.farMeshes], farMeshes ? 1 : 0, `${c}`)
+  }
+})
+
+test('every chunk’s parameters say whether the casters take the draw distances, and their scale', () => {
+  for (const drawDistance of [undefined, { scale: 1 }, { scale: 2.5 }]) {
+    const fake = fakeDevice({
+      limits: { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27 },
+    })
+    const { device } = fake
+    const { chunks } = encodeRows(device, device.createCommandEncoder(), undefined, drawDistance)
+    const paramsBuffer = fake.buffers.find((b) => b.label === 'vsm.render.params')!
+    const slots = new Uint32Array(paramsBuffer.size / 4),
+      floats = new Float32Array(slots.buffer)
+    replayWrites(
+      slots.buffer,
+      fake.writes.filter((w) => w.buffer === (paramsBuffer as unknown as GPUBuffer)),
+    )
+    const stride = uniformStride(device.limits) / 4,
+      { at } = VSM_RENDER_PARAMS
+    for (let c = 0; c < chunks; c++) {
+      assert.equal(slots[c * stride + at.drawDistances], drawDistance ? 1 : 0, `${c}`)
+      assert.equal(floats[c * stride + at.viewDistanceScale], drawDistance?.scale ?? 1, `${c}`)
+    }
+  }
+})
+
+test('the main view’s filter reaches the candidates: its buffer in their group, its first word in every chunk’s parameters', () => {
+  const frames = {} as GPUTextureView
+  for (const base of [undefined, 12]) {
+    const fake = fakeDevice({
+      limits: { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27 },
+    })
+    const { device } = fake
+    const bits = device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
+    const world = { frames, filter: base === undefined ? undefined : { buffer: bits, base } }
+    const { chunks } = encodeRows(
+      device,
+      device.createCommandEncoder(),
+      undefined,
+      undefined,
+      world,
+    )
+    const bound = fake.bindGroups.filter(({ entries }) =>
+      [...entries].some(({ resource }) => resource === frames),
+    )
+    assert.ok(bound.length > 0)
+    for (const { entries } of bound) {
+      const filter = [...entries][2].resource as { buffer: GPUBuffer }
+      assert.equal(filter.buffer === bits, base !== undefined, 'the buffer, or a stand-in word')
+    }
+    const paramsBuffer = fake.buffers.find((b) => b.label === 'vsm.render.params')!
+    const slots = new Uint32Array(paramsBuffer.size / 4)
+    replayWrites(
+      slots.buffer,
+      fake.writes.filter((w) => w.buffer === (paramsBuffer as unknown as GPUBuffer)),
+    )
+    const stride = uniformStride(device.limits) / 4
+    for (let c = 0; c < chunks; c++)
+      assert.equal(slots[c * stride + VSM_RENDER_PARAMS.at.filterBase], base ?? 0, `${c}`)
+  }
+})
+
+test('each view pass’s argument kernel writes the cull dispatches of its own chunks’ slots', () => {
+  // 200 point lights and a sun on a device whose dispatches have 500 rows: 1217 maps, three passes
+  // of 497, 498 and 222.
+  const { passes, stats, slots } = encodeLights(manyLights(200), {}, LOW_DISPATCH)
+  const { chunks } = stats
+  assert.deepEqual([passes, chunks > 1], [3, true])
+  // Each pass's argument kernel, run over its first slot with 1000 candidates and the views it
+  // listed: the cull dispatches of its own chunks, no other's.
+  const words = new Uint32Array(VSM_RENDER_COUNTS_HEAD + VSM_RENDER_CHUNK_COUNTS * slots.length)
+  const args = new Uint32Array(VSM_RENDER_ARGS_STRIDE_WORDS * slots.length)
+  words[0] = 1000
+  for (let p = 0; p < passes; p++) {
+    words[VSM_RENDER_COUNT_VIEWS] = 100 + p
+    argumentKernels({ params: slots[p * chunks], counts: words, args }).vsmRenderArgsCull()
+  }
+  slots.forEach((slot, g) => {
+    const first = (g % chunks) * slot.chunkRows,
+      n = Math.max(0, Math.min(1000 - first, slot.chunkRows))
+    const at = g * VSM_RENDER_ARGS_STRIDE_WORDS
+    assert.deepEqual(
+      [...args.subarray(at, at + 3)],
+      [ceilDiv(n, 64), n ? 100 + Math.floor(g / chunks) : 0, 1],
+      `slot ${g}`,
+    )
+  })
 })

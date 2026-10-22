@@ -43,6 +43,7 @@ use emission::rescaled;
 mod ground;
 pub(in crate::hlod) use ground::{coordinates, lightmapped, quad, seen_through};
 use ground::{laid_out, oriented, reads_mesh, Ground};
+mod legacy;
 mod remap;
 use remap::{occupancy, remapped};
 mod sizing;
@@ -148,7 +149,7 @@ pub(in crate::hlod) fn merged_flat(
     }
     let laid: BTreeMap<usize, Vec<[[f64; 2]; 3]>> = firsts
         .into_par_iter()
-        .map(|(mesh, part)| (mesh, laid_out(part, flattening.lightmaps)))
+        .map(|(mesh, part)| (mesh, laid_out(part, flattening.lightmaps, side)))
         .collect();
     ms[step::UNWRAP] = super::super::millis(started);
     let started = std::time::Instant::now();

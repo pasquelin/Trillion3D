@@ -80,12 +80,16 @@ fn testMember(dst:u32,k:u32){
 /** Cell or group \`t\` of the tree, the eye taken off its world box. */
 fn cellLow(t:u32)->vec3f{return treeLow(t)-views[0u].cameraWorld;}
 fn cellHigh(t:u32)->vec3f{return treeHigh(t)-views[0u].cameraWorld;}
-/** Cell or group \`t\` tested: in the frustum, then under the pyramid — a world box, in the render
+/** Cell or group \`t\` tested: a group within the draw distances its placements name
+ *  (\`outsideGroupDrawDistance\`), a group not behind the view's clip plane
+ *  (\`outsideGroupClipPlane\`), in the frustum, then under the pyramid — a world box, in the render
  *  frame now and before (\`NO_INDEX\`, \`boxSight\`); kept, it is accepted, the next level reads it
  *  (\`openCell\`); the previous pyramid alone hiding it, it waits for the post pass. */
 fn testCell(dst:u32,t:u32){
  deformReach=0.0;
  let lo=cellLow(t);let hi=cellHigh(t);
+ if(outsideGroupDrawDistance(t,lo,hi)){return;}
+ if(outsideGroupClipPlane(t,lo,hi)){return;}
  if(outsideView(lo,hi)){atomicAdd(&out.frustumRejected,1u);return;}
  let sight=boxSight(lo,hi,NO_INDEX);
  if(sight==BOX_OCCLUDED){postNode(treeEntry(t),0u,1u);}

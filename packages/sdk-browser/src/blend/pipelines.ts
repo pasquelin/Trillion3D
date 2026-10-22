@@ -19,6 +19,7 @@ import { filtersDisplay } from './equations.ts'
 import { blendCatchUp } from './blendCatchUp.ts'
 import { families } from '../session/host/families.ts'
 import { hasSubgroups } from '../gpu/core/subgroups.ts'
+import { hasClipDistances } from '../gpu/core/clipDistances.ts'
 import {
   blendVariantPipeline,
   DIAGNOSTIC_BLEND_WGSL,
@@ -126,6 +127,7 @@ function blendModuleCode(setup: BlendProgramSetup, key: ContractKey) {
     diagnostic: variant ? DIAGNOSTIC_BLEND_WGSL : undefined,
     dual,
     subgroups: hasSubgroups(device),
+    clip: hasClipDistances(device),
   })
 }
 

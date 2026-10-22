@@ -18,6 +18,7 @@ import {
 } from './readoutWords.ts'
 import type { SelectionResult, SelectionUniforms } from '../../gpu/core/selection.ts'
 import { twoPassOf } from './shader/occlusionWgsl.ts'
+import { CULL_DRAW_DISTANCE_OFF } from './shader/viewsWgsl.ts'
 import { viewWord } from './viewLayout.ts'
 import { REGION_NONE, swapRegionsWord } from './shader/swapWgsl.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
@@ -27,7 +28,7 @@ import type { ListPeaks } from './lists/listFeedback.ts'
 /** Where a cut's tables lie for its kernels: the open counts placements hold in `out` — the first
  *  word in `out.pages`, the slots less one (`heldOpen.ts`) —, then the shape its `flags` is laid
  *  out for (`flagSections.ts`), the packing's at the lists' default caps when absent. */
-export type CutTablesAt = { base: number; mask: number; shape?: FlagShape }
+export type CutTablesAt = { base: number; mask: number; shape?: FlagShape; filter?: number }
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every
@@ -65,7 +66,8 @@ const wordsOf = new WeakMap<Float32Array, Uint32Array>()
  * clear saves the journal in place to (`shader/swapWgsl.ts`); a cut restores none. `at`, where the
  * open counts placements hold lie in `out` (`lists/listCap.ts`, `heldOpenAt`) — none by default —,
  * and the shape the cut's `flags` is laid out for (`queueGrowth.ts`, `cutTablesAt`), the
- * packing's at the lists' default caps by default.
+ * packing's at the lists' default caps by default, and the word of `work` the filter's bits lie at
+ * (`filter`, `viewFilterRegion.ts`): a view that has a filter names it in its block, the others 0.
  */
 export function writeDagUniforms(
   target: Float32Array,
@@ -100,6 +102,13 @@ export function writeDagUniforms(
     packDoubles(ints, W('eye'), cw, 0, 3)
   }
   writeOcclusion(target, ints, uniforms)
+  // The view's clip plane in the render frame (`shader/clipPlaneWgsl.ts`) and its filter's bits
+  // (`shader/viewFilterWgsl.ts`): none, all zero and 0, unless the view has them.
+  if (uniforms.clipPlane) target.set(uniforms.clipPlane, W('clipPlane'))
+  ints[W('filterBase')] = uniforms.filter ? (at.filter ?? 0) : 0
+  // A packing no placement of which names a distance tests none: the cull stays off, and the cut
+  // reads no distance word (`shader/drawDistanceWgsl.ts`).
+  if (!packed.drawDistance) ints[W('cullOff')] |= CULL_DRAW_DISTANCE_OFF
   // Sample cap the kernel reads to bound its two halves and to say, when it happens, that it
   // truncated (`lists/listCap.ts`).
   ints[W('listCap')] = listCap
@@ -133,7 +142,8 @@ export function writeDagUniforms(
 
 /** The projection's words of the block (`shader/occlusionWgsl.ts`): the render matrix, its depth
  *  map and the view's size, which every box's pixel centres are found with; the culls the host
- *  turned off (`shader/viewsWgsl.ts`); what the occlusion runs, and, when it runs two passes, the
+ *  turned off and the scale of the draw distances (`shader/viewsWgsl.ts`,
+ *  `shader/drawDistanceWgsl.ts`); what the occlusion runs, and, when it runs two passes, the
  *  same three at the image before. */
 function writeOcclusion(target: Float32Array, ints: Uint32Array, uniforms: SelectionUniforms) {
   const W = viewWord,
@@ -142,6 +152,7 @@ function writeOcclusion(target: Float32Array, ints: Uint32Array, uniforms: Selec
   target.set(uniforms.depthMap, W('depthMap'))
   ints.set(uniforms.viewSize, W('viewSize'))
   ints[W('cullOff')] = uniforms.cullOff ?? 0
+  target[W('viewDistanceScale')] = uniforms.viewDistanceScale ?? 1
   ints[W('occlusion')] = occlusion
   if (!twoPassOf(uniforms)) return
   target.set(uniforms.prevViewProj!, W('prevViewProj'))

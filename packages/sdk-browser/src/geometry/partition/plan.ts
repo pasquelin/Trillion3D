@@ -6,13 +6,14 @@
  * them (`TablePartition.hlod.grids`, `compiler/tables/partition/grid.rs`): a cell is wished while
  * the view's shape for that range meets the bounds it streams by — the box around its content, or
  * its square, as the partition's scheme says (`StreamingSource.meets`) —, tested in 2D, its up
- * axis dropped (glTF's up is `+Y`), unless the grids do not lie flat or the session culls the
+ * axis dropped (glTF's up is `+Y`), unless its grid does not lie flat or the session culls the
  * square cells by height; and the coarser cells a wished one pulls in on a grid that asks it
  * (`coarser.ts`). A wished cell waits its turn by the level of its cell on its grid, which the
  * cook writes (`createRanker`). A cell file of objects in a layer belongs to its HLOD 0 cell — its
  * objects are that cell's HLOD 0 actor, the same meshes instanced, and the source meshes of their
  * main grid cell —: it is placed while that HLOD 0 cell loads, wished within its grid's range,
- * which holds the main grid's. A cell file of objects in no layer streams on the main grid alone.
+ * which holds its main grid's. A cell file of objects in no layer streams on its main grid alone,
+ * the one its record names (`TableCell.main`).
  * A unit wished and not loaded — an HLOD 0 cell some file of which is not placed, or a file of no
  * layer not placed — waits its turn to load (`waiting`, `LoadSlots`); one whose file is refused
  * for good waits for nothing, said lost (`LeafWish.lost`). An HLOD 0 cell is placed whole once
@@ -26,10 +27,9 @@
  * and closed past its keep sphere (`reach.ts`, `cellIndex.ts`).
  */
 import { boxesOverlap } from '../../../../math/src/geometry/box.ts'
-import { appendTo } from '../../../../math/src/sequence/counts.ts'
 import type { PartitionGrid } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
 import type { CellIndex, IndexPage } from './cellIndex.ts'
-import { coarserKey, MAIN_GRID, NO_CELLS, type CoarserPull } from './coarser.ts'
+import { coarserKey, createMainPulls, type CoarserPull } from './coarser.ts'
 import { keepRadius, placedReach } from './reach.ts'
 import type { LoadingCell } from './loadOrder.ts'
 import type { LoadSlots } from './loadSlots.ts'
@@ -105,7 +105,8 @@ export type Ranker = ReturnType<typeof createRanker>
  * (`pages`), each HLOD 0 cell met (`leaves`), the cell files of no layer whose cell is wished, with
  * the square it streams by (`alone`), the cells whose main grid cell is wished with the square they
  * stream by — their rows draw the source meshes, the others their HLOD 0 actor (`main`) —, and the
- * units wished and not loaded (`waiting`, each on a record of `ranker`, freed at the next frame).
+ * units wished and not loaded (`waiting`, each on a record of `ranker`, freed at the next frame),
+ * and how many placed files stay only while their HLOD 0 cell is visible (`holding`).
  * The HLOD actors off (`layers` false), every cell file streams on the main grid alone. Once the
  * load slots took the frame's units, `files` gives the cell files to read and place: those of each
  * unit loading, not placed, in the order the units started, each asked by its unit's priority
@@ -125,13 +126,10 @@ export function createCellPlan(
 ) {
   const leaves = new Map<number, Leaf>(),
     pageDistances = new Map<IndexPage, number>()
-  const mainPull = pulls[MAIN_GRID]
-  /** On a main grid that pulls: the cells met this frame at each of its keys, the squares they
-   *  stream by, the keys of those wished, and the keys pulled in. */
-  const mainAt = new Map<number, number[]>(),
-    squares = new Map<number, ArrayLike<number>>(),
-    seeds: number[] = [],
-    seen = new Set<number>()
+  /** On the main grids that pull: the cells met this frame at each key, and the squares they
+   *  stream by. */
+  const mainPulls = createMainPulls(pulls),
+    squares = new Map<number, ArrayLike<number>>()
   const ranker = createRanker(source)
   const out = {
     leave: [] as number[],
@@ -141,6 +139,7 @@ export function createCellPlan(
     main: new Map<number, ArrayLike<number>>(),
     waiting: [] as LoadingCell[],
     ranker,
+    holding: 0,
   }
   const toRead: number[] = [],
     readAt = new Map<number, number>()
@@ -151,14 +150,13 @@ export function createCellPlan(
     layered = true
   const nearestPage = (a: IndexPage, b: IndexPage) => pageDistances.get(a)! - pageDistances.get(b)!
   const visit = (cell: number, square: ArrayLike<number>, leafBox: ArrayLike<number> | null) => {
-    const wished = source.meets(square, 0, grids[0].range)
+    const record = index.cell(cell),
+      { main } = record
+    const wished = source.meets(square, 0, grids[main])
     if (wished) out.main.set(cell, square)
-    const record = index.cell(cell)
-    if (mainPull) {
-      const key = coarserKey(record.grid[0], record.grid[1], record.grid[2])
-      appendTo(mainAt, key, cell)
+    if (pulls[main]) {
+      mainPulls.meet(main, coarserKey(record.grid[0], record.grid[1], record.grid[2]), cell, wished)
       squares.set(cell, square)
-      if (wished) seeds.push(key)
     }
     const hlod = record.hlod
     if (!hlod || !leafBox || !layered) {
@@ -174,17 +172,17 @@ export function createCellPlan(
       met.grid = grid
       met.rung = rung
       met.bounds = leafBox
-      met.wished = source.meets(leafBox, 0, grids[grid].range) || !!chain?.pulled(h)
+      met.wished = source.meets(leafBox, 0, grids[grid]) || !!chain?.pulled(h)
     }
     met.cells.push(cell)
   }
-  /** `cell`, met at coordinates a wished cell of the main grid pulls in, wished: its main grid
-   *  cell, and its file of no layer or its HLOD 0 cell on the main grid. */
-  const pulledIn = (cell: number) => {
+  /** `cell`, met at coordinates a wished cell of main grid `main` pulls in, wished: its main grid
+   *  cell, and its file of no layer or its HLOD 0 cell on that main grid. */
+  const pulledIn = (main: number, cell: number) => {
     out.main.set(cell, squares.get(cell)!)
     const leaf = index.cell(cell).hlod
     if (!leaf || !layered) out.alone.set(cell, squares.get(cell)!)
-    else if (leaf[2] === MAIN_GRID) leaves.get(leaf[0])!.wished = true
+    else if (leaf[2] === main) leaves.get(leaf[0])!.wished = true
   }
   const unread = (page: IndexPage, distance: number) => {
     out.pages.push(page)
@@ -211,23 +209,16 @@ export function createCellPlan(
       refused = failed
       grids = partitionGrids
       layered = layers
-      out.leave.length = out.pages.length = out.waiting.length = 0
+      out.leave.length = out.pages.length = out.waiting.length = out.holding = 0
       ranker.restart()
       out.alone.clear()
       out.main.clear()
       pageDistances.clear()
-      mainAt.clear()
+      mainPulls.restart()
       squares.clear()
-      seeds.length = 0
       const reach = placedReach(grids, source, pulls)
       index.near(eye, reach, keepRadius(reach), placed, visit, unread)
-      if (mainPull) {
-        seen.clear()
-        for (const key of seeds)
-          mainPull.pull(key, seen, (pulled) => {
-            for (const cell of mainAt.get(pulled) ?? NO_CELLS) pulledIn(cell)
-          })
-      }
+      mainPulls.pull(pulledIn)
       for (const [h, leaf] of leaves) {
         if (leaf.frame !== frame) {
           leaves.delete(h)
@@ -247,20 +238,26 @@ export function createCellPlan(
           out.waiting.push(ranker.ranked(cellUnit(h), leaf.bounds, 0, grids[leaf.grid], leaf.rung))
       }
       for (const [cell, square] of out.alone) {
-        const { url, grid } = index.cell(cell)
+        const { url, grid, main } = index.cell(cell)
         if (!placed.has(cell) && !failed?.(url))
-          out.waiting.push(ranker.ranked(fileUnit(cell), square, 0, grids[0], grid[0]))
+          out.waiting.push(ranker.ranked(fileUnit(cell), square, 0, grids[main], grid[0]))
       }
       out.pages.sort(nearestPage)
       // A placed file leaves once its HLOD 0 cell is neither wished nor visible, a file of no
-      // layer once its cell is wished no more.
+      // layer once its cell is wished no more; one kept by its cell's visibility alone is counted.
       for (const cell of placed.keys()) {
         const hlod = layered && index.cell(cell).hlod
-        const kept = hlod
-          ? !!leaves.get(hlod[0])?.wished || !!world?.visible(hlod[0])
-          : out.alone.has(cell)
-        if (!kept) out.leave.push(cell)
+        if (hlod ? leaves.get(hlod[0])?.wished : out.alone.has(cell)) continue
+        if (hlod && world?.visible(hlod[0])) out.holding++
+        else out.leave.push(cell)
       }
+      return out
+    },
+    /** The last plan again, for a frame that makes none: its cells leaving and units waiting
+     *  emptied, the rest — what it holds (`holding`) included — as the last frame left it. */
+    replay() {
+      out.leave.length = out.waiting.length = 0
+      ranker.restart()
       return out
     },
     /** The cell files to read and place now: those of each unit `slots` loads, not `placed`, the

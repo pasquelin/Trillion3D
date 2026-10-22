@@ -17,6 +17,7 @@
  */
 import type { PlacementLink } from '../../placement/compose/gpuCompose.ts'
 import { writePlacementRow } from '../../placement/rows/rows.ts'
+import { nodeCasting } from '../../visibility/shader/castingMark.ts'
 import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
 import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
@@ -42,12 +43,14 @@ export type CellFrame = {
   ) => void
 }
 
-/** Whether a host mesh of `mesh` changed its `castShadow` since its rows were written. */
+/** Whether a host mesh of `mesh` changed how it casts (`castShadow`, `castFarShadow`) since its
+ *  rows were written. */
 function castsMoved(mesh: PlacedMesh) {
   let moved = false
   mesh.nodes.forEach((node, at) => {
-    moved ||= node.castShadow !== mesh.casts[at]
-    mesh.casts[at] = node.castShadow
+    const casting = nodeCasting(node)
+    moved ||= casting !== mesh.casting[at]
+    mesh.casting[at] = casting
   })
   return moved
 }
@@ -119,8 +122,9 @@ export function createPlacementWrites(
    *  `pose` when one is given. */
   const writeRow = ({ mesh, row }: Placement, pose: Float64Array | null) =>
     mesh.links.forEach((link, at) => {
-      const casts = mesh.nodes[at]?.castShadow !== false
-      writePlacementRow(link.placements!, row, pose, sourceShown(mesh, at, row), casts)
+      const node = mesh.nodes[at]
+      const casting = node ? nodeCasting(node) : 0
+      writePlacementRow(link.placements!, row, pose, sourceShown(mesh, at, row), casting)
       touched.touch(link, row)
     })
   /** Row `placement`: its flags, and — `linking` — its link to its parent, made at the next

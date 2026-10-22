@@ -1,5 +1,5 @@
 import type { VisMaterial } from '../materialType.ts'
-import { SHADOWLESS_ROOT } from './shadowlessRoot.ts'
+import { SHADOWLESS_ROOT } from './castingMark.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
@@ -60,19 +60,9 @@ export const neverCulled = (surface: Pick<VisMaterial, 'sprite'> | undefined) =>
 const SPRITE_ROOT = 1
 /** The root mark's bit on a never-culled sprite (`neverCulled`): no camera cut rejects it. */
 export const SPRITE_UNCULLED = 2
-/** The bits of a root that casts no shadow: what the shadow raster's rows test
- *  (`../../lighting/shadows/casters/bounds.ts`). */
+/** The bits of a root that casts no shadow: a sprite, or a node that says so (`castingMark.ts`); what
+ *  the shadow raster's rows test (`../../lighting/shadows/casters/bounds.ts`). */
 export const CASTS_NO_SHADOW = SPRITE_ROOT | SHADOWLESS_ROOT
-/** `mark` with its shadowless bit set when `shadowless`, cleared otherwise. */
-export const withShadowless = (mark: number, shadowless: boolean) =>
-  shadowless ? mark | SHADOWLESS_ROOT : mark & ~SHADOWLESS_ROOT
-/** Sets or clears `root`'s shadowless bit; true when its mark changed. */
-export function markShadowless(root: { mark?: number }, shadowless: boolean) {
-  const before = root.mark ?? 0,
-    mark = withShadowless(before, shadowless)
-  root.mark = mark || undefined
-  return mark !== before
-}
 
 /**
  * THE SPRITE BITS of a root's mark: what a root carries of its surface, set at collection and

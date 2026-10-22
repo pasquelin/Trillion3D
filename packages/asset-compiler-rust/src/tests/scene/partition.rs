@@ -15,7 +15,17 @@ fn compiled_with(
     roots: Vec<usize>,
     edit: impl FnOnce(&mut Value),
 ) -> (Options, Value, PathBuf) {
-    let (_root, options) = fixture();
+    compiled_with_options(nodes, roots, edit, |_| {})
+}
+
+/// The same under the options `set` changes.
+fn compiled_with_options(
+    nodes: Vec<Value>,
+    roots: Vec<usize>,
+    edit: impl FnOnce(&mut Value),
+    set: impl FnOnce(&mut Options),
+) -> (Options, Value, PathBuf) {
+    let (_root, mut options) = fixture();
     let mut gltf = read_gltf(&options);
     gltf["accessors"][0]["min"] = json!([0.0, 0.0, 0.0]);
     gltf["accessors"][0]["max"] = json!([1.0, 1.0, 0.0]);
@@ -23,6 +33,7 @@ fn compiled_with(
     gltf["scenes"] = json!([{"nodes": roots}]);
     edit(&mut gltf);
     write_gltf(&options, &gltf, None);
+    set(&mut options);
     compiled_full(options)
 }
 
@@ -171,4 +182,90 @@ fn a_hidden_placement_and_one_under_a_hidden_node_stay_in_the_core_that_says_so(
         "{}",
         tables["nodes"]
     );
+}
+
+/// A full-scope compilation of `nodes`, all scene roots, under the job `job`, whose
+/// `partitionGrids` and `objectSettings` it reads as the job's: its options, its tables and its
+/// folder.
+fn compiled_job(nodes: Vec<Value>, job: Value) -> (Options, Value, PathBuf) {
+    let roots = (0..nodes.len()).collect();
+    let job = job.as_object().expect("a job").clone();
+    compiled_with_options(
+        nodes,
+        roots,
+        |_| {},
+        |options| {
+            options.partition_grid = crate::PartitionGrid::read(&job);
+            options.object_settings = crate::ObjectSettings::read(job.get("objectSettings"));
+        },
+    )
+}
+
+#[test]
+fn objects_streaming_on_another_grid_have_cells_of_its_own() {
+    // Sixteen placements on a row, 100 m apart, the odd ones named "far": on the default grid, 128
+    // m cells, the even ones take a cell each; the far ones stream on a grid of 1024 m cells, which
+    // cuts height too; a third grid has no object.
+    let names = ["near", "far"];
+    let nodes: Vec<Value> = (0..16)
+        .map(|i| json!({"name": names[i % 2], "mesh": 0, "translation": [i as f64 * 100.0, 0.0, 0.0]}))
+        .collect();
+    let job = json!({
+        "partitionGrids": [
+            {},
+            {"name": "far", "cellSize": 1024.0, "loadingRange": 2048.0, "flat": false},
+            {"name": "empty", "loadingRange": 100000.0},
+        ],
+        "objectSettings": {"objects": [{"match": "far", "runtimeGrid": "far"}]},
+    });
+    let (_options, tables, directory) = compiled_job(nodes.clone(), job);
+    let root = &tables["partition"];
+    assert_eq!(root["hlod"]["mains"], json!(3));
+    assert_eq!(
+        root["version"],
+        json!(14),
+        "several main grids, the next version"
+    );
+    assert_eq!(root["flat"], json!(true), "the first grid's");
+    // The flags of each grid: cell files stream on those that own a cell, the far grid lies flat
+    // unlike the first.
+    let flags = |at: usize| {
+        let word = root["hlod"]["grids"][at].as_str().expect("a grid");
+        u32::from_str_radix(&word[48..], 16).expect("flags")
+    };
+    assert_eq!((flags(0), flags(1), flags(2)), (2, 2 | 4, 0));
+    // Each grid's cells: how many files, how many nodes they place, how many coordinates.
+    let records = cells(&directory);
+    let on_grid = |main: u64| {
+        let there = records
+            .iter()
+            .filter(|r| r["main"].as_u64().unwrap_or(0) == main);
+        let counts = there
+            .clone()
+            .flat_map(|r| r["meshes"].as_array().expect("meshes"));
+        let nodes = counts.map(|m| m[1].as_u64().expect("nodes")).sum::<u64>();
+        let width = there
+            .clone()
+            .map(|r| r["grid"].as_array().expect("grid").len())
+            .max();
+        (there.count(), nodes, width)
+    };
+    assert_eq!(
+        on_grid(0),
+        (8, 8, Some(3)),
+        "the near objects, a cell each, on the ground"
+    );
+    assert_eq!(
+        on_grid(1),
+        (2, 8, Some(4)),
+        "the far ones, in the two cells their row crosses"
+    );
+    assert_eq!(on_grid(2), (0, 0, None), "no object, no cell");
+    // A job naming no grids writes no rank of a main grid and no count, in the version before.
+    let (_options, plain, directory) = compiled(nodes, false);
+    assert!(plain["partition"]["hlod"].get("mains").is_none());
+    assert_eq!(plain["partition"]["version"], json!(13));
+    assert!(cells(&directory)
+        .iter()
+        .all(|record| record.get("main").is_none()));
 }

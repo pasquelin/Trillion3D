@@ -9,13 +9,11 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { REFLECTION_ENVIRONMENT_WGSL, REFLECTION_LOBE_WGSL } from './field.ts'
 import { REFLECTION_FIELD_OVER_WGSL } from './wgsl.ts'
 import { SKY_RAYS } from '../atmosphere/layout.ts'
-import { SKY_RAYS_PROGRAM } from '../atmosphere/skyRaysWgsl.ts'
-import { validateSceneAtmosphere } from '../../../../sdk-core/src/scene/core/atmosphere.ts'
-import { fromHalf, toHalf } from '../../../../math/src/float/half.ts'
+import { airBlock, airLight, skyByDirection } from '../../materials/texture/skyRaysRun.fixture.ts'
+import { toHalf } from '../../../../math/src/float/half.ts'
 import {
-  ATMOSPHERE_FLOATS,
   ATMOSPHERE_SLOT,
-  packAtmosphere,
+  ATMOSPHERE_SLOTS,
 } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
 import { SKY_SLOT, SKY_SLOTS } from '../../../../sdk-core/src/scene/core/environmentSky.ts'
 import { lobeRadianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts'
@@ -140,12 +138,11 @@ const skyBlock = (upper = [0, 0, 0, 0], lower = [0, 0, 0, 0]) => {
   return sky
 }
 const { azimuth: AZIMUTH, elevation: ELEVATION } = SKY_RAYS
-const unpackHalves = (word: number) => [fromHalf(word & 0xffff), fromHalf(word >>> 16)]
 /** A texel of the sky by direction: its three half floats in two words. */
 const texel = (column: number, row: number) => [row / 8, column / 64, 0.5]
 const word = ([r, g, b]: number[]) => [((toHalf(r) | (toHalf(g) << 16)) >>> 0) as number, toHalf(b)]
 const air = () => {
-  const atmosphere = Array.from({ length: 13 }, () => [0, 0, 0, 0])
+  const atmosphere = Array.from({ length: ATMOSPHERE_SLOTS }, () => [0, 0, 0, 0])
   atmosphere[ATMOSPHERE_SLOT.planet] = [1, 6360, 6420, 0]
   const skyRays = Array.from({ length: AZIMUTH * ELEVATION }, (_, i) =>
     word(texel(i % AZIMUTH, Math.floor(i / AZIMUTH))),
@@ -251,50 +248,50 @@ test('the probes hold the sky where a sky light gives it, so the field never add
   )
 })
 
+const EAST = [Math.SQRT1_2, Math.SQRT1_2, 0]
+const WEST = [-Math.SQRT1_2, Math.SQRT1_2, 0]
+
 test('the atmosphere writes the sky by direction where the readers find it, brighter toward the sun', () => {
   // The sun 45° up toward +x, the air's tables stood in by clear ones: the program is run as shipped.
-  const toSun = [Math.SQRT1_2, Math.SQRT1_2, 0]
-  const block = new Float32Array(ATMOSPHERE_FLOATS)
-  packAtmosphere(
-    validateSceneAtmosphere(true),
-    {
-      direction: toSun.map((c) => -c),
-      illuminance: [10, 10, 10],
-      angularRadius: 0.00467,
-    },
-    [1, 1, 1],
-    block,
-  )
-  const atmosphere = Array.from({ length: 13 }, (_, i) =>
-    Array.from(block.subarray(i * 4, i * 4 + 4)),
-  )
-  const skyRays: number[][] = Array.from({ length: AZIMUTH * ELEVATION }, () => [0, 0])
-  const { skyRaysMain } = shaderRun<{ skyRaysMain: (id: number[]) => void }>(
-    SKY_RAYS_PROGRAM.code,
-    ['skyRaysMain'],
-    {
-      directLights: { atmosphere, skyRays },
-      transmittanceAt: () => [1, 1, 1],
-      multiScatterAt: () => [0, 0, 0],
-    },
-  )
   const row = 40
+  const sky = skyByDirection(airBlock(airLight(EAST, 10)), row)
   // The middle column faces +x, the sun's side; the first looks the other way, the far side of the sky.
   const [sunSide, farSide] = [AZIMUTH / 2, 0]
-  for (const column of [sunSide, farSide]) skyRaysMain([column, row, 0])
-  const read = (column: number) => {
-    const [a, b] = skyRays[row * AZIMUTH + column].map(unpackHalves)
-    return [...a, b[0]]
-  }
-  const [toward, away] = [read(sunSide), read(farSide)]
+  const [toward, away] = [sky.at(sunSide), sky.at(farSide)]
   assert.ok(toward.every((c) => c > 0) && away.every((c) => c > 0), 'a lit sky, in every channel')
   assert.ok(toward[0] > away[0], 'the sky is brighter toward the sun')
   // What a reader finds in the table is that radiance: the texel on its centre, the factor one.
-  const reader = skyRun({ environment: zero(), sky: skyBlock([1, 1, 1, 1]), ...air(), skyRays })
+  const reader = skyRun({ environment: zero(), sky: skyBlock([1, 1, 1, 1]), ...air(), ...sky })
   near(
     reader.skyRadiance(reader.skyRaysDirection([sunSide, row])),
     toward,
     'read back',
     1e-3 * toward[0],
+  )
+})
+
+test('the air’s second light adds its own scattering to the sky by direction, and only where it shines', () => {
+  const [facing, away] = [AZIMUTH / 2, 0]
+  const alone = skyByDirection(airBlock(airLight(EAST, 10)))
+  // The sky is linear in the light: two lights of half the lux from one place give the sky of one.
+  const halves = skyByDirection(airBlock(airLight(EAST, 5), airLight(EAST, 5)))
+  for (const column of [facing, away])
+    near(
+      halves.at(column),
+      alone.at(column),
+      `halves, column ${column}`,
+      2e-3 * alone.at(column)[0],
+    )
+  // A second light across the sky lights the side the first leaves dark, and loses nothing facing.
+  const both = skyByDirection(airBlock(airLight(EAST, 10), airLight(WEST, 10)))
+  assert.ok(both.at(away)[0] > alone.at(away)[0] * 1.2, 'the far side is lit by the second light')
+  assert.ok(both.at(facing)[0] >= alone.at(facing)[0], 'the first light’s side keeps its light')
+  // Without its flag the second light is read as none, whatever the block holds of it.
+  const hidden = airBlock(airLight(EAST, 10), airLight(WEST, 10))
+  hidden[ATMOSPHERE_SLOT.secondDisk * 4 + 3] = 0
+  assert.deepEqual(
+    skyByDirection(hidden).at(away),
+    alone.at(away),
+    'a second light that is not there',
   )
 })

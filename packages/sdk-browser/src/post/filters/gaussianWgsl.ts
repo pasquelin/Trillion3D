@@ -1,4 +1,4 @@
-import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
+import { fieldLayout, vec4Array } from '../../gpu/core/fieldLayout.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts'
 import { GAUSSIAN_MAX_TAPS } from './gaussianKernel.ts'
@@ -22,7 +22,7 @@ export const BLUR_PARAMS = fieldLayout('Blur', [
   ['count', 'f32'],
   ['edge', 'f32'],
   ['plus', 'f32'],
-  ['taps', { wgsl: `array<vec4f,${GAUSSIAN_MAX_TAPS}>`, words: 4 * GAUSSIAN_MAX_TAPS, align: 4 }],
+  ['taps', vec4Array(GAUSSIAN_MAX_TAPS)],
 ] as const)
 /** Bytes of one blur pass's uniform. */
 export const BLUR_BYTES = BLUR_PARAMS.words * 4

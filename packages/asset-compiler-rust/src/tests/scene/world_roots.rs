@@ -82,3 +82,89 @@ fn a_blended_world_publishes_its_hlod_too() {
     assert!(directory.join(WORLD_ROOTS_FILE).exists());
     assert!(cells(&directory).len() > 1, "the world is still split");
 }
+
+// Behaviour: a layer names the unwrap its mesh is given by any word the generator offers: a merge
+// layer the old chart layout (`legacy`) and the spectral charts (`uvAtlas`) beside the patches and
+// the charts, an approximate layer the spectral charts and the stretch they may reach, refused
+// outside 0 to 1.
+#[test]
+fn a_layer_names_the_unwrap_of_its_mesh() {
+    use crate::hlod::options::HlodUvMethod;
+    let top = |layer: Value| {
+        let chain = json!({
+            "layers": [{"name": "hlod0", "builder": "instanced", "parent": "top"}, layer],
+            "default": "hlod0"
+        });
+        crate::Hlod::read(Some(&chain)).map(|hlod| {
+            let found = hlod.layers.iter().find(|l| l.name == "top").cloned();
+            found.expect("the layer")
+        })
+    };
+    let merged = |word: &str| {
+        let layer = json!({"name": "top", "builder": "merge", "spatiallyLoaded": false,
+            "mergeMaterials": true, "uvMethod": word});
+        top(layer).map(|layer| layer.merging.uv_method)
+    };
+    for (word, method) in [
+        ("default", HlodUvMethod::Patches),
+        ("xAtlas", HlodUvMethod::Charts),
+        ("patchBuilder", HlodUvMethod::Patches),
+        ("legacy", HlodUvMethod::Legacy),
+        ("uvAtlas", HlodUvMethod::UvAtlas),
+    ] {
+        assert_eq!(merged(word).expect(word), method, "{word}");
+    }
+    assert!(merged("xatlas2").is_err());
+    let approximated = |settings: Value| {
+        let layer = json!({"name": "top", "builder": "approximate", "spatiallyLoaded": false,
+            "approximation": settings});
+        top(layer).map(|layer| layer.approximation)
+    };
+    let shell = approximated(json!({"uvMethod": "uvAtlas", "uvAtlasStretch": 0.25}));
+    let shell = shell.expect("a shell unwrapped by the spectral charts");
+    assert_eq!(shell.uv_method, HlodUvMethod::UvAtlas);
+    assert_eq!(shell.uv_atlas_stretch, 0.25);
+    assert_eq!(
+        approximated(json!({})).expect("defaults").uv_atlas_stretch,
+        0.1
+    );
+    assert!(approximated(json!({"uvAtlasStretch": 1.5})).is_err());
+    assert!(approximated(json!({"uvMethod": "legacy"})).is_err());
+}
+
+// Behaviour: a voxel layer's `meshBuild` names how its cells' voxels are sampled and no other
+// setting of a mesh's build; another layer's names no voxel setting, which are a voxel layer's.
+#[test]
+fn a_voxel_layer_names_how_its_voxels_are_sampled() {
+    use crate::voxel::VoxelSampling;
+    let top = |layer: Value| {
+        let chain = json!({
+            "layers": [{"name": "hlod0", "builder": "instanced", "parent": "top"}, layer],
+            "default": "hlod0"
+        });
+        crate::Hlod::read(Some(&chain)).map(|hlod| {
+            let found = hlod.layers.into_iter().find(|l| l.name == "top");
+            found.expect("the layer")
+        })
+    };
+    let voxel = |build: Option<Value>| {
+        let mut layer = json!({"name": "top", "builder": "voxel", "spatiallyLoaded": false});
+        layer["meshBuild"] = build.unwrap_or(Value::Null);
+        top(layer)
+    };
+    let named = json!({"voxelRays": 16, "voxelBackUp": 0.5, "voxelNdf": false});
+    let sampled = voxel(Some(named))
+        .expect("sampling named")
+        .mesh_build
+        .voxels;
+    assert_eq!(
+        (sampled.asked_rays, sampled.back_up, sampled.ndf),
+        (16, 0.5, false)
+    );
+    let none = voxel(None).expect("none named").mesh_build.voxels;
+    assert_eq!(none, VoxelSampling::default());
+    assert!(voxel(Some(json!({"keptTriangles": 0.5}))).is_err());
+    let merged = json!({"name": "top", "builder": "merge", "spatiallyLoaded": false,
+        "mergeMaterials": true, "meshBuild": {"voxelRays": 16}});
+    assert!(top(merged).is_err());
+}

@@ -10,6 +10,8 @@ import { dagWorkLayout } from './floorWgsl.ts'
 import { wgslScope } from '../../cut/wgslPredicate.fixture.ts'
 import { wgslConstants } from '../../../materials/texture/shaderRule.fixture.ts'
 import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
+import { DAG_VIEW_FILTER_WGSL } from './viewFilterWgsl.ts'
+import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 
 const countOneBits = (word: number) => {
   let n = 0
@@ -87,4 +89,31 @@ test('the mask sits between the block offsets and the counters the layout alloca
     assert.equal(k.liveCounter, k.drawMaskBase + 6 * k.blockCount, 'then the counters')
     assert.equal(layout.liveCounter, k.liveCounter, 'the layout the engine allocates')
   }
+})
+
+test('the filter is a bit a placement in the region behind the counters, none where the block names none', () => {
+  // The region the layout allocates for the placements the cut holds, behind the group counts.
+  for (const placements of [0, 1, 32, 33, 1000]) {
+    const layout = dagWorkLayout(4, placements)
+    assert.equal(layout.filter, dagWorkLayout(4).words, 'behind every other word of work')
+    assert.equal(layout.words - layout.filter, Math.ceil(placements / 32))
+  }
+  const work = new Array<number>(40).fill(0),
+    view = { filterBase: 0 }
+  work[10] = 0b101
+  work[11] = 1 << 31
+  const run = shaderRun<{ filteredOut(w: number): boolean }>(
+    DAG_VIEW_FILTER_WGSL,
+    ['filteredOut'],
+    {
+      views: [view],
+      work,
+    },
+  )
+  assert.equal(run.filteredOut(0), false, 'no region: nothing is filtered')
+  view.filterBase = 10
+  const at = (...placements: number[]) => placements.map((w) => run.filteredOut(w))
+  assert.deepEqual(at(0, 1, 2, 3), [true, false, true, false])
+  assert.deepEqual(at(31, 32, 63, 64), [false, false, true, false])
+  assert.ok(DAG_SELECTION_SHADER.includes('atomicLoad(&work[base+(w>>5u)])'))
 })

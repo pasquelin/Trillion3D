@@ -36,6 +36,16 @@ import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animat
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import type { ShadowOptions } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
+import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
+import type { DepthOfFieldSettings } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
+import type { BloomSettings } from '../../../../sdk-core/src/contracts/bloomRules.ts'
+import type { FilmSettings } from '../../../../sdk-core/src/contracts/filmOptions.ts'
+import type { AmbientOcclusionOptions } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import type { ScreenProbeOptions } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import type { ReflectionOptions } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
+import type { VolumetricFogOptions } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
+import type { TessellationOptions } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
 import type { RasterOptions } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
 import type { StreamingOptions } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
 type ViewSize = { width: number; height: number }
@@ -173,7 +183,25 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
  *  each frame by the meter (`../../post/exposure/frame.ts`) and the local exposure
  *  (`../../post/finish/frame.ts`); the temporal pass's
  *  (`../../../../sdk-core/src/contracts/temporalOptions.ts`), written by `setTemporal`, read at
- *  each image by the pass (`../../post/taa/frame.ts`);
+ *  each image by the pass (`../../post/taa/frame.ts`); the sun's shadows'
+ *  (`../../../../sdk-core/src/contracts/shadowOptions.ts`), written by `setShadows`, read at each
+ *  frame's shadow planning (`../../lighting/shadows/vsm/frame/vsmFarShadow.ts`); the motion blur's
+ *  drawing (`../../../../sdk-core/src/contracts/motionBlurOptions.ts`), written by
+ *  `setMotionBlur`, read at each image by the blur (`../../frame/render/encodeEffects.ts`);
+ *  the depth of field's drawing (`../../../../sdk-core/src/contracts/depthOfFieldRules.ts`), written by
+ *  `setDepthOfField`, read at each image by the depth of field (`../../frame/render/encodeEffects.ts`);
+ *  the bloom's drawing (`../../../../sdk-core/src/contracts/bloomRules.ts`), written by `setBloom`,
+ *  read at each image by the bloom (`../../frame/render/encodeEffects.ts`);
+ *  the film effects' (`../../../../sdk-core/src/contracts/filmOptions.ts`), written by `setFilm`,
+ *  read at each image by the finishing (`../../post/finish/frame.ts`);
+ *  the volumetric fog's (`../../../../sdk-core/src/contracts/volumetricFogOptions.ts`), written by
+ *  `setVolumetricFog`, read at each image by the fog volume (`../../frame/render/encodeFogVolume.ts`);
+ *  the screen probes' (`../../../../sdk-core/src/bounce/screenProbeOptions.ts`), written by
+ *  `setIndirectLight`, read at each image by the probes (`../../lighting/bounce/screen/frame.ts`);
+ *  the reflections' trace's (`../../../../sdk-core/src/contracts/reflectionOptions.ts`), written by
+ *  `setReflections`, read at each image by the trace (`../../lighting/reflections/frame.ts`);
+ *  the screen-space ambient occlusion's (`../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts`), written by
+ *  `setAmbientOcclusion`, read at each image by its passes (`../../lighting/ao/frame.ts`);
  *  the software raster, on by default, and the projected edge in pixels from which a cluster is
  *  the hardware rasterizer's (`../../../../sdk-core/src/contracts/rasterOptions.ts`), written by
  *  `setSoftwareRaster` and `setHardwareRasterEdgePixels` and read each image by the cluster split
@@ -189,6 +217,16 @@ export interface EngineContext
     ShadingOptions,
     ExposureOptions,
     TemporalOptions,
+    ShadowOptions,
+    MotionBlurSettings,
+    DepthOfFieldSettings,
+    BloomSettings,
+    FilmSettings,
+    VolumetricFogOptions,
+    TessellationOptions,
+    ScreenProbeOptions,
+    ReflectionOptions,
+    AmbientOcclusionOptions,
     RasterOptions,
     StreamingOptions {
   source: Object3D
@@ -272,6 +310,9 @@ export interface EngineContext
   /** Reader of the cache's geometry pages; absent from a cache that carries none, whose slots are
    *  written from the index pages the arrivals left in memory (`../../frame/backend/readPage.ts`). */
   readGeometryPage?: (url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>
+  /** Whether the read of a geometry page is refused for good: the page was given up, or another
+   *  page of its object was (`../../geometry/streaming/pageStreamer.ts`, `failed`); absent: never. */
+  geometryPageFailed?: (url: string) => boolean
   /** The world roots this scene's manifest opened, whose DAG the cut packs; their pages are read
    *  as any geometry page (`../../geometry/hlod/worldRuns.ts`); absent without them. */
   worldRoots?: import('../../geometry/hlod/worldRoots.ts').WorldRootsHold

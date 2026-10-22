@@ -7,9 +7,11 @@ use serde_json::{json, Value};
 
 /// `voxels.bin`: the head, the groups' records, the bricks, the voxels.
 pub(super) fn encode(done: &[Voxelled]) -> Vec<u8> {
-    let groups = || done.iter().flat_map(|mesh| mesh.groups.iter());
-    let bricks: usize = groups().map(|g| g.bricks.len()).sum();
-    let voxels: usize = groups().map(|g| g.voxels.len()).sum();
+    // Each group beside the sampling of its mesh, which its voxels' records follow.
+    let groups =
+        || (done.iter()).flat_map(|mesh| mesh.groups.iter().map(move |g| (g, &mesh.sampling)));
+    let bricks: usize = groups().map(|(g, _)| g.bricks.len()).sum();
+    let voxels: usize = groups().map(|(g, _)| g.voxels.len()).sum();
     let count = groups().count();
     let mut head = Vec::with_capacity(HEAD_BYTES + count * GROUP_BYTES);
     let mut brick_bytes = Vec::with_capacity(bricks * BRICK_BYTES);
@@ -18,7 +20,7 @@ pub(super) fn encode(done: &[Voxelled]) -> Vec<u8> {
     for word in [VOXEL_VERSION, count as u32, bricks as u32] {
         head.extend_from_slice(&word.to_le_bytes());
     }
-    for group in groups() {
+    for (group, sampling) in groups() {
         let first: Cell =
             std::array::from_fn(|k| group.bricks.iter().map(|b| b.at[k]).min().unwrap_or(0));
         let origin = first.map(|c| (f64::from(c) * 4.0 * group.side) as f32);
@@ -40,7 +42,7 @@ pub(super) fn encode(done: &[Voxelled]) -> Vec<u8> {
         for brick in &group.bricks {
             brick_bytes.extend_from_slice(&brick_record(brick, first));
             for &v in &brick.voxels {
-                voxel_bytes.extend_from_slice(&voxel_record(&group.voxels[v]));
+                voxel_bytes.extend_from_slice(&voxel_record(&group.voxels[v], sampling));
             }
         }
     }

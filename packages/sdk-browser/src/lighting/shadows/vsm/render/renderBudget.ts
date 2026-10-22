@@ -48,19 +48,22 @@ export function renderChunking(
   return worst
 }
 
-/** The raster's list sizing for `rowCount` rows, every one a candidate (`vsmSizingFor`). */
+/** The raster's list sizing for `rowCount` rows, every one a candidate, run in `passes` view
+ *  passes (`vsmSizingFor`). */
 export const renderSizes = (
   rowCount: number,
   viewWords: number,
   holds: Omit<VsmChunk, 'rows'>,
   slots: UniformSlots,
-) => vsmSizingFor(sizing, rowCount, rowCount, viewWords, holds, slots)
+  passes: number,
+) => vsmSizingFor(sizing, rowCount, rowCount, viewWords, holds, slots, passes)
 
 /**
  * The fewest bytes the raster's context of a set at `pages` pages takes to draw `rowCount` rows
- * under views of `viewWords` words and `viewMips` mips: its dummy target and its lists at the
- * chunk size, among those `vsmChunkRowsWithin` tries, that takes the least. Set aside beside a new
- * set (`vsmGrant.ts`): the raster then always finds room for one chunk.
+ * under views of `viewWords` words and `viewMips` mips, in `passes` view passes (the most maps and
+ * mips one of them holds, `vsmViewPasses`): its dummy target and its lists at the chunk size, among
+ * those `vsmChunkRowsWithin` tries, that takes the least. Set aside beside a new set
+ * (`vsmGrant.ts`): the raster then always finds room for one chunk.
  */
 export function vsmRenderFloorBytes(
   limits: GPUSupportedLimits,
@@ -68,6 +71,7 @@ export function vsmRenderFloorBytes(
   viewWords: number,
   viewMips: number,
   pages: number,
+  passes: number,
 ) {
   if (rowCount <= 0 || viewWords <= 0) return 0
   const chunking = renderChunking(limits, pages, viewMips, rowCount)
@@ -78,7 +82,7 @@ export function vsmRenderFloorBytes(
     target +
     vsmDrawFloorBytes(
       rows,
-      renderSizes(rowCount, viewWords, holds, vsmChunkParamSlots(limits)).sizes,
+      renderSizes(rowCount, viewWords, holds, vsmChunkParamSlots(limits), passes).sizes,
     )
   )
 }

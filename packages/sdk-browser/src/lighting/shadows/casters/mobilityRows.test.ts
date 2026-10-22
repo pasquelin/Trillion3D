@@ -2,7 +2,12 @@
 // (`mobility.test.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { MOBILITY_CUTOUT, MOBILITY_MOVING } from '../mobilityBits.ts'
+import {
+  MOBILITY_CORNER_SHIFT,
+  MOBILITY_CUTOUT,
+  MOBILITY_FAR_SHADOW,
+  MOBILITY_MOVING,
+} from '../mobilityBits.ts'
 import { createShadowMobility } from './mobility.ts'
 
 /** Rows that draw no corner: the words hold their flags alone. */
@@ -57,6 +62,56 @@ test("a cutout row's word carries the cutout bit, beside its moving bit", () => 
     4,
   )
   assert.ok(mobility.rowWords.every((word) => (word & MOBILITY_CUTOUT) === 0))
+})
+
+// A placement that casts far shadows gives each of its rows the far-shadow bit, which a sun's
+// far-shadow test reads (`vsmRenderFarFlags`).
+test('a placement that casts far shadows gives its rows the far bit, written again when touched', () => {
+  const mobility = createShadowMobility()
+  mobility.ensure(2, 4, () => new Float64Array(16))
+  let far = new Set([1])
+  const placementOf = (row: number) => [0, 1, 0, 1][row]
+  const pushed: number[][] = []
+  /** The rows of the placements touched alone (an empty span), or every row from `to` on. */
+  const write = (to: number) =>
+    mobility.writeRows(
+      placementOf,
+      4,
+      0,
+      to,
+      (first, count) => pushed.push([first, count]),
+      () => 3,
+      4,
+      () => false,
+      (rank) => (far.has(rank) ? MOBILITY_FAR_SHADOW : 0),
+    )
+  const corners = 3 << MOBILITY_CORNER_SHIFT
+  write(3)
+  assert.deepEqual(
+    [...mobility.rowWords],
+    [corners, corners + MOBILITY_FAR_SHADOW, corners, corners + MOBILITY_FAR_SHADOW],
+  )
+  far = new Set()
+  mobility.touch(1)
+  pushed.length = 0
+  write(-1)
+  assert.deepEqual([...mobility.rowWords], [corners, corners, corners, corners])
+  assert.deepEqual(
+    pushed,
+    [
+      [1, 1],
+      [3, 1],
+    ],
+    'its two rows, one run each',
+  )
+  far = new Set([1])
+  mobility.touch(1)
+  write(-1)
+  assert.equal(mobility.rowWords[3], corners + MOBILITY_FAR_SHADOW)
+  mobility.touch(1)
+  pushed.length = 0
+  write(-1)
+  assert.deepEqual(pushed, [], 'touched with nothing changed: the same words, none written')
 })
 
 // A table grown in place resizes the row words, never the placements' state: a placement

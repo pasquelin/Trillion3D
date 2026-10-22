@@ -9,7 +9,7 @@ import { writeKeyRecords } from '../../blend/keyRecords.ts'
 import { KEY_DRAWN, KEY_RECORD_WORDS, KEY_WORD } from '../../blend/keyLayout.ts'
 import type { ClusterRoot, PageRec } from '../../geometry/selection/types.ts'
 import type { WebgpuPagesRuntime } from './runtime.ts'
-import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
+import { FAR_SHADOW_ROOT, SHADOWLESS_ROOT } from '../../visibility/shader/castingMark.ts'
 import { createChangedRuns } from '../../geometry/residency/ranges.ts'
 
 // A node of a compiled model hidden once, then shown again, by the host (#407). Every frame
@@ -74,6 +74,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
       gpuSelection: {
         parkWorld: (rank: number, parked: boolean) => parks.push([rank, parked]),
         markWorld: (_: number, mark: number) => marks.push(mark),
+        drawDistanceWorld: () => {},
       },
       worldUploadRevision: 1,
       movedWorlds: createChangedRuns(),
@@ -131,4 +132,8 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   assert.deepEqual(marks.slice(-1), [SHADOWLESS_ROOT])
   assert.deepEqual(asked(), [0], 'its shadow is drawn again without it')
   assert.deepEqual(changed, [])
+  // A node that casts far shadows marks its root so, beside the shadowless bit.
+  node.castFarShadow = true
+  uploadWorlds(rt)
+  assert.deepEqual(marks.slice(-1), [SHADOWLESS_ROOT | FAR_SHADOW_ROOT])
 })

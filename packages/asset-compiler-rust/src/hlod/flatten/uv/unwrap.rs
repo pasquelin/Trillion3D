@@ -28,12 +28,20 @@
 //! `islands` and their measures in `measure`, both ordered by the HLOD code's one unstable sort
 //! (`flatten/sort.rs`), the exponential map in `expmap`, the island's triangles as it reads them
 //! in `submesh`, its frames in `frame`, its normals in `normals`.
+//!
+//! Two other unwraps read the same mesh: the spectral charts (`atlas`), which a merged mesh or an
+//! approximated shell may ask for, and the box projection (`boxed`) an approximated shell takes
+//! where those fail.
 use super::pack::pack;
 use super::Topology;
 use crate::hlod::options::HlodPatches;
 use rayon::prelude::*;
+mod atlas;
+pub(crate) use atlas::atlas;
 mod base;
 use base::Base;
+mod boxed;
+pub(crate) use boxed::boxed;
 mod expmap;
 use expmap::{expmap, Seeding};
 mod frame;
@@ -91,26 +99,21 @@ pub(crate) fn unwrap(topology: &Topology, settings: &HlodPatches) -> Unwrapped {
             (map.corners, uv)
         })
         .collect();
-    let mut corners = vec![[0.0f64; 2]; topology.triangles.len() * 3];
-    let mut held = vec![false; topology.triangles.len()];
-    for &t in &base.source {
-        held[t] = true;
-    }
+    // Each island's coordinates, per corner of the mesh's triangles.
+    let mut by_corner = vec![[0.0f64; 2]; 3 * base.triangle_count()];
     for (island, (local, uv)) in islands.iter().zip(&mapped) {
         for (&b, tri) in island.iter().zip(local) {
-            let t = base.source[b];
             for k in 0..3 {
-                corners[t * 3 + k] = uv[tri[k]].map(f64::from);
+                by_corner[3 * b + k] = uv[tri[k]].map(f64::from);
             }
         }
     }
-    let islands: Vec<Vec<usize>> = (islands.into_iter())
-        .map(|island| island.into_iter().map(|b| base.source[b]).collect())
-        .collect();
-    pack(&mut corners, &islands, PACKING_RESOLUTION);
-    Unwrapped {
-        corners,
-        islands,
-        held,
-    }
+    let count = topology.triangles.len();
+    let mut unwrapped = base.unwrapped(count, |b, k| by_corner[3 * b + k], islands);
+    pack(
+        &mut unwrapped.corners,
+        &unwrapped.islands,
+        PACKING_RESOLUTION,
+    );
+    unwrapped
 }

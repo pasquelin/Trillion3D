@@ -4,6 +4,7 @@
  */
 import type { Side } from '../../../../sdk-core/src/contracts/material.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
+import type { SurfaceDisplacement } from '../../visibility/materialType.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import type { SurfaceFamily } from './surface.ts'
 import type { HostColour } from '../../session/host/resources.ts'
@@ -52,6 +53,11 @@ export type SurfaceDeclaration = {
   readonly clearcoatRoughnessMap?: Slot
   readonly clearcoatNormalMap?: Slot
   readonly clearcoatNormalScale?: Pick<Vector2, 'x' | 'y'>
+  /** The displacement the tessellation draws the surface with (`TESSELLATION_RULES`): the height map
+   *  and what the table resolved of the material (`TableDisplacement`); a surface without a map
+   *  is not displaced. */
+  readonly displacementMap?: Slot
+  readonly displacement?: SurfaceDisplacement
   readonly transmission?: number
   readonly ior?: number
   readonly thickness?: number

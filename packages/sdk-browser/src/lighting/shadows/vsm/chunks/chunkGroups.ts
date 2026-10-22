@@ -19,49 +19,66 @@ import type { VsmListName } from './chunkSizing.ts'
 import { VSM_RENDER_PARAMS_BYTES } from './chunkParams.ts'
 import type { VsmRenderScene } from '../render/renderPass.ts'
 
-/** The dynamic offset of the parameters' first slot, held: the candidates and the cull's arguments
- *  bind it every frame without a new array. */
+/** The dynamic offset of the parameters' first slot, held: the candidates bind it every frame
+ *  without a new array. */
 const FIRST_SLOT: readonly number[] = [0]
 
-/** The candidates kernel over `rowCount` rows — its group 0 `candGroup`, the camera cut's world
- *  switch `worldGroup` (`vsmWorldGroup`) — and the views with pages to draw among the first
- *  `mapCount` maps (`../render/renderViewsWgsl.ts`, groups `views0` over the VSM tables, `views1` over the
- *  lists), then the cull dispatch of every chunk, in `pass`: the opaque raster's and the
- *  transmission's. */
+/** The candidates kernel over `rowCount` rows, in `pass`: its group 0 `candGroup`, the camera cut's
+ *  world switch `worldGroup` (`vsmWorldGroup`), its parameters the first slot's. The opaque
+ *  raster's and the transmission's. */
 export function encodeVsmCandidates(
   pass: GPUComputePassEncoder,
   candidates: GPUComputePipeline,
   candGroup: GPUBindGroup,
   worldGroup: GPUBindGroup,
-  kernels: VsmChunkKernels,
-  groups: { args: GPUBindGroup; views0: GPUBindGroup; views1: GPUBindGroup },
   rowCount: number,
-  mapCount: number,
 ) {
   pass.setPipeline(candidates)
   pass.setBindGroup(0, candGroup, FIRST_SLOT)
   pass.setBindGroup(VSM_RENDER_WORLD_GROUP, worldGroup)
   dispatchRows(pass, ceilDiv(rowCount, WORKGROUP_THREADS))
+}
+
+/** The views with pages to draw among the `mapCount` maps of a view pass, whose parameters the slot
+ *  at `offset` holds (`../render/renderViewsWgsl.ts`, groups `views0` over the VSM tables,
+ *  `views1` over the lists), then the cull dispatch of the pass's chunks, in `pass`. */
+export function encodeVsmViews(
+  pass: GPUComputePassEncoder,
+  kernels: VsmChunkKernels,
+  groups: Pick<VsmChunkGroups, 'args' | 'views0' | 'views1'>,
+  offset: readonly number[],
+  mapCount: number,
+) {
   pass.setPipeline(kernels.views.pipeline)
   pass.setBindGroup(0, groups.views0)
-  pass.setBindGroup(1, groups.views1, FIRST_SLOT)
+  pass.setBindGroup(1, groups.views1, offset)
   dispatchRows(pass, ceilDiv(mapCount, WORKGROUP_THREADS))
-  const argsGroup = groups.args
   pass.setPipeline(kernels.args.cull.pipeline)
-  pass.setBindGroup(0, argsGroup, FIRST_SLOT)
+  pass.setBindGroup(0, groups.args, offset)
   pass.dispatchWorkgroups(1)
 }
 
-/** What the candidates read of the camera cut's world switch while it follows none: a stand-in for
- *  its cold words and its frame words — two `r32uint` tables — which the gate then never reads
- *  (`worldGateWgsl`), one a device. */
+/** What the candidates read of the camera cut's world switch while it follows none, or of its
+ *  frame words without a cut: a stand-in for its cold words and its frame words — two `r32uint`
+ *  tables — which the gate then never reads (`worldGateWgsl`), nor the draw distances
+ *  (`vsmRenderOutsideDrawDistance`), one a device. */
 const noWorld = oncePerDevice((device: GPUDevice) =>
   arrayView(standInTexture(device, 'Trillion3D shadow casters no world', COLD_TABLE.format)),
 )
 
-/** The candidates' group over the camera cut's world switch (`VsmRenderScene.world`), held in
- *  `held` on `layout` (`VSM_RENDER_WORLD_GROUP`): made again only when the layout or the cut's
- *  tables moved — another cut, or a world packed or let go. */
+/** What the candidates read of the main view's filter while it has none: one word, which
+ *  `filterBase` 0 says no one reads, one a device. */
+const noFilter = oncePerDevice((device: GPUDevice) =>
+  device.createBuffer({
+    label: 'Trillion3D shadow casters no filter',
+    size: 4,
+    usage: GPUBufferUsage.STORAGE,
+  }),
+)
+
+/** The candidates' group over the camera cut's world switch (`VsmRenderScene.world`) and the bits
+ *  of the main view's filter, held in `held` on `layout` (`VSM_RENDER_WORLD_GROUP`): made again
+ *  only when the layout or the cut's tables moved — another cut, or a world packed or let go. */
 export function vsmWorldGroup(
   device: GPUDevice,
   held: HeldGroup,
@@ -70,13 +87,18 @@ export function vsmWorldGroup(
 ) {
   const { next } = held.identity,
     cold = world?.cold ?? noWorld(device),
-    frames = world?.frames ?? cold
+    frames = world?.frames ?? noWorld(device),
+    filter = world?.filter?.buffer ?? noFilter(device)
   next[0] = layout
   next[1] = cold
   next[2] = frames
-  next.length = 3
+  next[3] = filter
+  next.length = 4
   if (held.identity.moved())
-    held.group = device.createBindGroup({ layout, entries: sequentialEntries([cold, frames]) })
+    held.group = device.createBindGroup({
+      layout,
+      entries: sequentialEntries([cold, frames, { buffer: filter }]),
+    })
   return held.group!
 }
 

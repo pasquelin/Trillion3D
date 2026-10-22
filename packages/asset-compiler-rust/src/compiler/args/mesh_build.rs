@@ -5,7 +5,9 @@
 //! whatever the view (`root_page_count`), how its source is read (`dag::InputRules`): whether its
 //! normals and its tangents are rebuilt, its tangents by the tangent spaces, its normals weighed
 //! by area and angle, and the tolerances of its skinned weld, and the precisions of its pages' grid
-//! (`Precision`): the cells of its positions, the bits of its normals and of its tangents' angle.
+//! (`Precision`): the cells of its positions, the bits of its normals and of its tangents' angle,
+//! and how its voxels are sampled when it is drawn as voxels far away (`voxels.rs`), and whether
+//! the assembly its `extras` name is built (`ALLOW_ASSEMBLIES_SETTING`, `source/assembly.rs`).
 //! For each setting of a mesh, the first that names it:
 //! 1. the first rule of `meshBuild.objects` whose match names one of its objects — a node of the
 //!    mesh —, as `voxelize` names its objects;
@@ -19,11 +21,14 @@
 //! resolved.
 use super::name_match::{present, read_rules, NameMatch, NodeNames};
 use super::*;
-use crate::compiler::validate::OPTIONS;
+mod read;
+mod voxels;
+use read::Reader;
 use trillion3d_page_codec::bits::grid::Precision;
 use trillion3d_page_codec::{
     MAX_NORMAL_PRECISION, MAX_POSITION_PRECISION, MAX_TANGENT_PRECISION, MIN_POSITION_PRECISION,
 };
+use voxels::NamedVoxels;
 
 /// One mesh's build settings, every one resolved (`MeshBuildOptions::meshes`).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -46,6 +51,11 @@ pub(crate) struct MeshBuild {
     /// serve (`POSITION_PRECISION_SETTING`, `NORMAL_PRECISION_SETTING`,
     /// `TANGENT_PRECISION_SETTING`).
     pub precision: Precision,
+    /// How its voxels are sampled (`voxel::VoxelSampling`: `voxelRays`, `voxelLevel`,
+    /// `voxelBackUp`, `voxelSeparable`, `voxelNdf`, `voxelOpacity`), read when it is voxelized.
+    pub voxels: crate::voxel::VoxelSampling,
+    /// Whether the assembly its `extras` name is built (`ALLOW_ASSEMBLIES_SETTING`).
+    pub allow_assemblies: bool,
 }
 
 /// The settings one source names, each none where it names none.
@@ -66,80 +76,53 @@ struct Named {
     position_precision: Option<i32>,
     normal_precision: Option<i32>,
     tangent_precision: Option<i32>,
+    voxels: NamedVoxels,
+    allow_assemblies: Option<bool>,
 }
 impl Named {
     /// The settings of `MESH_BUILD_SETTINGS` `map` holds, its other keys read by others; `what`
     /// names where they were read, for the refusal of one that does not read.
     fn of(map: &Map<String, Value>, what: &str) -> Result<Self> {
-        let boolean = |key: &str| {
-            let value = present(map.get(key));
-            value
-                .map(|v| OPTIONS.boolean(Some(v), &format!("{what}{key}")))
-                .transpose()
-        };
-        // A finite number from `low` to `high`, `takes` saying so in the refusal.
-        let number = |key: &str, (low, high): (f64, f64), takes: &str| {
-            let value = present(map.get(key));
-            value
-                .map(|v| OPTIONS.bounded(v, &format!("{what}{key}"), (low, high), takes))
-                .transpose()
-        };
-        // A whole number of KiB from 0 to `MAX_ALWAYS_RESIDENT_KIB`, a 32-bit word's.
-        let kib = |key: &str| {
-            let value = present(map.get(key));
-            value
-                .map(|v| {
-                    (v.as_u64())
-                        .and_then(|n| u32::try_from(n).ok())
-                        .ok_or_else(|| {
-                            let takes =
-                                format!("a whole number from 0 to {MAX_ALWAYS_RESIDENT_KIB}");
-                            OPTIONS.bad(format!("{what}{key} must be {takes}, got {v}"))
-                        })
-                })
-                .transpose()
-        };
+        let read = Reader { map, what };
         // A whole number from `low` to `high`, a precision's bound.
-        let whole = |key: &str, (low, high): (i32, i32)| {
-            let value = present(map.get(key));
-            value
-                .map(|v| {
-                    (v.as_i64())
-                        .and_then(|n| i32::try_from(n).ok())
-                        .filter(|n| (low..=high).contains(n))
-                        .ok_or_else(|| {
-                            let takes = format!("a whole number from {low} to {high}");
-                            OPTIONS.bad(format!("{what}{key} must be {takes}, got {v}"))
-                        })
-                })
-                .transpose()
+        let precision = |key: &str, (low, high): (i32, i32)| {
+            let takes = format!("a whole number from {low} to {high}");
+            let named = read.whole(key, (i64::from(low), i64::from(high)), &takes);
+            named.map(|n| n.map(|n| n as i32))
         };
-        let share = (0.0, 1.0);
-        let at_least_zero = (0.0, f64::INFINITY);
-        let tolerance = |key: &str| number(key, at_least_zero, "a number of at least 0");
+        let (share, at_least_zero) = ((0.0, 1.0), (0.0, f64::INFINITY));
+        let tolerance = |key: &str| read.number(key, at_least_zero, "a number of at least 0");
+        // A whole number of KiB from 0 to `MAX_ALWAYS_RESIDENT_KIB`, a 32-bit word's.
+        let takes = format!("a whole number from 0 to {MAX_ALWAYS_RESIDENT_KIB}");
+        let kib = (0, i64::from(MAX_ALWAYS_RESIDENT_KIB));
         Ok(Self {
-            stored_tangents: boolean(STORED_TANGENTS_SETTING)?,
-            kept_triangles: number(KEPT_TRIANGLES_SETTING, share, "a number from 0 to 1")?,
-            trimmed_error: number(
-                TRIMMED_ERROR_SETTING,
-                at_least_zero,
-                "a number of at least 0",
-            )?,
-            drop_near_collapsed: boolean(DROP_NEAR_COLLAPSED_SETTING)?,
-            always_resident_kib: kib(ALWAYS_RESIDENT_SETTING)?,
-            recompute_normals: boolean(RECOMPUTE_NORMALS_SETTING)?,
-            recompute_tangents: boolean(RECOMPUTE_TANGENTS_SETTING)?,
-            mikk_tangents: boolean(MIKK_TSPACE_SETTING)?,
-            weighted_normals: boolean(WEIGHTED_NORMALS_SETTING)?,
+            stored_tangents: read.boolean(STORED_TANGENTS_SETTING)?,
+            kept_triangles: read.number(KEPT_TRIANGLES_SETTING, share, "a number from 0 to 1")?,
+            trimmed_error: tolerance(TRIMMED_ERROR_SETTING)?,
+            drop_near_collapsed: read.boolean(DROP_NEAR_COLLAPSED_SETTING)?,
+            always_resident_kib: (read.whole(ALWAYS_RESIDENT_SETTING, kib, &takes)?)
+                .map(|n| n as u32),
+            recompute_normals: read.boolean(RECOMPUTE_NORMALS_SETTING)?,
+            recompute_tangents: read.boolean(RECOMPUTE_TANGENTS_SETTING)?,
+            mikk_tangents: read.boolean(MIKK_TSPACE_SETTING)?,
+            weighted_normals: read.boolean(WEIGHTED_NORMALS_SETTING)?,
             weld_position: tolerance(SKINNED_WELD_POSITION_SETTING)?,
             weld_normal: tolerance(SKINNED_WELD_NORMAL_SETTING)?,
             weld_texture: tolerance(SKINNED_WELD_TEXTURE_SETTING)?,
-            position_precision: whole(
+            position_precision: precision(
                 POSITION_PRECISION_SETTING,
                 (MIN_POSITION_PRECISION, MAX_POSITION_PRECISION),
             )?,
-            normal_precision: whole(NORMAL_PRECISION_SETTING, (1, MAX_NORMAL_PRECISION as i32))?,
-            tangent_precision: whole(TANGENT_PRECISION_SETTING, (0, MAX_TANGENT_PRECISION as i32))?,
+            normal_precision: precision(
+                NORMAL_PRECISION_SETTING,
+                (1, MAX_NORMAL_PRECISION as i32),
+            )?,
+            tangent_precision: precision(
+                TANGENT_PRECISION_SETTING,
+                (0, MAX_TANGENT_PRECISION as i32),
+            )?,
+            voxels: NamedVoxels::of(&read)?,
+            allow_assemblies: read.boolean(ALLOW_ASSEMBLIES_SETTING)?,
         })
     }
 
@@ -161,6 +144,8 @@ impl Named {
             position_precision: self.position_precision.or(lower.position_precision),
             normal_precision: self.normal_precision.or(lower.normal_precision),
             tangent_precision: self.tangent_precision.or(lower.tangent_precision),
+            voxels: self.voxels.or(lower.voxels),
+            allow_assemblies: self.allow_assemblies.or(lower.allow_assemblies),
         }
     }
 
@@ -198,6 +183,8 @@ impl Named {
                 normal: self.normal_precision,
                 tangent: self.tangent_precision,
             },
+            voxels: self.voxels.resolved(),
+            allow_assemblies: self.allow_assemblies.unwrap_or(DEFAULT_ALLOW_ASSEMBLIES),
         }
     }
 }

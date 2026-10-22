@@ -23,7 +23,9 @@
 //! no mesh is a frame objects hang from, not an object: it joins no batch.
 use super::boxes::{carried, grown, mesh_boxes, morphing};
 use super::scene::{batch_roots, named, still_nodes};
+use super::split::assign_grids;
 use super::*;
+use crate::compiler::args::objects::DrawDistance;
 use crate::compiler::source::node_transform::local_matrix;
 use crate::compiler::tables::motion::{bank::animated_bounds, moved};
 use trillion3d_math::geometry::box_transform::box_transform;
@@ -54,7 +56,8 @@ impl Row {
 /// A node that may stream: its rank, its mesh, how its cell draws it (`Row`), its world box, its
 /// box in the frame of the core node its row hangs under, whether it may take an HLOD layer —
 /// nothing moves it, itself or through a node above it, and an instanced skinned object's mobility
-/// keeps it still —, and the root of its batch.
+/// keeps it still —, the root of its batch, the main grid it streams on (`assign_grids`), and the
+/// distances it is drawn at, when its settings name any (`DrawDistance`).
 pub(super) struct Candidate {
     pub node: usize,
     pub mesh: usize,
@@ -63,12 +66,14 @@ pub(super) struct Candidate {
     pub local: Box6,
     pub still: bool,
     pub batch: usize,
+    pub grid: usize,
+    pub draw_distance: Option<DrawDistance>,
 }
 
 impl Candidate {
     /// The core node its row hangs under — `parent` giving each node's parent in `table`, `rank`
     /// each node's rank in the core —, and the row its cell writes: a pose only where the node
-    /// declares one.
+    /// declares one, the distances it is drawn at only where its settings name them.
     pub(super) fn entry(
         &self,
         table: &[Value],
@@ -76,7 +81,7 @@ impl Candidate {
         rank: &[Option<usize>],
     ) -> (Option<usize>, Value) {
         let (id, mesh) = (self.node, self.mesh);
-        match self.row {
+        let (core_parent, mut entry) = match self.row {
             Row::Posed => {
                 let (node, core_parent) = (&table[id], parent[id].and_then(|p| rank[p]));
                 let entry = json!({
@@ -97,19 +102,25 @@ impl Candidate {
                 rank[id],
                 json!({"parent": rank[id], "mesh": mesh, "source": true}),
             ),
+        };
+        if let Some(distance) = &self.draw_distance {
+            entry["drawDistance"] = distance.entry();
         }
+        (core_parent, entry)
     }
 }
 
 /// What `gather` finds: the candidates, of batches every object of which is spatially loaded; the
 /// box around each batch's candidates' world boxes, by its root; every instanced skinned object —
 /// its node, its item, its skin's frame —; and why each object its settings make an instanced
-/// skinned one stays a plain skinned one (`Banks::refused`, then the partition's).
+/// skinned one stays a plain skinned one (`Banks::refused`, then the partition's); and each batch
+/// root that names a streaming grid the job does not hold, with the name.
 pub(super) struct Gathered {
     pub candidates: Vec<Candidate>,
     pub batches: BTreeMap<usize, Box6>,
     pub bankable: Vec<(usize, usize, Option<usize>)>,
     pub bank_warnings: Vec<(usize, String)>,
+    pub unknown_grids: Vec<(usize, String)>,
 }
 
 /// The candidates of `table` (`Gathered`), its nodes' `parent`s and whether the scene reaches each
@@ -163,6 +174,8 @@ pub(super) fn gather(
     // The input scene's hierarchy, read by the first plain skinned object that needs it.
     let mut source_parents = None;
     let (mut bankable, mut candidates, mut pinned) = (Vec::new(), Vec::new(), BTreeSet::new());
+    // The grid each batch root names.
+    let mut named_grids = BTreeMap::new();
     for id in (0..table.len()).filter(|&id| object(id)) {
         let node = &table[id];
         let mesh = node["mesh"].as_u64().expect("an object's mesh") as usize;
@@ -176,9 +189,13 @@ pub(super) fn gather(
             continue;
         }
         let batch = roots[id].expect("an object is its batch's or under its root");
-        if !objects.node(g, id)?.spatially_loaded {
+        let setting = objects.node(g, id)?;
+        if !setting.spatially_loaded {
             pinned.insert(batch);
             continue;
+        }
+        if id == batch {
+            named_grids.extend(setting.runtime_grid.map(|name| (batch, name)));
         }
         let mesh_box = boxes.get(mesh).copied().flatten();
         let animated = !node["skin"].is_null()
@@ -240,9 +257,12 @@ pub(super) fn gather(
             local,
             still,
             batch,
+            grid: 0,
+            draw_distance: setting.draw_distance,
         });
     }
     candidates.retain(|c| !pinned.contains(&c.batch));
+    let unknown_grids = assign_grids(&mut candidates, &named_grids, grid);
     let mut batches = BTreeMap::new();
     for c in &candidates {
         grown(&mut batches, c.batch, &c.world);
@@ -252,5 +272,6 @@ pub(super) fn gather(
         batches,
         bankable,
         bank_warnings,
+        unknown_grids,
     })
 }

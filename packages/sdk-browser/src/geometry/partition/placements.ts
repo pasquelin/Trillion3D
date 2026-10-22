@@ -2,10 +2,11 @@
  * THE ROWS THE PLACED CELLS OF A PARTITION HOLD: each node of a placed cell on a row of its
  * mesh (`rows.ts`), at the world matrix the engine composes for a child of its core parent, the row
  * knowing its cell and node while it holds them (`rowCells.ts`), the track of the scene's
- * animation banks it plays (`PlacementRows.tracks`), and — a row drawn from an animated core
+ * animation banks it plays (`PlacementRows.tracks`), the distances it is drawn at
+ * (`PlacementRows.drawDistance`), and — a row drawn from an animated core
  * node's own mesh (`CellNode.source`) — that node's host mesh of its primitive as its animation
  * source (`PlacedMesh.sources`), shown while that mesh is. A cell that leaves parks its rows and
- * clears both; a parent moved, a host mesh's `castShadow` changed, or a source mesh shown or
+ * clears all three; a parent moved, a host mesh's `castShadow` changed, or a source mesh shown or
  * hidden, rewrites the rows under it (`follow.ts`). An HLOD cell's instanced actor places its rows
  * on the same meshes' rows while it is loaded, under the scene root (`placeActor`,
  * `../hlod/hlodRows.ts`). What was written since the last `touched.flush` is what the engine is
@@ -27,15 +28,25 @@ import {
 } from './rows.ts'
 import { rowCell, setRowCell, type RowCell } from './rowCells.ts'
 
-/** Row `row` of every link of `mesh` plays `track` of the scene's animation banks (-1: none) and
- *  is drawn from `drawn` — a streamed core node's host meshes, by primitive —, from none when
- *  unset. The track column is made at the rows' capacity, every row -1, by the first row that
- *  plays one. */
-function seatRow(mesh: PlacedMesh, row: number, track: number, drawn?: readonly Mesh<object>[]) {
+/** Row `row` of every link of `mesh` plays `track` of the scene's animation banks (-1: none), is
+ *  drawn from `drawn` — a streamed core node's host meshes, by primitive —, from none when unset,
+ *  and is drawn from `near` to `far` (0 and 0: at every distance). The track column is made at the
+ *  rows' capacity, every row -1, by the first row that plays one; the distances' by the first row
+ *  that names a farthest one. */
+function seatRow(
+  mesh: PlacedMesh,
+  row: number,
+  track: number,
+  drawn?: readonly Mesh<object>[],
+  near = 0,
+  far = 0,
+) {
   mesh.links.forEach((link, at) => {
     const rows = link.placements!
     if (track >= 0) rows.tracks ??= new Int32Array(rows.capacity).fill(-1)
     if (rows.tracks) rows.tracks[row] = track
+    if (far > 0) rows.drawDistance ??= new Float32Array(2 * rows.capacity)
+    if (rows.drawDistance) rows.drawDistance.set([near, far], 2 * row)
     const column = mesh.sources?.[at]
     if (column) column[row] = drawn?.[at] ?? null
   })
@@ -95,7 +106,7 @@ export function createCellPlacements(
     url: string,
     at: (node: number) => RowCell,
   ) => {
-    const { nodes, ranks, locals } = decoded
+    const { nodes, ranks, locals, drawDistances } = decoded
     if (!rowsFree(meshes, ranks, url)) return false
     const placements: Placement[] = []
     for (let node = 0; node < nodes; node++) {
@@ -105,7 +116,8 @@ export function createCellPlacements(
       const { track, drawn } = rowSource(decoded, node, mesh, url)
       placements.push({ mesh, row: takeRow(mesh), parent, local })
       // Before its flags are written: a row drawn from a source mesh is shown as that mesh is.
-      seatRow(mesh, placements[node].row, track, drawn)
+      const row = placements[node].row
+      seatRow(mesh, row, track, drawn, drawDistances[2 * node], drawDistances[2 * node + 1])
       for (const link of mesh.links) setRowCell(link.placements!, placements[node].row, at(node))
       write(placements[node])
     }
@@ -117,7 +129,7 @@ export function createCellPlacements(
     )
     return true
   }
-  /** Parks `placements`' rows, their tracks and sources cleared. */
+  /** Parks `placements`' rows, their tracks, sources and distances cleared. */
   const park = (placements: readonly Placement[]) => {
     for (const { mesh, row } of placements) {
       releaseRow(mesh, row)
@@ -173,7 +185,7 @@ export function createCellPlacements(
           touched.touch(link, row)
         }
     },
-    /** Parks the rows of `cell`, their tracks and sources cleared. */
+    /** Parks the rows of `cell`, their tracks, sources and distances cleared. */
     leave(cell: number) {
       park(held.get(cell)!)
       held.delete(cell)

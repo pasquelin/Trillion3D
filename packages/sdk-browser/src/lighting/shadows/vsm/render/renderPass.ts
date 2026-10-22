@@ -24,8 +24,15 @@
  * a page of dummy depth it discards (cleared on chip on a tiled GPU, where a read-only depth
  * would be loaded).
  *
+ * Every light's maps are culled and drawn together, however many lights and levels the frame holds,
+ * in view passes (`renderViewPasses.ts`): the lights grouped whole, in order, up to the maps a
+ * dispatch of the cull lists — every frame's but a device of a lower limit's has one pass —, the
+ * same chunks of rows over each pass's own views. The candidates are the frame's, listed once; the
+ * commands and pairs of a pass are sized for the most maps and mips any pass holds.
+ *
  * Order (one frame per submit: parameters go through `queue.writeBuffer`):
- *   clear counters → vsmRenderCandidates (rows) → vsmRenderArgsCull
+ *   clear counters → vsmRenderCandidates (rows)
+ *   per view pass (the second on: clear the views' count): vsmRenderViews → vsmRenderArgsCull
  *   per chunk: vsmRenderCull (indirect) → vsmRenderArgsExpand → vsmRenderBin (indirect) →
  *              vsmRenderExpand (indirect, once a corner tier, over its commands) →
  *              vsmRenderArgsDraw → raster pass, one drawIndirect a tier into a 128×128 dummy
@@ -52,7 +59,7 @@ import {
 } from '../chunks/chunkParams.ts'
 import { RENDER_LABEL, vsmRenderContext } from './renderPipes.ts'
 import { renderChunking, renderSizes } from './renderBudget.ts'
-import { vsmRenderViewBound } from '../mapViews.ts'
+import { vsmViewPasses, vsmViewsPerPass } from './renderViewPasses.ts'
 import {
   renderGroups,
   vsmEncodeChunks,
@@ -80,14 +87,35 @@ export interface VsmRenderScene {
   /** The camera cut's world switch, which the candidates obey as its descent does
    *  (`../../../../geometry/dag/shader/worldGateWgsl.ts`, `worldDraws`): its cold words and its
    *  frame words (`GpuSelection.cellStates`, `frames`), and the cold word its placements' links
-   *  start at. None while the cut follows no world: every row its level of detail selects casts. */
-  world?: { cold: GPUTextureView; frames: GPUTextureView; links: number }
+   *  start at. A cut that follows no world has its frame words alone, for the draw distances
+   *  (`drawDistance`): every row its level of detail selects casts. None without a cut. */
+  world?: {
+    cold?: GPUTextureView
+    frames: GPUTextureView
+    links?: number
+    /** The main view's filter, held in the cut's `work` (`GpuSelection.holdFilter`): the buffer
+     *  and the word its bits start at; none for a view that filters none. */
+    filter?: { buffer: GPUBuffer; base: number }
+  }
+  /** The draw distances the objects name, which the casters take as the camera's cut does, from the
+   *  main view's eye and scaled by `scale` (`cutViewDistanceScale`): present when the cut holds a
+   *  placement that names one and the host did not turn the cull off (`cutDrawDistanceCulling`). */
+  drawDistance?: { scale: number }
   /** What changed in `spheres` (`lights.spheres`) since a frame: chunks are sized by where the rows
    *  are, from the GPU's histograms of them (`../rows/rowPageBound.ts`), or, where that cannot speak, by
    *  the worst case: every row reaching every page. */
   rowSpheres: VsmRowSpheres
   /** Whether the table holds a voxel row: its tier is drawn then alone (`vsmEncodeChunks`). */
   voxels?: boolean
+  /** Whether a sun's far-shadow test reaches every caster rather than the world's merged shells
+   *  alone (`farShadowCullsAllMeshes`); false when absent. */
+  farMeshes?: boolean
+  /** The greatest far-shadow distance of the frame's lights when each is a sun that has one, else 0
+   *  or absent (`farDropOf`): a caster past it is in no map view. */
+  farDrop?: number
+  /** Whether the lights whose maps would pass what a pass lists are drawn in several passes
+   *  (`shadowMultipassViews`, `vsmViewPasses`); false puts every light in one. */
+  multipassViews: boolean
 }
 
 export interface VsmRenderFrame {
@@ -98,6 +126,7 @@ export interface VsmRenderFrame {
 
 /** What one call encoded, for diagnostics. */
 export interface VsmRenderStats {
+  /** The chunks of rows each view pass draws (`vsmViewPasses`) — none at all when 0. */
   chunks: number
   chunkRows: number
   /** The GPU budget's room held fewer rows a chunk than asked (`vsmChunkRowsWithin`): the same
@@ -142,11 +171,11 @@ export function vsmRenderContextBytes(res: VsmResources) {
 const range = { first: 0, end: 0, candidates: 0 }
 const chunking: VsmRenderChunking = {
   rowCount: 0,
-  viewCount: 0,
   chunks: 0,
   chunkRows: 0,
   cmds: 0,
   pairs: 0,
+  passes: [],
 }
 
 /**
@@ -160,15 +189,17 @@ export function encodeVsmRender(
   scene: VsmRenderScene,
 ): VsmRenderStats | undefined {
   const { device } = frame
-  // The views' bound: every map of the frame's lights; the GPU lists those with pages to draw.
-  const { views: viewCount, viewMips } = vsmRenderViewBound(frame.lights)
-  if (viewCount === 0 || scene.rowCount <= 0) return
+  // The views' bound: every map of the frame's lights, in the view passes their maps fill; the GPU
+  // lists those with pages to draw. A pass is sized for the most maps and mips any one holds.
+  const limit = vsmViewsPerPass(device.limits, scene.multipassViews)
+  const { list: passes, maps, mostMaps, mostMips } = vsmViewPasses(frame.lights, limit)
+  if (maps === 0 || scene.rowCount <= 0) return
 
   const ctx = vsmRenderContext(res, device, scene.pageLayout)
-  const asked = renderChunking(device.limits, res.layout.poolPages, viewMips, scene.rowCount)
+  const asked = renderChunking(device.limits, res.layout.poolPages, mostMips, scene.rowCount)
   range.end = range.candidates = scene.rowCount
   const chosen = vsmChunkRows(ctx.rowBound, scene.rowSpheres, range, frame.lights, asked)
-  const sizing = renderSizes(scene.rowCount, 4 * viewCount, chosen, ctx.slots)
+  const sizing = renderSizes(scene.rowCount, 4 * mostMaps, chosen, ctx.slots, passes.length)
   const within = vsmChunkRowsWithin(device, ctx.buffers, chosen.rows, sizing.sizes, sizing.within)
   const roomLimited = within.limited,
     size = within.size
@@ -178,17 +209,17 @@ export function encodeVsmRender(
 
   const { params, counts, args } = vsmEnsureLists(ctx, RENDER_LABEL, size)
   chunking.rowCount = scene.rowCount
-  chunking.viewCount = viewCount
   chunking.chunks = chunks
   chunking.chunkRows = chunkRows
   chunking.cmds = chosen.cmds(chunkRows)
   chunking.pairs = chosen.pairs(chunkRows)
+  chunking.passes = passes
   vsmWriteChunkParams(device, scene, chunking, params, ctx.slots)
   encoder.clearBuffer(counts, 0, size.counts)
 
   const tables = renderGroups(ctx, res, scene)
   const world = vsmWorldGroup(device, ctx.world, ctx.candidates.groups[1], scene.world)
   const { pageGroup, rowCount, voxels } = scene
-  vsmEncodeChunks(encoder, ctx, tables, world, pageGroup, args, rowCount, chunks, viewCount, voxels)
+  vsmEncodeChunks(encoder, ctx, tables, world, pageGroup, args, rowCount, chunks, passes, voxels)
   return { chunks, chunkRows, roomLimited }
 }

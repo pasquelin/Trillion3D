@@ -8,6 +8,7 @@ import { SPRITE_WGSL } from '../visibility/shader/spriteWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { materialTableWgsl } from '../materials/table/materialWgsl.ts'
 import { HISTORY_GIVEN_UP_WGSL } from '../visibility/types.ts'
+import { clippedStructText } from '../gpu/core/clipDistances.ts'
 
 /** What every vertex stage of the runs binds and reads before its layout's own reads: the item
  *  records, and the material table their surfaces' records lie in. */
@@ -56,11 +57,34 @@ export const BLEND_GIVEN_UP_WGSL = wgslBlock(
   `fn blendGivenUp(in:VSOut,coverage:f32)->f32{return historyGivenUp(in.tri>>${TRI_GIVEN_UP_SHIFT}u)*coverage;}`,
 )
 
+/** The members of the stage's output, its UV and ids lanes those of the layout. */
+const vsOutMembers = (uv: string, ids: string) => [
+  '@builtin(position) position:vec4f',
+  '@location(0) color:vec4f',
+  `@location(1) uv:${uv}`,
+  '@location(2) view:vec3f',
+  '@location(3) normal:vec4f',
+  '@location(4) tangent:vec4f',
+  '@location(5) bitangent:vec4f',
+  '@location(6) @interpolate(flat) tri:u32',
+  '@location(7) bary:vec3f',
+  '@location(8) @interpolate(flat) diagId:u32',
+  `@location(9) @interpolate(flat) ids:${ids}`,
+  '@location(10) @interpolate(flat) maps:vec4u',
+  '@location(11) @interpolate(flat) alphaAo:vec4f',
+  '@location(12) @interpolate(flat) pbr:vec4f',
+  '@location(13) @interpolate(flat) emissive:vec4f',
+  '@location(14) @interpolate(flat) material:u32',
+]
+
 /** The stage's output, its UV and ids lanes those of the layout (`LAYOUTS`,
- *  `vertexWgsl.ts`). */
-export const vsOutWgsl = (uv: string, ids: string) =>
+ *  `vertexWgsl.ts`); `clip`, the device has `clip-distances`: the vertex stage returns the struct
+ *  that carries the distance to the view's plane beside it (`clippedStructText`), a device without
+ *  it testing the distance of each pixel from `view`, the world position — fifteen interpolants
+ *  and the front face fill the sixteen a stage is granted, no one more fits. */
+export const vsOutWgsl = (uv: string, ids: string, clip = false) =>
   wgslBlock(
-    `vsOutWgsl(${uv}, ${ids})`,
+    `vsOutWgsl(${uv}, ${ids}${clip ? ', clip' : ''})`,
     [],
     `// What the vertex stage reads on the item's surface's record and the fragment stage re-reads
 // as-is: the six maps, their factors and the flags, constant over the call, therefore FLAT.
@@ -68,5 +92,5 @@ export const vsOutWgsl = (uv: string, ids: string) =>
 // volume from (\`materialAt\`); above it, the cull mode a doubtful triangle leaves to the fragment
 // stage (facing.ts).
 // \`alphaAo\` carries, after the alpha test and the occlusion strength, a dashed line's dash and gap.
-struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:${uv},@location(2) view:vec3f,@location(3) normal:vec4f,@location(4) tangent:vec4f,@location(5) bitangent:vec4f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:${ids},@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec4f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,@location(14) @interpolate(flat) material:u32,}`,
+struct VSOut{${vsOutMembers(uv, ids).join(',')},}${clip ? `\n${clippedStructText('VSOut', vsOutMembers(uv, ids))}` : ''}`,
   )

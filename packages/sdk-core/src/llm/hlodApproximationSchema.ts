@@ -76,10 +76,11 @@ export const approximation = (description: string): JsonSchemaProperty => ({
     hardNormalAngle: num('The crease angle, degrees (default 60).', 0, 90),
     uvMethod: {
       type: 'string',
-      enum: ['charts', 'patches'],
+      enum: ['charts', 'patches', 'uvAtlas'],
       description:
-        'How the shell is unwrapped: charts grown by cost and flattened conformally, or patches merged into islands (default charts).',
+        'How the shell is unwrapped: charts grown by cost and flattened conformally, patches merged into islands, or charts cut by spectral analysis of the surface (default charts).',
     },
+    uvAtlasStretch: num('The most stretch the uvAtlas charts may reach (default 0.1).', 0, 1),
     initialPatches: int("The patches unwrap's initial patch count (default 250).", 1, 99999999),
     curvatureAlignment: num(
       "The patches unwrap's weight of the normal's turn (default 1).",

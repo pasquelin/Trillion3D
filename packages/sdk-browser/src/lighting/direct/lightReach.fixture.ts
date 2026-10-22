@@ -53,7 +53,7 @@ for (let k = 0; k < 16; k++) {
   if (k < 8) LIGHTS.push({ ...base('directional', k), direction: sphere(), castsShadow: true })
 }
 
-/** A light's record as the light buffer holds it: its five `vec4f` in field order. */
+/** A light's record as the light buffer holds it: its six `vec4f` in field order. */
 export function recordOf(light: SceneLight) {
   const f = new Float32Array(SCENE_LIGHT_FLOATS)
   writeLightFields(f, 0, light)
@@ -64,6 +64,7 @@ export function recordOf(light: SceneLight) {
     directionCone: row(8),
     params: row(12),
     shape: row(16),
+    capsule: row(20),
   }
 }
 

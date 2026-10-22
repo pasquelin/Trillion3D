@@ -4,10 +4,16 @@
  * a core node or the scene root, read by distance to the camera (`tablePartition.ts`).
  */
 import { EngineError } from '../../contracts/cache.ts'
+import type { DrawDistanceSettings } from '../../contracts/objectOptions.ts'
 
 /** The version of the cell files this runtime reads: 3 names an instanced skinned object's track
  *  (`track`) and the core node an animated object's row is drawn from (`source`). */
 const CELL_VERSION = 3
+
+/** The distances an object is drawn at, from the eye to the centre of its bounds, in the scene's
+ *  units (`drawDistance` of the job's object settings): not drawn nearer than `min`, nor farther
+ *  than `max`, which is above 0 — an object that names no farthest distance carries none. */
+export type TableDrawDistance = Required<DrawDistanceSettings>
 
 /** One node a cell places: the core node it hangs under (`null`, the scene), its mesh, and its
  *  LOCAL pose exactly as declared — a matrix, or translation, rotation and scale, each `null` or
@@ -33,6 +39,8 @@ export interface CellNode {
   track?: number
   /** The row is drawn from its parent's own host mesh: its skeleton and morph weights move it. */
   source?: true
+  /** The distances the row is drawn at, left out for an object that names none. */
+  drawDistance?: TableDrawDistance
 }
 
 /** The nodes of a cell file, read from `url`, or a named refusal. */

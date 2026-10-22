@@ -7,6 +7,16 @@ import { CUT_RULES } from '../../../sdk-core/src/contracts/cutOptions.ts'
 import { ANIMATION_RULES } from '../../../sdk-core/src/contracts/animationOptions.ts'
 import { EXPOSURE_RULES } from '../../../sdk-core/src/contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../../../sdk-core/src/contracts/temporalOptions.ts'
+import { SHADOW_RULES } from '../../../sdk-core/src/contracts/shadowOptions.ts'
+import { MOTION_BLUR_RULES } from '../../../sdk-core/src/contracts/motionBlurOptions.ts'
+import { DEPTH_OF_FIELD_RULES } from '../../../sdk-core/src/contracts/depthOfFieldRules.ts'
+import { BLOOM_RULES } from '../../../sdk-core/src/contracts/bloomRules.ts'
+import { FILM_RULES } from '../../../sdk-core/src/contracts/filmOptions.ts'
+import { SCREEN_PROBE_RULES } from '../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import { REFLECTION_RULES } from '../../../sdk-core/src/contracts/reflectionOptions.ts'
+import { AMBIENT_OCCLUSION_RULES } from '../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import { VOLUMETRIC_FOG_RULES } from '../../../sdk-core/src/contracts/volumetricFogOptions.ts'
+import { TESSELLATION_RULES } from '../../../sdk-core/src/contracts/tessellationOptions.ts'
 import { SHADING_RULES } from '../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { WorldRootsHold } from '../geometry/hlod/worldRoots.ts'
 import { isCancelled, pixelRatioOf } from './engine/common.ts'
@@ -91,6 +101,16 @@ function optionContext(session: ExplorerSession) {
     ...resolveSettings(SHADING_RULES, options),
     ...resolveSettings(EXPOSURE_RULES, options),
     ...resolveSettings(TEMPORAL_RULES, options),
+    ...resolveSettings(SHADOW_RULES, options),
+    ...resolveSettings(MOTION_BLUR_RULES, options),
+    ...resolveSettings(DEPTH_OF_FIELD_RULES, options),
+    ...resolveSettings(BLOOM_RULES, options),
+    ...resolveSettings(FILM_RULES, options),
+    ...resolveSettings(SCREEN_PROBE_RULES, options),
+    ...resolveSettings(REFLECTION_RULES, options),
+    ...resolveSettings(AMBIENT_OCCLUSION_RULES, options),
+    ...resolveSettings(VOLUMETRIC_FOG_RULES, options),
+    ...resolveSettings(TESSELLATION_RULES, options),
     admitGpuMemory: options.admitGpuMemory,
     texturePoolBytes: options.texturePoolBytes,
     textureCompression: options.textureCompression,
@@ -138,6 +158,7 @@ function engineContext(
     onContentRefused: session.options.onContentRefused,
     readGeometryPage: (url, own, priority) =>
       streamer.readBytes(url, own ?? streamer.signal, priority),
+    geometryPageFailed: streamer.failed,
     worldRoots,
     draws: inputs.draws,
     signal,

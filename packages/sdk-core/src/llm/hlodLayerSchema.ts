@@ -110,7 +110,7 @@ export const hlodLayers: JsonSchemaProperty = /* @__PURE__ */ (() => ({
       uvMethod: {
         type: 'string',
         enum: [...HLOD_MERGE_UV_METHODS],
-        description: `How a merge layer generates the unique texture coordinates of a mesh baked on its own triangles that has none to reuse: ${HLOD_MERGE_UV_METHODS[0]}, the patch builder; ${HLOD_MERGE_UV_METHODS[2]}, patches grown by normal-weighed distance and merged into islands; ${HLOD_MERGE_UV_METHODS[1]}, charts grown by cost and flattened conformally. The reference's legacy and uvAtlas are refused: the compiler holds neither (default ${HLOD_MERGE_UV_METHODS[0]}).`,
+        description: `How a merge layer generates the unique texture coordinates of a mesh baked on its own triangles that has none to reuse: ${HLOD_MERGE_UV_METHODS[0]}, the patch builder; ${HLOD_MERGE_UV_METHODS[2]}, patches grown by normal-weighed distance and merged into islands; ${HLOD_MERGE_UV_METHODS[1]}, charts grown by cost and flattened conformally; ${HLOD_MERGE_UV_METHODS[3]}, the old chart layout of the mesh's own first texture set (the patch builder where it finds no layout); ${HLOD_MERGE_UV_METHODS[4]}, charts cut by spectral analysis of the surface (a mesh they fail on keeps its own first set) (default ${HLOD_MERGE_UV_METHODS[0]}).`,
       },
       allowDoubleSided: flag(
         "Whether a merge or simplify layer's flattened material may draw both faces when one of its materials does (default true).",

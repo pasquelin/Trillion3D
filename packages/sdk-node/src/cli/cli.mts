@@ -13,6 +13,7 @@ import {
   MESH_BUILD_OPTION,
   OBJECT_SETTINGS_OPTION,
   PARTITION_GRID_OPTION,
+  PARTITION_GRIDS_OPTION,
   RESPONSIVE_OPTION,
   SIMPLIFICATIONS,
   TEMPORAL_AA_LEVELS,
@@ -34,14 +35,15 @@ const argv = process.argv.slice(2)
 // The flags holding a value, each the last one. Those holding JSON, by the job field they set: the
 // HLOD, either form (`resolveHlod`), the responsive objects (`resolveResponsive`), the settings by
 // material name (`resolveMaterials`), the voxelized objects (`resolveVoxelize`), the partition's
-// main grid (`resolvePartitionGrid`), the mesh build settings (`resolveMeshBuild`) and the object
-// settings (`resolveObjectSettings`).
+// main grid (`resolvePartitionGrid`) or its several grids (`resolvePartitionGrids`), the mesh build
+// settings (`resolveMeshBuild`) and the object settings (`resolveObjectSettings`).
 const JSON_FLAGS = {
   hlod: HLOD_OPTION,
   responsive: RESPONSIVE_OPTION,
   materials: MATERIALS_OPTION,
   voxelize: VOXELIZE_OPTION,
   partitionGrid: PARTITION_GRID_OPTION,
+  partitionGrids: PARTITION_GRIDS_OPTION,
   meshBuild: MESH_BUILD_OPTION,
   objectSettings: OBJECT_SETTINGS_OPTION,
 } as const
@@ -65,7 +67,7 @@ const unknown = [...flags].filter((flag) => !FLAGS.has(flag))
 if (!input || !output || !resourceBaseUrl || unknown.length)
   throw compilerError(
     'INVALID_ARGS',
-    `usage: trillion3d-compile [--strict] [--verbose] [${HLOD_OPTION}JSON] [${TEMPORAL_AA_OPTION}${TEMPORAL_AA_LEVELS.join('|')}|true|false] [${RESPONSIVE_OPTION}JSON] [${MATERIALS_OPTION}JSON] [${VOXELIZE_OPTION}JSON] [${PARTITION_SCHEME_OPTION}${PARTITION_SCHEMES.join('|')}|true] [${PARTITION_GRID_OPTION}JSON] [${MESH_BUILD_OPTION}JSON] [${OBJECT_SETTINGS_OPTION}JSON] SOURCE CACHE [${ASSET_SCOPES.join('|')}] [triangleBudget] RESOURCE_BASE_URL [threads] [ramBudgetMb] [${SIMPLIFICATIONS.join('|')}]`,
+    `usage: trillion3d-compile [--strict] [--verbose] [${HLOD_OPTION}JSON] [${TEMPORAL_AA_OPTION}${TEMPORAL_AA_LEVELS.join('|')}|true|false] [${RESPONSIVE_OPTION}JSON] [${MATERIALS_OPTION}JSON] [${VOXELIZE_OPTION}JSON] [${PARTITION_SCHEME_OPTION}${PARTITION_SCHEMES.join('|')}|true] [${PARTITION_GRID_OPTION}JSON] [${PARTITION_GRIDS_OPTION}JSON] [${MESH_BUILD_OPTION}JSON] [${OBJECT_SETTINGS_OPTION}JSON] SOURCE CACHE [${ASSET_SCOPES.join('|')}] [triangleBudget] RESOURCE_BASE_URL [threads] [ramBudgetMb] [${SIMPLIFICATIONS.join('|')}]`,
   )
 /** Whether `word` is one of `list`'s words. */
 const oneOf = <T extends string>(list: readonly T[], word: string): word is T =>

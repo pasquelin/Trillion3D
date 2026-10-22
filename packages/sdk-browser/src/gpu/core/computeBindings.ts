@@ -10,6 +10,13 @@ export const textureLayout = (
   viewDimension: GPUTextureViewDimension = '2d',
 ) => ({ texture: { sampleType, viewDimension } })
 
+/** A read-only storage texture binding of `format`, read by load alone (`loadOnlyTarget`): none of
+ *  the sixteen sampled textures of a stage is spent on it. */
+export const storageTextureLayout = (
+  format: GPUTextureFormat,
+  viewDimension: GPUTextureViewDimension = '2d',
+) => ({ storageTexture: { access: 'read-only' as GPUStorageTextureAccess, format, viewDimension } })
+
 /** A buffer binding of `type` at `binding` in a layout, seen by `visibility` (the compute stage by
  *  default): the one writing of the entry every layout of a kernel repeats. */
 export const computeBufferEntry = (
@@ -67,6 +74,9 @@ export const computeStorageTextureEntry = (
   visibility,
   storageTexture: { access, format, viewDimension },
 })
+
+/** A binding of the whole of `buffer`: how a bind group names a buffer. */
+export const wholeBuffer = (buffer: GPUBuffer): GPUBufferBinding => ({ buffer })
 
 /**
  * Bind-group entries of a group whose bindings are named by `bindings` (name → binding): each

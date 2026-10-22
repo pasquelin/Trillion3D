@@ -124,8 +124,10 @@ export interface HlodLayer {
   /** How a `merge` layer generates the unique texture coordinates of a mesh baked on its own
    *  triangles that has no texture set to reuse: `default`, the patch builder; `patchBuilder`,
    *  patches grown by normal-weighed distance and merged into islands; `xAtlas`, charts grown by
-   *  cost and flattened conformally (`HLOD_MERGE_UV_METHODS`). The reference's `legacy` and
-   *  `uvAtlas` are refused: the compiler holds neither. @defaultValue 'default' */
+   *  cost and flattened conformally; `legacy`, the old chart layout of the mesh's own first
+   *  texture set (the patch builder where it finds no layout); `uvAtlas`, charts cut by spectral
+   *  analysis of the surface (a mesh they fail on keeps its own first set)
+   *  (`HLOD_MERGE_UV_METHODS`). @defaultValue 'default' */
   uvMethod?: HlodMergeUvMethod
   /** Whether a `merge` or `simplify` layer's flattened material may draw both faces when one of
    *  its materials does. @defaultValue true */
@@ -180,7 +182,9 @@ export interface HlodLayer {
    *  its finest level keeps (`keptTriangles`, `trimmedError`), whether its near-collapsed
    *  triangles are dropped (`dropNearCollapsed`), how much of it stays resident while its actor is
    *  loaded (`alwaysResidentKib`, its cell's root pages), and how it keeps its shape
-   *  (`shapePreservation`, `edgeLengthBound`, `holdTextureCoordinates`).
+   *  (`shapePreservation`, `edgeLengthBound`, `holdTextureCoordinates`). A `voxel` layer's names
+   *  how its cells' voxels are sampled instead — `voxelRays`, `voxelLevel`, `voxelBackUp`,
+   *  `voxelSeparable`, `voxelNdf`, `voxelOpacity`, as a mesh's `meshBuild` names them.
    *  @defaultValue each setting the reference's default */
   meshBuild?: HlodMeshBuildWire
   /** Which objects an `instanced` layer takes by the size of their world box: `none`; `extent`,

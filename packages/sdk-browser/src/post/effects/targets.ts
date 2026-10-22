@@ -1,5 +1,7 @@
 import type { EffectKind, EffectPass } from '../../../../sdk-core/src/world/effect/chain.ts'
 import type { Bloom } from '../../../../sdk-core/src/world/effect/bloom.ts'
+import type { DepthOfField } from '../../../../sdk-core/src/world/effect/depthOfField.ts'
+import type { MotionBlur } from '../../../../sdk-core/src/world/effect/motionBlur.ts'
 import type { Outline } from '../../../../sdk-core/src/world/effect/outline.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
@@ -7,7 +9,7 @@ import { EFFECT_KIND_BYTES } from './kindBytes.ts'
 import { finishBytesAt } from '../finish/finishBytes.ts'
 
 /** Every built-in pass; a kind without its class here has no pass to draw (`never`). */
-type BuiltIn = Bloom | Outline
+type BuiltIn = DepthOfField | MotionBlur | Bloom | Outline
 /** The pass of one kind: what a renderer's implementation of that kind draws. */
 export type EffectPassOf<K extends EffectKind> = Extract<BuiltIn, { kind: K }>
 

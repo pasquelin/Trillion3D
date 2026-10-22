@@ -1,3 +1,5 @@
+import { VSM_MAX_VIEW_PASSES } from '../../lighting/shadows/vsm/render/renderViewPasses.ts'
+
 /**
  * The passes the virtual shadow maps encode in a frame, whatever the chunks: the invalidation and the
  * rows' changes' (`../../lighting/shadows/vsm/invalidation/castInvalidation.ts`), the page addresses, the marking
@@ -12,11 +14,15 @@ const VSM_FIXED_PASSES = 2 + 1 + 7 + 1 + 1 + 1 + 1
  *  (`lighting/shadows/vsm/transmission/transmissionPass.ts`). */
 const VSM_CHUNK_PASSES = 2
 /**
- * Chunks a frame is timed whole over. A chunk is at most `VSM_RENDER_PAIR_CAPACITY / pages` rows
- * (`lighting/shadows/vsm/render/renderBudget.ts`, `renderChunking`: 1 024 at the default 2 048 pages), so 256 chunks hold
- * 262 144 rows even where no bound shrinks them. The row table has no bound, so a frame past it is
- * not proven to fit: its image is flagged truncated (`encoder.ts`), never mistimed.
+ * Chunks of rows a frame is timed whole over, in each of its view passes. A chunk is at most
+ * `VSM_RENDER_PAIR_CAPACITY / pages` rows (`lighting/shadows/vsm/render/renderBudget.ts`,
+ * `renderChunking`: 1 024 at the default 2 048 pages), so 256 chunks hold 262 144 rows even where
+ * no bound shrinks them. The row table has no bound, so a frame past it is not proven to fit: its
+ * image is flagged truncated (`encoder.ts`), never mistimed.
  */
 const VSM_TIMED_CHUNKS = 256
-/** Passes the virtual shadow maps time at most in a frame. */
-export const VSM_TIMED_PASSES = VSM_FIXED_PASSES + VSM_CHUNK_PASSES * VSM_TIMED_CHUNKS
+/** Passes the virtual shadow maps time at most in a frame: the chunks of each of the most view
+ *  passes a frame takes (`lighting/shadows/vsm/render/renderViewPasses.ts`: the raster runs the same
+ *  chunks over each pass's views, so a frame of many lights has as many times the chunk passes). */
+export const VSM_TIMED_PASSES =
+  VSM_FIXED_PASSES + VSM_CHUNK_PASSES * VSM_TIMED_CHUNKS * VSM_MAX_VIEW_PASSES

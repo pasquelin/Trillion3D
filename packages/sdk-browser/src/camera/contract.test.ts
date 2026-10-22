@@ -19,6 +19,9 @@ import {
   poseRig,
 } from '../../../../tests/kit/device/cameraRig.ts'
 import { engineCamera } from './camera.fixture.ts'
+import { copyWorldCamera } from '../session/world/camera.ts'
+import { camera as cameras } from '../../../sdk-core/src/world/camera/index.ts'
+import { NO_VIEW_SET } from '../../../sdk-core/src/world/camera/viewSet.ts'
 
 type Pose = (typeof POSES_PARENT)[number]
 const VIEWPORT: [number, number] = [1280, 720]
@@ -118,6 +121,44 @@ test('boundary: the view revision follows the world pose, not the local pose', (
     true,
     'a rig that moves alone moves the view: the local pose, for its part, has not changed',
   )
+})
+
+test('boundary: the view revision follows the camera’s clip plane and lists, the pose standing still', () => {
+  const { camera } = sousRig(POSES_PARENT[1] as Pose)
+  const gate = createFrameGateCore(1)
+  const drawn = () => gate.viewChanged(engineCamera(camera), VIEWPORT, 1)
+  drawn()
+  assert.equal(drawn(), false)
+  camera.clipPlane = { normal: [0, 1, 0] }
+  assert.equal(drawn(), true, 'a plane clips what the same view draws')
+  assert.equal(drawn(), false)
+  camera.hidden = [new Object3D()]
+  assert.equal(drawn(), true, 'so does a list')
+  assert.equal(drawn(), false)
+  camera.showOnly = []
+  assert.equal(drawn(), true)
+})
+
+test('boundary: the engine camera reads the host camera’s plane and lists, or none from one that has none', () => {
+  const page = cameras.perspective(),
+    session = cameras.perspective(),
+    node = new Object3D()
+  page.clipPlane = { base: [0, 0, 2], normal: [0, 0, 1] }
+  page.hidden = [node]
+  copyWorldCamera(page, session, 1)
+  assert.equal(
+    session._viewSet,
+    page._viewSet,
+    'the set is handed on whole, its identity its revision',
+  )
+  const cam = engineCamera(session)
+  assert.deepEqual(cam.viewSet.clipPlane, [0, 0, 1, 2])
+  assert.deepEqual(cam.viewSet.hidden, [node])
+  assert.equal(cam.viewSet.showOnly, null)
+  // A host camera of the contract's shape that carries none: no plane, no list.
+  const bare = cameras.perspective()
+  Object.defineProperty(bare, '_viewSet', { value: undefined })
+  assert.equal(engineCamera(bare).viewSet, NO_VIEW_SET)
 })
 
 test('boundary: NaN in the world matrix never reads as a still view', () => {

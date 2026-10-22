@@ -13,7 +13,8 @@ import { functionsOf } from '../../materials/texture/shaderRule.fixture.ts'
 import type { Fn } from './triangleScene.fixture.ts'
 import { matrixWindingCw } from '../../../../math/src/matrix/orientation.ts'
 import { signedArea } from '../../../../../bench/oracles/browser/cpu-image/projection.ts'
-import { VIS_SHADER } from './visWgsl.ts'
+import { VIS_SHADER, visShader, visXrayShader } from './visWgsl.ts'
+import { visVoxelShader } from './visVoxelWgsl.ts'
 import * as F from '../types.ts'
 import { cameraViewProj, pages, stages, VIS_VS_NAMES, VIS_VS_SCOPE } from './pointHeader.fixture.ts'
 
@@ -57,7 +58,7 @@ const binOf = (row: Row) =>
       : 0
 
 const uni = { viewProj: cameraViewProj(1), viewport: [1280, 720] }
-Object.assign(uni, { pixelRatio: 1, indirect: 0, drawSlot: 0 })
+Object.assign(uni, { pixelRatio: 1, indirect: 0, drawSlot: 0, clipPlane: [0, 0, 0, 0] })
 /** The visibility buffer the stages write: depth keys, then identifiers one screen further. */
 const PIXELS = 1280 * 720
 const work = new Uint32Array(2 * PIXELS)
@@ -148,4 +149,102 @@ test('the opaque stage on slots without a cutout row writes the same visibility 
   // The rows cover the frame, not one corner: a tenth of the model pixels hold an identifier.
   const named = cut.image.subarray(PIXELS).filter((id) => id !== 0).length
   assert.ok(named > (W * H) / 10, `${named} pixels named`)
+})
+
+/** The shipped stages over the same rows, the camera the identity (a position is its world) and the view's
+ *  plane `plane`. */
+const clippedStage = (plane: number[]) => {
+  const clipped = {
+    ...uni,
+    viewProj: new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
+    clipPlane: plane,
+  }
+  return stages(VIS_SHADER, names, { ...scope, uni: clipped, MASKED: false, ID_PHASE: false })
+}
+
+test('the vertex stage writes the distance of each vertex to the view’s plane, none for a view without', () => {
+  const normal = [0.6, 0, 0.8]
+  const positions = (stage: ReturnType<typeof clippedStage>) =>
+    table.flatMap((row, at) =>
+      // A line or a sprite moves its corner on the screen: its distance is its vertex's.
+      row.flags & (F.FLAG_LINE | F.FLAG_SPRITE)
+        ? []
+        : Array.from(
+            { length: row.indexCount },
+            (_, v) => stage.vis_vs(v, at) as Corner & { clip: number },
+          ),
+    )
+  const dots = positions(clippedStage([0, 0, 0, 0])).map(
+    ({ position: [x, y, z] }) => normal[0] * x + normal[1] * y + normal[2] * z,
+  )
+  const median = [...dots].sort((a, b) => a - b)[dots.length >> 1]
+  let behind = 0
+  for (const corner of positions(clippedStage([...normal, -median]))) {
+    const [x, y, z] = corner.position,
+      expected = normal[0] * x + normal[1] * y + normal[2] * z - median
+    assert.ok(Math.abs(corner.clip - expected) <= 1e-6 * (1 + Math.abs(expected)))
+    if (corner.clip < 0) behind++
+  }
+  assert.ok(behind > 20 && behind < dots.length - 20, `${behind} of ${dots.length} behind`)
+  for (const corner of positions(clippedStage([0, 0, 0, 0]))) assert.equal(corner.clip, 0)
+})
+
+test('a device without clip distances leaves the pixel behind the plane, one pixel centre kept where the distance is zero', () => {
+  const stage = clippedStage([0, 0, 0, 0]),
+    corner = { ...corners[0][0], position: [10.5, 10.5, 0.5, 1] }
+  const written = (clip: number) => {
+    work.fill(0)
+    ;(stage.vis_hiz_fs as Fn)({ ...corner, clip })
+    return work.some((word) => word !== 0)
+  }
+  assert.equal(written(-0.001), false, 'behind the plane')
+  assert.equal(written(0), true, 'on it')
+  assert.equal(written(5), true, 'in front of it')
+})
+
+test('a device that has clip distances compiles the builtin, one that has none tests the distance in the fragment stage', () => {
+  const native = visShader({ clipDistances: true })
+  assert.ok(native.includes('enable clip_distances;'))
+  assert.ok(
+    native.indexOf('enable clip_distances;') < native.indexOf('struct VSOut'),
+    'a directive first',
+  )
+  assert.ok(native.includes('@builtin(clip_distances) clipDistances:array<f32,1>'))
+  assert.ok(native.includes('fn vis_vs(') && native.includes('->VSOutClipped{'))
+  assert.ok(native.includes('VSOutWithClip(out,dot(uni.clipPlane.xyz,world.xyz)+uni.clipPlane.w)'))
+  assert.ok(
+    !native.includes('in.clip<0.0') && !native.includes('clip:f32'),
+    'the fragment stage tests none',
+  )
+  assert.ok(!VIS_SHADER.includes('clip_distances') && !VIS_SHADER.includes('VSOutClipped'))
+  assert.ok(
+    VIS_SHADER.includes('@location(3) clip:f32,') &&
+      VIS_SHADER.includes('if(in.clip<0.0){return;}'),
+  )
+  // The derivatives the cutout reads come before the pixel may leave: the quad still runs.
+  assert.ok(VIS_SHADER.indexOf('dpdx(in.tc.xy)') < VIS_SHADER.indexOf('if(in.clip<0.0){return;}'))
+  assert.ok(visXrayShader(false).includes('if(in.clip<0.0){discard;}'))
+  assert.ok(
+    !visXrayShader(true).includes('in.clip<0.0') &&
+      visXrayShader(true).includes('enable clip_distances;'),
+  )
+})
+
+test('a voxel hit behind the view’s plane is none: the plane is read in the brick’s cells, where the ray is', () => {
+  const code = visVoxelShader()
+  assert.ok(
+    code.includes(
+      'out.plane=transpose(page.world*voxelCarry(page,brick)*voxelCells(page,brick))*uni.clipPlane;',
+    ),
+  )
+  assert.ok(
+    code.includes('let m=uni.viewProj*page.world*voxelCarry(page,brick)*voxelCells(page,brick);'),
+    'the matrix the ray is drawn by is the one it was, to the bit',
+  )
+  const stage = code.slice(code.indexOf('@fragment')),
+    cut = 'if(dot(in.plane.xyz,in.start+in.dir*hit.t)+in.plane.w<0.0){return;}'
+  assert.ok(
+    stage.indexOf('hit.found') < stage.indexOf(cut) &&
+      stage.indexOf(cut) < stage.indexOf('visKey('),
+  )
 })

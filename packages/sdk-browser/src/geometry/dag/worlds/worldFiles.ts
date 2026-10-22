@@ -16,6 +16,9 @@
  * (`CELL_DRAW.placements`), whatever their HLOD 0 cell draws: that cell's visibility — every file
  * of it loaded — gates the HLOD 0 actor alone (`worldFollow.ts`).
  *
+ * The world may be hidden as a whole (`hide`): every file placed and counted as before, its word
+ * zero, and no cell draws (`worldFollow.ts`) — what a cell loaded and not activated is.
+ *
  * While a load blocks on slow streaming, a file it does not block on stays hidden, wished and
  * loaded, asked again at each sync till the load ends (`settle`). The files wished and not shown are
  * counted: none left, every main cell within range is visible (`shown`).
@@ -61,6 +64,8 @@ export function createWorldFiles(words: Uint32Array, instances: number) {
   /** The files `settle` keeps hidden while a load blocks, and whether a word moved meanwhile. */
   let holding: ((key: number) => boolean) | undefined,
     changed = false
+  /** Whether the world is hidden as a whole: no file draws, whatever its state (`hide`). */
+  let hidden = false
   /** Slot `g` switched as its counts stand, its word written — a file `holding` keeps hidden held
    *  back —; a word that moved is noted in `changed`. */
   const settleSlot = (g: number) => {
@@ -72,7 +77,7 @@ export function createWorldFiles(words: Uint32Array, instances: number) {
       else shown[g] = 1
     }
     unshown.set(g, wished && !shown[g])
-    const word = shown[g] ? CELL_DRAW.placements : 0
+    const word = shown[g] && !hidden ? CELL_DRAW.placements : 0
     if (words[g] === word) return
     words[g] = word
     moved.mark(g)
@@ -130,6 +135,18 @@ export function createWorldFiles(words: Uint32Array, instances: number) {
       else waitingOf.delete(key)
       const g = slotOf.get(key)
       if (g !== undefined) mark(g)
+    },
+    /** The world hidden as a whole, or drawn again: every file's word written again; whether that
+     *  moved. */
+    hide(on: boolean) {
+      if (hidden === on) return false
+      hidden = on
+      for (const g of slotOf.values()) mark(g)
+      return true
+    },
+    /** Whether the world is hidden as a whole. */
+    get hidden() {
+      return hidden
     },
     /** Every slot waiting switched — those held back asked again, a file `holds` keeps hidden held
      *  back while a load blocks —; whether a word moved. */

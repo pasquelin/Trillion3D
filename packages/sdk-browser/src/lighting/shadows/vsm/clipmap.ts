@@ -121,6 +121,10 @@ interface VsmDirectionalLightInput {
   levelBias?: number
   /** The light's texel dither scale, default 1. */
   ditherTexels?: number
+  /** How far from the eye, in metres, its maps take every caster; 0 or absent, no limit. Carried
+   *  in its maps' records (`VsmProjectionDataValues.farShadowDistance`), no part of the cache key:
+   *  a change restages no page, the raster's test reads it each frame. */
+  farShadowDistance?: number
 }
 
 /** The clipmap's level range and coarse-page marking. */
@@ -376,6 +380,7 @@ function vsmClipmapProjectionData(
   flags |= VSM_MAP_COARSE_KEEPS_DYNAMIC
   out.lightKind = LIGHT_KIND.directional
   out.lightRange = 0
+  out.farShadowDistance = clipmap.light.farShadowDistance ?? 0
   out.levelBias = clipmap.levelBias
   out.emitterSize = 0 // a directional light has no source radius
   out.mapLevel = mapLevel

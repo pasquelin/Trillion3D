@@ -80,7 +80,7 @@ if (!isPow2(VSM_TABLES_PER_ROW))
 
 /** Declared: the maps a set holds past one a block, the records a frame may write beyond its blocks:
  *  a map whose finest mip is coarser than 0 takes a quarter of a block or less (`tableBlocks.ts`),
- *  so far lights take records, not table rows. Each is a projection record (288 B) of both frames. */
+ *  so far lights take records, not table rows. Each is a projection record (304 B) of both frames. */
 const VSM_MAPS_PAST_BLOCKS = 1024 * 8
 
 /** The physical pool's row, in pages: one page-table row's width, a power of two. */

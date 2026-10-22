@@ -15,6 +15,10 @@ import {
 import { VSM_TRANSMISSION_FORMAT } from '../shadows/vsm/transmission/transmissionLayout.ts'
 import { VSM_PROJECTION_VIEW_BYTES } from '../shadows/vsm/projection/projectionView.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
+import { SCREEN_PROBE_FORMATS } from '../bounce/screen/screenProbeLayout.ts'
+import { AO_OCCLUSION_FORMAT } from '../ao/layout.ts'
+import { createFogStandIns } from '../fog/read.ts'
+import { VSM_BLUE_NOISE_FORMAT } from '../shadows/vsm/blueNoise.ts'
 
 /** The resolve's layout; each composition's is its own (`compositions.ts`). */
 export const createDeferredLightingLayout = (device: GPUDevice, direct: boolean, bounce = false) =>
@@ -22,22 +26,28 @@ export const createDeferredLightingLayout = (device: GPUDevice, direct: boolean,
 
 /**
  * Contract substitute resources: an empty tile list, a one-texel transmittance layer, a probe
- * grid at zero, and the virtual shadow maps' stand-ins. A device without
+ * grid at zero, the virtual shadow maps' stand-ins, and what the fog is read through where the scene
+ * has no cubemap and the image builds no volume (`createFogStandIns`). A device without
  * the maps keeps valid bindings, the light simply unshadowed; a frame without bounce reads zero
  * probes, hence zero indirect light. The blend pass borrows the same substitutes.
  */
 export type DeferredPlaceholders = ReturnType<typeof createDeferredPlaceholders>
-export function createDeferredPlaceholders(device: GPUDevice) {
+
+/** The empty light tiles, the one-texel transmittance layer, the probe grid at zero and its atlas
+ *  (`createDeferredPlaceholders`). */
+function createContractStandIns(device: GPUDevice) {
   const tiles = device.createBuffer({
     label: 'Trillion3D empty light tiles',
     size: 256,
     usage: GPUBufferUsage.STORAGE,
   })
-  // One texel: the shadow read tells it from a real layer by its size, and never reads it.
+  // One texel: the shadow read tells it from a real layer by its size, and never reads it; bound as
+  // storage where a blended surface's trace reads the casters' memory by load.
   const transmittance = standInTexture(
     device,
     'Trillion3D empty shadow transmittance',
     VSM_TRANSMISSION_FORMAT,
+    { storage: true },
   )
   // The substitute carries the size of `BounceGrid`, read where the struct is written: a binding
   // smaller than what the shader declares is refused by validation, and the device is lost.
@@ -51,6 +61,24 @@ export function createDeferredPlaceholders(device: GPUDevice) {
   const probes = standInTexture(device, 'Trillion3D empty bounce probes', BOUNCE_ATLAS_FORMAT, {
     side: PROBE_TEXELS,
   })
+  return {
+    tiles,
+    transmittance: arrayView(transmittance),
+    bounceGrid,
+    probes: arrayView(probes),
+    destroy() {
+      tiles.destroy()
+      transmittance.destroy()
+      bounceGrid.destroy()
+      probes.destroy()
+    },
+  }
+}
+
+export function createDeferredPlaceholders(device: GPUDevice) {
+  const contract = createContractStandIns(device)
+  // The fog's, made when a program first asks for them: a scene with no fog makes none.
+  let fogStandIns: ReturnType<typeof createFogStandIns> | undefined
   // The proxy's bindings in every program that traces it when no placement wears one.
   const standIns = runtimeStandIns(device)
   const receiver = receiverPlaceholders(device)
@@ -62,27 +90,46 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     format: HDR_FORMAT,
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
   })
+  // One texel of zero, its occlusion too: what a resolve reads of the screen probes where none ran, and
+  // reads the world's probes instead (`screenIndirectAt`).
+  const screenIndirect = standInTexture(
+    device,
+    'Trillion3D empty screen indirect',
+    SCREEN_PROBE_FORMATS.history,
+  )
+  // One texel of zero: what a resolve reads of the ambient occlusion where the image drew none, and applies none
+  // of (`DeferredLighting.setAmbientOcclusion`).
+  const ambientOcclusion = standInTexture(
+    device,
+    'Trillion3D empty ambient occlusion',
+    AO_OCCLUSION_FORMAT,
+  )
   return {
     ...vsm.views,
-    tiles,
-    transmittanceView: arrayView(transmittance),
-    bounceGrid,
-    probes: arrayView(probes),
+    tiles: contract.tiles,
+    get fog() {
+      return (fogStandIns ??= createFogStandIns(device)).read
+    },
+    transmittanceView: contract.transmittance,
+    bounceGrid: contract.bounceGrid,
+    probes: contract.probes,
     runtime: standIns.runtime,
     runtimeWorlds: standIns.runtimeWorlds,
     runtimeTree: standIns.runtimeTree,
     receiver: receiver.resources,
     reflection: reflection.createView(),
+    screenIndirect: screenIndirect.createView(),
+    ambientOcclusion: ambientOcclusion.createView(),
     /** The empty normal atlas: what a transparent item without normals reads (zeros). */
     emptyNormals: receiver.normals,
     dispose() {
       receiver.dispose()
       reflection.destroy()
+      screenIndirect.destroy()
+      ambientOcclusion.destroy()
+      fogStandIns?.destroy()
       vsm.destroy()
-      tiles.destroy()
-      transmittance.destroy()
-      bounceGrid.destroy()
-      probes.destroy()
+      contract.destroy()
       standIns.destroy()
     },
   }
@@ -126,7 +173,13 @@ function createVsmPlaceholders(device: GPUDevice) {
     size: VSM_PROJECTION_VIEW_BYTES,
     usage: GPUBufferUsage.UNIFORM,
   })
-  const vsmBlueNoise = standInTexture(device, 'Trillion3D empty VSM blue noise', 'rgba8unorm')
+  // Bound as storage where a blended surface's trace reads the noise by load.
+  const vsmBlueNoise = standInTexture(
+    device,
+    'Trillion3D empty VSM blue noise',
+    VSM_BLUE_NOISE_FORMAT,
+    { storage: true },
+  )
   // One texel: the resolve tells it from a real transmission by its size, and never reads it.
   const vsmThrough = standInTexture(
     device,

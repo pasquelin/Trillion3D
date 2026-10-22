@@ -19,6 +19,9 @@ import { createRasterResolves } from './resolve.ts'
 import { preparedComputeStage } from '../../gpu/core/computeStages.ts'
 import type { GpuRasterInput } from './types.ts'
 import type { OpenPass } from '../../gpu/core/lazyComputePass.ts'
+import { followTessellation } from '../tessellation/follow.ts'
+import { TESSELLATION_DISPATCHES, type Tessellation } from '../tessellation/tessellation.ts'
+import type { TessellationCapacity } from '../tessellation/uniform.ts'
 import { dispatchRows } from '../../gpu/dispatch/grid.ts'
 import {
   RASTER_BINNING_PASS,
@@ -60,6 +63,8 @@ export function createGpuRaster(
     resolves: createRasterResolves(device, RESOLVE, work, targetBytes),
     bindings,
     group: undefined,
+    tessellation: undefined,
+    tessellating: false,
   }
   return {
     width,
@@ -80,8 +85,14 @@ export function createGpuRaster(
     ) => encodeBinning(r, encoder, input, pass, compact),
     /** The software depth of `pass`'s lists, after its hardware slots'. */
     encodeDepth(encoder: GPUCommandEncoder, pass: RasterPass) {
-      encodeMode(r, encoder, pass === RASTER_PASS_MAIN ? MAIN_ONLY : POST_ONLY, MODE_DEPTH)
-      return RASTER_CLASSES.length
+      return encodeMode(r, encoder, pass === RASTER_PASS_MAIN ? MAIN_ONLY : POST_ONLY, MODE_DEPTH)
+    },
+    /** Keeps the tessellation of the displaced surfaces as `asked` says — its capacity, none where
+     *  the image tessellates nothing: made, its pipelines and the binning's variant that leaves it
+     *  the rows asked off the frame, made again when the capacity moved, given back when none. */
+    followTessellation(device: GPUDevice, asked: TessellationCapacity | undefined) {
+      r.tessellation = followTessellation(r.tessellation, device, work, asked)
+      if (asked) for (const stage of r.tessellatedBin()) stage.ask()
     },
     /** The depth both rasters wrote so far, into the pyramid's level zero (`size` the image's
      *  drawn size). */
@@ -97,11 +108,12 @@ export function createGpuRaster(
       post: boolean,
     ) {
       const passes = post ? RASTER_PASSES : MAIN_ONLY
-      encodeMode(r, encoder, passes, MODE_ID)
+      const dispatches = encodeMode(r, encoder, passes, MODE_ID)
       r.resolves.encodeFinal(encoder, input, size[0]!, size[1]!)
-      return passes.length * RASTER_CLASSES.length
+      return dispatches
     },
     dispose() {
+      r.tessellation?.dispose()
       work.destroy()
       indirect.destroy()
     },
@@ -126,6 +138,10 @@ type Raster = Omit<ReturnType<typeof rasterPipelines>, 'layouts'> & {
   bindings: ReturnType<typeof createRasterBindings>
   /** The software raster's group, the image's, bound by the main pass's binning. */
   group: GPUBindGroup | undefined
+  /** The tessellation of the displaced surfaces, held while the image asks it
+   *  (`followTessellation`), and whether this image draws it: set by the main pass's binning. */
+  tessellation: Tessellation | undefined
+  tessellating: boolean
 }
 
 /** One storage buffer for the image and for the lists: the compute stage is allowed only eight
@@ -190,7 +206,26 @@ function rasterPipelines(device: GPUDevice, capacity: number, listOffsets: reado
       [MODE_DEPTH, MODE_ID].map((mode) => rasterStage(rasterEntry(klass, mode), pass)),
     ),
   )
-  return { layouts: { raster: rasterLayout, bin: binLayout }, bin, plan, raster }
+  // The binning that leaves the tessellated rows to the tessellation (`binSource`'s flag): one
+  // pipeline a pass, made at the first ask. A scene without a displaced surface never compiles it.
+  let tessellatedBin: ReturnType<typeof binStage>[] | undefined
+  const tessellated = () => {
+    if (!tessellatedBin) {
+      const stage = stages(
+        binLayout,
+        device.createShaderModule({ code: binSource(capacity, true) }),
+      )
+      tessellatedBin = RASTER_PASSES.map((pass) => stage('bin', pass))
+    }
+    return tessellatedBin
+  }
+  return {
+    layouts: { raster: rasterLayout, bin: binLayout },
+    bin,
+    tessellatedBin: tessellated,
+    plan,
+    raster,
+  }
 }
 
 /** The three indirect dispatches of a mode for each of `passes`, in a single compute pass: two
@@ -210,7 +245,10 @@ function encodeMode(
       compute.setPipeline(r.raster[pass]![klass]![mode]!.get())
       compute.dispatchWorkgroupsIndirect(r.indirect, (pass * DISPATCH_WORDS + klass * 3) * 4)
     }
+  // The displaced surfaces' micro-triangles, after the classes: the dicing binds its own group.
+  if (r.tessellating) for (const pass of passes) r.tessellation!.encodeDice(compute, pass, mode)
   compute.end()
+  return passes.length * (RASTER_CLASSES.length + (r.tessellating ? 1 : 0))
 }
 
 function encodeBinning(
@@ -228,14 +266,19 @@ function encodeBinning(
   if (pass === RASTER_PASS_MAIN) {
     r.group = r.bindings.raster(input)
     encoder.clearBuffer(work, 0, list + DISPATCH_BASE * 4)
+    // The image's tessellation is decided once, by its main pass: its dicing follows in both.
+    r.tessellating = !!input.tessellation && !!r.tessellation
   } else encoder.clearBuffer(work, list, DISPATCH_BASE * 4)
+  // The tessellation's pass state is cleared before the compute pass that fills it.
+  if (r.tessellating) r.tessellation!.begin(encoder, input, pass)
   const binning = encoder.beginComputePass({ label: RASTER_BINNING_PASS })
   binning.setBindGroup(0, r.bindings.bin(input, pass))
-  binning.setPipeline(r.bin[pass]!.get())
+  binning.setPipeline((r.tessellating ? r.tessellatedBin() : r.bin)[pass]!.get())
   // A workgroup a drawable row, in rows.
   dispatchRows(binning, Math.max(1, input.pageRows))
   binning.setPipeline(r.plan[pass]!.get())
   binning.dispatchWorkgroups(1)
+  if (r.tessellating) r.tessellation!.encodeLevels(binning, pass)
   compact?.({ pass: binning })
   binning.end()
   encoder.copyBufferToBuffer(
@@ -245,6 +288,6 @@ function encodeBinning(
     pass * DISPATCH_WORDS * 4,
     DISPATCH_WORDS * 4,
   )
-  return 2
+  return 2 + (r.tessellating ? TESSELLATION_DISPATCHES : 0)
 }
 export type GpuRaster = ReturnType<typeof createGpuRaster>

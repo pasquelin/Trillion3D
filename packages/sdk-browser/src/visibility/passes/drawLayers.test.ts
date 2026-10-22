@@ -18,7 +18,9 @@ import { replayBundles } from '../../../../../tests/kit/fakeDevice/fakeBundles.t
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { createDrawItemWordsHold, refreshDrawItemWords } from './itemWords.ts'
 import { drawVis } from './drawVis.ts'
-import { visUniformSlots } from './uniforms.ts'
+import { visUniformSlots, writeWebgpuVisibilityUniforms } from './uniforms.ts'
+import { VIS_UNIFORM, SHADE_UNIFORM } from '../shader/uniformLayout.ts'
+import { createEngineCamera } from '../../camera/engineCamera.ts'
 import { createWebgpuVisibilityShaders } from './shaders.ts'
 import { PAGE_INFO } from '../pageInfo.ts'
 
@@ -140,4 +142,47 @@ test('createWebgpuVisibilityShaders sizes the visibility uniform buffer for the 
   const shaders = await createWebgpuVisibilityShaders(device, 8, uniformSlots)
   assert.equal(uniformSlots, 3 * BASE_SLOTS + 2)
   assert.equal((shaders.visUniform as unknown as { size: number }).size, uniformSlots * 256)
+})
+
+test('the visibility uniform carries the view’s plane and whether the split routes what reaches behind it', () => {
+  const { device } = fakeDevice(),
+    cam = createEngineCamera(),
+    slots = (rt: WebgpuPagesRuntime) => rt.vis.visUniPacked
+  const rt = {
+    vis: {
+      drawLayerSlots: 1,
+      visUniPacked: new Float32Array(0),
+      shadeUniPacked: new Float32Array(SHADE_UNIFORM.words),
+      materialTable: { displaced: { count: 0 } },
+    },
+    run: {
+      diagnostic: 'beauty',
+      gate: { cam: { near: 0.1, far: 100, perspective: 1 } },
+      textureConverging: false,
+      frame: 0,
+      diagnosticPixelError: 0,
+    },
+    layout: { rows: { packedCount: 3 } },
+    gpu: { targetSize: [64, 32], displaySize: [64, 32], temporal: undefined },
+    setup: { pixelRatio: () => 1 },
+    capture: { capturing: false },
+    context: {},
+  } as unknown as WebgpuPagesRuntime
+  const U = VIS_UNIFORM.at,
+    read = () => ({
+      plane: Array.from(slots(rt).slice(U.clipPlane, U.clipPlane + 4)),
+      route: new Uint32Array(slots(rt).buffer)[U.clipRoute],
+    })
+  const write = () => writeWebgpuVisibilityUniforms(rt, device, cam, 4)
+  // A camera whose plane the host has not allowed: nothing to clip.
+  cam.viewSet = Object.freeze({ clipPlane: [0, 0, 1, 2], hidden: [], showOnly: null }) as never
+  write()
+  assert.deepEqual(read(), { plane: [0, 0, 0, 0], route: 0 })
+  // Allowed: the unit normal and the offset the other way round, the cut's cull routing the split.
+  Object.assign(rt.context, { cutClipPlane: true })
+  write()
+  assert.deepEqual(read(), { plane: [0, 0, 1, -2], route: 1 })
+  Object.assign(rt.context, { cutClipPlaneCulling: false })
+  write()
+  assert.deepEqual(read(), { plane: [0, 0, 1, -2], route: 0 })
 })

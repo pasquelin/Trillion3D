@@ -14,6 +14,9 @@ import { DAG_SWAP_WGSL } from './swapWgsl.ts'
 import { DAG_WANTED_WGSL } from './wantedWgsl.ts'
 import { DAG_LIVE_WGSL } from './liveWgsl.ts'
 import { DAG_LEVEL_WGSL } from './levelWgsl.ts'
+import { DAG_DRAW_DISTANCE_WGSL } from './drawDistanceWgsl.ts'
+import { DAG_CLIP_PLANE_WGSL } from './clipPlaneWgsl.ts'
+import { DAG_VIEW_FILTER_WGSL } from './viewFilterWgsl.ts'
 import { DAG_LISTS_WGSL } from './listsWgsl.ts'
 import { DAG_POST_PASS_WGSL } from './postPassWgsl.ts'
 import { DAG_OCCLUSION_WGSL } from './occlusionWgsl.ts'
@@ -128,6 +131,9 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
     DAG_WANTED_WGSL,
     DAG_LIVE_WGSL,
     DAG_LEVEL_WGSL,
+    DAG_DRAW_DISTANCE_WGSL,
+    DAG_CLIP_PLANE_WGSL,
+    DAG_VIEW_FILTER_WGSL,
     DAG_LISTS_WGSL,
     DAG_POST_PASS_WGSL,
     DAG_OCCLUSION_WGSL,

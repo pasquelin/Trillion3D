@@ -5,7 +5,18 @@ import { TAA_BINDINGS, TAA_VIEW_BYTES } from './bindingsWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
-import { velocityShader } from './velocityWgsl.ts'
+import { VELOCITY_BINDINGS, velocityShader } from './nearestVelocityWgsl.ts'
+import { SURFACE_VELOCITY_BINDINGS, SURFACE_VELOCITY_WGSL } from './surfaceVelocityWgsl.ts'
+import { RAD2DEG } from '../../../../math/src/constants.ts'
+import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
+import { builtins } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
+import { createTaaFrameState } from './frameState.ts'
+import { TAA_VIEW } from './bindingsWgsl.ts'
+import { writeTaaView } from './view.ts'
+
+const T = TAA_VIEW.at
 
 /** The history update with an as-is share, the frame's usual one. */
 const TAA_SHADER = taaResolveShader(true)
@@ -93,4 +104,84 @@ test('the flagless resolve is the flag-reading one without its share, written as
   assert.equal(own.length, 1, 'only its output is its own')
   const removed = TAA_SHADER.split('\n').filter((line) => !flagless.includes(line))
   for (const line of removed) assert.match(line, /share|var flags|asIs|TaaOut/, line)
+})
+
+test('the velocity stage writes the vector the temporal pass reads, from the same nearest surface; its analysis writes none', () => {
+  const surface = SURFACE_VELOCITY_WGSL
+  for (const text of [VELOCITY_SHADER, surface])
+    assert.equal(occurrences(text, 'fn nearestSurface('), 1)
+  assert.match(
+    surface,
+    /vectorOut,p,vec4u\(encodeVector\(nearestSurface\(p\)\.motion\.velocity\.xy\),/,
+  )
+  // The analysis starts from the same surface for its marks and occluders, and leaves the vector to
+  // the stage: the motion blur reads it after the pass.
+  assert.match(VELOCITY_SHADER, /let nearest=surface\.motion;/)
+  assert.doesNotMatch(VELOCITY_SHADER, /vectorOut/)
+  for (const gone of ['occluders', 'closestOut', 'marksOut', 'pageOf(', 'scatterOccluder'])
+    assert.equal(occurrences(surface, gone), 0, gone)
+  // The inputs sit at the same bindings, the vector after them.
+  const inputs = [
+    ...['view', 'depth', 'ids', 'pages', 'motion', 'indices', 'positions', 'uvs', 'boxes'],
+  ] as const
+  for (const name of inputs)
+    assert.equal(SURFACE_VELOCITY_BINDINGS[name], VELOCITY_BINDINGS[name], name)
+  assert.match(surface, /@binding\(9\) var vectorOut:texture_storage_2d<r32uint,write>/)
+})
+
+/** A double's two words, high then low, as the roots' world boxes keep them. */
+const doubleWords = (value: number) => {
+  const words = new Uint32Array(new Float64Array([value]).buffer)
+  return [words[1], words[0]]
+}
+
+test('an object smaller on the screen than `perObjectSize` is measured as still, none at 0', () => {
+  // A placement that moved by itself: its motion is a translation, which draws motion unless the
+  // object is left out.
+  const moved = new Array(16).fill(0).map((_, at) => (at % 5 === 0 ? 1 : at === 12 ? 0.5 : 0))
+  const { device, writes } = fakeDevice(),
+    state = createTaaFrameState()
+  // A 90 degrees field of view: half the projection's scale is 0.5, the field over 90 degrees 1.
+  const projection = new Float64Array(16)
+  projection[0] = projection[5] = 1
+  const cam = { viewProjection: IDENTITY_MATRIX4, eye: [0, 0, 0], projection, perspective: 1 }
+  const small = (percent: number, distance: number, orthographic = false) => {
+    state.objectSize = percent
+    writeTaaView(device, {} as GPUBuffer, state, cam as never, [64, 32], [64, 32], [64, 32], false)
+    const rates = (writes.at(-1)!.data as Float32Array).subarray(T.rates, T.rates + 4)
+    // A box of a metre a side at `distance` metres along the first axis, a root of no other.
+    const box = [-0.5 + distance, -0.5, -0.5, 0.5 + distance, 0.5, 0.5].map(doubleWords)
+    const run = shaderRun<{
+      smallObject: (rank: number) => boolean
+      drawsMotion: (id: number) => boolean
+    }>(SURFACE_VELOCITY_WGSL, ['smallObject', 'drawsMotion'], {
+      view: {
+        rates: [...rates],
+        eye: [0, 0, 0, 0],
+        radius: [0, 0, 1, orthographic ? 1 : 0],
+        params: [0, 0, 1, 0],
+      },
+      boxes: [...box, [0, 0]],
+      pages: new Proxy([], { get: () => ({ deformOutput: 0, placement: 0 }) }),
+      motion: [builtins.mat4x4f(...moved)],
+    })
+    // The object is left out of the velocity pass as it is measured small: a moving one draws none.
+    assert.equal(run.drawsMotion(1), !run.smallObject(0))
+    return run.smallObject(0)
+  }
+  // Its sphere, 0.87 m of radius, takes 0.5 · 0.87 / 10 of the screen at ten metres: a diameter
+  // of 8.7 %, under the 10 % asked, and over it at five metres (17 %).
+  assert.equal(small(10, 10), true, 'smaller than 10 % of the screen')
+  assert.equal(small(10, 5), false, 'larger than it, nearer')
+  assert.equal(small(5, 10), false, 'and larger than the 5 % asked')
+  assert.equal(small(0, 10), false, 'a size of 0 leaves none out')
+  assert.equal(small(10, 10, true), false, 'no foreshortening in an orthographic view')
+  assert.equal(small(10, 1000), true, 'far away')
+  // The least radius, squared, follows the field of view over 90 degrees: a narrower view asks less.
+  projection[0] = 2
+  state.objectSize = 10
+  writeTaaView(device, {} as GPUBuffer, state, cam as never, [64, 32], [64, 32], [64, 32], false)
+  const u = writes.at(-1)!.data as Float32Array
+  const fov = (2 * Math.atan(0.5) * RAD2DEG) / 90
+  assert.deepEqual([u[T.rates + 2], u[T.rates + 3]], [1, Math.fround((0.05 * fov) ** 2)])
 })

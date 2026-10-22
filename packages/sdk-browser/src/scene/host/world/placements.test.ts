@@ -15,7 +15,7 @@ import { blendFixture } from '../../../geometry/selection/blend.fixture.ts'
 import { assertBits } from '../../../../../../tests/kit/assert/bits.ts'
 import { chainWorld } from '../../../../../../tests/kit/assert/chainWorld.ts'
 import { rootOf } from '../../../geometry/selection/placements.ts'
-import { graphDraws } from '../../../geometry/selection/drawSource.ts'
+import { graphDraws, holdDrawDistance } from '../../../geometry/selection/drawSource.ts'
 
 /** A scene nobody has walked up: rotated root, parent with negative and non-uniform scale, leaf
  *  sheared by that scale, plus a node whose matrix is set. */
@@ -96,6 +96,22 @@ test('page records and cluster roots carry the tree world of their mesh', () => 
   for (let rank = 0; rank < roots.length; rank++)
     assert.equal(rootOf(roots, rank).world, world, 'every placement reads it')
   assert.equal(world.elements, fixture.mesh.matrixWorld.elements, "the mesh's own world storage")
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+})
+
+test('a node placed at its own world is a root drawn at the distances its mesh names', () => {
+  const fixture = blendFixture()
+  const collect = () =>
+    collectClusterPages(
+      fixture.source,
+      graphDraws(fixture.source, fixture.associations),
+      fixture.metadata,
+      fixture.indices,
+    ).roots
+  assert.equal(collect()[0].drawDistance, undefined, 'none named: every distance')
+  holdDrawDistance(fixture.mesh, { min: 3, max: 90 })
+  assert.deepEqual(collect()[0].drawDistance, { min: 3, max: 90 })
   fixture.geometry.dispose()
   fixture.material.dispose()
 })

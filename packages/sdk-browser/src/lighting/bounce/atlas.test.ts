@@ -21,6 +21,10 @@ import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { BOUNCE_PROBE_SHADER } from './probes/probeWgsl.ts'
 import { BOUNCE_CENSUS_SHADER, CENSUS, CENSUS_WORDS } from './probes/censusWgsl.ts'
+import { kernelShapeOf, screenProbeSources } from './screen/kernels.ts'
+import type { ScreenProbeOptions } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
+import { adaptiveSamples, geometryOfTile, screenProbeGeometry } from './screen/screenProbeLayout.ts'
 
 type Probe = {
   poolProbe: (slot: number) => Vec
@@ -179,4 +183,75 @@ test('the census counts the probes that hold light and the entries of the table 
   assert.equal(census[CENSUS.fieldDark], 1, 'one that holds none')
   assert.equal(census[CENSUS.fieldBuried], 1, 'one buried')
   assert.equal(census[CENSUS.fieldPublished], 6, 'the entries that name a probe')
+})
+
+test('the screen probes cut the image into tiles, an atlas row of adaptive probes below each fraction of the rows', () => {
+  const ultra = screenProbeGeometry(1920, 1080, screenProbeSettings())
+  assert.deepEqual(
+    [ultra.tile, ultra.tilesX, ultra.tilesY, ultra.rows, ultra.uniform, ultra.maxAdaptive],
+    [16, 120, 68, 102, 8160, 4080],
+  )
+  assert.deepEqual([ultra.samplesX, ultra.samplesY, ultra.tracing], [4, 2, 8])
+  const bare = screenProbeGeometry(
+    1920,
+    1080,
+    screenProbeSettings({ screenProbeAdaptiveFraction: 0 }),
+  )
+  assert.deepEqual([bare.rows, bare.maxAdaptive], [68, 0])
+  const small = screenProbeGeometry(1, 1, screenProbeSettings())
+  assert.deepEqual([small.tilesX, small.tilesY, small.uniform], [1, 1, 1])
+  assert.deepEqual([16, 8, 4].map(adaptiveSamples), [
+    [4, 4],
+    [4, 2],
+    [2, 2],
+  ])
+  // An image drawn smaller in the targets of a larger one keeps the larger one's tile: its probes lie in the atlas they were made for.
+  const drawn = geometryOfTile(1280, 720, ultra.tile, screenProbeSettings())
+  assert.deepEqual([drawn.tile, drawn.tilesX, drawn.rows], [16, 80, 67])
+  assert.ok(drawn.tilesX <= ultra.tilesX && drawn.rows <= ultra.rows)
+  // A device that holds textures to 8192 texels: the cinematic level at 3840 pixels (7680 texels wide) fits, at 5120 pixels
+  // (10240) the tile doubles until the atlas does.
+  const cinematic = screenProbeSettings({ screenProbes: 'cinematic' })
+  assert.equal(screenProbeGeometry(3840, 2160, cinematic, 8192).tile, 8)
+  const wide = screenProbeGeometry(5120, 2880, cinematic, 8192)
+  assert.deepEqual([wide.tile, wide.tilesX * 16 <= 8192, wide.rows * 16 <= 8192], [16, true, true])
+})
+
+test('the kernels are keyed by what their code depends on: a switch of the occlusion or the scene recompiles those alone', () => {
+  const keys = (options: ScreenProbeOptions) =>
+    Object.fromEntries(
+      Object.entries(screenProbeSources(kernelShapeOf(screenProbeSettings(options)))).map(
+        ([name, source]) => [name, source.key],
+      ),
+    )
+  const ultra = keys({})
+  const changed = (other: Record<string, string>) =>
+    Object.keys({ ...ultra, ...other }).filter((name) => ultra[name] !== other[name])
+  assert.deepEqual(
+    changed(keys({ screenProbeSceneTraces: false })),
+    ['traceScene'],
+    'the scene stage alone',
+  )
+  assert.deepEqual(
+    changed(keys({ screenProbes: 'high' })).sort(),
+    [
+      'composite',
+      'convert',
+      'occlusion',
+      'place',
+      'rays',
+      'screenData',
+      'spatial',
+      'temporal',
+      'traceField',
+      'traceScene',
+      'traceScreen',
+    ].sort(),
+    'a level that changes the samples, the rays and the occlusion',
+  )
+  assert.deepEqual(
+    changed(keys({ screenProbeSpatialFilterPasses: 1, screenProbeQuality: 1 })),
+    [],
+    'the passes are a count',
+  )
 })

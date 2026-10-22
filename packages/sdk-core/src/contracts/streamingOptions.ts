@@ -1,5 +1,7 @@
 import {
+  ANY_NUMBER as ANY,
   countSetting as count,
+  INT32_RANGE,
   integerSetting as integer,
   numberSetting as number,
   rulesOf,
@@ -13,9 +15,9 @@ import {
  * compiler packs a mesh's clusters in, read, installed and given up whole —: how many it keeps
  * started at once, how many a frame installs, how the streaming pool's load scales the cut's
  * screen error (`packages/sdk-browser/src/geometry/residency/poolPressure.ts`), how many times a
- * failed read is tried again before its object is given up, and how many requests the readout of
- * the camera's cut holds. Run-time settings, as `./settingRules.ts` says, read again at each
- * update of the streaming.
+ * failed read is tried again before its object is given up, how many requests the readout of
+ * the camera's cut holds, and the bandwidth the reads are simulated to have. Run-time settings, as
+ * `./settingRules.ts` says, read again at each update of the streaming.
  */
 
 /** The pending pages' default, 128: the reference's own. */
@@ -34,10 +36,12 @@ export const DEFAULT_STREAMING_NUM_RETRIES = 3
 export const DEFAULT_STREAMING_MIN_REQUESTS = 65_536
 /** The most requests the readout holds, 1 048 576 by default: the reference's own. */
 export const DEFAULT_STREAMING_MAX_REQUESTS = 1_048_576
+/** The simulated bandwidth's default, −1: none — a negative limit is no limit; the reference's own. */
+export const DEFAULT_STREAMING_BANDWIDTH_LIMIT = -1
 
 /** How many times a failed read is tried again: a whole number a 32-bit counter holds; negative
  *  tries without end. */
-const NUM_RETRIES: SettingRange = [-2147483648, 2147483647]
+const NUM_RETRIES: SettingRange = INT32_RANGE
 /** The requests the readout holds, from 4 096 to 1 048 576: the reference's own limits. */
 const REQUESTS_RANGE: SettingRange = [4096, 1_048_576]
 
@@ -50,7 +54,10 @@ const REQUESTS_RANGE: SettingRange = [4096, 1_048_576]
  *  again; negative, never —, and the least and the most requests the camera cut's readout holds —
  *  a request is a leaf the cut keeps: it starts at the least, grows to a quarter over what the cut
  *  asks of it and gives a fiftieth back each readback after thirty under half
- *  (`packages/sdk-browser/src/geometry/dag/lists/requestSize.ts`), read no higher than the most. */
+ *  (`packages/sdk-browser/src/geometry/dag/lists/requestSize.ts`), read no higher than the most —,
+ *  and the bandwidth limit, in megabytes a second — a streaming page whose bytes are in takes them,
+ *  before its install, at that rate: each frame gives it what the time since the frame before
+ *  allows, and the pages behind it wait —, negative for none. */
 export const STREAMING_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     count('streamingMaxPendingPages', DEFAULT_STREAMING_MAX_PENDING_PAGES, 1),
@@ -61,6 +68,7 @@ export const STREAMING_RULES = /* @__PURE__ */ (() =>
     integer('streamingNumRetries', DEFAULT_STREAMING_NUM_RETRIES, NUM_RETRIES),
     integer('streamingMinRequests', DEFAULT_STREAMING_MIN_REQUESTS, REQUESTS_RANGE),
     integer('streamingMaxRequests', DEFAULT_STREAMING_MAX_REQUESTS, REQUESTS_RANGE),
+    number('streamingBandwidthLimit', DEFAULT_STREAMING_BANDWIDTH_LIMIT, ANY),
   ] as const))()
 /** The field of one streaming setting. */
 export type StreamingField = keyof typeof STREAMING_RULES

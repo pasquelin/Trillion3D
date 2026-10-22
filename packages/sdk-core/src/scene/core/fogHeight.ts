@@ -23,11 +23,28 @@
  * · the sun's illuminance on the ground) · max(0, ray · sun)^exponent / 4π`, through the density
  * met past `directional.startDistance`.
  *
+ * Four more things, each off by default (a fog that names none of them is the fog above): a second
+ * layer (`fogSecond.ts`) whose integral adds to the first's; an end distance past which, on the
+ * horizontal, the ray stops integrating; a cubemap (`fogCubemap.ts`) the colour is read from by
+ * direction; a volume (`fogVolumetric.ts`) that scatters the lights in beams.
+ *
  * The extinction form of the exponential law of `fog.ts` is a spelling of this law, which
  * `heightFogOf` maps exactly to the numbers the GPU reads.
  */
 import type { LinearRgb } from '../../contracts/material.ts'
 import type { SceneExponentialFog } from './fog.ts'
+import { resolveFogCubemap, type ResolvedFogCubemap, type SceneFogCubemap } from './fogCubemap.ts'
+import {
+  resolveSecondLayer,
+  SECOND_FOG_DEFAULTS,
+  type ResolvedSecondLayer,
+  type SceneSecondLayer,
+} from './fogSecond.ts'
+import {
+  resolveVolumetricFog,
+  type ResolvedVolumetricFog,
+  type SceneVolumetricFog,
+} from './fogVolumetric.ts'
 
 /** The sun's lobe in the fog: scattered toward the sun beyond `startDistance`, sharper the
  *  higher the `exponent`. */
@@ -42,7 +59,7 @@ export interface SceneFogDirectional {
   color?: LinearRgb
 }
 
-/** Height fog by the reference law (`fogHeight.ts`): density and falloff per metre, base 2.
+/** Height fog by its law (`fogHeight.ts`): density and falloff per metre, base 2.
  *  Every field has its default, `{}` is the default fog. */
 export interface SceneHeightFog {
   /** The light the fog scatters by itself, linear RGB; black by default — an atmosphere then
@@ -66,6 +83,17 @@ export interface SceneHeightFog {
   /** The factor of the atmosphere's sky radiance the fog takes on, per channel, ≥ 0; white by
    *  default. */
   skyContribution?: LinearRgb
+  /** A second layer of fog, added to the first (`SceneSecondLayer`); none by default. */
+  secondLayer?: SceneSecondLayer
+  /** The distance from the eye, metres on the horizontal, where the ray stops integrating the fog's
+   *  light and transmittance; 0, the default, none. */
+  horizontalLimit?: number
+  /** A cubemap the fog's colour is read from by direction (`SceneFogCubemap`); none by default. With
+   *  one, the fog's `color` and the sun's lobe are not read: the cubemap, tinted, gives the colour. */
+  cubemap?: SceneFogCubemap
+  /** The volume that scatters the lights in beams (`SceneVolumetricFog`): `true` for its defaults;
+   *  off by default. */
+  volumetric?: boolean | SceneVolumetricFog
 }
 
 /** A height fog with every field set: what the GPU block is made of. */
@@ -79,6 +107,12 @@ export interface ResolvedHeightFog {
   cutoffDistance: number
   directional: Required<SceneFogDirectional>
   skyContribution: LinearRgb
+  second: ResolvedSecondLayer
+  horizontalLimit: number
+  /** Absent where the fog has none. */
+  cubemap?: ResolvedFogCubemap
+  /** Absent where the volume is off. */
+  volumetric?: ResolvedVolumetricFog
 }
 
 /** The defaults of a height fog, the converted ones of the engines that fixed them. */
@@ -92,6 +126,8 @@ const HEIGHT_FOG_DEFAULTS: ResolvedHeightFog = {
   cutoffDistance: 0,
   directional: { exponent: 4, startDistance: 100, color: [0, 0, 0] },
   skyContribution: [1, 1, 1],
+  second: SECOND_FOG_DEFAULTS,
+  horizontalLimit: 0,
 }
 
 /** The extinction a density of 1 gives a uniform medium: `(ln 2)²` per metre, written as the
@@ -130,5 +166,9 @@ export function heightFogOf(fog: SceneExponentialFog | SceneHeightFog): Resolved
       color: fog.directional?.color ?? d.directional.color,
     },
     skyContribution: fog.skyContribution ?? d.skyContribution,
+    second: resolveSecondLayer(fog.secondLayer),
+    horizontalLimit: fog.horizontalLimit ?? d.horizontalLimit,
+    cubemap: fog.cubemap && resolveFogCubemap(fog.cubemap),
+    volumetric: resolveVolumetricFog(fog.volumetric),
   }
 }

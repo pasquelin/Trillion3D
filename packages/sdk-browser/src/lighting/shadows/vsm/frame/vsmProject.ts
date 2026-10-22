@@ -15,6 +15,7 @@ import { ensureMask } from './vsmMask.ts'
 import type { EngineVsm } from './engineVsm.ts'
 import type { VsmFrameScratch } from './vsmEncode.ts'
 import { projectionLight } from './vsmPlan.ts'
+import { casterDrawDistance, farDropOf, shadowSetting } from './vsmFarShadow.ts'
 import { encodeVsmRenderAndTransmission } from './vsmTransmission.ts'
 import { encodeRowBins } from '../rows/rowBinsGpu.ts'
 
@@ -59,6 +60,12 @@ export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFram
       rowSpheres: spheres,
       // The voxel tier is drawn while the table holds a voxel row (`vsmEncodeChunks`).
       voxels: layout.itemWordsHold.voxelRows > 0,
+      // The suns' far-shadow test: the world's merged shells, or every caster, and the distance
+      // past which no view of the frame takes a caster (`vsmFarShadowSkipped`).
+      farMeshes: shadowSetting(rt, 'farShadowCullsAllMeshes'),
+      farDrop: farDropOf(plan.lights),
+      // The lights whose views pass a pass's limit are drawn in several passes (`vsmViewPasses`).
+      multipassViews: shadowSetting(rt, 'shadowMultipassViews'),
       camera: {
         eye: cam.eye,
         view: cam.view,
@@ -67,8 +74,17 @@ export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFram
         perspective: cam.perspective === 1,
         threshold: run.gate.pixelError,
       },
-      // The cut's world switch: a row the view does not draw casts nothing (`worldDraws`).
-      world: cut && cells && { cold: cells.view, frames: cut.frames, links: cells.links },
+      // The cut's world switch: a row the view does not draw casts nothing (`worldDraws`); its
+      // frame words, where the objects' draw distances lie, a cut without a world has as well.
+      world: cut && {
+        cold: cells?.view,
+        frames: cut.frames,
+        links: cells?.links,
+        // The main view's filter: a hidden object casts nothing into its shadows.
+        filter: cut.holdFilter(run.selectionUniforms.filter),
+      },
+      // The draw distances the objects name: an object out of its own casts nothing.
+      drawDistance: casterDrawDistance(rt, cut),
     },
   )
   // The histograms the chunks of a later frame are sized from (`rowPageBound.ts`): the spheres as

@@ -12,6 +12,16 @@ import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animat
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import type { ShadowOptions } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
+import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
+import type { DepthOfFieldSettings } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
+import type { BloomSettings } from '../../../../sdk-core/src/contracts/bloomRules.ts'
+import type { FilmSettings } from '../../../../sdk-core/src/contracts/filmOptions.ts'
+import type { AmbientOcclusionOptions } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import type { ScreenProbeOptions } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import type { ReflectionOptions } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
+import type { VolumetricFogOptions } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
+import type { TessellationOptions } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
 import type { RasterOptions } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
 import type { StreamingOptions } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
 
@@ -24,7 +34,11 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  `worldStreamingRangeScale` (1), `worldStreamingRadius` (100 m), `worldStreamingSector` (false),
  *  `worldStreamingSectorAngle` (360°), `worldStreamingZCulling` (false),
  *  `worldStreamingBlockOnSlowStreaming` (true),
- *  `worldStreamingBlockOnSlowStreamingRatio` (0.25), `hlodEnabled` (true), `hlodWarmup` (true),
+ *  `worldStreamingBlockOnSlowStreamingRatio` (0.25), `worldStreamingUpdateOptimization` (true),
+ *  `worldStreamingLocationQuantization` (4 m), `worldStreamingRotationQuantization` (10°),
+ *  `worldStreamingForceUpdateFrameCount` (0), `worldStreamingForce2D` (false),
+ *  `worldStreamingExtraRadius` (0 m), `worldStreamingExtraAngle` (0°),
+ *  `worldStreamingTargetState` (`'activated'`), `hlodEnabled` (true), `hlodWarmup` (true),
  *  `hlodWarmupFrames` (5),
  *  `hlodWarmupGeometry` (true), `hlodWarmupTextures` (true), `hlodWarmupTextureScale` (2),
  *  `hlodWarmupTextureClamp` (2048).
@@ -32,7 +46,10 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  the next frame. The cut's settings likewise, each by its field with the reference's default
  *  (`../../../../sdk-core/src/contracts/cutOptions.ts`): `cutTwoPassOcclusion` (true),
  *  `cutOcclusionCulling` (true), `cutFrustumCulling` (true), `cutMinLodCulling` (true),
- *  `cutLodBiasFollowsUpscale` (true), `cutLodBiasOffset` (0), `cutLodBiasMin` (-2),
+ *  `cutDrawDistanceCulling` (true), `cutViewDistanceScale` (1; the view distance's quality levels
+ *  write it), `cutClipPlane` (false: a camera's `clipPlane` applies only once it is on),
+ *  `cutClipPlaneCulling` (true), `cutViewFiltering` (true: a camera's `hidden` and `showOnly`
+ *  lists apply), `cutLodBiasFollowsUpscale` (true), `cutLodBiasOffset` (0), `cutLodBiasMin` (-2),
  *  `cutMaxNodes` (2097152), `cutMaxCandidateClusters` (16777216), `cutMaxVisibleClusters`
  *  (4194304); changed later by `world.cut`. The animation's settings likewise
  *  (`../../../../sdk-core/src/contracts/animationOptions.ts`): `animationMinScreenSize` (0.1),
@@ -53,7 +70,50 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  apply to a lit view whatever its exposure; changed later by `world.exposureSettings`. The
  *  temporal pass's likewise (`../../../../sdk-core/src/contracts/temporalOptions.ts`):
  *  `temporalThinGeometry` (false) — whether it looks for geometry thinner than a pixel and relaxes
- *  its history there, at any level but `'off'`; changed later by `world.temporal`. The cluster
+ *  its history there, at any level but `'off'`; changed later by `world.temporal`. The sun's
+ *  shadows likewise (`../../../../sdk-core/src/contracts/shadowOptions.ts`): `shadowDistanceScale`
+ *  (1, from 0 to 2) — the factor on every directional light's `shadowDistance` —,
+ *  `farShadowCulling` (true) — whether a sun's shadow maps leave out the casters whose depth, less
+ *  their radius, is past the edge of that distance (a little farther: 427 metres at 400), unless
+ *  their object sets `castFarShadow` —, `farShadowCullsAllMeshes` (false) — whether that test
+ *  reaches every caster, or only the world's merged shells of its coarser levels —,
+ *  `shadowNearLevels` (10, from 0 to 10, at most the light's four), `shadowOverlapScale` (1, from 0
+ *  to 2) and `shadowFarField` (true) — the three that shape the edge —; changed later by
+ *  `world.shadows`. The motion blur's
+ *  drawing likewise (`../../../../sdk-core/src/contracts/motionBlurOptions.ts`):
+ *  `motionBlurQuality` (`'veryHigh'`, or `'off'`, `'low'`, `'medium'`, `'high'`: 16 samples a pixel
+ *  at most, fewer at the lower levels), `motionBlurHalfResGather` (false), `motionBlurHalfResInput`
+ *  (true), `motionBlurSeparable` (false), `motionBlurScatter` (false) and `motionBlurDirections`
+ *  (1, or 2); changed later by
+ *  `world.motionBlur`. The depth of field's drawing likewise
+ *  (`../../../../sdk-core/src/contracts/depthOfFieldRules.ts`): `depthOfFieldQuality` (`'high'`, or `'off'`, `'low'`,
+ *  `'veryHigh'`, `'extreme'`), `depthOfFieldGatherDivisor` (2), `depthOfFieldAccumulator` (`'high'`),
+ *  `depthOfFieldRingCount` (4), `depthOfFieldPostfilter` (`'median'`), the scatter's and the recombine's settings
+ *  and the others the file lists, each the reference's default; changed later by `world.depthOfField`. The bloom's drawing likewise
+ *  (`../../../../sdk-core/src/contracts/bloomRules.ts`): `bloomQuality` (`'highest'`, or `'off'`,
+ *  `'lowest'`, `'low'`, `'medium'`, `'high'`: how many of the six Gaussian levels draw), `bloomCross`
+ *  (0), `bloomScreenPercentage` (100: the convolution's resolution), `bloomApplyLocalExposure` (true)
+ *  and `bloomCacheKernel` (true); changed later by `world.bloom`. The film effects' likewise
+ *  (`../../../../sdk-core/src/contracts/filmOptions.ts`): the grain (`filmGrain…`, off by
+ *  default), the colour fringe (`chromaticAberration…`, off), the vignette's look (`vignette…`,
+ *  beside the scene's strength), `tonemapperQuality` (5), `tonemapperSharpen` (−1: the scene's),
+ *  the tint (`sceneColorTint…`, 1) and `quantizationDitheringBits` (0: the display's own step);
+ *  changed later by `world.film`. The volumetric fog's
+ *  (`../../../../sdk-core/src/contracts/volumetricFogOptions.ts`): `volumetricFogQuality`
+ *  (`'max'`; `'off'` draws none, `'high'`, `'max'` and `'cinematic'` set the grid's cell size and
+ *  depth and the history's samples) and eleven settings it is read with, changed later by
+ *  `world.volumetricFog`; the fog only exists in a scene whose fog sets `volumetric`. The reflections'
+ *  trace likewise (`../../../../sdk-core/src/contracts/reflectionOptions.ts`): `reflectionScreenSteps` (50,
+ *  the iterations of a reflected ray's march of the screen, from 1 to 256) and `reflectionRingSteps` (256,
+ *  the steps it takes in each of the scene's four rings, from 1 to 4096), changed later by
+ *  `world.reflections`. The screen-space ambient occlusion's likewise
+ *  (`../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts`): `ambientOcclusion` (true: the master
+ *  switch), `ambientOcclusionIntensity` (0.5; 0 is off), `ambientOcclusionRadius` (2 m) and its
+ *  `ambientOcclusionRadiusInWorldSpace` (false), `ambientOcclusionFadeDistance` (80 m) and
+ *  `ambientOcclusionFadeRadius` (50 m), `ambientOcclusionPower` (2), `ambientOcclusionBias` (3), the
+ *  quality (`ambientOcclusionQuality`, 50) with `ambientOcclusionLevels` (-1) and
+ *  `ambientOcclusionMaxQuality` (100), and `ambientOcclusionWithScreenProbes` (false); changed later
+ *  by `world.ambientOcclusion`. The cluster
  *  raster's split likewise
  *  (`../../../../sdk-core/src/contracts/rasterOptions.ts`): `softwareRaster` (true) — a cluster
  *  whose longest edge projects under `hardwareRasterEdgePixels` and whose box crosses neither clip
@@ -83,6 +143,16 @@ export interface WorldOptions
     ShadingOptions,
     ExposureOptions,
     TemporalOptions,
+    ShadowOptions,
+    MotionBlurSettings,
+    DepthOfFieldSettings,
+    BloomSettings,
+    FilmSettings,
+    VolumetricFogOptions,
+    TessellationOptions,
+    ScreenProbeOptions,
+    ReflectionOptions,
+    AmbientOcclusionOptions,
     RasterOptions,
     StreamingOptions {
   /**

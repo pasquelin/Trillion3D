@@ -13,6 +13,7 @@ import type { Mesh } from '../../../../../sdk-core/src/world/object/mesh.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { createPlacementRows, placementWorld } from '../../../placement/rows/rows.ts'
 import { followPlacementRows } from '../../../placement/update.ts'
+import { FAR_SHADOW_ROOT, SHADOWLESS_ROOT } from '../../../visibility/shader/castingMark.ts'
 import { composeWebgpuPlacements } from '../../../placement/compose/gpuCompose.ts'
 import type { ComposeState } from '../../../placement/compose/gpuComposeState.ts'
 import { composeRuntime } from '../../../placement/compose/composeRuntime.fixture.ts'
@@ -138,20 +139,28 @@ test('hiding 11 500 linked children while the parent turns parks them; shown aga
   assert.equal(drawable(g), N, 'shown back: every child drawn at its composed pose')
 })
 
-test('castShadow flipped on linked children while the parent turns reaches their rows and roots', () => {
-  const g = linked()
-  turn(g, 0.4)
-  g.children.forEach((mesh, i) => i >= SHOWN && ((mesh.castShadow = false), g.poses.moved(mesh)))
-  g.frame()
-  const shadowless = () => g.roots.filter((root) => root.mark).length
-  assert.equal(sum(g.rows.shadowless), N - SHOWN)
-  assert.equal(shadowless(), N - SHOWN, 'each root casts as its mesh says')
-  g.children.forEach((mesh) => ((mesh.castShadow = true), g.poses.moved(mesh)))
-  turn(g, 0.8)
-  g.frame()
-  assert.equal(shadowless(), 0)
-  assert.equal(drawable(g), N)
-})
+for (const { flag, on, bit } of [
+  { flag: 'castShadow', on: false, bit: SHADOWLESS_ROOT },
+  { flag: 'castFarShadow', on: true, bit: FAR_SHADOW_ROOT },
+] as const)
+  test(`${flag} flipped on linked children while the parent turns reaches their rows and roots`, () => {
+    const g = linked()
+    turn(g, 0.4)
+    g.children.forEach((mesh, i) => i >= SHOWN && ((mesh[flag] = on), g.poses.moved(mesh)))
+    g.frame()
+    const marked = () => g.roots.filter((root) => (root.mark ?? 0) & bit).length
+    assert.equal([...g.rows.casting].filter((casting) => casting & bit).length, N - SHOWN)
+    assert.ok(
+      [...g.rows.casting].every((casting) => !(casting & ~bit)),
+      'the other flag stands',
+    )
+    assert.equal(marked(), N - SHOWN, 'each root casts as its mesh says')
+    g.children.forEach((mesh) => ((mesh[flag] = !on), g.poses.moved(mesh)))
+    turn(g, 0.8)
+    g.frame()
+    assert.equal(marked(), 0)
+    assert.equal(drawable(g), N)
+  })
 
 test('a child removed from a linked parent is unlinked, its row taken by another mesh; a child added is linked', () => {
   const g = linked()

@@ -79,16 +79,17 @@ import { reflectionStagesWgsl } from '../wgsl.ts'
  * no case of motion, resolution or surface chooses between two ways to one result.
  *
  * DISTANCE, by tiers (`../reach.ts`): the screen for every ray, its march ending at the image's edge or
- * `REFLECTION_MARCH_STEPS` iterations, its answer taken as far as it is sure (the fades of the image's
+ * `reflectionScreenSteps` iterations (50), its answer taken as far as it is sure (the fades of the image's
  * border and of the radiance pyramid's last level); the proxy for the rest of a ray of a pixel in the
  * near field — inside the cascades that follow the camera —, no further than the surface the screen
- * met, `REFLECTION_PROXY_WORK` units at most; the probes' field and the surroundings past it, and for
- * every ray of a pixel past the near field: a far pixel's reflection costs its march and the field.
+ * met, in rings, one for each cascade cube it crosses, each `reflectionRingSteps` steps at most (256,
+ * `../proxy.ts`); the probes' field and the surroundings past it, and for every ray of a pixel past the
+ * near field: a far pixel's reflection costs its march and the field.
  *
  * COST. N pixels, R the rays (one a traced pixel traced this image, one a block, opaque and front), T
- * the tracing tiles, P the pixels of the resolve tiles, K̄ ≤ 50 the march's mean iterations, p_miss the
- * share of near rays whose screen answer is not taken, W̄ ≤ 64 their mean walk in units; r_m, r_w the
- * iterations and units the GPU runs a second:
+ * the tracing tiles, P the pixels of the resolve tiles, K̄ ≤ the march's iterations its mean, p_miss the
+ * share of near rays whose screen answer is not taken, W̄ ≤ the rings' work their mean walk in units
+ * (a ring's work at most, a ray's four rings'); r_m, r_w the iterations and units the GPU runs a second:
  * - classify: N flag reads at most, a normal and a lobe word a reflecting pixel, a ray word a texel of a
  *   tracing tile, three atomics a listed tile a list;
  * - screen: 64·T threads, a ray word read each (`reflectionTracedPixel`); R · K̄ march iterations (one
@@ -102,12 +103,12 @@ import { reflectionStagesWgsl } from '../wgsl.ts'
  *   normals, where its history counts under two images; a pixel without one its coat's 8 probes a
  *   cascade, the front surface's base too.
  * - t ≈ R · (K̄ / r_m + p_miss · W̄ / r_w) + P · (c_r + c_t + c_b), bounded by the view's pixels —
- *   at most R · (50 / r_m + 64 / r_w) for the rays —, never by the scene nor its lights. Every image
- *   drawn pays it, still or moving.
+ *   at most R · (K / r_m + 4 · W / r_w) for the rays, K the march's iterations, W a ring's work —, never by
+ *   the scene nor its lights. Every image drawn pays it, still or moving.
  *
  * CENSUS (`../censusWgsl.ts`): the two ray stages tally their rays in the workgroup's own memory —
  * the screen stage where each ray ended, the scene stage how each walk of the proxy ended and the
- * units it spent — and add them to one buffer of counters per workgroup, which the host reads back
+ * units its rings spent — and add them to one buffer of counters per workgroup, which the host reads back
  * a few images late (`../census.ts`).
  */
 export const REFLECTION_TRACE_SHADER = wgslProgram(

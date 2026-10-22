@@ -85,8 +85,8 @@ fn hazeMain(@builtin(global_invocation_id) id:vec3u){
  }
  var march:Marching;
  march.samples=max(1.0,(f32(id.z)+1.0)*max(1.0,min(2.0*atmo(${ATMOSPHERE_SLOT.sunIlluminance}u).w,${AERIAL_VOLUME.samplesPerSlice}.0)));
- let illuminance=atmo(${ATMOSPHERE_SLOT.sunIlluminance}u).xyz*atmo(${ATMOSPHERE_SLOT.scatteredFactor}u).xyz;
- let r=integrateAir(start,dir,false,march,true,sunDirection(),illuminance,atmo(${ATMOSPHERE_SLOT.skyFactor}u).w,marched);
+ let suns=airSuns();
+ let r=integrateAir(start,dir,false,march,true,suns,atmo(${ATMOSPHERE_SLOT.skyFactor}u).w,marched);
  directLights.aerial[(id.z*${AERIAL_VOLUME.height}u+id.y)*${AERIAL_VOLUME.width}u+id.x]=packCell(r.radiance,dot(r.transmittance,vec3f(1.0/3.0)));
 }`,
 )

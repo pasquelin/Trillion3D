@@ -4,6 +4,7 @@
 use crate::support::le::u32_at;
 use crate::*;
 
+pub(crate) mod assembly;
 pub(crate) mod buffers;
 pub(crate) mod copy;
 pub(crate) mod instancing;
@@ -15,6 +16,8 @@ pub(crate) mod nodes;
 pub(crate) mod safe_path;
 pub(crate) mod scene;
 pub(crate) mod select;
+pub(crate) mod spline;
+pub(crate) mod synth;
 #[cfg(test)]
 mod tests;
 

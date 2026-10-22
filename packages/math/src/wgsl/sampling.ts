@@ -74,6 +74,19 @@ export const rand3dPcg16 = wgslFn(
  return v>>vec3u(16u);
 }`,
 )
+/** Four 32-bit words of a 4D integer point: the 4D PCG hash (Jarzynski & Olano 2020), one LCG step,
+ *  two rounds of four multiply-adds around a fold of each word's high half into its low. */
+export const rand4dPcg32 = wgslFn(
+  'rand4dPcg32',
+  [],
+  `fn rand4dPcg32(p:vec4i)->vec4u{
+ var v=bitcast<vec4u>(p)*1664525u+1013904223u;
+ v.x+=v.y*v.w;v.y+=v.z*v.x;v.z+=v.x*v.y;v.w+=v.y*v.z;
+ v^=v>>vec4u(16u);
+ v.x+=v.y*v.w;v.y+=v.z*v.x;v.z+=v.x*v.y;v.w+=v.y*v.z;
+ return v;
+}`,
+)
 export const hammersley16 = wgslFn(
   'hammersley16',
   [],

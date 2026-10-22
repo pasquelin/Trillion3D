@@ -11,6 +11,16 @@ import { ANIMATION_RULES } from '../contracts/animationOptions.ts'
 import { SHADING_RULES } from '../contracts/shadingOptions.ts'
 import { EXPOSURE_RULES } from '../contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
+import { SHADOW_DISTANCE_DEFAULT, SHADOW_RULES } from '../contracts/shadowOptions.ts'
+import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
+import { DEPTH_OF_FIELD_RULES } from '../contracts/depthOfFieldRules.ts'
+import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
+import { BLOOM_RULES } from '../contracts/bloomRules.ts'
+import { FILM_RULES } from '../contracts/filmOptions.ts'
+import { VOLUMETRIC_FOG_RULES } from '../contracts/volumetricFogOptions.ts'
+import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
+import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
+import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
 
 /** A tool that writes the run-time settings of the rules by field `rules`, each as the explorer's
  *  options describe it (`EXPLORER_OPTIONS_SCHEMA`). Each call is marked pure, so a bundle that
@@ -114,7 +124,7 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_streaming',
-    'Changes how the geometry streaming runs from its next update: the pages it keeps started at once, the pages a frame installs, and how the streaming pool load scales the screen error.',
+    'Changes how the geometry streaming runs from its next update: the pages it keeps started at once, the pages a frame installs, how the streaming pool load scales the screen error, and the bandwidth the reads are simulated to have.',
     STREAMING_RULES,
   ),
   /* @__PURE__ */ settingTool(
@@ -124,7 +134,7 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_cut',
-    "Changes from the next frame how the GPU cluster cut culls: its two-pass occlusion against the depth pyramid, its frustum and too-coarse culls, and how an upscaled image's level of detail follows the display.",
+    "Changes from the next frame how the GPU cluster cut culls: its two-pass occlusion against the depth pyramid, its frustum and too-coarse culls, the draw distances objects name and their scale, whether a view's clip plane applies (off by default) and culls and whether its lists of hidden and shown objects apply, how an upscaled image's level of detail follows the display, and the GPU time budget that coarsens its screen error.",
     CUT_RULES,
   ),
   /* @__PURE__ */ settingTool(
@@ -146,6 +156,56 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
     'trillion3d_set_temporal',
     "Changes from the next frame how the temporal anti-aliasing, whose level trillion3d_set_temporal_antialiasing sets, treats geometry thinner than a pixel: whether it looks for a wire or a rail and relaxes its history there, off by default. It applies at any level but 'off'.",
     TEMPORAL_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_shadows',
+    "Changes from the next frame how a directional light's shadow maps take their casters by distance: the factor on every light's shadow distance, whether the casters past that distance are left out, and whether that test reaches every caster or the world's merged far-field shells alone, and whether the lights whose maps would pass what one pass of the shadow raster lists are drawn in several passes.",
+    SHADOW_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_motion_blur',
+    "Changes from the next frame how the motion blur is drawn: its quality — the samples a pixel gathers along its streak, off for none —, whether a long streak is gathered at half the resolution, whether its samples read the half-resolution image, whether the blur runs twice, and whether the largest motion of each tile is spread by drawing it. The strength, the longest streak and the frame rate are the effect's.",
+    MOTION_BLUR_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_depth_of_field',
+    "Changes from the next frame how the depth of field is drawn: its quality — off for none —, the size and the accumulator of the gather, its rings, its post-filter and its bokeh, how the bright highlights are scattered as sprites for the foreground and for the background, and the recombine's slight out of focus. The lens, the focus and the camera are the effect's.",
+    DEPTH_OF_FIELD_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_tessellation',
+    'Changes from the next frame how a material that names a displacement and switches its tessellation on is drawn: whether it is cut into micro-triangles and pushed along its normals by its height map, the size in pixels of those micro-triangles, the patches a group of the dicing pass takes, and the patches the splitting queue and the visible list hold. A scene whose materials name no displacement is not touched.',
+    TESSELLATION_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_bloom',
+    "Changes from the next frame how the bloom is drawn: its quality — how many of the six Gaussian levels draw, the widest first, off for none —, the cross given to the Gaussian blur, the resolution of the convolution bloom, whether the local exposure reaches the image it reads and whether the convolution keeps its kernel's transform. The glow's method, intensity, levels, convolution and dirt mask are the effect's.",
+    BLOOM_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_film',
+    "Changes from the next frame the film effects of the display finishing: the film grain (off by default) with its shares in the dark, middle and bright pixels, its size and its repeat; the colour fringe toward the corners (off by default), its start, quality and cap; the vignette's shape, colour, centre, size and softness (its strength is the scene's); the tonemapper's quality, which gates the vignette and the grain, its sharpening, and the scene's tint; and the dither that hides the display's steps, on by default.",
+    FILM_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_volumetric_fog',
+    "Changes from the next frame how the fog's volume is drawn where the scene's fog turns it on (scene.fog.volumetric): its quality — the cells' size and depth, off for none —, how a surface filters it, how the volume of the image before is blended in, and the tuning of its lighting samples.",
+    VOLUMETRIC_FOG_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_indirect_light',
+    "Changes from the next frame how a pixel gets the light that bounced before reaching it: the level of the screen probes (off, high, ultra, cinematic) placed on the screen, one a tile of pixels, and how they are traced, filtered in space and time, and occluded at a short range. Off, the pixel reads the world's bounce probes.",
+    SCREEN_PROBE_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_reflections',
+    "Changes from the next frame how far a reflected ray looks before the sky answers: the iterations of its march of the screen, and the steps it may take in each of the four rings the world's probes cut it into, the scene's surfaces it meets there lit by what the probes hold.",
+    REFLECTION_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_ambient_occlusion',
+    "Changes from the next frame the screen-space ambient occlusion: the contact shadow a crease or a corner casts on the light that comes from all round, found in the depth the image drew. Its intensity (0 is off), radius, fade distance, power and bias, its quality — the resolutions it searches at and the samples a pixel takes — and whether it also occludes the screen probes' light. It applies where no screen probes light the pixels.",
+    AMBIENT_OCCLUSION_RULES,
   ),
   {
     name: 'trillion3d_add_light',
@@ -198,6 +258,13 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
           type: 'boolean',
           default: false,
           description: 'Enables virtual shadow map casting.',
+        },
+        shadowDistance: {
+          type: 'number',
+          minimum: 0,
+          default: SHADOW_DISTANCE_DEFAULT,
+          description:
+            "Directional only: how far from the eye, in meters, its shadows are asked to reach (the far-shadow test's edge lies a little farther, 427 m at 400). Past the edge a caster that does not set castFarShadow is left out: by default only the merged far-field shells of the world's coarser levels, every caster when the view's farShadowCullsAllMeshes is true. 0 leaves none out.",
         },
       },
       required: ['id', 'kind', 'color', 'intensity'],

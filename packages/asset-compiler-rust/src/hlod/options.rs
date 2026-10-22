@@ -87,8 +87,9 @@ impl HlodBuilder {
     /// (`translucency`, `options/translucency.rs`); an approximated or simplified layer, what its
     /// atlas holds where it holds no chart's value (`emptyTexels`); a merged or simplified layer,
     /// how its actors' meshes are built (`meshBuild`, `options/meshes.rs`), as the reference reads
-    /// it from those layers alone. A voxel layer names none: its voxels are as fine as the cut's
-    /// pixel error asks where each level is drawn, its levels its bricks'.
+    /// it from those layers alone. A voxel layer names that alone, how its voxels are sampled:
+    /// they are as fine as the cut's pixel error asks where each level is drawn, its levels its
+    /// bricks'.
     fn settings(self) -> &'static [&'static str] {
         match self {
             Self::Instanced => &[
@@ -98,7 +99,7 @@ impl HlodBuilder {
                 "minVolume",
                 "clusterDag",
             ],
-            Self::Voxel => &[],
+            Self::Voxel => &["meshBuild"],
             Self::Approximate => &[
                 "accuracy",
                 "deviation",

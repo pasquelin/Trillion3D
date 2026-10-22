@@ -59,6 +59,7 @@ pub(crate) fn load_model_file(
     let binary =
         crate::compiler::source::load::compressed::draco_primitives(&mut g, binary, budget)?;
     expand_gpu_instances(&mut g, binary.bytes())?;
+    let binary = crate::compiler::source::spline::bend_spline_meshes(&mut g, binary)?;
     // A binary still mapped is one sidecar no codec rewrote — a rewrite owns its bytes: its digest
     // was taken when it was read (`concat_gltf_buffers`), and is not taken twice. A GLB's BIN chunk,
     // buffers joined or decoded views are hashed here, the only time.

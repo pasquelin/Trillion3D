@@ -38,7 +38,7 @@ const VIEW_FIELDS = [
   ['nodeCount', 'u32'],
   ['worldCount', 'u32'],
   // What the occlusion runs (`OCCLUSION_TWO_PASS`), and the culls the host turned off
-  // (`CULL_FRUSTUM_OFF`, `CULL_MIN_LOD_OFF`, `shader/viewsWgsl.ts`).
+  // (`CULL_FRUSTUM_OFF`, `CULL_MIN_LOD_OFF`, `CULL_DRAW_DISTANCE_OFF`, `shader/viewsWgsl.ts`).
   ['occlusion', 'u32'],
   ['cullOff', 'u32'],
   // The live list and the drawn log hold \`visCap\` entries each, and one pass opens \`nodeBudget\`
@@ -66,9 +66,18 @@ const VIEW_FIELDS = [
   // The placement tree's members drawn whatever the view (`placement/placementTree.ts`, `drawnAlways`): how
   // many its list holds (`tree/treeTable.ts`).
   ['alwaysCount', 'u32'],
+  // The scale every draw distance is multiplied by (`shader/drawDistanceWgsl.ts`), in the word
+  // `eye`'s alignment leaves.
+  ['viewDistanceScale', 'f32'],
   // The eye the cut reads its translations at, \`cameraWorld\` in doubles, high word then low word
   // (\`shader/worldPoseWgsl.ts\`): x and y in the first, z in the second.
   ['eye', 'array<vec4u,2>'],
+  // The view's clip plane in the render frame, `dot(xyz, p) + w` at least 0 drawn, all zero for none
+  // (`shader/clipPlaneWgsl.ts`), and the word of `work` its filter's bits start at — a bit a
+  // placement, set when the view does not draw it —, 0 for a view with no filter
+  // (`shader/viewFilterWgsl.ts`).
+  ['clipPlane', 'vec4f'],
+  ['filterBase', 'u32'],
 ] as const
 
 const LAYOUT = fieldLayout('Uniforms', VIEW_FIELDS)

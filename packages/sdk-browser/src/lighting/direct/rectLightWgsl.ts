@@ -97,6 +97,15 @@ fn rectIrradianceOf(r:RectView,N:vec3f)->vec4f{
  if(r.window<=0.0){return vec4f(0.0);}
  let f=polygonFormFactor(r.a,r.b,r.c,r.d,N);
  return vec4f(f.xyz,PI*f.w*r.window);
+}
+/** The rectangle's integral with no normal, of its view \`r\` at P: half the length of its vector
+ *  form factor, each edge's term by the angle it subtends (\`rectEdge\`), before its range window
+ *  (\`r.window\`, the caller's). It is the irradiance on a face turned to the rectangle, whole above its
+ *  horizon: what a point of a medium, which has no surface, reads of it — a facing patch's solid
+ *  angle, \`area / distance²\` far away. */
+fn rectFormOf(r:RectView)->f32{
+ let form=rectEdge(r.a,r.b-r.a,1.0,dot(r.a,r.b))+rectEdge(r.b,r.c-r.b,1.0,dot(r.b,r.c))+rectEdge(r.c,r.d-r.c,1.0,dot(r.c,r.d))+rectEdge(r.d,r.a-r.d,1.0,dot(r.d,r.a));
+ return 0.5*length(form);
 }`,
 )
 

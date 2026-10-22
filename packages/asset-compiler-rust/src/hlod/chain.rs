@@ -125,8 +125,9 @@ pub(crate) fn stage_world_roots(
 }
 
 /// What the job tells of how its objects were assigned: each object whose mark won over a rule
-/// naming another layer, each node marked that no HLOD takes, and each object its settings make an
-/// instanced skinned one that stays a plain skinned one: told, never an error.
+/// naming another layer, each node marked that no HLOD takes, each object its settings make an
+/// instanced skinned one that stays a plain skinned one, and each batch root whose `runtimeGrid` no
+/// streaming grid bears: told, never an error.
 fn assignment_warnings(cells: &CellMembers, hlod: &crate::Hlod, nodes: &[Value]) -> Vec<String> {
     let name = |node: usize| {
         nodes
@@ -156,7 +157,18 @@ fn assignment_warnings(cells: &CellMembers, hlod: &crate::Hlod, nodes: &[Value])
             name(*node)
         )
     });
-    overruled.chain(unplaced).chain(banks).collect()
+    let grids = (cells.unknown_grids.iter()).map(|(node, grid)| {
+        format!(
+            "node {node} {}: its runtimeGrid {grid:?} is no streaming grid of the job: it streams \
+             on the first grid",
+            name(*node)
+        )
+    });
+    overruled
+        .chain(unplaced)
+        .chain(banks)
+        .chain(grids)
+        .collect()
 }
 
 /// The published scene with its flattened materials added and each actor's glTF material rank in

@@ -12,8 +12,12 @@ import { askEntryCorners } from '../../blend/transparent/entryCorners.ts'
 import { wantsEmissiveAo } from '../prepare/emissiveAoLayer.ts'
 import { askLobedPrograms } from '../prepare/contractLight.ts'
 import { askAtmosphere } from '../render/encodeAtmosphere.ts'
+import { askFogVolume } from '../render/encodeFogVolume.ts'
+import { askScreenProbes } from '../../lighting/bounce/screen/frame.ts'
 import { askExposure } from '../../post/exposure/frame.ts'
 import { askFinish } from '../../post/finish/frame.ts'
+import { askBloomPrograms } from '../../post/effects/bloom/bloomAsk.ts'
+import { askVelocity } from '../../post/taa/velocityFrame.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 /** The class set each census last asked its classes of. */
@@ -55,10 +59,12 @@ function askShadeClasses(rt: WebgpuPagesRuntime) {
  * composing placements once a parent links rows, the roots' boxes and the tree's leaves — these
  * four once the session's cut is adopted, never queued ahead of its compiles —, the
  * lobe code of a lobed surface (`askLobedPrograms`), the atmosphere's passes once the scene
- * declares one (`askAtmosphere`), the automatic exposure's measure once an image
+ * declares one (`askAtmosphere`), the fog's volume once the scene turns it on
+ * (`askFogVolume`), the screen probes' kernels once the level casts them (`askScreenProbes`), the automatic exposure's measure once an image
  * lit by declared lamps asks it (`askExposure`), the local exposure's passes once its settings
- * ask them (`askFinish`), the visibility raster once the targets it
- * spans are made —,
+ * ask them (`askFinish`), the bloom's convolution and the finishing of its glow once a bloom
+ * draws one (`askBloomPrograms`), the velocity stage's program once a pass reads the motion
+ * (`askVelocity`), the visibility raster once the targets it spans are made —,
  * each compiled off the thread (`PreparedPipeline.ask`): the frame is held while one compiles
  * (`deviceAnswering`), showing the previous image, never compiling one itself. Prepare asks them
  * the same way before the first frame. A session lost, or not prepared, asks nothing.
@@ -80,7 +86,11 @@ export function askFramePipelines(rt: WebgpuPagesRuntime) {
   }
   askLobedPrograms(rt, device)
   askAtmosphere(rt, device)
+  askFogVolume(rt, device)
+  askScreenProbes(rt, device)
   askExposure(rt, device)
   askFinish(rt, device)
+  askBloomPrograms(rt, device)
+  askVelocity(rt, device)
   if (rt.gpu.depthView) ensureGpuRaster(rt, device)
 }

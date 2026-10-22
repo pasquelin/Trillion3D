@@ -15,7 +15,16 @@ import { resolveSetting, type SettingRule } from '../contracts/settingRules.ts'
 import { CUT_RULES } from '../contracts/cutOptions.ts'
 import { ANIMATION_RULES } from '../contracts/animationOptions.ts'
 import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
+import { SHADOW_RULES } from '../contracts/shadowOptions.ts'
+import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
+import { BLOOM_RULES } from '../contracts/bloomRules.ts'
+import { FILM_RULES } from '../contracts/filmOptions.ts'
+import { VOLUMETRIC_FOG_RULES } from '../contracts/volumetricFogOptions.ts'
+import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
 import { RASTER_RULES } from '../contracts/rasterOptions.ts'
+import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
+import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
+import { DEPTH_OF_FIELD_RULES } from '../contracts/depthOfFieldRules.ts'
 
 const validate = new Ajv().compile(EXPLORER_OPTIONS_SCHEMA)
 const explorer = { manifestUrl: '/assets/model/manifest.json' }
@@ -93,14 +102,24 @@ test('an explorer request naming only its manifest is completed with the engine 
 })
 
 test('a switch the host leaves out is set in the engine as the schema advertises it', () => {
-  // The raster's settings, the world streaming's, the cut's, the animation's and the temporal
-  // pass's are read by their contract's one resolver; every other switch is the explorer's.
+  // The raster's settings, the world streaming's, the cut's, the animation's, the temporal pass's
+  // the sun's shadows' and the motion blur's are read by their contract's one resolver; every other
+  // switch is the explorer's.
   const rules: Readonly<Record<string, SettingRule>> = {
     ...RASTER_RULES,
     ...WORLD_STREAMING_RULES,
     ...CUT_RULES,
     ...ANIMATION_RULES,
     ...TEMPORAL_RULES,
+    ...SHADOW_RULES,
+    ...MOTION_BLUR_RULES,
+    ...BLOOM_RULES,
+    ...FILM_RULES,
+    ...VOLUMETRIC_FOG_RULES,
+    ...SCREEN_PROBE_RULES,
+    ...AMBIENT_OCCLUSION_RULES,
+    ...TESSELLATION_RULES,
+    ...DEPTH_OF_FIELD_RULES,
   }
   const advertised = Object.entries(EXPLORER_OPTIONS_SCHEMA.properties).filter(
     ([, property]) => property.type === 'boolean' && property.default !== undefined,
@@ -116,4 +135,28 @@ test('a switch the host leaves out is set in the engine as the schema advertises
 // No pool ceiling: the drawable-page tables start at the pool and grow in place past it.
 test('the schema advertises no geometry pool ceiling', () => {
   assert.equal(EXPLORER_OPTIONS_SCHEMA.properties.geometryPoolCeilingBytes, undefined)
+})
+
+test('a level setting takes its names, true for its default and false for off, as the anti-aliasing level does', () => {
+  for (const key of [
+    'screenProbes',
+    'motionBlurQuality',
+    'volumetricFogQuality',
+    'chromaticAberrationQuality',
+  ] as const) {
+    for (const value of [true, false, 'off'])
+      assert.equal(validate({ ...explorer, [key]: value }), true, `${key} ${String(value)}`)
+    assert.equal(validate({ ...explorer, [key]: 'extreme' }), false, key)
+    assert.equal(validate({ ...explorer, [key]: 3 }), false, key)
+  }
+})
+
+test('the depth of field level takes its five names, true for its default and false for off', () => {
+  const key = 'depthOfFieldQuality'
+  for (const value of [true, false, 'off', 'low', 'high', 'veryHigh', 'extreme'])
+    assert.equal(validate({ ...explorer, [key]: value }), true, `${key} ${String(value)}`)
+  for (const value of ['ultra', 3, null])
+    assert.equal(validate({ ...explorer, [key]: value }), false, `${key} ${String(value)}`)
+  assert.equal(EXPLORER_OPTIONS_SCHEMA.properties.depthOfFieldGatherDivisor.default, 2)
+  assert.equal(EXPLORER_OPTIONS_SCHEMA.properties.depthOfFieldRingCount.default, 4)
 })

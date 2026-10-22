@@ -42,6 +42,10 @@ export type QueueOptions = {
   /** Starts the read of the bytes the pool uploads for `page`, which its load joins; none for a
    *  page served from memory (`hasBytes`). */
   read: (page: PageRec, signal: AbortSignal | undefined) => Promise<unknown> | undefined
+  /** Whether the object `page` belongs to is invalid: a read of it was given up for good
+   *  (`../streaming/pageStreamer.ts`, `failed`). A page of it still on its way is dropped once it
+   *  arrives, never installed (`./queueInstalls.ts`). */
+  invalid: (page: PageRec) => boolean
   /** The rank of a page a later holder brought into the root cover: the lowest loaded first. */
   coverRank: (page: PageRec) => number
   signal?: AbortSignal
@@ -70,16 +74,34 @@ export type Started = {
   onFree: boolean
   onGrain: boolean
   cover: boolean
+  /** Whether it is a root page, which takes a root grain (`onGrain`, or one the pool holds
+   *  already): installed whole, never slowed by the simulated bandwidth. */
+  root: boolean
   cache: GpuPageCache
   read: Promise<void> | undefined
   ready: boolean
   failed: boolean
   error: unknown
+  /** The bytes of its pages the simulated bandwidth has not let it take yet
+   *  (`streamingBandwidthLimit`, `./queueInstalls.ts`): none counted until it is asked. */
+  bytesLeft?: number
 }
+
+/** The pacing of the installs, per frame of the engine (`createFrameGate`): `installFrame` the one
+ *  the installs left were counted for, `installsLeft` how many it has; `bandwidthFrame` the one the
+ *  simulated bandwidth was paced for (`paceFrame`), `bandwidthAt` the clock it was paced at, ms —
+ *  none while no limit holds —, `bytesLeft` the bytes it leaves the frame's pages. */
+export const createInstallPacing = () => ({
+  installFrame: -1,
+  installsLeft: 0,
+  bandwidthFrame: -1,
+  bandwidthAt: undefined as number | undefined,
+  bytesLeft: 0,
+})
 
 /** The limits an update runs by, in streaming pages: each setting read by its one resolver, the
  *  installs never more than may be pending, the high mark of the pool's load never under its low
- *  mark. */
+ *  mark, the simulated bandwidth in megabytes a second (negative: none). */
 export function limitsOf(settings: StreamingOptions) {
   const read = <F extends keyof typeof STREAMING_RULES>(field: F) =>
     readSetting(STREAMING_RULES, settings, field)
@@ -91,6 +113,7 @@ export function limitsOf(settings: StreamingOptions) {
     minPoolPercent,
     maxPoolPercent: Math.max(minPoolPercent, read('streamingQualityMaxPoolPercent')),
     minScale: read('streamingQualityMinScale'),
+    bandwidthLimit: read('streamingBandwidthLimit'),
   }
 }
 
@@ -145,9 +168,8 @@ export function createQueueState(o: QueueOptions) {
     covering: new Set<number>(),
     /** Streaming pages whose bytes failed for good: never started again by this session. */
     refused: new Set<number>(),
-    /** The frame the installs left were counted for, and how many it has left. */
-    installFrame: -1,
-    installsLeft: 0,
+    /** What a frame's installs and its simulated bandwidth leave (`createInstallPacing`). */
+    pacing: createInstallPacing(),
     /** The last update left streaming pages it would have started but for the pending bound. */
     more: false,
     /** The install loop and whether it runs (`pump`). */

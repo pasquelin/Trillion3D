@@ -8,11 +8,13 @@ import { createAsideCut } from '../aside.ts'
 import { createTreeFollower } from '../tree/treeFollow.ts'
 import { createLinkFollower } from '../worlds/worldFollow.ts'
 import { WORLD_ROOT_MARK } from '../worlds/worldLinks.ts'
+import { DRAW_DISTANCE_MARK } from '../frameTable.ts'
 import {
   flushRuntime,
   parkRoot,
   updateRuntimeResidency,
   voidCuts,
+  writeDrawDistance,
   writeMark,
   type DagRun,
   type RootsOnGpu,
@@ -23,6 +25,7 @@ import type { DagResources } from '../resources.ts'
 import { cutReaders } from '../cut/cutReaders.ts'
 import { cutBytes } from '../cut/cutBuffers.ts'
 import { createProxyInstances } from '../proxy/proxyInstances.ts'
+import { holdViewFilter } from '../viewFilterRegion.ts'
 import { followRecords } from '../recordsFollow.ts'
 import { NO_PROXY_BOXES } from '../../../lighting/bounce/probes/probeSync.ts'
 
@@ -147,9 +150,17 @@ function selectionOver(run: DagRun, roots: RootsOnGpu): GpuSelection {
     appendRoots: (roots) => appendRoots(run, roots),
     followRows: (rows) => live() && followRows(resources, state, rows),
     parkWorld: (w, parked) => live() && parkRoot(run, w, parked),
-    // A placement of the world DAG keeps its mark (`WORLD_ROOT_MARK`) whatever the root's bits.
+    // A placement of the world DAG keeps its mark (`WORLD_ROOT_MARK`), and one that names a draw
+    // distance its bit (`DRAW_DISTANCE_MARK`, `drawDistanceWorld`), whatever the root's bits.
     markWorld: (w, mark) =>
-      live() && writeMark(run, w, mark | (resources.packed.mark[w] & WORLD_ROOT_MARK)),
+      live() &&
+      writeMark(run, w, mark | (resources.packed.mark[w] & (WORLD_ROOT_MARK | DRAW_DISTANCE_MARK))),
+    drawDistanceWorld: (w, distance) => live() && writeDrawDistance(run, w, distance),
+    get drawDistances() {
+      return !!resources.packed.drawDistance
+    },
+    proxyDistance: (eye, scale) => live() && run.proxies.distance(eye, scale),
+    holdFilter: (bits) => (live() ? holdViewFilter(resources, bits) : undefined),
     // What the passes beside the cut read: its tables, the proxy (`../cut/cutReaders.ts`).
     ...cutReaders(run, live),
     get proxyHostBytes() {

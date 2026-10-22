@@ -9,6 +9,7 @@
 import { transformAffinePoint } from '../../../../../math/src/vector/vector.ts'
 import { FINITE_SENTINEL } from '../../../../../math/src/constants.ts'
 import { writeSplitDouble } from '../../../../../math/src/float/splitDouble.ts'
+import { f64WordsInto, fromF32Bits } from '../../../../../math/src/float/bits.ts'
 import { boxRadius } from '../../../../../math/src/geometry/box.ts'
 import {
   rootWorldBox,
@@ -20,6 +21,7 @@ import type { Placements } from '../../../geometry/selection/placements.ts'
 import {
   LOD_BIT,
   LOD_INPUT,
+  LOD_OBJECT,
   ROW_LOD_FLOATS,
   ROW_LOD_INPUT_DOUBLES,
   rowLodInputs,
@@ -42,9 +44,25 @@ function writeError(
 
 const inputs = new Float64Array(ROW_LOD_INPUT_DOUBLES)
 const IDENTITY = new Float64Array(16)
+const objectWords = new Uint32Array(4)
+
+/** The row's whole object at `out[at + LOD_OBJECT]`, as the shader makes it from singles: the
+ *  offset of its centre from the row's own, turned by the linear part of the world `e` — its three
+ *  products summed, then rounded once, a device's own rounding of each a last place of it away —, and
+ *  its radius by the stretch `scale`. */
+function writeObject(out: Float32Array, at: number, e: ArrayLike<number>, scale: number) {
+  f64WordsInto(objectWords, 0, inputs[LOD_INPUT.object])
+  f64WordsInto(objectWords, 2, inputs[LOD_INPUT.object + 1])
+  const [dx, dy, dz, radius] = Array.from(objectWords, fromF32Bits)
+  for (let axis = 0; axis < 3; axis++) {
+    out[at + LOD_OBJECT + axis] =
+      Math.fround(e[axis]) * dx + Math.fround(e[4 + axis]) * dy + Math.fround(e[8 + axis]) * dz
+  }
+  out[at + LOD_OBJECT + 3] = Math.fround(radius * Math.fround(scale))
+}
 
 /** Row `row`'s detail words at its root's world, its stretch (`worldStretch`) and the radius of
- *  its world box, from its inputs (`rowLodInputs`). */
+ *  its world box, the row's whole object by both, from its inputs (`rowLodInputs`). */
 export function writeRowLod(
   out: Float32Array,
   row: number,
@@ -62,6 +80,7 @@ export function writeRowLod(
   // A row with no coarser form carries `FINITE_SENTINEL` as its parent's error: every page
   // wants finer.
   out[at + 7] = FINITE_SENTINEL
+  writeObject(out, at, e, scale)
   const flags = inputs[LOD_INPUT.flags]
   // The object's bounding radius: the screen-size cull is an instance test.
   if (flags & LOD_BIT.hasBox && box) out[at + 18] = boxRadius(box)

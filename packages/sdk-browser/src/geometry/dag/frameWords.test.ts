@@ -4,6 +4,7 @@
 // placements, and on a generated field of 16.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { fromF32Bits } from '../../../../math/src/float/bits.ts'
 import { createCameraFrames } from './cameraFrames.ts'
 import { FRAME_ROW_WORDS } from './types.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -13,9 +14,17 @@ import { mockDagDevice } from './selection/selection.fixture.ts'
 import { createGpuDagSelection } from './selection/selection.ts'
 import { packDagSelection } from './pack/pack.ts'
 import { placementField } from './placement/placementTree.fixture.ts'
-import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
+import { SHADOWLESS_ROOT } from '../../visibility/shader/castingMark.ts'
 import { createSelectionUniforms } from '../../gpu/core/selection.ts'
-import { FRAME_TABLE, MARK_WORD, RECORD_SHIFT_WORD, ROOT_WORD } from './frameTable.ts'
+import {
+  DRAW_DISTANCE_MARK,
+  DRAW_FAR_WORD,
+  DRAW_NEAR_WORD,
+  FRAME_TABLE,
+  MARK_WORD,
+  RECORD_SHIFT_WORD,
+  ROOT_WORD,
+} from './frameTable.ts'
 import { recordWordAt } from '../../gpu/core/recordTexture.fixture.ts'
 import { hostStretches } from './hostStretches.fixture.ts'
 
@@ -73,4 +82,34 @@ test('two marks on rows side by side reach the cut, read off their one write', a
     [4, SHADOWLESS_ROOT],
     [5, SHADOWLESS_ROOT],
   ])
+})
+
+test('a draw distance set on a running placement reaches its frame words, its mark and the cut', async () => {
+  installGpuGlobals()
+  const packed = packDagSelection(placementField(4, 6))
+  const { device, rows } = mockDagDevice(packed)
+  const selection = (await createGpuDagSelection(device, packed, { roots: hostStretches(packed) }))!
+  assert.equal(selection.drawDistances, false, 'no placement names a distance yet')
+  const earlier = rows().length
+  selection.drawDistanceWorld(4, { min: 2, max: 9 })
+  selection.drawDistanceWorld(4, { min: 2, max: 9 })
+  selection.dispatch(createSelectionUniforms())
+  const words = rows()
+    .slice(earlier)
+    .map(([first, row]) => [
+      first / FRAME_ROW_WORDS,
+      [row[DRAW_NEAR_WORD], row[DRAW_FAR_WORD]].map(fromF32Bits),
+      row[MARK_WORD] & DRAW_DISTANCE_MARK,
+    ])
+  assert.deepEqual(words, [[4, [2, 9], DRAW_DISTANCE_MARK]], 'one write')
+  assert.equal(selection.drawDistances, true)
+  // A mark written beside it keeps the bit; the distance taken back clears it with the words.
+  selection.markWorld(4, SHADOWLESS_ROOT)
+  selection.drawDistanceWorld(4, undefined)
+  selection.dispatch(createSelectionUniforms())
+  const last = rows().at(-1)![1]
+  assert.deepEqual(
+    [last[DRAW_NEAR_WORD], last[DRAW_FAR_WORD], last[MARK_WORD]],
+    [0, 0, SHADOWLESS_ROOT],
+  )
 })

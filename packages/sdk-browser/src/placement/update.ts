@@ -1,8 +1,8 @@
 import type { ClusterRoot } from '../geometry/selection/types.ts'
 import { worldMoved } from '../geometry/selection/rootWorld.ts'
-import { rowShadowless, type PlacementRows } from './rows/rows.ts'
+import { rowCasting, rowDrawDistance, type PlacementRows } from './rows/rows.ts'
 import { settleRoot } from './hidden.ts'
-import { markShadowless } from '../visibility/shader/spriteWgsl.ts'
+import { markCasting } from '../visibility/shader/castingMark.ts'
 import type { NodeIndex } from '../frame/render/movedNode.ts'
 
 /** What a pose did to a placement: nothing, a move of one already moving, a first move. */
@@ -35,6 +35,20 @@ function rowRoots<T>(roots: readonly ClusterRoot<T>[], rows: PlacementRows) {
   return (index.get(rows) ?? NO_ROOTS) as RowRoot<T>[]
 }
 
+/** `root` drawn at the distances its row names now (`PlacementRows.drawDistance`): true when that
+ *  changed them. */
+function followDrawDistance(root: ClusterRoot<unknown>) {
+  const { rows, index } = root.placement!,
+    held = root.drawDistance
+  if (
+    (rows.drawDistance?.[2 * index] ?? 0) === (held?.min ?? 0) &&
+    (rows.drawDistance?.[2 * index + 1] ?? 0) === (held?.max ?? 0)
+  )
+    return false
+  root.drawDistance = rowDrawDistance(root.placement!)
+  return true
+}
+
 /** The rank of the root that reads row `index` of `rows`, or -1 when none does. */
 export const rootRankOfRow = <T>(
   roots: readonly ClusterRoot<T>[],
@@ -51,8 +65,9 @@ export const forgetRowRoots = (roots: readonly object[]) => {
 /**
  * Brings the roots of rows `from` to `to` level with what the owner wrote in them: each root's
  * world is already the row (a view), so only what the engine DERIVES from it follows — its world
- * box, taken when read (`worldMoved`), its parked flag and its shadowless bit (`ClusterRoot.mark`),
- * which `flip` hands to a GPU cut when the engine has one. `posed` hears the rank of every root the
+ * box, taken when read (`worldMoved`), its parked flag, its shadowless and far-shadow bits
+ * (`ClusterRoot.mark`) and the distances it is drawn at (`ClusterRoot.drawDistance`), which `flip`
+ * hands to a GPU cut when the engine has one. `posed` hears the rank of every root the
  * rows pose, with the pose it now has — never forced: a row taken or parked where it stands is
  * shown or hidden, not moved —, and says whether it moved (`MOVE_*`). A root that began or stopped
  * casting is not made a moving caster for it. `follow` names each root that reads a written row:
@@ -60,7 +75,8 @@ export const forgetRowRoots = (roots: readonly object[]) => {
  * (`rows/rowCastWgsl.ts`). A row of the range left where it stands — a pose written again unchanged, a
  * row between two written ones — moves nothing. A row re-seated on another mesh raises the
  * revision of `owner`'s index of the roots by node (`../frame/render/movedNode.ts`). Returns whether a drawn root moved, was shown or
- * hidden, or turned to cast or not: a still scene pays nothing downstream.
+ * hidden, turned to cast or not, or changed the distances it is drawn at: a still scene pays
+ * nothing downstream.
  */
 export function followPlacementRows<T>(
   roots: readonly ClusterRoot<T>[],
@@ -86,19 +102,21 @@ export function followPlacementRows<T>(
       entry.owner = seated
       if (owner) owner.rootIndex.revision++
     }
-    const cast = markShadowless(root, rowShadowless(root.placement!))
+    const cast = markCasting(root, rowCasting(root.placement!))
+    // Its distances too: written before the flip that hands them to the cut.
+    const distant = followDrawDistance(root)
     // Its pose alone says whether it moved: a row taken or parked where it stands is shown or
     // hidden, not moved — the primitive is removed or added and its pages invalidated once,
     // without caching it as dynamic (only a transform update does).
     const move = posed ? posed(rank, root.world.elements) : MOVE_PROMOTED,
       wasParked = !!root.parked,
-      flipped = settleRoot(root, rank, flip, cast),
+      flipped = settleRoot(root, rank, flip, cast || distant),
       parked = !!root.parked
     follow?.(rank)
     worldMoved(root)
     // Its rows and box follow the row all the same; a root without a box, or parked before and
     // after, draws nothing that moved.
-    if (move === MOVE_NONE && !cast && !flipped) continue
+    if (move === MOVE_NONE && !cast && !distant && !flipped) continue
     if (root.worldBox && !(wasParked && parked)) any = true
   }
   return any

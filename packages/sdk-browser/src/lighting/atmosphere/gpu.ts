@@ -1,6 +1,7 @@
 import { createAirEncoder } from './encode.ts'
 import { createAirResources, type SkyCapture } from './resources.ts'
 import { createSkyDraw } from './sky.ts'
+import type { FogRead } from '../fog/read.ts'
 
 export type { SkyCapture }
 
@@ -31,15 +32,17 @@ export function createAtmosphereGpu(device: GPUDevice, failed: (error: unknown) 
      *  changed, the sky around the eye and the haze every image, the sky's sums when the sun or the
      *  air moved — and the copy of the harmonics, read back once the image is submitted. */
     encode: work.encode,
-    /** The sky over the lit image where no surface was drawn, `width × height` pixels of `hdr`. */
+    /** The sky over the lit image where no surface was drawn, `width × height` pixels of `hdr`, the
+     *  fog over it read from `fog` (`FogRead`). */
     drawSky(
       encoder: GPUCommandEncoder,
       hdr: GPUTextureView,
       flags: GPUTextureView,
       width: number,
       height: number,
+      fog: FogRead,
     ) {
-      draw(encoder, work.groups, hdr, flags, width, height)
+      draw(encoder, work.groups, hdr, flags, width, height, fog)
     },
     /** How many times the sky by direction was built, counted as its pass is encoded: what the bounce
      *  probes compare, to see the sky again once it changed — or first came. */

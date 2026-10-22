@@ -5,13 +5,20 @@ import { directTiles, encodeDirectLights } from './encodeLights.ts'
 import { finishVsmFrame } from '../../lighting/shadows/vsm/frame/vsmFrameEnd.ts'
 import { composesOffscreen } from '../../diagnostic/gpuVariant.ts'
 import { encodeTaaPass } from '../../post/taa/frame.ts'
+import { encodeVelocity } from '../../post/taa/velocityFrame.ts'
 import { encodeExposure, exposureSettings } from '../../post/exposure/frame.ts'
 import { encodeFinish, finishedGroup } from '../../post/finish/frame.ts'
 import { stochasticPhase } from '../../post/taa/frameState.ts'
-import { composedImage, encodeEffects, encodeOverlayEffects } from './encodeEffects.ts'
+import {
+  composedImage,
+  encodeEffects,
+  encodeOverlayEffects,
+  encodeResolvedEffects,
+} from './encodeEffects.ts'
 import { seedAsIsShare } from '../prepare/asIsShareTarget.ts'
 import { directLightResources, readsAsIs, wantsContractLighting } from '../prepare/contractLight.ts'
 import { encodeAtmosphere, encodeSky } from './encodeAtmosphere.ts'
+import { encodeFogVolume } from './encodeFogVolume.ts'
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
 import { bindBlend, encodeBlend, prepareBlend } from './encodeBlend.ts'
@@ -23,6 +30,8 @@ import {
   encodeReflections,
 } from '../../lighting/reflections/frame.ts'
 import { adoptRadianceImage } from '../../lighting/reflections/radiance/radiance.ts'
+import { encodeScreenProbes } from '../../lighting/bounce/screen/frame.ts'
+import { encodeAmbientOcclusion } from '../../lighting/ao/frame.ts'
 import { viewProj } from '../backend/helpers.ts'
 import { encodeSeeThroughBackground, encodeXray } from '../../visibility/passes/xray.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -61,6 +70,7 @@ function encodeImageChain(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
+  cam: EngineCamera,
   accumulated: ReturnType<typeof encodeTaaPass>,
   blendShare: ReturnType<typeof seedAsIsShare>,
   asIs: boolean,
@@ -72,13 +82,16 @@ function encodeImageChain(
   // size drawn, which the composition upscales.
   source.drawn = accumulated ? gpu.displaySize : gpu.targetSize
   source.shown = gpu.displaySize
+  // The passes on the resolved image first, the motion blur: the exposure, the finishing and the
+  // chain read the image they leave.
+  const resolved = encodeResolvedEffects(rt, device, encoder, accumulated, cam)
   // The exposure the composition multiplies by, measured on the radiance the image holds before
   // the finishing and the chain touch it; the finishing's passes, which read it, then the chain's.
-  const image = accumulated?.color ?? lit
+  const image = resolved?.color ?? lit
   const exposure = exposureSettings(rt)
   encodeExposure(rt, device, encoder, image, source.drawn, raw, exposure)
   const post = encodeFinish(rt, device, encoder, image, source.drawn, raw, exposure)
-  const effects = encodeEffects(rt, device, encoder, accumulated, post)
+  const effects = encodeEffects(rt, device, encoder, resolved, post, source.drawn)
   let composed =
     asIs && blendShare && !accumulated
       ? composedImage(effects?.color ?? lit, blendShare.view, effects?.glow)
@@ -122,6 +135,9 @@ export function encodeSurfaceLighting(
   poseHost.revision = deformation?.frame.revision ?? 0
   run.gpuSelection?.proxyPose(encoder, poseHost)
   poseHost.pool = poseHost.deformation = undefined
+  // The motion of every texel, once, before any pass reads it: the indirect light, the temporal pass
+  // and the motion blur (`../../post/taa/velocityFrame.ts`).
+  encodeVelocity(rt, device, encoder, cam)
   // A view the resolve paints, and a lit view that measures, are shown in raw values; a view of
   // the lit image otherwise goes through the display chain as the lit image does (`showsRaw`).
   const [width, height] = gpu.targetSize,
@@ -142,10 +158,19 @@ export function encodeSurfaceLighting(
   // the shadows' projection, held until now — and the reflections march it.
   encodeDepthPyramid(rt, encoder)
   encodeHeldVsmProjection(rt)
+  // The fog's volume, built over the light lists and the sun's shadow maps just made, and the opaque
+  // depth: the resolve, the blends and the sky read it.
+  encodeFogVolume(rt, device, encoder, cam, direct)
   // What every surface reflects, traced here: the opaque ones, the resolve's input, and the
   // transparents' front one, which the translucent layers read; behind it, they read the same
   // view inline.
   encodeReflections(rt, encoder)
+  // The pixels' indirect light, from the probes placed on the image: after the reflections, which made
+  // the lit image of the last image readable, and before the lighting, which reads them.
+  encodeScreenProbes(rt, encoder)
+  // The ambient occlusion, where no screen probes light the pixels (or, asked, over theirs): from the depth pyramid
+  // this image built, before the lighting, which applies the texture it leaves.
+  encodeAmbientOcclusion(rt, encoder, cam)
   gpu.deferred.bind(
     gpu.surfaces,
     gpu.depthView,
@@ -179,7 +204,7 @@ export function encodeSurfaceLighting(
   // Composition reads the temporal result, or the lit image without accumulation.
   const asIs = readsAsIs(rt)
   const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView, asIs, blendShare)
-  const composed = encodeImageChain(rt, device, encoder, accumulated, blendShare, asIs, raw)
+  const composed = encodeImageChain(rt, device, encoder, cam, accumulated, blendShare, asIs, raw)
   const guided = guidesShown(rt)
   const presentation = presentationOf(rt, guided)
   // The frame-difference view composes the display image alone, then draws its difference with

@@ -11,7 +11,8 @@
 //! skin's frame at no pose, naming its item (`"bank"`, `hang_banks`).
 //!
 //! The cells are those of the grids of the job's scheme (`grid.rs`, `PartitionScheme`): every
-//! batch in the cell of the main grid — the one the job sets (`partitionGrid`, `PartitionGrid`) —
+//! batch in the cell of the main grid it streams on — the one its root's `runtimeGrid` names among
+//! those the job sets (`partitionGrid`, or `partitionGrids`, `PartitionGrid`), the first for none —
 //! the box around its objects' world boxes goes to (`partition/split.rs`) — on the square grids of
 //! `spatialHash`, a batch no cell below the main grid's top holds whole is always loaded, in the
 //! core, as are objects whose instanced layer's HLOD 0 actor no cell of its grid holds
@@ -59,8 +60,8 @@ pub(crate) type Box6 = [f64; 6];
 /// The input scene a partition reads: its glTF document, its binary and each input mesh's box.
 type InputScene<'a> = (&'a Value, &'a [u8], &'a [Option<Box6>]);
 
-/// Version of a page and of the root the core carries; what each version changed is told in
-/// `docs/FORMAT.md` (World partition).
+/// Version of a page and of the root the core carries, one more with several main grids
+/// (`pages::GRIDS_CELL_PAGES`); `docs/FORMAT.md` (World partition) tells what each changed.
 const PARTITION_VERSION: u32 = 13;
 /// Version of a cell file; what each version changed is told in `docs/FORMAT.md` (World partition).
 const CELL_VERSION: u32 = 3;
@@ -74,9 +75,9 @@ const CELL_VERSION: u32 = 3;
 /// layer — its node, the mark's layer and the rule's (`Assigned`) —; each node marked that no HLOD
 /// takes — it moves, itself or through a node above it, or is not spatially loaded or in a batch
 /// with one that is not, hidden, held whole by no cell below a grid's top, or turned away by its
-/// layer's size filter —; and each node its
-/// settings make an instanced skinned object that stays a plain skinned one, with why
-/// (`bank_warnings`: the bake's refusals, `Banks::refused`, then the partition's).
+/// layer's size filter —; each node its settings make an instanced skinned object that stays a
+/// plain skinned one, with why (`bank_warnings`: the bake's refusals, `Banks::refused`, then the
+/// partition's); and each batch root whose `runtimeGrid` no grid bears (`unknown_grids`).
 #[derive(Default)]
 pub(crate) struct CellMembers {
     pub nodes: Vec<Vec<usize>>,
@@ -86,6 +87,24 @@ pub(crate) struct CellMembers {
     pub overruled: Vec<(usize, usize, usize)>,
     pub unplaced: Vec<usize>,
     pub bank_warnings: Vec<(usize, String)>,
+    pub unknown_grids: Vec<(usize, String)>,
+}
+
+/// The box of the HLOD 0 actor of each layer in each main cell, by main grid, cell and layer: the
+/// box around the world boxes of the `candidates` the layer takes (`assigned`) there, in the cell
+/// (`coords`) their batch's box goes to.
+fn actor_boxes(
+    candidates: &[Candidate],
+    (coords, assigned): (&[Option<Coord>], &[Assigned]),
+) -> BTreeMap<(usize, Coord, usize), Box6> {
+    let mut actors = BTreeMap::new();
+    for ((coord, assigned), candidate) in coords.iter().zip(assigned).zip(candidates) {
+        if let (Some(coord), Some(layer)) = (coord, assigned.layer) {
+            let key = (candidate.grid, *coord, layer);
+            boxes::grown(&mut actors, key, &candidate.world);
+        }
+    }
+    actors
 }
 
 /// The core the runtime reads first, the root of the cells it reads by distance, and their count.
@@ -106,13 +125,13 @@ pub(crate) struct Partitioned {
 /// (`motion/bank.rs`); `source`, its binary and its meshes' boxes, the input scene a plain skinned
 /// object's bounds are sampled from (`gather`). The grids — the job's main `grid`, then the HLOD
 /// layers', of the job's scheme — span the world of the nodes that may stream (`Grids::of`), each
-/// batch in the main cell its box goes to: a batch no cell below the main grid's top holds whole,
-/// or objects whose instanced layer's HLOD 0 actor in their cell no cell of its grid holds
-/// (`streams_in_cell`), are always loaded, kept in the core; each layer's grid at the level the
-/// objects' layers give it (`Hlod::levels`); with the streaming off (`PartitionGrid::streams`),
-/// every node is. An HLOD that assigns a layer to no placed object that may take one refuses the
-/// job. `files` is the folder the cells' files are written in, and the job's pool that writes them
-/// side by side. Whether the scene is partitioned or not, `table` and `roots` come back with each
+/// batch in the main cell its box goes to on its main grid (`Candidate::grid`): a batch no cell
+/// below the main grid's top holds whole, or objects whose instanced layer's HLOD 0 actor in their
+/// cell no cell of its grid holds (`streams_in_cell`), are always loaded, kept in the core; each
+/// layer's grid at the level the objects' layers give it (`Hlod::levels`); with the streaming off
+/// (`PartitionGrid::streams`), every node is. An HLOD that assigns a layer to no placed object
+/// that may take one refuses the job. `files` is the folder the cells' files are written in, and
+/// the job's pool that writes them side by side. Whether the scene is partitioned or not, `table` and `roots` come back with each
 /// instanced skinned object the core keeps hung under its skin's frame (`hang_banks`), and each
 /// animated object a cell draws saying so (`"streamed"`).
 pub(crate) fn partition(
@@ -129,6 +148,7 @@ pub(crate) fn partition(
         batches,
         bankable,
         bank_warnings,
+        unknown_grids,
     } = gather(
         (g, worlds),
         (grid, objects, banks),
@@ -162,23 +182,23 @@ pub(crate) fn partition(
         .for_each(|c| grow_flat(&mut world, &c.world));
     // Each layer's level, from the layers the objects take (`Hlod::levels`).
     let levels = hlod.levels(assigned.iter().filter_map(|a| a.layer));
-    let grids = Grids::of((hlod, &levels, grid), &world);
-    // Each one's main cell, its batch's — `None` at a square grid's top —; and each main cell's
-    // HLOD 0 actor of each layer.
+    let grids = Grids::of(
+        (hlod, &levels, grid),
+        &world,
+        candidates.iter().map(|c| c.grid),
+    );
+    // Each one's main cell on its main grid, its batch's — `None` at a square grid's top —; and
+    // each main cell's HLOD 0 actor of each layer.
     let coords: Vec<Option<Coord>> = (candidates.iter())
-        .map(|c| grids.main().place(&batches[&c.batch]))
+        .map(|c| grids.main(c.grid).place(&batches[&c.batch]))
         .collect();
-    let mut actors: BTreeMap<(Coord, usize), Box6> = BTreeMap::new();
-    for ((coord, assigned), candidate) in coords.iter().zip(&assigned).zip(&candidates) {
-        if let (Some(coord), Some(layer)) = (coord, assigned.layer) {
-            boxes::grown(&mut actors, (*coord, layer), &candidate.world);
-        }
-    }
+    let actors = actor_boxes(&candidates, (&coords, &assigned));
     // A node streams in its main cell unless its instanced layer's actor there is always loaded.
     let streams = |k: usize| {
+        let main = candidates[k].grid;
         coords[k].is_some_and(|coord| {
-            let actor = |l: usize| (l, &actors[&(coord, l)]);
-            (assigned[k].layer).is_none_or(|l| streams_in_cell(hlod, &grids, actor(l)))
+            let actor = |l: usize| (l, &actors[&(main, coord, l)]);
+            (assigned[k].layer).is_none_or(|l| streams_in_cell(hlod, &grids, main, actor(l)))
         })
     };
     let placed_ids: Vec<usize> = (0..candidates.len()).filter(|&k| streams(k)).collect();
@@ -212,6 +232,7 @@ pub(crate) fn partition(
             node: id,
             layer: assigned.layer,
             bounds: candidate.world,
+            grid: candidate.grid,
             cell: coords[k].expect("a streaming node's cell"),
             parent: core_parent,
             local: candidate.local,
@@ -250,6 +271,7 @@ pub(crate) fn partition(
         overruled,
         unplaced,
         bank_warnings,
+        unknown_grids,
         ..CellMembers::default()
     };
     if placed.is_empty() {
@@ -259,7 +281,7 @@ pub(crate) fn partition(
     let roots = roots.iter().filter_map(|id| rank[*id]).collect();
     let mains = main_cells(placed);
     let (leaf_of, tree) = hlod_cells(&mains, hlod, &grids);
-    let (cells, tree_of) = grid_cells(mains, &leaf_of, &grids.main().grid);
+    let (cells, tree_of) = grid_cells(mains, &leaf_of, &grids);
     for cell in &cells {
         for (h, file) in &cell.files {
             members.nodes.push(file.iter().map(|p| p.node).collect());
@@ -270,12 +292,7 @@ pub(crate) fn partition(
         nodes,
         roots,
         cells: members.nodes.len(),
-        partition: write_cells(
-            (&cells, &tree_of),
-            (&tree, &grids, grid.scheme),
-            mesh_pages,
-            files,
-        )?,
+        partition: write_cells((&cells, &tree_of), (&tree, &grids, grid), mesh_pages, files)?,
         rank,
     });
     members.tree = tree;

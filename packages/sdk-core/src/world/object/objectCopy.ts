@@ -18,6 +18,7 @@ export function copyObject<T extends Object3D>(into: T, source: Object3D, recurs
   into.matrixWorldNeedsUpdate = source.matrixWorldNeedsUpdate
   into.visible = source.visible
   into.castShadow = source.castShadow
+  into.castFarShadow = source.castFarShadow
   into.receiveShadow = source.receiveShadow
   into.frustumCulled = source.frustumCulled
   into.renderOrder = source.renderOrder

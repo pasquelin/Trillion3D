@@ -9,6 +9,7 @@ import type {
 import type { VoxelizeOption } from '../../../sdk-core/src/contracts/voxelizeOptions.ts'
 import type {
   PartitionGridOption,
+  PartitionGridsOption,
   PartitionSchemeOption,
 } from '../../../sdk-core/src/contracts/partitionOptions.ts'
 import type { MeshBuildOption } from '../../../sdk-core/src/contracts/meshBuildOptions.ts'
@@ -119,9 +120,14 @@ export interface CompilerEvent {
    *  (`resolvePartitionGrid`). @defaultValue none: the reference's main grid, the cache key
    *  unchanged */
   partitionGrid?: PartitionGridOption
+  /** Several streaming grids instead of the one `partitionGrid`, each under a `name`, the first
+   *  the default; an object picks its grid by `runtimeGrid` (`resolvePartitionGrids`).
+   *  @defaultValue none: the one reference main grid, the cache key unchanged */
+  partitionGrids?: PartitionGridsOption
   /** How each mesh is built: `{ storedTangents, keptTriangles, trimmedError, dropNearCollapsed,
    *  alwaysResidentKib, recomputeNormals, recomputeTangents, useMikkTSpace,
    *  computeWeightedNormals, skinnedWeldPosition, skinnedWeldNormal, skinnedWeldTexture,
+   *  voxelRays, voxelLevel, voxelBackUp, voxelSeparable, voxelNdf, voxelOpacity, allowAssemblies,
    *  positionPrecision, normalPrecision, tangentPrecision, objects }`
    *  — whether its pages store the build's tangents (default `false`), the share of its triangles
    *  (default 1) and the error in percent of its size (default 0) its finest level is cut to,
@@ -131,7 +137,14 @@ export interface CompilerEvent {
    *  (default `true`) and every stored tangent (default `true`), the tangents MikkTSpace's
    *  (default `true`), the normals weighed by area and angle (default `false`), and how far a
    *  skinned mesh's corners may differ and be welded — metres (default 2e-7), unit vectors
-   *  (default 2e-5), texture coordinates (default 1/1024) —, the position grid of its pages (cells
+   *  (default 2e-5), texture coordinates (default 1/1024) —, how a voxelized mesh's voxels are
+   *  sampled: the rays cast across each (default 64), the DAG level from which every group is
+   *  voxels (default 0: where they are finer than its triangles), how far back a ray starts, in
+   *  voxel sides (default 0), whether the rays run along the axes alone (default `false`), whether
+   *  a voxel keeps its normals' spread (default `true`) and its coverage as opacity (default
+   *  `false`), whether the assembly its glTF `extras.assembly` names — parts and nodes — is built,
+   *  its own triangles and every node's part carried by its transform (default `false`: its own
+   *  triangles alone), the position grid of its pages (cells
    *  of 2^-n centimetre, a whole number from -20 to 43; default none: the mesh's density sets it),
    *  the bits an axis of its normals (1 to 15, default 8) and of its stored tangents' angle (0 to
    *  12, default 7), `objects`
@@ -140,17 +153,22 @@ export interface CompilerEvent {
    *  mesh's own `extras`, the default (`resolveMeshBuild`). @defaultValue none: every default,
    *  the cache key unchanged */
   meshBuild?: MeshBuildOption
-  /** Each object's settings: `{ spatiallyLoaded, skinnedInstance, objects }` — whether it streams
-   *  on the partition's main grid, drawn while the view lies within the grid's loading range of
-   *  its cell (default `true`: an animated object streams too, no HLOD standing for it past its
-   *  cell's range), or is loaded with the scene and always drawn (`false`); whether a skinned
-   *  object plays a clip baked into the scene's animation banks on the GPU, every instance of one
-   *  clip, mesh and settings in one pose — `true` every default, `false` (the default) its host's
-   *  clips move it, or `{ clip, looping, playRate, position, boundsScale, animationMinScreenSize,
-   *  mobility }`, each its default when left out: the first animation moving a joint of its skin,
-   *  `true`, 1, 0, 1, 0 the run-time setting `animationMinScreenSize`, `'movable'` —, `objects`
-   *  the rules `{ match, …settings }` setting them for the objects a match names; for each
-   *  setting, the first rule matching, the scene's, the node's own `extras`, the default
+  /** Each object's settings: `{ spatiallyLoaded, skinnedInstance, drawDistance, runtimeGrid, objects }` —
+   *  whether it streams on the partition's main grid, drawn while the view lies within the grid's
+   *  loading range of its cell (default `true`: an animated object streams too, no HLOD standing
+   *  for it past its cell's range), or is loaded with the scene and always drawn (`false`);
+   *  whether a skinned object plays a clip baked into the scene's animation banks on the GPU,
+   *  every instance of one clip, mesh and settings in one pose — `true` every default, `false`
+   *  (the default) its host's clips move it, or `{ clip, looping, playRate, position, boundsScale,
+   *  animationMinScreenSize, mobility }`, each its default when left out: the first animation
+   *  moving a joint of its skin, `true`, 1, 0, 1, 0 the run-time setting
+   *  `animationMinScreenSize`, `'movable'` —; the distances from the eye to the centre of its
+   *  bounds, in the scene's units, it is drawn at, culled nearer than `min` and farther than `max`
+   *  unless `max` is 0 (`cutDrawDistanceCulling`): `false` (the default) none, or `{ min, max }`,
+   *  each 0 when left out —; `runtimeGrid`, the name of the streaming grid it streams on
+   *  (`partitionGrids`; the first when it names none or one the job does not hold); `objects` the
+   *  rules `{ match, …settings }` setting them for the objects a match names; for each setting,
+   *  the first rule matching, the scene's, the node's own `extras`, the default
    *  (`resolveObjectSettings`). @defaultValue none: every default, the cache key unchanged */
   objectSettings?: ObjectSettingsOption
   /** Stops the job when aborted. */ signal?: AbortSignal
@@ -227,6 +245,7 @@ export interface BatchJob extends Pick<
   | 'voxelize'
   | 'partitionScheme'
   | 'partitionGrid'
+  | 'partitionGrids'
   | 'meshBuild'
   | 'objectSettings'
 > {

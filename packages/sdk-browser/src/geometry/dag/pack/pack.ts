@@ -56,6 +56,7 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     rootNodes: p.rootNodes,
     rootBases: p.rootBases,
     mark: p.mark,
+    drawDistance: p.drawDistance,
     levelSizes: Uint32Array.from(plan.levels, (count) => count ?? 0),
     nodeCount: size.nodes,
     entryCount: plan.entries,

@@ -12,7 +12,9 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import type { HostAttributes, HostMaterials, HostMesh } from '../../session/host/resources.ts'
 import type { PageSurface } from '../pages/surface.ts'
 import { meshes } from '../../scene/meshes.ts'
+import { nodeCasting } from '../../visibility/shader/castingMark.ts'
 import type { PlacementRows } from '../../placement/rows/rows.ts'
+import type { DrawDistance } from './types.ts'
 
 /** The association a manifest gave a source: its mesh and primitive ranks, the rows that place it. */
 export type DrawRanks = {
@@ -43,8 +45,11 @@ export type DrawSource = {
   /** The node the host watches for this source and poses it by; its chain decides hiding.
    *  Absent where rows place it: their owner writes the pose and the flags. */
   readonly node?: HostMesh
-  /** Whether it casts shadows. */
-  readonly castShadow: boolean
+  /** How it casts, as its node says (`nodeCasting`): no shadow, far shadows. */
+  readonly casting: number
+  /** The distances a node placed at its own world is drawn at (`holdDrawDistance`); a row says
+   *  its own (`PlacementRows.drawDistance`). Absent: at every distance. */
+  readonly drawDistance?: DrawDistance
   /** Whether the host lets it be skipped outside the view. */
   readonly frustumCulled: boolean
   /** The source wears `surface` from now on, in place of its declaration. */
@@ -80,8 +85,11 @@ class MeshSource implements DrawSource {
   wear(surface: PageSurface) {
     this.node.material = surface
   }
-  get castShadow() {
-    return this.node.castShadow
+  get casting() {
+    return nodeCasting(this.node)
+  }
+  get drawDistance() {
+    return drawDistances.get(this.node)
   }
   get frustumCulled() {
     return this.node.frustumCulled
@@ -101,6 +109,14 @@ class MeshSource implements DrawSource {
 }
 
 const sources = new WeakMap<HostMesh, MeshSource>()
+
+/** The distances each drawn mesh of a prepared scene's core is drawn at, from its node table
+ *  (`../../scene/host/prepared/graph.ts`): engine data no host object carries. */
+const drawDistances = new WeakMap<HostMesh, DrawDistance>()
+
+/** Mesh `mesh` is drawn at `distance` from now on. */
+export const holdDrawDistance = (mesh: HostMesh, distance: DrawDistance) =>
+  void drawDistances.set(mesh, distance)
 
 /** The source of a drawn graph node, one per node however many records name it; `ranks` is the
  *  association the manifest gave it, kept when given. */

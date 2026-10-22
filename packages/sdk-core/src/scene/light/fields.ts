@@ -5,6 +5,7 @@ import {
   LIGHT_SETTINGS,
   SCENE_LIGHT_FLOATS,
   SCENE_LIGHT_HEADER_FLOATS,
+  type AtmosphereSunIndex,
   type SceneLight,
 } from './contracts.ts'
 
@@ -41,6 +42,11 @@ export const LIGHT_FIELD = {
   emitterRadius: 16,
   /** Directional angular radius in radians, sharing the local source-radius lane. */
   angularRadius: 16,
+  /** A point or spot's tube: its axis times half its length, centred on the light — the two ends
+   *  are the light's place less and plus it —, zero for a sphere or a point. */
+  halfAxis: 20,
+  /** A point or spot's soft source radius. */
+  softRadius: 23,
 } as const
 /** A point tests no cone, and a spot without penumbra no inner cone: this cosine never bounds. */
 export const NO_CONE = -2
@@ -50,6 +56,10 @@ export const NO_CONE = -2
  *  directional lights (`atmosphereSun.ts`), and what the fog's sun scatters (`fogSun.ts`). */
 export const lightLuminance = (light: SceneLight) =>
   light.intensity * dotVector3(SRGB_LUMINANCE, light.color)
+
+/** The air's light a directional light is a candidate for: its `atmosphereSunIndex`, 0 absent. */
+export const atmosphereSunIndexOf = (light: SceneLight): AtmosphereSunIndex =>
+  light.atmosphereSunIndex ?? 0
 
 function writeVector(packed: Float32Array, at: number, value: readonly number[]) {
   packed[at] = value[0]
@@ -84,6 +94,20 @@ export function writeLightFields(packed: Float32Array, base: number, light: Scen
   if (light.kind === 'directional')
     packed[base + LIGHT_FIELD.angularRadius] =
       light.angularRadius ?? LIGHT_SETTINGS.sunAngularRadius
-  if (light.kind === 'point' || spot)
+  if (light.kind === 'point' || spot) {
     packed[base + LIGHT_FIELD.emitterRadius] = light.emitterRadius ?? 0
+    writeSource(packed, base, light)
+  } else writeSource(packed, base, {})
+}
+
+/** A lamp's tube and soft radius (`LIGHT_FIELD.halfAxis`, `softRadius`): zero for a light with
+ *  neither, whatever its slot held before. */
+function writeSource(packed: Float32Array, base: number, light: Partial<SceneLight>) {
+  const half = (light.emitterLength ?? 0) / 2
+  writeVector(
+    packed,
+    base + LIGHT_FIELD.halfAxis,
+    (light.emitterAxis ?? [0, 1, 0]).map((c) => c * half),
+  )
+  packed[base + LIGHT_FIELD.softRadius] = light.emitterSoftRadius ?? 0
 }

@@ -1,4 +1,5 @@
-import { DEFERRED_BINDINGS } from './bindings.ts'
+import { DEFERRED_BINDINGS, DEFERRED_FOG_BINDINGS } from './bindings.ts'
+import { fogReadLayoutEntries } from '../fog/read.ts'
 import { SUBSURFACE_TARGET } from '../../materials/surface/subsurface.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../materials/surface/physicalLobes.ts'
 import { receiverLayoutEntry } from '../../visibility/passes/receiver.ts'
@@ -31,23 +32,28 @@ export function deferredLayoutEntries(direct: boolean, bounce = false) {
     )
   // Probe grid and their coefficients: bound only by the bounce program, so a session without
   // bounce keeps exactly the previous layout. The coefficients are an atlas (`atlas.ts`): no
-  // storage buffer of the eight.
+  // storage buffer of the eight. The screen probes' result, which the pixels read their indirect
+  // light from (`../bounce/screen/indirectWgsl.ts`), is a sampled texture of words read by load: the
+  // fifth read-only storage texture of a stage would pass the four a default device holds.
   if (bounce)
     entries.push(
       computeBufferEntry(DEFERRED_BINDINGS.bounceGrid, 'uniform', fragment),
       computeTextureEntry(DEFERRED_BINDINGS.probes, 'unfilterable-float', '2d-array', fragment),
+      computeTextureEntry(DEFERRED_BINDINGS.screenIndirect, 'uint', '2d', fragment),
     )
   return entries
 }
 
 /** What a contract program adds to the deferred layout: the declared lights, their per-tile lists
- *  and the shadow mask. */
+ *  and the shadow mask, and the fog's resources. */
 function contractLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
   return [
     computeBufferEntry(DEFERRED_BINDINGS.lights, 'read-only-storage', fragment),
     computeBufferEntry(DEFERRED_BINDINGS.tiles, 'read-only-storage', fragment),
     // The shadow mask (`vsmMaskFactor`): the opaque resolve's.
     computeTextureEntry(CONTRACT_SHADOW_BINDINGS.transmittance, 'uint', '2d-array', fragment),
+    // The fog's cubemap, volume and frame, which the fog laid over the lit sum reads.
+    ...fogReadLayoutEntries(DEFERRED_FOG_BINDINGS, fragment),
   ]
 }
 
@@ -78,5 +84,7 @@ function resolveLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
     PHYSICAL_LOBES_TARGET.layoutEntry(),
     // The share of the radiance the reflection trace wrote (`../reflections/trace/trace.ts`).
     REFLECTION_TARGET.layoutEntry(),
+    // The ambient occlusion the image drew, or its stand-in (`../ao/frame.ts`).
+    computeTextureEntry(DEFERRED_BINDINGS.ambientOcclusion, 'unfilterable-float', '2d', fragment),
   ]
 }

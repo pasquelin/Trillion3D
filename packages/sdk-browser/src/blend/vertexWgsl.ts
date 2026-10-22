@@ -101,12 +101,14 @@ const LAYOUTS = {
  * With `lobes`, a lobed program's (`physicalWgsl.ts`): `uv` carries a second UV set in its last
  * two lanes (`pageUvSet`, the first where the geometry has none) and `ids` the item's material word
  * in its fourth — no varying more, a fragment stage reading its front face holding fifteen of the
- * sixteen WebGPU guarantees. Without, the stage as it was, word for word.
+ * sixteen WebGPU guarantees. Without, the stage as it was, word for word. With `clip`, the device
+ * has `clip-distances`: the stage returns the struct that carries the distance of its vertex to the
+ * view's plane (`vsOutWgsl`); without, `blendClipped` tells a fragment stage the pixel behind it.
  */
-export const blendVertexWgsl = (lobes: boolean) => {
+export const blendVertexWgsl = (lobes: boolean, clip = false) => {
   const layout = LAYOUTS[lobes ? 'lobed' : 'lobeless']
   return wgslBlock(
-    `blendVertexWgsl(${lobes})`,
+    `blendVertexWgsl(${lobes}${clip ? ', clip' : ''})`,
     [
       PAGE_GEOMETRY_WGSL,
       NORMAL_TRANSFORM_WGSL,
@@ -114,7 +116,7 @@ export const blendVertexWgsl = (lobes: boolean) => {
       VERTEX_READS_WGSL,
       ...layout.read,
       VERTEX_LISTS_WGSL,
-      vsOutWgsl(layout.uv, layout.ids),
+      vsOutWgsl(layout.uv, layout.ids, clip),
       DIAGNOSTIC_PALETTE_WGSL,
       BLEND_DIAGNOSTIC_CODE_WGSL,
       BLEND_GIVEN_UP_WGSL,
@@ -122,7 +124,7 @@ export const blendVertexWgsl = (lobes: boolean) => {
       lowBits,
       cornerBarycentric,
     ],
-    blendVertexStage(layout),
+    `${blendVertexStage(layout, clip)}${clip ? '' : BLEND_CLIPPED}`,
   )
 }
 
@@ -185,12 +187,10 @@ const VERTEX_CORNER = ` let v=corners[local%3u];
  * firstInstance would say the same, but WebGPU only opens it to an indirect call under an
  * extension.
  */
-const blendVertexStage = ({
-  ids,
-  word,
-  page,
-  write,
-}: (typeof LAYOUTS)['lobed']) => `@vertex fn vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instance:u32)->VSOut{
+const blendVertexStage = (
+  { ids, word, page, write }: (typeof LAYOUTS)['lobed'],
+  clip: boolean,
+) => `@vertex fn vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instance:u32)->${clip ? 'VSOutClipped' : 'VSOut'}{
  var out:VSOut;
  let slot=planInstances[(vertexIndex>>uni.vertexShift)+instance];
  let it=items[slot.x&${INSTANCE_ITEM_MASK}u];
@@ -202,7 +202,7 @@ const blendVertexStage = ({
 ${VERTEX_PAGE}
  // A padding or dropped lane leaves the clip volume; every output but \`material\` and the normal
  // stays zero, as declared.
- if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.normal=vec4f(0.0,0.0,1.0,0.0);return out;}
+ if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.normal=vec4f(0.0,0.0,1.0,0.0);return ${clip ? 'VSOutWithClip(out,1.0)' : 'out'};}
  // Its surface's record (\`materialAt\`): its factors, maps, model and fog, read once a drawn
  // vertex, never by a padding or dropped lane.
  let m=materialAt(it.material);
@@ -216,5 +216,11 @@ ${VERTEX_PAGE}
  out.normal.w=m.subsurface.x;out.tangent.w=m.subsurface.y;out.bitangent.w=m.subsurface.z;
 ${VERTEX_CORNER}
  ${write}
- return out;
+ return ${clip ? 'VSOutWithClip(out,dot(uni.clipPlane.xyz,out.view)+uni.clipPlane.w)' : 'out'};
 }`
+
+/** Whether a fragment of a device without \`clip-distances\` lies behind the view's plane, from its
+ *  world position (\`view\`); a view without one holds all zeros, and a distance of zero is kept. */
+const BLEND_CLIPPED = `
+fn blendClipped(in:VSOut)->bool{return dot(uni.clipPlane.xyz,in.view)+uni.clipPlane.w<0.0;}
+`

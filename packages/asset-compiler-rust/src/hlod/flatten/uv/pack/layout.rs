@@ -3,14 +3,14 @@ use super::raster::Footprint;
 use super::{Rect, Run, Segment};
 
 /// The square being filled: the free runs of each row and column.
-pub(super) struct Layout {
+pub(crate) struct Layout {
     pub(super) size: u32,
     pub(super) rows: Vec<Run>,
     pub(super) columns: Vec<Run>,
 }
 
 impl Layout {
-    pub(super) fn new(size: u32) -> Self {
+    pub(crate) fn new(size: u32) -> Self {
         let free = Run {
             longest: size,
             segments: vec![Segment {
@@ -92,7 +92,7 @@ impl Layout {
 
     /// The first place from `rect`'s, row after row — column after column for
     /// a chart taller than wide —, where `other` fits; `false` once `rect` cannot beat the best.
-    pub(super) fn find(
+    pub(crate) fn find(
         &self,
         rect: &mut Rect,
         other: &Footprint,
@@ -184,7 +184,7 @@ impl Layout {
     }
 
     /// `other` placed at `rect`: its used segments cut out of every row and column it covers.
-    pub(super) fn alloc(&mut self, rect: &Rect, other: &Footprint) {
+    pub(crate) fn alloc(&mut self, rect: &Rect, other: &Footprint) {
         for y in 0..other.height {
             let run = &other.rows[y as usize];
             Self::merge_run(
@@ -204,7 +204,7 @@ impl Layout {
     }
 
     /// The texels in use.
-    pub(super) fn used(&self) -> u32 {
+    pub(crate) fn used(&self) -> u32 {
         let free: u32 = (self.rows.iter())
             .flat_map(|r| r.segments.iter().map(|s| s.length))
             .sum();

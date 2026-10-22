@@ -1,4 +1,5 @@
 import type { SceneEnvironment } from '../core/environment.ts'
+import type { Rgb } from '../core/atmosphereOptics.ts'
 import { createAtmosphereBlock, createSunHold } from './atmosphereSun.ts'
 import type { SceneLight } from './contracts.ts'
 import { LIGHT_FIELD, baseOf } from './fields.ts'
@@ -21,48 +22,84 @@ type SunSources = {
   write: (slot: number, light: SceneLight) => void
 }
 
+/** What `map` holds for `id`, none for none. */
+const heldBy = <T>(map: ReadonlyMap<string, T>, id: string | undefined) =>
+  id === undefined ? undefined : map.get(id)
+
+/** Multiplies the colour of the light in `slot` of the packed lights by `tint`, per channel. */
+function tintSlot(packed: Float32Array, slot: number, tint: Rgb) {
+  const at = baseOf(slot) + LIGHT_FIELD.color
+  for (let c = 0; c < 3; c++) packed[at + c] *= tint[c]
+}
+
 /**
- * THE BLOCKS THE SUN DECIDES: the atmosphere's block and the sun's colour through the air
- * (`atmosphereSun.ts`), and the fog's sun in the environment's block (`fogSun.ts`). The sun is held
- * as lights are added, changed and removed, air or none; both blocks are written again where a
- * directional light or the environment changed, so a scene with no atmosphere and no fog pays
- * nothing.
+ * THE COLOUR OF EACH LIGHT OF THE AIR THROUGH IT: the atmosphere's block written again and the
+ * packed colour of each light held multiplied by the air's transmittance toward it, where there is
+ * air. The lights tinted are kept, by index of the air, to be written again as declared when they
+ * are no longer held, or the air is gone.
+ */
+function createTints(
+  sources: SunSources,
+  air: ReturnType<typeof createAtmosphereBlock>,
+  hold: ReturnType<typeof createSunHold>,
+) {
+  const { records, indexOf, write } = sources
+  let tinted: (string | undefined)[] = []
+  return {
+    /** Whether a light's colour carries the air's tint. */
+    get any() {
+      return tinted.some((id) => id !== undefined)
+    },
+    /** Writes the atmosphere's block and the tint of each light held. */
+    apply() {
+      const atmosphere = sources.environment()?.atmosphere
+      for (const id of tinted) {
+        const previous = heldBy(indexOf, id)
+        if (previous !== undefined) write(previous, heldBy(records, id)!)
+      }
+      tinted = atmosphere ? [...hold.suns] : []
+      air.update(
+        atmosphere,
+        hold.suns.map((id) => heldBy(records, id)),
+      )
+      const packed = sources.packed()
+      tinted.forEach((id, index) => {
+        const slot = heldBy(indexOf, id)
+        if (slot !== undefined) tintSlot(packed, slot, air.tints[index])
+      })
+    },
+  }
+}
+
+/**
+ * THE BLOCKS THE SUNS DECIDE: the atmosphere's block and the colour of each of the air's lights
+ * through the air (`atmosphereSun.ts`), and the fog's sun in the environment's block
+ * (`fogSun.ts`). The lights are held as lights are added, changed and removed, air or none; both
+ * blocks are written again where a directional light or the environment changed, so a scene with
+ * no atmosphere and no fog pays nothing.
  */
 export function createSunBlocks(sources: SunSources) {
-  const { records, indexOf, environmentPacked, write } = sources
+  const { records, environmentPacked } = sources
   const air = createAtmosphereBlock()
   const hold = createSunHold(sources.ids, records, sources.rankOf)
-  /** The light whose packed colour carries the air's transmittance: the sun, where there is air. */
-  let tinted: string | undefined
-  /** Writes the atmosphere's block and the sun's colour through the air: the tinted slot is written
-   *  again as declared, then the sun's tinted. */
-  const applyAtmosphere = () => {
-    const environment = sources.environment()
-    const previous = tinted === undefined ? undefined : indexOf.get(tinted)
-    if (previous !== undefined) write(previous, records.get(tinted!)!)
-    tinted = environment?.atmosphere ? hold.sun : undefined
-    const sun = tinted === undefined ? undefined : records.get(tinted)
-    air.update(environment?.atmosphere, sun)
-    const slot = tinted === undefined ? undefined : indexOf.get(tinted)
-    if (slot === undefined) return
-    const at = baseOf(slot) + LIGHT_FIELD.color
-    const packed = sources.packed()
-    for (let c = 0; c < 3; c++) packed[at + c] *= air.tint[c]
-  }
+  const tints = createTints(sources, air, hold)
   /** Writes the fog's sun into the environment's block. */
   const applyFogSun = () => {
-    const id = hold.fogSun
-    if (sources.environment()?.fog)
-      packFogSun(id === undefined ? undefined : records.get(id), environmentPacked)
+    if (sources.environment()?.fog) packFogSun(heldBy(records, hold.fogSun), environmentPacked)
   }
   /** The sun may have changed: the blocks follow. */
   const settle = () => {
-    if (sources.environment()?.atmosphere) applyAtmosphere()
+    if (sources.environment()?.atmosphere) tints.apply()
     applyFogSun()
   }
   return {
     /** The atmosphere's block as the GPU reads it, and its versions. */
     air,
+    /** The slot of the light the fog scatters — the volume's sun as the analytic fog's lobe —, −1
+     *  where there is none. */
+    get fogSunSlot() {
+      return heldBy(sources.indexOf, hold.fogSun) ?? -1
+    },
     /** A light was added, held in the store. */
     added(light: SceneLight) {
       hold.added(light)
@@ -77,12 +114,12 @@ export function createSunBlocks(sources: SunSources) {
     removed(light: SceneLight) {
       hold.removed(light.id)
       // A light that moved into the tinted slot overwrote its tint.
-      if (light.kind === 'directional' || tinted !== undefined) settle()
+      if (light.kind === 'directional' || tints.any) settle()
     },
     /** The environment was set: the atmosphere follows where it is or was the sun's, the fog's sun
      *  always. */
     environmentChanged() {
-      if (sources.environment()?.atmosphere || tinted !== undefined) applyAtmosphere()
+      if (sources.environment()?.atmosphere || tints.any) tints.apply()
       applyFogSun()
     },
   }
