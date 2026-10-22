@@ -5,6 +5,7 @@ import { createGpuLightTiles } from '../tiles/tiles.ts'
 import { createGpuBounceProbes } from './probes/probes.ts'
 import { NO_PROXY_BOXES } from './probes/probeSync.ts'
 import { BOUNCE_PROBE_QUEUE } from '../../../../sdk-core/src/bounce/contracts.ts'
+import type { ScreenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 
 /** The eye the floor is read from: the tests encode with it. */
 export const FLOOR_EYE = [4, 4, 2]
@@ -31,8 +32,12 @@ function readFloor(probes: Awaited<ReturnType<typeof createGpuBounceProbes>>) {
 /** The probes over the floor `[0, 0, 0]–[8, 0.1, 4]`, the light list they read, the tiles when
  *  `tiled` (the world grid's lists), and an encoder of the device. The cells of the floor are read
  *  (`readFloor`) unless `read` is false: the series has work, as it has once an image marked what it
- *  shows. */
-export async function floorProbes(tiled = false, read = true) {
+ *  shows. `settings` are the screen probes' the radiance cache follows (the defaults without). */
+export async function floorProbes(
+  tiled = false,
+  read = true,
+  settings?: () => ScreenProbeSettings,
+) {
   const gpu = fakeDevice({
     limits: { maxStorageBufferBindingSize: 1 << 30, maxBufferSize: 1 << 30 },
   })
@@ -63,6 +68,7 @@ export async function floorProbes(tiled = false, read = true) {
     // The deferred placeholders' empty lists, as the engine passes them.
     gpu.device.createBuffer({ size: 256, usage: GPUBufferUsage.STORAGE }),
     tiles && (() => tiles),
+    settings,
   )
   if (read) readFloor(probes)
   return { gpu, lights, tiles, probes, encoder: gpu.device.createCommandEncoder() }

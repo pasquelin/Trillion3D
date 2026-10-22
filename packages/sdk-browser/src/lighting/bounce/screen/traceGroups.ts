@@ -40,6 +40,7 @@ export function traceGroups(g: GroupParts, kernels: CastKernels) {
         blue: inputs.blue,
         cacheFinal: inputs.cacheFinal,
         cacheRaw: inputs.cacheRaw,
+        cacheSky: inputs.cacheSky,
         ...buffers({ ...field, lights: inputs.lights, cacheTags: inputs.cacheTags }),
       }),
       { binding: TRACE_FIELD_PROBES, resource: inputs.probes },

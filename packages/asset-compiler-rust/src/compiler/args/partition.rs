@@ -19,15 +19,16 @@
 //! A job naming none of them keeps its cache key. Read and checked here once; what does not read
 //! is the job's refusal (`INVALID_OPTIONS`, `validate_compile_options`), never the batch's.
 use super::name_match::present;
+use super::reader::Reader;
 use super::*;
 pub(crate) use settings::SquareSettings;
 pub use settings::StreamBounds;
-use settings::{origin_of, positive_metres, scheme_settings, unknown_setting, LooseSettings};
+use settings::{origin_of, scheme_settings, unknown_setting, LooseSettings};
 
 mod grids;
 mod settings;
 
-pub(crate) use grids::is_grid_name;
+pub(crate) use grids::grid_name_of;
 
 /// How the spatially loaded objects are cut into cells and streamed (`PARTITION_SCHEMES`): a loose
 /// hierarchical grid with no top, each cell streaming by its content, the HLOD grids doubling the
@@ -215,30 +216,25 @@ impl GridSettings {
         let refuse = |name: &str, takes: &str, got: &Value| {
             format!("{field}: {name} must be {takes}, got {got}")
         };
-        let metres = |name: &str, fallback: f64| match present(fields.get(name)) {
-            None => Ok(fallback),
-            Some(v) => {
-                positive_metres(v).ok_or_else(|| refuse(name, "a number of metres above 0", v))
-            }
+        let prefix = format!("{field}: ");
+        let read = Reader {
+            map: fields,
+            what: &prefix,
         };
-        let whole = format!("a whole number from 0 to {MAX_PARTITION_PRIORITY}");
-        let priority = match present(fields.get("priority")) {
-            None => DEFAULT_PARTITION_PRIORITY,
-            Some(v) => (v.as_u64())
-                .filter(|p| *p <= u64::from(MAX_PARTITION_PRIORITY))
-                .map(|p| p as u32)
-                .ok_or_else(|| refuse("priority", &whole, v))?,
+        let text = |refusal: CompilerError| refusal.message;
+        let metres = |name: &str, fallback: f64| {
+            (read.metres(name).map_err(text)).map(|named| named.unwrap_or(fallback))
         };
+        let takes = format!("a whole number from 0 to {MAX_PARTITION_PRIORITY}");
+        let bounds = (0, i64::from(MAX_PARTITION_PRIORITY));
+        let priority = (read.whole("priority", bounds, &takes).map_err(text)?)
+            .map_or(DEFAULT_PARTITION_PRIORITY, |p| p as u32);
         let origin = match present(fields.get("origin")) {
             None => [0.0; 3],
             Some(v) => origin_of(v, scheme).map_err(|takes| refuse("origin", takes, v))?,
         };
-        let block_on_slow_streaming = match present(fields.get("blockOnSlowStreaming")) {
-            None => DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING,
-            Some(v) => {
-                (v.as_bool()).ok_or_else(|| refuse("blockOnSlowStreaming", "true or false", v))?
-            }
-        };
+        let block_on_slow_streaming = (read.boolean("blockOnSlowStreaming").map_err(text)?)
+            .unwrap_or(DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING);
         let (loose, square) = scheme_settings(fields, scheme, field)?;
         Ok(Self {
             cell_size: metres("cellSize", DEFAULT_PARTITION_CELL_SIZE)?,

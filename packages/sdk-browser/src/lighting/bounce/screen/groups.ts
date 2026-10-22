@@ -12,9 +12,9 @@ import { filterGroups, pixelGroups, traceGroups } from './traceGroups.ts'
 /** The bind groups of every kernel for one parity of the history's turn about. */
 export type ScreenProbeGroups = ReturnType<typeof createGroups>
 
-/** The placement, the screen data, the scatter into the radiance cache and the rays. */
+/** The placement and the screen data. */
 function placeGroups(g: GroupParts, kernels: CastKernels) {
-  const { device, r, inputs, last, final, common, probe, records, surface } = g
+  const { device, r, inputs, last, common, probe, records, surface } = g
   return {
     place: groupOf(
       device,
@@ -47,6 +47,13 @@ function placeGroups(g: GroupParts, kernels: CastKernels) {
         ...buffers({ brdf: r.brdf, disocclusion: r.disocclusion }),
       }),
     ),
+  }
+}
+
+/** The scatter of the pixels' importance into the radiance cache and the directions of the rays. */
+function rayGroups(g: GroupParts, kernels: CastKernels) {
+  const { device, r, inputs, last, final, common, probe, records } = g
+  return {
     scatter: groupOf(device, kernels.scatter, [
       ...namedEntries(SCATTER_BINDINGS.at, {
         ...common,
@@ -70,6 +77,7 @@ function placeGroups(g: GroupParts, kernels: CastKernels) {
         blue: inputs.blue,
         cacheFinal: inputs.cacheFinal,
         cacheRaw: inputs.cacheRaw,
+        cacheSky: inputs.cacheSky,
         ...buffers({
           brdf: r.brdf,
           bounceGrid: inputs.bounceGrid,
@@ -112,6 +120,7 @@ function createGroups(
     /** The groups of the kernels over the probes, where the level casts them. */
     cast: cast && {
       ...placeGroups(parts, cast),
+      ...rayGroups(parts, cast),
       ...traceGroups(parts, cast),
       ...filterGroups(parts, cast),
     },
@@ -131,6 +140,7 @@ const INPUT_SLOT: Record<Exclude<keyof ScreenProbeInputs, 'proxy'>, true> = {
   blue: true,
   cacheFinal: true,
   cacheRaw: true,
+  cacheSky: true,
   cacheTags: true,
   cachePdf: true,
 }

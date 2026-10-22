@@ -3,6 +3,7 @@ import type {
   WorldStreamingOptions,
 } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.ts'
+import type { DynamicResolutionOptions } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
 import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
@@ -48,6 +49,21 @@ export function worldSceneSettings({ switches, live }: WorldParts) {
     set cut(options: CutOptions) {
       live()
       switches.cut = options
+    },
+    /** The dynamic resolution's settings, each by its field (`WorldOptions`), resolved over the
+     *  page and the quality preset: the GPU time budget the render scale (where it is `'auto'`)
+     *  and the cut's edge scale are fitted to (`dynamicResolutionFrameTimeBudgetMs`, the frame
+     *  cap's interval by default), the headrooms, the history kept and its weights, the change
+     *  period and threshold, how far a rise goes, the frames over budget that end a history, the
+     *  most the scale may be while throttled, and whether the CPU time of a frame excuses it.
+     *  Written, the settings named apply from the next GPU time over the preset — one `null`
+     *  gives it back to it, one left out stays —; one a setting does not take is refused. */
+    get dynamicResolution() {
+      return switches.dynamicResolution
+    },
+    set dynamicResolution(options: DynamicResolutionOptions) {
+      live()
+      switches.dynamicResolution = options
     },
     /** The screen size under which an instanced skinned object is drawn in its rest pose and how
      *  the scene's animation banks play their tracks, each setting by its field (`WorldOptions`),

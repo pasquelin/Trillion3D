@@ -8,9 +8,13 @@ use super::super::*;
 use super::settings::unknown_setting;
 use super::{GridSettings, PartitionGrid, PartitionScheme};
 
-/// Whether `name` can name a grid: not empty, holding none of `PARTITION_GRID_NAME_FORBIDDEN`.
-pub(crate) fn is_grid_name(name: &str) -> bool {
-    !name.is_empty() && !name.contains(|c: char| PARTITION_GRID_NAME_FORBIDDEN.contains(c))
+/// The grid name `value` holds: a text not empty, holding none of `PARTITION_GRID_NAME_FORBIDDEN`;
+/// `None` for any other value. The one test of a grid's name, its entry's (`grid_name`) and an
+/// object's `runtimeGrid` (`objects.rs`).
+pub(crate) fn grid_name_of(value: &Value) -> Option<&str> {
+    (value.as_str()).filter(|name| {
+        !name.is_empty() && !name.contains(|c: char| PARTITION_GRID_NAME_FORBIDDEN.contains(c))
+    })
 }
 
 /// Whether grid names `a` and `b` are one name: the same letters without regard to case.
@@ -33,15 +37,12 @@ fn grid_name(
             )),
         };
     };
-    (name.as_str())
-        .filter(|text| is_grid_name(text))
-        .map(str::to_string)
-        .ok_or_else(|| {
-            format!(
-                "{field}: {PARTITION_GRID_NAME_KEY} must be a text with none of \
+    grid_name_of(name).map(str::to_string).ok_or_else(|| {
+        format!(
+            "{field}: {PARTITION_GRID_NAME_KEY} must be a text with none of \
                  {PARTITION_GRID_NAME_FORBIDDEN}, got {name}"
-            )
-        })
+        )
+    })
 }
 
 impl PartitionGrid {

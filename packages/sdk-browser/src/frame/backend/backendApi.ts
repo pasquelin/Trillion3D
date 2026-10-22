@@ -234,6 +234,7 @@ export function backendTiming(rt: WebgpuPagesRuntime) {
       hostCpuStep(rt, step, ms)
     },
     frameCpuMs(ms) {
+      rt.views.main.scale.noteCpu(ms)
       rt.timing.logFrame?.(ms, rt.views.main.scale.frameIntervalMs)
     },
     cpuFrameEnd() {

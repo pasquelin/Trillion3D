@@ -1,6 +1,7 @@
 import type { EngineContext } from '../session/engine/types.ts'
 import { ANIMATION_RULES } from '../../../sdk-core/src/contracts/animationOptions.ts'
 import { CUT_RULES } from '../../../sdk-core/src/contracts/cutOptions.ts'
+import { DYNAMIC_RESOLUTION_RULES } from '../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
 import { EXPOSURE_RULES } from '../../../sdk-core/src/contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../../../sdk-core/src/contracts/temporalOptions.ts'
 import { SHADOW_RULES } from '../../../sdk-core/src/contracts/shadowOptions.ts'
@@ -35,6 +36,10 @@ export function createExplorerRuleApi({ check, context }: Inputs) {
   return {
     /** Writes the cut's setting `field` (`cutOptions.ts`). */
     setCut: settingWriter(CUT_RULES, context, check),
+    /** Writes the dynamic resolution's setting `field` (`dynamicResolutionOptions.ts`): the budget
+     *  the render scale and the cut's edge scale are fitted to, the headrooms, the history, the
+     *  change period and threshold; read by the next GPU time. */
+    setDynamicResolution: settingWriter(DYNAMIC_RESOLUTION_RULES, context, check),
     /** Writes the animation's setting `field` (`animationOptions.ts`): the screen size under which
      *  an instanced skinned object is drawn in its rest pose and how the scene's animation banks
      *  play their tracks. */

@@ -1,6 +1,7 @@
 import { wgslBlock, wgslFn, wgslStruct } from '../../../../math/src/wgsl/decl.ts'
 import { cofactor3, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
+import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL } from '../shader/pageGeometryWgsl.ts'
 import { TESSELLATED_FLAGS_WGSL } from './rowWgsl.ts'
 
 /**
@@ -60,15 +61,20 @@ export const closestPointWeights = wgslFn(
 }`,
 )
 
+/** The weights of a pixel on its triangle once the prism is solved, and whether the solve holds. */
+const PRISM_VALUE = wgslStruct('PrismValue', [], 'struct PrismValue{value:vec3f,ok:bool,}')
+
 /**
- * The solve of the displaced prism: `position` and `normal` hold the triangle's corners and normals
- * in the object's space, `pixel` the surface position of the pixel and `pixelX`, `pixelY` those of
- * its neighbours in the same space, `camera` the eye.
+ * The corners of the displaced triangle that carries the pixel `pixel`: two rounds, each the closest
+ * point of the triangle to the pixel along its normal held to the triangle (the weights clamped to
+ * zero and made to sum to one), the normal interpolated there, the distance the pixel lies along
+ * it, and the three corners moved by that distance. `position` and `normal` hold the triangle's
+ * corners and normals in the object's space.
  */
-export const prismWeights = wgslFn(
-  'prismWeights',
-  [PRISM_SOLVE, closestPointWeights, rayTriangleWeights],
-  `fn prismWeights(camera:vec3f,pixel:vec3f,pixelX:vec3f,pixelY:vec3f,position:mat3x3f,normal:mat3x3f)->PrismSolve{
+export const prismCorners = wgslFn(
+  'prismCorners',
+  [closestPointWeights],
+  `fn prismCorners(pixel:vec3f,position:mat3x3f,normal:mat3x3f)->mat3x3f{
  var p0=position[0];var p1=position[1];var p2=position[2];
  for(var round=0u;round<2u;round++){
   var w=closestPointWeights(pixel,p0,p1,p2);
@@ -79,9 +85,36 @@ export const prismWeights = wgslFn(
   let push=dot(pixel-closest,n)/dot(n,n);
   p0+=normal[0]*push;p1+=normal[1]*push;p2+=normal[2]*push;
  }
- let value=closestPointWeights(pixel,p0,p1,p2);
- let dx=rayTriangleWeights(camera,pixelX-camera,p0,p1,p2)-value;
- let dy=rayTriangleWeights(camera,pixelY-camera,p0,p1,p2)-value;
+ return mat3x3f(p0,p1,p2);
+}`,
+)
+
+/** The weights of `pixel` on the triangle `position`, `normal` displaced to carry it
+ *  (`prismCorners`): where the pixel lies on the displaced surface, in the weights of its source
+ *  triangle. */
+export const prismValue = wgslFn(
+  'prismValue',
+  [PRISM_VALUE, prismCorners],
+  `fn prismValue(pixel:vec3f,position:mat3x3f,normal:mat3x3f)->PrismValue{
+ let c=prismCorners(pixel,position,normal);
+ let value=closestPointWeights(pixel,c[0],c[1],c[2]);
+ return PrismValue(value,abs(value.x+value.y+value.z-1.0)<0.01);
+}`,
+)
+
+/**
+ * The solve of the displaced prism: `position` and `normal` hold the triangle's corners and normals
+ * in the object's space, `pixel` the surface position of the pixel and `pixelX`, `pixelY` those of
+ * its neighbours in the same space, `camera` the eye.
+ */
+export const prismWeights = wgslFn(
+  'prismWeights',
+  [PRISM_SOLVE, prismCorners, closestPointWeights, rayTriangleWeights],
+  `fn prismWeights(camera:vec3f,pixel:vec3f,pixelX:vec3f,pixelY:vec3f,position:mat3x3f,normal:mat3x3f)->PrismSolve{
+ let c=prismCorners(pixel,position,normal);
+ let value=closestPointWeights(pixel,c[0],c[1],c[2]);
+ let dx=rayTriangleWeights(camera,pixelX-camera,c[0],c[1],c[2])-value;
+ let dy=rayTriangleWeights(camera,pixelY-camera,c[0],c[1],c[2])-value;
  return PrismSolve(value,dx,dy,abs(value.x+value.y+value.z-1.0)<0.01);
 }`,
 )
@@ -122,6 +155,43 @@ export const prismPixel = wgslFn(
 }`,
 )
 
+/** The corners and the normals of a triangle, in the object's space as the frame deforms them. */
+const PRISM_TRIANGLE = wgslStruct(
+  'PrismTriangle',
+  [],
+  'struct PrismTriangle{position:mat3x3f,normal:mat3x3f,}',
+)
+/** Triangle `tri` of `page`, read as every pass reads it (`pagePosition`, `pageNormal`). */
+export const prismTriangle = wgslFn(
+  'prismTriangle',
+  [PRISM_TRIANGLE, PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL],
+  `fn prismTriangle(page:PageInfo,tri:u32)->PrismTriangle{
+ let h=pageHeader(page);let k=pageTriangle(page,h,tri);
+ let normal=mat3x3f(pageNormal(page,h,k.x),pageNormal(page,h,k.y),pageNormal(page,h,k.z));
+ return PrismTriangle(pageTrianglePositions(page,h,k),normal);
+}`,
+)
+
+/**
+ * The point of the flat triangle `tri` of `page` that the displaced pixel at `at` stands over: the
+ * weights the prism solve gives the pixel (`prismValue`) on the corners, taken into the world.
+ * `at` is the pixel's position and `translation` the placement's, both relative to the same origin
+ * (the world's, or the eye's); `w` is one where the solve holds, zero — and no point — where the
+ * placement does not invert or the position lies on no prism.
+ */
+export const displacedFlat = wgslFn(
+  'displacedFlat',
+  [worldMatrix3, inverse3, prismValue, prismTriangle],
+  `fn displacedFlat(page:PageInfo,tri:u32,at:vec3f,translation:vec3f)->vec4f{
+ let linear=worldMatrix3(page.world);
+ if(abs(determinant(linear))<1e-20){return vec4f(0.0);}
+ let t=prismTriangle(page,tri);
+ let solved=prismValue(inverse3(linear)*(at-translation),t.position,t.normal);
+ if(!solved.ok){return vec4f(0.0);}
+ return vec4f(linear*(t.position*solved.value)+translation,1.0);
+}`,
+)
+
 /**
  * What the resolve of a displaced class adds to its text (`shadeShader`'s `displaced`): the depth
  * and the view's numbers, and `solveDisplaced`, the weights of the pixel `pos` of triangle `tri` of
@@ -130,7 +200,7 @@ export const prismPixel = wgslFn(
  */
 export const DISPLACED_PIXEL_WGSL = wgslBlock(
   'DISPLACED_PIXEL_WGSL',
-  [worldMatrix3, inverse3, prismPixel, prismWeights, TESSELLATED_FLAGS_WGSL],
+  [worldMatrix3, inverse3, prismPixel, prismWeights, prismTriangle, TESSELLATED_FLAGS_WGSL],
   `${PRISM_UNIFORM.wgsl}
 @group(0) @binding(${DISPLACED_SHADE_BINDINGS.depth}) var prismDepth:texture_depth_2d;
 @group(0) @binding(${DISPLACED_SHADE_BINDINGS.prism}) var<uniform> prism:PrismUni;
@@ -139,9 +209,8 @@ fn solveDisplaced(page:PageInfo,tri:u32,pos:vec2f)->PrismSolve{
  let linear=worldMatrix3(page.world);
  let det=determinant(linear);
  if(!(depth>0.0)||abs(det)<1e-20){return PrismSolve(vec3f(0.0),vec3f(0.0),vec3f(0.0),false);}
- let h=pageHeader(page);let k=pageTriangle(page,h,tri);
  let px=prismPixel(page.world,inverse3(linear),prism.invViewProj,prism.eye,prism.viewport,pos,depth);
- let normal=mat3x3f(pageNormal(page,h,k.x),pageNormal(page,h,k.y),pageNormal(page,h,k.z));
- return prismWeights(px.eye,px.at,px.atX,px.atY,pageTrianglePositions(page,h,k),normal);
+ let t=prismTriangle(page,tri);
+ return prismWeights(px.eye,px.at,px.atX,px.atY,t.position,t.normal);
 }`,
 )

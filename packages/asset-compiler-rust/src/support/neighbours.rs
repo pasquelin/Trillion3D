@@ -12,6 +12,12 @@
 /// No list.
 const NONE: u32 = u32::MAX;
 
+/// The rank of a point for a sweep, in the reference's axes (its `z` up): a weighed sum of them,
+/// so that two points at one place rank within the window and few points far apart do.
+pub(crate) fn rank_of([x, y, z]: [f32; 3]) -> f32 {
+    0.30 * x + 0.33 * y + 0.37 * z
+}
+
 /// Which list each corner names as its own, and the lists, sorted without repeats.
 pub(crate) struct Neighbours {
     belongs: Vec<u32>,

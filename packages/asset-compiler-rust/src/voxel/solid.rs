@@ -8,9 +8,10 @@
 //! not hide. A solid voxel then shows what its faces open on a voxel left empty see — a building's
 //! walls from the street, not its core from inside —, all of them where none that opens sees
 //! anything. A mesh whose build casts one ray per voxel, or keeps the coverage as opacity
-//! (`VoxelSampling::redistributes`), hands none over: every voxel a ray hit stays.
+//! (`VoxelSettings::redistributes`), hands none over: every voxel a ray hit stays.
 use super::raster::Cell;
 use super::sample::{sample, symmetric, Moments, Probe, FACES};
+use super::VoxelSettings;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use trillion3d_math::vector::vecn::squared_length;
@@ -49,23 +50,45 @@ impl Voxel {
     }
 }
 
-/// The solid voxels of `voxels`, in their order: those a ray hit, no more than their coverage
-/// sums to when it is handed over (`redistribute`).
-pub(super) fn solid(voxels: Vec<Voxel>, redistribute: bool) -> Vec<Voxel> {
-    let mut voxels: Vec<Voxel> = voxels.into_iter().filter(|v| v.coverage > 0.0).collect();
+/// What a voxelization keeps: its solid voxels, in their order, and the cells it has no voxel in
+/// but its next level samples again (`extra`): where too few rays were cast to tell a cell no ray
+/// hit from an empty one (`VoxelSettings::remembers_empty`), those no ray hit, and every voxel the
+/// hand-over dropped.
+pub(super) struct Solid {
+    pub voxels: Vec<Voxel>,
+    pub extra: Vec<Cell>,
+}
+
+/// The solid voxels of `voxels`: those a ray hit, no more than their coverage sums to when it is
+/// handed over (`VoxelSettings::redistributes`).
+pub(super) fn solid(voxels: Vec<Voxel>, settings: &VoxelSettings) -> Solid {
+    let (mut voxels, empty): (Vec<Voxel>, Vec<Voxel>) =
+        voxels.into_iter().partition(|v| v.coverage > 0.0);
+    let remember = settings.remembers_empty();
+    let mut extra: Vec<Cell> = (empty.iter().filter(|_| remember))
+        .map(|v| v.cell)
+        .collect();
     let at: WordMap<Cell, usize> = (voxels.iter().enumerate())
         .map(|(i, v)| (v.cell, i))
         .collect();
     let mut alive = vec![true; voxels.len()];
-    if redistribute {
-        hand_over(&mut voxels, &at, &mut alive);
+    if settings.redistributes() {
+        hand_over(&mut voxels, (&at, &mut alive[..]), &mut extra);
     }
-    show(voxels, &at, &alive)
+    Solid {
+        voxels: show(voxels, &at, &alive),
+        extra,
+    }
 }
 
-/// The least covered voxel dropped and its coverage handed to its neighbours, until no more
-/// voxels are `alive` than the coverage sums to; `at` ranks the voxels by their cell.
-fn hand_over(voxels: &mut [Voxel], at: &WordMap<Cell, usize>, alive: &mut [bool]) {
+/// The least covered voxel dropped, its cell pushed on `extra`, and its coverage handed to its
+/// neighbours, until no more voxels are `alive` than the coverage sums to; `at` ranks the voxels
+/// by their cell.
+fn hand_over(
+    voxels: &mut [Voxel],
+    (at, alive): (&WordMap<Cell, usize>, &mut [bool]),
+    extra: &mut Vec<Cell>,
+) {
     let (mut left, covered) = (voxels.len(), voxels.iter().map(|v| v.coverage).sum::<f64>());
     // Least covered first, ties by order; a voxel's entry is current while its coverage is.
     let mut heap: BinaryHeap<Reverse<(u64, usize)>> = (voxels.iter().enumerate())
@@ -80,6 +103,7 @@ fn hand_over(voxels: &mut [Voxel], at: &WordMap<Cell, usize>, alive: &mut [bool]
         }
         alive[i] = false;
         left -= 1;
+        extra.push(voxels[i].cell);
         let (cell, coverage, faces) = (voxels[i].cell, voxels[i].coverage, voxels[i].faces);
         let all = sum(faces.iter());
         let ndf = symmetric(all.ndf, all.hits.max(f64::MIN_POSITIVE));

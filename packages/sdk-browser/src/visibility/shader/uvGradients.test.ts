@@ -10,6 +10,8 @@ import { Mat, Mat3 } from '../../materials/texture/shaderRunMatrix.fixture.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import * as W from '../tessellation/prismWgsl.ts'
+import { SURFACE_VELOCITY_WGSL } from '../../post/taa/surfaceVelocityWgsl.ts'
+import { FLAG_DISPLACED } from '../types.ts'
 
 test('the resolve reads the one gradient formula and keeps no copy', () => {
   assert.equal(SHADE_SHADER.split(UV_GRADIENTS_WGSL.text).length - 1, 1)
@@ -222,4 +224,57 @@ test('a pixel is placed in the object’s space from its depth, the eye with it,
   product.forEach((col, c) =>
     col.forEach((x, r) => assert.ok(Math.abs(x - (r === c ? 1 : 0)) < 1e-12)),
   )
+})
+
+// The velocity stage carries a displaced texel back by the flat point under it, then adds the
+// displacement of this frame whole (`pointBefore`, `../../post/taa/deformWgsl.ts`).
+const turnedAboutX = new Mat([1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1])
+const placed = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+/** `pointBefore` of `here`, over the triangle (0,0,0) (1,0,0) (0,1,0) whose corners carry the normal
+ *  `normal`, the placement turned a quarter about x since the last frame. */
+function pointBefore(
+  here: number[],
+  { flags = FLAG_DISPLACED, tessellation = 1, normal = [0, 0, 1] } = {},
+) {
+  const texels = [0, 1, 2].flatMap(() => [...normal, 0, 0, 0, 0])
+  const run = shaderRun<{ pointBefore(h: number[], id: number): number[] }>(
+    SURFACE_VELOCITY_WGSL,
+    ['pointBefore'],
+    {
+      view: { tessellation: [tessellation, 0, 0, 0], eye: [0, 0, 0, 0], params: [0, 0, 1, 0] },
+      pages: [
+        { world: placed, flags, placement: 0, pageOffset: 0, vertexBase: 0, deformOutput: 0 },
+      ],
+      motion: [turnedAboutX],
+      indices: [0, 1, 2],
+      positions: [0, 0, 0, 1, 0, 0, 0, 1, 0],
+      normals: { load: ([x]: number[]) => [texels[x]!] },
+      textureDimensions: () => [1000, 1],
+      determinant: ({ columns: [a, b, c] }: Mat3) =>
+        a[0]! * (b[1]! * c[2]! - b[2]! * c[1]!) -
+        a[1]! * (b[0]! * c[2]! - b[2]! * c[0]!) +
+        a[2]! * (b[0]! * c[1]! - b[1]! * c[0]!),
+    },
+  )
+  return run.pointBefore([...here, 1], 1 << 8)
+}
+
+test('a displaced texel goes back by its flat point turned, and the displacement stays whole', () => {
+  // The texel stands 0.2 above the point (0.35, 0.25) of the triangle: the flat point turns to
+  // (0.35, 0, 0.25), the displacement (0, 0, 0.2) is added unturned. Turned whole, the texel would
+  // have come from (0.35, -0.2, 0.25): the displacement a quarter turn away.
+  const back = pointBefore([0.35, 0.25, 0.2])
+  ;[0.35, 0, 0.45].forEach((x, i) => assert.ok(Math.abs(back[i]! - x) < 1e-5, `${back}`))
+  assert.equal(back[3], 1)
+})
+
+test('a texel the frame draws flat, or a row that names no displacement, goes back whole', () => {
+  const whole = [0.35, -0.2, 0.25]
+  for (const options of [{ tessellation: 0 }, { flags: 0 }]) {
+    const back = pointBefore([0.35, 0.25, 0.2], options)
+    whole.forEach((x, i) => assert.ok(Math.abs(back[i]! - x) < 1e-6, `${JSON.stringify(options)}`))
+  }
+  // A texel on the triangle itself has no displacement to add: the point turned, either way.
+  const flat = pointBefore([0.35, 0.25, 0])
+  ;[0.35, 0, 0.25].forEach((x, i) => assert.ok(Math.abs(flat[i]! - x) < 1e-6, `${flat}`))
 })

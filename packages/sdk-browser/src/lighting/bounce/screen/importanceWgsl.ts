@@ -33,7 +33,8 @@ export const RAYS_BINDINGS = bindingTable({
   blue: [12, 'float'],
   cacheFinal: [13, 'uint'],
   cacheRaw: [14, 'uint'],
-  cacheTags: [15, 'buffer-read'],
+  cacheSky: [15, 'float'],
+  cacheTags: [16, 'buffer-read'],
 })
 /** The atlas of the cascades' probes, which the rays' layout adds (`atlasEntry`). */
 export const RAYS_PROBES = 10
@@ -91,7 +92,7 @@ fn spLightLuminance(probe:SpProbe,direction:vec3f,t:vec2u)->f32{
   transparency=kept.a;
  }
  if(transparency>0.0){
-  if(spFlag(SP_FLAG_CACHE)&&spCacheCovers()){lighting+=transparency*spCacheSample(probe.P,direction).radiance;}
+  if(spFlag(SP_FLAG_CACHE)&&spCacheCovers()){lighting+=transparency*spCacheSample(probe.P,direction,f32(SP_TRACE)).radiance;}
   else{lighting=vec3f(1.0);}
  }
  return luminance(lighting);
@@ -207,7 +208,7 @@ ${wgslConsts({ SP_TRACE: side, SP_RAYS: count, SP_GATHER: gather })}
       spCommon(samples),
       spProbes(B.info, B.normal, B.counts),
       blueNoiseWgsl(0, B.blue),
-      spCacheRead(B.cacheFinal, B.cacheRaw, B.cacheTags),
+      spCacheRead(B.cacheFinal, B.cacheRaw, B.cacheSky, B.cacheTags),
       workgroupSortWgsl('rays', count),
       RAYS_WGSL,
     ],

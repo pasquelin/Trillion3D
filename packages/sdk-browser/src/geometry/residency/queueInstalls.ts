@@ -3,7 +3,7 @@
 // its failure leaves.
 import type { GpuPageCache } from '../pages/pool/pages.ts'
 import type { PageRec } from '../selection/types.ts'
-import { pageAddress, paddedPageBytes } from '../rows/page/pageSlots.ts'
+import { pageAddress, storedPageBytes } from '../rows/page/pageSlots.ts'
 import { isCancelled } from '../../session/engine/common.ts'
 import { cpuNow } from '../../diagnostic/stopwatch.ts'
 import { MIB } from '../../../../math/src/constants.ts'
@@ -64,15 +64,18 @@ function keepVictim(s: QueueState, entry: Started) {
 }
 
 /** `entry`'s start ends with no install: the pages of it that landed let go with it, its victim
- *  kept. False for a start of another pool, which is no business of this one. */
-function undone(s: QueueState, entry: Started) {
+ *  kept — or, for a page given up for good (`gone`), given up as its install gives it up, whether
+ *  the page installs or is skipped: its slot is free. False for a start of another pool, which is
+ *  no business of this one. */
+function undone(s: QueueState, entry: Started, gone = false) {
   if (s.cache !== entry.cache) return false
   if (entry.cover) s.covering.delete(entry.unit)
   else {
     letGo(s, entry.unit)
     unloadStranded(s, entry.cache, entry.unit)
   }
-  keepVictim(s, entry)
+  if (!gone) keepVictim(s, entry)
+  else if (entry.victim) unloadStranded(s, entry.cache, entry.victim.unit)
   return true
 }
 
@@ -83,24 +86,27 @@ function undone(s: QueueState, entry: Started) {
  * said.
  */
 function missed(s: QueueState, entry: Started, error: unknown) {
-  if (!undone(s, entry)) return
-  if (/LOST|DISPOSED/i.test(String(error))) {
+  const lost = /LOST|DISPOSED/i.test(String(error)),
+    gone = !lost && !isCancelled(s.o.signal) && !String(error).includes('POOL_FULL')
+  if (!undone(s, entry, gone)) return
+  if (lost) {
     // The withdrawal precedes the report: a host reading the canvas finds nothing stale.
     s.lost ??= error
     s.o.markLost(error)
     s.o.diagnosticFailure('coverage-upload-failed', error)
     return
   }
-  if (isCancelled(s.o.signal) || String(error).includes('POOL_FULL')) return
+  if (!gone) return
   s.refused.add(entry.unit)
   s.o.diagnosticFailure('coverage-upload-failed', error)
 }
 
-/** `entry`'s bytes came, but its object went invalid meanwhile — another page of it was given up:
- *  its start ends (`undone`) and its streaming page is refused, never started again. The failure
- *  that made the object invalid was said when it happened. */
+/** `entry` reached its install, but its object went invalid meanwhile — another page of it was
+ *  given up: it counts as one of the frame's installs, its start ends (`undone`) with its victim
+ *  given up all the same, and its streaming page is refused, never started again. The failure that
+ *  made the object invalid was said when it happened. */
 function skipped(s: QueueState, entry: Started) {
-  if (undone(s, entry)) s.refused.add(entry.unit)
+  if (undone(s, entry, true)) s.refused.add(entry.unit)
 }
 
 /** The install loop, started when there is work and none runs. */
@@ -124,10 +130,10 @@ function refillInstalls(s: QueueState) {
 
 /**
  * The bytes the simulated bandwidth (`streamingBandwidthLimit`, megabytes a second, negative for
- * none) gives the frame the engine is on: the seconds since the frame it was last paced for, at
- * that rate, whole bytes — none the first time. Paced once a frame, by the update that begins it
- * or, when the gate counts a frame no update began, by the first page that asks, with the time that
- * frame really took. No clock is read while no limit holds.
+ * none) gives each page of the frame the engine is on: the seconds since the frame it was last
+ * paced for, at that rate, whole bytes — none the first time. Paced once a frame, by the update
+ * that begins it or, when the gate counts a frame no update began, by the first page that asks,
+ * with the time that frame really took. No clock is read while no limit holds.
  */
 export function paceFrame(s: QueueState, now?: number) {
   const p = s.pacing,
@@ -139,26 +145,23 @@ export function paceFrame(s: QueueState, now?: number) {
   if (p.bandwidthFrame === s.gate.count) return
   const at = now ?? cpuNow()
   p.bandwidthFrame = s.gate.count
-  p.bytesLeft =
+  p.share =
     p.bandwidthAt === undefined ? 0 : Math.floor(((at - p.bandwidthAt) / 1000) * limit * MIB)
   p.bandwidthAt = at
 }
 
 /**
- * `entry` takes its bytes from the frame's (`paceFrame`), before its install — the pages of one
- * frame share them, in the order started, so the rate is the setting's whatever the pages' sizes:
- * its pages' bytes in the pool's size, whole, counted at its first look. A root page is
+ * `entry` takes its bytes, before it is counted ready or skipped: a share of the frame's
+ * (`paceFrame`) of its own, each page's, as the pages of the reference's simulated link do — the
+ * pages it is stored in, the bytes it is read as, counted at its first look. A root page is
  * installed whole. True while it has bytes left: it and the pages behind it wait for the next
  * frame.
  */
 function takeBandwidth(s: QueueState, entry: Started) {
   if (s.limits.bandwidthLimit < 0 || entry.root) return false
   paceFrame(s)
-  const p = s.pacing
-  entry.bytesLeft ??= entry.pages.reduce((sum, page) => sum + paddedPageBytes(page), 0)
-  const taken = Math.min(entry.bytesLeft, p.bytesLeft)
-  entry.bytesLeft -= taken
-  p.bytesLeft -= taken
+  entry.bytesLeft ??= entry.pages.reduce((sum, page) => sum + storedPageBytes(page), 0)
+  entry.bytesLeft -= Math.min(entry.bytesLeft, s.pacing.share)
   return entry.bytesLeft > 0
 }
 
@@ -176,8 +179,10 @@ export function hostPages(s: QueueState): PageRec[] {
 }
 
 /** Hands the started streaming pages to the pool in the order started, each once its pages'
- *  bytes are in, at most the frame's installs — one whose object went invalid meanwhile is
- *  dropped (`skipped`), not installed —; ends once none is started nor loading. A page whose
+ *  bytes are in, at most the frame's installs and each after the bytes the simulated link gives
+ *  it — one whose read failed for good (`missed`), or whose object went invalid meanwhile
+ *  (`skipped`), is counted as one of them, then dropped, not installed —; ends once none is
+ *  started nor loading. A page whose
  *  bytes the host has not given yet ends it too: that page and those after it stay started, in
  *  their order, and the next update (`pumpOn`) looks again — nothing waits on the host, no loop
  *  spins on it. */
@@ -191,22 +196,10 @@ async function run(s: QueueState) {
         await Promise.all(s.loads)
         continue
       }
-      if (head.failed) {
-        s.pending.shift()
-        missed(s, head, head.error)
-        freed(s, head)
-        continue
-      }
-      if (!bytesIn(s, head)) {
+      if (!head.failed && !bytesIn(s, head)) {
         // A read in flight settles the page; bytes the host holds back are for a later update.
         if (!head.read && !s.loads.size) return
         await (head.read ?? Promise.all(s.loads))
-        continue
-      }
-      if (head.pages.some(s.o.invalid)) {
-        s.pending.shift()
-        skipped(s, head)
-        freed(s, head)
         continue
       }
       if (refillInstalls(s) === 0 || takeBandwidth(s, head)) {
@@ -215,7 +208,13 @@ async function run(s: QueueState) {
       }
       s.pending.shift()
       s.pacing.installsLeft--
-      install(s, head.cache, head)
+      if (head.failed) missed(s, head, head.error)
+      else if (head.pages.some(s.o.invalid)) skipped(s, head)
+      else {
+        install(s, head.cache, head)
+        continue
+      }
+      freed(s, head)
     }
   } finally {
     s.pumping = false

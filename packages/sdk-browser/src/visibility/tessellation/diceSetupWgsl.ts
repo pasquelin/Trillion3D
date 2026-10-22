@@ -74,3 +74,20 @@ fn diceVertex(d:DicePatch,rec:DisplacementRecord,view:TessView,v:u32)->DiceVerte
  return DiceVertex(point,dataSample(rec.map.x,point.uv,vec2f(step),vec2f(step),true).x,b);
 }`,
 )
+
+/**
+ * THE CUTOUT OF A MASKED ROW AT A DICED VERTEX (`dicedKept`): the row's base-map coordinate and
+ * vertex alpha of its three corners weighed by the vertex's own weights on the source triangle,
+ * read by the rasters' own `maskKeep` at the level the micro-triangles' size asks for — the density
+ * of the coordinate set the base map reads. The micro-triangles that use a vertex it does not keep
+ * are not drawn: the cutout is judged at the vertices, never at the pixels. Listed by the programs
+ * that dice a masked row, which declare `maskKeep` and `pageMaskSet`.
+ */
+export const DICE_CUTOUT_WGSL = wgslBlock(
+  'DICE_CUTOUT_WGSL',
+  [uvDerivative],
+  `fn dicedKept(page:PageInfo,d:DicePatch,view:TessView,at:DiceVertex,uv:mat3x2f,alpha:vec3f)->bool{
+ let m=uvDerivative(at.point.clip.w,d.density[pageMaskSet(page)],view.edgesPerUnit,tu.piecesPerEdge,view.perspective);
+ return maskKeep(page,uv*at.b,dot(alpha,at.b),vec2f(m),vec2f(m));
+}`,
+)

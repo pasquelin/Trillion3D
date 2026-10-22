@@ -1,6 +1,7 @@
-// What the timer's sample hands the render-scale controller (`timing.ts`): the image's GPU busy
-// time when every pass that ran was read, none when a pass's pair could not be read; and, while the
-// cut has a GPU time budget, the time of its visibility passes, the fraction the image was cut at.
+// What the timer's sample hands the render-scale controller (`timing.ts`): the dynamic resolution's
+// settings now, the image's GPU busy time when every pass that ran was read, none when a pass's pair
+// could not be read, the views drawn beside the main one included; and, while the cut has a GPU
+// time budget, the time of the main view's visibility passes.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MS, timedDevice } from '../../gpu/timing/imageTimer.fixture.ts'
@@ -11,39 +12,42 @@ import {
   DEFERRED_LIGHTING_PASS,
   RASTER_IDENTIFIERS_PASS,
 } from '../../diagnostic/stage/passLabels.ts'
+import { NO_TIMING } from '../scale/dynamicResolution.ts'
 
 /** What the controller was handed by an image whose passes the device timed at `pairs` (ms), each
- *  labelled by `labels`: its GPU time and its edge scale's time and fraction. `edgeBudgetMs`: the
- *  budget the cut was given; `beside`, the visibility time a view drawn beside the main one cost. */
+ *  labelled by `labels`: its GPU time and its edge scale's time. `edgeBudgetMs`: the budget the cut
+ *  was given; `beside`, the GPU time a view drawn beside the main one cost; `context`, the settings
+ *  of the session. */
 async function observed(
   pairs: [bigint, bigint][],
   labels: string[] = [],
   edgeBudgetMs = 0,
   beside = 0,
+  context: object = {},
 ) {
   const f = timedDevice(),
     seen: (number | null)[] = [],
-    edge: number[][] = []
+    edge: number[] = [],
+    rules: Record<string, unknown> = {}
   // The main view drawn, alone: its scale the world's controller.
   const main = {
     scale: {
       bounds: { auto: false },
       edge: { budgetMs: edgeBudgetMs },
-      observe: (gpuMs: number | null, _scale: number, _steered: boolean, ms = 0, fraction = 0) => {
+      rules,
+      observe: (gpuMs: number | null, _scale: number, _steered: boolean, edgeMs: number) => {
         seen.push(gpuMs)
-        edge.push([ms, fraction])
+        edge.push(edgeMs)
       },
     },
   }
-  const view = {
-    every: 2,
-    timing: { lastGpuFrameMs: 4, lastGpuPassMs: beside ? aside(beside) : null },
-  }
+  const view = { every: 2, timing: { lastGpuFrameMs: beside } }
   const rt = {
     timing: createWebgpuTimingState(),
     views: { main, active: main, persistent: beside ? [view] : [] },
     diag: { traceEnabled: false, engineDiagnostic() {} },
     bounce: {},
+    context,
   } as unknown as WebgpuPagesRuntime
   prepareGpuTiming(rt, f.device)
   const timing = rt.timing.gpuTiming!
@@ -52,19 +56,16 @@ async function observed(
   encoder.finish()
   const read = new BigUint64Array(f.buffers[1].getMappedRange())
   pairs.forEach(([begin, end], i) => read.set([begin * MS, end * MS], i * 2))
-  timing.submitted(encoder, { frame: 1, renderScale: 1, edgeScale: 0.5 })
+  timing.submitted(encoder, { frame: 1, renderScale: 1 })
   await timing.flush()
   timing.dispose()
-  return { seen, edge }
+  return { seen, edge, rules }
 }
 
-/** The sample of an image drawn beside the main one, its visibility passes taking `ms`. */
-const aside = (ms: number) => ({
-  frame: 1,
-  totalMs: ms,
-  truncated: false,
-  passes: [{ name: RASTER_IDENTIFIERS_PASS, gpuMs: ms }],
-})
+const TWO_PASSES: [bigint, bigint][] = [
+  [1n, 3n],
+  [4n, 9n],
+]
 
 test('the controller reads the busy time of an image whose every pass was read', async () => {
   assert.deepEqual(
@@ -90,30 +91,29 @@ test('an image with a pass whose timestamps cannot be read hands no time', async
   )
 })
 
-test('with a budget the controller is handed the time of the visibility passes, those beside the main view too, and the fraction the image was cut at', async () => {
-  const passes: [bigint, bigint][] = [
-      [1n, 3n],
-      [4n, 9n],
-    ],
-    labels = [RASTER_IDENTIFIERS_PASS, DEFERRED_LIGHTING_PASS]
+test('the controller is handed the views drawn beside the main one in the busy time, over their frames', async () => {
+  const { seen } = await observed(TWO_PASSES, [], 0, 6)
   assert.deepEqual(
-    (await observed(passes, labels, 10)).edge,
-    [[2, 0.5]],
+    seen,
+    [8 + 6 / 2],
+    "the submission's span, 1 to 9 ms, and a view's image over its frames",
+  )
+})
+
+test('with a budget the controller is handed the time of the main view’s visibility passes alone, none without', async () => {
+  const labels = [RASTER_IDENTIFIERS_PASS, DEFERRED_LIGHTING_PASS]
+  assert.deepEqual(
+    (await observed(TWO_PASSES, labels, 10)).edge,
+    [2],
     'the raster, not the lighting',
   )
-  assert.deepEqual(
-    (await observed(passes, labels, 10, 6)).edge,
-    [[2 + 6 / 2, 0.5]],
-    'a view beside, over its frames',
-  )
-  assert.deepEqual(
-    (await observed(passes, labels, 0)).edge,
-    [[Number.NaN, 0.5]],
-    'no budget, no time',
-  )
-  assert.deepEqual(
-    (await observed(passes, ['pass', 'pass'], 10)).edge,
-    [[Number.NaN, 0.5]],
-    'no pass of the block',
-  )
+  assert.deepEqual((await observed(TWO_PASSES, labels, 10, 6)).edge, [2], 'no view beside')
+  assert.deepEqual((await observed(TWO_PASSES, labels, 0)).edge, [NO_TIMING], 'no budget')
+  assert.deepEqual((await observed(TWO_PASSES, [], 10)).edge, [NO_TIMING], 'no pass of the block')
+})
+
+test('each sample resolves the dynamic resolution’s settings of the session into the controller’s', async () => {
+  const { rules } = await observed(TWO_PASSES, [], 0, 0, { dynamicResolutionHistorySize: 4 })
+  assert.equal(rules.dynamicResolutionHistorySize, 4, 'the session’s')
+  assert.equal(rules.dynamicResolutionHeadroomPercent, 10, 'the reference’s default for the rest')
 })

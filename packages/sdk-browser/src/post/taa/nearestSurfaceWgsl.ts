@@ -6,7 +6,7 @@ import {
 import { toF32 } from '../../../../math/src/wgsl/f32.ts'
 import { CENTIMETRES_PER_METRE } from '../../../../sdk-core/src/page/format.ts'
 import { ROOT_BOX_DOUBLES } from '../../placement/roots/rootWorldSends.ts'
-import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
+import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../../visibility/shader/pageWgsl.ts'
 import { visPageIndex } from '../../visibility/visWords.ts'
 import { TAA_VIEW_WGSL } from './bindingsWgsl.ts'
 import { TAA_REPROJECT_WGSL } from './deformWgsl.ts'
@@ -25,17 +25,19 @@ export const VELOCITY_INPUT_BINDINGS = {
   positions: 6,
   uvs: 7,
   boxes: 8,
+  normals: 9,
 } as const
 
 /**
  * What the velocity passes read, declared once for every pass that measures it: the pass uniform,
  * the depth, the visibility identifiers, the page records, the placements' motion, the pools a
- * deformed pixel's triangle is read from and the roots' world boxes (`rootBoxes`, doubles, the
+ * deformed or displaced pixel's triangle is read from — the normal atlas beside them, which a
+ * displaced one's prism is solved with — and the roots' world boxes (`rootBoxes`, doubles, the
  * root boxes pass's, `../../placement/roots/rootBoxesWgsl.ts`), which tell how large an object is.
  */
 const VELOCITY_INPUTS_WGSL = wgslBlock(
   'VELOCITY_INPUTS_WGSL',
-  [PAGE_INFO_STRUCT_WGSL, TAA_VIEW_WGSL],
+  [PAGE_INFO_STRUCT_WGSL, TAA_VIEW_WGSL, normalAtlasWgsl(VELOCITY_INPUT_BINDINGS.normals)],
   `
 @group(0) @binding(${VELOCITY_INPUT_BINDINGS.view}) var<uniform> view:TaaView;
 @group(0) @binding(${VELOCITY_INPUT_BINDINGS.depth}) var depth:texture_depth_2d;

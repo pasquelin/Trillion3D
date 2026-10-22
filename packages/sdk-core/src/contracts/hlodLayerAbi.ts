@@ -166,17 +166,19 @@ export interface HlodLayer {
    *  `true` the default, `false` `black`. @defaultValue `DEFAULT_HLOD_EMPTY_TEXELS` */
   emptyTexels?: HlodEmptyTexels | boolean
   /** Whether the mesh of each actor an `approximate`, `merge` or `simplify` layer builds gets a
-   *  cluster DAG, its coarser levels drawn within the pixel error; `false`, one level drawn whole
-   *  at every distance. An `instanced` layer builds no mesh while it is `true`: each object it
-   *  takes keeps its own DAG, its source mesh placed. `false` is the same switch for it — the
-   *  objects no longer drawn through their cluster DAG —: each is drawn at the last LOD of its
-   *  mesh, its fallback mesh (`lodSelection: 'lowest'`), as the reference draws an instanced mesh
-   *  whose cluster DAG is disallowed. The layer then builds those fallbacks as a `merge` layer
-   *  keeping its materials does — one mesh per cell and material, drawn whole, wearing the source's
-   *  material, never a copy of an object's own DAG — and every `merge` rule applies to it
-   *  (`parent`, `spatiallyLoaded`, the grid of its cells); an object marked `hlodInstance` still
-   *  stands as itself. @defaultValue true */
+   *  cluster DAG, its coarser levels drawn within the pixel error; `false`, the default, one level
+   *  drawn whole at every distance, as the reference builds a merged, approximated or simplified
+   *  mesh by default. @defaultValue false */
   clusterDag?: boolean
+  /** Whether an `instanced` layer draws the objects it takes without their cluster DAG: `false`,
+   *  the default, each keeps its own DAG, its source mesh placed, and the layer builds no mesh;
+   *  `true`, each is drawn at the last LOD of its mesh, its fallback mesh (`lodSelection:
+   *  'lowest'`), as the reference draws an instanced mesh whose cluster DAG is disallowed. The
+   *  layer then builds those fallbacks as a `merge` layer keeping its materials does — one mesh per
+   *  cell and material, drawn whole, wearing the source's material, never a copy of an object's own
+   *  DAG — and every `merge` rule applies to it (`parent`, `spatiallyLoaded`, the grid of its
+   *  cells); an object marked `hlodInstance` still stands as itself. @defaultValue false */
+  disallowClusterDag?: boolean
   /** How a `merge` or `simplify` layer builds the mesh of each actor it makes
    *  (`HLOD_MESH_BUILD_SETTINGS`), as the reference reads it from those layers alone: what
    *  its finest level keeps (`keptTriangles`, `trimmedError`), whether its near-collapsed
@@ -200,7 +202,7 @@ export interface HlodLayer {
   minVolume?: number
   /** Whether the actors it builds stream on a grid of their own; `false`, they are always loaded
    *  and nothing is built of them — the top of its chain, the parent it names let go —: an
-   *  instanced layer's objects (`clusterDag` left `true`) then stay loaded with the scene.
+   *  instanced layer's objects (their cluster DAG not disallowed) then stay loaded with the scene.
    *  @defaultValue true */
   spatiallyLoaded?: boolean
   /** Under the `spatialHash` scheme alone (`hashSet`, the default, ignores it: HLOD level `i`

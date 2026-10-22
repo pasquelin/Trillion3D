@@ -15,6 +15,43 @@ pub fn runtime_manifest(
         .collect();
     json!({"status":"ready","formatVersion":SOURCE_FORMAT_VERSION,"runtime":{"file":file,"sha256":sha256,"sidecars":sidecars,"trianglesAcrossNodes":triangles,"meshNodes":mesh_nodes}})
 }
+/// The file's hash `source_hash` against the one a declared manifest holds.
+fn check_declared_hash(manifest: &Value, source_hash: &str) -> Result<()> {
+    let expected = manifest
+        .pointer("/runtime/sha256")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid("manifest.runtime.sha256 is required"))?;
+    if source_hash != expected {
+        return Err(CompilerError::new(
+            "SOURCE_HASH_MISMATCH",
+            "glTF hash differs from manifest",
+        ));
+    }
+    Ok(())
+}
+
+/// The manifest a source is read under: the declared one, else one made of the file `name` read
+/// (its hash `source_hash`, its `sidecars`) and of the scene `g` it holds.
+fn manifest_of(
+    declared: Option<Value>,
+    g: &Value,
+    (name, source_hash, sidecars): (&str, &str, &[(String, String)]),
+) -> Result<Value> {
+    match declared {
+        Some(manifest) => Ok(manifest),
+        None => {
+            let (mesh_nodes, triangles) = source_stats(g)?;
+            Ok(runtime_manifest(
+                name,
+                source_hash,
+                sidecars,
+                mesh_nodes,
+                triangles,
+            ))
+        }
+    }
+}
+
 pub(crate) fn load_model_file(
     dir: &Path,
     name: &str,
@@ -30,16 +67,7 @@ pub(crate) fn load_model_file(
     let file_bytes = map_source(&dir.join(name))?;
     let source_hash = hash(&file_bytes);
     if let Some(manifest) = &declared {
-        let expected = manifest
-            .pointer("/runtime/sha256")
-            .and_then(Value::as_str)
-            .ok_or_else(|| invalid("manifest.runtime.sha256 is required"))?;
-        if source_hash != expected {
-            return Err(CompilerError::new(
-                "SOURCE_HASH_MISMATCH",
-                "glTF hash differs from manifest",
-            ));
-        }
+        check_declared_hash(manifest, &source_hash)?;
     }
     // Bytes of the glTF itself: a GLB's BIN chunk is charged once, as the job's binary.
     let Document {
@@ -68,13 +96,7 @@ pub(crate) fn load_model_file(
         (Binary::Mapped(_), [(_, digest)]) => digest.clone(),
         _ => hash(binary.bytes()),
     };
-    let manifest = match declared {
-        Some(manifest) => manifest,
-        None => {
-            let (mesh_nodes, triangles) = source_stats(&g)?;
-            runtime_manifest(name, &source_hash, &sidecars, mesh_nodes, triangles)
-        }
-    };
+    let manifest = manifest_of(declared, &g, (name, &source_hash, &sidecars))?;
     Ok(RuntimeSource {
         manifest,
         g,

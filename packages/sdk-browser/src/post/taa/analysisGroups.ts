@@ -20,6 +20,7 @@ const ANALYSIS_INPUTS = [
   'pool',
   'positions',
   'uvs',
+  'normals',
   'boxes',
   'reactive',
 ] as const

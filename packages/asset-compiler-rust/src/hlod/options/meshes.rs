@@ -3,7 +3,7 @@
 //! and whether its near-collapsed triangles are dropped (`compiler/args/mesh_build.rs`), the size
 //! its cell keeps resident while the actor is loaded (`root_page_count`), and how it keeps its
 //! shape (`dag::MeshShaping`). A voxel layer's: how its cells' voxels are sampled, the six
-//! `voxel…` settings of a mesh's build (`voxel::VoxelSampling`), and no other. Each setting its
+//! `voxel…` settings of a mesh's build (`voxel::VoxelSettings`), and no other. Each setting its
 //! default, the reference's, when left out. The reference reads the build settings from the
 //! merging and proxy settings of those layers alone (an approximated layer's actors are built at
 //! every default), the voxel ones among them. A layer naming none builds as one naming every
@@ -15,7 +15,7 @@ use crate::compiler::args::name_match::present;
 use crate::compiler::pages::bundles::root_page_count;
 use crate::compiler::validate::{Fields, OPTIONS};
 use crate::dag::MeshShaping;
-use crate::voxel::{ShapePreservation, VoxelSampling};
+use crate::voxel::{ShapePreservation, VoxelSettings};
 
 /// How the mesh of an actor a layer builds is built: its shaping — what its finest level keeps,
 /// whether its near-collapsed triangles are dropped, how it keeps its shape —, the root pages its
@@ -25,7 +25,7 @@ use crate::voxel::{ShapePreservation, VoxelSampling};
 pub struct HlodMeshBuild {
     pub(crate) shaping: MeshShaping,
     pub root_pages: usize,
-    pub(crate) voxels: VoxelSampling,
+    pub(crate) voxels: VoxelSettings,
 }
 
 impl Default for HlodMeshBuild {
@@ -34,7 +34,7 @@ impl Default for HlodMeshBuild {
         Self {
             shaping: MeshShaping::default(),
             root_pages: root_page_count(DEFAULT_ALWAYS_RESIDENT_KIB),
-            voxels: VoxelSampling::default(),
+            voxels: VoxelSettings::default(),
         }
     }
 }

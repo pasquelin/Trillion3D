@@ -9,6 +9,7 @@ import { WORLD_STREAMING_RULES } from '../../../../sdk-core/src/contracts/worldS
 import { STREAMING_RULES } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
 import { RASTER_RULES } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
 import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
+import { DYNAMIC_RESOLUTION_RULES } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
 import { ANIMATION_RULES } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
@@ -112,6 +113,9 @@ export const worldFamilies = (settings: WorldSettings) => ({
     session.setWorldStreaming(field, value),
   ),
   cut: ruledSwitches(settings, CUT_RULES, (session, field, value) => session.setCut(field, value)),
+  dynamicResolution: ruledSwitches(settings, DYNAMIC_RESOLUTION_RULES, (session, field, value) =>
+    session.setDynamicResolution(field, value),
+  ),
   animation: ruledSwitches(settings, ANIMATION_RULES, (session, field, value) =>
     session.setAnimation(field, value),
   ),

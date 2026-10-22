@@ -72,11 +72,18 @@ pub(super) fn layer(entry: &Value, what: &str) -> Result<(HlodLayer, Option<Stri
         HlodBuilder::Simplify => super::simplifying::simplifying(map, &what)?,
         _ => HlodSimplifying::default(),
     };
-    let cluster_dag = switch(map, "clusterDag", &what)?.unwrap_or(true);
-    // An instanced layer asking for no cluster DAG draws each object it takes at the last LOD of
-    // its mesh — a source whose LODs are a cluster DAG, its fallback — rather than at the cut of its
-    // own DAG: the layer that builds those meshes, a `merge` layer keeping its materials and
-    // taking each source's fallback (`HlodLodSelection::Lowest`), its meshes drawn whole.
+    // Two settings, as the reference has them: an instanced layer's objects keep their own cluster
+    // DAG unless the layer disallows it (`disallowClusterDag`, false by default); the mesh a layer
+    // builds gets one only where the layer asks for it (`clusterDag`, false by default, a merged,
+    // approximated or simplified mesh being a plain mesh by default). An instanced layer
+    // disallowing it draws each object it takes at the last LOD of its mesh — a source whose LODs
+    // are a cluster DAG, its fallback — rather than at the cut of its own DAG: the layer that
+    // builds those meshes, a `merge` layer keeping its materials and taking each source's fallback
+    // (`HlodLodSelection::Lowest`), its meshes drawn whole.
+    let cluster_dag = match builder {
+        HlodBuilder::Instanced => !switch(map, "disallowClusterDag", &what)?.unwrap_or(false),
+        _ => switch(map, "clusterDag", &what)?.unwrap_or(false),
+    };
     let (builder, lod_selection) = match (builder, cluster_dag) {
         (HlodBuilder::Instanced, false) => (HlodBuilder::Merge, HlodLodSelection::Lowest),
         _ => (builder, lod_selection),

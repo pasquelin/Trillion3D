@@ -6,6 +6,7 @@
 //! of 0 names no farthest distance: the object is drawn at every distance, whatever its `min`, as
 //! `false` says — one form for none, so a `Some` is always a distance the cut tests.
 use super::*;
+use crate::compiler::args::reader::Reader;
 
 /// An object's draw distance, both keys resolved, its `max` above 0.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -34,14 +35,12 @@ impl DrawDistance {
             return Err(OPTIONS.bad(format!("{what} must be false or {{ {keys} }}")));
         }
         let map = OPTIONS.known(value, &DRAW_DISTANCE_SETTINGS, what)?;
+        let prefix = format!("{what}.");
+        let read = Reader { map, what: &prefix };
         let distance = |key: &str, default: f64| {
-            present(map.get(key))
-                .map(|v| {
-                    let takes = "a finite number of at least 0";
-                    OPTIONS.bounded(v, &format!("{what}.{key}"), (0.0, f64::MAX), takes)
-                })
-                .transpose()
-                .map(|named| named.unwrap_or(default))
+            let takes = "a finite number of at least 0";
+            let named = read.number(key, (0.0, f64::MAX), takes)?;
+            Ok::<f64, CompilerError>(named.unwrap_or(default))
         };
         let [min, max] = DRAW_DISTANCE_SETTINGS;
         let (min, max) = (

@@ -1,5 +1,5 @@
 //! The objects standing as themselves in an HLOD actor — every object of an instanced layer's
-//! actor, one keeping its cluster DAG (`clusterDag` false makes it a merged layer, which builds the
+//! actor, one keeping its cluster DAG (`disallowClusterDag` makes it a merged layer, which builds the
 //! fallback of each object, `options/parse.rs`), those marked `hlodInstance` in any other layer's
 //! (`HLOD_INSTANCE_MARK`) —: nothing is built of them. The actor names each one's source mesh and
 //! world matrix (`ActorRow`), a row the runtime places on that mesh's rows as a cell file's node,

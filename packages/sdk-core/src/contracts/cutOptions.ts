@@ -1,5 +1,6 @@
 import {
   ANY_NUMBER as ANY,
+  contextReader,
   flagSetting as flag,
   integerSetting as integer,
   nonNegativeSetting as nonNegative,
@@ -29,7 +30,9 @@ const EDGE_SCALE_PERCENT: readonly [number, number] = [1, 100]
 
 /** The cut's settings by field, each with the reference's default: two passes, every cull on — the
  *  draw distance's one (`cutDrawDistanceCulling`) culls an object that names a distance
- *  (`./objectAbi.ts`, `DRAW_DISTANCE_SETTING`) —, distances at their own size, an upscaled image
+ *  (`./objectAbi.ts`, `DRAW_DISTANCE_SETTING`) —, distances at their own size (a secondary scale,
+ *  `cutViewDistanceSecondaryScale`, 1, multiplies them only once `cutViewDistanceApplySecondaryScale`
+ *  is on, which it is not), an upscaled image
  *  cut as its display with no shift, four times finer at most, no GPU time budget for the cut and
  *  its raster (`cutEdgeScaleBudgetMs`), which coarsens the screen error no further than to 30 % of
  *  its scale (`cutEdgeScaleMinPercent`), and lists of 2 Mi nodes, 16 Mi candidate clusters and
@@ -42,6 +45,8 @@ export const CUT_RULES = /* @__PURE__ */ (() =>
     flag('cutMinLodCulling', true),
     flag('cutDrawDistanceCulling', true),
     nonNegative('cutViewDistanceScale', 1),
+    flag('cutViewDistanceApplySecondaryScale', false),
+    nonNegative('cutViewDistanceSecondaryScale', 1),
     // The one setting read once, when the session opens: the project switch that picks the programs'
     // text (`../../../sdk-browser/src/gpu/core/clipDistances.ts`, `clippingFor`).
     flag('cutClipPlane', false),
@@ -65,3 +70,5 @@ export type CutField = keyof typeof CUT_RULES
 /** The cut's settings as a host writes them, by their fields: each its value, or nothing for its
  *  default. */
 export type CutOptions = SettingOptions<typeof CUT_RULES>
+/** A cut setting a runtime's context holds, by its field and its one resolver. */
+export const readCutSetting = /* @__PURE__ */ contextReader(CUT_RULES)

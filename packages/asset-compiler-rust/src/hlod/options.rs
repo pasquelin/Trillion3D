@@ -42,7 +42,7 @@ pub use translucency::HlodTranslucency;
 pub enum HlodBuilder {
     /// The objects themselves, instanced: at HLOD 0 their own cell rows, above it each their
     /// source mesh placed, drawn by the cut of its own cluster DAG. A layer asking for no cluster
-    /// DAG (`clusterDag` false) is read as a `merge` layer (`options/parse.rs`, `layer`).
+    /// DAG (`disallowClusterDag`) is read as a `merge` layer (`options/parse.rs`, `layer`).
     Instanced,
     /// One closed shell per cell wearing a flattened material.
     Approximate,
@@ -81,8 +81,9 @@ impl HlodBuilder {
     /// settings (`simplification`) and its atlas, sized, guttered and baked as a merged layer's,
     /// whether it bakes identical meshes once, carries the sources' vertex colours and reuses
     /// their lightmap coordinates (`options/simplifying.rs`). A layer that builds a mesh names
-    /// whether that mesh gets a cluster DAG (`clusterDag`) — an instanced layer too: its objects
-    /// then keep their own DAG, or, asking for none, are drawn at the last LOD of their meshes
+    /// whether that mesh gets a cluster DAG (`clusterDag`, false by default) — an instanced layer
+    /// whether its objects keep their own (`disallowClusterDag`, false by default), or, disallowing
+    /// it, are drawn at the last LOD of their meshes
     /// (`parse::layer`) — and, baking an atlas, how a translucent source shows in it
     /// (`translucency`, `options/translucency.rs`); an approximated or simplified layer, what its
     /// atlas holds where it holds no chart's value (`emptyTexels`); a merged or simplified layer,
@@ -97,7 +98,7 @@ impl HlodBuilder {
                 "minExtent",
                 "minArea",
                 "minVolume",
-                "clusterDag",
+                "disallowClusterDag",
             ],
             Self::Voxel => &["meshBuild"],
             Self::Approximate => &[
@@ -208,11 +209,12 @@ pub struct HlodLayer {
     pub size_filter: HlodSizeFilter,
     /// A simplified layer's settings (`options/simplifying.rs`), each defaulted.
     pub simplifying: HlodSimplifying,
-    /// Whether the mesh of each actor it builds — approximated or merged — gets a cluster DAG, its
-    /// coarser levels drawn by the cut within the pixel error (`clusterDag`, true by default);
-    /// not, the mesh alone, one level drawn whole at every distance. An instanced layer builds no
-    /// mesh while it is true: its objects keep their own DAG; false, it is a merged layer taking
-    /// each object's fallback (`parse::layer`).
+    /// Whether the mesh of each actor it builds — approximated, merged or simplified — gets a
+    /// cluster DAG, its coarser levels drawn by the cut within the pixel error (`clusterDag`, false
+    /// by default); not, the mesh alone, one level drawn whole at every distance. An instanced
+    /// layer builds no mesh while it is true — its objects keep their own DAG, unless it
+    /// disallows it (`disallowClusterDag`): it is then a merged layer taking each object's fallback
+    /// (`parse::layer`).
     pub cluster_dag: bool,
     /// How the mesh of each actor it builds is built, and the root pages its cell holds
     /// (`meshBuild`, `options/meshes.rs`): a merged or simplified layer's as it names it, every

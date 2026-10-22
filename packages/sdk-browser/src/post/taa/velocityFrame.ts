@@ -4,6 +4,7 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { WebgpuGpuState } from '../../frame/backend/state/gpu.ts'
 import { screenProbesCast } from '../../lighting/bounce/screen/cast.ts'
 import { encodeComposedMotion } from '../../placement/compose/composedMotionPass.ts'
+import { tessellationWanted } from '../../visibility/tessellation/wanted.ts'
 import { motionWanted, perObjectSizeOf } from '../effects/stagePlan.ts'
 import type { TaaFrameState } from './frameState.ts'
 import type { VelocityInputs } from './inputs.ts'
@@ -111,8 +112,8 @@ export function keepImage(
 
 /**
  * Writes into `inputs` what the velocity passes read of the frame — its depth, identifiers and page
- * records, the placements' `motion`, the pools a deformed pixel's triangle is read from and the
- * roots' world boxes; false, with nothing written, while the frame lacks any of them.
+ * records, the placements' `motion`, the pools and the normal atlas a deformed or displaced pixel's
+ * triangle is read from and the roots' world boxes; false, with nothing written, while the frame lacks any of them.
  */
 export function readVelocityInputs(
   rt: WebgpuPagesRuntime,
@@ -122,7 +123,7 @@ export function readVelocityInputs(
   const { gpu, vis } = rt,
     pool = gpu.cache?.buffer
   if (!gpu.depthView || !vis.visView || !vis.pageTable) return false
-  if (!pool || !vis.concatPos || !vis.concatUv) return false
+  if (!pool || !vis.concatPos || !vis.concatUv || !vis.concatNrm) return false
   inputs.depth = gpu.depthView
   inputs.ids = vis.visView
   inputs.pages = vis.pageTable
@@ -131,6 +132,7 @@ export function readVelocityInputs(
   inputs.pool = pool
   inputs.positions = vis.concatPos
   inputs.uvs = vis.concatUv
+  inputs.normals = vis.concatNrm
   return true
 }
 
@@ -157,6 +159,7 @@ export function encodeVelocity(
   velocity.ensure(...gpu.allocatedSize)
   const scan = trackMotion(rt, device, encoder, cam, velocity)
   state.objectSize = perObjectSizeOf(rt)
+  state.tessellated = tessellationWanted(rt)
   const moved = velocity.motion.moved || !!rt.compose?.moving
   const grids = [gpu.targetSize, gpu.displaySize, velocity.size] as const
   writeTaaView(

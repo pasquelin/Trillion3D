@@ -1,5 +1,6 @@
-// How long a failure is kept: while its wait runs, past its page; a refusal for good leaves with
-// its page; a failure is remembered while its key is asked again, and forgotten once it is not.
+// How long a failure is kept: while the wait its server asked runs, past its page; a refusal for
+// good leaves with its page; a failure is remembered, its tries counting on, till its key passes or
+// its owner lets it go.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPageStreamer } from './pageStreamer.ts'
@@ -8,8 +9,10 @@ import { createReadFailures } from './failures.ts'
 import { eventually } from './eventually.fixture.ts'
 import { idle, refusing } from './failures.fixture.ts'
 
-test('a failure outlives its page while its wait runs, then leaves; one for good leaves with it', async (t) => {
-  const { streamer, sent, until, clock, settle } = refusing(t, 503)
+test('a failure outlives its page while the wait its server asked runs, then leaves; one for good leaves with it', async (t) => {
+  const { streamer, sent, until, clock, settle } = refusing(t, 503, ['a.bin'], {
+    'retry-after': '1',
+  })
   const page = { url: 'a.bin', bytes: 4, sha256: '' }
   const leaving = new AbortController()
   void streamer.readBytes('a.bin', leaving.signal).catch(() => {})
@@ -20,9 +23,9 @@ test('a failure outlives its page while its wait runs, then leaves; one for good
   void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
   await settle()
   assert.deepEqual(sent, [0], 'admitted again within its wait: it waits it out')
-  await until(500)
-  assert.deepEqual(sent, [0, 500], 'asked once its wait ended')
-  assert.equal(clock.now, 500)
+  await until(1_000)
+  assert.deepEqual(sent, [0, 1_000], 'asked once its wait ended')
+  assert.equal(clock.now, 1_000)
 })
 
 test('a refusal for good leaves with its page: nothing asks it any more', async (t) => {
@@ -61,7 +64,7 @@ test('a page forgotten while its read transfers ends with it, failed or not: nev
   assert.deepEqual([sent, streamer.loading('a.bin'), streamer.stats().failed], [1, false, 0])
 })
 
-test('a failure is remembered while its key is asked again, and forgotten once it is not', (t) => {
+test('a failure is remembered, its tries counting on, till its key passes or its owner lets it go', (t) => {
   const clock = { now: 0 }
   t.mock.method(performance, 'now', () => clock.now)
   t.mock.timers.enable({ apis: ['setTimeout'] })
@@ -72,17 +75,16 @@ test('a failure is remembered while its key is asked again, and forgotten once i
     clock.now += ms
     t.mock.timers.tick(ms)
   }
-  failures.record('a', 'busy')
-  assert.ok(failures.blocked('a'), 'held back while its wait runs')
-  step(500)
+  assert.match(failures.record('a', 'busy').error.message, /after one attempt/)
+  assert.ok(failures.blocked('a'), 'held back until the next turn of the loop')
+  step(1)
   assert.deepEqual([ended, failures.blocked('a'), failures.count()], [['a'], undefined, 0])
-  failures.record('a', 'busy') // asked again once its wait ended, and failed again
-  step(500)
-  assert.ok(failures.blocked('a'), 'its tries count on: its second wait is twice the first')
-  step(500)
-  assert.equal(failures.blocked('a'), undefined)
-  step(8_000) // not asked again
-  failures.record('a', 'busy')
-  step(500)
-  assert.equal(failures.blocked('a'), undefined, 'forgotten: its tries start over')
+  step(60_000) // asked again, long after: its tries are still counted
+  assert.match(failures.record('a', 'busy').error.message, /after 2 attempts/)
+  step(1)
+  failures.passed('a')
+  assert.match(failures.record('a', 'busy').error.message, /after one attempt/, 'passed: over')
+  step(1)
+  failures.leaves('a') // its owner lets it go
+  assert.match(failures.record('a', 'busy').error.message, /after one attempt/, 'let go: over')
 })

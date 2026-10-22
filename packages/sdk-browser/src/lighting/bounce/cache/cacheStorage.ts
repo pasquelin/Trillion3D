@@ -11,65 +11,62 @@ import {
   type CacheShape,
 } from './cacheLayout.ts'
 
+/** The atlases of the cache: the raw one, the final one with its levels of detail and the sky's share (a texel where it is not kept). */
+function cacheAtlases(device: GPUDevice, shape: CacheShape, slots: number) {
+  const { resolution, mipmaps, skyVisibility } = shape
+  const size = cacheExtent(resolution, slots)
+  const usage = GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
+  const atlas = (label: string, extent: [number, number], format: GPUTextureFormat, mips = 1) =>
+    device.createTexture({
+      label: `Trillion3D radiance cache ${label} v1`,
+      size: extent,
+      format,
+      mipLevelCount: mips,
+      usage,
+    })
+  const raw = atlas('raw', size, F.raw)
+  const final = atlas('final', size, F.final, mipmaps)
+  const sky = atlas('sky', skyVisibility ? size : [1, 1], F.sky)
+  return {
+    raw,
+    final,
+    sky,
+    views: {
+      raw: raw.createView(),
+      final: final.createView(),
+      sky: sky.createView(),
+      /** The levels of detail of the final maps, each alone: written, then read by the next. */
+      levels: Array.from({ length: mipmaps }, (_, level) =>
+        final.createView({ baseMipLevel: level, mipLevelCount: 1 }),
+      ),
+    },
+  }
+}
+
 /** What the radiance cache keeps for maps of the shape `shape` in a pool of `slots` probes: the raw and the final atlases — the final
  *  one with its levels of detail, each a view of its own to be written —, the sky's share atlas where the sky is kept apart (a texel
  *  else), the tags of the final maps and the importance functions of the probes — a buffer a slot, zero: no map was made, no screen
  *  probe has read it —, the flags of the probes traced this frame, the list of the trace tiles and the parameters. */
 export function createCacheStorage(device: GPUDevice, shape: CacheShape, slots: number) {
-  const { resolution, mipmaps, skyVisibility } = shape
   return constructGpuResources(device, () => {
-    const size = cacheExtent(resolution, slots)
-    const usage = GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
-    const raw = device.createTexture({
-      label: 'Trillion3D radiance cache raw v1',
-      size,
-      format: F.raw,
-      usage,
-    })
-    const final = device.createTexture({
-      label: 'Trillion3D radiance cache final v1',
-      size,
-      format: F.final,
-      mipLevelCount: mipmaps,
-      usage,
-    })
-    const sky = device.createTexture({
-      label: 'Trillion3D radiance cache sky v1',
-      size: skyVisibility ? size : [1, 1],
-      format: F.sky,
-      usage,
-    })
-    const buffer = (label: string, words: number, extra = 0) =>
+    const buffer = (label: string, words: number) =>
       device.createBuffer({
         label: `Trillion3D radiance cache ${label} v1`,
         size: Math.max(16, words * 4),
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | extra,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
       })
-    const tiles = createList(
-      device,
-      'Trillion3D radiance cache tiles v1',
-      cacheTileCapacity(resolution),
-      2,
-    )
     return {
       shape,
-      size,
-      raw,
-      final,
-      sky,
-      views: {
-        raw: raw.createView(),
-        final: final.createView(),
-        sky: sky.createView(),
-        /** The levels of detail of the final maps, each alone: written, then read by the next. */
-        levels: Array.from({ length: mipmaps }, (_, level) =>
-          final.createView({ baseMipLevel: level, mipLevelCount: 1 }),
-        ),
-      },
+      ...cacheAtlases(device, shape, slots),
       tags: buffer('tags', slots * CACHE_TAG_WORDS),
       pdf: buffer('importance', slots * CACHE_PDF_WORDS),
       entries: buffer('traced', BOUNCE_PROBE_QUEUE),
-      tiles,
+      tiles: createList(
+        device,
+        'Trillion3D radiance cache tiles v1',
+        cacheTileCapacity(shape.resolution),
+        2,
+      ),
       params: device.createBuffer({
         label: 'Trillion3D radiance cache parameters v1',
         size: RADIANCE_CACHE_PARAMS_BYTES,

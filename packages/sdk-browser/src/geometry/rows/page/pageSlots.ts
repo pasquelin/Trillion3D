@@ -31,13 +31,13 @@ export const pageUnit = (
     ? { unit: rec.streamUrl, offset: rec.streamOffset ?? 0 }
     : { unit: pageAddress(rec), offset: 0 }
 
-/** The bytes a page takes in its pool slot, padded to a word: its geometry page's, else its
- *  index bytes. */
+/** The bytes a page is stored in, and read as: its geometry page's, else its index bytes. */
+export const storedPageBytes = (page: Pick<PageRec, 'geometryPage' | 'array' | 'indexBytes'>) =>
+  page.geometryPage ? page.geometryPage.bytes : (page.array?.byteLength ?? page.indexBytes)
+
+/** The bytes a page takes in its pool slot: those it is stored in, padded to a word. */
 export const paddedPageBytes = (page: Pick<PageRec, 'geometryPage' | 'array' | 'indexBytes'>) =>
-  alignUp(
-    page.geometryPage ? page.geometryPage.bytes : (page.array?.byteLength ?? page.indexBytes),
-    4,
-  )
+  alignUp(storedPageBytes(page), 4)
 
 /** The corners a page draws: its geometry page's indices, else three a triangle. */
 export const pageCorners = (page: Pick<PageRec, 'geometryPage' | 'triangles'>) =>

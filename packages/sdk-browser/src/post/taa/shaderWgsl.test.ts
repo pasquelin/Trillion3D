@@ -9,6 +9,8 @@ import { VELOCITY_BINDINGS, velocityShader } from './nearestVelocityWgsl.ts'
 import { reprojectShader } from './reprojectWgsl.ts'
 import { flattenShader } from '../effects/motionBlur/flattenWgsl.ts'
 import { SURFACE_VELOCITY_BINDINGS, SURFACE_VELOCITY_WGSL } from './surfaceVelocityWgsl.ts'
+import { VELOCITY_INPUT_BINDINGS } from './nearestSurfaceWgsl.ts'
+import { velocityInputEntries } from './inputs.ts'
 import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
@@ -84,13 +86,13 @@ test('shader bindings are those of the layout, and the uniform has the declared 
       new RegExp(`@binding\\(${binding}\\) var(<[a-z,]+>)? ${name}:`),
       `binding ${name}`,
     )
-  // Two matrices, then thirteen quadruplets — the level's knobs last (`quality`, `levels.ts`): no
-  // filter weights, the window is evaluated where it is read; the history's laws are constants
-  // (`HISTORY_LAWS`).
-  assert.equal(TAA_VIEW_BYTES, 2 * 64 + 13 * 16)
+  // Two matrices, then fourteen quadruplets — the level's knobs, then the tessellation's word
+  // (`quality`, `tessellation`): no filter weights, the window is evaluated where it is read; the
+  // history's laws are constants (`HISTORY_LAWS`).
+  assert.equal(TAA_VIEW_BYTES, 2 * 64 + 14 * 16)
   assert.match(
     TAA_SHADER,
-    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,render:vec4f,jitter:vec4f,eye:vec4f,exposure:vec4f,parallax:vec4f,rates:vec4f,depth:vec4f,radius:vec4f,prevRender:vec4f,analysisGrid:vec4f,quality:vec4f,\}/,
+    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,render:vec4f,jitter:vec4f,eye:vec4f,exposure:vec4f,parallax:vec4f,rates:vec4f,depth:vec4f,radius:vec4f,prevRender:vec4f,analysisGrid:vec4f,quality:vec4f,tessellation:vec4f,\}/,
   )
   assert.doesNotMatch(TAA_SHADER, /view\.weights/)
 })
@@ -159,12 +161,15 @@ test("the velocity stage writes each texel's own vector alone; the analysis dila
   assert.match(VELOCITY_SHADER, /let nearest=surface\.motion;/)
   assert.doesNotMatch(VELOCITY_SHADER, /vectorOut/)
   // The inputs sit at the same bindings, the vector after them.
-  const inputs = [
-    ...['view', 'depth', 'ids', 'pages', 'motion', 'indices', 'positions', 'uvs', 'boxes'],
-  ] as const
+  const inputs = Object.keys(VELOCITY_INPUT_BINDINGS) as (keyof typeof VELOCITY_INPUT_BINDINGS)[]
   for (const name of inputs)
     assert.equal(SURFACE_VELOCITY_BINDINGS[name], VELOCITY_BINDINGS[name], name)
-  assert.match(surface, /@binding\(9\) var vectorOut:texture_storage_2d<r32uint,write>/)
+  // The layout names each of them once: the normal atlas a displaced texel's prism is solved with too.
+  assert.deepEqual(
+    velocityInputEntries().map(({ binding }) => binding),
+    Object.values(VELOCITY_INPUT_BINDINGS).sort((a, b) => a - b),
+  )
+  assert.match(surface, /@binding\(10\) var vectorOut:texture_storage_2d<r32uint,write>/)
 })
 
 test('a vector says in its first code whether the surface moved by itself, to a step of the code', () => {
@@ -258,6 +263,7 @@ test('an object smaller on the screen than `perObjectSize` is measured as still,
       view: {
         rates: [...rates],
         eye: [0, 0, 0, 0],
+        tessellation: [0, 0, 0, 0],
         radius: [0, 0, 1, orthographic ? 1 : 0],
         params: [0, 0, 1, 0],
         render: [8, 8, 0.125, 0.125],

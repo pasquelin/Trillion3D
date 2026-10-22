@@ -53,6 +53,9 @@ const VSM_RENDER_VIEW_DIRECTIONAL = 1
  *  surface tessellated — the suns', the local lights'. */
 export const VSM_RENDER_TESSELLATE_DIRECTIONAL = 1
 export const VSM_RENDER_TESSELLATE_LOCAL = 2
+/** Another bit of the same word: the device takes a masked displaced surface tessellated too
+ *  (`vsmMaskedPatches`). */
+export const VSM_RENDER_TESSELLATE_MASKED = 4
 
 /**
  * Per-chunk parameters (one slot each, the device's `uniformStride` apart, same frame values in
@@ -131,10 +134,10 @@ const VSM_RENDER_CAND_FLIPPED:u32=4u;
  *  far shadows, which the test never leaves out. */
 const VSM_RENDER_CAND_FAR_TESTED:u32=8u;
 const VSM_RENDER_CAND_FAR_CAST:u32=16u;
-/** Bit 5: the row is an unmasked displaced surface the frame tessellates (\`tessellatedFlags\`) while a
- *  kind of light's maps take it so (\`params.tessellated\`): its pairs are cut into patches and not
- *  drawn as its triangles. A masked one casts its flat triangles, cut out as any: the vertex stage
- *  that dices the patches has no storage buffer left for the colour atlas the cutout reads. */
+/** Bit 5: the row is a displaced surface the frame tessellates (\`tessellatedFlags\`) while a kind of
+ *  light's maps take it so (\`params.tessellated\`): its pairs are cut into patches and not drawn as
+ *  its triangles. A masked one only where the device holds the vertex stage that cuts it out
+ *  (\`VSM_RENDER_TESSELLATE_MASKED\`); otherwise it casts its flat triangles, cut out as any. */
 const VSM_RENDER_CAND_TESSELLATED:u32=32u;
 /** Whether a sun whose far-shadow distance is \`distance\` (a map's \`farShadowDistance\`, 0 for none)
  *  leaves the candidate out: its row is tested, does not cast far shadows, and its object's nearest
@@ -164,6 +167,7 @@ ${wgslConsts({
   VSM_RENDER_VOXEL_BIT,
   VSM_RENDER_TESSELLATE_DIRECTIONAL,
   VSM_RENDER_TESSELLATE_LOCAL,
+  VSM_RENDER_TESSELLATE_MASKED,
 })}
 fn vsmRenderChunkCounter(chunk:u32,k:u32)->u32{return VSM_RENDER_COUNTS_HEAD+chunk*VSM_RENDER_CHUNK_COUNTS+k;}
 /** The least tier whose pairs draw \`corners\` corners: \`VSM_RENDER_TIER_CORNERS << tier\` ≥ corners;

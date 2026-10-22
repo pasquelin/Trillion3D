@@ -1,6 +1,6 @@
 //! Reading one compile job from the command line or a batch file (`compiler/args.rs`).
 use super::*;
-use crate::voxel::VoxelSampling;
+use crate::voxel::VoxelSettings;
 
 /// The command line's job read from `line`, under a fresh cancellation flag.
 fn parse(line: &[&str]) -> std::result::Result<Options, String> {
@@ -171,7 +171,7 @@ fn a_meshs_voxel_settings_follow_the_job_then_its_extras_then_the_defaults() {
     });
     let meshes = |job: Option<&Value>| MeshBuildOptions::read(job).expect("read").meshes(&g);
     let none = meshes(None).expect("meshes");
-    assert_eq!(none[0].voxels, VoxelSampling::default());
+    assert_eq!(none[0].voxels, VoxelSettings::default());
     assert_eq!(none[0].voxels.rays(), 64);
     assert_eq!((none[1].voxels.asked_rays, none[1].voxels.ndf), (20, false));
     let job = json!({"voxelRays": 128, "voxelOpacity": true, "objects": [
@@ -197,7 +197,7 @@ fn a_meshs_voxel_settings_follow_the_job_then_its_extras_then_the_defaults() {
 // voxel level up every group is voxels, a level below 0 acting as the first.
 #[test]
 fn the_voxel_settings_read_as_the_rays_and_levels_they_mean() {
-    let rays = |asked_rays| VoxelSampling {
+    let rays = |asked_rays| VoxelSettings {
         asked_rays,
         ..Default::default()
     };
@@ -205,13 +205,13 @@ fn the_voxel_settings_read_as_the_rays_and_levels_they_mean() {
     assert_eq!(cast, [0, 1, 16, 16, 32, 64, 1008, 1024, 1024]);
     assert!(rays(1).single() && !rays(2).single());
     assert!(!rays(1).redistributes() && rays(64).redistributes());
-    assert!(!VoxelSampling {
+    assert!(!VoxelSettings {
         opacity: true,
         ..rays(64)
     }
     .redistributes());
     assert!(rays(16).remembers_empty() && !rays(17).remembers_empty());
-    let from = |level| VoxelSampling {
+    let from = |level| VoxelSettings {
         level,
         ..Default::default()
     };

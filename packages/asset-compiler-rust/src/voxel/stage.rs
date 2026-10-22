@@ -7,8 +7,10 @@
 //! many bricks as its planned parents hold triangles —, as long as their error stays below its
 //! triangles'. A group whose child comes from a voxel group has no triangles to beat — once a
 //! level is voxels, every level above is —: it is drawn as voxels, at the side its budget allows.
-//! A mesh's far group exists only above roots drawn as voxels: only a voxel root keeps coarsening
-//! past the DAG's top.
+//! Its candidate cells come from that child's voxels and the cells it remembered, those of its
+//! other children from their triangles; a group none of whose children is voxels takes them from
+//! its triangles (`inherit.rs`). A mesh's far group exists only above roots drawn as voxels: only
+//! a voxel root keeps coarsening past the DAG's top.
 //!
 //! `voxels.bin`, little-endian: a head — `T3VX`, the version, the group count, the brick count —,
 //! then a record per group (`GROUP_BYTES`): its primitive (`u32::MAX` for a far group), its rank
@@ -25,14 +27,15 @@
 //! (infinite) and replaces every primitive of its mesh at its error, blended ones too: far glass
 //! is opaque voxels. A group keeps at least one voxel; a mesh none of whose sides keeps one has no
 //! far group, its roots drawn at every distance.
-//! A mesh's voxelization lives in `mesh`, the surface sampling in `surface`, the encoding and report in
-//! `encode`. How a mesh's voxels are sampled — its rays, the level from which every group is
-//! voxels, the spread of its normals, its opacity — is its build's (`VoxelSampling`), one per
-//! source mesh (`VoxelInputs::sampling`).
+//! A mesh's voxelization lives in `mesh`, the surface sampling in `surface`, what a group takes of
+//! its voxel children in `inherit`, the encoding and report in `encode`. How a mesh's voxels are sampled — its rays, the level from which every group is
+//! voxels, the spread of its normals, its opacity — is its build's (`VoxelSettings`), one per
+//! source mesh (`VoxelInputs::settings`).
 use super::bricks::Brick;
+use super::raster::Cell;
 use super::seed::VoxelSeed;
 use super::solid::Voxel;
-use super::{VoxelSampling, ERROR_PER_SIZE, VOXEL_FILE};
+use super::{VoxelSettings, ERROR_PER_SIZE, VOXEL_FILE};
 use crate::compiler::cache::storage::{product, Product};
 use crate::texture::TexturePreview;
 use crate::Result;
@@ -43,6 +46,7 @@ use std::path::Path;
 mod mesh;
 use mesh::voxelize_mesh;
 mod encode;
+mod inherit;
 mod surface;
 use encode::{encode, report};
 
@@ -63,11 +67,12 @@ pub(crate) struct VoxelInputs<'a> {
     pub mesh_map: &'a BTreeMap<usize, usize>,
     pub primitives: &'a [Value],
     pub seeds: &'a [VoxelSeed],
-    pub sampling: &'a [VoxelSampling],
+    pub settings: &'a [VoxelSettings],
 }
 
 /// A group drawn as voxels — of a primitive's DAG, or a mesh's far group (`primitive` `None`, `group`
-/// the compiled mesh) — and, per brick, the error it is replaced at (infinite for a far group).
+/// the compiled mesh) — and, per brick, the error it is replaced at (infinite for a far group);
+/// the cells it has no voxel in but remembers, which the group above takes its candidates from.
 struct Voxelized {
     primitive: Option<usize>,
     group: usize,
@@ -78,6 +83,7 @@ struct Voxelized {
     voxels: Vec<Voxel>,
     bricks: Vec<Brick>,
     brick_parents: Vec<f64>,
+    remembered: Vec<Cell>,
 }
 
 impl Voxelized {
@@ -122,7 +128,7 @@ impl Voxelized {
         errors.into_iter().map(part).collect()
     }
 
-    /// Its fields but its voxels, bricks and their parents.
+    /// Its fields but its voxels, bricks, their parents and its remembered cells.
     fn clone_head(&self) -> Voxelized {
         Voxelized {
             primitive: self.primitive,
@@ -134,6 +140,7 @@ impl Voxelized {
             voxels: Vec::new(),
             bricks: Vec::new(),
             brick_parents: Vec::new(),
+            remembered: Vec::new(),
         }
     }
 }
@@ -145,7 +152,7 @@ struct Voxelled {
     mesh: usize,
     groups: Vec<Voxelized>,
     voxels_from: f64,
-    sampling: VoxelSampling,
+    settings: VoxelSettings,
 }
 
 /// Voxelizes every seeded group, then every mesh's far group, and writes `voxels.bin` in

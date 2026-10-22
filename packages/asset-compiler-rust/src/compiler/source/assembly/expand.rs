@@ -12,8 +12,20 @@ use crate::compiler::source::nodes::check_references;
 use crate::*;
 use std::collections::BTreeMap;
 
-/// What a child node weighs while the document is held, in bytes, for the memory budget.
-const CHILD_BYTES: usize = 512;
+/// What the child node for node `at` of an assembly, `node`, weighs while the document is held, in
+/// bytes, for the memory budget, its parent's name `parent` bytes long: each of its fields — its
+/// name (`child`), its mesh and the node's transform — a key and a value, each number of a
+/// transform's array a value, and the text of its keys and its name, by the sizes of their types;
+/// the map's own nodes left out.
+fn child_bytes(parent: usize, at: usize, node: &Node) -> usize {
+    let (key, value) = (std::mem::size_of::<String>(), std::mem::size_of::<Value>());
+    let numbers: usize = (node.transform.values())
+        .map(|v| v.as_array().map_or(0, Vec::len))
+        .sum();
+    let keys: usize = node.transform.keys().map(String::len).sum::<usize>() + "namemesh".len();
+    let name = parent + "#".len() + at.checked_ilog10().map_or(1, |digits| digits as usize + 1);
+    (2 + node.transform.len()) * (key + value) + numbers * value + keys + name
+}
 
 /// The settings a part takes from its assembly mesh, as the reference's parts do: its shape, its
 /// tangents, its texture coordinates' hold, its edge bound and the six voxel settings.
@@ -145,10 +157,23 @@ pub(super) fn expand(g: &mut Value, allowed: &[usize], limit: usize) -> Result<(
         specs.extend(spec::read(g, mesh, allowed)?.map(|spec| (mesh, spec)));
     }
     let placing = placing(g, &specs)?;
-    let children = (placing.iter())
-        .map(|&(_, rank)| specs[rank].1.nodes.len())
-        .fold(0usize, usize::saturating_add);
-    if children.saturating_mul(CHILD_BYTES) > limit {
+    let name_of = |id: usize| {
+        g["nodes"][id]["name"]
+            .as_str()
+            .map_or("assembly".len(), str::len)
+    };
+    let (children, bytes) =
+        (placing.iter()).fold((0usize, 0usize), |(count, bytes), &(id, rank)| {
+            let nodes = &specs[rank].1.nodes;
+            let weighed = (nodes.iter().enumerate())
+                .map(|(at, node)| child_bytes(name_of(id), at, node))
+                .sum::<usize>();
+            (
+                count.saturating_add(nodes.len()),
+                bytes.saturating_add(weighed),
+            )
+        });
+    if bytes > limit {
         let why = format!("{children} nodes to place, past the job's memory budget");
         return Err(CompilerError::new(
             "RAM_ADMISSION_BUDGET_EXCEEDED",

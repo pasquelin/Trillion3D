@@ -16,11 +16,8 @@ import { createSnapshotFollow } from '../snapshotFollow.ts'
 import { createBounceSchedule } from '../schedule.ts'
 import { createBounceMarks } from '../marks.ts'
 import { createBounceCensus } from '../census.ts'
-import {
-  createCacheKernels,
-  createRadianceCache,
-  type CacheKernels,
-} from '../cache/radianceCache.ts'
+import { createCacheKernels, type CacheKernels } from '../cache/cacheKernels.ts'
+import { createRadianceCache } from '../cache/radianceCache.ts'
 import { createProbeStorage } from './probeStorage.ts'
 import { createTableWrite } from './tableWrite.ts'
 import { createProxyFollow } from './probeSync.ts'
@@ -174,7 +171,11 @@ export async function createGpuBounceProbes(
   return {
     cascades,
     pool,
-    encode: encoder.encode,
+    // The maps are made or given back before the image looks for work: a closed series finds some when they are made.
+    encode: (...args: Parameters<typeof encoder.encode>) => {
+      cache.follow(settings())
+      return encoder.encode(...args)
+    },
     restart: encoder.restart,
     get working() {
       return encoder.working

@@ -32,7 +32,9 @@ const boxOutside = wgslFn(
  * THE SIGHT OF A PATCH: the verdict on its box, `box` in the local space of `world`, under the view,
  * in the order the cut judges a box (`../../geometry/dag/shader/occlusionWgsl.ts`). A box wholly
  * outside the frustum or behind the eye (`boxOutside`), wholly behind the view's clip plane while the
- * cut culls by it (`uni.clipRoute`), or that covers no pixel centre, is gone. Under the pyramid:
+ * cut culls by it (`uni.clipRoute`) — in the text made for the project switch (`clipping`,
+ * `../../gpu/core/clipDistances.ts`), which no other text holds —, or that covers no pixel centre,
+ * is gone. Under the pyramid:
  * - the post pass (`OCCLUSION_POST`) tests it against this image's, built from what the main pass
  *   drew, and drops what it hides, unless the box reaches the near plane;
  * - the main pass (`OCCLUSION_MAIN`) tests it against the previous image's, at the previous image's
@@ -41,12 +43,17 @@ const boxOutside = wgslFn(
  *   now: a patch of a moving placement the previous pyramid hides wrongly is tested again by the
  *   post pass against this image's own.
  */
-export const PATCH_SIGHT_WGSL = wgslFn(
-  'patchSight',
-  [PYRAMID_BOX_WGSL, boxBehindPlane, boxOutside],
-  `fn patchSight(box:Box3,world:mat4x4f)->u32{
- if(boxOutside(box,world)){return ${SIGHT_GONE}u;}
- if(uni.clipRoute!=0u&&boxBehindPlane(uni.clipPlane*world,box.lo,box.hi)){return ${SIGHT_GONE}u;}
+export const patchSightWgsl = (clipping: boolean) =>
+  wgslFn(
+    'patchSight',
+    [PYRAMID_BOX_WGSL, ...(clipping ? [boxBehindPlane] : []), boxOutside],
+    `fn patchSight(box:Box3,world:mat4x4f)->u32{
+ if(boxOutside(box,world)){return ${SIGHT_GONE}u;}${
+   clipping
+     ? `
+ if(uni.clipRoute!=0u&&boxBehindPlane(uni.clipPlane*world,box.lo,box.hi)){return ${SIGHT_GONE}u;}`
+     : ''
+ }
  let c=0.5*(box.lo+box.hi);let e=0.5*(box.hi-box.lo);
  let perspective=uni.perspective>0.0;
  let now=clipBoxOf(c,e,uni.viewProj*world,tu.depthMap,perspective);
@@ -61,4 +68,6 @@ export const PATCH_SIGHT_WGSL = wgslFn(
  }
  return ${SIGHT_SEEN}u;
 }`,
-)
+  )
+/** The sight of a program made for the project switch. */
+export const PATCH_SIGHT_WGSL = patchSightWgsl(true)

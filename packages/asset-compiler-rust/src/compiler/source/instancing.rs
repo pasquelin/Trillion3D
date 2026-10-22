@@ -3,6 +3,7 @@
 //! transform. The load expands every instance into a child node that carries the mesh and that
 //! pose, so the stages after it — selection, tables, proxy, physics, lights — place it by the one
 //! world walk (`node_transform.rs`, `world_matrices`) and none of them reads the extension.
+use crate::compiler::source::nodes::{append_children, child_name};
 use crate::*;
 
 const EXTENSION: &str = "EXT_mesh_gpu_instancing";
@@ -55,7 +56,7 @@ fn instances(g: &Value, bin: &[u8], node: &Value, attributes: &Value) -> Result<
     let mut out = out.ok_or_else(|| invalid(format!("{EXTENSION} names no attribute")))?;
     if let Some(name) = node.get("name").and_then(Value::as_str) {
         for (at, child) in out.iter_mut().enumerate() {
-            child["name"] = json!(format!("{name}#{at}"));
+            child["name"] = json!(child_name(name, at));
         }
     }
     Ok(out)
@@ -97,11 +98,7 @@ pub(crate) fn expand_gpu_instances(g: &mut Value, bin: &[u8]) -> Result<()> {
             extensions.remove(EXTENSION);
         }
         let range = first..first + children.len();
-        node.entry("children")
-            .or_insert_with(|| json!([]))
-            .as_array_mut()
-            .ok_or_else(|| invalid("node.children is not an array"))?
-            .extend(range.clone().map(|child| json!(child)));
+        append_children(&mut nodes[id], range.clone())?;
         nodes.extend(children);
         moved.push((id, range));
     }

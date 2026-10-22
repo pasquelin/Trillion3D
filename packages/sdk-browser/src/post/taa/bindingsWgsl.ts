@@ -65,6 +65,7 @@ export const TAA_VIEW = fieldLayout('TaaView', [
   ['prevRender', 'vec4f'],
   ['analysisGrid', 'vec4f'],
   ['quality', 'vec4f'],
+  ['tessellation', 'vec4f'],
 ] as const)
 export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
 
@@ -103,6 +104,10 @@ export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
  *   1 or 0), the spatial anti-aliaser's samples a side, 0 for none (`y`), the history
  *   update's kernel moving its far neighbour (`z`, 1 or 0), and whether the thin geometry detection
  *   runs this image (`w`, 1 or 0: else the passes that read its mask read none).
+ * - `tessellation`: whether the frame draws the surfaces that name a displacement tessellated
+ *   (`x`, 1 or 0, the visibility uniform's word): the velocity passes then move a displaced texel by
+ *   the point of its triangle under it (`pointBefore`, `deformWgsl.ts`). The other lanes are
+ *   padding.
  */
 export const TAA_VIEW_WGSL = wgslBlock('TAA_VIEW_WGSL', [], TAA_VIEW.wgsl)
 

@@ -78,12 +78,14 @@ export const BOUNCE_SETTINGS = {
   /** Maximum probe rays per frame: static ceiling bounding compute dispatch size. */
   raysPerFrame: RAYS_PER_FRAME,
   /**
-   * Probes a frame traces: a count, the refresh's budget. A probe never traced comes before every
-   * refresh and is never held back, up to the queue (`BOUNCE_PROBE_QUEUE`); what the count leaves goes to
-   * the probes the longest untraced (`sdk-core/src/bounce/probePlan.ts`). The host sets it with
+   * Probes a frame traces: a count, the refresh's budget, in the cost of a whole map each (a probe past the downsample distance costs a
+   * quarter of one, `probePlan.ts`). The default is the row of the default level of the screen probes
+   * (`radianceProbeBudget` of `SCREEN_PROBE_LEVEL_KNOBS`; each level holds its own, scaled by `screenProbeUpdateSpeed`), what a host that
+   * names none gets. A probe never traced comes before every refresh and is never held back, up to the queue (`BOUNCE_PROBE_QUEUE`),
+   * and past what the budget has room for at a quarter of a map (`sdk-core/src/bounce/probePlan.ts`). The host sets it with
    * `bounceProbesPerFrame`.
    */
-  probesPerFrame: 100,
+  probesPerFrame: 150,
   /**
    * Whether a probe's fresh estimate is filtered with its six neighbours' before it is kept
    * (`lighting/bounce/probes/probeFilterWgsl.ts`): the neighbours' light weighs in as far as their rays,

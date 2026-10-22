@@ -54,11 +54,9 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
       return s.rootsShort
     },
     /** Packed pages `pages` asked for the next `updates` updates that read a readback — ahead of
-     *  the views' requests, the nearer the deadline the higher: an HLOD actor about to draw —, or
-     *  at the `priority` the asker gives, a whole number kept up to 0xffffffe0 like the GPU's
-     *  requests, none at 0 (`./pageRequests.ts`, `prefetch`). */
-    prefetch: (pages: readonly number[], updates: number, priority?: number) =>
-      s.requests.prefetch(pages, updates, priority),
+     *  the views' requests, the nearer the deadline the higher: an HLOD actor about to draw
+     *  (`./pageRequests.ts`, `prefetch`). */
+    prefetch: (pages: readonly number[], updates: number) => s.requests.prefetch(pages, updates),
     /** Settles when the pump stops: every page started is installed or failed, the root cover's
      *  included, or the head page's bytes are not in yet — the host has not given them, nothing
      *  else is loading — and the pages stay started (`busy`, `hostPages`); rejects with the loss

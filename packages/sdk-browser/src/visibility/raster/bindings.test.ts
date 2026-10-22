@@ -16,7 +16,10 @@ import { stageBindingCounts } from '../../../../../tests/kit/fakeDevice/limitRul
 import { shadowPageLayout } from '../../lighting/shadows/casters/pageGroup.ts'
 import { vsmLayout } from '../../lighting/shadows/vsm/layout.ts'
 import { vsmRasterPipe } from '../../lighting/shadows/vsm/render/renderPipes.ts'
-import { createShadowPrograms } from '../../lighting/shadows/vsm/tessellation/shadowPrograms.ts'
+import {
+  createShadowPrograms,
+  vsmMaskedPatches,
+} from '../../lighting/shadows/vsm/tessellation/shadowPrograms.ts'
 import { vsmShadowTessellation } from '../../lighting/shadows/vsm/tessellation/shadowChain.ts'
 import { createVsmResources } from '../../lighting/shadows/vsm/resources.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
@@ -104,4 +107,160 @@ test('the split that leaves the displaced rows to the tessellation follows the p
     codes.map((code) => code.includes('behind<0.0')),
     [false, true],
   )
+})
+
+test('the splitting of the patches follows the project switch: the plane’s test is in its text only with it', () => {
+  for (const clipping of [false, true]) {
+    const code = splitSource(clipping)
+    assert.equal(code.includes('uni.clipRoute!=0u&&boxBehindPlane'), clipping, `${clipping}`)
+    assert.equal(code.includes('fn boxBehindPlane'), clipping, `${clipping}`)
+  }
+  // The raster hands the switch to the tessellation it holds: its splitting module is made over it.
+  for (const clipping of [false, true]) {
+    const { f, device, raster } = rasterOf(true, clipping)
+    raster.followTessellation(device, { candidate: 1000, visible: 1000, records: 192 })
+    const split = f.computePipelines.find((p) => p.compute.entryPoint === 'tessSplit')!
+    const code = (split.compute.module as { code: string }).code
+    assert.equal(code.includes('uni.clipRoute!=0u&&boxBehindPlane'), clipping, `held ${clipping}`)
+  }
+})
+
+test('the shadow maps’ programs declare the tessellation’s group as their layout lists it, and their pipelines stay within the eight storage buffers', async () => {
+  const layout = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
+  for (const [program, code] of [
+    ['shadowSeed', vsmTessSeedSource()],
+    ['shadowSplit', vsmTessSplitSource(layout)],
+  ] as const) {
+    const declared = [...code.matchAll(/@group\(0\) @binding\((\d+)\)/g)].map((m) => Number(m[1]))
+    assert.deepEqual(
+      declared.sort((a, b) => a - b),
+      tessLayoutEntries(program)
+        .map((entry) => entry.binding)
+        .sort((a, b) => a - b),
+      program,
+    )
+  }
+  const { f, device } = rasterOf(true)
+  const pageLayout = shadowPageLayout(device)
+  const programs = createShadowPrograms(
+    device,
+    layout,
+    pageLayout,
+    vsmRasterPipe(device, layout, pageLayout).layout1,
+  )
+  assert.equal(programs.ask(), false, 'compiled off the frame, not ready at once')
+  await new Promise((done) => setTimeout(done, 0))
+  assert.equal(programs.ask(), true)
+  assert.deepEqual(
+    f.computePipelines
+      .map((p) => p.compute.entryPoint)
+      .filter((entry) => /^(tess|vsmTess)/.test(entry))
+      .sort(),
+    ['tessPlan', 'vsmTessDrawArgs', 'vsmTessSeed', 'vsmTessSeedArgs', 'vsmTessSplit'],
+  )
+  const draw = f.renderPipelines.find((p) => p.label === 'Trillion3D shadow tessellation raster')!
+  assert.deepEqual(
+    [draw.vertex.entryPoint, draw.fragment?.entryPoint],
+    ['vsmTessellatedVs', 'vsmRenderFs'],
+  )
+  // The vertex stage binds the page group’s four, the pairs’ and the projections’, `tess` and the
+  // data atlas’s page table: eight, no more.
+  const groups = (draw.layout as unknown as { bindGroupLayouts: GPUBindGroupLayout[] })
+    .bindGroupLayouts
+  assert.equal(groups.length, 3)
+  const storage = stageBindingCounts({ bindGroupLayouts: groups }).find(
+    (c) => c.limit === 'maxStorageBuffersPerShaderStage' && c.kind.endsWith('Vertex'),
+  )
+  assert.equal(storage?.count, 8)
+})
+
+test('the shadow maps’ tessellation waits for its pipelines, then takes the kinds of light the settings ask', async () => {
+  const { device, raster } = rasterOf(true)
+  raster.followTessellation(device, { candidate: 1000, visible: 1000, records: 192 })
+  const res = createVsmResources(device, { fullMapCapacity: 7, poolPages: 64 })
+  const pageLayout = shadowPageLayout(device)
+  const rtOf = (context: object) =>
+    ({
+      context,
+      vis: {
+        gpuRaster: raster,
+        materialTable: { displaced: { count: 1, ints: new Uint32Array(16), version: 1 } },
+        ...{
+          concatPos: {},
+          concatUv: {},
+          concatNrm: {},
+          pageTable: {},
+          textures: {},
+          mapsSampler: {},
+        },
+      },
+      gpu: { cache: { buffer: {} } },
+      run: { selectionUniforms: { pixelError: 1 } },
+    }) as unknown as WebgpuPagesRuntime
+  const vsm = { res, renderedPlan: 'plan' as unknown }
+  const ask = (context: object) => vsmShadowTessellation(rtOf(context), device, vsm, pageLayout)
+  // Its pipelines asked, the maps are drawn flat and the frame is not drawn as far as the cache goes,
+  // to draw them again.
+  assert.equal(ask({}), undefined)
+  assert.equal(vsm.renderedPlan, undefined)
+  await new Promise((done) => setTimeout(done, 0))
+  // Ready: both kinds of light take it by default, one alone when the other's setting is off.
+  vsm.renderedPlan = 'plan'
+  assert.equal(ask({})?.kinds, 3)
+  assert.equal(ask({ tessellationShadowsLocal: false })?.kinds, 1)
+  assert.equal(ask({ tessellationShadowsDirectional: false })?.kinds, 2)
+  assert.equal(vsm.renderedPlan, 'plan', 'drawn whole')
+  // Both off, or the tessellation off: nothing is asked and nothing waits.
+  for (const context of [
+    { tessellationShadowsDirectional: false, tessellationShadowsLocal: false },
+    { tessellation: false },
+  ])
+    assert.equal(ask(context), undefined, JSON.stringify(context))
+  assert.equal(vsm.renderedPlan, 'plan', 'nothing waits')
+})
+
+test('a device that grants nine storage buffers a stage cuts a masked row out in the shadow patches, one at eight draws it flat', async () => {
+  const layout = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
+  const made = async (storage: number) => {
+    const fake = fakeDevice({ limits: { maxStorageBuffersPerShaderStage: storage } })
+    const device = fake.device as unknown as GPUDevice
+    const pageLayout = shadowPageLayout(device)
+    const programs = createShadowPrograms(
+      device,
+      layout,
+      pageLayout,
+      vsmRasterPipe(device, layout, pageLayout).layout1,
+    )
+    programs.ask()
+    await new Promise((done) => setTimeout(done, 0))
+    const draw = fake.renderPipelines.find(
+      (p) => p.label === 'Trillion3D shadow tessellation raster',
+    )!
+    const code = (draw.vertex.module as unknown as { code: string }).code
+    const groups = (draw.layout as unknown as { bindGroupLayouts: GPUBindGroupLayout[] })
+      .bindGroupLayouts
+    const vertex = stageBindingCounts({ bindGroupLayouts: groups }).find(
+      (c) => c.limit === 'maxStorageBuffersPerShaderStage' && c.kind.endsWith('Vertex'),
+    )
+    return { programs, code, storage: vertex?.count, device }
+  }
+  const [eight, nine] = [await made(8), await made(9)]
+  assert.deepEqual([vsmMaskedPatches(eight.device), vsmMaskedPatches(nine.device)], [false, true])
+  // The ninth buffer is the colour atlas's page table, in the tessellation's group of the vertex stage;
+  // the cutout's functions and the colour atlas are in its text, and in no other.
+  assert.deepEqual([eight.storage, nine.storage], [8, 9])
+  assert.deepEqual(
+    [eight.programs.rasterProgram, nine.programs.rasterProgram],
+    ['shadowRaster', 'shadowRasterMasked'],
+  )
+  assert.deepEqual(
+    [eight.code, nine.code].map(
+      (code) => code.includes('dicedKept(') && code.includes('colorPages'),
+    ),
+    [false, true],
+  )
+  // The group the vertex stage reads names the colour atlas on that device alone.
+  const colour = (program: 'shadowRaster' | 'shadowRasterMasked') =>
+    tessLayoutEntries(program).some((entry) => entry.binding === 9)
+  assert.deepEqual([colour('shadowRaster'), colour('shadowRasterMasked')], [false, true])
 })

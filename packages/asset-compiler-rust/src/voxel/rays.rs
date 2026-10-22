@@ -1,4 +1,4 @@
-//! The rays a voxel casts, drawn once for a build's voxels (`Sampler`) from a scrambled Sobol'
+//! The rays a voxel casts, drawn once for a build's voxels (`RayBank`) from a scrambled Sobol'
 //! sequence (`sobol_point`), so a rebuild samples the same bytes.
 //!
 //! By default each a direction uniform on the sphere and a line through a disk across it, as wide
@@ -9,21 +9,21 @@
 //! counts only within the voxel's depth. Its point across the face is drawn from a side before the
 //! centre's to the centre's, on each axis — the reference draws it so, half of them lying outside
 //! the voxel's column. Ray `k` of set `s` is the point of index `s · rays + k`, its bits reversed,
-//! from seed 0. A voxel casting one ray alone (`VoxelSampling::single`) draws it from the Morton
+//! from seed 0. A voxel casting one ray alone (`VoxelSettings::single`) draws it from the Morton
 //! code of its cell on a grid of 1 024 cells a side (`lone_ray`); a separable one tests three axis
-//! rays through its centre instead (`Sampler::crosshair`).
+//! rays through its centre instead (`RayBank::crosshair`).
 use super::raster::Cell;
 use super::sample::FACES;
-use super::VoxelSampling;
-use std::borrow::Cow;
+use super::VoxelSettings;
+use std::collections::HashMap;
 use std::f64::consts::TAU;
-use std::sync::OnceLock;
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError};
 use trillion3d_math::sequence::sobol::{evolve_seed, sobol_point};
 use trillion3d_math::vector::vec3::{cross, dominant_axis, frame_across};
 use trillion3d_math::vector::vecn::{add, scale};
 use trillion3d_page_codec::partition::morton3;
 
-/// Sets of rays the voxels take in turn, by their rank (`Sampler::set`): neighbours sample with
+/// Sets of rays the voxels take in turn, by their rank (`RayBank::set`): neighbours sample with
 /// other rays, so a pattern of the set never repeats across a wall.
 const VARIATIONS: usize = 64;
 
@@ -71,33 +71,47 @@ pub(super) struct RaySet {
 }
 
 /// What a voxel's rays are drawn from: the sets of rays the voxels take in turn — none for a voxel
-/// that casts one ray — and the three rays of a crosshair. Only the rays asked for, whether they
-/// are separable and how far back they start shape the sets (`VoxelSampling::casts_like`).
-#[derive(Clone)]
-pub(super) struct Sampler {
+/// that casts one ray — and the three rays of a crosshair.
+pub(super) struct RayBank {
     pub(super) sets: Vec<RaySet>,
     pub(super) crosshair: [Ray; 3],
 }
 
-/// The sampler of the defaults' rays, drawn once for the process: a build naming none of the
-/// settings that shape the rays shares it.
-static DEFAULTS: OnceLock<Sampler> = OnceLock::new();
+/// What shapes a bank: the rays a voxel casts, whether they are separable and how far back they
+/// start (the bits of `back_up`). A level, a spread or an opacity does not.
+type Shape = (usize, bool, u64);
 
-impl Sampler {
-    /// The sampler of `sampling`'s rays: the shared one when they are the defaults', else drawn.
-    pub(super) fn of(sampling: &VoxelSampling) -> Cow<'static, Self> {
-        let defaults = VoxelSampling::default();
-        match sampling.casts_like(&defaults) {
-            true => Cow::Borrowed(DEFAULTS.get_or_init(|| Self::new(&defaults))),
-            false => Cow::Owned(Self::new(sampling)),
+/// The banks drawn so far, one for each shape: the rays of a build are the same for every mesh
+/// and every HLOD cell it voxelizes, so they are drawn once for the process.
+static BANKS: OnceLock<Mutex<HashMap<Shape, Arc<RayBank>>>> = OnceLock::new();
+
+/// The banks, held: a draw that panicked left them whole, so a poisoned lock is no reason to fail.
+fn banks() -> MutexGuard<'static, HashMap<Shape, Arc<RayBank>>> {
+    let held = BANKS.get_or_init(Default::default);
+    held.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+impl RayBank {
+    /// The bank of `settings`' rays, drawn on first use and shared after.
+    pub(super) fn of(settings: &VoxelSettings) -> Arc<Self> {
+        let shape = (
+            settings.rays(),
+            settings.separable,
+            settings.back_up.to_bits(),
+        );
+        if let Some(bank) = banks().get(&shape) {
+            return Arc::clone(bank);
         }
+        // Drawn outside the lock, which other builds ask for meanwhile; one drawn twice is dropped.
+        let drawn = Arc::new(Self::new(settings));
+        Arc::clone(banks().entry(shape).or_insert(drawn))
     }
 
-    fn new(sampling: &VoxelSampling) -> Self {
-        let sets = match sampling.single() {
+    fn new(settings: &VoxelSettings) -> Self {
+        let sets = match settings.single() {
             true => Vec::new(),
             false => (0..VARIATIONS as u32)
-                .map(|set| ray_set(set, sampling))
+                .map(|set| ray_set(set, settings))
                 .collect(),
         };
         let along = |axis: usize| {
@@ -124,15 +138,15 @@ pub(super) fn lone_ray(cell: Cell) -> Ray {
     random(morton3(cell.map(|c| c as u32)).reverse_bits(), 0.0)
 }
 
-/// The set `set` of `sampling.rays()` rays, each weighing its hit one over those its face counts.
-fn ray_set(set: u32, sampling: &VoxelSampling) -> RaySet {
-    let count = sampling.rays() as u32;
+/// The set `set` of `settings.rays()` rays, each weighing its hit one over those its face counts.
+fn ray_set(set: u32, settings: &VoxelSettings) -> RaySet {
+    let count = settings.rays() as u32;
     let mut rays: Vec<Ray> = (0..count)
         .map(|k| {
             let index = (set * count + k).reverse_bits();
-            match sampling.separable {
+            match settings.separable {
                 true => aligned(index),
-                false => random(index, sampling.back_up),
+                false => random(index, settings.back_up),
             }
         })
         .collect();
@@ -209,30 +223,20 @@ fn aligned(index: u32) -> Ray {
 #[cfg(test)]
 mod tests {
     use super::super::sample::{Cast, Caster, Probe};
+    use super::super::tests::two_quads;
     use super::*;
     use crate::trace::surface::material::Surface;
     use crate::trace::surface::mesh::Corners;
     use crate::trace::surface::Traceable;
     use crate::trace::tracer::Among;
 
-    /// A mesh of two quads, each two triangles, over x in 0..0.5 and y in 0..1: the target at
-    /// z = 0.5, inside the voxel `[0, 0, 0]` of side 1, and an occluder at z = -0.5 in the voxel
-    /// below it, which does not overlap the voxel.
+    /// The two quads of `two_quads` as a mesh: the target at z = 0.5, inside the voxel
+    /// `[0, 0, 0]` of side 1, and an occluder at z = -0.5 in the voxel below it, which does not
+    /// overlap the voxel.
     fn target_and_occluder() -> Traceable {
-        let quad = |z: f32| {
-            let corner = |x: f32, y: f32| [x, y, z];
-            let (a, b, c, d) = (
-                corner(0.0, 0.0),
-                corner(0.5, 0.0),
-                corner(0.5, 1.0),
-                corner(0.0, 1.0),
-            );
-            [a, b, c, a, c, d].concat()
-        };
-        let triangles = [quad(0.5), quad(-0.5)].concat();
         let corners = (0..4).map(|_| Corners::default()).collect();
         let surface = Surface::of(&serde_json::json!({}), None, &[]);
-        Traceable::new(triangles, vec![0; 4], corners, vec![surface])
+        Traceable::new(two_quads(), vec![0; 4], corners, vec![surface])
     }
 
     // Behaviour: a ray whose nearest hit lies in its back-up stretch is left out of the voxel's
@@ -243,14 +247,14 @@ mod tests {
     fn a_backed_up_ray_met_before_its_voxel_is_left_out_of_the_count() {
         let mesh = target_and_occluder();
         let near = [0.0; 4];
-        let sampling = VoxelSampling::default();
-        let sampler = Sampler::of(&sampling);
+        let settings = VoxelSettings::default();
+        let bank = RayBank::of(&settings);
         let probe = Probe {
             mesh: &mesh,
             near: &near,
             tie: mesh.tie(),
-            sampling,
-            sampler: &sampler,
+            settings,
+            bank: &bank,
         };
         // Up the target's column, from `z` (voxel sides from the centre of voxel `[0, 0, 0]`).
         let ray = |z: f64| Ray {

@@ -21,6 +21,7 @@ export function followTessellation(
   device: GPUDevice,
   work: GPUBuffer,
   asked: TessellationCapacity | undefined,
+  clipping = false,
 ) {
   const was = held.tessellation
   if (!asked) {
@@ -36,7 +37,7 @@ export function followTessellation(
     was.ask()
   else {
     was?.dispose()
-    held.tessellation = createTessellation(device, work, asked)
+    held.tessellation = createTessellation(device, work, asked, clipping)
     held.tessellation.ask()
   }
   for (const stage of held.tessellatedBin()) stage.ask()

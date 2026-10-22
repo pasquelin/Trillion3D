@@ -20,6 +20,7 @@ import {
 import { resolveSettings } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { WORLD_STREAMING_RULES } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
+import { DYNAMIC_RESOLUTION_RULES } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
 import { ANIMATION_RULES } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
@@ -69,6 +70,8 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(WORLD_STREAMING_RULES, {}),
   // The cut's occlusion, culls and level-of-detail bias: each its contract's default.
   ...resolveSettings(CUT_RULES, {}),
+  // The dynamic resolution's heuristic: the reference's own defaults, the budget the frame cap's.
+  ...resolveSettings(DYNAMIC_RESOLUTION_RULES, {}),
   // The animation the GPU plays: each its contract's default.
   ...resolveSettings(ANIMATION_RULES, {}),
   // The material shading's bins: each its contract's default.

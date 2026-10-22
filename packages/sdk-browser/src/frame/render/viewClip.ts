@@ -1,11 +1,7 @@
 import type { EngineCamera } from '../../camera/engineCamera.ts'
-import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
-import { contextReader } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { readCutSetting as cutSetting } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import { hasClipPlane, NO_CLIP_PLANE } from '../../../../sdk-core/src/contracts/viewOptions.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
-
-/** The cut's setting `field` the session holds (`cutOptions.ts`), by its one resolver. */
-const cutSetting = contextReader(CUT_RULES)
 
 /**
  * WHETHER THE DRAWN VIEW CLIPS, for every pass that draws geometry beside the cut: the project

@@ -18,6 +18,7 @@ import type {
   WorldStreamingOptions,
 } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.ts'
+import type { DynamicResolutionOptions } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
 import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
@@ -231,6 +232,12 @@ export function worldSwitches(
     },
     set cut(options: CutOptions) {
       families.cut.set(options)
+    },
+    get dynamicResolution() {
+      return families.dynamicResolution.values()
+    },
+    set dynamicResolution(options: DynamicResolutionOptions) {
+      families.dynamicResolution.set(options)
     },
     get animation() {
       return families.animation.values()

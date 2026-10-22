@@ -12,15 +12,17 @@ import { CACHE_MIPS_PROGRAM } from './cacheMipsWgsl.ts'
 import { CACHE_TILES_PROGRAM } from './cacheTilesWgsl.ts'
 import { CACHE_TRACE_PROGRAM } from './cacheTraceWgsl.ts'
 
-/** One module of the cache's kernels: its layout, and a pipeline for each entry it asks (with the pipeline constants of its own). */
+/** One module of the cache's kernels: its layout, and a pipeline for each entry it asks (with the pipeline constants of its own; the
+ *  dispatch width of the device, where the module holds a list — `listed` — and the device's is not WebGPU's guaranteed one). */
 async function stage(
   device: GPUDevice,
   code: string,
   label: string,
   entries: GPUBindGroupLayoutEntry[],
   points: readonly (readonly [string, Record<string, number>?])[],
+  listed = false,
 ) {
-  const constants = groupWidthConstants(groupWidth(device.limits))
+  const constants = listed ? groupWidthConstants(groupWidth(device.limits)) : undefined
   const module = await createCheckedShaderModule(device, code, label)
   const layout = device.createBindGroupLayout({ label: `Trillion3D ${label}`, entries })
   const pipelines = await Promise.all(
@@ -34,11 +36,15 @@ async function stage(
 /** The pipelines of the cache's kernels and the layouts of their groups: made once for a device, whatever the maps' shape. */
 export async function createCacheKernels(device: GPUDevice) {
   const [tiles, trace, filter, mips] = await Promise.all([
-    stage(device, CACHE_TILES_PROGRAM, 'CACHE_TILES', cacheTilesEntries(), [
-      ['clearPdf'],
-      ['generateTiles'],
-    ]),
-    stage(device, CACHE_TRACE_PROGRAM, 'CACHE_TRACE', cacheTraceEntries(), [['traceTiles']]),
+    stage(
+      device,
+      CACHE_TILES_PROGRAM,
+      'CACHE_TILES',
+      cacheTilesEntries(),
+      [['clearPdf'], ['generateTiles']],
+      true,
+    ),
+    stage(device, CACHE_TRACE_PROGRAM, 'CACHE_TRACE', cacheTraceEntries(), [['traceTiles']], true),
     stage(device, CACHE_FILTER_PROGRAM, 'CACHE_FILTER', cacheFilterEntries(), [['filterMaps']]),
     stage(device, CACHE_MIPS_PROGRAM, 'CACHE_MIPS', cacheMipsEntries(), [
       ['buildMip', { CACHE_MIP: 1 }],

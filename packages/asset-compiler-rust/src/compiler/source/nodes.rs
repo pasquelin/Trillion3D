@@ -28,6 +28,31 @@ pub(crate) fn children_of(nodes: &[Value], id: usize) -> Result<Vec<usize>> {
     Ok(out)
 }
 
+/// Nodes `range` appended to the `children` of `node`: the one edit of a children list the passes
+/// that lay nodes under another make (`instancing.rs`, `assembly/expand.rs`).
+pub(crate) fn append_children(node: &mut Value, range: std::ops::Range<usize>) -> Result<()> {
+    (node.as_object_mut())
+        .ok_or_else(|| invalid("node is not an object"))?
+        .entry("children")
+        .or_insert_with(|| json!([]))
+        .as_array_mut()
+        .ok_or_else(|| invalid("node.children is not an array"))?
+        .extend(range.map(|child| json!(child)));
+    Ok(())
+}
+
+/// The name of the child `at` of a node named `name`, as the passes that lay nodes under another
+/// name them.
+pub(crate) fn child_name(name: &str, at: usize) -> String {
+    format!("{name}#{at}")
+}
+
+/// Whether `node` moves by itself: it carries bones or morph weights, which a pass that places a
+/// mesh under another node cannot follow.
+pub(crate) fn moves_by_itself(node: &Value) -> bool {
+    node.get("skin").is_some() || node.get("weights").is_some()
+}
+
 /// Refuses a document whose `children` or scene name a node it does not hold, before a pass appends
 /// nodes: an index one past the last node would otherwise land on an appended one.
 pub(crate) fn check_references(g: &Value, nodes: &[Value]) -> Result<()> {

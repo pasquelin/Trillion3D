@@ -16,7 +16,7 @@
 //! corners then point at one vertex is dropped.
 use super::weld::matches;
 use super::{Built, SkinnedWeld};
-use crate::support::neighbours::Neighbours;
+use crate::support::neighbours::{rank_of, Neighbours};
 use trillion3d_math::vector::vec3::point_f32;
 
 /// No vertex.
@@ -32,8 +32,9 @@ pub(in crate::dag) fn welded_skinned(built: &mut Built, weld: SkinnedWeld) -> (V
     let point = |built: &Built, c: usize| point_f32(&built.positions, corners[c] as usize);
     let mut ranked: Vec<(f32, u32)> = (0..corners.len())
         .map(|c| {
+            // The reference's axes: glTF's `y` up is its `z`.
             let [x, y, z] = point(built, c);
-            (0.30 * x + 0.33 * z + 0.37 * y, c as u32)
+            (rank_of([x, z, y]), c as u32)
         })
         .collect();
     ranked.sort_by(|a, b| {

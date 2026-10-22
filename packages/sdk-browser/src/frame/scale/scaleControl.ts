@@ -1,11 +1,11 @@
-import { createFrameCap, frameTimeBudget, resetFrameCap, skipsDisplayFrame } from '../cadence.ts'
+import { createFrameCap, resetFrameCap, skipsDisplayFrame } from '../cadence.ts'
 import { createRefreshClock } from '../refreshClock.ts'
 import { renderScaleBounds, type RenderScale, type RenderScaleBounds } from './renderScaleOption.ts'
 import { createTargetCap, displayMoved, FALLBACK_REFRESH_MS, PERIOD } from './scaleTargets.ts'
 import { createScaleMemory } from './scaleMemory.ts'
-import { tickScale } from './scaleTick.ts'
+import { observeFrame, tickScale } from './scaleTick.ts'
 import { createScaleWindow, edgeOf, forgetHistory, holdFrame } from './scaleWindow.ts'
-import { recordFrame, refreshFraction } from './dynamicResolution.ts'
+import { NO_TIMING } from './dynamicResolution.ts'
 
 /**
  * THE FRAME LOOP'S RENDER SCALE: the dynamic resolution (`dynamicResolution.ts`), one controller
@@ -39,10 +39,11 @@ import { recordFrame, refreshFraction } from './dynamicResolution.ts'
  * targets' scale, their memory cap and the clock its refusals are asked again by
  * (`scaleMemory.ts`); `drew(scale, steered)`, an image was drawn; `tick(now, timed)`, a frame of
  * the display began at `now`, ms, its rAF timestamp, `timed`: the device has a GPU timer
- * (`tickScale`); `observe(gpuMs, scale, steered, edgeMs, edge)`, the GPU busy time of an image drawn
- * at `scale`, a few frames late, null where the timer read none, and the time of its visibility
- * passes (NaN where there is none to fit) drawn at the edge fraction `edge`; `edge`, the cut's edge
- * scale (`edgeOf`).
+ * (`tickScale`); `observe(gpuMs, scale, steered, edgeMs)`, the GPU busy time of an image drawn at
+ * `scale`, a few frames late, null where the timer read none, and the time of its visibility
+ * passes (`NO_TIMING` where there is none to fit); `edge`, the cut's edge scale (`edgeOf`);
+ * `rules`, the heuristic's settings, written in place by the frame; `noteCpu(ms)`, the CPU time
+ * of the engine's image just drawn.
  */
 export function createScaleControl(option: RenderScale | undefined, maxFrameRate?: number) {
   const display = { width: 0, height: 0, ratio: 0 }
@@ -108,6 +109,8 @@ export function createScaleControl(option: RenderScale | undefined, maxFrameRate
     },
     wanted: () => (w.bounds.auto ? Math.min(w.s, w.max) : w.bounds.max),
     edge: edgeOf(w),
+    rules: w.rules,
+    noteCpu: (ms: number) => void (w.cpuMs = ms),
     allocated: memory.allocated,
     capMemory: memory.cap,
     uncapMemory: memory.uncap,
@@ -125,14 +128,8 @@ export function createScaleControl(option: RenderScale | undefined, maxFrameRate
     /** Whether the interactive loop leaves out the display frame that begins at `now`, ms, its rAF
      *  timestamp, under the frame cap: it draws nothing and counts no frame. */
     skips: (now: number) => skipsDisplayFrame(cap, refresh, now),
-    observe(gpuMs: number | null, scale: number, steered = true, edgeMs = Number.NaN, edge = 1) {
-      if (gpuMs === null) return
-      w.timedAt = w.images
-      if (!steered || !w.bounds.auto || !w.timed || !(scale > 0)) return
-      recordFrame(w.dynamic, gpuMs, scale, edgeMs, edge)
-      w.dynamic.budgetMs = frameTimeBudget(cap, refresh.display)
-      refreshFraction(w.dynamic, w)
-    },
+    observe: (gpuMs: number | null, scale: number, steered = true, edgeMs = NO_TIMING) =>
+      observeFrame(parts, gpuMs, scale, steered, edgeMs),
   }
   return control
 }

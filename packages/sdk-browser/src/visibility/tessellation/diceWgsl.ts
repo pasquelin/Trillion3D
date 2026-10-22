@@ -23,8 +23,8 @@ import { VIS_WRITE_WGSL, pixelOffset } from '../raster/pixelWgsl.ts'
 import { visPageIndex, visTriangle } from '../visWords.ts'
 import { TESS_BINDINGS, TESS_DECLARATIONS as D } from './bindings.ts'
 import { ARG_VISIBLE, MAX_PATTERN_VERTICES } from './contract.ts'
-import { DICE_PATCH_WGSL, DISPLACE_UV } from './diceSetupWgsl.ts'
-import { displacedClip, uvDerivative } from './domainWgsl.ts'
+import { DICE_CUTOUT_WGSL, DICE_PATCH_WGSL, DISPLACE_UV } from './diceSetupWgsl.ts'
+import { displacedClip } from './domainWgsl.ts'
 import { PATTERN_WGSL } from './patchWgsl.ts'
 import { QUEUE_WGSL } from './queueWgsl.ts'
 import { MAIN_VIEW_WGSL } from './viewWgsl.ts'
@@ -115,12 +115,8 @@ fn diceGroup(group:vec3u,lane:u32,n:vec3u,mode:u32){
    let clip=displacedClip(at.point,at.height,rec.scale,d.fade,view.clip);
    let sub=subpixelOf(clip);
    verts[v]=sub;
-   // A vertex the cutout does not keep is sent behind the camera, with the micro-triangles that use it.
-   var kept=true;
-   if(masked){
-    let m=uvDerivative(at.point.clip.w,d.density[pageMaskSet(page)],view.edgesPerUnit,tu.piecesPerEdge,view.perspective);
-    kept=maskKeep(page,mat3x2f(cutoutUv[0],cutoutUv[1],cutoutUv[2])*at.b,dot(vec3f(cutoutAlpha[0],cutoutAlpha[1],cutoutAlpha[2]),at.b),vec2f(m),vec2f(m));
-   }
+   // A vertex the cutout does not keep is as one behind the camera: its micro-triangles are not drawn.
+   let kept=!masked||dicedKept(page,d,view,at,mat3x2f(cutoutUv[0],cutoutUv[1],cutoutUv[2]),vec3f(cutoutAlpha[0],cutoutAlpha[1],cutoutAlpha[2]));
    usable[v]=select(0u,1u,kept&&clip.w>0.0&&sub.z<=1.0);
   }
   workgroupBarrier();
@@ -158,6 +154,7 @@ export const diceSource = () =>
     QUEUE_WGSL,
     PATTERN_WGSL,
     DICE_PATCH_WGSL,
+    DICE_CUTOUT_WGSL,
     MAIN_VIEW_WGSL,
     FLAT_INDEX_WGSL,
     WORKGROUP_THREADS_WGSL,
@@ -165,5 +162,4 @@ export const diceSource = () =>
     visPageIndex,
     visTriangle,
     displacedClip,
-    uvDerivative,
   ])

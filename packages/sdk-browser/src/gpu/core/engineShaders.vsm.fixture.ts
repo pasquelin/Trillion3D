@@ -66,6 +66,7 @@ export function vsmVariants() {
     VSM_TESSELLATION_SPLIT: vsmTessSplitSource(layout),
     VSM_TESSELLATION_ARGS: vsmTessArgsSource(),
     VSM_TESSELLATION_VERTEX: vsmTessellatedVertexWgsl(layout),
+    VSM_TESSELLATION_VERTEX_MASKED: vsmTessellatedVertexWgsl(layout, true),
     VSM_TRANSMISSION_CANDIDATES: vsmTransmissionCandidatesWgsl(),
     VSM_TRANSMISSION_CLEAR: vsmTransmissionClearWgsl(layout),
     VSM_TRANSMISSION_PAGES: vsmTransmissionPagesWgsl(layout),

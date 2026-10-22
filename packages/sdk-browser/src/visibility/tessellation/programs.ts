@@ -8,13 +8,13 @@ import { seedSource } from './seedWgsl.ts'
 import { splitSource } from './splitWgsl.ts'
 
 /** The tessellation's four modules, one for each program. */
-function tessellationModules(device: GPUDevice) {
+function tessellationModules(device: GPUDevice, clipping: boolean) {
   return {
     plan: device.createShaderModule({ label: 'Trillion3D tessellation plan', code: planSource() }),
     seed: device.createShaderModule({ label: 'Trillion3D tessellation seed', code: seedSource() }),
     split: device.createShaderModule({
       label: 'Trillion3D tessellation split',
-      code: splitSource(),
+      code: splitSource(clipping),
     }),
     dice: device.createShaderModule({ label: 'Trillion3D tessellation dice', code: diceSource() }),
   }
@@ -29,7 +29,7 @@ function tessellationModules(device: GPUDevice) {
  * The dicing has one entry point a mode of the raster (`MODE_DEPTH`, `MODE_ID`), `dice` indexed by
  * it.
  */
-export function createTessellationPrograms(device: GPUDevice) {
+export function createTessellationPrograms(device: GPUDevice, clipping = false) {
   const layouts: Partial<Record<TessProgram, GPUBindGroupLayout>> = {}
   const stage = (
     program: TessProgram,
@@ -50,7 +50,7 @@ export function createTessellationPrograms(device: GPUDevice) {
     )
   }
   const rows = groupWidthConstants(groupWidth(device.limits))
-  const { plan, seed, split, dice } = tessellationModules(device)
+  const { plan, seed, split, dice } = tessellationModules(device, clipping)
   const stages = {
     seed: stage('seed', seed, 'tessSeed'),
     resume: stage('seed', seed, 'tessResume'),

@@ -6,10 +6,9 @@ import {
   type ScreenProbeSettings,
 } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { ScreenProbeFrameMetrics } from '../../../../../sdk-core/src/contracts/shadowMetrics.ts'
-import { standInTexture } from '../../../gpu/core/standInTexture.ts'
 import { groupWidth } from '../../../gpu/dispatch/grid.ts'
 import { track } from '../../deferred/compileLedger.ts'
-import { VECTOR_FORMAT } from '../../../post/taa/velocityWgsl.ts'
+import { createStandIns, type NoCache } from './standIns.ts'
 import {
   compileScreenProbeKernels,
   kernelShapeOf,
@@ -19,14 +18,6 @@ import {
   type KernelSource,
   type ScreenProbeKernels,
 } from './kernels.ts'
-
-/** The stand-ins of the radiance cache's maps (`ScreenProbeStore.noCache`). */
-interface NoCache {
-  final: GPUTextureView
-  raw: GPUTextureView
-  tags: GPUBuffer
-  pdf: GPUBuffer
-}
 
 /** A kernel in the making or made: `kernel` once the device has handed its pipelines back. */
 interface KernelEntry {
@@ -68,14 +59,7 @@ export function createScreenProbeStore(): ScreenProbeStore {
   const kernels = new Map<string, KernelEntry>()
   const sets = new Map<string, ScreenProbeKernels>()
   const shapes = new WeakMap<ScreenProbeSettings, ShapeOf>()
-  let stand: { device: GPUDevice; texture: GPUTexture; view: GPUTextureView } | undefined
-  let standCache:
-    { device: GPUDevice; made: GPUTexture[]; buffers: GPUBuffer[]; views: NoCache } | undefined
-  const destroyStandCache = () => {
-    for (const resource of [...(standCache?.made ?? []), ...(standCache?.buffers ?? [])])
-      resource.destroy()
-    standCache = undefined
-  }
+  const stands = createStandIns()
   const store: ScreenProbeStore = {
     reason: null,
     metrics: undefined,
@@ -100,39 +84,13 @@ export function createScreenProbeStore(): ScreenProbeStore {
       if (set) return set
       return assemble(store, device, kernels, sets, asked)
     },
-    noVectors(device) {
-      if (!stand || stand.device !== device) {
-        stand?.texture.destroy()
-        const texture = standInTexture(device, 'Trillion3D empty surface vectors', VECTOR_FORMAT)
-        stand = { device, texture, view: texture.createView() }
-      }
-      return stand.view
-    },
-    noCache(device) {
-      if (!standCache || standCache.device !== device) {
-        destroyStandCache()
-        const final = standInTexture(device, 'Trillion3D empty radiance cache', 'r32uint')
-        const raw = standInTexture(device, 'Trillion3D empty radiance cache raw', 'rg32uint')
-        const buffer = (label: string) =>
-          device.createBuffer({ label, size: 16, usage: GPUBufferUsage.STORAGE })
-        const tags = buffer('Trillion3D empty radiance cache tags'),
-          pdf = buffer('Trillion3D empty radiance cache importance')
-        standCache = {
-          device,
-          made: [final, raw],
-          buffers: [tags, pdf],
-          views: { final: final.createView(), raw: raw.createView(), tags, pdf },
-        }
-      }
-      return standCache.views
-    },
+    noVectors: stands.vectors,
+    noCache: stands.cache,
     dispose() {
       kernels.clear()
       sets.clear()
       owner = undefined
-      stand?.texture.destroy()
-      stand = undefined
-      destroyStandCache()
+      stands.dispose()
     },
   }
   return store

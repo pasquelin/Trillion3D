@@ -1,4 +1,6 @@
 import { DEFAULT_CUT_EDGE_SCALE_MIN_PERCENT } from '../../../../sdk-core/src/contracts/cutOptions.ts'
+import { DYNAMIC_RESOLUTION_RULES } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
+import { resolveSettings } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import type { RenderScaleBounds } from './renderScaleOption.ts'
 import { createDynamicResolution, resetDynamicResolution } from './dynamicResolution.ts'
 
@@ -7,7 +9,9 @@ import { createDynamicResolution, resetDynamicResolution } from './dynamicResolu
  * place: a closure's number is boxed at each write. `s` the dynamic resolution's fraction, `max`
  * the render targets' upper bound under the memory cap; `dynamic` the dynamic resolution history
  * the scale follows (`dynamicResolution.ts`), which fits the cut's edge scale beside it: `edge`
- * its fraction, 1 while `edgeBudgetMs` is not above 0, `edgeMin` the lowest; `at` the refresh
+ * its fraction, 1 while `edgeBudgetMs` is not above 0, `edgeMin` the lowest; `rules` the settings
+ * the heuristic reads, written in place by the frame (`../prepare/timing.ts`), `cpuMs` the CPU
+ * time of the engine's last image; `at` the refresh
  * the history was learnt on; the images drawn and the one the last GPU time came at; the display
  * frames the loop held to measure the refresh on, and whether the last one was; whether the GPU
  * timer answers.
@@ -21,6 +25,8 @@ export function createScaleWindow(bounds: RenderScaleBounds) {
     edge: 1,
     edgeBudgetMs: 0,
     edgeMin: DEFAULT_CUT_EDGE_SCALE_MIN_PERCENT / 100,
+    rules: resolveSettings(DYNAMIC_RESOLUTION_RULES, {}),
+    cpuMs: 0,
     at: Number.NaN,
     images: 0,
     timedAt: 0,

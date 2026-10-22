@@ -36,8 +36,10 @@ pub(crate) struct SeedGroup {
     pub area: f64,
     pub vertices: usize,
     pub num_parents: usize,
-    /// The level-0 triangles it stands for, ranks in the primitive's triangle list.
+    /// The level-0 triangles it stands for, ranks in the primitive's triangle list: each child's
+    /// share, sorted, end to end in the children's order; `child_ends` ends each share.
     pub triangles: Vec<u32>,
+    pub child_ends: Vec<usize>,
 }
 
 impl SeedGroup {
@@ -58,6 +60,7 @@ impl SeedGroup {
             vertices: 0,
             num_parents: 0,
             triangles: Vec::new(),
+            child_ends: Vec::new(),
         };
         let mut triangles = 0;
         for &c in children {
@@ -72,6 +75,22 @@ impl SeedGroup {
         }
         seed.num_parents = triangles.div_ceil(DAG_CLUSTER_TRIANGLES * 2);
         seed
+    }
+
+    /// Child `child`'s share of the triangles: those of the level-0 triangles it stands for.
+    pub fn child_triangles(&self, child: usize) -> &[u32] {
+        let start = child
+            .checked_sub(1)
+            .map_or(0, |before| self.child_ends[before]);
+        &self.triangles[start..self.child_ends[child]]
+    }
+
+    /// Its triangles set to the children's `shares`, in the children's order.
+    fn share_out(&mut self, shares: impl Iterator<Item = Vec<u32>>) {
+        for share in shares {
+            self.triangles.extend(share);
+            self.child_ends.push(self.triangles.len());
+        }
     }
 
     /// The voxel budget: three for every four of its children's vertices, so the voxels cost about
@@ -130,6 +149,12 @@ pub(crate) struct VoxelSeed {
 }
 
 impl VoxelSeed {
+    /// The group of rank `rank` among the DAG's groups: the groups are seeded in rank order, the
+    /// group above the roots last.
+    pub(crate) fn group(&self, rank: usize) -> &SeedGroup {
+        &self.groups[rank]
+    }
+
     /// The seed of a DAG: `pos` the arrays its clusters index, `indices` its level-0 triangles
     /// and `source` each one's rank among the source's triangles — the ranks the voxels sample
     /// the mesh's triangles by (`DagBuild::triangle_source`) —, `shape` its mesh's setting. Empty
@@ -151,15 +176,12 @@ impl VoxelSeed {
             seed.parents = group.outputs.iter().map(|&o| parent(o)).collect();
             seeded.push(seed);
         }
-        if !seeded.is_empty() {
-            own_triangles(dag, groups, (pos, indices, source), &mut seeded);
-        }
         let roots: Vec<usize> = (0..dag.len()).filter(|&c| dag[c].is_root()).collect();
         let level = dag.iter().map(|c| c.level).max().unwrap_or(0) + 1;
         let mut above = SeedGroup::of(dag, pos, (groups.len(), level, f64::INFINITY), &roots);
         above.num_parents = 1;
-        above.triangles = source.to_vec();
         seeded.push(above);
+        own_triangles(dag, (groups, &roots), (pos, indices, source), &mut seeded);
         Self {
             groups: seeded,
             errors: groups.iter().map(|g| g.error).collect(),
@@ -179,13 +201,13 @@ fn turned(corners: &[u32]) -> [u32; 3] {
     [0, 1, 2].map(|k| corners[(at + k) % 3])
 }
 
-/// Fills each seeded group's level-0 triangles, as ranks among the source's (`source`, per
-/// triangle of `indices`): every cluster holds the level-0 clusters it stands for, a level-0
-/// cluster itself; a group gathers its children's and hands each to its output nearest it, centre
-/// to centre.
+/// Fills each seeded group's level-0 triangles, child by child, as ranks among the source's
+/// (`source`, per triangle of `indices`): every cluster holds the level-0 clusters it stands for,
+/// a level-0 cluster itself; a group gathers its children's and hands each to its output nearest
+/// it, centre to centre; the group above the roots takes the `roots`'.
 fn own_triangles(
     dag: &[DagCluster],
-    groups: &[DagGroup],
+    (groups, roots): (&[DagGroup], &[usize]),
     (pos, indices, source): (&[f32], &[u32], &[u32]),
     seeded: &mut [SeedGroup],
 ) {
@@ -202,12 +224,20 @@ fn own_triangles(
     let rank: WordMap<[u32; 3], u32> = (indices.as_chunks::<3>().0.iter().enumerate().rev())
         .map(|(t, c)| (turned(c), source[t]))
         .collect();
+    // The source ranks of the triangles of `leaves`, sorted.
+    let ranks = |leaves: &[u32]| {
+        let corners = (leaves.iter()).flat_map(|&l| dag[l as usize].indices.as_chunks::<3>().0);
+        let mut triangles: Vec<u32> =
+            (corners.filter_map(|c| rank.get(&turned(c)).copied())).collect();
+        triangles.sort_unstable();
+        triangles
+    };
     let mut next = seeded.iter_mut().peekable();
     for (g, group) in groups.iter().enumerate() {
-        let leaves: Vec<u32> = (group.children.iter())
-            .flat_map(|&c| std::mem::take(&mut own[c]))
+        let shares: Vec<Vec<u32>> = (group.children.iter())
+            .map(|&c| std::mem::take(&mut own[c]))
             .collect();
-        for &leaf in &leaves {
+        for &leaf in shares.iter().flatten() {
             let nearest = (group.outputs.iter()).min_by(|&&a, &&b| {
                 distance(leaf as usize, a).total_cmp(&distance(leaf as usize, b))
             });
@@ -216,14 +246,11 @@ fn own_triangles(
             }
         }
         if let Some(seed) = next.next_if(|s| s.group == g) {
-            let corners = leaves
-                .iter()
-                .flat_map(|&l| dag[l as usize].indices.as_chunks::<3>().0);
-            let mut triangles: Vec<u32> = corners
-                .filter_map(|c| rank.get(&turned(c)).copied())
-                .collect();
-            triangles.sort_unstable();
-            seed.triangles = triangles;
+            seed.share_out(shares.iter().map(|leaves| ranks(leaves)));
         }
+    }
+    if let Some(above) = next.next() {
+        let shares = roots.iter().map(|&r| ranks(&std::mem::take(&mut own[r])));
+        above.share_out(shares);
     }
 }

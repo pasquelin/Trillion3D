@@ -15,14 +15,6 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { FLOOR_EYE, floorProbes } from './floorProbes.fixture.ts'
 import { BOUNCE_LIGHT_LISTS_PASS, BOUNCE_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
-import { DEG2RAD } from '../../../../math/src/constants.ts'
-import { createScreenProbeParams, screenProbeFlags } from './screen/params.ts'
-import {
-  SCREEN_PROBE_FLAGS,
-  SCREEN_PROBE_PARAMS,
-  SCREEN_PROBE_PARAMS_BYTES,
-  screenProbeGeometry,
-} from './screen/screenProbeLayout.ts'
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 
 test('after the follow-up, the snapshot is the probes, word for word', () => {
@@ -156,137 +148,47 @@ test('a working image copies no atlas: one bounce pass updates, then the snapsho
   tiles!.dispose()
 })
 
-test('the screen probes flags say what each image can read: the screen, the history, the field, the vectors, the switches of its level', () => {
-  const F = SCREEN_PROBE_FLAGS
-  const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-  const all = {
-    frame: 1,
-    history: true,
-    screen: true,
-    cache: true,
-    velocity: true,
-    previousInverse: identity,
+test('the radiance cache of the probes queued is updated once the pass is over, by the screen probes after their importance or by the frame alone: the tiles, their trace over the list the tiles made, the filter; a level that casts none keeps no cache', async () => {
+  const entries = (gpu: Awaited<ReturnType<typeof floorProbes>>['gpu'], pass: number) => {
+    const log: string[] = []
+    let entry = ''
+    for (const [name, [x]] of gpu.computePasses[pass].commands) {
+      if (name === 'setPipeline') entry = (x as { entryPoint: string }).entryPoint
+      if (name.startsWith('dispatchWorkgroups'))
+        log.push(`${entry}${name.endsWith('Indirect') ? ' (listed)' : ''}`)
+    }
+    return log
   }
-  const ultra = screenProbeSettings()
+  const { gpu, probes, encoder } = await floorProbes(true)
+  assert.equal(probes.encode(encoder, 1, FLOOR_EYE), true)
+  assert.equal(probes.cache.pending, true, 'the pass left the update to be made')
+  assert.ok(probes.cache.views, 'the maps are made for a level that casts')
+  const passes = gpu.computePasses.length
+  probes.cache.flush(encoder)
+  assert.equal(gpu.computePasses[passes].label, BOUNCE_PASS)
+  assert.deepEqual(entries(gpu, passes), ['generateTiles', 'traceTiles (listed)', 'filterMaps'])
+  assert.equal(probes.cache.pending, false, 'made once')
+  // The screen probes give their importance in: the functions cleared, the scatter, then the tiles.
+  assert.equal(probes.encode(encoder, 1, FLOOR_EYE), true)
+  const scattered: string[] = []
+  const pass = encoder.beginComputePass({ label: 'screen' })
   assert.equal(
-    screenProbeFlags(ultra, all),
-    F.screenTraces |
-      F.importance |
-      F.importanceLighting |
-      F.radianceHistory |
-      F.temporal |
-      F.cache |
-      F.occlusion |
-      F.sceneTraces |
-      F.velocity |
-      F.disocclusion |
-      F.occlusionTemporal,
+    probes.cache.encode(pass, () => scattered.push('scatter')),
+    true,
   )
-  const high = screenProbeSettings({ screenProbes: 'high' })
-  assert.equal(
-    screenProbeFlags(high, all) & (F.stochastic | F.octahedral),
-    F.stochastic | F.octahedral,
-  )
-  // The light the rays follow and the history it comes from are two settings of the importance sampling.
-  const lit = (options: Parameters<typeof screenProbeSettings>[0]) =>
-    screenProbeFlags(screenProbeSettings(options), all) &
-    (F.importance | F.importanceLighting | F.radianceHistory)
-  assert.equal(
-    lit({ screenProbeImportanceIncomingLighting: false }),
-    F.importance | F.radianceHistory,
-  )
-  assert.equal(lit({ screenProbeProbeRadianceHistory: false }), F.importance | F.importanceLighting)
-  assert.equal(lit({ screenProbeImportanceSampling: false }), 0)
-})
-
-test('the screen probes flags leave out what an image has not: no history, no vectors; and the temporal, detail and clamp switches follow the settings', () => {
-  const F = SCREEN_PROBE_FLAGS
-  const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-  const all = {
-    frame: 1,
-    history: true,
-    screen: true,
-    cache: true,
-    velocity: true,
-    previousInverse: identity,
-  }
-  const ultra = screenProbeSettings()
-  const first = { ...all, frame: 0, history: false, screen: false, cache: false }
-  assert.equal(
-    screenProbeFlags(ultra, first) &
-      (F.screenTraces | F.radianceHistory | F.temporal | F.cache | F.velocity),
-    0,
-    'no history, so neither its vectors',
-  )
-  assert.equal(
-    screenProbeFlags(screenProbeSettings({ screenProbeTemporal: false }), all) & F.temporal,
-    0,
-  )
-  // The detail trace needs the switch and a level that allows it, over the scene trace.
-  const mesh = (options: Parameters<typeof screenProbeSettings>[0]) =>
-    screenProbeFlags(screenProbeSettings(options), all) & (F.sceneTraces | F.meshTraces)
-  assert.equal(mesh({}), F.sceneTraces, 'off by default')
-  assert.equal(mesh({ screenProbeMeshTraces: true }), F.sceneTraces | F.meshTraces)
-  assert.equal(mesh({ screenProbeMeshTraces: true, screenProbes: 'high' }), F.sceneTraces)
-  assert.equal(mesh({ screenProbeMeshTraces: true, screenProbeSceneTraces: false }), 0)
-  assert.equal(
-    screenProbeFlags(screenProbeSettings({ screenProbeFastUpdateClamp: true }), all) &
-      F.fastUpdateClamp,
-    F.fastUpdateClamp,
-  )
-})
-
-test('the screen probes parameters are the words of the settings and the image, and only the words that moved go up', () => {
-  const held = new Uint32Array(SCREEN_PROBE_PARAMS.words)
-  let sent = 0
-  const device = {
-    queue: {
-      writeBuffer(_: unknown, __: number, image: Uint32Array, first: number, count: number) {
-        held.set(image.subarray(first, first + count), first)
-        sent += count
-      },
-    },
-  } as unknown as GPUDevice
-  const write = createScreenProbeParams(device, { size: SCREEN_PROBE_PARAMS_BYTES } as GPUBuffer)
-  const settings = screenProbeSettings()
-  const geometry = screenProbeGeometry(1920, 1080, settings)
-  // The inverse of the last view-projection: its second column is (0, 2, 0, 0).
-  const previousInverse = [1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-  const image = (frame: number) => ({
-    frame,
-    history: true,
-    screen: true,
-    cache: true,
-    velocity: true,
-    previousInverse,
-  })
-  write(geometry, settings, image(11))
-  const at = SCREEN_PROBE_PARAMS.at
-  const words = (from: number, count = 4) => Array.from(held.subarray(from, from + count))
-  const floats = (from: number) => Array.from(new Float32Array(held.buffer, from * 4, 4))
-  assert.deepEqual(words(at.size), [1920, 1080, 16, 11])
-  assert.deepEqual(words(at.grid), [120, 68, 102, 4080])
-  assert.deepEqual(words(at.mode), [3, 2, screenProbeFlags(settings, image(11)), 3])
-  assert.deepEqual(words(at.counts), [10, 8160, 50, 8])
-  assert.deepEqual(floats(at.weights), [-10000, -1000, 0.1, 10].map(Math.fround))
-  assert.deepEqual(floats(at.spatial), [1000, 10 * DEG2RAD, 1, 200].map(Math.fround))
-  assert.deepEqual(floats(at.occlusion), [2, 3, 0.3, 1].map(Math.fround))
-  assert.deepEqual(floats(at.scene), [1.8, 40, 0.05, 0.01].map(Math.fround))
-  assert.deepEqual(floats(at.motion), [0.005, 10, 0.9, 0].map(Math.fround))
-  assert.deepEqual(floats(at.tuning), [4, 0.4, 0.005, 0.02].map(Math.fround))
-  assert.deepEqual(floats(at.previous + 4), [0, 2, 0, 0], 'the second column of the last inverse')
-  const first = sent
-  write(geometry, settings, image(11))
-  assert.equal(sent, first, 'an image the same as the last sends nothing')
-  write(geometry, settings, image(12))
-  assert.deepEqual(
-    [words(at.size)[3], words(at.mode).slice(0, 2), words(at.mode)[3]],
-    [12, [4, 3], 4],
-  )
-  assert.ok(
-    sent - first < SCREEN_PROBE_PARAMS.words,
-    'the words from the rank to the turn, not the whole uniform',
-  )
-  write(geometry, screenProbeSettings({ screenProbeMaxRayDirections: 3 }), image(11))
-  assert.equal(words(at.mode)[3], 11 % 3, 'the rays turn through the setting’s directions')
+  pass.end()
+  assert.deepEqual(entries(gpu, gpu.computePasses.length - 1).slice(0, 2), [
+    'clearPdf',
+    'generateTiles',
+  ])
+  assert.deepEqual(scattered, ['scatter'])
+  probes.dispose()
+  // A level that casts no probe reads no cache: none is kept.
+  const low = screenProbeSettings({ screenProbes: 'low' })
+  const bare = await floorProbes(true, true, () => low)
+  assert.equal(bare.probes.encode(bare.encoder, 1, FLOOR_EYE), true)
+  assert.equal(bare.probes.cache.pending, false)
+  assert.equal(bare.probes.cache.views, undefined)
+  assert.equal(bare.probes.cache.bytes, 0)
+  bare.probes.dispose()
 })

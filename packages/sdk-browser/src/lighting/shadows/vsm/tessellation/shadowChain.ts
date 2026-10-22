@@ -20,6 +20,7 @@ import {
 import {
   VSM_RENDER_TESSELLATE_DIRECTIONAL,
   VSM_RENDER_TESSELLATE_LOCAL,
+  VSM_RENDER_TESSELLATE_MASKED,
 } from '../render/renderParamsWgsl.ts'
 import type { VsmRenderContext } from '../render/renderPass.ts'
 import { vsmRenderContext } from '../render/renderPipes.ts'
@@ -34,7 +35,8 @@ import { VSM_TESS_PROJECTION_SPECS } from './shadowKernelsWgsl.ts'
  * (`tessellationWanted`), a kind of light asks it (`tessellationShadowsDirectional`,
  * `tessellationShadowsLocal`) and every pipeline is compiled; otherwise the surface casts as the flat
  * triangles it is made of, the first frames on included.
- * - `kinds`: the kinds of light whose maps take it (`VSM_RENDER_TESSELLATE_*`);
+ * - `kinds`: the kinds of light whose maps take it, and whether a masked surface is cut out in the
+ *   patches too (`VSM_RENDER_TESSELLATE_*`);
  * - `begin`, before a chunk's compute pass: the chain's state cleared;
  * - `compute`, in it, once the chunk's pairs are listed: the seeding, the six levels of splitting
  *   and the draw's arguments, over the chunk's lists;
@@ -205,7 +207,7 @@ function createShadowChain(ctx: VsmRenderContext) {
       const { shadow, groups, input } = frame
       const at = (TESS_CHAIN_SHADOW * PASS_DISPATCH_WORDS + DISPATCH_DRAW) * 4
       pass.setPipeline(programs.raster.get())
-      pass.setBindGroup(2, groups.of('shadowRaster', TESS_CHAIN_SHADOW, input))
+      pass.setBindGroup(2, groups.of(programs.rasterProgram, TESS_CHAIN_SHADOW, input))
       pass.drawIndirect(shadow.resources.dispatch, at)
     },
   }
@@ -247,6 +249,11 @@ export function vsmShadowTessellation(
     },
     rt.run.selectionUniforms.pixelError,
   )
-  chain.bind(shadow, input, vsm.res, kinds)
+  chain.bind(
+    shadow,
+    input,
+    vsm.res,
+    kinds | (chain.programs.masked ? VSM_RENDER_TESSELLATE_MASKED : 0),
+  )
   return chain
 }

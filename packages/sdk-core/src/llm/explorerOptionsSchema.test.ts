@@ -13,6 +13,7 @@ import { DEFAULT_TEXTURE_UPLOAD_MS } from '../../../sdk-browser/src/session/memo
 import { WORLD_STREAMING_RULES } from '../contracts/worldStreamingOptions.ts'
 import { resolveSetting, type SettingRule } from '../contracts/settingRules.ts'
 import { CUT_RULES } from '../contracts/cutOptions.ts'
+import { DYNAMIC_RESOLUTION_RULES } from '../contracts/dynamicResolutionOptions.ts'
 import { ANIMATION_RULES } from '../contracts/animationOptions.ts'
 import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
 import { SHADOW_RULES } from '../contracts/shadowOptions.ts'
@@ -111,6 +112,7 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...RASTER_RULES,
     ...WORLD_STREAMING_RULES,
     ...CUT_RULES,
+    ...DYNAMIC_RESOLUTION_RULES,
     ...ANIMATION_RULES,
     ...TEMPORAL_RULES,
     ...SHADOW_RULES,

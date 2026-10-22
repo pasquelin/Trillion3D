@@ -8,11 +8,7 @@ fn document(extras: Value) -> (Value, Vec<u8>) {
         [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0].as_slice(),
         [1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0].as_slice(),
     ];
-    let bytes: Vec<u8> = floats
-        .concat()
-        .iter()
-        .flat_map(|v| v.to_le_bytes())
-        .collect();
+    let bytes = crate::support::le::f32_bytes(&floats.concat());
     let accessor = |view: usize, count: usize, kind: &str| json!({"bufferView": view, "componentType": 5126, "count": count, "type": kind});
     let g = json!({
         "buffers": [{"byteLength": bytes.len()}],

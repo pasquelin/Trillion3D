@@ -136,7 +136,7 @@ fn a_layer_names_the_unwrap_of_its_mesh() {
 // setting of a mesh's build; another layer's names no voxel setting, which are a voxel layer's.
 #[test]
 fn a_voxel_layer_names_how_its_voxels_are_sampled() {
-    use crate::voxel::VoxelSampling;
+    use crate::voxel::VoxelSettings;
     let top = |layer: Value| {
         let chain = json!({
             "layers": [{"name": "hlod0", "builder": "instanced", "parent": "top"}, layer],
@@ -154,7 +154,7 @@ fn a_voxel_layer_names_how_its_voxels_are_sampled() {
     };
     let named = json!({"voxelRays": 16, "voxelBackUp": 0.5, "voxelNdf": false});
     let sampled = voxel(Some(named))
-        .expect("sampling named")
+        .expect("settings named")
         .mesh_build
         .voxels;
     assert_eq!(
@@ -162,7 +162,7 @@ fn a_voxel_layer_names_how_its_voxels_are_sampled() {
         (16, 0.5, false)
     );
     let none = voxel(None).expect("none named").mesh_build.voxels;
-    assert_eq!(none, VoxelSampling::default());
+    assert_eq!(none, VoxelSettings::default());
     assert!(voxel(Some(json!({"keptTriangles": 0.5}))).is_err());
     let merged = json!({"name": "top", "builder": "merge", "spatiallyLoaded": false,
         "mergeMaterials": true, "meshBuild": {"voxelRays": 16}});
@@ -196,5 +196,43 @@ fn a_layer_whose_parent_is_invalid_loses_it_and_the_job_is_told() {
         hlod.dropped[0].contains("own materials"),
         "{:?}",
         hlod.dropped
+    );
+}
+
+// Behaviour: as the reference has them, two settings: the mesh a merge, approximate or simplify
+// layer builds gets no cluster DAG unless the layer asks for one (`clusterDag`, off by default),
+// and an instanced layer's objects keep their own unless it disallows it (`disallowClusterDag`,
+// off by default), which makes it a merge layer taking each object's fallback.
+#[test]
+fn a_built_mesh_gets_a_cluster_dag_only_when_asked_and_instances_keep_theirs() {
+    use crate::hlod::options::{HlodBuilder, HlodLodSelection};
+    let layer = |extra: Value| {
+        let mut layer = json!({"name": "only", "builder": "merge"});
+        layer
+            .as_object_mut()
+            .expect("an object")
+            .extend(extra.as_object().cloned().unwrap_or_default());
+        let hlod = crate::Hlod::read(Some(&json!({"layers": [layer]}))).expect("reads");
+        hlod.layers[0].clone()
+    };
+    assert!(
+        !layer(json!({})).cluster_dag,
+        "a merged mesh is a plain mesh by default"
+    );
+    assert!(layer(json!({"clusterDag": true})).cluster_dag);
+    let kept = layer(json!({"builder": "instanced"}));
+    assert_eq!(
+        (kept.builder, kept.cluster_dag),
+        (HlodBuilder::Instanced, true)
+    );
+    let fallback = layer(json!({"builder": "instanced", "disallowClusterDag": true}));
+    assert_eq!(
+        (fallback.builder, fallback.lod_selection),
+        (HlodBuilder::Merge, HlodLodSelection::Lowest)
+    );
+    let refused = json!({"layers": [{"name": "i", "builder": "instanced", "clusterDag": false}]});
+    assert!(
+        crate::Hlod::read(Some(&refused)).is_err(),
+        "an instanced layer names the other one"
     );
 }

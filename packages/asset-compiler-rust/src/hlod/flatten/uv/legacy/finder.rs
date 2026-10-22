@@ -18,7 +18,7 @@ use super::chart::{near_zero, Chart};
 use super::join::{self, Links};
 use super::Corners;
 use crate::hlod::flatten::sort::unstable_sort;
-use crate::support::neighbours::Neighbours;
+use crate::support::neighbours::{rank_of, Neighbours};
 use trillion3d_math::geometry::aabb::extend_aabb_f32;
 use trillion3d_math::join::{GreatestRoot, Join};
 use trillion3d_math::vector::vecn::{length, sub};
@@ -59,9 +59,8 @@ fn triangle_uv_area(c: &Corners, tri: usize) -> f32 {
 /// The corners at one place: ranked by a weighed sum of their position, swept within the
 /// tolerance of the rank.
 fn corners_at_one_place(c: &Corners) -> Neighbours {
-    let weighed = |p: [f32; 3]| 0.30f32 * p[0] + 0.33f32 * p[1] + 0.37f32 * p[2];
     let mut ranked: Vec<(f32, u32)> = (c.positions.iter().enumerate())
-        .map(|(corner, &p)| (weighed(p), corner as u32))
+        .map(|(corner, &p)| (rank_of(p), corner as u32))
         .collect();
     unstable_sort(&mut ranked, |a, b| a.0 < b.0);
     let near = |a: u32, b: u32| positions_match(c, a as usize, b as usize);

@@ -27,7 +27,8 @@ export const TRACE_FIELD_BINDINGS = bindingTable({
   blue: [11, 'float'],
   cacheFinal: [12, 'uint'],
   cacheRaw: [13, 'uint'],
-  cacheTags: [14, 'buffer-read'],
+  cacheSky: [14, 'float'],
+  cacheTags: [15, 'buffer-read'],
 })
 /** The atlas of the cascades' probes of the field trace. */
 export const TRACE_FIELD_PROBES = 9
@@ -51,6 +52,12 @@ const SP_TRACE_FIELD = wgslBlock(
   `@group(0) @binding(${T.radiance}) var radianceOut:texture_storage_2d<${F.trace},write>;
 @group(0) @binding(${T.hit}) var hitIo:texture_storage_2d<${F.hit},read_write>;
 @group(0) @binding(${T.lights}) var<storage,read> directLights:DirectLights;
+/** The texels a side of the grid the ray of trace texel \`t\` of the probe at \`atlas\` is a texel of (the grid \`spRayDirection\` reads it from): the
+ *  width of its cone. */
+fn spRayCone(atlas:vec2u,t:vec2u)->f32{
+ if(!spFlag(SP_FLAG_IMPORTANCE)){return f32(SP_TRACE);}
+ return f32(spRayMip(spRayLevel(textureLoad(rayWords,vec2i(atlas*SP_TRACE+t),0).r),SP_TRACE));
+}
 @compute @workgroup_size(SP_TRACE,SP_TRACE)
 fn traceField(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
  let atlas=group.xy;
@@ -61,7 +68,7 @@ fn traceField(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index
  let t=vec2u(lane%SP_TRACE,lane/SP_TRACE);
  let at=vec2i(atlas*SP_TRACE+t);
  if(!live||spHitIs(textureLoad(hitIo,at).r)){return;}
- let far=spFarOf(probe.P,spRayDirection(atlas,t,spIndexOf(atlas)));
+ let far=spFarOf(probe.P,spRayDirection(atlas,t,spIndexOf(atlas)),spRayCone(atlas,t));
  textureStore(radianceOut,at,vec4u(packLight(far.radiance),0u,0u,0u));
  textureStore(hitIo,at,vec4u(spHitWord(far.distance,false,false),0u,0u,0u));
 }`,
@@ -77,7 +84,7 @@ ${wgslConsts({ SP_TRACE: side })}`,
       bounceBindingsWgsl(0, T.bounceGrid, TRACE_FIELD_PROBES),
       spCommon(samples),
       spProbes(T.info, T.normal, T.counts),
-      spCacheRead(T.cacheFinal, T.cacheRaw, T.cacheTags),
+      spCacheRead(T.cacheFinal, T.cacheRaw, T.cacheSky, T.cacheTags),
       spRays(T.ray, T.pixels, T.blue),
       SP_TRACE_FIELD,
     ],

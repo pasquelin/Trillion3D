@@ -73,7 +73,14 @@ export const TESS_DECLARATIONS = {
  *  then the shadow maps' (`../../lighting/shadows/vsm/tessellation/`): the seeding over the pairs of
  *  a chunk, its splitting, and the vertex stage that dices the visible patches. */
 export type TessProgram =
-  'seed' | 'plan' | 'split' | 'dice' | 'shadowSeed' | 'shadowSplit' | 'shadowRaster'
+  | 'seed'
+  | 'plan'
+  | 'split'
+  | 'dice'
+  | 'shadowSeed'
+  | 'shadowSplit'
+  | 'shadowRaster'
+  | 'shadowRasterMasked'
 /** A resource of a program's group, by the name `TESS_BINDINGS` gives it — the patches the main pass
  *  hid twice, as the splitting writes them and as the seeding reads them, and the `tess` buffer
  *  twice, as the kernels write it and as a vertex stage reads it. */
@@ -120,6 +127,9 @@ export const TESS_PROGRAMS: Record<TessProgram, readonly TessBinding[]> = {
   shadowSeed: ['indices', 'positions', 'pages', 'tessUniform', 'tess'],
   shadowSplit: ['indices', 'positions', 'pages', 'tessUniform', 'tess', 'normals'],
   shadowRaster: ['tessUniform', 'tessRead', 'data', 'sampler'],
+  // With the colour atlas, which a masked row's cutout reads: a ninth storage buffer in the vertex
+  // stage, on a device that grants it (`vsmMaskedPatches`).
+  shadowRasterMasked: ['tessUniform', 'tessRead', 'data', 'color', 'sampler'],
 }
 
 const buffer = (binding: number, type: GPUBufferBindingType) => [computeBufferEntry(binding, type)]

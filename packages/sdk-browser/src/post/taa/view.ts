@@ -168,5 +168,6 @@ export function writeTaaView(
   packed[T.quality + 1] = knobs.antiAliasIterations
   packed[T.quality + 2] = knobs.movesFar ? 1 : 0
   packed[T.quality + 3] = Number(work.thin)
+  packed[T.tessellation] = state.tessellated ? 1 : 0
   device.queue.writeBuffer(uniform, 0, packed)
 }

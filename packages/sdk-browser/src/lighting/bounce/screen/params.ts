@@ -49,7 +49,8 @@ export function screenProbeFlags(settings: ScreenProbeSettings, image: ScreenPro
     bit(image.history && image.velocity, F.velocity) |
     bit(values.screenProbeFastUpdateClamp, F.fastUpdateClamp) |
     bit(values.screenProbeDisocclusionMaxFrames > 0, F.disocclusion) |
-    bit(values.screenProbeOcclusionTemporal, F.occlusionTemporal)
+    bit(values.screenProbeOcclusionTemporal, F.occlusionTemporal) |
+    bit(image.cache && settings.cache.skyVisibility, F.cacheSky)
   )
 }
 
@@ -123,6 +124,7 @@ function putNumbers(staged: Float32Array, settings: ScreenProbeSettings) {
     at.cache,
     v.screenProbeRadianceCacheReprojectionRadiusScale,
     settings.cache.resolution,
+    settings.cache.mipmaps,
   )
   putVec4(
     staged,

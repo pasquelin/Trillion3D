@@ -12,6 +12,7 @@ import type {
   WorldStreamingOptions,
 } from '../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import type { CutOptions } from '../../../sdk-core/src/contracts/cutOptions.ts'
+import type { DynamicResolutionOptions } from '../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
 import type { AnimationOptions } from '../../../sdk-core/src/contracts/animationOptions.ts'
 import type { ShadingOptions } from '../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { ExposureOptions } from '../../../sdk-core/src/contracts/exposureOptions.ts'
@@ -44,7 +45,11 @@ export type PointOfInterest = {
  *  its field (`../../../sdk-core/src/contracts/worldStreamingOptions.ts`), its default left out;
  *  set during the session by `explorer.setWorldStreaming`, one field at a time. The cut's
  *  settings likewise (`cut…`, `../../../sdk-core/src/contracts/cutOptions.ts`), set during the
- *  session by `explorer.setCut`, the animation's (`animation…`,
+ *  session by `explorer.setCut` (among them the GPU time budget of the cut,
+ *  `cutEdgeScaleBudgetMs`, and its lowest scale, `cutEdgeScaleMinPercent`), the dynamic
+ *  resolution's heuristic's (`dynamicResolution…`,
+ *  `../../../sdk-core/src/contracts/dynamicResolutionOptions.ts`), set by
+ *  `explorer.setDynamicResolution`, the animation's (`animation…`,
  *  `../../../sdk-core/src/contracts/animationOptions.ts`), set by `explorer.setAnimation`, and the
  *  shading's (`shadeBinningMode`, `../../../sdk-core/src/contracts/shadingOptions.ts`), set by
  *  `explorer.setShading`, and the exposure's (`exposure…` and `localExposure…`,
@@ -94,7 +99,7 @@ export type PointOfInterest = {
  *  with the hardware) and the edge it goes to the hardware at (`hardwareRasterEdgePixels`, 32 by
  *  default, a finite number above zero), `../../../sdk-core/src/contracts/rasterOptions.ts`, set by
  *  `explorer.setSoftwareRaster` and `explorer.setHardwareRasterEdgePixels`. The geometry
- *  streaming's eight settings (`streaming…`,
+ *  streaming's nine settings (`streaming…`,
  *  `../../../sdk-core/src/contracts/streamingOptions.ts`): the pages kept started at once
  *  (`streamingMaxPendingPages`, 128), those a frame installs at most
  *  (`streamingMaxInstallsPerFrame`, 128, never more than may be pending), the pool's load in
@@ -102,10 +107,12 @@ export type PointOfInterest = {
  *  (`streamingQualityMinPoolPercent` 70, `streamingQualityMaxPoolPercent` 85, read no lower than
  *  the low mark, from 10 to 100), the lowest scale of the screen error it falls to
  *  (`streamingQualityMinScale`, 0.3, from 0.1 to 1), the times a failed read of a page is tried
- *  again before its page is given up (`streamingNumRetries`, 3, a negative value without end) and
- *  the least and the most requests the camera cut's readout holds (`streamingMinRequests`,
- *  65 536, `streamingMaxRequests`, 1 048 576, from 4 096 to 1 048 576, the most read no lower than
- *  the least: it starts at the least and follows what the cut asks of it); set by
+ *  again before its page is given up (`streamingNumRetries`, 3, at once and with no wait but the
+ *  one a server asks, a negative value without end), the least and the most requests the camera
+ *  cut's readout holds (`streamingMinRequests`, 65 536, `streamingMaxRequests`, 1 048 576, from
+ *  4 096 to 1 048 576, the most read no lower than the least: it starts at the least and follows
+ *  what the cut asks of it) and the bandwidth the reads are simulated to have
+ *  (`streamingBandwidthLimit`, in megabytes a second, -1 for none); set by
  *  `explorer.setStreaming`, from the streaming's next update. Each is refused at the opening when
  *  out of its range. */
 export interface MeasuredWorldOptions
@@ -113,6 +120,7 @@ export interface MeasuredWorldOptions
     WorldStreamingOptions,
     HlodWarmupOptions,
     CutOptions,
+    DynamicResolutionOptions,
     AnimationOptions,
     ShadingOptions,
     ExposureOptions,

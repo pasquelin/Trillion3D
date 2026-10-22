@@ -19,17 +19,32 @@ import {
 } from './shadowKernelsWgsl.ts'
 import { vsmTessellatedVertexWgsl } from './shadowRasterWgsl.ts'
 
+/** The storage buffers a masked row's vertex stage binds: the page group's four, the pairs' and the
+ *  projections', `tess`, and the two atlases' page tables. */
+const MASKED_VERTEX_STORAGE = 9
+
+/** Whether the vertex stage that dices the patches may bind the colour atlas a masked row's cutout
+ *  reads (`vsmTessellatedVertexWgsl`'s `masked`): the device, asked for all its adapter offers
+ *  (`WEBGPU_REQUIRED_LIMITS`), grants a vertex stage nine storage buffers. On the eight WebGPU
+ *  guarantees every device, a masked row casts its flat triangles. */
+export const vsmMaskedPatches = (device: GPUDevice) => {
+  const limits = device.limits as GPUSupportedLimits & { maxStorageBuffersInVertexStage?: number }
+  const vertex = limits.maxStorageBuffersInVertexStage ?? Infinity
+  return Math.min(limits.maxStorageBuffersPerShaderStage, vertex) >= MASKED_VERTEX_STORAGE
+}
+
 /** The bind group layouts of the programs: the tessellation's group of each, by the name
- *  `TESS_PROGRAMS` gives it, the chunk's lists (parameters at a dynamic offset, counters and pairs)
- *  and the maps' projections. */
-function shadowLayouts(device: GPUDevice, layout: VsmLayout) {
+ *  `TESS_PROGRAMS` gives it — the vertex stage's with the colour atlas where `raster` says
+ *  masked —, the chunk's lists (parameters at a dynamic offset, counters and pairs) and the maps'
+ *  projections. */
+function shadowLayouts(device: GPUDevice, layout: VsmLayout, raster: TessProgram) {
   const group = (program: TessProgram, visibility?: number) =>
     device.createBindGroupLayout({ entries: tessLayoutEntries(program, visibility) })
   return {
     shadowSeed: group('shadowSeed'),
     shadowSplit: group('shadowSplit'),
     plan: group('plan'),
-    shadowRaster: group('shadowRaster', GPUShaderStage.VERTEX),
+    [raster]: group(raster, GPUShaderStage.VERTEX),
     lists: device.createBindGroupLayout({
       label: 'Trillion3D shadow tessellation lists',
       entries: [
@@ -85,7 +100,9 @@ export function createShadowPrograms(
   pageLayout: GPUBindGroupLayout,
   raster1: GPUBindGroupLayout,
 ) {
-  const layouts = shadowLayouts(device, layout)
+  const masked = vsmMaskedPatches(device)
+  const rasterProgram = masked ? 'shadowRasterMasked' : 'shadowRaster'
+  const layouts = shadowLayouts(device, layout, rasterProgram)
   const rows = groupWidthConstants(groupWidth(device.limits))
   const module = (name: string, code: string) =>
     device.createShaderModule({ label: `Trillion3D shadow tessellation ${name}`, code })
@@ -116,8 +133,8 @@ export function createShadowPrograms(
     ),
     drawArgs: stage([layouts.plan, lists], args, 'vsmTessDrawArgs', rows),
   }
-  const raster = rasterPipeline(device, [pageLayout, raster1, layouts.shadowRaster], {
-    vertex: module('vertex', vsmTessellatedVertexWgsl(layout)),
+  const raster = rasterPipeline(device, [pageLayout, raster1, layouts[rasterProgram]], {
+    vertex: module('vertex', vsmTessellatedVertexWgsl(layout, masked)),
     fragment: module('fragment', vsmRenderRasterWgsl(layout)),
   })
   const all = [...Object.values(stages), raster]
@@ -125,6 +142,9 @@ export function createShadowPrograms(
     layouts,
     ...stages,
     raster,
+    /** The tessellation's group the vertex stage reads, and whether it also cuts a masked row out. */
+    rasterProgram,
+    masked,
     /** Asks every pipeline off the thread; whether they are all compiled. */
     ask() {
       for (const pipeline of all) pipeline.ask()

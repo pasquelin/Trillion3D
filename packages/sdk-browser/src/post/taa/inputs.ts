@@ -33,11 +33,12 @@ export interface TaaInputs {
   givenUp?: GPUTextureView
   /** The display layers of a frame whose blends filter (`../../blend/display/displayFilter.ts`). */
   filter?: DisplayLayers
-  /** The page pool and the float pool — positions, texture coordinates — a deformed pixel's
-   *  triangle is read from (`deformWgsl.ts`). */
+  /** The page pool, the float pool — positions, texture coordinates — and its normal atlas a
+   *  deformed or displaced pixel's triangle is read from (`deformWgsl.ts`). */
   pool: GPUBuffer
   positions: GPUBuffer
   uvs: GPUBuffer
+  normals: GPUTextureView
   /** The roots' world boxes (`rootBoxes`, `../../placement/roots/rootWorlds.ts`), which tell how
    *  large an object is on the screen (`perObjectSize`); a buffer of no root while the world holds
    *  none. */
@@ -80,7 +81,7 @@ export function taaGroupEntries(
 
 /** The layout entries of what the velocity passes read of the frame (`VELOCITY_INPUT_BINDINGS`):
  *  the pass uniform, the depth, the identifiers, the page records, the placements' motion, the
- *  pools and the roots' world boxes. */
+ *  pools, the normal atlas and the roots' world boxes. */
 export const velocityInputEntries = (): GPUBindGroupLayoutEntry[] => [
   computeUniformEntry(AT.view),
   computeTextureEntry(AT.depth, 'depth'),
@@ -88,13 +89,14 @@ export const velocityInputEntries = (): GPUBindGroupLayoutEntry[] => [
   ...[AT.pages, AT.motion, AT.indices, AT.positions, AT.uvs, AT.boxes].map((binding) =>
     computeBufferEntry(binding, 'read-only-storage'),
   ),
+  computeTextureEntry(AT.normals, 'unfilterable-float', '2d-array'),
 ]
 
 /** What the velocity passes read of the frame: its depth, identifiers, page records, motion,
- *  pools and roots' world boxes. */
+ *  pools, normal atlas and roots' world boxes. */
 export type VelocityInputs = Pick<
   TaaInputs,
-  'depth' | 'ids' | 'pages' | 'motion' | 'pool' | 'positions' | 'uvs' | 'boxes'
+  'depth' | 'ids' | 'pages' | 'motion' | 'pool' | 'positions' | 'uvs' | 'normals' | 'boxes'
 >
 
 /** What a group of a velocity pass names of the frame's `inputs`, the pass `uniform` beside
@@ -108,5 +110,6 @@ export const velocityInputResources = (inputs: VelocityInputs, uniform: GPUBuffe
   indices: { buffer: inputs.pool },
   positions: { buffer: inputs.positions },
   uvs: { buffer: inputs.uvs },
+  normals: inputs.normals,
   boxes: { buffer: inputs.boxes },
 })

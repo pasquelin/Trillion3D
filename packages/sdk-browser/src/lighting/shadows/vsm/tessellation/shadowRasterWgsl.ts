@@ -4,6 +4,7 @@ import { VIS_BINDINGS } from '../../../../gpu/bind/bindLayout.ts'
 import {
   SHADOW_TILE_POOL_WGSL,
   dataSampleWgsl,
+  maskAlphaWgsl,
   tileDeclarations,
 } from '../../../../materials/virtual/wgsl.ts'
 import {
@@ -13,12 +14,18 @@ import {
 import {
   PAGE_BINDING,
   PAGE_INFO_WGSL,
+  maskKeepWgsl,
   normalAtlasWgsl,
 } from '../../../../visibility/shader/pageWgsl.ts'
-import { FLAG_DOUBLE } from '../../../../visibility/types.ts'
+import { maskUvWgsl } from '../../../../visibility/shader/pageUvSetWgsl.ts'
+import { FLAG_DOUBLE, FLAG_MASK } from '../../../../visibility/types.ts'
 import { TESS_BINDINGS as B } from '../../../../visibility/tessellation/bindings.ts'
 import { ARG_VISIBLE, PATCH_WORDS } from '../../../../visibility/tessellation/contract.ts'
-import { DICE_PATCH_WGSL, DISPLACE_UV } from '../../../../visibility/tessellation/diceSetupWgsl.ts'
+import {
+  DICE_CUTOUT_WGSL,
+  DICE_PATCH_WGSL,
+  DISPLACE_UV,
+} from '../../../../visibility/tessellation/diceSetupWgsl.ts'
 import { pointDisplacement } from '../../../../visibility/tessellation/domainWgsl.ts'
 import { PATTERN_PLAIN_WGSL } from '../../../../visibility/tessellation/patchWgsl.ts'
 import { TESS_READ_PLAIN_WGSL } from '../../../../visibility/tessellation/queueWgsl.ts'
@@ -43,15 +50,17 @@ import { VSM_TESS_VIEW_WGSL } from './shadowViewWgsl.ts'
  * whichever triangle asks for it, so neighbours meet. The point is pushed along its normal by the
  * displacement, the least one where the fade has not left it whole (`pointDisplacement`), then
  * placed on the pair's page as a caster's corner is (`vsmRenderVs`): same swap of a back face, a
- * two-sided row's second copy swapped once more, same emitter envelope. A masked row is not
- * tessellated here — the map's vertex stage binds the eight storage buffers a device holds at
- * least, with none to spare for the colour atlas — and draws as its triangles.
+ * two-sided row's second copy swapped once more, same emitter envelope. A masked row (`masked`) is
+ * cut out at the vertices of its micro-triangles, as the image's dicing does (`dicedKept`): the
+ * vertex stage then also binds the colour atlas's page table, a ninth storage buffer, which a
+ * device that grants it takes (`vsmMaskedPatches`); on the eight WebGPU guarantees, a masked row
+ * draws as its triangles.
  *
  * Group 0 the shadow page group (`../../casters/pageGroup.ts`), 1 the pairs and the projections
  * (`makeRaster`), 2 the tessellation's: its uniform, its `tess` buffer, the data atlas and its
  * sampler (`TESS_PROGRAMS.shadowRaster`).
  */
-export const vsmTessellatedVertexWgsl = (layout: VsmLayout) =>
+export const vsmTessellatedVertexWgsl = (layout: VsmLayout, masked = false) =>
   wgslProgram(
     /* wgsl */ `
 ${PAGE_BINDING.indices}
@@ -62,6 +71,7 @@ ${PAGE_BINDING.pages}
 @group(2) @binding(${B.tessUniform}) var<uniform> tu:TessUni;
 @group(2) @binding(${B.tess}) var<storage,read> tess:array<u32>;
 ${tileDeclarations(B.data, 'data', 2)}
+${masked ? tileDeclarations(B.color, 'color', 2) : ''}
 @group(2) @binding(${B.sampler}) var mapsSampler:sampler;
 @vertex fn vsmTessellatedVs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instance:u32)->VsmRenderOut{
  var out:VsmRenderOut;
@@ -84,7 +94,20 @@ ${tileDeclarations(B.data, 'data', 2)}
  let second=t>=n;
  var corner=vertexIndex%3u;
  if(corner!=0u&&bitIsSet(pair.y,22u)!=second){corner=3u-corner;}
- let c=patternCorners(d.pattern,select(t,t-n,second));
+ let c=patternCorners(d.pattern,select(t,t-n,second));${
+   masked
+     ? `
+ // A masked row's cutout is judged at the three vertices of the micro-triangle: it is drawn only
+ // where every one is kept, each vertex stage invocation reading all three.
+ if((page.flags&${FLAG_MASK}u)!=0u){
+  let uv=mat3x2f(pageMaskUv(page,h,corners.x),pageMaskUv(page,h,corners.y),pageMaskUv(page,h,corners.z));
+  let alpha=vec3f(pageMaskAlpha(page,h,corners.x),pageMaskAlpha(page,h,corners.y),pageMaskAlpha(page,h,corners.z));
+  for(var k=0u;k<3u;k++){
+   if(!dicedKept(page,d,view,diceVertex(d,rec,view,c[k]),uv,alpha)){return out;}
+  }
+ }`
+     : ''
+ }
  let at=diceVertex(d,rec,view,select(select(c.z,c.y,corner==1u),c.x,corner==0u));
  let world=at.point.world+at.point.normal*pointDisplacement(at.point,at.height,rec.scale,d.fade,true);
  let shifted=vsmRenderShifted(raw,world);
@@ -108,13 +131,16 @@ ${tileDeclarations(B.data, 'data', 2)}
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_VERTEX_SPECS, layout),
       PAGE_GEOMETRY_WGSL,
       PAGE_NORMAL_WGSL,
-      normalAtlasWgsl(VIS_BINDINGS.normals),
+      masked ? maskUvWgsl(VIS_BINDINGS.normals) : normalAtlasWgsl(VIS_BINDINGS.normals),
       DISPLACE_UV,
       SHADOW_TILE_POOL_WGSL,
       dataSampleWgsl(SHADOW_TILE_POOL_WGSL),
       TESS_READ_PLAIN_WGSL,
       PATTERN_PLAIN_WGSL,
       DICE_PATCH_WGSL,
+      ...(masked
+        ? [DICE_CUTOUT_WGSL, maskKeepWgsl(maskAlphaWgsl(true, SHADOW_TILE_POOL_WGSL))]
+        : []),
       pointDisplacement,
       VSM_TESS_VIEW_WGSL,
       visTriangle,

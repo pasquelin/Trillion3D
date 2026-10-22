@@ -110,6 +110,11 @@ export function createRadianceCache(
     if (old) retire(device, { destroy: () => destroyCacheStorage(old) })
     storage = groups = pending = unavailable = refused = undefined
   }
+  function follow(now: ScreenProbeSettings) {
+    settings = now
+    if (!now.radianceCache) return release()
+    ensure(shapeOf(now))
+  }
   const encode = (pass: GPUComputePassEncoder, scatter?: (pass: GPUComputePassEncoder) => void) => {
     const queued = pending
     pending = undefined
@@ -146,13 +151,14 @@ export function createRadianceCache(
     get pending() {
       return pending !== undefined
     },
-    /** Probes were queued for this image: the maps' atlases follow `now`, the tile list is emptied, the update is pending. */
+    /** The maps follow the settings `now`: made where they are read and none are held — a series that is closed finds work again —,
+     *  made again where their shape changed, given back where no screen probe reads them (a level that casts none, or the switch off). */
+    follow,
+    /** Probes were queued for this image: the maps follow `now`, the tile list is emptied, the update is pending. */
     queued(now: ScreenProbeSettings, queued: Queued) {
       pending = undefined
-      settings = now
-      // No screen probe reads the maps — a level that casts none, or the switch off —: none are kept.
-      if (!now.radianceCache) return release()
-      const s = ensure(shapeOf(now))
+      follow(now)
+      const s = storage
       if (!s || !queued.groups) return
       resetList(device, s.tiles)
       pending = queued

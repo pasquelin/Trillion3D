@@ -119,6 +119,7 @@ function inputsOf(
     blue: noise.view,
     cacheFinal: cache.final,
     cacheRaw: cache.raw,
+    cacheSky: cache.sky,
     cacheTags: cache.tags,
     cachePdf: cache.pdf,
   }

@@ -60,7 +60,7 @@ fn marked_nodes(g: &Value) -> Result<Vec<(usize, usize, Bend)>> {
             continue;
         };
         let what = format!("nodes[{id}].extras.{SPLINE_EXTRA}");
-        if node.get("skin").is_some() || node.get("weights").is_some() {
+        if moves_by_itself(node) {
             return Err(SPLINE.bad(format!("{what}: a skinned or morphed mesh cannot be bent")));
         }
         let mesh = bounded(mesh, "node.mesh", meshes.len())?;

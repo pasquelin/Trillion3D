@@ -195,8 +195,7 @@ test('an outline draws over the display only with objects, in the beauty view, o
   assert.equal(rt.gpu.effects!.bytes, 0, 'a chain without it holds nothing for it')
 })
 
-/** A view drawn with the temporal pass off and the lit image `lit`, on a kit device: what the
- *  velocity stage measures from, and the camera it is seen through. */
+/** A view on a kit device, its temporal pass off, its lit image `lit`: what the velocity stage reads, and the camera. */
 function untemporal(chain: EffectChain) {
   const kit = fakeDevice(),
     { device } = kit
@@ -220,6 +219,7 @@ function untemporal(chain: EffectChain) {
     pageTable: storage(),
     concatPos: storage(),
     concatUv: storage(),
+    concatNrm: ids,
   })
   const cam = {
     viewProjection: Float64Array.from(IDENTITY_MATRIX4),

@@ -1,7 +1,8 @@
 //! A mesh voxelized, the children drawn and the far group.
-use super::super::rays::Sampler;
+use super::super::rays::RayBank;
 use super::super::sample::Probe;
 use super::super::seed::{SeedGroup, VoxelSeed};
+use super::inherit::{parent_of, Boxes};
 use super::surface::{mesh_joints, voxelize, Surface};
 use super::{VoxelInputs, Voxelized, Voxelled};
 use crate::trace::surface::Traceable;
@@ -10,17 +11,19 @@ use crate::{invalid, Result};
 use std::collections::HashMap;
 use std::ops::Range;
 use trillion3d_math::geometry::aabb::aabb_of;
-use trillion3d_math::vector::vecn::sub;
 
 /// The error each group of a primitive drawn as voxels is drawn at, by its rank.
 type Drawn = HashMap<usize, f64>;
 /// Per primitive: its rank, its triangles' ranks, and what it draws as voxels.
 type Lower = Vec<(usize, Range<usize>, Drawn)>;
+/// Per group of a primitive drawn as voxels: its place in the mesh's `Voxelized` list, and the
+/// outputs' centres and parents the group above it takes its bricks by.
+type Made<'a> = HashMap<usize, (usize, &'a [([f64; 3], usize)])>;
 
 /// The groups of compiled mesh `compiled`, read from source mesh `source`, drawn as voxels: each
 /// of its `primitives`' seeded groups in level order, then its far group, above every primitive's
 /// roots and sampled against all its triangles, so its voxels mix its materials. Sampled as the
-/// source mesh's build says (`VoxelInputs::sampling`).
+/// source mesh's build says (`VoxelInputs::settings`).
 pub(super) fn voxelize_mesh(
     inputs: &VoxelInputs<'_>,
     (compiled, source): (u64, usize),
@@ -30,14 +33,14 @@ pub(super) fn voxelize_mesh(
     let count = traceable.world.tags.len();
     let joints = mesh_joints(inputs, source, &traceable)?;
     let near = vec![0.0; count];
-    let sampling = inputs.sampling[source];
-    let sampler = Sampler::of(&sampling);
+    let settings = inputs.settings[source];
+    let bank = RayBank::of(&settings);
     let probe = Probe {
         mesh: &traceable,
         near: &near,
         tie: traceable.tie(),
-        sampling,
-        sampler: &sampler,
+        settings,
+        bank: &bank,
     };
     let corners = |t: usize| [0, 1, 2].map(|k| vertex(&traceable.world, t, k));
     let boxes: Vec<_> = (0..count).map(|t| aabb_of(corners(t))).collect();
@@ -55,7 +58,7 @@ pub(super) fn voxelize_mesh(
         let drawn = primitive_groups(&surface, (p, &inputs.seeds[p]), &mut groups);
         lower.push((p, range, drawn));
     }
-    let (far, forced) = far_voxels(inputs, &whole, compiled as usize, &lower);
+    let (far, forced) = far_voxels(inputs, &whole, compiled as usize, (&lower, &groups[..]));
     let far_error = far.as_ref().map(Voxelized::error);
     // Each primitive's roots are replaced by the far group.
     let mut voxels_from = 0.0_f64;
@@ -74,7 +77,7 @@ pub(super) fn voxelize_mesh(
         mesh: compiled as usize,
         groups: groups.into_iter().flat_map(Voxelized::parts).collect(),
         voxels_from,
-        sampling,
+        settings,
     })
 }
 
@@ -82,16 +85,17 @@ pub(super) fn voxelize_mesh(
 /// a root comes from a voxel group. A far group has no triangles to beat: its side grows until it
 /// fits. Its error is never below its roots' — its first side is at least theirs over
 /// `ERROR_PER_SIZE` —, and where no side keeps a voxel there is none: the roots are drawn at every
-/// distance. Only roots drawn as voxels go on.
+/// distance. Only roots drawn as voxels go on, from their voxels (`groups` those drawn).
 fn far_voxels(
     inputs: &VoxelInputs<'_>,
     whole: &Surface<'_>,
     mesh: usize,
-    lower: &Lower,
+    (lower, groups): (&Lower, &[Voxelized]),
 ) -> (Option<Voxelized>, bool) {
-    let (far, forced) = far_group(inputs, mesh, lower);
+    let (far, inherited) = far_group(inputs, mesh, (lower, groups));
     let child_error = far.children.iter().map(|c| c.1).fold(0.0, f64::max);
-    let far = forced.then(|| voxelize(whole, &far, child_error, f64::INFINITY));
+    let forced = !inherited.is_empty();
+    let far = forced.then(|| voxelize(whole, (&far, &inherited), child_error, f64::INFINITY));
     (far.flatten(), forced)
 }
 
@@ -115,19 +119,21 @@ fn primitive_groups(
     (p, seed): (usize, &VoxelSeed),
     groups: &mut Vec<Voxelized>,
 ) -> Drawn {
-    let mut drawn = Drawn::new();
+    let (mut drawn, mut made) = (Drawn::new(), Made::new());
     let ruled = seed.groups.split_last().map_or(&[][..], |(_, r)| r);
     for group in ruled {
         let (forced, child_error) = children_drawn(group, &drawn);
+        let inherited = inherited_boxes(group, (&made, &groups[..]));
         // From the build's voxel level up every group is voxels.
-        let forced = forced || surface.probe.sampling.forces(group.level);
+        let forced = forced || surface.probe.settings.forces(group.level);
         // Triangles from a voxel group are no alternative to beat.
         let beat = match forced {
             true => f64::INFINITY,
             false => group.error,
         };
-        if let Some(voxelized) = voxelize(surface, group, child_error, beat) {
+        if let Some(voxelized) = voxelize(surface, (group, &inherited), child_error, beat) {
             drawn.insert(group.group, voxelized.error());
+            made.insert(group.group, (groups.len(), &group.parents[..]));
             groups.push(Voxelized {
                 primitive: Some(p),
                 forced,
@@ -136,6 +142,31 @@ fn primitive_groups(
         }
     }
     drawn
+}
+
+/// What `group` takes of its children drawn as voxels, by child: the voxels its bricks held of the
+/// first child of each voxel group, none of the others (`Boxes`).
+fn inherited_boxes(
+    group: &SeedGroup,
+    (made, groups): (&Made<'_>, &[Voxelized]),
+) -> Vec<(usize, Boxes)> {
+    let mut gathered: Vec<usize> = Vec::new();
+    let mut inherited = Vec::new();
+    for (child, &(source, _)) in group.children.iter().enumerate() {
+        let Some(&(at, parents)) = source.and_then(|s| made.get(&s)) else {
+            continue;
+        };
+        let first = !gathered.contains(&at);
+        gathered.push(at);
+        inherited.push((
+            child,
+            match first {
+                true => Boxes::of(&groups[at], parents, group.group),
+                false => Boxes::default(),
+            },
+        ));
+    }
+    inherited
 }
 
 /// Primitive `p`'s roots replaced by the far group, drawn at `far_error` if there is one, and
@@ -166,20 +197,9 @@ fn replaced(
         None => far_error.unwrap_or(f64::INFINITY),
     };
     for group in groups.iter_mut().filter(|g| g.primitive == Some(p)) {
-        let seeded = seed.groups.iter().find(|s| s.group == group.group);
-        let parents = &seeded.expect("a voxel group is seeded").parents;
-        let side = group.side;
+        let parents = &seed.group(group.group).parents;
         group.brick_parents = (group.bricks.iter())
-            .map(|brick| {
-                let centre = brick.at.map(|c| (f64::from(c) * 4.0 + 2.0) * side);
-                let distance = |at: [f64; 3]| {
-                    let d = sub(at, centre);
-                    d[0] * d[0] + d[1] * d[1] + d[2] * d[2]
-                };
-                let nearest =
-                    (parents.iter()).min_by(|a, b| distance(a.0).total_cmp(&distance(b.0)));
-                nearest.map_or(f64::INFINITY, |&(_, rank)| replaced_at(rank))
-            })
+            .map(|brick| parent_of(brick, group.side, parents).map_or(f64::INFINITY, replaced_at))
             .collect();
     }
     voxels_from
@@ -198,8 +218,13 @@ fn children_drawn(group: &SeedGroup, drawn: &Drawn) -> (bool, f64) {
 
 /// The far group of a mesh, from each primitive's group above its roots: their children, each at
 /// the error it is drawn at — a root from a voxel group at that group's —, their area, vertices
-/// and triangles, as ranks among the mesh's; and whether a root comes from a voxel group.
-fn far_group(inputs: &VoxelInputs<'_>, mesh: usize, lower: &Lower) -> (SeedGroup, bool) {
+/// and triangles, as ranks among the mesh's; and what it takes of the roots drawn as voxels, by
+/// child (`inherited_boxes`), the voxels of the groups `groups` holds.
+fn far_group(
+    inputs: &VoxelInputs<'_>,
+    mesh: usize,
+    (lower, groups): (&Lower, &[Voxelized]),
+) -> (SeedGroup, Vec<(usize, Boxes)>) {
     let mut far = SeedGroup {
         group: mesh,
         level: 0,
@@ -210,24 +235,39 @@ fn far_group(inputs: &VoxelInputs<'_>, mesh: usize, lower: &Lower) -> (SeedGroup
         vertices: 0,
         num_parents: 1,
         triangles: Vec::new(),
+        child_ends: Vec::new(),
     };
-    let mut forced = false;
+    let mut inherited = Vec::new();
     for (p, range, drawn) in lower {
-        let Some(above) = inputs.seeds[*p].groups.last() else {
+        let seed = &inputs.seeds[*p];
+        let Some(above) = seed.groups.last() else {
             continue;
         };
         far.level = far.level.max(above.level);
         far.area += above.area;
         far.vertices += above.vertices;
-        let (voxel, _) = children_drawn(above, drawn);
-        forced |= voxel;
+        // The primitive's voxel groups, the group above its roots taking their root bricks.
+        let made: Made<'_> = (groups.iter().enumerate())
+            .filter(|(_, v)| v.primitive == Some(*p))
+            .map(|(at, v)| (v.group, (at, &seed.group(v.group).parents[..])))
+            .collect();
+        let owned = inherited_boxes(above, (&made, groups));
         let error = |&(source, error): &(Option<usize>, f64)| {
             source.and_then(|s| drawn.get(&s).copied()).unwrap_or(error)
         };
-        far.children
-            .extend(above.children.iter().map(|c| (None, error(c))));
-        far.triangles
-            .extend(above.triangles.iter().map(|&t| range.start as u32 + t));
+        let first = far.children.len();
+        inherited.extend(
+            owned
+                .into_iter()
+                .map(|(child, boxes)| (first + child, boxes)),
+        );
+        for (child, c) in above.children.iter().enumerate() {
+            far.children.push((None, error(c)));
+            let share = above.child_triangles(child);
+            far.triangles
+                .extend(share.iter().map(|&t| range.start as u32 + t));
+            far.child_ends.push(far.triangles.len());
+        }
     }
-    (far, forced)
+    (far, inherited)
 }

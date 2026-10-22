@@ -70,17 +70,18 @@ pub(crate) fn options(source: PathBuf, cache: PathBuf) -> Options {
     }
 }
 
-/// The chain the world tests build: HLOD 0 instanced, then three approximated layers, each building
-/// the next's actors on a grid twice as coarse, the last always loaded, every placed object in it.
+/// The chain the world tests build: HLOD 0 instanced, then three approximated layers whose meshes
+/// get a cluster DAG (`clusterDag`, off by default), each building the next's actors on a grid
+/// twice as coarse, the last always loaded, every placed object in it.
 pub(crate) fn hlod_chain() -> crate::Hlod {
     let chain = serde_json::json!({
         "layers": [
             {"name": "hlod0", "builder": "instanced", "parent": "hlod1"},
             {"name": "hlod1", "builder": "approximate", "parent": "hlod2", "cellSize": 512,
-                "loadingRange": 1024},
+                "loadingRange": 1024, "clusterDag": true},
             {"name": "hlod2", "builder": "approximate", "parent": "hlod3", "cellSize": 1024,
-                "loadingRange": 2048},
-            {"name": "hlod3", "builder": "approximate", "spatiallyLoaded": false}
+                "loadingRange": 2048, "clusterDag": true},
+            {"name": "hlod3", "builder": "approximate", "spatiallyLoaded": false, "clusterDag": true}
         ],
         "default": "hlod0"
     });

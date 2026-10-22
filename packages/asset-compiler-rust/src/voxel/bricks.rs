@@ -10,11 +10,13 @@
 //! |---|---|
 //! | 0–3 | base colour, sRGB; normal length (the spread Toksvig's filter reads: 255 when every normal agrees, always when the build drops the spread, `voxelNdf`) |
 //! | 4–7 | occlusion, roughness, metallic; the voxel's coverage as its opacity when the build keeps it (`voxelOpacity`: no pass of the engine reads it), else zero |
-//! | 8–9 | mean normal, octahedral (`oct_encode`) |
-//! | 10–11 | zero |
+//! | 8–9 | normal, octahedral (`oct_encode`): the axis of the fitted normal distribution (`voxelNdf`, `ndf.rs`), else the direction of the mean normal |
+//! | 10 | the ratio of the fitted distribution's two widths (`voxelNdf`: no pass of the engine reads it yet), else zero |
+//! | 11 | zero |
+use super::ndf::fitted;
 use super::raster::Cell;
 use super::solid::Voxel;
-use super::VoxelSampling;
+use super::VoxelSettings;
 use crate::texture::linear_to_srgb;
 use trillion3d_math::scalar::unit_to_byte;
 use trillion3d_math::vector::octahedral::oct_encode;
@@ -87,27 +89,31 @@ pub(super) fn brick_record(brick: &Brick, first: Cell) -> [u8; BRICK_BYTES] {
     out
 }
 
-/// The bytes of a voxel sampled as `sampling` says: its normals' spread kept or dropped, its
-/// coverage carried as its opacity or not.
-pub(super) fn voxel_record(voxel: &Voxel, sampling: &VoxelSampling) -> [u8; VOXEL_BYTES] {
+/// The bytes of a voxel sampled as `settings` say: its normals' distribution fitted or dropped to
+/// the direction of their mean, its coverage carried as its opacity or not.
+pub(super) fn voxel_record(voxel: &Voxel, settings: &VoxelSettings) -> [u8; VOXEL_BYTES] {
     let m = &voxel.shown;
     let colour = m.colour.map(|c| linear_to_srgb((c / m.covered) as f32));
     let orm = m.orm.map(|c| unit_to_byte(c / m.covered));
     let mean = scale(m.normal, 1.0 / m.hits);
-    let normal = normalized_or(mean, [0.0, 0.0, 1.0]);
+    let (normal, ratio) = match settings.ndf {
+        true => fitted(m.ndf),
+        false => (normalized_or(mean, [0.0, 0.0, 1.0]), 0.0),
+    };
     let oct = |n: [f64; 3]| (oct_encode(n.map(|c| c as f32)) as u16).to_le_bytes();
     let mut out = [0; VOXEL_BYTES];
     out[..3].copy_from_slice(&colour);
-    let spread = if sampling.ndf {
+    let spread = if settings.ndf {
         length(mean).min(1.0)
     } else {
         1.0
     };
     out[3] = unit_to_byte(spread);
     out[4..7].copy_from_slice(&orm);
-    if sampling.opacity {
+    if settings.opacity {
         out[7] = unit_to_byte(voxel.coverage);
     }
     out[8..10].copy_from_slice(&oct(normal));
+    out[10] = unit_to_byte(ratio);
     out
 }

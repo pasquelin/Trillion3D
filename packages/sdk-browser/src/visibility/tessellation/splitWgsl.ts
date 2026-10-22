@@ -7,7 +7,7 @@ import { TESS_BINDINGS, TESS_DECLARATIONS as D } from './bindings.ts'
 import { ARG_END, ARG_OCCLUDED, ARG_START, OCCLUSION_MAIN } from './contract.ts'
 import { QUEUE_WGSL } from './queueWgsl.ts'
 import { PATCH_SHAPE_WGSL } from './shapeWgsl.ts'
-import { PATCH_SIGHT_WGSL, SIGHT_GONE, SIGHT_HIDDEN } from './sightWgsl.ts'
+import { patchSightWgsl, SIGHT_GONE, SIGHT_HIDDEN } from './sightWgsl.ts'
 import { MAIN_VIEW_WGSL } from './viewWgsl.ts'
 
 /**
@@ -51,9 +51,10 @@ fn occludePatch(p:vec4u){
  settlePatch(piece,page,rec,shape,mainView(),false);
 }`
 
-/** The splitting's program: its entry point `tessSplit`. The normal atlas it
+/** The splitting's program, made for the project switch when `clipping`: its entry point
+ *  `tessSplit`. The normal atlas it
  *  reads a float geometry's normals from is bound at `TESS_BINDINGS.normals`. */
-export const splitSource = () =>
+export const splitSource = (clipping = false) =>
   wgslProgram(SPLIT, [
     PAGE_INFO_STRUCT_WGSL,
     VIS_UNIFORMS_WGSL,
@@ -66,5 +67,5 @@ export const splitSource = () =>
     FLAT_INDEX_WGSL,
     WORKGROUP_THREADS_WGSL,
     visPageIndex,
-    PATCH_SIGHT_WGSL,
+    patchSightWgsl(clipping),
   ])

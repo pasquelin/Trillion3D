@@ -1,5 +1,5 @@
 //! One voxel sampled: its rays across it — 64 by default, the mesh's build names their count and
-//! how they run (`VoxelSampling`) — against the level-0 triangles that overlap it, each a
+//! how they run (`VoxelSettings`) — against the level-0 triangles that overlap it, each a
 //! direction uniform on the sphere along a line through the cube, every line through it as likely
 //! as any other (`rays.rs`), through the alpha-aware hit filter — a cut texel lets the ray
 //! through, so a leaf card's cut-out thins the voxel as it thins the pixel. A ray is counted on
@@ -11,8 +11,8 @@
 //! normal, turned to the face — the side the surface is seen from — and the normals' products — the
 //! distribution whose projected area weighs a neighbour.
 use super::raster::Cell;
-use super::rays::{lone_ray, Ray, RaySet, Sampler};
-use super::VoxelSampling;
+use super::rays::{lone_ray, Ray, RayBank, RaySet};
+use super::VoxelSettings;
 use crate::trace::surface::mesh::Sample;
 use crate::trace::surface::Traceable;
 use crate::trace::tracer::Among;
@@ -24,8 +24,8 @@ pub(super) struct Probe<'a> {
     pub mesh: &'a Traceable,
     pub near: &'a [f64],
     pub tie: f64,
-    pub sampling: VoxelSampling,
-    pub sampler: &'a Sampler,
+    pub settings: VoxelSettings,
+    pub bank: &'a RayBank,
 }
 
 /// Weighted sums of what a voxel sees; each part's mean is its sum over its weight.
@@ -178,12 +178,12 @@ impl Tally {
 /// The part of a ray's run where a hit counts when none is left out: all of it.
 const OPEN: (f64, f64) = (f64::NEG_INFINITY, f64::INFINITY);
 
-/// The voxel `cell` of side `side` and rank `rank` (`Sampler::set`), whose overlapping triangles
+/// The voxel `cell` of side `side` and rank `rank` (`RayBank::set`), whose overlapping triangles
 /// are `ranks`: its coverage — the
 /// share of its rays that hit inside it — and the sums of each face's rays — a hit `1 / rays` of
 /// its face, its normal turned to the side the ray comes from. A ray's texture is filtered over its
 /// share of the voxel's cross-section, an eighth of the side each way. A ray the build leaves out
-/// of the count (`VoxelSampling::window`) is no hit and no miss: the voxel's rays are the rest.
+/// of the count (`VoxelSettings::window`) is no hit and no miss: the voxel's rays are the rest.
 /// Nothing is allocated.
 pub(super) fn sample(
     probe: &Probe<'_>,
@@ -203,7 +203,7 @@ pub(super) fn sample(
         centre,
         side,
     };
-    match probe.sampling.single() {
+    match probe.settings.single() {
         true => alone(&caster, cell),
         false => among_rays(&caster, rank),
     }
@@ -213,8 +213,8 @@ pub(super) fn sample(
 /// voxel's — by the first ray of the crosshair that hits.
 fn alone(caster: &Caster<'_>, cell: Cell) -> (f64, [Moments; FACES]) {
     let mut tally = Tally::default();
-    if caster.probe.sampling.separable {
-        for ray in &caster.probe.sampler.crosshair {
+    if caster.probe.settings.separable {
+        for ray in &caster.probe.bank.crosshair {
             let found = caster.cast(ray, OPEN);
             if matches!(found, Cast::Hit(_)) {
                 tally.add(ray, found);
@@ -232,18 +232,16 @@ fn alone(caster: &Caster<'_>, cell: Cell) -> (f64, [Moments; FACES]) {
 /// separable voxel — one whose rays along some axis all hit — is covered whole where a ray of the
 /// crosshair through its centre hits too.
 fn among_rays(caster: &Caster<'_>, rank: u32) -> (f64, [Moments; FACES]) {
-    let Probe {
-        sampling, sampler, ..
-    } = caster.probe;
-    let (set, window) = (sampler.set(rank), sampling.window());
+    let Probe { settings, bank, .. } = caster.probe;
+    let (set, window) = (bank.set(rank), settings.window());
     let mut tally = Tally::default();
     for ray in &set.rays {
         tally.add(ray, caster.cast(ray, window));
     }
     let mut counted = set.rays.len() - tally.left_on.iter().sum::<usize>();
-    if sampling.separable && tally.hit_along_an_axis(set) {
+    if settings.separable && tally.hit_along_an_axis(set) {
         let hit = |ray: &Ray| matches!(caster.cast(ray, OPEN), Cast::Hit(_));
-        if sampler.crosshair.iter().any(hit) {
+        if bank.crosshair.iter().any(hit) {
             counted = tally.hits;
         }
     }

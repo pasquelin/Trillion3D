@@ -1,15 +1,15 @@
 //! The voxel settings of a mesh's build (`meshBuild`, `MeshVoxelSettingsWire`): how many rays a
 //! voxel casts, the level from which every group is voxels, how far back a ray starts, whether the
 //! rays run along the axes alone, whether a voxel keeps its normals' spread and its coverage as
-//! opacity (`voxel::VoxelSampling`). Each source names them as it names the others
+//! opacity (`voxel::VoxelSettings`). Each source names them as it names the others
 //! (`mesh_build.rs`): a rule's, the scene's, the mesh's own `extras`; the reference's default
 //! where none does.
-use super::read::Reader;
+use crate::compiler::args::reader::Reader;
 use crate::shared_math::abi::{
     VOXEL_BACK_UP_SETTING, VOXEL_LEVEL_SETTING, VOXEL_NDF_SETTING, VOXEL_OPACITY_SETTING,
     VOXEL_RAYS_SETTING, VOXEL_SEPARABLE_SETTING,
 };
-use crate::voxel::VoxelSampling;
+use crate::voxel::VoxelSettings;
 use crate::Result;
 
 /// The voxel settings one source names, each none where it names none.
@@ -63,9 +63,9 @@ impl NamedVoxels {
     }
 
     /// Every setting, the default where none was named.
-    pub(super) fn resolved(self) -> VoxelSampling {
-        let default = VoxelSampling::default();
-        VoxelSampling {
+    pub(super) fn resolved(self) -> VoxelSettings {
+        let default = VoxelSettings::default();
+        VoxelSettings {
             asked_rays: self.rays.unwrap_or(default.asked_rays),
             level: self.level.unwrap_or(default.level),
             back_up: self.back_up.unwrap_or(default.back_up),

@@ -52,11 +52,14 @@ function startedOver(urls: string[], rooted = (_url: string) => false) {
     objectOf: (url) => (url.startsWith('a/') ? 0 : urls.indexOf(url) + 1),
   })
   const settle = new Map<string, { done(): void; fail(error: Error): void }>()
-  const installed: string[] = []
+  const installed: string[] = [],
+    unloaded: string[] = [],
+    held = new Set<string>()
   const cache = {
-    ...{ room: () => urls.length, rootRoom: () => urls.length, holds: () => false },
+    ...{ room: () => urls.length, rootRoom: () => urls.length },
+    holds: (address: string) => held.has(address),
     rooted: (address: string) => rooted(address),
-    unload: () => {},
+    unload: (address: string) => void unloaded.push(address),
     load: async (address: string) => void installed.push(address),
   } as unknown as GpuPageCache
   const s = createQueueState({
@@ -77,7 +80,7 @@ function startedOver(urls: string[], rooted = (_url: string) => false) {
   start(s, cache, () => undefined)
   pumpOn(s)
   const unit = (url: string) => w.tracking.units.of(w.tracking.keyOf(rec(url, 0)))
-  return { s, w, failures, settle, installed, unit }
+  return { s, w, failures, settle, installed, unloaded, held, unit }
 }
 
 test('a page on its way for an object given up is dropped when it arrives, not installed', async () => {
@@ -103,28 +106,30 @@ test('a page on its way for an object given up is dropped when it arrives, not i
   )
 })
 
-test('a prefetch keeps the priority its asker names up to the highest; 0 asks for nothing', () => {
-  const w = world(['p0', 'p1', 'p2', 'p3', 'p4'].map((url) => rec(url, 0)))
+test('a prefetch asks its pages ahead of the views’, the nearer its deadline the higher, and lets go once spent', () => {
+  const w = world(['p0', 'p1', 'p2'].map((url) => rec(url, 0)))
   const requests = createPageRequests({
     ...{ packedPages: w.packed, keyOf: w.tracking.keyOf, units: w.tracking.units },
     ...{ parents: () => [], covers: w.sets.covers, closure: { closeOver() {} } },
   })
-  // A priority named, one named past the highest, 0, not a number, and none named.
-  requests.prefetch([0], 1, 7)
-  requests.prefetch([1], 1, 2 ** 40)
-  requests.prefetch([2], 1, 0)
-  requests.prefetch([3], 1, Number.NaN)
-  requests.prefetch([4], 1)
-  requests.take([])
+  requests.prefetch([0], 2)
+  requests.prefetch([1], 99) // more updates than a prefetch asks for at most: brought back to 30
   const priority = (at: number) =>
     requests.priorityOf(w.tracking.units.of(w.tracking.keyOf(w.packed[at])))
-  assert.deepEqual([0, 1, 2, 3, 4].map(priority), [
-    7,
-    REQUEST_PRIORITY_MAX,
+  requests.take([])
+  assert.deepEqual([0, 1, 2].map(priority), [
+    REQUEST_PRIORITY_MAX - 2,
+    REQUEST_PRIORITY_MAX - 30,
     0,
-    0,
-    REQUEST_PRIORITY_MAX - 1,
   ])
+  requests.take([])
+  assert.deepEqual([0, 1].map(priority), [REQUEST_PRIORITY_MAX - 1, REQUEST_PRIORITY_MAX - 29])
+  requests.take([])
+  assert.deepEqual(
+    [0, 1].map(priority),
+    [0, REQUEST_PRIORITY_MAX - 28],
+    'its updates spent: let go',
+  )
 })
 
 /** Microtask turns: the install loop's awaits settle on them, never on a task. */
@@ -150,27 +155,37 @@ function slowLink(
 }
 
 test(
-  'the pages of a frame share its bandwidth in the order started: the rate is the setting’s, whatever the pages’ sizes',
+  'each page takes a share of its own of the frame’s bandwidth, in the order started, the bytes it is stored in',
   { timeout: 5000 },
   async (t) => {
-    const { s, installed, arrive } = slowLink(t, ['p0', 'p1', 'p2', 'p3', 'p4', 'p5'], 40000)
+    const { s, installed, arrive } = slowLink(t, ['p0', 'p1', 'p2', 'p3'], 40001)
     arrive()
-    // An update a tenth of a second: 104 857 bytes at 1 MB/s, the first with none behind it.
+    // An update a tenth of a second: 104 857 bytes at 1 MB/s for each page, none the first time.
     const frame = async (ms: number) => {
       if (ms > 0) s.gate.frame()
       paceFrame(s, ms)
       await turns()
       return [installed.length, s.pending[0]?.bytesLeft]
     }
-    assert.deepEqual(await frame(0), [0, 40000], 'no time behind the first frame: no byte')
-    assert.deepEqual(await frame(100), [2, 15143], 'two pages and a part of the third, not all six')
+    assert.deepEqual(await frame(0), [0, 40001], 'no time behind the first frame: no byte')
     assert.deepEqual(
-      await frame(200),
-      [5, 30286],
-      'the rest of the third, two more and a part of the sixth',
+      await frame(100),
+      [4, undefined],
+      'a page under its share takes it whole: all four',
     )
-    assert.equal(s.pacing.bytesLeft, 0, 'the frame’s bytes taken')
-    assert.ok(installed.length * 40000 <= (200 / 1000) * 1048576, 'never over the rate')
+    // Pages of 150 000 bytes: the head takes its share, and waits.
+    const big = slowLink(t, ['q0', 'q1'], 150000)
+    big.arrive()
+    paceFrame(big.s, 0)
+    await turns()
+    big.s.gate.frame()
+    paceFrame(big.s, 100)
+    await turns()
+    assert.deepEqual([big.installed, big.s.pending[0].bytesLeft], [[], 150000 - 104857])
+    big.s.gate.frame()
+    paceFrame(big.s, 200)
+    await turns()
+    assert.deepEqual(big.installed, ['q0'], 'its second share ends it; the next page waits its own')
   },
 )
 
@@ -217,3 +232,27 @@ test(
     assert.deepEqual(installed, ['r/p0', 'a/p1'], 'a negative limit waits for nothing')
   },
 )
+
+test('a page whose object went invalid counts as one of its frame’s installs, and its victim is given up all the same', async (t) => {
+  const { s, failures, settle, installed, unloaded, held, unit } = startedOver(['a/p1', 'b/p2'])
+  t.after(() => void (s.lost = new Error('end of the test')))
+  Object.assign(s.o.settings, { streamingMaxInstallsPerFrame: 1 })
+  s.limits = limitsOf(s.o.settings)
+  // `a/p1` took the slot of a streaming page the pool still holds; its object is given up before it
+  // installs: the slot is free, as the install frees it.
+  held.add('b/p2')
+  s.pending[0].victim = { unit: unit('b/p2'), address: 'b/p2', page: rec('b/p2', 0) }
+  failures.record('a/p1', new Error('404'))
+  settle.get('a/p1')!.done()
+  settle.get('b/p2')!.done()
+  await turns()
+  assert.deepEqual(
+    [installed, [...s.refused]],
+    [[], [unit('a/p1')]],
+    'skipped: the install it took',
+  )
+  assert.deepEqual(unloaded, ['b/p2'], 'the victim is given up, not kept')
+  s.gate.frame()
+  await turns()
+  assert.deepEqual(installed, ['b/p2'], 'the next frame installs the next page')
+})

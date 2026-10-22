@@ -92,7 +92,7 @@ export function createGpuRaster(
      *  the image tessellates nothing: made, its pipelines and the binning's variant that leaves it
      *  the rows asked off the frame, made again when the capacity moved, given back when none. */
     followTessellation: (device: GPUDevice, asked: TessellationCapacity | undefined) =>
-      followTessellation(r, device, work, asked),
+      followTessellation(r, device, work, asked, clipping),
     /** The tessellation held now: the shadow maps' chain runs in its buffers
      *  (`../../lighting/shadows/vsm/tessellation/shadowChain.ts`). */
     get tessellation() {

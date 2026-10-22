@@ -4,8 +4,8 @@
  * through (`PageCache.readRange`: a server that ignores the Range answers the whole file, kept as
  * one entry of the cache among the pages, evicted as they are). Each page is checked against what
  * it announced (`fetchAttempt.ts`), counted, and kept in the cache unless its askers keep it
- * (`StreamPage.kept`). One request, never retried here: what fails waits its turn
- * (`failures.ts`), and that wait is the retry.
+ * (`StreamPage.kept`). One request, never retried here: what fails is asked again by the failure
+ * policy (`failures.ts`), at once or after the wait its server asked.
  */
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { checked, ONE_REQUEST } from '../cluster/checked.ts'

@@ -129,7 +129,10 @@ export const hlodLayers: JsonSchemaProperty = /* @__PURE__ */ (() => ({
         `true ${DEFAULT_HLOD_EMPTY_TEXELS}, false ${HLOD_EMPTY_TEXELS[0]}.`,
       ),
       clusterDag: flag(
-        'Whether the mesh of each actor an approximate, merge or simplify layer builds gets a cluster DAG, its coarser levels drawn within the pixel error (default true); false, one level drawn whole at every distance. An instanced layer builds no mesh while it is true: each object keeps its own DAG. False draws each object it takes at the last LOD of its mesh, its fallback, built as a merge layer keeping its materials builds it: one mesh per cell and material, drawn whole.',
+        'Whether the mesh of each actor an approximate, merge or simplify layer builds gets a cluster DAG, its coarser levels drawn within the pixel error; false (the default), one level drawn whole at every distance.',
+      ),
+      disallowClusterDag: flag(
+        'Whether an instanced layer draws its objects without their cluster DAG: false (the default), each keeps its own DAG and the layer builds no mesh; true, each is drawn at the last LOD of its mesh, its fallback, built as a merge layer keeping its materials builds it: one mesh per cell and material, drawn whole.',
       ),
       meshBuild: hlodMeshBuild,
       sizeFilter: {
@@ -142,7 +145,7 @@ export const hlodLayers: JsonSchemaProperty = /* @__PURE__ */ (() => ({
       minArea: num('The least surface, square metres, of an area filter (default 0).', 0),
       minVolume: num('The least volume, cubic metres, of a volume filter (default 0).', 0),
       spatiallyLoaded: flag(
-        "Whether the actors it builds stream on its grid (default true); false, they are always loaded and nothing is built of them: the top of its chain, the parent it names let go, an instanced layer's objects (clusterDag left true) loaded with the scene.",
+        "Whether the actors it builds stream on its grid (default true); false, they are always loaded and nothing is built of them: the top of its chain, the parent it names let go, an instanced layer's objects (their cluster DAG not disallowed) loaded with the scene.",
       ),
       cellSize: positive(
         `Under the spatialHash scheme alone (hashSet, the default, ignores it): the side, metres, of its grid's cells, one grid per HLOD level, cell side and loading range (default ${DEFAULT_HLOD_CELL_SIZE}); none for a layer not spatially loaded.`,

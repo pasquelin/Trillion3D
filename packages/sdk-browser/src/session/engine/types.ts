@@ -32,6 +32,7 @@ import type {
   WorldStreamingOptions,
 } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.ts'
+import type { DynamicResolutionOptions } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
 import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
@@ -217,6 +218,7 @@ export interface EngineContext
     WorldStreamingOptions,
     HlodWarmupOptions,
     CutOptions,
+    DynamicResolutionOptions,
     AnimationOptions,
     ShadingOptions,
     ExposureOptions,
@@ -293,7 +295,7 @@ export interface EngineContext
   sceneLights?: SceneLightStore // the host's contract lights, shared by the session's engines
   importedLightIds?: string[] // imported light ids in cache order, set by `importedLights()`
   /** Bounced light, on by default (`false` turns it off); `bounceProbesPerFrame`, the probes a frame traces,
-   *  those never traced first (100 by default, at most 768: `resolveProbesPerFrame`). */
+   *  those never traced first, a whole map each (the screen probes' level's budget where none is named, at most 768). */
   bounce?: boolean
   bounceProbesPerFrame?: number
   stageProfile?: boolean // Off by default; the bench and harness time the frame steps.

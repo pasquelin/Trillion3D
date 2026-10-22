@@ -151,6 +151,30 @@ function tracedSelection(
   }
 }
 
+/** What the image's selections do with a probe: its cost by its place (`costOf`), its emission (`send`), the emission of a probe first
+ *  traced, told whether the budget had room for its cost (`sendNew`). */
+function emittersOf(slots: ProbeSlots, spacings: readonly number[], image: Image) {
+  const { cell } = slots
+  const costOf = (slot: number) => {
+    const spacing = spacings[slots.levelOf(slot)]
+    let squared = 0
+    for (let axis = 0; axis < 3; axis++)
+      squared += ((cell[slot * 3 + axis] + 0.5) * spacing - image.at[axis]) ** 2
+    return probeCostOf(squared, image.costs)
+  }
+  const send = (slot: number, downsampled: boolean) => {
+    const at = slot * 3
+    const first = slots.trace(slot, image.now)
+    image.emit(slot, slots.levelOf(slot), cell[at], cell[at + 1], cell[at + 2], first, downsampled)
+  }
+  const sendNew = (slot: number) => {
+    const extra = costOf(slot) - PROBE_COST.downsampled
+    send(slot, image.spent + extra > image.room)
+    image.spent += extra
+  }
+  return { costOf, send, sendNew }
+}
+
 /**
  * THE ORDER PROBES ARE TRACED IN, and the table the GPU reads, per image.
  *
@@ -165,7 +189,7 @@ function tracedSelection(
  * `settledTraces` updates since the lights changed (`restart`).
  */
 export function createProbePlan(slots: ProbeSlots, spacings: readonly number[]) {
-  const { cell, capacity } = slots
+  const { capacity } = slots
   const lanes = new Float32Array(TABLE_LANES)
   const image: Image = {
     now: 0,
@@ -176,24 +200,7 @@ export function createProbePlan(slots: ProbeSlots, spacings: readonly number[]) 
     room: 0,
     spent: 0,
   }
-  const costOf = (slot: number) => {
-    const spacing = spacings[slots.levelOf(slot)]
-    let squared = 0
-    for (let axis = 0; axis < 3; axis++)
-      squared += ((cell[slot * 3 + axis] + 0.5) * spacing - image.at[axis]) ** 2
-    return probeCostOf(squared, image.costs)
-  }
-  const send = (slot: number, downsampled: boolean) => {
-    const at = slot * 3
-    const first = slots.trace(slot, image.now)
-    image.emit(slot, slots.levelOf(slot), cell[at], cell[at + 1], cell[at + 2], first, downsampled)
-  }
-  const sendNew = (slot: number) => {
-    const cost = costOf(slot),
-      extra = cost - PROBE_COST.downsampled
-    send(slot, image.spent + extra > image.room)
-    image.spent += extra
-  }
+  const { costOf, send, sendNew } = emittersOf(slots, spacings, image)
   const untraced = untracedSelection(slots, spacings.length, image, sendNew)
   const traced = tracedSelection(slots, image, costOf, (slot) => send(slot, false))
   return {

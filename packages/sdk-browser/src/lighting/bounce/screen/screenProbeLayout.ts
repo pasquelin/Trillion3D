@@ -200,6 +200,7 @@ export const SCREEN_PROBE_FLAGS = {
   fastUpdateClamp: 1 << 12,
   disocclusion: 1 << 13,
   occlusionTemporal: 1 << 14,
+  cacheSky: 1 << 15,
 } as const
 
 /**
@@ -213,7 +214,8 @@ export const SCREEN_PROBE_FLAGS = {
  * jittered and the furthest a ray looks; `occlusion`, the horizon search's slices, steps and foreground fraction and the scale of
  * the neighbourhood the history's occlusion is held to; `scene`, the detail trace's distance, the distance from the eye it is
  * made within, the bias off a surface and the history's relative depth threshold; `cache`, the radiance cache's radius scale (the
- * multiple of a probe's nearest ray start the direction a ray reads it by is moved onto a sphere of) and the texels a side of its maps; `motion`, the relative speed
+ * multiple of a probe's nearest ray start the direction a ray reads it by is moved onto a sphere of), the texels a side of its maps and
+ * the levels of detail they hold; `motion`, the relative speed
  * difference from which a ray's end moves, the inverse of the share of moving light from which the history gives
  * way, and the most it gives way by; `tuning`, the frames and the share of a probe's pixels that make it
  * disoccluded, the history's depth thickness and the relative thickness of the screen trace; `previous`, the inverse of

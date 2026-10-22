@@ -4,6 +4,7 @@ import { RASTER_RULES } from '../../../sdk-core/src/contracts/rasterOptions.ts'
 import { STREAMING_RULES } from '../../../sdk-core/src/contracts/streamingOptions.ts'
 import { WORLD_STREAMING_RULES } from '../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import { CUT_RULES } from '../../../sdk-core/src/contracts/cutOptions.ts'
+import { DYNAMIC_RESOLUTION_RULES } from '../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
 import { ANIMATION_RULES } from '../../../sdk-core/src/contracts/animationOptions.ts'
 import { EXPOSURE_RULES } from '../../../sdk-core/src/contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../../../sdk-core/src/contracts/temporalOptions.ts'
@@ -98,6 +99,7 @@ function optionContext(session: ExplorerSession) {
     ...resolveSettings(STREAMING_RULES, options),
     ...resolveSettings(WORLD_STREAMING_RULES, options),
     ...resolveSettings(CUT_RULES, options),
+    ...resolveSettings(DYNAMIC_RESOLUTION_RULES, options),
     ...resolveSettings(ANIMATION_RULES, options),
     ...resolveSettings(SHADING_RULES, options),
     ...resolveSettings(EXPOSURE_RULES, options),

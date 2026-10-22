@@ -208,7 +208,7 @@ export const vsmCandidatesKernel = (name: string, blend: boolean) => `
  vsmRenderAppendCandidate(row,page,${
    blend
      ? 'page.indexCount,0u'
-     : `select(page.indexCount,2u*page.indexCount,(page.flags&${FLAG_DOUBLE}u)!=0u)|select(0u,VSM_RENDER_VOXEL_BIT,(page.flags&${FLAG_VOXEL}u)!=0u),select(0u,VSM_RENDER_CAND_TESSELLATED,params.tessellated!=0u&&tessellatedFlags(page)&&(page.flags&${FLAG_MASK}u)==0u)`
+     : `select(page.indexCount,2u*page.indexCount,(page.flags&${FLAG_DOUBLE}u)!=0u)|select(0u,VSM_RENDER_VOXEL_BIT,(page.flags&${FLAG_VOXEL}u)!=0u),select(0u,VSM_RENDER_CAND_TESSELLATED,params.tessellated!=0u&&tessellatedFlags(page)&&((page.flags&${FLAG_MASK}u)==0u||(params.tessellated&VSM_RENDER_TESSELLATE_MASKED)!=0u))`
  });
 }
 `

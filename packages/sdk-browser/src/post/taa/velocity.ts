@@ -90,8 +90,9 @@ function velocityPass(
       next[4] = inputs.pool
       next[5] = inputs.positions
       next[6] = inputs.uvs
-      next[7] = inputs.boxes
-      next[8] = target.view
+      next[7] = inputs.normals
+      next[8] = inputs.boxes
+      next[9] = target.view
       if (identity.moved() || !group)
         group = device.createBindGroup({
           layout,

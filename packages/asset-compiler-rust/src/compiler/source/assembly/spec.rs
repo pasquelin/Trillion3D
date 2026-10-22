@@ -57,20 +57,11 @@ pub(crate) fn names_assembly(mesh: &Value) -> bool {
     extra_of(mesh).is_some()
 }
 
-/// The index `value` names below `len`.
-fn within(value: &Value, what: &str, len: usize) -> Result<usize> {
-    let index = ASSEMBLY.index(Some(value), what)?;
-    match index < len {
-        true => Ok(index),
-        false => Err(ASSEMBLY.bad(format!("{what} index {index} is out of bounds"))),
-    }
-}
-
 /// The glTF material index `value` names, `null` for none, below `materials`.
 fn material(value: &Value, what: &str, materials: usize) -> Result<Option<usize>> {
     match value.is_null() {
         true => Ok(None),
-        false => within(value, what, materials).map(Some),
+        false => ASSEMBLY.bounded_index(value, what, materials).map(Some),
     }
 }
 
@@ -89,7 +80,7 @@ fn read_part(
     let named = part
         .get("mesh")
         .ok_or_else(|| ASSEMBLY.bad(format!("{what}.mesh is required")))?;
-    let mesh = within(named, &format!("{what}.mesh"), meshes.len())?;
+    let mesh = ASSEMBLY.bounded_index(named, &format!("{what}.mesh"), meshes.len())?;
     if placed && (mesh == assembly || allowed.contains(&mesh)) {
         let why = "a part cannot be an assembly: assemblies of assemblies are not supported";
         return Err(ASSEMBLY.bad(format!("{what}: {why}")));
@@ -124,7 +115,7 @@ fn read_node(at: usize, node: &Value, (parts, assembly): (usize, usize)) -> Resu
     let named = node
         .get("part")
         .ok_or_else(|| ASSEMBLY.bad(format!("{what}.part is required")))?;
-    let part = within(named, &format!("{what}.part"), parts)?;
+    let part = ASSEMBLY.bounded_index(named, &format!("{what}.part"), parts)?;
     let transform: Map<String, Value> = (node.iter())
         .filter(|(key, _)| key.as_str() != "part")
         .map(|(key, value)| (key.clone(), value.clone()))

@@ -3,7 +3,7 @@ import { SURFACE_MOTION_WGSL, VELOCITY_INPUT_BINDINGS } from './nearestSurfaceWg
 import { TEXEL_TILE, VECTOR_FORMAT } from './velocityWgsl.ts'
 
 /** The velocity stage's bindings: what the velocity passes read, then the vectors written. */
-export const SURFACE_VELOCITY_BINDINGS = { ...VELOCITY_INPUT_BINDINGS, vectors: 9 } as const
+export const SURFACE_VELOCITY_BINDINGS = { ...VELOCITY_INPUT_BINDINGS, vectors: 10 } as const
 
 /**
  * THE VELOCITY STAGE: the motion of each render texel's own surface, drawn once an image before the

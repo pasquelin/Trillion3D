@@ -1,7 +1,7 @@
-// What a held-level read fetched and failed waits its turn by the one failure policy
-// (`geometry/streaming/failures.ts`): a tile of it is not asked again before its wait ends, however many
-// frames want it; one another request would meet again is never asked again. A block level's
-// records fail apart: one good tile never clears another's wait.
+// What a held-level read fetched and failed is asked again by the one failure policy
+// (`geometry/streaming/failures.ts`): at once, by the next frame that wants the tile, or after the
+// wait its server asked, however many frames want it; one another request would meet again is never
+// asked again. A block level's records fail apart: one good tile never clears another's wait.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
@@ -12,8 +12,11 @@ import { tileRecord } from './tileRecords.ts'
 
 const level: TextureLevelAddress = { sha256: 'e'.repeat(64), atlas: 0, level: 0, format: 'bc7' }
 /** A server's refusal with HTTP `status`. */
-const refusal = (status: number) =>
-  new EngineError('RESOURCE_HTTP_ERROR', `level: HTTP ${status}`, { url: 'level', status })
+const refusal = (status: number, retryAfter?: number) =>
+  new EngineError('RESOURCE_HTTP_ERROR', `level: HTTP ${status}`, {
+    ...{ url: 'level', status },
+    ...(retryAfter && { retryAfter }),
+  })
 
 /** Held levels over a server answering each record `answer` gives it — refusing with HTTP
  *  `status` by default —, the clock and its timers in the test's hands: when each read was sent,
@@ -22,8 +25,9 @@ function serving(
   t: TestContext,
   status: number,
   answer = (_: TextureLevelRequest): Uint8Array => {
-    throw refusal(status)
+    throw refusal(status, retryAfter)
   },
+  retryAfter?: number,
 ) {
   const clock = { now: 0 }
   t.mock.method(performance, 'now', () => clock.now)
@@ -49,11 +53,17 @@ function serving(
   return { sent, failed, frames }
 }
 
-test('a failed level is not re-asked before its wait', async (t) => {
+test('a failed level is asked again by the next frame that wants it, with no wait, each failure reported', async (t) => {
   const { sent, failed, frames } = serving(t, 503)
+  await frames(500)
+  assert.deepEqual(sent.slice(0, 3), [0, 100, 200], 'at once, one request a frame at most')
+  assert.equal(failed.length, sent.length, 'each failure reported')
+})
+
+test('a level whose server asks a wait (Retry-After) is not asked before it', async (t) => {
+  const { sent, frames } = serving(t, 503, undefined, 1_000)
   await frames(2_000)
-  assert.deepEqual(sent, [0, 500, 1500], 'once a wait, 0.5 s then 1 s: never once a frame')
-  assert.equal(failed.length, 3, 'each failure reported')
+  assert.deepEqual(sent, [0, 1000], 'asked again once the server said')
 })
 
 test('a level another request would refuse again (404) is never asked again', async (t) => {
@@ -65,7 +75,7 @@ test('a level another request would refuse again (404) is never asked again', as
 test("one tile's record landing leaves another failing record's wait running", async (t) => {
   const good = tileRecord(256, 256, 1, 0)
   const { sent, frames } = serving(t, 503, (request) => {
-    if (request.tx !== 1 || request.ty !== 0) throw refusal(503)
+    if (request.tx !== 1 || request.ty !== 0) throw refusal(503, 500)
     return new Uint8Array(good.bytes)
   })
   await frames(1_000, [

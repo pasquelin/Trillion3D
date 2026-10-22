@@ -18,6 +18,7 @@ pub(crate) mod mesh_build;
 pub(crate) mod name_match;
 pub(crate) mod objects;
 mod partition;
+pub(crate) mod reader;
 mod texture_formats;
 mod usage;
 mod voxelize;

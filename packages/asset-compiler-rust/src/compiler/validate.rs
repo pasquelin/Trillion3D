@@ -86,6 +86,14 @@ impl Fields {
             .ok_or_else(|| self.bad(format!("{what} must be an unsigned integer")))?;
         usize::try_from(raw).map_err(|_| self.bad(format!("{what} is too large")))
     }
+    /// `index`, refused unless below `len`: "`what` index N is out of bounds".
+    pub(crate) fn bounded_index(&self, value: &Value, what: &str, len: usize) -> Result<usize> {
+        let index = self.index(Some(value), what)?;
+        match index < len {
+            true => Ok(index),
+            false => Err(self.bad(format!("{what} index {index} is out of bounds"))),
+        }
+    }
     pub(crate) fn text<'a>(&self, value: Option<&'a Value>, what: &str) -> Result<&'a str> {
         value
             .and_then(Value::as_str)
@@ -136,14 +144,9 @@ impl CompilerError {
 pub(crate) fn required_index(v: Option<&Value>, field: &str) -> Result<usize> {
     GLTF.index(v, field)
 }
-/// `required_index`, refused unless below `len`: "`field` index is out of bounds".
+/// `required_index`, refused unless below `len` (`Fields::bounded_index`).
 pub(crate) fn bounded(v: &Value, field: &str, len: usize) -> Result<usize> {
-    let index = required_index(Some(v), field)?;
-    if index < len {
-        Ok(index)
-    } else {
-        Err(invalid(format!("{field} index is out of bounds")))
-    }
+    GLTF.bounded_index(v, field, len)
 }
 pub(crate) fn optional_index(v: Option<&Value>, field: &str, default: usize) -> Result<usize> {
     v.map_or(Ok(default), |value| GLTF.index(Some(value), field))

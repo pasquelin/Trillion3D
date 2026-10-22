@@ -9,13 +9,10 @@ import { createBounceCascades } from '../../../../sdk-core/src/bounce/cascades.t
 import { createProbePool } from '../../../../sdk-core/src/bounce/probePool.ts'
 import { createBounceSchedule } from './schedule.ts'
 import { PROBE_QUEUE_WORDS } from './probes/probeQueueWgsl.ts'
+import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
 import { createMarkSurface } from './marks.ts'
 import { markWords } from '../../../../sdk-core/src/bounce/probeMarks.ts'
 import { BOUNCE_PROBE_QUEUE, BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
-import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { spCommon } from './screen/commonWgsl.ts'
-import { spWeights } from './screen/probesWgsl.ts'
 
 test('a closed bounce series encodes and writes nothing: a redraw reads what the held frame read', async () => {
   const { gpu, probes, encoder } = await floorProbes()
@@ -52,6 +49,7 @@ function cityQueue(eye: number[]) {
         slot: first & 0xffff,
         level: (first >> 16) & 0xff,
         fresh: (first & (1 << 24)) !== 0,
+        down: (first & (1 << 25)) !== 0,
         cell: [1, 2, 3].map((word) => words[at * PROBE_QUEUE_WORDS + word]),
       }
     })
@@ -206,77 +204,61 @@ test('the cells an image reads are marked by its pass, read back a few images la
   )
 })
 
-type Probe = { P: number[]; depth: number; N: number[]; speed: number }
+test('a probe costs by its distance from the eye — a quarter of a map past the downsample distance, four maps within the supersample distance — and the budget is spent in that cost; a first trace the budget has no room for is told to be traced at half its side', () => {
+  const eye = [100, 5, 100]
+  // A budget of one probe has no room for the first traces the queue holds: every one is told to be downsampled.
+  const starved = cityQueue(eye)
+  starved.read(1)
+  const hungry = starved.entries(starved.schedule.plan(2, eye, 1))
+  assert.equal(hungry.length, BOUNCE_PROBE_QUEUE)
+  assert.ok(
+    hungry.every((entry) => entry.fresh && entry.down),
+    'no room: all downsampled',
+  )
+  // A budget of a thousand has room for each at its cost: none is.
+  const fed = cityQueue(eye)
+  fed.read(1)
+  assert.ok(fed.entries(fed.schedule.plan(2, eye, 1000)).every((entry) => !entry.down))
+  // The refreshes: the budget is four units a probe, a probe costs one, four or sixteen.
+  const { pool, schedule, entries, read } = cityQueue(eye)
+  read(1)
+  for (let frame = 2; pool.unfilled > 0; frame++) schedule.plan(frame, eye, 1000)
+  const refreshed = (costs: { downsampleSq: number; supersampleSq: number }, frame: number) =>
+    entries(schedule.plan(frame, eye, 10, costs))
+  const normal = refreshed({ downsampleSq: Infinity, supersampleSq: 0 }, 200)
+  assert.equal(normal.length, 10, 'a budget of ten probes: ten probes at the cost of a whole map')
+  const far = refreshed({ downsampleSq: 0, supersampleSq: 0 }, 300)
+  assert.equal(far.length, 40, 'a quarter of a map each: forty')
+  const near = refreshed({ downsampleSq: Infinity, supersampleSq: Infinity }, 400)
+  assert.equal(near.length, 2, 'sixteen units each: two, the third does not fit')
+  assert.ok([...normal, ...far, ...near].every((entry) => !entry.fresh && !entry.down))
+})
 
-/** The weights of the four uniform probes round a pixel run on the shipped text: `at` places the probe of a tile, `pixel` weighs the
- *  four round the pixel at `(x, z)` of a flat surface. */
-function interpolationOf() {
-  const probes = new Map<string, Probe>()
-  const at = (tile: number[], probe: Partial<Probe> = {}) =>
-    probes.set(String(tile), {
-      P: [tile[0] * 16, 0, tile[1] * 16],
-      depth: 10,
-      N: [0, 1, 0],
-      speed: 0,
-      ...probe,
-    })
-  const { spInterpolation } = shaderRun<{
-    spInterpolation: (
-      pixel: number[],
-      noise: number[],
-      P: number[],
-      N: number[],
-      depth: number,
-    ) => { w: number[]; fallback: number[]; tile: number[] }
-  }>(wgslModule(spCommon([4, 2]), spWeights), ['spInterpolation'], {
-    sp: {
-      size: [64, 64, 16, 0],
-      grid: [4, 4, 4, 0],
-      mode: [0, 0, 0, 0],
-      weights: [-10000, -1000, 0.1, 10],
-    },
-    spCornerProbe: (tile: number[]) => probes.get(String(tile)),
-    reverseBits: (x: number) => {
-      let reversed = 0
-      for (let bit = 0; bit < 32; bit++) reversed = (reversed << 1) | ((x >>> bit) & 1)
-      return reversed >>> 0
-    },
-  })
-  return {
-    at,
-    pixel: (x: number, z: number) => spInterpolation([x, z], [0, 0], [x, 0, z], [0, 1, 0], 10),
+test('a closed series finds work again when a level that casts is chosen: the radiance cache is made, every probe is traced anew; given back where no screen probe reads it', async () => {
+  let level: 'low' | 'ultra' = 'low'
+  const { probes, encoder } = await floorProbes(false, true, () =>
+    screenProbeSettings({ screenProbes: level }),
+  )
+  for (let frames = 0; probes.working; frames++) {
+    assert.ok(frames < 100_000, 'the series closes')
+    probes.encode(encoder, 1, FLOOR_EYE)
   }
-}
-
-test('the four probes round a pixel weigh by their place in the tile and by how near their plane the pixel lies', () => {
-  const { at, pixel } = interpolationOf()
-  const sum = (weights: number[]) => weights.reduce((a, b) => a + b, 0)
-  for (const tile of [
-    [1, 1],
-    [2, 1],
-    [1, 2],
-    [2, 2],
-  ])
-    at(tile)
-  const flat = pixel(20, 20)
-  assert.deepEqual(flat.tile, [1, 1], 'the tile of the pixel')
-  assert.ok(Math.abs(sum(flat.w) - 1) < 1e-6, `a flat surface: the weights sum to one, ${flat.w}`)
-  assert.ok(
-    flat.w[0] > flat.w[1] && flat.w[0] > flat.w[2] && flat.w[0] > flat.w[3],
-    'the nearest corner weighs most',
+  assert.equal(probes.cache.views, undefined, 'a level that casts none keeps no maps')
+  assert.equal(probes.encode(encoder, 1, FLOOR_EYE), false, 'closed')
+  level = 'ultra'
+  assert.equal(
+    probes.encode(encoder, 1, FLOOR_EYE),
+    true,
+    'the maps are made: every probe is traced anew',
   )
-  // A probe off the pixel's plane weighs nothing, the others share what the bilinear gives them.
-  at([2, 2], { P: [32, 5, 32] })
-  const edge = pixel(20, 20)
-  assert.ok(edge.w[3] < 1e-6 && edge.w[0] > 0 && sum(edge.w) < 1, `${edge.w}`)
-  // A probe on no lit surface (a negative depth) weighs nothing, even on the plane.
-  at([2, 2], { depth: -1 })
-  assert.equal(pixel(20, 20).w[3], 0)
-  // Just off the plane the first test leaves little and the gentler one leaves most: the fallback.
-  at([2, 2], { P: [32, 0.2, 32] })
-  const near = pixel(20, 20)
-  assert.ok(
-    near.fallback[3] > 10 * near.w[3] && near.fallback[3] > 0.05,
-    `${near.w[3]} against ${near.fallback[3]}`,
-  )
+  assert.ok(probes.cache.views && probes.cache.bytes > 0)
+  assert.equal(probes.cache.pending, true)
+  for (let frames = 0; probes.working; frames++) {
+    assert.ok(frames < 100_000, 'the series closes again')
+    probes.encode(encoder, 1, FLOOR_EYE)
+  }
+  level = 'low'
+  assert.equal(probes.encode(encoder, 1, FLOOR_EYE), false)
+  assert.equal(probes.cache.views, undefined, 'given back')
+  probes.dispose()
 })

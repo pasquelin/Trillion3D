@@ -19,6 +19,7 @@ export interface ScreenProbeInputs {
    *  add to, or the stand-ins where the cache is none. */
   cacheFinal: GPUTextureView
   cacheRaw: GPUTextureView
+  cacheSky: GPUTextureView
   cacheTags: GPUBuffer
   cachePdf: GPUBuffer
 }

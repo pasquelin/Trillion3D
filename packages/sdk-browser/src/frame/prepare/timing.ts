@@ -1,6 +1,9 @@
 import { createGpuTiming } from '../../gpu/timing/timing.ts'
 import { addGpuPasses, bounceGpuMs } from '../../diagnostic/stage/mapping.ts'
 import { gpuPassBlockTotals } from '../../gpu/core/passBlocks.ts'
+import { DYNAMIC_RESOLUTION_RULES } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
+import { resolveSettingsInto } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { NO_TIMING } from '../scale/dynamicResolution.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { createGpuLog } from './gpuLog.ts'
 import type { GpuTimingSample } from '../../gpu/timing/types.ts'
@@ -28,29 +31,40 @@ function noteSample(timing: WebgpuView['timing'], sample: GpuTimingSample) {
   timing.lastGpuIdleMs = sample.idleBetweenMs
 }
 
-/** What a view's last image cost in all, ms: its GPU time. */
-const frameOf = (timing: WebgpuView['timing']) => timing.lastGpuFrameMs
-/** What a view's last image cost to build its visibility buffer, ms (`gpuPassBlockTotals`). */
-const visibilityOf = (timing: WebgpuView['timing']) =>
-  gpuPassBlockTotals(timing.lastGpuPassMs).visibilityMs
-
-/** The GPU milliseconds a frame spends beside its main image, as `measure` reads them of a view's
- *  timing: each view drawn beside it (`../backend/state/persistentView.ts`), its last image's
- *  time over the frames it is drawn on. */
-function besideMs(rt: WebgpuPagesRuntime, measure = frameOf) {
+/** The GPU milliseconds a frame spends beside its main image: each view drawn beside it
+ *  (`../backend/state/persistentView.ts`), its last image's time over the frames it is drawn on. */
+function besideMs(rt: WebgpuPagesRuntime) {
   let ms = 0
   for (const view of rt.views.persistent)
-    ms += (measure(viewGroup(rt, view, 'timing')) ?? 0) / Math.max(1, view.every ?? 1)
+    ms += (viewGroup(rt, view, 'timing').lastGpuFrameMs ?? 0) / Math.max(1, view.every ?? 1)
   return ms
 }
 
-/** The GPU time of the passes that build the visibility buffer in the frame `sample` describes, the
- *  views drawn beside the main one in it, which the cut's edge scale is fitted to (`edge.budgetMs`);
- *  NaN where the sample holds none, or the scale has no budget to fit. */
+/** The GPU time of the passes that build the visibility buffer in the main view's image `sample`
+ *  describes, which the cut's edge scale is fitted to (`edge.budgetMs`): the main view's alone, the
+ *  one whose cut the fraction scales. `NO_TIMING` where the sample holds none, or the scale has no
+ *  budget to fit. */
 function edgeMsOf(rt: WebgpuPagesRuntime, sample: GpuTimingSample) {
-  if (!(rt.views.main.scale.edge.budgetMs > 0)) return Number.NaN
-  const main = gpuPassBlockTotals(sample).visibilityMs
-  return main === null ? Number.NaN : main + besideMs(rt, visibilityOf)
+  if (!(rt.views.main.scale.edge.budgetMs > 0)) return NO_TIMING
+  return gpuPassBlockTotals(sample).visibilityMs ?? NO_TIMING
+}
+
+/** What a sample hands the dynamic resolution: the settings now, the frame's GPU busy time — never
+ *  the CPU's: the time the submissions cover, the host gaps between them left out (a gap is the
+ *  host's, no lower resolution shortens it), and the views drawn beside the main image with it,
+ *  since the frame's GPU time holds all of its GPU work; an image a pass's pair could not be read
+ *  in holds no whole time: none, as a frame with no GPU timing yet is skipped — and the time of
+ *  the cut and its raster. */
+function feedScale(rt: WebgpuPagesRuntime, sample: GpuTimingSample) {
+  const { scale } = rt.views.main,
+    busy = sample.pairs.invalid === 0 ? sample.submittedMs : null
+  resolveSettingsInto(DYNAMIC_RESOLUTION_RULES, rt.context, scale.rules)
+  scale.observe(
+    busy === null ? null : busy + besideMs(rt),
+    sample.renderScale as number,
+    sample.scaleSteered !== false,
+    edgeMsOf(rt, sample),
+  )
 }
 
 /** Starts the per-pass GPU timer and reports whether the device can measure at all. */
@@ -64,19 +78,7 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
       const main = viewGroup(rt, rt.views.main, 'timing')
       noteSample(main, sample)
       gpuLog(rt, sample)
-      // The dynamic resolution reads the frame's GPU busy time, never the CPU's: the time the
-      // submissions cover, the host gaps between them left out — a gap is the host's, no lower
-      // resolution shortens it —, and the views drawn beside the main image with it, since the
-      // frame's GPU time holds all of its GPU work. An image a pass's pair could not be read in
-      // holds no whole time: none, as a frame with no GPU timing yet is skipped.
-      const busy = sample.pairs.invalid === 0 ? sample.submittedMs : null
-      rt.views.main.scale.observe(
-        busy === null ? null : busy + besideMs(rt),
-        sample.renderScale as number,
-        sample.scaleSteered !== false,
-        edgeMsOf(rt, sample),
-        sample.edgeScale as number,
-      )
+      feedScale(rt, sample)
       // The bounce stage's duration, the per-pass profile's: a measure the metrics publish, never a control.
       const bounceMs = bounceGpuMs(main.lastGpuPassMs)
       if (bounceMs !== null && bounceMs > 0) rt.bounce.passMs = bounceMs

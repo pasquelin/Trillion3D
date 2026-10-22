@@ -1,51 +1,43 @@
 /**
  * WHEN A READ THAT FAILED IS ASKED AGAIN — the one failure policy of every read by key: the page
- * streamer's pages, an HTTP page source's (`geometry/pages/pool/pages.ts`), and the baked texture levels
- * (`materials/texture/heldLevels.ts`). A read its owner's `retriable` says may pass — the
- * network, a timeout, a rate limit, a server error (`retriableError`) — waits 0.5 s · 2^(k−1) after
- * its k-th failure in a row, at most 8 s — or the longer wait its server asked (`Retry-After`,
- * capped: `retryAfterOf`) —, and is tried again as many times as its owner's `retries` allow
- * (`streamingNumRetries`, none beyond the settings' limit: a negative count, or none given,
- * tries without end); one another request would meet again — a 404, a 403, a level file whose
- * length is not its own — or one that failed past its tries fails for good: its key is given up
- * and refused at once, no request ever sent for it, and the object it belongs to (`objectOf`) is
- * invalid: every key of that object is refused too, the ones waiting included, none asked again
- * for as long as the registry lives. While its
- * wait runs, its key is held back (`blocked`): the streamer's job waits, its askers still waiting
- * on it, and is queued again once its wait ends (`ended`); a level is refused until then, asked
- * again by the next frame that wants it. A failure is said once (`onStalled`) when for good or as
- * it first waits the longest, and again only after it passed: the session tells its host
- * (`streamFailed`). A source refusing every read of F keys is asked at most F times in the first
- * half second, then ever more seldom, down to F every 8 s — never once a frame.
+ * streamer's pages, and the baked texture levels (`materials/texture/heldLevels.ts`). A read its
+ * owner's `retriable` says may pass — the network, a timeout, a rate limit, a server error
+ * (`retriableError`) — is asked again at once, by the next turn of the loop, with no wait in
+ * between, as many times as its owner's `retries` allow (`streamingNumRetries`, none beyond the
+ * settings' limit: a negative count, or none given, tries without end); a wait only where its
+ * server asked one (`Retry-After`, capped: `retryAfterOf`). One another request would meet again —
+ * a 404, a 403, a level file whose length is not its own — or one that failed past its tries fails
+ * for good: its key is given up and refused at once, no request ever sent for it, and the object
+ * it belongs to (`objectOf`) is invalid: every key of that object is refused too, the ones waiting
+ * included, none asked again for as long as the registry lives. While a wait the server asked
+ * runs, its key is held back (`blocked`): the streamer's job waits, its askers still waiting on
+ * it, and is queued again once its wait ends (`ended`); a level is refused until then, asked again
+ * by the next frame that wants it. A failure is said (`onStalled`) at its first failure in a row
+ * and when its key is given up, and again only after the key passed: the session tells its host
+ * (`streamFailed`).
  *
  * The waits are one heap on their end (`math/src/sequence/heap.ts`) and one timer, set for the
- * first: no timer and no listener per failure. A failure stays till its key passes, its tries
- * counting on while it is asked again; once its wait ended, it is forgotten 8 s later unless it
- * failed again meanwhile — or at once when its owner lets the key go (`leaves`) —, so the failures
- * held are those of the keys still asked, and those refused for good.
+ * first: no timer and no listener per failure. A failure stays, its tries counting on while its
+ * key is asked again, till the key passes (`passed`), its owner lets it go (`leaves`) or the
+ * registry is cleared.
  */
 import { cpuNow } from '../../diagnostic/stopwatch.ts'
 import { retryAfterOf } from '../cluster/checked.ts'
 import { createHeap } from '../../../../math/src/sequence/heap.ts'
 
-const FIRST_WAIT_MS = 500,
-  LAST_WAIT_MS = 8000
-
-/** Where a key's failures in a row stand: its wait runs, no request sent for it (`waiting`); its
- *  wait is over, its key asked again, the failure remembered till it is forgotten (`over`); or it
- *  is refused for good, no request ever sent for it (`refused`). */
+/** Where a key's failures in a row stand: the wait its server asked runs, no request sent for it
+ *  (`waiting`); no wait runs, its key asked again, the failure remembered till it passes (`over`);
+ *  or it is refused for good, no request ever sent for it (`refused`). */
 type FailureState = 'waiting' | 'over' | 'refused'
 
-/** A key's failures in a row: the last one's error, how many, where they stand, when its wait ends
- *  — or, its wait over, when it is forgotten —, the longest wait they took — said once it reaches
- *  the last (`onStalled`) —, and its place in the waits' heap, −1 out of it. */
+/** A key's failures in a row: the last one's error, how many, where they stand, when its wait ends,
+ *  and its place in the waits' heap, −1 out of it. */
 type ReadFailure = {
   key: string
   error: Error
   tries: number
   state: FailureState
   due: number
-  longest: number
   slot: number
 }
 
@@ -65,10 +57,6 @@ type FailurePolicy = {
   ended?: (key: string) => void
   onStalled?: (failure: { key: string; cause: unknown }) => void
 }
-
-/** The wait after the `tries`-th failure in a row of a read that may pass. */
-const waitAfter = (tries: number) =>
-  tries ? Math.min(LAST_WAIT_MS, FIRST_WAIT_MS * 2 ** (tries - 1)) : 0
 
 /** The error a read of `key` fails with, its `tries`-th failure in a row by `cause`. */
 function failedRead(key: string, tries: number, cause: unknown) {
@@ -127,17 +115,17 @@ const fresh = (key: string): ReadFailure => ({
   tries: 0,
   state: 'over',
   due: 0,
-  longest: 0,
   slot: -1,
 })
 
 /** What follows a read's `tries`-th failure in a row, by `cause`: whether it is tried again — the
  *  cause may pass, and the tries are within what the policy allows (negative, or absent: without
- *  end) — and the wait before it, none ever when it is not. */
+ *  end) — and the wait before it: the one its server asked, none else, and none ever when it is
+ *  not tried again. */
 function nextWait(policy: FailurePolicy, cause: unknown, tries: number) {
   const allowed = policy.retries?.() ?? -1
   const again = policy.retriable(cause) && (allowed < 0 || tries <= allowed)
-  return { again, wait: again ? Math.max(waitAfter(tries), retryAfterOf(cause)) : Infinity }
+  return { again, wait: again ? retryAfterOf(cause) : Infinity }
 }
 
 /** How many failures stand in each state, and the moves of a failure between them. */
@@ -187,19 +175,18 @@ export function createReadFailures(policy: FailurePolicy) {
   const failures = new Map<string, ReadFailure>()
   const objects = createInvalidObjects(policy.objectOf)
   const counts = createStateCounts()
-  /** `failure` leaves: out of the heap, and out of its count. */
-  const remove = (failure: ReadFailure) => {
+  /** `key`'s failure leaves, out of the heap and out of its count — one whose wait runs stays, when
+   *  `keepWaiting`. */
+  const leave = (key: string, keepWaiting: boolean) => {
+    const failure = failures.get(key)
+    if (!failure || (keepWaiting && failure.state === 'waiting')) return
     waits.leave(failure)
     counts.drop(failure)
-    failures.delete(failure.key)
+    failures.delete(key)
   }
-  // A wait over: its key may be asked again, its tries remembered a while; a key not failed again
-  // by then is forgotten.
+  // A wait over: its key may be asked again, its tries remembered till it passes.
   const waits = createWaits((failure) => {
-    if (failure.state !== 'waiting') return remove(failure)
     counts.move(failure, 'over')
-    failure.due = cpuNow() + LAST_WAIT_MS
-    waits.wait(failure)
     policy.ended?.(failure.key)
   })
   return {
@@ -219,15 +206,11 @@ export function createReadFailures(policy: FailurePolicy) {
       if (again) waits.wait(failure)
       else waits.leave(failure)
       if (!again) objects.giveUp(key, failure.error)
-      if (wait >= LAST_WAIT_MS && failure.longest < LAST_WAIT_MS) policy.onStalled?.({ key, cause })
-      failure.longest = Math.max(failure.longest, wait)
+      if (tries === 1 || !again) policy.onStalled?.({ key, cause })
       return { error: failure.error, waits: again }
     },
     /** `key` was read: its failures in a row are over. */
-    passed(key: string) {
-      const failure = failures.get(key)
-      if (failure) remove(failure)
-    },
+    passed: (key: string) => leave(key, false),
     /** Why a read of `key` is held back now — refused for good, its object invalid, or waiting its
      *  turn —, if it is: no request is sent for it. */
     blocked(key: string): Blocked | undefined {
@@ -237,10 +220,7 @@ export function createReadFailures(policy: FailurePolicy) {
       return failure?.state === 'over' ? undefined : (failure as Blocked | undefined)
     },
     /** `key` is let go by its owner: its failure leaves, unless its wait runs. */
-    leaves(key: string) {
-      const failure = failures.get(key)
-      if (failure && failure.state !== 'waiting') remove(failure)
-    },
+    leaves: (key: string) => leave(key, true),
     /** Reads that failed and do not pass now: waiting their turn, or refused for good. */
     count: counts.stalled,
     clear() {

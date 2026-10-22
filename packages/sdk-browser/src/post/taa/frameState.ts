@@ -50,6 +50,10 @@ export interface TaaFrameState {
    *  (`perObjectSize`), which the velocity stage decides once for every pass that measures it
    *  (`encodeVelocity`); 0 leaves none out. */
   objectSize: number
+  /** Whether this image draws the surfaces that name a displacement tessellated
+   *  (`tessellationWanted`), decided with `objectSize`: the velocity passes then solve a displaced
+   *  texel's flat point (`TaaView.tessellation`). */
+  tessellated: boolean
 }
 
 export function createTaaFrameState(): TaaFrameState {
@@ -73,6 +77,7 @@ export function createTaaFrameState(): TaaFrameState {
     viewSeen: -1,
     active: false,
     objectSize: 0,
+    tessellated: false,
   }
 }
 

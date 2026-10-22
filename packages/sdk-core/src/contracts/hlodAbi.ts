@@ -7,9 +7,9 @@
  */
 
 /** How an HLOD layer builds its actors:
- *  - `instanced`: the objects themselves, each its source mesh at its own detail. A layer asking
- *    for no cluster DAG (`clusterDag: false`) is built the way a `merge` layer keeping its
- *    materials builds its actors, each source at the last LOD of its mesh;
+ *  - `instanced`: the objects themselves, each its source mesh at its own detail. A layer
+ *    disallowing their cluster DAG (`disallowClusterDag: true`) is built the way a `merge` layer
+ *    keeping its materials builds its actors, each source at the last LOD of its mesh;
  *  - `approximate`: one closed shell per cell, wearing a flattened material;
  *  - `merge`: the cell's objects merged into one mesh;
  *  - `voxel`: the cell's objects voxelized together, levels of bricks the cut picks by their

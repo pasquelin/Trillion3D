@@ -13,6 +13,7 @@ import { STREAMING_RULES } from '../../../../sdk-core/src/contracts/streamingOpt
 import { WORLD_STREAMING_RULES } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import type { SettingRule } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
+import { DYNAMIC_RESOLUTION_RULES } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
 import { ANIMATION_RULES } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
@@ -82,6 +83,7 @@ const RULES = {
   ...STREAMING_RULES,
   ...WORLD_STREAMING_RULES,
   ...CUT_RULES,
+  ...DYNAMIC_RESOLUTION_RULES,
   ...ANIMATION_RULES,
   ...SHADING_RULES,
   ...EXPOSURE_RULES,

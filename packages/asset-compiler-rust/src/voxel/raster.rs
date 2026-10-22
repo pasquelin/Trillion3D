@@ -53,7 +53,7 @@ pub(crate) fn cells_within(
     let (u, v) = ((d + 1) % 3, (d + 2) % 3);
     let offset = dot(n, t[0]);
     // Rows along `v`, columns along `u` within a row, then along `d`: the order the voxels are
-    // found in, which is their rank (`Sampler::set`).
+    // found in, which is their rank (`RayBank::set`).
     for cv in low[v]..=high[v] {
         for cu in low[u]..=high[u] {
             // The plane's span along `d` over the column's square, when the plane is not along it.
@@ -108,7 +108,7 @@ fn overlaps(t: [[f64; 3]; 3], cell: Cell) -> bool {
 /// The triangles of `triangles` — ranks in `world` — overlapping each of `candidates`, cells of side
 /// `side`, by their rank, or within `reach` cells of one it overlaps: what both an HLOD cell's tiles
 /// and a mesh's far groups sample each voxel against, the rays of a voxel meeting what lies `reach`
-/// cells beyond its own (`VoxelSampling::reach`; none at the defaults). Each triangle is listed
+/// cells beyond its own (`VoxelSettings::reach`; none at the defaults). Each triangle is listed
 /// once in a cell.
 pub(super) fn binned(
     world: &World,
@@ -178,24 +178,13 @@ fn candidates_near(
 
 #[cfg(test)]
 mod tests {
+    use super::super::tests::two_quads;
     use super::*;
 
-    /// Two quads of two triangles each over x in 0..0.5 and y in 0..1: ranks 0 and 1 at z = 0.5,
-    /// inside voxel `[0, 0, 0]` of side 1, ranks 2 and 3 at z = -0.5, in the voxel below it.
+    /// The two quads of `two_quads` as a tracer's world.
     fn quads() -> World {
-        let quad = |z: f32| {
-            let corner = |x: f32, y: f32| [x, y, z];
-            let (a, b, c, d) = (
-                corner(0.0, 0.0),
-                corner(0.5, 0.0),
-                corner(0.5, 1.0),
-                corner(0.0, 1.0),
-            );
-            [a, b, c, a, c, d].concat()
-        };
-        let triangles = [quad(0.5), quad(-0.5)].concat();
         World {
-            triangles,
+            triangles: two_quads(),
             tags: vec![0; 4],
             ..World::default()
         }

@@ -1,8 +1,9 @@
-import { resetFrameCap, type FrameCap } from '../cadence.ts'
+import { frameTimeBudget, resetFrameCap, type FrameCap } from '../cadence.ts'
 import { samePeriod, type createRefreshClock } from '../refreshClock.ts'
 import { displayMoved, HISTORY } from './scaleTargets.ts'
 import type { createScaleMemory } from './scaleMemory.ts'
 import { forgetHistory, type ScaleWindow } from './scaleWindow.ts'
+import { recordFrame, refreshFraction } from './dynamicResolution.ts'
 
 /** What a tick reads and moves: the controller's state, the display's clock and size, the
  *  render targets' memory cap and the frame cap (`../cadence.ts`). */
@@ -43,4 +44,33 @@ export function tickScale(p: ScaleParts, now: number, timed: boolean) {
   if (!(refresh.gap > 0)) return
   w.holding = false
   cap.drawnAt = now
+}
+
+/**
+ * The GPU busy time of an image drawn at `scale`, `gpuMs`, null where the timer read none, and the
+ * time of its visibility passes, `edgeMs` (`NO_TIMING` where none): one frame of the history, then
+ * the fractions refreshed (`dynamicResolution.ts`). An image not drawn at the controller's scale
+ * (`steered`), or of a scale that is fixed or a timer silent, is recorded by none. The budget is the
+ * page's (`dynamicResolutionFrameTimeBudgetMs`), the frame cap's interval where it names none, less
+ * what a frame must take to be over it.
+ */
+export function observeFrame(
+  p: ScaleParts,
+  gpuMs: number | null,
+  scale: number,
+  steered: boolean,
+  edgeMs: number,
+) {
+  const { w, refresh, cap } = p
+  if (gpuMs === null) return
+  w.timedAt = w.images
+  if (!steered || !w.bounds.auto || !w.timed || !(scale > 0)) return
+  recordFrame(w.dynamic, w, gpuMs, scale, edgeMs)
+  const {
+    dynamicResolutionFrameTimeBudgetMs: named,
+    dynamicResolutionOverBudgetHeadroomPercent: late,
+  } = w.rules
+  w.dynamic.budgetMs =
+    (named > 0 ? named : frameTimeBudget(cap, refresh.display)) * (1 - late / 100)
+  refreshFraction(w.dynamic, w)
 }

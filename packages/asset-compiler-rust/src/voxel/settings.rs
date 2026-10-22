@@ -10,9 +10,9 @@ use crate::shared_math::abi::{
     VOXEL_REMEMBER_BELOW_RAYS,
 };
 
-/// One mesh's voxel sampling, every setting resolved.
+/// One mesh's voxel settings, every one resolved.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct VoxelSampling {
+pub(crate) struct VoxelSettings {
     /// The rays asked for (`voxelRays`); `rays` is the count cast.
     pub asked_rays: u32,
     /// The DAG level from which every group is voxels, 0 for none (`voxelLevel`).
@@ -27,7 +27,7 @@ pub(crate) struct VoxelSampling {
     pub opacity: bool,
 }
 
-impl Default for VoxelSampling {
+impl Default for VoxelSettings {
     fn default() -> Self {
         Self {
             asked_rays: DEFAULT_VOXEL_RAYS,
@@ -40,7 +40,7 @@ impl Default for VoxelSampling {
     }
 }
 
-impl VoxelSampling {
+impl VoxelSettings {
     /// The rays a voxel casts: those asked for, at most `MAX_VOXEL_RAYS`, a count past 1 rounded up
     /// to a whole packet of `VOXEL_RAY_PACKET`. 0 or 1 is one ray (`single`).
     pub(crate) fn rays(&self) -> usize {
@@ -67,14 +67,6 @@ impl VoxelSampling {
     /// to tell that it holds nothing.
     pub(crate) fn remembers_empty(&self) -> bool {
         self.rays() < VOXEL_REMEMBER_BELOW_RAYS as usize
-    }
-
-    /// Whether `other`'s rays are this sampling's: as many, separable alike, as far back — the
-    /// only settings that shape them. A level, a spread or an opacity does not.
-    pub(crate) fn casts_like(&self, other: &Self) -> bool {
-        self.rays() == other.rays()
-            && self.separable == other.separable
-            && self.back_up == other.back_up
     }
 
     /// The part of a ray's run, in voxel sides from its start, where a hit counts: all of it past

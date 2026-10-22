@@ -25,6 +25,7 @@ import {
   BOUNCE_SNAPSHOT_SHADER,
 } from '../../lighting/bounce/probes/probeWgsl.ts'
 import { CACHE_FILTER_PROGRAM } from '../../lighting/bounce/cache/cacheFilterWgsl.ts'
+import { CACHE_MIPS_PROGRAM } from '../../lighting/bounce/cache/cacheMipsWgsl.ts'
 import { CACHE_TILES_PROGRAM } from '../../lighting/bounce/cache/cacheTilesWgsl.ts'
 import { CACHE_TRACE_PROGRAM } from '../../lighting/bounce/cache/cacheTraceWgsl.ts'
 import { BOUNCE_TABLE_SHADER } from '../../lighting/bounce/probes/tableWgsl.ts'
@@ -152,6 +153,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   CACHE_TILES_PROGRAM,
   CACHE_TRACE_PROGRAM,
   CACHE_FILTER_PROGRAM,
+  CACHE_MIPS_PROGRAM,
   AS_IS_SHARE_SHADER,
   ...BLUR_SHADERS,
   // The depth of field's passes (`../../post/effects/depthOfField/`), each at its pipeline constants' defaults.

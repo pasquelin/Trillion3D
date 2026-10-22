@@ -15,7 +15,7 @@ import type { SettingRule } from '../contracts/settingRules.ts'
 import { CUT_RULES, type CutField } from '../contracts/cutOptions.ts'
 import { WORLD_SOURCE_MEANINGS, type WorldSourceField } from './worldSourceMeanings.ts'
 import { CUT_VIEW_MEANINGS, type CutViewField } from './cutViewMeanings.ts'
-import { CUT_BUDGET_MEANINGS, type CutBudgetField } from './cutBudgetMeanings.ts'
+import { CUT_SCALE_MEANINGS, type CutScaleField } from './cutScaleMeanings.ts'
 import { ANIMATION_RULES, type AnimationField } from '../contracts/animationOptions.ts'
 import { SHADING_RULES, type ShadingField } from '../contracts/shadingOptions.ts'
 import { EXPOSURE_RULES, type ExposureField } from '../contracts/exposureOptions.ts'
@@ -45,6 +45,8 @@ import { AMBIENT_OCCLUSION_MEANINGS } from './ambientOcclusionMeanings.ts'
 import { choiceSchema } from './schemaParts.ts'
 import { STREAMING_RULES } from '../contracts/streamingOptions.ts'
 import { streamingMeanings } from './streamingMeanings.ts'
+import { DYNAMIC_RESOLUTION_RULES } from '../contracts/dynamicResolutionOptions.ts'
+import { DYNAMIC_RESOLUTION_MEANINGS } from './dynamicResolutionMeanings.ts'
 import {
   DEFAULT_HARDWARE_RASTER_EDGE_PIXELS,
   RASTER_RULES,
@@ -117,7 +119,7 @@ const WORLD_STREAMING_MEANINGS: Readonly<
 }
 
 /** What each setting of the cut means (`../contracts/cutOptions.ts`). */
-const CUT_MEANINGS: Readonly<Record<Exclude<CutField, CutViewField | CutBudgetField>, string>> = {
+const CUT_MEANINGS: Readonly<Record<Exclude<CutField, CutViewField | CutScaleField>, string>> = {
   cutTwoPassOcclusion:
     "Whether each view's cut tests its cells, nodes and clusters against the previous image's depth pyramid, draws what it shows, then tests what it hid again against the pyramid of what it drew: what stays hidden is neither drawn nor streamed. false, or without a previous pyramid, one pass that occludes nothing.",
   cutOcclusionCulling:
@@ -278,7 +280,8 @@ export const settingRuleProperties = () => ({
     ...WORLD_STREAMING_MEANINGS,
     ...WORLD_SOURCE_MEANINGS,
   }),
-  ...ruleProperties(CUT_RULES, { ...CUT_MEANINGS, ...CUT_VIEW_MEANINGS, ...CUT_BUDGET_MEANINGS }),
+  ...ruleProperties(DYNAMIC_RESOLUTION_RULES, DYNAMIC_RESOLUTION_MEANINGS),
+  ...ruleProperties(CUT_RULES, { ...CUT_MEANINGS, ...CUT_VIEW_MEANINGS, ...CUT_SCALE_MEANINGS }),
   ...ruleProperties(ANIMATION_RULES, ANIMATION_MEANINGS),
   ...ruleProperties(SHADING_RULES, SHADING_MEANINGS),
   ...ruleProperties(EXPOSURE_RULES, EXPOSURE_MEANINGS),

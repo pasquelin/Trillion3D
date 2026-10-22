@@ -10,9 +10,8 @@ type Transfers = {
   forgotten: (url: string) => boolean
 }
 
-/** `job` landed as `landed`: read, it is done; failed, it waits its turn while it may pass and
- *  someone waits on it (`failures.ts`), else it fails, said once. A streamer closed meanwhile
- *  records nothing. */
+/** `job` landed as `landed`: read, it is done; failed, it is asked again (`failures.ts`) while it
+ *  may pass and someone waits on it, else it fails. A streamer closed meanwhile records nothing. */
 function settle(context: StreamContext, job: Job, landed: Landed, own: Transfers) {
   const { failures, abort, emit } = context,
     { url } = job

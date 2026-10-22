@@ -6,6 +6,7 @@
 //! and whether a small object goes to the finest cell under its centre. A setting of the scheme the
 //! job does not take refuses it.
 use super::super::name_match::present;
+use super::super::reader::Reader;
 use super::super::*;
 use super::PartitionScheme;
 
@@ -91,11 +92,6 @@ fn bounds_named(name: &str) -> Option<StreamBounds> {
     Some(StreamBounds::ALL[at])
 }
 
-/// `value` as a number of metres above 0, `None` for any other.
-pub(super) fn positive_metres(value: &Value) -> Option<f64> {
-    value.as_f64().filter(|m| m.is_finite() && *m > 0.0)
-}
-
 /// The origin `value` names under `scheme` as glTF's `x`, `y` (up) and `z`: `[x, z]` on the ground,
 /// its height 0; or, a loose grid's, `[x, y, z]`, a square grid lying on the ground. `Err` with
 /// what the origin takes, for any other value.
@@ -167,9 +163,14 @@ pub(super) fn scheme_settings(
     let refuse = |name: &str, takes: &str, got: &Value| {
         format!("{field}: {name} must be {takes}, got {got}")
     };
-    let flag = |name: &str, fallback: bool| match present(fields.get(name)) {
-        None => Ok(fallback),
-        Some(v) => v.as_bool().ok_or_else(|| refuse(name, "true or false", v)),
+    let prefix = format!("{field}: ");
+    let read = Reader {
+        map: fields,
+        what: &prefix,
+    };
+    let flag = |name: &str, fallback: bool| {
+        (read.boolean(name).map_err(|refusal| refusal.message))
+            .map(|named| named.unwrap_or(fallback))
     };
     let mut loose = LooseSettings::default();
     if let Some(v) = present(fields.get("streamBounds")) {
@@ -212,11 +213,11 @@ fn hlod_grid(
     if let Some(key) = fields.keys().find(|key| !named(key)) {
         return Err(format!("{what} has no field {key}: {settings}"));
     }
-    let metres = |name: &str| match present(fields.get(name)) {
-        None => Ok(None),
-        Some(v) => positive_metres(v)
-            .map(Some)
-            .ok_or_else(|| format!("{what}.{name} must be a number of metres above 0, got {v}")),
+    let prefix = format!("{what}.");
+    let read = Reader {
+        map: fields,
+        what: &prefix,
     };
+    let metres = |name: &str| read.metres(name).map_err(|refusal| refusal.message);
     Ok([metres("cellSize")?, metres("loadingRange")?])
 }

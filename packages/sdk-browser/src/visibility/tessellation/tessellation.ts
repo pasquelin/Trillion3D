@@ -171,15 +171,17 @@ function shadowSide(resources: TessellationResources, write: ReturnType<typeof u
  * - `encodeDice` (inside a raster mode's compute pass): the dicing of the pass's visible patches into
  *   the visibility buffer, in the mode's rule.
  * `asked` is the capacity the settings name; a held instance is made again when it moves
- * (`../raster/raster.ts`). Everything it holds is given back by `dispose`.
+ * (`../raster/raster.ts`); `clipping` the project switch of the view's plane, which the splitting's
+ * text follows as every program's does. Everything it holds is given back by `dispose`.
  */
 export function createTessellation(
   device: GPUDevice,
   work: GPUBuffer,
   asked: TessellationCapacity,
+  clipping = false,
 ) {
   const resources = createTessellationResources(device, asked)
-  const programs = createTessellationPrograms(device)
+  const programs = createTessellationPrograms(device, clipping)
   /** The pyramid each pass tests against, and whether it takes up what the main pass hid: set as the
    *  pass begins; the stand-in where it tests none. */
   const pyramids: PassPyramid[] = RASTER_PASSES.map(() => ({

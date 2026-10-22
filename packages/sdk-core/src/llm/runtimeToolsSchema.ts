@@ -7,6 +7,7 @@ import { RASTER_RULES } from '../contracts/rasterOptions.ts'
 import { STREAMING_RULES } from '../contracts/streamingOptions.ts'
 import { WORLD_STREAMING_RULES } from '../contracts/worldStreamingOptions.ts'
 import { CUT_RULES } from '../contracts/cutOptions.ts'
+import { DYNAMIC_RESOLUTION_RULES } from '../contracts/dynamicResolutionOptions.ts'
 import { ANIMATION_RULES } from '../contracts/animationOptions.ts'
 import { SHADING_RULES } from '../contracts/shadingOptions.ts'
 import { EXPOSURE_RULES } from '../contracts/exposureOptions.ts'
@@ -137,6 +138,11 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
     'trillion3d_set_cut',
     "Changes from the next frame how the GPU cluster cut culls: its two-pass occlusion against the depth pyramid, its frustum and too-coarse culls, the draw distances objects name and their scale, whether a view's clip plane applies (off by default) and culls and whether its lists of hidden and shown objects apply, how an upscaled image's level of detail follows the display, and the GPU time budget that coarsens its screen error.",
     CUT_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_dynamic_resolution',
+    "Changes from the next GPU time how the dynamic resolution fits the render scale, where it is 'auto', and the cut's edge scale beside it to their GPU time budget: the frame's budget (the frame cap's interval by default), the headrooms, the history kept and the weight of its frames, the change period and threshold, how far a rise goes, the frames over budget that end a history, the most the scale may be while throttled, and whether the CPU time of a frame excuses it. The scale's bounds are renderScale's.",
+    DYNAMIC_RESOLUTION_RULES,
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_animation',

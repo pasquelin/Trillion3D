@@ -18,9 +18,9 @@ const SCATTER_WEIGHT_STEPS = 63
 /** The nearest velocity pass's bindings: its inputs (`VELOCITY_INPUT_BINDINGS`), then its outputs. */
 export const VELOCITY_BINDINGS = {
   ...VELOCITY_INPUT_BINDINGS,
-  closest: 9,
-  marks: 10,
-  occluders: 11,
+  closest: 10,
+  marks: 11,
+  occluders: 12,
 } as const
 
 /** The texel helpers of the nearest velocity beyond its surface: the depth error, whether a texel

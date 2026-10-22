@@ -21,7 +21,7 @@
 //! `validate_compile_options`), never the batch's — a node's `extras` setting that does not read
 //! included, when the node is resolved.
 use super::name_match::{present, read_rules, NameMatch, NodeNames};
-use super::partition::is_grid_name;
+use super::partition::grid_name_of;
 use super::*;
 use crate::compiler::validate::OPTIONS;
 pub(crate) use draw_distance::DrawDistance;
@@ -194,9 +194,9 @@ impl Named {
             .map(|v| DrawDistance::read(v, &format!("{what}{DRAW_DISTANCE_SETTING}")))
             .transpose()?;
         let runtime_grid = present(map.get(RUNTIME_GRID_SETTING))
-            .map(|v| match v.as_str() {
-                Some(name) if is_grid_name(name) => Ok(name.to_string()),
-                _ => Err(OPTIONS.bad(format!(
+            .map(|v| match grid_name_of(v) {
+                Some(name) => Ok(name.to_string()),
+                None => Err(OPTIONS.bad(format!(
                     "{what}{RUNTIME_GRID_SETTING} must be the name of a streaming grid, a text \
                      with none of {PARTITION_GRID_NAME_FORBIDDEN}, got {v}"
                 ))),

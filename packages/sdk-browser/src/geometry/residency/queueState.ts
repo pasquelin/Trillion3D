@@ -90,13 +90,13 @@ export type Started = {
 /** The pacing of the installs, per frame of the engine (`createFrameGate`): `installFrame` the one
  *  the installs left were counted for, `installsLeft` how many it has; `bandwidthFrame` the one the
  *  simulated bandwidth was paced for (`paceFrame`), `bandwidthAt` the clock it was paced at, ms —
- *  none while no limit holds —, `bytesLeft` the bytes it leaves the frame's pages. */
+ *  none while no limit holds —, `share` the bytes it gives each page of the frame. */
 export const createInstallPacing = () => ({
   installFrame: -1,
   installsLeft: 0,
   bandwidthFrame: -1,
   bandwidthAt: undefined as number | undefined,
-  bytesLeft: 0,
+  share: 0,
 })
 
 /** The limits an update runs by, in streaming pages: each setting read by its one resolver, the

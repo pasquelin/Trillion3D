@@ -8,6 +8,7 @@ import type {
   WorldStreamingOptions,
 } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.ts'
+import type { DynamicResolutionOptions } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
 import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
@@ -49,12 +50,26 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  (`../../../../sdk-core/src/contracts/cutOptions.ts`): `cutTwoPassOcclusion` (true),
  *  `cutOcclusionCulling` (true), `cutFrustumCulling` (true), `cutMinLodCulling` (true),
  *  `cutDrawDistanceCulling` (true), `cutViewDistanceScale` (1; the view distance's quality levels
- *  write it), `cutClipPlane` (false: a camera's `clipPlane` applies only in a world made with it on,
+ *  write it), `cutViewDistanceApplySecondaryScale` (false) and `cutViewDistanceSecondaryScale` (1),
+ *  a second scale of the draw distances that multiplies them only once the first is on,
+ *  `cutClipPlane` (false: a camera's `clipPlane` applies only in a world made with it on,
  *  the one setting read once, when the session opens),
  *  `cutClipPlaneCulling` (true), `cutViewFiltering` (true: a camera's `hidden` and `showOnly`
  *  lists apply), `cutLodBiasFollowsUpscale` (true), `cutLodBiasOffset` (0), `cutLodBiasMin` (-2),
+ *  `cutEdgeScaleBudgetMs` (0: none, the GPU time in ms the cut and its raster are given, over
+ *  which the screen error is coarsened where the render scale is `'auto'`) and
+ *  `cutEdgeScaleMinPercent` (30, from 1 to 100: the lowest scale it takes it to),
  *  `cutMaxNodes` (2097152), `cutMaxCandidateClusters` (16777216), `cutMaxVisibleClusters`
- *  (4194304); changed later by `world.cut`. The animation's settings likewise
+ *  (4194304); changed later by `world.cut`. The dynamic resolution's heuristic likewise
+ *  (`../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts`, fitting the render scale and
+ *  the cut's edge scale to their GPU time budget): `dynamicResolutionFrameTimeBudgetMs` (0: the
+ *  frame cap's interval), `dynamicResolutionThrottlingMaxPercent` (0: none),
+ *  `dynamicResolutionHeadroomPercent` (10), `dynamicResolutionOverBudgetHeadroomPercent` (0),
+ *  `dynamicResolutionHistorySize` (16), `dynamicResolutionFrameWeightExponent` (0.9),
+ *  `dynamicResolutionChangePeriod` (8), `dynamicResolutionIncreaseAmortization` (0.9),
+ *  `dynamicResolutionChangePercentThreshold` (2), `dynamicResolutionMaxOverBudgetFrames` (2, read
+ *  no lower than 2) and `dynamicResolutionUseCpuTimeLogic` (false); changed later by
+ *  `world.dynamicResolution`. The animation's settings likewise
  *  (`../../../../sdk-core/src/contracts/animationOptions.ts`): `animationMinScreenSize` (0.1),
  *  `animationBankInterpolation` (true), `animationBankTimeScale` (1); changed later by
  *  `world.animation`. The shading's likewise
@@ -139,16 +154,19 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  than the low mark) — the pool's load, in percent of its pages, under which the quality rises
  *  again and over which it falls, from 10 to 100 —, `streamingQualityMinScale` (0.3, from 0.1
  *  to 1, 1 never scales), `streamingNumRetries` (3, the times a failed read of a page is tried
- *  again before its page is given up, a negative value without end) and `streamingMinRequests`
- *  (65 536) and `streamingMaxRequests` (1 048 576), the least and the most requests the camera
- *  cut's readout holds, from 4 096 to 1 048 576 — it starts at the least and follows what the cut
- *  asks of it, the most read no lower than the least. A value a setting does not take is
- *  refused. */
+ *  again before its page is given up, at once and with no wait but the one a server asks, a
+ *  negative value without end), `streamingMinRequests` (65 536) and `streamingMaxRequests`
+ *  (1 048 576), the least and the most requests the camera cut's readout holds, from 4 096 to
+ *  1 048 576 — it starts at the least and follows what the cut asks of it, the most read no lower
+ *  than the least — and `streamingBandwidthLimit` (-1: none, the megabytes a second the geometry
+ *  reads are simulated to have: each page takes a share of the frame's bandwidth of its own).
+ *  A value a setting does not take is refused. */
 export interface WorldOptions
   extends
     WorldStreamingOptions,
     HlodWarmupOptions,
     CutOptions,
+    DynamicResolutionOptions,
     AnimationOptions,
     ShadingOptions,
     ExposureOptions,

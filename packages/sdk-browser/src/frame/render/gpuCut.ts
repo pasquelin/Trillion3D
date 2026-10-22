@@ -10,8 +10,7 @@ import {
 import { taaRenderMatrix } from '../../post/taa/frame.ts'
 import { writeCutOcclusion } from './cutPyramid.ts'
 import { writeCutViewSet } from './cutViewSet.ts'
-import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
-import { contextReader } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { readCutSetting as cutSetting } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import { mirrorDrawnFromShown } from '../backend/helpers.ts'
 import { abandonFrameEncoder, openFrameEncoder } from './encoder.ts'
 import { encodeDraws, followRows } from './encodeDraws.ts'
@@ -93,9 +92,6 @@ function decideOcclusion(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   cutOf(rt)?.bindPyramid(pyramid)
 }
 
-/** The cut's setting `field` the session holds (`cutOptions.ts`), by its one resolver. */
-const cutSetting = contextReader(CUT_RULES)
-
 /**
  * The level of detail's factor of the drawn view (`cutLodBiasFollowsUpscale`): an image the
  * temporal pass reconstructs to a wider display is cut as the display would be — its threshold
@@ -112,6 +108,17 @@ function lodBiasFactor(rt: WebgpuPagesRuntime) {
   )
 }
 
+/** The fraction of the screen error the cut's GPU time budget asks of the drawn view's cut: the
+ *  main view's, whose time the budget measures; 1 for a view drawn beside it, or no budget. */
+function edgeFraction(rt: WebgpuPagesRuntime) {
+  const { views } = rt
+  if (views.active !== views.main) return 1
+  return views.main.scale.edge.ask(
+    cutSetting(rt, 'cutEdgeScaleBudgetMs'),
+    cutSetting(rt, 'cutEdgeScaleMinPercent'),
+  )
+}
+
 /**
  * The drawn view's selection uniforms under `cam`: its pixels at the size the image is drawn at,
  * the image's render matrix — its jitter included — the boxes' pixel centres are found with, the
@@ -120,20 +127,14 @@ function lodBiasFactor(rt: WebgpuPagesRuntime) {
  * level-of-detail factor (`lodBiasFactor`) and the streaming quality scale
  * (`../../geometry/residency/poolPressure.ts`): residency coarsens, one DAG level where a page is
  * missing (`../../geometry/cut/rule.ts`) — or, where a GPU time budget asks it, by the lesser of
- * that scale and the edge scale's fraction, the world's for every view
- * (`../scale/scaleControl.ts`, `cutEdgeScaleBudgetMs`).
+ * that scale and the edge scale's fraction, the main view's cut alone: the view whose time the
+ * budget measures (`../scale/scaleControl.ts`, `cutEdgeScaleBudgetMs`).
  */
 function writeCutUniforms(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: number) {
   const { run, gpu, services } = rt,
     uniforms = run.selectionUniforms,
     size = gpu.targetSize
-  const scale = Math.min(
-    services.residency.qualityScale,
-    rt.views.main.scale.edge.ask(
-      cutSetting(rt, 'cutEdgeScaleBudgetMs'),
-      cutSetting(rt, 'cutEdgeScaleMinPercent'),
-    ),
-  )
+  const scale = Math.min(services.residency.qualityScale, edgeFraction(rt))
   const threshold = pixelError / (lodBiasFactor(rt) * scale)
   cameraSelectionUniforms(cam, threshold, size, uniforms, taaRenderMatrix(rt, cam))
   uniforms.cullOff =
@@ -143,7 +144,11 @@ function writeCutUniforms(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError:
     (cutSetting(rt, 'cutClipPlaneCulling') ? 0 : CULL_CLIP_PLANE_OFF)
   // The view's clip plane and its lists of hidden and shown objects (`./cutViewSet.ts`).
   writeCutViewSet(rt, cam, uniforms, cutSetting(rt, 'cutViewFiltering'))
-  const distances = cutSetting(rt, 'cutViewDistanceScale')
+  const distances =
+    cutSetting(rt, 'cutViewDistanceScale') *
+    (cutSetting(rt, 'cutViewDistanceApplySecondaryScale')
+      ? cutSetting(rt, 'cutViewDistanceSecondaryScale')
+      : 1)
   uniforms.viewDistanceScale = distances
   // What the rays' scene meets of the objects out of their draw distances, from the same eye.
   run.gpuSelection?.proxyDistance(

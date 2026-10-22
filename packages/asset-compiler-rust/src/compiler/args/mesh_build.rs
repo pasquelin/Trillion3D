@@ -20,10 +20,9 @@
 //! never the batch's — a mesh's `extras` setting that does not read included, when the meshes are
 //! resolved.
 use super::name_match::{present, read_rules, NameMatch, NodeNames};
+use super::reader::Reader;
 use super::*;
-mod read;
 mod voxels;
-use read::Reader;
 use trillion3d_page_codec::bits::grid::Precision;
 use trillion3d_page_codec::{
     MAX_NORMAL_PRECISION, MAX_POSITION_PRECISION, MAX_TANGENT_PRECISION, MIN_POSITION_PRECISION,
@@ -51,9 +50,9 @@ pub(crate) struct MeshBuild {
     /// serve (`POSITION_PRECISION_SETTING`, `NORMAL_PRECISION_SETTING`,
     /// `TANGENT_PRECISION_SETTING`).
     pub precision: Precision,
-    /// How its voxels are sampled (`voxel::VoxelSampling`: `voxelRays`, `voxelLevel`,
+    /// How its voxels are sampled (`voxel::VoxelSettings`: `voxelRays`, `voxelLevel`,
     /// `voxelBackUp`, `voxelSeparable`, `voxelNdf`, `voxelOpacity`), read when it is voxelized.
-    pub voxels: crate::voxel::VoxelSampling,
+    pub voxels: crate::voxel::VoxelSettings,
     /// Whether the assembly its `extras` name is built (`ALLOW_ASSEMBLIES_SETTING`).
     pub allow_assemblies: bool,
 }

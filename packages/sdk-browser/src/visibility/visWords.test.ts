@@ -268,20 +268,24 @@ test('the map is read at the level a micro-triangle’s edge asks, from the mate
 })
 
 test('the dicing reads a masked row’s cutout at each vertex, at its set’s density, and drops the micro-triangles of a vertex it cuts', () => {
-  const dice = functionsOf(diceSource(), ['diceGroup'])
+  const code = diceSource()
+  const dice = functionsOf(code, ['diceGroup'])
   // The row's coordinate and vertex alpha are read once for its three corners, only where it is masked.
   assert.match(
     dice,
     /if\(masked\)\{cutoutUv\[lane\]=pageMaskUv\(page,h,v\);cutoutAlpha\[lane\]=pageMaskAlpha\(page,h,v\);\}/,
   )
-  // At each vertex, by its weights on the triangle, at the level of the density of the set the base map reads.
-  assert.match(dice, /d\.density\[pageMaskSet\(page\)\]/)
+  // At each vertex, by its weights on the triangle, at the level of the density of the set the base
+  // map reads: the one function the shadow maps' vertex stage calls too.
   assert.match(
     dice,
-    /maskKeep\(page,mat3x2f\(cutoutUv\[0\],cutoutUv\[1\],cutoutUv\[2\]\)\*at\.b,dot\(vec3f\(cutoutAlpha\[0\],cutoutAlpha\[1\],cutoutAlpha\[2\]\),at\.b\)/,
+    /dicedKept\(page,d,view,at,mat3x2f\(cutoutUv\[0\],cutoutUv\[1\],cutoutUv\[2\]\)/,
   )
+  const kept = functionsOf(code, ['dicedKept'])
+  assert.match(kept, /d\.density\[pageMaskSet\(page\)\]/)
+  assert.match(kept, /maskKeep\(page,uv\*at\.b,dot\(alpha,at\.b\)/)
   // A vertex it does not keep is as one behind the camera: the micro-triangles that use it are not drawn.
   assert.match(dice, /usable\[v\]=select\(0u,1u,kept&&clip\.w>0\.0&&sub\.z<=1\.0\);/)
   // And no pixel is tested: the micro-triangle's pixel write is the one the unmasked rows have.
-  assert.doesNotMatch(functionsOf(diceSource(), ['microPixel']), /maskKeep/)
+  assert.doesNotMatch(functionsOf(code, ['microPixel']), /maskKeep/)
 })

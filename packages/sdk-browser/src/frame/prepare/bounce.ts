@@ -27,7 +27,8 @@ const BOUNCE_APPROXIMATIONS = [
   'a probe stops being updated after a fixed count of updates, until a light changes',
   'the sky reaches the probes as a table by direction built at the ground, the sun not in it: the sky light of a point the probes do not answer is the unoccluded one, and a scene with no sky light has none to give: the probes that answer stand for it',
   'a pixel reads its indirect light from the screen probes, one a tile of pixels, so a detail smaller than a tile reaches it only by the short-range occlusion; where the screen probes cast none (level off, no lit image yet), it reads the world probes',
-  'a screen probe ray the last lit image does not answer reads the world probes through the ray alone: what is off screen is as the world probes hold it, and a surface that moved gives its pixel no history that image',
+  'a screen probe ray the last lit image does not answer, and the scene trace does not, reads the radiance cache: the map of the light by direction every world probe holds, traced over the frames at the budget of the level, so what is far is as the maps hold it, a few images late; and a surface that moved gives its pixel no history that image',
+  "a world probe's map is traced from the diagonal of its cell out, so what lies within it is the screen's and the scene trace's to give, never the map's",
 ]
 
 /** Why there is no bounce while the host has switched it off: the one reason a toggle lifts. */

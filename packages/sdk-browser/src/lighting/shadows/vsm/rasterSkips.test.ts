@@ -281,8 +281,10 @@ test('a displaced surface’s pairs are marked from its candidate to the raster,
     [1 << 22, 0, 1 << 21].map((y) => vsmRenderCommandOf([0, y, 0, 0]).tessellated),
     [1, 0, 0],
   )
+  // An opaque row is marked; a masked one only where the device holds the vertex stage that cuts it out.
   const mark = 'params.tessellated!=0u&&tessellatedFlags(page)'
-  assert.ok(vsmRenderCandidatesWgsl().includes(mark), 'an opaque row is marked')
+  assert.ok(vsmRenderCandidatesWgsl().includes(mark))
+  assert.ok(vsmRenderCandidatesWgsl().includes('&VSM_RENDER_TESSELLATE_MASKED)!=0u'))
   assert.ok(!vsmTransmissionCandidatesWgsl().includes(mark), 'a blended one is not')
   const cull = functionsOf(CULL, ['vsmRenderCullView'])
   for (const text of [

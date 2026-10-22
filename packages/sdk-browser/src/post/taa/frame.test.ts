@@ -36,6 +36,11 @@ test('an accumulated frame advances jitter, writes the uniform and returns the w
   assert.notEqual(taaRenderMatrix(rt, cam), cam.viewProjection, 'the matrix carries the jitter')
   assert.equal(encoded.length, 1)
   assert.equal((encoded[0] as TaaInputs).flags, flags, 'what the as-is share comes from')
+  assert.equal(
+    (encoded[0] as TaaInputs).normals,
+    rt.vis.concatNrm,
+    'the atlas a prism is solved by',
+  )
   assert.equal(velocity.motion.resets, 1, 'the first frame has no history: poses are taken')
   // Without history the frame is a cut (`params.x`); the next one reads it, and nobody moved
   // (`params.z`).
@@ -140,4 +145,15 @@ test("the smallest object measured is the chain's motion blur's, in the stage's 
   assert.deepEqual(sizes(), [1, Math.fround((0.05 * fov) ** 2)])
   blur.perObjectSize = 0
   assert.deepEqual(sizes(), [1, 0])
+})
+
+test("the frame's tessellation reaches the stage's uniform and the pass's: the one word the rasters read", () => {
+  const { rt, temporal, frame } = runtime()
+  const { tessellation } = TAA_VIEW.at
+  assert.equal(frame(false)![tessellation], 0, 'no displaced surface: the surfaces are flat')
+  Object.assign(rt.vis.materialTable.displaced, { count: 1 })
+  assert.equal(frame(false)![tessellation], 1)
+  assert.equal(temporal.frame.tessellated, true, 'decided once, by the stage, for the pass')
+  Object.assign(rt.context, { tessellation: false })
+  assert.equal(frame(false)![tessellation], 0, 'the setting off draws them flat')
 })

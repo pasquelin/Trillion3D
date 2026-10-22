@@ -1,10 +1,11 @@
 //! The surface sampled into cells and the joints between triangles.
 use super::super::bricks::{bricks, most};
-use super::super::raster::{binned, cells, Cell};
+use super::super::raster::{binned, Cell};
 use super::super::sample::Probe;
 use super::super::seed::SeedGroup;
 use super::super::solid::{solid, Voxel};
 use super::super::ERROR_PER_SIZE;
+use super::inherit::{candidates, Boxes};
 use super::{VoxelInputs, Voxelized, GROWTH};
 use crate::compiler::pages::record::page_deformation;
 use crate::compiler::primitive::triangles::read;
@@ -15,7 +16,6 @@ use crate::Result;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
-use trillion3d_page_codec::hash::WordSet;
 
 /// Triangles as the voxels sample them: the ranks in the mesh's tracer of those voxelized, and of
 /// every triangle of the mesh their boxes and, for a skinned mesh, each one's joint (`u16::MAX`
@@ -42,10 +42,11 @@ impl<'a> Surface<'a> {
 /// `group` drawn as voxels, its children drawn at `child_error`, when a side fits its budget with
 /// an error below `beat` — every side tried is sampled, not estimated: the rays drop the voxels a
 /// surface only grazes, however many the triangles touch —; its triangles are ranks from the
-/// start of `surface`. A side without length covers nothing, and none that keeps no voxel fits.
+/// start of `surface`, and `inherited` the boxes of the children drawn as voxels, by child
+/// (`candidates`). A side without length covers nothing, and none that keeps no voxel fits.
 pub(super) fn voxelize(
     surface: &Surface<'_>,
-    group: &SeedGroup,
+    (group, inherited): (&SeedGroup, &[(usize, Boxes)]),
     child_error: f64,
     beat: f64,
 ) -> Option<Voxelized> {
@@ -67,17 +68,10 @@ pub(super) fn voxelize(
     let widest = 2.0 * (0..3).map(|k| high[k] - low[k]).fold(0.0, f64::max);
     let mut side = group.first_side(child_error);
     while side > 0.0 && side <= widest && side * ERROR_PER_SIZE < beat {
-        // In the order the triangles find them: a voxel's place is its rank (`Sampler::set`).
-        let (mut candidates, mut found) = (Vec::new(), WordSet::<Cell>::default());
-        for &t in &group.triangles {
-            cells(corners(start + t as usize), side, |c| {
-                if found.insert(c) {
-                    candidates.push(c);
-                }
-            });
-        }
-        let redistribute = surface.probe.sampling.redistributes();
-        let voxels = solid(sampled(surface, &candidates, side), redistribute);
+        // In the order the children find them: a voxel's place is its rank (`RayBank::set`).
+        let found = candidates(world, (group, inherited), start, side);
+        let kept = solid(sampled(surface, &found, side), &surface.probe.settings);
+        let (voxels, remembered) = (kept.voxels, kept.extra);
         let packed = bricks(&voxels);
         // No voxel left draws nothing in the triangles' place: a larger side is tried.
         if !voxels.is_empty() && voxels.len() <= budget.0 && packed.len() <= budget.1 {
@@ -91,6 +85,7 @@ pub(super) fn voxelize(
                 brick_parents: vec![f64::INFINITY; packed.len()],
                 voxels,
                 bricks: packed,
+                remembered,
             });
         }
         side *= GROWTH;
@@ -99,11 +94,11 @@ pub(super) fn voxelize(
 }
 
 /// Each of `candidates` sampled against the primitive's triangles that overlap it — or, where the
-/// rays reach beyond the voxel (`VoxelSampling::reach`), the mesh's triangles within their reach,
+/// rays reach beyond the voxel (`VoxelSettings::reach`), the mesh's triangles within their reach,
 /// as every cluster of the scene is the rays' (a back-up before the voxel, a separable ray's
 /// lateral point and run).
 fn sampled(surface: &Surface<'_>, candidates: &[Cell], side: f64) -> Vec<Voxel> {
-    let reach = surface.probe.sampling.reach();
+    let reach = surface.probe.settings.reach();
     let bound = |k: usize, pick: fn(i32, i32) -> i32, end: i32| {
         let c = candidates.iter().map(|c| c[k]).reduce(pick).unwrap_or(0);
         f64::from(c + end) * side
