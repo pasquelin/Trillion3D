@@ -80,7 +80,9 @@ function classifyGroup(
   return device.createBindGroup({
     layout,
     entries: namedEntries(REFLECTION_TRACE_BINDINGS, {
-      ...surface,
+      flags: surface.flags,
+      normals: surface.normals,
+      lobes: surface.lobes,
       bounceGrid,
       rays: grids.rays,
       tracingOut: list(grids.tracing),
