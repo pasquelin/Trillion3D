@@ -9,6 +9,8 @@ import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrig
 import { taaRenderMatrix } from '../../post/taa/frame.ts'
 import { prepared } from '../backend/state/prepared.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { builtPrime } from './primeHiz.ts'
+import type { PrimeBuilt } from './primeState.ts'
 
 /**
  * THE PYRAMID THE CUT'S OCCLUSION READS (`../../geometry/dag/shader/occlusionWgsl.ts`), and what it
@@ -102,6 +104,8 @@ export function writeCutOcclusion(
   uniforms: SelectionUniforms,
   asked: boolean,
 ): CutPyramid | undefined {
+  const primed = asked ? builtPrime(rt) : undefined
+  if (primed) return primedOcclusion(uniforms, primed)
   const source = sources.get(rt.views.active),
     pyramid = cutPyramid(rt)
   const stands = asked && !!source && !!pyramid && source.view === pyramid.view
@@ -116,4 +120,30 @@ export function writeCutOcclusion(
   size[0] = source.size[0]
   size[1] = source.size[1]
   return { view: pyramid.view, levels: source.levels }
+}
+
+/** Whether the drawn view's last pyramid stands for this image's cut (`writeCutOcclusion`): what
+ *  the primed pyramid's `'whenMissing'` waits on. */
+export function pyramidStands(rt: WebgpuPagesRuntime) {
+  const source = sources.get(rt.views.active),
+    pyramid = cutPyramid(rt)
+  return !!source && !!pyramid && source.view === pyramid.view
+}
+
+/**
+ * The occlusion `uniforms` run in two passes against the primed pyramid (`primeHiz.ts`), the one
+ * the reference's image takes in place of the previous image's: its matrix is this image's own,
+ * its depth map this image's, its size the primed draw's. Returns the pyramid the main pass reads.
+ */
+function primedOcclusion(uniforms: SelectionUniforms, primed: PrimeBuilt): CutPyramid {
+  uniforms.occlusion = OCCLUSION_TWO_PASS
+  const prevViewProj = (uniforms.prevViewProj ??= new Float32Array(16))
+  prevViewProj.set(uniforms.viewProj)
+  const depthMap = (uniforms.prevDepthMap ??= [0, 0]),
+    size = (uniforms.prevSize ??= [0, 0])
+  depthMap[0] = uniforms.depthMap[0]
+  depthMap[1] = uniforms.depthMap[1]
+  size[0] = primed.size[0]
+  size[1] = primed.size[1]
+  return { view: primed.view, levels: primed.levels }
 }

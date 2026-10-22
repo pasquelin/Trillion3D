@@ -38,12 +38,16 @@ export const DRAW_DISTANCE_SETTING = 'drawDistance'
  *  object attached under another streams on the grid of the topmost object above it, as the
  *  reference's attached actors do. */
 export const RUNTIME_GRID_SETTING = 'runtimeGrid'
+/** Whether an object is a far-field object — drawn by a view's primed depth, the small coarse draw
+ *  its pyramid is built from before its cut (`hizPrime`): `true`, or `false` (the default). */
+export const FAR_FIELD_SETTING = 'farField'
 /** The settings an object may name, `objectSettings` and each of its rules. */
 export const OBJECT_SETTINGS = [
   SPATIALLY_LOADED_SETTING,
   SKINNED_INSTANCE_SETTING,
   DRAW_DISTANCE_SETTING,
   RUNTIME_GRID_SETTING,
+  FAR_FIELD_SETTING,
 ] as const
 /** The keys of a draw distance: `min`, the distance under which the object is not drawn, and
  *  `max`, the distance past which it is not drawn — 0, the default, no farthest distance: the
@@ -70,6 +74,8 @@ export const SKINNED_INSTANCE_SETTINGS = [
   'animationMinScreenSize',
   'mobility',
 ] as const
+/** An object is not a far-field object unless a setting says so. */
+export const DEFAULT_FAR_FIELD = false
 /** An object streams on the main grid unless a setting says otherwise: the reference's default. */
 export const DEFAULT_SPATIALLY_LOADED = true
 /** An instanced skinned object's track loops unless a setting says otherwise: the reference's
@@ -116,6 +122,7 @@ export type ObjectSettingsWire = {
   skinnedInstance?: boolean | SkinnedInstanceWire
   drawDistance?: false | DrawDistanceWire
   runtimeGrid?: string
+  farField?: boolean
 }
 /** The object settings as the compiler reads them (`resolveObjectSettings` writes them). */
 export type ObjectSettingsJobWire = ObjectSettingsWire & {

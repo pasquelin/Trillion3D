@@ -16,8 +16,9 @@ import { MIN_MAX_PATH, MODE2_PATH, firstPath, plainPath } from './reconstructPat
 /** The reconstruction's uniform: the matrices at the eye, the reconstructed view, the traced
  *  texel's pixel of the cycle and the shift of the tracing's rays (`offset`, `xy` and `zw`), the
  *  depth terms, the two distances, the bounds of the traced and the history images' reads
- *  (`writeSafeBounds`, `reconstructLayout.ts`) and the scales from the view's to the textures'
- *  coordinates of the two, in `xy` and `zw`. */
+ *  (`writeSafeBounds`, `reconstructLayout.ts`), the scales from the view's to the textures'
+ *  coordinates of the two, in `xy` and `zw`, and the ratio of this image's pre-exposure to the
+ *  history's (`exposure.x`), which the history's light is multiplied by. */
 export const RECONSTRUCT_VIEW = fieldLayout('ReconstructView', [
   ['inverseViewProj', 'mat4x4f'],
   ['previousViewProj', 'mat4x4f'],
@@ -28,6 +29,7 @@ export const RECONSTRUCT_VIEW = fieldLayout('ReconstructView', [
   ['traced', BOUNDS_FIELD],
   ['history', BOUNDS_FIELD],
   ['uvScales', 'vec4f'],
+  ['exposure', 'vec4f'],
 ] as const)
 
 /** Where the reconstruction binds what it reads, in group 0. The history images (4 to 6) are bound
@@ -85,6 +87,10 @@ const history = (setup: CloudSetup) => `
 }
 @group(0) @binding(${B.historyDepth}) var historyDepth:texture_2d<f32>;
 fn sampleHistory(t:texture_2d<f32>,uv:vec2f)->vec4f{return sampleBounded(t,view.history,uv*view.uvScales.zw);}
+fn sampleHistoryLight(t:texture_2d<f32>,uv:vec2f)->vec4f{
+ let held=sampleHistory(t,uv);
+ return vec4f(held.rgb*view.exposure.x,held.a);
+}
 fn finite4(v:vec4f)->bool{
  return isFiniteWord(bitcast<u32>(v.x))&&isFiniteWord(bitcast<u32>(v.y))&&isFiniteWord(bitcast<u32>(v.z))&&isFiniteWord(bitcast<u32>(v.w));
 }

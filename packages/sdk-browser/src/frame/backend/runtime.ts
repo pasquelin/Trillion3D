@@ -5,6 +5,8 @@ import type { TreeLeavesGpu } from '../../placement/tree/treeLeaves.ts'
 import type { RowWords } from '../../placement/rows/rowWords.ts'
 import type { GrowthInFlight } from '../../placement/growth/webgpuGrowth.ts'
 import type { RayQueue } from '../../lighting/rays/rayQueue.ts'
+import type { DistanceFieldFrameState } from '../../lighting/distanceField/frame.ts'
+import type { VolumetricLightmapFrameState } from '../../lighting/volumetricLightmap/frame.ts'
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { TAA_CAPABILITIES } from '../../post/taa/capability.ts'
 import { BOUNCE_CAPABILITY } from '../prepare/bounce.ts'
@@ -95,6 +97,12 @@ export interface WebgpuPagesRuntime {
   growth?: GrowthInFlight
   /** The rays cast at the engine, made at the first (`../../lighting/rays/rayQueue.ts`). */
   rays?: RayQueue
+  /** The meshes' distance fields and the global field composited from them, made at the first image
+   *  of a session whose cache carries any (`../../lighting/distanceField/frame.ts`). */
+  distanceFields?: DistanceFieldFrameState
+  /** The scene's volumetric lightmap on the GPU, made once at the first image that reads it
+   *  (`../../lighting/volumetricLightmap/frame.ts`). */
+  volumetricLightmap?: VolumetricLightmapFrameState
 }
 
 export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRuntime {

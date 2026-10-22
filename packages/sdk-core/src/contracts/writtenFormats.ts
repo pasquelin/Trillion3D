@@ -9,6 +9,7 @@
 //   packages/asset-compiler-rust/src/voxel.rs
 //   packages/asset-compiler-rust/src/voxel/bricks.rs
 //   packages/page-codec-wasm/src/voxel.rs
+//   packages/asset-compiler-rust/src/volumetric_lightmap/format.rs
 //   packages/asset-compiler-rust/src/hlod/chain.rs
 //   packages/asset-compiler-rust/src/hlod/chain/builds/instanced.rs
 //   packages/asset-compiler-rust/src/lib.rs
@@ -207,6 +208,43 @@ export const VOXEL_BRICK_TRIANGLES = 12
  * The geometry descriptor's flag of a voxel page, beside a `WGP3` page's attribute flags.
  */
 export const GEOMETRY_VOXEL = 256
+
+/**
+ * The file's version; a file of another version is refused, never reinterpreted.
+ */
+export const VOLUMETRIC_LIGHTMAP_VERSION = 1
+
+/**
+ * 'T','3','V','L' read as an unsigned 32-bit integer little-endian.
+ */
+export const VOLUMETRIC_LIGHTMAP_MAGIC = 0x4c563354
+
+/**
+ * Layers of a file: the indirection volume, the ambient, six of coefficients, the sky's bent
+ * normal and the sun's shadowing.
+ */
+export const VOLUMETRIC_LIGHTMAP_LAYERS = 10
+
+/**
+ * Words of the head before the layer table: magic, version, brick size, bounds, the two sizes.
+ */
+export const VOLUMETRIC_LIGHTMAP_FIXED_WORDS = 15
+
+/**
+ * Words of a layer's entry in the table: its format and its byte length.
+ */
+export const VOLUMETRIC_LIGHTMAP_LAYER_WORDS = 2
+
+/**
+ * Words of the whole head: the fixed words, then an entry a layer.
+ */
+export const VOLUMETRIC_LIGHTMAP_HEADER_WORDS = 35
+
+/**
+ * Bricks along one side of the atlas's layout at most: an indirection texel names a brick by three
+ * bytes.
+ */
+export const VOLUMETRIC_LIGHTMAP_MAX_LAYOUT = 256
 
 /**
  * Version of the world-roots products; what each version changed is told in `docs/FORMAT.md`

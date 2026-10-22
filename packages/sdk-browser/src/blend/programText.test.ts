@@ -16,8 +16,9 @@ import { blendFrontShader } from './frontStageWgsl.ts'
 // Retaken when the vertex came to pass the item's history share code above the triangle's rank
 // (`TRI_GIVEN_UP_SHIFT`), the page reads drew a voxel row's bricks as boxes (`voxelWgsl.ts`), and
 // the lobed vertex took the one texture set past the first its maps name (`channelsAlt`), and a
-// device without clip distances came to test the pixel against the view's plane (`blendClipped`).
-const VERTEX = 'c265a2e6e56e1bdf25ce7eb9869decef5e032cb0df2fe948f74ee268f0f6e7d4'
+// device without clip distances came to test the pixel against the view's plane (`blendClipped`),
+// and the view came to hold the pre-exposure every light is written multiplied by (`preExposure`).
+const VERTEX = '98b07d71bf889792b26783bc9dcdf52e09123dddea0d34033c4cba3e37d40c4a'
 // Retaken when the blend module took that vertex, the per-material history share it writes for
 // the temporal pass where its material gives the history up, and the stored tangents' frame in a
 // module of its own (`tangentFrameWgsl.ts`) for the normal map and the lobes both, and then the
@@ -39,8 +40,9 @@ const VERTEX = 'c265a2e6e56e1bdf25ce7eb9869decef5e032cb0df2fe948f74ee268f0f6e7d4
 // depth the reference walk takes for its thickness (`thickness`), and then the fog's cubemap,
 // volume and sampler were bound in the module and read where a pixel is fogged (`fogResourcesWgsl`),
 // the volume's view being read from the light buffer, and the casters' memory, the blue noise and the
-// front's radiance became read-only storage textures read by load (`loadOnlyTarget`).
-const BLEND = '3464728866dad9adacf4b0096cbbe3d99f91d69c094f8548374f5d1d91ed6d08'
+// front's radiance became read-only storage textures read by load (`loadOnlyTarget`), and then the
+// layers came to write their light multiplied by the pre-exposure (`preExposed`), the sum clipped after it (`preExposedClipped`), and the sky light's cubes joined the reflection group.
+const BLEND = '97ec7dc9a348490305416e12221e97ed1bbbaba7b3969887b848f1ea55092217'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */

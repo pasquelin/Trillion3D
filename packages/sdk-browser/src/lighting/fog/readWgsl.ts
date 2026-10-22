@@ -20,11 +20,14 @@ export interface FogResourceBindings {
   readonly volume?: number
   readonly sampler?: number
   readonly trilinear?: boolean
+  /** The light shafts' occlusion mask, a filterable `texture_2d<f32>` read through the sampler
+   *  (`lightShaftMask`); left out, the mask answers 1, no occlusion. */
+  readonly lightShaft?: number
 }
 
 /** The bindings as a block name reads them, in their declared order. */
 export const fogBindingsLabel = (b: FogResourceBindings) =>
-  `${b.group}, ${b.cubemap}, ${b.volume}, ${b.sampler}${b.trilinear ? ', trilinear' : ''}`
+  `${b.group}, ${b.cubemap}, ${b.volume}, ${b.sampler}${b.trilinear ? ', trilinear' : ''}${b.lightShaft === undefined ? '' : `, ${b.lightShaft}`}`
 
 /** The slot `slot` of the view block, a `vec4f`. */
 const view = (slot: number) => `directLights.fogView[${slot}]`
@@ -99,7 +102,8 @@ fn fogVolumeExclude(toward:vec3f)->f32{
 }
 /** The volume's light and transmittance along \`toward\`, the vector from the eye to a point: read at
  *  the point's pixel and view depth, and faded in from the volume's start distance by a step, not a
- *  ramp (its own fade is built into it). */
+ *  ramp (its own fade is built into it), the light divided by the pre-exposure it was written
+ *  multiplied by. */
 fn fogVolumeLookup(toward:vec3f)->vec4f{
  let none=vec4f(0.0,0.0,0.0,1.0);
  if(!fogVolumeBuilt()){return none;}
@@ -110,7 +114,19 @@ fn fogVolumeLookup(toward:vec3f)->vec4f{
  let slice=log2(depth*sliceMap.x+sliceMap.y)*sliceMap.z*sliceMap.w;
  let reads=${view(FOG_VIEW_SLOT.uv)};
  let found=fogSampleFiltered(vec3f(min(uv*reads.xy,reads.zw),slice));
- return mix(none,found,saturate((depth-${reach}.z)*100000000.0));
+ let unexposed=vec4f(found.rgb*${view(FOG_VIEW_SLOT.exposure)}.z,found.a);
+ return mix(none,unexposed,saturate((depth-${reach}.z)*100000000.0));
+}`
+
+/** The light shafts' occlusion mask the fog's inscattering is multiplied by: `lightShaftMask(pixel)`
+ *  reads the mask at the scene pixel `pixel` (its centre) through the sampler, bilinear and kept to
+ *  the bounds the pass wrote in the view block (`FOG_VIEW_SLOT.lightShaftBounds`). */
+const lightShaftText = (b: Required<Pick<FogResourceBindings, 'group' | 'lightShaft'>>) => `
+@group(${b.group}) @binding(${b.lightShaft}) var lightShaftMaskTexture:texture_2d<f32>;
+fn lightShaftMask(pixel:vec2f)->f32{
+ let bounds=${view(FOG_VIEW_SLOT.lightShaftBounds)};
+ let uv=clamp(pixel*${view(FOG_VIEW_SLOT.lightShaftScene)}.zw,bounds.xy,bounds.zw);
+ return textureSampleLevel(lightShaftMaskTexture,fogSampler,uv,0.0).x;
 }`
 
 /** What the fog reads past the light buffer, from a program that binds `b`: its declarations, and
@@ -119,9 +135,12 @@ fn fogVolumeLookup(toward:vec3f)->vec4f{
  *  so that the tint alone colours the fog, no volume to exclude and none to read, `(0, 0, 0, 1)`.
  *  The program lists it over the fog's text (`fogWgsl`). */
 export function fogResourcesWgsl(b: FogResourceBindings): WgslDecl {
-  const { group, cubemap, volume, sampler, trilinear } = b
-  if ((volume !== undefined || cubemap !== undefined) && sampler === undefined)
-    throw new Error('the cubemap and the volume are read through a sampler')
+  const { group, cubemap, volume, sampler, trilinear, lightShaft } = b
+  if (
+    (volume !== undefined || cubemap !== undefined || lightShaft !== undefined) &&
+    sampler === undefined
+  )
+    throw new Error('the cubemap, the volume and the light shafts are read through a sampler')
   const declarations = [
     sampler === undefined ? '' : `@group(${group}) @binding(${sampler}) var fogSampler:sampler;`,
     volume === undefined
@@ -130,6 +149,9 @@ export function fogResourcesWgsl(b: FogResourceBindings): WgslDecl {
     cubemap === undefined
       ? 'fn fogCubeSharp(direction:vec3f)->vec3f{return vec3f(1.0);}\nfn fogCubeAverage(direction:vec3f)->vec3f{return vec3f(1.0);}'
       : cubemapText({ group, cubemap }),
+    lightShaft === undefined
+      ? 'fn lightShaftMask(pixel:vec2f)->f32{return 1.0;}'
+      : lightShaftText({ group, lightShaft }),
   ]
   return wgslBlock(
     `fogResourcesWgsl(${fogBindingsLabel(b)})`,

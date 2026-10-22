@@ -26,8 +26,12 @@ import {
  * Lengths are centimetres, as the marcher traces. The point's altitude is its normalised altitude
  * in the layer: 0 at the bottom, 1 at the top. A program that includes it declares, with
  * `cloudMaterialBindings`, the material block, the noise volume, the pattern, the profile, the mask and the lightning volume, and one sampler
- * that repeats. The textures are read at their first level: a compute pass has no derivatives to
- * choose one with.
+ * that repeats. The noise and the profile are read at their first level, the lightning's fill at
+ * the level the material names. The pattern, the mask and the lightning's core are read at the
+ * level of the screen footprint of the sample: the position's derivative along a pixel to the right
+ * and one below (`cloudDdx`, `cloudDdy`, centimetres), carried through the linear map from the
+ * position to each texture's coordinates; a program that sets none (the shadow maps) reads their
+ * first level.
  */
 
 /** The material block's slots, each a `vec4f` of the settings it holds, in order: the one layout
@@ -136,6 +140,10 @@ const CLOUD_STORM_DENSITY:f32=0.666667;
 var<private> cloudLayoutTileCm:f32;
 var<private> cloudTurn:vec2f;
 var<private> cloudDrift:vec3f;
+/** How far the sample's position moves for a pixel to the right and one below, in the material's
+ *  axes (the third the height), centimetres; zero until the march sets them. */
+var<private> cloudDdx:vec3f;
+var<private> cloudDdy:vec3f;
 /** What does not change along a thread's march, once for the thread at \`time\`: the layout tile in
  *  centimetres, the cosine and the sine of the placement's turn, and what the wind has carried the
  *  noise by (the pattern's width in texels over the tile in kilometres sets the rate). */
@@ -145,6 +153,12 @@ fn cloudMaterialStart(time:f32){
  cloudTurn=vec2f(cos(m.placement.w),sin(m.placement.w));
  let tile=f32(textureDimensions(layoutPattern,0).x)/m.coverageDensity.x*1000.0;
  cloudDrift=m.wind.xyz*m.wind.w*(time/tile);
+}
+/** The layout's texture coordinates' change for \`d\`, a change of the position: the position over
+ *  the tile, turned by the placement. */
+fn cloudLayoutGrad(d:vec3f)->vec2f{
+ let t=d.xy/cloudLayoutTileCm;
+ return vec2f(cloudTurn.x*t.x-cloudTurn.y*t.y,cloudTurn.y*t.x+cloudTurn.x*t.y);
 }
 struct CloudSample{extinction:vec3f,albedo:vec3f,ambientOcclusion:f32,emissive:vec3f,conservativeDensity:vec4f,}
 /** The light of a lightning flash at \`place\`: the volume read at its finest level and again at the
@@ -164,7 +178,10 @@ fn cloudLightning(place:vec3f,time:f32)->f32{
  let base=m.typePatternScale.w*place*m.storm.y;
  let flicker=base*sin(time*6.283185307)*0.001*m.lightningAnimation.x;
  let spot=vec3f((base+flicker).xy,time*m.lightningAnimation.y+m.lightningAnimation.z);
- let core=textureSampleLevel(lightningVolume,cloudSampler,spot,0.0).r;
+ let slope=m.typePatternScale.w*m.storm.y*(1.0+sin(time*6.283185307)*0.001*m.lightningAnimation.x);
+ let gx=vec3f(cloudLayoutGrad(cloudDdx)*slope,0.0);
+ let gy=vec3f(cloudLayoutGrad(cloudDdy)*slope,0.0);
+ let core=textureSampleGrad(lightningVolume,cloudSampler,spot,gx,gy).r;
  let fill=textureSampleLevel(lightningVolume,cloudSampler,spot,m.lightningSource.w).r;
  let source=m.lightningSource;
  return (pow(core,source.x)+core*core*source.y+source.z*fill)/(source.y+source.z+1.0);
@@ -174,7 +191,7 @@ fn cloudLightning(place:vec3f,time:f32)->f32{
  *  conservative density is (coverage, coverage, profile less one half, erosion). The storm
  *  amount blends the plain clouds into the storm ones; the third noise switch, a flag of the
  *  block, takes the detail noise into the erosion. The layout pattern and the mask are read at
- *  their finest level where the reference picks the level from the screen footprint. */
+ *  the level of the sample's screen footprint (\`cloudDdx\`, \`cloudDdy\`). */
 fn cloudMaterialAt(world:vec3f,altitude:f32,cameraRelative:vec3f,time:f32)->CloudSample{
  let m=cloudMaterial;
  let storm=m.storm.x;
@@ -185,11 +202,13 @@ fn cloudMaterialAt(world:vec3f,altitude:f32,cameraRelative:vec3f,time:f32)->Clou
  let patternXY=(place-0.5).xy;
  let maskXY=(place+m.placement.xyz).xy;
  let scale=m.typePatternScale;
+ let gx=cloudLayoutGrad(cloudDdx);
+ let gy=cloudLayoutGrad(cloudDdy);
  let pattern=vec4f(
-  textureSampleLevel(layoutPattern,cloudSampler,patternXY*scale.x,0.0).r,
-  textureSampleLevel(layoutPattern,cloudSampler,patternXY*scale.y,0.0).g,
-  textureSampleLevel(layoutPattern,cloudSampler,patternXY*scale.z,0.0).b,
-  textureSampleLevel(layoutPattern,cloudSampler,patternXY*scale.w,0.0).a);
+  textureSampleGrad(layoutPattern,cloudSampler,patternXY*scale.x,gx*scale.x,gy*scale.x).r,
+  textureSampleGrad(layoutPattern,cloudSampler,patternXY*scale.y,gx*scale.y,gy*scale.y).g,
+  textureSampleGrad(layoutPattern,cloudSampler,patternXY*scale.z,gx*scale.z,gy*scale.z).b,
+  textureSampleGrad(layoutPattern,cloudSampler,patternXY*scale.w,gx*scale.w,gy*scale.w).a);
  let weighted=pattern.xyz*m.typeWeights.xyz;
  let coverage=max(max(weighted.x,weighted.y),weighted.z);
  let profile=m.typeWeights.xyz*vec3f(
@@ -214,7 +233,7 @@ fn cloudMaterialAt(world:vec3f,altitude:f32,cameraRelative:vec3f,time:f32)->Clou
   erosion=erosion*modulation+m.noiseStrength.z*(m.coverageDensity.y+detail.z-m.noiseBias.z);
  }
  let density=vec4f(mix(coverage,max(coverage,pattern.w),storm),mix(coverage,pattern.w,storm),profileLess,erosion);
- let mask=textureSampleLevel(globalMask,cloudSampler,maskXY,0.0).rgb;
+ let mask=textureSampleGrad(globalMask,cloudSampler,maskXY,gx,gy).rgb;
  let masked=dot(m.maskTypeWeights.xyz,mask*m.typeWeights.xyz)*m.maskTypeWeights.w*0.01;
  let perUnit=mix(m.coverageDensity.z,m.coverageDensity.z+CLOUD_STORM_DENSITY*storm,storm);
  let perMetre=(masked+density.y*(density.z+density.w))*perUnit;

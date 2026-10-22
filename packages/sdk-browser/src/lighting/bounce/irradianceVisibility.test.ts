@@ -7,10 +7,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import type { Vec } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
-import { LIGHTS_IRRADIANCE_WGSL } from '../direct/lightLoopWgsl.ts'
+import { lightsIrradianceWgsl } from '../direct/lightLoopWgsl.ts'
 import { DIRECT_LIGHT_WGSL } from '../direct/lightWgsl.ts'
 import { nearRelative } from '../../../../math/src/float/near.fixture.ts'
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
+import { LIGHT_FLAG, LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { TILE_NO_SLICE } from '../tiles/noSlice.ts'
 import { builtins } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
@@ -52,12 +52,14 @@ function lightLoop(rect: boolean) {
   const { lightsIrradiance } = shaderRun<{
     lightsIrradiance: (P: Vec, N: Vec, reach: number) => Vec
   }>(
-    wgslModule(DIRECT_LIGHT_WGSL, LIGHTS_IRRADIANCE_WGSL),
+    wgslModule(DIRECT_LIGHT_WGSL, lightsIrradianceWgsl()),
     ['lightsIrradiance', 'declaredIrradiance'],
     {
       directLights,
       isRect: () => rect,
       isSun: () => false,
+      airTintOf: () => [1, 1, 1],
+      cloudShadowOnSurface: () => 1,
       isSunKind: () => false,
       // No world lists: every light, the loop's fallback (`bounceLightSlice`).
       TILE_NO_SLICE,
@@ -80,7 +82,8 @@ function lightLoop(rect: boolean) {
   )
   const irradiance = (lights: Light[], wall: number) => {
     directLights.items = lights.map(({ height, energy, casts = true, range = 100 }) => ({
-      params: [0, 0, casts ? 1 : 0, 0],
+      // The kind word (a point, the shadow flag), the shadow slot, the share the fog scatters.
+      params: [casts ? LIGHT_FLAG.castsShadow : 0, 0, 1, 0],
       positionRange: [0, height, 0, range],
       colorIntensity: [energy, energy, energy, 1],
       shape: [0, 0, 0, 0],
@@ -168,7 +171,7 @@ function historyOf() {
       scene: [0, 0, 0, 0.01],
       motion: [0.005, 10, 0.9, 0],
     },
-    reflectionView: { radianceViewProj: identity, radiance: [64, 64, 0, 0], slab: [1, 0, 0, 1] },
+    reflectionView: { radianceViewProj: identity, radiance: [64, 64, 0, 1], slab: [1, 0, 0, 1] },
     historyIn: {},
     viewToEye: () => [0, 0, 1],
     textureLoad: (_: unknown, texel: number[]) => [0, half(depths.get(String(texel)) ?? 0), 0, 0],

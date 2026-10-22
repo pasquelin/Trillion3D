@@ -31,7 +31,7 @@ export const MIN_MAX_PATH = `
  let useNew=r.tracedNow||(disoccluded&&((abs(newDepth.range.x-newDepth.range.y)>${NEW_SAMPLE_KM}.0&&abs(newDepth.range.x-newDepth.scene)<abs(newDepth.range.y-newDepth.scene))||oldDepth.scene<newDepth.scene-${NEW_SAMPLE_KM}.0||oldDepth.scene>newDepth.scene+${NEW_SAMPLE_KM}.0));
  var taps=fresh;
  if(!useNew&&r.valid){
-  taps=Taps(sampleHistory(historyColour,r.previousUv),sampleHistory(historySecondary,r.previousUv),oldDepth);
+  taps=Taps(sampleHistoryLight(historyColour,r.previousUv),sampleHistoryLight(historySecondary,r.previousUv),oldDepth);
   if(abs(newDepth.range.x-oldDepth.range.x)>${HISTORY_EDGE_KM}.0){taps=fresh;}
   if(!(finite4(taps.colour)&&finite4(taps.secondary)&&finite2(vec2f(taps.depth.front,taps.depth.scene)))){
    let empty=vec4f(0.0,0.0,0.0,1.0);
@@ -108,7 +108,7 @@ export const plainPath = (boxConstraint: boolean) => `${PLAIN_OUT}${PIXEL_DISTAN
  let newDepth=fixupDepth(depthData(r.depth));
  if(r.tracedNow){return plainOut(freshColour,newDepth);}
  if(!r.valid){return plainOut(sampleTraced(tracedColour,screenUv),depthData(sampleTraced(tracedDepth,screenUv)));}
- var colour=sampleHistory(historyColour,r.previousUv);
+ var colour=sampleHistoryLight(historyColour,r.previousUv);
  var depth=depthData(sampleHistory(historyDepth,r.previousUv));
  let deviceZ=textureLoad(halfDepth,vec2i(position.xy),0).x;
  let distanceKm=pixelDistanceKm(r.cell,deviceZ);
@@ -142,7 +142,7 @@ export const MODE2_PATH = (downsample: number) => `${PLAIN_OUT}
  let screenUv=position.xy*view.destination.zw;
  let r=reproject(position.xy);
  if(r.tracedNow){return plainOut(loadBounded(tracedColour,view.traced,r.cell),depthData(r.depth));}
- if(r.valid){return plainOut(sampleHistory(historyColour,r.previousUv),depthData(sampleHistory(historyDepth,r.previousUv)));}
+ if(r.valid){return plainOut(sampleHistoryLight(historyColour,r.previousUv),depthData(sampleHistory(historyDepth,r.previousUv)));}
  let shift=-(view.offset.xy-(${downsample}.0-1.0)*0.5);
  let uv=screenUv+shift*view.destination.zw;
  return plainOut(sampleTraced(tracedColour,uv),depthData(sampleTraced(tracedDepth,uv)));

@@ -3,7 +3,8 @@
 //! the partition's main grid, whether a skinned one is an instanced skinned object playing a
 //! clip baked into the scene's animation banks (`SkinnedInstance`, `../tables/motion/bank.rs`),
 //! the distances it is drawn at (`DrawDistance`, `draw_distance.rs`), and the name of the
-//! streaming grid it streams on (`RUNTIME_GRID_SETTING`, `PartitionGrid`).
+//! streaming grid it streams on (`RUNTIME_GRID_SETTING`, `PartitionGrid`), and whether a view's
+//! primed depth draws it (`FAR_FIELD_SETTING`).
 //! For each setting of a node, the first that names it:
 //! 1. the first rule of `objectSettings.objects` whose match names the node, as `meshBuild` names
 //!    its objects;
@@ -161,13 +162,15 @@ impl SkinnedInstance {
 /// One node's settings, every one resolved (`ObjectSettings::node`): whether it streams on the
 /// partition's main grid (`SPATIALLY_LOADED_SETTING`), the instance it is when a skinned one
 /// is instanced (`SKINNED_INSTANCE_SETTING`), none when it is not, and the name of the streaming
-/// grid it streams on (`RUNTIME_GRID_SETTING`), none for the first grid.
+/// grid it streams on (`RUNTIME_GRID_SETTING`), none for the first grid, and whether a view's
+/// primed depth draws it (`FAR_FIELD_SETTING`).
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ObjectSetting {
     pub spatially_loaded: bool,
     pub skinned: Option<SkinnedInstance>,
     pub draw_distance: Option<DrawDistance>,
     pub runtime_grid: Option<String>,
+    pub far_field: bool,
 }
 
 /// The settings one source names, each none where it names none; `skinned` names its instance,
@@ -178,6 +181,7 @@ struct Named {
     skinned: Option<Option<SkinnedInstance>>,
     draw_distance: Option<Option<DrawDistance>>,
     runtime_grid: Option<String>,
+    far_field: Option<bool>,
 }
 
 impl Named {
@@ -193,6 +197,9 @@ impl Named {
         let draw_distance = present(map.get(DRAW_DISTANCE_SETTING))
             .map(|v| DrawDistance::read(v, &format!("{what}{DRAW_DISTANCE_SETTING}")))
             .transpose()?;
+        let far_field = present(map.get(FAR_FIELD_SETTING))
+            .map(|v| OPTIONS.boolean(Some(v), &format!("{what}{FAR_FIELD_SETTING}")))
+            .transpose()?;
         let runtime_grid = present(map.get(RUNTIME_GRID_SETTING))
             .map(|v| match v.as_str() {
                 Some(name) if is_grid_name(name) => Ok(name.to_string()),
@@ -207,6 +214,7 @@ impl Named {
             skinned,
             draw_distance,
             runtime_grid,
+            far_field,
         })
     }
 
@@ -217,6 +225,7 @@ impl Named {
             skinned: self.skinned.or_else(|| lower.skinned.clone()),
             draw_distance: self.draw_distance.or(lower.draw_distance),
             runtime_grid: self.runtime_grid.or_else(|| lower.runtime_grid.clone()),
+            far_field: self.far_field.or(lower.far_field),
         }
     }
 
@@ -227,6 +236,7 @@ impl Named {
             skinned: self.skinned.flatten(),
             draw_distance: self.draw_distance.flatten(),
             runtime_grid: self.runtime_grid,
+            far_field: self.far_field.unwrap_or(DEFAULT_FAR_FIELD),
         }
     }
 }

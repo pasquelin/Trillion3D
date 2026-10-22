@@ -55,6 +55,12 @@ export interface ExposureCurveObject {
 export type ExposureCurveOption =
   readonly ExposureCurveKeyOption[] | ExposureCurveObject | null | false
 
+/** The option a session or a world takes for the curve, beside the exposure's settings
+ *  (`exposureOptions.ts`): `exposureCurve`, none by default. */
+export interface ExposureCurveOptions {
+  exposureCurve?: ExposureCurveOption
+}
+
 /** A key resolved: every setting set, the tangents of an `auto` key computed. */
 export interface ExposureCurveKey {
   ev: number

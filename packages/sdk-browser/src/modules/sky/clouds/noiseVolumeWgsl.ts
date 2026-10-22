@@ -15,8 +15,8 @@ import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
  * - R is a classic periodic gradient-noise fractal, three octaves from 8 cells, joined to a sum of
  *   three octaves of the cellular noise over 8, 32 and 56 cells by `W + P · (1 − W)`: the gradient
  *   noise spread between the cellular one and one.
- * - No channel is rescaled. The values stay floats; the table the layout was measured on stored
- *   them in 8 bits, which a half float holds with room to spare.
+ * - No channel is rescaled. The values stay floats, written to a volume of four half floats
+ *   (RGBA16F, as the reference's volume is).
  */
 
 /** Texels a side of the volume. */

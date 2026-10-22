@@ -55,12 +55,19 @@ test('a particle routes its straight colour, where the mask is set', () => {
   type Particle = { fsRouted: (at: object) => Layers & { reactive: number[] } }
   const { fsRouted } = shaderRun<Particle>(
     PARTICLE_DRAW_WGSL,
-    ['fsRouted', 'particle', 'particleClipped', 'perspectiveDivide', ...ROUTE_FUNCTIONS],
+    [
+      'fsRouted',
+      'particle',
+      'particleClipped',
+      'perspectiveDivide',
+      'preExposed',
+      ...ROUTE_FUNCTIONS,
+    ],
     scope,
   )
   // The uniform is read at each call: one run serves both views.
   for (const unlit of [0, 1]) {
-    Object.assign(scope.draw, { color, exposure: 1, curve: ACES, unlit })
+    Object.assign(scope.draw, { color, exposure: 1, preExposure: 1, curve: ACES, unlit })
     for (const at of PIXELS) {
       // A disc's centre, in full life, one unit from the eye and well in front of the scene.
       const out = fsRouted({ at, corner: [0, 0], local: [0, 0, 4], life: 1 })
@@ -83,7 +90,15 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
   for (const kind of [1, 2] as const) {
     const run = shaderRun<{ fs: Fragment; fsFiltered: Fragment }>(
       BLEND_SHADER,
-      ['fs', 'fsFiltered', 'blendFragment', 'blendLit', ...ROUTE_FUNCTIONS],
+      [
+        'fs',
+        'fsFiltered',
+        'blendFragment',
+        'blendLit',
+        'preExposed',
+        'preExposedClipped',
+        ...ROUTE_FUNCTIONS,
+      ],
       {
         ...routeScope(kind, leftHalf),
         fwidth: () => [0, 0, 0],
@@ -98,7 +113,10 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
         // The diagnostic palettes' lookups, never reached by a beauty item.
         diagnosticLevel: () => [0, 0, 0],
         diagnosticHlod: () => [0, 0, 0],
-        uni: { camPos: [0, 0, 5, 1], exposure: 1, toneCurve: ACES, clipPlane: [0, 0, 0, 0] },
+        uni: {
+          ...{ camPos: [0, 0, 5, 1], exposure: 1, preExposure: 1, toneCurve: ACES },
+          clipPlane: [0, 0, 0, 0],
+        },
         BlendOut: (
           color: number[],
           request: number,

@@ -2,7 +2,7 @@ import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
 import type { ClusterManifest, Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { sourceSurface, type PageSurface } from '../pages/surface.ts'
 import { spriteMark } from '../../visibility/shader/spriteWgsl.ts'
-import { withCasting } from '../../visibility/shader/castingMark.ts'
+import { SHADOWLESS_ROOT, withCasting } from '../../visibility/shader/castingMark.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
 import { createPrimitiveTemplates } from './template.ts'
 import { createPageRecords } from './collectRecords.ts'
@@ -87,6 +87,9 @@ export function createCollector(
     allowMissing?: boolean
     /** Leaves out a mesh placed by rows whose primitive is not read yet, mounted later (#751). */
     pendingPlaced?: boolean
+    /** The compiled meshes that have a distance field (`distanceFieldMeshes`): their pages carry
+     *  `PageRec.distanceField` where their source casts a shadow. */
+    distanceFieldMeshes?: ReadonlySet<number>
   } = {},
 ) {
   const worlds = hostWorldPlacements(source)
@@ -114,7 +117,19 @@ export function createCollector(
     const shape = templates.shapeOf(primitive, template)
     // ONE record per primitive page (#1235), shared by every placement of this source object: its
     // world, its row and its packed rank are the layout's, never a field here.
-    const pages = createPageRecords(primitive, template, draw, surface, transparent, order)
+    // A mesh has a distance-field representation where it has a field and casts a dynamic shadow
+    // (its affecting the distance-field lighting is the default, which no node turns off).
+    const distanceField =
+      !!options.distanceFieldMeshes?.has(primitive.mesh) && !(draw.casting & SHADOWLESS_ROOT)
+    const pages = createPageRecords(
+      primitive,
+      template,
+      draw,
+      surface,
+      transparent,
+      order,
+      distanceField,
+    )
     for (const rec of pages) into.allPages.push(rec)
     // One dependency list per object: every placement is installed after the same bundles.
     linkBundleDependencies(primitive, pages)

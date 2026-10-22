@@ -23,12 +23,23 @@ import type { SkyLightTargets } from './targets.ts'
  * cube and the harmonics, whole in a frame once for a cube, an angle, a side and a lower-hemisphere
  * flag; first, for a 32-bit float cube, its brightest value found on the GPU and read back.
  */
-interface CubemapHolds {
+interface CubemapShared {
   readonly device: GPUDevice
   readonly failed: (error: unknown) => void
   readonly filters: FilterStage
   /** Made when the first cubemap is captured. */
   pipelines?: CubemapPipelines
+  copyBlock?: { for: SkyLightTargets; group: GPUBindGroup }
+  sampler?: GPUSampler
+  readonly copyFloats: Float32Array
+  readonly copyUints: Uint32Array
+}
+
+/** The capture of one cube: the source (`w` 0) or the blend's destination (`w` 1, `SetCubemapBlend`), each its own
+ *  filtered cube and harmonics, captured in a frame of its own (they share the copy's block). */
+interface CubemapHolds {
+  readonly w: 0 | 1
+  readonly shared: CubemapShared
   key?: Held
   state: ReturnType<typeof newCubemapState>
   scales: ReturnType<typeof skyLightCubemapScales>
@@ -36,10 +47,6 @@ interface CubemapHolds {
   refused?: GPUTexture
   measuring?: CubemapMeasure
   copySource?: { for: GPUTexture; group: GPUBindGroup }
-  copyBlock?: { for: SkyLightTargets; group: GPUBindGroup }
-  sampler?: GPUSampler
-  readonly copyFloats: Float32Array
-  readonly copyUints: Uint32Array
 }
 
 /** The groups of the copy: the host's cube read bilinearly, and the copy's block. */
@@ -49,9 +56,9 @@ function copyGroups(
   cubemap: GPUTexture,
   made: CubemapPipelines,
 ) {
-  const { device } = h
+  const { device } = h.shared
   if (h.copySource?.for !== cubemap) {
-    h.sampler ??= device.createSampler({
+    h.shared.sampler ??= device.createSampler({
       label: 'Trillion3D sky light cubemap',
       magFilter: 'linear',
       minFilter: 'linear',
@@ -68,20 +75,20 @@ function copyGroups(
             binding: 0,
             resource: cubemap.createView({ dimension: 'cube', baseMipLevel: 0, mipLevelCount: 1 }),
           },
-          { binding: 1, resource: h.sampler },
+          { binding: 1, resource: h.shared.sampler },
         ],
       }),
     }
   }
-  if (h.copyBlock?.for !== t)
-    h.copyBlock = {
+  if (h.shared.copyBlock?.for !== t)
+    h.shared.copyBlock = {
       for: t,
       group: device.createBindGroup({
         layout: made.layouts.block,
         entries: [{ binding: 0, resource: { buffer: t.blocks.copy, size: COPY_LAYOUT.words * 4 } }],
       }),
     }
-  return { source: h.copySource.group, block: h.copyBlock.group }
+  return { source: h.copySource.group, block: h.shared.copyBlock.group }
 }
 
 /** The faces of the captured cube written from the host's cube (`copyFaceMain`) — or, when
@@ -104,12 +111,15 @@ function copyFaces(
   const pipeline = (measure ? made.pipelines.copyWide : made.pipelines.copy).get()
   const first = measure ? CUBE_FACES : 0
   for (let face = 0; face < CUBE_FACES; face++) {
-    h.copyUints.set([face, light.lowerHemisphereIsSolidColor ? 1 : 0, measure ? 0 : 1, 0], at.face)
-    h.copyFloats.set([Math.sin(rotation), Math.cos(rotation), 1 / t.width, 0], at.rotation)
-    h.copyFloats.set([...light.lowerHemisphereColor, 1], at.lower)
-    h.copyFloats.set([scale, scale, scale, 1], at.scale)
+    h.shared.copyUints.set(
+      [face, light.lowerHemisphereIsSolidColor ? 1 : 0, measure ? 0 : 1, 0],
+      at.face,
+    )
+    h.shared.copyFloats.set([Math.sin(rotation), Math.cos(rotation), 1 / t.width, 0], at.rotation)
+    h.shared.copyFloats.set([...light.lowerHemisphereColor, 1], at.lower)
+    h.shared.copyFloats.set([scale, scale, scale, 1], at.scale)
     const offset = (first + face) * BLOCK_STRIDE
-    writeBlock(h.device, t.blocks.copy, offset, h.copyFloats)
+    writeBlock(h.shared.device, t.blocks.copy, offset, h.shared.copyFloats)
     const pass = encoder.beginRenderPass({
       label: 'Trillion3D sky light cubemap copy',
       colorAttachments: [
@@ -140,10 +150,16 @@ function measureCube(
   made: CubemapPipelines,
 ) {
   h.measuring?.destroy()
-  const m = (h.measuring = createCubemapMeasure(h.device, made, t.width, t.mips, t.blocks.filter))
+  const m = (h.measuring = createCubemapMeasure(
+    h.shared.device,
+    made,
+    t.width,
+    t.mips,
+    t.blocks.filter,
+  ))
   copyFaces(h, encoder, t, input, cubemap, made, m)
   downsampleMips(
-    h.filters,
+    h.shared.filters,
     encoder,
     t,
     'Trillion3D sky light cubemap brightness mips',
@@ -152,7 +168,7 @@ function measureCube(
   )
   const gather = encoder.beginComputePass({ label: 'Trillion3D sky light cubemap brightness' })
   gather.setPipeline(made.pipelines.gather.get())
-  gather.setBindGroup(0, m.gather, [filterSlot(h.filters, t, t.mips - 1, 0)])
+  gather.setBindGroup(0, m.gather, [filterSlot(h.shared.filters, t, t.mips - 1, 0)])
   gather.dispatchWorkgroups(1)
   gather.end()
   encoder.copyBufferToBuffer(m.peak, 0, m.read, 0, 4)
@@ -173,7 +189,7 @@ function mapBrightest(h: CubemapHolds) {
     (error: unknown) => {
       if (h.measuring !== m) return
       h.measuring = undefined
-      h.failed(error)
+      h.shared.failed(error)
     },
   )
 }
@@ -181,27 +197,28 @@ function mapBrightest(h: CubemapHolds) {
 /** Whether the cube can be captured: a 32-bit float one needs the device feature, else it is refused
  *  once. */
 function acceptable(h: CubemapHolds, cubemap: GPUTexture, wide: boolean) {
-  if (!wide || h.device.features.has('float32-filterable')) return true
+  if (!wide || h.shared.device.features.has('float32-filterable')) return true
   h.refused = cubemap
-  h.failed(
+  h.shared.failed(
     new Error('A 32-bit float sky light cubemap needs the device feature float32-filterable'),
   )
   return false
 }
 
-/** The host's cube taken to the filtered cube and the harmonics, whole in a frame once for a
- *  cube, an angle, a side and a lower-hemisphere flag; none without a cube. */
+/** The cube `cubemap` taken to filtered cube `h.w` and its harmonics, whole in a frame once for a
+ *  cube, an angle, a side and a lower-hemisphere flag. */
 function encodeCubemap(
   h: CubemapHolds,
   encoder: GPUCommandEncoder,
   t: SkyLightTargets,
   input: SkyLightInputs,
+  cubemap: GPUTexture,
 ) {
-  const { cubemap } = input
-  if (!cubemap || cubemap === h.refused) return
+  if (cubemap === h.refused) return
+  const { shared } = h
   const wide = cubemap.format === LUMINANCE_FORMAT
   if (!acceptable(h, cubemap, wide)) return
-  const made = (h.pipelines ??= createCubemapPipelines(h.device, h.failed))
+  const made = (shared.pipelines ??= createCubemapPipelines(shared.device, shared.failed))
   if (!made.ready(wide)) return
   const key = [
     cubemap,
@@ -211,6 +228,7 @@ function encodeCubemap(
   ]
   if (!sameHeld(h.key, key)) {
     h.key = key
+    h.done = false
     h.measuring?.destroy()
     h.measuring = undefined
     h.state = newCubemapState(wide)
@@ -225,9 +243,9 @@ function encodeCubemap(
       break
     case 'copy':
       copyFaces(h, encoder, t, input, cubemap, made)
-      mipChain(h.filters, encoder, t)
-      filter(h.filters, encoder, t, 0, 0, t.mips - 1, 0, CUBE_FACES)
-      harmonics(h.filters, encoder, t, 0)
+      mipChain(shared.filters, encoder, t)
+      filter(shared.filters, encoder, t, h.w, 0, t.mips - 1, 0, CUBE_FACES)
+      harmonics(shared.filters, encoder, t, h.w)
       h.done = true
       break
     case 'nothing':
@@ -235,40 +253,75 @@ function encodeCubemap(
   }
 }
 
-/** The capture of a specified cubemap: `encode` this frame's work, `reset` when the targets or the
- *  source change, `done` and `scales` for what the lighting reads, and `dispose`. */
+/** A cube's capture state, none yet. */
+const newHolds = (w: 0 | 1, shared: CubemapShared): CubemapHolds => ({
+  w,
+  shared,
+  state: newCubemapState(false),
+  scales: skyLightCubemapScales(0),
+  done: false,
+})
+
+/**
+ * The capture of a specified cubemap, and of the cube it blends to (`SkyLightInputs.blend`,
+ * `SetCubemapBlend`): `encode` this frame's work — the source first, the destination in the frames
+ * after the source is done —, `reset` when the targets or the source change, `done`, `scales` and
+ * `blend` for what the lighting reads, and `dispose`.
+ */
 export function createCubemapCapture(
   device: GPUDevice,
   failed: (error: unknown) => void,
   filters: FilterStage,
 ) {
   const words = new ArrayBuffer(COPY_LAYOUT.words * 4)
-  const h: CubemapHolds = {
+  const shared: CubemapShared = {
     device,
     failed,
     filters,
-    state: newCubemapState(false),
-    scales: skyLightCubemapScales(0),
-    done: false,
     copyFloats: new Float32Array(words),
     copyUints: new Uint32Array(words),
   }
+  const [source, destination] = [newHolds(0, shared), newHolds(1, shared)]
+  /** The fraction of the destination the lighting reads, clamped to 0 .. 1: `blend` of an unfinished or absent destination is 0. */
+  let fraction = 0
   return {
-    encode: (encoder: GPUCommandEncoder, t: SkyLightTargets, input: SkyLightInputs) =>
-      encodeCubemap(h, encoder, t, input),
-    reset() {
-      h.key = undefined
-      h.done = false
+    encode(encoder: GPUCommandEncoder, t: SkyLightTargets, input: SkyLightInputs) {
+      const { cubemap, blend } = input
+      // A destination is captured once the source is, never in its frame (the copy's blocks are shared).
+      const sourceDone = source.done
+      if (cubemap) encodeCubemap(source, encoder, t, input, cubemap)
+      const next = blend && blend.fraction > 0 && sourceDone ? blend : undefined
+      if (next) encodeCubemap(destination, encoder, t, input, next.destination)
+      fraction = next && destination.done ? Math.min(next.fraction, 1) : 0
     },
+    reset() {
+      for (const h of [source, destination]) {
+        h.key = undefined
+        h.done = false
+      }
+      fraction = 0
+    },
+    /** The cubemap's and the captured scene's pipelines, made at the first call. */
+    pipelines: () => (shared.pipelines ??= createCubemapPipelines(device, failed)),
     get done() {
-      return h.done
+      return source.done
+    },
+    /** The cube the lighting reads first: the source, or, a blend whole, the destination. */
+    get layer(): 0 | 1 {
+      return fraction >= 1 ? 1 : 0
+    },
+    /** The share of the destination the lighting mixes into the source's cube (0 when none, or when
+     *  the destination is the cube read). */
+    get blend() {
+      return fraction >= 1 ? 0 : fraction
     },
     get scales() {
-      return h.scales
+      return fraction >= 1 ? destination.scales : source.scales
     },
     dispose() {
-      h.measuring?.destroy()
-      h.measuring = undefined
+      source.measuring?.destroy()
+      destination.measuring?.destroy()
+      source.measuring = destination.measuring = undefined
     },
   }
 }

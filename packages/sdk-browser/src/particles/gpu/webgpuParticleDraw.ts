@@ -6,6 +6,7 @@ import { DRAW_FLOATS, drawOrder, writeDrawWords } from '../drawWords.ts'
 import { displayMaskLayout, type DisplayFilter } from '../../blend/display/displayFilter.ts'
 import { DISC_TOPOLOGY, PARTICLE_DRAW_WGSL, particleDrawShader } from './particlesWgsl.ts'
 import { hasClipDistances } from '../../gpu/core/clipDistances.ts'
+import { DIRECT_AT } from '../../lighting/deferred/view.ts'
 import { particleTargets } from '../particleTargets.ts'
 import { PARTICLE_DRAW_PASS } from '../../diagnostic/stage/passLabels.ts'
 import {
@@ -127,8 +128,8 @@ function drawGroup(
   return kept.drawn!
 }
 
-/** How the image shows a pool, after its own words: `tone`'s exposure and curve (1 and 0 without
- *  one), whether it is `unlit`, and the `width × height` the image draws in. */
+/** How the image shows a pool, after its own words: `tone`'s scale and curve (1 and 0 without
+ *  one) and pre-exposure (1), whether it is `unlit`, and the `width × height` the image draws in. */
 function writeShowWords(
   words: Float32Array,
   tone: ArrayLike<number> | undefined,
@@ -136,11 +137,12 @@ function writeShowWords(
   width: number,
   height: number,
 ) {
-  words[41] = tone?.[3] ?? 1
+  words[41] = tone?.[DIRECT_AT.shown] ?? 1
   words[42] = tone?.[4] ?? 0
   words[43] = unlit ? 1 : 0
   words[44] = width
   words[45] = height
+  words[46] = tone?.[DIRECT_AT.preExposure] ?? 1
 }
 
 /** What an image draws the pools with: `encoder`, the lit image `target` of `size` — the size the

@@ -12,7 +12,7 @@ import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER, snapshotGroups } from './p
 import { PROBE_TEXELS } from './atlas.ts'
 import { ATLAS_CALLS, simulatedAtlas } from './atlas.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
-import { FLOOR_EYE, floorProbes } from './floorProbes.fixture.ts'
+import { FLOOR_ATLAS, FLOOR_EYE, FLOOR_SHADE, floorProbes } from './floorProbes.fixture.ts'
 import { BOUNCE_LIGHT_LISTS_PASS, BOUNCE_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
 import { DEG2RAD } from '../../../../math/src/constants.ts'
@@ -124,7 +124,7 @@ test('a working image copies no atlas: one bounce pass updates, then the snapsho
     }
     return log
   }
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE), true)
+  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE), true)
   const groups = probes.lastProbes,
     work = workOf()
   assert.ok(groups > 0)
@@ -150,7 +150,7 @@ test('a working image copies no atlas: one bounce pass updates, then the snapsho
       work.includes(`pass ${BOUNCE_LIGHT_LISTS_PASS}`),
   )
   const before = work.length
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE), true)
+  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE), true)
   assert.equal(workOf().slice(before).includes(`pass ${BOUNCE_LIGHT_LISTS_PASS}`), false)
   probes.dispose()
   tiles!.dispose()
@@ -166,6 +166,8 @@ test('the screen probes flags say what each image can read: the screen, the hist
     field: true,
     velocity: true,
     previousInverse: identity,
+    relativeThickness: 0.02,
+    fullResDepth: true,
   }
   const ultra = screenProbeSettings()
   assert.equal(
@@ -178,7 +180,9 @@ test('the screen probes flags say what each image can read: the screen, the hist
       F.field |
       F.occlusion |
       F.sceneTraces |
-      F.velocity,
+      F.velocity |
+      F.fullResDepth |
+      F.skipFoliageHits,
   )
   const high = screenProbeSettings({ screenProbes: 'high' })
   assert.equal(
@@ -207,6 +211,8 @@ test('the screen probes flags leave out what an image has not: no history, no ve
     field: true,
     velocity: true,
     previousInverse: identity,
+    relativeThickness: 0.02,
+    fullResDepth: true,
   }
   const ultra = screenProbeSettings()
   const first = { ...all, frame: 0, history: false, screen: false, field: false }
@@ -257,6 +263,8 @@ test('the screen probes parameters are the words of the settings and the image, 
     field: true,
     velocity: true,
     previousInverse,
+    relativeThickness: 0.03,
+    fullResDepth: true,
   })
   write(geometry, settings, image(11))
   const at = SCREEN_PROBE_PARAMS.at
@@ -270,7 +278,7 @@ test('the screen probes parameters are the words of the settings and the image, 
   assert.deepEqual(floats(at.spatial), [1000, 10 * DEG2RAD, 1, 1].map(Math.fround))
   assert.deepEqual(floats(at.scene), [1.8, 40, 0.05, 0.01].map(Math.fround))
   assert.deepEqual(floats(at.motion), [0.005, 10, 0.9, 0].map(Math.fround))
-  assert.deepEqual(floats(at.tuning), [4, 0.4, 0.005, 0.02].map(Math.fround))
+  assert.deepEqual(floats(at.tuning), [4, 0.4, 0.005, 0.03].map(Math.fround))
   assert.deepEqual(floats(at.previous + 4), [0, 2, 0, 0], 'the second column of the last inverse')
   const first = sent
   write(geometry, settings, image(11))

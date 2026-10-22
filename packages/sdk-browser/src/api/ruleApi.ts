@@ -1,9 +1,15 @@
 import type { EngineContext } from '../session/engine/types.ts'
 import { ANIMATION_RULES } from '../../../sdk-core/src/contracts/animationOptions.ts'
 import { CUT_RULES } from '../../../sdk-core/src/contracts/cutOptions.ts'
+import type { ExposureCurveOption } from '../../../sdk-core/src/contracts/exposureCurve.ts'
+import { exposureCurveTable } from '../../../sdk-core/src/contracts/exposureCurveTable.ts'
 import { EXPOSURE_RULES } from '../../../sdk-core/src/contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../../../sdk-core/src/contracts/temporalOptions.ts'
 import { HIZ_RULES } from '../../../sdk-core/src/contracts/hizOptions.ts'
+import { LIGHT_FUNCTION_RULES } from '../../../sdk-core/src/contracts/lightFunctionOptions.ts'
+import { VOLUMETRIC_LIGHTMAP_RULES } from '../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
+import { GLOBAL_DISTANCE_FIELD_RULES } from '../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
+import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
 import { SHADOW_RULES } from '../../../sdk-core/src/contracts/shadowOptions.ts'
 import { MOTION_BLUR_RULES } from '../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import { DEPTH_OF_FIELD_RULES } from '../../../sdk-core/src/contracts/depthOfFieldRules.ts'
@@ -19,6 +25,7 @@ import { WORLD_STREAMING_RULES } from '../../../sdk-core/src/contracts/worldStre
 import { SCREEN_PROBE_RULES } from '../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../../../sdk-core/src/contracts/reflectionOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import { SKY_QUALITY_RULES } from '../../../sdk-core/src/modules/sky/quality.ts'
 
 type Inputs = { check: () => void; context: EngineContext }
 
@@ -46,6 +53,16 @@ export function createExplorerRuleApi({ check, context }: Inputs) {
      *  of the mean, the histogram, the shares left out, the speeds, the transition, the black
      *  bucket and how a pixel's luminance is read; read by the next image's meter. */
     setExposure: settingWriter(EXPOSURE_RULES, context, check),
+    /** Writes the automatic exposure's compensation curve (`exposureCurve.ts`): stops added to the
+     *  target by how bright the scene is, as a list of keys `[ev, compensation]` or a curve
+     *  object; `undefined`, `null` or `false` gives back none. A new value replaces the curve (an
+     *  edit of the old one in place is not seen); one that is not a curve is refused; read by the
+     *  next image's meter. */
+    setExposureCurve(option?: ExposureCurveOption) {
+      exposureCurveTable(option)
+      check()
+      context.exposureCurve = option
+    },
     /** Writes the temporal pass's setting `field` (`temporalOptions.ts`): whether it looks for
      *  geometry thinner than a pixel; read by the next image's pass. */
     setTemporal: settingWriter(TEMPORAL_RULES, context, check),
@@ -53,6 +70,21 @@ export function createExplorerRuleApi({ check, context }: Inputs) {
      *  reads it, whether its trace layers hold the transparent surfaces, how the transparent
      *  clusters are tested against it; read by the next image. */
     setHiz: settingWriter(HIZ_RULES, context, check),
+    /** Writes the light functions' setting `field` (`lightFunctionOptions.ts`): whether the atlas is
+     *  made, its slots and their size, the most lights that read it, its format, and which
+     *  consumers read it; read by the next image. */
+    setLightFunction: settingWriter(LIGHT_FUNCTION_RULES, context, check),
+    /** Writes the volumetric lightmap's setting `field` (`volumetricLightmapOptions.ts`): whether the
+     *  precomputed light is read; read by the next image. */
+    setVolumetricLightmap: settingWriter(VOLUMETRIC_LIGHTMAP_RULES, context, check),
+    /** Writes the global distance field's setting `field` (`globalDistanceFieldOptions.ts`): whether the
+     *  clipmaps are made and updated, their number, extent, resolution and update rhythm, the culling
+     *  and the streaming of the meshes' distance fields into their atlas; read by the next image. */
+    setGlobalDistanceField: settingWriter(GLOBAL_DISTANCE_FIELD_RULES, context, check),
+    /** Writes the distance-field occlusion's setting `field` (`distanceFieldOcclusionOptions.ts`): whether the sky
+     *  light is occluded by the distance fields and how it is traced, filtered over time and applied; read by the next
+     *  image. */
+    setDistanceFieldOcclusion: settingWriter(DISTANCE_FIELD_OCCLUSION_RULES, context, check),
     /** Writes the sun's shadow setting `field` (`shadowOptions.ts`): the scale of every sun's
      *  shadow distance, whether its shadow maps leave out the casters past it, and which casters
      *  that test reaches; read by the next frame's shadow planning. */
@@ -91,6 +123,10 @@ export function createExplorerRuleApi({ check, context }: Inputs) {
      *  jitter, history weight, depth distribution, emissive, conservative depth, distance bias,
      *  sample jitter and grid offset it is read with; read by the next frame's fog volume. */
     setVolumetricFog: settingWriter(VOLUMETRIC_FOG_RULES, context, check),
+    /** Writes the sky's quality setting `field` (`sky/quality.ts`): the atmosphere's switches,
+     *  samples, caps and tables, the clouds', the light shafts' and the sky light's; read by the next
+     *  image's passes. */
+    setSkyQuality: settingWriter(SKY_QUALITY_RULES, context, check),
     /** Writes the tessellation's setting `field` (`tessellationOptions.ts`): whether a displaced
      *  material is tessellated, the size in pixels of the micro-triangles it is diced to, the
      *  patches a group of the dicing pass takes, and the patches the splitting queue and the

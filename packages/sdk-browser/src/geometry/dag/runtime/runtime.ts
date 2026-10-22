@@ -182,7 +182,8 @@ function selectionOver(run: DagRun, roots: RootsOnGpu): GpuSelection {
     encodePost: (encoder, pyramid) => live() && run.encodePost(encoder, pyramid),
     bindPyramid: (pyramid) => run.bindPyramid(pyramid),
     peek: () => (state.dead ? null : state.last),
-    aside: () => createAsideCut(resources, state, { copyOwed: run.copyOwed, syncTables }),
+    aside: (primed) =>
+      createAsideCut(resources, state, { copyOwed: run.copyOwed, syncTables }, primed),
     adopt: (cut) => (!state.dead && cut === state.last ? chain.adopt() : undefined),
     failed: () => state.dead,
     landed: () => state.pending.then(() => {}),

@@ -116,7 +116,7 @@ export interface ResolvedHeightFog {
 }
 
 /** The defaults of a height fog, the converted ones of the engines that fixed them. */
-const HEIGHT_FOG_DEFAULTS: ResolvedHeightFog = {
+export const HEIGHT_FOG_DEFAULTS: ResolvedHeightFog = {
   color: [0, 0, 0],
   baseDensity: 0.002,
   falloff: 0.02,

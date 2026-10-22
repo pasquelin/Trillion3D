@@ -26,6 +26,8 @@ pub(super) fn finish_job(
         proxy_sha,
         proxy_descriptor,
         voxels,
+        distance_fields,
+        volumetric_lightmap,
         products,
         paged,
         mut world_report,
@@ -68,6 +70,14 @@ pub(super) fn finish_job(
         "primitives": primitives, "simplification": o.simplification != "none",
         "metrics": metrics, "unsupported": unsupported,
     });
+    // Named only by a scene whose meshes build a distance field.
+    if let Some(fields) = distance_fields {
+        result["distanceFields"] = fields;
+    }
+    // Named only by a job that baked a volumetric lightmap.
+    if let Some(lightmap) = volumetric_lightmap {
+        result["volumetricLightmap"] = lightmap;
+    }
     // Named only by a scene whose objects play an item of the animation banks.
     if let Some(banks) = animation_banks {
         result["animationBanks"] = banks;

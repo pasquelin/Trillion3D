@@ -1,13 +1,15 @@
-import { DEFERRED_BINDINGS } from './bindings.ts'
+import { DEFERRED_BINDINGS, DEFERRED_SKY_LIGHT_BINDINGS } from './bindings.ts'
+import { skyLightReadWgsl } from '../../modules/sky/skyLight/read.ts'
 import { FULLSCREEN_XY } from '../../gpu/shader/fullscreenTriangle.ts'
 import { contractSurfaceBody, LIGHT_SURFACE_ENTRY } from './surfaceWgsl.ts'
+import { SURFACE_COLOUR_LAYERS, SURFACE_WORDS } from '../../materials/surface/surfaceOutputs.ts'
 import { SUBSURFACE_TARGET } from '../../materials/surface/subsurface.ts'
 import { SURFACE_EMISSIVE_AO_WGSL } from '../../materials/surface/surfaceEmission.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { directLightingWgsl } from '../direct/lightingWgsl.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from './contractCuts.ts'
 import { BOUNCE_APPLY_WGSL } from '../bounce/applyWgsl.ts'
-import { SKY_READ_WGSL } from '../atmosphere/skyReadWgsl.ts'
+import { SKY_DIFFUSE_READ_WGSL } from '../atmosphere/skyReadWgsl.ts'
 import { DISPLAY_VALUE_WGSL } from '../toneMappingWgsl.ts'
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { AS_IS_FLAG } from '../../materials/surface/surfaceModel.ts'
@@ -29,10 +31,9 @@ const surfaceBindingsWgsl = () =>
   wgslBlock(
     'surfaceBindingsWgsl',
     [VIEW_WGSL],
-    `@group(0) @binding(${DEFERRED_BINDINGS.baseMetal}) var baseMetal:texture_2d<f32>;
-@group(0) @binding(${DEFERRED_BINDINGS.normalRough}) var normalRough:texture_2d<f32>;
+    `@group(0) @binding(${DEFERRED_BINDINGS.colours}) var colours:texture_2d_array<f32>;
 @group(0) @binding(${DEFERRED_BINDINGS.emissiveAo}) var emissiveAo:texture_2d<f32>;
-@group(0) @binding(${DEFERRED_BINDINGS.flags}) var flags:texture_2d<u32>;
+@group(0) @binding(${DEFERRED_BINDINGS.words}) var words:texture_2d_array<u32>;
 @group(0) @binding(${DEFERRED_BINDINGS.depth}) var depth:texture_depth_2d;
 @group(0) @binding(${DEFERRED_BINDINGS.view}) var<uniform> view:View;`,
   )
@@ -47,16 +48,16 @@ export const UNLIT_LIGHTING_PROGRAM = wgslBlock(
   [VIEW_WGSL, surfaceBindingsWgsl(), SURFACE_EMISSIVE_AO_WGSL, FULLSCREEN_VERTEX],
   `
 ${LIGHT_SURFACE_ENTRY}
- let coord=vec2i(pixel.xy);let flag=textureLoad(flags,coord,0).r;
+ let coord=vec2i(pixel.xy);let flag=textureLoad(words,coord,${SURFACE_WORDS.flags},0).r;
  if(flag==0u){return vec4f(0.0);}
- return vec4f(textureLoad(baseMetal,coord,0).rgb+surfaceEmissiveAo(coord,flag).rgb,1.0);
+ return vec4f(textureLoad(colours,coord,${SURFACE_COLOUR_LAYERS.base},0).rgb+surfaceEmissiveAo(coord,flag).rgb,1.0);
 }`,
 )
-/** Contract bindings: declared lights and their per-tile lists. The shadow mask, its transmission
+/** Contract bindings: declared lights and their per-tile lists, and the sky light's reads. The shadow mask, its transmission
  *  and tile words are declared with the shadow read (`directShadowWgsl`). */
 const CONTRACT_BINDINGS_WGSL = wgslBlock(
   'CONTRACT_BINDINGS_WGSL',
-  [],
+  [skyLightReadWgsl(DEFERRED_SKY_LIGHT_BINDINGS)],
   `@group(0) @binding(${DEFERRED_BINDINGS.lights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${DEFERRED_BINDINGS.tiles}) var<storage,read> tileLights:array<u32>;`,
 )
@@ -74,7 +75,7 @@ const BOUNCE_SURFACE_WGSL = wgslBlock(
  *  sky nothing hides (\`environmentSky\`). */
 const NO_BOUNCE_WGSL = wgslBlock(
   'NO_BOUNCE_WGSL',
-  [SKY_READ_WGSL],
+  [SKY_DIFFUSE_READ_WGSL],
   `fn sampleBounce(P:vec3f,N:vec3f)->vec3f{return vec3f(0.0);}
 fn indirectIrradiance(P:vec3f,N:vec3f)->vec3f{return vec3f(0.0);}
 fn environmentSky(N:vec3f)->vec3f{return skyIrradiance(N);}`,
@@ -171,7 +172,7 @@ fn composeColor(pixel:vec4f)->vec4f{
  let c3=sourceNear(at,vec2f(0.0,-1.0));let c4=sourceNear(at,vec2f(0.0,1.0));
  let a0=luminance(value.rgb);
  let steps=abs(vec4f(a0)-vec4f(luminance(c1),luminance(c2),luminance(c3),luminance(c4)));
- let edge=saturate(1.0-view.lightParams.w*gain*max(max(steps.x,steps.y),max(steps.z,steps.w)));
+ let edge=saturate(1.0-view.preExposure.y*gain*max(max(steps.x,steps.y),max(steps.z,steps.w)));
  let delta=(c1+c2+c3+c4)-value.rgb*4.0;
  return composeAt(at,vec4f(value.rgb+delta*(-edge*strength/6.0),value.a),gain);
 }`
@@ -276,12 +277,13 @@ const compositionsOf = (chain: Chain) => ({
 /**
  * Contract composition: exposure multiplies linear radiance before the display curve the scene
  * chose — the film curve unless it chose another —, last link of the chain. That is the one of
- * programs lit by declared lights. The exposure is `view.lightParams.w`: the scene's number, or,
- * where it is `'auto'`, the one the GPU measured on this very image and copied there just before
+ * programs lit by declared lights. The image holds light multiplied by its pre-exposure; the
+ * scale is `view.preExposure.y`: the exposure over that pre-exposure, the scene's number, or, where
+ * it is `'auto'`, the one the GPU measured on this very image and copied there just before
  * (`../../post/exposure/frame.ts`).
  */
 export const CONTRACT_COMPOSITIONS = compositionsOf({
-  exposed: 'value.rgb*view.lightParams.w/max(value.a,1e-6)',
+  exposed: 'value.rgb*view.preExposure.y/max(value.a,1e-6)',
   curve: 'u32(view.display.x)',
   lit: true,
 })

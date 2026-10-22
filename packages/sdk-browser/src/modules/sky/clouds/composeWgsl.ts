@@ -1,11 +1,9 @@
 import { pixelToNdc, unprojectPoint } from '../../../../../math/src/wgsl/projection.ts'
-import { ATMOSPHERE_SLOT } from '../../../../../sdk-core/src/scene/core/atmospherePack.ts'
-import { FOG_MODE, FOG_SLOT } from '../../../../../sdk-core/src/scene/core/fog.ts'
-import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { rand3dPcg16 } from '../../../../../math/src/wgsl/sampling.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
 import { FULLSCREEN_VERTEX } from '../../../lighting/deferred/shaders.ts'
 import { fogBlockOf } from '../../../lighting/fog/readWgsl.ts'
+import { preExposedWgsl } from '../../../post/exposure/preWgsl.ts'
 import {
   AIR_FOG_BINDINGS,
   airProgram,
@@ -15,6 +13,7 @@ import type { CloudSetup } from './cloudModes.ts'
 import { MIN_MAX_BILATERAL, PLAIN_BILATERAL } from './composeBilateralWgsl.ts'
 import {
   BILINEAR_UPSAMPLING,
+  DIRECT_COMPOSE,
   JITTER_DEPTH_UPSAMPLING,
   JITTER_UPSAMPLING,
   NEAREST_UPSAMPLING,
@@ -26,7 +25,8 @@ import { BOUNDED_READ_WGSL, BOUNDS_FIELD, DEVICE_DEPTH_FLOOR } from './reconstru
  *  cloud (kilometres), the distance every depth must pass for the cloud to be read bilinearly,
  *  whether the fog is laid on the cloud here (1) or was in the trace (0), and the frame index
  *  modulo 8; and `scale`: the view's pixels to the images' (the position of a pixel in them is its
- *  own times it, over the images' size) and the images' pixel in the view's. */
+ *  own times it, over the images' size), the images' pixel in the view's, and the pre-exposure the
+ *  fog laid here is multiplied by (`z`). */
 export const COMPOSE_VIEW = fieldLayout('ComposeView', [
   ['textureSize', 'vec4f'],
   ['bounds', BOUNDS_FIELD],
@@ -48,24 +48,6 @@ export const COMPOSE_BINDING = {
 export const COMPOSE_AIR_BINDINGS: AirBindings = { air: 'read', frame: true, fog: true }
 
 const B = COMPOSE_BINDING
-
-/** The fog of the scene, the haze apart — the cloud's own trace lays the haze: the height fog or
- *  the linear one, the volume nearest of all. The trace lays it with the late fog off, the
- *  composition with it on. */
-export const CLOUD_FOG_WGSL = wgslBlock(
-  'CLOUD_FOG_WGSL',
-  [fogBlockOf(AIR_FOG_BINDINGS)],
-  `
-fn cloudFog(P:vec3f,eye:vec3f)->vec4f{
- let mode=directLights.fog[${FOG_SLOT.color}].w;
- let withSky=directLights.atmosphere[${ATMOSPHERE_SLOT.planet}].x!=0.0;
- var over=vec4f(0.0,0.0,0.0,1.0);
- if(mode>${FOG_MODE.exponential - 0.5}){
-  over=fogStack(fogVolumeLookup(P-eye,false),heightFog(P,eye,withSky));
- }else if(mode>${FOG_MODE.none}.5){over=linearFog(P,eye,withSky);}
- return over;
-}`,
-)
 
 /** What every program declares: the uniform, the cloud images (the secondary one with two
  *  surfaces), the scene's depth and the sampler. */
@@ -110,8 +92,8 @@ fn fogAtPixel(pixel:vec2f,depthKm:f32,cloud:vec4f)->vec4f{
  if(view.distances.z==0.0||coverage<=0.0){return cloud;}
  let ndc=pixelToNdc(pixel,frame.size.xy);
  let dir=normalize(unprojectPoint(frame.inverseViewProj,vec3f(ndc,0.5))-frame.eye.xyz);
- let fog=cloudFog(frame.eye.xyz+dir*(depthKm*1000.0),frame.eye.xyz);
- return vec4f(cloud.rgb*fog.a+coverage*fog.rgb,cloud.a);
+ let fog=fogOverNoHaze(frame.eye.xyz+dir*(depthKm*1000.0),frame.eye.xyz);
+ return vec4f(cloud.rgb*fog.a+coverage*preExposed(fog.rgb),cloud.a);
 }
 /** The same for the sample at texture coordinates \`uv\` of the cloud images, whose pixel in the view
  *  they name. */
@@ -136,9 +118,10 @@ const SCENE = `
 
 /** What a setup composes with: the way (an index of `CLOUD_UPSAMPLINGS`) and whether the cloud
  *  images hold two surfaces. */
-export type ComposeVariant = Pick<CloudSetup, 'upsampling' | 'minMaxDepth'>
+export type ComposeVariant = Pick<CloudSetup, 'upsampling' | 'minMaxDepth' | 'direct'>
 
-function bodyOf({ upsampling, minMaxDepth }: ComposeVariant) {
+function bodyOf({ upsampling, minMaxDepth, direct }: ComposeVariant) {
+  if (direct) return DIRECT_COMPOSE
   switch (upsampling) {
     case 0:
       return BILINEAR_UPSAMPLING
@@ -161,7 +144,7 @@ const programs = new Map<string, string>()
  * the transmittance (`COMPOSE_TARGET`, `compose.ts`). The way the images are enlarged is the
  * setup's (`CloudSetup.upsampling`): the four are in `composeUpsampleWgsl.ts`, the bilateral one
  * in `composeBilateralWgsl.ts`. A program is made for each way and for the images holding two
- * surfaces or one; each is made once.
+ * surfaces or one, and one for a direct trace (`DIRECT_COMPOSE`); each is made once.
  *
  * Where the way reads the scene's depth (all but the first two), per view pixel its distance from
  * the eye, from the scene depth, under the cloud's start distance takes no cloud.
@@ -169,7 +152,7 @@ const programs = new Map<string, string>()
  * the fog along it, the haze apart.
  */
 export function composeProgram(variant: ComposeVariant) {
-  const key = `${variant.upsampling}${variant.minMaxDepth}`
+  const key = `${variant.direct ? 'd' : variant.upsampling}${variant.minMaxDepth}`
   let code = programs.get(key)
   if (code === undefined) {
     code = airProgram(
@@ -180,7 +163,8 @@ export function composeProgram(variant: ComposeVariant) {
 }
 `,
       [
-        CLOUD_FOG_WGSL,
+        fogBlockOf(AIR_FOG_BINDINGS),
+        preExposedWgsl('view.scale.z'),
         pixelToNdc,
         unprojectPoint,
         rand3dPcg16,

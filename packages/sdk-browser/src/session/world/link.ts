@@ -7,6 +7,7 @@ import { isLightNode } from '../../scene/host/graph/kinds.ts'
 import type { createWorldContents } from './contents.ts'
 import type { WorldSceneLink } from './scene.ts'
 import type { Batch } from './batches.ts'
+import type { ModuleOption } from '../../../../sdk-core/src/modules/descriptor.ts'
 
 type Parts = {
   contents: ReturnType<typeof createWorldContents>
@@ -17,14 +18,16 @@ type Parts = {
   relight: () => void
   /** Folds a scene change into the next resolution. */
   schedule: () => void
+  /** The scene's word on the sky module: applied at once, the lights written again. */
+  sky: (option: ModuleOption) => void
 }
 
 /**
  * What a world's scene tells its runtime: a pose moved (the row is written before the next
  * frame, the lights again when one it holds moved), a parent's children changed, or a mesh's
  * geometry or material was written (both resolved again, off the frame). A background change is
- * no change of structure: a frame is asked, which writes it (`background.ts`); a fog change
- * is written with the lights, like exposure.
+ * no change of structure: a frame is asked, which writes it (`background.ts`); a sky word is
+ * applied by the world's modules (`worldModules.ts`), which write the lights again.
  */
 export function createWorldLink(parts: Parts): WorldSceneLink {
   const { contents, lights, schedule } = parts
@@ -79,8 +82,7 @@ export function createWorldLink(parts: Parts): WorldSceneLink {
       parts.relight()
       parts.invalidate()
     },
-    fog: parts.relight,
-    atmosphere: parts.relight,
+    sky: parts.sky,
   }
 }
 

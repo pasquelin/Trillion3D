@@ -8,19 +8,28 @@ import {
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { cellGrid, DEFAULT_MAX_VOLUME_DIMENSION, type FogGrid } from './layout.ts'
 import { createFogGroups, encodeFogPasses, type FogPassInputs } from './passes.ts'
+import { newFogStaticLight, staticTermWanted } from './staticLight.ts'
 import type { FogRead } from './read.ts'
 import { createFogVolumeResources, type FogVolumeResources } from './resources.ts'
+import { createVoxelBuffers, type VoxelBuffers } from './voxelGpu.ts'
+import type { SceneFogVolumeStore } from '../../../../sdk-core/src/scene/volume/store.ts'
 
 /** What one image gives the volume's passes: the image — its camera, the medium, the run's settings,
  *  the sun's rank, the light grid's columns and rows, the image's number (`FogVolumeImage`), minus
  *  the previous image, which the volume keeps, the grids and the furthest-depth switch, which it
  *  decides — and the resources it reads: the scene's depth and its pyramid, the light buffer and
  *  its light lists, the virtual shadow maps the sun's shadow reads (the very ones a blended surface
- *  binds), and the fog's cubemap, none where it has none. */
+ *  binds), and the fog's cubemap, none where it has none — with what it takes of the baked light
+ *  (`FogStaticLight`) and the lightmap that light is read from, none where the image reads none. */
 export interface FogVolumeInputs
   extends
-    Omit<FogVolumeImage, 'previous' | 'grid' | 'resource' | 'rebuildSamples' | 'skipHidden'>,
+    Omit<
+      FogVolumeImage,
+      'previous' | 'grid' | 'resource' | 'rebuildSamples' | 'skipHidden' | 'voxels' | 'staticBuilt'
+    >,
     FogPassInputs {
+  /** The objects of the volume material domain, none where the scene holds none. */
+  volumes?: SceneFogVolumeStore
   /** A camera cut: the image before is no history for this one. */
   cut?: boolean
   /** The size the targets were made for, pixels: the textures follow it, the camera's size being the
@@ -44,6 +53,8 @@ interface Parts {
   image: FogVolumeImage
   /** What the passes are made over, refilled each image. */
   context: Parameters<typeof encodeFogPasses>[1]
+  /** The voxelisation's buffers. */
+  voxel: VoxelBuffers
 }
 
 /** What the volume remembers of the image before: its view-projection and size
@@ -105,6 +116,8 @@ function writeFrame(
   input: FogVolumeInputs,
   knobs: { rebuildSamples: number },
   skipHidden: boolean,
+  voxels: boolean,
+  staticBuilt: boolean,
 ) {
   const { previous } = history
   image.camera = input.camera
@@ -113,10 +126,14 @@ function writeFrame(
   image.sunRank = input.sunRank
   image.lightCells = input.lightCells
   image.frameIndex = input.frameIndex
+  image.preExposure = input.preExposure
   image.grid = history.view
   image.resource = history.resource.grid
   image.rebuildSamples = knobs.rebuildSamples
   image.skipHidden = skipHidden
+  image.voxels = voxels
+  image.staticLight = input.staticLight
+  image.staticBuilt = staticBuilt
   image.previous =
     history.known && !input.cut && previous.skipHidden === skipHidden ? previous : undefined
   writeFogVolumeFrame(words, image)
@@ -138,7 +155,9 @@ function buildVolume(
   const { camera } = input
   if (!knobs || !camera.perspective) return void (history.known = false)
   gridsOf(history, camera, input.allocated, knobs, maxDimension)
-  const textures = resources.texturesOf(history.resource.grid)
+  const voxels = parts.voxel.write(input.volumes, camera, input.settings, input.medium)
+  const staticBuilt = !!input.lightmap && staticTermWanted(input.staticLight)
+  const textures = resources.texturesOf(history.resource.grid, voxels > 0, staticBuilt)
   if (!textures) return void (history.known = false)
   if (resources.generation !== history.made) {
     history.made = resources.generation
@@ -146,7 +165,9 @@ function buildVolume(
   }
   // Cells are held hidden where the setting says and the frame built the pyramid they are read from.
   const skipHidden = input.settings.volumetricFogSkipHidden && !!input.hiz
-  writeFrame(device, parts, history, input, knobs, skipHidden)
+  writeFrame(device, parts, history, input, knobs, skipHidden, voxels > 0, staticBuilt)
+  context.voxelObjects = voxels
+  context.staticBuilt = staticBuilt
   context.ping = history.ping
   context.cells = history.view
   context.whiteCubemap = none.cubemap
@@ -155,6 +176,7 @@ function buildVolume(
   previous.viewProj.set(camera.viewProj)
   previous.width = camera.width
   previous.height = camera.height
+  previous.preExposure = input.preExposure
   previous.skipHidden = skipHidden
   history.known = true
   history.ping = 1 - history.ping
@@ -163,6 +185,7 @@ function buildVolume(
 
 /** What an image's work holds (`Parts`), made once: nothing in it is allocated again. */
 function newParts(device: GPUDevice, resources: FogVolumeResources, none: FogRead): Parts {
+  const voxel = createVoxelBuffers(device)
   return {
     resources,
     none,
@@ -177,18 +200,27 @@ function newParts(device: GPUDevice, resources: FogVolumeResources, none: FogRea
       settings: unset(),
       rebuildSamples: 0,
       skipHidden: false,
+      voxels: false,
+      staticLight: newFogStaticLight(),
+      staticBuilt: false,
       sunRank: -1,
       lightCells: [0, 0],
       frameIndex: 0,
+      preExposure: 1,
     },
     context: {
       device,
       resources,
       groups: unset(),
       whiteCubemap: none.cubemap,
+      emptyVolume: none.volume,
       ping: 0,
       cells: NO_GRID,
+      voxel,
+      voxelObjects: 0,
+      staticBuilt: false,
     },
+    voxel,
   }
 }
 
@@ -198,6 +230,7 @@ const newHistory = (): History => ({
     viewProj: new Float32Array(16),
     width: 0,
     height: 0,
+    preExposure: 1,
     skipHidden: false,
   },
   known: false,
@@ -214,9 +247,10 @@ const newHistory = (): History => ({
  * wrote. `none`, the stand-ins a fog with no cubemap is bound to (`createFogStandIns`), which the
  * caller owns. One per view: a view that draws beside another has a volume and a history of its own.
  *
- * Each image it builds the volume in three passes: the furthest depth around each cell across the
- * image, the light each cell scatters blended with the volume of the image before, and the sum
- * along each column. It builds none — `encode` answers no volume — where the quality is `off`, the
+ * Each image it builds the volume in passes: the furthest depth around each cell across the
+ * image, the objects of the volume material domain voxelised into the medium (where the scene
+ * holds any), the light each cell scatters blended with the volume of the image before, and the
+ * sum along each column. It builds none — `encode` answers no volume — where the quality is `off`, the
  * camera is not a perspective or the budget refuses the textures. Its pipelines compile off the
  * frame (`ask`): the frames wait for them.
  */
@@ -256,6 +290,7 @@ export function createFogVolumeGpu(
     },
     dispose() {
       resources.dispose()
+      parts.voxel.dispose()
     },
   }
 }

@@ -6,6 +6,7 @@ import { pow2FromExponent } from '../../../../math/src/wgsl/integer.ts'
 import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
 import {
   SURFACE_RECEIVER_WORDS,
+  SURFACE_WORDS,
   SURFACE_WORDS_FORMAT,
 } from '../../materials/surface/surfaceOutputs.ts'
 
@@ -53,14 +54,14 @@ export const SHADOW_RECEIVER_STRUCT_WGSL = wgslBlock(
 /** The reader's `shadowReceiver(pixel)`, the resolve's result (`receiverOffsetWgsl.ts`): the
  *  pixel's two words (`shadowReceiverTexel`) — the two layers of its view of the surfaces' words
  *  (`SurfaceBuffer.receiverView`) — decoded (`shadowReceiverOf`), each for a reader that loads the
- *  words ahead of their decode. */
-export const receiverTargetReadWgsl = (group: number, binding: number) =>
+ *  words ahead of their decode. With `within`, the name of a binding of the whole words (every
+ *  layer, the flags first, the receiver's two after them) the program declares: no binding of its own. */
+export const receiverTargetReadWgsl = (group: number, binding: number, within?: string) =>
   wgslBlock(
-    `receiverTargetReadWgsl(${group}, ${binding})`,
+    `receiverTargetReadWgsl(${group}, ${binding}${within ? `, ${within}` : ''})`,
     [SHADOW_RECEIVER_STRUCT_WGSL, octDecode, unitToSigned2, pow2FromExponent],
-    `
-@group(${group}) @binding(${binding}) var receiverTarget:texture_2d_array<u32>;
-fn shadowReceiverTexel(pixel:vec2i)->vec2u{return vec2u(textureLoad(receiverTarget,pixel,0,0).x,textureLoad(receiverTarget,pixel,1,0).x);}
+    `${within ? '' : `\n@group(${group}) @binding(${binding}) var receiverTarget:texture_2d_array<u32>;`}
+fn shadowReceiverTexel(pixel:vec2i)->vec2u{return vec2u(textureLoad(${within ?? 'receiverTarget'},pixel,${within ? SURFACE_WORDS.receiver : 0},0).x,textureLoad(${within ?? 'receiverTarget'},pixel,${within ? SURFACE_WORDS.receiver + 1 : 1},0).x);}
 fn shadowReceiver(pixel:vec2f)->ShadowReceiver{return shadowReceiverOf(shadowReceiverTexel(vec2i(pixel)));}
 fn shadowReceiverOf(t:vec2u)->ShadowReceiver{
  let field=(t.x>>20u)&31u;

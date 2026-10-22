@@ -192,6 +192,8 @@ export const SCREEN_PROBE_FLAGS = {
   meshTraces: 1 << 10,
   velocity: 1 << 11,
   fastUpdateClamp: 1 << 12,
+  fullResDepth: 1 << 13,
+  skipFoliageHits: 1 << 14,
 } as const
 
 /**
@@ -206,7 +208,9 @@ export const SCREEN_PROBE_FLAGS = {
  * made within, the bias off a surface and the history's relative depth threshold; `motion`, the relative speed
  * difference from which a ray's end moves, the inverse of the share of moving light from which the history gives
  * way, and the most it gives way by; `tuning`, the frames and the share of a probe's pixels that make it
- * disoccluded, the history's depth thickness and the relative thickness of the screen trace; `previous`, the inverse of
+ * disoccluded, the history's depth thickness and the relative thickness of the screen trace times the projection's
+ * depth scale (`screenRelativeThickness`); `trace`, the scale of a surface's thickness where it has no distance field and
+ * the linear steps that look for a thin feature past a hit; `previous`, the inverse of
  * the view-projection the last lit image was drawn with.
  */
 export const SCREEN_PROBE_PARAMS = fieldLayout('ScreenProbeParams', [
@@ -219,6 +223,7 @@ export const SCREEN_PROBE_PARAMS = fieldLayout('ScreenProbeParams', [
   ['scene', 'vec4f'],
   ['motion', 'vec4f'],
   ['tuning', 'vec4f'],
+  ['trace', 'vec4f'],
   ['previous', 'mat4x4f'],
 ] as const)
 /** Bytes of the parameters. */

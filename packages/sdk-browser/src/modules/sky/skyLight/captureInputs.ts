@@ -1,6 +1,7 @@
 import type { ResolvedAtmosphere } from '../../../../../sdk-core/src/scene/core/atmosphere.ts'
 import type { SkyLightPart } from '../../../../../sdk-core/src/modules/sky/skyLight.ts'
 import type { CloudPart } from '../../../../../sdk-core/src/modules/sky/clouds.ts'
+import type { AirShadowMaps } from '../../../lighting/atmosphere/bindings.ts'
 import type { FogRead } from '../../../lighting/fog/read.ts'
 import type { CloudTraceImage } from '../clouds/traceLayout.ts'
 
@@ -21,6 +22,12 @@ export interface SkyLightInputs {
     readonly transmittance: GPUTextureView
     readonly multiScatter: GPUTextureView
     readonly sampler: GPUSampler
+    /** The buffer of the haze's volumes, whose third region is the haze all around the capture's
+     *  place (`AtmosphereGpu.volumes`): the clouds' tracing reads it. */
+    readonly volumes: GPUBuffer
+    /** The virtual shadow maps the air's lights shade the air with, or their stand-ins: read by the
+     *  sky of the faces where `skyLightShadowFromOpaque` asks for it. */
+    readonly maps?: AirShadowMaps
   }
   /** The host's cube, when the light's source is a specified cubemap and it captures no sky in
    *  real time (`skyLightSource`): six square faces of one side, a cube-compatible 2d array texture
@@ -28,6 +35,10 @@ export interface SkyLightInputs {
    *  is read, bilinearly; a 32-bit float one needs the device's `float32-filterable`. None, the
    *  light has no sky. */
   readonly cubemap?: GPUTexture
+  /** The cube the host's cube blends to and the share of it (`SetCubemapBlend`): the light reads the
+   *  source mixed with the destination by `fraction`, a destination whole where it is 1. Only for a
+   *  specified cubemap. */
+  readonly blend?: { readonly destination: GPUTexture; readonly fraction: number }
   /** Whether the scene has an atmosphere, drawn into the faces. */
   readonly atmosphere: boolean
   /** The fog's resources, bound by the programs that read the fog (the distant fog and the clouds'

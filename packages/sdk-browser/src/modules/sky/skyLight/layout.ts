@@ -27,6 +27,10 @@ export const CAPTURE_MAX_RADIANCE = 64512
 const TEXTURE_BINDING = 4,
   STORAGE_BINDING = 8,
   RENDER_ATTACHMENT = 16
+/** The cubes the filtered texture holds: the two the real-time capture takes turns in, or a
+ *  specified cubemap's source and, after it, the blend's destination. */
+export const FILTERED_CUBES = 2
+
 /** The captured cube is drawn into, filtered from and written by the mip chain; the filtered cubes
  *  are written by compute and sampled. */
 export const CAPTURED_CUBE_USAGE = TEXTURE_BINDING | STORAGE_BINDING | RENDER_ATTACHMENT
@@ -38,6 +42,12 @@ export const CLOUD_FACE_USAGE = TEXTURE_BINDING | STORAGE_BINDING
 export const TIME_SLICE_COUNT = 12
 /** `vec4`s of the harmonics' buffer: seven of the light's, one of the mean irradiance. */
 export const IRRADIANCE_VECTORS = 8
+/** The harmonics' buffer holds a set for each filtered cube (the cubes the real-time capture takes turns
+ *  in, or a specified cubemap and the cube it blends to), each at a multiple of the 256 bytes a storage
+ *  binding's offset is a multiple of: `HARMONICS_SET_VECTORS` vec4s apart. */
+export const HARMONICS_SETS = 2
+export const HARMONICS_SET_BYTES = 256
+export const HARMONICS_SET_VECTORS = HARMONICS_SET_BYTES / 16
 /** The threads of the harmonics' group along each side; one group, one thread to a direction. */
 export const IRRADIANCE_SIDE = 8
 /** The harmonics are summed from the mip of this side: a 16 texel face. */

@@ -53,6 +53,10 @@ export interface SceneVolumetricFog {
    *  `directional.color` for the sun. It lets the volume match the fog in the distance, at the
    *  price of light that is not the surfaces'. False by default. */
   useFogColors?: boolean
+  /** The share of the baked indirect light (the volumetric lightmap, `volumetricLightmap`) the
+   *  volume scatters, 0 or more: the indirect light of the stationary lights and the direct and
+   *  indirect light of the static ones, which no dynamic light gives it. 1 by default. */
+  staticLightingScatteringIntensity?: number
 }
 
 /** A volume with every field set. */
@@ -67,6 +71,8 @@ export interface ResolvedVolumetricFog {
   /** The inverse of the fade-in distance; a hundred million where there is none. */
   fadeInRate: number
   useFogColors: boolean
+  /** The share of the baked indirect light the volume scatters, never below 0. */
+  staticLightingScatteringIntensity: number
 }
 
 /** The defaults of the volume, the converted ones of the engines that fixed them (6000
@@ -80,6 +86,7 @@ export const VOLUMETRIC_FOG_DEFAULTS = {
   startAt: 0,
   fadeInLength: 0,
   useFogColors: false,
+  staticLightingScatteringIntensity: 1,
 } as const satisfies Required<SceneVolumetricFog>
 
 /** What a glow number of the engines that fixed it gives per metre: they write it per
@@ -112,15 +119,20 @@ export function resolveVolumetricFog(
     startAt: start,
     fadeInRate: fade > 0 ? 1 / fade : NO_FADE_IN,
     useFogColors: v.useFogColors ?? d.useFogColors,
+    staticLightingScatteringIntensity: Math.max(
+      v.staticLightingScatteringIntensity ?? d.staticLightingScatteringIntensity,
+      0,
+    ),
   }
 }
 
-/** The range of each of the volume's distances and its extinction scale. */
+/** The range of each of the volume's distances, its extinction scale and its baked light's share. */
 const VOLUMETRIC_RANGES = {
   densityScale: [0, Infinity],
   reach: [0, Infinity],
   startAt: [0, Infinity],
   fadeInLength: [0, Infinity],
+  staticLightingScatteringIntensity: [0, Infinity],
 } as const satisfies Record<string, FogRange>
 
 /** A volume option checked: `true`, `false`, or an object whose numbers are finite, the distances

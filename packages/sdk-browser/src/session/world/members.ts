@@ -1,7 +1,7 @@
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type { LoadedModel } from './models/loadedModel.ts'
-import { isLightNode } from '../../scene/host/graph/kinds.ts'
+import { isLightNode, isVolumeNode } from '../../scene/host/graph/kinds.ts'
 import { rootedUnder } from '../../scene/host/world/rooted.ts'
 
 /**
@@ -15,6 +15,10 @@ export function createWorldMembers(scene: Object3D) {
   const meshes = new Set<Mesh>(),
     models = new Set<LoadedModel>(),
     changed = new Set<Object3D>()
+  /** The meshes wearing a volume material: voxelised into the fog's volume, drawn as no surface.
+   *  `retyped` holds those whose material was written since the last `take`. */
+  const volumes = new Set<Mesh>(),
+    retyped = new Set<Mesh>()
   /** Raised when a light entered or left: the session's light store is written again. */
   let lit = false
   const rooted = (node: Object3D) => rootedUnder(node, scene)
@@ -22,9 +26,12 @@ export function createWorldMembers(scene: Object3D) {
     node.traverse((child) => {
       known.set(child, child.children)
       lit ||= isLightNode(child)
-      if ((child as Mesh).isMesh && !meshes.has(child as Mesh)) {
-        meshes.add(child as Mesh)
-        added.push(child as Mesh)
+      if ((child as Mesh).isMesh) {
+        if (isVolumeNode(child)) volumes.add(child as Mesh)
+        else if (!meshes.has(child as Mesh)) {
+          meshes.add(child as Mesh)
+          added.push(child as Mesh)
+        }
       }
       if ((child as LoadedModel).isLoadedModel) models.add(child as LoadedModel)
     })
@@ -35,12 +42,33 @@ export function createWorldMembers(scene: Object3D) {
     known.delete(node)
     lit ||= isLightNode(node)
     if (meshes.delete(node as Mesh)) removed.push(node as Mesh)
+    volumes.delete(node as Mesh)
+    retyped.delete(node as Mesh)
     models.delete(node as LoadedModel)
     for (const child of children) leave(child, removed)
   }
+  /** A mesh whose material was written moves between the drawn meshes and the volumes where the
+   *  material's domain changed. */
+  const retype = (added: Mesh[], removed: Mesh[]) => {
+    for (const mesh of retyped) {
+      const volume = isVolumeNode(mesh)
+      if (volume && meshes.delete(mesh)) removed.push(mesh)
+      else if (!volume && volumes.delete(mesh)) {
+        meshes.add(mesh)
+        added.push(mesh)
+      }
+      if (volume) volumes.add(mesh)
+    }
+    retyped.clear()
+  }
   return {
     meshes,
+    volumes,
     models,
+    /** `mesh`'s material was written: its domain is read again at the next `take`. */
+    retype(mesh: Mesh) {
+      if (meshes.has(mesh) || volumes.has(mesh)) retyped.add(mesh)
+    },
     /** `parent`'s children changed: compared at the next `take`. */
     changed(parent: Object3D) {
       changed.add(parent)
@@ -80,6 +108,7 @@ export function createWorldMembers(scene: Object3D) {
         for (const child of now) if (!held.has(child)) enter(child, added)
         known.set(parent, now)
       }
+      retype(added, removed)
       return { added, removed: removed.filter((mesh) => !meshes.has(mesh)), lights: lit }
     },
   }

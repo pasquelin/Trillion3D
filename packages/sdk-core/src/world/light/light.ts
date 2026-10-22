@@ -1,87 +1,26 @@
-import { LIGHT_SETTINGS, type AtmosphereSunIndex } from '../../scene/light/contracts.ts'
+import type { AtmosphereSunIndex } from '../../scene/light/contracts.ts'
+import type { LightParameters } from './lightParameters.ts'
 import { validateAtmosphereSunIndex } from '../../scene/light/validate.ts'
-import { shadowDistanceOf, type ShadowDistanceOption } from '../../contracts/shadowOptions.ts'
 import { Object3D } from '../object/object3d.ts'
-import { Color, type ColorInput } from '../math/color.ts'
-import { Vector3, readVec3, type Vec3Input } from '../math/vector3.ts'
+import { Color } from '../math/color.ts'
+import { Vector3, readVec3 } from '../math/vector3.ts'
 import { listen, unlisten } from '../observed.ts'
 import { noteNodeWrite } from '../../scene/core/nodeEdits.ts'
-import { DEG2RAD } from '../../../../math/src/constants.ts'
+import {
+  copySwitches,
+  copyTint,
+  defineSwitches,
+  takeSwitches,
+  takeTint,
+  tintOf,
+} from './lightAirSettings.ts'
+import * as lightFunction from './lightFunctionSettings.ts'
+import * as lightShaft from './lightShaftSettings.ts'
+import * as lightCloudShadow from './lightCloudShadowSettings.ts'
+import { initialNumbers, NUMBERS, type LightNumber } from './lightNumbers.ts'
 
-/** What a page may pass to a light member. */
-export interface LightParameters {
-  /** The light's colour. */
-  color?: ColorInput
-  /** How strong the light is. */
-  intensity?: number
-  /** Where the light stands. */
-  position?: Vec3Input
-  /** The point a directional or spot light shines at. */
-  target?: Vec3Input
-  /** Whether objects in this light cast shadows. */
-  castShadow?: boolean
-  /** How far a point or spot light reaches; 0 means no limit. */
-  distance?: number
-  /** How fast the light fades with distance; 2 is how real light fades. */
-  decay?: number
-  /** Half the opening of a spot light's cone, in radians. */
-  angle?: number
-  /** How soft a spot light's edge is, from 0 (sharp) to 1. */
-  penumbra?: number
-  /** The colour a hemisphere light gives from below. */
-  groundColor?: ColorInput
-  /** Width of a rectangle light. */
-  width?: number
-  /** Height of a rectangle light. */
-  height?: number
-  /** Radius of the emitting sphere of a point or spot light: its soft shadow's size, and how the
-   *  lamp lights a surface — the horizon wraps a sphere, a highlight spreads. */
-  radius?: number
-  /** Length of the tube a point or spot light is, in metres, along the light's own up (its local
-   *  y); 0, the default, a sphere or a point. With a `radius` the lamp is a capsule. */
-  tubeLength?: number
-  /** Soft radius of a point or spot light, in metres: it widens the highlight the lamp leaves
-   *  without lighting more of the surface; 0 by default. */
-  softRadius?: number
-  /** Directional source angular radius, in radians. */
-  angularRadius?: number
-  /** How far from the eye, in metres, a directional light's shadows are asked to reach, scaled by
-   *  the view's `shadowDistanceScale`: `true` or nothing 400, `false` none. The far-shadow test's
-   *  edge lies a little past it (427.0 at the defaults, the last near level's overlap into the next):
-   *  a caster whose depth along the view, less its radius, is past the edge, and whose object does
-   *  not set `castFarShadow`, is left out of the light's shadows. By default the test reaches the
-   *  world's merged far-field shells alone; the view's `farShadowCullsAllMeshes` makes it reach
-   *  every caster. */
-  shadowDistance?: ShadowDistanceOption
-  /** Whether a directional light may be the sun of the scene's atmosphere (`scene.atmosphere`):
-   *  of the lights that may, the brightest is; `true` by default. */
-  atmosphereSun?: boolean
-  /** Which of the atmosphere's two lights a directional light may be, 0 or 1 (a sun and a moon, or
-   *  two suns): the brightest of those that may be is held for each; 0 by default. */
-  atmosphereSunIndex?: AtmosphereSunIndex
-  /** A probe's irradiance: 27 numbers, nine RGB spherical-harmonic coefficients of the radiance
-   *  in the band order constant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`, scaled by
-   *  `intensity`; built by `emptyIrradiance` and the `add…Irradiance` helpers. Absent, the probe is
-   *  uniform. */
-  sh?: ArrayLike<number>
-}
+export type { LightParameters }
 
-/** The numbers a light carries, each a property whose write reaches the world at once. */
-const NUMBERS = [
-  'intensity',
-  'distance',
-  'decay',
-  'angle',
-  'penumbra',
-  'width',
-  'height',
-  'radius',
-  'tubeLength',
-  'softRadius',
-  'angularRadius',
-  'shadowDistance',
-] as const
-type LightNumber = (typeof NUMBERS)[number]
 /** The kinds placed by a direction: a sky's is its position seen from the origin. */
 const AIMED = new Set(['directional', 'spot', 'hemisphere'])
 const point = new Vector3()
@@ -91,6 +30,8 @@ const NOT_SUN = new WeakSet<Light>()
 /** The lights a page set to the atmosphere's second light (`Light.atmosphereSunIndex`): few, as the
  *  lights left out of the candidates. */
 const SUN_INDEX = new WeakMap<Light, AtmosphereSunIndex>()
+/** The lights set against their kind's default `shadowsFog`. */
+const FOG_SHADOW = new WeakMap<Light, boolean>()
 
 /**
  * A light placed in the scene. Its numbers are accessors: a write reaches the world's light
@@ -139,6 +80,20 @@ export class Light extends Object3D {
    *  (`LightParameters.shadowDistance`): 400 for a directional light, 0 for any other kind. A
    *  write reaches the world at once. */
   declare shadowDistance: number
+  /** How much of the light the volumetric fog and the clouds scatter: 0 leaves it out of both; 1. */
+  declare fogScattering: number
+  /** The temperature, in kelvin, of the black body the light's colour follows when `useTemperature`
+   *  is on (`SceneLight.temperatureKelvin`); 6500, white, by default. */
+  declare temperatureKelvin: number
+  /** Whether the light's colour is multiplied by the colour of a black body at `temperatureKelvin`;
+   *  off by default. A write reaches the world at once. */
+  declare useTemperature: boolean
+  /** Directional only: whether the light's shadow also shades the air, the haze and the sky's
+   *  march reading it along their rays (`SceneLight.shadowsAir`); off by default. */
+  declare shadowsAir: boolean
+  /** Directional only: whether the air's transmittance toward the light is read for each surface
+   *  point (`SceneLight.transmittancePerPixel`); off by default. */
+  declare transmittancePerPixel: boolean
 
   /** Which kind of light this is: `'point'`, `'spot'`, `'directional'`… */
   readonly kind: string
@@ -155,21 +110,13 @@ export class Light extends Object3D {
     const noted = () => noteNodeWrite(this)
     listen(this.color, noted)
     listen(this.groundColor, noted)
-    this._values = {
-      intensity: p.intensity ?? 1,
-      distance: p.distance ?? 0,
-      decay: p.decay ?? 2,
-      angle: p.angle ?? 60 * DEG2RAD,
-      penumbra: p.penumbra ?? 0,
-      width: p.width ?? 10,
-      height: p.height ?? 10,
-      radius: p.radius ?? 0,
-      tubeLength: p.tubeLength ?? 0,
-      softRadius: p.softRadius ?? 0,
-      angularRadius:
-        p.angularRadius ?? (kind === 'directional' ? LIGHT_SETTINGS.sunAngularRadius : 0),
-      shadowDistance: kind === 'directional' ? shadowDistanceOf(p.shadowDistance) : 0,
-    }
+    this._values = initialNumbers(kind, p)
+    takeSwitches(this, p)
+    takeTint(this, p.sunDiskTint)
+    lightFunction.take(this, p)
+    lightShaft.take(this, p)
+    lightCloudShadow.take(this, p)
+    if (p.shadowsFog !== undefined) this.setFogShadow(p.shadowsFog)
     if (p.atmosphereSun === false) NOT_SUN.add(this)
     if (p.atmosphereSunIndex !== undefined) this.setSunIndex(p.atmosphereSunIndex)
     if (p.position) this.position.set(...readVec3(p.position))
@@ -178,7 +125,7 @@ export class Light extends Object3D {
     if (p.target) this.target.position.set(...readVec3(p.target))
     this.castShadow = p.castShadow ?? false
   }
-  /** Whether a directional light may be the sun of the scene's atmosphere (`scene.atmosphere`): of
+  /** Whether a directional light may be the sun of the sky module's atmosphere (`scene.sky`): of
    *  the lights that may, the brightest is; `true` by default. A write reaches the world at once. */
   get atmosphereSun() {
     return !NOT_SUN.has(this)
@@ -201,6 +148,24 @@ export class Light extends Object3D {
     noteNodeWrite(this)
     this._link?.content(this)
   }
+  /** Directional only: the colour the sun's disk in the sky is multiplied by, linear; white by
+   *  default. Change it in place with `set`. */
+  get sunDiskTint(): Color {
+    return tintOf(this)
+  }
+  /** Whether the light's shadow also shadows the volumetric fog; a directional light's does. */
+  get shadowsFog() {
+    return FOG_SHADOW.get(this) ?? this.kind === 'directional'
+  }
+  set shadowsFog(value: boolean) {
+    this.setFogShadow(value)
+    noteNodeWrite(this)
+    this._link?.content(this)
+  }
+  private setFogShadow(value: boolean) {
+    if (value === (this.kind === 'directional')) FOG_SHADOW.delete(this)
+    else FOG_SHADOW.set(this, value)
+  }
   private setSunIndex(value: AtmosphereSunIndex) {
     if (validateAtmosphereSunIndex(value, this.name || 'light') === 0) SUN_INDEX.delete(this)
     else SUN_INDEX.set(this, value)
@@ -209,6 +174,7 @@ export class Light extends Object3D {
    *  reference to it, and a write reaches nothing. */
   protected override linked(inWorld: boolean) {
     const heard = (this._heard ??= () => this._link?.content(this))
+    lightFunction.hear(this, inWorld)
     for (const value of [this.color, this.groundColor, this.target.position])
       if (inWorld) listen(value, heard)
       else unlisten(value, heard)
@@ -228,6 +194,12 @@ export class Light extends Object3D {
     if (source.atmosphereSun) NOT_SUN.delete(this)
     else NOT_SUN.add(this)
     this.setSunIndex(source.atmosphereSunIndex)
+    this.setFogShadow(source.shadowsFog)
+    copySwitches(this, source)
+    copyTint(this, source)
+    lightFunction.copy(this, source)
+    lightShaft.copy(this, source)
+    lightCloudShadow.copy(this, source)
     this.color.copy(source.color)
     this.groundColor.copy(source.groundColor)
     this.sh = source.sh && [...source.sh]
@@ -255,6 +227,10 @@ export class Light extends Object3D {
   }
 }
 
+defineSwitches(Light.prototype)
+lightFunction.define(Light.prototype)
+lightShaft.define(Light.prototype)
+lightCloudShadow.define(Light.prototype)
 for (const name of NUMBERS)
   Object.defineProperty(Light.prototype, name, {
     get(this: Light) {
@@ -285,10 +261,4 @@ export const light = {
   rectArea: kind('rectArea'),
   /** Light measured around a point and given back to what is near it. */
   probe: kind('probe'),
-  /** The sky's light on everything, from every direction above: the scene's atmosphere captured
-   *  once and again whenever it changes, or, with no atmosphere, its background colour; its
-   *  `groundColor`, black by default, is what the lower half gives. With the bounce on (the
-   *  default) the sky reaches a surface only where the scene lets it, and a reflection that leaves
-   *  the scene shows it; with the bounce off it lights every surface unoccluded. */
-  sky: kind('sky'),
 }

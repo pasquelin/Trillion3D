@@ -2,7 +2,11 @@ import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { wgslBlock, wgslStruct } from '../../../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
-import { SURFACE_RAY_WGSL } from '../surfaceRayWgsl.ts'
+import { surfaceRayWgsl } from '../surfaceRayWgsl.ts'
+import {
+  lightFunctionBindingsLabel,
+  type LightFunctionBindings,
+} from '../../lightFunction/readWgsl.ts'
 import { NORMAL_TRANSFORM_WGSL } from '../../standardLighting.ts'
 import { faceNormal } from '../../../../../math/src/wgsl/geometry.ts'
 import { worldMatrix3 } from '../../../../../math/src/wgsl/matrix.ts'
@@ -10,6 +14,7 @@ import { markReachWgsl } from '../../../deformation/halfFloat.ts'
 import { runtimeSceneWgsl } from './runtimeSceneWgsl.ts'
 import { runtimeShadowWgsl } from './runtimeShadowWgsl.ts'
 import { sceneKey, type SceneBindings } from '../sceneBindings.ts'
+import type { CloudShadowBindings } from '../../atmosphere/cloudShadowRead.ts'
 import { SKY_READ_WGSL } from '../../atmosphere/skyReadWgsl.ts'
 import {
   RAY_ERROR_FLOOR,
@@ -68,10 +73,14 @@ fn rtFacing(hit:RtHit,direction:vec3f,world:mat3x3f)->vec3f{
 
 /** The light an exhausted walk brings back (`rtLayers`): the cascades' light at `stop` along `direction` from
  *  `start`, read by the surface the walk was at. */
-const rtStoppedWgsl = (scene: SceneBindings) =>
+const rtStoppedWgsl = (
+  scene: SceneBindings,
+  lightFunction?: LightFunctionBindings,
+  cloudShadow?: CloudShadowBindings,
+) =>
   wgslBlock(
-    `rtStoppedWgsl(${sceneKey(scene)})`,
-    [rtSurfaceWgsl(scene), SURFACE_RAY_WGSL, worldMatrix3, NO_INDEX],
+    `rtStoppedWgsl(${sceneKey(scene)}, ${lightFunctionBindingsLabel(lightFunction)}, ${cloudShadow?.block ?? null})`,
+    [rtSurfaceWgsl(scene), surfaceRayWgsl(lightFunction, cloudShadow), worldMatrix3, NO_INDEX],
     `
 /** The surface is the hit's, its tint and its face that looks at the ray; where the walk found none, that of the
  *  placement of its furthest entry (\`rtReachedPlacement\`), turned to the ray; where it had entered none, a surface
@@ -106,14 +115,18 @@ fn rtStoppedSeen(hit:RtHit,start:vec3f,direction:vec3f,stop:f32)->vec3f{
  * its radiance what the cascades hold there (`rtStoppedSeen`); a reflection's answers nothing, confidence
  * zero, the next stage's, its budget being about one node's scan.
  */
-const rtLayersWgsl = (scene: SceneBindings) =>
+const rtLayersWgsl = (
+  scene: SceneBindings,
+  lightFunction?: LightFunctionBindings,
+  cloudShadow?: CloudShadowBindings,
+) =>
   wgslBlock(
-    `rtLayersWgsl(${sceneKey(scene)})`,
+    `rtLayersWgsl(${sceneKey(scene)}, ${lightFunctionBindingsLabel(lightFunction)}, ${cloudShadow?.block ?? null})`,
     [
       RADIANCE_ANSWER,
-      rtStoppedWgsl(scene),
+      rtStoppedWgsl(scene, lightFunction, cloudShadow),
       rtSurfaceWgsl(scene),
-      SURFACE_RAY_WGSL,
+      surfaceRayWgsl(lightFunction, cloudShadow),
       worldMatrix3,
       markReachWgsl,
     ],
@@ -178,21 +191,40 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,tests:
  * rest left to the next stage, and the distance to the first surface it met. The radiance of a surface is
  * its emission and its diffuse tint under the irradiance the cascades hold (`surfaceSeen`): read, its cost
  * the same whatever the lights. A mesh whose placement deforms is traced at its rest shape, its confidence
- * cut by the placement's reach against the footprint. `rtProbeRay` is the probes' ray on the same walk
+ * cut by the placement's reach against the footprint. `rtProbeRay` (`runtimeProbeRayWgsl`) is the probes' ray on the same walk
  * (`rtLayers`), its first surface lit by the lights — shadows traced against the proxy (`rtBlocked`) — and
  * the bounce (`surfaceLit`), what the cascades are made of, the sky for the share of the ray that leaves
  * the scene (`skyProbeRadiance`: the cascades hold the sky the scene lets through), and the distance to
- * the first surface.
+ * the first surface. Where the program binds the light functions' atlas (`lightFunction`), the lights that
+ * light a hit wear their light functions (`lightsIrradiance`); a program without it, a reflection's, lights plain.
  */
-export const runtimeRadianceWgsl = (scene: SceneBindings) =>
+export const runtimeRadianceWgsl = (
+  scene: SceneBindings,
+  lightFunction?: LightFunctionBindings,
+  cloudShadow?: CloudShadowBindings,
+) =>
   wgslBlock(
-    `runtimeRadianceWgsl(${sceneKey(scene)})`,
-    [rtLayersWgsl(scene), runtimeShadowWgsl(scene), SKY_READ_WGSL],
+    `runtimeRadianceWgsl(${sceneKey(scene)}, ${lightFunctionBindingsLabel(lightFunction)}, ${cloudShadow?.block ?? null})`,
+    [rtLayersWgsl(scene, lightFunction, cloudShadow), runtimeShadowWgsl(scene)],
     `
 /** A reflection's ray (\`rtLayers\`, read). */
 fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32)->RadianceAnswer{
  return rtLayers(origin,direction,reach,tangent,min(budget,RT_WORK),RT_TRIANGLES,false).answer;
 }
+`,
+  )
+
+/** The probes' ray (\`rtProbeRay\`), over \`runtimeRadianceWgsl\` and the sky light's read, which its program
+ *  declares (\`skyLightReadWgsl\`). */
+export const runtimeProbeRayWgsl = (
+  scene: SceneBindings,
+  lightFunction?: LightFunctionBindings,
+  cloudShadow?: CloudShadowBindings,
+) =>
+  wgslBlock(
+    `runtimeProbeRayWgsl(${sceneKey(scene)}, ${lightFunctionBindingsLabel(lightFunction)}, ${cloudShadow?.block ?? null})`,
+    [runtimeRadianceWgsl(scene, lightFunction, cloudShadow), SKY_READ_WGSL],
+    `
 /** The light a probe's ray brings back (\`rtLayers\`, lit): from \`origin\` along \`direction\`, \`reach\`
  *  far, its first surface lit and those a blended one lets it reach read behind it, weighed by what
  *  they stop, the sky for the share that leaves the scene (\`RtWalk.open\`), and the distance to the

@@ -5,6 +5,8 @@ import {
   EXPOSURE_CURVE_MIN_EV,
   EXPOSURE_CURVE_SAMPLES,
   type ExposureCurve,
+  type ExposureCurveOption,
+  resolveExposureCurve,
 } from './exposureCurve.ts'
 import { exposureCurveAt } from './exposureCurveEval.ts'
 
@@ -42,14 +44,22 @@ export function exposureCurveFactor(table: ArrayLike<number>, ev: number) {
   return table[below] + (table[above] - table[below]) * (at - below)
 }
 
-/** The last resolved curve's table and the curve it was baked from. */
-let baked: { readonly curve: ExposureCurve; readonly table: Float32Array } | undefined
+/** The table of no curve: ones. */
+const NO_CURVE_TABLE = /* @__PURE__ */ bakeExposureCurve(null)
+/** The table baked from each curve option a host gave, by the option object itself. */
+const tables = new WeakMap<object, Float32Array>()
 
-/** The table of `curve` (`bakeExposureCurve`), baked again only when `curve` is not the object the
- *  last call was given: a resolved curve is kept as it is, so the exposure's per-frame read finds
- *  its table. The table is shared: the caller does not write it. */
-export function exposureCurveTable(curve: ExposureCurve) {
-  if (baked === undefined || baked.curve !== curve)
-    baked = { curve, table: bakeExposureCurve(curve) }
-  return baked.table
+/**
+ * The table of the curve a host wrote (`ExposureCurveOption`), baked once for each option object:
+ * the exposure reads it each frame, and the same object gives the same table, so a change is seen
+ * by identity (write a new array or object to change the curve; an edit in place is not seen).
+ * No curve (`undefined`, `null`, `false`) gives the shared table of ones. The table is shared: the
+ * caller does not write it.
+ * @throws TypeError naming what a curve takes when the option is not one (`resolveExposureCurve`).
+ */
+export function exposureCurveTable(option: ExposureCurveOption | undefined) {
+  if (!option) return NO_CURVE_TABLE
+  let table = tables.get(option)
+  if (!table) tables.set(option, (table = bakeExposureCurve(resolveExposureCurve(option))))
+  return table
 }

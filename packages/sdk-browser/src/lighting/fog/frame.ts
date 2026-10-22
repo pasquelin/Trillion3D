@@ -14,6 +14,7 @@ import {
   volumeUvMax,
   type FogGrid,
 } from './layout.ts'
+import type { FogStaticLight } from './staticLight.ts'
 import { FOG_VIEW_FLOATS, FOG_VIEW_SLOT } from './viewSlots.ts'
 
 /** The bits of the frame's `medium.w`: which of the medium's switches are on. */
@@ -22,6 +23,8 @@ export const FOG_VOLUME_FLAG = {
   skipHidden: 2,
   usesHistory: 4,
   fogColors: 8,
+  /** The objects of the volume material domain were voxelised into this image's volume. */
+  voxels: 16,
 } as const
 
 /** The filtering of the volume's read, by the number the shader branches on: its place in the list. */
@@ -40,6 +43,8 @@ export interface FogVolumeCamera {
   viewProj: ArrayLike<number>
   inverseViewProj: ArrayLike<number>
   depthViewProj: ArrayLike<number>
+  /** The camera's world matrix: its first column is the right and its second the up of the view. */
+  world: ArrayLike<number>
   /** The distance of the near plane, metres. */
   near: number
   width: number
@@ -55,6 +60,8 @@ export interface FogVolumePrevious {
   viewProj: ArrayLike<number>
   width: number
   height: number
+  /** The pre-exposure the volume's light was written multiplied by. */
+  preExposure: number
 }
 
 /** What the image gives the volume. */
@@ -76,6 +83,13 @@ export interface FogVolumeImage {
   /** Whether a cell behind the surfaces of its pixels is held hidden: the setting, and the depth
    *  pyramid its furthest depth is read from. */
   skipHidden: boolean
+  /** Whether the objects of the volume material domain were voxelised into this image's volume. */
+  voxels: boolean
+  /** What the volume takes of the baked light (`FogStaticLight`), and whether the static term's pass
+   *  wrote its volume this image (it needs the lightmap and a term to add): the sky light is left to
+   *  that pass only then. */
+  staticLight: FogStaticLight
+  staticBuilt: boolean
   /** The rank of the directional light that lights the volume — the light store's held sun, the
    *  one the analytic fog's lobe follows (`SceneLightStore.fogSunSlot`) —, −1 for none. */
   sunRank: number
@@ -83,6 +97,8 @@ export interface FogVolumeImage {
   lightCells: readonly [number, number]
   /** The image's number, which moves the jitter. */
   frameIndex: number
+  /** The pre-exposure the volume's light is written multiplied by (`../../post/exposure/pre.ts`). */
+  preExposure: number
 }
 
 /** The depth buffer's map to a view depth, `a` and `b`, rewritten each image. */
@@ -139,6 +155,9 @@ function writeHistory(out: Float32Array, image: FogVolumeImage) {
   )
   const weight = usable ? settings.volumetricFogHistoryShare : 0
   put(out, at.blend, weight, image.rebuildSamples)
+  // The history's light, written multiplied by its own pre-exposure, is brought to this image's.
+  const now = image.preExposure
+  put(out, at.exposure, now, previous ? now / previous.preExposure : 1, 1 / now)
 }
 
 /** The medium's fields, the tuning, the lights it takes and the offsets of the samples. */
@@ -159,7 +178,8 @@ function writeMedium(out: Float32Array, image: FogVolumeImage) {
     (settings.volumetricFogGlow ? FOG_VOLUME_FLAG.glow : 0) |
     (image.skipHidden ? FOG_VOLUME_FLAG.skipHidden : 0) |
     (settings.volumetricFogUsesHistory ? FOG_VOLUME_FLAG.usesHistory : 0) |
-    (medium.useFogColors ? FOG_VOLUME_FLAG.fogColors : 0)
+    (medium.useFogColors ? FOG_VOLUME_FLAG.fogColors : 0) |
+    (image.voxels ? FOG_VOLUME_FLAG.voxels : 0)
   const { anisotropy: g, densityScale, fadeInRate } = medium
   put(out, at.medium, g, densityScale, fadeInRate, flags)
   put(
@@ -170,6 +190,15 @@ function writeMedium(out: Float32Array, image: FogVolumeImage) {
     medium.particleColor[2],
   )
   put(out, at.glow, medium.glow[0], medium.glow[1], medium.glow[2])
+  const { staticLight } = image
+  put(
+    out,
+    at.staticLight,
+    staticLight.intensity,
+    staticLight.skyShadowing && image.staticBuilt ? 1 : 0,
+    staticLight.skyDiffuse ? 1 : 0,
+    image.staticBuilt ? 1 : 0,
+  )
   // The cells' samples move from image to image only where the history averages them: the jitter
   // of the offsets needs the reprojection, the random jitter of each sample (`tune.z`) does not.
   const moving = jitter && settings.volumetricFogUsesHistory
@@ -240,5 +269,6 @@ export function writeFogViewBlock(
   copyWords(out, FOG_VIEW_SLOT.sliceMap, frame, at.sliceMap, 4)
   copyWords(out, FOG_VIEW_SLOT.uv, frame, at.uv, 4)
   copyWords(out, FOG_VIEW_SLOT.grid, frame, at.texture, 4)
+  copyWords(out, FOG_VIEW_SLOT.exposure, frame, at.exposure, 4)
   return out
 }

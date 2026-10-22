@@ -79,6 +79,9 @@ export interface TableNode {
   /** The distances its mesh is drawn at, left out for a node that names none
    *  (`CellNode.drawDistance`). */
   drawDistance?: TableDrawDistance
+  /** Its mesh is drawn by a view's primed depth (`farField` of the job's object settings); left
+   *  out otherwise. */
+  farField?: true
 }
 /** A camera as the glTF file declares it, each silent field `null`. */
 export interface TableCamera {

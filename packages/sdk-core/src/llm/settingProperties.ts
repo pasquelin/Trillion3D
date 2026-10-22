@@ -8,6 +8,7 @@
  */
 import type { JsonSchemaProperty } from './types.ts'
 import { ruleSchema } from './schemaParts.ts'
+import { exposureCurveProperty } from './exposureCurveSchema.ts'
 import {
   WORLD_STREAMING_RULES,
   type WorldStreamingField,
@@ -22,6 +23,18 @@ import { EXPOSURE_RULES, type ExposureField } from '../contracts/exposureOptions
 import { SKY_QUALITY_RULES, type SkyQualityField } from '../modules/sky/quality.ts'
 import { TEMPORAL_RULES, type TemporalField } from '../contracts/temporalOptions.ts'
 import { HIZ_RULES, type HizField } from '../contracts/hizOptions.ts'
+import { LIGHT_FUNCTION_RULES, type LightFunctionField } from '../contracts/lightFunctionOptions.ts'
+import {
+  GLOBAL_DISTANCE_FIELD_RULES,
+  type GlobalDistanceFieldField,
+} from '../contracts/globalDistanceFieldOptions.ts'
+import {
+  VOLUMETRIC_LIGHTMAP_RULES,
+  type VolumetricLightmapField,
+} from '../contracts/volumetricLightmapOptions.ts'
+import { DISTANCE_FIELD_OCCLUSION_RULES } from '../contracts/distanceFieldOcclusionOptions.ts'
+import { DISTANCE_FIELD_OCCLUSION_MEANINGS } from './distanceFieldOcclusionMeanings.ts'
+import { HIZ_PRIME_MEANINGS, type HizPrimeField } from './hizPrimeMeanings.ts'
 import { SHADOW_RULES, type ShadowField } from '../contracts/shadowOptions.ts'
 import { SHADOW_VIEW_MEANINGS, type ShadowViewField } from './shadowViewMeanings.ts'
 import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
@@ -163,7 +176,7 @@ const TEMPORAL_MEANINGS: Readonly<Record<TemporalField, string>> = {
 }
 
 /** What each setting of the depth pyramid means (`../contracts/hizOptions.ts`). */
-const HIZ_MEANINGS: Readonly<Record<HizField, string>> = {
+const HIZ_MEANINGS: Readonly<Record<Exclude<HizField, HizPrimeField>, string>> = {
   hizTrace:
     "How the reflections' screen trace reads the depth pyramid: 'reference' walks the closest depth of the opaque image, each texel at its centre, mip by mip; 'planes' reads each pixel as a plane, half its slopes' sum nearer and farther at its edge, which keeps a hit on a grazing surface that the centre alone passes over.",
   hizFoldTransparents:
@@ -172,6 +185,98 @@ const HIZ_MEANINGS: Readonly<Record<HizField, string>> = {
     "How a transparent cluster is tested against the opaque depth already drawn: 'finer' reads up to sixteen texels a side of a level fine enough to hold its rectangle and rejects the clusters wholly behind it; 'reference' reads four texels a side of the lowest level that holds it. Neither rejects a visible cluster; 'finer' rejects more.",
   hizRelativeDepthThickness:
     "The thickness the reflections' 'reference' screen trace gives a surface, as a share of the surface's depth (a ray no further behind it than that share of its depth hits it); 0.005 by default, scaled by the projection's depth scale (1 under a perspective). The 'planes' trace keeps its pixel thickness.",
+  hizFullResDepth:
+    "Whether the screen probes' 'reference' screen trace goes down to the full-resolution depth, which is more accurate and adds incoherency to the inner loop (true, the default), or stops at the half-resolution level of the pyramid, a texel there taking the closest depth of its 2 × 2 pixels, a little farther at the start of the ray. The reflections' trace always goes down to the full-resolution depth.",
+  lightGridHizCull:
+    "Whether the light grid leaves empty the cells no pixel can read: those whose nearest face is behind the farthest depth of the opaque image in their 64-pixel column (read from the depth pyramid the image built, with the margin the fog volume reads the lists behind a surface with), and ends every light's run at the cell that holds that depth. true by default; false lists every cell the lights reach.",
+}
+
+/** What the volumetric lightmap's setting means (`../contracts/volumetricLightmapOptions.ts`). */
+const VOLUMETRIC_LIGHTMAP_MEANINGS: Readonly<Record<VolumetricLightmapField, string>> = {
+  volumetricLightmap:
+    "Whether the precomputed indirect light of the scene (its volumetric lightmap) is read, by the fog's static term and by the lighting of movable objects; true by default. False, every read of it answers black, as a scene without one does. It does nothing where the scene has no lightmap.",
+}
+
+/** What each setting of the global distance field means (`../contracts/globalDistanceFieldOptions.ts`). */
+const GLOBAL_DISTANCE_FIELD_MEANINGS: Readonly<Record<GlobalDistanceFieldField, string>> = {
+  globalDistanceField:
+    "Whether the global distance field is made from the meshes' distance fields; true by default. It does nothing where no mesh built a field.",
+  globalDistanceFieldUpdate:
+    'Whether the clipmaps are updated; false keeps what they hold. true by default.',
+  globalDistanceFieldClipmaps: 'How many clipmaps, 0 to 6; 4 by default.',
+  globalDistanceFieldViewDistance:
+    'The view distance of the field in centimetres; the outermost clipmap is this over the exponent squared. 20000 by default.',
+  globalDistanceFieldClipmapExponent:
+    "The factor between one clipmap's extent and the next, at least 1; 2 by default.",
+  globalDistanceFieldResolution:
+    'The voxels along a clipmap, rounded up to whole groups of 4 pages of 7; 128 by default.',
+  globalDistanceFieldMipFactor: "The divider of a clipmap's coarse mip, 1 to 8; 4 by default.",
+  globalDistanceFieldOccupancyRatio:
+    'The share of its pages the page atlas expects filled, 0.1 to 1; 0.3 by default.',
+  globalDistanceFieldCacheMostlyStaticSeparately:
+    'Whether the static meshes are composited into a clipmap of their own, so a moving mesh recomposites the movable ones alone; true by default.',
+  globalDistanceFieldPartialUpdates:
+    'Whether a clipmap updates only the pages that moved or changed; true by default.',
+  globalDistanceFieldStaggeredUpdates:
+    'Whether the larger clipmaps update less often; true by default.',
+  globalDistanceFieldUpdatesPerFrame:
+    'How many clipmaps update each frame, at least 1; 2 by default.',
+  globalDistanceFieldForceFullUpdate:
+    'Whether every clipmap is composited whole on every frame; false by default.',
+  globalDistanceFieldForceUpdateOnce:
+    'One whole composition of every clipmap each time this turns on; false by default.',
+  globalDistanceFieldFastCameraMode:
+    'Whether the field follows a fast camera at lower quality: clipmaps centred ahead of the camera, one more clipmap, one updated a frame, larger smallest meshes; false by default.',
+  globalDistanceFieldCameraVelocityDecay:
+    "The share of the camera's velocity offset kept after a second in the fast camera mode; 0.7 by default.",
+  globalDistanceFieldAverageCulledObjectsPerCell:
+    'The objects a cell of the culling grid is expected to hold, 1 to 8192, which sizes its list; 512 by default.',
+  globalDistanceFieldRecacheOnStreaming:
+    'Whether a clipmap composited while a mesh had only its coarsest mip is composited again when the streaming is done; true by default.',
+  globalDistanceFieldForceRecacheOnStreaming:
+    'Whether each such update is always whole; false by default.',
+  globalDistanceFieldStartDistance:
+    "The distance along an occlusion cone from which the global field replaces the meshes' own, in centimetres; 100 by default.",
+  globalDistanceFieldMinMeshRadius:
+    'A mesh whose bounding sphere is smaller (centimetres) is left out of the field, unless the voxel rule below is larger; 20 by default.',
+  globalDistanceFieldMinMeshRadiusInVoxels: 'The same in voxels of the clipmap; 0.5 by default.',
+  meshDistanceFieldMaxObjectRadius:
+    "A placement whose bounding sphere is larger (centimetres) is left out of the scene's fields; 100000 by default.",
+  meshDistanceFieldSurfaceBiasExpand:
+    "The share of a voxel a mesh's surface is expanded by when a distance is taken; 0.25 by default.",
+  meshDistanceFieldBrickAtlasSize:
+    'The bricks along the first two axes of the brick atlas, a power of two; 128 by default. Read when the atlas is made.',
+  meshDistanceFieldBrickAtlasDepth:
+    'The bricks the atlas grows to along its third axis before it drops the finer mips; 32 by default (256 MiB).',
+  meshDistanceFieldUploadKiB:
+    'The KiB of finer mips uploaded to the atlas each frame; 8192 by default.',
+  meshDistanceFieldBlockBricks:
+    'The bricks an allocation of the atlas holds; 16 by default. Read when the atlas is made.',
+  meshDistanceFieldForceMips:
+    '1 to 3 loads that many mips of every mesh whatever the view; 0, the default, follows the view.',
+  meshDistanceFieldReverseAllocation:
+    "Whether the mips added in a frame take the atlas's space in the reverse order; false by default.",
+}
+
+/** What each setting of the light functions means (`../contracts/lightFunctionOptions.ts`). */
+const LIGHT_FUNCTION_MEANINGS: Readonly<Record<LightFunctionField, string>> = {
+  lightFunctionAtlas:
+    'Whether the light functions are drawn: a light that wears a light function material multiplies its colour, point by point, by what the material gives there; the materials are drawn once each into one atlas that the lighting, the volumetric fog and the translucent layers read. true by default; false draws none and every light shines plain.',
+  lightFunctionSlotResolution:
+    "The texels a side of an atlas slot, one slot a material, at least 32; 128 by default. The slot is cut to fit where the atlas would pass the device's largest texture.",
+  lightFunctionAtlasSize:
+    'The slots a side of the atlas, from 2 to 16, so 4 gives 16 materials, the default, and 16 gives 256. A light whose material has no slot left shines plain.',
+  lightFunctionMaxLights:
+    'The most lights that read the atlas, the nearest to the eye kept, a sun counting as at the eye; a light past it shines plain. -1, the default, no limit.',
+  lightFunctionFormat:
+    "What an atlas texel holds: 'grey', the default, the mean of the colour, one channel; 'colour', the three channels.",
+  lightFunctionDeferred:
+    'Whether the lighting of the opaque image reads the atlas (diffuse and specular alike); true by default.',
+  lightFunctionFog:
+    "Whether the volumetric fog's local lights read the atlas; true by default. The fog's sun always reads it.",
+  lightFunctionBounce:
+    "Whether the bounce's lights read the atlas, the probes' rays and the screen probes' scene traces: a surface they hit is lit through the light functions; true by default.",
+  lightFunctionTranslucent: 'Whether the translucent layers read the atlas; false by default.',
 }
 
 /** What each setting of the sun's shadows means (`../contracts/shadowOptions.ts`). */
@@ -191,7 +296,7 @@ const SHADOW_MEANINGS: Readonly<Record<Exclude<ShadowField, ShadowViewField>, st
 }
 
 /** What each setting of the fog's volume means (`../contracts/volumetricFogOptions.ts`); they apply
- *  where the scene's fog turns its volume on (`scene.fog.volumetric`). */
+ *  where the scene's fog turns its volume on (the sky module's `heightFog.volumetric`). */
 const VOLUMETRIC_FOG_MEANINGS: Readonly<Record<VolumetricFogField, string>> = {
   volumetricFogQuality:
     "The quality of the fog's volume, which fixes its grid: off draws none (the analytic fog alone); low cells of 16 pixels, 64 slices deep, 4 lighting samples where a cell has no history; high, the default, 8 pixels, 128 slices, 4 samples; ultra 4 pixels, 128 slices, 16 samples.",
@@ -206,7 +311,7 @@ const VOLUMETRIC_FOG_MEANINGS: Readonly<Record<VolumetricFogField, string>> = {
   volumetricFogSliceSpread:
     "How the slices are spread along the depth of the fog's volume: the smaller, the more of them lie near the eye.",
   volumetricFogGlow:
-    'Whether the light the fog emits by itself (scene.fog.volumetric.glow) is read.',
+    'Whether the light the fog emits by itself is read: its glow (heightFog.volumetric.glow of the sky module) and the emissive light of the objects voxelised into it (material.volume).',
   volumetricFogSkipHidden:
     'Whether a cell wholly behind the surfaces of its pixels is left unlit, which spares its lighting and keeps what stands behind a wall out of the history.',
   volumetricFogLampSoftening:
@@ -217,11 +322,15 @@ const VOLUMETRIC_FOG_MEANINGS: Readonly<Record<VolumetricFogField, string>> = {
     "Cells: how far a cell's sample is moved out of the depth buffer along the depth, so that a cell on a surface does not light itself with what stands behind it; -1, not at all.",
   volumetricFogLiftRange:
     'Cells: how far behind the depth buffer a sample is still brought forward (volumetricFogSurfaceLift); only the cells the surface cuts are moved at 1.',
+  volumetricFogVoxelizationSlicesPerPass:
+    'The slices of an object voxelised into the fog (a mesh or a fog volume with a volume material) that make one pass, at least 1; the passes only divide the slices, the sum is the same.',
+  volumetricFogVoxelizationShowOnlyPass:
+    'From 0, the one pass of each voxelised object that is kept, to see where the passes lie (a pass is volumetricFogVoxelizationSlicesPerPass slices from the nearest one the object reaches); -1 keeps them all.',
 }
 
 /** What each setting of the exposure means (`../contracts/exposureOptions.ts`); the first twelve
  *  apply where the exposure is 'auto', the default, which measures each image on the GPU, the
- *  local exposure's to a lit view whatever its exposure. */
+ *  pre-exposure's and the local exposure's to a lit view whatever its exposure. */
 const EXPOSURE_MEANINGS: Readonly<Record<ExposureField, string>> = {
   exposureBias:
     'Stops added to the target of the automatic exposure: the mean of the image lands at 0.18 times two to the bias, before the display curve.',
@@ -246,6 +355,10 @@ const EXPOSURE_MEANINGS: Readonly<Record<ExposureField, string>> = {
     "How much the darkest bucket of the exposure's histogram, the pixels of no light, counts: 0 ignores them, 1 counts them as any pixel.",
   exposureLuminanceMethod:
     "How a pixel's luminance is read for the histogram: 'uniform' the mean of its three channels, 'ntsc' the legacy video weights, 'workingSpace' the weights of the sRGB primaries.",
+  preExposure:
+    'Whether every light is written to the image already multiplied by the exposure of the image before, and the composition divides it back out: the picture is the same, the half floats keep their range at any exposure, and the histories (temporal pass, fog volume, clouds, reflections) are brought to the new number by the ratio of the two. false writes every light as it is.',
+  preExposureOverride:
+    'When above 0, the pre-exposure every light is multiplied by, in place of the exposure of the image before; 0 keeps that exposure. Only read where preExposure is true.',
   localExposureHighlightContrast:
     'Scale of the smooth light of the neighbourhood above middle grey, from 0 up: under 1 the highlights come down, 1 leaves them. 1 for both contrasts and for the detail strength turns the local exposure off.',
   localExposureShadowContrast:
@@ -273,9 +386,9 @@ const EXPOSURE_MEANINGS: Readonly<Record<ExposureField, string>> = {
  *  stay at their defaults at every preset. */
 const SKY_QUALITY_MEANINGS: Readonly<Record<SkyQualityField, string>> = {
   skyTableFast:
-    'Whether the sky is read from a table of the view directions instead of marched per pixel: faster, with artefacts where the sky has fine detail such as the earth shadow or a scattering lobe.',
+    'Whether the sky is read from a table of the view directions instead of marched per pixel (its samples between atmosphereSamplesMin and atmosphereSamplesMax, jittered by blue noise): faster, with artefacts where the sky has fine detail such as the earth shadow or a scattering lobe.',
   aerialFastOnOpaque:
-    'Whether the haze on opaque surfaces is read from the low-resolution volume made for translucent ones: faster, with the same artefacts.',
+    'Whether the haze on opaque surfaces is read from the low-resolution volume made for translucent ones: faster, with the same artefacts. Off is not drawn differently yet: a surface reads the volume either way.',
   atmosphereSamplesMin:
     'Fewest samples of the atmosphere march, from 1; the count grows with the distance up to atmosphereSamplesMax.',
   atmosphereSamplesMax:
@@ -316,21 +429,26 @@ const SKY_QUALITY_MEANINGS: Readonly<Record<SkyQualityField, string>> = {
   atmosphereDistanceToMaxSamplesKm:
     'Distance in kilometres at which the atmosphere march takes its most samples, from 0.0001.',
   atmosphereSampleLightShadowMap:
-    "Whether the atmosphere march reads the light's shadow map, for the shadows the air shows.",
+    "Whether the sky table's and the haze volume's marches read the shadow map of a light that asks for it (shadowsAir), for the shadows the air shows.",
   skyTableDistanceToMaxSamplesKm:
     'Distance in kilometres at which the march that fills the sky table takes its most samples, from 0.0001.',
   aerialDepthKm:
     'Length in kilometres of the haze volume, from 1; the last slice is used beyond it.',
   aerialWidth: 'Side in texels of the haze volume, a whole number from 4.',
   aerialDepthTest:
-    'Whether the haze is kept from being drawn on pixels closer than where it starts, which saves time.',
-  transmittanceTable: 'Whether the transmittance table is built.',
-  distantSkyLightTable: 'Whether the table of the distant sky light is built.',
+    'Whether a surface at or before where the haze starts skips the read of the haze volume, which saves time.',
+  transmittanceTable:
+    'Whether the transmittance table is built; off, the air answers as clear toward a light.',
+  distantSkyLightTable:
+    "Whether the table of the distant sky light, the fog's sky, is made every image; off, it is black.",
+
   multiScatterHighQuality:
-    'Whether the multiple scattering is built from more directions: more exact, dearer.',
+    'Whether the multiple scattering is built from 64 directions over the sphere and not from two: more exact, dearer.',
   distantSkyLightAltitudeKm:
     'Altitude in kilometres at which the sky is sampled to integrate the distant sky light.',
-  skyTablesFullPrecision: 'Whether every sky table is kept in 32 bits per channel.',
+  skyTablesFullPrecision:
+    "Whether the haze volume's cells are kept in four 32-bit floats and not four half floats; the volume then holds half as many cells.",
+
   transmittanceWidth: 'Width in texels of the transmittance table, a whole number from 4.',
   transmittanceHeight: 'Height in texels of the transmittance table, a whole number from 4.',
   multiScatterWidth: 'Width in texels of the multiple-scattering table, a whole number from 4.',
@@ -401,10 +519,6 @@ const SKY_QUALITY_MEANINGS: Readonly<Record<SkyQualityField, string>> = {
   lightShaftBlurPasses: 'Radial blur passes of the light shafts, a whole number from 0.',
   lightShaftFirstPassDistance:
     'Fraction of the distance to the light that the first radial blur pass blurs over.',
-  lightShaftTemporalFilterSize:
-    "Size of the kernel the light shafts' temporal filter weighs the pixels around a jittered sample with: 1 is smoother, a smaller value sharper but aliased; above 0.",
-  lightShaftTemporalCatmullRom:
-    "Whether the light shafts' temporal filter uses a Catmull-Rom kernel, sharper than the Gaussian.",
   skyLightRealTimeCapture: "Whether the platform allows the sky light's real-time capture at all.",
   skyLightTimeSlicing:
     "Whether the sky light's capture and convolutions are spread over several images to lower the cost of each.",
@@ -422,6 +536,12 @@ const SKY_QUALITY_MEANINGS: Readonly<Record<SkyQualityField, string>> = {
     "Side in texels of the sky light's capture, from 16, in place of the sky light's own; a lower value leaves its own.",
   skyLightCubemapMaxResolution:
     "Largest side in texels of the sky light's cube when above 0; below that the sky light's own side is kept.",
+  skyLightCaptureSupersample:
+    "Factor the faces of the sky light's captured scene are drawn larger by than the cube's side and averaged down, a whole number from 1 to 8.",
+  skyLightCaptureLodDistanceScale:
+    "Factor the detail of the sky light's captured scene is asked at: above 1 draws finer geometry in its faces; zero or less is 1.",
+  skyLightCaptureReflections:
+    "Whether the scene's reflections are traced in the faces of the sky light's captured scene.",
   skyLightIntensityScale:
     "Factor on the sky light's intensity: it keeps the contrast of a level that draws less occlusion.",
 }
@@ -475,15 +595,21 @@ export const rasterProperties = () => ruleProperties(RASTER_RULES, rasterMeaning
 
 /** The schema of every other run-time setting declared by rule, by its field: the partition's
  *  streaming and the HLOD warm-up's, then the cut's, then the animation's, then the shading's, then
- *  the exposure's, then the temporal pass's, then the depth pyramid's, then the sun's shadows', then the motion blur's. */
+ *  the exposure's, then the temporal pass's, then the depth pyramid's, then the sun's shadows', then the motion blur's,
+ *  then the sky's quality. */
 export const settingRuleProperties = () => ({
   ...ruleProperties(WORLD_STREAMING_RULES, WORLD_STREAMING_MEANINGS),
   ...ruleProperties(CUT_RULES, { ...CUT_MEANINGS, ...CUT_VIEW_MEANINGS, ...CUT_BUDGET_MEANINGS }),
   ...ruleProperties(ANIMATION_RULES, ANIMATION_MEANINGS),
   ...ruleProperties(SHADING_RULES, SHADING_MEANINGS),
   ...ruleProperties(EXPOSURE_RULES, EXPOSURE_MEANINGS),
+  exposureCurve: exposureCurveProperty(),
   ...ruleProperties(TEMPORAL_RULES, TEMPORAL_MEANINGS),
-  ...ruleProperties(HIZ_RULES, HIZ_MEANINGS),
+  ...ruleProperties(HIZ_RULES, { ...HIZ_MEANINGS, ...HIZ_PRIME_MEANINGS }),
+  ...ruleProperties(LIGHT_FUNCTION_RULES, LIGHT_FUNCTION_MEANINGS),
+  ...ruleProperties(VOLUMETRIC_LIGHTMAP_RULES, VOLUMETRIC_LIGHTMAP_MEANINGS),
+  ...ruleProperties(GLOBAL_DISTANCE_FIELD_RULES, GLOBAL_DISTANCE_FIELD_MEANINGS),
+  ...ruleProperties(DISTANCE_FIELD_OCCLUSION_RULES, DISTANCE_FIELD_OCCLUSION_MEANINGS),
   ...ruleProperties(SHADOW_RULES, { ...SHADOW_MEANINGS, ...SHADOW_VIEW_MEANINGS }),
   ...ruleProperties(MOTION_BLUR_RULES, MOTION_BLUR_MEANINGS),
   ...ruleProperties(DEPTH_OF_FIELD_RULES, DEPTH_OF_FIELD_MEANINGS),
@@ -494,4 +620,5 @@ export const settingRuleProperties = () => ({
   ...ruleProperties(SCREEN_PROBE_RULES, SCREEN_PROBE_MEANINGS),
   ...ruleProperties(REFLECTION_RULES, REFLECTION_MEANINGS),
   ...ruleProperties(AMBIENT_OCCLUSION_RULES, AMBIENT_OCCLUSION_MEANINGS),
+  ...skyQualityProperties(),
 })

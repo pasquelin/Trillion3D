@@ -2,7 +2,8 @@ import { WORKGROUP_THREADS_WGSL, WORKGROUP_THREADS } from '../../../gpu/dispatch
 import { BOUNCE_SETTINGS } from '../../../../../sdk-core/src/bounce/contracts.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
 import { BOUNCE_GRID_WGSL, bounceBindingsWgsl } from '../gridWgsl.ts'
-import { runtimeRadianceWgsl } from '../runtime/runtimeRadianceWgsl.ts'
+import { runtimeProbeRayWgsl } from '../runtime/runtimeRadianceWgsl.ts'
+import { skyLightReadWgsl } from '../../../modules/sky/skyLight/read.ts'
 import { hashUnit } from '../../../../../math/src/wgsl/sampling.ts'
 import { TWO_PI } from '../../../../../math/src/wgsl/constants.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
@@ -10,7 +11,14 @@ import { ACCUMULATION_WGSL } from '../../../post/taa/accumulationWgsl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { radianceProjectionShader } from '../../../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { BOUNCE_ATLAS_FORMAT, PROBE_TEXELS } from '../atlas.ts'
-import { PROBE_BINDINGS, PROBE_PROXY, SNAPSHOT_BINDINGS } from './probeBindings.ts'
+import {
+  PROBE_BINDINGS,
+  PROBE_LIGHT_FUNCTION,
+  PROBE_CLOUD_SHADOW,
+  PROBE_PROXY,
+  PROBE_SKY_LIGHT,
+  SNAPSHOT_BINDINGS,
+} from './probeBindings.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { QUEUED_PROBE_WGSL } from './probeQueueWgsl.ts'
 import { PROBE_GROUP_WGSL, PROBE_THREADS } from './probeGroupWgsl.ts'
@@ -196,7 +204,8 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  probeStore(probe,PROBE_DISTANCE_NEGATIVE,vec4f(mix(keptNegative,meanNegative,blend),0.0));
 }`,
   [
-    runtimeRadianceWgsl(PROBE_PROXY),
+    runtimeProbeRayWgsl(PROBE_PROXY, PROBE_LIGHT_FUNCTION, PROBE_CLOUD_SHADOW),
+    skyLightReadWgsl(PROBE_SKY_LIGHT),
     DIRECT_LIGHT_WGSL,
     bounceBindingsWgsl(0, PROBE_BINDINGS.grid, PROBE_BINDINGS.snapshot),
     BOUNCE_GRID_WGSL,

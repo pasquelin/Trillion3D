@@ -14,6 +14,10 @@ import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
+import { LIGHT_FUNCTION_RULES } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
+import { VOLUMETRIC_LIGHTMAP_RULES } from '../../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
+import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
+import { GLOBAL_DISTANCE_FIELD_RULES } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { SCREEN_PROBE_RULES } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
@@ -22,6 +26,7 @@ import { TESSELLATION_RULES } from '../../../../sdk-core/src/contracts/tessellat
 import { MOTION_BLUR_RULES } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import { DEPTH_OF_FIELD_RULES } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import { SKY_QUALITY_RULES } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import { BLOOM_RULES } from '../../../../sdk-core/src/contracts/bloomRules.ts'
 import { FILM_RULES } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 
@@ -127,6 +132,22 @@ export const worldFamilies = (settings: WorldSettings) => ({
     session.setTemporal(field, value),
   ),
   hiz: ruledSwitches(settings, HIZ_RULES, (session, field, value) => session.setHiz(field, value)),
+  lightFunction: ruledSwitches(settings, LIGHT_FUNCTION_RULES, (session, field, value) =>
+    session.setLightFunction(field, value),
+  ),
+  volumetricLightmap: ruledSwitches(settings, VOLUMETRIC_LIGHTMAP_RULES, (session, field, value) =>
+    session.setVolumetricLightmap(field, value),
+  ),
+  globalDistanceField: ruledSwitches(
+    settings,
+    GLOBAL_DISTANCE_FIELD_RULES,
+    (session, field, value) => session.setGlobalDistanceField(field, value),
+  ),
+  distanceFieldOcclusion: ruledSwitches(
+    settings,
+    DISTANCE_FIELD_OCCLUSION_RULES,
+    (session, field, value) => session.setDistanceFieldOcclusion(field, value),
+  ),
   shadows: ruledSwitches(settings, SHADOW_RULES, (session, field, value) =>
     session.setShadows(field, value),
   ),
@@ -156,5 +177,8 @@ export const worldFamilies = (settings: WorldSettings) => ({
   ),
   ambientOcclusion: ruledSwitches(settings, AMBIENT_OCCLUSION_RULES, (session, field, value) =>
     session.setAmbientOcclusion(field, value),
+  ),
+  skyQuality: ruledSwitches(settings, SKY_QUALITY_RULES, (session, field, value) =>
+    session.setSkyQuality(field, value),
   ),
 })

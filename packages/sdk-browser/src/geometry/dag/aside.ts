@@ -38,6 +38,8 @@ type Aside = MainShare & {
   state: DagRuntimeState
   view: number
   slots: AsideSlots
+  /** Whether it is the primed pyramid's cut: no readback, no streaming fed. */
+  primed: boolean
   pyramid?: CutPyramid
   post?: { snap: SelectionUniforms; serial: number; held: HeldCopy }
 }
@@ -65,11 +67,16 @@ const noop = () => {}
  * Its first readback copies each list whole; the next ones twice what the cut last asked. One whose
  * cut asked past what it copied is never adopted short: while the cut stands, its lists still in
  * `out`, they are copied again at their size — no cut again.
+ *
+ * `primed`, the cut is the primed pyramid's (`../../frame/render/primeHiz.ts`): it leaves a mask
+ * for one small draw and nothing else — its lists are copied by no readback, so no page is asked
+ * and no view adopts it, and the rows its pages use are stamped by no pass.
  */
 export function createAsideCut(
   resources: DagResources,
   state: DagRuntimeState,
   main: MainShare,
+  primed = false,
 ): AsideCut {
   const view = takeAsideView(resources.swap)
   const aside: Aside = {
@@ -77,6 +84,7 @@ export function createAsideCut(
     state,
     view,
     slots: createAsideSlots(resources, state, view),
+    primed,
     ...main,
   }
   return {
@@ -118,6 +126,7 @@ function dispatchAside(aside: Aside, uniforms: SelectionUniforms, shared: GPUCom
   // The mask in place is this very cut's: nothing to run — but its lists, neither read whole nor
   // in flight, copied again at their size while they are still in `out`.
   const last = swap.cuts[view - 1]
+  if (aside.primed && last && same && inPlace(swap, view)) return noop
   if (last && same && inPlace(swap, view)) {
     if (slots.whole === last.serial || slots.inFlight === last.serial) return noop
     if (swap.outOwner === view) {
@@ -148,7 +157,7 @@ function cutAside(
   resources.device.queue.writeBuffer(resources.uniforms, 0, uniformData)
   writeViewFilter(resources, uniforms.filter)
   const post = twoPassOf(uniforms)
-  encodeDagKernels(shared, resources, { post, pyramid })
+  encodeDagKernels(shared, resources, { post, pyramid, stamp: !aside.primed })
   // One copy of the uniforms, kept by the swap and by the readback alike: none is written after.
   const snap = copySelectionUniforms(uniforms)
   const serial = noteCut(swap, view, {
@@ -158,7 +167,7 @@ function cutAside(
   })
   const held: HeldCopy = {}
   if (post) aside.post = { snap, serial, held }
-  else held.copied = copyLists(aside, snap, shared, serial)
+  else if (!aside.primed) held.copied = copyLists(aside, snap, shared, serial)
   return settleAside(aside, held, () => (owed?.(false), undo(), (aside.post = undefined)), owed)
 }
 

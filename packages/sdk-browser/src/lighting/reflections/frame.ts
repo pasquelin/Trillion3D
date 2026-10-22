@@ -1,3 +1,4 @@
+import { skyLightReadOf } from '../../frame/render/encodeSkyLight.ts'
 import { directLightResources, wantsContractLighting } from '../../frame/prepare/contractLight.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { frontStamp } from './frontLayer.ts'
@@ -8,6 +9,7 @@ import { encodeReflectionTrace } from './trace/traceEncode.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 import { environmentCurve } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { appliedExposureOf } from '../../post/exposure/applied.ts'
+import { preExposureOf } from '../../post/exposure/pre.ts'
 import { hizSetting } from '../../visibility/hiz/setting.ts'
 import {
   readReflectionSetting,
@@ -26,6 +28,7 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced
   frame.depthDrawn = run.depthDrawn
   frame.eye = run.gate.cam.eye
   frame.relativeThickness = hizSetting(rt, 'hizRelativeDepthThickness')
+  frame.preExposure = preExposureOf(rt).now
   const { environment } = rt.lights.store
   frame.surroundings = reflection.surroundings(
     run.clearColor,
@@ -131,7 +134,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     inputs.bounceGrid = contract.bounceGrid ?? deferred.placeholders.bounceGrid
     inputs.probes = contract.probes ?? deferred.placeholders.probes
     inputs.proxy = reflectionProxy(rt)!
-    const group = reflectionGroup(reflection, depth, lightView)
+    const group = reflectionGroup(reflection, depth, lightView, skyLightReadOf(rt))
     // The rays count this image's alone: the counters emptied before the trace, copied after it.
     reflection.census.clear(encoder)
     encodeReflectionTrace(

@@ -6,9 +6,9 @@ import {
 } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import { shownHeightFog } from '../../../../sdk-core/src/scene/core/fog.ts'
 import type { ResolvedHeightFog } from '../../../../sdk-core/src/scene/core/fogHeight.ts'
-import type { ResolvedFogCubemap } from '../../../../sdk-core/src/scene/core/fogCubemap.ts'
-import { retire } from '../../gpu/core/frameRetire.ts'
-import { createFogCubemap } from '../../lighting/fog/cubemapGpu.ts'
+import { cloudShadowStandIn } from '../../lighting/atmosphere/cloudShadowStandIn.ts'
+import { lightFunctionResources } from '../../lighting/lightFunction/frame.ts'
+import { fogCubemapView, type createFogCubemap } from '../../lighting/fog/cubemapGpu.ts'
 import { writeFogViewBlock } from '../../lighting/fog/frame.ts'
 import {
   createFogVolumeGpu,
@@ -17,6 +17,8 @@ import {
   type FogVolumeInputs,
 } from '../../lighting/fog/gpu.ts'
 import type { FogRead } from '../../lighting/fog/read.ts'
+import { fillFogStaticLight } from '../../lighting/fog/staticFrame.ts'
+import { newFogStaticLight } from '../../lighting/fog/staticLight.ts'
 import { FOG_VIEW_FLOATS } from '../../lighting/fog/viewSlots.ts'
 import { opaquePyramidOf } from '../../lighting/reflections/frame.ts'
 import { vsmOrStandIns } from '../../lighting/shadows/vsm/frame/vsmConsumers.ts'
@@ -25,7 +27,11 @@ import { viewProj } from '../backend/helpers.ts'
 import { LIGHT_BUFFER_AT } from '../backend/state/lightBufferLayout.ts'
 import type { WebgpuGpuState } from '../backend/state/gpu.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { cloudShadowOf } from './encodeCloudShadow.ts'
+import { skyLightReadOf } from './encodeSkyLight.ts'
+import { fogSkyField } from './encodeSkyOcclusion.ts'
 import { directLightResources, litImageShown } from '../prepare/contractLight.ts'
+import { preExposureOf } from '../../post/exposure/pre.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 
 /** What a view holds of the scene's fog beyond the light buffer: the volume's passes, made once a
@@ -66,6 +72,7 @@ const inputs: FogVolumeInputs = {
     viewProj: forward,
     inverseViewProj: inverse,
     depthViewProj: viewProj,
+    world: forward,
     near: 0,
     width: 0,
     height: 0,
@@ -76,10 +83,15 @@ const inputs: FogVolumeInputs = {
   sunRank: -1,
   lightCells,
   frameIndex: 0,
+  preExposure: 1,
   allocated: [0, 0],
   depth: unset(),
   lights: unset(),
   tiles: unset(),
+  lightFunction: unset(),
+  cloudShadow: unset(),
+  sky: unset(),
+  staticLight: newFogStaticLight(),
   vsm: {
     pageTable: unset(),
     projectionData: unset(),
@@ -107,6 +119,10 @@ function volumeMedium(rt: WebgpuPagesRuntime, fog: ResolvedHeightFog | undefined
   return settings.volumetricFogQuality === 'off' ? undefined : fog.volumetric
 }
 
+/** The medium of the volume this image builds, none where it builds none: what the light grid's
+ *  cull keeps the lists of the cells behind the surfaces for (`lighting/tiles/cullView.ts`). */
+export const fogVolumeMedium = (rt: WebgpuPagesRuntime) => volumeMedium(rt, shownFog(rt))
+
 /** The volume's GPU work made where there is none: its pipelines compile off the frame
  *  (`createFogVolumeGpu`). */
 function startVolume(rt: WebgpuPagesRuntime, device: GPUDevice, held: FogVolumeState) {
@@ -120,21 +136,6 @@ export function askFogVolume(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { gpu } = rt
   if (gpu.deferred && volumeMedium(rt, shownFog(rt)))
     startVolume(rt, device, (gpu.fogVolume ??= newState()))
-}
-
-/** The cubemap's texture for the picture the fog holds: made once for it and kept while the fog
- *  holds it, retired when it does not. None where the fog has no cubemap. */
-function cubemapView(
-  device: GPUDevice,
-  held: FogVolumeState,
-  cube: ResolvedFogCubemap | undefined,
-) {
-  if (held.cube && held.cube.texels !== cube?.texels) {
-    retire(device, held.cube.made)
-    held.cube = undefined
-  }
-  if (cube && !held.cube) held.cube = { texels: cube.texels, made: createFogCubemap(device, cube) }
-  return held.cube?.made.view
 }
 
 /** The image's camera and lights written into the volume's inputs: the unjittered matrices and the
@@ -154,6 +155,7 @@ function fillInputs(
   invertMatrix4(inverse, cam.viewProjection)
   cameraForward(forward, cam.world)
   camera.eye = cam.eye
+  camera.world = cam.world
   camera.projection = cam.projection
   camera.viewProj = cam.viewProjection
   camera.near = cam.near
@@ -163,6 +165,7 @@ function fillInputs(
   camera.perspective = cam.perspective === 1
   inputs.depth = gpu.depthView!
   inputs.hiz = opaquePyramidOf(rt)
+  inputs.field = fogSkyField(rt, camera.perspective)
   inputs.lights = buffer
   inputs.tiles = contract.tiles ?? placeholders.tiles
   const vsm = vsmOrStandIns(contract.vsm, placeholders)
@@ -172,16 +175,24 @@ function fillInputs(
   inputs.vsm.pool = vsm.pool
   inputs.vsm.view = vsm.view
   inputs.sunRank = lights.store.fogSunSlot
+  inputs.volumes = rt.context.sceneVolumes
   lightCells[0] = direct[1]
   lightCells[1] = direct[2]
   inputs.frameIndex = rt.run.frame
+  inputs.preExposure = preExposureOf(rt).now
 }
 
 /** The inputs let go: the scratch object holds no GPU object past the image. */
 function clearInputs() {
   const { vsm } = inputs
-  inputs.depth = inputs.lights = inputs.tiles = inputs.medium = unset()
-  inputs.hiz = inputs.cubemap = undefined
+  inputs.depth = unset()
+  inputs.lights = inputs.tiles = unset()
+  inputs.medium = unset()
+  inputs.hiz = inputs.cubemap = inputs.field = undefined
+  inputs.lightFunction = unset()
+  inputs.cloudShadow = unset()
+  inputs.sky = unset()
+  inputs.lightmap = undefined
   vsm.pageTable = vsm.projectionData = vsm.uniforms = vsm.pool = vsm.view = unset()
 }
 
@@ -228,7 +239,12 @@ function buildVolume(
   }
   fillInputs(rt, cam, direct, buffer)
   inputs.medium = medium
+  fillFogStaticLight(inputs, rt, device, medium)
   inputs.cubemap = cubemap
+  inputs.lightFunction =
+    lightFunctionResources(rt, 'lightFunctionFog') ?? rt.gpu.deferred!.placeholders.lightFunction
+  inputs.cloudShadow = cloudShadowOf(rt) ?? cloudShadowStandIn(device)
+  inputs.sky = skyLightReadOf(rt)
   inputs.cut = rt.run.gate.temporalRevision !== held.revision
   held.revision = rt.run.gate.temporalRevision
   let volume: GPUTextureView | undefined
@@ -263,7 +279,7 @@ export function encodeFogVolume(
   if (!fog || (!fog.cubemap && !fog.volumetric))
     return void (gpu.fogVolume && disposeFogVolume(gpu))
   const held = (gpu.fogVolume ??= newState())
-  const cubemap = cubemapView(device, held, fog.cubemap)
+  const cubemap = fogCubemapView(device, held, fog.cubemap)
   const volume = buildVolume(rt, device, encoder, cam, direct, held, fog, cubemap)
   readOf(held, gpu.deferred!.placeholders.fog, cubemap, volume)
 }

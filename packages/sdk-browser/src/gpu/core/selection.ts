@@ -278,8 +278,9 @@ export type GpuSelection = {
    *  uniforms carry (`OCCLUSION_TWO_PASS`) —, for that dispatch alone; none, a blank one. */
   bindPyramid(pyramid: CutPyramid | undefined): void
   peek(): GpuCut | null
-  /** A cut for a view drawn beside the main one, on these tables (`../../geometry/dag/aside.ts`). */
-  aside(): AsideCut
+  /** A cut for a view drawn beside the main one, on these tables (`../../geometry/dag/aside.ts`);
+   *  `primed`, the primed pyramid's, which feeds no streaming. */
+  aside(primed?: boolean): AsideCut
   /** The host adopts `cut`, the readback in hand: the ranks it claims in the list the host held,
    *  valid until the next readback lands — none when the host held no GPU list —; the readbacks
    *  after it claim theirs in its lists. Nothing for any other cut. */

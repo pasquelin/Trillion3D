@@ -2,7 +2,6 @@
 // 20 × 12 × 8 cells and a view of 160 × 90 pixels (`fogScatter.test.ts`, `fogLights.test.ts`).
 import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { FOG_SLOT, FOG_SLOTS } from '../../../sdk-core/src/scene/core/fog.ts'
-import { SKY_SLOT, SKY_SLOTS } from '../../../sdk-core/src/scene/core/environmentSky.ts'
 import { ATMOSPHERE_SLOTS } from '../../../sdk-core/src/scene/core/atmospherePack.ts'
 import { FOG_PROGRAMS } from './fog/programs.ts'
 import {
@@ -31,7 +30,8 @@ export const SUN: Light = {
   positionRange: [0, 0, 0, 0],
   colorIntensity: [1, 0.5, 0.25, 4],
   directionCone: [0, -1, 0, -2],
-  params: [2, -1, 0, -2],
+  // The record's lanes: kind word (a sun: rank 2 and its shadows-the-fog flag), shadow slot, the share the fog scatters, inner cone.
+  params: [10, -1, 1, -2],
   shape: [0, 0, 0, 0],
   capsule: [0, 0, 0, 0],
 }
@@ -46,6 +46,10 @@ export function scatter(
     falloff?: number
     sunRank?: number
     sky?: number[]
+    /** The share of the sky light the fog scatters (the sky block's first `w`): 1 unless given. */
+    skyShare?: number
+    /** What the shadow read answers for a shadowed light: 1 unless given. */
+    shadow?: number
     volumetric?: Parameters<typeof image>[1]
     settings?: Parameters<typeof image>[2]
     depth?: (c: number[]) => number
@@ -63,7 +67,7 @@ export function scatter(
   // A view drawn smaller than the targets: its camera of that size, the textures' cells those of CAM.
   const cam = world.drawn ? camera(EYE, ...world.drawn) : CAM
   const previous = world.before
-    ? { viewProj: cam.viewProj, width: cam.width, height: cam.height }
+    ? { viewProj: cam.viewProj, width: cam.width, height: cam.height, preExposure: 1 }
     : undefined
   const img = image(
     cam,
@@ -71,10 +75,9 @@ export function scatter(
     { ...PLAIN, ...world.settings },
     { sunRank: world.sunRank ?? -1, previous, resource: image(CAM).grid },
   )
-  const block = emptyLights({ fog: FOG_SLOTS, sky: SKY_SLOTS, atmosphere: ATMOSPHERE_SLOTS })
+  const block = emptyLights({ fog: FOG_SLOTS, atmosphere: ATMOSPHERE_SLOTS })
   block.fog[FOG_SLOT.law] = [density, falloff, 0, 1]
   block.fog[FOG_SLOT.second] = [world.second ?? 0, 0, 0, 0]
-  if (world.sky) block.sky[SKY_SLOT.irradiance] = [...world.sky, 0]
   block.count = lights.length
   block.items = lights
   const out = table()
@@ -89,7 +92,21 @@ export function scatter(
     fogSampler: {},
     fogCubemap: {},
     fogScattering: out,
-    shadowFactor: () => 1,
+    fogVoxelIn: table(),
+    fogVoxelEmitIn: table(),
+    // The static term's volume is not read: the frame says no pass wrote it.
+    fogStaticIn: table(),
+    shadowFactor: () => world.shadow ?? 1,
+    // No light function in the cell: every light as it is (`lightFunctionReadWgsl` has its own proofs).
+    lightFunctionOf: () => [1, 1, 1],
+    // The sky light: its diffuse light along any direction (`skyLightDiffuseSimple`), the scattering intensity it
+    // lights the volume by, whether one shines.
+    skyLightApplied: () => !!world.sky,
+    skyLightScattering: () => world.skyShare ?? 1,
+    skyLightDiffuseSimple: () => world.sky ?? [0, 0, 0],
+    // No clouds' shade over the sun.
+    cloudShadowOnSurface: () => 1,
+    lightFunctionFogLocalOf: () => [1, 1, 1],
     textureSampleLevel: (_t: unknown, _s: unknown, uvw: number[]) => (
       world.sampled?.push(uvw),
       world.previous ?? [0, 0, 0, 0]

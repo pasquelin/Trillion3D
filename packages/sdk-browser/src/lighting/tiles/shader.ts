@@ -1,6 +1,7 @@
 import { directLightWgsl } from '../direct/lightWgsl.ts'
 import { GRID_BOUNDS_WGSL, WORLD_GRID_BOUNDS_WGSL } from './boundsWgsl.ts'
 import { gridCompactWgsl } from './compactWgsl.ts'
+import { GRID_CULL_WGSL } from './cullWgsl.ts'
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
@@ -9,8 +10,10 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
  * THE LIGHT GRID: cells of `tileSize` pixels across and `gridSlices` slices of
  * depth, a doubling of the view depth every `gridSlicesPerOctave` slices, each listing the lights
  * whose range meets it, and each pixel walking the list of the cell its depth falls in. The lights
- * are culled once per image against the cells' own bounds — never against the depths the image
- * holds, which the pass does not read —, so its cost follows the columns and the lights alone.
+ * are culled once per image against the cells' own bounds, and, in the view's grid, the cells no
+ * pixel can read are left empty: those past the farthest depth the image holds in their column
+ * (`./cullWgsl.ts`, the setting `lightGridHizCull`), read from the pyramid of the image's own
+ * depth; the bounce's world grid is cut by no depth.
  *
  * One workgroup per column of cells, a lane per light of each batch of `WORKGROUP_THREADS`: a
  * light out of the column's planes meets none of its cells; any other meets a run of them, whose two ends are solved
@@ -32,16 +35,17 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 export const lightTilesShader = (kind: LightGridKind) =>
   wgslProgram(
     `
-struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,origin:vec4f,depthRows:array<vec4f,2>,start:vec4u,}
+struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,origin:vec4f,depthRows:array<vec4f,2>,start:vec4u,cull:vec4f,sliceMap:vec4f,}
 @group(0) @binding(0) var<uniform> view:TileView;
 @group(0) @binding(1) var<storage,read> directLights:DirectLights;
 @group(0) @binding(2) var<storage,read_write> tiles:array<u32>;
-/** The light count, one bound for the whole workgroup. */
+/** The light count and the column's last visible slice (\`columnReach\`), one bound for the whole workgroup. */
 var<workgroup> lightCount:u32;
+var<workgroup> reach:u32;
 @compute @workgroup_size(WORKGROUP_THREADS,1,1)
 fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index) lane:u32){
- let column=gridColumn(cell.xy);
- if(lane==0u){lightCount=directLights.count;cached=0u;resume=ALL_CACHED;}
+ var column=gridColumn(cell.xy);
+ if(lane==0u){lightCount=directLights.count;reach=columnReach(cell.xy);cached=0u;resume=ALL_CACHED;}
  if(lane<LANE_WORDS){atomicStore(&keptLanes[lane],0u);atomicStore(&slotted[lane],0u);atomicStore(&full[lane],0u);}
  chunk[lane]=vec2u(0u,EMPTY_RUN);
  for(var slice=lane;slice<COLUMN_SLICES;slice+=WORKGROUP_THREADS){
@@ -49,6 +53,7 @@ fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index)
   for(var word=0u;word<LANE_WORDS;word++){atomicStore(&masks[slice*LANE_WORDS+word],0u);}
  }
  let count=workgroupUniformLoad(&lightCount);
+ column.reach=workgroupUniformLoad(&reach);
  // First walk: each light's run, counted in the slices it holds; the runs kept while they fit.
  for(var first=0u;first<count;first+=WORKGROUP_THREADS){
   var entry=vec2u(first+lane,EMPTY_RUN);
@@ -99,7 +104,7 @@ fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index)
     [
       directLightWgsl(),
       gridCompactWgsl(kind === 'view' ? LIGHT_SETTINGS.gridSlices : BOUNCE_SETTINGS.lightGridSide),
-      kind === 'view' ? GRID_BOUNDS_WGSL : WORLD_GRID_BOUNDS_WGSL,
+      ...(kind === 'view' ? [GRID_BOUNDS_WGSL, GRID_CULL_WGSL] : [WORLD_GRID_BOUNDS_WGSL]),
     ],
   )
 

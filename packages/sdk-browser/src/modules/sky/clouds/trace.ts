@@ -7,6 +7,7 @@ import {
 } from '../../../gpu/core/computeBindings.ts'
 import { askedComputeStage } from '../../../gpu/core/computeStages.ts'
 import { airLayoutEntries } from '../../../lighting/atmosphere/programs.ts'
+import { DEFAULT_AIR_SHAPE, type AirShape } from '../../../lighting/atmosphere/shape.ts'
 import { cloudMaterialLayoutEntries } from './materialWgsl.ts'
 import { CLOUD_FORMAT, type ImageSize } from './reconstructLayout.ts'
 import {
@@ -59,16 +60,17 @@ export function cloudTraceDispatch(traced: ImageSize) {
   }
 }
 
-/** The pass's layouts and its pipeline for the key `key`, asked now, off the frame; `failed` hears a
+/** The pass's layouts and its pipeline for the key `key`, the air's programs written for `shape`, asked now, off the frame; `failed` hears a
  *  failure to compile. The caller releases nothing: a pipeline and its layouts are the device's.
  *  `extra` is group 2, where the options bind inputs. */
 export function createCloudTracePass(
   device: GPUDevice,
   failed: (error: unknown) => void,
   key: CloudTraceKey,
+  shape: AirShape = DEFAULT_AIR_SHAPE,
 ) {
   const air = device.createBindGroupLayout({
-    entries: airLayoutEntries(CLOUD_TRACE_AIR, COMPUTE),
+    entries: airLayoutEntries(CLOUD_TRACE_AIR, COMPUTE, shape),
   })
   const cloud = device.createBindGroupLayout({ entries: cloudTraceLayoutEntries(key) })
   const extra = cloudTraceHasExtra(key)
@@ -77,7 +79,7 @@ export function createCloudTracePass(
   const pipeline = askedComputeStage(
     device,
     extra ? [air, cloud, extra] : [air, cloud],
-    cloudTraceProgram(key),
+    cloudTraceProgram(key, shape),
     CLOUD_TRACE_ENTRY,
     'Trillion3D cloud view tracing',
     failed,

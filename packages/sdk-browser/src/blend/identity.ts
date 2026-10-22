@@ -39,6 +39,7 @@ export function blendEntries(rt: WebgpuPagesRuntime) {
       fogCubemap: () => rt.blendState.lighting?.fogCubemap,
       fogVolume: () => rt.blendState.lighting?.fogVolume,
       fogSampler: () => rt.blendState.lighting?.fogSampler,
+      lightFunctionAtlas: () => rt.blendState.lighting?.lightFunctionAtlas,
       material: () => rt.vis.materialTable.view,
     }),
   )

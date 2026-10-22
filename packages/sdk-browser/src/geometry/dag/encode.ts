@@ -33,26 +33,32 @@ import { queueZeroEntries } from './flagSections.ts'
 export function encodeDagKernels(
   encoder: GPUCommandEncoder,
   resources: DagResources,
-  { differ = false, post = false, pyramid }: DagMainPass = {},
+  main: DagMainPass = {},
 ) {
   // A DIAGNOSTIC variant alone re-encodes the cut. The repeat PRECEDES the cut that counts: each
   // kernel restarts from the clear, the final state is therefore that of a single run, and the
   // frame delta measures what the repeat actually cost — waits between dispatches included, which
   // no pass envelope reports. A cut in two passes repeats its main pass alone: the post pass reads
   // the image's own raster.
-  const group = resources.occlusion.group(pyramid)
+  const group = resources.occlusion.group(main.pyramid)
   if (resources.repeat) {
-    encodeMain(encoder, resources, group, resources.repeat === 'head', true, post)
-    encodeMain(encoder, resources, group, false, false, post, differ)
+    encodeMain(encoder, resources, group, resources.repeat === 'head', true, { post: main.post })
+    encodeMain(encoder, resources, group, false, false, main)
     return
   }
-  encodeMain(encoder, resources, group, false, true, post, differ)
+  encodeMain(encoder, resources, group, false, true, main)
 }
 
 /** What the main pass is encoded for: whether a readback copies the cut (`differ`), whether a post
  *  pass follows (`post`, `encodeDagPost`), and the pyramid the main pass reads — the previous
- *  image's, when its occlusion runs in two passes (`OCCLUSION_TWO_PASS`); a blank one otherwise. */
-export type DagMainPass = { differ?: boolean; post?: boolean; pyramid?: CutPyramid }
+ *  image's, when its occlusion runs in two passes (`OCCLUSION_TWO_PASS`); a blank one otherwise. A
+ *  cut that feeds no streaming — the primed pyramid's — stamps no row (`stamp` false). */
+export type DagMainPass = {
+  differ?: boolean
+  post?: boolean
+  pyramid?: CutPyramid
+  stamp?: boolean
+}
 
 /**
  * The main pass of the cut: the drawn journal cleared, the descent from the roots, the clusters of
@@ -66,9 +72,9 @@ function encodeMain(
   group: GPUBindGroup,
   headOnly: boolean,
   clear: boolean,
-  post: boolean,
-  differ = false,
+  main: DagMainPass,
 ) {
+  const { post = false, differ = false } = main
   const {
     blockCount,
     dispatchArgs,
@@ -124,7 +130,7 @@ function encodeMain(
     pass.end()
     return
   }
-  encodeFinish(pass, resources, width, differ)
+  encodeFinish(pass, resources, width, differ, main.stamp)
   pass.end()
 }
 
@@ -208,6 +214,7 @@ function encodeFinish(
   resources: DagResources,
   width: number,
   differ: boolean,
+  stamp = true,
 ) {
   const { dispatchArgs } = resources
   pass.setPipeline(resources.drawPrefixPipeline)
@@ -219,7 +226,7 @@ function encodeFinish(
   commit(pass, resources, width)
   // The rows the cut's pages need, stamped, and their queue when a readback copies the cut
   // (`../rows/rowEviction.ts`): the cut's group back after them.
-  if (resources.rowPass) {
+  if (resources.rowPass && stamp) {
     resources.rowPass.encode(pass, differ)
     pass.setBindGroup(0, resources.bindGroup)
   }

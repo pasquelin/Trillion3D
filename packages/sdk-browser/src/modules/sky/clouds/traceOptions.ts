@@ -26,6 +26,24 @@ export const cloudHazeInSecondPass = (
   airPresent: boolean,
 ) => quality.cloudHighQualityAerial && quality.cloudAerialPerspective && airPresent
 
+/** Whether the traced image is kept from blending over the scene as it is made: the clouds are traced
+ *  into the scene itself (`cloudRenderTarget` off) and the haze is laid on them in a second pass,
+ *  which lays the cloud over the scene once it has the haze (`traceHaze.ts`). */
+export const cloudBlendingDisabled = (
+  quality: Pick<
+    SkyQualityValues,
+    'cloudRenderTarget' | 'cloudHighQualityAerial' | 'cloudAerialPerspective'
+  >,
+  airPresent: boolean,
+) => !quality.cloudRenderTarget && cloudHazeInSecondPass(quality, airPresent)
+
+/** Whether the second pass blends the clouds it hazed over the scene: they are traced into the
+ *  scene itself, and no fog is laid on them after it (the fog's pass then does). */
+export const cloudHazeBlends = (
+  quality: Pick<SkyQualityValues, 'cloudRenderTarget'>,
+  fogInScene: boolean,
+) => !quality.cloudRenderTarget && !fogInScene
+
 /** The block's fields the reference's options set (`CLOUD_TRACE_LAYOUT`): the haze, the sun's
  *  shadow channel, the light grid, the empty-space table, the ground and the lamps' shadow rays. */
 export function writeCloudTraceOptions(
@@ -65,5 +83,5 @@ export function writeCloudTraceOptions(
     settings.groundAlbedo[2],
     0,
   )
-  put4(out, at.local, quality.cloudLocalLightShadowSamples, 0, 0, 0)
+  put4(out, at.local, quality.cloudLocalLightShadowSamples, settings.alphaHole ? 1 : 0, 0, 0)
 }

@@ -8,7 +8,7 @@ export const PROBE_PROXY = { group: 0, proxy: 1, worlds: 7, tree: 8 } as const
  *  the cascades' uniform, the proxy, the lights, the queue, the frozen probes and the output — the
  *  atlases of `../atlas.ts` —, the world grid's light lists (`BOUNCE_LIGHT_LIST_BINDING`), the
  *  culling's worlds the proxy is placed by and its placement tree (`PROBE_PROXY`) and the census the
- *  update adds its counts to (`censusWgsl.ts`). */
+ *  update adds its counts to (`censusWgsl.ts`) and the light functions' atlas (`PROBE_LIGHT_FUNCTION`). */
 export const PROBE_BINDINGS = {
   grid: 0,
   proxy: PROBE_PROXY.proxy,
@@ -20,6 +20,42 @@ export const PROBE_BINDINGS = {
   worlds: PROBE_PROXY.worlds,
   tree: PROBE_PROXY.tree,
   census: 9,
+  lightFunction: 10,
+  skyCube: 11,
+  skySampler: 12,
+  skyHarmonics: 13,
+  skyParams: 14,
+  cloudShadowBlock: 15,
+  cloudShadowMap0: 16,
+  cloudShadowMap1: 17,
+  cloudShadowSampler: 18,
+} as const
+
+/** Where the probe pass reads the clouds' shade of the lights (\`cloudShadowReadWgsl\`). */
+export const PROBE_CLOUD_SHADOW = {
+  group: 0,
+  block: PROBE_BINDINGS.cloudShadowBlock,
+  map0: PROBE_BINDINGS.cloudShadowMap0,
+  map1: PROBE_BINDINGS.cloudShadowMap1,
+  sampler: PROBE_BINDINGS.cloudShadowSampler,
+} as const
+
+/** Where the probe pass reads the sky light (\`skyLightReadWgsl\`): the cubes its rays that leave the scene
+ *  reach the sky by, and the harmonics' uniform. */
+export const PROBE_SKY_LIGHT = {
+  group: 0,
+  cube: PROBE_BINDINGS.skyCube,
+  sampler: PROBE_BINDINGS.skySampler,
+  harmonics: PROBE_BINDINGS.skyHarmonics,
+  params: PROBE_BINDINGS.skyParams,
+} as const
+
+/** Where the probe pass reads the light functions (`lightFunctionReadWgsl`): their atlas, and the eye their fade is
+ *  measured from, the cascades' uniform holding it (`BOUNCE_GRID`). */
+export const PROBE_LIGHT_FUNCTION = {
+  group: 0,
+  atlas: PROBE_BINDINGS.lightFunction,
+  eye: 'bounce.eye.xyz',
 } as const
 
 /** The snapshot's follow-up's bindings (`BOUNCE_SNAPSHOT_SHADER`), read by its WGSL and its layout:

@@ -1,5 +1,6 @@
 import { DEG2RAD } from '../../../../math/src/constants.ts'
 import { SHADOW_PAGE } from './shadow/sunEntries.ts'
+import type { SceneLightCloudShadow } from './lightCloudShadowFields.ts'
 /** The indices of the air's lights: two are held, a sun and a moon, or two suns. */
 export const ATMOSPHERE_SUN_INDICES = [0, 1] as const
 /** The index of one of the air's lights. */
@@ -18,7 +19,7 @@ export type AtmosphereSunIndex = (typeof ATMOSPHERE_SUN_INDICES)[number]
  * Fields a kind does not use are rejected at validation: a directional light with
  * a position would be a promise the engine would not keep.
  */
-export interface SceneLight {
+export interface SceneLight extends SceneLightCloudShadow {
   /** The light's name. */ id: string
   /** Point, spot, sun or rectangle. */ kind: 'point' | 'spot' | 'directional' | 'rect'
   /** Point and spot only: the point the light comes from, in metres. */
@@ -78,6 +79,69 @@ export interface SceneLight {
   /** Rect only: its width and height, in metres. */
   size?: [number, number]
   /** Whether it casts shadows. */ castsShadow: boolean
+  /** How much of its light the volumetric fog (`SceneFog.volumetric`) and the clouds scatter:
+   *  a factor on its colour there, `0` leaving it out of both; absent, `1`. It does not change
+   *  the light on surfaces. */
+  fogScattering?: number
+  /** Whether its shadow also shadows the volumetric fog, where it casts a shadow: absent, a
+   *  directional light does and a point, spot or rect does not. */
+  shadowsFog?: boolean
+  /** Whether its colour is multiplied by the colour of a black body at `temperatureKelvin`
+   *  (`modules/sky/sunColour.ts`): the light's colour then follows its temperature; absent, off. */
+  useTemperature?: boolean
+  /** The temperature, in kelvin, of the black body `useTemperature` takes the colour of; read no
+   *  lower than 1000 and no higher than 15000; absent, 6500 (the white of the working space). */
+  temperatureKelvin?: number
+  /** Directional only: a colour its disk in the sky is multiplied by, linear, three numbers of at
+   *  least 0 (the sun's disk alone, never the light it gives); absent, white. */
+  sunDiskTint?: [number, number, number]
+  /** Directional only: whether its shadows also shade the air — the haze and the sky's march read
+   *  the light's shadow along their rays, so that a mountain's shadow reaches into the haze;
+   *  absent, off. It takes the air's `atmosphereSampleLightShadowMap` setting on as well. */
+  shadowsAir?: boolean
+  /** Directional only: whether the transmittance of the air toward the light is read for each
+   *  surface point, not once at the ground under the eye: a sun low over a mountain range
+   *  reddens its valley and not its summit; absent, off. */
+  transmittancePerPixel?: boolean
+  /** The id of the light function material (`lightFunctionIdOf`, `world/material/lightFunctionMaterial.ts`) the light's colour is
+   *  multiplied by, at each point it lights, by what the material gives there; absent, none. */
+  lightFunction?: string
+  /** Beside a `lightFunction`: its scale in metres a tile, `[up, right, along the light]`; absent,
+   *  10.24 on each (`LIGHT_FUNCTION_DEFAULTS`). */
+  lightFunctionScale?: [number, number, number]
+  /** Beside a `lightFunction`: the distance in metres from the eye past which the light function
+   *  has faded to the disabled brightness over a fifth of it; absent, 1000. */
+  lightFunctionFadeDistance?: number
+  /** Beside a `lightFunction`: the brightness of the light where its light function is faded out;
+   *  absent, 0.5. */
+  lightFunctionDisabledBrightness?: number
+  /** Rect only, beside a `lightFunction`: the half-angle in degrees of the cone its light function
+   *  is projected through, at most 89; absent or 0, the function is laid flat on the face's plane. */
+  lightFunctionConeAngle?: number
+  /** Directional only: whether the light darkens the fog's and the air's inscattering where
+   *  something near the eye hides its direction (the light shafts' occlusion); absent, off. */
+  shaftOcclusion?: boolean
+  /** Directional only, with the occlusion: what an occlusion of 0 maps to, 1 darkening nothing;
+   *  absent, 0.05. */
+  shaftOcclusionDarkness?: number
+  /** Directional only, with the occlusion: everything closer to the eye than this distance, in
+   *  metres, occludes the shafts; absent, 1000. */
+  shaftOcclusionDepthRange?: number
+  /** Directional only: the direction, three numbers not all 0, the shafts come from instead of the
+   *  light's own, normalised where it is used; absent, the light's own. */
+  shaftOverrideDirection?: [number, number, number]
+  /** Whether the light blurs the bright colour of the image away from itself and adds it back (the
+   *  light shafts' bloom), for a directional light; absent, off. */
+  shaftBloom?: boolean
+  /** With the bloom: the factor on the colour added; absent, 0.2. */
+  shaftBloomScale?: number
+  /** With the bloom: the brightness the image must pass, after exposure, to bloom; absent, 0. */
+  shaftBloomThreshold?: number
+  /** With the bloom: a brightness above it, after exposure, is brought down to it; absent, 100. */
+  shaftBloomMaxBrightness?: number
+  /** With the bloom: the factor on the bloom's colour, linear, three numbers of at least 0;
+   *  absent, white. */
+  shaftBloomTint?: [number, number, number]
 }
 /** Exposure, display curve and the irradiance from every direction (`../core/environment.ts`). */
 /** The version of the light contract this engine reads. */ export const SCENE_LIGHT_VERSION = 2
@@ -180,6 +244,17 @@ export const SCENE_LIGHT_HEADER_FLOATS = 4
  *  @property point - A bulb. @property spot - A torch. @property directional - The sun.
  *  @property rect - A glowing rectangle. */
 export const LIGHT_KIND = { point: 0, spot: 1, directional: 2, rect: 3 } as const
+/** The kind word's rank is under this; the flags are the bits above it. */
+export const LIGHT_KIND_SPAN = 4
+/** The flags a light's kind word carries above its rank (`LIGHT_KIND`): each one bit, its value
+ *  added to the rank. @property castsShadow - The light casts shadows. @property shadowsFog - Its
+ *  shadow also shadows the volumetric fog. */
+export const LIGHT_FLAG = { castsShadow: LIGHT_KIND_SPAN, shadowsFog: 2 * LIGHT_KIND_SPAN } as const
+/** The step of a light function table's index in a light's kind word: the word is the rank, plus the
+ *  flags (`LIGHT_FLAG`), plus this times the index; 0, no light function. */
+export const LIGHT_FUNCTION_STEP = 4 * LIGHT_KIND_SPAN
+/** The bits the flags and the rank take below the index: `LIGHT_FUNCTION_STEP` is `1 << this`. */
+export const LIGHT_FUNCTION_SHIFT = 4
 /** What the scheduler knows of the view: a camera, not a matrix, to stay without a dependency. */
 export interface ShadowViewpoint {
   /** Where the viewpoint stands. */ position: readonly [number, number, number]

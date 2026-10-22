@@ -277,3 +277,22 @@ test('a stored lamp becomes a light that records back to it', () => {
   const aimed = lightFromRecord({ ...records[1], direction: [0.6, -0.8, 0] })
   near(aimed.target.position.toArray(), [0.6, 3.2, 0], 'the target one unit along')
 })
+
+test('the fog share and the shadow-on-fog flag reach the record only when they differ from the default', () => {
+  const plain = lampRecord(new Light('point'), 'a', () => 9)!
+  assert.equal(plain.fogScattering, undefined)
+  assert.equal(plain.shadowsFog, undefined)
+  const sun = lampRecord(new Light('directional'), 'a', () => 9)!
+  assert.equal(sun.shadowsFog, undefined, 'a directional light shadows the fog by default')
+  const tuned = new Light('point', { fogScattering: 0.5, shadowsFog: true })
+  const record = lampRecord(tuned, 'a', () => 9)!
+  assert.equal(record.fogScattering, 0.5)
+  assert.equal(record.shadowsFog, true)
+  const back = lightFromRecord(record)
+  assert.equal(back.fogScattering, 0.5)
+  assert.equal(back.shadowsFog, true)
+  const off = new Light('directional', { shadowsFog: false })
+  assert.equal(lampRecord(off, 'a', () => 9)!.shadowsFog, false)
+  off.shadowsFog = true
+  assert.equal(lampRecord(off, 'a', () => 9)!.shadowsFog, undefined, 'back to the default')
+})

@@ -23,14 +23,15 @@ fn footprintLevel(t:vec4i)->u32{
  let level=u32(max(max(firstLeadingBit(span.x),firstLeadingBit(span.y))-1,0));
  return level+select(0u,1u,any((t.zw>>vec2u(level))-(t.xy>>vec2u(level))>vec2i(3)));
 }
-/** Whether the pyramid lets the pixel rectangle \`r\` (\`centreRect\`) show a surface at reversed
- *  depth \`nearest\`: the farthest depth of its footprint (\`footprintLevel\`) no nearer than it. */
-fn pyramidShows(r:vec4i,nearest:f32)->bool{
+/** The farthest depth of the footprint (\`footprintLevel\`) of the pixel rectangle \`r\`
+ *  (\`centreRect\`): the minimum, in reverse-Z, of the sixteen texels there; zero when the level
+ *  is past the last, which no depth is farther than. */
+fn pyramidFarthest(r:vec4i)->f32{
  let half=vec4i(r.xy,max(r.xy,r.zw))>>vec4u(1u);
  let level=footprintLevel(half);
  let t=half>>vec4u(level);
  let l=level+1u;
- if(l>=hizLevels.count.x){return true;}
+ if(l>=hizLevels.count.x){return 0.0;}
  let mip=hizMip(l);let size=vec2i(hizLevels.level[l].yz);
  var farthest=1.0;
  for(var y=0;y<4;y++){
@@ -39,8 +40,11 @@ fn pyramidShows(r:vec4i,nearest:f32)->bool{
    farthest=min(farthest,hizCullFarthest(mip.x+u32(at.y)*mip.y+u32(at.x)));
   }
  }
- return nearest>=farthest;
-}`,
+ return farthest;
+}
+/** Whether the pyramid lets the pixel rectangle \`r\` (\`centreRect\`) show a surface at reversed
+ *  depth \`nearest\`: the farthest depth of its footprint no nearer than it. */
+fn pyramidShows(r:vec4i,nearest:f32)->bool{return nearest>=pyramidFarthest(r);}`,
 )
 
 /**

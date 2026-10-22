@@ -4,8 +4,11 @@
 use super::*;
 use crate::compiler::pages::manifest::MeshPages;
 use crate::compiler::primitive::compiled::DepthLayerScene;
+use crate::distance_field::{stage_distance_fields, DistanceFieldInputs};
 use crate::hlod::chain::SourceCover;
 use crate::texture::TexturePreview;
+use crate::volumetric_lightmap::bake::SceneInputs;
+use crate::volumetric_lightmap::{stage_volumetric_lightmap, LightmapInputs};
 use crate::voxel::{stage_voxels, VoxelInputs, VoxelSampling, VoxelSeed};
 
 /// What the products stage hands the manifest and its publication.
@@ -16,6 +19,12 @@ pub(super) struct Staged {
     pub proxy_descriptor: Value,
     /// The manifest's `voxels` section, its file among the products.
     pub voxels: Value,
+    /// The manifest's `distanceFields` section, its file among the products; none for a scene
+    /// whose meshes build no field (`distanceField`).
+    pub distance_fields: Option<Value>,
+    /// The manifest's `volumetricLightmap` section, its file among the products; none for a job
+    /// that asks for no bake (`lightmapBake`).
+    pub volumetric_lightmap: Option<Value>,
     /// Every product on disk in the folder, as its writer recorded it.
     pub products: Vec<Product>,
     pub paged: MeshPages,
@@ -98,18 +107,46 @@ pub(super) fn stage_products(
         sampling: &sampling,
     };
     let (voxel_file, voxels) = pool.install(|| stage_voxels(&voxel_inputs, directory, progress))?;
+    // The meshes' distance fields, for the meshes whose build asks for one.
+    let fields = DistanceFieldInputs {
+        g,
+        bin,
+        previews: texture_previews,
+        mesh_map,
+        settings: &(o.mesh_build()?.meshes(g)?.iter())
+            .map(|build| build.distance_field)
+            .collect::<Vec<_>>(),
+    };
+    let (distance_file, distance_fields) = pool
+        .install(|| stage_distance_fields(&fields, directory, progress))?
+        .unzip();
     // The proxy is its own cache object: a manifest stays readable without its tens of megabytes.
     let proxy_bytes = scene_proxy.encode();
     let proxy_sha = hash(&proxy_bytes);
     let proxy_descriptor =
         scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
     // Cache products, each under its own name: lights, node and material tables, physics.
-    let lights = stage_scene_lights(
+    let (lights, declared) = stage_scene_lights(
         (g, bin, &placement.world),
         (scene_nodes, hidden),
         directory,
         progress,
     )?;
+    // The scene's indirect light, baked from its geometry and its lights.
+    let lightmap = LightmapInputs {
+        options: o.lightmap_bake()?,
+        scene: SceneInputs {
+            g,
+            bin,
+            world: &placement.world,
+            shown,
+            previews: texture_previews,
+        },
+        lights: &declared,
+        cancelled: &o.cancelled,
+    };
+    let (lightmap_file, volumetric_lightmap) =
+        stage_volumetric_lightmap(lightmap, directory, progress)?.unzip();
     let paged = write_mesh_pages(primitives, geometry_files.len(), directory)?;
     // The world's HLOD is built once the partition's cells are known; the materials it flattens
     // join the published scene, which the tables and `source.gltf` then describe.
@@ -157,6 +194,8 @@ pub(super) fn stage_products(
         physics_file,
         voxel_file,
     ];
+    products.extend(distance_file);
+    products.extend(lightmap_file);
     let (banks_file, animation_banks) = banks.unzip();
     products.extend(banks_file);
     products.extend(world.products);
@@ -165,6 +204,8 @@ pub(super) fn stage_products(
         proxy_sha,
         proxy_descriptor,
         voxels,
+        distance_fields,
+        volumetric_lightmap,
         products,
         paged,
         world_report: world.report,

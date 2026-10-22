@@ -5,6 +5,10 @@ import { SCREEN_MARCH_BASE_WGSL } from './screenMarchBase.ts'
 /** The distance, in texels of the level it is taken at, past a cell boundary the walk puts a ray
  *  (`screenPlaneTime`). */
 const REFERENCE_OFFSET = 0.005
+/** The share of a half-resolution tile's depth a ray is held at the start of its march, rising to the
+ *  tile's depth over `REFERENCE_RAMP` of the march (`screenMarchReference`, `full` false). */
+const REFERENCE_START_SCALE = 0.99
+const REFERENCE_RAMP = 10
 
 /**
  * THE REFERENCE WALK OF THE PYRAMID (`screenMarchReference`): the closest depth of the opaque image
@@ -15,7 +19,10 @@ const REFERENCE_OFFSET = 0.005
  *
  * The walk goes down to the pixels of the depth image itself (base mip −1, the full-resolution
  * depth read where the half-resolution level is the first of the pyramid), takes each tile's depth
- * as it is and puts a hit at the centre of its pixel.
+ * as it is and puts a hit at the centre of its pixel. With `full` false it stops at the
+ * half-resolution level (base mip 0): each tile's depth is then scaled by a factor rising from
+ * `REFERENCE_START_SCALE` to one over the first tenth of the march, and a hit is the centre of the
+ * 2 × 2 pixels of the texel.
  *
  * The ray is `o + d·t` like `screenMarchPlanes`'s, `t` from 0 to `end`; the walk's own time runs from
  * 0 to 1 over `d · end`. It steps out of the texel it starts in first, without a test, so that it
@@ -38,7 +45,8 @@ export const SCREEN_MARCH_REFERENCE_WGSL = (group: number, binding: number) =>
     `SCREEN_MARCH_REFERENCE_WGSL(${group}, ${binding})`,
     [SCREEN_MARCH_BASE_WGSL(group, binding)],
     `const REFERENCE_OFFSET:f32=${wgslF32(REFERENCE_OFFSET)};
-const REFERENCE_BASE_MIP:i32=-1;
+const REFERENCE_START_SCALE:f32=${wgslF32(REFERENCE_START_SCALE)};
+const REFERENCE_RAMP:f32=${wgslF32(REFERENCE_RAMP)};
 fn screenTileDepth(p:vec2f,mip:i32,top:i32)->f32{
  let level=min(mip+1,top);
  if(level<=0){return hizFrontDepth(vec2i(floor(p)));}
@@ -51,14 +59,14 @@ fn screenPlaneTime(p:vec2f,start:vec2f,mip:i32,inv:vec2f,ahead:vec2<bool>)->f32{
  let times=(plane-start)*inv;
  return min(times.x,times.y);
 }
-fn screenMarchReference(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->ScreenHit{
+fn screenMarchReference(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32,full:bool)->ScreenHit{
  let levels=hizLevelCount();
  let miss=ScreenHit(-1.0,vec3f(0.0),vec2f(0.0),false,0u);
  if(levels<2){return miss;}
  let steps=min(screenMarchBudget(d,end,levels),cap);
  let dir=d*end;
  let tiny=vec2f(1e-6);
- let base=REFERENCE_BASE_MIP;
+ let base=select(0,-1,full);
  let top=levels-1;
  let ahead=dir.xy>=vec2f(0.0);
  let inv=1.0/select(dir.xy,select(-tiny,tiny,ahead),abs(dir.xy)<tiny);
@@ -68,7 +76,7 @@ fn screenMarchReference(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32
  var k=0u;
  for(var j=0u;j<steps;j++){
   if(mip<base||time>=1.0){break;}
-  let tile=screenTileDepth(ray.xy,mip,top);
+  let tile=screenTileDepth(ray.xy,mip,top)*select(mix(REFERENCE_START_SCALE,1.0,saturate(time*REFERENCE_RAMP)),1.0,full);
   var zTime=1.0;
   if(dir.z<0.0){zTime=(tile-o.z)/dir.z;}
   let edge=min(screenPlaneTime(ray.xy,o.xy,mip,inv,ahead),zTime);

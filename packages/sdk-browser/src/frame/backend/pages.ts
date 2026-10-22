@@ -1,10 +1,11 @@
 import { WEBGPU_ENGINE_ID, type EngineFactory } from '../../session/engine/factory.ts'
 import { createWebgpuPagesRuntime } from './runtime.ts'
 import { renderWebgpuPages } from '../render/render.ts'
-import { refreshSceneLights } from '../io/hostApi.ts'
+import { refreshFogVolumes, refreshSceneLights } from '../io/hostApi.ts'
 import { webgpuAudits } from '../io/audits.ts'
 import { dropTaaHistory } from '../../post/taa/landing.ts'
 import { followFrameDifference } from '../render/frameDifference.ts'
+import { applySkyToRuntime } from '../render/encodeCloudsSky.ts'
 import {
   backendHostApi,
   backendSetters,
@@ -45,7 +46,10 @@ export const webgpuPagesEngine = ((context) => {
     refreshSceneLights() {
       refreshSceneLights(rt)
     },
-    skyCapture: () => rt.gpu.atmosphere?.skyCapture(),
+    refreshFogVolumes() {
+      refreshFogVolumes(rt)
+    },
+    applySky: (sky, host) => applySkyToRuntime(rt, sky, host),
     /** The only engine that carries the contract's shadow atlas: everything else is read in its methods. */
     lighting: { shadows: true },
     ...backendSetters(rt),

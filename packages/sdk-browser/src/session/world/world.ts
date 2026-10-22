@@ -27,6 +27,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     worldMethods(parts),
     worldViewMethods(parts),
   )
+  parts.modules.bind(world)
   frames.add(noticeEffectBudget(world.budget, canvas, world.effects, diagnostic.notices))
   registerWorld(world, { session: () => runtime.explorer, last: () => frames.last }, switches.held)
   return world

@@ -16,7 +16,8 @@ export const BOUNCE_LEVEL = fieldLayout('BounceLevel', [
  * (`frame`: light revision, probes dispatched, frame counter), the
  * world light grid (`lists`: its records' first word in the light grid's buffer, `TILE_NO_SLICE` for
  * none, and its cells along a side; `lattice`: its lowest corner and the side of its cell,
- * `bounceLightSlice`), then every level the declared count holds.
+ * `bounceLightSlice`), the eye (`eye`, the light functions' fade is measured from), then every level the
+ * declared count holds.
  */
 export const BOUNCE_GRID = fieldLayout('BounceGrid', [
   ['reach', 'vec4f'],
@@ -24,6 +25,7 @@ export const BOUNCE_GRID = fieldLayout('BounceGrid', [
   ['frame', 'vec4u'],
   ['lists', 'vec4u'],
   ['lattice', 'vec4f'],
+  ['eye', 'vec4f'],
   ['levels', arrayOf(BOUNCE_LEVEL, BOUNCE_SETTINGS.cascadeLevels)],
 ] as const)
 
@@ -87,12 +89,13 @@ export function createBounceUniform(device: GPUDevice, cascades: BounceCascades)
       floats[G.reach + 1] = on ? 1 : 0
       upload()
     },
-    /** Encoded-frame state: light revision, dispatched probes, frame counter, then the levels. */
-    write(generation: number, groups: number, frame: number) {
+    /** Encoded-frame state: light revision, dispatched probes, frame counter, the eye, then the levels. */
+    write(generation: number, groups: number, frame: number, eye: ArrayLike<number>) {
       floats[G.reach] = cascades.reach
       integers[G.frame] = generation
       integers[G.frame + 1] = groups
       integers[G.frame + 2] = frame
+      for (let axis = 0; axis < 3; axis++) floats[G.eye + axis] = eye[axis]
       writeLevels()
       upload()
     },

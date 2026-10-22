@@ -154,6 +154,9 @@ export interface ReconstructInput {
   /** The projection (column-major): its depth terms, a perspective's. */
   readonly projection: ArrayLike<number>
   readonly state: CloudViewState
+  /** The ratio of this image's pre-exposure to the history's (`PreExposure`; 1 when absent): the
+   *  history's light was written multiplied by the history's. */
+  readonly preExposureRatio?: number
 }
 
 /** The reconstruction's uniform (`RECONSTRUCT_VIEW`) into `out`, `RECONSTRUCT_VIEW.words` floats.
@@ -180,6 +183,7 @@ export function writeReconstructView(out: Float32Array, input: ReconstructInput,
   writeViewScale(out, at.uvScales, plan.sizes.traced)
   if (past) writeViewScale(out, at.uvScales + 2, past)
   else out.fill(1, at.uvScales + 2, at.uvScales + 4)
+  put4(out, at.exposure, past ? (input.preExposureRatio ?? 1) : 1, 0, 0, 0)
   return out
 }
 

@@ -1,4 +1,5 @@
 import { toHalf } from '../../../../math/src/float/half.ts'
+import { retire } from '../../gpu/core/frameRetire.ts'
 import {
   cubemapMipCount,
   faceAverages,
@@ -92,4 +93,24 @@ export function createWhiteCubemap(device: GPUDevice) {
     view: texture.createView({ dimension: 'cube' }),
     destroy: () => texture.destroy(),
   }
+}
+
+/** What a view holds of the fog's cubemap: the picture's texels and the texture made for them. */
+interface HeldFogCubemap {
+  cube?: { texels: ArrayLike<number>; made: ReturnType<typeof createFogCubemap> }
+}
+
+/** The cubemap's texture for the picture the fog holds: made once for it and kept while the fog
+ *  holds it, retired when it does not. None where the fog has no cubemap. */
+export function fogCubemapView(
+  device: GPUDevice,
+  held: HeldFogCubemap,
+  cube: ResolvedFogCubemap | undefined,
+) {
+  if (held.cube && held.cube.texels !== cube?.texels) {
+    retire(device, held.cube.made)
+    held.cube = undefined
+  }
+  if (cube && !held.cube) held.cube = { texels: cube.texels, made: createFogCubemap(device, cube) }
+  return held.cube?.made.view
 }

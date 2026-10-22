@@ -22,6 +22,10 @@ import {
 } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
+import { LIGHT_FUNCTION_RULES } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
+import { VOLUMETRIC_LIGHTMAP_RULES } from '../../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
+import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
+import { GLOBAL_DISTANCE_FIELD_RULES } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { MOTION_BLUR_RULES } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import { DEPTH_OF_FIELD_RULES } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
@@ -91,6 +95,10 @@ const RULES = {
   ...EXPOSURE_RULES,
   ...TEMPORAL_RULES,
   ...HIZ_RULES,
+  ...LIGHT_FUNCTION_RULES,
+  ...VOLUMETRIC_LIGHTMAP_RULES,
+  ...GLOBAL_DISTANCE_FIELD_RULES,
+  ...DISTANCE_FIELD_OCCLUSION_RULES,
   ...TESSELLATION_RULES,
 }
 

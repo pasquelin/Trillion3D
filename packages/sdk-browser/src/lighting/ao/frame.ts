@@ -234,5 +234,6 @@ export function encodeAmbientOcclusion(
     imageOf(rt, cam, extent),
   )
   state.output = view.textures.ao!.view
-  deferred.setAmbientOcclusion(...applyOf(rt, state, mode))
+  const [code, amount] = applyOf(rt, state, mode)
+  deferred.setAmbientOcclusion(code, amount)
 }

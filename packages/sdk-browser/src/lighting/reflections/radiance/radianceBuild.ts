@@ -72,7 +72,8 @@ const radianceGroups = (
 }
 
 /**
- * The radiance pyramid of the lit image in `inputs.texture`, drawn at `size` with `viewProjection`, in the
+ * The radiance pyramid of the lit image in `inputs.texture`, drawn at `size` with `viewProjection`, its
+ * light multiplied by `preExposure`, in the
  * open compute `pass`: levels 1 and 2 from the image, then two levels a dispatch from the last made
  * (`RADIANCE_SHADER`); what the pyramid holds is then that image, for the next one's reflections, its
  * level 0 the lit image itself once the image is encoded (`fresh`, `adoptRadianceImage`).
@@ -86,6 +87,7 @@ export function encodeRadiancePyramid(
   inputs: RadianceInputs,
   size: readonly [number, number],
   viewProjection: ArrayLike<number>,
+  preExposure = 1,
 ) {
   const { levels, held, build } = pyramid
   if (levels < 3) return
@@ -109,5 +111,6 @@ export function encodeRadiancePyramid(
   copyMatrix4(held.viewProjection, viewProjection)
   held.size[0] = size[0]
   held.size[1] = size[1]
+  held.preExposure = preExposure
   pyramid.fresh = true
 }

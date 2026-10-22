@@ -1,4 +1,5 @@
 import { environmentExposure } from '../../../../sdk-core/src/scene/core/environment.ts'
+import { exposureCurveTable } from '../../../../sdk-core/src/contracts/exposureCurveTable.ts'
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { resolveSettingsInto } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { wantsContractLighting } from '../../frame/prepare/contractLight.ts'
@@ -9,9 +10,9 @@ import { createExposureMeter } from './meter.ts'
 import { askExposurePrograms, meterPrograms } from './meterPrograms.ts'
 import type { ExposureSettings } from './meterParams.ts'
 
-/** The byte of the composition's view uniform that holds the exposure it multiplies by: the
- *  fourth word of the light parameters (`lightParams.w`, `VIEW_LAYOUT`). */
-export const EXPOSURE_AT = (VIEW_LAYOUT.at.lightParams + 3) * 4
+/** The byte of the composition's view uniform that holds the scale it multiplies the image by: the
+ *  exposure over the image's pre-exposure, the second word of `preExposure` (`VIEW_LAYOUT`). */
+export const EXPOSURE_AT = (VIEW_LAYOUT.at.preExposure + 1) * 4
 /** The settings of the view, read again by each call into one object. */
 const resolved = {} as ExposureSettings
 
@@ -19,6 +20,10 @@ const resolved = {} as ExposureSettings
  *  meter, the finishing and what asks their programs. The object is the same at each call. */
 export const exposureSettings = (rt: WebgpuPagesRuntime) =>
   resolveSettingsInto(EXPOSURE_RULES, rt.context, resolved)
+
+/** The table of the view's exposure compensation curve (`exposureCurve`; ones where it names none),
+ *  the same array while the option is the same object. */
+const exposureCurveOf = (rt: WebgpuPagesRuntime) => exposureCurveTable(rt.context.exposureCurve)
 
 /** Whether the view's image is exposed by the meter: lit by declared lamps, its exposure the
  *  automatic one. A manual exposure, and a view that shows the raw albedo, need none. */
@@ -39,17 +44,18 @@ export function askExposure(rt: WebgpuPagesRuntime, device: GPUDevice) {
 export function exposureMoving(rt: WebgpuPagesRuntime) {
   const meter = rt.gpu.exposure
   if (!meter || !meterWanted(rt) || showsRaw(rt.run.diagnostic)) return false
-  return meter.moving || meter.changed(exposureSettings(rt))
+  return meter.moving || meter.changed(exposureSettings(rt), exposureCurveOf(rt))
 }
 
 /**
  * The exposure of the image composition reads, `image` of `size` pixels, in the frame's encoder,
- * before the composition: measured on the image as it is — radiance, no exposure applied, the
- * temporal resolve's when it ran —, and copied into the composition's uniform
- * (`createExposureMeter`). Nothing for a manual exposure, an unlit view, a view the diagnostics
- * show in raw values (`raw`), or while the programs are not compiled: the image is then shown at
- * the exposure the CPU knows (`appliedExposureOf`). The meter is made at the first image that needs
- * it. `settings` are the image's (`exposureSettings`), read once for the finishing as well.
+ * before the composition: measured on the image as it is — radiance multiplied by `preExposure`, no
+ * exposure applied, the temporal resolve's when it ran —, and copied, over that pre-exposure, into
+ * the composition's uniform (`createExposureMeter`). Nothing for a manual exposure, an unlit view,
+ * a view the diagnostics show in raw values (`raw`), or while the programs are not compiled: the
+ * image is then shown at the exposure the CPU knows over the pre-exposure (`PreExposure.shown`).
+ * The meter is made at the first image that needs it. `settings` are the image's
+ * (`exposureSettings`), read once for the finishing as well.
  */
 export function encodeExposure(
   rt: WebgpuPagesRuntime,
@@ -59,6 +65,7 @@ export function encodeExposure(
   size: readonly number[],
   raw: boolean,
   settings: ExposureSettings,
+  preExposure: number,
 ) {
   const { gpu } = rt
   if (raw || !meterWanted(rt) || !gpu.deferred || size[0] < 1 || size[1] < 1) return
@@ -70,8 +77,10 @@ export function encodeExposure(
     image,
     size,
     settings,
+    exposureCurveOf(rt),
     rt.run.gate.temporalRevision,
     gpu.deferred.uniform,
     EXPOSURE_AT,
+    preExposure,
   )
 }

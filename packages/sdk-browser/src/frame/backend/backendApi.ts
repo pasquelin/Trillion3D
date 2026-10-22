@@ -6,6 +6,7 @@ import { setWebgpuTemporalAntialiasing } from '../../post/taa/prepare.ts'
 import { flushWebgpuPages } from '../render/flush.ts'
 import { captureSurfaceView } from '../io/surfaceCapture.ts'
 import { captureColorView } from '../io/colorCapture.ts'
+import { captureHdrViews } from '../io/hdrCapture.ts'
 import { castWebgpuRay } from '../io/castRay.ts'
 import {
   addWebgpuView,
@@ -185,6 +186,7 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
     captureColorView(camera, size) {
       return captureColorView(rt, camera, size)
     },
+    captureHdrViews: (job) => captureHdrViews(rt, job),
     async addView(options) {
       const { view, setRenderScale, setTemporalAntialiasing } = await addWebgpuView(rt, options)
       return {

@@ -12,7 +12,10 @@ export function recorder(
   const encoder = gpu.device.createCommandEncoder()
   const labels = () => gpu.draws.map(({ pipeline }) => pipeline.fragment?.module.label)
   const views = [0, 1, 2, 3].map(() => ({}) as GPUTextureView),
-    surface = { views: () => views } as unknown as SurfaceBuffer,
+    surface = {
+      views: () => views,
+      stores: () => [views[0], views[3]],
+    } as unknown as SurfaceBuffer,
     view = {} as GPUTextureView
   const draw = (direct: {
     narrow?: boolean

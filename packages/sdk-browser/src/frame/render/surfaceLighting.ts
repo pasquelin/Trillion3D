@@ -7,6 +7,7 @@ import { composesOffscreen } from '../../diagnostic/gpuVariant.ts'
 import { encodeTaaPass } from '../../post/taa/frame.ts'
 import { encodeVelocity } from '../../post/taa/velocityFrame.ts'
 import { encodeExposure, exposureSettings } from '../../post/exposure/frame.ts'
+import { preExposureOf } from '../../post/exposure/pre.ts'
 import { encodeFinish, finishedGroup } from '../../post/finish/frame.ts'
 import { stochasticPhase } from '../../post/taa/frameState.ts'
 import {
@@ -17,8 +18,15 @@ import {
 } from './encodeEffects.ts'
 import { seedAsIsShare } from '../prepare/asIsShareTarget.ts'
 import { directLightResources, readsAsIs, wantsContractLighting } from '../prepare/contractLight.ts'
-import { encodeAtmosphere, encodeSky } from './encodeAtmosphere.ts'
+import { encodeAtmosphere } from './encodeAtmosphere.ts'
+import { encodeCloudShadow } from './encodeCloudShadow.ts'
+import { encodeSkyLight } from './encodeSkyLight.ts'
+import { encodeSkyAndClouds, requestSkyAir } from './encodeClouds.ts'
 import { encodeFogVolume } from './encodeFogVolume.ts'
+import {
+  encodeLightShaftBloom,
+  encodeLightShaftOcclusion,
+} from '../../modules/sky/lightShafts/frame.ts'
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
 import { bindBlend, encodeBlend, prepareBlend } from './encodeBlend.ts'
@@ -31,6 +39,7 @@ import {
 } from '../../lighting/reflections/frame.ts'
 import { adoptRadianceImage } from '../../lighting/reflections/radiance/radiance.ts'
 import { encodeScreenProbes } from '../../lighting/bounce/screen/frame.ts'
+import { encodeSkyOcclusion } from './encodeSkyOcclusion.ts'
 import { encodeAmbientOcclusion } from '../../lighting/ao/frame.ts'
 import { viewProj } from '../backend/helpers.ts'
 import { encodeSeeThroughBackground, encodeXray } from '../../visibility/passes/xray.ts'
@@ -38,6 +47,10 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { lightViewCode, showsRaw } from '../../visibility/shader/shadeMode.ts'
 import { createFrameDifference } from './frameDifference.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
+import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
+import { reflects, rewritesSurfaces, type ViewOverrides } from '../backend/state/viewOverrides.ts'
+import { encodeSurfaceRewrite } from '../../lighting/deferred/surfaceOverride.ts'
+import { encodeUnlitLights } from './captureLights.ts'
 
 const inverseViewProj = new Float64Array(16),
   cameraWorldArray: [number, number, number, number] = [0, 0, 0, 1]
@@ -89,7 +102,7 @@ function encodeImageChain(
   // the finishing and the chain touch it; the finishing's passes, which read it, then the chain's.
   const image = resolved?.color ?? lit
   const exposure = exposureSettings(rt)
-  encodeExposure(rt, device, encoder, image, source.drawn, raw, exposure)
+  encodeExposure(rt, device, encoder, image, source.drawn, raw, exposure, preExposureOf(rt).now)
   const post = encodeFinish(rt, device, encoder, image, source.drawn, raw, exposure)
   const effects = encodeEffects(rt, device, encoder, resolved, post, source.drawn)
   let composed =
@@ -117,6 +130,59 @@ function presentationOf(rt: WebgpuPagesRuntime, guided: boolean) {
     : gpu.presenter?.targetView(...gpu.displaySize)
 }
 
+/** What a capture's view turns off or forces (`ViewOverrides`) ahead of the lighting: the surfaces
+ *  rewritten before any light reads them, the lights' buffer cleared of its lights; the main view
+ *  does neither. Returns the overrides the rest of the image reads. */
+function encodeViewOverrides(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  surfaces: SurfaceBuffer,
+) {
+  const overrides = rt.views.active.overrides
+  if (rewritesSurfaces(overrides)) encodeSurfaceRewrite(device, encoder, surfaces, overrides)
+  if (!overrides.lighting) encodeUnlitLights(rt, device, encoder)
+  return overrides
+}
+
+/**
+ * The indirect light of the image, each pass where its view's overrides leave it: what every surface
+ * reflects, traced here — the opaque ones, the resolve's input, and the transparents' front one,
+ * which the translucent layers read; behind it, they read the same view inline —; the pixels'
+ * indirect light, from the probes placed on the image, after the reflections, which made the lit
+ * image of the last image readable; the ambient occlusion, where no screen probes light the pixels
+ * (or, asked, over theirs), from the depth pyramid this image built; the sky light's occlusion by the distance fields,
+ * where no screen probes light the pixels (`encodeSkyOcclusion`). The lighting reads what they leave.
+ */
+function encodeIndirectLight(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  cam: EngineCamera,
+  overrides: ViewOverrides,
+) {
+  encodeSkyOcclusion(rt, encoder, cam)
+  if (reflects(overrides)) encodeReflections(rt, encoder)
+  if (!overrides.lighting) return
+  encodeScreenProbes(rt, encoder)
+  encodeAmbientOcclusion(rt, encoder, cam)
+}
+
+/** The image of a view that runs no effect (`ViewOverrides.post`): its lit image is its output,
+ *  handed to the reader it names ahead of the radiance turn; nothing is composed nor presented. */
+function finishUncomposed(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  overrides: ViewOverrides,
+  filter: ReturnType<typeof beginDisplayFilter>,
+) {
+  const { gpu } = rt
+  overrides.readLit?.(encoder, gpu.hdrView!, gpu.targetSize, gpu.allocatedSize)
+  if (filter) filter.active = false
+  finishVsmFrame(rt, encoder)
+  adoptRadianceImage(gpu)
+  return false
+}
+
 /** Lights the surfaces into the HDR target, draws the forward transparents over it, and composes the
  *  display image at its size; returns whether it landed on the presented swap-chain view. */
 export function encodeSurfaceLighting(
@@ -135,6 +201,7 @@ export function encodeSurfaceLighting(
   poseHost.revision = deformation?.frame.revision ?? 0
   run.gpuSelection?.proxyPose(encoder, poseHost)
   poseHost.pool = poseHost.deformation = undefined
+  const overrides = encodeViewOverrides(rt, device, encoder, gpu.surfaces)
   // The motion of every texel, once, before any pass reads it: the indirect light, the temporal pass
   // and the motion blur (`../../post/taa/velocityFrame.ts`).
   encodeVelocity(rt, device, encoder, cam)
@@ -148,6 +215,9 @@ export function encodeSurfaceLighting(
   const blendRuns = prepareBlend(rt, encoder)
   const direct = encodeDirectLights(rt, device, encoder, cam, viewProj)
   // The air's tables and haze volume, which the lighting reads through the light buffer just pushed.
+  requestSkyAir(rt, device)
+  // The clouds' shadow maps, which the air, the fog and the surfaces read.
+  encodeCloudShadow(rt, device, encoder, cam)
   const air = encodeAtmosphere(rt, device, encoder, cam, viewProj, inverseViewProj)
   for (let i = 0; i < 4; i++) cameraWorldArray[i] = cam.viewPoint[i]
   // The transparents bound for the image, and their front pass drawn: their nearest depth and the
@@ -161,16 +231,11 @@ export function encodeSurfaceLighting(
   // The fog's volume, built over the light lists and the sun's shadow maps just made, and the opaque
   // depth: the resolve, the blends and the sky read it.
   encodeFogVolume(rt, device, encoder, cam, direct)
-  // What every surface reflects, traced here: the opaque ones, the resolve's input, and the
-  // transparents' front one, which the translucent layers read; behind it, they read the same
-  // view inline.
-  encodeReflections(rt, encoder)
-  // The pixels' indirect light, from the probes placed on the image: after the reflections, which made
-  // the lit image of the last image readable, and before the lighting, which reads them.
-  encodeScreenProbes(rt, encoder)
-  // The ambient occlusion, where no screen probes light the pixels (or, asked, over theirs): from the depth pyramid
-  // this image built, before the lighting, which applies the texture it leaves.
-  encodeAmbientOcclusion(rt, encoder, cam)
+  // The light shafts' occlusion, which the resolve multiplies the fog's inscattering by.
+  encodeLightShaftOcclusion(rt, device, encoder, cam)
+  // The sky light's capture, on the air's tables of this image, before the passes that read the light.
+  encodeSkyLight(rt, device, encoder)
+  encodeIndirectLight(rt, encoder, cam, overrides)
   gpu.deferred.bind(
     gpu.surfaces,
     gpu.depthView,
@@ -186,8 +251,9 @@ export function encodeSurfaceLighting(
   gpu.deferred.update(inverseViewProj, cameraWorldArray, width, height, clear, raw, direct)
   gpu.deferred.light(encoder, gpu.hdrView)
   run.gpuDrawCalls++
-  // The sky where no surface was drawn, before the transparents lie over it.
-  if (air) encodeSky(rt, encoder)
+  // The sky where no surface was drawn, the haze on the surfaces and the clouds over them, before the
+  // transparents lie over it.
+  encodeSkyAndClouds(rt, device, encoder, cam, air)
   // A see-through view's opaque background, which its edges are drawn over
   // (`../../visibility/passes/xray.ts`).
   encodeSeeThroughBackground(rt, encoder, clear)
@@ -195,12 +261,16 @@ export function encodeSurfaceLighting(
   const filter = beginDisplayFilter(rt, device)
   // Bound again: the shadows' projection may have made a resource the blend group names since.
   encodeBlend(rt, device, encoder, blendKey && bindBlend(rt, device))
-  drawParticles(rt, encoder, directTiles())
+  if (overrides.particles) drawParticles(rt, encoder, directTiles())
   // The see-through views' edges over the lit image and its transparents
   // (`../../visibility/passes/xray.ts`).
   encodeXray(rt, device, encoder)
+  // The light shafts' bloom, added onto the lit image the translucent surfaces lie over, before the
+  // temporal pass and the effects read it.
+  encodeLightShaftBloom(rt)
   // The lit image whole, before its resolve: the next image's reflections read it.
-  encodeReflectionRadiance(rt, encoder)
+  if (reflects(overrides)) encodeReflectionRadiance(rt, encoder)
+  if (!overrides.post) return finishUncomposed(rt, encoder, overrides, filter)
   // Composition reads the temporal result, or the lit image without accumulation.
   const asIs = readsAsIs(rt)
   const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView, asIs, blendShare)

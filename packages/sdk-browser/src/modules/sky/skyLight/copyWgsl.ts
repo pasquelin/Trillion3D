@@ -18,6 +18,12 @@ import { SKY_CUBE_WGSL } from './cubeWgsl.ts'
  *   the four texels around the point, each channel apart;
  * - `maxGatherMain` writes the largest channel of the last mip's six texels, the cube's brightest
  *   value.
+ * - `copySceneFaceMain` writes a face of the captured cube from the lit image of the scene drawn
+ *   for it (`captureScene.ts`): the image read bilinearly over the square the face fills of it
+ *   (`scale.xy`, the share of the target the image takes), turned about its vertical axis — a
+ *   cube's faces are laid as seen from outside, a camera sees them from inside —, held between 0 and the half float's
+ *   largest value, the colour below the horizon of the face's direction mixed to the lower
+ *   hemisphere's as above, the alpha 1.
  * The brightest value of a 32-bit float cube decides how it is rescaled to fit the 16-bit cube
  * (`skyLightCubemapScales`).
  */
@@ -35,7 +41,15 @@ export const COPY_CODE = wgslProgram(
   `${COPY_LAYOUT.wgsl}
 @group(0) @binding(0) var source:texture_cube<f32>;
 @group(0) @binding(1) var sourceSampler:sampler;
+@group(0) @binding(2) var scene:texture_2d<f32>;
+@group(0) @binding(3) var sceneSampler:sampler;
 @group(1) @binding(0) var<uniform> copy:SkyCopyBlock;
+/** The colour below the horizon (the direction's third axis negative) mixed to the lower
+ *  hemisphere's by its coverage, when the block says so. */
+fn lowerHemisphere(rgb:vec3f,d:vec3f)->vec3f{
+ if(d.z<0.0&&copy.face.y!=0u){return mix(rgb,copy.lower.rgb,copy.lower.a);}
+ return rgb;
+}
 @vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(${FULLSCREEN_XY},0.0,1.0);}
 @fragment fn copyFaceMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let uv=pixel.xy*copy.rotation.z*2.0-1.0;
@@ -43,15 +57,22 @@ export const COPY_CODE = wgslProgram(
  let s=copy.rotation.x;
  let c=copy.rotation.y;
  let d=vec3f(face.x*c-face.y*s,face.x*s+face.y*c,face.z);
- var rgb=textureSampleLevel(source,sourceSampler,d,0.0).rgb;
- if(d.z<0.0&&copy.face.y!=0u){rgb=mix(rgb,copy.lower.rgb,copy.lower.a);}
+ let rgb=lowerHemisphere(textureSampleLevel(source,sourceSampler,d,0.0).rgb,d);
  var out=vec4f(rgb,1.0)*copy.scale;
  if(copy.face.z!=0u){out=clamp(out,vec4f(0.0),vec4f(${HALF_FLOAT_MAX}.0,${HALF_FLOAT_MAX}.0,${HALF_FLOAT_MAX}.0,1.0));}
  return out;
+}
+@fragment fn copySceneFaceMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{
+ let d=faceDirection(pixel.xy*copy.rotation.z*2.0-1.0,copy.face.x);
+ let at=vec2f(1.0-pixel.x*copy.rotation.z,pixel.y*copy.rotation.z)*copy.scale.xy;
+ let seen=textureSampleLevel(scene,sceneSampler,at,0.0).rgb;
+ let top=vec3f(${HALF_FLOAT_MAX}.0);
+ return vec4f(lowerHemisphere(clamp(seen,vec3f(0.0),top),d),1.0);
 }`,
   [SKY_CUBE_WGSL],
 )
 export const COPY_ENTRY = 'copyFaceMain'
+export const COPY_SCENE_ENTRY = 'copySceneFaceMain'
 
 const MEASURE_FORMAT = 'rgba32float'
 

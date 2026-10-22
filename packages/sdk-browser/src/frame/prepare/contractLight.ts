@@ -1,3 +1,7 @@
+import {
+  askLightFunctionPrograms,
+  lightFunctionResources,
+} from '../../lighting/lightFunction/frame.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import type { DirectLightResources } from '../../lighting/deferred/program.ts'
 import type { LitPrograms } from '../../lighting/deferred/contractVariants.ts'
@@ -7,7 +11,8 @@ import {
   type LitPass,
 } from '../../lighting/deferred/contractCuts.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
-import { receiverResources } from '../../visibility/passes/receiver.ts'
+import { skyLightReadOf } from '../render/encodeSkyLight.ts'
+import { cloudShadowOf } from '../render/encodeCloudShadow.ts'
 import {
   vsmConsumerResources,
   vsmShadowMask,
@@ -18,6 +23,7 @@ import {
 import { lobesHeld, rowsWearLobes } from './lobesTarget.ts'
 import { track } from '../../lighting/deferred/compileLedger.ts'
 import { drawsLit, showsRaw } from '../../visibility/shader/shadeMode.ts'
+import { unlitLights } from '../render/captureLights.ts'
 
 /**
  * True when the image must be lit by the declared lights. False in the only unlit view: `unlit`
@@ -127,6 +133,7 @@ export function litProgramPending(rt: WebgpuPagesRuntime) {
  */
 export function askLobedPrograms(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (!wantsContractLighting(rt)) return
+  askLightFunctionPrograms(rt, device)
   const { vis, blendState } = rt,
     { deferred } = rt.gpu
   if (deferred && rowsWearLobes(rt)) track(device, deferred.awaited(FULL_CONTRACT), true)
@@ -143,9 +150,12 @@ const contractResources: DirectLightResources = {}
  */
 export function directLightResources(rt: WebgpuPagesRuntime) {
   const { lights } = rt,
-    active = wantsContractLighting(rt)
-  contractResources.lights = lights.buffer
-  contractResources.tiles = active ? lights.tiles?.buffer : undefined
+    active = wantsContractLighting(rt),
+    // A view that is not lit (`ViewOverrides.lighting`) reads the light buffer cleared of its
+    // lights, and no list, probe, reflection nor occlusion.
+    lit = active && rt.views.active.overrides.lighting
+  contractResources.lights = active && !lit ? unlitLights(rt) : lights.buffer
+  contractResources.tiles = lit ? lights.tiles?.buffer : undefined
   // The narrow resolve reads the narrow pass's lists (#849); a scene with no declared shadow, or
   // no rectangle, resolves without that code (#1249, #1369): all read off stable state.
   if (active) {
@@ -161,18 +171,25 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.vsm = active ? vsmConsumerResources(rt) : undefined
   // The grid is bound only if it exists: without it, the deferred pass compiles and binds the
   // contract program alone, exactly the one from before the bounce lot.
-  const bounce = active && rt.bounce.wanted ? rt.bounce.probes : undefined
+  const bounce = lit && rt.bounce.wanted ? rt.bounce.probes : undefined
   contractResources.bounceGrid = bounce?.uniform
   contractResources.probes = bounce?.probes
-  // The shadow receiver the resolve wrote (`receiverTargetWgsl.ts`).
-  contractResources.receiver = active ? receiverResources(rt) : undefined
+  // The sky light's cubes and harmonics, and the clouds' shade of the lights: the stand-ins give none.
+  contractResources.sky = active && rt.gpu.device ? skyLightReadOf(rt) : undefined
+  contractResources.cloudShadow = active ? cloudShadowOf(rt) : undefined
   // The share of the radiance the opaque trace wrote this image (`../../lighting/reflections/frame.ts`).
-  contractResources.reflection = active ? rt.gpu.reflection?.targetView : undefined
+  contractResources.reflection = lit ? rt.gpu.reflection?.targetView : undefined
   // What the fog's cubemap and volume this image built are read through (`encodeFogVolume`).
   contractResources.fog = active ? rt.gpu.fogVolume?.read : undefined
+  // The light shafts' occlusion mask the fog is multiplied by (`../../modules/sky/lightShafts/frame.ts`).
+  contractResources.lightShaft = lit ? rt.gpu.lightShafts?.mask : undefined
+  // The light functions' atlas and table (`../../lighting/lightFunction/frame.ts`).
+  contractResources.lightFunction = lit
+    ? lightFunctionResources(rt, 'lightFunctionDeferred')
+    : undefined
   // What the screen probes left of the pixels' indirect light this image (`../../lighting/bounce/screen/frame.ts`).
-  contractResources.screenIndirect = active ? rt.gpu.screenProbes?.indirect : undefined
+  contractResources.screenIndirect = lit ? rt.gpu.screenProbes?.indirect : undefined
   // The ambient occlusion this image drew (`../../lighting/ao/frame.ts`).
-  contractResources.ambientOcclusion = active ? rt.gpu.ambientOcclusion?.output : undefined
+  contractResources.ambientOcclusion = lit ? rt.gpu.ambientOcclusion?.output : undefined
   return contractResources
 }

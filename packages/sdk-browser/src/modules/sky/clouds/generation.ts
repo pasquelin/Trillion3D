@@ -1,6 +1,8 @@
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { computeStorageTextureEntry, sequentialEntries } from '../../../gpu/core/computeBindings.ts'
 import { buildComputeStages } from '../../../gpu/core/computeStages.ts'
+import { cloudMipKernels, mipLevelsOf, mipPasses } from './mips.ts'
+import type { MipFilter } from './mipsWgsl.ts'
 
 /**
  * WHAT THE CLOUD TEXTURES' GENERATORS SHARE: the way a generator compiles its kernels over one bind
@@ -9,7 +11,7 @@ import { buildComputeStages } from '../../../gpu/core/computeStages.ts'
  */
 
 /** One pass of a generator: a kernel, the group it reads and writes, the workgroups it runs. */
-interface GeneratorPass {
+export interface GeneratorPass {
   readonly pipeline: GPUComputePipeline
   readonly group: GPUBindGroup
   readonly workgroups: readonly [number, number, number]
@@ -66,13 +68,15 @@ export const wgslFloats = (name: string, values: readonly number[]) =>
 /** What a one-kernel generator is made of: its label, shader, entry point, the texels it writes along
  *  each axis (two axes make a 2D texture, three a volume), the texels a thread group covers along an
  *  axis, and what it binds beside the texture: layout entries and resources in binding order from 1,
- *  and the buffers to free once it is submitted. */
+ *  and the buffers to free once it is submitted; and, for a 2D texture, the filter of the mip chain
+ *  it is given (`mips.ts`), none for a texture of its level 0 alone. */
 interface TextureGenerator<E extends string> {
   readonly label: string
   readonly code: string
   readonly entryPoint: E
   readonly size: readonly [number, number] | readonly [number, number, number]
   readonly groupTexels: number
+  readonly mips?: MipFilter
   readonly extra?: {
     readonly entries: readonly GPUBindGroupLayoutEntry[]
     readonly resources: readonly GPUBindingResource[]
@@ -84,7 +88,7 @@ interface TextureGenerator<E extends string> {
  *  texel, over every texel (`TextureGenerator`). */
 export async function generateTexture<E extends string>(
   device: GPUDevice,
-  { label, code, entryPoint, size, groupTexels, extra }: TextureGenerator<E>,
+  { label, code, entryPoint, size, groupTexels, mips, extra }: TextureGenerator<E>,
 ) {
   const volume = size.length === 3
   const { layout, pipelines } = await compileKernels(
@@ -102,19 +106,24 @@ export async function generateTexture<E extends string>(
     dimension: volume ? '3d' : '2d',
     size: [...size],
     format: 'rgba16float',
+    mipLevelCount: mips ? mipLevelsOf(size[0]) : 1,
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
   })
   const group = device.createBindGroup({
     label,
     layout,
-    entries: sequentialEntries([texture.createView(), ...(extra?.resources ?? [])]),
+    entries: sequentialEntries([
+      texture.createView({ baseMipLevel: 0, mipLevelCount: 1 }),
+      ...(extra?.resources ?? []),
+    ]),
   })
   const [x, y, z] = size
   const workgroups = [x / groupTexels, y / groupTexels, volume ? z! / groupTexels : 1] as const
+  const chain = mips ? mipPasses(device, await cloudMipKernels(device), texture, mips) : []
   runGenerator(
     device,
     label,
-    [{ pipeline: pipelines[entryPoint], group, workgroups }],
+    [{ pipeline: pipelines[entryPoint], group, workgroups }, ...chain],
     extra?.temporaries ?? [],
   )
   return texture

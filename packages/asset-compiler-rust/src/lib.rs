@@ -2,6 +2,7 @@
 pub mod coplanar;
 pub mod cutout;
 mod dag;
+pub(crate) mod distance_field;
 mod manifest_binary;
 #[cfg(any(test, feature = "oracle"))]
 pub mod oracle;
@@ -11,6 +12,7 @@ pub mod proxy;
 pub mod shared_math;
 mod simplify;
 pub mod texture;
+pub mod volumetric_lightmap;
 mod voxel;
 use rayon::prelude::*;
 use serde_json::{json, Value};
@@ -84,6 +86,9 @@ pub struct Options {
     /// a skinned one is an instanced skinned object (`objectSettings`, `ObjectSettings::read`):
     /// none when the job names none; `Err` with the job's refusal when they do not read.
     pub object_settings: std::result::Result<ObjectSettings, String>,
+    /// The volumetric lightmap's bake (`lightmapBake`, `LightmapBakeOptions::read`): none when the
+    /// job names none; `Err` with the job's refusal when it does not read.
+    pub lightmap_bake: std::result::Result<LightmapBakeOptions, String>,
     pub cancelled: Arc<AtomicBool>,
 }
 fn check(o: &Options) -> Result<()> {
@@ -105,8 +110,8 @@ use compiler::accessor::create::*;
 use compiler::accessor::types::*;
 pub use compiler::args::{
     job_options, machine_threads, parse_compiler_args, positive, Hlod, HlodBuilder, HlodLayer,
-    HlodLodSelection, JobDefaults, MaterialOptions, MeshBuildOptions, ObjectSettings,
-    PartitionGrid, VoxelizeOptions, ID_FIELD,
+    HlodLodSelection, JobDefaults, LightmapBakeOptions, MaterialOptions, MeshBuildOptions,
+    ObjectSettings, PartitionGrid, VoxelizeOptions, ID_FIELD,
 };
 pub use compiler::build::compile;
 use compiler::build::progress::with_ratio;

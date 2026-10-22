@@ -12,6 +12,8 @@ import {
   OBJECT_MOBILITIES,
   OBJECT_SETTINGS_OBJECTS,
   RUNTIME_GRID_SETTING,
+  FAR_FIELD_SETTING,
+  DEFAULT_FAR_FIELD,
   SKINNED_INSTANCE_SETTING,
   SPATIALLY_LOADED_SETTING,
   type DrawDistanceWire,
@@ -98,6 +100,9 @@ const objectSettingsOf: Record<keyof ObjectSettingsWire, JsonSchemaProperty> =
         },
       ],
     },
+    [FAR_FIELD_SETTING]: flag(
+      `Whether a view's primed depth draws the object: the small, coarse draw its Hi-Z pyramid is built from before its cut (hizPrime). With hizPrimeFarFieldOnly, only objects that set it are drawn (default ${DEFAULT_FAR_FIELD}).`,
+    ),
     [RUNTIME_GRID_SETTING]: {
       type: 'string',
       description:

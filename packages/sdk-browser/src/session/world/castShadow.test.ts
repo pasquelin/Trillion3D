@@ -119,7 +119,7 @@ test('a version 2 file saved before the far flag loads, every mesh casting none 
   box.castFarShadow = true
   scene.add(box)
   const saved = scene.toJSON()
-  assert.equal(saved.formatVersion, 2)
+  assert.equal(saved.formatVersion, 3)
   // The file as it was saved before the field: no node names it.
   const old = {
     ...saved,

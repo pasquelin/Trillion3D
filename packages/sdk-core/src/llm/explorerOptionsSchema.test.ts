@@ -16,6 +16,10 @@ import { CUT_RULES } from '../contracts/cutOptions.ts'
 import { ANIMATION_RULES } from '../contracts/animationOptions.ts'
 import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
 import { HIZ_RULES } from '../contracts/hizOptions.ts'
+import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
+import { DISTANCE_FIELD_OCCLUSION_RULES } from '../contracts/distanceFieldOcclusionOptions.ts'
+import { GLOBAL_DISTANCE_FIELD_RULES } from '../contracts/globalDistanceFieldOptions.ts'
+import { VOLUMETRIC_LIGHTMAP_RULES } from '../contracts/volumetricLightmapOptions.ts'
 import { SHADOW_RULES } from '../contracts/shadowOptions.ts'
 import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
 import { BLOOM_RULES } from '../contracts/bloomRules.ts'
@@ -113,6 +117,10 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...ANIMATION_RULES,
     ...TEMPORAL_RULES,
     ...HIZ_RULES,
+    ...LIGHT_FUNCTION_RULES,
+    ...GLOBAL_DISTANCE_FIELD_RULES,
+    ...DISTANCE_FIELD_OCCLUSION_RULES,
+    ...VOLUMETRIC_LIGHTMAP_RULES,
     ...SHADOW_RULES,
     ...MOTION_BLUR_RULES,
     ...BLOOM_RULES,

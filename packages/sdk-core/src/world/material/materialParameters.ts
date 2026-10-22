@@ -1,16 +1,27 @@
 import type { Texture } from '../texture/texture.ts'
+import type { MaterialGraph } from './graph/api.ts'
+import type { GraphData } from './graph/graph.ts'
 import type { PhysicsMaterialPreset } from '../../physics/options.ts'
 import type { ColorInput } from '../math/color.ts'
 import type { Blending, Side } from '../constants/index.ts'
 
 /** What a page may pass to a material member; every field is optional. */
 export interface MaterialParameters {
+  /** A graph wired into the material's outputs (`material.graph(domain)`) or its saved data; its
+   *  domain must be the material's. */
+  graph?: MaterialGraph | GraphData
   /** The base colour. */
   color?: ColorInput
   /** A colour the surface gives off by itself, even in the dark. */
   emissive?: ColorInput
   /** How strongly the surface glows. */
   emissiveIntensity?: number
+  /** A volume material's albedo: the share of the light each channel scatters (`material.volume`). */
+  albedo?: ColorInput
+  /** A volume material's extinction: the fraction of light a metre of it takes away. */
+  extinction?: number
+  /** A volume material that gives only its emissive light, no scattering. */
+  emissiveOnly?: boolean
   /** How much the surface is metal: 0 is not at all, 1 is fully. */
   metalness?: number
   /** How rough the surface is: 0 is a mirror, 1 is fully matte. */

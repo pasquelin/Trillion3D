@@ -1,6 +1,8 @@
 import { EngineError } from '../../contracts/cache.ts'
 import { grownLength, resized } from '../../../../math/src/sequence/resized.ts'
 import {
+  LIGHT_FUNCTION_STEP,
+  LIGHT_KIND_SPAN,
   LIGHT_SETTINGS,
   SCENE_LIGHT_HEADER_FLOATS,
   type SceneLight,
@@ -50,6 +52,8 @@ export function createSceneLightStore() {
   const environment = createEnvironmentBlock()
   let view: SceneLightingView = 'auto',
     epoch = 1,
+    /** Whether the air shades the lights: on unless the quality settings turn the atmosphere off. */
+    airOn = true,
     /** The epoch's bumps that moved no light transport: a fog alone, a shadow slice alone. */
     notTransport = 0
   /** Twice the room, content kept: N lights cost log N copies. */
@@ -65,8 +69,23 @@ export function createSceneLightStore() {
   const writeSlice = (slot: number, slice: number) => {
     packed[baseOf(slot) + LIGHT_FIELD.shadowSlice] = slice
   }
-  /** Fields declared by the host. The shadow slice is not one: the scheduler sets it. */
-  const write = (slot: number, light: SceneLight) => writeLightFields(packed, baseOf(slot), light)
+  /** A light's index in the light function table lives in its kind word, above the flags. */
+  const lightFunctionOf = (slot: number) =>
+    Math.floor(packed[baseOf(slot) + LIGHT_FIELD.kind] / LIGHT_FUNCTION_STEP)
+  const writeLightFunction = (slot: number, index: number) => {
+    packed[baseOf(slot) + LIGHT_FIELD.kind] =
+      (packed[baseOf(slot) + LIGHT_FIELD.kind] % LIGHT_FUNCTION_STEP) + index * LIGHT_FUNCTION_STEP
+  }
+  /** Fields declared by the host. The shadow slice and the light function index are not: the
+   *  scheduler and the light function atlas set them, and a write keeps them. */
+  const write = (slot: number, light: SceneLight) => {
+    const held = lightFunctionOf(slot)
+    writeLightFields(packed, baseOf(slot), light)
+    if (held) writeLightFunction(slot, held)
+  }
+  /** How many lights wear a light function: the atlas plans nothing at 0. */
+  let wearing = 0
+  const wears = (light: SceneLight | undefined) => (light?.lightFunction === undefined ? 0 : 1)
   const records = new Map<string, SceneLight>(),
     kinds = createLightKinds(),
     ranks = createLightRanks(),
@@ -77,6 +96,7 @@ export function createSceneLightStore() {
       rankOf: ranks.of,
       packed: () => packed,
       environment: () => environment.current,
+      atmosphere: () => (airOn ? environment.current?.atmosphere : undefined),
       environmentPacked: environment.packed,
       write,
     })
@@ -87,7 +107,6 @@ export function createSceneLightStore() {
       return packed
     },
     environmentPacked: environment.packed,
-    skyPacked: environment.sky,
     /** Bumped on every change, per slot. */
     get revision() {
       return revision
@@ -97,8 +116,13 @@ export function createSceneLightStore() {
       return capacity
     },
     sliceOf,
+    lightFunctionOf,
+    /** Lights that wear a light function material. */
+    get lightFunctionCount() {
+      return wearing
+    },
     /** A light's kind (`LIGHT_KIND`), read from the buffer as its slice is. */
-    kindOf: (slot: number) => packed[baseOf(slot) + LIGHT_FIELD.kind],
+    kindOf: (slot: number) => packed[baseOf(slot) + LIGHT_FIELD.kind] % LIGHT_KIND_SPAN,
     /** Each slot's light name. */
     ids,
     /** How many lights. */
@@ -124,6 +148,9 @@ export function createSceneLightStore() {
     get fogSunSlot() {
       return suns.fogSunSlot
     },
+    /** The light held for the air's light `index` (0 or 1): the brightest directional light that
+     *  may light the air as that index; none where there is none. */
+    atmosphereLight: (index: number) => suns.held(index),
     /** View requested by the host, as-is: `auto` as long as it has asked for nothing. */
     get lightingView(): SceneLightingView {
       return view
@@ -164,6 +191,7 @@ export function createSceneLightStore() {
       ids.push(validated.id)
       indexOf.set(validated.id, slot)
       records.set(validated.id, validated)
+      wearing += wears(validated)
       ranks.take(validated.id)
       kinds.tally(validated, 1)
       revision[slot]++
@@ -188,6 +216,7 @@ export function createSceneLightStore() {
       kinds.tally(current, -1)
       kinds.tally(merged, 1)
       records.set(id, merged)
+      wearing += wears(merged) - wears(current)
       revision[slot]++
       write(slot, merged)
       suns.changed(current, merged)
@@ -206,8 +235,10 @@ export function createSceneLightStore() {
         revision[slot] = revision[last] + 1
         write(slot, records.get(movedId)!)
         writeSlice(slot, sliceOf(last))
+        writeLightFunction(slot, lightFunctionOf(last))
       }
       const removed = records.get(id)!
+      wearing -= wears(removed)
       ids.length = last
       indexOf.delete(id)
       kinds.tally(removed, -1)
@@ -227,6 +258,23 @@ export function createSceneLightStore() {
       if (change === 'untransported') notTransport++
       suns.environmentChanged()
       epoch++
+    },
+    /** Turns the air on or off for the lights (`atmosphereOn`, the quality settings): off, the scene's
+     *  atmosphere tints no light and shows in no block, as if it were not set; the environment keeps
+     *  it. */
+    setAirOn(on: boolean) {
+      if (on === airOn) return
+      airOn = on
+      suns.environmentChanged()
+      epoch++
+    },
+    /** Records the index of the light function table entry a light reads, 0 for none, in its kind
+     *  word, as `assignSlice` does its slice: nothing else of the light moves. */
+    assignLightFunction(slot: number, index: number) {
+      if (lightFunctionOf(slot) === index) return
+      writeLightFunction(slot, index)
+      epoch++
+      notTransport++
     },
     /** Records the atlas slice a light occupies, without touching the rest of its fields. The store
      *  revision only rises if the slice actually changed: otherwise nothing is pushed to the GPU.

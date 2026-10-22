@@ -4,6 +4,18 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { INCIDENCE, REACH, irradianceTerm } from './lightTermsWgsl.ts'
 import { LAMP_WGSL } from './lampSeenWgsl.ts'
+import { AIR_TINT_WGSL } from '../atmosphere/airTintWgsl.ts'
+import {
+  cloudShadowReadWgsl,
+  NO_CLOUD_SHADOW_WGSL,
+  type CloudShadowBindings,
+} from '../atmosphere/cloudShadowRead.ts'
+import {
+  lightFunctionBindingsLabel,
+  lightFunctionReadWgsl,
+  NO_LIGHT_FUNCTION_WGSL,
+  type LightFunctionBindings,
+} from '../lightFunction/readWgsl.ts'
 
 /**
  * A shadow catcher's term (`catcherAlpha`, `../../materials/surface/surfaceModel.ts`): of a light that holds a
@@ -41,7 +53,12 @@ const SPECULAR: Out = (v) => `LightSplit(vec3f(0.0),${v})`
  *   by its albedo over π. The maps would leave an off-screen point unshadowed, or draw pages no
  *   view asks for: each term's visibility is the one its points can read.
  * The incidence, the range, the rectangle's irradiance and the light's colour and intensity are
- * the same text in both.
+ * the same text in both. A light's colour is multiplied by its light function at the point
+ * (`lightFunctionOf`, `../lightFunction/readWgsl.ts`) in the surface, split and irradiance terms, and by the
+ * air's transmittance toward it at the point where it asks for that (`airTintOf`,
+ * `../atmosphere/airTintWgsl.ts`) and by the share of it the clouds let through where the light
+ * has a cloud shadow map (`cloudShadowOnSurface`, `../atmosphere/cloudShadowRead.ts`, not saturated), the program
+ * naming what answers it (`lightingBase`, `lightsIrradianceWgsl`).
  *
  * What `key` (`ContractKey`, `LOBELESS_KEY` unless given) leaves out is not compiled. With
  * `unshadowed` (#1249), the program of a scene no light of which holds a shadow slot: every
@@ -71,7 +88,7 @@ export const declaredLightWgsl = (
   if (term === 'irradiance')
     return wgslBlock(
       `declaredLightWgsl(${variantLabel(key)}, ${term})`,
-      [LAMP_WGSL],
+      [LAMP_WGSL, AIR_TINT_WGSL],
       `fn declaredIrradiance(rank:u32,P:vec3f,N:vec3f,reach:f32)->vec3f{${REACH('vec3f(0.0)')}${irradianceTerm(key.rectless)}
 }`,
     )
@@ -80,11 +97,11 @@ export const declaredLightWgsl = (
   const zero = out(ZERO)
   return wgslBlock(
     `declaredLightWgsl(${variantLabel(key)}, ${term})`,
-    [lambertDiffuse, LAMP_WGSL],
+    [lambertDiffuse, LAMP_WGSL, AIR_TINT_WGSL],
     `${split ? SPLIT_HEAD : WHOLE_HEAD}${REACH(zero)}${key.rectless ? '' : rectBranch(split)}${INCIDENCE(zero)}
  let lamp=lampSeen(light,P,N,incidence,LAMP_BIAS);${shadowed ? shadeStatement(out) : CATCHER_NONE(out)}
  let energy=light.colorIntensity.w*lamp.falloff${shadowed ? '*shade' : ''};
- let color=light.colorIntensity.rgb${shadowed ? '*shadowTransmission' : ''};
+ let color=light.colorIntensity.rgb${shadowed ? '*shadowTransmission' : ''}*lightFunctionOf(light.params.x,P)*airTintOf(rank,light,P)*cloudShadowOnSurface(rank,P);
  // A surface with no thin transmission adds an exact zero: 0·x is ±0, and ±0 added to a term leaves
  // the light's sum as it is (\`exactZeros.test.ts\`). Its back takes the light's cosine from behind.
  var transmitted=vec3f(0.0);
@@ -123,14 +140,15 @@ const ZERO = 'vec3f(0.0)'
 const rectBranch = (split: boolean) => `
  if(isRect(light)){${CATCHER_NONE(split ? SPECULAR : WHOLE)}
   let r=rectView(light,P);
+  let given=lightFunctionOf(light.params.x,P);
   var transmitted=vec3f(0.0);
   if(thinSurface()){transmitted=lambertDiffuse(thinSubsurface,0.0,vec3f(rectIrradianceOf(r,-N).w*light.colorIntensity.w),1.0)*light.colorIntensity.rgb;}${
     split
       ? `
   let t=rectLightSplit(light,r,shading,rgb,metal,rough,N,V,ao);
-  return LightSplit(t[0],t[1]+transmitted);`
+  return LightSplit(t[0]*given,(t[1]+transmitted)*given);`
       : `
-  return rectLight(light,r,shading,rgb,metal,rough,N,V,ao)+transmitted;`
+  return (rectLight(light,r,shading,rgb,metal,rough,N,V,ao)+transmitted)*given;`
   }
  }`
 
@@ -194,10 +212,21 @@ fn lightsIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
 
 /**
  * A bounce point's irradiance (\`lightsIrradiance\`): the light term and its loop, over the lights of the point's cell of the world light grid (\`bounceLightSlice\`,
- * \`../../bounce/lightCellWgsl.ts\`, which its module lists with the light grid's buffer).
+ * \`../../bounce/lightCellWgsl.ts\`, which its module lists with the light grid's buffer). The lights wear their light
+ * functions where the program binds the atlas (\`lightFunction\`); without it they shine plain. They wear the clouds'
+ * shade where it binds the maps (\`cloudShadow\`), the bounce's direct term as the surfaces' own.
  */
-export const LIGHTS_IRRADIANCE_WGSL = wgslBlock(
-  'LIGHTS_IRRADIANCE_WGSL',
-  [declaredLightWgsl({}, { term: 'irradiance' }), sliceLightingWgsl('irradiance')],
-  '',
-)
+export const lightsIrradianceWgsl = (
+  lightFunction?: LightFunctionBindings,
+  cloudShadow?: CloudShadowBindings,
+) =>
+  wgslBlock(
+    `lightsIrradianceWgsl(${lightFunctionBindingsLabel(lightFunction)}, ${cloudShadow ? `cloud ${cloudShadow.group}:${cloudShadow.block}` : null})`,
+    [
+      lightFunction ? lightFunctionReadWgsl(lightFunction) : NO_LIGHT_FUNCTION_WGSL,
+      cloudShadow ? cloudShadowReadWgsl(cloudShadow) : NO_CLOUD_SHADOW_WGSL,
+      declaredLightWgsl({}, { term: 'irradiance' }),
+      sliceLightingWgsl('irradiance'),
+    ],
+    '',
+  )

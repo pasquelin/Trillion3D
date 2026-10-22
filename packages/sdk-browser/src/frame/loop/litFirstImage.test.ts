@@ -93,7 +93,10 @@ test('a pipeline the device refuses off the thread is a refusal, not a throw', a
 test('the unlit view keeps what a surface emits, opaque and transparent alike', () => {
   assert.match(
     UNLIT_LIGHTING_SHADER,
-    /baseMetal,coord,0\)\.rgb\+surfaceEmissiveAo\(coord,flag\)\.rgb/,
+    /colours,coord,0,0\)\.rgb\+surfaceEmissiveAo\(coord,flag\)\.rgb/,
   )
-  assert.match(BLEND_SHADER, /\}else\{rgb\+=s\.emissive;\}\s*let r=displayRoute/)
+  assert.match(
+    BLEND_SHADER,
+    /\}else\{rgb\+=s\.emissive;\}[^]*?let hdr=preExposedClipped\(rgb\);\s*let r=displayRoute/,
+  )
 })

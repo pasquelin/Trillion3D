@@ -32,4 +32,7 @@ export type GpuRasterInput = {
    *  numbers and the records. Absent, the image tessellates nothing and the raster allocates and
    *  encodes nothing for it. */
   tessellation?: TessellationInput
+  /** The image draws no tessellation yet leaves the displaced surfaces' rows out of its lists (the
+   *  primed depth: rough surfaces are not its occluders). Ignored where `tessellation` stands. */
+  leaveTessellated?: boolean
 }

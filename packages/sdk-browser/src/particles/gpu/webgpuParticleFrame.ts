@@ -58,7 +58,7 @@ function particleDrawOf(rt: WebgpuPagesRuntime) {
 }
 
 /** The stepped pools over the lit image and its transparents, in beauty, their coverage the reactive
- *  value (`asIsShare.ts`); `tone`, the exposure and curve (`directTiles`), shows a routed disc. */
+ *  value (`asIsShare.ts`); `tone`, the scale, curve and pre-exposure (`directTiles`), shows a routed disc. */
 export function drawParticles(
   rt: WebgpuPagesRuntime,
   encoder: GPUCommandEncoder,

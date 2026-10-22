@@ -22,7 +22,7 @@ import { SKY_QUALITY_RULES, type SkyQualityValues } from './quality.ts'
  * The sky light part of the sky module: a light that captures the sky into a cube, filters the cube
  * by roughness for the reflections, and sums it into nine harmonics for the diffuse light. Run-time
  * settings, as `../../contracts/settingRules.ts` says. Every field has the component's default,
- * but `realTimeCapture` and `mobility`, which are those of a new world's sky light (a real-time
+ * but `realTimeCapture` and `mobility`, which are those of the sky module's sky light (a real-time
  * capture, movable): the part's defaults.
  *
  * A field a capture does not read says so below: it belongs to the light's other consumers (the
@@ -52,8 +52,9 @@ const OCCLUSION_COMBINES = ['minimum', 'multiply'] as const
  * - `sourceType` (`'capturedScene'`), `sourceCubemapAngle` (0, degrees), `skyDistanceThreshold`
  *   (150000 cm), `captureEmissiveOnly` (false): the static sources', which the real-time capture
  *   replaces (`skyLightSource`). A specified cubemap reads the angle (`skyLightCubemapRotation`);
- *   the captured scene reads the distance (the near plane of its faces) and the emissive flag, and
- *   this engine has no such capture (`skyLightSource`);
+ *   the captured scene reads the distance (the near plane of its faces, in centimetres) and the
+ *   emissive flag (only what the surfaces emit is captured); it is drawn for a light that is not
+ *   static and affects the world (`skyLightSource`);
  * - `occlusionMaxDistance` (1000), `contrast` (0), `occlusionExponent` (1), `minOcclusion` (0),
  *   `occlusionTint` (black), `occlusionCombineMode` (`'minimum'`): the distance-field occlusion's;
  * - `cloudAmbientOcclusion` (false), `cloudAmbientOcclusionStrength` (1, from 0),
@@ -128,6 +129,32 @@ export function resolveSkyLight(
   return { light: resolveSettings(SKY_LIGHT_RULES, held), quality }
 }
 
+/**
+ * What the distance-field occlusion reads of the light, held to the ranges the reference holds
+ * them to: the contrast to 0.01 .. 2, the exponent to 0.1 .. 10, the least occlusion to 0 .. 1, the
+ * distance to 2 .. 3000 (`../../lighting/globalDistanceField.ts`, `occlusionDistances`, splits it
+ * between the meshes' fields and the global one).
+ */
+export const skyLightOcclusion = (part: SkyLightPart) => ({
+  maxDistance: clamp(part.light.occlusionMaxDistance, 2, 3000),
+  contrast: clamp(part.light.contrast, 0.01, 2),
+  exponent: clamp(part.light.occlusionExponent, 0.1, 10),
+  minOcclusion: clamp(part.light.minOcclusion, 0, 1),
+  tint: part.light.occlusionTint,
+  combineMode: part.light.occlusionCombineMode,
+})
+
+/**
+ * The scale and bias that bring the occlusion's contrast curve, `1 / (1 + e^(-contrast · (10 · visibility - 5)))`,
+ * back to 0 at no visibility and 1 at all of it: `1 / (max - min)` and `-min / (max - min)`, `min` and `max` the curve at
+ * 0 and at 1. The `contrast` is the light's, held to its range (`skyLightOcclusion`).
+ */
+export function skyLightContrastCurve(contrast: number) {
+  const low = 1 / (1 + Math.exp(-contrast * -5))
+  const high = 1 / (1 + Math.exp(-contrast * 5))
+  return { mul: 1 / (high - low), add: -low / (high - low) }
+}
+
 /** Whether the sky light captures the sky in real time: the flag on, the light movable or
  *  stationary, and the platform allowing it. */
 export const isSkyLightCapturing = (part: SkyLightPart) =>
@@ -138,8 +165,7 @@ export const isSkyLightCapturing = (part: SkyLightPart) =>
 /**
  * Where the light's sky comes from: `'realTime'` when it captures in real time, which replaces the
  * source type; else the source type's own, `'specifiedCubemap'` (the host's cube) or
- * `'capturedScene'` (the scene's geometry drawn into the cube once, which the engine has no way to
- * draw: the capture encodes nothing for it).
+ * `'capturedScene'` (the scene drawn into the cube from the light's position, between two frames).
  */
 export const skyLightSource = (part: SkyLightPart) =>
   isSkyLightCapturing(part) ? ('realTime' as const) : part.light.sourceType
@@ -169,24 +195,21 @@ const LEAST_OVERRIDE = 16
 
 /**
  * The side of the captured cube. The light's `cubemapResolution` is made a power of two, at least
- * 8 and at most the device's largest cube side `deviceCubeMax` — or, when the quality's `skyLightCubemapMaxResolution`
- * is above 0, that value held between 8 and the device's. A `skyLightResolutionOverride` of 16 or more
- * replaces the light's side, as the capture reads it, and is made a power of two the same way: the
- * filter's mip sizes are halvings of the side, which a power of two alone has.
+ * 8 and at most the device's largest cube side `deviceCubeMax` — or, when the quality's
+ * `skyLightCubemapMaxResolution` is above 0, that value held between 8 and the device's. A
+ * `skyLightResolutionOverride` of 16 or more replaces the light's side as it is, not made a power of
+ * two, held to the device's largest side alone.
  */
 export function skyLightCubeWidth(part: SkyLightPart, deviceCubeMax: number) {
   const { skyLightCubemapMaxResolution: cubemapMaxResolution, skyLightResolutionOverride } =
     part.quality
+  if (skyLightResolutionOverride >= LEAST_OVERRIDE)
+    return Math.min(Math.trunc(skyLightResolutionOverride), deviceCubeMax)
   const most =
     cubemapMaxResolution > 0
       ? clamp(cubemapMaxResolution, LEAST_CUBE_WIDTH, deviceCubeMax)
       : deviceCubeMax
-  const sanitised = (side: number) => clamp(nextPow2(side), LEAST_CUBE_WIDTH, most)
-  return sanitised(
-    skyLightResolutionOverride >= LEAST_OVERRIDE
-      ? skyLightResolutionOverride
-      : part.light.cubemapResolution,
-  )
+  return clamp(nextPow2(part.light.cubemapResolution), LEAST_CUBE_WIDTH, most)
 }
 
 /** The mips of a cube of side `width`: its levels down to one texel. */
@@ -198,9 +221,8 @@ export const skyLightCloudWidth = (width: number, part: SkyLightPart) =>
 
 /**
  * The colour the sky light gives what it lights: the light's colour times its intensity, times
- * the quality's `skyLightIntensityScale`. The reference scales it by the inverse of the lighting
- * pre-exposure when it captures in real time, and the capture it multiplies was itself written
- * times that pre-exposure: the two cancel, and neither is applied here. Black when the sky
+ * the quality's `skyLightIntensityScale`. The capture is written at a pre-exposure of 1, as every
+ * view that runs no post is, so the colour is applied as it is. Black when the sky
  * lighting is off (`skyLighting`). `cubemapScale` is the rescale of a 32-bit float cubemap
  * (`skyLightCubemapScales(...).light`), 1 for every other source.
  */

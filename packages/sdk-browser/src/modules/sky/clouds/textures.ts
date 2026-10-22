@@ -7,14 +7,21 @@ import { createHeightProfile } from './profile.ts'
 /**
  * THE CLOUD MATERIAL'S TEXTURES, generated once when the clouds part starts: the noise volume (3D,
  * 128 texels a side), the layout pattern (1024²), the height profile (256²), the global mask
- * (1024²) and the lightning volume (3D, 64 texels a side), all `rgba16float`, the lightning volume
- * with its mip chain and the others at mip 0 only. They are made by compute passes, not read
- * from any file.
+ * (1024²) and the lightning volume (3D, 64 texels a side), all `rgba16float`. Each has the mip chain
+ * its import setting names: the pattern the first blur (`mipsWgsl.ts`), the profile, the mask and
+ * the lightning volume the average of the group's filter, the noise volume none (level 0 alone).
+ * They are made by compute passes, not read from any file.
  */
 
-/** The one sampler the material reads every cloud texture through: repeating on u, v and w,
- *  trilinear, its level range open. The lightning volume's chain is read at an explicit level; the
- *  others have the one level, so the filter across levels changes nothing for them. */
+/** The most samples along the footprint's long side a texture read takes: 4, the default of the
+ *  texture group's filter (an anisotropic filter of the world group). */
+export const CLOUD_MAX_ANISOTROPY = 4
+
+/** The one sampler the material reads every cloud texture through: repeating on u, v and w, the
+ *  world group's anisotropic filter (a linear filter, the level between two levels blended), its
+ *  level range open. The reads that name a level (the noise, the profile, the lightning volume's
+ *  fill) take it as it is; the pattern, the mask and the lightning volume's core take the level of the
+ *  screen footprint of the ray's sample (`cloudMaterialAt`). */
 export const CLOUD_SAMPLER: GPUSamplerDescriptor = {
   label: 'Trillion3D cloud textures',
   magFilter: 'linear',
@@ -23,6 +30,7 @@ export const CLOUD_SAMPLER: GPUSamplerDescriptor = {
   addressModeU: 'repeat',
   addressModeV: 'repeat',
   addressModeW: 'repeat',
+  maxAnisotropy: CLOUD_MAX_ANISOTROPY,
 }
 
 /** The five textures, generated; the caller releases them with `destroy`. */

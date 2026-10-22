@@ -71,6 +71,9 @@ function sums(view: TileView, lamps: Lamp[], px: number, py: number, z: number) 
       shadowTransmission: [1, 1, 1],
       // A lamp with no shadow slot: the shipped read answers one (`shadowFactor`).
       shadowFactor: () => 1,
+      // The air's transmittance toward a light, read per point: none here.
+      airTintOf: () => [1, 1, 1],
+      cloudShadowOnSurface: () => 1,
     }
     const names = NAMES
     const { sliceLighting } = shaderRun<{ sliceLighting: Sum }>(program, names, scope)

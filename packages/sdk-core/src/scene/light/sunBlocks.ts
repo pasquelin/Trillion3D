@@ -1,4 +1,5 @@
 import type { SceneEnvironment } from '../core/environment.ts'
+import type { ResolvedAtmosphere } from '../core/atmosphere.ts'
 import type { Rgb } from '../core/atmosphereOptics.ts'
 import { createAtmosphereBlock, createSunHold } from './atmosphereSun.ts'
 import type { SceneLight } from './contracts.ts'
@@ -16,6 +17,9 @@ type SunSources = {
   packed: () => Float32Array
   /** The scene's environment, none until it is set. */
   environment: () => SceneEnvironment | undefined
+  /** The air the lights go through: the environment's atmosphere, none where it is off
+   *  (`SceneLightStore.setAirOn`). */
+  atmosphere: () => ResolvedAtmosphere | undefined
   /** The environment's block, which holds the fog's sun. */
   environmentPacked: Float32Array
   /** Writes a light's declared fields into its slot. */
@@ -52,7 +56,7 @@ function createTints(
     },
     /** Writes the atmosphere's block and the tint of each light held. */
     apply() {
-      const atmosphere = sources.environment()?.atmosphere
+      const atmosphere = sources.atmosphere()
       for (const id of tinted) {
         const previous = heldBy(indexOf, id)
         if (previous !== undefined) write(previous, heldBy(records, id)!)
@@ -61,6 +65,7 @@ function createTints(
       air.update(
         atmosphere,
         hold.suns.map((id) => heldBy(records, id)),
+        hold.suns.map((id) => heldBy(indexOf, id)),
       )
       const packed = sources.packed()
       tinted.forEach((id, index) => {
@@ -89,7 +94,7 @@ export function createSunBlocks(sources: SunSources) {
   }
   /** The sun may have changed: the blocks follow. */
   const settle = () => {
-    if (sources.environment()?.atmosphere) tints.apply()
+    if (sources.atmosphere()) tints.apply()
     applyFogSun()
   }
   return {
@@ -100,6 +105,8 @@ export function createSunBlocks(sources: SunSources) {
     get fogSunSlot() {
       return heldBy(sources.indexOf, hold.fogSun) ?? -1
     },
+    /** The record of the light held for the air's light `index` (0 or 1), none where there is none. */
+    held: (index: number) => heldBy(records, hold.suns[index]),
     /** A light was added, held in the store. */
     added(light: SceneLight) {
       hold.added(light)
@@ -119,7 +126,7 @@ export function createSunBlocks(sources: SunSources) {
     /** The environment was set: the atmosphere follows where it is or was the sun's, the fog's sun
      *  always. */
     environmentChanged() {
-      if (sources.environment()?.atmosphere || tints.any) tints.apply()
+      if (sources.atmosphere() || tints.any) tints.apply()
       applyFogSun()
     },
   }

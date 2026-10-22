@@ -19,8 +19,10 @@ import { dirname, join } from 'node:path'
 import prettier from 'prettier'
 import { compilerAbiRust, familyLoadFailedId } from './shared-rules/abi.ts'
 import { coverageRust, coverageWgsl } from './shared-rules/coverage.ts'
+import { distanceFieldAbiRust } from './shared-rules/distanceField.ts'
 import { writtenFormatsTs } from './shared-rules/formats.ts'
 import { hypotHeader } from './shared-rules/hypot.ts'
+import { lightmapBakeAbiRust } from './shared-rules/lightmapBake.ts'
 import { physicsLayoutHeader } from './shared-rules/layout.ts'
 import { REPOSITORY_ROOT } from '../git/repository-files.ts'
 import { pageEncoderAbiTs, pageFormatTs } from './shared-rules/pageFormat.ts'
@@ -55,6 +57,8 @@ const outputs: Record<string, () => string> = {
   'packages/sdk-browser/src/wasm/encodeAbi.ts': pageEncoderAbiTs,
   'packages/asset-compiler-rust/src/texture/coverage_math.rs': coverageRust,
   'packages/asset-compiler-rust/src/shared_math/abi.rs': compilerAbiRust,
+  'packages/asset-compiler-rust/src/distance_field/abi.rs': distanceFieldAbiRust,
+  'packages/asset-compiler-rust/src/volumetric_lightmap/bake/abi.rs': lightmapBakeAbiRust,
   'packages/sdk-browser/src/session/host/familyLoadFailedId.ts': familyLoadFailedId,
 }
 

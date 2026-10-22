@@ -38,7 +38,8 @@ export function decodeCellFile(source: ArrayBuffer, url = 'a scene cell'): CellP
     locals = new Float64Array(MATRIX_VALUES * nodes.length),
     tracks = new Int32Array(nodes.length),
     sources = new Uint8Array(nodes.length),
-    drawDistances = new Float32Array(2 * nodes.length)
+    drawDistances = new Float32Array(2 * nodes.length),
+    farFields = new Uint8Array(nodes.length)
   nodes.forEach((node, at) => {
     ranks[2 * at] = node.parent ?? -1
     ranks[2 * at + 1] = node.mesh
@@ -47,6 +48,7 @@ export function decodeCellFile(source: ArrayBuffer, url = 'a scene cell'): CellP
     sources[at] = node.source ? 1 : 0
     drawDistances[2 * at] = node.drawDistance?.min ?? 0
     drawDistances[2 * at + 1] = node.drawDistance?.max ?? 0
+    farFields[at] = node.farField ? 1 : 0
   })
   return {
     nodes: nodes.length,
@@ -55,6 +57,7 @@ export function decodeCellFile(source: ArrayBuffer, url = 'a scene cell'): CellP
     tracks: tracks.buffer,
     sources: sources.buffer,
     drawDistances: drawDistances.buffer,
+    farFields: farFields.buffer,
   }
 }
 
@@ -73,6 +76,8 @@ export type CellRows = {
   /** Per node, the nearest then the farthest distance it is drawn at (`CellNode.drawDistance`),
    *  0 and 0 for none. */
   drawDistances: Float32Array
+  /** Per node, 1 when a view's primed depth draws it (`CellNode.farField`); absent for none. */
+  farFields?: Uint8Array
 }
 
 /** The rows of a decoded cell. */
@@ -83,6 +88,7 @@ export const cellRows = ({
   tracks,
   sources,
   drawDistances,
+  farFields,
 }: CellPayload): CellRows => ({
   nodes,
   ranks: new Int32Array(ranks),
@@ -90,4 +96,5 @@ export const cellRows = ({
   tracks: new Int32Array(tracks),
   sources: new Uint8Array(sources),
   drawDistances: new Float32Array(drawDistances),
+  farFields: new Uint8Array(farFields),
 })

@@ -282,6 +282,45 @@ test('how the volumetric fog is drawn is the page’s setting, applied once each
   )
 })
 
+// The sky's quality is a family by rule too (`SKY_QUALITY_RULES`), in the effects' group, which the
+// quality presets write the atmosphere's levels in: the page's are written into the session once
+// opened and, after, in place, once each.
+test('how the sky is drawn is the page’s setting, applied once each', () => {
+  const written: unknown[][] = []
+  const setters = { setSkyQuality: (...write: unknown[]) => void written.push(write) }
+  const explorer = new Proxy(setters, {
+    get: (held, name) => held[name as keyof typeof held] ?? (() => {}),
+  }) as unknown as MeasuredWorld
+  const runtime = { explorer: null as MeasuredWorld | null, renew() {}, invalidate() {} }
+  const switches = worldSwitches({ atmosphereSamplesMax: 32 }, () => runtime, unseen)
+  assert.deepEqual(
+    [switches.skyQuality.atmosphereSamplesMax, switches.skyQuality.aerialDepthSlices],
+    [32, 16],
+    'the page’s cap, the default for the rest',
+  )
+  switches.apply(explorer, sessionOptions({}, {}))
+  assert.deepEqual(
+    written.filter(([field]) => field === 'atmosphereSamplesMax'),
+    [['atmosphereSamplesMax', 32]],
+    'written into the session once it is open',
+  )
+  written.length = 0
+  runtime.explorer = explorer
+  switches.skyQuality = { atmosphereSamplesMax: 64, skyTableFast: false }
+  switches.skyQuality = { atmosphereSamplesMax: 64 }
+  assert.deepEqual(
+    written,
+    [
+      ['skyTableFast', false],
+      ['atmosphereSamplesMax', 64],
+    ],
+    'once each, in place',
+  )
+  switches.skyQuality = { atmosphereSamplesMax: null }
+  assert.equal(switches.skyQuality.atmosphereSamplesMax, 128, 'given back: the default')
+  assert.throws(() => (switches.skyQuality = { aerialDepthSlices: 2 }), /aerialDepthSlices/)
+})
+
 test('the resolution asked at creation is the render scale, unless the page gives one', () => {
   const runtime = { explorer: null, renew() {}, invalidate() {} }
   const made = (options: Parameters<typeof worldSwitches>[0]) =>

@@ -1,6 +1,7 @@
 import { TILE_NO_SLICE } from '../tiles/noSlice.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import {
+  LIGHT_FLAG,
   LIGHT_KIND,
   LIGHT_SETTINGS,
   POINT_FACES,
@@ -11,7 +12,7 @@ import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
-import { isKind, localLightReaches, rangeWindow } from './lightReachWgsl.ts'
+import { isKind, lightFlagged, localLightReaches, rangeWindow } from './lightReachWgsl.ts'
 
 /** Words of a cell record of the light grid: its count — the high bit set when a light of
  *  its list holds a shadow slot, the cell's one fact the resolve reads before its lights —, then
@@ -62,23 +63,23 @@ fn gridCell(pixel:vec2f,z:f32,cells:vec2u)->u32{
 export const directLightWgsl = (slots?: number) =>
   wgslBlock(
     `directLightWgsl(${slots ?? ''})`,
-    [RECT_LIGHT_WGSL, localLightReaches, rangeWindow, isKind, LIGHT_GRID_WGSL],
+    [RECT_LIGHT_WGSL, localLightReaches, rangeWindow, isKind, lightFlagged, LIGHT_GRID_WGSL],
     `const POINT_FACES:u32=${POINT_FACES}u;
 const SPOT_EDGE:f32=${LIGHT_SETTINGS.spotEdgeSoftness};
 const KIND_SPOT:f32=${LIGHT_KIND.spot}.0;
 const KIND_SUN:f32=${LIGHT_KIND.directional}.0;
+const FLAG_CASTS:u32=${LIGHT_FLAG.castsShadow}u;
+const FLAG_SHADOWS_FOG:u32=${LIGHT_FLAG.shadowsFog}u;
 const LAMP_BIAS:f32=${wgslF32(LIGHT_SETTINGS.lampDistanceBias)};
 /** A light's record (\`packages/sdk-core/src/scene/light/fields.ts\`): its place and range, colour
- *  and intensity, direction and cone, kind and shadow, its shape — a rectangle's half axes, a
+ *  and intensity, direction and cone, kind and flags (\`params.x\`), shadow slice (\`y\`), the share the fog and clouds scatter (\`z\`), its shape — a rectangle's half axes, a
  *  lamp's source radius, a sun's disk — and, for a lamp, its tube (its axis times half its length)
  *  and soft radius. */
 struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,shape:vec4f,capsule:vec4f,}
 /** The count; the environment's irradiance: nine spherical-harmonic coefficients
  *  (\`packages/sdk-core/src/scene/core/environment.ts\`), zero where the host declared none; its fog,
  *  six \`vec4\`: colour and mode, law, range, the sun's lobe, the sky's factor and the sun
- *  (\`FOG_SLOT\`, \`packages/sdk-core/src/scene/core/fog.ts\`); the sky's block, the
- *  irradiance of the sky light and the radiance a ray that leaves the scene reaches
- *  (\`packages/sdk-core/src/scene/core/environmentSky.ts\`), zero where the scene shows no sky; its
+ *  (\`FOG_SLOT\`, \`packages/sdk-core/src/scene/core/fog.ts\`); its
  *  atmosphere, the block the CPU writes, the view's block and the haze volume the GPU builds each
  *  image, then the sky by direction it builds when the sun or the air changes
  *  (\`../atmosphere/layout.ts\`), all zero without an atmosphere; the fitted specular lobe a
@@ -89,6 +90,9 @@ struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,environment:array<vec4f
 fn isSunKind(kind:f32)->bool{return isKind(kind,KIND_SUN);}
 fn isSun(light:DirectLight)->bool{return isSunKind(light.params.x);}
 fn isSpot(light:DirectLight)->bool{return isKind(light.params.x,KIND_SPOT);}
+/** Whether the light casts shadows, and whether its shadow also shadows the volumetric fog. */
+fn castsShadow(light:DirectLight)->bool{return lightFlagged(light.params.x,FLAG_CASTS);}
+fn shadowsFog(light:DirectLight)->bool{return lightFlagged(light.params.x,FLAG_SHADOWS_FOG);}
 /** Whether light \`rank\` may give \`P\` energy: the first statement of the one light term, which
  *  reads the light's kind and sphere alone, and its direction and cone only for a spot or a
  *  rectangle, before the rest of its record. A sun always; a local light by \`localLightReaches\`,

@@ -26,7 +26,15 @@ import {
 } from '../../materials/surface/surfaceModel.ts'
 import { SUBSURFACE_FLAG } from '../../materials/surface/subsurface.ts'
 import { EMISSIVE_AO_FLAG_WGSL } from '../../materials/surface/surfaceEmission.ts'
-import { FLAG_BACK, FLAG_FOG_FREE, FLAG_LINE, FLAG_LIT, FLAG_SPRITE } from '../types.ts'
+import {
+  FLAG_BACK,
+  FLAG_DISTANCE_FIELD,
+  FLAG_FOG_FREE,
+  FLAG_LINE,
+  FLAG_LIT,
+  FLAG_SPRITE,
+} from '../types.ts'
+import { DISTANCE_FIELD_REPRESENTATION_FLAG } from '../../lighting/distanceField/representationWgsl.ts'
 import { PHYSICAL_LOBES_CALL, PHYSICAL_UV_READ } from './physicalWgsl.ts'
 import { SHADE_ENTRY_WGSL } from './shadeEntryWgsl.ts'
 import { visPageIndex, visTriangle } from '../visWords.ts'
@@ -242,6 +250,7 @@ ${voxel ? VOXEL_NORMAL : ''}  // The clear coat bends its own normal map from th
  if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),select(${AS_IS_FLAG}u,1u|select(0u,${FOG_FREE_SURFACE_FLAG}u,(page.flags&${FLAG_FOG_FREE}u)!=0u),model==${SURFACE_MODEL.matcap}u),request);}
  var flag=select(1u,modelFlag(page.flags),(page.flags&${FLAG_LIT}u)!=0u);
  if((page.flags&${FLAG_FOG_FREE}u)!=0u){flag|=${FOG_FREE_SURFACE_FLAG}u;}
+ if((page.flags&${FLAG_DISTANCE_FIELD}u)!=0u){flag|=${DISTANCE_FIELD_REPRESENTATION_FLAG}u;}
  if(DOUBLE_SIDED&&(page.flags&${FLAG_LIT}u)!=0u){
   var thin=clamp(m.subsurface,vec3f(0.0),vec3f(1.0));
   if(HAS_UV&&m.subsurfaceMap!=0u){let c=mapCoord(m,${SUBSURFACE_MAP_BIT}u);thin*=colorSample(m.subsurfaceMap,c.uv,c.ddx,c.ddy,HAS_SAMPLING).rgb;}

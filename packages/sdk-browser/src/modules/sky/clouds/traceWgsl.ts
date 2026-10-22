@@ -1,29 +1,39 @@
 import { HALF_MAX } from '../../../../../math/src/wgsl/constants.ts'
 import { pixelToNdc, unprojectPoint } from '../../../../../math/src/wgsl/projection.ts'
 import { HAZE_READ_WGSL } from '../../../lighting/atmosphere/hazeReadWgsl.ts'
+import { SEPARATED_READ_WGSL } from '../../../lighting/atmosphere/separatedWgsl.ts'
 import { airProgram, type AirBindings } from '../../../lighting/atmosphere/programs.ts'
+import {
+  airShapeKey,
+  DEFAULT_AIR_SHAPE,
+  type AirShape,
+} from '../../../lighting/atmosphere/shape.ts'
 import { vsmBlueNoiseWgsl } from '../../../lighting/shadows/vsm/blueNoise.ts'
 import { cloudMaterialBindings } from './materialWgsl.ts'
 import { CLOUD_FORMAT, DEVICE_DEPTH_FLOOR } from './reconstructLayout.ts'
 import { cloudDepthBinding, cloudSceneDepthFn } from './traceDepthWgsl.ts'
 import { CLOUD_TRACE_BINDING as B, CLOUD_TRACE_LAYOUT } from './traceLayout.ts'
-import { CLOUD_FOG_WGSL } from './composeWgsl.ts'
+import { AIR_FOG_BINDINGS } from '../../../lighting/atmosphere/programs.ts'
+import { fogBlockOf } from '../../../lighting/fog/readWgsl.ts'
 import { CLOUD_LIGHT_WGSL } from './traceLightWgsl.ts'
 import { CLOUD_GROUND_WGSL } from './traceGroundWgsl.ts'
-import { CLOUD_MARCH_WGSL, CLOUD_SHELL_WGSL } from './traceMarchWgsl.ts'
+import { CLOUD_MARCH_WGSL, CLOUD_RAY_WGSL, CLOUD_SHELL_WGSL } from './traceMarchWgsl.ts'
 import { cloudTraceExtraWgsl } from './traceExtraWgsl.ts'
+import { preExposedWgsl } from '../../../post/exposure/preWgsl.ts'
 import { cloudTraceKeyText, type CloudTraceKey } from './traceExtraLayout.ts'
 
 /** The tracing's own group: group 0 is the air's. */
 const G = 1
 
 /** What the tracing binds of the air, in group 0: the light buffer, the transmittance table and
- *  its sampler, the image's frame, and the fog's cubemap and volume. */
+ *  its sampler, the image's frame, the fog's cubemap and volume, and the volumes of the haze apart
+ *  and around a capture (`SEPARATED_READ_WGSL`). */
 export const CLOUD_TRACE_AIR: AirBindings = {
   air: 'read',
   transmittance: true,
   frame: true,
   fog: true,
+  volumes: true,
 }
 
 /** The format of the scene's depth range, two half floats (the nearest and the farthest depth); the
@@ -47,6 +57,10 @@ ${cloudDepthBinding(G, B.depthRange, key.depth)}
 struct CloudRay{origin:vec3f,dir:vec3f,tMin:f32,tMax:f32,tTop:vec2f,tBottom:vec2f,}
 struct CloudTraced{colour:vec4f,secondary:vec4f,depth:vec4f,}
 struct CloudDepth{closestCm:f32,furthestCm:f32,km:vec4f,}`
+
+/** The luminance of a finished colour, written multiplied by the image's pre-exposure
+ *  (\`cloudTrace.sky.w\`), none where the clouds are a hole in the alpha; its transmittance as it is. */
+const CLOUD_LIGHT = `fn cloudLight(c:vec4f)->vec4f{return vec4f(preExposed(c.rgb)*select(1.0,0.0,cloudTrace.local.y!=0.0),c.a);}`
 
 /** The ray of a traced texel: cut to the shell, the scene's depth and the longest march, marched,
  *  and its colours finished. */
@@ -72,10 +86,10 @@ const traceRay = (key: CloudTraceKey) => `fn cloudRayTrace(p:vec2u)->CloudTraced
  r.tMax=max(r.tMin,r.tMax);
  let m=cloudMarch(r,${key.minMaxDepth ? 'depth.closestCm' : '-1.0'},p);
  let seenDepth=cloudMeanDepth(m.seen,r.tMax);
- out.colour=cloudFinish(m.seen,seenDepth,r.dir);
+ out.colour=cloudLight(cloudFinish(m.seen,seenDepth,r.dir));
 ${
   key.minMaxDepth
-    ? ' out.secondary=cloudFinish(m.nearest,cloudMeanDepth(m.nearest,r.tMax),r.dir);\n'
+    ? ' out.secondary=cloudLight(cloudFinish(m.nearest,cloudMeanDepth(m.nearest,r.tMax),r.dir));\n'
     : ''
 } out.depth.x=select(seenDepth,r.tMax,out.colour.a>0.99)*CLOUD_CM_TO_KM;
  return out;
@@ -122,33 +136,43 @@ fn cloudTraceMain(@builtin(global_invocation_id) id:vec3u){
 const traceOwn = (key: CloudTraceKey) =>
   [
     traceBindings(key),
+    CLOUD_RAY_WGSL,
     CLOUD_SHELL_WGSL,
     cloudSceneDepthFn(key.depth),
     CLOUD_MARCH_WGSL,
+    CLOUD_LIGHT,
     traceRay(key),
     traceMain(key),
   ].join('\n')
 
 const programs = new Map<string, string>()
 
-/** The view tracing's whole program for `key` (`CLOUD_TRACE_ENTRY`): the scene's depth it reads, the
- *  second surface it traces or not, and the options make the program; one is made for each and kept. */
-export function cloudTraceProgram(key: CloudTraceKey) {
-  const text = cloudTraceKeyText(key)
+/** The view tracing's whole program for `key` (`CLOUD_TRACE_ENTRY`) under the air's `shape`: the
+ *  scene's depth it reads, the second surface it traces or not, and the options make the program; one
+ *  is made for each and kept. */
+export function cloudTraceProgram(key: CloudTraceKey, shape: AirShape = DEFAULT_AIR_SHAPE) {
+  const text = `${cloudTraceKeyText(key)}#${airShapeKey(shape)}`
   let code = programs.get(text)
   if (code === undefined) {
-    code = airProgram({ ...CLOUD_TRACE_AIR, lights: key.localLights }, traceOwn(key), [
-      CLOUD_LIGHT_WGSL,
-      CLOUD_GROUND_WGSL,
-      cloudTraceExtraWgsl(key),
-      CLOUD_FOG_WGSL,
-      HALF_MAX,
-      DEVICE_DEPTH_FLOOR,
-      pixelToNdc,
-      unprojectPoint,
-      HAZE_READ_WGSL,
-      vsmBlueNoiseWgsl(G, B.blueNoise),
-    ]).code
+    code = airProgram(
+      { ...CLOUD_TRACE_AIR, lights: key.localLights },
+      traceOwn(key),
+      [
+        CLOUD_LIGHT_WGSL,
+        CLOUD_GROUND_WGSL,
+        cloudTraceExtraWgsl(key),
+        fogBlockOf(AIR_FOG_BINDINGS),
+        HALF_MAX,
+        DEVICE_DEPTH_FLOOR,
+        preExposedWgsl('cloudTrace.sky.w'),
+        pixelToNdc,
+        unprojectPoint,
+        HAZE_READ_WGSL,
+        SEPARATED_READ_WGSL,
+        vsmBlueNoiseWgsl(G, B.blueNoise),
+      ],
+      shape,
+    ).code
     programs.set(text, code)
   }
   return code

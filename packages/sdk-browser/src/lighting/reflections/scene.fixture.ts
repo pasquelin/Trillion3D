@@ -42,7 +42,7 @@ export function viewOf(
     reflectionView: {
       viewProj: new Mat([...m]),
       radianceViewProj: new Mat([...m]),
-      radiance: [size[0], size[1], radianceLevels(size[0], size[1]) - 1, 0],
+      radiance: [size[0], size[1], radianceLevels(size[0], size[1]) - 1, 1],
       slab: screenSlab([...m], size[1], eye),
       thickness: screenRelativeThickness([...m], HIZ_RULES.hizRelativeDepthThickness.default),
       traced: [1, 0, 0, 0],

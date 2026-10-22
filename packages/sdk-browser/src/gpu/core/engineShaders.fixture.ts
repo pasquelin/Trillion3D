@@ -17,15 +17,23 @@ import { binSource } from '../../visibility/raster/binWgsl.ts'
 import { emptySpaceProgram } from '../../modules/sky/clouds/emptySpaceWgsl.ts'
 import { CLOUD_MATERIAL_EMPTY_SPACE_WGSL } from '../../modules/sky/clouds/materialWgsl.ts'
 import { LIGHTNING_CODE } from '../../modules/sky/clouds/lightningWgsl.ts'
+import { cloudHazeProgram } from '../../modules/sky/clouds/traceHaze.ts'
+import { cloudTraceProgram } from '../../modules/sky/clouds/traceWgsl.ts'
+import { reconstructProgram } from '../../modules/sky/clouds/reconstructWgsl.ts'
+import { composeProgram } from '../../modules/sky/clouds/composeWgsl.ts'
+import { depthRangeProgram } from '../../modules/sky/clouds/depthRangeWgsl.ts'
+import { cloudSetupOf } from '../../modules/sky/clouds/cloudModes.ts'
+import { MIP_CODE } from '../../modules/sky/clouds/mipsWgsl.ts'
 import { MASK_CODE } from '../../modules/sky/clouds/maskWgsl.ts'
 import { NOISE_VOLUME_CODE } from '../../modules/sky/clouds/noiseVolumeWgsl.ts'
 import { PATTERN_CODE } from '../../modules/sky/clouds/patternWgsl.ts'
 import { PROFILE_CODE } from '../../modules/sky/clouds/profileWgsl.ts'
 import { COPY_CODE, LUMINANCE_CODE } from '../../modules/sky/skyLight/copyWgsl.ts'
+import { REWRITE_CODE } from '../../lighting/deferred/surfaceOverride.ts'
 import {
   COMPOSE_FACE_CODE,
-  FOG_FACE_PROGRAM,
-  SKY_FACE_PROGRAM,
+  fogFaceProgram,
+  skyFaceProgram,
 } from '../../modules/sky/skyLight/faceWgsl.ts'
 import { FILTER_CODE } from '../../modules/sky/skyLight/filterWgsl.ts'
 import { IRRADIANCE_CODE } from '../../modules/sky/skyLight/irradianceWgsl.ts'
@@ -33,6 +41,7 @@ import { diceSource } from '../../visibility/tessellation/diceWgsl.ts'
 import { planSource } from '../../visibility/tessellation/planWgsl.ts'
 import { seedSource } from '../../visibility/tessellation/seedWgsl.ts'
 import { splitSource } from '../../visibility/tessellation/splitWgsl.ts'
+import { POST_SHADERS } from './engineShaders.post.fixture.ts'
 import { COMPOSE_SHADERS } from './engineShaders.compose.fixture.ts'
 import {
   BOUNCE_PROBE_SHADER,
@@ -44,32 +53,6 @@ import { BOUNCE_CENSUS_SHADER } from '../../lighting/bounce/probes/censusWgsl.ts
 import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts'
 import { DIAGNOSTIC_SHADE_WGSL, DIAGNOSTIC_VIS_WGSL } from '../../diagnostic/gpuGeometry.ts'
 import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts'
-import { BLOOM_COMPOSITE_WGSL, BLOOM_SETUP_WGSL } from '../../post/effects/bloom/bloomWgsl.ts'
-import { fftShader } from '../../post/effects/bloom/convolution/fftWgsl.ts'
-import { KERNEL_WGSL } from '../../post/effects/bloom/convolution/kernelWgsl.ts'
-import { CONVOLUTION_INPUT_WGSL } from '../../post/effects/bloom/convolution/inputWgsl.ts'
-import { GLOW_FINISH_WGSL } from '../../post/effects/bloom/glowFinishWgsl.ts'
-import { flattenShader } from '../../post/effects/motionBlur/flattenWgsl.ts'
-import { gatherShader, scatterShader } from '../../post/effects/motionBlur/dilateWgsl.ts'
-import { classifyShader } from '../../post/effects/motionBlur/classifyWgsl.ts'
-import { filterShader } from '../../post/effects/motionBlur/filterWgsl.ts'
-import {
-  setupFullShader,
-  setupHalfShader,
-  cocDownsampleShader,
-} from '../../post/effects/depthOfField/dofSetupWgsl.ts'
-import { dilateShader, cocFlattenShader } from '../../post/effects/depthOfField/dofTilesWgsl.ts'
-import { dofReduceShader } from '../../post/effects/depthOfField/dofReduceWgsl.ts'
-import { bokehLutShader } from '../../post/effects/depthOfField/dofLutWgsl.ts'
-import { dofGatherShader } from '../../post/effects/depthOfField/dofGatherWgsl.ts'
-import { dofPostfilterShader } from '../../post/effects/depthOfField/dofPostfilterWgsl.ts'
-import { packShader, spriteShader } from '../../post/effects/depthOfField/dofScatterWgsl.ts'
-import { dofRecombineShader } from '../../post/effects/depthOfField/dofRecombineMainWgsl.ts'
-import { filterTwoShader } from '../../post/effects/motionBlur/weighTwoWgsl.ts'
-import { DOWNSAMPLE_WGSL } from '../../post/filters/downsampleWgsl.ts'
-import { GAUSSIAN_WGSL } from '../../post/filters/gaussianWgsl.ts'
-import { GRID_WGSL, LOG_LIGHT_WGSL } from '../../post/finish/localWgsl.ts'
-import { ADAPT_WGSL, MEASURE_WGSL } from '../../post/exposure/meterWgsl.ts'
 import { OUTLINE_WGSL } from '../../post/effects/outline/outlineWgsl.ts'
 import { FRAME_DIFFERENCE_WGSL } from '../../frame/render/frameDifferenceWgsl.ts'
 import { GUIDE_WGSL } from '../../guides/guideShaders.ts'
@@ -115,10 +98,21 @@ import {
   UNLIT_LIGHTING_SHADER,
 } from './shaderTexts.fixture.ts'
 import { vsmVariants } from './engineShaders.vsm.fixture.ts'
-import { AIR_SHADERS } from '../../lighting/atmosphere/shaders.ts'
+import { AIR_SHADERS, airProgramsOf } from '../../lighting/atmosphere/shaders.ts'
+import { opaqueHazeProgram } from '../../lighting/atmosphere/opaqueHazeWgsl.ts'
+import { airShapeOf, DEFAULT_AIR_SHAPE } from '../../lighting/atmosphere/shape.ts'
+import { resolveSettings } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { SKY_QUALITY_RULES } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import { FOG_PROGRAMS } from '../../lighting/fog/programs.ts'
+import { lightFunctionRenderWgsl } from '../../lighting/lightFunction/renderWgsl.ts'
+import { graphSlotWgsl, graphSlotOf } from '../../lighting/lightFunction/graphSlot.ts'
+import { material } from '../../../../sdk-core/src/world/material/index.ts'
+import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { AO_SHADERS } from '../../lighting/ao/occlusionWgsl.ts'
 import { AO_SETUP_WGSL } from '../../lighting/ao/setupWgsl.ts'
+import { lightShaftProgram } from '../../modules/sky/lightShafts/wgsl.ts'
+import { lightShaftTemporalProgram } from '../../modules/sky/lightShafts/temporalWgsl.ts'
+import { DFAO_SHADERS } from '../../lighting/distanceField/ao/shaders.ts'
 
 /**
  * Every WGSL text the engine hands to `createShaderModule`, by its module's name, each variant a
@@ -132,6 +126,71 @@ const compositions = (label: string, sources: Record<string, string>) =>
   Object.fromEntries(Object.entries(sources).map(([input, code]) => [`${label}_${input}`, code]))
 /** The narrow resolve's key, without lobe code (`contractCuts.ts`). */
 const NARROW = { narrow: true, lobeless: true }
+
+/** A light function slot drawn from a graph: a panned, tinted texture (the atlas bound, the time
+ *  read), or the sine of the time on a colour (nothing bound). */
+function graphSlotShader(textured: boolean) {
+  const g = material.graph('lightFunction')
+  const colour = textured
+    ? g.channel(g.textureSample(new Texture(), { uv: g.panner({ speed: [0.05, 0] }) }), 'rgb')
+    : g.constant(1, 0.5, 0.25)
+  g.output('emissive', g.multiply(colour, g.sine(g.time(), 2)))
+  const slot = graphSlotOf(material.lightFunction({ graph: g }))
+  if (!slot || !('compiled' in slot)) throw new Error('the graph slot fixture does not compile')
+  return graphSlotWgsl(128, 'colour', slot)
+}
+/** The settings of the shapes of the air that are listed besides the defaults'. */
+const AIR_SHAPES = {
+  CINEMATIC: {
+    skyTableFast: false,
+    aerialFastOnOpaque: false,
+    aerialSamplesPerSlice: 8,
+    aerialDepthSlices: 32,
+    skyTableSamplesMax: 256,
+    atmosphereSamplesMin: 8,
+    atmosphereSamplesMax: 256,
+    transmittanceSamples: 30,
+    multiScatterSamples: 20,
+    multiScatterHighQuality: true,
+    skyTablesFullPrecision: true,
+  },
+  SMALL: {
+    transmittanceSmallFormat: true,
+    transmittanceTable: false,
+    atmosphereSampleLightShadowMap: false,
+    distantSkyLightTable: false,
+  },
+}
+
+/** The view's clouds, as the quality settings make them (`../../modules/sky/clouds/viewPrograms.ts`):
+ *  the depth range passes, the trace of the plainest and of the fullest options, the haze pass, the
+ *  reconstruction of the first image and of one with a history, the composition of a cloud target
+ *  and of a direct trace. */
+function cloudViewTexts() {
+  const quality = resolveSettings(SKY_QUALITY_RULES, {})
+  const target = cloudSetupOf(quality)
+  const direct = cloudSetupOf({ ...quality, cloudRenderTarget: false })
+  const options = { emptySpace: false, opaqueShadow: true, localLights: true }
+  return {
+    CLOUD_DEPTH_RANGE_DEPTH: depthRangeProgram('depth'),
+    CLOUD_DEPTH_RANGE_RANGE: depthRangeProgram('range'),
+    CLOUD_DEPTH_RANGE_CHECKERBOARD: depthRangeProgram('checkerboard'),
+    CLOUD_TRACE_RANGE: cloudTraceProgram({ depth: 'range', minMaxDepth: true, ...options }),
+    CLOUD_TRACE_SCENE: cloudTraceProgram({
+      depth: 'scene',
+      minMaxDepth: false,
+      emptySpace: false,
+      opaqueShadow: false,
+      localLights: false,
+    }),
+    CLOUD_HAZE: cloudHazeProgram(DEFAULT_AIR_SHAPE).code,
+    CLOUD_RECONSTRUCT_FIRST: reconstructProgram(target, false),
+    CLOUD_RECONSTRUCT_HISTORY: reconstructProgram(target, true),
+    CLOUD_COMPOSE_TARGET: composeProgram(target),
+    CLOUD_COMPOSE_DIRECT: composeProgram(direct),
+  }
+}
+
 export const ENGINE_SHADERS: Record<string, string> = {
   DEFORMATION_COMPUTE_WGSL,
   ANIMATION_BANK_WGSL,
@@ -166,44 +225,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   BOUNCE_MARK_SHADER,
   BOUNCE_CENSUS_SHADER,
   AS_IS_SHARE_SHADER,
-  MOTION_BLUR_FLATTEN: flattenShader(),
-  MOTION_BLUR_GATHER: gatherShader(),
-  MOTION_BLUR_SCATTER: scatterShader(),
-  MOTION_BLUR_CLASSIFY: classifyShader(),
-  MOTION_BLUR_FILTER: filterShader(),
-  MOTION_BLUR_FLATTEN_TWO: flattenShader(2),
-  MOTION_BLUR_GATHER_TWO: gatherShader(2),
-  MOTION_BLUR_GATHER_TWO_DRAWN: gatherShader(2, true),
-  MOTION_BLUR_CLASSIFY_TWO: classifyShader(2),
-  MOTION_BLUR_FILTER_TWO: filterTwoShader(),
-  // The depth of field's passes (`../../post/effects/depthOfField/`), each at its pipeline constants' defaults.
-  DOF_SETUP_HALF: setupHalfShader(),
-  DOF_SETUP_FULL: setupFullShader(),
-  DOF_COC_FLATTEN: cocFlattenShader(),
-  DOF_COC_DILATE: dilateShader(),
-  DOF_DOWNSAMPLE: cocDownsampleShader(),
-  DOF_REDUCE: dofReduceShader(),
-  DOF_PACK: packShader(),
-  DOF_LUT: bokehLutShader(),
-  DOF_GATHER: dofGatherShader(),
-  DOF_POSTFILTER: dofPostfilterShader(),
-  DOF_SPRITES: spriteShader(),
-  DOF_RECOMBINE: dofRecombineShader(),
-  BLOOM_SETUP_WGSL,
-  BLOOM_COMPOSITE_WGSL,
-  // The convolution bloom's transform (a line of the device's workgroup memory: 2048 or 4096 values),
-  // the kernel's preparation, the image the transform reads and the glow's finishing.
-  BLOOM_FFT_2048: fftShader(2048),
-  BLOOM_FFT_4096: fftShader(4096),
-  BLOOM_KERNEL_WGSL: KERNEL_WGSL,
-  BLOOM_CONVOLUTION_INPUT_WGSL: CONVOLUTION_INPUT_WGSL,
-  BLOOM_GLOW_FINISH_WGSL: GLOW_FINISH_WGSL,
-  DOWNSAMPLE_WGSL,
-  GAUSSIAN_WGSL,
-  GRID_WGSL,
-  LOG_LIGHT_WGSL,
-  MEASURE_WGSL,
-  ADAPT_WGSL,
+  ...POST_SHADERS,
   OUTLINE_WGSL,
   FRAME_DIFFERENCE_WGSL,
   GUIDE_WGSL,
@@ -288,15 +310,18 @@ export const ENGINE_SHADERS: Record<string, string> = {
   // faces, copies and filters.
   // Only for a material that gives the output: the default one gives none, so no program is made.
   ...(CLOUD_MATERIAL_EMPTY_SPACE_WGSL ? { CLOUD_EMPTY_SPACE_CODE: emptySpaceProgram().code } : {}),
+  ...cloudViewTexts(),
+  MIP_CODE,
   LIGHTNING_CODE,
   MASK_CODE,
   NOISE_VOLUME_CODE,
   PATTERN_CODE,
   PROFILE_CODE,
   SKY_LIGHT_COPY_CODE: COPY_CODE,
+  SURFACE_REWRITE_CODE: REWRITE_CODE,
   SKY_LIGHT_LUMINANCE_CODE: LUMINANCE_CODE,
-  SKY_LIGHT_SKY_FACE_CODE: SKY_FACE_PROGRAM.code,
-  SKY_LIGHT_FOG_FACE_CODE: FOG_FACE_PROGRAM.code,
+  SKY_LIGHT_SKY_FACE_CODE: skyFaceProgram(DEFAULT_AIR_SHAPE).code,
+  SKY_LIGHT_FOG_FACE_CODE: fogFaceProgram(DEFAULT_AIR_SHAPE).code,
   COMPOSE_FACE_CODE,
   FILTER_CODE,
   IRRADIANCE_CODE,
@@ -304,13 +329,39 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...Object.fromEntries(
     Object.entries(AIR_SHADERS).map(([name, code]) => [`AIR_${name.toUpperCase()}`, code]),
   ),
+  // The shapes the quality settings can make of them: the cinematic level's, which marches the sky and
+  // keeps the haze and the air apart, and the smallest tables, with no table and no shadows.
+  ...Object.fromEntries(
+    Object.entries(AIR_SHAPES).flatMap(([shape, settings]) =>
+      Object.entries(airProgramsOf(airShapeOf(resolveSettings(SKY_QUALITY_RULES, settings)))).map(
+        ([name, program]) => [`AIR_${shape}_${name.toUpperCase()}`, program.code],
+      ),
+    ),
+  ),
+  // The haze marched on the opaque surfaces (`aerialFastOnOpaque` off).
+  AIR_OPAQUE_HAZE: opaqueHazeProgram(
+    airShapeOf(resolveSettings(SKY_QUALITY_RULES, { aerialFastOnOpaque: false })),
+  ).code,
   // The fog volume's passes (`../../lighting/fog/`).
   ...Object.fromEntries(
     Object.entries(FOG_PROGRAMS).map(([name, code]) => [`FOG_${name.toUpperCase()}`, code]),
   ),
+  // The light functions' atlas slot, in each format (`../../lighting/lightFunction/`).
+  LIGHT_FUNCTION_SLOT_GREY: lightFunctionRenderWgsl(128, 'grey', false),
+  LIGHT_FUNCTION_SLOT_COLOUR: lightFunctionRenderWgsl(128, 'colour', false),
+  LIGHT_FUNCTION_SLOT_MAPPED: lightFunctionRenderWgsl(128, 'grey', true),
+  LIGHT_FUNCTION_SLOT_GRAPH: graphSlotShader(true),
+  LIGHT_FUNCTION_SLOT_GRAPH_PLAIN: graphSlotShader(false),
   // The screen-space ambient occlusion's setup and every shape of its search (`../../lighting/ao/`).
   AO_SETUP_WGSL,
   ...Object.fromEntries(Object.entries(AO_SHADERS).map(([name, code]) => [`AO_${name}`, code])),
+  // The light shafts' passes and their temporal filter (`../../modules/sky/lightShafts/`).
+  lightShaftProgram,
+  lightShaftTemporalProgram,
+  // The distance-field occlusion's passes (`../../lighting/distanceField/ao/`).
+  ...Object.fromEntries(
+    Object.entries(DFAO_SHADERS).map(([name, code]) => [`DFAO_${name.toUpperCase()}`, code]),
+  ),
   // What a device with `clip-distances` compiles: the vertex stages that return the clip distance
   // of the view's plane (`../clipDistances.ts`).
   VIS_CLIP: visShader({ clipDistances: true }),

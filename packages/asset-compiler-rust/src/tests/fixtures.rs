@@ -66,6 +66,7 @@ pub(crate) fn options(source: PathBuf, cache: PathBuf) -> Options {
         partition_grid: crate::PartitionGrid::read(&serde_json::Map::new()),
         mesh_build: crate::MeshBuildOptions::read(None),
         object_settings: crate::ObjectSettings::read(None),
+        lightmap_bake: crate::LightmapBakeOptions::read(None),
         cancelled: Arc::new(AtomicBool::new(false)),
     }
 }

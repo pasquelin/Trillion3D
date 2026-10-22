@@ -19,7 +19,6 @@ export type {
 export type { QualityResolution, WorldQualityOptions } from './quality.ts'
 export type { TemporalAntialiasingOption } from '../../../../sdk-core/src/contracts/materialOptions.ts'
 export { Scene } from './scene.ts'
-export type { Fog } from './sceneFog.ts'
 export { LoadedModel } from './models/loadedModel.ts'
 export type { ModelRecord, ModelScene } from './models/loadedModel.ts'
 export type { WorldControls } from './camera.ts'

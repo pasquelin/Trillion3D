@@ -96,6 +96,7 @@ export type {
   ReflectionFrameMetrics,
   ReflectionProxyEnded,
 } from '../../sdk-core/src/contracts/reflectionMetrics.ts'
+export type { RenderSettingSource } from '../../sdk-core/src/runtime/renderSettings.ts'
 export type {
   ResolvedAtmosphere,
   SceneAtmosphere,
@@ -114,7 +115,6 @@ export type {
   SceneHeightFog,
 } from '../../sdk-core/src/scene/core/fogHeight.ts'
 export { SceneNode } from '../../sdk-core/src/scene/core/node.ts'
-export type { SceneSky } from '../../sdk-core/src/scene/core/environmentSky.ts'
 export type { SoftBodyType } from '../../sdk-core/src/physics/soft/soft.ts'
 export {
   TABLE_FILTERS,

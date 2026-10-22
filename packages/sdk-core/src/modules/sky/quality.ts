@@ -147,28 +147,34 @@ const CLOUD_TARGET_RULES = /* @__PURE__ */ (() =>
  * range from the clamp, a value beyond it being read as the clamp.
  * - `atmosphereOn` (on), `cloudsOn` (on): whether the atmosphere and the clouds are drawn at all;
  * - `skyTableFast` (on): the sky is read from a table of the view's directions, not marched per
- *   pixel; faster, but an earth shadow or a scattering lobe in the sky shows artefacts;
+ *   pixel; faster, but an earth shadow or a scattering lobe in the sky shows artefacts; off, every
+ *   pixel of the sky is marched through the air, its samples jittered by the blue noise;
  *   `aerialFastOnOpaque` (on): the haze on opaque surfaces is read from the low-resolution
- *   volume of the haze on translucent ones; the same artefacts;
+ *   volume of the haze on translucent ones; the same artefacts; off is not drawn differently
+ *   yet — a surface reads the volume whatever it is;
  * - `atmosphereSamplesMin` (4, 2 at the renderer) and `atmosphereSamplesMax` (128, 32), `skyTableSamplesMin` (4)
- *   and `skyTableSamplesMax` (128, 32): the samples of a march through the air,
- *   from 1, and from the minimum; the count grows with the distance to the maximum;
+ *   and `skyTableSamplesMax` (128, 32): the samples of a march through the air (the marched sky
+ *   pixel's, the sky table's), from 1, and from the minimum; the count grows with the distance to
+ *   the maximum, itself no more than 32 times the atmosphere's `sampleCountScale`;
  *   `atmosphereDistanceToMaxSamplesKm` and `skyTableDistanceToMaxSamplesKm` (150), from 0.0001:
  *   the distance, in kilometres, at which a march takes its maximum;
- * - `atmosphereSampleLightShadowMap` (on): the march reads the light's shadow map, for the
- *   shadows the air shows;
+ * - `atmosphereSampleLightShadowMap` (on): the sky table's and the haze volume's marches read the
+ *   shadow map of a light that asks for it (`SceneLight.shadowsAir`), for the shadows the air shows;
  * - `aerialSamplesPerSlice` (4, 2), from 1: the most samples a slice of the haze volume takes;
  *   `aerialDepthSlices` (16), from 4: the slices along the depth; `aerialDepthKm` (96), from 1: the
  *   volume's length in kilometres, the last slice being used beyond; `aerialWidth` (32), from 4:
- *   its side in texels; `aerialDepthTest` (on): the haze is not drawn closer than where it starts;
+ *   its side in texels, the volume's cells held to what the light buffer has room for (32768, or
+ *   16384 at `skyTablesFullPrecision`: the slices are cut first); `aerialDepthTest` (on): a surface
+ *   at or before where the haze starts skips the read;
  * - `transmittanceSamples` (10) and `multiScatterSamples` (15), from 1: the samples that build
  *   the transmittance table and the multiple-scattering one; `transmittanceSmallFormat` (off): the
  *   transmittance table in four 8-bit channels, at lower quality; `transmittanceTable` (on),
  *   `distantSkyLightTable` (on): whether the transmittance table and the table of the distant sky
- *   light are built; `multiScatterHighQuality` (off): the multiple scattering is built from
- *   more directions; `distantSkyLightAltitudeKm` (6): the altitude, in kilometres, the distant
- *   sky light is integrated at; `skyTablesFullPrecision` (off): every sky table in 32 bits per
- *   channel;
+ *   light are built (off, the air answers as clear toward a light and the fog's sky is black);
+ *   `multiScatterHighQuality` (off): the multiple scattering is built from 64 directions over the
+ *   sphere and not from two; `distantSkyLightAltitudeKm` (6): the altitude, in kilometres, the
+ *   distant sky light is integrated at, every image; `skyTablesFullPrecision` (off): the haze
+ *   volume's cells in four 32-bit floats and not four half floats;
  * - `transmittanceWidth` (256), `transmittanceHeight` (64), `multiScatterWidth` (32),
  *   `multiScatterHeight` (32), `skyTableWidth` (192), `skyTableHeight` (104), from 4: the sides of
  *   the tables, in texels;

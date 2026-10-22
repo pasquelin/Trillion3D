@@ -24,7 +24,6 @@ import {
 } from '../../contracts/exposureOptions.ts'
 import { finite, packFog, validateSceneFog, type SceneFog } from './fog.ts'
 import { validateSceneAtmosphere, type ResolvedAtmosphere } from './atmosphere.ts'
-import { validateSceneSky, type SceneSky } from './environmentSky.ts'
 
 /** The curves that bring scene radiance into the display range, by the rank shaders read. */
 export const TONE_MAPPING_RANK = {
@@ -100,9 +99,6 @@ export interface SceneEnvironment {
   /** The planet's air that fills the sky and hazes the distance (`SceneAtmosphere`, every field
    *  set); absent, none. */
   atmosphere?: ResolvedAtmosphere
-  /** The sky the probes and the reflections read apart from `irradiance` (`SceneSky`); absent, none:
-   *  `irradiance` alone lights the surfaces. */
-  sky?: SceneSky
 }
 
 /** Coefficients of the irradiance, and the floats they take in a GPU buffer: one `vec4` each.
@@ -205,7 +201,6 @@ export function validateSceneEnvironment(environment: SceneEnvironment): SceneEn
   if (fog !== undefined) validated.fog = validateSceneFog(fog)
   if (environment?.atmosphere !== undefined)
     validated.atmosphere = validateSceneAtmosphere(environment.atmosphere)
-  if (environment?.sky !== undefined) validated.sky = validateSceneSky(environment.sky)
   if (sharpness !== undefined) {
     if (!finite(sharpness) || sharpness < 0 || sharpness > 1)
       throw new EngineError('INVALID_SCENE_ENVIRONMENT', 'sharpness must be in [0, 1]', {

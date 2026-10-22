@@ -59,6 +59,8 @@ phases! {
  texture_write=>TextureWrite=>"textureWriteMs",
  cutout_scan=>CutoutScan=>"cutoutScanMs",
  voxels=>Voxels=>"voxelsMs",
+ distance_fields=>DistanceFields=>"distanceFieldsMs",
+ volumetric_lightmap=>VolumetricLightmap=>"volumetricLightmapMs",
  job=>Job=>"jobMs",
 }
 

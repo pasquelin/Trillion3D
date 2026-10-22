@@ -12,6 +12,8 @@ import type { probeBinder } from './probeGroup.ts'
 import { PROBE_QUEUE_WORDS } from './probeQueueWgsl.ts'
 import type { ProxyBoxes } from './probeSync.ts'
 import type { TableWrite } from './tableWrite.ts'
+import type { SkyLightReadSet } from '../../../modules/sky/skyLight/read.ts'
+import type { CloudShadowSet } from '../../atmosphere/cloudShadowRead.ts'
 import { TABLE_RECORD_WORDS } from './tableWgsl.ts'
 
 /** What the probes read of the scene's proxy (`geometry/dag/proxy/proxyInstances.ts`, through the selection): what its
@@ -52,7 +54,13 @@ type Work = {
 }
 
 /** The frame's queue, the table's records and the levels' uniform, written for the work in hand. */
-function upload(parts: ProbeParts, work: Work, generation: number, frame: number) {
+function upload(
+  parts: ProbeParts,
+  work: Work,
+  generation: number,
+  frame: number,
+  eye: ArrayLike<number>,
+) {
   const { device, schedule } = parts
   if (work.groups)
     device.queue.writeBuffer(parts.queue, 0, schedule.queue, 0, work.groups * PROBE_QUEUE_WORDS)
@@ -64,7 +72,7 @@ function upload(parts: ProbeParts, work: Work, generation: number, frame: number
       0,
       (work.texels + 1) * TABLE_RECORD_WORDS,
     )
-  parts.uniform.write(generation, work.groups, frame)
+  parts.uniform.write(generation, work.groups, frame, eye)
 }
 
 /** The bounce pass of an image: the cells it reads marked, the table's writes, the probes' update and its
@@ -146,12 +154,16 @@ export function createProbeEncoder(
     get lastTexels() {
       return work.texels
     },
-    /** Encodes an image's marks (`surface`: what it drew) and a probe batch; `false` when there was
+    /** Encodes an image's marks (`surface`: what it drew) and a probe batch, the lights lit through the atlas
+     *  `lightFunction` (the stand-in where the bounce's lights wear none) and the clouds' shade, the rays that leave the scene
+     *  reaching the sky light (`shade`); `false` when there was
      *  nothing to do: the view still and marked, the series closed, no proxy to trace. */
     encode(
       encoder: GPUCommandEncoder,
       lightsActive: number,
       viewpoint: ArrayLike<number>,
+      lightFunction: GPUTextureView,
+      shade: { sky: SkyLightReadSet; cloudShadow: CloudShadowSet },
       surface?: MarkSurface,
     ) {
       work.groups = work.texels = 0
@@ -166,10 +178,17 @@ export function createProbeEncoder(
       if (!proxy || !lightsActive) return false
       work.marking = marks.begin(surface, frame + 1, slid)
       if (!work.marking && !pool.working) return false
-      const group = parts.bind(proxy, lights(), listing ?? noLists)
+      const group = parts.bind(
+        proxy,
+        lights(),
+        listing ?? noLists,
+        lightFunction,
+        shade.sky,
+        shade.cloudShadow,
+      )
       frame++
       plan(parts, work, frame, viewpoint, probesPerFrame)
-      upload(parts, work, generation, frame)
+      upload(parts, work, generation, frame, viewpoint)
       encodePass(parts, encoder, group, surface, work)
       return true
     },

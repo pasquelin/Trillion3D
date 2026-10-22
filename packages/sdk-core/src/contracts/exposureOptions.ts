@@ -2,6 +2,7 @@ import { SRGB_LUMINANCE } from '../../../math/src/color/color.ts'
 import {
   ANY_NUMBER as ANY,
   choiceSetting as choice,
+  flagSetting as flag,
   nonNegativeSetting as nonNegative,
   numberSetting as number,
   rulesOf,
@@ -87,7 +88,17 @@ const EXPOSURE_LUMINANCE_METHODS = ['uniform', 'ntsc', 'workingSpace'] as const
  * - `exposureBlackBucketWeight` (0), from 0 to 1: how much the darkest bucket counts, the pixels
  *   of no light, in the histogram: 0 ignores them, 1 counts them as any;
  * - `exposureLuminanceMethod` (`'uniform'`): how a pixel's luminance is read
- *   (`EXPOSURE_LUMINANCE_WEIGHTS`).
+ *   (`EXPOSURE_LUMINANCE_WEIGHTS`);
+ * - `preExposure` (true): every light the image holds is written already multiplied by the
+ *   exposure of the image before (times the scene colour tint's luminance), and the composition
+ *   multiplies it by the exposure over that number: the image keeps the range of the half floats
+ *   it is stored in at any exposure, and what is kept from one image to the next (the temporal
+ *   pass, the fog volume, the clouds, the reflections' image) is brought to the new number by
+ *   the ratio of the two. The picture is the same either way; false writes every light as it is
+ *   (a pre-exposure of 1), the pre-exposure being off for a view that is not lit or that shows
+ *   raw values;
+ * - `preExposureOverride` (0): above 0, the pre-exposure every light is multiplied by, in place
+ *   of the exposure of the image before; 0 keeps that exposure.
  *
  * The local exposure brings each pixel's light nearer to middle grey by how far the light around
  * it is from it: the log of the luminance is split into a base layer, the smooth light of the
@@ -126,6 +137,8 @@ export const EXPOSURE_RULES = /* @__PURE__ */ (() =>
     nonNegative('exposureTransitionDistance', 1.5),
     number('exposureBlackBucketWeight', 0, [0, 1]),
     choice('exposureLuminanceMethod', 'uniform', EXPOSURE_LUMINANCE_METHODS),
+    flag('preExposure', true),
+    nonNegative('preExposureOverride', 0),
     nonNegative('localExposureHighlightContrast', 0.8),
     nonNegative('localExposureShadowContrast', 0.8),
     nonNegative('localExposureDetailStrength', 1),

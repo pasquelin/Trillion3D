@@ -13,6 +13,40 @@ const stageOf = (name: string) => {
   return stage
 }
 
+/** The device's passes of one image, classified; `stages` (stage -> pass names seen) takes any new
+ *  name, and `grew` tells whether it did. */
+function classifyPasses(
+  timings: NonNullable<FrameMetrics['gpuPassMs']>,
+  stages: Map<string, Set<string>>,
+) {
+  const passes: StatsGpuSample['passes'][number][] = []
+  let grew = false
+  for (const pass of timings.passes) {
+    const ms = passOwnMs(pass)
+    if (ms === null) continue
+    const stage = stageOf(pass.name)
+    const key = stage ?? UNCLASSIFIED
+    passes.push({ name: pass.name, stage, ms })
+    let names = stages.get(key)
+    if (!names) stages.set(key, (names = new Set()))
+    if (!names.has(pass.name)) {
+      names.add(pass.name)
+      grew = true
+    }
+  }
+  return { passes, grew }
+}
+
+/** The shadow counters' times of `metrics`, by field. */
+function shadowTimes(metrics: FrameMetrics) {
+  const shadowMs: Record<string, number> = {}
+  for (const { field } of SHADOW_TIME_COUNTERS) {
+    const value = metrics[field]
+    if (typeof value === 'number') shadowMs[field] = value
+  }
+  return shadowMs
+}
+
 /**
  * The GPU samples of the last second, and the stage and pass lists they are seen under. A sample is
  * filed only when the device handed a new, whole one: with a device image time, spans that are not
@@ -37,21 +71,7 @@ export function gpuSamples(shadows: boolean) {
       // The spans overlap: their total is no image time, so without a device image time nothing is filed.
       const frameMs = metrics.gpuFrameMs
       if (timings.truncated || frameMs == null) return
-      const passes: { name: string; stage: string | null; ms: number }[] = []
-      let grew = false
-      for (const pass of timings.passes) {
-        const ms = passOwnMs(pass)
-        if (ms === null) continue
-        const stage = stageOf(pass.name)
-        const key = stage ?? UNCLASSIFIED
-        passes.push({ name: pass.name, stage, ms })
-        let names = stages.get(key)
-        if (!names) stages.set(key, (names = new Set()))
-        if (!names.has(pass.name)) {
-          names.add(pass.name)
-          grew = true
-        }
-      }
+      const { passes, grew } = classifyPasses(timings, stages)
       if (grew) {
         gpuStages = [
           ...WEBGPU_STAGES.filter((stage) => stages.has(stage)),
@@ -59,12 +79,7 @@ export function gpuSamples(shadows: boolean) {
         ]
         gpuPassesSeen = Object.fromEntries([...stages].map(([stage, names]) => [stage, [...names]]))
       }
-      const shadowMs: Record<string, number> = {}
-      if (shadows)
-        for (const { field } of SHADOW_TIME_COUNTERS) {
-          const value = metrics[field]
-          if (typeof value === 'number') shadowMs[field] = value
-        }
+      const shadowMs = shadows ? shadowTimes(metrics) : {}
       gpu.push({ frameMs, shadowMs, passes })
       seen.at.push(at)
     },

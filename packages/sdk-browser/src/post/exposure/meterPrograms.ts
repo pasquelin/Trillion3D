@@ -28,6 +28,7 @@ export const meterPrograms = oncePerDevice((device: GPUDevice) => {
       computeUniformEntry(0),
       computeBufferEntry(1, 'read-only-storage'),
       computeBufferEntry(2, 'storage'),
+      computeUniformEntry(3),
     ],
   })
   const stage = (

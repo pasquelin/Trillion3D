@@ -25,7 +25,7 @@ import {
   type AtmosphereSunIndex,
   type SceneLight,
 } from './contracts.ts'
-import { atmosphereSunIndexOf, lightLuminance } from './fields.ts'
+import { atmosphereSunIndexOf, lightColour, lightLuminance, sunDiskTintOf } from './fields.ts'
 
 /** Whether a light may light the air: a directional one not set off. */
 const mayLightAir = (light: SceneLight) =>
@@ -128,32 +128,44 @@ export function createSunHold(
   }
 }
 
-/** The numbers of a light the block is made of: whether there is one, then its direction, colour,
- *  intensity and disk. */
-const sunValues = (sun: SceneLight | undefined) =>
+/** The numbers of a light the block is made of: whether there is one, then its direction, colour
+ *  (with its temperature), intensity, disk, the disk's tint and the two switches of the air, then
+ *  its slot in the light buffer. */
+const sunValues = (sun: SceneLight | undefined, slot: number | undefined) =>
   sun
     ? [
         1,
         ...sun.direction!,
-        ...sun.color,
+        ...lightColour(sun),
         sun.intensity,
         sun.angularRadius || LIGHT_SETTINGS.sunAngularRadius,
+        ...sunDiskTintOf(sun),
+        sun.shadowsAir ? 1 : 0,
+        sun.transmittancePerPixel ? 1 : 0,
+        slot ?? -1,
       ]
     : [0]
 
 const NO_AIR: Rgb = [1, 1, 1]
 
-/** A light as the block packs it, with the transmittance of the air toward it. */
-const packedSun = (sun: SceneLight, transmittance: Rgb) => ({
-  direction: sun.direction!,
-  illuminance: [
-    sun.color[0] * sun.intensity,
-    sun.color[1] * sun.intensity,
-    sun.color[2] * sun.intensity,
-  ] as Rgb,
-  angularRadius: sun.angularRadius || LIGHT_SETTINGS.sunAngularRadius,
-  transmittance,
-})
+/** A light as the block packs it, with the transmittance of the air toward it and its slot. */
+const packedSun = (sun: SceneLight, transmittance: Rgb, lightSlot: number | undefined) => {
+  const colour = lightColour(sun)
+  return {
+    direction: sun.direction!,
+    illuminance: [
+      colour[0] * sun.intensity,
+      colour[1] * sun.intensity,
+      colour[2] * sun.intensity,
+    ] as Rgb,
+    angularRadius: sun.angularRadius || LIGHT_SETTINGS.sunAngularRadius,
+    transmittance,
+    diskTint: sunDiskTintOf(sun),
+    shadowsAir: sun.shadowsAir === true,
+    perPixel: sun.transmittancePerPixel === true,
+    lightSlot,
+  }
+}
 
 /** The atmosphere's block in the form a store keeps: written again when the air or its lights
  *  changed, its two versions told apart — the air's alone is what the lookup tables hang on. */
@@ -184,20 +196,30 @@ export function createAtmosphereBlock() {
     get tints(): readonly Rgb[] {
       return tints
     },
-    /** Takes the air and the lights held, by index of the air, records; false when neither changed
-     *  from the block. */
-    update(next: ResolvedAtmosphere | undefined, suns: readonly (SceneLight | undefined)[]) {
+    /** Takes the air and the lights held, by index of the air, records, and their slots in the
+     *  light buffer; false when neither changed from the block. */
+    update(
+      next: ResolvedAtmosphere | undefined,
+      suns: readonly (SceneLight | undefined)[],
+      slots: readonly (number | undefined)[] = [],
+    ) {
       const airChanged = !sameSceneAtmosphere(atmosphere, next)
-      const values = next ? suns.flatMap(sunValues) : []
+      const values = next ? suns.flatMap((sun, index) => sunValues(sun, slots[index])) : []
       if (!airChanged && sameValues(values, held)) return false
       if (airChanged) version++
       epoch++
       atmosphere = next
       held = values
-      tints = suns.map((sun) => (next && sun ? sunTransmittance(next, -sun.direction![1]) : NO_AIR))
+      const toward = suns.map((sun) =>
+        next && sun ? sunTransmittance(next, -sun.direction![1]) : NO_AIR,
+      )
+      // A light whose transmittance is read per surface point reaches the surfaces untinted.
+      tints = toward.map((t, index) => (suns[index]?.transmittancePerPixel ? NO_AIR : t))
       packAtmosphere(
         next,
-        suns.map((sun, index) => (next && sun ? packedSun(sun, tints[index]) : undefined)),
+        suns.map((sun, index) =>
+          next && sun ? packedSun(sun, toward[index], slots[index]) : undefined,
+        ),
         packed,
       )
       return true

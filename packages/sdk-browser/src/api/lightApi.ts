@@ -9,7 +9,8 @@ import type { SceneEnvironment } from '../../../sdk-core/src/scene/core/environm
 import type { LightingCapabilities } from '../../../sdk-core/src/scene/light/capabilities.ts'
 import type { SceneLightStore } from '../../../sdk-core/src/scene/light/store.ts'
 import { cloneSceneLight } from '../../../sdk-core/src/scene/light/clone.ts'
-import type { Engine } from '../session/engine/types.ts'
+import type { ResolvedSky } from '../../../sdk-core/src/modules/sky/descriptor.ts'
+import type { Engine, SkyHost } from '../session/engine/types.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
 type Inputs = {
@@ -58,12 +59,6 @@ function lightReads(inputs: Inputs, required: () => SceneLightStore) {
         return light ? [cloneSceneLight(light)] : []
       })
     },
-    /** The atmosphere's sky as the engine captured it, for the sky lights (`Engine.skyCapture`);
-     *  none before the first capture lands. */
-    skyCapture() {
-      check()
-      return engine.skyCapture()
-    },
     /** What the engine actually does with lights: a call accepted by the store is not proof of
      *  lighting, and its shadows and their limits are the engine's to declare. */
     lightingCapabilities() {
@@ -103,6 +98,13 @@ function lightWrites(inputs: Inputs, required: () => SceneLightStore) {
       check()
       required().setEnvironment(environment)
       notify()
+    },
+    /** The sky module's resolved parts for the engine to draw — the sky light's capture, the clouds
+     *  and their shadows —, none when the module is off, and what the host holds that the module
+     *  does not (`Engine.applySky`). Takes effect at the next frame. */
+    applySky(sky: ResolvedSky | undefined, host: SkyHost = {}) {
+      check()
+      engine.applySky(sky, host)
     },
     setTransform(nodeName: string, matrix: Float32Array) {
       check()

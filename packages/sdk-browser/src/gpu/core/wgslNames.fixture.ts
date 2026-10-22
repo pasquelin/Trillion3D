@@ -28,7 +28,7 @@ const WGSL_OWN = new Set([
     'private ptr read read_write sampler sampler_comparison storage ' +
     'u32 uniform vec2 vec3 vec4 vec2f vec3f vec4f vec2i vec3i vec4i vec2u vec3u ' +
     'vec4u workgroup write ' +
-    'texture_2d texture_2d_array texture_3d texture_cube texture_depth_2d texture_depth_2d_array ' +
+    'texture_2d texture_2d_array texture_3d texture_cube texture_cube_array texture_depth_2d texture_depth_2d_array ' +
     'texture_storage_2d texture_storage_2d_array texture_storage_3d texture_multisampled_2d ' +
     'r32float r32uint rg32float rg32uint rgba8uint rgba8unorm rgba16float rgba32float rgba32uint ' +
     'abs acos all any arrayLength asin atan atan2 atomicAdd atomicAnd atomicCompareExchangeWeak atomicExchange atomicLoad ' +

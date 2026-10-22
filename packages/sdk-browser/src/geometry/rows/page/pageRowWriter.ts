@@ -13,6 +13,7 @@ import { rowFlags } from '../surfaceRow.ts'
 import {
   assertVisibilityPageTriangles,
   FLAG_BLEND_CASTER,
+  FLAG_DISTANCE_FIELD,
   ROW_WORDS,
 } from '../../../visibility/types.ts'
 import { shownAsIs } from '../../../materials/surface/surfaceModel.ts'
@@ -116,7 +117,8 @@ function writeRow(
   assertVisibilityPageTriangles(indexCount / 3, rec.url)
   // A blended cluster's row is a shadow caster's alone (`../blendCasters.ts`): its flag and its
   // surface's record are what the shadow raster reads of it.
-  ints[base + PAGE_INFO.at.flags] = rec.transparent ? maps.flags | FLAG_BLEND_CASTER : maps.flags
+  const marked = rec.distanceField ? maps.flags | FLAG_DISTANCE_FIELD : maps.flags
+  ints[base + PAGE_INFO.at.flags] = rec.transparent ? marked | FLAG_BLEND_CASTER : marked
   ints[base + PAGE_INFO.at.pageOffset] = offsetWords
   ints[base + PAGE_INFO.at.indexCount] = indexCount
   ints[base + PAGE_INFO.at.vertexBase] = geo?.vertexBase ?? 0

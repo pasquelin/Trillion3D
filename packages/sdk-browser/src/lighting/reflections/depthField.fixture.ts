@@ -36,6 +36,7 @@ export const HIZ_DEPTH_READERS = [
   'hizCellStep',
   'hizCellNearest',
   'hizCellFarthest',
+  'hizCellCullFarthest',
   'hizLevelCount',
   'hizCullFarthest',
   'hizNearest',

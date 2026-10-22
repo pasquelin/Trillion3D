@@ -3,7 +3,7 @@
 import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../../math/src/wgsl/assemble.ts'
-import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
+import { runtimeProbeRayWgsl } from './runtimeRadianceWgsl.ts'
 import type { world } from './runtimeScene.fixture.ts'
 import type { Hit } from './runtimeOracle.fixture.ts'
 import { RAY_TRIANGLES, RAY_WORK } from './runtimeLayout.ts'
@@ -66,15 +66,14 @@ fn testMembers()->u32{return rtMembers;}
 /** The helpers' names, read from their text. */
 const TESTS = [...HELPERS.matchAll(/fn (test\w+)/g)].map((m) => m[1])
 
-/** The light buffer's sky of a scene that shows none: every slot zero, no air. */
+/** The light buffer's air of a scene that shows none: no air. */
 export const NO_SKY = {
-  sky: Array.from({ length: 11 }, () => [0, 0, 0, 0]),
   atmosphere: [[0, 0, 0, 0]],
   skyRays: [],
 }
 
-/** The shipped program over `w`, the sky its rays that leave the scene reach the light buffer's
- *  (`directLights`, none by default); its rays' budget the whole one, `RAY_WORK`. `overrides` replace
+/** The shipped program over `w`, the air its rays that leave the scene reach the light buffer's
+ *  (`directLights`, none by default), the sky light's cube a test's own (`skyLight`); its rays' budget the whole one, `RAY_WORK`. `overrides` replace
  *  what the program binds or defines by name: a probe's budget (`RT_PROBE_WORK`), the lighting of a hit. */
 export function runOver(
   w: ReturnType<typeof world>,
@@ -82,7 +81,7 @@ export function runOver(
   overrides: object = {},
 ) {
   const { header } = w
-  const text = wgslModule(runtimeRadianceWgsl(BINDINGS)) + HELPERS
+  const text = wgslModule(runtimeProbeRayWgsl(BINDINGS)) + HELPERS
   const run = shaderRun<{
     rtScene: (o: Vec3, d: Vec3, limit: number) => Hit
     rtRadiance: (
@@ -106,6 +105,9 @@ export function runOver(
     rtBegin: () => void
   }>(text, [...FUNCTIONS, ...TESTS], {
     directLights,
+    // No sky light shines unless a test says (`skyLight`).
+    skyLightApplied: () => false,
+    skyLightRay: () => [0, 0, 0],
     rtProxy: header,
     rtWorlds: w.worlds,
     rtTree: w.tree,

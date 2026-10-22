@@ -29,8 +29,8 @@ export const LIGHT_SHAFT_LIGHT_DISTANCE = 87960930222.08
 
 /**
  * The settings of a light by field (the light component's, with its defaults):
- * - `shaftOcclusion` (false): the light darkens the fog's inscattering; the base level turns it on
- *   for the sun;
+ * - `shaftOcclusion` (false): the light darkens the fog's inscattering; the sun part (`./sunPart.ts`)
+ *   turns it on;
  * - `shaftOcclusionDarkness` (0.05): what an occlusion of 0 maps to, 1 darkening nothing;
  * - `shaftOcclusionDepthRange` (1000): everything closer to the eye than this distance
  *   occludes the shafts;

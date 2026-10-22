@@ -1,5 +1,6 @@
 //! The CPU ray tracer, the only one on the Rust side. The oracle traces the source scene
-//! (`oracle`), its rays going every way, by walking `proxy::bvh`'s flattened tree (`walk`); the
+//! (`oracle`) and the volumetric lightmap's bake the compiled one (`volumetric_lightmap::bake`),
+//! their rays going every way, by walking `proxy::bvh`'s flattened tree (`walk`); the
 //! voxels trace the level-0 mesh (`trace::surface`), each ray against the triangles that overlap its
 //! voxel (`among`), through a hit filter that lets a ray through a cut texel.
 use trillion3d_math::geometry::triangle::{ray_triangle, triangle_cross};
@@ -8,21 +9,17 @@ use trillion3d_page_codec::proxy::PROXY_TRIANGLE_FLOATS;
 
 mod among;
 pub use among::Among;
-#[cfg(any(test, feature = "oracle"))]
 mod walk;
-#[cfg(any(test, feature = "oracle"))]
 pub use walk::trace;
 
 /// Triangles, with one word a triangle in the same order: the oracle's packed linear albedo (the
 /// source scene in world space, re-read without cuts, simplification or proxy), the bake's
-/// material (one mesh in object space). The oracle's walk has their tree too.
+/// material (one mesh in object space). The walk of the oracle and of the bake has their tree too.
 #[derive(Default)]
 pub struct World {
     pub triangles: Vec<f32>,
     pub tags: Vec<u32>,
-    #[cfg(any(test, feature = "oracle"))]
     pub node_bounds: Vec<f32>,
-    #[cfg(any(test, feature = "oracle"))]
     pub node_links: Vec<u32>,
 }
 

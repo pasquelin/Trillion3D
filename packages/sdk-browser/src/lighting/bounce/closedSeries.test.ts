@@ -4,7 +4,7 @@
 // draw the same pixels. Driven here on the engine's own probes, over a recording device.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { FLOOR_EYE, floorProbes } from './floorProbes.fixture.ts'
+import { FLOOR_ATLAS, FLOOR_EYE, FLOOR_SHADE, floorProbes } from './floorProbes.fixture.ts'
 import { createBounceCascades } from '../../../../sdk-core/src/bounce/cascades.ts'
 import { createProbePool } from '../../../../sdk-core/src/bounce/probePool.ts'
 import { createBounceSchedule } from './schedule.ts'
@@ -23,12 +23,13 @@ test('a closed bounce series encodes and writes nothing: a redraw reads what the
   let frames = 0
   while (probes.working) {
     assert.ok(++frames < 100_000, 'the series closes')
-    probes.encode(encoder, 1, eye)
+    probes.encode(encoder, 1, eye, FLOOR_ATLAS, FLOOR_SHADE)
   }
   assert.ok(gpu.dispatches.length > 0, 'the series traced probes before it closed')
   const writes = gpu.writes.length,
     encoded = gpu.commands.length
-  for (let frame = 0; frame < 8; frame++) assert.equal(probes.encode(encoder, 1, eye), false)
+  for (let frame = 0; frame < 8; frame++)
+    assert.equal(probes.encode(encoder, 1, eye, FLOOR_ATLAS, FLOOR_SHADE), false)
   assert.deepEqual(gpu.commands.slice(encoded), [], 'no pass, copy or clear once closed')
   assert.equal(gpu.writes.length, writes, 'no buffer written once closed')
   assert.equal(probes.working, false)
@@ -158,7 +159,11 @@ test('the cells an image reads are marked by its pass, read back a few images la
   const staged = () => gpu.buffers.filter((b) => b.label === 'Trillion3D bounce marks readback')
   // Nothing is read yet: the pool holds no probe, the series has no probe to trace, yet it is open.
   assert.equal(probes.pool.live, 0)
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, surface), true, 'the image marks')
+  assert.equal(
+    probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE, surface),
+    true,
+    'the image marks',
+  )
   const marked = gpu.commands.filter((command) => command === 'clear' || command === 'copy')
   assert.deepEqual(marked, ['clear', 'copy'], 'the bitmap cleared, the pass, the bitmap copied')
   assert.equal(probes.lastProbes, 0, 'no probe to trace before a cell is read')
@@ -176,7 +181,7 @@ test('the cells an image reads are marked by its pass, read back a few images la
     new Uint32Array(last.data!.buffer, 0, words)[entry >> 5] |= 1 << (entry & 31)
     probes.submitted()
     await landed()
-    probes.encode(encoder, 1, FLOOR_EYE, surface)
+    probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE, surface)
   }
   assert.equal(probes.pool.live, 1, 'the cell the image read holds a probe')
   assert.equal(probes.unfilled, 0)
@@ -184,23 +189,27 @@ test('the cells an image reads are marked by its pass, read back a few images la
   // Closed, a still view marked in full costs nothing more.
   const writes = gpu.writes.length,
     commands = gpu.commands.length
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, surface), false)
+  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE, surface), false)
   assert.equal(gpu.writes.length, writes)
   assert.equal(gpu.commands.length, commands)
   assert.ok(BOUNCE_SETTINGS.markJitter >= 1)
   // The view stands still but what it draws changed — the cut refined, pages arrived —: the cells of
   // the surfaces it now shows were never marked, so the image marks again, `markJitter` marks, then none.
   surface.signature[36] += 1
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, surface), true, 'a changed cut marks again')
+  assert.equal(
+    probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE, surface),
+    true,
+    'a changed cut marks again',
+  )
   assert.equal(probes.working, true, 'marks owed and in flight')
   for (frames = 0; probes.working;) {
     assert.ok(++frames < 200, 'the series closes again')
     probes.submitted()
     await landed()
-    probes.encode(encoder, 1, FLOOR_EYE, surface)
+    probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE, surface)
   }
   assert.equal(
-    probes.encode(encoder, 1, FLOOR_EYE, surface),
+    probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE, surface),
     false,
     'then a still image marks nothing',
   )

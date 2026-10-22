@@ -110,7 +110,10 @@ test('an image is composed with the share it read, one group per pair', async ()
   for (let frame = 0; frame < 2; frame++) lighting.compose(h.encoder, h.view(), [0, 0, 0, 1])
   // A new surface under the same lit image: its flags are read, not the old surface's.
   const flags = [h.view(), h.view(), h.view(), h.view()],
-    resized = { views: () => flags } as unknown as SurfaceBuffer
+    resized = {
+      views: () => flags,
+      stores: () => [flags[0], flags[3]],
+    } as unknown as SurfaceBuffer
   lighting.bind(resized, h.view(), hdr, false)
   lighting.compose(h.encoder, h.view(), [0, 0, 0, 1])
   // The effect chain's target without TAA has no share of its own: it reads the flags.

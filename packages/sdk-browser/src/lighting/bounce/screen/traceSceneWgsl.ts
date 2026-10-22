@@ -6,6 +6,7 @@ import { packLight, unpackLight } from '../../../gpu/core/smallFloatWgsl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { listWgsl } from '../../../gpu/dispatch/list.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
+import { lightFunctionLayoutEntry } from '../../lightFunction/bindings.ts'
 import { atlasEntry } from '../atlas.ts'
 import { bounceBindingsWgsl } from '../gridWgsl.ts'
 import { runtimeRadianceWgsl } from '../runtime/runtimeRadianceWgsl.ts'
@@ -35,10 +36,14 @@ export const TRACE_SCENE_BINDINGS = bindingTable({
 /** The atlas of the cascades' probes of the scene trace, and the proxy's three bindings. */
 export const TRACE_SCENE_PROBES = 9
 export const SCREEN_PROXY_BINDINGS: SceneBindings = { group: 0, proxy: 13, worlds: 14, tree: 15 }
+/** Where the scene trace reads the light functions (`lightFunctionReadWgsl`): their atlas, a stand-in where the
+ *  bounce's lights wear none, and the view's eye their fade is measured from. */
+export const TRACE_SCENE_LIGHT_FUNCTION = { group: 0, atlas: 16, eye: 'view.camera.xyz' } as const
 export const traceSceneEntries = () => [
   ...TRACE_SCENE_BINDINGS.entries,
   atlasEntry(TRACE_SCENE_PROBES),
   ...sceneLayoutEntries(SCREEN_PROXY_BINDINGS),
+  lightFunctionLayoutEntry(TRACE_SCENE_LIGHT_FUNCTION.atlas),
 ]
 
 const C = TRACE_SCENE_BINDINGS.at
@@ -161,7 +166,7 @@ ${wgslConsts({ SP_TRACE: side })}`,
     [
       DIRECT_LIGHT_WGSL,
       bounceBindingsWgsl(0, C.bounceGrid, TRACE_SCENE_PROBES),
-      runtimeRadianceWgsl(SCREEN_PROXY_BINDINGS),
+      runtimeRadianceWgsl(SCREEN_PROXY_BINDINGS, TRACE_SCENE_LIGHT_FUNCTION),
       spCommon(samples),
       spReach,
       spProbes(C.info, C.normal, C.counts),

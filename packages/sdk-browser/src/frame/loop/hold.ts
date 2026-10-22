@@ -13,6 +13,8 @@ import { asidePending, swapAsideTargets } from '../prepare/targetsAside.ts'
 import { deviceAnswering } from './deviceAnswer.ts'
 import { unsettledMask } from './unsettled.ts'
 import { traceDrawnFrame } from './holdTrace.ts'
+import { lightFunctionsWaiting } from '../../lighting/lightFunction/frame.ts'
+import { cloudsMoved } from '../render/encodeClouds.ts'
 /**
  * What a held frame actually did, published as such.
  *
@@ -83,7 +85,9 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
       run.diagnostic === 'frame-difference' ||
       guidesMoved(rt) ||
       effectsMoved(rt) ||
-      particlesMoved(rt)
+      particlesMoved(rt) ||
+      lightFunctionsWaiting(rt) ||
+      cloudsMoved(rt)
     ) {
       if (rt.diag.traceEnabled) traceDrawnFrame(rt, unsettled, swapped)
       // Only an image that is drawn enters the accumulation: a held one leaves it as is (#26).

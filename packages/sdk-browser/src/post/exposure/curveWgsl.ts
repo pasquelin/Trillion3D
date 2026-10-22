@@ -7,7 +7,7 @@ import {
 import { EXPOSURE_MIDDLE_GREY } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 
 /** The table's uniform: its samples packed four to a `vec4f`. */
-export const EXPOSURE_CURVE_VECTORS = EXPOSURE_CURVE_SAMPLES / 4
+const EXPOSURE_CURVE_VECTORS = EXPOSURE_CURVE_SAMPLES / 4
 const LAST = EXPOSURE_CURVE_SAMPLES - 1
 
 /**
@@ -25,7 +25,7 @@ export const curveWgsl = (binding: number) => `
 fn curveSample(i:u32)->f32{return curve[i/4u][i%4u];}
 fn curveFactor(mean:f32)->f32{
  let ev=log2(mean/${wgslF32(EXPOSURE_MIDDLE_GREY)});
- let at=select(clamp((ev-${wgslF32(EXPOSURE_CURVE_MIN_EV)})*${wgslF32(LAST / (EXPOSURE_CURVE_MAX_EV - EXPOSURE_CURVE_MIN_EV))},0.0,${wgslF32(LAST)}),0.0,mean<=0.0);
+ let at=select(clamp((ev-(${wgslF32(EXPOSURE_CURVE_MIN_EV)}))*${wgslF32(LAST / (EXPOSURE_CURVE_MAX_EV - EXPOSURE_CURVE_MIN_EV))},0.0,${wgslF32(LAST)}),0.0,mean<=0.0);
  let below=u32(floor(at));
  let above=min(below+1u,${LAST}u);
  return mix(curveSample(below),curveSample(above),at-floor(at));

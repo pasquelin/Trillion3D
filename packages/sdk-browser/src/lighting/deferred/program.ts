@@ -12,6 +12,8 @@ import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
 import { bindLight, type ProgramParts, type ProgramState } from './lightGroup.ts'
 import type { FogRead } from '../fog/read.ts'
+import type { SkyLightReadSet } from '../../modules/sky/skyLight/read.ts'
+import type { CloudShadowSet } from '../atmosphere/cloudShadowRead.ts'
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. With them,
  *  the frame's key: what its program leaves out (`contractCuts.ts`). */
@@ -45,13 +47,23 @@ export interface DirectLightResources extends Partial<ContractKey> {
    *  identity. */
   bounceGrid?: GPUBuffer
   probes?: GPUTextureView
+  /** What the light functions are read from this image (`../lightFunction/frame.ts`): the atlas and
+   *  its table; absent, the stand-in, which answers no light function. */
+  lightFunction?: GPUTextureView
   /** The reflection target the opaque trace wrote (`../reflections/trace/trace.ts`); absent, a zero
    *  substitute. */
   reflection?: GPUTextureView
-  receiver?: GPUTextureView // the resolve's shadow receiver target
+  /** What the sky light is read with this image (`SkyLightReadSet`); absent, the stand-in that gives no
+   *  light. */
+  sky?: SkyLightReadSet
+  /** The clouds' shade this image (`CloudShadowSet`); absent, the stand-in that casts none. */
+  cloudShadow?: CloudShadowSet
   /** What the fog's read is bound to this image (`FogRead`): its cubemap, the volume the image
    *  built and the frame that maps a point to its cell; absent, their stand-ins. */
   fog?: FogRead
+  /** The light shafts' occlusion mask the fog's inscattering is multiplied by this image
+   *  (`../../modules/sky/lightShafts/frame.ts`); absent, the white stand-in. */
+  lightShaft?: GPUTextureView
   /** What the screen probes left of the pixels' indirect light this image (`../bounce/screen/indirectWgsl.ts`): the
    *  history they keep, a texture the bounce program reads by load; absent, the stand-in that says none ran. */
   screenIndirect?: GPUTextureView

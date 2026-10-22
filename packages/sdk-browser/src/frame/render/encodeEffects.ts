@@ -16,7 +16,7 @@ import {
 import { resolveSettings } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import type { Velocity } from '../../post/taa/velocity.ts'
 import { velocitySettling } from '../../post/taa/velocityFrame.ts'
-import { appliedExposureOf } from '../../post/exposure/applied.ts'
+import { preExposureOf } from '../../post/exposure/pre.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { cpuNow } from '../../diagnostic/stopwatch.ts'
 import { viewProj } from '../backend/helpers.ts'
@@ -99,7 +99,7 @@ function readResolveFrame(
 
 /** What the depth of field reads of the image besides its size: how it is drawn (`DEPTH_OF_FIELD_RULES`)
  *  and the camera — its projection, whether it is a perspective one, its nearest distance drawn — and
- *  the exposure the image is shown at. */
+ *  the scale the image is shown at (the exposure over its pre-exposure). */
 function readResolveCamera(
   frame: ResolveFrame,
   depthOfField: ResolveFrame['depthOfField'],
@@ -148,7 +148,7 @@ export function encodeResolvedEffects(
     resolveFrame,
     plan?.depthOfField ?? NO_DEPTH_OF_FIELD,
     cam,
-    appliedExposureOf(rt),
+    preExposureOf(rt).shown,
   )
   const color = effects.resolve(encoder, passes, input, resolveFrame)
   rt.run.gpuDrawCalls += effects.resolvedPasses

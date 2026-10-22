@@ -265,8 +265,8 @@ const passGroup = (name: string) => name.replace(/\s+\d+$/, '')
  *  own shares (a pass or stage a sample lacks counts 0, in the mean and the max), the passes inside
  *  it, then what the image holds beyond the timed passes. The stages and passes are the window's
  *  sticky lists. */
-function gpuSection(window: StatsWindow, total: number | null): StatsSection {
-  const { gpu } = window
+function gpuSection(span: StatsWindow, total: number | null): StatsSection {
+  const { gpu } = span
   const stages = new Map<string, Tally & { passes: Map<string, Tally> }>()
   const add = (tally: Tally, ms: number) => {
     tally.sum += ms
@@ -294,10 +294,10 @@ function gpuSection(window: StatsWindow, total: number | null): StatsSection {
       add(stat, stageMs)
     }
   }
-  const rows = window.gpuStages.map((stage) => {
+  const rows = span.gpuStages.map((stage) => {
     const stat = stages.get(stage)
     const groups = new Map<string, number>()
-    for (const name of window.gpuPassesSeen[stage] ?? []) {
+    for (const name of span.gpuPassesSeen[stage] ?? []) {
       const group = passGroup(name)
       groups.set(group, (groups.get(group) ?? 0) + 1)
     }
@@ -312,20 +312,20 @@ function gpuSection(window: StatsWindow, total: number | null): StatsSection {
 
 /** The CPU section: the stages the collector hands over, in its order, then the rest of the frame,
  *  then the `?profile` rows when the page asked for them. The stages and the total are medians over
- *  the same step window. The total is the engine's whole-image time (`totalMs`), which stops before
+ *  the same step span. The total is the engine's whole-image time (`totalMs`), which stops before
  *  the host's own steps (arrivals, pending, retain, submit) are sampled, so the stages can exceed
  *  it: the total is then their sum, and the rest row is never negative. Both are null when the
- *  window was not read. The profile rows are measures of their own, outside the sum. */
-function cpuSection(window: StatsWindow): StatsSection {
-  const read = window.cpuStages.filter(([, ms]) => ms !== null)
+ *  span was not read. The profile rows are measures of their own, outside the sum. */
+function cpuSection(span: StatsWindow): StatsSection {
+  const read = span.cpuStages.filter(([, ms]) => ms !== null)
   // A read without the whole-image time still has its stages: the total is then their sum.
   const total = read.length
-    ? Math.max(window.cpuTotalMs ?? 0, sum(read.map(([, ms]) => ms!)))
-    : window.cpuTotalMs
-  const rows = window.cpuStages.map(([key, ms]) => measured(key, ms, null, 'ms', total))
+    ? Math.max(span.cpuTotalMs ?? 0, sum(read.map(([, ms]) => ms!)))
+    : span.cpuTotalMs
+  const rows = span.cpuStages.map(([key, ms]) => measured(key, ms, null, 'ms', total))
   rows.push(remainderRow('cpu.rest', total, rows, 'ms'))
   // The profile rows are measures of their own: after the remainder, outside the sum and shares.
-  for (const { key, raw, p50, p95 } of window.profile)
+  for (const { key, raw, p50, p95 } of span.profile)
     rows.push({ key, raw, value: p50, p95, max: null, unit: 'ms', share: null, profile: true })
   return { id: 'cpu', total, unit: 'ms', rows }
 }
@@ -344,10 +344,10 @@ function counterRow(
 
 /** The shadows section: the passes' times in the table's order, as means over the window, then the
  *  counters (the light count is the scene's, the pool's bytes the memory's). */
-function shadowsSection(window: StatsWindow): StatsSection {
-  const { last } = window
+function shadowsSection(span: StatsWindow): StatsSection {
+  const { last } = span
   const times = SHADOW_TIME_COUNTERS.map(({ field, key }) => {
-    const samples = window.gpu.flatMap((sample) => sample.shadowMs[field] ?? [])
+    const samples = span.gpu.flatMap((sample) => sample.shadowMs[field] ?? [])
     const value = samples.length ? mean(samples) : (last[field] ?? null)
     return { key, value, max: samples.length ? Math.max(...samples) : value }
   })
@@ -374,15 +374,15 @@ function memorySection(last: FrameMetrics): StatsSection {
 /** The scene section: what the cut selected and drew, the pages and the pool, the lights. A frame
  *  that publishes no selected triangles gets the page's own count of the scene's visible
  *  triangles after the drawn ones. */
-function sceneSection(window: StatsWindow): StatsSection {
-  const { last } = window
+function sceneSection(span: StatsWindow): StatsSection {
+  const { last } = span
   const rows = SCENE_ROWS.map((c) => counterRow(c, last))
-  if (last.selectedTriangles == null && window.sceneTriangles != null) {
+  if (last.selectedTriangles == null && span.sceneTriangles != null) {
     const drawn = rows.findIndex((row) => row.key === 'scene.trianglesDrawn')
     rows.splice(
       drawn + 1,
       0,
-      measured('scene.trianglesScene', window.sceneTriangles, null, 'count', null),
+      measured('scene.trianglesScene', span.sceneTriangles, null, 'count', null),
     )
   }
   return { id: 'scene', total: null, unit: 'count', rows }
@@ -476,18 +476,16 @@ function cadenceOf(
  * GPU time is known.
  */
 export function statsReport(
-  window: StatsWindow,
+  span: StatsWindow,
   parts: StatsParts,
   diagnose: (input: StatsDiagnosis) => string,
 ): StatsReport {
-  const { last, refreshMs } = window
-  const { fps, p50Ms: frameMs, stutters } = frameStatistics(window.intervalsMs)
-  const gpuMs = window.gpu.length
-    ? mean(window.gpu.map((s) => s.frameMs))
-    : (last.gpuFrameMs ?? null)
-  const cpuMs = window.cpuMs
+  const { last, refreshMs } = span
+  const { fps, p50Ms: frameMs, stutters } = frameStatistics(span.intervalsMs)
+  const gpuMs = span.gpu.length ? mean(span.gpu.map((s) => s.frameMs)) : (last.gpuFrameMs ?? null)
+  const cpuMs = span.cpuMs
   // A held or earlier image's GPU time is shown as the last one measured but decides nothing.
-  const gpuNow = window.held || window.gpuLast ? null : gpuMs
+  const gpuNow = span.held || span.gpuLast ? null : gpuMs
   const busy = gpuNow === null && cpuMs === null ? null : Math.max(gpuNow ?? 0, cpuMs ?? 0)
   const summary: StatsSummary = {
     fps,
@@ -497,9 +495,9 @@ export function statsReport(
     cpuMs,
     waitMs: frameMs === null || busy === null ? null : Math.max(0, frameMs - busy),
     refreshMs,
-    gpuIdleMs: window.gpuIdleMs,
-    worldIndex: window.world.index,
-    worldCount: window.world.count,
+    gpuIdleMs: span.gpuIdleMs,
+    worldIndex: span.world.index,
+    worldCount: span.world.count,
     bottleneck:
       cpuMs === null && gpuNow === null
         ? null
@@ -511,18 +509,18 @@ export function statsReport(
             pagesLoading: last.pagesLoading ?? 0,
             refreshMs,
           }),
-    held: window.held,
-    gpuLast: window.gpuLast,
-    refreshesPerImage: refreshesPerImageOf(window.intervalsMs, refreshMs),
-    cadence: cadenceOf(window.intervalsMs, refreshMs),
+    held: span.held,
+    gpuLast: span.gpuLast,
+    refreshesPerImage: refreshesPerImageOf(span.intervalsMs, refreshMs),
+    cadence: cadenceOf(span.intervalsMs, refreshMs),
   }
   const builders: { readonly [T in StatsTab]: () => StatsSection | null } = {
-    page: () => (window.page ? pageSection(window.page, summary) : null),
-    gpu: () => gpuSection(window, gpuMs),
-    cpu: () => cpuSection(window),
-    shadows: () => shadowsSection(window),
+    page: () => (span.page ? pageSection(span.page, summary) : null),
+    gpu: () => gpuSection(span, gpuMs),
+    cpu: () => cpuSection(span),
+    shadows: () => shadowsSection(span),
     memory: () => memorySection(last),
-    scene: () => sceneSection(window),
+    scene: () => sceneSection(span),
   }
   const sections = STATS_TABS.filter((tab) => parts[tab]).flatMap((tab) => builders[tab]() ?? [])
   return { summary, sections }

@@ -89,6 +89,20 @@ export class Object3D extends TransformNode {
     this._castFarShadow = value
     this._link?.shadow?.(this)
   }
+  private _farField = false
+  /** Whether the node is a far-field object: one the primed depth pyramid draws
+   *  (`hizPrime`, `hizPrimeFarFieldOnly`), a coarse, small draw of the flagged objects that the cut's
+   *  main pass tests against when the view has no pyramid of the image before; `false` by default,
+   *  on every node. It changes nothing of the image drawn. A compiled object, drawn from the
+   *  compiled world, has no per-object setting of its own yet. */
+  get farField() {
+    return this._farField
+  }
+  set farField(value: boolean) {
+    if (value === this._farField) return
+    noteNodeWrite(this)
+    this._farField = value
+  }
   override get parent(): Object3D | null {
     return super.parent as Object3D | null
   }

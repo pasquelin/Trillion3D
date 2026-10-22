@@ -12,7 +12,7 @@ import {
 /**
  * The colour of a light's temperature: a light with `useTemperature` on has its colour multiplied
  * by the colour of a black body at `temperatureKelvin`, in the working space (linear sRGB, Rec. 709
- * primaries, D65 white). The sky module's base sun turns it on at 6500 K.
+ * primaries, D65 white). The sky module's sun part (`./sunPart.ts`) turns it on at 6500 K.
  */
 
 /** The temperature's settings: off, 6500 K (the D65 white). The kelvin is clamped where the colour

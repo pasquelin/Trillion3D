@@ -41,6 +41,8 @@ export interface CellNode {
   source?: true
   /** The distances the row is drawn at, left out for an object that names none. */
   drawDistance?: TableDrawDistance
+  /** The row is drawn by a view's primed depth (`farField` of the job's object settings). */
+  farField?: true
 }
 
 /** The nodes of a cell file, read from `url`, or a named refusal. */

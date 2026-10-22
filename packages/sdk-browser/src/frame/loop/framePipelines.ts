@@ -5,6 +5,7 @@ import { askAsIsSeed } from '../../lighting/deferred/asIsShare.ts'
 import { askParticles } from '../../particles/gpu/webgpuParticleFrame.ts'
 import { wantsAsIsShare } from '../prepare/asIsShareTarget.ts'
 import { ensureGpuRaster } from '../render/encodeVisSetup.ts'
+import { askPrimeHiz } from '../render/primeHiz.ts'
 import { askComposedPlacements } from '../../placement/compose/gpuComposeFrame.ts'
 import { askRowWords } from '../../placement/rows/rowWordsPass.ts'
 import { askRootPasses } from '../../placement/roots/rootPasses.ts'
@@ -93,4 +94,6 @@ export function askFramePipelines(rt: WebgpuPagesRuntime) {
   askBloomPrograms(rt, device)
   askVelocity(rt, device)
   if (rt.gpu.depthView) ensureGpuRaster(rt, device)
+  // The primed pyramid's targets and kernel, once a view asks one (`hizPrime`).
+  askPrimeHiz(rt)
 }

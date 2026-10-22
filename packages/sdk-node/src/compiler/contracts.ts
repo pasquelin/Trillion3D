@@ -13,6 +13,7 @@ import type {
   PartitionSchemeOption,
 } from '../../../sdk-core/src/contracts/partitionOptions.ts'
 import type { MeshBuildOption } from '../../../sdk-core/src/contracts/meshBuildOptions.ts'
+import type { LightmapBakeOption } from '../../../sdk-core/src/contracts/lightmapBakeAbi.ts'
 import type { ObjectSettingsOption } from '../../../sdk-core/src/contracts/objectOptions.ts'
 import type { DagWarning } from '../../../sdk-core/src/contracts/dag.ts'
 import type { JobSnapshot } from '../../../sdk-core/src/runtime/jobs/jobs.ts'
@@ -128,7 +129,8 @@ export interface CompilerEvent {
    *  alwaysResidentKib, recomputeNormals, recomputeTangents, useMikkTSpace,
    *  computeWeightedNormals, skinnedWeldPosition, skinnedWeldNormal, skinnedWeldTexture,
    *  voxelRays, voxelLevel, voxelBackUp, voxelSeparable, voxelNdf, voxelOpacity, allowAssemblies,
-   *  positionPrecision, normalPrecision, tangentPrecision, objects }`
+   *  distanceField, distanceFieldScale, distanceFieldTwoSided, distanceFieldDensity,
+   *  distanceFieldMaxResolution, positionPrecision, normalPrecision, tangentPrecision, objects }`
    *  — whether its pages store the build's tangents (default `false`), the share of its triangles
    *  (default 1) and the error in percent of its size (default 0) its finest level is cut to,
    *  whether a triangle two of whose corners lie within 200 nanometres is dropped (default
@@ -171,6 +173,21 @@ export interface CompilerEvent {
    *  the first rule matching, the scene's, the node's own `extras`, the default
    *  (`resolveObjectSettings`). @defaultValue none: every default, the cache key unchanged */
   objectSettings?: ObjectSettingsOption
+  /** Whether the compiled scene gets a volumetric lightmap — its indirect light baked in bricks of
+   *  spherical harmonics samples, traced on the CPU as the reference's GPU lightmapper traces it,
+   *  written as `volumetric-lightmap.bin` and named by the manifest's `volumetricLightmap` — and how
+   *  it is baked: `true` every default, `false` none, or `{ detailCellSize, qualityMultiplier,
+   *  giSamples, maxRefinementLevels, irradianceCaching, irradianceCacheQuality,
+   *  irradianceCacheSpacing, irradianceCacheCornerRejection, automaticVolumeExpand,
+   *  automaticVolumeLimit, volumes }` — the finest cell in metres (default 2), the paths a probe
+   *  takes: `giSamples` (512) times `qualityMultiplier` (4), the levels of bricks (3, at most 4),
+   *  whether paths end in an irradiance cache (default `true`) of that many building passes
+   *  (128) and cells of that many metres (0.32), rejected within that many cells of a corner (1),
+   *  how far the scene's box grows (5 m) and the half-size it is cut to (100 m) when no volume is
+   *  named, and the boxes `[lower, upper]` in metres the volume covers (default none: the
+   *  scene's own) (`resolveLightmapBake`). The sky light is not baked: no sky radiance reaches a
+   *  compile job. @defaultValue none: no bake, the cache key unchanged */
+  lightmapBake?: LightmapBakeOption
   /** Stops the job when aborted. */ signal?: AbortSignal
   /** Called on each event. */
   onProgress?: (event: CompilerEvent & Partial<PreparationProgress>) => void
@@ -248,6 +265,7 @@ export interface BatchJob extends Pick<
   | 'partitionGrids'
   | 'meshBuild'
   | 'objectSettings'
+  | 'lightmapBake'
 > {
   /** Its name. */ id?: string
   /** The source file. */ source: string

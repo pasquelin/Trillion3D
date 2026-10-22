@@ -35,6 +35,9 @@ export type ReflectionFrame = {
   ringSteps?: number
   /** Whether the scene is traced at all (`screenProbeSceneTraces`, the one switch of the scene trace): true when absent. */
   sceneTraces?: boolean
+  /** The pre-exposure this image's light is written multiplied by: the radiance image that is held
+   *  keeps it, and the next image divides the light it reads by it (1 when absent). */
+  preExposure?: number
 }
 
 /**
@@ -64,6 +67,7 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     staged[REFLECTION_VIEW_AT.radiance] = held.size[0]
     staged[REFLECTION_VIEW_AT.radiance + 1] = held.size[1]
     staged[REFLECTION_VIEW_AT.radiance + 2] = levels - 1
+    staged[REFLECTION_VIEW_AT.radiance + 3] = 1 / held.preExposure
     staged.set(screenSlab(m, height, frame.eye), REFLECTION_VIEW_AT.slab)
     staged[REFLECTION_VIEW_AT.thickness] = screenRelativeThickness(m, frame.relativeThickness)
     traced[0] = frame.depthDrawn && held.valid ? 1 : 0

@@ -99,6 +99,7 @@ test('every ray of floors and waves stays within K(M) iterations and none runs o
         run.relativeThickness,
         run.slab,
         2 ** 32 - 1,
+        true,
       )
       const bound = run.screenMarchBudget(ray.d, ray.end, run.levels)
       const reads = run.counter.loads

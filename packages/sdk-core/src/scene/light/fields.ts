@@ -1,6 +1,8 @@
 import { SRGB_LUMINANCE } from '../../../../math/src/color/color.ts'
 import { dotVector3 } from '../../../../math/src/vector/vector.ts'
+import { temperatureColour } from '../../modules/sky/sunColour.ts'
 import {
+  LIGHT_FLAG,
   LIGHT_KIND,
   LIGHT_SETTINGS,
   SCENE_LIGHT_FLOATS,
@@ -26,12 +28,12 @@ export const LIGHT_FIELD = {
   direction: 8,
   /** Cosine of its cone. */
   cosCone: 11,
-  /** Its kind. */
+  /** Its kind's rank plus its flags (`LIGHT_KIND`, `LIGHT_FLAG`). */
   kind: 12,
   /** Its shadow slot. */
   shadowSlice: 13,
-  /** Whether it casts shadows. */
-  castsShadow: 14,
+  /** How much of it the volumetric fog and the clouds scatter (`SceneLight.fogScattering`). */
+  fogScattering: 14,
   /** A spot's inner cone, where its penumbra starts: the cone's own edge when it has none. */
   cosInner: 15,
   /** A rectangle's half-width axis — `right` times half its width —, then half its height. */
@@ -51,11 +53,40 @@ export const LIGHT_FIELD = {
 /** A point tests no cone, and a spot without penumbra no inner cone: this cosine never bounds. */
 export const NO_CONE = -2
 
-/** The luminance of a light: its colour times its intensity, each channel weighed by the eye's
- *  sensitivity to it (the working space's weights): what picks the sun of the air among the
- *  directional lights (`atmosphereSun.ts`), and what the fog's sun scatters (`fogSun.ts`). */
+/** The kelvin of a light that names none: the white of the working space. */
+export const DEFAULT_TEMPERATURE_KELVIN = 6500
+
+/** The colour of a light as it lights: the declared colour, multiplied by the colour of a black
+ *  body at its temperature where the light asks for it (`SceneLight.useTemperature`). */
+export const lightColour = (light: SceneLight) =>
+  temperatureColour(light.color, {
+    useTemperature: light.useTemperature === true,
+    temperatureKelvin: light.temperatureKelvin ?? DEFAULT_TEMPERATURE_KELVIN,
+  })
+
+/** The luminance of a light: its colour (with its temperature) times its intensity, each channel
+ *  weighed by the eye's sensitivity to it (the working space's weights): what picks the sun of the
+ *  air among the directional lights (`atmosphereSun.ts`), and what the fog's sun scatters
+ *  (`fogSun.ts`). */
 export const lightLuminance = (light: SceneLight) =>
-  light.intensity * dotVector3(SRGB_LUMINANCE, light.color)
+  light.intensity * dotVector3(SRGB_LUMINANCE, lightColour(light))
+
+/** The colour a sun's disk is multiplied by: white when it names none. */
+export const sunDiskTintOf = (light: SceneLight): [number, number, number] =>
+  light.sunDiskTint ?? [1, 1, 1]
+
+/** How much of a light the volumetric fog and the clouds scatter: 1 when it names none. */
+export const fogScatteringOf = (light: SceneLight) => light.fogScattering ?? 1
+
+/** Whether a light's shadow also shadows the volumetric fog: a directional light's by default, a
+ *  local light's only when asked. */
+export const shadowsFogOf = (light: SceneLight) => light.shadowsFog ?? light.kind === 'directional'
+
+/** The kind word of a light: its rank, plus the flag of each thing it does (`LIGHT_FLAG`). */
+export const kindWordOf = (light: SceneLight) =>
+  LIGHT_KIND[light.kind] +
+  (light.castsShadow ? LIGHT_FLAG.castsShadow : 0) +
+  (shadowsFogOf(light) ? LIGHT_FLAG.shadowsFog : 0)
 
 /** The air's light a directional light is a candidate for: its `atmosphereSunIndex`, 0 absent. */
 export const atmosphereSunIndexOf = (light: SceneLight): AtmosphereSunIndex =>
@@ -75,13 +106,13 @@ function writeVector(packed: Float32Array, at: number, value: readonly number[])
 export function writeLightFields(packed: Float32Array, base: number, light: SceneLight) {
   writeVector(packed, base + LIGHT_FIELD.position, light.position ?? [0, 0, 0])
   packed[base + LIGHT_FIELD.range] = light.range ?? 0
-  writeVector(packed, base + LIGHT_FIELD.color, light.color)
+  writeVector(packed, base + LIGHT_FIELD.color, lightColour(light))
   packed[base + LIGHT_FIELD.intensity] = light.intensity
   writeVector(packed, base + LIGHT_FIELD.direction, light.direction ?? [0, -1, 0])
   const spot = light.kind === 'spot'
   packed[base + LIGHT_FIELD.cosCone] = spot ? Math.cos(light.coneAngle!) : NO_CONE
-  packed[base + LIGHT_FIELD.kind] = LIGHT_KIND[light.kind]
-  packed[base + LIGHT_FIELD.castsShadow] = light.castsShadow ? 1 : 0
+  packed[base + LIGHT_FIELD.kind] = kindWordOf(light)
+  packed[base + LIGHT_FIELD.fogScattering] = fogScatteringOf(light)
   packed[base + LIGHT_FIELD.cosInner] =
     spot && light.penumbra ? Math.cos(light.coneAngle! * (1 - light.penumbra)) : NO_CONE
   const [width, height] = light.size ?? [0, 0]

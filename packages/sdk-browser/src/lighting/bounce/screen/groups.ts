@@ -101,6 +101,7 @@ const INPUT_KEYS = [
   'lightLists',
   'bounceGrid',
   'probes',
+  'lightFunction',
   'vectors',
 ] as const satisfies readonly Exclude<keyof ScreenProbeInputs, 'proxy'>[]
 const inputsComplete: Exclude<

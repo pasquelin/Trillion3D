@@ -40,7 +40,7 @@ fn spFarRadiance(d:vec3f)->vec3f{
  let basis=spBasis(d);
  var sum=vec3f(0.0);
  for(var k=0u;k<9u;k++){sum+=farValues[k]*basis[k];}
- return reflectionFieldOver(vec4f(max(sum,vec3f(0.0)),farHeld),d);
+ return reflectionFieldOver(vec4f(max(sum,vec3f(0.0)),farHeld),d,0.0);
 }
 fn spFarDistance(d:vec3f)->f32{
  return select(SP_MAX_TRACE,min(distanceAlong(farValues[9],farValues[10],d),SP_MAX_TRACE),farHeld>0.0);

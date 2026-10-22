@@ -6,6 +6,7 @@ import { FOG_FREE_MODEL_BIT, MODEL_SHIFT, modelFlag } from '../../materials/surf
 import { fogBlockOf } from '../../lighting/fog/readWgsl.ts'
 import { BLEND_FOG_BINDINGS } from '../../gpu/bind/bindLayout.ts'
 import { BLEND_TO_EYE_WGSL, blendSurfaceWgsl } from '../shaderSurface.ts'
+import { BLEND_PRE_EXPOSED_WGSL } from '../viewLayout.ts'
 import { FACING_MATERIAL_MASK } from '../facing.ts'
 import {
   DISPLAY_MASK_GROUP,
@@ -78,7 +79,7 @@ fn greyCoverage(mul:vec3f)->f32{return saturate(1.0-dot(mul,vec3f(1.0/3.0)));}
  */
 const TRANSMIT_WGSL = wgslBlock(
   'TRANSMIT_WGSL',
-  [THIN_LAYER_WGSL, modelFlag, FULLSCREEN_VERTEX],
+  [THIN_LAYER_WGSL, modelFlag, FULLSCREEN_VERTEX, BLEND_PRE_EXPOSED_WGSL],
   `// What the blend adds: the base colour and the emission a layer over the absorbing
 // medium, under the specular: (diffuse + emissive)·top + specular,
 // at the coverage, dimmed by the fog that adds its own.
@@ -126,7 +127,7 @@ fn transmitFragment(in:VSOut,front:bool)->Transmit{
   surfaceModel=modelFlag(flags);
   thinSubsurface=s.subsurface;
  }
- return Transmit(thinAdd(in,s,l),thinMul(l),s.request);
+ return Transmit(preExposedClipped(thinAdd(in,s,l)),thinMul(l),s.request);
 }
 // The fallback without dual-source blending, the colour premultiplied, blended over by its grey
 // coverage, with the request, the reactive value and the history given up at that coverage, and

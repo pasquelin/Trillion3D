@@ -7,6 +7,9 @@ import {
   CLOUD_FACE_USAGE,
   CUBE_FACES,
   FILTERED_CUBE_USAGE,
+  FILTERED_CUBES,
+  HARMONICS_SET_BYTES,
+  HARMONICS_SETS,
   IRRADIANCE_VECTORS,
   SKY_LIGHT_CUBE_FORMAT,
 } from './layout.ts'
@@ -14,9 +17,11 @@ import { skyLightMipCount } from '../../../../../sdk-core/src/modules/sky/skyLig
 import {
   cubeFaceTargets,
   cubeMipView,
+  cubeOfArray,
   filterBindGroup,
   storageMip,
   wholeCube,
+  wholeCubeArray,
 } from './cubeViews.ts'
 import type { SkyLightPipelines } from './pipelines.ts'
 
@@ -25,21 +30,18 @@ import type { SkyLightPipelines } from './pipelines.ts'
  *  cube. */
 const FILTER_SLOTS = 64
 
-/** The captured cube and the two filtered cubes, of side `width`, with their mips. */
+/** The captured cube, and the array of the two filtered cubes, of side `width`, with their mips. */
 function createCubes(device: GPUDevice, width: number, mips: number) {
-  const cube = (label: string, usage: number) =>
+  const cubes = (label: string, usage: number, count: number) =>
     device.createTexture({
       label,
-      size: { width, height: width, depthOrArrayLayers: CUBE_FACES },
+      size: { width, height: width, depthOrArrayLayers: CUBE_FACES * count },
       mipLevelCount: mips,
       format: SKY_LIGHT_CUBE_FORMAT,
       usage,
     })
-  const captured = cube('Trillion3D sky light captured cube', CAPTURED_CUBE_USAGE)
-  const filtered = [
-    cube('Trillion3D sky light filtered cube 0', FILTERED_CUBE_USAGE),
-    cube('Trillion3D sky light filtered cube 1', FILTERED_CUBE_USAGE),
-  ] as const
+  const captured = cubes('Trillion3D sky light captured cube', CAPTURED_CUBE_USAGE, 1)
+  const filtered = cubes('Trillion3D sky light filtered cubes', FILTERED_CUBE_USAGE, FILTERED_CUBES)
   return { captured, filtered }
 }
 
@@ -89,7 +91,7 @@ function createCloudImages(device: GPUDevice, cloudSide: number) {
 interface GroupSources {
   readonly mips: number
   readonly captured: GPUTexture
-  readonly filtered: readonly [GPUTexture, GPUTexture]
+  readonly filtered: GPUTexture
   readonly filteredCubes: readonly [GPUTextureView, GPUTextureView]
   readonly blocks: ReturnType<typeof createBlocks>
   readonly harmonics: GPUBuffer
@@ -135,18 +137,26 @@ function createGroups(device: GPUDevice, pipelines: SkyLightPipelines, over: Gro
         : filterGroup(cubeMipView(captured, mip - 1), storageMip(captured, mip)),
     ),
     /** Mip `m` of filtered cube `w` from the captured cube. */
-    convolve: filtered.map((texture) =>
-      range.map((mip) => filterGroup(capturedCube, storageMip(texture, mip))),
+    convolve: [0, 1].map((cube) =>
+      range.map((mip) => filterGroup(capturedCube, storageMip(filtered, mip, cube))),
     ),
     /** The harmonics from filtered cube `w`. */
-    irradiance: filteredCubes.map((view) =>
+    irradiance: filteredCubes.map((view, w) =>
       device.createBindGroup({
         layout: layouts.irradiance,
         entries: [
           { binding: 0, resource: { buffer: blocks.irradiance } },
           { binding: 1, resource: view },
           { binding: 2, resource: nearest },
-          { binding: 3, resource: { buffer: harmonics } },
+          {
+            binding: 3,
+            resource: {
+              buffer: harmonics,
+              offset: w * HARMONICS_SET_BYTES,
+              size: IRRADIANCE_VECTORS * 16,
+            },
+          },
+          { binding: 4, resource: wholeCube(captured) },
         ],
       }),
     ),
@@ -157,8 +167,8 @@ function createGroups(device: GPUDevice, pipelines: SkyLightPipelines, over: Gro
  * WHAT THE CAPTURE WRITES INTO AND READS, made for a cube of side `width` and clouds traced at
  * `cloudSide`, and made again when either changes:
  * - the captured cube: the sky of the faces, then its mips;
- * - the two filtered cubes, one ready to be read while the other is written;
- * - the harmonics' buffer (`IRRADIANCE_VECTORS` vec4s), which the sun's light and the surfaces read;
+ * - the two filtered cubes, one texture of two cubes, one ready to be read while the other is written;
+ * - the harmonics' buffer, a set of `IRRADIANCE_VECTORS` vec4s for each filtered cube, which the surfaces read;
  * - the clouds of a face: the traced colour and the two images the trace writes and the capture
  *   does not use, and the depth range (zero: nothing in front), as large as the trace reads it;
  * - the blocks the passes read, a slot to a face or a dispatch, `BLOCK_STRIDE` bytes apart;
@@ -174,8 +184,8 @@ export function createSkyLightTargets(
   const { captured, filtered } = createCubes(device, width, mips)
   const harmonics = device.createBuffer({
     label: 'Trillion3D sky light harmonics',
-    size: IRRADIANCE_VECTORS * 16,
-    usage: GPUBufferUsage.STORAGE,
+    size: HARMONICS_SET_BYTES * HARMONICS_SETS,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM,
   })
   const blocks = createBlocks(device)
   const clouds = createCloudImages(device, cloudSide)
@@ -184,7 +194,7 @@ export function createSkyLightTargets(
     depth: clouds.depth.createView(),
     depthRange: clouds.depthRange.createView(),
   }
-  const filteredCubes = [wholeCube(filtered[0]), wholeCube(filtered[1])] as const
+  const filteredCubes = [cubeOfArray(filtered, 0), cubeOfArray(filtered, 1)] as const
   const groups = createGroups(device, pipelines, {
     mips,
     captured,
@@ -204,12 +214,14 @@ export function createSkyLightTargets(
     blocks,
     cloudViews,
     groups,
-    /** The views the lighting reads the filtered cubes through. */
+    /** The views the harmonics are summed from, a cube each. */
     filteredCubes,
+    /** The view the lighting reads the filtered cubes through: both, as a cube array. */
+    filteredArray: wholeCubeArray(filtered),
     /** Face `face` of the captured cube, mip 0, as a colour target. */
     faceTargets: cubeFaceTargets(captured),
     destroy() {
-      for (const texture of [captured, ...filtered, ...Object.values(clouds)]) texture.destroy()
+      for (const texture of [captured, filtered, ...Object.values(clouds)]) texture.destroy()
       for (const buffer of [harmonics, ...Object.values(blocks)]) buffer.destroy()
     },
   }

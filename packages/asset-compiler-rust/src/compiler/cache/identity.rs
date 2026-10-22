@@ -11,6 +11,7 @@
 //! Identity is therefore built in two parts: what the source declares, stripped of
 //! its timings and run provenance, and the fingerprint of the resources compilation
 //! actually consumes — the geometry binary and each image file the scene cites.
+use crate::volumetric_lightmap::bake::abi::LIGHTMAP_BAKE_FIELD;
 use crate::*;
 
 /// Fields a manifest carries for operations, not identity: a measured time, the
@@ -127,6 +128,15 @@ pub(crate) fn cache_key(
         .and_then(ObjectSettings::identity)
     {
         material[OBJECT_SETTINGS_FIELD] = named.clone();
+    }
+    // The volumetric lightmap's bake, only when the job asks for one: a job naming none keeps its key.
+    if let Some(named) = o
+        .lightmap_bake
+        .as_ref()
+        .ok()
+        .and_then(LightmapBakeOptions::identity)
+    {
+        material[LIGHTMAP_BAKE_FIELD] = named.clone();
     }
     keyed(material, crate::physics_cook::JOLT_COMMIT)
 }

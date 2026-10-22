@@ -80,7 +80,7 @@ const reflectionSeenWgsl = (group: number) =>
  var seen=RadianceAnswer(vec3f(0.0),0.0,0.0);
  let size=view.viewport.xy;
  let ray=reflectionRay(P,N,lobe,surfacePixel);
- let marched=screenMarch(ray.o,ray.d,ray.end,REFLECTION_THICKNESS,reflectionView.thickness,reflectionView.slab,reflectionView.scene.x);
+ let marched=screenMarch(ray.o,ray.d,ray.end,REFLECTION_THICKNESS,reflectionView.thickness,reflectionView.slab,reflectionView.scene.x,true);
  if(marched.t<0.0||marched.plane.x<=0.0){return seen;}
  let H=ray.o+ray.d*marched.t;
  let depth=marched.plane.x+dot(H.xy-marched.pixel,marched.plane.yz);
@@ -114,9 +114,9 @@ const reflectionSeenWgsl = (group: number) =>
 export const REFLECTION_FIELD_OVER_WGSL = wgslBlock(
   'REFLECTION_FIELD_OVER_WGSL',
   [REFLECTION_ENVIRONMENT_WGSL, REFLECTION_PROBES_SHARE_WGSL],
-  `fn reflectionFieldOver(gathered:vec4f,R:vec3f)->vec3f{
+  `fn reflectionFieldOver(gathered:vec4f,R:vec3f,rough:f32)->vec3f{
  let under=select(1.0,1.0-min(gathered.w,1.0),skyLit());
- return under*reflectionEnvironment(R)+reflectionProbesShare(gathered);
+ return under*reflectionEnvironment(R,rough)+reflectionProbesShare(gathered);
 }`,
 )
 
@@ -128,7 +128,7 @@ export const REFLECTION_FIELD_STAGE_WGSL = wgslBlock(
   'REFLECTION_FIELD_STAGE_WGSL',
   [REFLECTION_FIELD_OVER_WGSL, REFLECTION_PROBES_WGSL],
   `fn reflectionField(P:vec3f,N:vec3f,lobe:ReflectionLobe)->vec3f{
- return reflectionFieldOver(reflectionProbesGathered(P,N,lobe),lobe.R);
+ return reflectionFieldOver(reflectionProbesGathered(P,N,lobe),lobe.R,lobe.rough);
 }`,
 )
 
@@ -139,7 +139,7 @@ const REFLECTION_FIELD_PAIR_WGSL = wgslBlock(
   [REFLECTION_FIELD_OVER_WGSL, REFLECTION_PROBES_PAIR_WGSL],
   `fn reflectionFieldPair(P:vec3f,N:vec3f,lobe:ReflectionLobe,other:ReflectionLobe)->mat2x3f{
  let gathered=reflectionProbesPairGathered(P,N,lobe,other);
- return mat2x3f(reflectionFieldOver(gathered[0],lobe.R),reflectionFieldOver(gathered[1],other.R));
+ return mat2x3f(reflectionFieldOver(gathered[0],lobe.R,lobe.rough),reflectionFieldOver(gathered[1],other.R,other.rough));
 }`,
 )
 
@@ -246,7 +246,7 @@ fn reflectionSceneStage(P:vec3f,N:vec3f,lobe:ReflectionLobeRay,screen:Reflection
   reflectionTake(&ray,proxied.answer);
   // The share that left the scene sees the environment alone; the field stands for the rest.
   let open=min(before*proxied.open,ray.rest);
-  ray.radiance+=open*reflectionEnvironment(lobe.R);
+  ray.radiance+=open*reflectionEnvironment(lobe.R,0.0);
   ray.rest-=open;
  }
  return reflectionFieldRest(P,N,lobe,ray);

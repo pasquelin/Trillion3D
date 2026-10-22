@@ -1,6 +1,5 @@
 import {
   ANY_NUMBER,
-  atLeast,
   flagSetting as flag,
   integerSetting as integer,
   numberSetting as number,
@@ -15,10 +14,7 @@ import { INT32, INT32_FROM_ZERO } from './qualityRanges.ts'
  *  (off): they are drawn in the separate translucency, after the depth of field;
  *  `lightShaftBlurPasses` (3), a whole number from 0: the radial blur passes;
  *  `lightShaftFirstPassDistance` (0.1): the fraction of the distance to the light the first pass
- *  blurs over; `lightShaftTemporalFilterSize` (1, from 0.0001) and `lightShaftTemporalCatmullRom`
- *  (off): the size of the kernel the temporal filter's weights are made of (1 smoother, a smaller
- *  one sharper but aliased; the floor is ours, the kernel divides by it) and whether it is a
- *  Catmull-Rom one, sharper than the Gaussian. */
+ *  blurs over. */
 export const IMAGE_EFFECTS_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flag('lightShafts', true),
@@ -27,8 +23,6 @@ export const IMAGE_EFFECTS_RULES = /* @__PURE__ */ (() =>
     flag('lightShaftAfterDof', false),
     integer('lightShaftBlurPasses', 3, INT32_FROM_ZERO),
     number('lightShaftFirstPassDistance', 0.1, ANY_NUMBER),
-    number('lightShaftTemporalFilterSize', 1, atLeast(1e-4)),
-    flag('lightShaftTemporalCatmullRom', false),
   ] as const))()
 
 /** The sky light's settings by field: `skyLightRealTimeCapture` (on), whether the platform allows
@@ -43,7 +37,11 @@ export const IMAGE_EFFECTS_RULES = /* @__PURE__ */ (() =>
  *  `skyLightAlwaysClear` (off): the capture's colour is cleared to black before the sky is drawn;
  *  `skyLightResolutionOverride` (0): a side, in texels, of at least 16, that replaces the sky
  *  light's own, a lower value leaving it; `skyLightCubemapMaxResolution` (-1): above 0, the largest
- *  side the sky light's cube may have. */
+ *  side the sky light's cube may have; `skyLightCaptureSupersample` (1), from 1 to 8: the factor
+ *  the faces of a captured scene are drawn larger by than the cube's side, then averaged down;
+ *  `skyLightCaptureLodDistanceScale` (1): the factor the detail of a captured scene is asked at,
+ *  a value of zero or less being 1; `skyLightCaptureReflections` (on): whether the scene's
+ *  reflections are traced in a captured scene's faces. */
 export const INDIRECT_LIGHT_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flag('skyLightRealTimeCapture', true),
@@ -56,4 +54,7 @@ export const INDIRECT_LIGHT_RULES = /* @__PURE__ */ (() =>
     flag('skyLightAlwaysClear', false),
     integer('skyLightResolutionOverride', 0, INT32),
     integer('skyLightCubemapMaxResolution', -1, INT32),
+    integer('skyLightCaptureSupersample', 1, [1, 8]),
+    number('skyLightCaptureLodDistanceScale', 1, ANY_NUMBER),
+    flag('skyLightCaptureReflections', true),
   ] as const))()

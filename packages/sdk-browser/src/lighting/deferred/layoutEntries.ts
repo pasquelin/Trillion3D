@@ -1,8 +1,16 @@
-import { DEFERRED_BINDINGS, DEFERRED_FOG_BINDINGS } from './bindings.ts'
+import {
+  DEFERRED_BINDINGS,
+  DEFERRED_CLOUD_SHADOW_BINDINGS,
+  DEFERRED_FOG_BINDINGS,
+  DEFERRED_LIGHT_FUNCTION_BINDINGS,
+  DEFERRED_SKY_LIGHT_BINDINGS,
+} from './bindings.ts'
+import { cloudShadowLayoutEntries } from '../atmosphere/cloudShadowRead.ts'
+import { skyLightReadLayoutEntries } from '../../modules/sky/skyLight/read.ts'
+import { lightFunctionLayoutEntry } from '../lightFunction/bindings.ts'
 import { fogReadLayoutEntries } from '../fog/read.ts'
 import { SUBSURFACE_TARGET } from '../../materials/surface/subsurface.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../materials/surface/physicalLobes.ts'
-import { receiverLayoutEntry } from '../../visibility/passes/receiver.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/shadowBindings.ts'
 import { MASK_TILES_TARGET } from '../direct/shadowTraceWgsl.ts'
 import { REFLECTION_TARGET } from '../reflections/weight.ts'
@@ -17,10 +25,9 @@ import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeB
 export function deferredLayoutEntries(direct: boolean, bounce = false) {
   const fragment = GPUShaderStage.FRAGMENT
   const entries: GPUBindGroupLayoutEntry[] = [
-    computeTextureEntry(DEFERRED_BINDINGS.baseMetal, 'unfilterable-float', '2d', fragment),
-    computeTextureEntry(DEFERRED_BINDINGS.normalRough, 'unfilterable-float', '2d', fragment),
+    computeTextureEntry(DEFERRED_BINDINGS.colours, 'unfilterable-float', '2d-array', fragment),
     computeTextureEntry(DEFERRED_BINDINGS.emissiveAo, 'unfilterable-float', '2d', fragment),
-    computeTextureEntry(DEFERRED_BINDINGS.flags, 'uint', '2d', fragment),
+    computeTextureEntry(DEFERRED_BINDINGS.words, 'uint', '2d-array', fragment),
     computeTextureEntry(DEFERRED_BINDINGS.depth, 'depth', '2d', fragment),
     computeBufferEntry(DEFERRED_BINDINGS.view, 'uniform', fragment),
   ]
@@ -50,10 +57,15 @@ function contractLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
   return [
     computeBufferEntry(DEFERRED_BINDINGS.lights, 'read-only-storage', fragment),
     computeBufferEntry(DEFERRED_BINDINGS.tiles, 'read-only-storage', fragment),
+    // The light functions: their atlas, and the table of the entries the lights read.
+    lightFunctionLayoutEntry(DEFERRED_LIGHT_FUNCTION_BINDINGS.atlas, fragment),
     // The shadow mask (`vsmMaskFactor`): the opaque resolve's.
     computeTextureEntry(CONTRACT_SHADOW_BINDINGS.transmittance, 'uint', '2d-array', fragment),
     // The fog's cubemap, volume and frame, which the fog laid over the lit sum reads.
     ...fogReadLayoutEntries(DEFERRED_FOG_BINDINGS, fragment),
+    // The sky light's cubes and harmonics, and the clouds' shade of the lights.
+    ...skyLightReadLayoutEntries(DEFERRED_SKY_LIGHT_BINDINGS, fragment),
+    ...cloudShadowLayoutEntries(DEFERRED_CLOUD_SHADOW_BINDINGS, fragment),
   ]
 }
 
@@ -72,13 +84,12 @@ function maskLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
 }
 
 /**
- * The receiver target, subsurface, lobes and the reflection: only the opaque resolve. The
+ * The subsurface, lobes and the reflection: only the opaque resolve. The
  * subsurface and the lobes, targets read by load alone, are read-only storage textures: the widest
  * program, with bounce, stays within the sixteen sampled textures WebGPU guarantees a stage.
  */
 function resolveLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
   return [
-    receiverLayoutEntry(DEFERRED_BINDINGS.receiver, fragment),
     SUBSURFACE_TARGET.layoutEntry(),
     // The anisotropic and clear-coat lobes (`../../materials/surface/physicalLobes.ts`).
     PHYSICAL_LOBES_TARGET.layoutEntry(),

@@ -3,6 +3,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { slabPerspective } from '../../../../math/src/wgsl/projection.ts'
 import { hizDepthWgsl } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { VIEW_WGSL, WORLD_AT_WGSL } from '../deferred/worldAtWgsl.ts'
+import { skyLightReadWgsl } from '../../modules/sky/skyLight/read.ts'
 
 /**
  * The reflection's view (`ReflectionView`, `writeReflectionView`), its fields in one table, in
@@ -11,7 +12,8 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../deferred/worldAtWgsl.ts'
  * are read there, from the one uniform every pass of the image reads).
  *  - `viewProj`, the view-projection the depth was drawn with, and `radianceViewProj`, the one the
  *    radiance pyramid's image was drawn with;
- *  - `radiance`, the radiance image's drawn size and its top level (`z`);
+ *  - `radiance`, the radiance image's drawn size and its top level (`z`), and the reciprocal of the
+ *    pre-exposure its light was written multiplied by (`w`);
  *  - `slab`, the geometry of a surface's thickness (`screenBack`): the world size of a pixel at
  *    a unit clip `w` (`x`), the depth at an infinite distance under a perspective, the eye's plane
  *    under an orthographic projection (`y`), its numerator over the distance, the depth a pixel's
@@ -79,6 +81,17 @@ export const REFLECTION_IMAGE_BINDING = 9
 /** The binding of the transparents' front depth in the reflection group (`frontLayer.ts`). */
 export const REFLECTION_FRONT_BINDING = 10
 
+/** Where the reflection group holds the sky light's resources (`skyLightReadWgsl`): its cubes, their
+ *  sampler, the harmonics and the view's uniform, so that the trace, the screen probes and the forward
+ *  passes that bounce light read the sky as the reflection does. */
+export const REFLECTION_SKY_LIGHT = {
+  group: REFLECTION_GROUP,
+  cube: 11,
+  sampler: 12,
+  harmonics: 13,
+  params: 14,
+} as const
+
 /**
  * The reflection's resources, in bind group `group`: its view (`REFLECTION_VIEW_WGSL`), the
  * radiance pyramid — one texture (`reflectionImage`): the lit image at level 0, level `k` at mip
@@ -91,7 +104,12 @@ export const REFLECTION_FRONT_BINDING = 10
 export const reflectionBindingsWgsl = (group: number) =>
   wgslBlock(
     `reflectionBindingsWgsl(${group})`,
-    [REFLECTION_VIEW_WGSL, hizDepthWgsl(group, REFLECTION_DEPTH_BINDING), WORLD_AT_WGSL],
+    [
+      REFLECTION_VIEW_WGSL,
+      hizDepthWgsl(group, REFLECTION_DEPTH_BINDING),
+      WORLD_AT_WGSL,
+      skyLightReadWgsl({ ...REFLECTION_SKY_LIGHT, group }),
+    ],
     `@group(${group}) @binding(${REFLECTION_VIEW_BINDING}) var<uniform> reflectionView:ReflectionView;
 @group(${group}) @binding(${REFLECTION_SAMPLER_BINDING}) var reflectionSampler:sampler;
 @group(${group}) @binding(${REFLECTION_IMAGE_BINDING}) var reflectionImage:texture_2d<f32>;

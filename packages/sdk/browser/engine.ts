@@ -164,10 +164,11 @@ export type {
   SixDofAxis,
 } from '../../sdk-core/src/physics/joint/jointOptions.ts'
 export { light, Light } from '../../sdk-core/src/world/light/light.ts'
-export type { LightParameters } from '../../sdk-core/src/world/light/light.ts'
+export type { LightParameters } from '../../sdk-core/src/world/light/lightParameters.ts'
 export { loader } from '../../sdk-browser/src/api/loaderFamily.ts'
 export { material } from '../../sdk-core/src/world/material/index.ts'
 export { Material } from '../../sdk-core/src/world/material/material.ts'
+export { MaterialGraph } from '../../sdk-core/src/world/material/graph/api.ts'
 export type { MaterialParameters } from '../../sdk-core/src/world/material/materialParameters.ts'
 export { math } from '../../sdk-core/src/world/math/index.ts'
 export { Matrix3 } from '../../sdk-core/src/world/math/matrix3.ts'

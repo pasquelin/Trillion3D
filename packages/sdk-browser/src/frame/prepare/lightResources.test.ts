@@ -6,9 +6,8 @@ import assert from 'node:assert/strict'
 import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
 import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { directLightResources, readsAsIs, wantsContractLighting } from './contractLight.ts'
-import { probesWaitForSky } from '../render/encodeAtmosphere.ts'
-import { validateSceneAtmosphere } from '../../../../sdk-core/src/scene/core/atmosphere.ts'
-import type { SceneSky } from '../../../../sdk-core/src/scene/core/environmentSky.ts'
+import { setSkyLightSource, skyLightPending } from '../render/encodeSkyLight.ts'
+import { resolveSkyLight } from '../../../../sdk-core/src/modules/sky/skyLight.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 const LAMP: SceneLight = {
@@ -152,39 +151,14 @@ test('a frame asks for the shadow read of the kinds its shadowed lights are, nev
   assert.deepEqual(key(), { unshadowed: false, sunless: true, localless: false })
 })
 
-test('the probes wait for the sky only while a sky light and an atmosphere ask for it and it is not built', () => {
-  const store = createSceneLightStore()
-  store.setView('lit')
-  const gpu: { atmosphere?: { skyBuilds: number } } = {}
-  const rt = {
-    lights: { store },
-    run: { diagnostic: 'beauty' },
-    gpu,
-  } as unknown as WebgpuPagesRuntime
-  const sky = (light: boolean): SceneSky => ({
-    irradiance: new Array<number>(27).fill(0),
-    upper: [1, 1, 1],
-    lower: [0, 0, 0],
-    light,
-  })
-  const air = validateSceneAtmosphere(true)
-  store.setEnvironment({ exposure: 1, atmosphere: air, sky: sky(true) })
-  assert.equal(probesWaitForSky(rt), true, 'no air built yet')
-  gpu.atmosphere = { skyBuilds: 0 }
-  assert.equal(probesWaitForSky(rt), true, 'the air is made, its sky not yet')
-  gpu.atmosphere.skyBuilds = 1
-  assert.equal(probesWaitForSky(rt), false, 'built: the probes work')
-  // Neither a sky of the air alone, nor a flat sky light, nor a view that paints raw values waits.
-  gpu.atmosphere = undefined
-  store.setEnvironment({ exposure: 1, atmosphere: air, sky: sky(false) })
-  assert.equal(
-    probesWaitForSky(rt),
-    false,
-    'the probes need no sky the atmosphere lights nothing with',
-  )
-  store.setEnvironment({ exposure: 1, sky: sky(true) })
-  assert.equal(probesWaitForSky(rt), false, 'no air: a flat sky is in the light buffer at once')
-  store.setEnvironment({ exposure: 1, atmosphere: air, sky: sky(true) })
-  ;(rt.run as { diagnostic: string }).diagnostic = 'shadows'
-  assert.equal(probesWaitForSky(rt), false, 'a view in raw values shows no air')
+test('the probes wait for the sky only while a real-time sky light has no cube ready', () => {
+  const rt = {} as unknown as WebgpuPagesRuntime
+  assert.equal(skyLightPending(rt), false, 'no sky light: nothing to wait for')
+  setSkyLightSource(rt, { part: resolveSkyLight({}), position: [0, 0, 0] })
+  assert.equal(skyLightPending(rt), true, 'a sky light, its capture not made')
+  // A sky light that does not capture in real time has no cube to wait for.
+  setSkyLightSource(rt, { part: resolveSkyLight({ realTimeCapture: false }), position: [0, 0, 0] })
+  assert.equal(skyLightPending(rt), false)
+  setSkyLightSource(rt, undefined)
+  assert.equal(skyLightPending(rt), false, 'taken away: released')
 })

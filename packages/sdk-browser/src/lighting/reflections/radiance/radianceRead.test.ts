@@ -34,6 +34,8 @@ test('a point of light read through the chain at a coarse level is round, never 
     {
       reflectionImage: lit,
       reflectionSampler: {},
+      // The image holds the light as it is: a pre-exposure of 1.
+      reflectionView: { radiance: [256, 256, 0, 1] },
       // Every tap on the hit's surface: the chain alone.
       reflectionDepthWeight: () => 1,
       textureDimensions: (_: unknown, lod = 0) => [levels[lod].width, levels[lod].height],

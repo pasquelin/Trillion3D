@@ -4,7 +4,7 @@ import type { RenderScale } from '../../frame/scale/renderScaleOption.ts'
 import type { WorldParts } from './worldParts.ts'
 
 /** The world's drawing settings: screen error, quality, bounce, antialiasing, scale, effects. */
-export function worldSettings({ switches, live }: WorldParts) {
+export function worldSettings({ switches, modules, live }: WorldParts) {
   return {
     /** The DAG cut's screen error, in pixels; the page's value holds over a quality preset. */
     get pixelError() {
@@ -73,6 +73,13 @@ export function worldSettings({ switches, live }: WorldParts) {
     set maxFrameRate(rate: number) {
       switches.maxFrameRate = rate
     },
+    /** The engine's modules, whole features that are off until a source switches them on: `sky`
+     *  (the air, the sun, the sky light, the height fog and the clouds, each a part) and `stats`
+     *  (the profiler overlay). The page's word holds over the scene's (`scene.sky`):
+     *  `set(name, value)` takes `true`, `false` or an object of parts, each `true`, `false` or its
+     *  settings, and applies at once; `clear(name)` takes the word back; `state(name)` says whether
+     *  the module runs, who decided, and its merged parts. A refused value changes nothing. */
+    modules: modules.page,
     /** The effect chain: passes drawn over the image (`effect`). */ effects: switches.held.effects,
   }
 }

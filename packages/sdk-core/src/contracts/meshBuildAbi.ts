@@ -6,6 +6,8 @@
  * (`scripts/build/shared-rules/abi.ts`) all read. The page format's own bounds — the three
  * precisions' — stay in `page/format.ts`, the resolver and the schema reading them there.
  */
+import { DISTANCE_FIELD_RULES, DISTANCE_FIELD_SETTINGS } from './distanceFieldAbi.ts'
+import type { MeshDistanceFieldSettingsWire } from './distanceFieldAbi.ts'
 import type { HlodWireMatch } from './hlodAbi.ts'
 import { VOXELIZE_EXTRA } from './materialAbi.ts'
 import {
@@ -106,6 +108,8 @@ export const VOXEL_REMEMBER_BELOW_RAYS = 32
  *    handed over until no more voxels are left than it sums to (`false`, the default). The
  *    reference only gives that opacity to a material as the vertex colour and draws no voxel by
  *    it; the engine does not either.
+ *  - the distance field's settings (`distanceFieldAbi.ts`): `distanceField`, `distanceFieldScale`,
+ *    `distanceFieldTwoSided`, `distanceFieldDensity`, `distanceFieldMaxResolution`.
  *  - `allowAssemblies`: whether the assembly a mesh's glTF `extras.assembly` names — parts, the
  *    meshes drawn once for each node that names them, and nodes, a part and a transform each — is
  *    built: the mesh is then its own triangles and every node's part, carried by its transform
@@ -132,6 +136,7 @@ export const MESH_BUILD_RULES = /* @__PURE__ */ (() =>
     flagSetting('voxelNdf', true),
     flagSetting('voxelOpacity', false),
     flagSetting('allowAssemblies', false),
+    ...Object.values(DISTANCE_FIELD_RULES),
   ]))()
 /** The precision of a mesh's position grid, a whole number from `MIN_POSITION_PRECISION` to
  *  `MAX_POSITION_PRECISION` (`page/format.ts`): its pages place every position on cells of
@@ -169,6 +174,7 @@ export const MESH_BUILD_SETTINGS = [
   'voxelNdf',
   'voxelOpacity',
   'allowAssemblies',
+  ...DISTANCE_FIELD_SETTINGS,
   POSITION_PRECISION_SETTING,
   NORMAL_PRECISION_SETTING,
   TANGENT_PRECISION_SETTING,
@@ -203,7 +209,8 @@ export type MeshAssemblySettingsWire = {
 /** One source's mesh build settings as the compiler reads them, each left out when not named. */
 export type MeshBuildSettingsWire = MeshInputSettingsWire &
   MeshVoxelSettingsWire &
-  MeshAssemblySettingsWire & {
+  MeshAssemblySettingsWire &
+  MeshDistanceFieldSettingsWire & {
     storedTangents?: boolean
     keptTriangles?: number
     trimmedError?: number

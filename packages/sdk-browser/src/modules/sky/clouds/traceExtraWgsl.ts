@@ -1,6 +1,7 @@
 import { wgslBlock, type WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { vsmConsumerWgsl } from '../../../lighting/direct/vsmConsumerWgsl.ts'
 import { directLightWgsl } from '../../../lighting/direct/lightWgsl.ts'
+import { VOLUME_LAMP_WGSL } from '../../../lighting/direct/lampSeenWgsl.ts'
 import { TILE_SLICE_WGSL } from '../../../lighting/direct/lightingWgsl.ts'
 import { vsmFragmentSampleWgsl } from '../../../lighting/direct/shadowTraceWgsl.ts'
 import { VSM_TRACE_KINDS_SUN } from '../../../lighting/shadows/vsm/trace/traceWgsl.ts'
@@ -24,10 +25,10 @@ import {
  * - The sun's opaque shadow: the light of the first light at a sample is its share the shadow maps
  *   let through, read as a blend reads them (\`vsmSampleFactor\`: one sample of the sun's map at the
  *   sample's point, no ray start, no bias), where the sun's channel is given.
- * - The lamps: the lamps of the view's light grid cell of the sample, each with the light the
- *   engine's lighting formula gives at the point (its range, its inverse square, its cone), a cloud
- *   shadow ray toward it and the uniform phase, in each order of multiple scattering. A rectangle
- *   light gives none (its irradiance needs a surface normal).
+ * - The lamps: the lamps of the view's light grid cell of the sample, each with the light a point of
+ *   a medium sees of it (\`volumeLamp\`: a lamp's range, inverse square and cone, a rectangle's form
+ *   factor), times its \`fogScattering\` — a light of none gives nothing —, a cloud shadow ray
+ *   toward it and the uniform phase, in each order of multiple scattering.
  */
 const EMPTY_SPACE = `
 @group(${G}) @binding(${B.startDistance}) var cloudStartDistance:texture_2d<f32>;
@@ -95,13 +96,10 @@ fn cloudLocalLights(rel:vec3f,o:CloudOctaves)->array<vec3f,3>{
   let rank=listedLight(slice,i);
   if(!lightReaches(rank,P)){continue;}
   let light=directLights.items[rank];
-  if(isSun(light)||isRect(light)){continue;}
-  let incidence=directIncidence(light,P);
-  if(incidence.w<=0.0){continue;}
-  // The engine's falloff is window/max(d2,1e-4); the reference's zero-size capsule is window/(d2+1e-4 m2).
-  let d2=dot(light.positionRange.xyz-P,light.positionRange.xyz-P);
-  let falloff=incidence.w*max(d2,1e-4)/(d2+1e-4);
-  let colour=light.colorIntensity.rgb*(light.colorIntensity.w*falloff*UNIFORM_PHASE);
+  if(isSun(light)||light.params.z<=0.0){continue;}
+  let seen=volumeLamp(light,P,LAMP_BIAS);
+  if(seen.w<=0.0){continue;}
+  let colour=light.colorIntensity.rgb*(light.colorIntensity.w*light.params.z*seen.w*UNIFORM_PHASE);
   let through=cloudLampShadow(rel,light.positionRange.xyz-P,o);
   for(var m=0u;m<o.count;m++){sum[m]+=colour*through[m];}
  }
@@ -123,7 +121,7 @@ export const cloudTraceExtraWgsl = (p: CloudTraceKey) => {
       vsmFragmentSampleWgsl(vsm.pool, B.vsmView, VSM_TRACE_KINDS_SUN, G),
     )
   }
-  if (p.localLights) uses.push(directLightWgsl(), TILE_SLICE_WGSL)
+  if (p.localLights) uses.push(directLightWgsl(), TILE_SLICE_WGSL, VOLUME_LAMP_WGSL)
   return wgslBlock(
     `cloudTraceExtraWgsl(${p.emptySpace}, ${p.opaqueShadow}, ${p.localLights})`,
     uses,

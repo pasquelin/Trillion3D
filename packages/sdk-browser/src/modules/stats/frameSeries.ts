@@ -31,6 +31,25 @@ interface ViewSeen {
   at: number
 }
 
+/** Files the views a frame drew at `at`: each one's last time and a sample of the window's views. */
+function fileViews(
+  viewLast: Map<number, ViewSeen>,
+  viewSeen: Cursor,
+  viewMs: number[],
+  views: NonNullable<FrameMetrics['views']>,
+  at: number,
+) {
+  for (const view of views) {
+    const seen = viewLast.get(view.index)
+    if (seen) {
+      seen.at = at
+      if (view.gpuFrameMs != null) seen.ms = view.gpuFrameMs
+    } else viewLast.set(view.index, { ms: view.gpuFrameMs, at })
+    viewSeen.at.push(at)
+    viewMs.push(view.gpuFrameMs ?? 0)
+  }
+}
+
 /**
  * The frames one world drew over the last second: each drawn frame's time, rAF interval and
  * main-thread time, the last GPU time of each of its views beside the main one (by the view's
@@ -61,16 +80,7 @@ export function frameSeries() {
       intervalsMs.push(held ? Number.NaN : (metrics.rafIntervalMs ?? Number.NaN))
       cpuFrames.push(metrics.cpuFrameMs)
       held = false
-      const now = metrics.views ?? EMPTY
-      for (const view of now) {
-        const seen = viewLast.get(view.index)
-        if (seen) {
-          seen.at = at
-          if (view.gpuFrameMs != null) seen.ms = view.gpuFrameMs
-        } else viewLast.set(view.index, { ms: view.gpuFrameMs, at })
-        viewSeen.at.push(at)
-        viewMs.push(view.gpuFrameMs ?? 0)
-      }
+      fileViews(viewLast, viewSeen, viewMs, metrics.views ?? EMPTY, at)
       return true
     },
     /** Keeps only the last second before `now`. */

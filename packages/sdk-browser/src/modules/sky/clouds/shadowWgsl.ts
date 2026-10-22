@@ -52,60 +52,104 @@ export const CLOUD_SHADOW_AIR: AirBindings = { air: 'read', frame: true }
  * along the light's rays, through the cloud layer's shell, the material read at evenly spaced
  * samples.
  *
- * The ray is cut to the shell. It misses the top: the texel holds the far depth and nothing else.
- * It meets the bottom too and does not see the bottom from outside: the texel holds zeros, a ray
- * that starts under the layer is not shadowed. Else it takes `samples` steps of the length over the
- * count, the first half a step in, no jitter. A sample whose conservative density is not above 0 is
- * passed. The others add their extinction, and its product with the step to the optical depth; the
- * nearest to hold any medium gives the front depth. The texel holds the front depth plus the bias,
- * not below 0 (the whole path's end where there is none), the mean extinction of the samples that
- * held a medium, and the optical depth, the last two times the light's strength.
+ * The ray is cut to the shell (`shadowRay`). It misses the top: the texel holds the far depth and
+ * nothing else. It meets the bottom too and does not see the bottom from outside: the texel holds
+ * zeros, a ray that starts under the layer is not shadowed. Else it takes `samples` steps of the
+ * length over the count, the first half a step in, no jitter. A sample whose conservative density
+ * is not above 0 is passed. The others add their extinction, and its product with the step to the
+ * optical depth; the nearest to hold any medium gives the front depth. The texel holds the front
+ * depth plus the bias, not below 0 (the whole path's end where there is none), the mean extinction
+ * of the samples that held a medium, and the optical depth, the last two times the light's strength.
+ *
+ * The textures of the material are read at the level of the sample's footprint on the map: how far
+ * the sample moves for a texel to the right and one below, the neighbouring texels' rays taken at the
+ * same step (`shadowFootprint`), as the quad of a pixel shader gives the reference its derivatives.
  *
  * Lengths are centimetres; the shell is intersected in kilometres from the planet's centre.
  */
 const TRACE_OWN = `${CLOUD_SHADOW_LAYOUT.wgsl}
 @group(${G}) @binding(${B.block}) var<uniform> cloudShadow:CloudShadowBlock;${cloudMaterialBindings(G, B.material)}
 @group(${G}) @binding(${B.output}) var shadowOut:texture_storage_2d<${CLOUD_SHADOW_FORMAT},write>;
-fn shadowTrace(p:vec2u)->vec3f{
+const SHADOW_RAY_HITS=0u;
+const SHADOW_RAY_MISSES=1u;
+const SHADOW_RAY_UNDER=2u;
+struct ShadowRay{near:vec3f,tMin:f32,span:f32,status:u32,}
+fn shadowRay(p:vec2u)->ShadowRay{
+ var r:ShadowRay;
  let uv=((vec2f(p)+0.5)*cloudShadow.pixel.xy+cloudShadow.pixel.zw)*cloudShadow.texel.zw;
  let clip=vec4f(uv*vec2f(2.0,-2.0)+vec2f(-1.0,1.0),1.0,1.0);
  let h=cloudShadow.cameraFromClip*clip;
- let near=h.xyz/h.w;
+ r.near=h.xyz/h.w;
+ r.status=SHADOW_RAY_HITS;
  let dir=cloudShadow.ray.xyz;
- let farKm=cloudShadow.ray.w;
  let bottomKm=bottomRadius()+cloudShadow.layer.x;
  let topKm=bottomKm+cloudShadow.layer.y;
- let originKm=(cloudPlanetEye+near)*CLOUD_CM_TO_KM;
+ let originKm=(cloudPlanetEye+r.near)*CLOUD_CM_TO_KM;
  let tTop=raySphere(originKm,dir,topKm);
- if(all(tTop==vec2f(-1.0))){return vec3f(farKm,0.0,0.0);}
+ if(all(tTop==vec2f(-1.0))){r.status=SHADOW_RAY_MISSES;return r;}
  var low=tTop.x;
  var high=tTop.y;
  let tBottom=raySphere(originKm,dir,bottomKm);
  if(any(tBottom!=vec2f(-1.0))){
-  if(!all(tBottom>vec2f(0.0))){return vec3f(0.0);}
+  if(!all(tBottom>vec2f(0.0))){r.status=SHADOW_RAY_UNDER;return r;}
   let bottomEnd=min(tBottom.x,tBottom.y);
   let topEnd=max(0.0,min(tTop.x,tTop.y));
   low=min(bottomEnd,topEnd);
   high=max(bottomEnd,topEnd);
  }
- let tMin=max(0.0,low)*CM_PER_KM;
- let tMax=max(0.0,high)*CM_PER_KM;
- let onLayer=near+dir*tMin;
+ r.tMin=max(0.0,low)*CM_PER_KM;
+ r.span=max(0.0,high)*CM_PER_KM-r.tMin;
+ return r;
+}
+fn shadowSpot(r:ShadowRay,along:f32)->vec3f{
+ let dir=cloudShadow.ray.xyz;
+ return (r.near+dir*r.tMin)+dir*(r.span*along);
+}
+/** The ray of a texel beside \`p\` along \`step\`, the one on the other side (signed -1) where it
+ *  misses the layer. */
+struct ShadowPartner{ray:ShadowRay,sign:f32,}
+fn shadowPartner(p:vec2u,step:vec2u)->ShadowPartner{
+ var q:ShadowPartner;
+ q.ray=shadowRay(p+step);
+ q.sign=1.0;
+ if(q.ray.status!=SHADOW_RAY_HITS&&p.x>=step.x&&p.y>=step.y){
+  q.ray=shadowRay(p-step);
+  q.sign=-1.0;
+ }
+ return q;
+}
+/** How far the sample at \`along\` of the ray \`r\` moves for a texel to the right (\`qx\`) and one below
+ *  (\`qy\`), from the rays of those neighbours at the same step: none where the neighbour misses the
+ *  layer. Sets what the material picks its textures' level from. */
+fn shadowFootprint(r:ShadowRay,qx:ShadowPartner,qy:ShadowPartner,along:f32){
+ let here=shadowSpot(r,along);
+ let dx=select(vec3f(0.0),qx.sign*(shadowSpot(qx.ray,along)-here),qx.ray.status==SHADOW_RAY_HITS);
+ let dy=select(vec3f(0.0),qy.sign*(shadowSpot(qy.ray,along)-here),qy.ray.status==SHADOW_RAY_HITS);
+ cloudDdx=vec3f(dx.x,dx.z,dx.y);
+ cloudDdy=vec3f(dy.x,dy.z,dy.y);
+}
+fn shadowTrace(p:vec2u)->vec3f{
+ let farKm=cloudShadow.ray.w;
+ let ray=shadowRay(p);
+ if(ray.status==SHADOW_RAY_MISSES){return vec3f(farKm,0.0,0.0);}
+ if(ray.status==SHADOW_RAY_UNDER){return vec3f(0.0);}
+ let qx=shadowPartner(p,vec2u(1u,0u));
+ let qy=shadowPartner(p,vec2u(0u,1u));
  var extinctionSum=vec3f(0.0);
  var extinctionCount=0.0;
  var opticalDepth=vec3f(0.0);
  let farCm=farKm*CM_PER_KM;
  var nearest=farCm;
- let span=tMax-tMin;
  let count=cloudShadow.output.z;
  let inverseCount=1.0/count;
- let stepMeters=span*CLOUD_CM_TO_M/count;
+ let stepMeters=ray.span*CLOUD_CM_TO_M/count;
  for(var s=0.5;s<count;s+=1.0){
-  let sampleT=span*(s*inverseCount);
-  let spot=cloudPointAt(onLayer+dir*sampleT).spot;
+  let along=s*inverseCount;
+  shadowFootprint(ray,qx,qy,along);
+  let spot=cloudPointAt(shadowSpot(ray,along)).spot;
   if(spot.conservativeDensity.x<=0.0){continue;}
   let present=any(spot.extinction>vec3f(0.0));
-  nearest=select(nearest,min(nearest,sampleT),present);
+  nearest=select(nearest,min(nearest,ray.span*along),present);
   extinctionSum+=spot.extinction;
   opticalDepth+=spot.extinction*stepMeters;
   extinctionCount+=select(0.0,1.0,present);
@@ -114,7 +158,8 @@ fn shadowTrace(p:vec2u)->vec3f{
  let grey=vec3f(1.0/3.0);
  let meanExtinction=strength*dot(extinctionSum/max(1.0,extinctionCount),grey);
  let maxOpticalDepth=strength*dot(opticalDepth,grey);
- let front=select((tMin+nearest)*CLOUD_CM_TO_KM,tMax*CLOUD_CM_TO_KM,nearest==farCm);
+ let tMax=ray.tMin+ray.span;
+ let front=select((ray.tMin+nearest)*CLOUD_CM_TO_KM,tMax*CLOUD_CM_TO_KM,nearest==farCm);
  return vec3f(max(0.0,front+cloudShadow.output.y),meanExtinction,maxOpticalDepth);
 }
 @compute @workgroup_size(${CLOUD_SHADOW_GROUP_SIZE},${CLOUD_SHADOW_GROUP_SIZE},1)

@@ -73,7 +73,7 @@ fn reflectionLevelColor(uv:vec2f,level:f32)->vec4f{
 fn reflectionLevelRead(sum:ptr<function,ReflectionTaps>,uv:vec2f,level:f32,share:f32,toView:vec4f,surface:ReflectionSurface){
  let w=share*reflectionDepthWeight(toView.xy+uv*toView.zw,surface);
  if(w>0.0){
-  (*sum).color+=w*reflectionLevelColor(uv,level);
+  (*sum).color+=w*reflectionLevelColor(uv,level)*vec4f(vec3f(reflectionView.radiance.w),1.0);
   (*sum).weight+=w;
  }
 }

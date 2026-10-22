@@ -5,6 +5,7 @@ import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.
 import { createWorldNotices, worldNoticeListeners } from '../../diagnostic/world/worldNotices.ts'
 import type { Scene } from './scene.ts'
 import { createWorldRuntime } from './runtime.ts'
+import { createWorldModules } from './worldModules.ts'
 import '../../wasm/sdkWasm.fixture.ts'
 
 const saved = { location: Reflect.get(globalThis, 'location') }
@@ -50,6 +51,7 @@ export const runtimeOf = (
     frame: () => {},
     drawn: () => false,
     display: () => ({ exposure: 1, toneMapping: 'aces' }),
+    modules: createWorldModules({ canvas, changed: () => {} }),
     diagnostic: { notices: createWorldNotices(), failed, opening },
   })
 
@@ -84,8 +86,8 @@ export function sessionStandIn() {
       void (written.lights = written.lights.filter((record) => record.id !== id)),
     /** The background, written before the first frame (`./background.ts`). */
     setClearColor() {},
-    /** No atmosphere, so no sky captured. */
-    skyCapture: () => undefined,
+    /** No sky to draw. */
+    applySky() {},
     render: () => ({}),
     /** No optional family on its way: every frame draws (`../familyUse.ts`). */
     familiesPending: (): Promise<void> | undefined => undefined,

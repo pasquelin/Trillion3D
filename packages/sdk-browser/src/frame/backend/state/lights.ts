@@ -10,6 +10,7 @@ import {
   createShadowChanges,
 } from '../../../../../sdk-core/src/scene/light/shadow/changes.ts'
 import type { GpuLightTiles } from '../../../lighting/tiles/tiles.ts'
+import type { LightFunctionFrame } from '../../../lighting/lightFunction/frame.ts'
 import { createShadowResidence } from '../../../lighting/shadows/casters/residence.ts'
 import {
   createShadowMobility,
@@ -35,6 +36,9 @@ export interface WebgpuLightState {
   changes: ReturnType<typeof createShadowChanges>
   buffer: GPUBuffer | undefined
   tiles: GpuLightTiles | undefined
+  /** The light functions' atlas, plan and table, made when a light wears one
+   *  (`../../../lighting/lightFunction/frame.ts`). */
+  lightFunction?: LightFunctionFrame
   /** Group 0's layout of the shadow raster: the page rows, as the visibility pass binds them, less
    *  what the raster never reads (`../../../lighting/shadows/casters/pageGroup.ts`); absent while shadows are off. */
   pageLayout: GPUBindGroupLayout | undefined

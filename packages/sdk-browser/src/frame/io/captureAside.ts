@@ -6,6 +6,7 @@ import { deviceAnswer } from '../loop/deviceAnswer.ts'
 import { grantPending } from '../../gpu/core/errorScope.ts'
 import { createWebgpuView, viewGpu, type WebgpuView } from '../backend/state/view.ts'
 import { heldTargetGrant } from '../backend/state/gpu.ts'
+import { NO_OVERRIDES, type ViewOverrides } from '../backend/state/viewOverrides.ts'
 import { releaseWebgpuView, useWebgpuView } from '../backend/state/viewSwitch.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { fetchHostPages } from './hostPages.ts'
@@ -20,18 +21,20 @@ const targetsMoving = (rt: WebgpuPagesRuntime) =>
  * scene asked and the residency and the queue are settled. The capture renders there, into
  * targets of its own: the main view keeps its targets, its cut and its temporal and occlusion
  * history, and the canvas keeps showing it. The view is released after, whatever `work` did.
+ * `overrides` are what its passes turn off or force (`../backend/state/viewOverrides.ts`).
  */
 export async function captureAside<T>(
   rt: WebgpuPagesRuntime,
   size: { width: number; height: number },
   work: () => Promise<T>,
+  overrides: ViewOverrides = NO_OVERRIDES,
 ) {
   const { capture } = rt
   // The capture asks no shadow memory of its own: the frames make the virtual shadow maps they
   // draw (`../../lighting/shadows/vsm/frame/vsmEncode.ts`), and the capture waits for them to settle
   // (`shadowsUnsettled`).
   capture.capturing = true
-  const view = createWebgpuView(size.width, size.height)
+  const view = createWebgpuView(size.width, size.height, undefined, false, overrides)
   let drawn = false
   try {
     await deviceAnswer(rt)

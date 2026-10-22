@@ -4,6 +4,7 @@ import { bufferLayout, storageTextureLayout, textureLayout } from '../core/compu
 import { VSM_BLUE_NOISE_FORMAT } from '../../lighting/shadows/vsm/blueNoise.ts'
 import { VSM_TRANSMISSION_FORMAT } from '../../lighting/shadows/vsm/transmission/transmissionLayout.ts'
 import { atlasEntries, type AtlasResources } from './bindEntries.ts'
+import { ATLAS_TEXTURE_FORMAT } from '../../lighting/lightFunction/layout.ts'
 import { FRONT_TRACED_LAYOUT } from '../../lighting/reflections/frontLayer.ts'
 
 /** Lighting shared with the opaque resolve; deferred stand-ins cover resources not ready yet. */
@@ -35,6 +36,9 @@ export type BlendLighting = {
   fogCubemap: GPUTextureView
   fogVolume: GPUTextureView
   fogSampler: GPUSampler
+  /** What the light functions are read from (`BLEND_LIGHT_FUNCTION_BINDINGS`): the atlas and its
+   *  table, or the stand-in, which answers no light function. */
+  lightFunctionAtlas: GPUTextureView
 }
 
 /** Resources of a transparent-mesh group: the mesh itself and the scene. */
@@ -114,6 +118,8 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   fogCubemap: ['fragment', textureLayout('float', 'cube')],
   fogVolume: ['fragment', textureLayout('float', '3d')],
   fogSampler: ['fragment', { sampler: { type: 'filtering' } }],
+  // The light functions: their atlas and its table, words read by load.
+  lightFunctionAtlas: ['fragment', storageTextureLayout(ATLAS_TEXTURE_FORMAT)],
   // The surfaces' records (`../../materials/table/materialTable.ts`), which the vertex stage reads an item's
   // factors and maps from and a lobed fragment its lobes: a texture, the fragment stage holding
   // the eight storage buffers WebGPU guarantees.

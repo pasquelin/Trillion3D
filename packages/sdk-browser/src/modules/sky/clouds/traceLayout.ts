@@ -46,7 +46,8 @@ export const CLOUD_TRACE_BINDING = {
  *  - `switches`: 1 when the fog is laid here in the trace (the late fog off), 1 when it is laid on
  *    every pixel, 1 when the distant sky light lights the cloud, 1 when the air's lights do;
  *  - `sky`: the planet's radius in kilometres where no air gives one, the share of the sky light the
- *    cloud's underside keeps, and 1 when the material gives an occlusion of its own;
+ *    cloud's underside keeps, 1 when the material gives an occlusion of its own, and the
+ *    pre-exposure the luminance is written multiplied by;
  *  - `lightScale0`, `lightScale1`: the factor on the illuminance of each of the air's two lights;
  *  - `viewProjection`: the scene to clip matrix the light grid's slices count depth with, read only
  *    when the lamps light the cloud;
@@ -58,7 +59,11 @@ export const CLOUD_TRACE_BINDING = {
  *  - `empty`: the empty-space table's slice depth and its whole depth in centimetres, and the
  *    slices its start is moved by;
  *  - `ground`: the ground's albedo the cloud bounces light from;
- *  - `local`: the samples of a lamp's shadow ray. */
+ *  - `local`: the samples of a lamp's shadow ray, and 1 when the clouds are a hole in the alpha (their
+ *    light is left out, their coverage kept: `alphaHole`);
+ *  - `haze`: where the haze of the Rayleigh scattering alone starts on the cloud (kilometres) and the
+ *    inverse of the distance it fades in over, then the same for the Mie scattering alone: the two
+ *    volumes are read apart when the starts are not both 0. */
 export const CLOUD_TRACE_LAYOUT = fieldLayout('CloudTraceBlock', [
   ['inverseView', 'mat4x4f'],
   ['traced', 'vec4u'],
@@ -79,6 +84,7 @@ export const CLOUD_TRACE_LAYOUT = fieldLayout('CloudTraceBlock', [
   ['empty', 'vec4f'],
   ['ground', 'vec4f'],
   ['local', 'vec4f'],
+  ['haze', 'vec4f'],
 ] as const)
 
 /** Whether the cloud material gives an occlusion of its own: the default material always does, so
@@ -110,6 +116,9 @@ export interface CloudTraceImage {
   /** The sun's channel in the shadow maps' view (`VsmProjectionView.lights`), given when the sun
    *  casts shadows on the clouds and the quality reads the sun's shadow map. */
   sunShadowChannel?: number
+  /** The pre-exposure the image's light is written multiplied by (`PreExposure.now`): the traced
+   *  luminance leaves multiplied by it. 1 when absent, as in a capture. */
+  preExposure?: number
 }
 
 /** The words of `out` as unsigned integers, made once for each array written. */
@@ -204,7 +213,15 @@ function writeCloudTraceLight(
     settings.planetRadiusKm,
     gpu.undersideSkyKept,
     CLOUD_MATERIAL_OUTPUTS_OCCLUSION ? 1 : 0,
-    0,
+    image.preExposure ?? 1,
+  )
+  put4(
+    out,
+    at.haze,
+    settings.hazeRayleighStartKm,
+    gpu.hazeRayleighFadeInverse,
+    settings.hazeMieStartKm,
+    gpu.hazeMieFadeInverse,
   )
   put4(
     out,

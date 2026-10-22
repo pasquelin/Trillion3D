@@ -26,7 +26,7 @@ const screenProbeSetting = contextReader(SCREEN_PROBE_RULES)
 
 /** Whether the screen probes cast this image, and read its vectors: the indirect light is lit by
  *  declared lamps and the level is not `'off'`. */
-const probesRead = (rt: WebgpuPagesRuntime) =>
+export const probesRead = (rt: WebgpuPagesRuntime) =>
   rt.bounce.wanted && wantsContractLighting(rt) && screenProbeSetting(rt, 'screenProbes') !== 'off'
 
 /** Whether a pass other than the temporal pass reads this image's vectors: the motion blur or the

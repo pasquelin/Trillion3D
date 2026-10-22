@@ -13,27 +13,9 @@ import {
   temporalAntialiasingLevel,
   type TemporalAntialiasingOption,
 } from '../../../../sdk-core/src/contracts/materialOptions.ts'
-import type {
-  HlodWarmupOptions,
-  WorldStreamingOptions,
-} from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
-import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.ts'
-import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animationOptions.ts'
-import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
-import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
-import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
-import type { ShadowOptions } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
-import type { ScreenProbeOptions } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
-import type { ReflectionOptions } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
-import type { VolumetricFogOptions } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
-import type { TessellationOptions } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
-import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
-import type { DepthOfFieldSettings } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
-import type { BloomSettings } from '../../../../sdk-core/src/contracts/bloomRules.ts'
-import type { FilmSettings } from '../../../../sdk-core/src/contracts/filmOptions.ts'
-import type { AmbientOcclusionOptions } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
-import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import { worldFamilies } from './ruledSwitches.ts'
+import { rasterAccessors, ruledAccessors } from './ruledAccessors.ts'
+import { imageAccessors, lightAccessors } from './drawingSwitches.ts'
 
 /** What of the world's runtime the switches reach: its open session and a frame. */
 interface SwitchedRuntime {
@@ -111,17 +93,15 @@ function applyHeld(
 
 /** `base` with the accessors of `parts` defined on it, as written: a getter stays a getter, so
  *  the object reads and writes its sources at every call, never a copy. */
-function composed<
-  T extends object,
-  A extends object,
-  B extends object,
-  C extends object,
-  D extends object,
-  E extends object,
->(base: T, ...parts: [A, B, C, D, E]) {
+function composed<T extends object, P extends object[]>(base: T, ...parts: P) {
   for (const part of parts) Object.defineProperties(base, Object.getOwnPropertyDescriptors(part))
-  return base as T & A & B & C & D & E
+  return base as T & UnionToIntersection<P[number]>
 }
+type UnionToIntersection<U> = (U extends unknown ? (u: U) => void : never) extends (
+  i: infer I,
+) => void
+  ? I
+  : never
 
 /** The switches with a setting of the registry of their own: bounced light, temporal antialiasing
  *  (and the scene's level) and the cut's screen error, written at the page's priority. */
@@ -153,168 +133,6 @@ function pageAccessors(held: Held, settings: WorldSettings) {
     },
     set pixelError(value: number) {
       settings.set('pixelError', value, 'page')
-    },
-  }
-}
-
-/** The software raster's two settings and the rasterizer's and geometry streaming's families by
- *  rule: read, their settings resolved over the page and the preset, by field — what a session
- *  opens with — (`ruledSwitches`). */
-function rasterAccessors(families: ReturnType<typeof worldFamilies>) {
-  return {
-    /** The software raster, resolved over the page and the preset. */
-    get softwareRaster(): boolean {
-      return families.raster.get('softwareRaster')
-    },
-    /** The page's software raster; `undefined` or `null` gives the setting back to the preset. */
-    set softwareRaster(option: boolean | null | undefined) {
-      families.raster.set({ softwareRaster: option })
-    },
-    /** The hardware raster edge in pixels, resolved over the page and the preset. */
-    get hardwareRasterEdgePixels(): number {
-      return families.raster.get('hardwareRasterEdgePixels')
-    },
-    /** The page's hardware raster edge; `undefined` or `null` gives the setting back to the
-     *  preset. */
-    set hardwareRasterEdgePixels(option: number | null | undefined) {
-      families.raster.set({ hardwareRasterEdgePixels: option })
-    },
-    // Each family by rule: read, its settings resolved over the page and the preset, by field —
-    // what a session opens with —; written, the page's settings the options name (`ruledSwitches`).
-    get raster() {
-      return families.raster.values()
-    },
-    get streaming() {
-      return families.streaming.values()
-    },
-  }
-}
-
-/** The other families by rule: read, their settings resolved over the page and the preset, by
- *  field; written, the page's settings the options name (`ruledSwitches`). */
-function ruledAccessors(families: ReturnType<typeof worldFamilies>) {
-  return {
-    get worldStreaming() {
-      return families.worldStreaming.values()
-    },
-    set worldStreaming(options: WorldStreamingOptions & HlodWarmupOptions) {
-      families.worldStreaming.set(options)
-    },
-    get cut() {
-      return families.cut.values()
-    },
-    set cut(options: CutOptions) {
-      families.cut.set(options)
-    },
-    get animation() {
-      return families.animation.values()
-    },
-    set animation(options: AnimationOptions) {
-      families.animation.set(options)
-    },
-    get shading() {
-      return families.shading.values()
-    },
-    set shading(options: ShadingOptions) {
-      families.shading.set(options)
-    },
-    get exposureSettings() {
-      return families.exposure.values()
-    },
-    set exposureSettings(options: ExposureOptions) {
-      families.exposure.set(options)
-    },
-    get temporal() {
-      return families.temporal.values()
-    },
-    set temporal(options: TemporalOptions) {
-      families.temporal.set(options)
-    },
-    get hiz() {
-      return families.hiz.values()
-    },
-    set hiz(options: HizOptions) {
-      families.hiz.set(options)
-    },
-  }
-}
-
-/** The families by rule of the drawing: the sun's shadows, the screen probes, the reflections' trace,
- *  the volumetric fog, the tessellation, the image effects (motion blur, depth of field, bloom,
- *  film) and the screen-space ambient occlusion — read as `ruledAccessors` does. */
-function drawingAccessors(families: ReturnType<typeof worldFamilies>) {
-  return {
-    /** The sun's shadow settings (`shadowOptions.ts`), resolved over the page and the preset. */
-    get shadows() {
-      return families.shadows.values()
-    },
-    set shadows(options: ShadowOptions) {
-      families.shadows.set(options)
-    },
-    /** The screen probes' settings (`screenProbeOptions.ts`), resolved over the page and the preset. */
-    get indirectLight() {
-      return families.indirectLight.values()
-    },
-    set indirectLight(options: ScreenProbeOptions) {
-      families.indirectLight.set(options)
-    },
-    /** The reflections' trace settings (`reflectionOptions.ts`), resolved over the page and the preset. */
-    get reflections() {
-      return families.reflections.values()
-    },
-    set reflections(options: ReflectionOptions) {
-      families.reflections.set(options)
-    },
-    /** The volumetric fog's settings (`volumetricFogOptions.ts`), resolved over the page and the
-     *  preset. */
-    get volumetricFog() {
-      return families.volumetricFog.values()
-    },
-    set volumetricFog(options: VolumetricFogOptions) {
-      families.volumetricFog.set(options)
-    },
-    /** The tessellation's settings (`tessellationOptions.ts`), resolved over the page and the preset. */
-    get tessellation() {
-      return families.tessellation.values()
-    },
-    set tessellation(options: TessellationOptions) {
-      families.tessellation.set(options)
-    },
-    /** How the motion blur is drawn (`motionBlurOptions.ts`), over the page and the preset. */
-    get motionBlur() {
-      return families.motionBlur.values()
-    },
-    set motionBlur(options: MotionBlurSettings) {
-      families.motionBlur.set(options)
-    },
-    /** How the depth of field is drawn (`depthOfFieldRules.ts`), over the page and the preset. */
-    get depthOfField() {
-      return families.depthOfField.values()
-    },
-    set depthOfField(options: DepthOfFieldSettings) {
-      families.depthOfField.set(options)
-    },
-    /** How the bloom is drawn (`bloomRules.ts`), over the page and the preset. */
-    get bloom() {
-      return families.bloom.values()
-    },
-    set bloom(options: BloomSettings) {
-      families.bloom.set(options)
-    },
-    /** The film effects' settings (`filmOptions.ts`), resolved over the page and the preset. */
-    get film() {
-      return families.film.values()
-    },
-    set film(options: FilmSettings) {
-      families.film.set(options)
-    },
-    /** The screen-space ambient occlusion's settings (`ambientOcclusionOptions.ts`), over the page and the
-     *  preset. */
-    get ambientOcclusion() {
-      return families.ambientOcclusion.values()
-    },
-    set ambientOcclusion(options: AmbientOcclusionOptions) {
-      families.ambientOcclusion.set(options)
     },
   }
 }
@@ -408,7 +226,8 @@ export function worldSwitches(
     pageAccessors(held, settings),
     rasterAccessors(families),
     ruledAccessors(families),
-    drawingAccessors(families),
+    lightAccessors(families),
+    imageAccessors(families),
     sessionAccessors(held, runtime, invalidate),
   )
   return switches

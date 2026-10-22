@@ -3,9 +3,8 @@ import {
   type GpuTimingMethod,
   type StageProfile,
 } from '../../../../sdk-core/src/runtime/stageProfile.ts'
-import { summaryOf } from '../../../../math/src/scalar/quantile.ts'
-import { createWorst } from './stageRings.ts'
 import { createStageDeposits } from './stageDeposits.ts'
+import { createStepWindows } from './stepWindows.ts'
 
 /** Default sliding window of the stage profile: two seconds at 60 images per second. */
 const DEFAULT_WINDOW = 120
@@ -110,20 +109,8 @@ export function createStageProfiler(options: {
       capacity,
     })
 
-  const row = new Float64Array(width),
-    column = new Float64Array(stepCapacity)
-  // Two rings of the filed rows: every row (what a reader's window reads) and the rows filed while
-  // profiled (what the others read). A row filed for the readers alone never enters the second, so
-  // it cannot push a profiled row out of a window that does not read it.
-  const ring = () => ({ rows: new Float64Array(stepCapacity * width), filed: 0 })
-  const profiledRows = ring()
-  // The first ring is made by the first reader and kept: with no reader open nothing is copied into
-  // it, and the last reader's close only resets its fill counter.
-  let allRows: ReturnType<typeof ring> | null = null
-  const file = (filing: ReturnType<typeof ring>) =>
-    filing.rows.set(row, (filing.filed++ % stepCapacity) * width)
-  const worstTables: Array<{ worst: ReturnType<typeof createWorst>; reader: boolean }> = []
-  let readers = 0
+  const row = new Float64Array(width)
+  const windows = createStepWindows(row, { names, stepCapacity, worstCount })
 
   return {
     /** The current image's CPU bounds, in `steps.names` order, filled before `record`. */
@@ -135,72 +122,17 @@ export function createStageProfiler(options: {
      *  (the row is filed for the readers alone) only the reader windows' tables rank it and only
      *  reader windows read it back. */
     record(frame: number, total: number, readersOnly = false) {
-      if (readers > 0 && allRows) file(allRows)
-      if (!readersOnly) file(profiledRows)
-      for (const table of worstTables)
-        if (table.reader || !readersOnly) table.worst.file(row, frame, total)
+      windows.record(frame, total, readersOnly)
       stages?.fileRow(row)
     },
     /** The windows opened for a reader of their own (`openWindow(true)`) and not closed: while any
      *  is, the engine files every image's row, debug mode or not. */
     get readers() {
-      return readers
+      return windows.readers()
     },
     /** Opens a window over the images filed from now on, with slowest images of its own: one per
      *  reader, opened once. A `reader`'s window asks for the rows to be filed until it closes. */
-    openWindow(reader = false): CpuStepWindow {
-      const worst = createWorst(width, worstCount)
-      const table = { worst, reader }
-      worstTables.push(table)
-      if (reader && readers++ === 0) allRows ??= ring()
-      // A reader's window reads every filed row, any other the rows filed while profiled.
-      const source = reader ? allRows! : profiledRows
-      let opened = source.filed,
-        closed = false
-      const reset = () => {
-        opened = source.filed
-        worst.clear()
-      }
-      return {
-        // Percentiles of each bound over the window's images, and its slowest images. A bound an
-        // image did not file (`NaN`) is left out of its quantiles; a bound no image filed reads
-        // `NaN`, never zero. `null` when the window filed no image it reads, or is closed.
-        read() {
-          if (closed) return null
-          const frames = Math.min(stepCapacity, source.filed - opened)
-          const first = source.filed - frames
-          if (!frames) {
-            reset()
-            return null
-          }
-          const steps: CpuStepSummary['steps'] = {}
-          for (let c = 0; c < width; c++) {
-            let length = 0
-            for (let i = 0; i < frames; i++) {
-              const ms = source.rows[((first + i) % stepCapacity) * width + c]
-              if (Number.isFinite(ms)) column[length++] = ms
-            }
-            // One sort for the quantiles and the maximum (`summaryOf`).
-            const summary = summaryOf(column.subarray(0, length))
-            steps[names[c]] = summary
-              ? { p50: summary.p50, p95: summary.p95, max: summary.max }
-              : { p50: NaN, p95: NaN, max: NaN }
-          }
-          const summary = { frames, steps, worst: worst.read(names) }
-          reset()
-          return summary
-        },
-        reset,
-        // A closed window's slowest images are no longer kept: nothing of it runs per image.
-        close() {
-          if (closed) return
-          closed = true
-          if (reader && --readers === 0 && allRows) allRows.filed = 0
-          const at = worstTables.indexOf(table)
-          if (at >= 0) worstTables.splice(at, 1)
-        },
-      }
-    },
+    openWindow: (reader = false): CpuStepWindow => windows.openWindow(reader),
     /** The per-stage profile, or a disabled one when the host did not mount it. */
     profile: (): StageProfile => stages?.profile() ?? disabledStageProfile(options.backend),
   }

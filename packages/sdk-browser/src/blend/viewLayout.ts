@@ -1,5 +1,6 @@
 import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { preExposedWgsl } from '../post/exposure/preWgsl.ts'
 
 /**
  * The transparent pass's view uniform (`uniforms.ts`): its fields in one table, in order. The WGSL struct
@@ -28,6 +29,7 @@ const BLEND_VIEW_FIELDS = [
   ['pixelRatio', 'f32'],
   ['mipBias', 'f32'],
   ['exposure', 'f32'],
+  ['preExposure', 'f32'],
   ['toneCurve', 'u32'],
   ['pixelError', 'f32'],
   ['clipPlane', 'vec4f'],
@@ -38,5 +40,8 @@ const LAYOUT = fieldLayout('BlendView', BLEND_VIEW_FIELDS)
 export const VIEW = LAYOUT.at
 /** The view's bytes: what its buffer, its words and its binding are sized at. */
 export const BLEND_VIEW_SIZE = LAYOUT.words * 4
+/** The pre-exposure the view holds (`uni.preExposure`): what every light a layer writes is
+ *  multiplied by (`preExposed`, `preExposedClipped`). */
+export const BLEND_PRE_EXPOSED_WGSL = preExposedWgsl('uni.preExposure')
 /** WGSL declaration of the view, made of its table. */
 export const BLEND_VIEW_WGSL = wgslBlock('BLEND_VIEW_WGSL', [], LAYOUT.wgsl)

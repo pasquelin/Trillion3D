@@ -6,7 +6,7 @@ import {
   writeCloudTrace,
 } from '../clouds/traceLayout.ts'
 import type { CloudFramePlan } from '../clouds/reconstruct.ts'
-import { CAPTURE_CLOUD_SETUP } from '../clouds/cloudModes.ts'
+import { CAPTURE_CLOUD_SETUP, cloudsInView } from '../clouds/cloudModes.ts'
 import { cloudSizes } from '../clouds/reconstructLayout.ts'
 import { CLOUD_TRACE_GROUP_SIZE } from '../clouds/traceWgsl.ts'
 import { groupsFor, type FaceHolds } from './captureGroups.ts'
@@ -146,7 +146,10 @@ function faceWork(withSky: boolean, withClouds: boolean, input: SkyLightInputs):
   const atmosphereDrawn = withSky && input.atmosphere && input.air !== undefined
   const composing =
     withClouds && (input.part.light.lowerHemisphereIsSolidColor || input.clouds !== undefined)
-  return { atmosphereDrawn, composing, clearing: withSky && !atmosphereDrawn }
+  // The colour is cleared before the sky where the setting says (`skyLightAlwaysClear`), else only
+  // where no sky is drawn over it.
+  const clearing = withSky && (!atmosphereDrawn || input.part.quality.skyLightAlwaysClear)
+  return { atmosphereDrawn, composing, clearing }
 }
 
 /** The render pass of face `face`: the sky, the fog over it, then the clouds laid over. */
@@ -173,8 +176,12 @@ function facePass(
   })
   const offset = [face * BLOCK_STRIDE]
   if (work.atmosphereDrawn) {
-    pass.setPipeline(pipelines.sky.get())
-    pass.setBindGroup(0, holds.skyGroup!)
+    // Shaded by the opaque scene where the setting asks and the pipeline is compiled (`skyLightShadowFromOpaque`).
+    const shaded =
+      input.part.quality.skyLightShadowFromOpaque && input.air?.maps && made.skyShadowed.ask()
+    const shadowed = shaded && shaded.ready ? shaded : undefined
+    pass.setPipeline((shadowed ?? pipelines.sky).get())
+    pass.setBindGroup(0, shadowed ? holds.shadowedGroup! : holds.skyGroup!)
     pass.setBindGroup(1, holds.faceGroup!.group, offset)
     pass.draw(3)
     if (input.fog && input.fogShown) {
@@ -214,7 +221,8 @@ function drawFaces(
     const traced =
       withClouds &&
       air !== undefined &&
-      clouds?.part.settings.inSkyCapture === true &&
+      clouds !== undefined &&
+      cloudsInView(clouds.part.settings, true) &&
       input.fog !== undefined
     writeFace(device, t, face, input, traced)
     if (traced) traceFace(device, made, holds, encoder, t, face, input, air, clouds)

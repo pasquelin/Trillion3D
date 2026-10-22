@@ -31,6 +31,8 @@ import type { SkyQualityValues } from './quality.ts'
 
 /**
  * The settings of a light by field:
+ * - `shadowsClouds` (false): the cloud march reads the light's opaque shadow map where it samples the
+ *   clouds' light (`cloudsReadOpaqueShadow`); the sky module's sun turns it on;
  * - `castCloudShadows` (false): the light has a map; `cloudShadowStrength` (1, from 0) is its
  *   weight on the map's extinction and optical depth, and a map with a strength of 0 is not made;
  * - `cloudShadowOnAtmosphereStrength` (1, from 0) and `cloudShadowOnSurfaceStrength` (1, from 0):
@@ -44,6 +46,7 @@ import type { SkyQualityValues } from './quality.ts'
  */
 export const CLOUD_SHADOW_LIGHT_RULES = /* @__PURE__ */ (() =>
   rulesOf([
+    flag('shadowsClouds', false),
     flag('castCloudShadows', false),
     nonNegative('cloudShadowStrength', 1),
     nonNegative('cloudShadowOnAtmosphereStrength', 1),
@@ -70,6 +73,12 @@ export const resolveCloudShadowLight = (fields: Readonly<Record<string, unknown>
       refusal('cloud shadow'),
     ),
   )
+
+/** Whether the cloud march reads the opaque shadow map of a light: the light asks for it
+ *  (`shadowsClouds`) and is the air's first light (`sunIndex` 0), the second light never being read
+ *  for it. */
+export const cloudsReadOpaqueShadow = (light: CloudShadowLight, sunIndex: number) =>
+  light.shadowsClouds && sunIndex === 0
 
 /** A light's map is made when the maps are on, the light casts cloud shadows and its strength is
  *  above 0. `light` is none where the air has no such light. */

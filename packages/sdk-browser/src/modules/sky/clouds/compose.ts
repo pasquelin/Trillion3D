@@ -41,6 +41,9 @@ export interface ComposeInput {
   readonly setup: CloudSetup
   /** The index of the frame: the jitter of the ways that jitter changes with it, modulo 8. */
   readonly frameIndex: number
+  /** The pre-exposure the image's light is written multiplied by (`PreExposure.now`): the fog laid
+   *  on the cloud here is, like the cloud's own luminance. 1 when absent. */
+  readonly preExposure?: number
 }
 
 /** The composition's uniform (`COMPOSE_VIEW`) into `out`, `COMPOSE_VIEW.words` floats; the part's
@@ -62,7 +65,7 @@ export function writeComposeView(out: Float32Array, input: ComposeInput, part: C
     input.setup.lateFog ? 1 : 0,
     input.frameIndex % 8,
   )
-  put4(out, at.scale, toImage, toView, 0, 0)
+  put4(out, at.scale, toImage, toView, input.preExposure ?? 1, 0)
   return out
 }
 

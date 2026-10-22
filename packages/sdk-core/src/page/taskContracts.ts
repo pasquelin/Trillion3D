@@ -87,7 +87,8 @@ export type PageTaskBlocks = {
    *  doubles, the item of the scene's animation banks it plays in `tracks`, one 32-bit integer
    *  (`-1`: none), whether it is drawn from its parent's own host mesh in `sources`, one byte, and
    *  the nearest and the farthest distance it is drawn at in `drawDistances`, two 32-bit floats
-   *  (0 and 0: none); all transferred. Absent otherwise. */
+   *  (0 and 0: none), and whether a view's primed depth draws it in `farFields`, one byte; all
+   *  transferred. Absent otherwise. */
   cells?: {
     nodes: number
     ranks: ArrayBuffer
@@ -95,6 +96,7 @@ export type PageTaskBlocks = {
     tracks: ArrayBuffer
     sources: ArrayBuffer
     drawDistances: ArrayBuffer
+    farFields: ArrayBuffer
   }
   /** `cellPage`: the page's slots, or its cells (`readCellPage`). Absent otherwise. */
   cellPage?: ReturnType<typeof readCellPage>

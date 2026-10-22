@@ -126,7 +126,7 @@ test('generated inventory and explicit facade files are current', async () => {
   // metrics, the primitives' quantization and the adaptive pixel error are gone (PartitionAudit,
   // OcclusionFrameMetrics, WorldFrameMetrics, PrimitiveQuantization, adaptivePixelError). The
   // scene's sky, height fog and exposure carry their own names (SceneAtmosphere, ResolvedAtmosphere,
-  // SceneOzoneLayer, SceneSky, SceneHeightFog, SceneFogDirectional, SceneExposure), and the bloom its
+  // SceneOzoneLayer, SceneHeightFog, SceneFogDirectional, SceneExposure), and the bloom its
   // levels (BloomLevelOptions, BloomTint, ResolvedBloomLevel). The module manager and descriptor
   // are public (createModuleManager, ModuleHooks, ModuleManager, defineModule, mergeModuleParts,
   // resolveModuleOption, ModuleDecision, ModuleDescriptor, ModuleOption, ModulePartFields,

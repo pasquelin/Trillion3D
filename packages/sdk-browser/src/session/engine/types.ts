@@ -8,7 +8,10 @@ import type {
 } from '../../../../sdk-core/src/contracts/metrics.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { DiagnosticMode } from '../../../../sdk-core/src/runtime/diagnostics.ts'
+import type { MeshDistanceField } from '../../../../sdk-core/src/lighting/distanceFieldFile.ts'
+import type { VolumetricLightmapData } from '../../../../sdk-core/src/lighting/volumetricLightmapFile.ts'
 import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
+import type { SceneFogVolumeStore } from '../../../../sdk-core/src/scene/volume/store.ts'
 import type { StageProfile } from '../../../../sdk-core/src/runtime/stageProfile.ts'
 import type { EngineDrawCounters, EngineMetrics } from '../../diagnostic/metricKeys.ts'
 import type { MemoryBudgets, MemoryBudgetsReport } from '../memory/pools.ts'
@@ -20,7 +23,7 @@ import type { StreamPage } from '../../geometry/streaming/types.ts'
 import type { EngineSceneUpdates } from '../../placement/engineSceneUpdates.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { EngineProbes } from './probes.ts'
-import type { SkyCapture } from '../../lighting/atmosphere/gpu.ts'
+import type { ResolvedSky } from '../../../../sdk-core/src/modules/sky/descriptor.ts'
 import type { Ray } from '../../../../sdk-core/src/world/math/volumes.ts'
 import type { Intersection, RayFilter, RayReach } from '../../api/query/types.ts'
 import type { PresentRect } from '../../gpu/core/presentAt.ts'
@@ -34,21 +37,28 @@ import type {
 import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
+import type { ExposureCurveOptions } from '../../../../sdk-core/src/contracts/exposureCurve.ts'
 import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.ts'
+import type { LightFunctionOptions } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
+import type { VolumetricLightmapOptions } from '../../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
+import type { DistanceFieldOcclusionOptions } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
+import type { GlobalDistanceFieldOptions } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import type { ShadowOptions } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
 import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import type { DepthOfFieldSettings } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
 import type { BloomSettings } from '../../../../sdk-core/src/contracts/bloomRules.ts'
 import type { FilmSettings } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 import type { AmbientOcclusionOptions } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import type { SkyQualityOptions } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import type { ScreenProbeOptions } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { ReflectionOptions } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import type { VolumetricFogOptions } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import type { TessellationOptions } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
 import type { RasterOptions } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
 import type { StreamingOptions } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
+import type { HdrViewsJob } from '../../frame/io/hdrCapture.ts'
 type ViewSize = { width: number; height: number }
 /** A view drawn beside the main one (`Engine.addView`). */
 export interface EngineView {
@@ -62,6 +72,11 @@ export interface EngineView {
   /** Leaves, its GPU resources released once the device answered what it asked. */
   release(): Promise<void>
 }
+/** What the host holds of the sky that the sky module does not (`Engine.applySky`). */
+export interface SkyHost {
+  /** The host's cube, for a sky light whose source is a specified cubemap. */
+  readonly cubemap?: GPUTexture
+}
 /** The engine: the WebGPU page raster (`../../frame/backend/pages.ts`), the session's one renderer.
  *  Every member is its own and required; a test's stand-in casts a partial one. */
 export interface Engine extends EngineSceneUpdates, EngineProbes {
@@ -73,10 +88,12 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   freezeCut(frozen: boolean): void
   /** The contract light store has changed: the next frame will reread it. */
   refreshSceneLights(): void
-  /** The radiance of the atmosphere's sky, as nine harmonic coefficients (27 numbers) the engine
-   *  captured when the air or its sun changed, and how many captures have landed; none before the
-   *  first. What a sky light gives the scene. */
-  skyCapture(): SkyCapture | undefined
+  /** The store of the objects voxelised into the fog's volume has changed: the next frame will read it. */
+  refreshFogVolumes(): void
+  /** The sky module's resolved parts for the engine to draw — the sky light's capture, the clouds
+   *  with their shadow maps — and what the host holds that the module does not; `undefined` when the
+   *  module is off, which releases what an earlier word made. Takes effect at the next frame. */
+  applySky(sky: ResolvedSky | undefined, host: SkyHost): void
   /** Extra lighting facts: shadow support and a reason when absent. */
   lighting: { shadows: boolean; reason?: string }
   /** Sets memory pools during the session; returns what the engine holds afterwards. */
@@ -165,6 +182,9 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   capture(): Promise<Uint8Array>
   /** The composed image of `camera` at a size of its own, drawn aside: nothing is presented. */
   captureColorView(camera: HostCamera, size: ViewSize): Promise<Uint8Array>
+  /** The lit linear HDR image of each camera of the job, drawn aside with its overrides and taken
+   *  away by its copy: nothing is presented (`../../frame/io/hdrCapture.ts`). */
+  captureHdrViews(job: HdrViewsJob): Promise<void>
   captureSurfaceView(
     camera: HostCamera,
     options: { width: number; height: number; signal?: AbortSignal },
@@ -183,7 +203,8 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
  *  shading's likewise (`../../../../sdk-core/src/contracts/shadingOptions.ts`), written by
  *  `setShading`, read at each frame by the material pass (`../../materials/classes/materialPasses.ts`);
  *  the exposure's, the automatic one's and the local one's
- *  (`../../../../sdk-core/src/contracts/exposureOptions.ts`), written by `setExposure`, read at
+ *  (`../../../../sdk-core/src/contracts/exposureOptions.ts`), written by `setExposure`, and
+ *  its compensation curve (`exposureCurve`), written by `setExposureCurve`, read at
  *  each frame by the meter (`../../post/exposure/frame.ts`) and the local exposure
  *  (`../../post/finish/frame.ts`); the temporal pass's
  *  (`../../../../sdk-core/src/contracts/temporalOptions.ts`), written by `setTemporal`, read at
@@ -206,9 +227,13 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
  *  `setReflections`, read at each image by the trace (`../../lighting/reflections/frame.ts`);
  *  the screen-space ambient occlusion's (`../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts`), written by
  *  `setAmbientOcclusion`, read at each image by its passes (`../../lighting/ao/frame.ts`);
+ *  the sky's quality (`../../../../sdk-core/src/modules/sky/quality.ts`), written by `setSkyQuality`,
+ *  read at each image by the atmosphere (`../../frame/render/encodeAtmosphere.ts`);
  *  the depth pyramid's (`../../../../sdk-core/src/contracts/hizOptions.ts`), written by `setHiz`,
  *  read at each image by the reflections' depth pyramid (`../../lighting/reflections/frame.ts`) and
  *  the transparent clusters' test (`../../blend/transparent/occlusionHost.ts`);
+ *  the light functions' (`../../../../sdk-core/src/contracts/lightFunctionOptions.ts`), written by
+ *  `setLightFunction`, read at each image by the atlas (`../../lighting/lightFunction/frame.ts`);
  *  the software raster, on by default, and the projected edge in pixels from which a cluster is
  *  the hardware rasterizer's (`../../../../sdk-core/src/contracts/rasterOptions.ts`), written by
  *  `setSoftwareRaster` and `setHardwareRasterEdgePixels` and read each image by the cluster split
@@ -223,8 +248,13 @@ export interface EngineContext
     AnimationOptions,
     ShadingOptions,
     ExposureOptions,
+    ExposureCurveOptions,
     TemporalOptions,
     HizOptions,
+    LightFunctionOptions,
+    VolumetricLightmapOptions,
+    GlobalDistanceFieldOptions,
+    DistanceFieldOcclusionOptions,
     ShadowOptions,
     MotionBlurSettings,
     DepthOfFieldSettings,
@@ -235,6 +265,7 @@ export interface EngineContext
     ScreenProbeOptions,
     ReflectionOptions,
     AmbientOcclusionOptions,
+    SkyQualityOptions,
     RasterOptions,
     StreamingOptions {
   source: Object3D
@@ -294,6 +325,11 @@ export interface EngineContext
   guides?: import('../../guides/guideSet.ts').GuideSet
   particles?: readonly import('../../../../sdk-core/src/fluids/particles.ts').ParticlePool[]
   sceneLights?: SceneLightStore // the host's contract lights, shared by the session's engines
+  /** The meshes' distance fields the cache carries (`distanceFields.bin`), none for a cache without. */
+  distanceFields?: readonly MeshDistanceField[]
+  /** The scene's volumetric lightmap (`volumetric-lightmap.bin`), none for a cache whose job baked none. */
+  volumetricLightmapData?: VolumetricLightmapData
+  sceneVolumes?: SceneFogVolumeStore // the objects voxelised into the fog's volume, shared likewise
   importedLightIds?: string[] // imported light ids in cache order, set by `importedLights()`
   /** Bounced light, on by default (`false` turns it off); `bounceProbesPerFrame`, the probes a frame traces,
    *  those never traced first (100 by default, at most 768: `resolveProbesPerFrame`). */

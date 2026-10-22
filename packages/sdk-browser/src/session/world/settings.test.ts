@@ -25,6 +25,7 @@ import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
+import { VOLUMETRIC_LIGHTMAP_RULES } from '../../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
 import { SKY_QUALITY_RULES } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import { TESSELLATION_RULES } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
 import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
@@ -35,6 +36,9 @@ import { VOLUMETRIC_FOG_RULES } from '../../../../sdk-core/src/contracts/volumet
 import { SCREEN_PROBE_RULES } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import { LIGHT_FUNCTION_RULES } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
+import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
+import { GLOBAL_DISTANCE_FIELD_RULES } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import {
   DEPTH_OF_FIELD_PRESET_LEVELS,
   DEPTH_OF_FIELD_RULES,
@@ -77,6 +81,8 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(TESSELLATION_RULES, {}),
   // The depth pyramid's trace, transparent fold and transparent test: each its contract's default.
   ...resolveSettings(HIZ_RULES, {}),
+  // The volumetric lightmap: read, its contract's default.
+  ...resolveSettings(VOLUMETRIC_LIGHTMAP_RULES, {}),
   // The sky's quality settings: each its rule's default.
   ...resolveSettings(SKY_QUALITY_RULES, {}),
   // The sun's shadows: the distance scale 1, the far-shadow culling on, its reach the merged shells.
@@ -96,6 +102,12 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(REFLECTION_RULES, {}),
   // The screen-space ambient occlusion: the reference's post-process defaults, in metres.
   ...resolveSettings(AMBIENT_OCCLUSION_RULES, {}),
+  // The light functions: the reference's atlas defaults, the translucent layers off.
+  ...resolveSettings(LIGHT_FUNCTION_RULES, {}),
+  // The global distance field: the reference's clipmaps, update rhythm and atlas budgets.
+  ...resolveSettings(GLOBAL_DISTANCE_FIELD_RULES, {}),
+  // The distance-field occlusion: the reference's defaults.
+  ...resolveSettings(DISTANCE_FIELD_OCCLUSION_RULES, {}),
   // The depth of field's drawing: the quality `high`, the gather at half size, four rings, the median
   // post-filter, the background's scatter occluding, the recombine at its low quality.
   ...resolveSettings(DEPTH_OF_FIELD_RULES, {}),

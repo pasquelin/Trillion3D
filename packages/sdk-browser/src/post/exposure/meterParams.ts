@@ -15,6 +15,23 @@ export type ExposureSettings = SettingValues<typeof EXPOSURE_RULES>
 const MATCHED_FRAME = 1 / 60
 
 const AT = METER_PARAMS.at
+/** How near to 1 a contrast or a strength is to leave the image as it is. */
+const NEARLY = 1e-8
+/** The distance past a threshold, in stops, of a strength of 1: the contrast scale takes over
+ *  at once, as a distance no image reaches. */
+const SHARPEST = 1e30
+
+const moved = (value: number) => Math.abs(value - 1) > NEARLY
+
+/** Whether the settings ask the local exposure to run: a contrast, or the detail, not 1. At 1 for
+ *  all three the layers put every pixel back where it was. */
+export const localExposureOn = (settings: ExposureSettings) =>
+  moved(settings.localExposureHighlightContrast) ||
+  moved(settings.localExposureShadowContrast) ||
+  moved(settings.localExposureDetailStrength)
+
+/** How far past a threshold the contrast takes over: `1 / (1 − strength)` stops. */
+export const reachOf = (strength: number) => (strength >= 1 ? SHARPEST : 1 / (1 - strength))
 
 /**
  * The multiplier that makes the exponential approach move as fast, where the linear run gives way
@@ -58,7 +75,8 @@ export function luminanceReading(settings: ExposureSettings) {
  * `size` pixels measured, the settings' derived terms, `seconds` since the last update, and
  * whether the exposure `jumps` to what the mean asks — a first update, a view cut, or a range
  * that is no range. The mean's range is held in luminance (`2^EV100`, the luminance of EV100 0
- * being 1), the histogram's logarithms in stops, the lowest at least one under the highest.
+ * being 1), the histogram's logarithms in stops, the lowest at least one under the highest. The image
+ * holds its light multiplied by `preExposure`, which the measure divides out.
  */
 export function writeMeterParams(
   words: Float32Array,
@@ -67,6 +85,7 @@ export function writeMeterParams(
   size: readonly number[],
   seconds: number,
   jumps: boolean,
+  preExposure: number,
 ) {
   const reading = luminanceReading(settings)
   const high = settings.exposureHighPercent / 100
@@ -96,4 +115,13 @@ export function writeMeterParams(
   words[AT.response + 1] = exponentialMultiplier(settings.exposureSpeedDown, distance)
   words[AT.response + 2] = 2 ** settings.exposureBias
   words[AT.response + 3] = jumps || !validRange ? 1 : 0
+  words[AT.image] = 1 / preExposure
+  words[AT.local] = Math.log2(EXPOSURE_MIDDLE_GREY) + settings.localExposureMiddleGreyBias
+  words[AT.local + 1] = settings.localExposureHighlightContrast
+  words[AT.local + 2] = settings.localExposureShadowContrast
+  words[AT.local + 3] = localExposureOn(settings) ? 1 : 0
+  words[AT.edges] = settings.localExposureHighlightThreshold
+  words[AT.edges + 1] = settings.localExposureShadowThreshold
+  words[AT.edges + 2] = reachOf(settings.localExposureHighlightThresholdStrength)
+  words[AT.edges + 3] = reachOf(settings.localExposureShadowThresholdStrength)
 }

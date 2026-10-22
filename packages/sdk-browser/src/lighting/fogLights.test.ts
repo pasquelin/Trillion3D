@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { near } from '../../../math/src/float/near.fixture.ts'
-import { IRRADIANCE_BAND } from '../../../sdk-core/src/scene/core/environment.ts'
+import { LIGHT_FLAG } from '../../../sdk-core/src/scene/light/contracts.ts'
 import { EYE, norm, phase, pointOf, sub, type V3 } from './fogVolumeRun.fixture.ts'
 import { CELL, EXTINCTION, G, scatter, type Light } from './fogScatterRun.fixture.ts'
 
@@ -13,7 +13,7 @@ test('a lamp scatters its colour over the squared distance, a cell’s size adde
     positionRange: [1, 4, -6, 40],
     colorIntensity: [1, 1, 1, 50],
     directionCone: [0, 0, 0, -2],
-    params: [0, -1, 0, -2],
+    params: [0, -1, 1, -2],
     shape: [0, 0, 0, 0],
     capsule: [0, 0, 0, 0],
   }
@@ -32,9 +32,9 @@ test('a lamp scatters its colour over the squared distance, a cell’s size adde
     'range',
     0,
   )
-  // The sky: its first coefficient's radiance, the irradiance over π.
+  // The sky: the sky light's diffuse light along the way to the eye, times its scattering intensity.
   const sky = scatter(CELL, { sky: [3, 3, 3] })!
-  const radiance = (3 * IRRADIANCE_BAND.constant) / Math.PI
+  const radiance = 3
   near(
     sky,
     [radiance * EXTINCTION, radiance * EXTINCTION, radiance * EXTINCTION, EXTINCTION],
@@ -52,7 +52,7 @@ test('a lamp’s bias is a cell’s radius, a square centimetre at least; a lamp
     positionRange: [...centre, 40],
     colorIntensity: [1, 1, 1, 50],
     directionCone: [0, 0, 0, -2],
-    params: [0, -1, 0, -2],
+    params: [0, -1, 1, -2],
     shape: [0, 0, 0, 0],
     capsule: [0, 0, 0, 0],
   }
@@ -100,7 +100,7 @@ test('a rectangle scatters half the length of its vector form factor, each edge 
       positionRange: [...centre, range],
       colorIntensity: [1, 1, 1, 50],
       directionCone: [...n, -2],
-      params: [3, -1, 0, -2],
+      params: [3, -1, 1, -2],
       shape: [...U, 0.5],
       capsule: [0, 0, 0, 0],
     }
@@ -137,4 +137,42 @@ test('a rectangle scatters half the length of its vector form factor, each edge 
     const got = scatter(CELL, { lights: [light] })![0]
     assert.ok(want > 0 && Math.abs(got / want - 1) < tolerance, `${away}: ${got} against ${want}`)
   }
+})
+
+test('a light’s share scales what the fog scatters of it and a share of none leaves it out; the sky has one', () => {
+  const lamp: Light = {
+    positionRange: [1, 4, -6, 40],
+    colorIntensity: [1, 1, 1, 50],
+    directionCone: [0, 0, 0, -2],
+    params: [0, -1, 1, -2],
+    shape: [0, 0, 0, 0],
+    capsule: [0, 0, 0, 0],
+  }
+  const lit = (light: Light, world = {}) => scatter(CELL, { lights: [light], ...world })![0]
+  const full = lit(lamp)
+  assert.ok(full > 0)
+  near([lit({ ...lamp, params: [0, -1, 0.25, -2] })], [full * 0.25], 'a quarter of it', 1e-6)
+  near([lit({ ...lamp, params: [0, -1, 0, -2] })], [0], 'none of it', 0)
+  const sky = scatter(CELL, { sky: [3, 3, 3] })![0]
+  near([scatter(CELL, { sky: [3, 3, 3], skyShare: 0.5 })![0]], [sky * 0.5], 'half the sky', 1e-6)
+  near([scatter(CELL, { sky: [3, 3, 3], skyShare: 0 })![0]], [0], 'no sky light, no sky', 0)
+})
+
+test('a local light shadows the fog only where its flag says so, by its shadow slot’s read', () => {
+  const lamp: Light = {
+    positionRange: [1, 4, -6, 40],
+    colorIntensity: [1, 1, 1, 50],
+    directionCone: [0, 0, 0, -2],
+    params: [0, 3, 1, -2],
+    shape: [0, 0, 0, 0],
+    capsule: [0, 0, 0, 0],
+  }
+  const lit = (light: Light, shadow: number) => scatter(CELL, { lights: [light], shadow })![0]
+  const open = lit(lamp, 1)
+  // A lamp that does not shadow the fog is lit whole, whatever its shadow reads.
+  near([lit(lamp, 0.25)], [open], 'not flagged', 0)
+  // Flagged, it takes the share its shadow lets through.
+  const flagged = { ...lamp, params: [LIGHT_FLAG.shadowsFog, 3, 1, -2] }
+  near([lit(flagged, 0.25)], [open * 0.25], 'flagged', 1e-6)
+  near([lit(flagged, 0)], [0], 'in shadow', 0)
 })

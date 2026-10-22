@@ -1,6 +1,8 @@
 import {
   choiceSetting as choice,
+  countSetting as count,
   flagSetting as flag,
+  integerSetting as integer,
   nonNegativeSetting as nonNegative,
   numberSetting as number,
   positiveSetting as positive,
@@ -74,7 +76,11 @@ export const VOLUMETRIC_FOG_FILTERS = ['trilinear', 'bicubic', 'tricubic'] as co
  *  `volumetricFogSurfaceLift`, 0.5 — in cells, how far a cell's sample is moved out of the
  *  depth buffer along the depth, −1 not at all;
  *  `volumetricFogLiftRange`, 1 — in cells, how far a sample behind the depth buffer is still
- *  brought forward. */
+ *  brought forward;
+ *  `volumetricFogVoxelizationSlicesPerPass`, 8 — the slices of an object voxelised into the volume
+ *  (`../scene/volume/contracts.ts`) that make one pass, at least 1;
+ *  `volumetricFogVoxelizationShowOnlyPass`, −1 — from 0, the one pass of each object that is
+ *  voxelised, to see where the passes lie; −1 all of them. */
 export const VOLUMETRIC_FOG_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     choice('volumetricFogQuality', DEFAULT_VOLUMETRIC_FOG_LEVEL, VOLUMETRIC_FOG_LEVELS),
@@ -89,6 +95,8 @@ export const VOLUMETRIC_FOG_RULES = /* @__PURE__ */ (() =>
     nonNegative('volumetricFogSampleScatter', 0),
     number('volumetricFogSurfaceLift', 0.5, [-1, Number.MAX_VALUE]),
     nonNegative('volumetricFogLiftRange', 1),
+    count('volumetricFogVoxelizationSlicesPerPass', 8, 1),
+    integer('volumetricFogVoxelizationShowOnlyPass', -1, [-1, Number.MAX_SAFE_INTEGER]),
   ] as const))()
 /** The field of one setting of the volume. */
 export type VolumetricFogField = keyof typeof VOLUMETRIC_FOG_RULES

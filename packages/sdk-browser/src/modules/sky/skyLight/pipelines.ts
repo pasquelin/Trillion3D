@@ -7,15 +7,17 @@ import {
 } from '../../../gpu/core/computeBindings.ts'
 import { airLayoutEntries } from '../../../lighting/atmosphere/programs.ts'
 import { CAPTURE_CLOUD_KEY } from '../clouds/cloudModes.ts'
+import type { AirShape } from '../../../lighting/atmosphere/shape.ts'
 import { createCloudTracePass } from '../clouds/trace.ts'
 import {
   COMPOSE_FACE_CODE,
   FACE_ENTRIES,
   FACE_LAYOUT,
   FOG_FACE_AIR,
-  FOG_FACE_PROGRAM,
   SKY_FACE_AIR,
-  SKY_FACE_PROGRAM,
+  SKY_FACE_AIR_SHADOWED,
+  fogFaceProgram,
+  skyFaceProgram,
 } from './faceWgsl.ts'
 import { FILTER_ENTRIES, FILTER_CODE } from './filterWgsl.ts'
 import { IRRADIANCE_ENTRY, IRRADIANCE_CODE } from './irradianceWgsl.ts'
@@ -48,11 +50,12 @@ const OVER: GPUColorTargetState = {
 type Asked = ReturnType<typeof askedPipelines>
 
 /** The bind group layouts of the capture's passes. */
-function skyLightLayouts(device: GPUDevice) {
+function skyLightLayouts(device: GPUDevice, shape: AirShape) {
   const layout = (entries: GPUBindGroupLayoutEntry[]) => device.createBindGroupLayout({ entries })
   return {
-    skyAir: layout(airLayoutEntries(SKY_FACE_AIR, FRAGMENT)),
-    fogAir: layout(airLayoutEntries(FOG_FACE_AIR, FRAGMENT)),
+    skyAir: layout(airLayoutEntries(SKY_FACE_AIR, FRAGMENT, shape)),
+    skyAirShadowed: layout(airLayoutEntries(SKY_FACE_AIR_SHADOWED, FRAGMENT, shape)),
+    fogAir: layout(airLayoutEntries(FOG_FACE_AIR, FRAGMENT, shape)),
     face: layout([
       computeUniformEntry(
         0,
@@ -75,25 +78,37 @@ function skyLightLayouts(device: GPUDevice) {
       computeTextureEntry(1, 'float', 'cube'),
       computeSamplerEntry(2, 'non-filtering'),
       computeBufferEntry(3, 'storage', COMPUTE),
+      computeTextureEntry(4, 'float', 'cube'),
     ]),
   }
 }
 
 type SkyLightLayouts = ReturnType<typeof skyLightLayouts>
 
+/** A pipeline made when first asked for, and asked then. */
+function lazily<P>(make: () => P) {
+  let made: P | undefined
+  return { ask: () => (made ??= make()) }
+}
+
 /** The three face draws: the sky, the fog over it and the clouds' composition. */
-function faceDraws(device: GPUDevice, draw: Asked['draw'], layouts: SkyLightLayouts) {
+function faceDraws(
+  device: GPUDevice,
+  draw: Asked['draw'],
+  layouts: SkyLightLayouts,
+  shape: AirShape,
+) {
   const module = (label: string, code: string) => device.createShaderModule({ label, code })
   return {
     sky: draw(
-      module('Trillion3D sky light sky', SKY_FACE_PROGRAM.code),
+      module('Trillion3D sky light sky', skyFaceProgram(shape).code),
       [layouts.skyAir, layouts.face],
       FACE_ENTRIES.sky,
       REPLACE,
       'Trillion3D sky light sky',
     ),
     fog: draw(
-      module('Trillion3D sky light fog', FOG_FACE_PROGRAM.code),
+      module('Trillion3D sky light fog', fogFaceProgram(shape).code),
       [layouts.fogAir, layouts.face],
       FACE_ENTRIES.fog,
       OVER,
@@ -144,16 +159,36 @@ function filterStages(device: GPUDevice, compute: Asked['compute'], layouts: Sky
 /**
  * THE CAPTURE'S LAYOUTS AND PIPELINES, asked at once, off the frame (`PreparedPipeline.ask`): the
  * three face draws, the clouds' tracing (the clouds part's own, `createCloudTracePass`), the mips'
- * downsample and the filter, and the harmonics' sum. The cube is read by a sampler that takes
+ * downsample and the filter, and the harmonics' sum, the air's programs written for `shape`. The cube is read by a sampler that takes
  * the nearest texel and the nearest level, which the face composition's cloud read does not use.
  */
-export function createSkyLightPipelines(device: GPUDevice, failed: (error: unknown) => void) {
-  const layouts = skyLightLayouts(device)
+export function createSkyLightPipelines(
+  device: GPUDevice,
+  failed: (error: unknown) => void,
+  shape: AirShape,
+) {
+  const layouts = skyLightLayouts(device, shape)
   const { draw, compute } = askedPipelines(device, failed)
+  const module = (label: string, code: string) => device.createShaderModule({ label, code })
   return {
     layouts,
-    pipelines: { ...faceDraws(device, draw, layouts), ...filterStages(device, compute, layouts) },
-    cloudTrace: createCloudTracePass(device, failed, CAPTURE_CLOUD_KEY),
+    shape,
+    /** The sky shaded by the opaque scene (`skyLightShadowFromOpaque`): compiled when first asked, the
+     *  unshaded one drawing until it is. */
+    skyShadowed: lazily(() =>
+      draw(
+        module('Trillion3D sky light sky shadowed', skyFaceProgram(shape, true).code),
+        [layouts.skyAirShadowed, layouts.face],
+        FACE_ENTRIES.sky,
+        REPLACE,
+        'Trillion3D sky light sky shadowed',
+      ),
+    ),
+    pipelines: {
+      ...faceDraws(device, draw, layouts, shape),
+      ...filterStages(device, compute, layouts),
+    },
+    cloudTrace: createCloudTracePass(device, failed, CAPTURE_CLOUD_KEY, shape),
   }
 }
 

@@ -107,6 +107,10 @@ function passImages(pass: LightShaftPass, sizes: LightShaftSizes) {
   return { input: sizes[reads], written: sizes[draws].view }
 }
 
+/** The pixels pass `pass` draws: the shafts' image's view, or the lit image's for the bloom's apply. */
+export const lightShaftWritten = (pass: LightShaftPass, sizes: LightShaftSizes) =>
+  passImages(pass, sizes).written
+
 /** The entries of each pass's group, made on first use (the stage flags are the browser's). */
 const entriesOf: Partial<Record<LightShaftPass, GPUBindGroupLayoutEntry[]>> = {}
 
@@ -145,7 +149,9 @@ export interface LightShaftViewInput {
   readonly sizes: LightShaftSizes
   readonly origin: LightShaftOrigin
   /** The factor the lit image is multiplied by before the bloom reads it, and divided by when the
-   *  bloom is added back: the renderer works in the exposed colour. */
+   *  bloom is added back: the renderer works in the exposed colour. The lit image holds its light
+   *  multiplied by its pre-exposure, so the factor is the exposure over it (`PreExposure.shown`);
+   *  the bloom added back is in the image's own units. */
   readonly exposure: number
   /** The perspective projection, column-major, the scene's depth was drawn with. */
   readonly projection: ArrayLike<number>
@@ -153,8 +159,8 @@ export interface LightShaftViewInput {
 
 /** The uniform (`LIGHT_SHAFT_VIEW`) of `pass` into `out`, `LIGHT_SHAFT_VIEW.words` floats; `index`
  *  is the blur pass's rank, from 0. */
-export function writeLightShaftView(
-  out: Float32Array,
+export function writeLightShaftView<T extends Float32Array>(
+  out: T,
   input: LightShaftViewInput,
   pass: LightShaftPass,
   index = 0,

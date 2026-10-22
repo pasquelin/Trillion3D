@@ -80,7 +80,7 @@ ${castText()}
  let stop=clipToFramebuffer(vsmView.shiftedToClip*vec4f(origin+towardLight*rayLength,1.0),size);
  let d=stop-start;
  let slab=vec4f(${[...SLAB].map(wgslF32).join(',')});
- let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),pixels,relative,slab,0xffffffffu);
+ let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),pixels,relative,slab,0xffffffffu,true);
  out[1]=select(0.0,1.0,hit.t>=0.0);
  out[2]=select(0.0,1.0,hit.front);
 }`,

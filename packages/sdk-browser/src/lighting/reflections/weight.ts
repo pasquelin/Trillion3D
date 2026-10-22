@@ -17,6 +17,7 @@ import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { REFLECTION_FIELD_OVER_WGSL, REFLECTION_FIELD_STAGE_WGSL } from './wgsl.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { REFLECTION_SAMPLE_WGSL } from './sampleWgsl.ts'
+import { SKY_READ_WGSL } from '../atmosphere/skyReadWgsl.ts'
 import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
 import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
 import { reflectionFrontWgsl } from './viewLayout.ts'
@@ -237,6 +238,7 @@ export const RESOLVED_INDIRECT_WGSL = wgslBlock(
   'RESOLVED_INDIRECT_WGSL',
   [
     resolvedReflectionWgsl,
+    SKY_READ_WGSL,
     REFLECTION_PROBES_LEFT_WGSL,
     BOUNCE_APPLY_WGSL,
     SCREEN_INDIRECT_WGSL,
@@ -258,7 +260,7 @@ export const RESOLVED_INDIRECT_WGSL = wgslBlock(
  }
  let probes=surfaceProbesGathered(P,N,reflectionBaseLobe(N,V,rough));
  // The surroundings the trace left in the pixel give way to the probes where these hold the sky.
- let under=select(vec3f(0.0),min(probes[1].w,1.0)*skyRadiance(reflect(-V,N)),skyLit());
+ let under=select(vec3f(0.0),min(probes[1].w,1.0)*skyRadianceAt(reflect(-V,N),rough),skyLit());
  let diffuse=select(lambertDiffuse(rgb,metal,indirectGathered(probes[0],N),ao),screenDiffuse(rgb,metal,seen,ao),screened);
  return mat2x3f(diffuse,traced.rgb+(reflectionProbesShare(probes[1])-under)*reflectionWeight(f0Of(rgb,metal),rough,N,V)*lobeThrough());
 }`,
@@ -285,7 +287,7 @@ export const forwardIndirectWgsl = (group: number, lobes: boolean, traced: numbe
   return mat2x3f(bounceLighting(rgb,metal,N,P,ao),reflectionShare(forwardFrontTraced(position),f0,rough,N,V));
  }
  let probes=surfaceProbesGathered(P,N,reflectionBaseLobe(N,V,rough));
- let seen=Reflected(reflectionFieldOver(probes[1],reflect(-V,N)),reflectionFieldCoat(P,V));
+ let seen=Reflected(reflectionFieldOver(probes[1],reflect(-V,N),rough),reflectionFieldCoat(P,V));
  return mat2x3f(lambertDiffuse(rgb,metal,indirectGathered(probes[0],N),ao),reflectionShare(seen,f0,rough,N,V));
 }`,
   )

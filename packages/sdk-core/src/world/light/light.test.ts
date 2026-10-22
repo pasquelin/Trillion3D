@@ -7,6 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Light, light } from './light.ts'
+import { lampRecord, lightFromRecord } from './lightRecord.ts'
 import { Group, Object3D } from '../object/object3d.ts'
 import { countingLink } from '../object/sceneLink.fixture.ts'
 import { nodeWrites, nodesWrittenSince } from '../../scene/core/nodeEdits.ts'
@@ -205,4 +206,58 @@ test('copying a light includes independently owned children unless recursion is 
   assert.equal(copy.children[0].parent, copy)
   assert.equal(child.parent, source)
   assert.equal(new Light('point').copy(source, false).children.length, 0)
+})
+
+test('a light’s temperature, a sun’s disk tint and its air switches are its own, recorded only when set', () => {
+  const sun = new Light('directional')
+  const record = () => lampRecord(sun, 'sun', () => 9)!
+  assert.deepEqual(
+    [sun.useTemperature, sun.temperatureKelvin, sun.shadowsAir, sun.transmittancePerPixel],
+    [false, 6500, false, false],
+    'the defaults',
+  )
+  assert.deepEqual(sun.sunDiskTint.toArray(), [1, 1, 1], 'white until set')
+  for (const key of ['useTemperature', 'temperatureKelvin', 'shadowsAir', 'transmittancePerPixel'])
+    assert.equal(key in record(), false, `${key} out of a default record`)
+  assert.equal('sunDiskTint' in record(), false)
+  const scene = new Group(),
+    { link, heard } = countingLink()
+  scene._link = link
+  scene.add(sun)
+  sun.useTemperature = true
+  sun.temperatureKelvin = 4000
+  sun.shadowsAir = true
+  sun.transmittancePerPixel = true
+  sun.sunDiskTint.set([1, 0.5, 0.25])
+  assert.equal(heard.filter((node) => node === sun).length, 5, 'each write reaches the world')
+  const set = record()
+  assert.deepEqual(
+    [set.useTemperature, set.temperatureKelvin, set.shadowsAir, set.transmittancePerPixel],
+    [true, 4000, true, true],
+  )
+  assert.deepEqual(set.sunDiskTint, [1, 0.5, 0.25])
+  const back = lightFromRecord(set)
+  assert.deepEqual(
+    [back.useTemperature, back.temperatureKelvin, back.shadowsAir, back.transmittancePerPixel],
+    [true, 4000, true, true],
+    'a record builds the light again',
+  )
+  assert.deepEqual(back.sunDiskTint.toArray(), [1, 0.5, 0.25])
+  const copy = new Light('directional').copy(sun) as Light
+  assert.deepEqual(
+    [copy.useTemperature, copy.shadowsAir, copy.sunDiskTint.g],
+    [true, true, 0.5],
+    'a copy takes them',
+  )
+  const plain = new Light('point', { useTemperature: true, temperatureKelvin: 2000 })
+  assert.equal(
+    lampRecord(plain, 'p', () => 9)!.temperatureKelvin,
+    2000,
+    'any lamp has a colour temperature',
+  )
+  assert.equal(
+    'shadowsAir' in lampRecord(new Light('point', { shadowsAir: true }), 'p', () => 9)!,
+    false,
+    'the air’s switches are a sun’s',
+  )
 })

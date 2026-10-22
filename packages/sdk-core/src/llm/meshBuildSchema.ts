@@ -99,6 +99,26 @@ const meshBuildSettings: Record<keyof MeshBuildSettingsWire, JsonSchemaProperty>
       rules.allowAssemblies,
       `Whether the assembly the mesh's glTF extras.assembly names is built: parts (meshes by their rank, each with an optional materialRemap, a glTF material for each of its primitives) and nodes (a part and a glTF node's matrix, or translation, rotation and scale each); the mesh is then its own triangles and every node's part carried by its transform, its levels of detail built over the nodes. False draws the mesh's own triangles alone (default ${rules.allowAssemblies.default}).`,
     ),
+    distanceField: ruleSchema(
+      rules.distanceField,
+      `Whether the mesh's signed distance field is built, in bricks of voxels around its surface, for the distance-field occlusion of the sky light and the software ray tracing; the reference builds none unless its project turns the generation on (default ${rules.distanceField.default}).`,
+    ),
+    distanceFieldScale: ruleSchema(
+      rules.distanceFieldScale,
+      `The mesh's distance field resolution scale: the voxels a unit of its size holds are the density times this scale; 0 builds no field for the mesh, a scale above 1 lets it reach the full maximum resolution where one at most 1 reaches its half (default ${rules.distanceFieldScale.default}).`,
+    ),
+    distanceFieldTwoSided: ruleSchema(
+      rules.distanceFieldTwoSided,
+      `Whether the distance field is built as if every triangle were two-sided, so that no back face makes a voxel inside the mesh; the mesh's double-sided materials are two-sided either way (default ${rules.distanceFieldTwoSided.default}).`,
+    ),
+    distanceFieldDensity: ruleSchema(
+      rules.distanceFieldDensity,
+      `The voxels a centimetre of a mesh of distance field scale 1 holds, from 0.05 to 0.4; changing it rebuilds every field (default ${rules.distanceFieldDensity.default}).`,
+    ),
+    distanceFieldMaxResolution: ruleSchema(
+      rules.distanceFieldMaxResolution,
+      `The most voxels along one axis a mesh's distance field holds; a mesh of scale 1 or less holds half of it (default ${rules.distanceFieldMaxResolution.default}).`,
+    ),
     positionPrecision: int(
       `The position grid of the mesh's pages: every position sits on cells of 2^-n centimetre. Left out, the precision follows the mesh's density — seven less the mean base-2 logarithm of the half-diagonal, in centimetres, of its finest clusters' boxes, never finer than a sixteenth of a centimetre — and falls as far as the widest cluster needs to fit 2^21 cells an axis.`,
       MIN_POSITION_PRECISION,

@@ -9,6 +9,7 @@ import {
   COPY_CODE,
   COPY_ENTRY,
   COPY_LAYOUT,
+  COPY_SCENE_ENTRY,
   LUMINANCE_CODE,
   LUMINANCE_ENTRIES,
   LUMINANCE_FORMAT,
@@ -26,6 +27,11 @@ function cubemapLayouts(device: GPUDevice) {
     source: layout([
       computeTextureEntry(0, 'float', 'cube', FRAGMENT),
       computeSamplerEntry(1, 'filtering', FRAGMENT),
+    ]),
+    /** The lit image of the scene drawn for a face, read bilinearly. */
+    scene: layout([
+      computeTextureEntry(2, 'float', '2d', FRAGMENT),
+      computeSamplerEntry(3, 'filtering', FRAGMENT),
     ]),
     /** The copy's block, one slot to a face, read at a dynamic offset. */
     block: layout([
@@ -53,11 +59,12 @@ function cubemapLayouts(device: GPUDevice) {
 }
 
 /**
- * THE LAYOUTS AND PIPELINES OF A SPECIFIED CUBEMAP, made when the first one is captured, not before:
- * the copy of the host's cube into the faces of the captured cube (`copyFaceMain`, written into a
- * 16-bit cube, and into a 32-bit float one for the brightest value) and the two programs that find
- * that value (`maxDownsampleMain`, `maxGatherMain`). Nothing of them is compiled by a light that
- * captures its sky in real time.
+ * THE LAYOUTS AND PIPELINES OF A SPECIFIED CUBEMAP AND OF A CAPTURED SCENE, made when the first one
+ * is captured, not before: the copy of the host's cube into the faces of the captured cube
+ * (`copyFaceMain`, written into a 16-bit cube, and into a 32-bit float one for the brightest
+ * value), the two programs that find that value (`maxDownsampleMain`, `maxGatherMain`) and the
+ * copy of the scene's lit image into a face (`copySceneFaceMain`). Nothing of them is compiled by a
+ * light that captures its sky in real time.
  */
 export function createCubemapPipelines(device: GPUDevice, failed: (error: unknown) => void) {
   const layouts = cubemapLayouts(device)
@@ -75,6 +82,13 @@ export function createCubemapPipelines(device: GPUDevice, failed: (error: unknow
   const pipelines = {
     copy: copy(SKY_LIGHT_CUBE_FORMAT, 'Trillion3D sky light cubemap copy'),
     copyWide: copy(LUMINANCE_FORMAT, 'Trillion3D sky light cubemap copy, 32-bit'),
+    copyScene: draw(
+      copyModule,
+      [layouts.scene, layouts.block],
+      COPY_SCENE_ENTRY,
+      { format: SKY_LIGHT_CUBE_FORMAT },
+      'Trillion3D sky light scene copy',
+    ),
     downsample: compute(
       luminanceModule,
       layouts.downsample,
@@ -95,6 +109,8 @@ export function createCubemapPipelines(device: GPUDevice, failed: (error: unknow
     ready: (wide: boolean) =>
       pipelines.copy.ready &&
       (!wide || (pipelines.copyWide.ready && pipelines.downsample.ready && pipelines.gather.ready)),
+    /** Whether the copy of a scene's lit image is compiled. */
+    sceneReady: () => pipelines.copyScene.ready,
   }
 }
 

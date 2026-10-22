@@ -21,3 +21,36 @@ export function sceneTriangles(scene: StatsSceneNode): number {
   })
   return total
 }
+
+/** What the collector counts the scene's triangles with: at most once a second, and only when an
+ *  image was drawn since the last count. */
+export function sceneCounter(
+  scene: () => StatsSceneNode | undefined,
+  wanted: boolean,
+  periodMs: number,
+) {
+  let frames = 0,
+    countedAt = -1,
+    countedTime = Number.NEGATIVE_INFINITY,
+    count: number | null = null
+  return {
+    /** An image was drawn. */
+    frame: () => frames++,
+    /** Counts when due: `selected` is the frame's own selected triangles (no count then). */
+    update(now: number, selected: number | null | undefined) {
+      const node = scene()
+      if (
+        !wanted ||
+        selected != null ||
+        !node ||
+        countedAt === frames ||
+        now - countedTime < periodMs
+      )
+        return
+      count = sceneTriangles(node) || null
+      countedAt = frames
+      countedTime = now
+    },
+    count: () => count,
+  }
+}

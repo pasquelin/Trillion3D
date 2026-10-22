@@ -23,6 +23,11 @@ interface ScreenProbeImage {
   velocity: boolean
   /** The inverse of the view-projection the last lit image was drawn with, 16 elements. */
   previousInverse: ArrayLike<number>
+  /** The relative thickness the screen trace gives a surface, times the projection's depth scale
+   *  (`screenRelativeThickness`). */
+  relativeThickness: number
+  /** Whether the trace's march goes down to the full-resolution depth (`hizFullResDepth`). */
+  fullResDepth: boolean
 }
 
 /** Whether a flag is set: its bit, or none. */
@@ -44,7 +49,9 @@ export function screenProbeFlags(settings: ScreenProbeSettings, image: ScreenPro
     bit(settings.sceneTraces, F.sceneTraces) |
     bit(settings.sceneTraces && settings.meshTraces, F.meshTraces) |
     bit(image.history && image.velocity, F.velocity) |
-    bit(settings.fastUpdateClamp, F.fastUpdateClamp)
+    bit(settings.fastUpdateClamp, F.fastUpdateClamp) |
+    bit(image.fullResDepth, F.fullResDepth) |
+    bit(settings.skipFoliageHits, F.skipFoliageHits)
   )
 }
 
@@ -92,7 +99,7 @@ function putWords(
 }
 
 /** The numbers of the parameters the settings give: the weights, the filter's, the scene trace's, the motion's and the thicknesses'. */
-function putNumbers(staged: Float32Array, settings: ScreenProbeSettings) {
+function putNumbers(staged: Float32Array, settings: ScreenProbeSettings, image: ScreenProbeImage) {
   const at = P.at
   const weights = [C.interpolationDepthWeight, C.interpolationDepthWeightFallback]
   put(
@@ -133,8 +140,9 @@ function putNumbers(staged: Float32Array, settings: ScreenProbeSettings) {
     settings.disocclusionMaxFrames,
     settings.disocclusionFraction,
     settings.traceHistoryThickness,
-    settings.relativeDepthThickness,
+    image.relativeThickness,
   )
+  put(staged, at.trace, settings.thicknessScaleWithoutField, settings.thicknessCertaintySteps, 0, 0)
 }
 
 /**
@@ -155,7 +163,7 @@ export function createScreenProbeParams(device: GPUDevice, buffer: GPUBuffer) {
     image: ScreenProbeImage,
   ) => {
     putWords(words, geometry, settings, image)
-    putNumbers(staged, settings)
+    putNumbers(staged, settings, image)
     staged.set(image.previousInverse, P.at.previous)
     writeChanged(device, buffer, words, 0, P.words)
   }

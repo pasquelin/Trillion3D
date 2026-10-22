@@ -1,4 +1,5 @@
 import { retire } from '../../../gpu/core/frameRetire.ts'
+import { textureBytesOf } from '../../../gpu/core/textureBytes.ts'
 import { resolveTargetUsage } from '../../../post/taa/resolve.ts'
 import type { Size } from '../clouds/reconstructLayout.ts'
 import { LIGHT_SHAFT_FORMAT, type LightShaftSizes } from './layout.ts'
@@ -25,7 +26,8 @@ const sceneBuffer = ({ shaft, factor }: LightShaftSizes): Size => ({
  * the history of the next image. The occlusion has one for the view, a bloom one for each light.
  *
  * It also keeps what the last image's pixels were laid over, to read it back by: the view it was
- * drawn for, and the buffer that view and the reduction make (`valid`, `viewport`, `buffer`). Nothing
+ * drawn for, the buffer that view and the reduction make and the exposure scale the pixels were
+ * stored at (`valid`, `viewport`, `buffer`, `exposure`). Nothing
  * restarts it but a first image and a change of size; a frame that skips the chain leaves it as it
  * was, and the camera's move since the last image the chain ran is not known to it.
  */
@@ -34,12 +36,22 @@ export function createLightShaftHistory(device: GPUDevice) {
   const views: GPUTextureView[] = []
   let held = 0
   const history = {
+    /** Bytes the two images hold. */
+    get bytes() {
+      return textures.reduce(
+        (sum, t) => sum + (textureBytesOf({ size: [t.width, t.height], format: t.format }) ?? 0),
+        0,
+      )
+    },
     /** The image `held` describes something: a draw has been committed since the last allocation. */
     valid: false,
     /** The scene view the held image was drawn for, in the pixels the scene is drawn in. */
     viewport: { width: 0, height: 0 } as Size,
     /** The held image's texture, in the scene's pixels: the shafts' texture size times the factor. */
     buffer: { width: 0, height: 0 } as Size,
+    /** The exposure scale the held image was stored at: the ratio of the next image's to it is what
+     *  the held colour is multiplied by when it is read. */
+    exposure: 1,
     /** The last image the filter drew. */
     get held() {
       return views[held]
@@ -68,10 +80,11 @@ export function createLightShaftHistory(device: GPUDevice) {
       history.allocate(texture)
     },
     /** After the draw: the image drawn becomes the held one, for the scene and the reduction
-     *  `sizes` it was drawn at. */
-    commit(sizes: LightShaftSizes) {
+     *  `sizes` it was drawn at, stored at the exposure scale `exposure`. */
+    commit(sizes: LightShaftSizes, exposure: number) {
       held = 1 - held
       history.valid = true
+      history.exposure = exposure
       history.viewport = sizes.scene.view
       history.buffer = sceneBuffer(sizes)
     },

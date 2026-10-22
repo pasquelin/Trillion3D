@@ -9,6 +9,7 @@ import { TRACE_FIELD_BINDINGS, TRACE_FIELD_PROBES } from './traceFieldWgsl.ts'
 import {
   SCREEN_PROXY_BINDINGS,
   TRACE_SCENE_BINDINGS,
+  TRACE_SCENE_LIGHT_FUNCTION,
   TRACE_SCENE_PROBES,
 } from './traceSceneWgsl.ts'
 import { TRACE_SCREEN_BINDINGS, TRACE_SCREEN_PROBES } from './traceWgsl.ts'
@@ -27,6 +28,7 @@ export function traceGroups(g: GroupParts) {
         ...buffers({ ...field, sceneRays: r.sceneRays }),
         history: r.history[last],
         vectors: inputs.vectors,
+        flags: inputs.flags,
       }),
       { binding: TRACE_SCREEN_PROBES, resource: inputs.probes },
     ]),
@@ -54,6 +56,7 @@ export function traceGroups(g: GroupParts) {
           }),
           { binding: TRACE_SCENE_PROBES, resource: inputs.probes },
           ...sceneBindEntries(SCREEN_PROXY_BINDINGS, inputs.proxy),
+          { binding: TRACE_SCENE_LIGHT_FUNCTION.atlas, resource: inputs.lightFunction },
         ])
       : undefined,
   }

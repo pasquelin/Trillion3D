@@ -8,7 +8,6 @@
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import { cross, dot } from '../../../tests/gpu/math/f32Vec3.ts'
 import { DEPTH_NEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts'
-import { RUN_REACH } from '../../../packages/sdk-browser/src/lighting/tiles/boundsWgsl.ts'
 
 export type Vec3 = [number, number, number]
 export type TileView = {
@@ -101,12 +100,9 @@ export function cellColumn(view: TileView, cell: [number, number], grid = GRID) 
 const sphereBehind = (plane: Plane, centre: Vec3, radius: number) =>
   Math.fround(dot(plane.n, centre) + plane.w) < -radius
 
-/** `sphereInColumn`: not wholly behind any of the column's planes, its range widened as the pass
- *  widens it (`runReach`, `RUN_REACH`, the view's cells passing no world side). */
-export const sphereInColumn = (column: Plane[], centre: Vec3, radius: number) => {
-  const widened = Math.fround(Math.fround(radius) * Math.fround(RUN_REACH.radius))
-  return column.every((plane) => !sphereBehind(plane, centre, widened))
-}
+/** `sphereInColumn`: not wholly behind any of the column's planes. */
+export const sphereInColumn = (column: Plane[], centre: Vec3, radius: number) =>
+  column.every((plane) => !sphereBehind(plane, centre, radius))
 
 /** `depthOf`: the depth the render matrix gives a point of the pass's frame, `w` its divisor. */
 export function depthOf(view: TileView, p: Vec3) {

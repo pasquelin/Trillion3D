@@ -60,7 +60,7 @@ function composition(shader: string) {
       textureLoad,
       toneMap: curve,
       linearToSrgb: (rgb: number) => rgb,
-      view: { lightParams: [0, 0, 0, EXPOSURE], display: [0, 0, 0, 0] },
+      view: { preExposure: [1, EXPOSURE, 0, 0], display: [0, 0, 0, 0] },
     },
   )
   return (rgb: number, binding: number) => run(binding, 0, { rgb, a: 1 }, { rgb, a: 1 })
@@ -165,7 +165,7 @@ test('a lit transparent at opacity 0.4 over a debug surface leaves it a 0.6 shar
   // What the lit transparent's fragment writes to the share target, at its opacity.
   const [shareWgsl] = capture(
     BLEND_SHADER,
-    /return BlendOut\(vec4f\(rgb,alpha\*r\.keep\),s\.request,(vec4f\(.*?\)),r\.tint/,
+    /return BlendOut\(vec4f\(hdr,alpha\*r\.keep\),s\.request,(vec4f\(.*?\)),r\.tint/,
   )
   const shareOf = runLines<(alpha: number, r: object) => Rgba>('', 'alpha:f32,r:R', shareWgsl, {})
   const src = shareOf(0.4, { keep: 1 })

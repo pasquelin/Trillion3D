@@ -24,6 +24,9 @@ export const LIGHT_SHAFT_FORMAT: GPUTextureFormat = 'rgba16float'
  *  image is read. */
 export const LIGHT_SHAFT_MASK_FORMAT: GPUTextureFormat = 'r16float'
 
+/** The texture the fog reads where no mask is drawn: white, so the mask multiplies by 1. */
+export const LIGHT_SHAFT_NO_MASK = { format: 'r8unorm', fill: 255 } as const
+
 /** The factors the reduction is cut to: the renderer clamps the setting. */
 const LEAST_DOWNSAMPLE = 1,
   MOST_DOWNSAMPLE = 8

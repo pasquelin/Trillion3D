@@ -1,5 +1,4 @@
-import { fogOf, type Fog } from '../world/sceneFog.ts'
-import type { SceneAtmosphere } from '../../../../sdk-core/src/scene/core/atmosphere.ts'
+import type { ModuleOption } from '../../../../sdk-core/src/modules/descriptor.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { RECIPES } from '../../../../sdk-core/src/world/geometry/recipes.ts'
@@ -18,12 +17,12 @@ import {
   type SavedGeometry,
   type SavedNode,
 } from './format.ts'
+import { legacySky, type LegacySkyLight } from './legacySky.ts'
 
 /** What reading a scene needs of the scene it fills: its root, its load door, its surroundings. */
 type Target = Object3D & {
   background: unknown
-  fog: Fog | null
-  atmosphere: SceneAtmosphere | true | null
+  sky: ModuleOption
   load(url: string): Promise<Object3D>
 }
 
@@ -59,7 +58,9 @@ function readGeometry(saved: SavedGeometry): Geometry {
 
 /** A light built again from what was saved of it. */
 function readLight(saved: NonNullable<SavedNode['light']>) {
-  const { kind, color, groundColor, values, target, sh, atmosphereSun, atmosphereSunIndex } = saved
+  const { kind, color, groundColor, values, target, sh } = saved
+  const { atmosphereSun, atmosphereSunIndex, shadowsFog } = saved
+  const { useTemperature, shadowsAir, transmittancePerPixel, sunDiskTint } = saved
   return new Light(kind, {
     ...values,
     color,
@@ -68,6 +69,13 @@ function readLight(saved: NonNullable<SavedNode['light']>) {
     sh: sh ?? undefined,
     atmosphereSun,
     atmosphereSunIndex,
+    shadowsFog,
+    useTemperature,
+    shadowsAir,
+    transmittancePerPixel,
+    sunDiskTint,
+    ...saved.shafts,
+    ...saved.cloudShadows,
   })
 }
 
@@ -81,6 +89,7 @@ function wear(o: Object3D, saved: SavedNode) {
   o.visible = saved.visible
   o.castShadow = saved.castShadow
   o.castFarShadow = saved.castFarShadow ?? false
+  o.farField = saved.farField ?? false
   o.receiveShadow = saved.receiveShadow
   o.renderOrder = saved.renderOrder
   o.userData = saved.userData
@@ -108,6 +117,8 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
   const materials = json.materials.map((m) => new Material(m.kind, m.parameters))
   /** Every model load started: `load` adds each model to the scene as it arrives. */
   const loads: Promise<Object3D>[] = []
+  /** The last visible sky light node of a version-2 scene: the sky module's sky light now. */
+  let skyLight: LegacySkyLight | undefined
   const node = async (saved: SavedNode): Promise<Object3D> => {
     let o: Object3D
     if (saved.mesh) {
@@ -121,6 +132,9 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
         o = sprite
       } else o = new Mesh(geometries[geometry], matter, primitive as Primitive)
       if (saved.physics) (o as Mesh).physics = saved.physics
+    } else if (saved.light?.kind === 'sky') {
+      if (saved.visible) skyLight = saved.light
+      o = new Object3D() // its place and children stay; its light is the sky module's part
     } else if (saved.light) {
       o = readLight(saved.light)
     } else if (saved.model) {
@@ -152,7 +166,6 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
   if (before.length) scene.remove(...before)
   if (children.length) scene.add(...children)
   scene.background = json.background && new Color().setRGB(...json.background)
-  scene.fog = fogOf(json.fog)
-  scene.atmosphere = json.atmosphere ?? null
+  scene.sky = json.sky ?? legacySky(json, skyLight) ?? null
   if (camera && json.camera) readCamera(json.camera, camera)
 }

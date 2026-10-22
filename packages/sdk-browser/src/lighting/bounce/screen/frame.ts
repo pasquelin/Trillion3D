@@ -1,3 +1,4 @@
+import { skyLightReadOf } from '../../../frame/render/encodeSkyLight.ts'
 import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
 import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
@@ -5,6 +6,9 @@ import type { ScreenProbeFrameMetrics } from '../../../../../sdk-core/src/contra
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { wantsContractLighting } from '../../../frame/prepare/contractLight.ts'
 import { drawsLit } from '../../../visibility/shader/shadeMode.ts'
+import { hizSetting } from '../../../visibility/hiz/setting.ts'
+import { screenRelativeThickness } from '../../../visibility/hiz/gpu/screenSlab.ts'
+import { lightFunctionResources } from '../../lightFunction/frame.ts'
 import { reflectionGroup, reflectionLightView, reflectionProxy } from '../../reflections/group.ts'
 import { encodeScreenProbes as encodePass } from './encode.ts'
 import { createScreenProbeGroups } from './groups.ts'
@@ -68,7 +72,8 @@ function neededOf(rt: WebgpuPagesRuntime) {
 type Needed = NonNullable<ReturnType<typeof neededOf>>
 
 /** What the groups name of the frame: its normals and flags, the lights and their lists, the cascades (or the
- *  lighting's stand-ins), the proxy the rays walk and the vectors of the image (or the stand-in of none). */
+ *  lighting's stand-ins), the proxy the rays walk, the light functions' atlas and the vectors of the image (or the
+ *  stand-in of none). */
 function inputsOf(
   rt: WebgpuPagesRuntime,
   { device, surfaces, deferred, lights }: Needed,
@@ -85,6 +90,8 @@ function inputsOf(
     bounceGrid: probes?.uniform ?? deferred.placeholders.bounceGrid,
     probes: probes?.probes ?? deferred.placeholders.probes,
     proxy: reflectionProxy(rt)!,
+    lightFunction:
+      lightFunctionResources(rt, 'lightFunctionBounce') ?? deferred.placeholders.lightFunction,
     vectors: vectors ?? store.noVectors(device),
   }
 }
@@ -148,12 +155,17 @@ function castProbes(
     field: !!rt.bounce.probes,
     velocity,
     previousInverse: state.previousInverse,
+    relativeThickness: screenRelativeThickness(
+      reflection.frame.viewProjection,
+      settings.relativeDepthThickness,
+    ),
+    fullResDepth: hizSetting(rt, 'hizFullResDepth'),
   })
   encodePass(encoder, {
     kernels,
     resources: state.resources,
     groups: groups(state.turn, inputsOf(rt, needed, store, vectors)),
-    reflection: reflectionGroup(reflection, depth, lightView),
+    reflection: reflectionGroup(reflection, depth, lightView, skyLightReadOf(rt)),
     settings,
   })
   state.indirect = state.resources.history[state.turn]

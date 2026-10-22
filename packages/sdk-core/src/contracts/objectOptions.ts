@@ -18,6 +18,7 @@
  * - `runtimeGrid`: the name of the streaming grid the object streams on (`partitionGrids`) — the
  *   first grid when it names none or one the job does not hold, the reference's rule; an object
  *   attached under another streams on its topmost object's grid.
+ * - `farField`: the object is drawn by a view's primed depth (`hizPrime`), `false` by default.
  * Its `objects` are rules `{ match, …settings }`, `match` naming objects as `meshBuild` does: each
  * sets its settings for the objects it matches. For each setting of an object, the first that
  * names it wins: the first rule matching it, the scene's setting, its node's own glTF `extras`
@@ -35,6 +36,7 @@ import {
   OBJECT_SETTINGS_OPTION,
   PARTITION_GRID_NAME_FORBIDDEN,
   RUNTIME_GRID_SETTING,
+  FAR_FIELD_SETTING,
   SKINNED_INSTANCE_SETTING,
   SKINNED_INSTANCE_SETTINGS,
   SPATIALLY_LOADED_SETTING,
@@ -103,6 +105,8 @@ export type ObjectSettings = {
   /** The name of the streaming grid it streams on (`partitionGrids`), not empty.
    *  @defaultValue the first grid */
   runtimeGrid?: string
+  /** Whether a view's primed depth draws the object. @defaultValue false */
+  farField?: boolean
 }
 
 /** A rule of `objects`: the objects it names — a node's name (exact), a regular expression on it,
@@ -212,6 +216,12 @@ function settingsOf(named: Record<string, unknown>, what: string, refuse: Refuse
   const drawn = named[DRAW_DISTANCE_SETTING]
   if (drawn !== undefined && drawn !== null)
     wire.drawDistance = drawDistanceOf(drawn, `${what}${DRAW_DISTANCE_SETTING}`, refuse)
+  const far = named[FAR_FIELD_SETTING]
+  if (far !== undefined && far !== null) {
+    if (typeof far !== 'boolean')
+      refuse(`${what}${FAR_FIELD_SETTING} must be true or false, got ${JSON.stringify(far)}`)
+    wire.farField = far as boolean
+  }
   const grid = named[RUNTIME_GRID_SETTING]
   if (grid !== undefined && grid !== null) {
     if (!isGridName(grid))

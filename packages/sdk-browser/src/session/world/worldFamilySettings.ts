@@ -8,12 +8,17 @@ import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingO
 import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.ts'
+import type { LightFunctionOptions } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
+import type { VolumetricLightmapOptions } from '../../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
+import type { DistanceFieldOcclusionOptions } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
+import type { GlobalDistanceFieldOptions } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import type { ShadowOptions } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
 import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import type { DepthOfFieldSettings } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
 import type { BloomSettings } from '../../../../sdk-core/src/contracts/bloomRules.ts'
 import type { FilmSettings } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 import type { AmbientOcclusionOptions } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import type { SkyQualityOptions } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import type { ScreenProbeOptions } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { VolumetricFogOptions } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import type { TessellationOptions } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
@@ -109,7 +114,12 @@ export function worldImageSettings({ switches, live }: WorldParts) {
     /** The depth pyramid's settings, each by its field (`WorldOptions`), resolved over the page
      *  and the quality preset: `hizTrace`, how the reflections' trace reads the pyramid;
      *  `hizFoldTransparents`, whether its trace layers hold the transparent surfaces;
-     *  `hizTransparentTest`, how the transparent clusters are tested against it. Written, the
+     *  `hizTransparentTest`, how the transparent clusters are tested against it;
+     *  `hizFullResDepth`, whether the screen probes' walk goes down to the full-resolution depth;
+     *  `lightGridHizCull`, whether the light grid leaves empty the cells behind their column's
+     *  farthest depth; `hizPrime` (`'off'`, `'whenMissing'`, `'always'`) with `hizPrimeSizeBias`,
+     *  `hizPrimeDepthBias`, `hizPrimeErrorScale` and `hizPrimeFarFieldOnly`, the pyramid built
+     *  from a small, coarse draw of the objects that set `farField`. Written, the
      *  settings named apply from the next frame over the preset — one `null` gives it back to
      *  it, one left out stays —; one a setting does not take is refused. */
     get hiz() {
@@ -118,6 +128,63 @@ export function worldImageSettings({ switches, live }: WorldParts) {
     set hiz(options: HizOptions) {
       live()
       switches.hiz = options
+    },
+    /** The light functions' settings, each by its field (`WorldOptions`), resolved over the page and
+     *  the quality preset: `lightFunctionAtlas` (true) — whether the atlas is made —,
+     *  `lightFunctionSlotResolution` (128) and `lightFunctionAtlasSize` (4) — the slot's texels a side
+     *  and the slots a side —, `lightFunctionMaxLights` (-1, no limit), `lightFunctionFormat`
+     *  (`'grey'` or `'colour'`), and the consumers: `lightFunctionDeferred` (true),
+     *  `lightFunctionFog` (true), `lightFunctionBounce` (true), `lightFunctionTranslucent` (false).
+     *  Written, the settings named apply from the next frame over the preset — one `null` gives it
+     *  back to it, one left out stays —; one a setting does not take is refused. */
+    get lightFunction() {
+      return switches.lightFunction
+    },
+    set lightFunction(options: LightFunctionOptions) {
+      live()
+      switches.lightFunction = options
+    },
+    /** The volumetric lightmap's setting, by its field (`WorldOptions`), resolved over the page and
+     *  the quality preset: `volumetricLightmap`, whether the precomputed light is read, on by
+     *  default. Written, the setting named applies from the next frame over the preset — `null`
+     *  gives it back to it, a field left out stays —; one the setting does not take is refused. */
+    get volumetricLightmap() {
+      return switches.volumetricLightmap
+    },
+    set volumetricLightmap(options: VolumetricLightmapOptions) {
+      live()
+      switches.volumetricLightmap = options
+    },
+    /** The global distance field's settings, each by its field (`WorldOptions`), resolved over the
+     *  page and the quality preset: `globalDistanceField` (true) — whether the clipmaps are made —,
+     *  `globalDistanceFieldClipmaps` (4), `globalDistanceFieldViewDistance` (20000 cm), their
+     *  resolution (128), update rhythm (two clipmaps a frame, the larger ones less often), caches
+     *  (the static meshes composited apart), and the budgets of the atlas the meshes' distance
+     *  fields are streamed into (`meshDistanceField…`). Written, the settings named apply from the
+     *  next frame over the preset — one `null` gives it back to it, one left out stays —; one a
+     *  setting does not take is refused. */
+    get globalDistanceField() {
+      return switches.globalDistanceField
+    },
+    set globalDistanceField(options: GlobalDistanceFieldOptions) {
+      live()
+      switches.globalDistanceField = options
+    },
+    /** The sky light's distance-field occlusion settings, each by its field (`WorldOptions`), resolved over the page and
+     *  the quality preset: `distanceFieldOcclusion` (true) — whether the sky light is occluded by the distance fields —,
+     *  `distanceFieldOcclusionQuality` (2: 1 the global field alone, 2 the meshes' fields too), the samples' spacing, the
+     *  farthest a pixel is lit by it (`distanceFieldOcclusionMaxViewDistance`, 20000 cm), the cones' sample set and
+     *  jitter, the temporal filter (`distanceFieldOcclusionUseHistory`, a weight of 0.85, a distance threshold of
+     *  30 cm, a stability pass), the specular occlusion's mode (`distanceFieldOcclusionSpecularMode`) and strength
+     *  (`skyLightSpecularOcclusionStrength`) and the room of a screen tile for meshes. Written, the settings named apply
+     *  from the next frame over the preset — one `null` gives it back to it, one left out stays —; one a setting does
+     *  not take is refused. */
+    get distanceFieldOcclusion() {
+      return switches.distanceFieldOcclusion
+    },
+    set distanceFieldOcclusion(options: DistanceFieldOcclusionOptions) {
+      live()
+      switches.distanceFieldOcclusion = options
     },
     /** The sun's shadows' settings, each by its field (`WorldOptions`), resolved over the page and
      *  the quality preset: `shadowDistanceScale`, the factor on every directional light's
@@ -242,6 +309,21 @@ export function worldImageSettings({ switches, live }: WorldParts) {
     set volumetricFog(options: VolumetricFogOptions) {
       live()
       switches.volumetricFog = options
+    },
+    /** The sky's quality settings, each by its field (`WorldOptions`), resolved over the page and the
+     *  quality preset: the atmosphere's — `atmosphereOn`, the samples and caps of its marches
+     *  (`atmosphereSamplesMin`, `atmosphereSamplesMax`, `skyTableSamplesMax`, `aerialSamplesPerSlice`),
+     *  the sizes of its tables and of the haze volume, and its switches (`skyTableFast`,
+     *  `atmosphereSampleLightShadowMap`, `multiScatterHighQuality`, `distantSkyLightTable`) —, the
+     *  clouds', the light shafts' and the sky light's. Written, the settings named apply from the next
+     *  frame over the preset — one `null` gives it back to it, one left out stays —; one a setting
+     *  does not take is refused. */
+    get skyQuality() {
+      return switches.skyQuality
+    },
+    set skyQuality(options: SkyQualityOptions) {
+      live()
+      switches.skyQuality = options
     },
     /** The tessellation of displaced materials, each setting by its field (`WorldOptions`),
      *  resolved over the page and the quality preset: `tessellation`, whether a material that

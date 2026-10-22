@@ -73,7 +73,9 @@ fn furthestMain(@builtin(global_invocation_id) id:vec3u){
  * where the extinction is thinner, as the engines hold theirs; its transmittance is \`exp(−e·d)\`. Both
  * are faded in from the eye over the near fade-in distance (\`frame.medium.z\`, the inverse): the
  * first metres of the volume weigh in as the distance travelled grows. The result holds, for each
- * cell, the light and the transmittance from the eye to its far side.
+ * cell, the light and the transmittance from the eye to its far side. The light is a sum of the
+ * cells' light, which holds the pre-exposure it was written multiplied by (\`./scatterWgsl.ts\`): it
+ * leaves the integration multiplied by it, as it came.
  */
 export const FOG_INTEGRATE_WGSL = wgslBlock(
   'FOG_INTEGRATE_WGSL',

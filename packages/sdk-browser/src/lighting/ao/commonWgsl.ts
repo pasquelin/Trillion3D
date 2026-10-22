@@ -60,7 +60,7 @@ fn aoPyramidDepth(ndc:vec2f,lod:f32)->f32{
   let z=min(min(hizOpaqueDepth(base),hizOpaqueDepth(base+vec2i(1,0))),min(hizOpaqueDepth(base+vec2i(0,1)),hizOpaqueDepth(base+vec2i(1,1))));
   return aoDepthCm(z);
  }
- return aoDepthCm(hizCellFarthest(cell,level+1));
+ return aoDepthCm(hizCellCullFarthest(cell,level+1));
 }
 ${vec2Table('aoBasis', AO_RANDOM_BASIS)}
 fn aoNoise(pixel:vec2i)->vec2f{

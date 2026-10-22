@@ -1,56 +1,89 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { ATMOSPHERE_SLOT } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
-import { AERIAL_VOLUME, VIEW_SLOT } from './layout.ts'
+import { VIEW_SLOT } from './layout.ts'
 import { airProgram } from './programs.ts'
+import type { AirShape } from './shape.ts'
 
 /**
  * THE HAZE: the light the air scatters into the way to a surface, and what it takes out of the
  * surface's own light — for every surface at once, from one small volume built each image.
  *
- * The volume is a grid over the screen and the distance (`AERIAL_VOLUME`): a cell holds, for the
+ * The volume is a grid over the screen and the distance (`AirShape.aerial`): a cell holds, for the
  * ray through its pixel and the distance of its slice, the light the air scatters toward the eye
  * and the transmittance. The slices are spread by their square, so the near air, where a surface's
  * haze changes with its distance fastest, has the most. A cell is a short march of the same air
  * (`integrateAir`); a cell the ray reaches below the horizon or under the ground is read at the
  * ground where the ray meets it, as the sky below the horizon is. A surface reads its cell by its
  * pixel and its distance — trilinearly —, faded in from the haze's start distance.
+ *
+ * Where the clouds ask for the haze's light and the air's apart, the same march keeps them apart
+ * too, into two volumes of their own (`separate`, `separatedWgsl.ts`).
  */
 
-/** The slice length along the ray, kilometres, where the slices are spread evenly. */
-const SLICE_KM = AERIAL_VOLUME.depthKm / AERIAL_VOLUME.slices
-
-/** The builder: one thread a cell, a group of four across. The first thread also writes the
- *  view's block — the view-projection, and whether the volume is valid for the image: an
- *  orthographic view has no haze. */
-export const HAZE_PROGRAM = airProgram(
-  { air: 'read_write', transmittance: true, multiScatter: true, frame: true },
+/** The cells of the volume as a program writes them. A cell is four numbers, the light and the
+ *  transmittance: four half floats in a pair of words (the light kept under what a half float
+ *  holds), or four 32-bit floats in two pairs. The cells of the light buffer's region follow one
+ *  another; those of the clouds' volumes (`volumes`) lie in three regions of the volume's cells,
+ *  one after the other. */
+export const HAZE_CELL_WGSL = wgslBlock(
+  'HAZE_CELL_WGSL',
+  [],
   `
-/** A cell's light and transmittance in the two words it takes: four half floats, the light kept
- *  under what a half float holds. */
-fn packCell(radiance:vec3f,transmittance:f32)->vec2u{
- let kept=min(radiance,vec3f(65000.0));
- return vec2u(pack2x16float(kept.xy),pack2x16float(vec2f(kept.z,transmittance)));
+fn cellIndex(c:vec3u)->u32{return (c.z*AERIAL_WIDTH+c.y)*AERIAL_WIDTH+c.x;}
+fn cellStride()->u32{return select(1u,2u,AERIAL_FULL);}
+fn cellWords(v:vec4f)->array<vec2u,2>{
+ if(AERIAL_FULL){return array<vec2u,2>(vec2u(bitcast<u32>(v.x),bitcast<u32>(v.y)),vec2u(bitcast<u32>(v.z),bitcast<u32>(v.w)));}
+ let kept=min(v.xyz,vec3f(65000.0));
+ return array<vec2u,2>(vec2u(pack2x16float(kept.xy),pack2x16float(vec2f(kept.z,v.w))),vec2u(0u));
 }
-@compute @workgroup_size(4,4,4)
-fn hazeMain(@builtin(global_invocation_id) id:vec3u){
- if(id.x==0u&&id.y==0u&&id.z==0u){
-  directLights.atmosphereView[${VIEW_SLOT.projection}]=frame.viewProj[0];
-  directLights.atmosphereView[${VIEW_SLOT.projection + 1}]=frame.viewProj[1];
-  directLights.atmosphereView[${VIEW_SLOT.projection + 2}]=frame.viewProj[2];
-  directLights.atmosphereView[${VIEW_SLOT.projection + 3}]=frame.viewProj[3];
-  directLights.atmosphereView[${VIEW_SLOT.haze}].w=frame.eye.w;
- }
- if(frame.eye.w==0.0||id.x>=${AERIAL_VOLUME.width}u||id.y>=${AERIAL_VOLUME.height}u||id.z>=${AERIAL_VOLUME.slices}u){return;}
- let uv=(vec2f(id.xy)+0.5)/vec2f(${AERIAL_VOLUME.width}.0,${AERIAL_VOLUME.height}.0);
- let through=frame.inverseViewProj*vec4f(uv.x*2.0-1.0,1.0-uv.y*2.0,0.5,1.0);
- var dir=normalize(through.xyz/through.w-frame.eye.xyz);
- var eye=frame.camera.xyz;
+/** Writes the cell \`index\` of the light buffer's volume. */
+fn storeCell(index:u32,v:vec4f){
+ let words=cellWords(v);
+ directLights.aerial[index*cellStride()]=words[0];
+ if(AERIAL_FULL){directLights.aerial[index*cellStride()+1u]=words[1];}
+}`,
+)
+
+/** What the volumes of the clouds are written with (`volumes`): the haze's light alone (region 0),
+ *  the air's alone (1) and the volume around a capture (2), each of the volume's cells. */
+export const VOLUME_STORE_WGSL = wgslBlock(
+  'VOLUME_STORE_WGSL',
+  [HAZE_CELL_WGSL],
+  `
+fn storeVolume(region:u32,index:u32,v:vec4f){
+ let words=cellWords(v);
+ let at=(region*AERIAL_CELLS+index)*cellStride();
+ volumes[at]=words[0];
+ if(AERIAL_FULL){volumes[at+1u]=words[1];}
+}`,
+)
+
+/** The scene's metres of a point of the planet's frame (up its y): the planet's ground is the
+ *  scene's plane. */
+export const PLANET_TO_SCENE = `
+fn airToScene(p:vec3f)->vec3f{
+ return vec3f(p.x*1000.0,(p.y-bottomRadius())*1000.0+atmo(${ATMOSPHERE_SLOT.planet}u).w,p.z*1000.0);
+}`
+
+/** Where the ray of a cell of the volume starts, along which direction and how far it is marched:
+ *  the ray from `eyeIn` along `dirIn` to the cell of slice `z` (the slices spread by their
+ *  square), past `startKm`. A cell the ray reaches below the horizon or under the ground is
+ *  the ground's, seen from the eye; a ray that begins above the air starts at its top, and a cell
+ *  before the air is not `inside` it. */
+export const HAZE_FROXEL_WGSL = wgslBlock(
+  'HAZE_FROXEL_WGSL',
+  [],
+  `
+struct Froxel{start:vec3f,dir:vec3f,reach:f32,inside:bool,}
+fn froxelOf(eyeIn:vec3f,dirIn:vec3f,z:u32,startKm:f32)->Froxel{
+ var eye=eyeIn;
+ var dir=dirIn;
  let bottom=bottomRadius();
  // The cell's slice, in slices: spread by their square.
- var slice=(f32(id.z)+0.5)/${AERIAL_VOLUME.slices}.0;
- slice=slice*slice*${AERIAL_VOLUME.slices}.0;
- let startKm=atmo(${ATMOSPHERE_SLOT.scatteredFactor}u).w;
+ var slice=(f32(z)+0.5)/f32(AERIAL_SLICES);
+ slice=slice*slice*f32(AERIAL_SLICES);
  var start=eye+startKm*dir;
- var reach=slice*${SLICE_KM}.0;
+ var reach=slice*AERIAL_SLICE_KM;
  var cell=start+reach*dir;
  let toCell=cell-eye;
  let toCellLength=length(toCell);
@@ -73,20 +106,80 @@ fn hazeMain(@builtin(global_invocation_id) id:vec3u){
   start=eye+startKm*dir;
   reach=length(cell-start);
  }
- var marched=reach;
+ var f:Froxel;
+ f.dir=dir;
+ f.inside=true;
+ f.start=start;
+ f.reach=reach;
  if(length(start)>=topRadius()){
-  let before=start;
   let top=moveToTopAtmosphere(start,dir);
-  if(top.w==0.0){directLights.aerial[(id.z*${AERIAL_VOLUME.height}u+id.y)*${AERIAL_VOLUME.width}u+id.x]=packCell(vec3f(0.0),1.0);return;}
-  start=top.xyz;
-  let entered=length(before-start);
-  if(reach<entered){directLights.aerial[(id.z*${AERIAL_VOLUME.height}u+id.y)*${AERIAL_VOLUME.width}u+id.x]=packCell(vec3f(0.0),1.0);return;}
-  marched=max(0.0,reach-entered);
+  let entered=length(start-top.xyz);
+  if(top.w==0.0||reach<entered){f.inside=false;return f;}
+  f.start=top.xyz;
+  f.reach=max(0.0,reach-entered);
  }
- var march:Marching;
- march.samples=max(1.0,(f32(id.z)+1.0)*max(1.0,min(2.0*atmo(${ATMOSPHERE_SLOT.sunIlluminance}u).w,${AERIAL_VOLUME.samplesPerSlice}.0)));
- let suns=airSuns();
- let r=integrateAir(start,dir,false,march,true,suns,atmo(${ATMOSPHERE_SLOT.skyFactor}u).w,marched);
- directLights.aerial[(id.z*${AERIAL_VOLUME.height}u+id.y)*${AERIAL_VOLUME.width}u+id.x]=packCell(r.radiance,dot(r.transmittance,vec3f(1.0/3.0)));
+ return f;
 }`,
 )
+
+/** The volume's builder, one thread a cell, a group of four across. The first thread also writes the
+ *  view's block — the view-projection, whether the volume is valid for the image (an orthographic
+ *  view has no haze), its size and its way of being read. `separate`: the haze's light and the
+ *  air's also go into their own volumes. */
+export const hazeProgram = (shape: AirShape, separate: boolean) => {
+  const clear = 'vec4f(0.0,0.0,0.0,1.0)'
+  return airProgram(
+    {
+      air: 'read_write',
+      transmittance: true,
+      multiScatter: true,
+      frame: true,
+      shadow: shape.shadows,
+      cloudShadow: true,
+      volumes: separate,
+    },
+    `${PLANET_TO_SCENE}
+@compute @workgroup_size(4,4,4)
+fn hazeMain(@builtin(global_invocation_id) id:vec3u){
+ if(id.x==0u&&id.y==0u&&id.z==0u){
+  directLights.atmosphereView[${VIEW_SLOT.projection}]=frame.viewProj[0];
+  directLights.atmosphereView[${VIEW_SLOT.projection + 1}]=frame.viewProj[1];
+  directLights.atmosphereView[${VIEW_SLOT.projection + 2}]=frame.viewProj[2];
+  directLights.atmosphereView[${VIEW_SLOT.projection + 3}]=frame.viewProj[3];
+  directLights.atmosphereView[${VIEW_SLOT.haze}].w=frame.eye.w;
+  directLights.atmosphereView[${VIEW_SLOT.volume}]=vec4f(f32(AERIAL_WIDTH),f32(AERIAL_WIDTH),f32(AERIAL_SLICES),AERIAL_DEPTH_KM);
+  directLights.atmosphereView[${VIEW_SLOT.flags}]=vec4f(select(0.0,1.0,AERIAL_FULL),select(0.0,1.0,AERIAL_DEPTH_TEST),0.0,select(1.0,0.0,AERIAL_FAST_OPAQUE));
+ }
+ if(frame.eye.w==0.0||id.x>=AERIAL_WIDTH||id.y>=AERIAL_WIDTH||id.z>=AERIAL_SLICES){return;}
+ let index=cellIndex(id);
+ let uv=(vec2f(id.xy)+0.5)/f32(AERIAL_WIDTH);
+ let through=frame.inverseViewProj*vec4f(uv.x*2.0-1.0,1.0-uv.y*2.0,0.5,1.0);
+ let dir=normalize(through.xyz/through.w-frame.eye.xyz);
+ let ray=froxelOf(frame.camera.xyz,dir,id.z,atmo(${ATMOSPHERE_SLOT.scatteredFactor}u).w);
+ if(!ray.inside){
+  storeCell(index,${clear});${
+    separate
+      ? `
+  storeVolume(0u,index,${clear});
+  storeVolume(1u,index,${clear});`
+      : ''
+  }
+  return;
+ }
+ var march=newMarch();
+ march.separate=${separate};
+ march.samples=max(1.0,(f32(id.z)+1.0)*max(1.0,min(2.0*atmo(${ATMOSPHERE_SLOT.sunIlluminance}u).w,AERIAL_SAMPLES_PER_SLICE)));
+ let r=integrateAir(ray.start,ray.dir,false,march,true,airSuns(),atmo(${ATMOSPHERE_SLOT.skyFactor}u).w,ray.reach);
+ let grey=vec3f(1.0/3.0);
+ storeCell(index,vec4f(r.radiance,dot(r.transmittance,grey)));${
+   separate
+     ? `
+ storeVolume(0u,index,vec4f(r.radianceMie,dot(r.transmittanceMie,grey)));
+ storeVolume(1u,index,vec4f(r.radianceRay,dot(r.transmittanceRay,grey)));`
+     : ''
+ }
+}`,
+    [HAZE_CELL_WGSL, HAZE_FROXEL_WGSL, ...(separate ? [VOLUME_STORE_WGSL] : [])],
+    shape,
+  )
+}

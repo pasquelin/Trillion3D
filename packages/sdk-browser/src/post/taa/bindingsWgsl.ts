@@ -65,6 +65,7 @@ export const TAA_VIEW = fieldLayout('TaaView', [
   ['prevRender', 'vec4f'],
   ['analysisGrid', 'vec4f'],
   ['quality', 'vec4f'],
+  ['preExposure', 'vec4f'],
 ] as const)
 export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
 
@@ -84,9 +85,10 @@ export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
  *   among eight.
  * - `eye`: the eye in the world, and in `w` whether a GPU deformation moved this frame
  *   (`deformWgsl.ts`).
- * - `exposure`: the exposure composition applies (`x`), every measured colour multiplied by it; the
- *   ratio of this image's exposure to the last one's, which corrects the histories kept in an
- *   exposed space (`y`); the flicker count's fade-in rate (`z`, `flickerCountRate`), and a thin
+ * - `exposure`: the scale composition applies to the image (`x`: the exposure over the image's
+ *   pre-exposure), every measured colour multiplied by it; the
+ *   ratio of this image's exposure (the scale times the pre-exposure) to the last one's, which
+ *   corrects the histories kept in an exposed space (`y`); the flicker count's fade-in rate (`z`, `flickerCountRate`), and a thin
  *   geometry region's, over three flicker periods (`w`, `THIN_GEOMETRY_PERIODS`).
  * - `parallax`: the last view-projection's image of the eye's move since the last image,
  *   `prevViewProj · (lastEye − eye, 0)`: what a point's last projection gains when the camera only
@@ -103,6 +105,9 @@ export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
  *   1 or 0), the spatial anti-aliaser's samples a side, 0 for none (`y`), the history
  *   update's kernel moving its far neighbour (`z`, 1 or 0), and whether the thin geometry detection
  *   runs this image (`w`, 1 or 0: else the passes that read its mask read none).
+ * - `preExposure`: the ratio of this image's pre-exposure to the last one's (`x`), which the
+ *   history's colour is multiplied by, to hold the light of the image before as this one holds its
+ *   own (`historyRead`); `yzw` unused.
  */
 export const TAA_VIEW_WGSL = wgslBlock('TAA_VIEW_WGSL', [], TAA_VIEW.wgsl)
 

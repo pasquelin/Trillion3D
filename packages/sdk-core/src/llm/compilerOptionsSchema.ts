@@ -16,8 +16,10 @@ import {
   VOXELIZE_FIELD,
   type JobField,
 } from '../contracts/compilerAbi.ts'
+import { LIGHTMAP_BAKE_FIELD } from '../contracts/lightmapBakeAbi.ts'
 import { PARTITION_SCHEME_FIELD } from '../contracts/partitionOptions.ts'
 import { hlod } from './hlodSchema.ts'
+import { lightmapBake } from './lightmapBakeSchema.ts'
 import { materials, responsive, temporalAntialiasing, voxelize } from './materialSchema.ts'
 import { meshBuild } from './meshBuildSchema.ts'
 import { objectSettings } from './objectSchema.ts'
@@ -79,7 +81,8 @@ const properties: Record<JobField, JsonSchemaProperty> = {
  * the HLOD (`hlodSchema.ts`), the scene's temporal anti-aliasing (`temporalAntialiasing`), the
  * material options (`responsive`, `materials`) and the voxelized objects (`voxelize`), all in
  * `materialSchema.ts`, the partition's scheme and main grid (`partitionSchema.ts`), the mesh build
- * settings (`meshBuildSchema.ts`) and the object settings (`objectSchema.ts`). Built by a call
+ * settings (`meshBuildSchema.ts`), the object settings (`objectSchema.ts`) and the volumetric
+ * lightmap's bake (`lightmapBakeSchema.ts`). Built by a call
  * marked pure, as the pieces it reads are: a bundle that never reads the schema drops all of them.
  */
 export const COMPILER_OPTIONS_SCHEMA: JsonSchemaObject = /* @__PURE__ */ (() => ({
@@ -98,6 +101,7 @@ export const COMPILER_OPTIONS_SCHEMA: JsonSchemaObject = /* @__PURE__ */ (() => 
     [PARTITION_GRIDS_FIELD]: partitionGrids,
     [MESH_BUILD_FIELD]: meshBuild,
     [OBJECT_SETTINGS_FIELD]: objectSettings,
+    [LIGHTMAP_BAKE_FIELD]: lightmapBake,
   },
   required: ['source', 'cache', 'resourceBaseUrl'] satisfies JobField[],
   additionalProperties: false,

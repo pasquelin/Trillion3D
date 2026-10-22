@@ -5,7 +5,7 @@ import type { holdWorldDevice } from './device.ts'
 import type { createWorldFrames } from './frames/frames.ts'
 import { createWorldRuntime } from './runtime.ts'
 import type { Scene } from './scene.ts'
-import { sceneFogOf } from './sceneFog.ts'
+import type { WorldModules } from './worldModules.ts'
 import { sessionOptions, type WorldOptions } from './options.ts'
 import type { worldDiagnostic } from './handles.ts'
 import { sessionPools, type worldPools } from './budget.ts'
@@ -38,6 +38,7 @@ type RuntimeNeeds = {
   diagnostic: ReturnType<typeof worldDiagnostic>
   invalidate: () => void
   views: ReturnType<typeof createWorldViews>
+  modules: WorldModules
   /** The loads the first session waits for: its models, not in the scene yet. */
   loading: () => Promise<unknown> | undefined
   /** Moves what the frame steps ahead of the draw: controls, clips, physics. */
@@ -46,8 +47,8 @@ type RuntimeNeeds = {
 
 /** The session runtime of a world (`runtime.ts`), opened with its options of the moment. */
 export function worldRuntimeOf(parts: RuntimeNeeds) {
-  const { canvas, options, device, scene, state, frames, switches, pools, diagnostic, views } =
-    parts
+  const { canvas, options, device, scene, state, frames, switches, pools, diagnostic } = parts
+  const { views, modules } = parts
   const runtime = createWorldRuntime({
     canvas,
     // The device granted, and the models asked for meanwhile in the scene (`loader.ts`).
@@ -92,9 +93,10 @@ export function worldRuntimeOf(parts: RuntimeNeeds) {
       toneMapping: state.toneMapping,
       sharpness: state.sharpness,
       vignette: state.vignette,
-      fog: sceneFogOf(scene.fog),
-      atmosphere: scene.resolvedAtmosphere,
+      fog: modules.sky.resolved?.fog,
+      atmosphere: modules.sky.resolved?.atmosphere,
     }),
+    modules,
     diagnostic,
   })
   return runtime

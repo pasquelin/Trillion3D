@@ -51,3 +51,9 @@ export const JITTER_DEPTH_UPSAMPLING = `
  if(valid>0.0){return sum/valid;}
  discard;
  return vec4f(0.0,0.0,0.0,1.0);`
+
+/** A direct trace (`CloudSetup.direct`): the traced colour of the pixel itself, as the trace wrote
+ *  it, with no enlarging; the blend lays it over the lit image as the trace of a cloud target never
+ *  does, the lit image times its transmittance plus its luminance. */
+export const DIRECT_COMPOSE = `
+ return textureLoad(cloudColour,vec2i(position.xy),0);`

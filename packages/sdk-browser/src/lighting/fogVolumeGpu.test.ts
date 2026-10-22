@@ -1,5 +1,7 @@
+import { skyLightStandIn } from '../modules/sky/skyLight/standIn.ts'
 // The fog volume's work on the kit's device (`./fog/gpu.ts`): its passes dispatched, its history
 // kept and refused, and the cubemap's texture, its levels written (`./fog/cubemapGpu.ts`).
+import { cloudShadowStandIn } from './atmosphere/cloudShadowStandIn.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -42,6 +44,8 @@ function volumeInput(
       .createView(),
     lights: buffer(),
     tiles: buffer(),
+    cloudShadow: cloudShadowStandIn(gpu.device),
+    sky: skyLightStandIn(gpu.device),
     vsm: {
       pageTable: buffer(),
       projectionData: buffer(),

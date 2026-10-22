@@ -20,7 +20,7 @@ import { CM_PER_KM, SKY_QUALITY_RULES, type SkyQualityValues } from './quality.t
  * The clouds part of the sky module: one layer of clouds, a shell round the planet ray marched
  * from the eye, drawn with the cloud material (`./cloudMaterial.ts`). Run-time settings, as
  * `../../contracts/settingRules.ts` says; each has the layer's default, but the two reflection
- * scales, which are those of a new world's sky. Distances are in kilometres, as written.
+ * scales, which are those of the sky module's clouds. Distances are in kilometres, as written.
  */
 
 /** The tracing distance modes, in the order the marcher is told them. */
@@ -70,8 +70,8 @@ export const CLOUD_RULES = /* @__PURE__ */ (() =>
     number('opaqueBelow', 0.005, [0, 1]),
     nonNegative('hazeRayleighStartKm', 0),
     nonNegative('hazeRayleighFadeKm', 0),
-    number('hazeMieStartKm', 0, ANY),
-    number('hazeMieFadeKm', 0, ANY),
+    nonNegative('hazeMieStartKm', 0),
+    nonNegative('hazeMieFadeKm', 0),
     flag('alphaHole', false),
     flag('inMainView', true),
     flag('inSkyCapture', true),
@@ -140,6 +140,11 @@ function gpuValues(layer: SettingValues<typeof CLOUD_RULES>, quality: SkyQuality
     hazeMieFadeInverse: 1 / Math.max(layer.hazeMieFadeKm, FADE_FLOOR_KM),
   }
 }
+
+/** Whether the clouds ask the air for its Mie scattering and its Rayleigh scattering apart: either
+ *  one starts on the cloud past 0 kilometres. */
+export const cloudSeparatesAir = (layer: SettingValues<typeof CLOUD_RULES>) =>
+  layer.hazeRayleighStartKm > 0 || layer.hazeMieStartKm > 0
 
 /** The radii of the shell round a planet of radius `planetRadiusKm`, in kilometres: the atmosphere's
  *  when there is one, else the part's `planetRadiusKm`. */

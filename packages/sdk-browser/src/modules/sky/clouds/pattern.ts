@@ -4,6 +4,7 @@ import {
   sequentialEntries,
 } from '../../../gpu/core/computeBindings.ts'
 import { compileKernels, runGenerator, storageBuffer } from './generation.ts'
+import { cloudMipKernels, mipLevelsOf, mipPasses } from './mips.ts'
 import {
   PATTERN_BINS,
   PATTERN_CODE,
@@ -14,8 +15,9 @@ import {
 
 /**
  * THE LAYOUT PATTERN, generated once on the GPU (`patternWgsl.ts` says what it holds): a 2D
- * `rgba16float` texture of 1024 texels a side that tiles. Its fields, histograms and column
- * distances live in buffers freed once the texture is written.
+ * `rgba16float` texture of 1024 texels a side that tiles, with the mip chain its import setting
+ * names, the first blur (`mipsWgsl.ts`). Its fields, histograms and column distances live in
+ * buffers freed once the texture is written.
  */
 export async function createLayoutPattern(device: GPUDevice) {
   const label = 'Trillion3D cloud layout pattern'
@@ -37,6 +39,7 @@ export async function createLayoutPattern(device: GPUDevice) {
     label,
     size: [PATTERN_SIZE, PATTERN_SIZE],
     format: 'rgba16float',
+    mipLevelCount: mipLevelsOf(PATTERN_SIZE),
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
   })
   const buffers = [
@@ -48,7 +51,10 @@ export async function createLayoutPattern(device: GPUDevice) {
   const group = device.createBindGroup({
     label,
     layout,
-    entries: sequentialEntries([...buffers.map((buffer) => ({ buffer })), texture.createView()]),
+    entries: sequentialEntries([
+      ...buffers.map((buffer) => ({ buffer })),
+      texture.createView({ baseMipLevel: 0, mipLevelCount: 1 }),
+    ]),
   })
   const side = PATTERN_SIZE / PATTERN_GROUP
   const pass = (kernel: (typeof PATTERN_ENTRY_POINTS)[number], x: number, y = 1) => ({
@@ -64,6 +70,7 @@ export async function createLayoutPattern(device: GPUDevice) {
       pass('thresholdMain', 1),
       pass('columnMain', side, side),
       pass('rowMain', side, side),
+      ...mipPasses(device, await cloudMipKernels(device), texture, 'blur1'),
     ],
     buffers,
   )

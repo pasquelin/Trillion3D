@@ -22,6 +22,11 @@ import type { CloudTraceKey } from './traceExtraLayout.ts'
  *   image, rebuilt from the history at full size. The rays are not cut at the scene's depth, and
  *   the target's size follows `cloudRenderTargetScale`.
  * - Mode 3, `full`: traced at full size, enlarged by the composition at its own size.
+ *
+ * A view that renders no cloud target (`cloudRenderTarget` off, an orthographic view) is traced
+ * directly (`CloudSetup.direct`): one ray for each view pixel, with no history and no enlarging, the
+ * result laid over the lit image as the trace writes it (`directCompose`). It takes none of the
+ * four modes: the setting `cloudTraceSize` names a mode of the cloud target alone.
  */
 
 /** The size of an image in texels. */
@@ -120,12 +125,20 @@ const mode3 = describeMode(3, {
 /** The modes, in the order of `CLOUD_TRACE_SIZES`. */
 export const CLOUD_MODES: readonly CloudMode[] = [mode0, mode1, mode2, mode3]
 
+/** What a direct trace is made of: a ray for each view pixel at the view's full size, which is
+ *  the geometry of mode 3 (and no more of it: the direct trace has no cloud target, no composition
+ *  and no late fog). */
+const DIRECT_TRACE: CloudMode = { ...mode3 }
+
 /** The index of the nearest-with-depth-test upsampling in `CLOUD_UPSAMPLINGS`. */
 const NEAREST_DEPTH = CLOUD_UPSAMPLINGS.indexOf('nearestDepth')
 const JITTER_CLOSEST = CLOUD_UPSAMPLINGS.indexOf('bilinearJitterClosest')
 
 /** What an image is made with. */
 export interface CloudSetup {
+  /** The clouds are traced for each view pixel and laid over the lit image as traced, with no
+   *  cloud target: `mode` is then the direct trace's (`DIRECT_TRACE`). */
+  readonly direct: boolean
   readonly mode: CloudMode
   /** The target's scale on the view's size: `cloudRenderTargetScale` in mode 2, else 1. */
   readonly scale: number
@@ -151,6 +164,7 @@ export type CloudSetupSettings = Pick<
   | 'cloudUpsampling'
   | 'cloudReprojectionBoxConstraint'
   | 'cloudFogLate'
+  | 'cloudRenderTarget'
 >
 
 /** The depth the tracing reads: the range with two surfaces, else the half-size checkerboard in
@@ -166,12 +180,22 @@ function depthSourceOf(mode: CloudMode, minMaxDepth: boolean): CloudDepthSource 
  * path with the half-size checkerboard depth and the reconstruction without two surfaces is taken.
  * The tracing here is a compute pass, so it is true unless a host says the device cannot.
  */
-export function cloudSetupOf(settings: CloudSetupSettings, computeTracing = true): CloudSetup {
-  const mode = CLOUD_MODES[CLOUD_TRACE_SIZES.indexOf(settings.cloudTraceSize)]
+export function cloudSetupOf(
+  settings: CloudSetupSettings,
+  computeTracing = true,
+  perspective = true,
+): CloudSetup {
+  // No cloud target, or a view the target does not serve (orthographic): traced for every view
+  // pixel into the scene itself, none rebuilt from a history.
+  const direct = !settings.cloudRenderTarget || !perspective
+  const mode = direct
+    ? DIRECT_TRACE
+    : CLOUD_MODES[CLOUD_TRACE_SIZES.indexOf(settings.cloudTraceSize)]
   const minMaxDepth = mode.index === 0 && computeTracing
   const asked = CLOUD_UPSAMPLINGS.indexOf(settings.cloudUpsampling)
   const forced = mode.nearestDepthOnly || (asked === JITTER_CLOSEST && mode.index !== 0)
   return {
+    direct,
     mode,
     scale: mode.scalable ? clamp(settings.cloudRenderTargetScale, 0.1, 1) : 1,
     minMaxDepth,
@@ -204,7 +228,7 @@ export const CAPTURE_CLOUD_KEY: CloudTraceKey = {
 
 /** What a setup's images are, as a key: a change of it makes every image again. */
 export const cloudLayoutKey = (setup: CloudSetup) =>
-  [setup.mode.index, setup.minMaxDepth ? 'm' : 's'].join('|')
+  [setup.direct ? 'd' : setup.mode.index, setup.minMaxDepth ? 'm' : 's'].join('|')
 
 /** The nearest whole number, halves up. */
 const roundHalfUp = (x: number) => Math.floor(x + 0.5)
@@ -251,3 +275,18 @@ export function traceOffset(mode: CloudMode, rank: number): readonly [number, nu
  *  as the target's scale moves them. */
 export const composeScale = (setup: CloudSetup) =>
   [setup.scale / setup.mode.composeDownsample, setup.mode.composeDownsample * setup.scale] as const
+
+/** Whether the clouds are drawn in a view: the sky light's capture where `inSkyCapture`, the main
+ *  view where `inMainView`. */
+export const cloudsInView = (
+  settings: { readonly inMainView: boolean; readonly inSkyCapture: boolean },
+  skyCapture: boolean,
+) => (skyCapture ? settings.inSkyCapture : settings.inMainView)
+
+/** Whether the late fog is also given to the clouds the translucent surfaces read: the late fog
+ *  is on (`CloudSetup.lateFog`), `cloudFogLateOnTranslucent` is on, and the scene has a height fog. */
+export const cloudFogLateOnTranslucent = (
+  setup: Pick<CloudSetup, 'lateFog'>,
+  quality: Pick<SkyQualityValues, 'cloudFogLateOnTranslucent'>,
+  fogInScene: boolean,
+) => setup.lateFog && quality.cloudFogLateOnTranslucent && fogInScene

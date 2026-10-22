@@ -61,17 +61,19 @@ var<workgroup> resume:u32;
  *  the first light past them, and where the column's room starts in the pool — \`TILE_NO_SLICE\`
  *  without room, never a start, which lies inside a buffer the device binds. */
 var<workgroup> walked:vec4u;
-/** The entry of light \`index\`: its run in this column, \`EMPTY_RUN\` when it meets no cell. A
- *  directional light reaches every cell. */
+/** The entry of light \`index\`: its run in this column, cut at the column's last visible slice
+ *  (\`Column.reach\`), \`EMPTY_RUN\` when it meets no cell. A directional light reaches every
+ *  cell, \`FULL_RUN\` where none is cut. */
 fn entryOf(column:Column,index:u32)->vec2u{
  let light=directLights.items[index];
  let slot=select(0u,TILE_SHADOWED,light.params.y>-1.0);
- if(isSun(light)){return vec2u(index|slot,FULL_RUN);}
+ if(isSun(light)){return vec2u(index|slot,column.reach<<16u);}
  let centre=light.positionRange.xyz-view.origin.xyz;
  if(!sphereInColumn(column,centre,light.positionRange.w)){return vec2u(index,EMPTY_RUN);}
  let run=lightRun(column,centre,light.positionRange.w);
- if(run.x>run.y){return vec2u(index,EMPTY_RUN);}
- return vec2u(index|slot,run.x|(run.y<<16u));
+ let last=min(run.y,column.reach);
+ if(run.x>last){return vec2u(index,EMPTY_RUN);}
+ return vec2u(index|slot,run.x|(last<<16u));
 }
 /** Lane \`lane\` puts its entry in the batch and its bit in the masks of its run's slices, or in
  *  \`full\` for a run that holds them all. Its bit there follows its entry in \`chunk\`: it is set

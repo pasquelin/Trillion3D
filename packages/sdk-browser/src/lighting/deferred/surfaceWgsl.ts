@@ -1,4 +1,5 @@
 import { DEFERRED_BINDINGS, DEFERRED_FOG_BINDINGS } from './bindings.ts'
+import { SURFACE_COLOUR_LAYERS, SURFACE_WORDS } from '../../materials/surface/surfaceOutputs.ts'
 import { SUBSURFACE_FLAG } from '../../materials/surface/subsurface.ts'
 import {
   AS_IS_FLAG,
@@ -13,13 +14,18 @@ import { readLobesStatement } from '../direct/lobesWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { RESOLVED_INDIRECT_WGSL } from '../reflections/weight.ts'
 import { fogBlockOf } from '../fog/readWgsl.ts'
+import { preExposedWgsl } from '../../post/exposure/preWgsl.ts'
 import { WORLD_AT_WGSL } from './worldAtWgsl.ts'
 import { AMBIENT_OCCLUSION_READ_WGSL, AMBIENT_OCCLUSION_STATEMENT } from './ambientOcclusionWgsl.ts'
 
 /** The lighting's entry and its camera fog. */
 export const LIGHT_SURFACE_ENTRY =
   '@fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{'
-const CAMERA_FOG = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}`
+const CAMERA_FOG = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=foggedOpaque(rgb,P,view.display.yzw,pixel.xy);}`
+
+/** The pre-exposure of the lit image, the view's (`view.preExposure.x`): what every light this
+ *  program writes is multiplied by. */
+const VIEW_PRE_EXPOSED_WGSL = preExposedWgsl('view.preExposure.x')
 
 /**
  * A pixel no surface drew, where no sky is drawn (an atmosphere draws it, `../atmosphere/skyWgsl.ts`):
@@ -31,12 +37,12 @@ const CAMERA_FOG = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(r
  */
 const BACKGROUND_FOG_WGSL = wgslBlock(
   'BACKGROUND_FOG_WGSL',
-  [WORLD_AT_WGSL, fogBlockOf(DEFERRED_FOG_BINDINGS)],
+  [WORLD_AT_WGSL, fogBlockOf(DEFERRED_FOG_BINDINGS), VIEW_PRE_EXPOSED_WGSL],
   `fn backgroundFog(pixel:vec2f)->vec4f{
  if(view.viewport.z!=0.0||view.camera.w==0.0||!fogsBackground()){return vec4f(0.0);}
  let eye=view.display.yzw;
- let beyond=fogBeyond(normalize(worldAt(pixel,0.5)-eye),eye);
- return vec4f(beyond.rgb,1.0-beyond.a);
+ let beyond=fogBeyondAt(normalize(worldAt(pixel,0.5)-eye),eye,pixel);
+ return vec4f(preExposed(beyond.rgb),1.0-beyond.a);
 }`,
 )
 
@@ -83,8 +89,8 @@ const LIGHT_VIEW_STATEMENTS = {
   let seen=contractLighting(albedo,base.a,normal.a,N,V,P,emissive.a,cell);
   return vec4f(vec3f(select(1.0,seen.x/seen.y,seen.y>0.0)),1.0);
  }`,
-  terms: `if(lightView==1u){return vec4f(indirect[1],1.0);}
- if(lightView==3u){return vec4f(litSurface(lit,indirect[0]*occlusion.bounce,environmentLighting(albedo,base.a,N,occlusion.sky),indirect[1],vec3f(0.0),N,P,occlusion.sky),1.0);}`,
+  terms: `if(lightView==1u){return vec4f(preExposed(indirect[1]),1.0);}
+ if(lightView==3u){return vec4f(preExposed(litSurface(lit,indirect[0]*occlusion.bounce,environmentLighting(albedo,base.a,N,occlusion.sky),indirect[1],vec3f(0.0),N,P,occlusion.sky)),1.0);}`,
 }
 
 /** The surface of the contract programs, with `bounce` the bounce program's: it reads its lobes
@@ -99,23 +105,24 @@ export const contractSurfaceBody = (bounce: boolean) => {
   return wgslBlock(
     `contractSurfaceBody(${bounce})`,
     [
-      receiverTargetReadWgsl(0, DEFERRED_BINDINGS.receiver),
+      receiverTargetReadWgsl(0, DEFERRED_BINDINGS.words, 'words'),
       BACKGROUND_FOG_WGSL,
+      VIEW_PRE_EXPOSED_WGSL,
       SURFACE_EMISSIVE_AO_WGSL,
       SHADOW_SETUP_WGSL,
       AMBIENT_OCCLUSION_READ_WGSL,
       ...blocks,
     ],
     `${LIGHT_SURFACE_ENTRY}
- let coord=vec2i(pixel.xy);let surfaceFlag=textureLoad(flags,coord,0).r;let flag=surfaceFlag&${SURFACE_MODEL_MASK}u;
+ let coord=vec2i(pixel.xy);let surfaceFlag=textureLoad(words,coord,${SURFACE_WORDS.flags},0).r;let flag=surfaceFlag&${SURFACE_MODEL_MASK}u;
  if(flag==0u){return backgroundFog(pixel.xy);}
- let base=textureLoad(baseMetal,coord,0);
+ let base=textureLoad(colours,coord,${SURFACE_COLOUR_LAYERS.base},0);
  if(flag==${AS_IS_FLAG}u){return vec4f(base.rgb,1.0);}
  let z=textureLoad(depth,coord,0);
  let P=worldAt(pixel.xy,z);
- if(flag==1u){var rgb=base.rgb;${CAMERA_FOG}return vec4f(rgb,1.0);}
+ if(flag==1u){var rgb=base.rgb;${CAMERA_FOG}return vec4f(preExposedClipped(rgb),1.0);}
  // The emission-and-occlusion texel only where its bit says it holds something.
- let normal=textureLoad(normalRough,coord,0);let emissive=surfaceEmissiveAo(coord,surfaceFlag);
+ let normal=textureLoad(colours,coord,${SURFACE_COLOUR_LAYERS.normal},0);let emissive=surfaceEmissiveAo(coord,surfaceFlag);
  // The pixel's cell of the light grid, read once: its shadow flag, then its list.
  let cell=pixelCell(pixel.xy,z);let shadowed=cellShadowed(cell);
  if(shadowed){shadowSetup(coord);}
@@ -131,7 +138,7 @@ export const contractSurfaceBody = (bounce: boolean) => {
  let indirect=${indirect};
  ${LIGHT_VIEW_STATEMENTS.terms}
  var rgb=litSurface(lit,indirect[0]*occlusion.bounce,environmentLighting(albedo,base.a,N,occlusion.sky),indirect[1],emissive.rgb*occlusion.emission,N,P,occlusion.sky);${CAMERA_FOG}
- return vec4f(rgb,1.0);
+ return vec4f(preExposedClipped(rgb),1.0);
 }`,
   )
 }

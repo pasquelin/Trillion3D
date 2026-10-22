@@ -14,15 +14,21 @@ import type {
 import type { CutOptions } from '../../../sdk-core/src/contracts/cutOptions.ts'
 import type { AnimationOptions } from '../../../sdk-core/src/contracts/animationOptions.ts'
 import type { ShadingOptions } from '../../../sdk-core/src/contracts/shadingOptions.ts'
+import type { ExposureCurveOptions } from '../../../sdk-core/src/contracts/exposureCurve.ts'
 import type { ExposureOptions } from '../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { TemporalOptions } from '../../../sdk-core/src/contracts/temporalOptions.ts'
 import type { HizOptions } from '../../../sdk-core/src/contracts/hizOptions.ts'
+import type { LightFunctionOptions } from '../../../sdk-core/src/contracts/lightFunctionOptions.ts'
+import type { VolumetricLightmapOptions } from '../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
+import type { DistanceFieldOcclusionOptions } from '../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
+import type { GlobalDistanceFieldOptions } from '../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import type { ShadowOptions } from '../../../sdk-core/src/contracts/shadowOptions.ts'
 import type { MotionBlurSettings } from '../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import type { DepthOfFieldSettings } from '../../../sdk-core/src/contracts/depthOfFieldRules.ts'
 import type { BloomSettings } from '../../../sdk-core/src/contracts/bloomRules.ts'
 import type { FilmSettings } from '../../../sdk-core/src/contracts/filmOptions.ts'
 import type { AmbientOcclusionOptions } from '../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import type { SkyQualityOptions } from '../../../sdk-core/src/modules/sky/quality.ts'
 import type { ScreenProbeOptions } from '../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { ReflectionOptions } from '../../../sdk-core/src/contracts/reflectionOptions.ts'
 import type { VolumetricFogOptions } from '../../../sdk-core/src/contracts/volumetricFogOptions.ts'
@@ -50,7 +56,8 @@ export type PointOfInterest = {
  *  `explorer.setShading`, and the exposure's (`exposure…` and `localExposure…`,
  *  `../../../sdk-core/src/contracts/exposureOptions.ts`: bias, range, histogram, shares, speeds,
  *  transition, black bucket, luminance, then the local exposure's contrasts, detail, blur,
- *  middle grey and thresholds), set by `explorer.setExposure`, and the temporal pass's
+ *  middle grey and thresholds), set by `explorer.setExposure`, the exposure's compensation curve (`exposureCurve`,
+ *  `../../../sdk-core/src/contracts/exposureCurve.ts`), set by `explorer.setExposureCurve`, and the temporal pass's
  *  (`temporalThinGeometry`, `../../../sdk-core/src/contracts/temporalOptions.ts`), set by
  *  `explorer.setTemporal`, and the sun's shadows' (`shadowDistanceScale`, 1: the factor on every
  *  sun's shadow distance, from 0 to 2; `farShadowCulling`, true: whether a sun's shadow maps leave
@@ -81,7 +88,10 @@ export type PointOfInterest = {
  *  ambient occlusion's (`ambientOcclusion`, true; `ambientOcclusionIntensity`, 0.5; `ambientOcclusionRadius`, 2 m;
  *  `ambientOcclusionQuality`, 50; and the others of `../../../sdk-core/src/contracts/ambientOcclusionOptions.ts`),
  *  set by `explorer.setAmbientOcclusion`. The depth pyramid's (`hizTrace`, `hizFoldTransparents`,
- *  `hizTransparentTest`, `hizRelativeDepthThickness`, `../../../sdk-core/src/contracts/hizOptions.ts`),
+ *  `hizTransparentTest`, `hizRelativeDepthThickness`, `hizFullResDepth`, `lightGridHizCull`,
+ *  and the five of the primed pyramid, `hizPrime` (`'off'`), `hizPrimeSizeBias`, `hizPrimeDepthBias`,
+ *  `hizPrimeErrorScale` and `hizPrimeFarFieldOnly`,
+ *  `../../../sdk-core/src/contracts/hizOptions.ts`),
  *  set by `explorer.setHiz`. The software raster (`softwareRaster`, on by default: a cluster whose
  *  longest edge projects under `hardwareRasterEdgePixels` and that crosses neither clip plane is
  *  rastered in compute, every other one by the hardware rasterizer; `false` draws every cluster
@@ -110,8 +120,13 @@ export interface MeasuredWorldOptions
     AnimationOptions,
     ShadingOptions,
     ExposureOptions,
+    ExposureCurveOptions,
     TemporalOptions,
     HizOptions,
+    LightFunctionOptions,
+    VolumetricLightmapOptions,
+    GlobalDistanceFieldOptions,
+    DistanceFieldOcclusionOptions,
     ShadowOptions,
     MotionBlurSettings,
     DepthOfFieldSettings,
@@ -122,6 +137,7 @@ export interface MeasuredWorldOptions
     ScreenProbeOptions,
     ReflectionOptions,
     AmbientOcclusionOptions,
+    SkyQualityOptions,
     RasterOptions,
     StreamingOptions {
   /** Own controls, CSS/DPR sizing and demand-driven rendering. Off by default. */

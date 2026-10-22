@@ -14,7 +14,7 @@ export interface Layout {
 }
 
 /** The size class of the view: a phone, a small view, or a large one; each keeps its layout. */
-type SizeClass = 's' | 'm' | 'l'
+export type SizeClass = 's' | 'm' | 'l'
 
 /** The size class of `parent`. */
 export function sizeClass(parent: HTMLElement): SizeClass {

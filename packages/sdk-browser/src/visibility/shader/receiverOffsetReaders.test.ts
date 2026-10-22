@@ -20,9 +20,10 @@ test('the lighting reads the receiver the resolve wrote: one decode, no triangle
           unshadowed: !shadowed,
           lobeless: true,
         })
-        const first = Number(/@binding\((\d+)\) var receiverTarget:/.exec(text)?.[1])
+        // The words' layers are one binding of the lighting (`words`): the receiver's two follow the flags.
+        const first = Number(/@binding\((\d+)\) var words:/.exec(text)?.[1])
         assert.equal(
-          text.split(receiverTargetReadWgsl(0, first).text).length,
+          text.split(receiverTargetReadWgsl(0, first, 'words').text).length,
           2,
           `${name}: the target's reader, once`,
         )

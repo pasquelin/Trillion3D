@@ -15,7 +15,6 @@ import {
   ATMOSPHERE_SLOT,
   ATMOSPHERE_SLOTS,
 } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
-import { SKY_SLOT, SKY_SLOTS } from '../../../../sdk-core/src/scene/core/environmentSky.ts'
 import { lobeRadianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { IRRADIANCE_TERMS } from '../../../../sdk-core/src/scene/core/irradianceTerms.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -36,7 +35,7 @@ const environmentRun = (environment: number[][], surroundings: number[], extra: 
   shaderRun<{
     reflectionBands: (alpha: number) => number[]
     reflectionLobeOf: (R: number[], alpha: number, lobe: number[]) => Lobe
-    reflectionEnvironment: (R: number[]) => number[]
+    reflectionEnvironment: (R: number[], rough: number) => number[]
     fieldThrough: (lobe: Lobe) => number[]
   }>(
     wgslModule(REFLECTION_ENVIRONMENT_WGSL, FIELD_THROUGH_LOBE),
@@ -48,8 +47,11 @@ const environmentRun = (environment: number[][], surroundings: number[], extra: 
       'reflectionConeTangent',
     ],
     {
-      directLights: { environment, ...extra },
+      directLights: { environment, atmosphere: [[0, 0, 0, 0]], ...extra },
       reflectionView: { surroundings },
+      skyLightApplied: () => false,
+      skyLightReflection: () => [0, 0, 0],
+      skyLightRay: () => [0, 0, 0],
     },
   )
 const zero = () => Array.from({ length: 9 }, () => [0, 0, 0, 0])
@@ -70,13 +72,13 @@ test('a ray that leaves a scene with no sky reaches the background the screen dr
   const environment = zero()
   environment[0] = [0.4, 0.2, 0.1, 0]
   const surroundings = [0.25, 0.5, 0.125, 0]
-  const run = environmentRun(environment, surroundings, { sky: skyBlock() })
+  const run = environmentRun(environment, surroundings)
   for (const R of [
     [0, 1, 0],
     [1, 0, 0],
     [0, -1, 0],
   ])
-    assert.deepEqual(run.reflectionEnvironment(R), surroundings.slice(0, 3), `${R}`)
+    assert.deepEqual(run.reflectionEnvironment(R, 0), surroundings.slice(0, 3), `${R}`)
 })
 
 test('a stretched lobe filters each axis by its own width, a round one is the zonal convolution', () => {
@@ -129,14 +131,13 @@ test('a scene is surrounded by its background, as the display shows it, declared
   )
 })
 
-/** The sky's block (`SKY_SLOTS` `vec4`): `upper`, its `w` 1 where a sky light gives the probes the
- *  sky, and `lower`, its `w` 1 where the scene shows a sky; nothing by default. */
-const skyBlock = (upper = [0, 0, 0, 0], lower = [0, 0, 0, 0]) => {
-  const sky = Array.from({ length: SKY_SLOTS }, () => [0, 0, 0, 0])
-  sky[SKY_SLOT.upper] = upper
-  sky[SKY_SLOT.lower] = lower
-  return sky
-}
+/** A sky light's cube as the program reads it: `above` along a direction up, `below` along one down. */
+const skyLight = (above = [0, 0, 0], below = [0, 0, 0], shining = true) => ({
+  skyLightApplied: () => shining,
+  skyLightReflection: (d: number[]) => (d[1] < 0 ? below : above),
+  skyLightRay: (d: number[]) => (d[1] < 0 ? below : above),
+})
+const noSkyLight = skyLight([0, 0, 0], [0, 0, 0], false)
 const { azimuth: AZIMUTH, elevation: ELEVATION } = SKY_RAYS
 /** A texel of the sky by direction: its three half floats in two words. */
 const texel = (column: number, row: number) => [row / 8, column / 64, 0.5]
@@ -149,10 +150,14 @@ const air = () => {
   )
   return { atmosphere, skyRays }
 }
-const skyRun = (directLights: object, surroundings = [0.25, 0.5, 0.125, 0]) =>
+const skyRun = (
+  directLights: object,
+  surroundings = [0.25, 0.5, 0.125, 0],
+  light: object = noSkyLight,
+) =>
   shaderRun<{
-    reflectionEnvironment: (R: number[]) => number[]
-    reflectionFieldOver: (gathered: number[], R: number[]) => number[]
+    reflectionEnvironment: (R: number[], rough: number) => number[]
+    reflectionFieldOver: (gathered: number[], R: number[], rough: number) => number[]
     skyRadiance: (d: number[]) => number[]
     skyProbeRadiance: (d: number[]) => number[]
     skyRaysDirection: (texel: number[]) => number[]
@@ -167,30 +172,33 @@ const skyRun = (directLights: object, surroundings = [0.25, 0.5, 0.125, 0]) =>
       'skyRaysDirection',
       'skyRaysCoordinates',
     ],
-    { directLights, reflectionView: { surroundings } },
+    { directLights, reflectionView: { surroundings }, ...light },
   )
 const near = (got: number[], want: number[], message: string, tolerance = 1e-9) =>
   got.forEach((c, i) =>
     assert.ok(Math.abs(c - want[i]) < tolerance, `${message}: ${got} ≠ ${want}`),
   )
 
-test('a ray that leaves the scene reaches the sky along its direction: a flat colour above the horizon, the ground below', () => {
-  const sky = skyBlock([0.2, 0.4, 0.8, 1], [0.01, 0.02, 0.03, 1])
-  const run = skyRun({ environment: zero(), sky, atmosphere: [[0, 0, 0, 0]], skyRays: [] })
-  near(run.reflectionEnvironment([0.6, 0.8, 0]), [0.2, 0.4, 0.8], 'above')
-  near(run.reflectionEnvironment([0.6, -0.8, 0]), [0.01, 0.02, 0.03], 'below')
-  // A sky of the air alone, no sky light: a reflection sees it, the probes none.
-  const bare = skyRun({ environment: zero(), sky: skyBlock([1, 1, 1, 0], [0, 0, 0, 1]), ...air() })
+test('a ray that leaves the scene reaches the sky light’s cube along its direction: the sky above the horizon, the cube’s lower half below', () => {
+  const run = skyRun(
+    { environment: zero(), atmosphere: [[0, 0, 0, 0]], skyRays: [] },
+    undefined,
+    skyLight([0.2, 0.4, 0.8], [0.01, 0.02, 0.03]),
+  )
+  near(run.reflectionEnvironment([0.6, 0.8, 0], 0), [0.2, 0.4, 0.8], 'above')
+  near(run.reflectionEnvironment([0.6, -0.8, 0], 0.5), [0.01, 0.02, 0.03], 'below')
+  const bare = skyRun({ environment: zero(), ...air() })
   near(bare.skyProbeRadiance([0, 1, 0]), [0, 0, 0], 'the probes see no sky without a sky light')
   assert.ok(
-    bare.reflectionEnvironment([0, 1, 0]).every((c) => c > 0),
+    bare.reflectionEnvironment([0, 1, 0], 0).every((c) => c > 0),
     'a reflection sees it',
   )
+  near(bare.reflectionEnvironment([0, -1, 0], 0), [0, 0, 0], 'the air shows no ground')
 })
 
 test('the sky by direction is read as the atmosphere wrote it: the texel on its centre, the four around between', () => {
-  const run = skyRun({ environment: zero(), sky: skyBlock([2, 1, 1, 1], [0, 0, 0, 1]), ...air() })
-  const factor = [2, 1, 1]
+  const run = skyRun({ environment: zero(), ...air() })
+  const factor = [1, 1, 1]
   for (const [column, row] of [
     [0, 0],
     [37, 20],
@@ -206,43 +214,37 @@ test('the sky by direction is read as the atmosphere wrote it: the texel on its 
       1e-6,
     )
   }
-  // Midway between two rows, the same column: the mean of the two.
   const [row, column] = [30, 11]
   const phi = ((column + 0.5) / AZIMUTH - 0.5) * 2 * Math.PI
   const y = ((row + 1) / ELEVATION) ** 2
   const ring = Math.sqrt(1 - y * y)
   const between = run.skyRadiance([ring * Math.cos(phi), y, ring * Math.sin(phi)])
-  near(between, [(2 * (row + 0.5)) / 8, column / 64, 0.5], 'between two rows', 1e-6)
+  near(between, [(row + 0.5) / 8, column / 64, 0.5], 'between two rows', 1e-6)
   // The azimuth wraps: the seam at 180° is the mean of the last column and the first.
   const seam = run.skyRadiance([-ring, y, 0])
-  near(seam, [(2 * (row + 0.5)) / 8, (AZIMUTH - 1) / 64 / 2, 0.5], 'the seam', 1e-4)
+  near(seam, [(row + 0.5) / 8, (AZIMUTH - 1) / 64 / 2, 0.5], 'the seam', 1e-4)
 })
 
 test('the probes hold the sky where a sky light gives it, so the field never adds it twice', () => {
   const background = [0.25, 0.5, 0.125, 0]
-  const lit = skyRun({
-    environment: zero(),
-    sky: skyBlock([1, 1, 1, 1], [0.5, 0.5, 0.5, 1]),
-    ...air(),
-  })
+  const lit = skyRun(
+    { environment: zero(), ...air() },
+    undefined,
+    skyLight([1, 1, 1], [0.5, 0.5, 0.5]),
+  )
   const R = [0, 1, 0]
-  const environment = lit.reflectionEnvironment(R)
+  const environment = lit.reflectionEnvironment(R, 0.3)
   const probes = [0.3, 0.2, 0.1]
-  // The probes answer the whole: their radiance alone. None: the environment alone. A part: a mix.
-  near(lit.reflectionFieldOver([...probes, 1], R), probes, 'answered whole')
-  near(lit.reflectionFieldOver([...probes, 0], R), environment, 'unanswered')
+  near(lit.reflectionFieldOver([...probes, 1], R, 0.3), probes, 'answered whole')
+  near(lit.reflectionFieldOver([...probes, 0], R, 0.3), environment, 'unanswered')
   near(
-    lit.reflectionFieldOver([...probes, 0.25], R),
+    lit.reflectionFieldOver([...probes, 0.25], R, 0.3),
     environment.map((c, i) => 0.75 * c + 0.25 * probes[i]),
     'a quarter',
   )
-  // Without a sky light the probes hold no sky: the environment stays under them, as it always was.
-  const plain = skyRun(
-    { environment: zero(), sky: skyBlock([0, 0, 0, 0]), atmosphere: [[0, 0, 0, 0]] },
-    background,
-  )
+  const plain = skyRun({ environment: zero(), atmosphere: [[0, 0, 0, 0]] }, background)
   near(
-    plain.reflectionFieldOver([...probes, 1], R),
+    plain.reflectionFieldOver([...probes, 1], R, 0.3),
     probes.map((c, i) => c + background[i]),
     'under',
   )
@@ -261,7 +263,7 @@ test('the atmosphere writes the sky by direction where the readers find it, brig
   assert.ok(toward.every((c) => c > 0) && away.every((c) => c > 0), 'a lit sky, in every channel')
   assert.ok(toward[0] > away[0], 'the sky is brighter toward the sun')
   // What a reader finds in the table is that radiance: the texel on its centre, the factor one.
-  const reader = skyRun({ environment: zero(), sky: skyBlock([1, 1, 1, 1]), ...air(), ...sky })
+  const reader = skyRun({ environment: zero(), ...air(), ...sky })
   near(
     reader.skyRadiance(reader.skyRaysDirection([sunSide, row])),
     toward,

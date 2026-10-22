@@ -11,6 +11,9 @@ export type GpuHiz = {
   /** The build of its nearest layer — each pixel's plane, each cell's nearest — and of the
    *  finished depth's farthest layer, once level 0 holds the whole depth, as dispatches of the open compute pass. */
   encodeNearest(open: OpenPass): void
+  /** The build of the drawn pyramid's culling layer with the push `push` of its level 0, for the
+   *  primed pyramid (`hizPrime`): false when its kernel is not compiled yet. */
+  encodePrimed(open: OpenPass, push: HizPrimedPush): boolean
   /** The levels uniform (`hizLevelWords`): the one mip table, which the cut's occlusion test and
    *  the transparent occlusion test bind (`hizMip`) as the depth readers do. */
   readonly levelTable: GPUBuffer
@@ -47,6 +50,11 @@ export type GpuHiz = {
   swap(next: HizPyramid | undefined): HizPyramid | undefined
   dispose(): void
 }
+
+/** The push of the primed pyramid's level 0: the projection's near and far planes and weight (1 a
+ *  perspective, 0 an orthographic one), and the distance, in the scene's units, the depth moves
+ *  away from the eye by. */
+export type HizPrimedPush = { near: number; far: number; perspective: number; bias: number }
 
 /** The resources of `GpuHiz.depth` (`createGpuHiz`). A new object whenever one of them changes: a
  *  reader's bind group follows its identity. */

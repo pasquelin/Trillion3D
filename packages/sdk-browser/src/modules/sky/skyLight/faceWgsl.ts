@@ -7,7 +7,9 @@ import {
   AIR_FOG_BINDINGS,
 } from '../../../lighting/atmosphere/programs.ts'
 import { GROUND_SKY_RADIANCE, groundSkyMarch } from '../../../lighting/atmosphere/captureWgsl.ts'
+import { ATMOSPHERE_SLOT } from '../../../../../sdk-core/src/scene/core/atmospherePack.ts'
 import { SKY_CAPTURE } from '../../../lighting/atmosphere/layout.ts'
+import type { AirShape } from '../../../lighting/atmosphere/shape.ts'
 import { fogBlockOf } from '../../../lighting/fog/readWgsl.ts'
 import { CAPTURE_MAX_RADIANCE } from './layout.ts'
 import { SKY_CUBE_WGSL } from './cubeWgsl.ts'
@@ -21,15 +23,21 @@ import { SKY_CUBE_WGSL } from './cubeWgsl.ts'
  *
  * - `skyFaceMain` writes the air's sky along the pixel's direction, no blending: the march that
  *   draws the sky and fills the sky by direction (`groundSkyMarch`), from the capture's height, no
- *   sun disk, held under what the cube's format keeps.
+ *   sun disk, held under what the cube's format keeps; shadowed (`skyLightShadowFromOpaque`), each step
+ *   of the march reads the shade of the air's lights as the haze's cells do.
  * - `fogFaceMain` lays the distant height fog over it: the fog seen along an endless ray from the
  *   capture's position (`fogBeyond`; no volume is bound, the capture holds no volumetric fog), its
  *   light added and what is under it multiplied by what the fog lets through.
+ *   The reference reads the depth of the capture (`skyLightDepthBuffer`) in two places, the draw of the sky-material
+ *   meshes and the height fog's depth texture; this capture draws no mesh, so its depth is the cleared far everywhere,
+ *   which the endless ray of `fogBeyond` is: the setting changes no pixel and has no reader here.
  * - `composeFaceMain` lays the clouds traced for the face (a texture of the cloud divider's side,
  *   read bilinearly) and the lower hemisphere's colour over the face: below the horizon, the
  *   lower colour replaces the clouds' light by its coverage and the clouds' transmittance is
- *   multiplied by what remains of it; the colour is not scaled by the lighting pre-exposure, which
- *   the sky light's colour would scale back (`skyLightColor`).
+ *   multiplied by what remains of it. Every term of the face is written at a pre-exposure of 1
+ *   (`skyLightColor`).
+ *
+ * The programs are written for the air's shape (`AirShape`), the quality settings' own.
  *
  * A pixel's direction is the face's (`faceDirection`), in the cube's frame; the march reads it in
  * the scene's.
@@ -52,31 +60,50 @@ fn pixelDirection(pixel:vec4f)->vec3f{
  return normalize(faceDirection(uv,face.face.x));
 }`
 
+/** The altitude the sky is marched from, kilometres: the light's height over the planet's ground,
+ *  no lower than the capture's least (`SKY_CAPTURE.altitudeKm`). */
+const LIGHT_ALTITUDE_KM = `max(${SKY_CAPTURE.altitudeKm},(face.eye.y-atmo(${ATMOSPHERE_SLOT.planet}u).w)*0.001)`
+
 /** What the sky draw binds of the air: the light buffer and the two tables the march reads. */
 export const SKY_FACE_AIR: AirBindings = { air: 'read', transmittance: true, multiScatter: true }
+/** The same with the virtual shadow maps the air's lights shade the march with (`skyLightShadowFromOpaque`):
+ *  the opaque scene shades the sky of the capture as it shades the haze. */
+export const SKY_FACE_AIR_SHADOWED: AirBindings = { ...SKY_FACE_AIR, shadow: true }
+
+/** The scene's metres of a point of the march (`airToScene`, `airShadowWgsl.ts`): the march begins over
+ *  the planet's top at the light's height and its horizontal place is the origin's, which the light's
+ *  own place gives back. */
+const FACE_TO_SCENE = `
+fn airToScene(p:vec3f)->vec3f{
+ return vec3f(p.x*1000.0+face.eye.x,(p.y-bottomRadius())*1000.0+atmo(${ATMOSPHERE_SLOT.planet}u).w,p.z*1000.0+face.eye.z);
+}`
 /** What the fog draw binds of the air: the light buffer, which holds the fog's block, and the
  *  fog's resources. */
 export const FOG_FACE_AIR: AirBindings = { air: 'read', fog: true }
 
-export const SKY_FACE_PROGRAM = airProgram(
-  SKY_FACE_AIR,
-  `${FACE_BLOCK}
+export const skyFaceProgram = (shape: AirShape, shadowed = false) =>
+  airProgram(
+    shadowed ? SKY_FACE_AIR_SHADOWED : SKY_FACE_AIR,
+    `${FACE_BLOCK}${shadowed ? FACE_TO_SCENE : ''}
 @fragment fn skyFaceMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{
- let dir=cubeToScene(pixelDirection(pixel));${groundSkyMarch(SKY_CAPTURE.altitudeKm)}
+ let dir=cubeToScene(pixelDirection(pixel));${groundSkyMarch(LIGHT_ALTITUDE_KM)}
  return vec4f(min(${GROUND_SKY_RADIANCE},vec3f(${CAPTURE_MAX_RADIANCE}.0)),1.0);
 }`,
-  [SKY_CUBE_WGSL],
-)
+    [SKY_CUBE_WGSL],
+    shape,
+  )
 
-export const FOG_FACE_PROGRAM = airProgram(
-  FOG_FACE_AIR,
-  `${FACE_BLOCK}
+export const fogFaceProgram = (shape: AirShape) =>
+  airProgram(
+    FOG_FACE_AIR,
+    `${FACE_BLOCK}
 @fragment fn fogFaceMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let dir=cubeToScene(pixelDirection(pixel));
  return fogBeyond(dir,face.eye.xyz);
 }`,
-  [SKY_CUBE_WGSL, fogBlockOf(AIR_FOG_BINDINGS)],
-)
+    [SKY_CUBE_WGSL, fogBlockOf(AIR_FOG_BINDINGS)],
+    shape,
+  )
 
 export const COMPOSE_FACE_CODE = wgslProgram(
   `${FACE_BLOCK}

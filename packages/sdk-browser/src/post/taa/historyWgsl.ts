@@ -96,6 +96,8 @@ fn historyRead(uv:vec2f)->TaaPast{
   tag+=textureSampleLevel(shareHistory,historySampler,at,0.0)*taps.weight[k];
  }
  if(any(color.rgb<vec3f(0.0))){color=max(middle,vec4f(0.0));}
+ // The light of the image before held as this image holds its own; an as-is pixel (a display value) is not.
+ color=vec4f(color.rgb*mix(view.preExposure.x,1.0,saturate(tag.r)),color.a);
  return TaaPast(color,max(tag,vec4f(0.0)));
 }`,
 )

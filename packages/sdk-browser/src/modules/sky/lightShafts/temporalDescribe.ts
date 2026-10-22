@@ -12,7 +12,6 @@ import {
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import { quantizationError } from '../../../post/taa/colorSpaceWgsl.ts'
 import { stochasticSlot, type TaaFrameState } from '../../../post/taa/frameState.ts'
-import type { SkyQualityValues } from '../../../../../sdk-core/src/modules/sky/quality.ts'
 import { put4 } from '../clouds/reconstructLayout.ts'
 import { LIGHT_SHAFT_SAMPLER } from './describe.ts'
 import { LIGHT_SHAFT_FORMAT, type LightShaftSizes } from './layout.ts'
@@ -38,52 +37,33 @@ const OFFSETS = [
 ] as const
 const PLUS = [1, 3, 4, 5, 7] as const
 
-/** The Catmull-Rom kernel at distance `x`. */
-function catmullRom(x: number) {
-  const ax = Math.abs(x)
-  return ax > 1 ? ((-0.5 * ax + 2.5) * ax - 4) * ax + 2 : (1.5 * ax - 2.5) * ax * ax + 1
-}
-
 /** The inputs of the weights last made, and the weights: the filter asks for them with every
  *  light's chain of the image, with the same jitter. */
-let weightsFor = { jx: NaN, jy: NaN, divisor: NaN, size: NaN, catmullRom: false }
+let weightsFor = { jx: NaN, jy: NaN, divisor: NaN }
 let weights: readonly number[] = []
 
 /**
  * The weights of the plus's five pixels (top, left, centre, right, bottom) for an image jittered by
  * `jitter` (`TaaFrameState.jitter`, in the pixels the scene is drawn in, y up in clip space) and
- * reduced by `divisor`: each pixel of the 3x3 weighs its kernel at its distance from the jittered
- * sample, in shafts' pixels over the kernel's `size` — `exp(-2.29 · d²)` or, with `catmullRom`, the
- * Catmull-Rom product per axis —, the nine summing to one, then the five of the plus summing to
+ * reduced by `divisor`: each pixel of the 3x3 weighs `exp(-2.29 · d²)` at its distance `d` from the
+ * jittered sample, in shafts' pixels, the nine summing to one, then the five of the plus summing to
  * one. The last answer is kept while the inputs are the same.
  */
-function lightShaftTemporalWeights(
-  jitter: ArrayLike<number>,
-  divisor: number,
-  size: number,
-  catmullRomKernel: boolean,
-) {
+function lightShaftTemporalWeights(jitter: ArrayLike<number>, divisor: number) {
   // The clip-space jitter moves the image up by `jitter[1]`, a pixel row down by its opposite.
   const jx = jitter[0] / divisor,
     jy = -jitter[1] / divisor
   const last = weightsFor
-  if (
-    last.jx === jx &&
-    last.jy === jy &&
-    last.divisor === divisor &&
-    last.size === size &&
-    last.catmullRom === catmullRomKernel
-  )
-    return weights
+  if (last.jx === jx && last.jy === jy && last.divisor === divisor) return weights
   const nine = OFFSETS.map(([ox, oy]) => {
-    const x = (ox - jx) / size,
-      y = (oy - jy) / size
-    return catmullRomKernel ? catmullRom(x) * catmullRom(y) : Math.exp(-2.29 * (x * x + y * y))
+    const x = ox - jx,
+      y = oy - jy
+    return Math.exp(-2.29 * (x * x + y * y))
   })
   const total = nine.reduce((sum, weight) => sum + weight, 0)
   const plus = PLUS.map((index) => nine[index] / total)
   const plusTotal = plus.reduce((sum, weight) => sum + weight, 0)
-  weightsFor = { jx, jy, divisor, size, catmullRom: catmullRomKernel }
+  weightsFor = { jx, jy, divisor }
   return (weights = plus.map((weight) => weight / plusTotal))
 }
 
@@ -117,21 +97,17 @@ export function describeLightShaftTemporal(sizes: LightShaftSizes) {
 /** What the uniform is written from. */
 export interface LightShaftTemporalInput {
   readonly sizes: LightShaftSizes
-  /** The sky quality's size of the kernel the weights are made of and whether it is Catmull-Rom. */
-  readonly quality: Pick<
-    SkyQualityValues,
-    'lightShaftTemporalFilterSize' | 'lightShaftTemporalCatmullRom'
-  >
   /** The view's temporal state: this image's jitter, the last image's view-projection, its
    *  exposure, and whether it exists. */
   readonly state: TaaFrameState
   /** The camera of this image, without jitter. */
   readonly camera: Pick<EngineCamera, 'viewProjection' | 'eye'>
   /** The history of the chain, as the last image left it. */
-  readonly history: Pick<LightShaftHistory, 'valid' | 'viewport' | 'buffer'>
-  /** This image's exposure (`taaExposure`). */
+  readonly history: Pick<LightShaftHistory, 'valid' | 'viewport' | 'buffer' | 'exposure'>
+  /** The scale this image's pixels are stored at: the history's colour is multiplied by its ratio
+   *  to the one the history was stored at (`LightShaftHistory.exposure`). */
   readonly exposure: number
-  /** The factor that takes the shafts' stored colour to the colour the tone mapping sees. */
+  /** The exposure scale the tone weights read, the frame's (`TemporalAA.usf`'s `FrameExposureScale`). */
   readonly frameExposure: number
 }
 
@@ -178,8 +154,11 @@ function clipToPrevClip(
 }
 
 /** The uniform (`LIGHT_SHAFT_TEMPORAL_VIEW`) into `out`, `LIGHT_SHAFT_TEMPORAL_VIEW.words` floats. */
-export function writeLightShaftTemporalView(out: Float32Array, input: LightShaftTemporalInput) {
-  const { sizes, state, camera, history, quality } = input
+export function writeLightShaftTemporalView<T extends Float32Array>(
+  out: T,
+  input: LightShaftTemporalInput,
+) {
+  const { sizes, state, camera, history } = input
   const { shaft, scene, factor } = sizes
   const cut = !history.valid || !state.hasHistory
   out.set(clipToPrevClip(state.previousViewProjection, camera), T.clipToPrevClip)
@@ -208,18 +187,13 @@ export function writeLightShaftTemporalView(out: Float32Array, input: LightShaft
     halfY = (viewport.height * 0.5) / buffer.height
   if (cut) put4(out, T.history, 1, 1, 1, 1)
   else put4(out, T.history, halfX, (-viewport.height * 0.5) / buffer.height, halfX, halfY)
-  const [top, left, centre, right, bottom] = lightShaftTemporalWeights(
-    state.jitter,
-    factor,
-    quality.lightShaftTemporalFilterSize,
-    quality.lightShaftTemporalCatmullRom,
-  )
+  const [top, left, centre, right, bottom] = lightShaftTemporalWeights(state.jitter, factor)
   put4(out, T.plusA, top, left, centre, right)
   put4(out, T.plusB, bottom, 0, 0, 0)
   out[T.historyMax] = cut ? 0 : 1 - 1 / ceilDiv(viewport.width, factor)
   out[T.historyMax + 1] = cut ? 0 : 1 - 1 / ceilDiv(viewport.height, factor)
   out[T.exposure] = input.frameExposure
-  out[T.exposure + 1] = state.hasHistory ? input.exposure / state.previousExposure : 1
+  out[T.exposure + 1] = cut ? 1 : input.exposure / history.exposure
   out[T.cut] = cut ? 1 : 0
   out[T.slot] = stochasticSlot(state)
   out[T.quantization] = quantizationError(LIGHT_SHAFT_FORMAT)

@@ -1,6 +1,8 @@
 import { tradeCamera, tradeView } from '../../view/viewTrade.ts'
 import { releaseTargets } from '../../prepare/targets.ts'
 import { disposeFogVolume } from '../../render/encodeFogVolume.ts'
+import { disposeLightShafts } from '../../../modules/sky/lightShafts/frame.ts'
+import { disposeCloudView } from '../../../modules/sky/clouds/viewTargets.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import {
   VIEW_GPU_KEYS,
@@ -79,6 +81,8 @@ export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   view.gpu.ambientOcclusion?.dispose()
   view.gpu.ambientOcclusion = undefined
   disposeFogVolume(view.gpu)
+  disposeLightShafts(view.gpu)
+  disposeCloudView(view.gpu)
   view.gpu.temporal = view.gpu.velocity = view.gpu.exposure = undefined
   view.gpu.finish = view.gpu.effects = undefined
   // A canvas of its own is withdrawn; the main view's, which a view placed on it presents into,

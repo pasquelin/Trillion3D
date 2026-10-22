@@ -75,6 +75,9 @@ export const SCREEN_PROBE_RULES = /* @__PURE__ */ (() =>
     positive('screenProbeHistoryDepthTestThickness', 0.005, 'a finite number above 0'),
     positive('screenProbeRelativeDepthThickness', 0.02, 'a finite number above 0'),
     integer('screenProbeMaxIterations', 50, [1, 256]),
+    flag('screenProbeSkipFoliageHits', true),
+    positive('screenProbeThicknessScaleWithoutField', 2, 'a finite number above 0'),
+    integer('screenProbeThicknessCertaintySteps', 4, [0, 64]),
   ] as const))()
 /** The field of one setting of the screen probes. */
 export type ScreenProbeField = keyof typeof SCREEN_PROBE_RULES
@@ -134,6 +137,12 @@ export type ScreenProbeSettings = LevelKnobs & {
   traceHistoryThickness: number
   relativeDepthThickness: number
   maxIterations: number
+  /** Whether a hit on a thin sheet that transmits light (`SUBSURFACE_FLAG`) is dropped. */
+  skipFoliageHits: boolean
+  /** The scale of a surface's thickness for a pixel whose surface has no distance field to resume the ray. */
+  thicknessScaleWithoutField: number
+  /** The linear steps along the ray past a hit that look for a thin feature (0 while foliage hits are skipped). */
+  thicknessCertaintySteps: number
 }
 
 /** The frames a pixel's history may hold at most: its count is kept in four bits. */
@@ -201,5 +210,10 @@ export function resolveScreenProbes(values: ScreenProbeValues): ScreenProbeSetti
     traceHistoryThickness: values.screenProbeHistoryDepthTestThickness,
     relativeDepthThickness: values.screenProbeRelativeDepthThickness,
     maxIterations: values.screenProbeMaxIterations,
+    skipFoliageHits: values.screenProbeSkipFoliageHits,
+    thicknessScaleWithoutField: values.screenProbeThicknessScaleWithoutField,
+    thicknessCertaintySteps: values.screenProbeSkipFoliageHits
+      ? 0
+      : values.screenProbeThicknessCertaintySteps,
   }
 }

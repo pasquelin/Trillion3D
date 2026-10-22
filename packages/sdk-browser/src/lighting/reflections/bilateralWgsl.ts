@@ -175,7 +175,7 @@ var<private> bilateralProbesLeft:bool=false;
  *  surroundings alone, its probes left to the opaque resolve (\`REFLECTION_PROBES_LEFT\`); the front one
  *  the field whole, which the forward fragments read as it is. */
 fn bilateralFieldBase(own:ReflectingPixel,layer:u32)->vec3f{
- if(layer==0u){bilateralProbesLeft=true;return reflectionEnvironment(reflect(-own.V,own.N));}
+ if(layer==0u){bilateralProbesLeft=true;return reflectionEnvironment(reflect(-own.V,own.N),own.rough);}
  return reflectionFieldBase(own.P,own.N,own.V,own.rough);
 }
 /** What \`own\`'s lobes reflect of the field alone: its base lobe's (\`bilateralFieldBase\`) and its coat's. */

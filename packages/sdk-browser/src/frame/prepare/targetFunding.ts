@@ -108,7 +108,9 @@ export function fundFrameTargets(
     heldBytes(gpu.finish) +
     heldBytes(gpu.velocity) +
     heldBytes(gpu.screenProbes) +
-    heldBytes(gpu.ambientOcclusion)
+    heldBytes(gpu.ambientOcclusion) +
+    heldBytes(gpu.lightShafts) +
+    heldBytes(gpu.clouds)
   const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot()
   if (ledger?.unknownFormats) throw new Error('GPU_BUDGET_UNKNOWN_FORMAT')
   // Auxiliary buffers, other views/captures and proxy resources are already live.

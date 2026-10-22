@@ -6,7 +6,8 @@
 //! normals and its tangents are rebuilt, its tangents by the tangent spaces, its normals weighed
 //! by area and angle, and the tolerances of its skinned weld, and the precisions of its pages' grid
 //! (`Precision`): the cells of its positions, the bits of its normals and of its tangents' angle,
-//! and how its voxels are sampled when it is drawn as voxels far away (`voxels.rs`), and whether
+//! how its voxels are sampled when it is drawn as voxels far away (`voxels.rs`), how its distance
+//! field is built (`distance_field.rs`), and whether
 //! the assembly its `extras` name is built (`ALLOW_ASSEMBLIES_SETTING`, `source/assembly.rs`).
 //! For each setting of a mesh, the first that names it:
 //! 1. the first rule of `meshBuild.objects` whose match names one of its objects — a node of the
@@ -21,8 +22,10 @@
 //! resolved.
 use super::name_match::{present, read_rules, NameMatch, NodeNames};
 use super::*;
+mod distance_field;
 mod read;
 mod voxels;
+use distance_field::NamedDistanceField;
 use read::Reader;
 use trillion3d_page_codec::bits::grid::Precision;
 use trillion3d_page_codec::{
@@ -54,6 +57,10 @@ pub(crate) struct MeshBuild {
     /// How its voxels are sampled (`voxel::VoxelSampling`: `voxelRays`, `voxelLevel`,
     /// `voxelBackUp`, `voxelSeparable`, `voxelNdf`, `voxelOpacity`), read when it is voxelized.
     pub voxels: crate::voxel::VoxelSampling,
+    /// How its distance field is built (`distance_field::DistanceFieldSettings`: `distanceField`,
+    /// `distanceFieldScale`, `distanceFieldTwoSided`, `distanceFieldDensity`,
+    /// `distanceFieldMaxResolution`).
+    pub distance_field: crate::distance_field::DistanceFieldSettings,
     /// Whether the assembly its `extras` name is built (`ALLOW_ASSEMBLIES_SETTING`).
     pub allow_assemblies: bool,
 }
@@ -77,6 +84,7 @@ struct Named {
     normal_precision: Option<i32>,
     tangent_precision: Option<i32>,
     voxels: NamedVoxels,
+    distance_field: NamedDistanceField,
     allow_assemblies: Option<bool>,
 }
 impl Named {
@@ -122,6 +130,7 @@ impl Named {
                 (0, MAX_TANGENT_PRECISION as i32),
             )?,
             voxels: NamedVoxels::of(&read)?,
+            distance_field: NamedDistanceField::of(&read)?,
             allow_assemblies: read.boolean(ALLOW_ASSEMBLIES_SETTING)?,
         })
     }
@@ -145,6 +154,7 @@ impl Named {
             normal_precision: self.normal_precision.or(lower.normal_precision),
             tangent_precision: self.tangent_precision.or(lower.tangent_precision),
             voxels: self.voxels.or(lower.voxels),
+            distance_field: self.distance_field.or(lower.distance_field),
             allow_assemblies: self.allow_assemblies.or(lower.allow_assemblies),
         }
     }
@@ -184,6 +194,7 @@ impl Named {
                 tangent: self.tangent_precision,
             },
             voxels: self.voxels.resolved(),
+            distance_field: self.distance_field.resolved(),
             allow_assemblies: self.allow_assemblies.unwrap_or(DEFAULT_ALLOW_ASSEMBLIES),
         }
     }

@@ -18,7 +18,7 @@
 //! doubles with each layer, so its texel does too.
 //! The unique meshes and the approximated and baked layers live in `layers`.
 mod approximate;
-pub(super) mod bake;
+pub(crate) mod bake;
 mod first_seen;
 mod gpu;
 mod lists;

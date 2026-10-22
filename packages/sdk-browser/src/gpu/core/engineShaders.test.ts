@@ -86,6 +86,7 @@ const HANDED_IN = new Set([
   'gpu/sort/sortKit.ts',
   'gpu/core/computeStages.ts',
   'modules/sky/clouds/generation.ts',
+  'modules/sky/clouds/viewPrograms.ts',
   'modules/sky/skyLight/pipelines.ts',
   'visibility/raster/resolve.ts',
   'materials/texture/coverageMips.ts',
@@ -93,6 +94,8 @@ const HANDED_IN = new Set([
   'lighting/deferred/compositions.ts',
   'lighting/bounce/screen/kernels.ts',
   'lighting/ao/pipelines.ts',
+  'lighting/atmosphere/opaqueHaze.ts',
+  'lighting/atmosphere/resources.ts',
   'lighting/shadows/vsm/invalidation/castStale.ts',
   'lighting/shadows/vsm/chunks/chunkKernels.ts',
   'lighting/shadows/vsm/markingPass.ts',
@@ -110,6 +113,7 @@ test('the list holds the text of every call that compiles a module', () => {
     'engineShaders.fixture.ts',
     'engineShaders.vsm.fixture.ts',
     'engineShaders.compose.fixture.ts',
+    'engineShaders.post.fixture.ts',
   ]
     .map((name) => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8'))
     .join('\n')
