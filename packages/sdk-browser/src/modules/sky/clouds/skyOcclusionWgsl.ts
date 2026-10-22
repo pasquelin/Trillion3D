@@ -1,4 +1,6 @@
+import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { CLOUD_SHADOW_FORMAT, CLOUD_SHADOW_GROUP_SIZE } from './shadowLayout.ts'
+import { CLOUD_SHADOW_ROUND } from './shadowWgsl.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
 
 /** Where the filter binds what it reads and writes, in its own group 0. */
@@ -23,16 +25,16 @@ export const SKY_OCCLUSION_FILTER_LAYOUT = fieldLayout('SkyOcclusionFilterBlock'
  * a blur of the map but an integration over the hemisphere above the ground. It does not take the
  * planet's curvature into account.
  *
- * 4 by 4, 16 directions of the hemisphere, uniformly (the reference writes "64" in its comment
- * and takes 16, and averages over 16): with `k` from 0 to 3 the first coordinate is
+ * 4 by 4, 16 directions of the hemisphere, uniformly, averaged over 16: with `k` from 0 to 3 the first coordinate is
  * `(k + 0.125) / 4`, the second `add + mul * ((k + 0.125) / 4)`, with `mul` the aperture scale and
  * `add` its complement to 1, so that only a cone round the vertical is taken for an aperture under
  * 1. A direction `d` reads the map, bilinearly, at the texel's centre moved by `d.xy` times the
  * layer's base altitude over `d.z`, in texels. The depth and the mean extinction are averaged; the
  * optical depth is the one whose transmittance is the mean of the transmittances (the visibility is
- * what integrates over the hemisphere, not the extinction), 100 where that is 0.
+ * what integrates over the hemisphere, not the extinction), 100 where that is 0. The result is rounded to the 11/11/10 bit float grid as the trace's is.
  */
-export const SKY_OCCLUSION_FILTER_PROGRAM = `${SKY_OCCLUSION_FILTER_LAYOUT.wgsl}
+export const SKY_OCCLUSION_FILTER_PROGRAM = wgslProgram(
+  `${SKY_OCCLUSION_FILTER_LAYOUT.wgsl}
 @group(0) @binding(${SKY_OCCLUSION_FILTER_BINDING.source}) var source:texture_2d<f32>;
 @group(0) @binding(${SKY_OCCLUSION_FILTER_BINDING.sampler}) var bilinear:sampler;
 @group(0) @binding(${SKY_OCCLUSION_FILTER_BINDING.block}) var<uniform> filterBlock:SkyOcclusionFilterBlock;
@@ -63,6 +65,8 @@ fn skyOcclusionFilterMain(@builtin(global_invocation_id) id:vec3u){
  }
  let count=16.0;
  let opticalDepth=select(100.0,-log(transmittance/count),transmittance>0.0);
- textureStore(destination,id.xy,vec4f(depth/count,extinction/count,opticalDepth,0.0));
-}`
+ textureStore(destination,id.xy,cloudShadowStore(vec3f(depth/count,extinction/count,opticalDepth)));
+}`,
+  [CLOUD_SHADOW_ROUND],
+)
 export const SKY_OCCLUSION_FILTER_ENTRY = 'skyOcclusionFilterMain'

@@ -7,6 +7,7 @@ import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { taaRenderMatrix } from '../../post/taa/frame.ts'
 import { visLayerTop } from '../../visibility/passes/uniforms.ts'
 import { cullStep } from '../../frame/render/cutFreeze.ts'
+import { hizSetting } from '../../visibility/hiz/setting.ts'
 import {
   createEntryCorners,
   encodeEntryCorners,
@@ -52,6 +53,7 @@ const frame: OcclusionFrame = {
   height: 0,
   layerTop: 0,
   cull: 'follow',
+  referenceTest: false,
 }
 
 /**
@@ -79,6 +81,8 @@ export function beginTransparentOcclusion(rt: WebgpuPagesRuntime, cam: EngineCam
   // The image's cull: a frozen cut's draws again the verdicts it kept
   // (`../../frame/render/cutFreeze.ts`).
   frame.cull = cullStep(rt)
+  // The walk of the pyramid (`hizTransparentTest`): the finer level's, or the reference's.
+  frame.referenceTest = hizSetting(rt, 'hizTransparentTest') === 'reference'
   occlusion.begin(frame)
 }
 

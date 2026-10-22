@@ -2,7 +2,7 @@ import { resolveCloudShadowLight } from '../../../../../sdk-core/src/modules/sky
 import type { CloudSkyOcclusionLight } from '../../../../../sdk-core/src/modules/sky/cloudSkyOcclusion.ts'
 import type { CloudPart } from '../../../../../sdk-core/src/modules/sky/clouds.ts'
 import { writeCloudShadowTrace, type CloudShadowImage } from './shadowLayout.ts'
-import { CM_PER_KM } from './shadowFrame.ts'
+import { CM_PER_KM } from '../../../../../sdk-core/src/modules/sky/quality.ts'
 import { SKY_OCCLUSION_FILTER_LAYOUT } from './skyOcclusionWgsl.ts'
 
 /**

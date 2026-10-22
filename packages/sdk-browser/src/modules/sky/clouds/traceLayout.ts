@@ -1,5 +1,7 @@
 import type { CloudPart } from '../../../../../sdk-core/src/modules/sky/clouds.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
+import { cloudHazeInSecondPass, writeCloudTraceOptions } from './traceOptions.ts'
+import { cloudSetupOf, depthScale, tracedToView, type CloudSetup } from './cloudModes.ts'
 import { put4, writeTracingJitter, type Size } from './reconstructLayout.ts'
 import type { CloudFramePlan } from './reconstruct.ts'
 
@@ -26,9 +28,12 @@ export const CLOUD_TRACE_BINDING = {
 
 /** The block's fields:
  *  - `inverseView`: the inverse of the view-projection without the temporal jitter;
- *  - `traced`: the traced image's size and the pixel of each 2×2 this image traces;
+ *  - `traced`: the traced image's size and the pixel of its block this image traces;
  *  - `sizes`: the frame index modulo 8, 1 when the sun's colour is taken at each sample, and the
- *    last coordinate of the scene's depth at half the view's size;
+ *    last coordinate of the scene's depth image, the view's size less one over the traced
+ *    texel's size in reconstructed pixels;
+ *  - `mapping`: the texels of the scene's depth image a traced texel stands for, per axis, and the
+ *    view pixels it stands for, which the noise is read at;
  *  - `jitter`: the shift of the rays in normalised device coordinates (`writeTracingJitter`);
  *  - `layer`: the layer's base altitude and thickness in kilometres, the time in seconds, the
  *    opacity below which a ray ends;
@@ -42,11 +47,23 @@ export const CLOUD_TRACE_BINDING = {
  *    every pixel, 1 when the distant sky light lights the cloud, 1 when the air's lights do;
  *  - `sky`: the planet's radius in kilometres where no air gives one, the share of the sky light the
  *    cloud's underside keeps, and 1 when the material gives an occlusion of its own;
- *  - `lightScale0`, `lightScale1`: the factor on the illuminance of each of the air's two lights. */
+ *  - `lightScale0`, `lightScale1`: the factor on the illuminance of each of the air's two lights;
+ *  - `viewProjection`: the scene to clip matrix the light grid's slices count depth with, read only
+ *    when the lamps light the cloud;
+ *  - `options`: 1 when the haze is laid in the trace (not by the second pass of the high-quality
+ *    haze), 1 in a reflection or a capture (`markCloudTraceCapture`), 1 when the scene's depth cuts the
+ *    ray (0 in the sky capture, which has none), and the sun's channel in the shadow maps
+ *    (`NO_INDEX` when the sun's opaque shadow is not read);
+ *  - `view`: the view's size in pixels and the light grid's cells across and down;
+ *  - `empty`: the empty-space table's slice depth and its whole depth in centimetres, and the
+ *    slices its start is moved by;
+ *  - `ground`: the ground's albedo the cloud bounces light from;
+ *  - `local`: the samples of a lamp's shadow ray. */
 export const CLOUD_TRACE_LAYOUT = fieldLayout('CloudTraceBlock', [
   ['inverseView', 'mat4x4f'],
   ['traced', 'vec4u'],
   ['sizes', 'vec4u'],
+  ['mapping', 'vec4u'],
   ['jitter', 'vec4f'],
   ['layer', 'vec4f'],
   ['reach', 'vec4f'],
@@ -56,11 +73,22 @@ export const CLOUD_TRACE_LAYOUT = fieldLayout('CloudTraceBlock', [
   ['sky', 'vec4f'],
   ['lightScale0', 'vec4f'],
   ['lightScale1', 'vec4f'],
+  ['viewProjection', 'mat4x4f'],
+  ['options', 'vec4u'],
+  ['view', 'vec4u'],
+  ['empty', 'vec4f'],
+  ['ground', 'vec4f'],
+  ['local', 'vec4f'],
 ] as const)
 
 /** Whether the cloud material gives an occlusion of its own: the default material always does, so
  *  the sky light's bottom gradient (`undersideSkyLoss`) is kept for a material that does not. */
 export const CLOUD_MATERIAL_OUTPUTS_OCCLUSION = true
+
+/** What the cloud material gives besides its extinction: the default material gives an occlusion
+ *  of its own and no empty-space output, so that table is not built and not read
+ *  (`cloudTracePermutation`). */
+export const CLOUD_MATERIAL_OUTPUTS_EMPTY_SPACE = false
 
 /** What the image tells the tracing. */
 export interface CloudTraceImage {
@@ -75,6 +103,13 @@ export interface CloudTraceImage {
   airPresent: boolean
   /** The `cloudScatteredLuminanceScale` of the air's first and second light (red, green, blue). */
   lightScales: readonly [ArrayLike<number>, ArrayLike<number>]
+  /** The scene to clip matrix of the light grid, and its cells across and down: read only when the
+   *  lamps light the cloud (`quality.cloudLocalLights`). */
+  viewProjection?: ArrayLike<number>
+  lightGridCells?: readonly [number, number]
+  /** The sun's channel in the shadow maps' view (`VsmProjectionView.lights`), given when the sun
+   *  casts shadows on the clouds and the quality reads the sun's shadow map. */
+  sunShadowChannel?: number
 }
 
 /** The words of `out` as unsigned integers, made once for each array written. */
@@ -85,19 +120,20 @@ const wordsOf = (out: Float32Array) => {
   return words
 }
 
-/** The block of this image into `out` (`CLOUD_TRACE_LAYOUT.words` words): the image's values, the
- *  frame's plan (its sizes and its place in the cycle) and the part's settings, with the part's
- *  `gpu` values as `resolveCloudPart` gives them. */
-export function writeCloudTrace(
+/** The block's ray: the view, the traced image's place in the frame's plan, the layer, the reach and
+ *  the samples. */
+function writeCloudTraceRay(
   out: Float32Array,
   image: CloudTraceImage,
   plan: CloudFramePlan,
   part: CloudPart,
+  setup: CloudSetup,
 ) {
   const { at } = CLOUD_TRACE_LAYOUT
   const words = wordsOf(out)
-  const { gpu, settings, quality } = part
+  const { gpu, settings } = part
   const { traced, reconstructed } = plan.sizes
+  const { mode } = setup
   out.set(image.inverseView, at.inverseView)
   put4(words, at.traced, traced.view.width, traced.view.height, plan.offset[0], plan.offset[1])
   put4(
@@ -105,10 +141,11 @@ export function writeCloudTrace(
     at.sizes,
     image.frameIndex % 8,
     settings.sunTintPerSample ? 1 : 0,
-    Math.floor((image.view.width - 1) / 2),
-    Math.floor((image.view.height - 1) / 2),
+    Math.floor((image.view.width - 1) / mode.traceDownsample),
+    Math.floor((image.view.height - 1) / mode.traceDownsample),
   )
-  writeTracingJitter(out, at.jitter, plan.offset, reconstructed.view)
+  put4(words, at.mapping, depthScale(setup), tracedToView(setup), 0, 0)
+  writeTracingJitter(out, at.jitter, plan.offset, reconstructed.view, mode)
   put4(
     out,
     at.layer,
@@ -141,10 +178,22 @@ export function writeCloudTrace(
     gpu.stepOnEmpty,
     image.airPresent ? 1 : 0,
   )
+}
+
+/** The block's light: the switches, the sky, and the factor on the illuminance of each light. */
+function writeCloudTraceLight(
+  out: Float32Array,
+  words: Uint32Array,
+  image: CloudTraceImage,
+  { gpu, settings, quality }: CloudPart,
+  setup: CloudSetup,
+) {
+  const { at } = CLOUD_TRACE_LAYOUT
+  const hazeInSecondPass = cloudHazeInSecondPass(quality, image.airPresent)
   put4(
     words,
     at.switches,
-    quality.cloudFogLate ? 0 : 1,
+    setup.lateFog || hazeInSecondPass ? 0 : 1,
     quality.cloudFogOnAllPixels ? 1 : 0,
     quality.cloudDistantSkyLight ? 1 : 0,
     quality.cloudAtmosphericLights ? 1 : 0,
@@ -173,5 +222,30 @@ export function writeCloudTrace(
     image.lightScales[1][2],
     0,
   )
+}
+
+/** The block of this image into `out` (`CLOUD_TRACE_LAYOUT.words` words): the image's values, the
+ *  frame's plan (its sizes and its place in the cycle) and the part's settings, with the part's
+ *  `gpu` values as `resolveCloudPart` gives them. */
+export function writeCloudTrace(
+  out: Float32Array,
+  image: CloudTraceImage,
+  plan: CloudFramePlan,
+  part: CloudPart,
+) {
+  const words = wordsOf(out)
+  const setup = plan.setup ?? cloudSetupOf(part.quality)
+  writeCloudTraceRay(out, image, plan, part, setup)
+  writeCloudTraceLight(out, words, image, part, setup)
+  writeCloudTraceOptions(out, words, CLOUD_TRACE_LAYOUT.at, image, part, setup)
   return out
+}
+
+/** The capture of the sky light is a reflection (the step jitter is fixed, the ray has no scene
+ *  depth to meet) and lays its haze and fog in the trace: marked in the block `words` that
+ *  `writeCloudTrace` wrote. */
+export function markCloudTraceCapture(words: Uint32Array, part: CloudPart) {
+  const { at } = CLOUD_TRACE_LAYOUT
+  words[at.switches] = 1
+  put4(words, at.options, part.quality.cloudAerialPerspective ? 1 : 0, 1, 0, words[at.options + 3])
 }

@@ -2,13 +2,9 @@
 // finite one of at least zero: the two a family's rules write through one constructor each; two
 // readings of a family differ where one of its settings does.
 import test from 'node:test'
-import {
-  EXPOSURE_CURVE_SAMPLES,
-  bakeExposureCurve,
-  exposureCurveAt,
-  exposureCurveFactor,
-  resolveExposureCurve,
-} from './exposureCurve.ts'
+import { EXPOSURE_CURVE_SAMPLES, resolveExposureCurve } from './exposureCurve.ts'
+import { exposureCurveAt } from './exposureCurveEval.ts'
+import { bakeExposureCurve, exposureCurveFactor } from './exposureCurveTable.ts'
 import assert from 'node:assert/strict'
 import {
   SUN_TEMPERATURE_RULES,

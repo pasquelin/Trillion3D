@@ -2,6 +2,7 @@ import { pixelToNdc, unprojectPoint } from '../../../../../math/src/wgsl/project
 import { ATMOSPHERE_SLOT } from '../../../../../sdk-core/src/scene/core/atmospherePack.ts'
 import { FOG_MODE, FOG_SLOT } from '../../../../../sdk-core/src/scene/core/fog.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { rand3dPcg16 } from '../../../../../math/src/wgsl/sampling.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
 import { FULLSCREEN_VERTEX } from '../../../lighting/deferred/shaders.ts'
 import { fogBlockOf } from '../../../lighting/fog/read.ts'
@@ -10,21 +11,27 @@ import {
   airProgram,
   type AirBindings,
 } from '../../../lighting/atmosphere/programs.ts'
+import type { CloudSetup } from './cloudModes.ts'
+import { MIN_MAX_BILATERAL, PLAIN_BILATERAL } from './composeBilateralWgsl.ts'
 import {
-  BOUNDED_READ_WGSL,
-  BOUNDS_FIELD,
-  DEVICE_DEPTH_FLOOR,
-  RECONSTRUCT_DOWNSAMPLE,
-} from './reconstructLayout.ts'
+  BILINEAR_UPSAMPLING,
+  JITTER_DEPTH_UPSAMPLING,
+  JITTER_UPSAMPLING,
+  NEAREST_UPSAMPLING,
+} from './composeUpsampleWgsl.ts'
+import { BOUNDED_READ_WGSL, BOUNDS_FIELD, DEVICE_DEPTH_FLOOR } from './reconstructLayout.ts'
 
-/** The composition's uniform: the reconstructed images' texture size, the bounds of their reads
- *  (`writeSafeBounds`, `reconstructLayout.ts`), and `distances`: the distance under which a pixel takes no
- *  cloud (kilometres), the distance every depth must pass for the cloud to be read bilinearly, and
- *  whether the fog is laid on the cloud here (1) or was in the trace (0). */
+/** The composition's uniform: the cloud images' texture size, the bounds of their reads
+ *  (`writeSafeBounds`, `reconstructLayout.ts`), `distances`: the distance under which a pixel takes no
+ *  cloud (kilometres), the distance every depth must pass for the cloud to be read bilinearly,
+ *  whether the fog is laid on the cloud here (1) or was in the trace (0), and the frame index
+ *  modulo 8; and `scale`: the view's pixels to the images' (the position of a pixel in them is its
+ *  own times it, over the images' size) and the images' pixel in the view's. */
 export const COMPOSE_VIEW = fieldLayout('ComposeView', [
   ['textureSize', 'vec4f'],
   ['bounds', BOUNDS_FIELD],
   ['distances', 'vec4f'],
+  ['scale', 'vec4f'],
 ] as const)
 
 /** Where the composition binds the cloud images, in group 1 (group 0 is the air's). */
@@ -41,10 +48,6 @@ export const COMPOSE_BINDING = {
 export const COMPOSE_AIR_BINDINGS: AirBindings = { air: 'read', frame: true, fog: true }
 
 const B = COMPOSE_BINDING
-/** The cloud is read bilinearly where the range of the four texels' depths is under this, km. */
-const BILINEAR_RANGE_KM = 1
-/** A cloud front is behind the pixel, past this margin, km. */
-const FRONT_MARGIN_KM = 0.001
 
 /** The fog of the scene, the haze apart — the cloud's own trace lays the haze: the height fog or
  *  the linear one, the volume nearest of all. The trace lays it with the late fog off, the
@@ -64,93 +67,129 @@ fn cloudFog(P:vec3f,eye:vec3f)->vec4f{
 }`,
 )
 
-const BODY = `
+/** What every program declares: the uniform, the cloud images (the secondary one with two
+ *  surfaces), the scene's depth and the sampler. */
+const declarations = (minMax: boolean) => `
 ${COMPOSE_VIEW.wgsl}
 @group(1) @binding(${B.view}) var<uniform> view:ComposeView;
-@group(1) @binding(${B.colour}) var cloudColour:texture_2d<f32>;
-@group(1) @binding(${B.secondary}) var cloudSecondary:texture_2d<f32>;
+@group(1) @binding(${B.colour}) var cloudColour:texture_2d<f32>;${
+  minMax ? `\n@group(1) @binding(${B.secondary}) var cloudSecondary:texture_2d<f32>;` : ''
+}
 @group(1) @binding(${B.depth}) var cloudDepth:texture_2d<f32>;
 @group(1) @binding(${B.sceneDepth}) var sceneDepth:texture_depth_2d;
 @group(1) @binding(${B.sampler}) var linearSampler:sampler;
-/** The fog laid on a cloud sample at texture coordinates \`uv\` of the reconstructed images, at the
- *  cloud's depth \`depthKm\`: the pixel the coordinates name in the view, its ray, the fog along the
- *  ray to that depth; the cloud's luminance through the fog's transmittance, the fog's light over its
- *  coverage. A sample that covers nothing is left as it is. */
-fn fogOnCloud(uv:vec2f,depthKm:f32,cloud:vec4f)->vec4f{
+/** The secondary image's texel; the colour image's where only one surface is traced. */
+fn loadSecondary(c:vec2i)->vec4f{return loadBounded(${minMax ? 'cloudSecondary' : 'cloudColour'},view.bounds,c);}
+`
+
+/** Where a pixel of the view lies in the cloud images, and the four places a random unit step
+ *  shifts it to: the step is the pixel's size in the images, of the aspect the view's, as many
+ *  pixels as the images' pixel is of the view's. */
+const PLACES = `
+fn volumeUv(pixel:vec2f)->vec2f{return view.scale.x*pixel*view.textureSize.zw;}
+fn jitters(pixel:vec2f)->array<vec2f,4>{
+ let unit=vec2f(1.0,frame.size.x*frame.size.w)*frame.size.zw*view.scale.y;
+ let at=volumeUv(pixel);
+ let frameMod=i32(view.distances.w);
+ var seeds=array<i32,4>(0,8,16,32);
+ var places:array<vec2f,4>;
+ for(var k=0;k<4;k++){
+  let random=vec2f(rand3dPcg16(vec3i(vec2i(pixel),frameMod+seeds[k])).xy)*(1.0/65536.0)*2.0-vec2f(1.0);
+  places[k]=at+select(vec2f(0.0),normalize(random),any(random!=vec2f(0.0)))*unit;
+ }
+ return places;
+}
+`
+
+/** The fog laid on a cloud sample whose ray is the view pixel \`pixel\`'s, at the cloud's depth
+ *  \`depthKm\`: the fog along the ray to that depth; the cloud's luminance through the fog's
+ *  transmittance, the fog's light over its coverage. A sample that covers nothing is left as it is. */
+const FOG = `
+fn fogAtPixel(pixel:vec2f,depthKm:f32,cloud:vec4f)->vec4f{
  let coverage=saturate(1.0-cloud.a);
  if(view.distances.z==0.0||coverage<=0.0){return cloud;}
- let pixel=uv*view.textureSize.xy/${1 / RECONSTRUCT_DOWNSAMPLE};
  let ndc=pixelToNdc(pixel,frame.size.xy);
  let dir=normalize(unprojectPoint(frame.inverseViewProj,vec3f(ndc,0.5))-frame.eye.xyz);
  let fog=cloudFog(frame.eye.xyz+dir*(depthKm*1000.0),frame.eye.xyz);
  return vec4f(cloud.rgb*fog.a+coverage*fog.rgb,cloud.a);
 }
-@fragment fn composeMain(@builtin(position) position:vec4f)->@location(0) vec4f{
- if(frame.eye.w==0.0){discard;}
+/** The same for the sample at texture coordinates \`uv\` of the cloud images, whose pixel in the view
+ *  they name. */
+fn fogOnCloud(uv:vec2f,depthKm:f32,cloud:vec4f)->vec4f{
+ return fogAtPixel(uv*view.textureSize.xy/view.scale.x,depthKm,cloud);
+}
+/** The same at the cloud's front depth read bilinearly there. */
+fn fogFromUv(uv:vec2f,cloud:vec4f)->vec4f{
+ if(view.distances.z==0.0){return cloud;}
+ return fogOnCloud(uv,sampleBounded(cloudDepth,view.bounds,uv).x,cloud);
+}
+`
+
+/** The pixel's distance from the eye, from the scene's depth: under the cloud's start distance it
+ *  takes no cloud. */
+const SCENE = `
  let pixel=vec2i(position.xy);
  let deviceZ=max(DEVICE_DEPTH_FLOOR,textureLoad(sceneDepth,pixel,0));
  let scene=unprojectPoint(frame.inverseViewProj,vec3f(pixelToNdc(position.xy,frame.size.xy),deviceZ));
  let pixelKm=length(frame.eye.xyz-scene)*0.001;
- if(pixelKm<view.distances.x){discard;}
- let low=pixel/${RECONSTRUCT_DOWNSAMPLE};
- let side=vec2i(select(1,-1,low.x*${RECONSTRUCT_DOWNSAMPLE}==pixel.x),select(1,-1,low.y*${RECONSTRUCT_DOWNSAMPLE}==pixel.y));
- var coords=array<vec2i,4>(max(low,vec2i(0)),max(low+vec2i(side.x,0),vec2i(0)),max(low+side,vec2i(0)),max(low+vec2i(0,side.y),vec2i(0)));
- var depths=array<vec4f,4>(loadBounded(cloudDepth,view.bounds,coords[0]),loadBounded(cloudDepth,view.bounds,coords[1]),loadBounded(cloudDepth,view.bounds,coords[2]),loadBounded(cloudDepth,view.bounds,coords[3]));
- var best=coords[0];var bestDepth=depths[0].w;var bestGap=abs(pixelKm-depths[0].w);var bestFront=false;
- var farthest=depths[0].w;var nearest=depths[0].w;
- for(var k=0;k<4;k++){
-  for(var c=0;c<2;c++){
-   let d=depths[k][3-c];
-   let gap=abs(pixelKm-d);
-   if(gap<bestGap){best=coords[k];bestDepth=d;bestGap=gap;bestFront=c==1;}
-   farthest=max(farthest,d);
-   nearest=min(nearest,d);
+ if(pixelKm<view.distances.x){discard;}`
+
+/** What a setup composes with: the way (an index of `CLOUD_UPSAMPLINGS`) and whether the cloud
+ *  images hold two surfaces. */
+export type ComposeVariant = Pick<CloudSetup, 'upsampling' | 'minMaxDepth'>
+
+function bodyOf({ upsampling, minMaxDepth }: ComposeVariant) {
+  switch (upsampling) {
+    case 0:
+      return BILINEAR_UPSAMPLING
+    case 1:
+      return JITTER_UPSAMPLING
+    case 2:
+      return `${SCENE}${NEAREST_UPSAMPLING}`
+    case 3:
+      return `${SCENE}${JITTER_DEPTH_UPSAMPLING}`
+    default:
+      return `${SCENE}${minMaxDepth ? MIN_MAX_BILATERAL : PLAIN_BILATERAL}`
   }
- }
- let fronts=vec4f(depths[0].x,depths[1].x,depths[2].x,depths[3].x);
- if(all(fronts>vec4f(pixelKm+${FRONT_MARGIN_KM}))){discard;}
- let closests=vec4f(depths[0].z,depths[1].z,depths[2].z,depths[3].z);
- let frontOfClosest=all(fronts<=closests);
- let leastDepth=min(min(depths[0].yzw,depths[1].yzw),min(depths[2].yzw,depths[3].yzw));
- let farEnough=all(leastDepth>=vec3f(view.distances.y));
- var cloud:vec4f;
- if(frontOfClosest&&(farthest-nearest<${BILINEAR_RANGE_KM}.0||farEnough)){
-  let uv=(vec2f(coords[0])+0.25+(vec2f(side)*0.5+0.5)*0.5)*view.textureSize.zw;
-  let frontKm=sampleBounded(cloudDepth,view.bounds,uv).x;
-  cloud=fogOnCloud(uv,frontKm,sampleBounded(cloudColour,view.bounds,uv));
- }else{
-  let texel=select(loadBounded(cloudColour,view.bounds,best),loadBounded(cloudSecondary,view.bounds,best),bestFront);
-  cloud=fogOnCloud(vec2f(best)*view.textureSize.zw,bestDepth,texel);
- }
- return cloud;
 }
-`
+
+const programs = new Map<string, string>()
 
 /**
  * THE CLOUDS COMPOSED OVER THE LIT IMAGE, a full-screen pass drawing the cloud's luminance and
  * transmittance, which the blend lays over the image: the luminance added, the image multiplied by
- * the transmittance (`composeBlend`, `compose.ts`).
+ * the transmittance (`COMPOSE_TARGET`, `compose.ts`). The way the images are enlarged is the
+ * setup's (`CloudSetup.upsampling`): the four are in `composeUpsampleWgsl.ts`, the bilateral one
+ * in `composeBilateralWgsl.ts`. A program is made for each way and for the images holding two
+ * surfaces or one; each is made once.
  *
- * Per view pixel:
- * - its distance from the eye, from the scene depth, under the cloud's start distance takes no
- *   cloud;
- * - it reads the 2×2 of reconstructed texels nearest to it: its own and the three on the side of
- *   it the pixel lies on. Each texel holds a closest and a furthest scene depth; the one nearest the
- *   pixel's distance is chosen (the first without a test), the closest depth taking the secondary
- *   image, the furthest the colour image;
- * - a pixel every cloud front of which lies behind its distance takes no cloud;
- * - where every cloud front is no further than its texel's closest depth, and the range of the
- *   eight depths of the four texels is under a kilometre or every depth is as far as the distance that disables the
- *   disocclusion, the colour image is read bilinearly, for a soft look; elsewhere the chosen texel
- *   is read as it is;
- * - the fog lies on the sample at the cloud's front depth read bilinearly, or at the chosen depth
- *   (`fogOnCloud`): the ray of the sample's pixel, the fog along it, the haze apart.
+ * Where the way reads the scene's depth (all but the first two), per view pixel its distance from
+ * the eye, from the scene depth, under the cloud's start distance takes no cloud.
+ * The fog lies on a sample at the cloud's front depth (`fogOnCloud`): the ray of the sample's pixel,
+ * the fog along it, the haze apart.
  */
-export const composeProgram = airProgram(COMPOSE_AIR_BINDINGS, BODY, [
-  CLOUD_FOG_WGSL,
-  pixelToNdc,
-  unprojectPoint,
-  FULLSCREEN_VERTEX,
-  BOUNDED_READ_WGSL,
-  DEVICE_DEPTH_FLOOR,
-])
+export function composeProgram(variant: ComposeVariant) {
+  const key = `${variant.upsampling}${variant.minMaxDepth}`
+  let code = programs.get(key)
+  if (code === undefined) {
+    code = airProgram(
+      COMPOSE_AIR_BINDINGS,
+      `${declarations(variant.minMaxDepth)}${PLACES}${FOG}
+@fragment fn composeMain(@builtin(position) position:vec4f)->@location(0) vec4f{
+ if(frame.eye.w==0.0){discard;}${bodyOf(variant)}
+}
+`,
+      [
+        CLOUD_FOG_WGSL,
+        pixelToNdc,
+        unprojectPoint,
+        rand3dPcg16,
+        FULLSCREEN_VERTEX,
+        BOUNDED_READ_WGSL,
+        DEVICE_DEPTH_FLOOR,
+      ],
+    ).code
+    programs.set(key, code)
+  }
+  return code
+}

@@ -61,6 +61,33 @@ export function normalMatrix3<T extends NumberSink>(out: T, m: ArrayLike<number>
   return out
 }
 
+/** The inverse of a column-major 3×3 matrix: the transpose of its normal matrix. */
+export function inverse3(m: readonly number[]) {
+  const n = normalMatrix3(new Array<number>(9), [
+    m[0],
+    m[1],
+    m[2],
+    0,
+    m[3],
+    m[4],
+    m[5],
+    0,
+    m[6],
+    m[7],
+    m[8],
+    0,
+  ])
+  return [n[0], n[3], n[6], n[1], n[4], n[7], n[2], n[5], n[8]]
+}
+
+/** `a · b`, column-major 3×3. */
+export const multiply3 = (a: readonly number[], b: readonly number[]) =>
+  Array.from({ length: 9 }, (_, i) => {
+    const col = Math.floor(i / 3),
+      row = i % 3
+    return a[row] * b[col * 3] + a[3 + row] * b[col * 3 + 1] + a[6 + row] * b[col * 3 + 2]
+  })
+
 /**
  * A 2D scale, turn and slide composed into a 3 × 3 affine matrix, column-major — entries 0 to 2
  * the first column, 6 and 7 the slide — written into `into`: `translate · scale · rotate(−rotation)`,

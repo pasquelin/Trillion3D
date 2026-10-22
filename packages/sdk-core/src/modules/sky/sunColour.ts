@@ -1,3 +1,4 @@
+import { rowTimes, XYZ_TO_SRGB } from '../../../../math/src/color/color.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import {
   ANY_NUMBER as ANY,
@@ -29,43 +30,6 @@ const LEAST_KELVIN = 1000
 const MOST_KELVIN = 15000
 
 type Vec3 = readonly [number, number, number]
-type Mat3 = readonly [Vec3, Vec3, Vec3]
-
-/** The sRGB primaries' and white's chromaticities (x, y). */
-const RED = [0.64, 0.33] as const
-const GREEN = [0.3, 0.6] as const
-const BLUE = [0.15, 0.06] as const
-const WHITE = [0.3127, 0.329] as const
-
-const inverse = (m: Mat3): Mat3 => {
-  const [[a, b, c], [d, e, f], [g, h, i]] = m
-  const A = e * i - f * h
-  const B = f * g - d * i
-  const C = d * h - e * g
-  const det = a * A + b * B + c * C
-  return [
-    [A / det, (c * h - b * i) / det, (b * f - c * e) / det],
-    [B / det, (a * i - c * g) / det, (c * d - a * f) / det],
-    [C / det, (b * g - a * h) / det, (a * e - b * d) / det],
-  ]
-}
-
-/** A row vector times a matrix. */
-const times = (v: Vec3, m: Mat3): Vec3 => [
-  v[0] * m[0][0] + v[1] * m[1][0] + v[2] * m[2][0],
-  v[0] * m[0][1] + v[1] * m[1][1] + v[2] * m[2][1],
-  v[0] * m[0][2] + v[1] * m[1][2] + v[2] * m[2][2],
-]
-
-/** The XYZ to linear sRGB matrix, made from the chromaticities: each primary's row (x, y, z) is
- *  scaled so that white (1, 1, 1) lands on the white point at luminance 1, then inverted. */
-const XYZ_TO_RGB: Mat3 = /* @__PURE__ */ (() => {
-  const row = ([x, y]: readonly [number, number]): Vec3 => [x, y, 1 - x - y]
-  const primaries: Mat3 = [row(RED), row(GREEN), row(BLUE)]
-  const [wx, wy] = WHITE
-  const scale = times([wx / wy, 1, (1 - wx - wy) / wy], inverse(primaries))
-  return inverse(primaries.map((r, i) => r.map((x) => x * scale[i]!)) as unknown as Mat3)
-})()
 
 /**
  * The linear RGB factor of a black body at `kelvin`, clamped to 1000..15000 K: the point on an
@@ -85,7 +49,7 @@ export function temperatureFactor(kelvin: number): Vec3 {
   const x = (3 * u) / d
   const y = (2 * v) / d
   const z = 1 - x - y
-  const [r, g, b] = times([x / y, 1, z / y], XYZ_TO_RGB)
+  const [r, g, b] = rowTimes([x / y, 1, z / y], XYZ_TO_SRGB)
   return [Math.max(0, r), Math.max(0, g), Math.max(0, b)]
 }
 

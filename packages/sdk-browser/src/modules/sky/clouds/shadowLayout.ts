@@ -128,6 +128,7 @@ export function writeCloudShadowTemporal(
   out: Float32Array,
   frame: CloudShadowFrame,
   side: number,
+  weight: number,
   temporal: CloudShadowTemporal,
 ) {
   const { at } = CLOUD_SHADOW_TEMPORAL_LAYOUT
@@ -135,7 +136,7 @@ export function writeCloudShadowTemporal(
   out.set(temporal.previousClipFromCamera, at.previousClipFromCamera)
   out.set([side, side, 1 / side, 1 / side], at.size)
   out.set(temporal.pixel, at.pixel)
-  out.set([temporal.weight, temporal.history ? 1 : 0, temporal.anchorMoved ? 1 : 0, 0], at.blend)
+  out.set([weight, temporal.history ? 1 : 0, temporal.anchorMoved ? 1 : 0, 0], at.blend)
   out.set([temporal.depthFrom, temporal.depthScale, 0, 0], at.depth)
   return out
 }

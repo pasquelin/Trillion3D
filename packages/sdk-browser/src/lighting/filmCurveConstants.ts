@@ -7,7 +7,7 @@
  * so none is changed alone.
  */
 import { wgslF32, wgslMatrix3 } from '../../../math/src/wgsl/number.ts'
-import { inverse3, multiply3 } from './toneCurveConstants.ts'
+import { inverse3, multiply3 } from '../../../math/src/matrix/matrix3.ts'
 
 /** A matrix written row after row, as colour-science tables print it, column after column, as
  *  `wgslMatrix3` and `multiply3` read it. */

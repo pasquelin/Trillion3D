@@ -1,4 +1,4 @@
-import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { type WgslDecl, wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import {
   computeSamplerEntry,
   computeTextureEntry,
@@ -60,6 +60,7 @@ export const CLOUD_MATERIAL_SLOTS = {
     'multiScatterEccentricity',
     'multiScatterOctaves',
   ],
+  ground: ['groundContribution'],
 } as const satisfies Readonly<Record<string, readonly (keyof typeof CLOUD_MATERIAL_RULES)[]>>
 
 const SLOTS = Object.entries(CLOUD_MATERIAL_SLOTS) as [string, readonly (keyof CloudMaterial)[]][]
@@ -105,6 +106,12 @@ export const cloudMaterialLayoutEntries = (first: number): GPUBindGroupLayoutEnt
   computeTextureEntry(first + 5, 'float', '3d'),
   computeSamplerEntry(first + 6),
 ]
+
+/** The material's empty-space output (\`cloudMaterialEmptySpace(at: CloudPoint, radius: f32) -> f32\`:
+ *  above zero where its froxel of bounding radius \`radius\`, centimetres, may hold cloud). The default
+ *  material gives none, so the pass that builds the table (\`emptySpaceWgsl.ts\`) is not made for it
+ *  (\`CLOUD_MATERIAL_OUTPUTS_EMPTY_SPACE\`); a material that gives one sets both. */
+export const CLOUD_MATERIAL_EMPTY_SPACE_WGSL: WgslDecl | undefined = undefined
 
 export const CLOUD_MATERIAL_WGSL = wgslBlock(
   'CLOUD_MATERIAL_WGSL',

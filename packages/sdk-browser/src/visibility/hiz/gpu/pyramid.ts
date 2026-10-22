@@ -85,6 +85,9 @@ export type Pyramid = HizPyramid & {
   frontView: GPUTextureView
   /** Whether this image's fold writes it: the frame word its readers fold it by (`HIZ_FOLD_WGSL`). */
   frontWritten: boolean
+  /** Whether its nearest layer keeps the planes' corners (`hizTrace` `'planes'`): the frame word its
+   *  build and its readers take (`HIZ_UNI.at.planes`, `HIZ_LEVELS_PLANES_WORD`). */
+  planes: boolean
   /** What this image draws in level 0 (`GpuHiz.extent`): the whole size until an image says. */
   drawn: ReturnType<typeof pyramidLayout>
   /** Its bind group (`bindHiz`). */
@@ -123,6 +126,7 @@ export function allocPyramid(
     pyramidView: arrayView(pyramid),
     drawn: pyramidLayout(width, height, slots),
     frontWritten: false,
+    planes: false,
     destroy() {
       made.level0.destroy()
       pyramid.destroy()

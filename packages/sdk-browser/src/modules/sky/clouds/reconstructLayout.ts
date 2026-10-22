@@ -1,40 +1,34 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { wgslBlock, wgslConst } from '../../../../../math/src/wgsl/decl.ts'
 import type { FieldType } from '../../../gpu/core/fieldLayout.ts'
+import { CLOUD_MODES, type CloudMode, type TargetSize } from './cloudModes.ts'
 
 /**
  * WHAT THE CLOUDS' IMAGE IS MADE OF, the one table the tracing, the reconstruction and the
- * composition read: the traced image is a quarter of the view's size per axis (one pixel in
- * sixteen), the reconstructed image half of it, and a 2×2 cycle over four images says which of the
- * four view pixels around a traced texel is the one traced now.
+ * composition read: the sizes of the traced and the reconstructed images, which the mode
+ * (`cloudModes.ts`) gives (in mode 0 the traced image is a quarter of the view's size per axis, one
+ * pixel in sixteen, the reconstructed image half of it), and the cycle over the images that says
+ * which pixel of a traced texel's block is the one traced now.
  *
- * Three images are traced, each as a texture of its own:
+ * Three images are traced in mode 0 (two surfaces), two in the others, each as a texture of its own:
  * - `colour`: the cloud's luminance in `rgb`, its transmittance in `a`;
  * - `secondary`: the same, for the closest surface of the texel's depth range;
  * - `depth`, in kilometres from the eye: `x` the cloud's front, `y` the scene's
  *   depth the ray was cut at (the furthest), `z` the closest and `w` the furthest depth of the
  *   texel's range of scene depths.
- * The reconstruction writes the same three, at its size; the one it wrote the image before is its
- * history. A reconstructed image is alternately the destination and the history.
+ * The reconstruction writes the same, at its size; the one it wrote the image before is its
+ * history. A reconstructed image is alternately the destination and the history. Modes 1 and 3 have
+ * no reconstructed image: the composition reads the traced one.
  */
 
 /** A size in texels. */
-export interface Size {
-  readonly width: number
-  readonly height: number
-}
-
-/** The traced image's pixel is this many reconstructed pixels, per axis. */
-export const TRACE_DOWNSAMPLE = 2
-/** The reconstructed image's pixel is this many view pixels, per axis. */
-export const RECONSTRUCT_DOWNSAMPLE = 2
-/** The traced image's pixel is this many view pixels, per axis. */
-export const TRACE_TO_VIEW = TRACE_DOWNSAMPLE * RECONSTRUCT_DOWNSAMPLE
+export type Size = TargetSize
 
 /** The three images' format: four half floats. */
 export const CLOUD_FORMAT: GPUTextureFormat = 'rgba16float'
 
-const half = (size: Size, by: number): Size => ({
+/** A size divided by `by` per axis, rounding up. */
+export const dividedSize = (size: Size, by: number): Size => ({
   width: ceilDiv(size.width, by),
   height: ceilDiv(size.height, by),
 })
@@ -46,16 +40,17 @@ export interface ImageSize {
   readonly view: Size
 }
 
-/** The sizes of the traced and the reconstructed images, for a view of `view` pixels drawn in a
- *  target allocated at `allocated`: each divides the one before, rounding up. */
-export function cloudSizes(allocated: Size, view: Size) {
-  const reconstructedTexture = half(allocated, RECONSTRUCT_DOWNSAMPLE)
-  const reconstructedView = half(view, RECONSTRUCT_DOWNSAMPLE)
+/** The sizes of the traced and the reconstructed images of `mode` (mode 0 by default), for a view
+ *  of `view` pixels drawn in a target allocated at `allocated`, both already on the target's scale:
+ *  each divides the one before, rounding up. */
+export function cloudSizes(allocated: Size, view: Size, mode: CloudMode = CLOUD_MODES[0]) {
+  const reconstructedTexture = dividedSize(allocated, mode.reconstructDownsample)
+  const reconstructedView = dividedSize(view, mode.reconstructDownsample)
   return {
     reconstructed: { texture: reconstructedTexture, view: reconstructedView } as ImageSize,
     traced: {
-      texture: half(reconstructedTexture, TRACE_DOWNSAMPLE),
-      view: half(reconstructedView, TRACE_DOWNSAMPLE),
+      texture: dividedSize(reconstructedTexture, mode.traceDownsample),
+      view: dividedSize(reconstructedView, mode.traceDownsample),
     } as ImageSize,
   }
 }
@@ -134,34 +129,21 @@ export const RECONSTRUCT_SAMPLER: GPUSamplerDescriptor = {
   addressModeV: 'clamp-to-edge',
 }
 
-/** The order the four view pixels around a traced texel are traced in, over four images. */
-const CYCLE_ORDER = [0, 2, 3, 1] as const
-const CYCLE_LENGTH = TRACE_DOWNSAMPLE * TRACE_DOWNSAMPLE
-
-/** The next image's rank in the cycle: the cycle restarts at a camera cut, and the first image
- *  after a cut is rank 1. */
-export const nextCycleRank = (rank: number, cut: boolean) => ((cut ? 0 : rank) + 1) % CYCLE_LENGTH
-
-const OFFSETS = CYCLE_ORDER.map(
-  (slot) => [slot % TRACE_DOWNSAMPLE, Math.floor(slot / TRACE_DOWNSAMPLE)] as const,
-)
-
-/** Which of the four view pixels around a traced texel the image of rank `rank` traces. */
-export const traceOffset = (rank: number): readonly [number, number] => OFFSETS[rank % CYCLE_LENGTH]
-
 /**
  * The offset the traced image's rays are shifted by, in normalised device coordinates, so that
  * the ray of a traced texel passes through the centre of the reconstructed pixel `offset` names,
  * into `out` at `at` (two words). The view's own anti-aliasing jitter is removed first; this one
- * replaces it. `reconstructed` is the reconstructed image's view.
+ * replaces it. `reconstructed` is the reconstructed image's view; the centre is that of a
+ * reconstructed pixel's own size, whatever the mode.
  */
 export function writeTracingJitter(
   out: Float32Array,
   at: number,
   offset: readonly [number, number],
   reconstructed: Size,
+  mode: CloudMode,
 ) {
-  const centre = RECONSTRUCT_DOWNSAMPLE / 2
+  const centre = mode.reconstructDownsample / 2
   out[at] = ((offset[0] + 0.5 - centre) * -2) / reconstructed.width
   out[at + 1] = ((offset[1] + 0.5 - centre) * 2) / reconstructed.height
 }

@@ -91,13 +91,15 @@ export const createSkyLightSampler = (device: GPUDevice) =>
   })
 
 /** The uniform into `out` (`SKY_LIGHT_READ_WORDS` floats): the light's colour (`skyLightColor`),
- *  whether a cube of `mips` mips is there to read (0 mips: none), the last mip. */
+ *  whether a cube of `mips` mips is there to read (0 mips: none), the last mip. `cubemapScale` is
+ *  the rescale of a 32-bit float cubemap (`SkyLightCubeRead.colorScale`). */
 export function writeSkyLightRead(
   out: Float32Array,
   part: SkyLightPart,
   mips: number,
   skyLighting: boolean,
+  cubemapScale = 1,
 ) {
-  out.set([...skyLightColor(part, skyLighting), 0, mips > 0 ? 1 : 0, mips - 1, 0, 0])
+  out.set([...skyLightColor(part, skyLighting, cubemapScale), 0, mips > 0 ? 1 : 0, mips - 1, 0, 0])
   return out
 }

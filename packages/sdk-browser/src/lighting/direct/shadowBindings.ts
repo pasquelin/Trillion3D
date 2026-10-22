@@ -27,10 +27,11 @@ export interface VsmTraceBindings {
 export const vsmTraceBindingsLabel = (t: VsmTraceBindings) =>
   `${t.view} ${t.noise} ${!!t.subgroups}`
 
-/** The pool's first slice at `binding`, read as the VSM passes read it (`vsmPoolLoadOf`): the same
- *  windows and words, compiled for the largest pool the engine grants (`VSM_FORWARD_LAYOUT`). */
-export const forwardPool = (binding: number) =>
-  vsmPoolLoadOf(0, [{ resource: 'pagePool', binding, slices: 1 }], VSM_FORWARD_LAYOUT)
+/** The pool's first slice at `binding` of group `group`, read as the VSM passes read it
+ *  (`vsmPoolLoadOf`): the same windows and words, compiled for the largest pool the engine grants
+ *  (`VSM_FORWARD_LAYOUT`). */
+export const forwardPool = (binding: number, group = 0) =>
+  vsmPoolLoadOf(group, [{ resource: 'pagePool', binding, slices: 1 }], VSM_FORWARD_LAYOUT)
 
 /** The opaque resolve's shadow binding: the mask (`directShadowWgsl`), its transmission and tile
  *  words beside it (`DEFERRED_BINDINGS`). It reads no map: the projection traced them. */

@@ -1,4 +1,4 @@
-import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
+import { mapSide } from './cloudShadow.ts'
 import type { SkyLightSettings } from './skyLight.ts'
 import type { SkyQualityValues } from './quality.ts'
 
@@ -32,12 +32,6 @@ export const cloudSkyOcclusionWanted = (
   light: CloudSkyOcclusionLight | undefined,
 ) => quality.cloudSkyAO && light !== undefined && light.cloudAmbientOcclusion
 
-/** The texels a side of the map has at a resolution scale of 1. */
-const BASE_SIDE = 512
-
-/** The side of the map in texels: the base side times the sky light's scale, cut to a whole
- *  number, at most the map's largest, at least 1. The floor is ours: a largest side of 0 or less,
- *  which the quality setting lets through, would give a map of no texels, whose size is inverted for
- *  the sampling (infinity) and which the GPU refuses to create. */
+/** The side of the map in texels: `mapSide` of the sky light's resolution scale. */
 export const cloudSkyOcclusionSide = (light: CloudSkyOcclusionLight, mostSide: number) =>
-  clampLowWins(Math.trunc(BASE_SIDE * light.cloudAmbientOcclusionMapResolutionScale), 1, mostSide)
+  mapSide(light.cloudAmbientOcclusionMapResolutionScale, mostSide)

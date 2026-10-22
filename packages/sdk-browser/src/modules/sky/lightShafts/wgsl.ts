@@ -1,9 +1,15 @@
 import { wgslBlock, type WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { LIGHT_SHAFT_BLUR_SAMPLES } from '../../../../../sdk-core/src/modules/sky/lightShafts.ts'
+import {
+  computeSamplerEntry,
+  computeTextureEntry,
+  computeUniformEntry,
+} from '../../../gpu/core/computeBindings.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
 import { FULLSCREEN_VERTEX } from '../../../lighting/deferred/shaders.ts'
-import { DEVICE_DEPTH_FLOOR } from '../clouds/reconstructLayout.ts'
+import { put4 } from '../clouds/reconstructLayout.ts'
+import { lightShaftBounds, type LightShaftSizes } from './layout.ts'
 
 /**
  * The light shafts' uniform, one for every pass, written by the pass:
@@ -68,7 +74,7 @@ fn sceneTexel(uv:vec2f)->vec2i{
 }
 /** The distance along the view axis of the pixel at \`uv\`, in metres: the device depth inverted. */
 fn sceneDistance(uv:vec2f)->f32{
- let z=max(textureLoad(sceneDepth,sceneTexel(uv),0),DEVICE_DEPTH_FLOOR);
+ let z=textureLoad(sceneDepth,sceneTexel(uv),0);
  let t=view.depthTerms;
  return (t.w*z-t.y)/(t.x-t.z*z);
 }
@@ -116,7 +122,7 @@ fn sceneDistance(uv:vec2f)->f32{
 `
 
 /** The passes' whole shader text: one module, each pass naming its fragment entry. */
-export const lightShaftProgram = wgslProgram(BODY, [FULLSCREEN_VERTEX, DEVICE_DEPTH_FLOOR])
+export const lightShaftProgram = wgslProgram(BODY, [FULLSCREEN_VERTEX])
 
 /** The mask's view, the fog's uniform: the bounds of the mask's reads, `(minX, minY, maxX, maxY)` in texture
  *  coordinates (`lightShaftBounds`), and the scene's texture size in `xy`, its inverse in `zw`. */
@@ -149,3 +155,31 @@ fn lightShaftMask(pixel:vec2f)->f32{
  return textureSampleLevel(lightShaftMaskTexture,lightShaftMaskSampler,uv,0.0).x;
 }`,
   )
+
+/** What the fog binds to read the mask: the mask's texture (`float`), its sampler (filtering,
+ *  clamped: `LIGHT_SHAFT_SAMPLER`) and the uniform (`LIGHT_SHAFT_MASK_VIEW`), at the numbers given. */
+export function lightShaftMaskEntries(
+  binding: { readonly texture: number; readonly sampler: number; readonly view: number },
+  visibility: number,
+) {
+  return [
+    computeTextureEntry(binding.texture, 'float', '2d', visibility),
+    computeSamplerEntry(binding.sampler, 'filtering', visibility),
+    computeUniformEntry(binding.view, {}, visibility),
+  ]
+}
+
+/** The fog's uniform (`LIGHT_SHAFT_MASK_VIEW`) into `out`, `LIGHT_SHAFT_MASK_VIEW.words` floats:
+ *  the bounds of the mask's view, and the scene's texture size. Where no mask is drawn, the bounds
+ *  are the whole texture of `LIGHT_SHAFT_NO_MASK`. */
+export function writeLightShaftMaskView(out: Float32Array, sizes: LightShaftSizes, drawn: boolean) {
+  const { at } = LIGHT_SHAFT_MASK_VIEW
+  const { texture } = sizes.scene
+  if (drawn) out.set(lightShaftBounds(sizes.shaft), at.bounds)
+  else put4(out, at.bounds, 0, 0, 1, 1)
+  put4(out, at.scene, texture.width, texture.height, 1 / texture.width, 1 / texture.height)
+  return out
+}
+
+/** The texture the fog reads where no mask is drawn: white, so the mask multiplies by 1. */
+export const LIGHT_SHAFT_NO_MASK = { format: 'r8unorm', fill: 255 } as const

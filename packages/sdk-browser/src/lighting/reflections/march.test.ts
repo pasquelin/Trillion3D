@@ -157,3 +157,37 @@ test('a ray meets a grazing plane in the half of its pixel past the centre, in w
   const { at } = tall.hit([64.5, 100.5, 0.641], [0, 300, 0])
   assert.ok(at && at[1] >= 232 && at[1] < 233, `in row 232: ${at?.[1]}`)
 })
+
+// The reference's walk (`hizTrace` `'reference'`, the default): the closest depth of each texel's
+// centre, mip by mip, a hit the tile's depth flat (`screenMarchReference`).
+const reference = (depth: (x: number, y: number) => number) => marcher(W, H, depth, () => 0, false)
+
+test('the reference walk stops on the wall it falls onto, at the depth of its tile, flat', () => {
+  // A wall four pixels wide, two half-resolution texels, over a far floor; the ray crosses its depth
+  // in the second pixel of the first texel.
+  const march = reference((x) => (x >= 80 && x < 84 ? 0.5 : 0.1))
+  const { o, d } = falling(20, 120, 30, 81, 0.5, 0.01)
+  const { at, depth } = march.hit(o, d)
+  assert.ok(at && at[0] >= 80 && at[0] < 82, `in the first texel: ${at?.[0]}`)
+  assert.equal(depth, 0.5, 'the tile’s depth, no slope')
+})
+
+test('the reference walk passes above a wall and behind a floor', () => {
+  const march = reference((x) => (x >= 80 && x < 84 ? 0.5 : 0.1))
+  assert.equal(march.hit([20.5, 30.5, 0.6], [100, 0, 0]).at, undefined, 'above the wall')
+  // Behind a floor by more than the slab (a surface is `REFLECTION_THICKNESS` pixels thick).
+  const floor = reference(() => 0.5)
+  assert.equal(floor.hit([20.5, 30.5, 0.0], [100, 0, 0]).at, undefined, 'behind the floor')
+  assert.ok(floor.hit([20.5, 30.5, 0.5 - SLAB / 2], [100, 0, 0]).at, 'within its thickness')
+})
+
+test('the reference walk reads the closest depth of 2 × 2 pixels: a one-pixel wall is a tile', () => {
+  const wall = (x: number) => (x === 81 ? 0.5 : 0.1)
+  const { o, d } = falling(20, 120, 30, 80.5, 0.5, 0.01)
+  const planes = marcher(W, H, wall).hit(o, d)
+  const walk = reference(wall).hit(o, d)
+  // The planes' march falls through the empty pixel 80 onto nothing, the reference's tile holds
+  // the wall's depth over both pixels.
+  assert.ok(walk.at && walk.at[0] >= 80 && walk.at[0] < 82, `${walk.at?.[0]}`)
+  assert.ok(!planes.at || planes.at[0] >= 81, `${planes.at?.[0]}`)
+})

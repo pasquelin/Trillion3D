@@ -147,7 +147,8 @@ fn hizFoldOver(depth:texture_2d_array<f32>,p:vec2i,front:bool)->bool{
 
 /** The levels uniform's struct (`hizLevelWords`), declared by every host that binds it as
  *  \`hizLevels\`: per level its nearest bound's first index, width, height and finished depth's
- *  farthest's first index; then the count of levels, the front word and \`upper\` (\`hizRoute\`). */
+ *  farthest's first index; then the count of levels, the front word, \`upper\` (\`hizRoute\`) and the
+ *  planes word (\`hizTracePlanes\`). */
 export const HIZ_LEVELS = fieldLayout('HizLevels', [
   ['level', { wgsl: `array<vec4u,${HIZ_MAX_LEVELS}>`, words: 4 * HIZ_MAX_LEVELS, align: 4 }],
   ['count', 'vec4u'],
@@ -160,13 +161,15 @@ export const HIZ_LEVELS_STRUCT_WGSL = wgslBlock('HIZ_LEVELS_STRUCT_WGSL', [], HI
  * the depth the image drew, and in its second layer, when it holds one, the nearest transparent
  * surface's depth a pixel (zero for none) —, the pyramid and its levels. `hizOpaqueDepth` is a
  * pixel's opaque depth alone, the transparent layer left out; `hizPlane` is a pixel's depth (the
- * nearer of the opaque depth and
- * the transparent one, which the nearest layer's bounds fold in the same way, `hizFold`) and its
- * plane's slopes in depth per pixel, and `hizFrontOver` whether that depth is a transparent
+ * nearer of the opaque depth and the transparent one where the setting `hizFoldTransparents`
+ * folds it in, as the nearest layer's bounds do, `hizFold`) and its plane's slopes in depth per
+ * pixel — the planes of `hizTrace` `'planes'`; `hizTracePlanes` says the pyramid was built so —, and `hizFrontOver` whether that depth is a transparent
  * surface's (`hizFoldOver`), in front of the opaque one (a reader that takes only opaque surfaces for walls skips
  * it); `hizCellFarthest` and `hizCellNearest` a cell of a level from 1 up, its farthest depth of the
- * finished image and its nearest, each its own read. Both clamp the cell to the level: the last
- * texel of a level covers the image's edge.
+ * finished image and its nearest, each its own read, in the pyramid built for `hizTrace` `'planes'`
+ * (`hizTracePlanes`); `hizCellCullFarthest` a cell's farthest depth of the opaque image alone, the
+ * culling layer's — the farthest of the reference's pyramid, built in every mode. All clamp the cell
+ * to the level: the last texel of a level covers the image's edge.
  */
 export const hizDepthWgsl = (group: number, binding: number) =>
   wgslBlock(
@@ -176,6 +179,7 @@ export const hizDepthWgsl = (group: number, binding: number) =>
 @group(${group}) @binding(${binding + 1}) var hizPyramid:texture_2d_array<u32>;
 @group(${group}) @binding(${binding + 2}) var<uniform> hizLevels:HizLevels;
 fn hizLevelCount()->i32{return i32(hizLevels.count.x);}
+fn hizTracePlanes()->bool{return hizLevels.count.w!=0u;}
 fn hizPixelIn(cell:vec2i,size:vec2u)->vec2u{return vec2u(clamp(cell,vec2i(0),vec2i(size)-vec2i(1)));}
 fn hizPixel(cell:vec2i)->vec2u{return hizPixelIn(cell,hizLevels.level[0].yz);}
 fn hizOpaqueDepth(cell:vec2i)->f32{return textureLoad(hizDepth,vec2i(hizPixel(cell)),${HIZ_OPAQUE_LAYER},0).r;}
@@ -194,5 +198,6 @@ fn hizCellStep(cell:vec2i,level:i32)->u32{
  return p.y*size.x+p.x;
 }
 fn hizCellNearest(cell:vec2i,level:i32)->f32{return hizNearest(hizLevels.level[level].x+hizCellStep(cell,level));}
-fn hizCellFarthest(cell:vec2i,level:i32)->f32{return hizWholeFarthest(hizLevels.level[level].w+hizCellStep(cell,level));}`,
+fn hizCellFarthest(cell:vec2i,level:i32)->f32{return hizWholeFarthest(hizLevels.level[level].w+hizCellStep(cell,level));}
+fn hizCellCullFarthest(cell:vec2i,level:i32)->f32{return hizCullFarthest(hizLevels.level[level].x-hizLevels.count.z+hizCellStep(cell,level));}`,
   )

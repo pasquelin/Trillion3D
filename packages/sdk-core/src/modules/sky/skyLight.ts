@@ -1,3 +1,4 @@
+import { DEG2RAD } from '../../../../math/src/constants.ts'
 import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { fieldsOf, refusal } from '../../contracts/nameMatch.ts'
@@ -48,9 +49,11 @@ const OCCLUSION_COMBINES = ['minimum', 'multiply'] as const
  *   (`skyLightCubeWidth`);
  * - `lowerHemisphereIsSolidColor` (true; the component calls it `bLowerHemisphereIsBlack`) and
  *   `lowerHemisphereColor` (black, linear): every direction below the horizon is that colour;
- * - `sourceType` (`'capturedScene'`), `sourceCubemapAngle` (0), `skyDistanceThreshold`
- *   (150000 cm), `captureEmissiveOnly` (false): the static capture's and a specified cubemap's,
- *   which the real-time capture replaces;
+ * - `sourceType` (`'capturedScene'`), `sourceCubemapAngle` (0, degrees), `skyDistanceThreshold`
+ *   (150000 cm), `captureEmissiveOnly` (false): the static sources', which the real-time capture
+ *   replaces (`skyLightSource`). A specified cubemap reads the angle (`skyLightCubemapRotation`);
+ *   the captured scene reads the distance (the near plane of its faces) and the emissive flag, and
+ *   this engine has no such capture (`skyLightSource`);
  * - `occlusionMaxDistance` (1000), `contrast` (0), `occlusionExponent` (1), `minOcclusion` (0),
  *   `occlusionTint` (black), `occlusionCombineMode` (`'minimum'`): the distance-field occlusion's;
  * - `cloudAmbientOcclusion` (false), `cloudAmbientOcclusionStrength` (1, from 0),
@@ -132,6 +135,33 @@ export const isSkyLightCapturing = (part: SkyLightPart) =>
   (part.light.mobility === 'movable' || part.light.mobility === 'stationary') &&
   part.quality.skyLightRealTimeCapture
 
+/**
+ * Where the light's sky comes from: `'realTime'` when it captures in real time, which replaces the
+ * source type; else the source type's own, `'specifiedCubemap'` (the host's cube) or
+ * `'capturedScene'` (the scene's geometry drawn into the cube once, which the engine has no way to
+ * draw: the capture encodes nothing for it).
+ */
+export const skyLightSource = (part: SkyLightPart) =>
+  isSkyLightCapturing(part) ? ('realTime' as const) : part.light.sourceType
+
+/** The angle the specified cubemap is turned about the up axis, in radians. */
+export const skyLightCubemapRotation = (part: SkyLightPart) =>
+  part.light.sourceCubemapAngle * DEG2RAD
+
+/** The largest finite half float: what a 16-bit cube holds. */
+export const HALF_FLOAT_MAX = 65504
+
+/**
+ * The scales of a 32-bit float cubemap whose brightest channel is `peak`: past the half float's
+ * range the cube is written times `cube` (the range over the peak) so that it fits, and the light's
+ * colour is multiplied by `light` (the peak over the range) to give back the original luminance.
+ * Within the range both are 1.
+ */
+export const skyLightCubemapScales = (peak: number) =>
+  peak > HALF_FLOAT_MAX
+    ? { cube: HALF_FLOAT_MAX / peak, light: peak / HALF_FLOAT_MAX }
+    : { cube: 1, light: 1 }
+
 /** The smallest side of the cube the light sanitises to. */
 const LEAST_CUBE_WIDTH = 8
 /** The smallest `skyLightResolutionOverride` that replaces the cube's side. */
@@ -171,10 +201,15 @@ export const skyLightCloudWidth = (width: number, part: SkyLightPart) =>
  * the quality's `skyLightIntensityScale`. The reference scales it by the inverse of the lighting
  * pre-exposure when it captures in real time, and the capture it multiplies was itself written
  * times that pre-exposure: the two cancel, and neither is applied here. Black when the sky
- * lighting is off (`skyLighting`).
+ * lighting is off (`skyLighting`). `cubemapScale` is the rescale of a 32-bit float cubemap
+ * (`skyLightCubemapScales(...).light`), 1 for every other source.
  */
-export function skyLightColor(part: SkyLightPart, skyLighting: boolean): [number, number, number] {
+export function skyLightColor(
+  part: SkyLightPart,
+  skyLighting: boolean,
+  cubemapScale = 1,
+): [number, number, number] {
   const { color, intensity } = part.light
-  const scale = skyLighting ? intensity * part.quality.skyLightIntensityScale : 0
+  const scale = skyLighting ? intensity * part.quality.skyLightIntensityScale * cubemapScale : 0
   return [color[0] * scale, color[1] * scale, color[2] * scale]
 }

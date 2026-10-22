@@ -9,18 +9,31 @@ import {
   computeUniformEntry,
 } from '../../../gpu/core/computeBindings.ts'
 import {
+  DEFAULT_CLOUD_SETUP,
+  cloudLayoutKey,
+  nextCycleRank,
+  scaledTarget,
+  traceOffset,
+  type CloudSetup,
+} from './cloudModes.ts'
+import {
   BOUNDS_FIELD,
   CLOUD_FORMAT,
   cloudSizes,
-  nextCycleRank,
   put4,
-  traceOffset,
   writeSafeBounds,
+  writeTracingJitter,
   writeViewScale,
   type ImageSize,
   type Size,
 } from './reconstructLayout.ts'
-import { RECONSTRUCT_BINDING, RECONSTRUCT_VIEW, reconstructProgram } from './reconstructWgsl.ts'
+import {
+  RECONSTRUCT_BINDING,
+  RECONSTRUCT_VIEW,
+  readsHalfDepth,
+  reconstructKind,
+  reconstructProgram,
+} from './reconstructWgsl.ts'
 
 /**
  * THE CLOUDS' RECONSTRUCTION, described: what the pass binds, writes and draws, and the state it
@@ -30,12 +43,15 @@ import { RECONSTRUCT_BINDING, RECONSTRUCT_VIEW, reconstructProgram } from './rec
 
 /** What the reconstruction keeps between images, for one view. */
 export interface CloudViewState {
-  /** The rank of the last image in the 2×2 cycle. */
+  /** The images' layout (`cloudLayoutKey`), none before the first image: a change of it starts the
+   *  view again. */
+  layout: string | null
+  /** The rank of the last image in the cycle. */
   rank: number
   /** Which of the two reconstructed images the next one is written to. */
   current: 0 | 1
-  /** The target size the images were made for: none before the first image, which is how a view
-   *  with no image yet is known. */
+  /** The target size (on the target's scale) the images were made for: none before the first
+   *  image, which is how a view with no image yet is known. */
   allocated: Size | null
   /** Each reconstructed image's texture and the part of it its image filled. */
   images: [ImageSize | null, ImageSize | null]
@@ -45,6 +61,7 @@ export interface CloudViewState {
 
 /** What a view holds before an image and after a reset: the first image is written to image 0. */
 const emptyView = () => ({
+  layout: null,
   rank: 0,
   current: 1 as const,
   allocated: null,
@@ -64,6 +81,8 @@ const sameSize = (a: Size | null, b: Size) => a?.width === b.width && a?.height 
 /** What one image does: the sizes, its place in the cycle, which image it is written to and which
  *  one is its history, and what is to be made again. */
 export interface CloudFramePlan {
+  /** What the image is made with; the part's own when none is given (the sky light's capture). */
+  readonly setup?: CloudSetup
   readonly sizes: ReturnType<typeof cloudSizes>
   readonly rank: number
   readonly offset: readonly [number, number]
@@ -77,37 +96,42 @@ export interface CloudFramePlan {
 }
 
 /**
- * The next image of a view drawn in a target allocated at `allocated`, its view `view` pixels: the
- * cycle moves on (restarting at a first image or a `cut`), the two reconstructed images swap, the
- * traced images are made again when the target's size changed, the destination when its texture is
- * not the size. The history is the other image, unless a cut.
+ * The next image of a view drawn in a target allocated at `allocated`, its view `view` pixels, with
+ * `setup`: the sizes are those of the setup's target (mode 2 scales it); the cycle moves on
+ * (restarting at a first image or a `cut`), the two reconstructed images swap, the traced images
+ * are made again when the target's size changed, the destination when its texture is not the size.
+ * The history is the other image, unless a cut; a mode that does not reconstruct (1 and 3) has no
+ * reconstructed image, so no destination and no history. A change of the images' layout (mode, two
+ * surfaces or one) starts the view again.
  */
 export function advanceCloudView(
   state: CloudViewState,
   allocated: Size,
   view: Size,
   cut: boolean,
+  setup: CloudSetup,
 ): CloudFramePlan {
-  const sizes = cloudSizes(allocated, view)
-  state.rank = nextCycleRank(state.rank, state.allocated === null || cut)
+  const { mode } = setup
+  const layout = cloudLayoutKey(setup)
+  if (state.layout !== layout) resetCloudView(state)
+  state.layout = layout
+  const target = scaledTarget(setup, allocated)
+  const sizes = cloudSizes(target, scaledTarget(setup, view), mode)
+  state.rank = nextCycleRank(mode, state.rank, state.allocated === null || cut)
   state.current = state.current === 0 ? 1 : 0
-  const tracedStale = !sameSize(state.allocated, allocated)
-  state.allocated = allocated
+  const tracedStale = !sameSize(state.allocated, target)
+  state.allocated = target
+  const base = { setup, sizes, rank: state.rank, offset: traceOffset(mode, state.rank) }
+  if (!mode.reconstructs) {
+    return { ...base, destination: 0, history: null, tracedStale, destinationStale: false }
+  }
   const destinationStale = !sameSize(
     state.images[state.current]?.texture ?? null,
     sizes.reconstructed.texture,
   )
   state.images[state.current] = sizes.reconstructed
   const history = cut ? null : state.images[state.current === 0 ? 1 : 0]
-  return {
-    sizes,
-    rank: state.rank,
-    offset: traceOffset(state.rank),
-    destination: state.current,
-    history,
-    tracedStale,
-    destinationStale,
-  }
+  return { ...base, destination: state.current, history, tracedStale, destinationStale }
 }
 
 /** After the pass: the image's view-projection without jitter is the next one's history. */
@@ -116,6 +140,9 @@ export const commitCloudView = (state: CloudViewState, viewProjection: ArrayLike
 
 const anchored = new Float64Array(16),
   inverse = new Float64Array(16)
+
+/** The setup of a plan: its own, the default's (mode 0, two surfaces) when it has none. */
+export const setupOfPlan = (plan: CloudFramePlan) => plan.setup ?? DEFAULT_CLOUD_SETUP
 
 /** What the uniform is written from. */
 export interface ReconstructInput {
@@ -140,6 +167,7 @@ export function writeReconstructView(out: Float32Array, input: ReconstructInput,
   const { view } = plan.sizes.reconstructed
   put4(out, at.destination, view.width, view.height, 1 / view.width, 1 / view.height)
   put4(out, at.offset, plan.offset[0], plan.offset[1], 0, 0)
+  writeTracingJitter(out, at.offset + 2, plan.offset, view, setupOfPlan(plan).mode)
   // The device depth of a point on the view axis at distance `s`: (a·s + b) / (c·s + d).
   const ahead = Math.sign(projection[11]) || 1
   put4(
@@ -162,42 +190,58 @@ export function writeReconstructView(out: Float32Array, input: ReconstructInput,
   return out
 }
 
-const entriesByHistory = new Map<boolean, GPUBindGroupLayoutEntry[]>()
+const entriesByKey = new Map<string, GPUBindGroupLayoutEntry[]>()
 
-/** The bind group layout entries of the pass, with or without a history (`RECONSTRUCT_BINDING`),
- *  made once for each and shared: they are not to be changed. */
-export function reconstructEntries(history: boolean) {
-  let entries = entriesByHistory.get(history)
+/** The bind group layout entries of the pass for `setup`, with or without a history
+ *  (`RECONSTRUCT_BINDING`), made once for each and shared: they are not to be changed. The traced
+ *  images are the colour, the secondary colour (two surfaces) and the depth, the history's the
+ *  same; the half-size depth is bound by the path that reads the pixel's own. */
+export function reconstructEntries(setup: CloudSetup, history: boolean) {
+  const kind = reconstructKind(setup, history)
+  const key = `${history}${setup.minMaxDepth}${readsHalfDepth(kind)}`
+  let entries = entriesByKey.get(key)
   if (!entries) {
     const stage = GPUShaderStage.FRAGMENT,
       b = RECONSTRUCT_BINDING
-    const images = history
-      ? [b.colour, b.secondary, b.depth, b.historyColour, b.historySecondary, b.historyDepth]
-      : [b.colour, b.secondary, b.depth]
+    const surfaces = (colour: number, secondary: number, depth: number) =>
+      setup.minMaxDepth ? [colour, secondary, depth] : [colour, depth]
+    const images = [
+      ...surfaces(b.colour, b.secondary, b.depth),
+      ...(history ? surfaces(b.historyColour, b.historySecondary, b.historyDepth) : []),
+      ...(readsHalfDepth(kind) ? [b.halfDepth] : []),
+    ]
     entries = [
       computeUniformEntry(b.view, {}, stage),
       ...images.map((binding) => computeTextureEntry(binding, 'float', '2d', stage)),
       computeSamplerEntry(b.sampler, 'filtering', stage),
     ]
-    entriesByHistory.set(history, entries)
+    entriesByKey.set(key, entries)
   }
   return entries
 }
 
-/** The three targets of the pass: the colour, the secondary colour, the depth. */
-const TARGETS: GPUTextureFormat[] = [CLOUD_FORMAT, CLOUD_FORMAT, CLOUD_FORMAT]
+/** The targets of the pass: the colour, the secondary colour (two surfaces) and the depth. */
+const TARGETS_BY_SURFACES = {
+  true: [CLOUD_FORMAT, CLOUD_FORMAT, CLOUD_FORMAT],
+  false: [CLOUD_FORMAT, CLOUD_FORMAT],
+} as const satisfies Record<string, GPUTextureFormat[]>
 
-/** What the pass draws: a full-screen triangle over the reconstructed view, into three targets of
- *  `CLOUD_FORMAT` (the colour, the secondary colour, the depth), the whole pixel written. */
+/**
+ * What the pass draws: a full-screen triangle over the reconstructed view, into the targets of
+ * `CLOUD_FORMAT` (the colour, the secondary colour with two surfaces, the depth), the whole pixel
+ * written. None for a mode that does not reconstruct: the composition reads the traced images.
+ */
 export function describeReconstruct(plan: CloudFramePlan) {
+  const setup = setupOfPlan(plan)
+  if (!setup.mode.reconstructs) return null
   const history = plan.history !== null
   return {
     history,
-    code: reconstructProgram(history),
+    code: reconstructProgram(setup, history),
     vertexEntry: 'fullscreen',
     fragmentEntry: 'reconstructMain',
-    entries: reconstructEntries(history),
-    targets: TARGETS,
+    entries: reconstructEntries(setup, history),
+    targets: TARGETS_BY_SURFACES[`${setup.minMaxDepth}`],
     viewport: plan.sizes.reconstructed.view,
     uniformFloats: RECONSTRUCT_VIEW.words,
   }

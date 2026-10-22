@@ -1,4 +1,4 @@
-import { HIZ_BUILD_SIDE, HIZ_PASS_LEVELS } from './uniforms.ts'
+import { HIZ_BUILD_SIDE, HIZ_PASS_LEVELS, HIZ_UNI } from './uniforms.ts'
 import { texel, type Scene } from './buildScene.fixture.ts'
 import { hizRoute } from './pyramidTexture.ts'
 
@@ -48,6 +48,8 @@ export function workgroup(
   }
   const at = a
   const bound = scene.nearest ? Math.max : Math.min
+  // The finished depth's farthest layer is written where the nearest build keeps the planes.
+  const writesWhole = !!scene.nearest && u[HIZ_UNI.at.planes] !== 0
   const far4 = (v00: number, v10: number, v01: number, v11: number, dx: number, dy: number) =>
     bound4(bound, v00, v10, v01, v11, dx, dy)
   // `hizSource`: the pair of bounds of a texel, the layer's own and the farthest of the depth.
@@ -73,7 +75,7 @@ export function workgroup(
       farWhole[lane] = bound4(Math.min, s[0][1], s[1][1], s[2][1], s[3][1], dx, dy)
       if (d > 0) {
         pyramid[dst(0)[0] + y * dst(0)[1] + x] = far[lane]
-        if (scene.nearest) whole[dst(0)[0] + y * dst(0)[1] + x] = farWhole[lane]
+        if (writesWhole) whole[dst(0)[0] + y * dst(0)[1] + x] = farWhole[lane]
       }
     }
     tile[lane] = far[lane]
@@ -118,7 +120,7 @@ export function workgroup(
       tile[lane] = far[lane]
       tileWhole[lane] = farWhole[lane]
       pyramid[offset + ty * dstW + tx] = far[lane]
-      if (scene.nearest) whole[offset + ty * dstW + tx] = farWhole[lane]
+      if (writesWhole) whole[offset + ty * dstW + tx] = farWhole[lane]
     }
   }
 }

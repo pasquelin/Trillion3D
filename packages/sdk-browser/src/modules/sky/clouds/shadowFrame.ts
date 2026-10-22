@@ -4,7 +4,10 @@ import { clamp } from '../../../../../math/src/scalar/reals.ts'
 import { crossVector3, normalizeVector3 } from '../../../../../math/src/vector/vector.ts'
 import type { CloudShadowLight } from '../../../../../sdk-core/src/modules/sky/cloudShadow.ts'
 import { cloudShadowBaseSamples } from '../../../../../sdk-core/src/modules/sky/cloudShadow.ts'
-import type { SkyQualityValues } from '../../../../../sdk-core/src/modules/sky/quality.ts'
+import {
+  CM_PER_KM,
+  type SkyQualityValues,
+} from '../../../../../sdk-core/src/modules/sky/quality.ts'
 
 /**
  * WHERE A LIGHT'S CLOUD SHADOW MAP LOOKS: the camera, the sphere of the map and the matrices that
@@ -27,28 +30,28 @@ import type { SkyQualityValues } from '../../../../../sdk-core/src/modules/sky/q
  * The matrices are given from the position in centimetres from the camera, on the scene's axes.
  */
 
-export const CM_PER_KM = 100000
-export const CM_PER_M = 100
+const CM_PER_M = 100
+/** Kilometres in a centimetre: the product, not the quotient by `CM_PER_KM`, which differs in the last bit. */
 export const KM_PER_CM = 0.00001
 
 /** A scene point's axes on the material's: the scene's `y` is up, the material's `z`. */
 export const sceneToMaterial = (v: ArrayLike<number>) => [v[0], v[2], v[1]]
 
-/** The shortest snap length, in kilometres, a map's position is rounded to. The quality setting lets
- *  a length of 0 or less through; the rounding divides by it, so such a length would give a matrix of
+/** The snap length, in kilometres, that stands for a length of 0 or less, which the quality setting
+ *  lets through; the rounding divides by it, so such a length would give a matrix of
  *  not-a-number values and a blank map. */
-export const LEAST_SNAP_KM = 1e-4
+const LEAST_SNAP_KM = 1e-4
 
 /** The cosine above which a light is taken as vertical. */
-export const VERTICAL = 0.99
+const VERTICAL = 0.99
 
 /** The rows of a matrix in the order a row-vector product uses them: the same numbers, read as a
  *  column-major matrix, are the column-vector matrix of the same map. */
-export const rowsAsMap = (rows: readonly number[]) => Float64Array.from(rows)
+const rowsAsMap = (rows: readonly number[]) => Float64Array.from(rows)
 
 /** The map of the look from `eye` to `at`, `up` the vertical: the camera's axes as columns, then
  *  the eye taken off. */
-export function lookAtMap(eye: number[], at: number[], up: number[]) {
+function lookAtMap(eye: number[], at: number[], up: number[]) {
   const z = [at[0] - eye[0], at[1] - eye[1], at[2] - eye[2]]
   normalizeVector3(z)
   const x = [0, 0, 0]
@@ -79,7 +82,7 @@ export function lookAtMap(eye: number[], at: number[], up: number[]) {
 
 /** The reversed orthographic map: `1 / width` and `1 / height` on x and y, the depth scaled by
  *  `-zScale` and lifted to 1 at the offset. */
-export const reversedOrthoMap = (width: number, height: number, zScale: number, zOffset: number) =>
+const reversedOrthoMap = (width: number, height: number, zScale: number, zOffset: number) =>
   rowsAsMap([
     1 / width,
     0,
@@ -100,8 +103,59 @@ export const reversedOrthoMap = (width: number, height: number, zScale: number, 
   ])
 
 /** The shift by `d` after the map. */
-export const shiftMap = (d: ArrayLike<number>) =>
+const shiftMap = (d: ArrayLike<number>) =>
   rowsAsMap([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, d[0], d[1], d[2], 1])
+
+/** The map from the scene's axes to the material's: `y` and `z` swapped. */
+const SCENE_TO_MATERIAL = rowsAsMap([1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1])
+
+/** A value rounded to the grid of `step`, a tie upward. */
+const snapped = (v: number, step: number) => Math.floor((v + 0.5 * step) / step) * step
+
+/** Where a map looks: the camera and the planet's centre in centimetres on the material's axes, the
+ *  planet's vertical under the camera, the snap length in centimetres and the point of the
+ *  surface below the camera on that grid. A snap length of 0 or less (the quality
+ *  setting accepts any number) is read as `LEAST_SNAP_KM`: the rounding divides by it, and it would
+ *  turn every matrix into not-a-number values. */
+export function mapAim(
+  eye: ArrayLike<number>,
+  eyeFromPlanetKm: ArrayLike<number>,
+  planetRadiusKm: number,
+  snapKm: number,
+) {
+  const camera = sceneToMaterial(eye).map((v) => v * CM_PER_M)
+  const centre = sceneToMaterial(eyeFromPlanetKm).map((v, k) => camera[k] - v * CM_PER_KM)
+  const up = sceneToMaterial(eyeFromPlanetKm)
+  normalizeVector3(up)
+  const snap = (snapKm > 0 ? snapKm : LEAST_SNAP_KM) * CM_PER_KM
+  const lookAt = up.map((v, k) => centre[k] + v * planetRadiusKm * CM_PER_KM)
+  return { camera, centre, up, snap, at: lookAt.map((v) => snapped(v, snap)) }
+}
+
+/** The map of the orthographic view along `direction` of a square of side `diameter` round `at`:
+ *  the eye lies behind `at` by `distance`, the up is the vertical (the forward axis where
+ *  `direction` is nearly vertical), the far plane is `far`. Returns the eye and the map from the
+ *  material's axes to clip space. */
+export function orthoMapAlong(
+  at: number[],
+  direction: number[],
+  distance: number,
+  diameter: number,
+  far: number,
+) {
+  const vertical = Math.abs(direction[2]) > VERTICAL ? [1, 0, 0] : [0, 0, 1]
+  const eye = at.map((v, k) => v - direction[k] * distance)
+  const worldToClip = product(
+    reversedOrthoMap(diameter, diameter, 1 / far, 0),
+    lookAtMap(eye, at, vertical),
+  )
+  return { eye, worldToClip }
+}
+
+/** The map from a position in centimetres from the camera, on the scene's axes, to clip space: to
+ *  the material's axes, then the camera's position added, then `worldToClip`. */
+export const mapFromCamera = (worldToClip: Float64Array, camera: number[]) =>
+  product(worldToClip, product(shiftMap(camera), SCENE_TO_MATERIAL))
 
 /** What the frame of a light's map is made from. */
 export interface CloudShadowFrameInput {
@@ -149,26 +203,20 @@ export interface CloudShadowLightFrame extends CloudShadowFrame {
   readonly anchor: readonly [number, number, number]
 }
 
-export const product = (a: Float64Array, b: Float64Array) =>
-  multiplyMatrix4(new Float64Array(16), a, b)
+const product = (a: Float64Array, b: Float64Array) => multiplyMatrix4(new Float64Array(16), a, b)
 
-/** The frame of the map of the light that shines along `toward` (negated), for a camera at `eye`.
- *  The snap length is held at `LEAST_SNAP_KM` or more before it becomes centimetres: the rounding
- *  divides by it, and a length of 0 or less (the quality setting accepts any number) would turn
- *  every matrix into not-a-number values. */
+/** The frame of the map of the light that shines along `toward` (negated), for a camera at `eye`. */
 export function cloudShadowFrame(input: CloudShadowFrameInput): CloudShadowLightFrame {
   const { light, quality } = input
-  const camera = sceneToMaterial(input.eye).map((v) => v * CM_PER_M)
+  const aim = mapAim(
+    input.eye,
+    input.eyeFromPlanetKm,
+    input.planetRadiusKm,
+    quality.cloudShadowMapSnapKm,
+  )
+  const { camera, up } = aim
   const toward = sceneToMaterial(input.toward)
   const ray = toward.map((v) => -v)
-  const centre = sceneToMaterial(input.eyeFromPlanetKm).map((v, k) => camera[k] - v * CM_PER_KM)
-
-  // The planet's vertical under the camera, and the point of the surface below it, snapped.
-  const up = sceneToMaterial(input.eyeFromPlanetKm)
-  normalizeVector3(up)
-  const snap = Math.max(LEAST_SNAP_KM, quality.cloudShadowMapSnapKm) * CM_PER_KM
-  const lookAt = up.map((v, k) => centre[k] + v * input.planetRadiusKm * CM_PER_KM)
-  const snapped = lookAt.map((v) => Math.floor((v + 0.5 * snap) / snap) * snap)
 
   const radius = light.cloudShadowExtentKm * CM_PER_KM
   const distance =
@@ -176,11 +224,14 @@ export function cloudShadowFrame(input: CloudShadowFrameInput): CloudShadowLight
       ? quality.cloudShadowMapLightDistanceOverrideKm * CM_PER_KM
       : radius * 2
   const far = distance * 2
-  const vertical = Math.abs(ray[2]) > VERTICAL ? [1, 0, 0] : [0, 0, 1]
-  const eyeOfMap = snapped.map((v, k) => v - ray[k] * distance)
-  const view = lookAtMap(eyeOfMap, snapped, vertical)
-  const projection = reversedOrthoMap(radius * 2, radius * 2, 1 / far, 0)
-  let worldToClip = product(projection, view)
+  const { eye: eyeOfMap, worldToClip: mapped } = orthoMapAlong(
+    aim.at,
+    ray,
+    distance,
+    radius * 2,
+    far,
+  )
+  let worldToClip = mapped
 
   if (quality.cloudShadowMapSnapToPixelGrid) {
     // The clip position of the world's origin is the translation column of the map.
@@ -194,10 +245,7 @@ export function cloudShadowFrame(input: CloudShadowFrameInput): CloudShadowLight
     worldToClip = product(shiftMap(shift), worldToClip)
   }
 
-  // From a position in centimetres from the camera, on the scene's axes: to the material's axes,
-  // then the camera's position added, then the map.
-  const toMaterial = rowsAsMap([1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1])
-  const clipFromCamera = product(worldToClip, product(shiftMap(camera), toMaterial))
+  const clipFromCamera = mapFromCamera(worldToClip, camera)
 
   // The sun's low height adds samples: more where the light grazes the ground.
   const base = cloudShadowBaseSamples(light, quality.cloudShadowMapSamplesMax)
@@ -211,7 +259,7 @@ export function cloudShadowFrame(input: CloudShadowFrameInput): CloudShadowLight
     cameraFromClip: invertMatrix4(new Float64Array(16), clipFromCamera),
     rayDirection: [-input.toward[0], -input.toward[1], -input.toward[2]],
     lightPosition: [eyeOfMap[0], eyeOfMap[2], eyeOfMap[1]],
-    anchor: [snapped[0], snapped[2], snapped[1]],
+    anchor: [aim.at[0], aim.at[2], aim.at[1]],
     farDepthKm: far * KM_PER_CM,
     samples: base + Math.max(0, quality.cloudShadowMapHorizonMultiplier - 1) * base * horizon,
   }

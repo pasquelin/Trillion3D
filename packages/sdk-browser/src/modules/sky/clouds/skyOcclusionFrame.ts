@@ -1,19 +1,15 @@
 import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
 import { normalizeVector3 } from '../../../../../math/src/vector/vector.ts'
-import type { CloudSkyOcclusionLight } from '../../../../../sdk-core/src/modules/sky/cloudSkyOcclusion.ts'
-import type { SkyQualityValues } from '../../../../../sdk-core/src/modules/sky/quality.ts'
 import {
   CM_PER_KM,
-  CM_PER_M,
+  type SkyQualityValues,
+} from '../../../../../sdk-core/src/modules/sky/quality.ts'
+import {
   KM_PER_CM,
-  LEAST_SNAP_KM,
-  lookAtMap,
-  product,
-  reversedOrthoMap,
-  rowsAsMap,
+  mapAim,
+  mapFromCamera,
+  orthoMapAlong,
   sceneToMaterial,
-  shiftMap,
-  VERTICAL,
   type CloudShadowFrame,
 } from './shadowFrame.ts'
 
@@ -44,39 +40,33 @@ export interface CloudSkyOcclusionFrameInput {
   /** The cloud layer's base altitude and thickness, kilometres. */
   readonly layerBaseKm: number
   readonly layerThicknessKm: number
-  readonly light: CloudSkyOcclusionLight
+  /** The sky light's `cloudAmbientOcclusionExtentKm`: the radius round the camera the map covers. */
+  readonly extentKm: number
   /** The sky's quality settings of the map: `cloudSkyAOSnapKm` and `cloudSkyAOTraceSamples`. */
   readonly quality: Pick<SkyQualityValues, 'cloudSkyAOSnapKm' | 'cloudSkyAOTraceSamples'>
 }
 
 /** The frame of the sky occlusion map, in the form of the shadow map's (`CloudShadowFrame`), its
- *  `samples` the quality's `cloudSkyAOTraceSamples`. The snap length is held at `LEAST_SNAP_KM` or
- *  more before it becomes centimetres: the rounding divides by it, and a length of 0 or less (the
- *  quality setting accepts any number) would turn every matrix into not-a-number values. */
+ *  `samples` the quality's `cloudSkyAOTraceSamples`. A snap length of 0 or less is read as the
+ *  shadow map's is (`mapAim`). */
 export function cloudSkyOcclusionFrame(input: CloudSkyOcclusionFrameInput): CloudShadowFrame {
-  const { light, quality } = input
-  const camera = sceneToMaterial(input.eye).map((v) => v * CM_PER_M)
-  const centre = sceneToMaterial(input.eyeFromPlanetKm).map((v, k) => camera[k] - v * CM_PER_KM)
+  const { quality } = input
+  const aim = mapAim(
+    input.eye,
+    input.eyeFromPlanetKm,
+    input.planetRadiusKm,
+    quality.cloudSkyAOSnapKm,
+  )
 
-  const up = sceneToMaterial(input.eyeFromPlanetKm)
-  normalizeVector3(up)
-  const snap = Math.max(LEAST_SNAP_KM, quality.cloudSkyAOSnapKm) * CM_PER_KM
-  const lookAt = up.map((v, k) => centre[k] + v * input.planetRadiusKm * CM_PER_KM)
-  const snapped = lookAt.map((v) => Math.floor((v + 0.5 * snap) / snap) * snap)
-
-  const traceDirection = centre.map((v, k) => v - snapped[k])
+  const traceDirection = aim.centre.map((v, k) => v - aim.at[k])
   normalizeVector3(traceDirection)
 
-  const diameter = light.cloudAmbientOcclusionExtentKm * CM_PER_KM * 2
-  const depthRange = (input.layerBaseKm + input.layerThicknessKm) * CM_PER_KM + snap
+  const diameter = input.extentKm * CM_PER_KM * 2
+  const depthRange = (input.layerBaseKm + input.layerThicknessKm) * CM_PER_KM + aim.snap
   const far = 2 * depthRange
-  const vertical = Math.abs(traceDirection[2]) > VERTICAL ? [1, 0, 0] : [0, 0, 1]
-  const eyeOfMap = snapped.map((v, k) => v - traceDirection[k] * depthRange)
-  const view = lookAtMap(eyeOfMap, snapped, vertical)
-  const worldToClip = product(reversedOrthoMap(diameter, diameter, 1 / far, 0), view)
+  const { worldToClip } = orthoMapAlong(aim.at, traceDirection, depthRange, diameter, far)
 
-  const toMaterial = rowsAsMap([1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1])
-  const clipFromCamera = product(worldToClip, product(shiftMap(camera), toMaterial))
+  const clipFromCamera = mapFromCamera(worldToClip, aim.camera)
   const [x, y, z] = sceneToMaterial(traceDirection)
   return {
     clipFromCamera,

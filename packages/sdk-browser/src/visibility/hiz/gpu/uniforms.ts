@@ -10,8 +10,8 @@ export const HIZ_PASS_LEVELS = 4
 /** Threads per side of a build workgroup: each reduces one 2 × 2 square, and the workgroup
  *  halves them `HIZ_PASS_LEVELS - 1` more times down to one texel. */
 export const HIZ_BUILD_SIDE = 1 << (HIZ_PASS_LEVELS - 1)
-/** A slot's struct `Uni` (`shader.ts`): a build pass's header — its source level, then `upper`
- *  and `front` — and one `vec4u` per level it writes, aligned as WGSL aligns it. */
+/** A slot's struct `Uni` (`shader.ts`): a build pass's header — its source level, then `upper`,
+ *  `front` and `planes` — and one `vec4u` per level it writes, aligned as WGSL aligns it. */
 export const HIZ_UNI = fieldLayout('Uni', [
   ['a', 'u32'],
   ['b', 'u32'],
@@ -19,6 +19,7 @@ export const HIZ_UNI = fieldLayout('Uni', [
   ['d', 'u32'],
   ['upper', 'u32'],
   ['front', 'u32'],
+  ['planes', 'u32'],
   ['dst', { wgsl: `array<vec4u,${HIZ_PASS_LEVELS}>`, words: 4 * HIZ_PASS_LEVELS, align: 4 }],
 ])
 /** Words a slot holds: a build pass's header and the levels it writes; its other words up to the

@@ -6,12 +6,12 @@ import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
 import { FULLSCREEN_VERTEX } from '../../../lighting/deferred/shaders.ts'
 import { DITHER_WGSL } from '../../../post/taa/colorSpaceWgsl.ts'
 import { YCOCG_WGSL } from '../../../post/taa/ycocgWgsl.ts'
-import { LIGHT_SHAFT_TEMPORAL } from './describe.ts'
 
 /**
  * The temporal filter of the light shafts' image, as a uniform, bindings and a program. It is the
  * view's temporal accumulation run on the shafts' low-resolution image, with its own settings
- * (`LIGHT_SHAFT_TEMPORAL`) and without the main pass's visibility-buffer machinery, which the shafts'
+ * (the history takes `1 / LIGHT_SHAFT_TEMPORAL_LERP` of each new image, is filtered, holds colour and
+ * opacity and is compared in the luma-chroma space) and without the main pass's visibility-buffer machinery, which the shafts'
  * image has no use for: a pixel's history is found from the pixel's depth and the camera's move alone.
  *
  * - `clipToPrevClip`: from the clip space of this image, without jitter, to the last image's, without
@@ -67,6 +67,9 @@ export const LIGHT_SHAFT_TEMPORAL_ENTRY = {
 
 const B = LIGHT_SHAFT_TEMPORAL_BINDING
 
+/** The history takes `1 - 1 / LIGHT_SHAFT_TEMPORAL_LERP` of the output, each new image the rest. */
+const LIGHT_SHAFT_TEMPORAL_LERP = 64
+
 /** The tone weight of the luma `y` in the space the pass works in. */
 const TONE = `fn toneOf(y:f32)->f32{return 1.0/(y*view.exposure.x+4.0);}`
 
@@ -104,10 +107,9 @@ ${LIGHT_SHAFT_TEMPORAL_VIEW.wgsl}
 ${TONE}
 fn toPayload(c:vec4f)->vec4f{return vec4f(toYcocg(c.rgb)*4.0,c.a);}
 fn fromPayload(c:vec4f)->vec4f{return vec4f(fromYcocg(c.rgb*0.25),c.a);}
-fn shaftPixel(nearest:vec2f,offset:vec2i)->vec4f{
- let at=vec2i(nearest*vec2f(textureDimensions(source)))+offset;
+fn shaftPixel(base:vec2i,offset:vec2i)->vec4f{
  let rect=vec4i(view.inputRect);
- return toPayload(textureLoad(source,clamp(at,rect.xy,rect.zw),0));
+ return toPayload(textureLoad(source,clamp(base+offset,rect.xy,rect.zw),0));
 }
 @fragment fn ${LIGHT_SHAFT_TEMPORAL_ENTRY.temporal}(@builtin(position) position:vec4f)->@location(0) vec4f{
  let viewportUv=min(position.xy*view.viewportUv.zw,view.viewportUv.xy);
@@ -121,11 +123,12 @@ fn shaftPixel(nearest:vec2f,offset:vec2i)->vec4f{
  let historyBlur=saturate(blurPixels.x*2.0+blurPixels.y*2.0);
  let historyScreen=screen-back;
  let offScreen=max(abs(historyScreen.x),abs(historyScreen.y))>=1.0;
- let n1=shaftPixel(nearest,vec2i(0,-1));
- let n3=shaftPixel(nearest,vec2i(-1,0));
- let n4=shaftPixel(nearest,vec2i(0,0));
- let n5=shaftPixel(nearest,vec2i(1,0));
- let n7=shaftPixel(nearest,vec2i(0,1));
+ let base=vec2i(nearest*vec2f(textureDimensions(source)));
+ let n1=shaftPixel(base,vec2i(0,-1));
+ let n3=shaftPixel(base,vec2i(-1,0));
+ let n4=shaftPixel(base,vec2i(0,0));
+ let n5=shaftPixel(base,vec2i(1,0));
+ let n7=shaftPixel(base,vec2i(0,1));
  var filtered=n1*view.plusA.x+n3*view.plusA.y+n4*view.plusA.z+n5*view.plusA.w+n7*view.plusB.x;
  let boxMin=min(min(min(n1,n3),n4),min(n5,n7));
  let boxMax=max(max(max(n1,n3),n4),max(n5,n7));
@@ -136,7 +139,7 @@ fn shaftPixel(nearest:vec2f,offset:vec2i)->vec4f{
  filtered=mix(filtered,n4,aliasing);
  let cut=view.cut!=0.0;
  if(offScreen||cut){held=filtered;}
- let blend=select(${wgslF32(1 / LIGHT_SHAFT_TEMPORAL.lerp)},1.0,cut);
+ let blend=select(${wgslF32(1 / LIGHT_SHAFT_TEMPORAL_LERP)},1.0,cut);
  let heldShare=(1.0-blend)*toneOf(held.x);
  let filteredShare=blend*toneOf(filtered.x);
  var mixed=(held*heldShare+filtered*filteredShare)/(heldShare+filteredShare);

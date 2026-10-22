@@ -33,6 +33,9 @@ export type AirBindings = {
   air: 'read' | 'read_write'
   /** The table written, a storage texture. */
   table?: boolean
+  /** The buffer is declared whole (`DirectLights`, `../direct/lightWgsl.ts`, which the program
+   *  includes), for a program that reads the lights themselves; else its front (`AirBuffer`). */
+  lights?: boolean
   /** The tables read. */
   transmittance?: boolean
   multiScatter?: boolean
@@ -51,7 +54,7 @@ const b = AIR_BINDING
  *  scattered, nothing lost). */
 const declarations = (bindings: AirBindings) => `
 ${AIR_BUFFER_STRUCT}
-@group(0) @binding(${b.air}) var<storage,${bindings.air}> directLights:AirBuffer;
+@group(0) @binding(${b.air}) var<storage,${bindings.air}> directLights:${bindings.lights ? 'DirectLights' : 'AirBuffer'};
 fn atmo(slot:u32)->vec4f{return directLights.atmosphere[slot];}
 ${bindings.table ? `@group(0) @binding(${b.table}) var table:texture_storage_2d<rgba16float,write>;` : ''}
 ${bindings.transmittance || bindings.multiScatter || bindings.skyView ? `@group(0) @binding(${b.sampler}) var tableSampler:sampler;` : ''}

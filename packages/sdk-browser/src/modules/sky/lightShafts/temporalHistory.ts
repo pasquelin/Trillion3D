@@ -1,8 +1,7 @@
 import { retire } from '../../../gpu/core/frameRetire.ts'
 import { resolveTargetUsage } from '../../../post/taa/resolve.ts'
 import type { Size } from '../clouds/reconstructLayout.ts'
-import { LIGHT_SHAFT_FORMAT, lightShaftFactor } from './layout.ts'
-import type { LightShaftSizes } from './describe.ts'
+import { LIGHT_SHAFT_FORMAT, type LightShaftSizes } from './layout.ts'
 
 /**
  * THE HISTORY OF A LIGHT SHAFT CHAIN, a pair of images at the shafts' texture size the temporal
@@ -58,10 +57,10 @@ export function createLightShaftHistory(device: GPUDevice) {
         return
       history.allocate(texture)
     },
-    /** After the draw: the image drawn becomes the held one, for the scene `sizes` and the reduction
-     *  `downsample` it was drawn at. */
-    commit(sizes: LightShaftSizes, downsample: number) {
-      const factor = lightShaftFactor(downsample)
+    /** After the draw: the image drawn becomes the held one, for the scene and the reduction
+     *  `sizes` it was drawn at. */
+    commit(sizes: LightShaftSizes) {
+      const { factor } = sizes
       held = 1 - held
       history.valid = true
       history.viewport = sizes.scene.view

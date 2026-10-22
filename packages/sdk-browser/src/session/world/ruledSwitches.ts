@@ -13,6 +13,7 @@ import { ANIMATION_RULES } from '../../../../sdk-core/src/contracts/animationOpt
 import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 
 /** The rules the world's registry holds: every kind but a vector, which no registry entry types. */
 export type RegistryRule = Exclude<SettingRule, { readonly kind: 'vector' }>
@@ -88,7 +89,7 @@ function ruledSwitches<R extends Rules>(
 /** The world's families by rule over its registry `settings`, each read by its rules' one
  *  resolver and written into a session by its own setter: the cluster raster's split, the geometry
  *  streaming, the partition's streaming and the HLOD warm-up, the cut, the animation, the
- *  shading, the automatic exposure, the temporal pass. */
+ *  shading, the automatic exposure, the temporal pass, the depth pyramid. */
 export const worldFamilies = (settings: WorldSettings) => ({
   raster: ruledSwitches(settings, RASTER_RULES, (session, field, value) =>
     field === 'softwareRaster'
@@ -114,4 +115,5 @@ export const worldFamilies = (settings: WorldSettings) => ({
   temporal: ruledSwitches(settings, TEMPORAL_RULES, (session, field, value) =>
     session.setTemporal(field, value),
   ),
+  hiz: ruledSwitches(settings, HIZ_RULES, (session, field, value) => session.setHiz(field, value)),
 })

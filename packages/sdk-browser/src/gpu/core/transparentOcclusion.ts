@@ -5,7 +5,10 @@ import {
   type ProjectionFrame,
 } from './projectionUniform.ts'
 import { buildComputeStage } from './computeStages.ts'
-import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
+import {
+  TRANSPARENT_REFERENCE_TEST,
+  transparentOcclusionShader,
+} from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
 import { retire } from './frameRetire.ts'
 import { createHeldCopy, type CullStep, type HeldCopy } from './heldCopy.ts'
@@ -44,8 +47,9 @@ export type AuditView = {
 }
 
 /** What an image tells the test before its compute pass (`begin`): the frame its boxes are
- *  projected under, and what the image does with its occlusion (`CullStep`). */
-export type OcclusionFrame = ProjectionFrame & { cull: CullStep }
+ *  projected under, what the image does with its occlusion (`CullStep`), and whether it walks the
+ *  pyramid as the reference does (`hizTransparentTest` `'reference'`) or at the finer level. */
+export type OcclusionFrame = ProjectionFrame & { cull: CullStep; referenceTest: boolean }
 
 /**
  * Occlusion of transparent clusters, done by the GPU, on the current frame's pyramid.
@@ -90,6 +94,7 @@ export async function createTransparentOcclusion(
       },
       lastFrame: undefined,
       cull: 'follow',
+      referenceTest: false,
       drawsKept: false,
     }
     return {
@@ -169,6 +174,8 @@ type Occlusion = NonNullable<Awaited<ReturnType<typeof occlusionPipeline>>> & {
   lastFrame: AuditView | undefined
   /** What the image does with its occlusion (`OcclusionFrame.cull`). */
   cull: CullStep
+  /** The pyramid walk the image tests with (`OcclusionFrame.referenceTest`). */
+  referenceTest: boolean
   /** The image draws the verdicts a frozen cut kept again: it tests nothing. */
   drawsKept: boolean
 }
@@ -181,6 +188,7 @@ type Occlusion = NonNullable<Awaited<ReturnType<typeof occlusionPipeline>>> & {
 function beginOcclusion(o: Occlusion, frame: OcclusionFrame) {
   if (o.disposed) return
   o.cull = frame.cull
+  o.referenceTest = frame.referenceTest
   o.drawsKept = frame.cull === 'held' && o.held.holds(o.sources.occluded())
   if (o.drawsKept) return
   o.writeUniform(o.device, o.uniforms, frame)
@@ -216,7 +224,8 @@ function occlusionBuffers(device: GPUDevice, entryCount: number) {
   return { corners, unculledBits, unculled }
 }
 
-/** The test's layout and pipeline; undefined when its module fails. */
+/** The test's layout and its two pipelines — the finer level's walk, the reference's —; undefined
+ *  when its module fails. */
 async function occlusionPipeline(device: GPUDevice) {
   const layout = device.createBindGroupLayout({
     entries: [
@@ -230,8 +239,13 @@ async function occlusionPipeline(device: GPUDevice) {
   })
   const module = device.createShaderModule({ code: transparentOcclusionShader() })
   if (await shaderFailed(module)) return undefined
-  const pipeline = await buildComputeStage(device, [layout], module, 'testTransparentClusters')
-  return { layout, pipeline }
+  const [pipeline, referencePipeline] = await Promise.all([
+    buildComputeStage(device, [layout], module, 'testTransparentClusters'),
+    buildComputeStage(device, [layout], module, 'testTransparentClusters', {
+      [TRANSPARENT_REFERENCE_TEST]: 1,
+    }),
+  ])
+  return { layout, pipeline, referencePipeline }
 }
 
 /**
@@ -284,7 +298,7 @@ function testOcclusion(
       ]),
     })
   const pass = encoder.beginComputePass({ label: TRANSPARENT_OCCLUSION_PASS })
-  pass.setPipeline(o.pipeline)
+  pass.setPipeline(o.referenceTest ? o.referencePipeline : o.pipeline)
   pass.setBindGroup(0, o.bindGroup!)
   dispatchRows(pass, o.groups)
   pass.end()

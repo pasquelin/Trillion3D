@@ -7,6 +7,7 @@ import { CUT_RULES } from '../../../sdk-core/src/contracts/cutOptions.ts'
 import { ANIMATION_RULES } from '../../../sdk-core/src/contracts/animationOptions.ts'
 import { EXPOSURE_RULES } from '../../../sdk-core/src/contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../../../sdk-core/src/contracts/temporalOptions.ts'
+import { HIZ_RULES } from '../../../sdk-core/src/contracts/hizOptions.ts'
 import { SHADING_RULES } from '../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { WorldRootsHold } from '../geometry/hlod/worldRoots.ts'
 import { isCancelled, pixelRatioOf } from './engine/common.ts'
@@ -91,6 +92,7 @@ function optionContext(session: ExplorerSession) {
     ...resolveSettings(SHADING_RULES, options),
     ...resolveSettings(EXPOSURE_RULES, options),
     ...resolveSettings(TEMPORAL_RULES, options),
+    ...resolveSettings(HIZ_RULES, options),
     admitGpuMemory: options.admitGpuMemory,
     texturePoolBytes: options.texturePoolBytes,
     textureCompression: options.textureCompression,

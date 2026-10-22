@@ -3,7 +3,6 @@ import {
   ANY_NUMBER as ANY,
   flagSetting as flag,
   numberSetting as number,
-  positiveSetting as positive,
   resolveSettings,
   rulesOf,
   type SettingOptions,
@@ -33,23 +32,22 @@ export const LIGHT_SHAFT_LIGHT_DISTANCE = 87960930222.08
  * - `shaftOcclusion` (false): the light darkens the fog's inscattering; the base level turns it on
  *   for the sun;
  * - `shaftOcclusionDarkness` (0.05): what an occlusion of 0 maps to, 1 darkening nothing;
- * - `shaftOcclusionDepthRange` (1000, above 0): everything closer to the eye than this distance
+ * - `shaftOcclusionDepthRange` (1000): everything closer to the eye than this distance
  *   occludes the shafts;
  * - `shaftOverrideDirection` (0, 0, 0): when not nil, the direction the shafts come from instead of
- *   the light's own; it need not be a unit vector;
+ *   the light's own, normalised where it is used;
  * - `shaftBloom` (false): the light adds a bloom;
  * - `shaftBloomScale` (0.2): the factor on the added colour;
  * - `shaftBloomThreshold` (0): the brightness the image must pass, after exposure, to bloom;
  * - `shaftBloomMaxBrightness` (100): a brightness above it, after exposure, is brought down to it;
  * - `shaftBloomTint` (white, linear): the factor on the bloom's colour.
- * The reference limits none of them but in its editor; the depth range is kept above 0 as its
- * inverse is a uniform.
+ * None of them is limited; the shader takes the inverse of the depth range.
  */
 export const LIGHT_SHAFT_LIGHT_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flag('shaftOcclusion', false),
     number('shaftOcclusionDarkness', 0.05, ANY),
-    positive('shaftOcclusionDepthRange', 1000, 'a finite number of metres above 0'),
+    number('shaftOcclusionDepthRange', 1000, ANY),
     vector('shaftOverrideDirection', [0, 0, 0]),
     flag('shaftBloom', false),
     number('shaftBloomScale', 0.2, ANY),
@@ -81,5 +79,8 @@ export function lightShaftDirection(
   direction: readonly [number, number, number],
 ) {
   const [x, y, z] = light.shaftOverrideDirection
-  return x * x + y * y + z * z > 0 ? ([x, y, z] as const) : direction
+  const squared = x * x + y * y + z * z
+  if (!(squared > 0)) return direction
+  const length = Math.sqrt(squared)
+  return [x / length, y / length, z / length] as const
 }

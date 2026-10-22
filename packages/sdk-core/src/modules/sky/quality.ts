@@ -49,7 +49,7 @@ const INT32_FROM_ZERO: readonly [number, number] = [0, INT32[1]]
  *  reference reads. */
 const TABLE_SIDE: readonly [number, number] = [4, INT32[1]]
 /** The centimetres in a kilometre. */
-const CENTIMETERS_PER_KILOMETER = 100000
+export const CM_PER_KM = 100000
 
 /**
  * The atmosphere's and the clouds' settings by field, each with the default of the reference's
@@ -173,7 +173,7 @@ const EFFECTS_RULES = /* @__PURE__ */ (() =>
     number('cloudReflectionShadowSamplesMax', 24, ANY_NUMBER),
     integer('cloudSamplesMin', 2, INT32_FROM_ZERO),
     integer('cloudSamplesClamp', INT32[1], INT32_FROM_ZERO),
-    number('cloudDistanceToMaxSamplesKm', 15, atLeast(1 / CENTIMETERS_PER_KILOMETER)),
+    number('cloudDistanceToMaxSamplesKm', 15, atLeast(1 / CM_PER_KM)),
     integer('cloudStepOnEmpty', 1, [1, INT32[1]]),
     flag('cloudSampleLightShadowMap', true),
     flag('cloudAerialPerspective', true),
@@ -221,7 +221,10 @@ const EFFECTS_RULES = /* @__PURE__ */ (() =>
  *  (off): they are drawn in the separate translucency, after the depth of field;
  *  `lightShaftBlurPasses` (3), a whole number from 0: the radial blur passes;
  *  `lightShaftFirstPassDistance` (0.1): the fraction of the distance to the light the first pass
- *  blurs over. */
+ *  blurs over; `lightShaftTemporalFilterSize` (1, from 0.0001) and `lightShaftTemporalCatmullRom`
+ *  (off): the size of the kernel the temporal filter's weights are made of (1 smoother, a smaller
+ *  one sharper but aliased; the floor is ours, the kernel divides by it) and whether it is a
+ *  Catmull-Rom one, sharper than the Gaussian. */
 const IMAGE_EFFECTS_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flag('lightShafts', true),
@@ -230,6 +233,8 @@ const IMAGE_EFFECTS_RULES = /* @__PURE__ */ (() =>
     flag('lightShaftAfterDof', false),
     integer('lightShaftBlurPasses', 3, INT32_FROM_ZERO),
     number('lightShaftFirstPassDistance', 0.1, ANY_NUMBER),
+    number('lightShaftTemporalFilterSize', 1, atLeast(1e-4)),
+    flag('lightShaftTemporalCatmullRom', false),
   ] as const))()
 
 /** The sky light's settings by field: `skyLightRealTimeCapture` (on), whether the platform allows
@@ -279,64 +284,3 @@ export type SkyQualityField = keyof typeof SKY_QUALITY_RULES
 export type SkyQualityOptions = SettingOptions<typeof SKY_QUALITY_RULES>
 /** The sky's quality settings, resolved. */
 export type SkyQualityValues = SettingValues<typeof SKY_QUALITY_RULES>
-
-/** What the presets below the top write, by quality group: the reference's levels 0, 1 and 2;
- *  `max`, the level 3, writes nothing (`runtime/qualityLevels.ts`). The effects levels write the
- *  atmosphere's eleven settings, the image effects' the light shafts' switch, the indirect light's
- *  the sky light's intensity factor. */
-export const SKY_PRESET_LEVELS = {
-  effects: {
-    smooth: {
-      aerialFastOnOpaque: true,
-      aerialSamplesPerSlice: 1,
-      aerialDepthSlices: 8,
-      skyTableFast: true,
-      skyTableSamplesMin: 2,
-      skyTableSamplesMax: 16,
-      atmosphereSamplesMin: 2,
-      atmosphereSamplesMax: 16,
-      transmittanceSmallFormat: true,
-      transmittanceSamples: 10,
-      multiScatterSamples: 15,
-    },
-    balanced: {
-      aerialFastOnOpaque: true,
-      aerialSamplesPerSlice: 1,
-      aerialDepthSlices: 16,
-      skyTableFast: true,
-      skyTableSamplesMin: 4,
-      skyTableSamplesMax: 32,
-      atmosphereSamplesMin: 4,
-      atmosphereSamplesMax: 32,
-      transmittanceSmallFormat: false,
-      transmittanceSamples: 10,
-      multiScatterSamples: 15,
-    },
-    fine: {
-      aerialFastOnOpaque: true,
-      aerialSamplesPerSlice: 2,
-      aerialDepthSlices: 16,
-      skyTableFast: true,
-      skyTableSamplesMin: 4,
-      skyTableSamplesMax: 64,
-      atmosphereSamplesMin: 4,
-      atmosphereSamplesMax: 64,
-      transmittanceSmallFormat: false,
-      transmittanceSamples: 10,
-      multiScatterSamples: 15,
-    },
-  },
-  imageEffects: {
-    smooth: { lightShafts: false },
-    balanced: { lightShafts: false },
-    fine: { lightShafts: true },
-  },
-  indirectLight: {
-    smooth: { skyLightIntensityScale: 0.8 },
-    balanced: { skyLightIntensityScale: 1 },
-    fine: { skyLightIntensityScale: 1 },
-  },
-} as const satisfies Record<
-  keyof typeof SKY_QUALITY_RULES_BY_GROUP,
-  Record<string, Partial<SkyQualityValues>>
->

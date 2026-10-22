@@ -8,6 +8,7 @@ import { encodeReflectionTrace } from './trace/traceEncode.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 import { environmentCurve } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { appliedExposureOf } from '../../post/exposure/applied.ts'
+import { hizSetting } from '../../visibility/hiz/setting.ts'
 
 /** Stages the image's reflection view (`stageReflectionImage`), which the trace and the forward
  *  programs read: `traced`, whether the trace runs this image; unchanged, nothing is sent. */
@@ -34,6 +35,9 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced
  * into level 0's front layer (`frontLayer.ts`), which the build folds in where the pass drew this image
  * — its frame word up —, and before every reader of it — the direct lights' contact rays (`lighting/shadows/vsm/`) and
  * the reflections' trace both walk it with the screen march (`visibility/hiz/gpu/screenMarch.ts`).
+ * The settings decide what it holds: `hizTrace` — the planes' corners and the finished depth's
+ * farthest, or the closest depth of each texel's centre — and `hizFoldTransparents` — the
+ * transparent surfaces folded into the trace layers, or the opaque depth alone (`hizOptions.ts`).
  */
 export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu, vis, run } = rt,
@@ -41,8 +45,11 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
     reflection = gpu.reflection
   if (!hiz) return
   // An image whose front pass drew none, a scene that lost its last transparent: the word down, so no
-  // reader folds the last glass.
-  hiz.front(reflection?.front.drawn === frontStamp(run.frame))
+  // reader folds the last glass; and down while the setting leaves the transparents out.
+  hiz.front(
+    hizSetting(rt, 'hizFoldTransparents') && reflection?.front.drawn === frontStamp(run.frame),
+  )
+  hiz.planes(hizSetting(rt, 'hizTrace') === 'planes')
   // The pass is the view's reflection's, made with the surfaces every lit image draws.
   if (!run.depthDrawn || !reflection) return
   hiz.encodeNearest(reflection.depthPass.begin(encoder))

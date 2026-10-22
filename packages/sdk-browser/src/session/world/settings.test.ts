@@ -23,6 +23,7 @@ import { ANIMATION_RULES } from '../../../../sdk-core/src/contracts/animationOpt
 import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import { createWorldSettings } from './settings.ts'
 
 const WORLD_SETTINGS = createWorldSettings().table
@@ -55,6 +56,8 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(EXPOSURE_RULES, {}),
   // The temporal pass's thin geometry detection: off, its contract's default.
   ...resolveSettings(TEMPORAL_RULES, {}),
+  // The depth pyramid's trace, transparent fold and transparent test: each its contract's default.
+  ...resolveSettings(HIZ_RULES, {}),
 }
 
 test('every default is the constant the engine reads today, and a fresh registry resolves it', () => {

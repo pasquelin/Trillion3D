@@ -15,6 +15,7 @@ import { resolveSetting, type SettingRule } from '../contracts/settingRules.ts'
 import { CUT_RULES } from '../contracts/cutOptions.ts'
 import { ANIMATION_RULES } from '../contracts/animationOptions.ts'
 import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
+import { HIZ_RULES } from '../contracts/hizOptions.ts'
 import { RASTER_RULES } from '../contracts/rasterOptions.ts'
 
 const validate = new Ajv().compile(EXPLORER_OPTIONS_SCHEMA)
@@ -101,6 +102,7 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...CUT_RULES,
     ...ANIMATION_RULES,
     ...TEMPORAL_RULES,
+    ...HIZ_RULES,
   }
   const advertised = Object.entries(EXPLORER_OPTIONS_SCHEMA.properties).filter(
     ([, property]) => property.type === 'boolean' && property.default !== undefined,

@@ -76,6 +76,9 @@ export function createSkyLightTargets(
     trace: block('Trillion3D sky light cloud traces', CUBE_FACES),
     filter: block('Trillion3D sky light filter blocks', FILTER_SLOTS),
     irradiance: block('Trillion3D sky light harmonics block', 1),
+    /** A specified cubemap's copy: a slot to a face, the 16-bit cube's then the 32-bit float
+     *  one's. */
+    copy: block('Trillion3D sky light cubemap copies', 2 * CUBE_FACES),
   }
   const cloudTexture = (label: string, format: GPUTextureFormat, usage: number) =>
     device.createTexture({ label, size: { width: cloudSide, height: cloudSide }, format, usage })

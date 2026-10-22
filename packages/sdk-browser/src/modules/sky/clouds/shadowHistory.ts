@@ -1,6 +1,6 @@
 import { dotVector3 } from '../../../../../math/src/vector/vector.ts'
 import { DEG2RAD } from '../../../../../math/src/constants.ts'
-import type { CloudShadowLightFrame } from './shadowFrame.ts'
+import { KM_PER_CM, type CloudShadowLightFrame } from './shadowFrame.ts'
 
 /**
  * THE CLOUD SHADOW MAP'S TEMPORAL FILTER, planned: what a view keeps of a light's map from one
@@ -21,7 +21,6 @@ import type { CloudShadowLightFrame } from './shadowFrame.ts'
 
 /** The squared distance, in centimetres, under which the point the map looks at has not moved. */
 const ANCHOR_STILL = 0.0001
-const CM_TO_KM = 0.00001
 
 /** What a view keeps of one light's map. */
 export interface CloudShadowHistory {
@@ -29,18 +28,18 @@ export interface CloudShadowHistory {
   valid: boolean
   side: number
   clipFromCamera: Float64Array
-  direction: [number, number, number]
-  lightPosition: [number, number, number]
-  anchor: [number, number, number]
+  direction: Float64Array
+  lightPosition: Float64Array
+  anchor: Float64Array
 }
 
 export const createCloudShadowHistory = (): CloudShadowHistory => ({
   valid: false,
   side: 0,
   clipFromCamera: new Float64Array(16),
-  direction: [0, 0, 0],
-  lightPosition: [0, 0, 0],
-  anchor: [0, 0, 0],
+  direction: new Float64Array(3),
+  lightPosition: new Float64Array(3),
+  anchor: new Float64Array(3),
 })
 
 /** What the filter does for one image of one light. */
@@ -48,8 +47,6 @@ export interface CloudShadowTemporal {
   /** The side of the traced map, and the scale and offset from its pixels to the map's. */
   readonly tracedSide: number
   readonly pixel: readonly [number, number, number, number]
-  /** The weight of the current image. */
-  readonly weight: number
   /** The filter pass runs: the weight is under 1 and the view keeps state. */
   readonly filtered: boolean
   /** The history is read. */
@@ -64,6 +61,12 @@ export interface CloudShadowTemporal {
 
 const IDENTITY_PIXEL = [1, 1, 0, 0] as const
 
+const difference = (a: ArrayLike<number>, b: ArrayLike<number>) => [
+  a[0] - b[0],
+  a[1] - b[1],
+  a[2] - b[2],
+]
+
 /**
  * The filter of the image `frameIndex` of the light whose map is `frame`, `side` texels, with
  * `weight` the current image's, `history` the view's (none: a view with no state). `cutDegrees`
@@ -77,45 +80,29 @@ export function planCloudShadowTemporal(
   frameIndex: number,
   cutDegrees: number,
 ): CloudShadowTemporal {
-  const none = {
-    tracedSide: side,
-    pixel: IDENTITY_PIXEL,
-    weight,
-    filtered: false,
-    history: false,
-    anchorMoved: false,
-    depthFrom: 0,
-    depthScale: 1,
-    previousClipFromCamera: frame.clipFromCamera,
-  }
-  if (!(weight < 1)) return none
-  const status = history ? frameIndex % 4 : 0
-  const traced = {
-    ...none,
-    tracedSide: side >> 1,
-    pixel: [2, 2, status === 1 || status === 2 ? 1 : 0, status === 1 || status === 3 ? 1 : 0],
-  } as const
-  if (!history) return traced
-  const cut = dotVector3(history.direction, frame.rayDirection) < Math.cos(cutDegrees * DEG2RAD)
-  const usable = history.valid && history.side === side && !cut
-  const moved =
-    (history.anchor[0] - frame.anchor[0]) ** 2 +
-      (history.anchor[1] - frame.anchor[1]) ** 2 +
-      (history.anchor[2] - frame.anchor[2]) ** 2 >=
-    ANCHOR_STILL
-  const behind = [
-    history.lightPosition[0] - frame.lightPosition[0],
-    history.lightPosition[1] - frame.lightPosition[1],
-    history.lightPosition[2] - frame.lightPosition[2],
-  ]
+  const half = weight < 1
+  const kept = half ? history : undefined
+  const status = kept ? frameIndex % 4 : 0
+  const turn = kept ? dotVector3(kept.direction, frame.rayDirection) : 1
+  const usable =
+    kept !== undefined &&
+    kept.valid &&
+    kept.side === side &&
+    !(turn < Math.cos(cutDegrees * DEG2RAD))
+  const moved = kept ? difference(kept.anchor, frame.anchor) : [0, 0, 0]
+  const behind = kept ? difference(kept.lightPosition, frame.lightPosition) : [0, 0, 0]
   return {
-    ...traced,
-    filtered: true,
+    tracedSide: half ? side >> 1 : side,
+    pixel: half
+      ? [2, 2, status === 1 || status === 2 ? 1 : 0, status === 1 || status === 3 ? 1 : 0]
+      : IDENTITY_PIXEL,
+    filtered: kept !== undefined,
     history: usable,
-    anchorMoved: moved,
-    depthFrom: dotVector3(behind, frame.rayDirection) * CM_TO_KM,
-    depthScale: dotVector3(history.direction, frame.rayDirection),
-    previousClipFromCamera: usable ? history.clipFromCamera : frame.clipFromCamera,
+    anchorMoved:
+      kept !== undefined && moved[0] ** 2 + moved[1] ** 2 + moved[2] ** 2 >= ANCHOR_STILL,
+    depthFrom: kept ? dotVector3(behind, frame.rayDirection) * KM_PER_CM : 0,
+    depthScale: turn,
+    previousClipFromCamera: usable ? kept.clipFromCamera : frame.clipFromCamera,
   }
 }
 
@@ -129,15 +116,9 @@ export function commitCloudShadowHistory(
 ) {
   history.valid = frame !== undefined && filtered
   history.side = side
-  if (frame) {
-    history.clipFromCamera.set(frame.clipFromCamera)
-    history.direction = [...frame.rayDirection]
-    history.lightPosition = [...frame.lightPosition]
-    history.anchor = [...frame.anchor]
-  } else {
-    history.clipFromCamera.fill(0)
-    history.direction = [0, 0, 0]
-    history.lightPosition = [0, 0, 0]
-    history.anchor = [0, 0, 0]
-  }
+  if (!frame) return
+  history.clipFromCamera.set(frame.clipFromCamera)
+  history.direction.set(frame.rayDirection)
+  history.lightPosition.set(frame.lightPosition)
+  history.anchor.set(frame.anchor)
 }

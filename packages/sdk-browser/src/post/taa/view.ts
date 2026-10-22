@@ -71,6 +71,14 @@ function writeDepthTerms(
   into[T.radius + 3] = perspective ? 0 : 1
 }
 
+/** The device depth of a point on the view axis at distance `s`, `(a·s + b) / (c·s + d)`, for the
+ *  perspective `projection` (column-major): the terms `(a, b, c, d)`, with `s` the distance ahead
+ *  of the eye whichever way the projection looks (`a` and `c` carry the sign that puts it so). */
+export function depthTermsAhead(projection: ArrayLike<number>) {
+  const ahead = Math.sign(projection[11]) || 1
+  return [projection[10] * ahead, projection[14], projection[11] * ahead, projection[15]] as const
+}
+
 /**
  * The pass's uniform for this frame (`TaaView`, `bindingsWgsl.ts`): both matrices at the eye, the
  * display grid the history has, whether the history describes nothing (a cut), the display layers'

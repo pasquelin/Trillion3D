@@ -5,6 +5,7 @@ import { HIZ_BUILD_SIDE, HIZ_MAX_LEVELS, HIZ_PASS_LEVELS, hizBuildPasses } from 
 import { buildAfter, buildBefore } from './buildTranscripts.fixture.ts'
 import { layout, type Scene } from './buildScene.fixture.ts'
 import { hizLevelSizes } from './levelSizes.ts'
+import { HIZ_WHOLE_FARTHEST } from './pyramidTexture.ts'
 import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
 
 // The reference pyramid build is a copy of the level-0 texture then one dispatch per mip, each
@@ -24,7 +25,7 @@ function scene(rand: () => number, hostile: boolean): Scene {
     hostile && rand() < 0.05 ? SPECIALS[Math.floor(rand() * SPECIALS.length)] : rand(),
   )
   const maxLevels = rand() < 0.2 ? pick(6) : HIZ_MAX_LEVELS
-  return { texture, width, height, maxLevels, nearest: rand() < 0.5 }
+  return { texture, width, height, maxLevels, nearest: rand() < 0.5, planes: rand() < 0.5 }
 }
 
 function assertSamePyramid(s: Scene, rand: () => number, label: string) {
@@ -74,6 +75,14 @@ test('edge sizes: one texel, one row, one column, a tile edge, 1080p, a capped m
         rand,
         `${width}×${height}${nearest ? ', nearest' : ''}`,
       )
+      // The closest depth of each centre: the nearest layer alone, the finished depth's farthest
+      // layer left as it was.
+      if (nearest)
+        assertSamePyramid(
+          { texture, width, height, maxLevels, nearest, planes: false },
+          rand,
+          `${width}×${height}, nearest without the planes`,
+        )
     }
   // 1080p: twelve mips in three dispatches, where the per-level build took twelve.
   assert.deepEqual(
@@ -102,7 +111,8 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
   const build = HIZ_SHADER.slice(HIZ_SHADER.indexOf('fn hizSource'))
   for (const line of [
     'if(uni.a!=0u){return hizLoadBound(i);}',
-    `if(${HIZ_NEAREST_BUILD}){return hizPlaneCorners(i,q,hizDepthAt(q));}`,
+    'if(hizKeepsPlanes()){return hizPlaneCorners(i,q,hizDepthAt(q));}',
+    'return vec2f(hizFrontAt(q));',
     'if(uni.d>0u){hizPutBound(uni.dst[0].x+y*uni.dst[0].y+x,bound);}',
     `for(var k=1u;k<min(uni.d,${HIZ_PASS_LEVELS}u);k++){`,
     `bound=hizBound4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${HIZ_BUILD_SIDE}u],hizTile[i+dy*${HIZ_BUILD_SIDE}u+dx],dx,dy);`,
@@ -110,6 +120,12 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
     `if(${HIZ_NEAREST_BUILD}){return vec2f(max(a.x,b.x),min(a.y,b.y));}`,
   ])
     assert.ok(build.includes(line), line)
+  // The finished depth's farthest layer is written where the planes are kept, and only there.
+  assert.ok(
+    HIZ_SHADER.includes(
+      `if(hizKeepsPlanes()){hizPut(i,${HIZ_WHOLE_FARTHEST}u,bitcast<u32>(bound.y));}`,
+    ),
+  )
   assert.equal(
     build.match(/workgroupBarrier\(\);/g)?.length,
     3,
@@ -123,7 +139,7 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
   )
   assert.equal(
     HIZ_SHADER.match(/hizFrontAt\(/g)?.length,
-    2,
-    'its definition and the depth tile, each texel loaded once: no other',
+    3,
+    'its definition, the depth tile of the planes and the closest depth of the centres: no other',
   )
 })

@@ -7,6 +7,7 @@ import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animat
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import type { WorldParts } from './worldParts.ts'
 
 /** The world's scene settings by rule (`ruledSwitches.ts`): the streaming of a partitioned scene's
@@ -93,6 +94,19 @@ export function worldImageSettings({ switches, live }: WorldParts) {
     set temporal(options: TemporalOptions) {
       live()
       switches.temporal = options
+    },
+    /** The depth pyramid's settings, each by its field (`WorldOptions`), resolved over the page
+     *  and the quality preset: `hizTrace`, how the reflections' trace reads the pyramid;
+     *  `hizFoldTransparents`, whether its trace layers hold the transparent surfaces;
+     *  `hizTransparentTest`, how the transparent clusters are tested against it. Written, the
+     *  settings named apply from the next frame over the preset — one `null` gives it back to
+     *  it, one left out stays —; one a setting does not take is refused. */
+    get hiz() {
+      return switches.hiz
+    },
+    set hiz(options: HizOptions) {
+      live()
+      switches.hiz = options
     },
   }
 }

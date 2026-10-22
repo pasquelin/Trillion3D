@@ -4,15 +4,15 @@ import { HAZE_READ_WGSL } from '../../../lighting/atmosphere/hazeReadWgsl.ts'
 import { airProgram, type AirBindings } from '../../../lighting/atmosphere/programs.ts'
 import { vsmBlueNoiseWgsl } from '../../../lighting/shadows/vsm/blueNoise.ts'
 import { cloudMaterialBindings } from './materialWgsl.ts'
-import {
-  CLOUD_FORMAT,
-  DEVICE_DEPTH_FLOOR,
-  RECONSTRUCT_DOWNSAMPLE,
-  TRACE_TO_VIEW,
-} from './reconstructLayout.ts'
+import type { CloudSetup } from './cloudModes.ts'
+import { CLOUD_FORMAT, DEVICE_DEPTH_FLOOR } from './reconstructLayout.ts'
+import { cloudDepthBinding, cloudSceneDepthFn } from './traceDepthWgsl.ts'
 import { CLOUD_TRACE_BINDING as B, CLOUD_TRACE_LAYOUT } from './traceLayout.ts'
 import { CLOUD_FOG_WGSL } from './composeWgsl.ts'
 import { CLOUD_LIGHT_WGSL } from './traceLightWgsl.ts'
+import { CLOUD_GROUND_WGSL } from './traceGroundWgsl.ts'
+import { cloudTraceExtraWgsl } from './traceExtraWgsl.ts'
+import { CLOUD_TRACE_PLAIN, type CloudTracePermutation } from './traceExtraLayout.ts'
 
 /** The tracing's own group: group 0 is the air's. */
 const G = 1
@@ -26,7 +26,8 @@ export const CLOUD_TRACE_AIR: AirBindings = {
   fog: true,
 }
 
-/** The format of the scene's depth range, two half floats (the nearest and the farthest depth). */
+/** The format of the scene's depth range, two half floats (the nearest and the farthest depth); the
+ *  half-size checkerboard depth is written in its first channel. */
 export const CLOUD_DEPTH_RANGE_FORMAT: GPUTextureFormat = 'rg16float'
 
 /** The threads of a group along each axis. */
@@ -47,19 +48,25 @@ export const CLOUD_TRACE_GROUP_SIZE = 8
  * for the samples before the nearest depth of the texel's block, and the depths in kilometres. The
  * haze of the air is laid over each once, at the mean distance of the cloud the ray met weighted by
  * what it let through. The fog of the scene is laid here only with the late fog off
- * (\`cloudFogLate\`); with it on, it is laid with the composition.
+ * (\`cloudFogLate\`); with it on, it is laid with the composition. The haze is laid here unless a
+ * second pass lays it per pixel (\`options.x\`).
+ *
+ * The frame's options vary the program (\`traceExtraWgsl.ts\`): the empty-space table, the sun's
+ * opaque shadow and the lamps. A reflection or a capture (\`options.y\`) places the first sample of
+ * a ray in the middle of its step, not by the blue noise.
  *
  * Lengths are centimetres; the shell is intersected in kilometres from the planet's centre.
  */
-const TRACE_OWN = `${CLOUD_TRACE_LAYOUT.wgsl}
+const traceOwn = (setup: CloudSetup) => `${CLOUD_TRACE_LAYOUT.wgsl}
 @group(${G}) @binding(${B.block}) var<uniform> cloudTrace:CloudTraceBlock;${cloudMaterialBindings(G, B.material)}
-@group(${G}) @binding(${B.depthRange}) var depthRange:texture_2d<f32>;
-@group(${G}) @binding(${B.colour}) var colourOut:texture_storage_2d<${CLOUD_FORMAT},write>;
-@group(${G}) @binding(${B.secondary}) var secondaryOut:texture_storage_2d<${CLOUD_FORMAT},write>;
+${cloudDepthBinding(G, B.depthRange, setup.depth)}
+@group(${G}) @binding(${B.colour}) var colourOut:texture_storage_2d<${CLOUD_FORMAT},write>;${
+  setup.minMaxDepth
+    ? `
+@group(${G}) @binding(${B.secondary}) var secondaryOut:texture_storage_2d<${CLOUD_FORMAT},write>;`
+    : ''
+}
 @group(${G}) @binding(${B.depth}) var depthOut:texture_storage_2d<${CLOUD_FORMAT},write>;
-/** The scene's depth is read at half the view's size, in the range's texels at half that again. */
-const CLOUD_DEPTH_SCALE:u32=${TRACE_TO_VIEW / RECONSTRUCT_DOWNSAMPLE}u;
-const CLOUD_DEPTH_RANGE_SCALE:u32=2u;
 struct CloudRay{origin:vec3f,dir:vec3f,tMin:f32,tMax:f32,tTop:vec2f,tBottom:vec2f,}
 struct CloudTraced{colour:vec4f,secondary:vec4f,depth:vec4f,}
 struct CloudDepth{closestCm:f32,furthestCm:f32,km:vec4f,}
@@ -93,20 +100,7 @@ fn cloudShell(r:ptr<function,CloudRay>)->bool{
  (*r).tMax=max(0.0,high)*CM_PER_KM;
  return true;
 }
-/** The nearest and the farthest depth of the texel's block, as distances from the eye. */
-fn cloudSceneDepth(p:vec2u,ndc:vec2f)->CloudDepth{
- let coord=min(p*CLOUD_DEPTH_SCALE+cloudTrace.traced.zw,cloudTrace.sizes.zw);
- let range=textureLoad(depthRange,coord/CLOUD_DEPTH_RANGE_SCALE,0).xy;
- let device=max(range.yx,vec2f(DEVICE_DEPTH_FLOOR));
- let eye=frame.eye.xyz;
- let closestKm=min(length(cloudUnproject(ndc,device.x)-eye)*CLOUD_M_TO_KM,HALF_MAX);
- let furthestKm=min(length(cloudUnproject(ndc,device.y)-eye)*CLOUD_M_TO_KM,HALF_MAX);
- var d:CloudDepth;
- d.closestCm=closestKm*CM_PER_KM;
- d.furthestCm=furthestKm*CM_PER_KM;
- d.km=vec4f(furthestKm,furthestKm,closestKm,furthestKm);
- return d;
-}
+${cloudSceneDepthFn(setup.depth)}
 /** The longest march, from the layer's entry or from the eye; false where nothing is left to trace. */
 fn cloudMaxDistance(r:ptr<function,CloudRay>,depthCm:f32)->bool{
  let longest=cloudTrace.reach.z;
@@ -136,11 +130,13 @@ fn cloudFinish(a:CloudAccum,meanDepth:f32,dir:vec3f)->vec4f{
  var luminance=a.luminance;
  let eye=frame.eye.xyz;
  let there=eye+dir*(meanDepth*CLOUD_CM_TO_M);
- if(a.tapWeights>0.0){
+ let inTrace=cloudTrace.switches.x==1u;
+ let everywhere=inTrace&&cloudTrace.switches.y==1u;
+ if(cloudTrace.options.x==1u&&(everywhere||a.tapWeights>0.0)){
   let air=aerialPerspective(there,eye);
   luminance=air.rgb*(1.0-mean)+air.a*luminance;
  }
- if(cloudTrace.switches.x==1u&&(cloudTrace.switches.y==1u||a.tapWeights>0.0)){
+ if(inTrace&&(everywhere||a.tapWeights>0.0)){
   let fog=cloudFog(there,eye);
   luminance=fog.rgb*(1.0-mean)+fog.a*luminance;
  }
@@ -154,12 +150,14 @@ fn cloudMarch(r:CloudRay,closestCm:f32,p:vec2u)->CloudMarched{
  let counted=u32(max(f32(cloudTrace.counts.x),floor(cloudTrace.samples.x)*saturate(span*cloudTrace.samples.w)));
  let stepT=span/f32(counted);
  let steps=min(counted,cloudTrace.counts.y);
- let onEmpty=cloudTrace.counts.z-1u;
+ let onEmpty=cloudEmptyStep();
  let octaves=cloudOctaves();
  let lights=cloudLights(r.dir);
- let pixel=vec2u((vec2f(p)+0.5)*f32(${TRACE_TO_VIEW}));
- var t=r.tMin+vsmNoiseOne(pixel,cloudTrace.sizes.x)*stepT;
- var i=0u;
+ let pixel=vec2u((vec2f(p)+0.5)*f32(cloudTrace.mapping.y));
+ var jitter=0.5;
+ if(cloudTrace.options.y==0u){jitter=vsmNoiseOne(pixel,cloudTrace.sizes.x);}
+ var t=r.tMin+jitter*stepT;
+ var i=cloudStartSteps(p,&t,stepT);
  loop{
   if(i>=steps){break;}
   let rel=r.dir*t;
@@ -192,37 +190,61 @@ fn cloudRayTrace(p:vec2u)->CloudTraced{
  if(r.tMax<=r.tMin||r.tMin>cloudTrace.reach.x){return out;}
  let depth=cloudSceneDepth(p,ndc);
  out.depth=depth.km;
- if(depth.furthestCm<r.tMin){return out;}
- r.tMax=min(r.tMax,depth.furthestCm);
+ if(cloudTrace.options.z==1u){
+  if(depth.furthestCm<r.tMin){return out;}
+  r.tMax=min(r.tMax,depth.furthestCm);
+ }
  if(!cloudMaxDistance(&r,depth.furthestCm)){return out;}
  r.tMin=max(r.tMin,cloudTrace.reach.y);
  r.tMax=max(r.tMin,r.tMax);
- let m=cloudMarch(r,depth.closestCm,p);
+ let m=cloudMarch(r,${setup.minMaxDepth ? 'depth.closestCm' : '-1.0'},p);
  let seenDepth=cloudMeanDepth(m.seen,r.tMax);
  out.colour=cloudFinish(m.seen,seenDepth,r.dir);
- out.secondary=cloudFinish(m.nearest,cloudMeanDepth(m.nearest,r.tMax),r.dir);
- out.depth.x=select(seenDepth,r.tMax,out.colour.a>0.99)*CLOUD_CM_TO_KM;
+${
+  setup.minMaxDepth
+    ? ' out.secondary=cloudFinish(m.nearest,cloudMeanDepth(m.nearest,r.tMax),r.dir);\n'
+    : ''
+} out.depth.x=select(seenDepth,r.tMax,out.colour.a>0.99)*CLOUD_CM_TO_KM;
  return out;
 }
 @compute @workgroup_size(${CLOUD_TRACE_GROUP_SIZE},${CLOUD_TRACE_GROUP_SIZE},1)
 fn cloudTraceMain(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=cloudTrace.traced.x||id.y>=cloudTrace.traced.y){return;}
  cloudStart();
+ cloudLampsStart(id.xy,f32(cloudTrace.mapping.y));
  let traced=cloudRayTrace(id.xy);
- textureStore(colourOut,id.xy,traced.colour);
- textureStore(secondaryOut,id.xy,traced.secondary);
+ textureStore(colourOut,id.xy,traced.colour);${
+   setup.minMaxDepth ? '\n textureStore(secondaryOut,id.xy,traced.secondary);' : ''
+ }
  textureStore(depthOut,id.xy,traced.depth);
 }`
 
-/** The view tracing's whole program (`CLOUD_TRACE_ENTRY`). */
-export const CLOUD_TRACE_PROGRAM = airProgram(CLOUD_TRACE_AIR, TRACE_OWN, [
-  CLOUD_LIGHT_WGSL,
-  CLOUD_FOG_WGSL,
-  HALF_MAX,
-  DEVICE_DEPTH_FLOOR,
-  pixelToNdc,
-  unprojectPoint,
-  HAZE_READ_WGSL,
-  vsmBlueNoiseWgsl(G, B.blueNoise),
-])
+const programs = new Map<string, string>()
+
+/** The view tracing's whole program for `setup` (`CLOUD_TRACE_ENTRY`) and the variation `extra` of
+ *  its options: the scene's depth it reads, the second surface it traces or not, and the options
+ *  make the program; one is made for each and kept. */
+export function cloudTraceProgram(
+  setup: CloudSetup,
+  extra: CloudTracePermutation = CLOUD_TRACE_PLAIN,
+) {
+  const key = `${setup.depth}${setup.minMaxDepth}${extra.emptySpace}${extra.opaqueShadow}${extra.localLights}`
+  let code = programs.get(key)
+  if (code === undefined) {
+    code = airProgram({ ...CLOUD_TRACE_AIR, lights: extra.localLights }, traceOwn(setup), [
+      CLOUD_LIGHT_WGSL,
+      CLOUD_GROUND_WGSL,
+      cloudTraceExtraWgsl(extra),
+      CLOUD_FOG_WGSL,
+      HALF_MAX,
+      DEVICE_DEPTH_FLOOR,
+      pixelToNdc,
+      unprojectPoint,
+      HAZE_READ_WGSL,
+      vsmBlueNoiseWgsl(G, B.blueNoise),
+    ]).code
+    programs.set(key, code)
+  }
+  return code
+}
 export const CLOUD_TRACE_ENTRY = 'cloudTraceMain'

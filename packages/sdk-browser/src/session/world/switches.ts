@@ -22,6 +22,7 @@ import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animat
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import { worldFamilies } from './ruledSwitches.ts'
 
 /** What of the world's runtime the switches reach: its open session and a frame. */
@@ -241,6 +242,12 @@ export function worldSwitches(
     },
     set temporal(options: TemporalOptions) {
       families.temporal.set(options)
+    },
+    get hiz() {
+      return families.hiz.values()
+    },
+    set hiz(options: HizOptions) {
+      families.hiz.set(options)
     },
     /** The scale of the image the open session drew last, 1 before one opens. */
     get renderScale(): number {

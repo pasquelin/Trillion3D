@@ -36,6 +36,7 @@ import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animat
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import type { RasterOptions } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
 import type { StreamingOptions } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
 type ViewSize = { width: number; height: number }
@@ -173,7 +174,10 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
  *  each frame by the meter (`../../post/exposure/frame.ts`) and the local exposure
  *  (`../../post/finish/frame.ts`); the temporal pass's
  *  (`../../../../sdk-core/src/contracts/temporalOptions.ts`), written by `setTemporal`, read at
- *  each image by the pass (`../../post/taa/frame.ts`);
+ *  each image by the pass (`../../post/taa/frame.ts`); the depth pyramid's
+ *  (`../../../../sdk-core/src/contracts/hizOptions.ts`), written by `setHiz`, read at each image by
+ *  the reflections' depth pyramid (`../../lighting/reflections/frame.ts`) and the transparent
+ *  clusters' test (`../../blend/transparent/occlusionHost.ts`);
  *  the software raster, on by default, and the projected edge in pixels from which a cluster is
  *  the hardware rasterizer's (`../../../../sdk-core/src/contracts/rasterOptions.ts`), written by
  *  `setSoftwareRaster` and `setHardwareRasterEdgePixels` and read each image by the cluster split
@@ -189,6 +193,7 @@ export interface EngineContext
     ShadingOptions,
     ExposureOptions,
     TemporalOptions,
+    HizOptions,
     RasterOptions,
     StreamingOptions {
   source: Object3D

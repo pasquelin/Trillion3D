@@ -36,6 +36,28 @@ export const preparedComputeStage = (
   label?: string,
 ) => preparedComputePipeline(device, computeStage(layout, module, entryPoint, constants, label))
 
+/** The stage `entry` of `code` on the bind-group layouts `layouts`, group by group, labelled
+ *  `label`, asked now, off the frame; `failed` hears a failure to compile. */
+export function askedComputeStage(
+  device: GPUDevice,
+  layouts: readonly GPUBindGroupLayout[],
+  code: string,
+  entry: string,
+  label: string,
+  failed: (error: unknown) => void,
+) {
+  const stage = preparedComputeStage(
+    device,
+    device.createPipelineLayout({ bindGroupLayouts: layouts }),
+    device.createShaderModule({ label, code }),
+    entry,
+    undefined,
+    label,
+  ).ask()
+  stage.prepare().catch(failed)
+  return stage
+}
+
 /** The stage `entryPoint` of `module` on the bind-group layouts `layouts`, group by group, its
  *  overrides `constants`, labelled `label`, built now: every built compute stage of the engine. */
 export const buildComputeStage = (

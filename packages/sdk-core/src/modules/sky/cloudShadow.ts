@@ -83,21 +83,26 @@ export const cloudShadowWanted = (
   light.cloudShadowStrength > 0
 
 /** The side of the map of a light with none, in texels. */
-export const CLOUD_SHADOW_NO_LIGHT_SIDE = 32
-/** The texels a side of the map has at a resolution scale of 1. */
+const CLOUD_SHADOW_NO_LIGHT_SIDE = 32
+/** The texels a side of a map has at a resolution scale of 1. */
 const BASE_SIDE = 512
 /** The samples a ray of the map takes at a scale of 1, and the fewest it takes. */
 const BASE_SAMPLES = 16
 const LEAST_SAMPLES = 4
 
-/** The side of a light's map in texels: the base side times the light's scale, cut to a whole
- *  number, at most `mostSide`, at least 1; `CLOUD_SHADOW_NO_LIGHT_SIDE` for no light. The floor is
- *  ours: a largest side of 0 or less, which the quality setting lets through, would give a map of no
- *  texels, whose size is inverted for the sampling (infinity) and which the GPU refuses to create. */
+/** The side of a map in texels: the base side times `scale`, cut to a whole number, at most
+ *  `mostSide`, at least 1. The floor of 1 is ours: a largest side of 0 or less, which the
+ *  quality setting lets through, would give a map of no texels, and WebGPU refuses to create a
+ *  texture of size 0 (its size is also inverted for the sampling: infinity). */
+export const mapSide = (scale: number, mostSide: number) =>
+  clampLowWins(Math.trunc(BASE_SIDE * scale), 1, mostSide)
+
+/** The side of a light's map in texels (`mapSide` of its resolution scale);
+ *  `CLOUD_SHADOW_NO_LIGHT_SIDE` for no light. */
 export const cloudShadowSide = (light: CloudShadowLight | undefined, mostSide: number) =>
   light === undefined
     ? CLOUD_SHADOW_NO_LIGHT_SIDE
-    : clampLowWins(Math.trunc(BASE_SIDE * light.cloudShadowResolutionScale), 1, mostSide)
+    : mapSide(light.cloudShadowResolutionScale, mostSide)
 
 /** The samples a ray of a light's map takes before the sun's low height adds to them: the base
  *  count times the light's scale, at most `mostSamples`, at least 4. */

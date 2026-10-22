@@ -11,6 +11,7 @@ import { ANIMATION_RULES } from '../contracts/animationOptions.ts'
 import { SHADING_RULES } from '../contracts/shadingOptions.ts'
 import { EXPOSURE_RULES } from '../contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
+import { HIZ_RULES } from '../contracts/hizOptions.ts'
 
 /** A tool that writes the run-time settings of the rules by field `rules`, each as the explorer's
  *  options describe it (`EXPLORER_OPTIONS_SCHEMA`). Each call is marked pure, so a bundle that
@@ -146,6 +147,11 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
     'trillion3d_set_temporal',
     "Changes from the next frame how the temporal anti-aliasing, whose level trillion3d_set_temporal_antialiasing sets, treats geometry thinner than a pixel: whether it looks for a wire or a rail and relaxes its history there, off by default. It applies at any level but 'off'.",
     TEMPORAL_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_hiz',
+    "Changes from the next frame how the depth pyramid is read: how the reflections' screen trace walks it ('reference', the closest opaque depth of each texel, or 'planes', each pixel a plane), whether its trace layers hold the transparent surfaces (off by default) and how the transparent clusters are tested against it ('finer' or 'reference').",
+    HIZ_RULES,
   ),
   {
     name: 'trillion3d_add_light',

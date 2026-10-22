@@ -27,6 +27,11 @@ export type GpuHiz = {
    *  writes it, so no reader folds a layer this image did not write. It changes identity on every
    *  target resize. */
   front(wanted: boolean): GPUTextureView | undefined
+  /** Whether the nearest layer is built as the planes' corners, with the finished depth's farthest
+   *  layer and each pixel's slopes (`hizTrace` `'planes'`), or as the closest depth of each texel's
+   *  centre, the pyramid the reference's trace walks: its words sent when they move, so that an
+   *  image builds and a reader reads the mode it was told. */
+  planes(wanted: boolean): void
   resize(device: GPUDevice, width: number, height: number): boolean
   /**
    * The `width × height` this image draws in the top-left of level 0, at most its size: the build

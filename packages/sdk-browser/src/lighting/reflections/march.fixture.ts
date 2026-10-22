@@ -10,18 +10,22 @@ function flatView(width: number, height: number) {
   return viewOf(identity, identity, [0, 0, 1, 0], [width, height])
 }
 
-/** The shipped march over the depth image `depth`, `width × height`. */
+/** The shipped march over the depth image `depth`, `width × height`, over the pyramid of the planes
+ *  (`hizTrace` `'planes'`, which the march tests pin) or, `planes` false, over the closest depth of
+ *  each centre the reference's walk reads. */
 export function marcher(
   width: number,
   height: number,
   depth: (x: number, y: number) => number,
   front: (x: number, y: number) => number = () => 0,
+  planes = true,
 ) {
   const field = depthField(
     width,
     height,
     depthImage(width, height, depth),
     depthImage(width, height, front),
+    planes,
   )
   const run = reflectionRunner(field, flatView(width, height))
   const size = [width, height]

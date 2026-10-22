@@ -112,7 +112,9 @@ fn cloudPhase(cosTheta:f32)->f32{
  let second=hgPhase(clamp(p.y,-0.999,0.999),-cosTheta);
  return first+clamp(p.z,0.0,1.0)*(second-first);
 }
-struct CloudLight{toward:vec3f,illuminance:vec3f,phase:f32,}
+/** A light of the air: the direction toward it, its illuminance before the cloud's scale (\`raw\`, what
+ *  the ground bounces) and after it, the phase toward the ray. */
+struct CloudLight{toward:vec3f,raw:vec3f,illuminance:vec3f,phase:f32,}
 struct CloudLights{list:array<CloudLight,2>,count:u32,sky:vec3f,}
 /** The lights of the air for a ray along \`dir\`, and the sky light. */
 fn cloudLights(dir:vec3f)->CloudLights{
@@ -125,7 +127,8 @@ fn cloudLights(dir:vec3f)->CloudLights{
   let ground=select(atmo(${ATMOSPHERE_SLOT.sunTransmittance}u).xyz,atmo(${ATMOSPHERE_SLOT.secondTransmittance}u).xyz,second);
   l.list[k].toward=suns.list[k].toward;
   let scale=select(cloudTrace.lightScale0.xyz,cloudTrace.lightScale1.xyz,second)*f32(cloudTrace.switches.w);
-  l.list[k].illuminance=select(outer*ground,outer,cloudTrace.sizes.y==1u)*scale;
+  l.list[k].raw=select(outer*ground,outer,cloudTrace.sizes.y==1u);
+  l.list[k].illuminance=l.list[k].raw*scale;
   l.list[k].phase=cloudPhase(dot(suns.list[k].toward,dir));
  }
  l.sky=directLights.atmosphereView[${VIEW_SLOT.haze}].xyz*f32(cloudTrace.switches.z);
@@ -157,41 +160,71 @@ struct CloudAccum{luminance:vec3f,transmittance:vec3f,tapSum:f32,tapWeights:f32,
 /** What a ray gathers: all the samples (\`seen\`), and those before the nearest surface of the pixel's
  *  block (\`nearest\`). */
 struct CloudMarched{seen:CloudAccum,nearest:CloudAccum,}
+/** The air's transmittance toward each light from the planet-relative point \`planetKm\`: one where
+ *  the tint is taken once per ray. */
+fn cloudAirToLights(planetKm:vec3f,lights:CloudLights)->array<vec3f,2>{
+ var air=array<vec3f,2>(vec3f(1.0),vec3f(1.0));
+ if(cloudTrace.sizes.y!=1u){return air;}
+ for(var k=0u;k<lights.count;k++){air[k]=transmittanceToward(planetKm,lights.list[k].toward);}
+ return air;
+}
+/** What the light of each order loses on the way to the sample: the air's transmittance, the sun's
+ *  shadow in the opaque scene (the first light alone), and the cloud's own shadow toward each light. */
+fn cloudShadowsToLights(rel:vec3f,air:array<vec3f,2>,lights:CloudLights,o:CloudOctaves)->array<array<vec3f,3>,2>{
+ var toLight:array<array<vec3f,3>,2>;
+ for(var k=0u;k<lights.count;k++){
+  for(var m=0u;m<o.count;m++){toLight[k][m]=air[k];}
+ }
+ if(lights.count>0u){
+  let opaque=cloudOpaqueShadow(rel);
+  for(var m=0u;m<o.count;m++){toLight[0][m]*=opaque;}
+ }
+ for(var k=0u;k<lights.count;k++){
+  let shadow=cloudShadow(rel,lights.list[k].toward,o);
+  for(var m=0u;m<o.count;m++){toLight[k][m]*=shadow[m];}
+ }
+ return toLight;
+}
+/** The sample counted in the sums that give the ray's mean distance, weighted by what it lets through. */
+fn cloudTapSums(t:f32,contributes:bool,extinction:vec3f,march:ptr<function,CloudMarched>){
+ if(!any(extinction>vec3f(0.0))){return;}
+ let tr=(*march).seen.transmittance;
+ let weight=min(min(tr.x,tr.y),tr.z);
+ (*march).seen.tapSum+=t*weight;
+ (*march).seen.tapWeights+=weight;
+ if(contributes){
+  (*march).nearest.tapSum+=t*weight;
+  (*march).nearest.tapWeights+=weight;
+ }
+}
 /**
  * One sample's contribution, \`dtMeters\` long at \`t\`, at altitude \`norm\` in the layer: the light of each order, from the most
  * scattered down to the first, integrated against the extinction over the step, added to \`seen\`
  * with what the ray still lets through; the first order lessens that. \`nearest\` gathers the same for
  * the samples before \`closestCm\`, the nearest surface of the pixel's block: a sample at \`closestCm\`
- * is counted in its sums and its light, not in what it still lets through.
+ * is counted in its sums and its light, not in what it still lets through. The ground's bounce
+ * (the material's choice) joins the sky light of the first order, while the ray still lets some
+ * light through; the lamps' light joins every order.
  */
 fn cloudSampleStep(rel:vec3f,t:f32,norm:f32,spot:CloudSample,lights:CloudLights,o:CloudOctaves,dtMeters:f32,closestCm:f32,march:ptr<function,CloudMarched>){
  let contributes=t<=closestCm;
  let planetKm=(cloudPlanetEye+rel)/CM_PER_KM;
  let scattering=spot.albedo*spot.extinction;
+ let air=cloudAirToLights(planetKm,lights);
  var toLight:array<array<vec3f,3>,2>;
- for(var k=0u;k<lights.count;k++){
-  var air=vec3f(1.0);
-  if(cloudTrace.sizes.y==1u){air=transmittanceToward(planetKm,lights.list[k].toward);}
-  for(var m=0u;m<o.count;m++){toLight[k][m]=air;}
-  if(any(scattering>vec3f(0.0))){
-   let shadow=cloudShadow(rel,lights.list[k].toward,o);
-   for(var m=0u;m<o.count;m++){toLight[k][m]*=shadow[m];}
-  }
+ var sky=lights.sky*select(saturate(cloudTrace.sky.y+norm),spot.ambientOcclusion,cloudTrace.sky.z==1.0);
+ if(any(scattering>vec3f(0.0))){
+  let seen=(*march).seen.transmittance;
+  if(cloudMaterial.ground.x>0.5&&max(max(seen.x,seen.y),seen.z)>0.01){sky+=cloudGroundLight(rel,air,lights);}
+  toLight=cloudShadowsToLights(rel,air,lights,o);
+ }else{
+  for(var k=0u;k<lights.count;k++){for(var m=0u;m<o.count;m++){toLight[k][m]=air[k];}}
  }
- if(any(spot.extinction>vec3f(0.0))){
-  let tr=(*march).seen.transmittance;
-  let weight=min(min(tr.x,tr.y),tr.z);
-  (*march).seen.tapSum+=t*weight;
-  (*march).seen.tapWeights+=weight;
-  if(contributes){
-   (*march).nearest.tapSum+=t*weight;
-   (*march).nearest.tapWeights+=weight;
-  }
- }
- let skyKept=select(saturate(cloudTrace.sky.y+norm),spot.ambientOcclusion,cloudTrace.sky.z==1.0);
+ cloudTapSums(t,contributes,spot.extinction,march);
+ let lamps=cloudLocalLights(rel,o);
  for(var j=0u;j<o.count;j++){
   let m=o.count-1u-j;
-  var light=select(vec3f(0.0),lights.sky*skyKept,m==0u);
+  var light=select(vec3f(0.0),sky,m==0u)+lamps[m];
   for(var k=0u;k<lights.count;k++){
    light+=toLight[k][m]*lights.list[k].illuminance*mix(UNIFORM_PHASE,lights.list[k].phase,o.lobe[m]);
   }

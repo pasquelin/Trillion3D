@@ -6,7 +6,7 @@ import {
   computeTextureEntry,
   computeUniformEntry,
 } from '../../../gpu/core/computeBindings.ts'
-import { preparedComputeStage } from '../../../gpu/core/computeStages.ts'
+import { askedComputeStage } from '../../../gpu/core/computeStages.ts'
 import { airLayoutEntries } from '../../../lighting/atmosphere/programs.ts'
 import { cloudMaterialLayoutEntries } from './materialWgsl.ts'
 import type { Size } from './reconstructLayout.ts'
@@ -47,7 +47,7 @@ import {
  * through `RECONSTRUCT_SAMPLER`, the linear clamped sampler), and the whole map it writes, which
  * the view keeps for the next image. The spatial filter then reads that map.
  */
-export function cloudShadowTraceEntries(): GPUBindGroupLayoutEntry[] {
+function cloudShadowTraceEntries(): GPUBindGroupLayoutEntry[] {
   return [
     ...cloudMaterialLayoutEntries(B.material),
     computeUniformEntry(B.block),
@@ -56,14 +56,14 @@ export function cloudShadowTraceEntries(): GPUBindGroupLayoutEntry[] {
 }
 
 /** The filter's group: the map it reads, the map it writes. */
-export const cloudShadowFilterEntries = (): GPUBindGroupLayoutEntry[] => [
+const cloudShadowFilterEntries = (): GPUBindGroupLayoutEntry[] => [
   computeTextureEntry(F.source, 'unfilterable-float'),
   computeStorageTextureEntry(F.destination, CLOUD_SHADOW_FORMAT),
 ]
 
 /** The temporal filter's group: its block, the traced map, the previous map, the map written, the
  *  sampler. */
-export const cloudShadowTemporalEntries = (): GPUBindGroupLayoutEntry[] => [
+const cloudShadowTemporalEntries = (): GPUBindGroupLayoutEntry[] => [
   computeUniformEntry(T.block),
   computeTextureEntry(T.current, 'unfilterable-float'),
   computeTextureEntry(T.previous, 'float'),
@@ -85,18 +85,8 @@ export function createCloudShadowPasses(device: GPUDevice, failed: (error: unkno
   const cloud = device.createBindGroupLayout({ entries: cloudShadowTraceEntries() })
   const filter = device.createBindGroupLayout({ entries: cloudShadowFilterEntries() })
   const temporal = device.createBindGroupLayout({ entries: cloudShadowTemporalEntries() })
-  const stage = (layouts: GPUBindGroupLayout[], code: string, entry: string, label: string) => {
-    const pipeline = preparedComputeStage(
-      device,
-      device.createPipelineLayout({ bindGroupLayouts: layouts }),
-      device.createShaderModule({ label, code }),
-      entry,
-      undefined,
-      label,
-    ).ask()
-    pipeline.prepare().catch(failed)
-    return pipeline
-  }
+  const stage = (layouts: GPUBindGroupLayout[], code: string, entry: string, label: string) =>
+    askedComputeStage(device, layouts, code, entry, label, failed)
   return {
     air,
     cloud,

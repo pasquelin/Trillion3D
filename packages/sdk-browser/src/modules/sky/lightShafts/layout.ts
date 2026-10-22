@@ -1,5 +1,6 @@
-import { clamp } from '../../../../../math/src/scalar/reals.ts'
+import { clipPixelX, clipPixelY } from '../../../../../math/src/projection/clip.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
+import { clamp } from '../../../../../math/src/scalar/reals.ts'
 import {
   LIGHT_SHAFT_LIGHT_DISTANCE,
   lightShaftDirection,
@@ -27,20 +28,33 @@ export const LIGHT_SHAFT_MASK_FORMAT: GPUTextureFormat = 'r16float'
 const LEAST_DOWNSAMPLE = 1,
   MOST_DOWNSAMPLE = 8
 
-/** The downsample factor the passes use. */
-export const lightShaftFactor = (downsample: number) =>
-  clamp(downsample, LEAST_DOWNSAMPLE, MOST_DOWNSAMPLE)
-
 const reduced = (size: Size, by: number): Size => ({
   width: Math.max(1, ceilDiv(size.width, by)),
   height: Math.max(1, ceilDiv(size.height, by)),
 })
 
-/** The shafts' image for a view of `view` pixels drawn in a target allocated at `allocated`, each
- *  divided by the factor and rounded up, one pixel at least. */
-export function lightShaftSizes(allocated: Size, view: Size, downsample: number): ImageSize {
-  const by = lightShaftFactor(downsample)
-  return { texture: reduced(allocated, by), view: reduced(view, by) }
+/** The sizes the passes work at, for a view of `view` pixels in a target allocated at `allocated`. */
+export interface LightShaftSizes {
+  /** The lit image and the scene's depth: the target's texture, and the part the view fills. */
+  readonly scene: ImageSize
+  /** The shafts' image, a factor under it, each size divided by the factor and rounded up, one
+   *  pixel at least. */
+  readonly shaft: ImageSize
+  /** The downsample factor the passes use: the setting held to 1..8. */
+  readonly factor: number
+}
+
+export function lightShaftPassSizes(
+  allocated: Size,
+  view: Size,
+  downsample: number,
+): LightShaftSizes {
+  const factor = clamp(downsample, LEAST_DOWNSAMPLE, MOST_DOWNSAMPLE)
+  return {
+    scene: { texture: allocated, view },
+    shaft: { texture: reduced(allocated, factor), view: reduced(view, factor) },
+    factor,
+  }
 }
 
 /** The pixel of the view the light's blur starts at, and whether the light is in front of the eye. */
@@ -73,7 +87,7 @@ export function lightShaftOrigin(
   const w = clip(3)
   return {
     w,
-    pixel: [(0.5 + (clip(0) * 0.5) / w) * view.width, (0.5 - (clip(1) * 0.5) / w) * view.height],
+    pixel: [clipPixelX(clip(0), w, view.width), clipPixelY(clip(1), w, view.height)],
   }
 }
 
@@ -105,10 +119,3 @@ export const lightShaftUvPerPixel = (input: ImageSize, written: Size) =>
     input.view.width / (written.width * input.texture.width),
     input.view.height / (written.height * input.texture.height),
   ] as const
-
-/** The device depth of a point on the view axis at distance `s`, `(a·s + b) / (c·s + d)`, for the
- *  perspective `projection` (column-major): the terms `(a, b, c, d)` the passes invert. */
-export function lightShaftDepthTerms(projection: ArrayLike<number>) {
-  const ahead = Math.sign(projection[11]) || 1
-  return [projection[10] * ahead, projection[14], projection[11] * ahead, projection[15]] as const
-}

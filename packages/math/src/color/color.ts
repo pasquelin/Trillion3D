@@ -22,6 +22,42 @@ export const SRGB_GAMMA = 2.4
  *  primaries, D65) to XYZ matrix, the working space's own, which the WGSL twin reads. */
 export const SRGB_LUMINANCE = [0.2126390059, 0.7151686788, 0.0721923154] as const
 
+type Vec3 = readonly [number, number, number]
+type Mat3 = readonly [Vec3, Vec3, Vec3]
+
+/** The inverse of a 3×3 matrix by cofactors, rows as written. */
+const inverseRows = (m: Mat3): Mat3 => {
+  const [[a, b, c], [d, e, f], [g, h, i]] = m
+  const A = e * i - f * h
+  const B = f * g - d * i
+  const C = d * h - e * g
+  const det = a * A + b * B + c * C
+  return [
+    [A / det, (c * h - b * i) / det, (b * f - c * e) / det],
+    [B / det, (a * i - c * g) / det, (c * d - a * f) / det],
+    [C / det, (b * g - a * h) / det, (a * e - b * d) / det],
+  ]
+}
+
+/** A row vector times a matrix. */
+export const rowTimes = (v: Vec3, m: Mat3): Vec3 => [
+  v[0] * m[0][0] + v[1] * m[1][0] + v[2] * m[2][0],
+  v[0] * m[0][1] + v[1] * m[1][1] + v[2] * m[2][1],
+  v[0] * m[0][2] + v[1] * m[1][2] + v[2] * m[2][2],
+]
+
+/** The XYZ to linear sRGB matrix, rows as written, derived from the chromaticities (x, y) of the
+ *  sRGB primaries (0.64, 0.33), (0.3, 0.6), (0.15, 0.06) and of the D65 white (0.3127, 0.329):
+ *  each primary's row (x, y, z) is scaled so that white (1, 1, 1) lands on the white point at
+ *  luminance 1, then inverted. The film curve's matrices are the published table's, not these. */
+export const XYZ_TO_SRGB: Mat3 = /* @__PURE__ */ (() => {
+  const row = ([x, y]: readonly [number, number]): Vec3 => [x, y, 1 - x - y]
+  const primaries: Mat3 = [row([0.64, 0.33]), row([0.3, 0.6]), row([0.15, 0.06])]
+  const [wx, wy] = [0.3127, 0.329]
+  const scale = rowTimes([wx / wy, 1, (1 - wx - wy) / wy], inverseRows(primaries))
+  return inverseRows(primaries.map((r, i) => r.map((x) => x * scale[i]!)) as unknown as Mat3)
+})()
+
 /** Encoded sRGB value in `[0, 1]` to its linear value. */
 export function srgbToLinear(c: number) {
   return c <= SRGB_DECODE_THRESHOLD

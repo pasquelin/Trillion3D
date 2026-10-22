@@ -16,6 +16,7 @@ import type { AnimationOptions } from '../../../sdk-core/src/contracts/animation
 import type { ShadingOptions } from '../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { ExposureOptions } from '../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { TemporalOptions } from '../../../sdk-core/src/contracts/temporalOptions.ts'
+import type { HizOptions } from '../../../sdk-core/src/contracts/hizOptions.ts'
 import type { RasterOptions } from '../../../sdk-core/src/contracts/rasterOptions.ts'
 import type { StreamingOptions } from '../../../sdk-core/src/contracts/streamingOptions.ts'
 
@@ -41,7 +42,9 @@ export type PointOfInterest = {
  *  transition, black bucket, luminance, then the local exposure's contrasts, detail, blur,
  *  middle grey and thresholds), set by `explorer.setExposure`, and the temporal pass's
  *  (`temporalThinGeometry`, `../../../sdk-core/src/contracts/temporalOptions.ts`), set by
- *  `explorer.setTemporal`. The software raster (`softwareRaster`, on by default: a cluster whose
+ *  `explorer.setTemporal`, and the depth pyramid's (`hizTrace`, `hizFoldTransparents`,
+ *  `hizTransparentTest`, `../../../sdk-core/src/contracts/hizOptions.ts`), set by
+ *  `explorer.setHiz`. The software raster (`softwareRaster`, on by default: a cluster whose
  *  longest edge projects under `hardwareRasterEdgePixels` and that crosses neither clip plane is
  *  rastered in compute, every other one by the hardware rasterizer; `false` draws every cluster
  *  with the hardware) and the edge it goes to the hardware at (`hardwareRasterEdgePixels`, 32 by
@@ -70,6 +73,7 @@ export interface MeasuredWorldOptions
     ShadingOptions,
     ExposureOptions,
     TemporalOptions,
+    HizOptions,
     RasterOptions,
     StreamingOptions {
   /** Own controls, CSS/DPR sizing and demand-driven rendering. Off by default. */

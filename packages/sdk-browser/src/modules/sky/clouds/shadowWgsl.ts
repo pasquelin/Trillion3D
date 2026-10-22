@@ -1,5 +1,9 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import {
+  LARGEST_SMALL_FLOAT as MOST_10_BIT,
+  MOST_11_BIT,
+} from '../../../post/taa/colorSpaceWgsl.ts'
 import { airProgram, type AirBindings } from '../../../lighting/atmosphere/programs.ts'
 import { cloudMaterialBindings } from './materialWgsl.ts'
 import {
@@ -12,11 +16,6 @@ import {
   CLOUD_SHADOW_TEMPORAL_LAYOUT,
 } from './shadowLayout.ts'
 import { CLOUD_POINT_WGSL } from './traceLightWgsl.ts'
-
-/** The largest finite value of the 11 bit and the 10 bit float formats: an exponent of 15 and a
- *  full mantissa of 6 or 5 bits. */
-const MOST_11_BIT = 65024
-const MOST_10_BIT = 64512
 
 /**
  * THE MAP'S VALUES AS THE 11/11/10 BIT FLOAT FORMAT HOLDS THEM (`CLOUD_SHADOW_FORMAT`): the first
@@ -83,20 +82,15 @@ fn shadowTrace(p:vec2u)->vec3f{
  var high=tTop.y;
  let tBottom=raySphere(originKm,dir,bottomKm);
  if(any(tBottom!=vec2f(-1.0))){
-  var topEnd=select(max(tTop.x,tTop.y),min(tTop.x,tTop.y),all(tTop>vec2f(0.0)));
-  let bottomEnd=select(max(tBottom.x,tBottom.y),min(tBottom.x,tBottom.y),all(tBottom>vec2f(0.0)));
-  if(all(tBottom>vec2f(0.0))){
-   topEnd=max(0.0,min(tTop.x,tTop.y));
-  }else{
-   return vec3f(0.0);
-  }
+  if(!all(tBottom>vec2f(0.0))){return vec3f(0.0);}
+  let bottomEnd=min(tBottom.x,tBottom.y);
+  let topEnd=max(0.0,min(tTop.x,tTop.y));
   low=min(bottomEnd,topEnd);
   high=max(bottomEnd,topEnd);
  }
  let tMin=max(0.0,low)*CM_PER_KM;
  let tMax=max(0.0,high)*CM_PER_KM;
- let closest=tMin;
- let onLayer=near+dir*closest;
+ let onLayer=near+dir*tMin;
  var extinctionSum=vec3f(0.0);
  var extinctionCount=0.0;
  var opticalDepth=vec3f(0.0);
@@ -120,13 +114,13 @@ fn shadowTrace(p:vec2u)->vec3f{
  let grey=vec3f(1.0/3.0);
  let meanExtinction=strength*dot(extinctionSum/max(1.0,extinctionCount),grey);
  let maxOpticalDepth=strength*dot(opticalDepth,grey);
- let front=select((closest+nearest)*CLOUD_CM_TO_KM,tMax*CLOUD_CM_TO_KM,nearest==farCm);
+ let front=select((tMin+nearest)*CLOUD_CM_TO_KM,tMax*CLOUD_CM_TO_KM,nearest==farCm);
  return vec3f(max(0.0,front+cloudShadow.output.y),meanExtinction,maxOpticalDepth);
 }
 @compute @workgroup_size(${CLOUD_SHADOW_GROUP_SIZE},${CLOUD_SHADOW_GROUP_SIZE},1)
 fn cloudShadowMain(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=u32(cloudShadow.texel.x)||id.y>=u32(cloudShadow.texel.y)){return;}
- cloudPointStart(cloudShadow.layer.xyz);
+ cloudPointStart(cloudShadow.layer.xyz,bottomRadius());
  textureStore(shadowOut,id.xy,cloudShadowStore(shadowTrace(id.xy)));
 }`
 
@@ -199,8 +193,7 @@ fn cloudShadowTemporalMain(@builtin(global_invocation_id) id:vec3u){
  let scale=vec2i(temporal.pixel.xy);
  let tracedCoord=center/scale;
  let newCoord=tracedCoord*scale+vec2i(temporal.pixel.zw);
- let now=textureLoad(current,tracedCoord,0).xyz;
- var filtered=now;
+ var filtered:vec3f;
  if(temporal.blend.y!=0.0){
   let clip=vec4f(uv*vec2f(2.0,-2.0)+vec2f(-1.0,1.0),0.0,1.0);
   let home=temporal.cameraFromClip*clip;
@@ -210,12 +203,14 @@ fn cloudShadowTemporalMain(@builtin(global_invocation_id) id:vec3u){
   let beforeUv=0.5+vec2f(0.5,-0.5)*before.xy;
   var past=textureSampleLevel(previous,historySampler,beforeUv,0.0).xyz;
   if(temporal.blend.z!=0.0){past.x=temporal.depth.x+temporal.depth.y*past.x;}
+  filtered=past;
   if(all(newCoord==center)){
+   let now=textureLoad(current,tracedCoord,0).xyz;
    filtered=past+temporal.blend.x*(now-past);
    filtered.x=now.x;
-  }else{
-   filtered=past;
   }
+ }else{
+  filtered=textureLoad(current,tracedCoord,0).xyz;
  }
  textureStore(destination,id.xy,cloudShadowStore(max(vec3f(0.0),filtered)));
 }`,

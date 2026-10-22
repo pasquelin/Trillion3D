@@ -50,6 +50,10 @@ import {
  * scattering takes `multiScatterOctaves` (2) more orders, each with its scattering
  * `multiScatterContribution` (0.666667) and extinction `multiScatterOcclusion` (0.25) squared into
  * the next and its phase `multiScatterEccentricity` (0.18) towards the isotropic one.
+ *
+ * GROUND: `groundContribution` (off), the material's advanced output: the light the ground bounces
+ * up into the cloud (the component's `groundAlbedo`) is added to its sky light, dimmed by the
+ * extinction of the cloud between the sample and the ground.
  */
 export const CLOUD_MATERIAL_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -85,6 +89,7 @@ export const CLOUD_MATERIAL_RULES = /* @__PURE__ */ (() =>
     number('multiScatterOcclusion', 0.25, [0, 1]),
     number('multiScatterEccentricity', 0.18, [0, 1]),
     integerSetting('multiScatterOctaves', 2, [0, 2]),
+    flag('groundContribution', false),
   ] as const))()
 
 /** The material's settings as resolved. */

@@ -12,6 +12,7 @@ import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animat
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import type { RasterOptions } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
 import type { StreamingOptions } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
 
@@ -53,7 +54,12 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  apply to a lit view whatever its exposure; changed later by `world.exposureSettings`. The
  *  temporal pass's likewise (`../../../../sdk-core/src/contracts/temporalOptions.ts`):
  *  `temporalThinGeometry` (false) — whether it looks for geometry thinner than a pixel and relaxes
- *  its history there, at any level but `'off'`; changed later by `world.temporal`. The cluster
+ *  its history there, at any level but `'off'`; changed later by `world.temporal`. The depth
+ *  pyramid's likewise (`../../../../sdk-core/src/contracts/hizOptions.ts`): `hizTrace`
+ *  (`'reference'`, or `'planes'`) — how the reflections' trace reads it —, `hizFoldTransparents`
+ *  (false) — whether its trace layers hold the transparent surfaces — and `hizTransparentTest`
+ *  (`'finer'`, or `'reference'`) — how the transparent clusters are tested against it; changed
+ *  later by `world.hiz`. The cluster
  *  raster's split likewise
  *  (`../../../../sdk-core/src/contracts/rasterOptions.ts`): `softwareRaster` (true) — a cluster
  *  whose longest edge projects under `hardwareRasterEdgePixels` and whose box crosses neither clip
@@ -83,6 +89,7 @@ export interface WorldOptions
     ShadingOptions,
     ExposureOptions,
     TemporalOptions,
+    HizOptions,
     RasterOptions,
     StreamingOptions {
   /**

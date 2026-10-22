@@ -21,6 +21,7 @@ import {
   SKY_QUALITY_RULES_BY_GROUP,
 } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import {
   createRenderSettings,
   type ChoiceSettingEntry,
@@ -66,7 +67,7 @@ const ruleEntries = <R extends Readonly<Record<string, RegistryRule>>>(
 
 /** The rules of the settings declared by rule that belong to the view distance's group, by field:
  *  the cluster raster's, the geometry streaming's, the partition's streaming and the HLOD warm-up's,
- *  the cut's, the animation's, the shading's, the exposure's, the temporal pass's. The sky's quality
+ *  the cut's, the animation's, the shading's, the exposure's, the temporal pass's, the depth pyramid's. The sky's quality
  *  settings (`SKY_QUALITY_RULES_BY_GROUP`) are in the groups the reference writes them in. Both the
  *  table below and `RULE_FIELDS` read these, so no table is listed twice. */
 const RULES = {
@@ -78,6 +79,7 @@ const RULES = {
   ...SHADING_RULES,
   ...EXPOSURE_RULES,
   ...TEMPORAL_RULES,
+  ...HIZ_RULES,
 }
 
 /** Every render setting of the engine, by name. The settings declared by rule (`RULES`) are read at

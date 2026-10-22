@@ -2,6 +2,9 @@ import { workgroupCount } from '../../../../../math/src/scalar/integers.ts'
 import type { ResolvedAtmosphere } from '../../../../../sdk-core/src/scene/core/atmosphere.ts'
 import {
   skyLightCloudWidth,
+  skyLightCubemapRotation,
+  skyLightCubemapScales,
+  skyLightSource,
   type SkyLightPart,
 } from '../../../../../sdk-core/src/modules/sky/skyLight.ts'
 import type { CloudPart } from '../../../../../sdk-core/src/modules/sky/clouds.ts'
@@ -11,12 +14,17 @@ import { fogReadBindEntries, type FogRead } from '../../../lighting/fog/read.ts'
 import {
   CLOUD_TRACE_BINDING as B,
   CLOUD_TRACE_LAYOUT,
+  markCloudTraceCapture,
   writeCloudTrace,
   type CloudTraceImage,
 } from '../clouds/traceLayout.ts'
 import type { CloudFramePlan } from '../clouds/reconstruct.ts'
 import { cloudSizes } from '../clouds/reconstructLayout.ts'
 import { CLOUD_TRACE_GROUP_SIZE } from '../clouds/traceWgsl.ts'
+import { COPY_LAYOUT, LUMINANCE_FORMAT } from './copyWgsl.ts'
+import { createCubemapMeasure, type CubemapMeasure } from './cubemapMeasure.ts'
+import { createCubemapPipelines, type CubemapPipelines } from './cubemapPipelines.ts'
+import { advanceCubemap, cubemapMeasured, newCubemapState } from './cubemapSchedule.ts'
 import { FACE_LAYOUT } from './faceWgsl.ts'
 import { faceCamera } from './faces.ts'
 import { BLOCK_STRIDE, CUBE_FACES, FILTER_GROUP_SIDE, groupsOver, irradianceMip } from './layout.ts'
@@ -56,11 +64,20 @@ export interface SkyLightInputs {
     readonly multiScatter: GPUTextureView
     readonly sampler: GPUSampler
   }
+  /** The host's cube, when the light's source is a specified cubemap and it captures no sky in
+   *  real time (`skyLightSource`): six square faces of one side, a cube-compatible 2d array texture
+   *  with `TEXTURE_BINDING` (`createSkyCubemapFromImages` makes one from six images). Its top level
+   *  is read, bilinearly; a 32-bit float one needs the device's `float32-filterable`. None, the
+   *  light has no sky. */
+  readonly cubemap?: GPUTexture
   /** Whether the scene has an atmosphere, drawn into the faces. */
   readonly atmosphere: boolean
-  /** The fog laid over the sky, where the fog shows in the sky capture: the resources of its read,
-   *  its volume and frame the stand-ins that answer no volume (`createFogStandIns`). */
+  /** The fog's resources, bound by the programs that read the fog (the distant fog and the clouds'
+   *  tracing): its cubemap and sampler, and the stand-ins that answer no volume and no frame
+   *  (`createFogStandIns`), for the capture holds no volumetric fog. */
   readonly fog?: FogRead
+  /** Whether the fog shows in the sky capture: the distant height fog is then laid over the sky. */
+  readonly fogShown: boolean
   /** The clouds, where the scene has them: the part, the material's seven bindings of the
    *  tracing's group (from `B.material`), the blue noise's view and the time in seconds. */
   readonly clouds?: {
@@ -78,7 +95,8 @@ type Held = readonly unknown[]
 const sameHeld = (a: Held | undefined, b: Held) => !!a && a.every((x, i) => x === b[i])
 
 export function createSkyLightCapture(device: GPUDevice, failed: (error: unknown) => void) {
-  const { layouts, pipelines, cloudTrace } = createSkyLightPipelines(device, failed)
+  const made = createSkyLightPipelines(device, failed)
+  const { layouts, pipelines, cloudTrace } = made
   let targets: SkyLightTargets | undefined
   let state: CaptureState = newCaptureState()
   let slot = 0
@@ -87,7 +105,25 @@ export function createSkyLightCapture(device: GPUDevice, failed: (error: unknown
   const faceUints = new Uint32Array(faceWords)
   const frameFloats = new Float32Array(FRAME_FLOATS)
   const traceFloats = new Float32Array(CLOUD_TRACE_LAYOUT.words)
+  const traceWords = new Uint32Array(traceFloats.buffer)
   const blockWords = new Uint32Array(4)
+
+  let source: ReturnType<typeof skyLightSource> | undefined
+
+  // A specified cubemap's capture (`cubemapSchedule.ts`), made when the first one is captured.
+  let cubemaps: CubemapPipelines | undefined
+  let cubemapKey: Held | undefined
+  let cubemapState = newCubemapState(false)
+  let cubemapScales = skyLightCubemapScales(0)
+  let cubemapDone = false
+  let cubemapRefused: GPUTexture | undefined
+  let measuring: CubemapMeasure | undefined
+  let copySource: { for: GPUTexture; group: GPUBindGroup } | undefined
+  let copyBlock: { for: SkyLightTargets; group: GPUBindGroup } | undefined
+  let cubemapSampler: GPUSampler | undefined
+  const copyWords = new ArrayBuffer(COPY_LAYOUT.words * 4)
+  const copyFloats = new Float32Array(copyWords)
+  const copyUints = new Uint32Array(copyWords)
 
   let faceGroup: { for: SkyLightTargets; group: GPUBindGroup } | undefined
   let skyHeld: Held | undefined, skyGroup: GPUBindGroup | undefined
@@ -134,7 +170,16 @@ export function createSkyLightCapture(device: GPUDevice, failed: (error: unknown
       })
     }
     const traceKey = air &&
-      clouds && [t, air.buffer, air.transmittance, air.sampler, clouds.material, clouds.blueNoise]
+      fog &&
+      clouds && [
+        t,
+        air.buffer,
+        air.transmittance,
+        air.sampler,
+        fog,
+        clouds.material,
+        clouds.blueNoise,
+      ]
     if (traceKey && !sameHeld(traceHeld, traceKey)) {
       traceHeld = traceKey
       traceGroups = Array.from({ length: CUBE_FACES }, (_, face) => ({
@@ -152,6 +197,7 @@ export function createSkyLightCapture(device: GPUDevice, failed: (error: unknown
                 size: FRAME_FLOATS * 4,
               },
             },
+            ...fogReadBindEntries(AIR_FOG_BINDINGS, fog),
           ],
         }),
         cloud: device.createBindGroup({
@@ -237,6 +283,8 @@ export function createSkyLightCapture(device: GPUDevice, failed: (error: unknown
     const { at } = CLOUD_TRACE_LAYOUT
     const { gpu } = clouds.part
     traceFloats.fill(0, at.jitter, at.jitter + 4)
+    // The capture is a reflection with no late fog and no scene depth (`markCloudTraceCapture`).
+    markCloudTraceCapture(traceWords, clouds.part)
     traceFloats[at.samples] = gpu.reflectionSamplesMost
     traceFloats[at.samples + 1] = gpu.reflectionShadowSamplesMost
     block(t.blocks.trace, face * BLOCK_STRIDE, traceFloats)
@@ -267,7 +315,11 @@ export function createSkyLightCapture(device: GPUDevice, failed: (error: unknown
     if (!atmosphereDrawn && !composing && !clearing) return
     groupsFor(t, input)
     for (let face = first; face < end; face++) {
-      const traced = withClouds && air !== undefined && clouds?.part.settings.inSkyCapture === true
+      const traced =
+        withClouds &&
+        air !== undefined &&
+        clouds?.part.settings.inSkyCapture === true &&
+        input.fog !== undefined
       writeFace(t, face, input, traced)
       if (traced) traceFace(encoder, t, face, input, air, clouds)
       const pass = encoder.beginRenderPass({
@@ -287,7 +339,7 @@ export function createSkyLightCapture(device: GPUDevice, failed: (error: unknown
         pass.setBindGroup(0, skyGroup!)
         pass.setBindGroup(1, faceGroup!.group, offset)
         pass.draw(3)
-        if (input.fog) {
+        if (input.fog && input.fogShown) {
           pass.setPipeline(pipelines.fog.get())
           pass.setBindGroup(0, fogGroup!)
           pass.setBindGroup(1, faceGroup!.group, offset)
@@ -344,6 +396,181 @@ export function createSkyLightCapture(device: GPUDevice, failed: (error: unknown
     pass.end()
   }
 
+  /** The faces of the captured cube written from the host's cube (`copyFaceMain`) — or, when
+   *  `measure` is there, the faces of its 32-bit float cube, not rescaled nor held to the half
+   *  float's range. */
+  function copyFaces(
+    encoder: GPUCommandEncoder,
+    t: SkyLightTargets,
+    input: SkyLightInputs,
+    cubemap: GPUTexture,
+    made: CubemapPipelines,
+    measure?: CubemapMeasure,
+  ) {
+    if (copySource?.for !== cubemap) {
+      cubemapSampler ??= device.createSampler({
+        label: 'Trillion3D sky light cubemap',
+        magFilter: 'linear',
+        minFilter: 'linear',
+        addressModeU: 'clamp-to-edge',
+        addressModeV: 'clamp-to-edge',
+        addressModeW: 'clamp-to-edge',
+      })
+      copySource = {
+        for: cubemap,
+        group: device.createBindGroup({
+          layout: made.layouts.source,
+          entries: [
+            {
+              binding: 0,
+              resource: cubemap.createView({
+                dimension: 'cube',
+                baseMipLevel: 0,
+                mipLevelCount: 1,
+              }),
+            },
+            { binding: 1, resource: cubemapSampler },
+          ],
+        }),
+      }
+    }
+    if (copyBlock?.for !== t)
+      copyBlock = {
+        for: t,
+        group: device.createBindGroup({
+          layout: made.layouts.block,
+          entries: [
+            { binding: 0, resource: { buffer: t.blocks.copy, size: COPY_LAYOUT.words * 4 } },
+          ],
+        }),
+      }
+    const { at } = COPY_LAYOUT
+    const { light } = input.part
+    const rotation = skyLightCubemapRotation(input.part)
+    const scale = measure ? 1 : cubemapScales.cube
+    const pipeline = (measure ? made.pipelines.copyWide : made.pipelines.copy).get()
+    const first = measure ? CUBE_FACES : 0
+    for (let face = 0; face < CUBE_FACES; face++) {
+      copyUints.set([face, light.lowerHemisphereIsSolidColor ? 1 : 0, measure ? 0 : 1, 0], at.face)
+      copyFloats.set([Math.sin(rotation), Math.cos(rotation), 1 / t.width, 0], at.rotation)
+      copyFloats.set([...light.lowerHemisphereColor, 1], at.lower)
+      copyFloats.set([scale, scale, scale, 1], at.scale)
+      const offset = (first + face) * BLOCK_STRIDE
+      block(t.blocks.copy, offset, copyFloats)
+      const pass = encoder.beginRenderPass({
+        label: 'Trillion3D sky light cubemap copy',
+        colorAttachments: [
+          {
+            view: measure ? measure.faceTargets[face] : t.faceTargets[face],
+            loadOp: 'clear',
+            clearValue: { r: 0, g: 0, b: 0, a: 1 },
+            storeOp: 'store',
+          },
+        ],
+      })
+      pass.setPipeline(pipeline)
+      pass.setBindGroup(0, copySource.group)
+      pass.setBindGroup(1, copyBlock.group, [offset])
+      pass.draw(3)
+      pass.end()
+    }
+  }
+
+  /** The brightest value of the 32-bit float cube, found on the GPU into a buffer it is read
+   *  back from. */
+  function measureCube(
+    encoder: GPUCommandEncoder,
+    t: SkyLightTargets,
+    input: SkyLightInputs,
+    cubemap: GPUTexture,
+    made: CubemapPipelines,
+  ) {
+    measuring?.destroy()
+    const m = (measuring = createCubemapMeasure(device, made, t.width, t.mips, t.blocks.filter))
+    copyFaces(encoder, t, input, cubemap, made, m)
+    const mips = encoder.beginComputePass({ label: 'Trillion3D sky light cubemap brightness mips' })
+    mips.setPipeline(made.pipelines.downsample.get())
+    for (let mip = 1; mip < t.mips; mip++) {
+      mips.setBindGroup(0, m.downsample[mip]!, [filterSlot(t, mip, 0)])
+      const side = groupsOver(t.width >> mip, FILTER_GROUP_SIDE)
+      mips.dispatchWorkgroups(side, side, CUBE_FACES)
+    }
+    mips.end()
+    const gather = encoder.beginComputePass({ label: 'Trillion3D sky light cubemap brightness' })
+    gather.setPipeline(made.pipelines.gather.get())
+    gather.setBindGroup(0, m.gather, [filterSlot(t, t.mips - 1, 0)])
+    gather.dispatchWorkgroups(1)
+    gather.end()
+    encoder.copyBufferToBuffer(m.peak, 0, m.read, 0, 4)
+  }
+
+  /** The measured buffer is mapped (the frame that wrote it was submitted): the capture follows
+   *  the frame its value is known in. */
+  function mapBrightest() {
+    const m = measuring
+    if (!m) return
+    m.value().then(
+      (peak) => {
+        if (measuring !== m) return
+        measuring = undefined
+        cubemapScales = skyLightCubemapScales(peak)
+        cubemapMeasured(cubemapState)
+      },
+      (error: unknown) => {
+        if (measuring !== m) return
+        measuring = undefined
+        failed(error)
+      },
+    )
+  }
+
+  /** The host's cube taken to the filtered cube and the harmonics, whole in a frame once for a
+   *  cube, an angle, a side and a lower-hemisphere flag; none without a cube. */
+  function encodeCubemap(encoder: GPUCommandEncoder, t: SkyLightTargets, input: SkyLightInputs) {
+    const { cubemap } = input
+    if (!cubemap || cubemap === cubemapRefused) return
+    const wide = cubemap.format === LUMINANCE_FORMAT
+    if (wide && !device.features.has('float32-filterable')) {
+      cubemapRefused = cubemap
+      failed(
+        new Error('A 32-bit float sky light cubemap needs the device feature float32-filterable'),
+      )
+      return
+    }
+    cubemaps ??= createCubemapPipelines(device, failed)
+    if (!cubemaps.ready(wide)) return
+    const key = [
+      cubemap,
+      skyLightCubemapRotation(input.part),
+      t.width,
+      input.part.light.lowerHemisphereIsSolidColor,
+    ]
+    if (!sameHeld(cubemapKey, key)) {
+      cubemapKey = key
+      measuring?.destroy()
+      measuring = undefined
+      cubemapState = newCubemapState(wide)
+      cubemapScales = skyLightCubemapScales(0)
+    }
+    switch (advanceCubemap(cubemapState)) {
+      case 'measure':
+        measureCube(encoder, t, input, cubemap, cubemaps)
+        break
+      case 'map':
+        mapBrightest()
+        break
+      case 'copy':
+        copyFaces(encoder, t, input, cubemap, cubemaps)
+        mipChain(encoder, t)
+        filter(encoder, t, 0, 0, t.mips - 1, 0, CUBE_FACES)
+        harmonics(encoder, t, 0)
+        cubemapDone = true
+        break
+      case 'nothing':
+        break
+    }
+  }
+
   /** The harmonics from filtered cube `w`. */
   function harmonics(encoder: GPUCommandEncoder, t: SkyLightTargets, w: 0 | 1) {
     blockWords.set([irradianceMip(t.width), 0, 0, 0])
@@ -372,10 +599,22 @@ export function createSkyLightCapture(device: GPUDevice, failed: (error: unknown
           cloudSide,
         )
         state = newCaptureState()
+        cubemapKey = undefined
+        cubemapDone = false
       }
       const t = targets
       const { quality } = input.part
       slot = 0
+      const now = skyLightSource(input.part)
+      if (now !== source) {
+        source = now
+        state = newCaptureState()
+        cubemapKey = undefined
+        cubemapDone = false
+      }
+      // The scene drawn into the cube once (`'capturedScene'`) is not drawn by this engine.
+      if (now === 'specifiedCubemap') return encodeCubemap(encoder, t, input)
+      if (now !== 'realTime') return
       const step = advanceCapture(state, {
         timeSlice: quality.skyLightTimeSlicing,
         facesPerFrame: quality.skyLightFacesPerFrame,
@@ -415,18 +654,32 @@ export function createSkyLightCapture(device: GPUDevice, failed: (error: unknown
           break
       }
     },
-    /** What the lighting reads: the ready filtered cube with its mips, and the harmonics' buffer;
-     *  none before the first frame. */
+    /** What the lighting reads: the ready filtered cube with its mips, the harmonics' buffer and
+     *  the rescale of a 32-bit float cubemap that goes into the light's colour (`skyLightColor`'s
+     *  `cubemapScale`, 1 for the rest); none before the first frame, and none while a specified
+     *  cubemap is not captured, or for a source the engine cannot capture. */
     read() {
-      return (
-        targets && {
-          cube: targets.filteredCubes[state.ready],
-          mips: targets.mips,
-          harmonics: targets.harmonics,
-        }
-      )
+      if (!targets) return undefined
+      if (source === 'specifiedCubemap')
+        return cubemapDone
+          ? {
+              cube: targets.filteredCubes[0],
+              mips: targets.mips,
+              harmonics: targets.harmonics,
+              colorScale: cubemapScales.light,
+            }
+          : undefined
+      if (source !== 'realTime') return undefined
+      return {
+        cube: targets.filteredCubes[state.ready],
+        mips: targets.mips,
+        harmonics: targets.harmonics,
+        colorScale: 1,
+      }
     },
     dispose() {
+      measuring?.destroy()
+      measuring = undefined
       targets?.destroy()
       targets = undefined
     },

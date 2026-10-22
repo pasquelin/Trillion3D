@@ -5,7 +5,7 @@
  * whatever they become. The other levels write only the settings their group has wired; a level
  * whose settings are not wired yet writes nothing, and reads as `max` would.
  */
-import { SKY_PRESET_LEVELS } from '../modules/sky/quality.ts'
+import { SKY_PRESET_LEVELS } from '../modules/sky/qualityPresets.ts'
 import { QUALITY_GROUPS, type QualityGroup, type RenderSettingValue } from './renderSettings.ts'
 
 /** The presets, coarsest first: each sets every group to the level of its own name. */

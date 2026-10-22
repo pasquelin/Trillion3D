@@ -19,6 +19,7 @@ import { SHADING_RULES, type ShadingField } from '../contracts/shadingOptions.ts
 import { EXPOSURE_RULES, type ExposureField } from '../contracts/exposureOptions.ts'
 import { SKY_QUALITY_RULES, type SkyQualityField } from '../modules/sky/quality.ts'
 import { TEMPORAL_RULES, type TemporalField } from '../contracts/temporalOptions.ts'
+import { HIZ_RULES, type HizField } from '../contracts/hizOptions.ts'
 import {
   DEFAULT_STREAMING_MAX_INSTALLS_PER_FRAME,
   DEFAULT_STREAMING_MAX_PENDING_PAGES,
@@ -140,6 +141,16 @@ const SHADING_MEANINGS: Readonly<Record<ShadingField, string>> = {
 const TEMPORAL_MEANINGS: Readonly<Record<TemporalField, string>> = {
   temporalThinGeometry:
     "Whether the temporal anti-aliasing looks for geometry thinner than a pixel — a wire, a rail — and relaxes its history there, so it flickers less; off by default, the finding costing every image some work. Applies at any level of temporalAntialiasing but 'off'.",
+}
+
+/** What each setting of the depth pyramid means (`../contracts/hizOptions.ts`). */
+const HIZ_MEANINGS: Readonly<Record<HizField, string>> = {
+  hizTrace:
+    "How the reflections' screen trace reads the depth pyramid: 'reference' walks the closest depth of the opaque image, each texel at its centre, mip by mip; 'planes' reads each pixel as a plane, half its slopes' sum nearer and farther at its edge, which keeps a hit on a grazing surface that the centre alone passes over.",
+  hizFoldTransparents:
+    "Whether the trace layers of the pyramid hold, beside the opaque depth, the nearest transparent surface of each pixel, so that a ray stops at glass; off by default, the traces read the opaque depth alone. The cut's occlusion never reads it.",
+  hizTransparentTest:
+    "How a transparent cluster is tested against the opaque depth already drawn: 'finer' reads up to sixteen texels a side of a level fine enough to hold its rectangle and rejects the clusters wholly behind it; 'reference' reads four texels a side of the lowest level that holds it. Neither rejects a visible cluster; 'finer' rejects more.",
 }
 
 /** What each setting of the exposure means (`../contracts/exposureOptions.ts`); the first twelve
@@ -326,6 +337,10 @@ const SKY_QUALITY_MEANINGS: Readonly<Record<SkyQualityField, string>> = {
   lightShaftBlurPasses: 'Radial blur passes of the light shafts, a whole number from 0.',
   lightShaftFirstPassDistance:
     'Fraction of the distance to the light that the first radial blur pass blurs over.',
+  lightShaftTemporalFilterSize:
+    "Size of the kernel the light shafts' temporal filter weighs the pixels around a jittered sample with: 1 is smoother, a smaller value sharper but aliased; above 0.",
+  lightShaftTemporalCatmullRom:
+    "Whether the light shafts' temporal filter uses a Catmull-Rom kernel, sharper than the Gaussian.",
   skyLightRealTimeCapture: "Whether the platform allows the sky light's real-time capture at all.",
   skyLightTimeSlicing:
     "Whether the sky light's capture and convolutions are spread over several images to lower the cost of each.",
@@ -401,7 +416,7 @@ export const rasterProperties = () => ruleProperties(RASTER_RULES, rasterMeaning
 
 /** The schema of every other run-time setting declared by rule, by its field: the partition's
  *  streaming and the HLOD warm-up's, then the cut's, then the animation's, then the shading's, then
- *  the exposure's, then the temporal pass's. */
+ *  the exposure's, then the temporal pass's, then the depth pyramid's. */
 export const settingRuleProperties = () => ({
   ...ruleProperties(WORLD_STREAMING_RULES, WORLD_STREAMING_MEANINGS),
   ...ruleProperties(CUT_RULES, CUT_MEANINGS),
@@ -409,4 +424,5 @@ export const settingRuleProperties = () => ({
   ...ruleProperties(SHADING_RULES, SHADING_MEANINGS),
   ...ruleProperties(EXPOSURE_RULES, EXPOSURE_MEANINGS),
   ...ruleProperties(TEMPORAL_RULES, TEMPORAL_MEANINGS),
+  ...ruleProperties(HIZ_RULES, HIZ_MEANINGS),
 })
