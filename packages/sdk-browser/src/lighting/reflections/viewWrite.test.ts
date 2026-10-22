@@ -3,16 +3,20 @@
 // they changed, and nothing in them turning with the frame; and the budget the census reports.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { REFLECTION_COUNTS } from './constants.ts'
 import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 import { heldImage } from './heldImage.fixture.ts'
 import { screenRelativeThickness } from '../../visibility/hiz/gpu/screenSlab.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
 import { createReflectionCensus } from './census.ts'
+import { createReflectionSettingsReader } from './settings.ts'
+import { QUALITY_LEVELS } from '../../../../sdk-core/src/runtime/qualityLevels.ts'
 import {
   REFLECTION_RULES,
-  reflectionRingTests,
-  reflectionRingWork,
+  resolveReflections,
 } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
+import { resolveSettings } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
 import { perspectiveProjection } from '../../../../math/src/projection/camera.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { FakeBuffer } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
@@ -51,7 +55,6 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
     viewProjection,
     size: [400, 300] as const,
     depthDrawn: true,
-    relativeThickness: 0.005,
     eye: [0, 0, 0],
   }
   write(frame, held, 8)
@@ -94,6 +97,10 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
   assert.equal(sent.writes, writes)
 })
 
+/** The reflections' settings the options give, over the screen probes' the options give too. */
+const reflections = (options: object) =>
+  resolveReflections(resolveSettings(REFLECTION_RULES, options), screenProbeSettings(options))
+
 /** A writer over a still held image of 64 × 32, and a perspective frame of that size carrying
  *  `extra`. */
 function stillView<Extra extends object>(extra: Extra) {
@@ -107,7 +114,6 @@ function stillView<Extra extends object>(extra: Extra) {
     viewProjection: perspectiveProjection(new Float64Array(16), 90, 1, 0.1, 1),
     size: [64, 32] as const,
     depthDrawn: true,
-    relativeThickness: 0.005,
     eye: [0, 0, 0],
     ...extra,
   }
@@ -123,7 +129,7 @@ test("the slab follows the projection: a perspective's depth at infinity, an ort
     const { device, buffer, held: sent } = viewDevice()
     const held = heldImage()
     createReflectionViewWriter(device, buffer)(
-      { viewProjection, size, depthDrawn: true, relativeThickness: 0.005, eye },
+      { viewProjection, size, depthDrawn: true, eye },
       held,
       1,
     )
@@ -174,31 +180,143 @@ test('the reflections’ turn is the view’s, and an unchanged view sends nothi
   assert.equal(sent.writes, writes, 'the turn held: nothing sent')
 })
 
-test('a ray’s budget travels with the view: the reference’s steps by default, the settings’ otherwise', () => {
-  const lanes = (extra: object) => {
-    const { sent, write, held, frame } = stillView(extra)
-    write(frame, held, 6)
-    return [...sent.bits.slice(REFLECTION_VIEW_AT.scene, REFLECTION_VIEW_AT.scene + 4)]
+/** The flags of what a view does besides the stages of the trace: every one on by default. */
+const DONE =
+  REFLECTION_COUNTS.REFLECTION_SCREEN_TRACES |
+  REFLECTION_COUNTS.REFLECTION_TEMPORAL |
+  REFLECTION_COUNTS.REFLECTION_RECONSTRUCTION |
+  REFLECTION_COUNTS.REFLECTION_BILATERAL |
+  REFLECTION_COUNTS.REFLECTION_SCENE_COLOR |
+  REFLECTION_COUNTS.REFLECTION_HEIGHT_FOG
+const SCENE = REFLECTION_COUNTS.REFLECTION_SCENE_TRACES
+const DETAIL = REFLECTION_COUNTS.REFLECTION_DETAIL_TRACES
+const DISTANT = REFLECTION_COUNTS.REFLECTION_DISTANT_TRACES
+
+/** The lanes of the view a still frame writes, each as four words (`uints` as they are, the others as floats). */
+function lanesOf(extra: object) {
+  const { sent, write, held, frame } = stillView(extra)
+  write(frame, held, 6)
+  const words = (field: keyof typeof REFLECTION_VIEW_AT) =>
+    sent.bits.slice(REFLECTION_VIEW_AT[field], REFLECTION_VIEW_AT[field] + 4)
+  const floats = (field: keyof typeof REFLECTION_VIEW_AT) => {
+    const lane = words(field)
+    return [...new Float32Array(lane.buffer, lane.byteOffset, 4)].map((x) => Math.fround(x))
   }
-  // 50 iterations of the screen, 256 steps a ring: a step is four units of work and one triangle test.
-  assert.deepEqual(lanes({}), [50, 1024, 256, 1])
-  assert.deepEqual(lanes({ screenSteps: 20, ringSteps: 100 }), [20, 400, 100, 1])
-  assert.deepEqual(lanes({ sceneTraces: false }), [50, 1024, 256, 0], 'the scene trace off')
-  assert.equal(REFLECTION_RULES.reflectionScreenSteps.default, 50)
-  assert.equal(reflectionRingWork(REFLECTION_RULES.reflectionRingSteps.default), 1024)
-  assert.equal(reflectionRingTests(REFLECTION_RULES.reflectionRingSteps.default), 256)
+  return { words, floats }
+}
+
+test('a ray’s budget and stages travel with the view: the reference’s by default, the settings’ otherwise', () => {
+  const lanes = (extra: object) => {
+    const { words, floats } = lanesOf(extra)
+    return [[...words('scene')], [...words('detail')], floats('reach')]
+  }
+  const { scene, detail, reach } = { scene: 0, detail: 1, reach: 2 }
+  // 50 iterations of the screen, 256 steps a ring and 64 a detail walk, a step four units of work and one test, 252
+  // voxels across a ring's cube; the scene and the far trace on, the detail trace off; 1.8 m, 40 m, 5 cm and 2 km.
+  const every = lanes({})
+  assert.deepEqual(every[scene], [50, 1024, 256, SCENE | DISTANT | DONE])
+  assert.deepEqual(every[detail], [256, 64, 16, 252])
+  assert.deepEqual(every[reach], [1.8, 40, 0.05, 2000].map(Math.fround))
+  const asked = (options: object) => ({ settings: reflections(options) })
+  assert.deepEqual(lanes(asked({ reflectionScreenSteps: 20, reflectionRingSteps: 100 }))[scene], [
+    20,
+    400,
+    100,
+    SCENE | DISTANT | DONE,
+  ])
+  assert.deepEqual(
+    lanes(asked({ screenProbeSceneTraces: false }))[scene],
+    [50, 1024, 256, DISTANT | DONE],
+    'the scene trace off',
+  )
+  assert.deepEqual(
+    lanes(asked({ screenProbeMeshTraces: true }))[scene],
+    [50, 1024, 256, SCENE | DETAIL | DISTANT | DONE],
+    'the detail trace on',
+  )
+  assert.deepEqual(lanes(asked({ reflectionDistantScreenTraces: false }))[scene], [
+    50,
+    1024,
+    256,
+    SCENE | DONE,
+  ])
+  // The far trace needs the screen: with the screen traces off neither is on.
+  assert.deepEqual(lanes(asked({ reflectionScreenTraces: false }))[scene], [
+    50,
+    1024,
+    256,
+    (SCENE | DONE) &
+      ~REFLECTION_COUNTS.REFLECTION_SCREEN_TRACES &
+      ~REFLECTION_COUNTS.REFLECTION_SCENE_COLOR,
+  ])
 })
 
-test('the census reports the ring’s budget the rays were spent against, and the one the settings give', () => {
+test('the reference’s settings of the trace and the denoiser travel with the view, its level’s row too', () => {
+  const lanes = (options: object) => lanesOf({ settings: reflections(options) })
+  const every = lanes({})
+  // The march: 0.5 % of the depth for a surface, the far trace's slope tolerance 2 and offset bias 0, rays 200 m long.
+  assert.deepEqual(every.floats('march'), [0.005, 2, 0, 200].map(Math.fround))
+  // The ceiling of a ray 40, the lit image taken within 1 % of the depth and 85°, the sky fogged over 1 000 m.
+  assert.deepEqual(
+    every.floats('light'),
+    [40, 0.01, Math.cos((85 * Math.PI) / 180), 1000].map(Math.fround),
+  )
+  // The history's 12 images, the clamp's scale 1, the distance threshold 0.03, the tonemap range 10.
+  assert.deepEqual(every.floats('denoise'), [12, 1, 0.03, 10].map(Math.fround))
+  // The reconstruction's radius 8, the bilateral filter's 8, the least weight of the level 0, 2 frames of disocclusion.
+  assert.deepEqual(every.floats('spread'), [8, 8, 0, 2])
+  // Roughness 0.4 and its fade 0.1, the sampling's bias 0.1.
+  assert.deepEqual(every.floats('lobe'), [0.4, 0.1, 0.1, 0].map(Math.fround))
+  // The level 'ultra' (the default): a ray a pixel, five neighbours; 1 024 ray directions.
+  assert.deepEqual([...every.words('taps')], [5, 4, 1024, 0])
+  assert.deepEqual([...every.words('grid').slice(0, 3)], [64, 32, 1])
+  // The level 'high': a ray a block of 2 × 2, three neighbours, the least weight 1; 'off': no lobe traces.
+  const high = lanes({ reflectionQuality: 'high' })
+  assert.deepEqual([...high.words('grid').slice(0, 3)], [32, 16, 2])
+  assert.equal(high.words('taps')[0], 3)
+  assert.equal(high.floats('spread')[2], 1)
+  assert.equal(lanes({ reflectionQuality: 'off' }).floats('lobe')[0], 0)
+  assert.equal(lanes({ reflectionQuality: false }).floats('lobe')[0], 0, 'false is off')
+  assert.equal(
+    lanes({ reflectionQuality: true }).floats('lobe')[0],
+    Math.fround(0.4),
+    'true the default level',
+  )
+})
+
+test('the census reports the ring’s budget the rays were spent against, as the settings give it', () => {
   const { device } = fakeDevice()
   const census = createReflectionCensus(device)
   census.copy(device.createCommandEncoder(), 1)
-  assert.deepEqual(
-    [census.metrics()?.proxyUnits, census.metrics()?.proxyTriangles],
-    [1024, 256],
-    'the defaults, before any image set a budget',
-  )
+  const budget = () => [census.metrics()?.proxyUnits, census.metrics()?.proxyTriangles]
+  census.budget(1024, 256)
+  assert.deepEqual(budget(), [1024, 256])
   census.budget(400, 100)
-  assert.deepEqual([census.metrics()?.proxyUnits, census.metrics()?.proxyTriangles], [400, 100])
+  assert.deepEqual(budget(), [400, 100])
   census.dispose()
+})
+
+test('the one reader of the settings hands the last image’s back while none moved, and follows the reflections’ and the screen probes’', () => {
+  const read = createReflectionSettingsReader()
+  const context: Record<string, unknown> = {}
+  const first = read(context)
+  assert.equal(read(context), first, 'nothing moved: the same object')
+  context.reflectionRingSteps = 100
+  const steps = read(context)
+  assert.notEqual(steps, first)
+  assert.equal(steps.ringWork, 400)
+  context.screenProbeSceneTraces = false
+  assert.equal(read(context).sceneTraces, false, 'the switch the screen probes share')
+  context.screenProbeMeshTraces = true
+  assert.equal(read(context).meshTraces, true)
+})
+
+test('the quality presets write the reflections’ level, the reference’s rows: none for the two lowest, high, then the default', () => {
+  const levels = QUALITY_LEVELS.indirectLight
+  assert.deepEqual(
+    (['smooth', 'balanced', 'fine', 'max'] as const).map(
+      (preset) => levels[preset].reflectionQuality,
+    ),
+    ['off', 'off', 'high', undefined],
+  )
 })

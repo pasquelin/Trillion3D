@@ -119,6 +119,7 @@ test('the host writes each field at the word the kernels read, values unchanged'
     viewProj: new Float32Array(16).fill(0.125),
     depthMap: [-1, 0.2],
     viewSize: [1280, 720],
+    clipPlane: [0, 0, 0, 0],
   }
   writeDagUniforms(target, packed, named as never, 64)
   // No scale named, the draw distances are taken at their own size.
@@ -160,6 +161,7 @@ test('a packing that names no draw distance turns their cull off, one that names
     viewProj: new Float32Array(16),
     depthMap: [-1, 0.2],
     viewSize: [1280, 720],
+    clipPlane: [0, 0, 0, 0],
   }
   const cullOff = () => new Uint32Array(target.buffer)[viewWord('cullOff')]
   writeDagUniforms(target, { worldCount: 2 } as never, named as never, 64)
@@ -181,6 +183,7 @@ test('a view’s plane and the region of its filter reach the block, none for a 
     viewProj: new Float32Array(16),
     depthMap: [-1, 0.2],
     viewSize: [1280, 720],
+    clipPlane: [0, 0, 0, 0],
   }
   const at = { base: 0, mask: 0, filter: 5000 },
     packed = { worldCount: 2 } as never

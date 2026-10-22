@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DISPLAY, enter, runtime } from './frameScale.fixture.ts'
 import { scaleControl } from './frame.fixture.ts'
+import { TAA_SAMPLES, upscalePhases } from './jitter.ts'
 
 // A still image is drawn at the controller's scale, the budget's, as a moving one; the
 // targets stay made at the bounds' maximum.
@@ -11,6 +12,12 @@ test('a moving, a quiet and a convergence image draw at the controller', () => {
   enter(rt, false)
   assert.equal(scaleControl(rt).drawn, moving)
   assert.ok(rt.gpu.targetSize[0] < DISPLAY[0], 'drawn below the display')
+  // The pass upsamples that render to the display itself: its jitter cycle follows the ratio, in
+  // the render's own pixels.
+  const { frame } = rt.gpu.temporal!
+  assert.equal(frame.phases, upscalePhases(rt.gpu.targetSize[0], DISPLAY[0]))
+  assert.ok(frame.phases > TAA_SAMPLES)
+  assert.deepEqual([...frame.jitterGrid], rt.gpu.targetSize)
   assert.equal(scaleControl(rt).steered, true, 'the moving image is what the controller measures')
   rt.run.textureConverging = true
   enter(rt, true)

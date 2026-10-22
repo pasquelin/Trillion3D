@@ -1,12 +1,14 @@
 // No frame compiles a transparent pipeline the scene's materials and settings reach: prepare makes
 // them off the frame, a mode, share or display filter that appears later starts its own compile at
-// the change (`reach.ts`), and only a frame that gets there first makes the one pipeline itself.
+// the change (`reach.ts`), and only a frame that gets there first makes the one pipeline itself. The
+// pipelines' text cuts at a view's clip plane where the project switch is on, in one set made once.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuBlendPipelines } from './pipelines.ts'
 import { createDisplayFilter } from './display/displayFilter.ts'
 import { mountDevice } from './translucentScene.fixture.ts'
 import type { BlendGpuItem } from './state.ts'
+import type { Clipping } from '../gpu/core/clipDistances.ts'
 
 /** Counts the pipelines made by the synchronous calls a frame could reach, from now on. */
 function watch(device: GPUDevice) {
@@ -69,4 +71,25 @@ test('a frame that gets there before the compile makes the one pipeline, never a
   assert.equal(blendPipelines.at(9 + 2, false, 0), blendPipelines.at(9 + 2, false, 0))
   assert.equal(calls.render, 1, 'once')
   assert.equal(mount.renderPipelines.length, before + 3, 'nothing compiled twice')
+})
+
+test('the project switch picks the transparents’ text once: none of the plane’s code without it, every pipeline’s with it, one set', async () => {
+  const made = async (clipping?: Clipping) => {
+    const mount = mountDevice()
+    const items = [item('normal', true), item('multiply')]
+    await createWebgpuBlendPipelines(mount.device, items, undefined, true, undefined, 0, {
+      clipping,
+    })
+    await settled()
+    // The display mask's two pipelines are full-screen passes, no geometry.
+    return mount.renderPipelines
+      .filter(({ fragment }) => !['tint', 'add'].includes(fragment!.entryPoint!))
+      .map((pipeline) => (pipeline.vertex.module as unknown as { code: string }).code)
+  }
+  const [off, pixel, distance] = [await made(), await made('pixel'), await made('distance')]
+  assert.ok(off.length > 0 && off.every((code) => !code.includes('uni.clipPlane')))
+  assert.equal(pixel.length, off.length, 'the same set: no second one for a view with a plane')
+  assert.equal(distance.length, off.length)
+  assert.ok(pixel.every((code) => code.includes('uni.clipPlane')))
+  assert.ok(distance.every((code) => code.includes('enable clip_distances;')))
 })

@@ -1,5 +1,6 @@
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { shadowsUnsettled } from '../backend/state/lights.ts'
+import { screenProbesSettling } from '../../lighting/bounce/screen/frame.ts'
 import { reflectionsPending } from '../../lighting/reflections/gpu.ts'
 import { exposureMoving } from '../../post/exposure/frame.ts'
 import { finishMoving } from '../../post/finish/frame.ts'
@@ -26,6 +27,8 @@ const REASONS = [
   'reflections',
   'hlodWarming',
   'exposure',
+  'fogVolume',
+  'screenProbes',
 ] as const
 const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << index])) as Record<
   (typeof REASONS)[number],
@@ -80,7 +83,7 @@ function loadMask(rt: WebgpuPagesRuntime) {
   if (exposureMoving(rt) || finishMoving(rt)) mask |= BIT.exposure
   return mask
 }
-/** The temporal histories still advancing: bounce probes and deformation. */
+/** The temporal histories still advancing: bounce probes, deformation, the fog's volume and the screen probes'. */
 function historyMask(rt: WebgpuPagesRuntime, frame: number | undefined) {
   const { vis, bounce } = rt
   let mask = 0
@@ -89,6 +92,10 @@ function historyMask(rt: WebgpuPagesRuntime, frame: number | undefined) {
     mask |= BIT.bounceProbes
   // Deformation advances its own temporal history; its answers serve `frame`'s update alone.
   if (vis.deformation?.frame.pending(frame)) mask |= BIT.deforming
+  // The fog's volume blends its history in over images: a still view draws till it is whole.
+  if (rt.gpu.fogVolume?.gpu?.settling) mask |= BIT.fogVolume
+  // The screen probes' history is built over the frames it holds at most (`screenProbesSettling`).
+  if (screenProbesSettling(rt)) mask |= BIT.screenProbes
   return mask
 }
 /**

@@ -12,7 +12,10 @@ import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { AMBIENT_OCCLUSION_READ_WGSL } from './ambientOcclusionWgsl.ts'
+import {
+  AMBIENT_OCCLUSION_READ_WGSL,
+  AMBIENT_SPECULAR_OCCLUSION_WGSL,
+} from './ambientOcclusionWgsl.ts'
 import { DEFERRED_BINDINGS } from './bindings.ts'
 import { deferredLayoutEntries } from './layoutEntries.ts'
 
@@ -86,12 +89,18 @@ test('the opaque resolve binds the ambient occlusion and applies it by the view�
       new RegExp(`@binding\\(${DEFERRED_BINDINGS.ambientOcclusion}\\) var ambientOcclusion:`),
     )
     assert.match(code, /indirect\[0\]\*occlusion\.bounce/)
-    if (bounce)
-      assert.match(code, /resolvedIndirect\(coord,albedo,base\.a,normal\.a,N,V,P,occlusion\.sky\)/)
+    assert.match(
+      code,
+      bounce
+        ? /resolvedIndirect\(coord,albedo,base\.a,normal\.a,N,V,P,occlusion\.sky,occlusion\.both\)/
+        : /resolvedReflection\(coord,occlusion\.both,N,V,normal\.a\)/,
+      'the reflection the field answered goes under the occlusion, in either program',
+    )
     assert.match(code, /emissive\.rgb\*occlusion\.emission/)
     assert.match(code, /environmentLighting\(albedo,base\.a,N,occlusion\.sky\)/)
   }
-  // The three factors by mode: none, the scene's (emission by the share, the sky by the smaller), the probes'.
+  // The four factors by mode: none, the scene's (emission by the share, the sky by the smaller), the probes'; the
+  // specular's is the material's and the image's together wherever one is drawn.
   const read = (mode: number, share: number, seen: number) =>
     shaderRun<{ ambientOcclusionApplied: (c: number[], ao: number) => Record<string, number> }>(
       wgslModule(AMBIENT_OCCLUSION_READ_WGSL),
@@ -102,13 +111,47 @@ test('the opaque resolve binds the ambient occlusion and applies it by the view�
         ambientOcclusion: 'texture',
       },
     ).ambientOcclusionApplied([3, 4], 0.8)
-  assert.deepEqual(read(0, 1, 0.5), { emission: 1, sky: 0.8, bounce: 1 })
-  assert.deepEqual(read(1, 1, 0.5), { emission: 0.4, sky: 0.5, bounce: 1 })
-  assert.deepEqual(read(1, 0.5, 0.5), { emission: 0.7, sky: 0.5, bounce: 1 })
+  assert.deepEqual(read(0, 1, 0.5), { emission: 1, sky: 0.8, bounce: 1, both: 0.8 })
+  assert.deepEqual(read(1, 1, 0.5), { emission: 0.4, sky: 0.5, bounce: 1, both: 0.4 })
+  assert.deepEqual(read(1, 0.5, 0.5), { emission: 0.7, sky: 0.5, bounce: 1, both: 0.4 })
   assert.deepEqual(
     read(1, 0, 0.5),
-    { emission: 1, sky: 0.5, bounce: 1 },
-    'a static fraction of none leaves the emission',
+    { emission: 1, sky: 0.5, bounce: 1, both: 0.4 },
+    'a static fraction of none leaves the emission, not the reflection',
   )
-  assert.deepEqual(read(2, 0.5, 0.4), { emission: 1, sky: 0.8, bounce: 0.7 })
+  assert.deepEqual(read(2, 0.5, 0.4), { emission: 1, sky: 0.8, bounce: 0.7, both: 0.8 * 0.4 })
+})
+
+test('the reflection the field answers is lifted by the facing and the roughness: saturate(pow(N·V + AO, roughness²) − 1 + AO)', () => {
+  const { ambientSpecularOcclusion } = shaderRun<{
+    ambientSpecularOcclusion: (ao: number, N: number[], V: number[], rough: number) => number
+  }>(wgslModule(AMBIENT_SPECULAR_OCCLUSION_WGSL), ['ambientSpecularOcclusion'], {})
+  const reference = (facing: number, ao: number, rough: number) =>
+    Math.min(Math.max(Math.pow(facing + ao, rough * rough) - 1 + ao, 0), 1)
+  const toward = (facing: number) => [Math.sqrt(1 - facing * facing), 0, facing]
+  for (const [facing, ao, rough] of [
+    [0.5, 0.5, 0.5],
+    [0.2, 0.5, 0.8],
+    [0.9, 0.3, 1],
+    [0.6, 0.9, 0.1],
+    [0.1, 0.05, 0.6],
+  ])
+    assert.ok(
+      Math.abs(
+        ambientSpecularOcclusion(ao, [0, 0, 1], toward(facing), rough) -
+          reference(facing, ao, rough),
+      ) < 1e-6,
+      `N·V ${facing}, occlusion ${ao}, roughness ${rough}`,
+    )
+  for (const [facing, rough] of [
+    [0.3, 0.7],
+    [1, 0],
+    [0, 1],
+  ])
+    assert.equal(ambientSpecularOcclusion(1, [0, 0, 1], toward(facing), rough), 1, 'none occludes')
+  const none = ambientSpecularOcclusion(0, [0, 0, 1], [1, 0, 0], 0)
+  assert.ok(
+    Number.isFinite(none) && none === 0,
+    'a grazing, fully occluded mirror: no NaN from pow(0, 0)',
+  )
 })

@@ -34,8 +34,12 @@ export const maskUvWgsl = (binding: number) =>
   wgslBlock(
     `maskUvWgsl(${binding})`,
     [normalAtlasWgsl(binding), PAGE_UV_SET_WGSL],
-    `fn pageMaskUv(page:PageInfo,h:ClusterHeader,vertex:u32)->vec2f{
- let uvSet=select(0u,1u,(page.flags&${FLAG_MAP_UV_LOW}u)!=0u)|select(0u,2u,(page.flags&${FLAG_MAP_UV_HIGH}u)!=0u);
+    `/** The texture set the row's base map reads: its two flags. */
+fn pageMaskSet(page:PageInfo)->u32{
+ return select(0u,1u,(page.flags&${FLAG_MAP_UV_LOW}u)!=0u)|select(0u,2u,(page.flags&${FLAG_MAP_UV_HIGH}u)!=0u);
+}
+fn pageMaskUv(page:PageInfo,h:ClusterHeader,vertex:u32)->vec2f{
+ let uvSet=pageMaskSet(page);
  if(uvSet!=0u&&pageHasUvSet(page,h,uvSet)){return pageUvSet(page,h,vertex,uvSet,normalTexels());}
  return pageUv(page,h,vertex);
 }`,

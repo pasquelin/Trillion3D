@@ -6,40 +6,15 @@ import { floorLog2 } from '../../../../../../math/src/wgsl/integer.ts'
 import { VSM_CONSTANTS_WGSL } from '../constants.ts'
 import { VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from '../pageTableWgsl.ts'
 /**
- * The cull of a box and of its pages that the cache invalidation (`../invalidationWgsl.ts`) and the
- * render cull (`../render/renderCullWgsl.ts`) share: the frustum cull of a box given in clip space, its rect
- * in pixels, the mip level covering a rect, the flags of a page rect and their mask test, the
- * clip-space radius of a bounding sphere and the fine-caster threshold, and whether any valid page
- * overlaps a page rect.
- *
- * Each caller takes its box to clip space its own way — the invalidation through the instance's
- * local-to-world and then the view's world-to-clip, the render cull through one shifted-to-clip
- * matrix — and hands `vsmBoxInView` the clip image of the box's `vsmBoxCullPoint` and of its
- * axes: the floating-point operations of each are its own, in its own order.
+ * The frustum cull of a box given in clip space and the pixels it covers, which read no page table:
+ * the part of `VSM_BOX_CULL_WGSL` that the patches of a displaced surface in a shadow map are judged
+ * by too (`../tessellation/shadowViewWgsl.ts`).
  */
-export const VSM_BOX_CULL_WGSL = wgslBlock(
-  'VSM_BOX_CULL_WGSL',
-  [
-    FLOAT32_MAX,
-    VSM_CONSTANTS_WGSL,
-    VSM_PAGE_ADDRESS_WGSL,
-    VSM_TABLE_ORIGIN_WGSL,
-    VSM_PAGE_MARKS_GATHER_WGSL,
-    perspectiveDivide,
-    floorLog2,
-  ],
+export const VSM_BOX_VIEW_WGSL = wgslBlock(
+  'VSM_BOX_VIEW_WGSL',
+  [FLOAT32_MAX, perspectiveDivide],
   `
 struct VsmBoxInView{clipLow:vec3f,clipHigh:vec3f,pastFar:bool,pastNear:bool,inMapView:bool,}
-/** The mip level whose texels cover a rect (inclusive) within a desired footprint. */
-fn vsmLevelHoldingRect(r:vec4i,spanTexels:i32)->i32{
- let maxSpan=spanTexels-1;
- let mipOffset=i32(floorLog2(u32(spanTexels)))-1;
- let spanLog2=firstLeadingBit(r.zw-r.xy);
- var mip=max(max(spanLog2.x,spanLog2.y)-mipOffset,0);
- let d=(r.zw>>vec2u(u32(mip)))-(r.xy>>vec2u(u32(mip)));
- if(any(d>vec2i(maxSpan))){mip+=1;}
- return mip;
-}
 /** The frustum cull of a box under an orthographic view, from its centre and its half axes (its
  *  extent along each local axis) in clip space. */
 fn vsmBoxInOrthoView(clipCentre:vec3f,axisX:vec3f,axisY:vec3f,axisZ:vec3f,nearClip:bool)->VsmBoxInView{
@@ -108,6 +83,43 @@ fn vsmRectPixels(viewRect:vec4i,cull:VsmBoxInView)->vec4i{
  var pixels=vec4i(uvRect*viewSize.xyxy+vec4f(viewRect.xyxy)+vec4f(0.5,0.5,-0.5,-0.5));
  pixels=vec4i(max(pixels.xy,viewRect.xy),min(pixels.zw,viewRect.zw-vec2i(1)));
  return pixels;
+}
+`,
+)
+
+/**
+ * The cull of a box and of its pages that the cache invalidation (`../invalidationWgsl.ts`) and the
+ * render cull (`../render/renderCullWgsl.ts`) share: the frustum cull of a box given in clip space, its rect
+ * in pixels, the mip level covering a rect, the flags of a page rect and their mask test, the
+ * clip-space radius of a bounding sphere and the fine-caster threshold, and whether any valid page
+ * overlaps a page rect.
+ *
+ * Each caller takes its box to clip space its own way — the invalidation through the instance's
+ * local-to-world and then the view's world-to-clip, the render cull through one shifted-to-clip
+ * matrix — and hands `vsmBoxInView` the clip image of the box's `vsmBoxCullPoint` and of its
+ * axes: the floating-point operations of each are its own, in its own order.
+ */
+export const VSM_BOX_CULL_WGSL = wgslBlock(
+  'VSM_BOX_CULL_WGSL',
+  [
+    VSM_BOX_VIEW_WGSL,
+    VSM_CONSTANTS_WGSL,
+    VSM_PAGE_ADDRESS_WGSL,
+    VSM_TABLE_ORIGIN_WGSL,
+    VSM_PAGE_MARKS_GATHER_WGSL,
+    floorLog2,
+  ],
+  `
+
+/** The mip level whose texels cover a rect (inclusive) within a desired footprint. */
+fn vsmLevelHoldingRect(r:vec4i,spanTexels:i32)->i32{
+ let maxSpan=spanTexels-1;
+ let mipOffset=i32(floorLog2(u32(spanTexels)))-1;
+ let spanLog2=firstLeadingBit(r.zw-r.xy);
+ var mip=max(max(spanLog2.x,spanLog2.y)-mipOffset,0);
+ let d=(r.zw>>vec2u(u32(mip)))-(r.xy>>vec2u(u32(mip)));
+ if(any(d>vec2i(maxSpan))){mip+=1;}
+ return mip;
 }
 /** Tests a page's flags against a mask: any of the any-bits and all of the all-bits. */
 fn vsmMarksMatch(pageMarks:u32,markMask:u32)->bool{

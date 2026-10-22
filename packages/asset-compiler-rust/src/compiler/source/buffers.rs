@@ -116,6 +116,28 @@ pub(crate) fn flatten_buffer_views(g: &mut Value, offsets: &[usize], bin_len: us
     Ok(())
 }
 
+/// Appends `data` to the binary `out` as one view of buffer 0 and names it by `accessor`, a glTF
+/// accessor without its `bufferView` and `byteOffset`, pushed to the document's `accessors`;
+/// returns the accessor's rank. The one writer of an accessor a pass makes over bytes of its own.
+pub(crate) fn append_accessor(
+    g: &mut Value,
+    out: &mut Vec<u8>,
+    mut accessor: Value,
+    data: &[u8],
+    target: Option<u32>,
+) -> Result<usize> {
+    let views = g["bufferViews"]
+        .as_array_mut()
+        .ok_or_else(|| invalid("bufferViews array is required"))?;
+    accessor["bufferView"] = json!(append_view(out, views, data, target));
+    accessor["byteOffset"] = json!(0);
+    let accessors = g["accessors"]
+        .as_array_mut()
+        .ok_or_else(|| invalid("accessors array is required"))?;
+    accessors.push(accessor);
+    Ok(accessors.len() - 1)
+}
+
 /// Appends `data` to `bytes` at the next four-aligned offset, and its view of buffer 0 to `views`;
 /// returns the view's rank.
 pub(crate) fn append_view(

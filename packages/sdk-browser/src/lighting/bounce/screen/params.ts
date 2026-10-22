@@ -1,6 +1,8 @@
 import { DEG2RAD } from '../../../../../math/src/constants.ts'
 import { SCREEN_PROBE_CONSTANTS as C } from '../../../../../sdk-core/src/bounce/screenProbeLevels.ts'
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import { putVec4 } from '../../../gpu/core/fieldLayout.ts'
+import { wordViews } from '../../../gpu/core/wordViews.ts'
 import { writeChanged } from '../../../gpu/core/writeChanged.ts'
 import {
   SCREEN_PROBE_FLAGS as F,
@@ -17,8 +19,8 @@ interface ScreenProbeImage {
   history: boolean
   /** The screen is traced (the depth and the last lit image are there). */
   screen: boolean
-  /** The field of the world's probes exists. */
-  field: boolean
+  /** The radiance cache exists (the world's probes' maps), and the view reads it: `screenProbeRadianceCache` over a level that casts. */
+  cache: boolean
   /** The surfaces' vectors of this image are there to read (the velocity stage drew them). */
   velocity: boolean
   /** The inverse of the view-projection the last lit image was drawn with, 16 elements. */
@@ -35,39 +37,27 @@ const bit = (on: boolean, flag: number) => (on ? flag : 0)
 
 /** The mode word's flags of an image at `settings`: each bit its meaning (`SCREEN_PROBE_FLAGS`). */
 export function screenProbeFlags(settings: ScreenProbeSettings, image: ScreenProbeImage) {
-  const sampled = settings.importanceSampling
+  const { values } = settings
+  const sampled = values.screenProbeImportanceSampling
   return (
-    bit(image.screen && settings.screenTraces, F.screenTraces) |
+    bit(image.screen && values.screenProbeScreenTraces, F.screenTraces) |
     bit(sampled, F.importance) |
     bit(sampled && settings.importanceLighting, F.importanceLighting) |
-    bit(sampled && image.history && settings.radianceHistory, F.radianceHistory) |
-    bit(image.history && settings.temporal, F.temporal) |
+    bit(sampled && image.history && values.screenProbeProbeRadianceHistory, F.radianceHistory) |
+    bit(image.history && values.screenProbeTemporal, F.temporal) |
     bit(settings.stochasticInterpolation, F.stochastic) |
-    bit(image.field, F.field) |
+    bit(image.cache, F.cache) |
     bit(settings.irradianceFormat === 'octahedral', F.octahedral) |
     bit(settings.occlusion, F.occlusion) |
-    bit(settings.sceneTraces, F.sceneTraces) |
-    bit(settings.sceneTraces && settings.meshTraces, F.meshTraces) |
+    bit(values.screenProbeSceneTraces, F.sceneTraces) |
+    bit(values.screenProbeSceneTraces && settings.meshTraces, F.meshTraces) |
     bit(image.history && image.velocity, F.velocity) |
-    bit(settings.fastUpdateClamp, F.fastUpdateClamp) |
+    bit(values.screenProbeFastUpdateClamp, F.fastUpdateClamp) |
+    bit(values.screenProbeDisocclusionMaxFrames > 0, F.disocclusion) |
+    bit(values.screenProbeOcclusionTemporal, F.occlusionTemporal) |
     bit(image.fullResDepth, F.fullResDepth) |
-    bit(settings.skipFoliageHits, F.skipFoliageHits)
+    bit(values.screenProbeSkipFoliageHits, F.skipFoliageHits)
   )
-}
-
-/** Writes the four numbers `a, b, c, d` at word `at`. */
-function put(
-  into: ArrayLike<number> & { [index: number]: number },
-  at: number,
-  a: number,
-  b: number,
-  c: number,
-  d: number,
-) {
-  into[at] = a
-  into[at + 1] = b
-  into[at + 2] = c
-  into[at + 3] = d
 }
 
 /** The words of the parameters that are the image's and the probes' shapes: the size, the grid, the mode, the counts. */
@@ -78,85 +68,106 @@ function putWords(
   image: ScreenProbeImage,
 ) {
   const at = P.at
-  put(words, at.size, geometry.width, geometry.height, geometry.tile, image.frame >>> 0)
-  put(words, at.grid, geometry.tilesX, geometry.tilesY, geometry.rows, geometry.maxAdaptive)
-  put(
+  const { values } = settings
+  putVec4(words, at.size, geometry.width, geometry.height, geometry.tile, image.frame >>> 0)
+  putVec4(words, at.grid, geometry.tilesX, geometry.tilesY, geometry.rows, geometry.maxAdaptive)
+  putVec4(
     words,
     at.mode,
     image.frame % C.tileJitters,
     (image.frame + C.tileJitters - 1) % C.tileJitters,
     screenProbeFlags(settings, image),
-    image.frame % C.rayDirections,
+    image.frame % values.screenProbeMaxRayDirections,
   )
-  put(
+  putVec4(
     words,
     at.counts,
     settings.maxFramesAccumulated,
     geometry.uniform,
-    settings.maxIterations,
-    geometry.tracing,
+    values.screenProbeMaxIterations,
+    geometry.gather,
   )
 }
 
-/** The numbers of the parameters the settings give: the weights, the filter's, the scene trace's, the motion's and the thicknesses'. */
+/** The numbers of the parameters the settings give: the weights, the filter's, the occlusion's, the scene trace's, the motion's and the thicknesses'. */
 function putNumbers(staged: Float32Array, settings: ScreenProbeSettings, image: ScreenProbeImage) {
   const at = P.at
-  const weights = [C.interpolationDepthWeight, C.interpolationDepthWeightFallback]
-  put(
+  const { values: v } = settings
+  putVec4(
     staged,
     at.weights,
-    C.depthWeightScale * weights[0],
-    C.depthWeightScale * weights[1],
-    settings.minPdfToTrace,
-    settings.maxRayIntensity,
+    C.depthWeightScale * v.screenProbeInterpolationDepthWeight,
+    C.depthWeightScale * v.screenProbeInterpolationDepthWeightFallback,
+    v.screenProbeMinPdfToTrace,
+    v.screenProbeMaxRayIntensity,
   )
-  put(
+  putVec4(
     staged,
     at.spatial,
-    settings.filterPositionWeightScale,
-    settings.filterHitAngleDegrees * DEG2RAD,
+    v.screenProbeSpatialFilterPositionWeightScale,
+    v.screenProbeSpatialFilterMaxHitAngle * DEG2RAD,
     settings.jitterWidth,
-    settings.occlusionIntensity,
+    v.screenProbeMaxTraceDistance,
   )
-  put(
+  putVec4(
+    staged,
+    at.occlusion,
+    settings.occlusionSlices,
+    v.screenProbeOcclusionSteps,
+    v.screenProbeOcclusionForegroundFraction,
+    v.screenProbeOcclusionClampScale,
+  )
+  putVec4(
     staged,
     at.scene,
-    settings.meshTraceDistance,
-    settings.meshTraceEndDistance,
-    settings.surfaceBias,
-    settings.historyDistanceThreshold,
+    v.screenProbeMeshTraceDistance,
+    v.screenProbeMeshTraceEndDistance,
+    v.screenProbeSurfaceBias,
+    v.screenProbeHistoryDistanceThreshold,
   )
-  put(
+  putVec4(
+    staged,
+    at.cache,
+    v.screenProbeRadianceCacheReprojectionRadiusScale,
+    settings.cache.resolution,
+  )
+  putVec4(
     staged,
     at.motion,
-    settings.relativeSpeedThreshold,
+    v.screenProbeRelativeSpeedThreshold,
     settings.fastUpdateInverseFraction,
-    settings.maxFastUpdate,
-    0,
+    v.screenProbeMaxFastUpdate,
+    v.screenProbeMinTraceDistance,
   )
-  put(
+  putVec4(
     staged,
     at.tuning,
-    settings.disocclusionMaxFrames,
-    settings.disocclusionFraction,
-    settings.traceHistoryThickness,
+    v.screenProbeDisocclusionMaxFrames,
+    v.screenProbeDisocclusionFraction,
+    v.screenProbeHistoryDepthTestThickness,
     image.relativeThickness,
   )
-  put(staged, at.trace, settings.thicknessScaleWithoutField, settings.thicknessCertaintySteps, 0, 0)
+  putVec4(
+    staged,
+    at.trace,
+    v.screenProbeThicknessScaleWithoutField,
+    settings.thicknessCertaintySteps,
+    0,
+    0,
+  )
 }
 
 /**
  * The writer of the parameters' uniform: the image's size, tile and rank; the probes' shapes; the mode (this
  * image's tile jitter and the last's, the flags, the ray directions' turn); the history's longest, the uniform probes,
- * the screen trace's iterations and the rays a side; the weights of the interpolation (the plane's depth weight and the
+ * the screen trace's iterations and the texels a side of the gather; the weights of the interpolation (the plane's depth weight and the
  * fallback's, in the exponent), the probability under which a ray is not drawn and the intensity a ray is held to; the
- * filter's numbers and the jitter of the probes a pixel reads; the scene trace's, the history's and the motion's numbers;
- * the disocclusion's and the screen trace's thicknesses; the last view-projection's inverse. The words that differ from
- * those it sent go up (`writeChanged`); nothing is allocated by a call.
+ * filter's numbers, the jitter of the probes a pixel reads and the furthest a ray looks; the occlusion's search; the scene
+ * trace's and the history's numbers, the radiance cache's, the motion's numbers; the disocclusion's and the screen trace's thicknesses; the last
+ * view-projection's inverse. The words that differ from those it sent go up (`writeChanged`); nothing is allocated by a call.
  */
 export function createScreenProbeParams(device: GPUDevice, buffer: GPUBuffer) {
-  const staged = new Float32Array(P.words)
-  const words = new Uint32Array(staged.buffer)
+  const { f: staged, u: words } = wordViews(new ArrayBuffer(P.words * 4))
   return (
     geometry: ScreenProbeGeometry,
     settings: ScreenProbeSettings,

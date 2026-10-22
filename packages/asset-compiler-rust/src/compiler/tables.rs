@@ -25,6 +25,7 @@ pub(crate) mod partition;
 mod physical;
 mod sparse;
 mod textures;
+pub(crate) mod uv_density;
 use documents::document_table;
 use graph::{camera_table, name_of, node_table, scene_roots};
 use materials::material_entry;
@@ -69,6 +70,9 @@ struct Materials {
     table: Vec<Value>,
     interned: BTreeMap<(Option<usize>, bool), usize>,
     shares: Vec<f64>,
+    /// The UV density of each displaced glTF material, by rank (`uv_density`): written into its
+    /// entry's `displacement` as `uvDensities`, which no other entry carries.
+    densities: BTreeMap<usize, [f64; uv_density::UV_SETS]>,
 }
 impl Materials {
     /// Rank in the table of the surface a primitive wears; a primitive that declares no material
@@ -96,6 +100,9 @@ impl Materials {
         // A displaced material says so in its entry, and no other has the field.
         if let Some(displaced) = displacement::displacement(&source)? {
             entry[DISPLACEMENT_EXTRA] = displaced;
+            if let Some(density) = declared.and_then(|id| self.densities.get(&id)) {
+                entry[DISPLACEMENT_EXTRA]["uvDensities"] = json!(density);
+            }
         }
         self.table.push(entry);
         self.interned.insert(key, self.table.len() - 1);
@@ -193,6 +200,7 @@ pub(crate) fn stage_scene_tables(
         table: Vec::new(),
         interned: BTreeMap::new(),
         shares: materials.history_shares(described)?,
+        densities: uv_density::by_material(g, bin, mesh_map.keys().copied())?,
     };
     let document = document_table(described, "source.bin", &mut surfaces)?;
     // Each flattened material's entry in its no-tangent variant: a merged actor's pages hold no

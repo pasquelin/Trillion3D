@@ -10,7 +10,8 @@ import { FRUSTUM_PLANE_VALUES } from '../../../../../../math/src/geometry/frustu
 import type { VsmProjectionLight } from '../projection/projectionPass.ts'
 import { vsmCastBoxes } from '../invalidation/castBoxes.ts'
 import { assignChannels, followCasters, heldVsm } from './vsmPlanSteps.ts'
-import { sunFarShadowDistance } from './vsmFarShadow.ts'
+import { sunFarShadowDistance, vsmMapSettings } from './vsmFarShadow.ts'
+import { vsmSunLevels } from '../mapSettings.ts'
 import { unshadowLights, vsmCountersOn } from './engineVsm.ts'
 import { wholeTableRows } from './vsmLightMaps.ts'
 import { vsmCastMaps } from '../invalidation/castInvalidation.ts'
@@ -40,6 +41,7 @@ export function frameLights(
   const lights = (rt.lights.vsmLights ??= { plan: [], reserve: [] })[which]
   const { store } = rt.lights,
     size = rt.gpu.targetSize
+  const { shadows } = vsmMapSettings(rt)
   const planes = cam && vsmSeenPlanes(seenPlanes, cam.view, cam.projection, size[0], size[1])
   let count = 0
   for (let slot = 0; slot < store.count; slot++) {
@@ -50,6 +52,7 @@ export function frameLights(
     entry.visible = planes ? vsmLightSeen(light, planes) : light.kind === 'directional'
     // The reserve sizes the set only: it takes no far-shadow distance.
     if (which === 'plan') entry.farShadowDistance = sunFarShadowDistance(rt, light, cam?.near ?? 0)
+    entry.sunLevels = vsmSunLevels(shadows)
   }
   lights.length = count
   return lights
@@ -148,6 +151,7 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
     return false
   }
   const { state } = vsm
+  state.maps = vsmMapSettings(rt)
   followCasters(rt)
   // The invalidation: the world's change boxes and the rows' shadow changes against the PREVIOUS
   // frame's maps, read before the plan gives this frame its ids — the maps only when something
@@ -159,9 +163,8 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
   changes.settled()
   const prevSlots = state.cache.prevFrame?.mapCount ?? 0
   // The sun's clipmap is sized for the display, whatever scale this frame draws at; local lights
-  // keep the drawn size.
-  // More maps than the page table holds: twice the room, in the same frame when the tables grow
-  // in place.
+  // keep the drawn size. More maps than the page table holds: twice the room, in the same frame
+  // when the tables grow in place.
   const plan = planVirtualShadowFrame(
     state,
     list,

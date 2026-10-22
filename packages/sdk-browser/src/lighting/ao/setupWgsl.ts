@@ -1,4 +1,5 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
 import { FULLSCREEN_VERTEX } from '../deferred/shaders.ts'
 import { AO_COMMON_WGSL } from './commonWgsl.ts'
 
@@ -13,14 +14,14 @@ import { AO_COMMON_WGSL } from './commonWgsl.ts'
 export const AO_SETUP_WGSL = wgslProgram(
   `
 fn aoSetupTap(at:vec2f)->vec4f{
- let pixel=clamp(vec2i(floor(at)),vec2i(0),vec2i(ao.lens.zw)-vec2i(1));
+ let pixel=clampToExtent(vec2i(floor(at)),vec2i(view.lens.zw));
  return vec4f(aoSurfaceNormal(pixel)*0.5+vec3f(0.5),aoSceneDepth(pixel));
 }
 fn aoSetupWeight(tap:vec4f,farthest:f32)->vec4f{
- return vec4f(tap.xyz,1.0)*saturate(1.0-abs(tap.w-farthest)*ao.fade.z);
+ return vec4f(tap.xyz,1.0)*saturate(1.0-abs(tap.w-farthest)*view.fade.z);
 }
 @fragment fn aoSetup(@builtin(position) at:vec4f)->@location(0) vec4f{
- let scale=ao.radius.z;
+ let scale=view.reach.z;
  let centre=(floor(at.xy)+vec2f(0.5))*scale;
  let reach=0.25*scale;
  let a=aoSetupTap(centre+vec2f(-reach,-reach));
@@ -31,5 +32,5 @@ fn aoSetupWeight(tap:vec4f,farthest:f32)->vec4f{
  let sum=vec4f(0.0001)+aoSetupWeight(a,farthest)+aoSetupWeight(b,farthest)+aoSetupWeight(c,farthest)+aoSetupWeight(d,farthest);
  return vec4f(sum.xyz/sum.w,farthest/AO_DEPTH_SCALE);
 }`,
-  [AO_COMMON_WGSL, FULLSCREEN_VERTEX],
+  [AO_COMMON_WGSL, clampToExtent, FULLSCREEN_VERTEX],
 )

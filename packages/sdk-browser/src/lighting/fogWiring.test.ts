@@ -18,23 +18,9 @@ import {
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createDeferredPlaceholders } from './deferred/setup.ts'
-import type { SceneFog } from '../../../sdk-core/src/scene/core/fog.ts'
-import type { EngineContext } from '../session/engine/types.ts'
-import { awayCamera, drawnQuad } from '../frame/backend/drawnQuad.fixture.ts'
-import { camera as quadCamera } from '../frame/backend/testScenes.fixture.ts'
-import { renderWebgpuPages } from '../frame/render/render.ts'
-import { flushWebgpuPages } from '../frame/render/flush.ts'
-import { directLightResources } from '../frame/prepare/contractLight.ts'
-import { createWebgpuView } from '../frame/backend/state/view.ts'
-import { releaseWebgpuView, useWebgpuView } from '../frame/backend/state/viewSwitch.ts'
-import { LIGHT_BUFFER_AT } from '../frame/backend/state/lightBufferLayout.ts'
-import { FOG_VIEW_FLOATS, FOG_VIEW_SLOT } from './fog/viewSlots.ts'
-import {
-  DEFERRED_LIGHTING_PASS,
-  HIZ_PASS,
-  LIGHT_TILES_PASS,
-  REFLECTION_PASS,
-} from '../diagnostic/stage/passLabels.ts'
+import { unsettledMask, unsettledReasons } from '../frame/loop/unsettled.ts'
+import { settledRt } from '../frame/loop/hold.fixture.ts'
+import { historyHorizon } from './fog/layout.ts'
 import { DEFERRED_BINDINGS } from './deferred/bindings.ts'
 import { deferredLayoutEntries } from './deferred/layoutEntries.ts'
 import { BLEND_BINDINGS } from '../gpu/bind/bindLayout.ts'
@@ -147,126 +133,6 @@ test('every program that lays the fog over a pixel reads the cubemap and the vol
   assert.doesNotMatch(UNLIT_LIGHTING_SHADER, /fogView|fogVolume/)
 })
 
-/** A lit scene drawn by the engine's own frame on the kit's device: a sun, the fog `fog`, and the
- *  frames its pipelines compile in (a frame is held while one does). */
-async function litFrames(fog: SceneFog, options: Partial<EngineContext> = {}) {
-  const { rt, gpu } = await drawnQuad(options)
-  rt.lights.store.setView('lit')
-  rt.lights.store.add({
-    id: 'sun',
-    kind: 'directional',
-    direction: [0, -1, 0],
-    color: [1, 1, 1],
-    intensity: 3,
-    castsShadow: false,
-  })
-  rt.lights.store.setEnvironment({ exposure: 1, fog })
-  const draw = async () => {
-    gpu.commands.length = 0
-    gpu.dispatches.length = 0
-    renderWebgpuPages(rt, quadCamera())
-    await flushWebgpuPages(rt)
-    return [...gpu.commands]
-  }
-  for (let i = 0; i < 6; i++) await draw()
-  return { rt, gpu, draw }
-}
-const FOG_PASS = 'compute Trillion3D fog volume'
-const LIGHTING_PASS = `render ${DEFERRED_LIGHTING_PASS}`
-
-test('a frame with the volumetric fog on builds the volume between the light lists and the lighting, its three passes in order', async () => {
-  const { rt, gpu, draw } = await litFrames({ baseDensity: 0.01, volumetric: true })
-  const frame = await draw()
-  const fog = frame.indexOf(FOG_PASS)
-  assert.ok(frame.indexOf(`compute ${LIGHT_TILES_PASS}`) < fog, 'after the light lists')
-  assert.ok(fog < frame.indexOf(LIGHTING_PASS), 'before the lighting that reads it')
-  assert.equal(frame.filter((command) => command === FOG_PASS).length, 1, 'one compute pass')
-  // Its furthest depth reads the pyramid of this very image: the raster's last build (the culling
-  // layer, rebuilt after the rest pass) and the finished depth's layers (the depth pass of the
-  // reflections) both come before it.
-  const built = frame.lastIndexOf(`compute ${HIZ_PASS}`)
-  const finished = frame.indexOf(`compute ${REFLECTION_PASS}`)
-  assert.ok(built >= 0 && built < finished && finished < fog, 'after the pyramid is built')
-  const entries = gpu.dispatches.map((d) => d.entryPoint)
-  const first = entries.indexOf('furthestMain')
-  assert.deepEqual(entries.slice(first, first + 3), [
-    'furthestMain',
-    'scatterMain',
-    'integrateMain',
-  ])
-  // What the lighting, the blends and the sky are bound to is the volume it built, kept from one
-  // image to the next while nothing changes; not the stand-ins a scene with no volume reads.
-  const { placeholders } = rt.gpu.deferred!
-  const read = rt.gpu.fogVolume?.read
-  assert.ok(read && read === directLightResources(rt).fog)
-  assert.notEqual(read.volume, placeholders.fog.volume)
-  await draw()
-  assert.equal(rt.gpu.fogVolume?.read, read)
-})
-
-test('a volumetric fog the run holds off draws no volume and the programs read the stand-ins', async () => {
-  const { rt, draw } = await litFrames(
-    { baseDensity: 0.01, volumetric: true },
-    { volumetricFogQuality: 'off' },
-  )
-  assert.ok(!(await draw()).includes(FOG_PASS))
-  assert.equal(directLightResources(rt).fog?.volume, rt.gpu.deferred!.placeholders.fog.volume)
-  assert.equal(rt.gpu.fogVolume?.gpu, undefined, 'its pipelines are not even compiled')
-})
-
-test('a scene with no volumetric fog makes none of it: no pass, no state', async () => {
-  const { rt, draw } = await litFrames({ baseDensity: 0.01 })
-  assert.ok(!(await draw()).includes(FOG_PASS))
-  assert.equal(rt.gpu.fogVolume, undefined)
-})
-
-/** The view block the last image wrote into the light buffer: its eye lane, 1 where the volume was built. */
-function builtLane(gpu: Awaited<ReturnType<typeof litFrames>>['gpu']) {
-  const written = gpu.writes.filter((w) => w.offset === LIGHT_BUFFER_AT.fogView).at(-1)
-  assert.ok(written, 'the view block is written into the light buffer')
-  const floats = new Float32Array(written.data.buffer, written.data.byteOffset, FOG_VIEW_FLOATS)
-  return floats[FOG_VIEW_SLOT.eye * 4 + 3]
-}
-
-test('the volume tells the surfaces it was built in the light buffer: the view block, zeroed when it is not', async () => {
-  const built = await litFrames({ baseDensity: 0.01, volumetric: true })
-  await built.draw()
-  assert.equal(builtLane(built.gpu), 1)
-  const off = await litFrames(
-    { baseDensity: 0.01, volumetric: true },
-    { volumetricFogQuality: 'off' },
-  )
-  await off.draw()
-  assert.equal(builtLane(off.gpu), 0)
-})
-
-test('each view holds its own volume and history: a released view lets its own go, the main view keeps its', async () => {
-  const { rt, draw } = await litFrames({ baseDensity: 0.01, volumetric: true })
-  await draw()
-  const main = rt.gpu.fogVolume
-  assert.ok(main?.gpu)
-  const side = createWebgpuView(16, 16)
-  useWebgpuView(rt, side)
-  assert.equal(rt.gpu.fogVolume, undefined, 'the side view has none yet')
-  for (let i = 0; i < 6; i++) {
-    renderWebgpuPages(rt, awayCamera())
-    await flushWebgpuPages(rt)
-  }
-  assert.ok(rt.gpu.fogVolume?.gpu && rt.gpu.fogVolume !== main, 'a volume of its own')
-  releaseWebgpuView(rt, side)
-  assert.equal(side.gpu.fogVolume, undefined, 'released with the view')
-  assert.equal(rt.gpu.fogVolume, main, 'the main view finds its own back')
-})
-
-test('a scene that drops its fog lets its volume go', async () => {
-  const { rt, draw } = await litFrames({ baseDensity: 0.01, volumetric: true })
-  await draw()
-  assert.ok(rt.gpu.fogVolume?.gpu)
-  rt.lights.store.setEnvironment({ exposure: 1 })
-  await draw()
-  assert.equal(rt.gpu.fogVolume, undefined)
-})
-
 test('the fog’s stand-ins are made when a program first reads them, once, and let go with the others', () => {
   const gpu = fakeDevice()
   const standIns = () => gpu.textures.filter((t) => t.label?.startsWith('Trillion3D fog no'))
@@ -278,4 +144,22 @@ test('the fog’s stand-ins are made when a program first reads them, once, and 
   assert.equal(standIns().length, 2)
   placeholders.dispose()
   assert.ok(standIns().every((t) => gpu.destroyed.includes(t)))
+})
+
+test('a volume still blending its history keeps the view drawn; once whole, the view may hold', () => {
+  const rt = settledRt()
+  type Held = NonNullable<typeof rt.gpu.fogVolume>
+  rt.gpu.fogVolume = { gpu: { settling: true } } as unknown as Held
+  assert.deepEqual(unsettledReasons(unsettledMask(rt)), ['fogVolume'])
+  rt.gpu.fogVolume = { gpu: { settling: false } } as unknown as Held
+  assert.equal(unsettledMask(rt), 0, 'a whole history is a steady state')
+})
+
+test('the images a volume takes to settle follow its history’s share', () => {
+  const horizon = (share: number, uses = true) =>
+    historyHorizon({ volumetricFogUsesHistory: uses, volumetricFogHistoryShare: share })
+  // 0.9 per image: 0.9^53 is under a 256th, 0.9^52 is not.
+  assert.equal(horizon(0.9), 53)
+  assert.ok(horizon(0.5) < horizon(0.9) && horizon(0.9) < horizon(0.99))
+  assert.deepEqual([horizon(0.9, false), horizon(0), horizon(1), horizon(1.5)], [1, 1, 1, 1])
 })

@@ -1,5 +1,5 @@
 import { saturate } from '../../../../../math/src/scalar/reals.ts'
-import { BARYCENTRIC_MAX } from '../contract.ts'
+import { BARYCENTRIC_ONE } from '../contract.ts'
 import { PatchMesh } from './patchMesh.ts'
 import { collapseEdge } from './patchCollapse.ts'
 import { compact } from './patchCompact.ts'
@@ -114,20 +114,20 @@ function remesh(mesh: PatchMesh, factors: number[]) {
 /** The barycentric of a vertex rounded to 15 bits, the largest recomputed so they sum to the whole,
  *  and snapped on an edge to the exact division the edge's factor says. */
 function quantize(p: number[], factors: number[]) {
-  const q = p.map((x) => Math.floor(saturate(x) * BARYCENTRIC_MAX + 0.5))
+  const q = p.map((x) => Math.floor(saturate(x) * BARYCENTRIC_ONE + 0.5))
   const e0 = q[0] > q[1] ? (q[0] > q[2] ? 0 : 2) : q[1] > q[2] ? 1 : 2
   const e1 = (1 << e0) & 3,
     e2 = (1 << e1) & 3
-  q[e0] = BARYCENTRIC_MAX - q[e1] - q[e2]
+  q[e0] = BARYCENTRIC_ONE - q[e1] - q[e2]
   for (let i = 0; i < 3; i++) {
     const a = i,
       b = (1 << a) & 3
-    if (q[a] + q[b] !== BARYCENTRIC_MAX) continue
+    if (q[a] + q[b] !== BARYCENTRIC_ONE) continue
     const low = q[a] < q[b] ? a : b,
       high = q[a] >= q[b] ? a : b
-    const snapped = (q[low] * factors[i] + BARYCENTRIC_MAX / 2 - 1) & ~(BARYCENTRIC_MAX - 1)
+    const snapped = (q[low] * factors[i] + BARYCENTRIC_ONE / 2 - 1) & ~(BARYCENTRIC_ONE - 1)
     q[low] = Math.floor(snapped / factors[i])
-    q[high] = BARYCENTRIC_MAX - q[low]
+    q[high] = BARYCENTRIC_ONE - q[low]
   }
   return q
 }

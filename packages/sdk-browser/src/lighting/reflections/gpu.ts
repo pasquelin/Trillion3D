@@ -15,11 +15,11 @@ import {
   type ReflectionGrids,
 } from './grids.ts'
 import { createReflectionViewWriter, type ReflectionFrame } from './viewWrite.ts'
+import { createReflectionSettingsReader } from './settings.ts'
 import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts'
 import { REFLECTION_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { createSurroundings } from '../toneUnmap.ts'
 import { viewProj } from '../../frame/backend/helpers.ts'
-import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import { REFLECTION_VIEW_BYTES } from './viewLayout.ts'
 import { REFLECTION_TARGET } from './weight.ts'
 
@@ -79,7 +79,6 @@ function reflectionImageState() {
       eye: [0, 0, 0],
       size: [0, 0],
       depthDrawn: false,
-      relativeThickness: HIZ_RULES.hizRelativeDepthThickness.default,
     } as ReflectionFrame,
     inputs: {} as TraceInputs,
     radianceInputs: {} as RadianceInputs,
@@ -113,8 +112,7 @@ export function createScreenReflection(
     target,
     targetView: target.createView(),
     radiance,
-    /** The opaque surface's grids (`grids.ts`), made when first read: by the first image that
-     *  traces (`encodeReflections`). */
+    /** The opaque surface's grids (`grids.ts`), made when first read, by the first image that traces. */
     get grids() {
       grids ??= createReflectionGrids(device, 'Trillion3D reflection grid', [width, height])
       return grids
@@ -133,6 +131,8 @@ export function createScreenReflection(
     trace: createTraceGroups(),
     /** The counters the trace's rays add to, read back a few images late (`census.ts`). */
     census,
+    /** The reflections' settings of the context, resolved once while none moves (`settings.ts`). */
+    settings: createReflectionSettingsReader(),
     ...reflectionImageState(),
     dispose() {
       target.destroy()

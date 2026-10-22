@@ -66,7 +66,7 @@ const SCREEN_MARCH_PIXELS_WGSL = (group: number, binding: number) =>
     `SCREEN_MARCH_PIXELS_WGSL(${group}, ${binding})`,
     [SCREEN_MARCH_BASE_WGSL(group, binding)],
     `fn screenPlanesPixel(o:vec3f,d:vec3f,t:f32,across:f32,cell:vec2f,thickness:f32,slab:vec4f,k:u32)->ScreenHit{
- let miss=ScreenHit(-1.0,vec3f(0.0),vec2f(0.0),false,0u);
+ let miss=screenMarchMissed(0u,0.0);
  let plane=hizPlane(vec2i(cell));
  let centre=cell+vec2f(0.5);
  let s0=plane.x+dot(o.xy+d.xy*t-centre,plane.yz);
@@ -74,10 +74,10 @@ const SCREEN_MARCH_PIXELS_WGSL = (group: number, binding: number) =>
  let h0=o.z+d.z*t-s0;
  let h1=o.z+d.z*across-s1;
  if(h0>=0.0){
-  if(h1<0.0){return ScreenHit(mix(t,across,h0/(h0-h1)),plane,centre,hizFrontOver(vec2i(cell)),k);}
+  if(h1<0.0){return ScreenHit(mix(t,across,h0/(h0-h1)),plane,centre,hizFrontOver(vec2i(cell)),k,0.0);}
  }else if(s0>0.0){
   let back=screenBack(s0,thickness,slab);
-  if(o.z+d.z*t>=back){return ScreenHit(t,plane,centre,hizFrontOver(vec2i(cell)),k);}
+  if(o.z+d.z*t>=back){return ScreenHit(t,plane,centre,hizFrontOver(vec2i(cell)),k,0.0);}
  }
  return miss;
 }
@@ -89,9 +89,9 @@ fn screenPlanesFloor(o:vec3f,d:vec3f,t:f32,start:f32,thickness:f32,slab:vec4f,k:
  if(s>0.0&&z<=s&&z>=screenBack(s,thickness,slab)){
   let dh=d.z-dot(d.xy,plane.yz);
   let at=select(t,max(start,t-(z-s)/dh),dh<0.0);
-  return ScreenHit(at,plane,under+vec2f(0.5),hizFrontOver(vec2i(under)),k);
+  return ScreenHit(at,plane,under+vec2f(0.5),hizFrontOver(vec2i(under)),k,0.0);
  }
- return ScreenHit(-1.0,vec3f(0.0),vec2f(0.0),false,0u);
+ return screenMarchMissed(0u,0.0);
 }`,
   )
 
@@ -152,6 +152,6 @@ fn screenMarchPlanes(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->
   }
   level-=1;
  }
- return ScreenHit(-1.0,vec3f(0.0),vec2f(0.0),false,steps);
+ return screenMarchMissed(steps,min(t,end));
 }`,
   )

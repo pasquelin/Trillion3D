@@ -77,3 +77,70 @@ fn compile_rejects_cancel_hash_and_format() {
     );
     fs::remove_dir_all(root).expect("cleanup");
 }
+
+// Behaviour: a source whose mesh and primitive carry an `assembly` extra some other tool wrote — a
+// name, an object of its own — compiles to the pages it compiles to without it, the option off.
+#[test]
+fn an_assembly_extra_of_another_tool_changes_nothing_where_assemblies_are_not_allowed() {
+    let (root, options) = fixture();
+    let plain = compile(&options, |_| {}).expect("compile");
+    for extra in [json!("chassis"), json!({"id": 4})] {
+        let mut gltf = read_gltf(&options);
+        gltf["meshes"][0]["extras"] = json!({"assembly": extra});
+        gltf["meshes"][0]["primitives"][0]["extras"] = json!({"assembly": extra});
+        write_gltf(&options, &gltf, None);
+        let told = compile(&options, |_| {}).expect("no job fails on the extra");
+        // The same pages: the second job reuses the first's, so only that count differs.
+        let pages = |v: &Value| {
+            let mut v = v["primitives"].clone();
+            for primitive in v.as_array_mut().into_iter().flatten() {
+                primitive.as_object_mut().map(|p| p.remove("reusedPages"));
+            }
+            v
+        };
+        assert_eq!(pages(&told), pages(&plain), "{extra}");
+    }
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
+// Behaviour: a part is cooked once however many nodes of the assembly name it: the assembly's own
+// triangle and the part make two primitives whether the part is placed 1, 10 or 100 times, their
+// pages the same bytes, and the nodes are the scene's own, written under the nodes that place the
+// assembly.
+#[test]
+fn a_part_is_cooked_once_however_many_nodes_place_it() {
+    let cooked = |count: usize| {
+        let (root, mut options) = fixture();
+        options.mesh_build = MeshBuildOptions::read(Some(&json!({"allowAssemblies": true})));
+        let mut gltf = read_gltf(&options);
+        gltf["materials"] = json!([{}]);
+        let window = gltf["meshes"][0].clone();
+        gltf["meshes"].as_array_mut().expect("meshes").push(window);
+        let nodes: Vec<Value> = (0..count)
+            .map(|at| json!({"part": 0, "translation": [at, 0, 0]}))
+            .collect();
+        gltf["meshes"][0]["extras"] = json!({"assembly": {
+            "parts": [{"mesh": 1, "materialRemap": [0]}], "nodes": nodes,
+        }});
+        write_gltf(&options, &gltf, None);
+        let result = compile(&options, |_| {}).expect("compile");
+        let key = result["key"].as_str().expect("key").to_string();
+        let source = written_gltf(&options, &key);
+        fs::remove_dir_all(root).expect("cleanup");
+        (
+            result["primitives"].clone(),
+            source["nodes"].as_array().map(Vec::len),
+        )
+    };
+    let (one, one_nodes) = cooked(1);
+    for count in [10, 100] {
+        let (many, many_nodes) = cooked(count);
+        assert_eq!(many.as_array().map(Vec::len), Some(2), "{count}");
+        assert_eq!(
+            many, one,
+            "the same two primitives, the same pages, {count}"
+        );
+        assert_eq!(many_nodes, Some(2 + 2 * count));
+    }
+    assert_eq!(one_nodes, Some(2 + 2));
+}

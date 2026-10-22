@@ -5,7 +5,7 @@ import { VIS_XRAY_FRAGMENT, VIS_XRAY_VERTEX, visXrayShader } from '../shader/vis
 import { ADD_ONE } from '../../blend/equations.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { walkSlots } from './slotWalk.ts'
-import { hasClipDistances } from '../../gpu/core/clipDistances.ts'
+import type { Clipping } from '../../gpu/core/clipDistances.ts'
 
 /** Each visibility group layout's x-ray pipeline: made with the first see-through image of its
  *  device, dropped with the layout. */
@@ -13,14 +13,12 @@ const xrayPipelines = new WeakMap<GPUBindGroupLayout, PreparedPipeline<GPURender
 
 /** The x-ray pipeline of `layout`, asked: the frames wait for its compile, once. Every triangle's
  *  both faces, no culling, no depth, added into the HDR colour's three channels — its alpha the
- *  background's one (`encodeSeeThroughBackground`). */
-function xrayPipeline(device: GPUDevice, layout: GPUBindGroupLayout) {
+ *  background's one (`encodeSeeThroughBackground`); its module cuts at a view's plane the way the
+ *  raster's does (`clipping`). */
+function xrayPipeline(device: GPUDevice, layout: GPUBindGroupLayout, clipping?: Clipping) {
   let pipeline = xrayPipelines.get(layout)
   if (!pipeline) {
-    const module = device.createShaderModule({
-      label: XRAY_PASS,
-      code: visXrayShader(hasClipDistances(device)),
-    })
+    const module = device.createShaderModule({ label: XRAY_PASS, code: visXrayShader(clipping) })
     pipeline = preparedPipeline(device, {
       label: XRAY_PASS,
       layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
@@ -87,7 +85,7 @@ const HALVES = [false, true] as const
 export function encodeXray(rt: WebgpuPagesRuntime, device: GPUDevice, encoder: GPUCommandEncoder) {
   const { gpu, vis, run } = rt
   if (!seeThrough(rt) || !run.depthDrawn || !gpu.hdrView || !vis.visBindGroupLayout) return
-  const pipeline = xrayPipeline(device, vis.visBindGroupLayout)
+  const pipeline = xrayPipeline(device, vis.visBindGroupLayout, rt.setup.clipping)
   if (!pipeline.ready) return
   const pass = encoder.beginRenderPass({
     label: XRAY_PASS,

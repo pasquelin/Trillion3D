@@ -1,8 +1,6 @@
 import type { EffectKind } from '../../../../sdk-core/src/world/effect/chain.ts'
-import type { DepthOfFieldValues } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
-import type { BloomValues } from '../../../../sdk-core/src/contracts/bloomRules.ts'
-import type { MotionBlurValues } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import { type EffectPassOf } from './targets.ts'
+import type { ValuesOf } from './kindRules.ts'
 import type { RootsOwner } from '../../frame/render/movedNode.ts'
 import type { FrameRevisions } from '../../frame/revisions.ts'
 import type { PostFrame } from '../finish/finish.ts'
@@ -12,8 +10,17 @@ import { createWebgpuMotionBlur } from './webgpuMotionBlur.ts'
 import { createWebgpuOutline } from './webgpuOutline.ts'
 
 /** What a pass left to the composition: the glow it drew, which the composition adds to the image
- *  it reads. */
-export type FusedBlend = { glow: GPUTextureView }
+ *  it reads where it applies the exposure — the glow times `1 + mask × factor` where a dirt mask
+ *  is drawn (`mask`, the picture read at the level the image's size asks, none for no mask), the
+ *  image's own colour times `keep` where the glow took some of its light (`keeps`). Rewritten by
+ *  each image the pass draws: an image allocates none. */
+export type FusedBlend = {
+  glow: GPUTextureView
+  keeps: boolean
+  keep: number[]
+  mask: GPUTextureView | undefined
+  factor: number[]
+}
 
 /** What every kind of pass holds on WebGPU, whatever its stage. */
 type KindResources = {
@@ -28,13 +35,13 @@ type KindResources = {
 }
 
 /** One kind of pass on WebGPU that runs before tone mapping: its programs, compiled once, and the
- *  resources its passes share. */
-export type WebgpuEffectKind<P> = KindResources & {
+ *  resources its passes share. `V` is what the view's settings of the kind resolve to. */
+export type WebgpuEffectKind<P, V = undefined> = KindResources & {
   /** Encodes `pass`, the `nth` of its kind in the chain, from `input` into `output`, or with no
    *  `output` leaves its last blend to the composition (`blend`); returns the render passes
    *  encoded, zero when it has nothing to draw. `post` is what the frame's passes share
-   *  (`../finish/finish.ts`); `bloom` how the view draws the bloom (`BLOOM_RULES`), the defaults
-   *  where the frame names none. */
+   *  (`../finish/finish.ts`); `settings` how the view draws the kind (`KIND_RULES[kind].settings`),
+   *  its defaults where the frame names no session. */
   encode(
     encoder: GPUCommandEncoder,
     pass: P,
@@ -42,14 +49,26 @@ export type WebgpuEffectKind<P> = KindResources & {
     input: GPUTextureView,
     output: GPUTextureView | undefined,
     post: PostFrame,
-    bloom?: BloomValues,
+    settings: V,
   ): number
   /** The blend the last `encode` left to the composition, if it did: a kind without it never
    *  leaves one, and is always handed an output. */
   readonly blend?: FusedBlend
 }
 
-/** What the frame offers a pass drawn on the image the temporal pass resolved. */
+/** What the passes before the temporal pass know of its accumulation: whether the image is accumulated in
+ *  time, so each pass may stabilise what it makes from the motion measured, whether its history
+ *  describes nothing (a cut), the image's jitter in render pixels — the shift the render grid's
+ *  samples were drawn at, `y` down — and the frame's rank among eight, which the noise of a pass turns by. */
+export type ResolveTemporal = {
+  active: boolean
+  cut: boolean
+  jitter: readonly [number, number]
+  slot: number
+}
+
+/** What the frame offers a pass drawn on the lit image before the temporal pass, or on the image the
+ *  temporal pass resolved. */
 export type ResolveFrame = {
   /** The size of the image, in its pixels. */
   size: readonly number[]
@@ -57,10 +76,13 @@ export type ResolveFrame = {
    *  one, the largest a frame is drawn at where it is the lit one, drawn below it. The images a
    *  pass writes are made at it. */
   extent: readonly number[]
+  /** The display's size: the image the temporal pass resolves, which it rebuilds the lit one to. */
+  display: readonly number[]
   /** The grid the motion of its texels was measured on, this image's render grid. */
   render: readonly number[]
   /** The size the targets the motion was measured on were made at, the largest grid a frame is
-   *  drawn on. */
+   *  drawn on. Like `vectors`, `view` and `still`, set where the velocity stage measured the image —
+   *  the passes that read them are asked for nothing else (`KIND_RULES[kind].motion`, `temporal.active`). */
   allocated: readonly number[]
   /** Each render texel's reprojection vector, the velocity stage's (`../taa/velocity.ts`). */
   vectors: GPUTextureView
@@ -69,10 +91,11 @@ export type ResolveFrame = {
   /** The uniform the motion was measured with (`TAA_VIEW`): the matrices, the render grid, whether
    *  the history describes the image. */
   view: GPUBuffer
-  /** How the blur is drawn (`MOTION_BLUR_RULES`), as the view's settings resolve this image. */
-  settings: MotionBlurValues
-  /** How the depth of field is drawn (`DEPTH_OF_FIELD_RULES`), as the view's settings resolve it. */
-  depthOfField: DepthOfFieldValues
+  /** The session's settings the kinds' own are read from (`KIND_RULES[kind].settings`): none, the
+   *  kinds are handed their defaults. */
+  session: object | undefined
+  /** The temporal pass's accumulation of the image (`ResolveTemporal`). */
+  temporal: ResolveTemporal
   /** The camera the image was drawn with: its projection, column-major, whether it is a perspective
    *  one, its nearest distance drawn and the exposure the image is shown at. */
   camera: { projection: ArrayLike<number>; perspective: boolean; near: number; exposure: number }
@@ -81,19 +104,26 @@ export type ResolveFrame = {
   /** Whether the image shows what the one before did: no motion, so nothing to blur (the stage's
    *  `still`). */
   still: boolean
+  /** Whether the image is the temporal pass's, which makes the half-size copy of it the motion blur's
+   *  samples may read (`motionBlurHalfResInput`); an image the pass did not resolve has none. */
+  resolved: boolean
 }
 
-/** One kind of pass on WebGPU that runs on the image the temporal pass resolved, before anything
- *  else reads it: the programs and the targets its passes share. */
-export type WebgpuResolveKind<P> = KindResources & {
-  /** Draws `pass`, the `nth` of its kind in the chain, over `input`, the resolved image or the
-   *  one the pass before left; returns the image after it, `input` itself when it drew nothing. */
+/** One kind of pass on WebGPU that runs on the lit image before the temporal pass, or on the image it
+ *  resolved, before anything else reads it: the programs and the targets its passes share. `V` is what
+ *  the view's settings of the kind resolve to. */
+export type WebgpuResolveKind<P, V = undefined> = KindResources & {
+  /** Draws `pass`, the `nth` of its kind in the chain, over `input`, the image the stage was handed or
+   *  the one the pass before left; returns the image after it, `input` itself when it drew nothing.
+   *  `settings` is how the view draws the kind (`KIND_RULES[kind].settings`), its defaults where the
+   *  frame names no session. */
   resolve(
     encoder: GPUCommandEncoder,
     pass: P,
     nth: number,
     input: GPUTextureView,
     frame: ResolveFrame,
+    settings: V,
   ): GPUTextureView
   /** The render and compute passes the last `resolve` encoded. */
   readonly passes: number
@@ -133,55 +163,24 @@ export type WebgpuOverlayKind<P> = KindResources & {
   overlay(encoder: GPUCommandEncoder, pass: P, nth: number, frame: OverlayFrame): number
 }
 
-/** Where a kind's passes run: on the resolved image, over the linear image before tone mapping,
- *  or over the display image after it. */
-type WebgpuStage = 'resolve' | 'hdr' | 'overlay'
-
 /** A kind's implementation, as its stage asks. */
-type KindOf<P> = P extends { stage: 'after-resolve' }
-  ? WebgpuResolveKind<P>
+type KindOf<P, V> = P extends { stage: 'before-resolve' | 'after-resolve' }
+  ? WebgpuResolveKind<P, V>
   : P extends { stage: 'after-tone-mapping' }
     ? WebgpuOverlayKind<P>
-    : WebgpuEffectKind<P>
+    : WebgpuEffectKind<P, V>
 
-export type Kinds = { [K in EffectKind]: KindOf<EffectPassOf<K>> }
+export type Kinds = { [K in EffectKind]: KindOf<EffectPassOf<K>, ValuesOf<K>> }
 
-/** The stage a kind's implementation draws at, as its type says. */
-type StageOf<K extends EffectKind> =
-  Kinds[K] extends WebgpuResolveKind<never>
-    ? 'resolve'
-    : Kinds[K] extends WebgpuOverlayKind<never>
-      ? 'overlay'
-      : 'hdr'
-
-/** Each kind's WebGPU implementation and the stage it draws at: the one place a new built-in or a
- *  custom pass plugs in. */
+/** Each kind's WebGPU implementation: the one place a new built-in or a custom pass plugs in its code
+ *  (its stage, bytes and settings are in `KIND_RULES`, which the frame's entry reads before it arrives). */
 export const WEBGPU_KINDS: {
   [K in EffectKind]: {
-    readonly stage: StageOf<K>
     create: (device: GPUDevice, fail: (error: unknown) => void) => Promise<Kinds[K]>
   }
 } = {
-  depthOfField: { stage: 'resolve', create: createWebgpuDepthOfField },
-  motionBlur: { stage: 'resolve', create: createWebgpuMotionBlur },
-  bloom: { stage: 'hdr', create: createWebgpuBloom },
-  outline: { stage: 'overlay', create: createWebgpuOutline },
+  depthOfField: { create: createWebgpuDepthOfField },
+  motionBlur: { create: createWebgpuMotionBlur },
+  bloom: { create: createWebgpuBloom },
+  outline: { create: createWebgpuOutline },
 }
-
-/** The kinds drawn at `stage`. */
-type KindsAt<S extends WebgpuStage> = {
-  [K in EffectKind]: StageOf<K> extends S ? K : never
-}[EffectKind]
-
-/** The kinds drawn at `stage`, read off the table. */
-const kindsAt = <S extends WebgpuStage>(stage: S) =>
-  (Object.keys(WEBGPU_KINDS) as EffectKind[]).filter(
-    (kind): kind is KindsAt<S> => WEBGPU_KINDS[kind].stage === stage,
-  )
-
-/** The kinds that run on the resolved image. */
-export const RESOLVE_KINDS: readonly KindsAt<'resolve'>[] = kindsAt('resolve')
-/** The kinds that run before tone mapping. */
-export const HDR_KINDS: readonly KindsAt<'hdr'>[] = kindsAt('hdr')
-/** The kinds drawn over the display image. */
-export const OVERLAY_KINDS: readonly KindsAt<'overlay'>[] = kindsAt('overlay')

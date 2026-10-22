@@ -89,6 +89,126 @@ export const frontLayerBytes = (width: number, height: number, blends: boolean) 
 /** The stamp of the image `frame` (`run.frame`): what tells the front pass of this image. */
 export const frontStamp = (frame: number) => frame >>> 0 || 1
 
+/** The textures of a front layer, each held until the view needs it wider, and the views of them a pass and a program
+ *  bind: made a texel big, but for the depth and flags of a scene that has blends. */
+type FrontHeld = {
+  depth: GPUTexture
+  flags: GPUTexture
+  normals: GPUTexture
+  lobes: GPUTexture
+  traced: GPUTexture
+  grids: ReturnType<typeof createReflectionGrids>
+  views: {
+    depth: GPUTextureView
+    flags: GPUTextureView
+    normals: GPUTextureView
+    lobes: GPUTextureView
+    traced: GPUTextureView
+  }
+}
+
+/** The usage of a texture the front pass draws into and a program reads (read where made: the globals are the device's). */
+const attached = () => GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
+const frontTexture = (
+  device: GPUDevice,
+  format: GPUTextureFormat,
+  usage: number,
+  size: GPUExtent3D,
+) => device.createTexture({ label: LABEL, size, format, usage })
+
+/** The textures of a front layer at `width × height`, `blends` sizing its depth and flags. */
+function createFrontHeld(device: GPUDevice, width: number, height: number, blends: boolean) {
+  const full: [number, number] = [width, height],
+    one: [number, number] = [1, 1]
+  const depth = frontTexture(
+      device,
+      DEPTH_FORMAT,
+      attached() | GPUTextureUsage.COPY_DST,
+      blends ? full : one,
+    ),
+    flags = frontTexture(device, FRONT_OUTPUT.flags.format, attached(), blends ? full : one),
+    normals = frontTexture(device, FRONT_OUTPUT.normal.format, attached(), one),
+    lobes = frontTexture(device, FRONT_OUTPUT.lobes.format, attached(), one),
+    traced = createFrontTraced(device, one)
+  const views = {
+    depth: depth.createView(),
+    flags: flags.createView(),
+    normals: normals.createView(),
+    lobes: lobes.createView(),
+    traced: traced.createView(),
+  }
+  return {
+    depth,
+    flags,
+    normals,
+    lobes,
+    traced,
+    grids: createReflectionGrids(device, LABEL, one),
+    views,
+  }
+}
+
+/** `texture` at the view's size, the texel it replaces retired after the frame, and the bytes it adds:
+ *  `bytes`, or a texel of its format a pixel past the one it had. */
+function growFront(
+  device: GPUDevice,
+  size: { width: number; height: number },
+  texture: GPUTexture,
+  remake: () => GPUTexture,
+  bytes = (size.width * size.height - 1) * texelBytesOf(texture.format),
+) {
+  if (holds(size, texture)) return { texture, bytes: 0 }
+  retire(device, texture)
+  return { texture: remake(), bytes }
+}
+
+/** The front layer's normals, radiance and grids made at the view's size, the first time `outputs` ask for them, and its lobes
+ *  the first time they ask for those, their bytes added to `bytes`. */
+function growFrontHeld(
+  device: GPUDevice,
+  size: { width: number; height: number },
+  held: FrontHeld,
+  outputs: FrontOutputs,
+  bytes: { targetBytes: number },
+) {
+  const { width, height } = size,
+    { views } = held
+  if (outputs > 0) {
+    const n = growFront(device, size, held.normals, () =>
+        frontTexture(device, FRONT_OUTPUT.normal.format, attached(), [width, height]),
+      ),
+      t = growFront(device, size, held.traced, () => createFrontTraced(device, [width, height]))
+    if (n.texture !== held.normals) views.normals = (held.normals = n.texture).createView()
+    if (t.texture !== held.traced) views.traced = (held.traced = t.texture).createView()
+    bytes.targetBytes += n.bytes + t.bytes
+    if (held.grids.pixels[0] < width || held.grids.pixels[1] < height) {
+      retire(device, held.grids)
+      held.grids = createReflectionGrids(device, LABEL, [width, height])
+      bytes.targetBytes += gridBytes(width, height) - gridBytes(1, 1)
+    }
+  }
+  if (outputs > 1) {
+    const l = growFront(
+      device,
+      size,
+      held.lobes,
+      () => frontTexture(device, FRONT_OUTPUT.lobes.format, attached(), [width, height]),
+      // The lobes target's own accounting (`PHYSICAL_LOBES_TARGET`), as the surface buffer's.
+      PHYSICAL_LOBES_TARGET.bytes(width, height, true) -
+        PHYSICAL_LOBES_TARGET.bytes(width, height, false),
+    )
+    if (l.texture !== held.lobes) views.lobes = (held.lobes = l.texture).createView()
+    bytes.targetBytes += l.bytes
+  }
+}
+
+const cleared = (): GPURenderPassColorAttachment => ({
+  view: undefined as unknown as GPUTextureView,
+  loadOp: 'clear',
+  storeOp: 'store',
+  clearValue: [0, 0, 0, 0],
+})
+
 /** A view's front layer at `width × height`, `blends` sizing it (`frontLayer.ts`), its grids the
  *  opaque surface's. */
 export function createFrontLayer(
@@ -97,30 +217,8 @@ export function createFrontLayer(
   height: number,
   blends: boolean,
 ) {
-  const attached = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
-  const full: [number, number] = [width, height],
-    one: [number, number] = [1, 1]
-  const make = (format: GPUTextureFormat, usage: number, size: GPUExtent3D) =>
-    device.createTexture({ label: LABEL, size, format, usage })
-  const depth = make(DEPTH_FORMAT, attached | GPUTextureUsage.COPY_DST, blends ? full : one),
-    flags = make(FRONT_OUTPUT.flags.format, attached, blends ? full : one)
-  let normals = make(FRONT_OUTPUT.normal.format, attached, one),
-    lobes = make(FRONT_OUTPUT.lobes.format, attached, one),
-    traced = createFrontTraced(device, one),
-    grids = createReflectionGrids(device, LABEL, one)
-  const cleared = (): GPURenderPassColorAttachment => ({
-    view: undefined as unknown as GPUTextureView,
-    loadOp: 'clear',
-    storeOp: 'store',
-    clearValue: [0, 0, 0, 0],
-  })
-  const views = {
-    depth: depth.createView(),
-    flags: flags.createView(),
-    normals: normals.createView(),
-    lobes: lobes.createView(),
-    traced: traced.createView(),
-  }
+  const held = createFrontHeld(device, width, height, blends),
+    { views } = held
   const out = { front: cleared(), flags: cleared(), normal: cleared(), lobes: cleared() }
   out.flags.view = views.flags
   /** Each `FrontOutputs`' attachments, in its outputs' order. */
@@ -131,21 +229,10 @@ export function createFrontLayer(
     // The opaque depth copied in first (`encodeFrontPass`): a surface behind it is never the front.
     depthStencilAttachment: { view: views.depth, depthLoadOp: 'load', depthStoreOp: 'store' },
   }
-  /** `texture` at the view's size, the texel it replaces retired after the frame, and the bytes it adds:
-   *  `bytes`, or a texel of its format a pixel past the one it had. */
-  const grow = (
-    texture: GPUTexture,
-    remake: () => GPUTexture,
-    bytes = (width * height - 1) * texelBytesOf(texture.format),
-  ) => {
-    if (holds({ width, height }, texture)) return { texture, bytes: 0 }
-    retire(device, texture)
-    return { texture: remake(), bytes }
-  }
   return {
     /** Whether it holds the view's pixels: the scene had a blend when it was made. */
     wanted: blends,
-    depth,
+    depth: held.depth,
     views,
     /** The stamp of the last image that drew the front pass, and of the last one whose pass wrote the
      *  reflecting surface (`frontStamp`): zero before any. */
@@ -153,7 +240,7 @@ export function createFrontLayer(
     reflected: 0,
     /** The front surface's grids (`grids.ts`): a texel until it first reflects. */
     get grids() {
-      return grids
+      return held.grids
     },
     /** The front pass of the image of stamp `stamp`, into the Hi-Z front layer `front`, writing
      *  `outputs` (`FrontOutputs`): its normals, radiance and lobes made at the view's size the first
@@ -167,37 +254,16 @@ export function createFrontLayer(
       this.drawn = stamp
       out.front.view = front
       pass.colorAttachments = colours[outputs]
-      if (outputs > 0) {
-        this.reflected = stamp
-        const n = grow(normals, () => make(FRONT_OUTPUT.normal.format, attached, full)),
-          t = grow(traced, () => createFrontTraced(device, full))
-        if (n.texture !== normals) views.normals = (normals = n.texture).createView()
-        if (t.texture !== traced) views.traced = (traced = t.texture).createView()
-        bytes.targetBytes += n.bytes + t.bytes
-        if (grids.pixels[0] < width || grids.pixels[1] < height) {
-          retire(device, grids)
-          grids = createReflectionGrids(device, LABEL, full)
-          bytes.targetBytes += gridBytes(width, height) - gridBytes(1, 1)
-        }
-        out.normal.view = views.normals
-      }
-      if (outputs > 1) {
-        const l = grow(
-          lobes,
-          () => make(FRONT_OUTPUT.lobes.format, attached, full),
-          // The lobes target's own accounting (`PHYSICAL_LOBES_TARGET`), as the surface buffer's.
-          PHYSICAL_LOBES_TARGET.bytes(width, height, true) -
-            PHYSICAL_LOBES_TARGET.bytes(width, height, false),
-        )
-        if (l.texture !== lobes) views.lobes = (lobes = l.texture).createView()
-        bytes.targetBytes += l.bytes
-        out.lobes.view = views.lobes
-      }
+      if (outputs > 0) this.reflected = stamp
+      growFrontHeld(device, { width, height }, held, outputs, bytes)
+      if (outputs > 0) out.normal.view = views.normals
+      if (outputs > 1) out.lobes.view = views.lobes
       return pass
     },
     dispose() {
-      for (const texture of [depth, flags, normals, lobes, traced]) texture.destroy()
-      grids.destroy()
+      for (const texture of [held.depth, held.flags, held.normals, held.lobes, held.traced])
+        texture.destroy()
+      held.grids.destroy()
     },
   }
 }

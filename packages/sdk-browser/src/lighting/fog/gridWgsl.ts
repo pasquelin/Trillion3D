@@ -8,7 +8,9 @@ import {
 import { FOG_SLOT } from '../../../../sdk-core/src/scene/core/fog.ts'
 import { rand4dPcg32 } from '../../../../math/src/wgsl/sampling.ts'
 import { FLOAT32_MAX } from '../../../../math/src/wgsl/constants.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { FOG_VOLUME_FLAG } from './frame.ts'
+import { FOG_DEPTH_FUDGE } from './layout.ts'
 
 /**
  * THE VOLUME'S CELLS IN THE WORLD: where a cell's sample lies, how deep the surfaces are there, the
@@ -18,12 +20,14 @@ import { FOG_VOLUME_FLAG } from './frame.ts'
  *
  * A cell's point is on the ray through its pixel, at the view depth its slice starts at plus the
  * offset's share of the slice; the ray is the one through the pixel at the near plane
- * (`fogPixelRay`), scaled so its forward component is 1, so that `eye + ray · depth` is the point at
- * that view depth. The cells are cut across the image in pixels, `frame.grid.w` a side from the
- * view's first pixel, the last row and column reaching past its edge where the side does not divide
- * it: the cell \`c\` lies at the pixel \`c · side\`, where a surface and the history find it
- * (\`frame.uv\`). The depth buffer is read at the pixel the cell's sample projects to, through the
- * matrix the buffer was drawn with. A sample the depth buffer has in front of it by less than
+ * (`fogNearPoint`), scaled so its forward component is 1, so that `eye + ray · depth` is the point at
+ * that view depth. The cells are spread over the view: the cell \`c\` of \`frame.grid.xy\` lies at
+ * \`c / frame.grid.xy\` of it, so that the last row and column end at the view's edge, a little
+ * narrower than the others where the side does not divide it. An orthographic view has parallel rays:
+ * the cell's point is the near plane's point of its pixel moved along the forward to the view depth,
+ * and its depth buffer is linear in the view depth (`frame.depthMap.z` says which the view is). The
+ * depth buffer is read at the pixel the cell's sample projects to, through the matrix the buffer was
+ * drawn with. A sample the depth buffer has in front of it by less than
  * `tune.y` cells is moved forward, to `tune.x` cells in front of it, so that a cell on a surface
  * does not light itself with what stands behind.
  *
@@ -41,16 +45,18 @@ export const FOG_CELLS_WGSL = wgslBlock(
 /** The view depth a slice starts at, and the slice of a view depth. */
 fn fogDepthAtSlice(slice:f32)->f32{return (exp2(slice/frame.sliceMap.z)-frame.sliceMap.y)/frame.sliceMap.x;}
 fn fogSliceAtDepth(depth:f32)->f32{return log2(depth*frame.sliceMap.x+frame.sliceMap.y)*frame.sliceMap.z;}
-/** The ray through device coordinates \`ndc\`, its forward component 1. */
-fn fogPixelRay(ndc:vec2f)->vec3f{
- let along=unprojectPoint(frame.inverseViewProj,vec3f(ndc,1.0))-frame.eye.xyz;
- return along/dot(along,frame.forward.xyz);
-}
-/** The cell's point (xyz) and its view depth (w), at \`offset\` within it. */
+/** Whether the view is an orthographic one. */
+fn fogOrtho()->bool{return frame.depthMap.z>0.5;}
+/** The point the ray through device coordinates \`ndc\` reaches at the near plane, from the eye. */
+fn fogNearPoint(ndc:vec2f)->vec3f{return unprojectPoint(frame.inverseViewProj,vec3f(ndc,1.0))-frame.eye.xyz;}
+/** The cell's point (xyz) and its view depth (w), at \`offset\` within it: along the ray through its pixel,
+ *  its forward component \`depth\`; for an orthographic view the near plane's point moved to that depth. */
 fn fogCellPoint(cell:vec3u,offset:vec3f)->vec4f{
- let uv=(vec2f(cell.xy)+offset.xy)*frame.grid.w*frame.view.zw;
+ let uv=(vec2f(cell.xy)+offset.xy)/frame.grid.xy;
  let depth=fogDepthAtSlice(max(f32(cell.z)+offset.z,0.0));
- return vec4f(frame.eye.xyz+depth*fogPixelRay(uvToNdc(uv)),depth);
+ let near=fogNearPoint(uvToNdc(uv));
+ if(fogOrtho()){return vec4f(frame.eye.xyz+near+(depth-dot(near,frame.forward.xyz))*frame.forward.xyz,depth);}
+ return vec4f(frame.eye.xyz+depth*(near/dot(near,frame.forward.xyz)),depth);
 }
 `,
 )
@@ -67,11 +73,13 @@ export const FOG_SURFACE_WGSL = wgslBlock(
   [FOG_CELLS_WGSL, ndcToUv, perspectiveDivide, rand4dPcg32],
   `
 /** The view depth the depth buffer holds at \`pixel\`: its far value, where no surface was drawn, converts
- *  to \`1 / 10⁻⁸\`, the tiny fudge keeping the division finite. */
+ *  to \`1 / FOG_DEPTH_FUDGE\` (10¹¹ metres), the tiny fudge keeping the division finite; for an
+ *  orthographic view, whose depth buffer is linear, to the far plane's. */
 fn fogSceneDepthAt(pixel:vec2i)->f32{
  let at=clamp(pixel,vec2i(0),vec2i(frame.view.xy)-vec2i(1));
  let z=textureLoad(fogDepth,at,0);
- return frame.depthMap.y/(z-frame.depthMap.x+1e-8*frame.depthMap.y);
+ if(fogOrtho()){return (z-frame.depthMap.y)/frame.depthMap.x;}
+ return frame.depthMap.y/(z-frame.depthMap.x+${wgslF32(FOG_DEPTH_FUDGE)}*frame.depthMap.y);
 }
 /** The pixel of the depth buffer the unit-square coordinates \`uv\` fall on. */
 fn fogPixelOf(uv:vec2f)->vec2i{return vec2i(floor(uv*frame.view.xy));}

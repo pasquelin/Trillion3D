@@ -1,10 +1,12 @@
 /**
- * Where a pass sits relative to the display curve: on the image the temporal pass resolved, before
+ * Where a pass sits relative to the temporal pass and the display curve: on the lit image, before
+ * the temporal pass resolves it (`before-resolve`); on the image the temporal pass resolved, before
  * its exposure is measured and before every other pass (`after-resolve`); on the scene's linear
  * radiance, before the exposure and the curve bring it into the display range; or on the display
  * image they made.
  */
-export type EffectStage = 'after-resolve' | 'before-tone-mapping' | 'after-tone-mapping'
+export type EffectStage =
+  'before-resolve' | 'after-resolve' | 'before-tone-mapping' | 'after-tone-mapping'
 
 /** The built-in passes an engine knows how to draw. */
 export type EffectKind = 'depthOfField' | 'motionBlur' | 'bloom' | 'outline'
@@ -16,7 +18,8 @@ export type EffectKind = 'depthOfField' | 'motionBlur' | 'bloom' | 'outline'
 export abstract class EffectPass {
   /** Which built-in pass this is. */
   abstract readonly kind: EffectKind
-  /** Whether it runs before or after tone mapping. */
+  /** Where it runs: on the lit image before the temporal pass, on the image the pass resolved, before
+   *  tone mapping, or over the display image after it. */
   abstract readonly stage: EffectStage
   /** @internal The chain that holds the pass, told when a setting changes; `null` outside one. */
   _chain: EffectChain | null = null
@@ -32,10 +35,11 @@ export abstract class EffectPass {
 }
 
 /**
- * `world.effects`: the ordered passes drawn over the image after temporal antialiasing and before
- * it reaches the canvas. The passes that run on the resolved image read it first, in the order they
- * were added; those that run before tone mapping read the linear radiance, in theirs; those that
- * run after draw over the display image, in theirs. An empty
+ * `world.effects`: the ordered passes drawn over the image around temporal antialiasing and before
+ * it reaches the canvas. The passes that run on the lit image, before the temporal pass, come
+ * first, whatever their place in the chain; those that run on the resolved image read it next, in the
+ * order they were added; those that run before tone mapping read the linear radiance, in theirs;
+ * those that run after draw over the display image, in theirs. An empty
  * chain, or one whose passes are all idle, costs nothing: no pass, no copy, no target. A
  * transparent surface blending in `multiply` or `subtractive` is drawn under the chain like any
  * other.

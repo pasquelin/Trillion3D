@@ -100,6 +100,9 @@ export async function engineImage(
   const { backend, canvas } = engine(scene, device, (e: EngineDiagnostic) => events.push(e), {
     clearColor: CLEAR_COLOR,
     sceneLights,
+    // No dither of the display's steps (24 bits or more): the images are compared pixel for pixel
+    // with the witness, which draws none.
+    quantizationDitheringBits: 32,
   })
   try {
     await backend.prepare()

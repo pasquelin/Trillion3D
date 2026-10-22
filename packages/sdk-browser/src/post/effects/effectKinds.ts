@@ -1,12 +1,13 @@
 import type { EffectKind, EffectPass } from '../../../../sdk-core/src/world/effect/chain.ts'
-import { countKinds, EFFECT_KINDS } from './targets.ts'
+import { EFFECT_KINDS } from './kindRules.ts'
+import { countKinds } from './targets.ts'
 import { type Kinds, WEBGPU_KINDS } from './webgpuKinds.ts'
 
-/** The passes of one stage that draw, the number of each kind among them and the rank the next
- *  pass of each kind takes, rewritten by each image: an image allocates none. */
+/** The number of each kind among the passes of one stage that draw (`KindSettings.drawn`: an idle
+ *  pass counts for no kind, its code is not loaded until the first image it has something to draw)
+ *  and the rank the next pass of each kind takes, rewritten by each image: an image allocates none. */
 export function createStage() {
   return {
-    drawing: [] as EffectPass[],
     counts: {} as Record<EffectKind, number>,
     nth: {} as Record<EffectKind, number>,
   }
@@ -46,7 +47,9 @@ export function createKinds(device: GPUDevice, fail: (error: unknown) => void) {
     made,
     /** True while programs compile, a kind's own after it was made included. */
     get loading() {
-      return pending.size > 0 || EFFECT_KINDS.some((kind) => made[kind]?.arriving)
+      if (pending.size > 0) return true
+      for (const kind of EFFECT_KINDS) if (made[kind]?.arriving) return true
+      return false
     },
     /** Resolves once every program in compilation has arrived or failed. */
     settled: () =>

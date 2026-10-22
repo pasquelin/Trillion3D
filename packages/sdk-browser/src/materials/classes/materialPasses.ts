@@ -9,6 +9,7 @@ import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts'
 import { contextReader } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import { shadeBinningQuads } from './shadeBins.ts'
+import { displacedGroup, displacedKeys } from '../../visibility/tessellation/prismFrame.ts'
 
 /** The shading's setting `field` the session holds (`shadingOptions.ts`), by its one resolver,
  *  read at each image. */
@@ -23,6 +24,27 @@ export const createPresentClasses = (): PresentClasses => ({
   stamp: 0,
   read: rowsUnread(),
 })
+
+/** One indirect dispatch a class of the image over its bin, in `shading`. The classes that draw a
+ *  displaced pixel read their own group 0 and pipeline (`prismFrame.ts`), the others the resolve's. */
+function dispatchClasses(
+  rt: WebgpuPagesRuntime,
+  shading: GPUComputePassEncoder,
+  keys: readonly number[],
+  bins: NonNullable<WebgpuPagesRuntime['vis']['shadeBins']>,
+) {
+  const { gpu, vis } = rt,
+    classes = vis.shadeClasses!
+  const displaced = displacedKeys(rt)
+  let group: GPUBindGroup | undefined
+  for (let at = 0; at < keys.length; at++) {
+    const place = displaced.includes(keys[at]!)
+    const wanted = place ? displacedGroup(rt, gpu.device!) : vis.shadeBindGroup
+    if (wanted !== group) shading.setBindGroup(0, (group = wanted))
+    shading.setPipeline((place ? classes.displaced(keys[at]!) : classes.of(keys[at]!)).get())
+    bins.dispatch(shading, at)
+  }
+}
 
 /**
  * Surfaces of the opaque image, shaded in compute as the reference shades them. The surfaces and
@@ -51,10 +73,9 @@ export function encodeMaterialPasses(rt: WebgpuPagesRuntime, encoder: GPUCommand
   )
   // Its rows are written: one that came to emit or occlude brings the layer before this resolve.
   followEmissiveAo(rt)
-  // Read after the layer was followed: a surface that came to emit switched the classes and the
-  // surfaces.
-  const classes = vis.shadeClasses,
-    surfaces = gpu.surfaces!
+  // Read after the layer was followed: a surface that came to emit switched the classes
+  // (`dispatchClasses` reads them) and the surfaces.
+  const surfaces = gpu.surfaces!
   encoder
     .beginRenderPass({
       label: MATERIAL_SURFACES_PASS,
@@ -85,12 +106,8 @@ export function encodeMaterialPasses(rt: WebgpuPagesRuntime, encoder: GPUCommand
     )
     const shading = pass.pass,
       feedback = vis.writesFeedback ? gpu.feedbackView : undefined
-    shading.setBindGroup(0, vis.shadeBindGroup)
     shading.setBindGroup(1, bins.outputs(surfaces, feedback))
-    for (let at = 0; at < keys.length; at++) {
-      shading.setPipeline(classes.of(keys[at]).get())
-      bins.dispatch(shading, at)
-    }
+    dispatchClasses(rt, shading, keys, bins)
     run.gpuComputeDispatches += keys.length
   }
   pass.end()

@@ -58,6 +58,21 @@ export function askedComputeStage(
   return stage
 }
 
+/** Runs `stage` on `group`, over `x` × `y` workgroups, in the compute pass `pass`: the dispatches of
+ *  one job — a transform's three passes, a kernel's preparation — share one pass, each seeing what the
+ *  one before wrote. */
+export function dispatchOn(
+  pass: GPUComputePassEncoder,
+  stage: { get(): GPUComputePipeline },
+  group: GPUBindGroup,
+  x: number,
+  y = 1,
+) {
+  pass.setPipeline(stage.get())
+  pass.setBindGroup(0, group)
+  pass.dispatchWorkgroups(x, y)
+}
+
 /** The stage `entryPoint` of `module` on the bind-group layouts `layouts`, group by group, its
  *  overrides `constants`, labelled `label`, built now: every built compute stage of the engine. */
 export const buildComputeStage = (

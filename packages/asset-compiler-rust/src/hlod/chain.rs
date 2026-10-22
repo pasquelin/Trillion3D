@@ -124,7 +124,8 @@ pub(crate) fn stage_world_roots(
     })
 }
 
-/// What the job tells of how its objects were assigned: each object whose mark won over a rule
+/// What the job tells of how its objects were assigned: each layer that lost its parent
+/// (`Hlod::chains`), each object whose mark won over a rule
 /// naming another layer, each node marked that no HLOD takes, each object its settings make an
 /// instanced skinned one that stays a plain skinned one, and each batch root whose `runtimeGrid` no
 /// streaming grid bears: told, never an error.
@@ -164,7 +165,8 @@ fn assignment_warnings(cells: &CellMembers, hlod: &crate::Hlod, nodes: &[Value])
             name(*node)
         )
     });
-    overruled
+    (hlod.dropped.iter().cloned())
+        .chain(overruled)
         .chain(unplaced)
         .chain(banks)
         .chain(grids)

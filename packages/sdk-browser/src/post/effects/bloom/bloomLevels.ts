@@ -1,4 +1,5 @@
 import type { Bloom } from '../../../../../sdk-core/src/world/effect/bloom.ts'
+import type { GaussianBlurValues } from '../../../../../sdk-core/src/contracts/gaussianBlurRules.ts'
 import { BLOOM_LEVEL_COUNT } from '../../../../../sdk-core/src/contracts/bloomOptions.ts'
 import { createGaussianStage } from '../../filters/gaussianStage.ts'
 import { BLOOM_LEVEL_LEAST, bloomTintScale } from './bloomFilter.ts'
@@ -9,6 +10,15 @@ import type { BloomTargets } from './bloomTargets.ts'
 export type Levels = {
   size(level: number): readonly number[]
   view(level: number): GPUTextureView | undefined
+}
+
+/** How the levels are blurred (`bloomQuality`, `bloomCross` and the Gaussian blur's settings): the
+ *  first level that draws, the shares of the centre texel the two passes of each keep, and how the
+ *  blur is sized (`blur`). */
+export interface BlurLook {
+  first: number
+  cross: readonly number[]
+  blur: GaussianBlurValues
 }
 
 /** The finest level from `first` on that draws — its size past `BLOOM_LEVEL_LEAST` —, -1 when none
@@ -33,18 +43,17 @@ export function createBloomLevels(device: GPUDevice, targets: BloomTargets) {
     /** The blur of `level`, at the size of that level. */
     view: (level: number) => stages[level].view,
     /**
-     * Blurs each level of `bloom` from `first` on that draws, its image `from.view(level)` — the
-     * level 0's is `image` —, the glow scaled by `bloom.intensity × bloom.gaussianIntensity` over the
-     * six levels, the centre of the two passes of each given the shares `cross`; returns the render
-     * passes drawn.
+     * Blurs each level of `bloom` from `look.first` on that draws, its image `from.view(level)` —
+     * the level 0's is `image` —, the glow scaled by `bloom.intensity × bloom.gaussianIntensity` over
+     * the six levels, the centre of the two passes of each given the shares `look.cross`, the blur
+     * sized as `look.blur` says; returns the render passes drawn.
      */
     draw(
       encoder: GPUCommandEncoder,
       bloom: Bloom,
       from: Levels,
       image: GPUTextureView,
-      first: number,
-      cross: readonly number[],
+      { first, cross, blur }: BlurLook,
     ) {
       const scale = bloomTintScale(bloom.intensity * bloom.gaussianIntensity)
       let below: GPUTextureView | undefined,
@@ -54,7 +63,8 @@ export function createBloomLevels(device: GPUDevice, targets: BloomTargets) {
         if (!(size > BLOOM_LEVEL_LEAST)) continue
         const across = from.size(level)
         for (let c = 0; c < 3; c++) tint[c] = color[c] * scale
-        stages[level].resize(across[0], across[1], size * bloom.sizeScale, tint, !!below, cross)
+        const percent = size * bloom.sizeScale
+        stages[level].resize(across[0], across[1], percent, blur, tint, !!below, cross)
         stages[level].encode(encoder, level ? from.view(level)! : image, below)
         below = stages[level].view
         drawn += 2

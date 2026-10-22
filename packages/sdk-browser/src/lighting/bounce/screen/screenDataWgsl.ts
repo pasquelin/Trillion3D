@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { workgroupSumLoop } from '../../../gpu/core/workgroupSumWgsl.ts'
+import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
 import { spHistory } from './historyWgsl.ts'
 import { spProbes, spSurface } from './probesWgsl.ts'
@@ -21,6 +22,7 @@ export const SCREEN_DATA_BINDINGS = bindingTable({
   brdf: [8, 'buffer'],
   disocclusion: [9, 'buffer'],
   vectors: [10, 'uint'],
+  blue: [11, 'float'],
 })
 
 const B = SCREEN_DATA_BINDINGS.at
@@ -51,7 +53,7 @@ const SP_SUMS:u32=${SUMS}u;
 var<workgroup> partial:array<array<f32,${SUMS}>,${FOOTPRINT}>;
 /** Whether most of the last image's pixels round \`P\` hold no history, that is, fewer than the frames the filter waits for. */
 fn spDisoccluded(pixel:vec2u,P:vec3f,N:vec3f)->bool{
- let h=spReproject(pixel,P,N,spNoise(pixel,sp.size.w).x);
+ let h=spReproject(pixel,P,N,blueNoiseScalar(pixel,sp.size.w));
  if(dot(h.weights,vec4f(1.0))<=0.0){return true;}
  return min(spHistoryFrames(h)+1.0,f32(sp.counts.x))<sp.tuning.x;
 }
@@ -68,7 +70,7 @@ fn spFootprint(lane:u32,probe:SpProbe,own:vec2f)->array<f32,${SUMS}>{
   let cosine=spCosine(s.N);
   for(var k=0u;k<9u;k++){mine[k]=cosine[k];}
   mine[9]=1.0;
-  mine[10]=select(0.0,1.0,spDisoccluded(pixel,s.P,s.N));
+  mine[10]=select(0.0,1.0,spFlag(SP_FLAG_DISOCCLUSION)&&spDisoccluded(pixel,s.P,s.N));
  }
  return mine;
 }
@@ -86,7 +88,7 @@ fn screenData(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index
  if(lane!=0u||probe.depth<=0.0){return;}
  let count=max(partial[0][9],1.0);
  for(var k=0u;k<9u;k++){brdf[index*9u+k]=partial[0][k]/count;}
- disocclusion[index]=select(0u,1u,partial[0][10]>=count*sp.tuning.y);
+ disocclusion[index]=select(0u,1u,spFlag(SP_FLAG_DISOCCLUSION)&&partial[0][10]>=count*sp.tuning.y);
 }`,
 )
 
@@ -97,5 +99,6 @@ export const screenDataShader = (samples: readonly [number, number]) =>
     spSurface(B.normals, B.flags),
     spProbes(B.info, B.normal, B.counts),
     spHistory(B.history, B.vectors),
+    blueNoiseWgsl(0, B.blue),
     SCREEN_DATA_WGSL,
   ])

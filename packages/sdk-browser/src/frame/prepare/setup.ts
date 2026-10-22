@@ -19,6 +19,7 @@ import { sessionGeometryPool } from '../../session/memory/sessionPool.ts'
 import { DEFAULT_PIXEL_RATIO } from '../../session/engine/common.ts'
 import { bootstrapFields, setupPages } from './setupCatalogue.ts'
 import { DAG_CLUSTER_TRIANGLES } from '../../../../sdk-core/src/page/format.ts'
+import { clippingFor } from '../../gpu/core/clipDistances.ts'
 
 /** The corners of the widest cluster the format holds. */
 const CLUSTER_MAX_CORNERS = 3 * DAG_CLUSTER_TRIANGLES
@@ -42,6 +43,10 @@ export function createWebgpuPagesSetup(context: EngineContext, diag: WebgpuDiagn
     // Rows, roots and transparent copies carry the matrices.
     worlds: pages.worlds,
     viewport: context.viewport ?? [1, 1],
+    /** How every program of the session cuts at a view's clip plane, none while the project switch
+     *  `cutClipPlane` is off: read once, here, as the reference's read-only switch is
+     *  (`../../gpu/core/clipDistances.ts`). */
+    clipping: clippingFor(context),
     pixelRatio: context.pixelRatio ?? (() => DEFAULT_PIXEL_RATIO),
     roots: pages.roots,
     /** What collected the roots, which collects a source added later (`addPlacements`). */

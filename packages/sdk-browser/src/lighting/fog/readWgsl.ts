@@ -1,5 +1,6 @@
 import { wgslBlock, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { ndcToUv, perspectiveDivide, uvToNdc } from '../../../../math/src/wgsl/projection.ts'
+import { rand3dPcg16 } from '../../../../math/src/wgsl/sampling.ts'
 import { FOG_SLOT } from '../../../../sdk-core/src/scene/core/fog.ts'
 import { fogWgsl } from '../fogShader.ts'
 import { FOG_VOLUME_FRAME_WGSL } from './frame.ts'
@@ -11,15 +12,16 @@ export const FOG_FRAME_STRUCT_WGSL = wgslBlock('FOG_FRAME_STRUCT_WGSL', [], FOG_
 /** Where a program binds what the fog reads past the light buffer, in the bind group `group`: the
  *  cubemap, the volume, and the sampler both are read through. A binding left out answers as no
  *  cubemap or no volume would (`fogResourcesWgsl`). The volume's view — where a surface finds its
- *  cell — is not a binding: it lies in the light buffer (`viewSlots.ts`). `trilinear` reads the
- *  volume through the sampler alone, the cubic filters left out: the forward passes' (the
- *  translucent layers'), as the filters are for the passes that draw the whole image. */
+ *  cell — is not a binding: it lies in the light buffer (`viewSlots.ts`). `translucent` reads the
+ *  volume as a translucent layer does: through the sampler alone, the cubic filters left out, at
+ *  where the point lies in the view; the passes that draw the whole image read it at the pixel,
+ *  jittered where the settings ask, through the filter the settings name. */
 export interface FogResourceBindings {
   readonly group: number
   readonly cubemap?: number
   readonly volume?: number
   readonly sampler?: number
-  readonly trilinear?: boolean
+  readonly translucent?: boolean
   /** The light shafts' occlusion mask, a filterable `texture_2d<f32>` read through the sampler
    *  (`lightShaftMask`); left out, the mask answers 1, no occlusion. */
   readonly lightShaft?: number
@@ -27,7 +29,7 @@ export interface FogResourceBindings {
 
 /** The bindings as a block name reads them, in their declared order. */
 export const fogBindingsLabel = (b: FogResourceBindings) =>
-  `${b.group}, ${b.cubemap}, ${b.volume}, ${b.sampler}${b.trilinear ? ', trilinear' : ''}${b.lightShaft === undefined ? '' : `, ${b.lightShaft}`}`
+  `${b.group}, ${b.cubemap}, ${b.volume}, ${b.sampler}${b.translucent ? ', translucent' : ''}${b.lightShaft === undefined ? '' : `, ${b.lightShaft}`}`
 
 /** The slot `slot` of the view block, a `vec4f`. */
 const view = (slot: number) => `directLights.fogView[${slot}]`
@@ -86,6 +88,32 @@ fn fogSampleFiltered(uvw:vec3f)->vec4f{
 const TRILINEAR_TEXT = `
 fn fogSampleFiltered(uvw:vec3f)->vec4f{return fogSampleVolume(uvw);}`
 
+/** Where the volume is read in the screen for the point at \`uv\` of the view, by a pass that draws the
+ *  whole image: at its pixel — the cells' extent over the textures' —, moved by the settings' random
+ *  offset in cells (\`stretch.z\`; in pixels, that times the cell's side), the hash of the pixel and of
+ *  the image's number, and held to where the cells end. */
+const SCREEN_UV_TEXT = `
+fn fogReadUV(uv:vec2f)->vec2f{
+ let reads=${view(FOG_VIEW_SLOT.uv)};
+ var at=uv*reads.xy;
+ let jitter=${view(FOG_VIEW_SLOT.stretch)}.z;
+ if(jitter!=0.0){
+  let cells=${view(FOG_VIEW_SLOT.grid)};
+  let extent=cells.xy*cells.w;
+  let pixel=vec2i(floor(uv*reads.xy*extent));
+  let random=vec2f(rand3dPcg16(vec3i(pixel,i32(${view(FOG_VIEW_SLOT.stretch)}.w))).xy)/65535.0*2.0-1.0;
+  at+=random*(jitter*cells.w)/extent;
+ }
+ return min(at,reads.zw);
+}`
+
+/** Where the volume is read for a translucent layer: the point's place in the view, over the share of
+ *  the textures the view's cells cover, held to where they end. */
+const TRANSLUCENT_UV_TEXT = `
+fn fogReadUV(uv:vec2f)->vec2f{
+ return min(uv*${view(FOG_VIEW_SLOT.stretch)}.xy,${view(FOG_VIEW_SLOT.uv)}.zw);
+}`
+
 /** The volume's read, as a surface's pixel makes it. */
 const VOLUME_TEXT = `
 /** Whether the scene turns the volume on (the fog block's reach lane) and this image's is built (the
@@ -101,19 +129,19 @@ fn fogVolumeExclude(toward:vec3f)->f32{
  return ${reach}.y*select(0.0,1.0/cosine,cosine>FOG_MIN_COSINE);
 }
 /** The volume's light and transmittance along \`toward\`, the vector from the eye to a point: read at
- *  the point's pixel and view depth, and faded in from the volume's start distance by a step, not a
+ *  the point's screen place (\`fogReadUV\`) and view depth — its distance along the forward, which
+ *  an orthographic view's clip weight is not —, and faded in from the volume's start distance by a step, not a
  *  ramp (its own fade is built into it), the light divided by the pre-exposure it was written
  *  multiplied by. */
 fn fogVolumeLookup(toward:vec3f)->vec4f{
  let none=vec4f(0.0,0.0,0.0,1.0);
  if(!fogVolumeBuilt()){return none;}
  let clip=${viewProjection()}*vec4f(${view(FOG_VIEW_SLOT.eye)}.xyz+toward,1.0);
- let depth=clip.w;
+ let depth=dot(toward,${view(FOG_VIEW_SLOT.forward)}.xyz);
  let uv=ndcToUv(perspectiveDivide(clip).xy);
  let sliceMap=${view(FOG_VIEW_SLOT.sliceMap)};
  let slice=log2(depth*sliceMap.x+sliceMap.y)*sliceMap.z*sliceMap.w;
- let reads=${view(FOG_VIEW_SLOT.uv)};
- let found=fogSampleFiltered(vec3f(min(uv*reads.xy,reads.zw),slice));
+ let found=fogSampleFiltered(vec3f(fogReadUV(uv),slice));
  let unexposed=vec4f(found.rgb*${view(FOG_VIEW_SLOT.exposure)}.z,found.a);
  return mix(none,unexposed,saturate((depth-${reach}.z)*100000000.0));
 }`
@@ -124,9 +152,9 @@ fn fogVolumeLookup(toward:vec3f)->vec4f{
 const lightShaftText = (b: Required<Pick<FogResourceBindings, 'group' | 'lightShaft'>>) => `
 @group(${b.group}) @binding(${b.lightShaft}) var lightShaftMaskTexture:texture_2d<f32>;
 fn lightShaftMask(pixel:vec2f)->f32{
- let bounds=${view(FOG_VIEW_SLOT.lightShaftBounds)};
- let uv=clamp(pixel*${view(FOG_VIEW_SLOT.lightShaftScene)}.zw,bounds.xy,bounds.zw);
- return textureSampleLevel(lightShaftMaskTexture,fogSampler,uv,0.0).x;
+  let bounds=${view(FOG_VIEW_SLOT.lightShaftBounds)};
+  let uv=clamp(pixel*${view(FOG_VIEW_SLOT.lightShaftScene)}.zw,bounds.xy,bounds.zw);
+  return textureSampleLevel(lightShaftMaskTexture,fogSampler,uv,0.0).x;
 }`
 
 /** What the fog reads past the light buffer, from a program that binds `b`: its declarations, and
@@ -135,7 +163,7 @@ fn lightShaftMask(pixel:vec2f)->f32{
  *  so that the tint alone colours the fog, no volume to exclude and none to read, `(0, 0, 0, 1)`.
  *  The program lists it over the fog's text (`fogWgsl`). */
 export function fogResourcesWgsl(b: FogResourceBindings): WgslDecl {
-  const { group, cubemap, volume, sampler, trilinear, lightShaft } = b
+  const { group, cubemap, volume, sampler, translucent, lightShaft } = b
   if (
     (volume !== undefined || cubemap !== undefined || lightShaft !== undefined) &&
     sampler === undefined
@@ -145,7 +173,7 @@ export function fogResourcesWgsl(b: FogResourceBindings): WgslDecl {
     sampler === undefined ? '' : `@group(${group}) @binding(${sampler}) var fogSampler:sampler;`,
     volume === undefined
       ? 'fn fogVolumeExclude(toward:vec3f)->f32{return 0.0;}\nfn fogVolumeLookup(toward:vec3f)->vec4f{return vec4f(0.0,0.0,0.0,1.0);}'
-      : `@group(${group}) @binding(${volume}) var fogVolume:texture_3d<f32>;${SAMPLE_TEXT}${trilinear ? TRILINEAR_TEXT : FILTERED_TEXT}${VOLUME_TEXT}`,
+      : `@group(${group}) @binding(${volume}) var fogVolume:texture_3d<f32>;${SAMPLE_TEXT}${translucent ? TRILINEAR_TEXT : FILTERED_TEXT}${translucent ? TRANSLUCENT_UV_TEXT : SCREEN_UV_TEXT}${VOLUME_TEXT}`,
     cubemap === undefined
       ? 'fn fogCubeSharp(direction:vec3f)->vec3f{return vec3f(1.0);}\nfn fogCubeAverage(direction:vec3f)->vec3f{return vec3f(1.0);}'
       : cubemapText({ group, cubemap }),
@@ -155,7 +183,7 @@ export function fogResourcesWgsl(b: FogResourceBindings): WgslDecl {
   ]
   return wgslBlock(
     `fogResourcesWgsl(${fogBindingsLabel(b)})`,
-    [uvToNdc, ndcToUv, perspectiveDivide],
+    [uvToNdc, ndcToUv, perspectiveDivide, rand3dPcg16],
     declarations.join('\n'),
   )
 }

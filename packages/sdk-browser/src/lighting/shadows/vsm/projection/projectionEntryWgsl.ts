@@ -33,7 +33,7 @@ fn vsmPixelOf(tile:vec2u,groupIndex:u32)->VsmPixel{
  let svPosition=vec4f(vec2f(p.pos)+0.5,deviceZ,1.0);
  p.shifted=vsmPixelToShifted(svPosition);
  p.screenRayWorld=(vsmView.screenRayScale.xy*(vsm.screenRayShare*p.sceneDepth)+vsmView.screenRayScale.zw).y;
- p.noise=vsmNoiseOne(vec2u(svPosition.xy),vsmView.frameIndex);
+ p.noise=blueNoiseScalar(vec2u(svPosition.xy),vsmView.frameIndex);
  // The surface's own point and bias normal (\`vsmOnReceiver\`): on the opaque surfaces the engine's
  // shadow receiver, as every shadow map of the engine reads it — the pixel's point on the Phong
  // surface its vertex normals describe rather than its flat triangle (\`shadowReceiver\`), and the

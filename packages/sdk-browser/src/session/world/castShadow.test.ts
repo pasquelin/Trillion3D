@@ -113,6 +113,23 @@ test('a saved scene keeps each flag, and one of version 1, whose flags were neve
   assert.equal(casts()[1][1], true, 'the scene is left as it was')
 })
 
+test('a saved scene keeps what a node says of the far-shadow test, written only when it says', async () => {
+  const scene = new Scene(async () => new Object3D() as never)
+  const [view, reached, never] = [0, 1, 2].map(() => object.mesh(geometry.box(1, 1, 1)))
+  reached.farShadowTest = true
+  never.farShadowTest = false
+  scene.add(view, reached, never)
+  const saved = scene.toJSON()
+  assert.deepEqual(
+    saved.children.map((node) => ('farShadowTest' in node ? node.farShadowTest : 'absent')),
+    ['absent', true, false],
+  )
+  const tests = () => scene.children.map((node) => node.farShadowTest)
+  reached.farShadowTest = null
+  await scene.fromJSON(saved)
+  assert.deepEqual(tests(), [null, true, false], 'read back as saved: the view’s rule is null')
+})
+
 test('a version 2 file saved before the far flag loads, every mesh casting none far', async () => {
   const scene = new Scene(async () => new Object3D() as never)
   const box = object.mesh(geometry.box(1, 1, 1))

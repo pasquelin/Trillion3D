@@ -13,12 +13,13 @@ import { FOG_PLAN_WGSL } from './planWgsl.ts'
  * — the cell's centre without jitter —, moved forward off the depth buffer (`fogLiftOffSurface`), and
  * averages their light; the baked light (the static term, `staticWgsl.ts`) the pass before left for the
  * same samples adds to it, where the image has one. A hidden cell is not lit: it holds nothing, light or
- * extinction. The blend with the previous volume is the plan's weight of the history; the result is held
- * to what a half float stores.
+ * extinction. The blend with the previous volume is the plan's weight of the history.
  *
  * The light is written multiplied by the image's pre-exposure (\`frame.exposure.x\`), the history's,
  * written multiplied by its own, brought to this one by the ratio (\`frame.exposure.y\`); the
- * extinction is left as it is. A surface reads the light divided by it again (\`readWgsl.ts\`).
+ * extinction is left as it is. A surface reads the light divided by it again (\`readWgsl.ts\`). The result
+ * is kept where it is positive and finite as a 32-bit float, and made zero where it is not
+ * (\`fogPositiveFinite\`).
  */
 export const FOG_SCATTER_WGSL = wgslBlock(
   'FOG_SCATTER_WGSL',

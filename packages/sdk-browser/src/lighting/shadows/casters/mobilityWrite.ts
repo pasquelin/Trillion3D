@@ -1,10 +1,4 @@
-import {
-  MOBILITY_CORNER_SHIFT,
-  MOBILITY_CUTOUT,
-  MOBILITY_FAR_SHADOW,
-  MOBILITY_MOVING,
-  MOBILITY_SHADOWLESS,
-} from '../mobilityBits.ts'
+import { MOBILITY_CORNER_SHIFT, MOBILITY_CUTOUT, MOBILITY_PLACEMENT_BITS } from '../mobilityBits.ts'
 import { rankBits, rebuildRowIndex, type MobilityState } from './mobilityState.ts'
 
 /** The row words of rows `[from, last]`, each from its row's placement, as one span pushed. */
@@ -39,7 +33,7 @@ function writeDirtyRows(
   castFlags: (rank: number) => number,
 ) {
   if (s.indexStale) rebuildRowIndex(s)
-  const kept = ~(MOBILITY_MOVING | MOBILITY_SHADOWLESS | MOBILITY_FAR_SHADOW)
+  const kept = ~MOBILITY_PLACEMENT_BITS
   for (const rank of s.dirtyList) {
     s.dirty[rank] = 0
     const bits = rankBits(s, rank, castFlags)

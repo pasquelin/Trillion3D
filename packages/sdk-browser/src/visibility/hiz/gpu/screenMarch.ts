@@ -11,7 +11,9 @@ import { SCREEN_MARCH_REFERENCE_WGSL } from './screenMarchReference.ts'
  * The ray is `o + d·t`, `o` in pixels and reversed depth, `t` from 0 to `end` (`screenMarchEnd`:
  * the image's edge, or the ray's far end). It returns the `t` it stopped at, the plane (depth at its
  * centre, slopes) and centre of the pixel it stopped in (`ScreenHit`), and the iterations it took
- * (`steps`), `t` −1 where it meets nothing; `front` says the hit is a transparent surface before the
+ * (`steps`), `t` −1 where it meets nothing, and `above`, where a miss stopped knowing the ray: the furthest `t` the
+ * march has the ray in front of every surface it walked (`end` where it crossed the image, its `t` where the budget ran out or
+ * the ray went behind a surface; zero on a hit); `front` says the hit is a transparent surface before the
  * opaque depth (`hizFrontOver`, false where the pyramid holds none): the reflection keeps it, the
  * contact shadow skips it.
  *

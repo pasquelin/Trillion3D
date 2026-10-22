@@ -38,6 +38,23 @@ import { DISTANCE_FIELD_REPRESENTATION_FLAG } from '../../lighting/distanceField
 import { PHYSICAL_LOBES_CALL, PHYSICAL_UV_READ } from './physicalWgsl.ts'
 import { SHADE_ENTRY_WGSL } from './shadeEntryWgsl.ts'
 import { visPageIndex, visTriangle } from '../visWords.ts'
+import { DISPLACED_PIXEL_WGSL } from '../tessellation/prismWgsl.ts'
+
+/** What a displaced class's resolve adds to the text (`displaced`): its own module alone holds it
+ *  (`shadePipelines.ts`), the classes that draw no displaced pixel compile the text they compiled
+ *  before. A displaced row's pixel is placed on its displaced triangle (`solveDisplaced`,
+ *  `../tessellation/prismWgsl.ts`): the weights of the surface position the depth gives, and their
+ *  steps to the next pixel, which the texture derivatives and the normal's change read. */
+const DISPLACED_PIXEL = ` var solved=false;var stepX=vec3f(0.0);var stepY=vec3f(0.0);
+ if(prism.tessellation!=0u&&tessellatedFlags(page)){
+  let s=solveDisplaced(page,tri,pos.xy);
+  if(s.ok){bary=s.value;stepX=s.dx;stepY=s.dy;solved=true;}
+ }
+`
+const DISPLACED_GRADIENTS = `  if(solved){ddx=t.uva*stepX.x+t.uvb*stepX.y+t.uvc*stepX.z;ddy=t.uva*stepY.x+t.uvb*stepY.y+t.uvc*stepY.z;}
+`
+const DISPLACED_STEPS = `   if(solved){bx=bary+stepX;by=bary+stepY;}
+`
 
 /** What a voxel class's resolve adds to the text (`VOXEL`): its own module alone holds it, made
  *  the first time a voxel class is asked (`shadePipelines.ts`); every other class compiles the text
@@ -109,7 +126,8 @@ const STORED_TANGENT_FRAME_WGSL = wgslBlock(
 export const shadeShader = ({
   diagnostic,
   voxel = false,
-}: { diagnostic?: WgslDecl; voxel?: boolean } = {}) =>
+  displaced = false,
+}: { diagnostic?: WgslDecl; voxel?: boolean; displaced?: boolean } = {}) =>
   wgslProgram(
     `/** The surfaces of a pixel of the class's bin (\`binnedPixel\`), its storage values in the variables of
  *  its entry (\`shadeEntryWgsl.ts\`); its surface's factors and maps its record's (\`materialAt\`). */
@@ -128,14 +146,14 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  let p=vec2f(pos.x,pos.y);
  let area=edgeFunction(s1.xy,s2.xy,s0.xy);
  var rgb=m.baseColor;
- let bary=perspectiveBarycentric(s0,s1,s2,t.iw,p,area);
-${voxel ? VOXEL_PIXEL : ''} var uv=vec2f(0.0);
+ ${displaced ? 'var' : 'let'} bary=perspectiveBarycentric(s0,s1,s2,t.iw,p,area);
+${displaced ? DISPLACED_PIXEL : ''}${voxel ? VOXEL_PIXEL : ''} var uv=vec2f(0.0);
  var ddx=vec2f(0.0);var ddy=vec2f(0.0);
  if(HAS_UV){
   uv=t.uva*bary.x+t.uvb*bary.y+t.uvc*bary.z;
   let g=uvGradients(s0.xy,s1.xy,s2.xy,p,t.uva,t.uvb,t.uvc,t.iw);
   ddx=g[0];ddy=g[1];
- }
+${displaced ? DISPLACED_GRADIENTS : ''} }
  let model=(page.flags>>${MODEL_SHIFT}u)&7u;
  // A matcap material reads its image by the view-space normal: the base map at that coordinate,
  // from the triangle's world normals the decode turned to the row's side (\`decodeTriangle\`).
@@ -212,9 +230,9 @@ ${voxel ? VOXEL_RECEIVER : PLAIN_RECEIVER}  }
   var Nx=N;var Ny=N;
   if(HAS_VERTEX_NORMAL){
    N=unitOrZero(n0*bary.x+n1*bary.y+n2*bary.z);
-   let bx=perspectiveBarycentric(s0,s1,s2,t.iw,p+vec2f(1.0,0.0),area);
-   let by=perspectiveBarycentric(s0,s1,s2,t.iw,p+vec2f(0.0,1.0),area);
-   Nx=unitOrZero(n0*bx.x+n1*bx.y+n2*bx.z);
+   ${displaced ? 'var' : 'let'} bx=perspectiveBarycentric(s0,s1,s2,t.iw,p+vec2f(1.0,0.0),area);
+   ${displaced ? 'var' : 'let'} by=perspectiveBarycentric(s0,s1,s2,t.iw,p+vec2f(0.0,1.0),area);
+${displaced ? DISPLACED_STEPS : ''}   Nx=unitOrZero(n0*bx.x+n1*bx.y+n2*bx.z);
    Ny=unitOrZero(n0*by.x+n1*by.y+n2*by.z);
    if(DOUBLE_SIDED){N*=face;Nx*=face;Ny*=face;}
   }
@@ -273,6 +291,7 @@ ${voxel ? VOXEL_NORMAL : ''}  // The clear coat bends its own normal map from th
       DIAGNOSTIC_PALETTE_WGSL,
       worldMatrix3,
       ...(voxel ? [VOXEL_HIT_WGSL, VOXEL_SURFACE_WGSL, VOXEL_STEPS_WGSL, cofactor3] : []),
+      ...(displaced ? [DISPLACED_PIXEL_WGSL] : []),
       unitOrZero,
       edgeFunction,
       perspectiveBarycentric,

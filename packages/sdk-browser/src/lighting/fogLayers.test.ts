@@ -256,3 +256,18 @@ test('the air’s second light: a second lobe of the same law, toward it', () =>
   })
   assert.ok(held[0] > bare[0] + 1e-3, 'the second light, held, lights the fog’s own colour')
 })
+
+test('a ray of a few hundredths of a millimetre keeps its length: the floor under its squared length is a float’s, in metres', () => {
+  // A medium of 10⁶ per metre over 2·10⁻⁵ m (a ray whose squared length, 4·10⁻¹⁰, is under 10⁻⁸):
+  // the exponent of two is `(ln 2)·10⁶ · 2·10⁻⁵`, the light kept about `2⁻¹⁴`; a floor of 10⁻⁸ on the squared
+  // length would read the ray 5 times too short (`2⁻²·⁸`).
+  const fog = { baseDensity: 1e6, falloff: 0, color: COLOR }
+  const kept = 2 ** (-Math.LN2 * 1e6 * 2e-5)
+  const got = wgslFogged(fog, RGB, [2e-5, 0, 0], [0, 0, 0])
+  near(
+    got,
+    RGB.map((v, c) => v * kept + COLOR[c] * (1 - kept)),
+    'tiny ray',
+    1e-5,
+  )
+})

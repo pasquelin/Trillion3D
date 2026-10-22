@@ -1,4 +1,10 @@
 import { BOUNCE_SETTINGS } from '../../../../../sdk-core/src/bounce/contracts.ts'
+import {
+  SCREEN_PROBE_RULES,
+  resolveScreenProbes,
+  type ScreenProbeSettings,
+} from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import { resolveSettings } from '../../../../../sdk-core/src/contracts/settingRules.ts'
 import { createBounceCascades } from '../../../../../sdk-core/src/bounce/cascades.ts'
 import { markWords } from '../../../../../sdk-core/src/bounce/probeMarks.ts'
 import { createProbePool } from '../../../../../sdk-core/src/bounce/probePool.ts'
@@ -10,6 +16,8 @@ import { createSnapshotFollow } from '../snapshotFollow.ts'
 import { createBounceSchedule } from '../schedule.ts'
 import { createBounceMarks } from '../marks.ts'
 import { createBounceCensus } from '../census.ts'
+import { createRadianceCache } from '../cache/radianceCache.ts'
+import { createCacheKernels, type CacheKernels } from '../cache/cacheKernels.ts'
 import { createProbeStorage } from './probeStorage.ts'
 import { createTableWrite } from './tableWrite.ts'
 import { createProxyFollow } from './probeSync.ts'
@@ -21,13 +29,21 @@ import { worldLightLists } from '../worldLightLists.ts'
 
 /** What the probes are made of, beside what they encode (`createProbeEncoder`): the extent of the atlas,
  *  its snapshot's storage and the release of it all. */
-type ProbeRig = ProbeParts & {
+type ProbeRig = Omit<ProbeParts, 'cache'> & {
   extent: [number, number, number]
   views: { probes: GPUTextureView; snapshot: GPUTextureView }
+  /** The radiance cache's kernels, and the hook the cache calls when its maps are made again (set once the encoder exists). */
+  cacheKernels: CacheKernels
   release(): void
 }
 
 export type GpuBounceProbes = Awaited<ReturnType<typeof createGpuBounceProbes>>
+
+/** The screen probes' settings at their defaults: what the probes follow where no view names its own. */
+const defaultScreenProbeSettings = (() => {
+  let made: ScreenProbeSettings | undefined
+  return () => (made ??= resolveScreenProbes(resolveSettings(SCREEN_PROBE_RULES, {})))
+})()
 
 /** The pass's pipelines, each compiled off the thread: the update, the snapshot's follow-up, the
  *  table's writes, the marks and the census of the field. */
@@ -40,6 +56,7 @@ async function buildPasses(
   const { cascades, pool, queue, records, uniform, counts } = parts
   const module = await createCheckedShaderModule(device, BOUNCE_PROBE_SHADER, 'BOUNCE_PROBE')
   return {
+    cacheKernels: await createCacheKernels(device),
     pipeline: await buildComputeStage(device, [layout], module, 'updateProbes'),
     follow: await createSnapshotFollow(device, uniform.buffer, queue, views.probes, views.snapshot),
     table: await createTableWrite(device, records, views.probes, views.snapshot),
@@ -120,17 +137,35 @@ export async function createGpuBounceProbes(
   scene: ProbeScene,
   /** The declared-light buffer, read at each encode: it is replaced when the scene outgrows it. */
   lights: () => GPUBuffer,
-  /** The probes an image traces, those never traced first (`resolveProbesPerFrame`). */
-  probesPerFrame: number,
+  /** The probes an image traces, those never traced first, in the cost of a whole map each (`resolveProbesPerFrame`): a count, or
+   *  what is read at each image. */
+  probesPerFrame: number | (() => number),
   /** The empty lists bound where no grid holds them (`DeferredPlaceholders.tiles`), and the light
    *  grid whose buffer holds the world grid's lists beside the view's. */
   noLists: GPUBuffer,
   tiles: () => GpuLightTiles | undefined = () => undefined,
+  /** The screen probes' settings, which the radiance cache follows, read at each image. */
+  settings: () => ScreenProbeSettings = defaultScreenProbeSettings,
 ) {
   const rig = await createProbeRig(device, bounds, lights, tiles)
-  const { cascades, pool, uniform, marks, census } = rig
+  const { cascades, pool, uniform, marks, census, cacheKernels } = rig
   const readbacks = [marks, census]
-  const encoder = createProbeEncoder(rig, scene, lights, probesPerFrame, noLists)
+  const restartCache = { remade: () => undefined as void }
+  const cache = createRadianceCache(
+    device,
+    cacheKernels,
+    { grid: uniform.buffer, probes: rig.views.probes, queue: rig.queue, slots: pool.capacity },
+    () => restartCache.remade(),
+  )
+  const encoder = createProbeEncoder(
+    { ...rig, cache },
+    scene,
+    lights,
+    typeof probesPerFrame === 'number' ? () => probesPerFrame : probesPerFrame,
+    noLists,
+    settings,
+  )
+  restartCache.remade = encoder.retrace
   const restart = () => (encoder.restart(), marks.stale())
   const follow = createProxyFollow({ boxes: () => scene.boxes(), cascades, restart })
   return {
@@ -163,6 +198,8 @@ export async function createGpuBounceProbes(
     marked: marks.stats,
     counted: census.reading,
     uniform: uniform.buffer,
+    /** The radiance cache: the maps of the light by direction in every probe, which the screen probes read. */
+    cache,
     /** The probes' atlas, the pool's layer and the table's, which the lit passes read; what it weighs
      *  (the snapshot weighs as much). */
     probes: rig.views.probes,
@@ -170,6 +207,10 @@ export async function createGpuBounceProbes(
     setIrradianceView: uniform.setIrradianceView,
     /** After the image's submit: its marks and its census map. */
     submitted: () => readbacks.forEach((readback) => readback.submitted()),
-    dispose: () => (readbacks.forEach((readback) => readback.dispose()), rig.release()),
+    dispose: () => (
+      readbacks.forEach((readback) => readback.dispose()),
+      cache.dispose(),
+      rig.release()
+    ),
   }
 }

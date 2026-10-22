@@ -61,7 +61,7 @@ fn screenPlaneTime(p:vec2f,start:vec2f,mip:i32,inv:vec2f,ahead:vec2<bool>)->f32{
 }
 fn screenMarchReference(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32,full:bool)->ScreenHit{
  let levels=hizLevelCount();
- let miss=ScreenHit(-1.0,vec3f(0.0),vec2f(0.0),false,0u);
+ let miss=screenMarchMissed(0u,0.0);
  if(levels<2){return miss;}
  let steps=min(screenMarchBudget(d,end,levels),cap);
  let dir=d*end;
@@ -87,11 +87,12 @@ fn screenMarchReference(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32
   mip+=select(-1,1,skipped);
   k++;
  }
- if(mip>=base||time>=1.0){return ScreenHit(-1.0,vec3f(0.0),vec2f(0.0),false,k);}
+ let above=min(time,1.0)*end;
+ if(mip>=base||time>=1.0){return screenMarchMissed(k,above);}
  let tile=screenTileDepth(ray.xy,base,top);
- if(ray.z<=screenRelativeBack(tile,thickness,slab)){return ScreenHit(-1.0,vec3f(0.0),vec2f(0.0),false,k);}
+ if(ray.z<=screenRelativeBack(tile,thickness,slab)){return screenMarchMissed(k,above);}
  let texel=exp2(f32(base+1));
  let centre=(floor(ray.xy/texel)+vec2f(0.5))*texel;
- return ScreenHit(time*end,vec3f(tile,0.0,0.0),centre,hizFrontOver(vec2i(floor(ray.xy))),k);
+ return ScreenHit(time*end,vec3f(tile,0.0,0.0),centre,hizFrontOver(vec2i(floor(ray.xy))),k,0.0);
 }`,
   )

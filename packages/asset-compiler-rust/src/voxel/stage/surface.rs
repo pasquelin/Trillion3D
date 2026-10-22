@@ -15,6 +15,7 @@ use crate::Result;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
+use trillion3d_page_codec::hash::WordSet;
 
 /// Triangles as the voxels sample them: the ranks in the mesh's tracer of those voxelized, and of
 /// every triangle of the mesh their boxes and, for a skinned mesh, each one's joint (`u16::MAX`
@@ -66,12 +67,15 @@ pub(super) fn voxelize(
     let widest = 2.0 * (0..3).map(|k| high[k] - low[k]).fold(0.0, f64::max);
     let mut side = group.first_side(child_error);
     while side > 0.0 && side <= widest && side * ERROR_PER_SIZE < beat {
-        let mut candidates: Vec<Cell> = Vec::new();
+        // In the order the triangles find them: a voxel's place is its rank (`Sampler::set`).
+        let (mut candidates, mut found) = (Vec::new(), WordSet::<Cell>::default());
         for &t in &group.triangles {
-            cells(corners(start + t as usize), side, |c| candidates.push(c));
+            cells(corners(start + t as usize), side, |c| {
+                if found.insert(c) {
+                    candidates.push(c);
+                }
+            });
         }
-        candidates.sort_unstable_by_key(|c| (c[2], c[1], c[0]));
-        candidates.dedup();
         let redistribute = surface.probe.sampling.redistributes();
         let voxels = solid(sampled(surface, &candidates, side), redistribute);
         let packed = bricks(&voxels);
@@ -116,13 +120,13 @@ fn sampled(surface: &Surface<'_>, candidates: &[Cell], side: f64) -> Vec<Voxel> 
         (0..3).all(|k| from[k] <= high[k] && to[k] >= low[k])
     });
     let bins = binned(&surface.probe.mesh.world, (candidates, side), reach, near);
-    (candidates.par_iter().zip(&bins))
-        .map(|(&cell, ranks)| {
+    (candidates.par_iter().zip(&bins).enumerate())
+        .map(|(rank, (&cell, ranks))| {
             let joint = surface.joints.and_then(|j| {
                 let of = ranks.iter().map(|&r| j[r as usize]);
                 most(of.filter(|&j| j != u16::MAX))
             });
-            Voxel::sampled(surface.probe, (cell, side), ranks, joint)
+            Voxel::sampled(surface.probe, (cell, side, rank as u32), ranks, joint)
         })
         .collect()
 }

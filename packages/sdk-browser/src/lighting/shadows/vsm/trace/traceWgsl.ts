@@ -16,7 +16,7 @@
  * it fails; a fragment's host binds no tile depths. Where the host binds the translucent casters'
  * memory, each missed ray multiplies the panes it crosses (`vsmRayThrough`), averaged over the missed
  * rays: the colour of the light that passes, on the very rays the opaque share counts. Reads the view `vsmView` the host declares, the
- * pages of `pool` (`vsmPoolLoad`) and the noise pair `noise` provides (`vsmNoiseTwo`).
+ * pages of `pool` (`vsmPoolLoad`) and the blue noise `noise` declares (`blueNoiseVec2`).
  * World unit = metre; a literal in centimetres is converted with `VSM_UNIT_PER_CM`.
  */
 import { VSM_PROJECTION_LIGHT_STRUCT } from '../projection/projectionView.ts'
@@ -82,7 +82,7 @@ export const vsmTraceKindsOf = ({
 export interface VsmTraceHost {
   /** The pool's `vsmPoolLoad` the rays sample. */
   pool: WgslDecl
-  /** The rays' noise pair (`vsmNoiseTwo`). */
+  /** The blue noise the rays' random pair is read from (`blueNoiseWgsl`). */
   noise: WgslDecl
   /** The depth pyramid's group and first binding (`hizDepthEntries`) the screen segment marches. */
   hiz: readonly [group: number, binding: number]
@@ -185,7 +185,11 @@ fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,receiver:VsmReceiver,pa
  if(traced){lightMap=vsmLightMapAt(light,P);traced=lightMap.valid;}
  var basis:Frame3;
  var s=0.0;
- var stepCount=VSM_TRACE_STEPS;
+ // The view's rays and steps for this kind of light (\`VsmProjectionView.traceRays\`): a light with no
+ // rays (0) takes one tap along its axis, with no spread of the ray, no dither and no steps.
+ let rays=select(vsmView.traceRays.y,vsmView.traceRays.x,directional);
+ let single=rays==0u;
+ var stepCount=i32(select(vsmView.traceRays.w,vsmView.traceRays.z,directional));
  var frameDepthSlope=vec2f(0.0);
  var ditherWorld=0.0;
  var ditherCap=0.0;
@@ -204,19 +208,20 @@ fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,receiver:VsmReceiver,pa
   // The light's disk as the receiver sees it: a sun's sine of its angular radius, a local light's
   // emitter over its distance. A point source's rays all meet the map in one texel: one sample.
   s=select(min(light.sourceRadius/dist,1.0),light.sourceRadius,directional);
+  if(single){s=0.0;}
   if(s==0.0){stepCount=0;}
   basis=frameAround(axis);
   let normalInFrame=intoFrame(basis,n);
   frameDepthSlope=-normalInFrame.xy/normalInFrame.z;
   let uvDepthSlope=vsmDepthGradientUv(pd,pInMap,n);
   let texel=vsmReceiverPixelSize(pd,pixel.sceneDepth);
-  ditherWorld=VSM_TRACE_DITHER*pd.ditherTexels*texel;
+  ditherWorld=select(VSM_TRACE_DITHER*pd.ditherTexels*texel,0.0,single);
   ditherCap=VSM_TRACE_PLANE_BIAS_CAP*ditherWorld;
   let texelUv=1.0/f32(select(vsmTexelsAtLevel(lightMap.mip),VSM_LEVEL0_TEXELS,lightMap.clipmap));
   planeBias=vsmPlaneBias(uvDepthSlope,texelUv,VSM_TRACE_PLANE_BIAS_CAP*texel*vsmDepthPerDistance(pd,lightMap.mapPoint.w));
  }
  var missed=0u;
- let rayCap=u32(VSM_TRACE_RAYS);
+ let rayCap=max(rays,1u);
  var stopped=false;
  var stopIndex=0u;
  for(var i=0u;i<rayCap;i++){

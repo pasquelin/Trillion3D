@@ -54,22 +54,24 @@ test('a pool takes the view’s clip plane from its origin, none for a view with
   assert.deepEqual(Array.from(words.slice(48, 52)), [0, 0, 0, 0])
 })
 
-test('a device with clip distances cuts the disc in its vertex stage, one without tests each fragment entry', () => {
-  const native = particleDrawShader(true)
+test('a device with clip distances cuts the disc in its vertex stage, one without tests each fragment entry, a view without a plane draws with neither', () => {
+  const native = particleDrawShader('distance')
   assert.ok(native.includes('enable clip_distances;'))
   assert.ok(native.includes('@builtin(clip_distances) clipDistances:array<f32,1>'))
-  assert.ok(native.includes('-> OutClipped {') && native.includes('OutWithClip(o, 1)'))
-  assert.ok(native.includes('OutWithClip(o, dot(draw.clipPlane.xyz, o.local) + draw.clipPlane.w)'))
+  assert.ok(native.includes('-> OutClipped {') && native.includes('OutWithClip(o,1.0)'))
+  assert.ok(native.includes('OutWithClip(o,planeDistance(draw.clipPlane, o.local))'))
   assert.ok(!native.includes('particleClipped'))
-  assert.equal(particleDrawShader(false), PARTICLE_DRAW_WGSL)
-  assert.ok(!PARTICLE_DRAW_WGSL.includes('clip_distances'))
+  const pixel = particleDrawShader('pixel')
   for (const entry of ['fs(in: Out) -> Lit', 'fsRouted(in: Out) -> Routed'])
     assert.ok(
-      PARTICLE_DRAW_WGSL.includes(
-        `@fragment fn ${entry} {\n if (particleClipped(in)) { discard; }`,
-      ),
+      pixel.includes(`@fragment fn ${entry} {\n if (particleClipped(in)) { discard; }`),
       entry,
     )
+  assert.ok(!pixel.includes('clip_distances'))
+  // The module of a view without a plane: no member, no distance, no test.
+  assert.equal(particleDrawShader(), PARTICLE_DRAW_WGSL)
+  for (const text of ['clip_distances', 'clipPlane', 'particleClipped', 'OutClipped'])
+    assert.ok(!PARTICLE_DRAW_WGSL.includes(text), `${text} is not in the plain module`)
 })
 
 /** One of the kit's encoders, and what its render passes took: each pass's label, then each
@@ -163,6 +165,29 @@ test('WebGPU: the routed draw is asked off the frame, and the image that routes 
   assert.equal(gpu.compiled.sync, 0, 'compiled off the frame')
 })
 
+test('WebGPU: the project switch picks the draw’s text once: none of the plane’s code without it, one set with it', async () => {
+  const codes = async (clipping?: 'pixel' | 'distance') => {
+    const gpu = gatedDevice(),
+      pools = scene()
+    const draw = createWebgpuParticleDraw(gpu.device, kept, (e) => assert.fail(`${e}`), clipping)
+    await gpu.land()
+    await gpu.land()
+    draw.draw(pools, { ...frame(gpu.device.createCommandEncoder()), clipPlane: [0, 0, 1, 0] })
+    return gpu.renderPipelines.map(
+      ({ vertex }) => (vertex.module as unknown as { code: string }).code,
+    )
+  }
+  const [off, pixel, distance] = [await codes(), await codes('pixel'), await codes('distance')]
+  assert.deepEqual(
+    [off.length, pixel.length, distance.length],
+    [2, 2, 2],
+    'a pipeline a blend, one set',
+  )
+  assert.ok(off.every((code) => !code.includes('clipPlane') && !code.includes('clip_distances')))
+  assert.ok(pixel.every((code) => code.includes('particleClipped')))
+  assert.ok(distance.every((code) => code.includes('enable clip_distances;')))
+})
+
 test('WebGPU: a draw that cannot compile is heard, and the next step keeps its pools refused', async () => {
   const heard: unknown[] = [],
     { device } = fakeDevice(),
@@ -192,17 +217,30 @@ test('WebGPU: the pools step once a frame, on the main view; another view draws 
   assert.equal(steps, 1)
 })
 
-test("WebGPU: the step is made at the frame's entry on the particles' code the frame waited for (#1353)", async () => {
+test("WebGPU: the step is made at the frame's entry on the particles' code the frame waited for (#1353), its draw cutting at the plane the way the session's switch says", async () => {
   const [smoke] = scene(),
     main = {},
     gpu: { particles?: object } = {},
-    rt = { context: { particles: [] }, gpu, run: {}, views: { main } }
+    rt = {
+      context: { particles: [] },
+      gpu,
+      run: {},
+      views: { main },
+      setup: { clipping: 'pixel' },
+    }
+  const kit = fakeDevice()
   Object.assign(rt.views, { active: main })
-  const enter = () => askParticles(rt as never, fakeDevice().device)
+  const enter = () => askParticles(rt as never, kit.device)
   enter()
   assert.equal(gpu.particles, undefined, 'a world without pools makes no step')
   rt.context.particles = [smoke] as never
   await families.particles.load() // what the frame that draws a pool waits for (`familyUse.ts`)
   enter()
   assert.ok(gpu.particles, 'the step is made on the code that arrived')
+  await tick()
+  await tick()
+  const draws = kit.renderPipelines.map(
+    ({ vertex }) => (vertex.module as unknown as { code: string }).code,
+  )
+  assert.ok(draws.length > 0 && draws.every((code) => code.includes('particleClipped')))
 })

@@ -14,6 +14,7 @@ import {
   transformDirectionVector3,
   transformHomogeneousPoint,
 } from '../../../../math/src/vector/vector.ts'
+import { readVec3 } from '../../../../math/src/vector/vec3Input.ts'
 import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import { fromSpherical } from '../../../../math/src/vector/spherical.ts'
 import { ObservedComponents } from '../observed.ts'
@@ -169,7 +170,6 @@ export class Vector3 extends ObservedComponents {
   }
 }
 
-/** `[x, y, z]` or a vector, read as three numbers. */
+/** `[x, y, z]` or a vector, read as three numbers (`readVec3`). */
 export type Vec3Input = XYZLike | readonly [number, number, number]
-export const readVec3 = (v: Vec3Input): [number, number, number] =>
-  Array.isArray(v) ? [v[0], v[1], v[2]] : [(v as XYZLike).x, (v as XYZLike).y, (v as XYZLike).z]
+export { readVec3 }

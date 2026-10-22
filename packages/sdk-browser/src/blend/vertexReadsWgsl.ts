@@ -8,7 +8,7 @@ import { SPRITE_WGSL } from '../visibility/shader/spriteWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { materialTableWgsl } from '../materials/table/materialWgsl.ts'
 import { HISTORY_GIVEN_UP_WGSL } from '../visibility/types.ts'
-import { clippedStructText } from '../gpu/core/clipDistances.ts'
+import { clippedStructText, type Clipping } from '../gpu/core/clipDistances.ts'
 
 /** What every vertex stage of the runs binds and reads before its layout's own reads: the item
  *  records, and the material table their surfaces' records lie in. */
@@ -78,13 +78,13 @@ const vsOutMembers = (uv: string, ids: string) => [
 ]
 
 /** The stage's output, its UV and ids lanes those of the layout (`LAYOUTS`,
- *  `vertexWgsl.ts`); `clip`, the device has `clip-distances`: the vertex stage returns the struct
- *  that carries the distance to the view's plane beside it (`clippedStructText`), a device without
- *  it testing the distance of each pixel from `view`, the world position — fifteen interpolants
- *  and the front face fill the sixteen a stage is granted, no one more fits. */
-export const vsOutWgsl = (uv: string, ids: string, clip = false) =>
+ *  `vertexWgsl.ts`); cutting at the view's plane by distance (`clipping`), the vertex stage returns
+ *  the struct that carries the distance beside it (`clippedStructText`); by pixel, each fragment
+ *  tests the distance from `view`, the world position — fifteen interpolants and the front face
+ *  fill the sixteen a stage is granted, no one more fits. */
+export const vsOutWgsl = (uv: string, ids: string, clipping?: Clipping) =>
   wgslBlock(
-    `vsOutWgsl(${uv}, ${ids}${clip ? ', clip' : ''})`,
+    `vsOutWgsl(${uv}, ${ids}${clipping === 'distance' ? ', distance' : ''})`,
     [],
     `// What the vertex stage reads on the item's surface's record and the fragment stage re-reads
 // as-is: the six maps, their factors and the flags, constant over the call, therefore FLAT.
@@ -92,5 +92,5 @@ export const vsOutWgsl = (uv: string, ids: string, clip = false) =>
 // volume from (\`materialAt\`); above it, the cull mode a doubtful triangle leaves to the fragment
 // stage (facing.ts).
 // \`alphaAo\` carries, after the alpha test and the occlusion strength, a dashed line's dash and gap.
-struct VSOut{${vsOutMembers(uv, ids).join(',')},}${clip ? `\n${clippedStructText('VSOut', vsOutMembers(uv, ids))}` : ''}`,
+struct VSOut{${vsOutMembers(uv, ids).join(',')},}${clipping === 'distance' ? `\n${clippedStructText('VSOut', vsOutMembers(uv, ids))}` : ''}`,
   )

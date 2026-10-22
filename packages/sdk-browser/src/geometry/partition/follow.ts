@@ -43,7 +43,7 @@ export type CellFrame = {
   ) => void
 }
 
-/** Whether a host mesh of `mesh` changed how it casts (`castShadow`, `castFarShadow`) since its
+/** Whether a host mesh of `mesh` changed how it casts (`castShadow`, `castFarShadow`, `farShadowTest`) since its
  *  rows were written. */
 function castsMoved(mesh: PlacedMesh) {
   let moved = false

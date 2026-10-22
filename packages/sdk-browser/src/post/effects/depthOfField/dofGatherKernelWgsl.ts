@@ -38,7 +38,7 @@ fn updateKernel(){
  if(QUALITY>=1u&&view.petzval.x!=0.0){ks.swirl=petzvalTransform(gp.viewport*2.0-1.0,true);}
  ks.countToPos=select(spacing,1.0,LAYER==SLIGHT);
  let texel=exp2(mip);
- ks.maxUv=(vec2f(view.gather.xy)-vec2f(0.5*texel))*invSize;
+ ks.maxUv=(vec2f(view.pre.xy)-vec2f(0.5*texel))*invSize;
  ks.mip=mip;
  ks.intersectionScale=1.0/texel;
 }

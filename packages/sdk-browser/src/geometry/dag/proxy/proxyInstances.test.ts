@@ -26,6 +26,7 @@ import {
 import { INSTANCE } from '../../../lighting/bounce/runtime/runtimeLayout.ts'
 import { hostStretches } from '../hostStretches.fixture.ts'
 import { createProxyBoxes } from './proxyBoxes.ts'
+import { WORLD_TABLE } from '../worlds/worldTable.ts'
 
 test('no placement wears a proxy: no buffer, nothing for the trace to read', async () => {
   const { gpu, selection } = await open(() => undefined)
@@ -208,5 +209,67 @@ test('a proxy instance out of its object’s draw distances is met by no ray, ba
   selection.parkWorld(2, true)
   selection.parkWorld(2, false)
   assert.equal(node(2), NO_INDEX, 'taken back out of its distance, a placement stays unmet')
+  selection.dispose()
+})
+
+/** The writes of the culling's world table so far. */
+const worldWrites = (gpu: Awaited<ReturnType<typeof open>>['gpu']) =>
+  gpu.textureWrites.filter(({ destination }) => {
+    return (destination.texture as unknown as { label: string }).label === WORLD_TABLE.label
+  }).length
+
+/** A count of the reads of the placements' worlds of `packed` (`count`) and of their draw distances (`distances`):
+ *  what judging the draw distances costs. */
+function watchWorlds(packed: Awaited<ReturnType<typeof open>>['packed']) {
+  const reads = { count: 0, distances: 0 }
+  packed.worldSources.forEach((source) => {
+    const elements = source.world.elements
+    Object.defineProperty(source.world, 'elements', { get: () => (reads.count++, elements) })
+  })
+  const held = packed.drawDistance!
+  packed.drawDistance = new Proxy(held, {
+    get: (target, key) => (reads.distances++, Reflect.get(target, key, target)),
+  })
+  return reads
+}
+
+test('the draw distances are judged where an instance can be written and the view or a placement moved, and written in runs', async () => {
+  const c = cut(2, 1, 1),
+    s = surface(1)
+  const distances = { min: 0, max: 5 }
+  // No placement wears a proxy: no buffer, so no instance to write — and no world is read to judge them.
+  const bare = await open(() => undefined, distances)
+  const none = watchWorlds(bare.packed)
+  bare.selection.proxyDistance([0, 0, 0], 1)
+  assert.equal(none.count, 0, 'no buffer, nothing judged')
+  bare.selection.dispose()
+  // Sixteen placements on a grid, judged from the eye, the instances that flipped written in runs of consecutive ones.
+  const { gpu, packed, selection } = await open(
+    () => ({ primitive: { runtimeProxy: c }, surface: s }),
+    distances,
+  )
+  const worlds = watchWorlds(packed)
+  const node = (w: number) => instanceAt(gpu, w, INSTANCE.node)
+  const runsOf = (ranks: number[]) =>
+    ranks.filter((w, k) => k === 0 || ranks[k - 1] !== w - 1).length
+  const start = worldWrites(gpu)
+  const changed = selection.proxyDistance([0, 0, 0], 1) as number
+  const unmet = [...Array(16).keys()].filter((w) => node(w) === NO_INDEX)
+  assert.equal(changed, unmet.length)
+  assert.equal(worldWrites(gpu) - start, runsOf(unmet), 'one write a run')
+  assert.ok(runsOf(unmet) < changed, 'fewer writes than placements that flipped')
+  // The same eye and scale, no placement moved: nothing is judged, no distance read, nothing written.
+  worlds.count = worlds.distances = 0
+  const again = worldWrites(gpu)
+  assert.equal(selection.proxyDistance([0, 0, 0], 1), 0)
+  assert.deepEqual([worlds.distances, worldWrites(gpu)], [0, again])
+  // Another eye is judged, from the centres already made: no world read again.
+  assert.ok((selection.proxyDistance([9, 0, -9], 1) as number) > 0)
+  assert.ok(worlds.distances > 0)
+  assert.equal(worlds.count, 0, 'the roots’ centres are held until their world is written')
+  // A placement whose world was written is judged again, its centre made again alone.
+  selection.worldsMovedOnGpu([3])
+  selection.proxyDistance([9, 0, -9], 1)
+  assert.ok(worlds.count > 0, 'judged again once a placement moved')
   selection.dispose()
 })

@@ -4,7 +4,7 @@
 // `viewFilterWgsl.ts`), the shipped WGSL run in JavaScript against the box's own corners.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DAG_SELECTION_SHADER } from './shader.ts'
+import { DAG_SELECTION_SHADER, dagSelectionShader } from './shader.ts'
 import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
 import { cameraSelectionUniforms } from '../../../gpu/core/selection.ts'
 import { createEngineCamera, writeEngineCamera } from '../../../camera/engineCamera.ts'
@@ -14,7 +14,7 @@ import { DAG_CLIP_PLANE_WGSL } from './clipPlaneWgsl.ts'
 import { CULL_CLIP_PLANE_OFF } from './viewsWgsl.ts'
 import { OCCLUSION_TWO_PASS } from './occlusionWgsl.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
-import { Mat } from '../../../materials/texture/shaderRunMatrix.fixture.ts'
+import { Mat, matrixProduct } from '../../../materials/texture/shaderRunMatrix.fixture.ts'
 
 /** The planes a camera sends the kernel, `far` given, and whether `farless` reads them as farless. */
 function cameraPlanes(far: number) {
@@ -112,8 +112,13 @@ function clipKernel(
   view: { clipPlane: number[]; occlusion: number; cullOff: number },
   placement = { unculled: false, reach: 0 },
 ) {
-  const matrix = new Mat(pose),
-    transposed = new Mat([0, 1, 2, 3].flatMap((c) => [0, 1, 2, 3].map((r) => pose[r * 4 + c])))
+  const transposed = new Mat([0, 1, 2, 3].flatMap((c) => [0, 1, 2, 3].map((r) => pose[r * 4 + c])))
+  const grownPlane = (p: number[], reach: number) => [
+    p[0],
+    p[1],
+    p[2],
+    p[3] + reach * (Math.abs(p[0]) + Math.abs(p[1]) + Math.abs(p[2])),
+  ]
   return shaderRun<{
     outsideClipPlane(w: number, lo: number[], hi: number[]): boolean
     outsideGroupClipPlane(t: number, lo: number[], hi: number[]): boolean
@@ -123,17 +128,11 @@ function clipKernel(
     CULL_CLIP_PLANE_OFF,
     TREE_GROUP: 1,
     cullOff: (bit: number) => (view.cullOff & bit) !== 0,
-    placed: () => {},
-    placedT: transposed,
-    placedPose: matrix,
-    reachOf: () => placement.reach,
-    unculledOf: () => placement.unculled,
-    grownPlane: (p: number[], reach: number) => [
-      p[0],
-      p[1],
-      p[2],
-      p[3] + reach * (Math.abs(p[0]) + Math.abs(p[1]) + Math.abs(p[2])),
-    ],
+    // The plane in the placement's space, as `primitiveWgsl.ts` makes it.
+    placedPlane: (_w: number, plane: number[]) =>
+      placement.unculled
+        ? [0, 0, 0, 1]
+        : grownPlane(matrixProduct(transposed, plane) as number[], placement.reach),
     treeWord: (_t: number, _k: number) => 1,
   })
 }
@@ -287,4 +286,19 @@ test('a placement no camera culls is never culled, one that deforms is judged by
   assert.equal(sprite.outsideClipPlane(3, box[0], box[1]), false, 'never culled')
   const deformed = clipKernel(pose, view, { unculled: false, reach: 1 })
   assert.equal(deformed.outsideClipPlane(3, box[0], box[1]), false, 'its reach crosses z = 100')
+})
+
+test('the project switch picks the cut’s text once: none of the plane’s code without it, its tests at every level with it', () => {
+  const on = dagSelectionShader(true)
+  // Both texts hold the same calls, which answer false without the plane.
+  for (const call of ['outsideClipPlane(w,', 'outsideGroupClipPlane(t,'])
+    assert.ok(DAG_SELECTION_SHADER.includes(call) && on.includes(call), call)
+  for (const code of ['clipPlaneOn', 'placedPlane(w,views[0u].clipPlane)', 'views[0u].clipPlane'])
+    assert.ok(!DAG_SELECTION_SHADER.includes(code), `${code} is not in the cut without the switch`)
+  assert.ok(on.includes('fn clipPlaneOn()') && on.includes('placedPlane(w,views[0u].clipPlane)'))
+  assert.ok(
+    DAG_SELECTION_SHADER.includes(
+      'fn outsideClipPlane(w:u32,lo:vec3f,hi:vec3f)->bool{return false;}',
+    ),
+  )
 })

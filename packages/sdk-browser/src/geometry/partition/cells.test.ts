@@ -223,3 +223,21 @@ test('a cell placed in the last frame before a still view gets its HLOD word at 
   }
   assert.deepEqual([...proxies.values()].sort(), [[false, false], [true]])
 })
+
+test('a core parent or the scene root that moved wishes the cells it brought into range', async () => {
+  // The camera at the origin: the far cell, 5 000 m off under the core node, is out of the ranges
+  // of 2 800 m. The view stands, the node (then the root) moves 4 000 m, and the cell lies within.
+  for (const mover of ['core', 'root'] as const) {
+    const { cells, core, root, bytes } = await sizedWhole(world())
+    const { port, held, asked } = io(bytes)
+    held.add(cellUrl('near.json'))
+    const ahead = [0, 0, -1]
+    await settled(cells, [0, 0, 0], port, noBudget, ahead)
+    cells.frame([0, 0, 0], port, noBudget, ahead)
+    cells.frame([0, 0, 0], port, noBudget, ahead)
+    assert.ok(!asked.includes(cellUrl('far.json')), `${mover}: the far cell is not wished`)
+    ;(mover === 'core' ? core : root).position.x = -4000
+    await settled(cells, [0, 0, 0], port, noBudget, ahead)
+    assert.ok(asked.includes(cellUrl('far.json')), `${mover}: moved, the far cell is asked`)
+  }
+})

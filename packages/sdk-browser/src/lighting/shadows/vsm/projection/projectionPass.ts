@@ -12,7 +12,7 @@
 import { namedEntries, sequentialEntries } from '../../../../gpu/core/computeBindings.ts'
 import { hizDepthBindEntries } from '../../../../visibility/hiz/gpu/pyramidTexture.ts'
 import type { HizDepth } from '../../../../visibility/hiz/gpu/types.ts'
-import { VSM_PROJECTION_MAX_PASS_LIGHTS } from './projectionView.ts'
+import { VSM_PROJECTION_MAX_PASS_LIGHTS, type VsmTraceCounts } from './projectionView.ts'
 import {
   VSM_PROJECTION_BINDING,
   VSM_PROJECTION_RECEIVER_GROUP,
@@ -60,6 +60,8 @@ export interface VsmProjectionFrame {
   camera: VsmProjectionCamera
   /** The state frame index: drives the blue noise in time. */
   frameIndex: number
+  /** The view's rays and steps of a trace (`VsmProjectionView.traceRays`); absent, the defaults'. */
+  trace?: VsmTraceCounts
   /** The lights the passes project, a mask channel each (≤ `VSM_PROJECTION_MAX_PASS_LIGHTS`). */
   lights: readonly VsmProjectionLight[]
 }

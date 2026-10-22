@@ -82,10 +82,12 @@ test("the view distance's levels write the objects' draw distance scale, and the
 
 test("the indirect light's levels write the screen probes' level alone, and the page's holds", () => {
   const { settings, quality: q } = quality()
-  const levels = { smooth: 'off', balanced: 'off', fine: 'high', max: 'ultra' }
+  const levels = { smooth: 'off', balanced: 'low', fine: 'high', max: 'ultra' }
   for (const [preset, level] of Object.entries(levels)) {
     q.preset = preset as keyof typeof levels
     assert.equal(settings.get('screenProbes'), level, preset)
+    // The lowest level has no diffuse global illumination at all: the bounce is written off with it, and with it alone.
+    assert.equal(settings.get('bounce'), preset === 'smooth' ? false : true, `${preset} bounce`)
   }
   // The probes' other settings are no level's: the page's value holds through a group given back.
   settings.set('screenProbeMeshTraces', true, 'page')

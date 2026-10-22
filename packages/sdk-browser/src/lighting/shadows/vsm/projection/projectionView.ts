@@ -2,7 +2,17 @@
 // its byte size all derive from the field tables below (`fieldLayout`; `projectionPass.ts` writes,
 // `projectionWgsl.ts` and `../trace/traceWgsl.ts` declare).
 
+import type { ShadowValues } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { arrayOf, fieldLayout } from '../../../../gpu/core/fieldLayout.ts'
+
+/** The rays and steps of a view's traces (`VsmProjectionView.traceRays`): its shadow settings'. */
+export type VsmTraceCounts = Pick<
+  ShadowValues,
+  | 'shadowRayCountDirectional'
+  | 'shadowRayCountLocal'
+  | 'shadowSamplesPerRayDirectional'
+  | 'shadowSamplesPerRayLocal'
+>
 
 /** Lights per dispatch: the frame's shadowed lights (`assignSlice`'s 64 channels). */
 export const VSM_PROJECTION_MAX_PASS_LIGHTS = 64
@@ -20,7 +30,9 @@ const LIGHT = fieldLayout('VsmProjectionLight', [
 ] as const)
 
 /** The view (view space +Z forward, reverse-Z, matrices column-major as the engine's) before its
- *  lights. `originShiftHigh`/`Low` are the camera shift split into two floats. */
+ *  lights. `originShiftHigh`/`Low` are the camera shift split into two floats; `traceRays` the rays
+ *  a trace takes and the steps of each, a sun's then a local light's (`shadowRayCountDirectional`,
+ *  `shadowRayCountLocal`, `shadowSamplesPerRayDirectional`, `shadowSamplesPerRayLocal`). */
 const VIEW = fieldLayout('VsmProjectionView', [
   ['shiftedToClip', 'mat4x4f'],
   ['shiftedToView', 'mat4x4f'],
@@ -38,6 +50,7 @@ const VIEW = fieldLayout('VsmProjectionView', [
   ['halfFovTangents', 'vec4f'],
   ['viewPixels', 'vec4f'],
   ['projectionRect', 'vec4i'],
+  ['traceRays', 'vec4u'],
   ['lights', arrayOf(LIGHT, VSM_PROJECTION_MAX_PASS_LIGHTS)],
 ] as const)
 

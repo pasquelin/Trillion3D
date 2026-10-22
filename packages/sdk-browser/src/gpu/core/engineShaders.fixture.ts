@@ -3,7 +3,7 @@ import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts'
 import { ANIMATION_BANK_WGSL } from '../../deformation/bankWgsl.ts'
 import { PRESENT_AT_SHADER } from './presentWgsl.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
-import { DAG_SELECTION_SHADER } from '../../geometry/dag/shader/shader.ts'
+import { DAG_SELECTION_SHADER, dagSelectionShader } from '../../geometry/dag/shader/shader.ts'
 import { drawShader } from '../../visibility/draw/shader.ts'
 import { HIZ_SHADER } from '../../visibility/hiz/gpu/shader.ts'
 import { RADIANCE_SHADER } from '../../lighting/reflections/radiance/radianceWgsl.ts'
@@ -43,10 +43,15 @@ import { seedSource } from '../../visibility/tessellation/seedWgsl.ts'
 import { splitSource } from '../../visibility/tessellation/splitWgsl.ts'
 import { POST_SHADERS } from './engineShaders.post.fixture.ts'
 import { COMPOSE_SHADERS } from './engineShaders.compose.fixture.ts'
+import { BLUR_SHADERS } from './engineShaders.blur.fixture.ts'
 import {
   BOUNCE_PROBE_SHADER,
   BOUNCE_SNAPSHOT_SHADER,
 } from '../../lighting/bounce/probes/probeWgsl.ts'
+import { CACHE_FILTER_PROGRAM } from '../../lighting/bounce/cache/cacheFilterWgsl.ts'
+import { CACHE_MIPS_PROGRAM } from '../../lighting/bounce/cache/cacheMipsWgsl.ts'
+import { CACHE_TILES_PROGRAM } from '../../lighting/bounce/cache/cacheTilesWgsl.ts'
+import { CACHE_TRACE_PROGRAM } from '../../lighting/bounce/cache/cacheTraceWgsl.ts'
 import { BOUNCE_TABLE_SHADER } from '../../lighting/bounce/probes/tableWgsl.ts'
 import { BOUNCE_MARK_SHADER } from '../../lighting/bounce/markWgsl.ts'
 import { BOUNCE_CENSUS_SHADER } from '../../lighting/bounce/probes/censusWgsl.ts'
@@ -108,7 +113,7 @@ import { lightFunctionRenderWgsl } from '../../lighting/lightFunction/renderWgsl
 import { graphSlotWgsl, graphSlotOf } from '../../lighting/lightFunction/graphSlot.ts'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
-import { AO_SHADERS } from '../../lighting/ao/occlusionWgsl.ts'
+import { aoShaders } from '../../lighting/ao/shaders.fixture.ts'
 import { AO_SETUP_WGSL } from '../../lighting/ao/setupWgsl.ts'
 import { lightShaftProgram } from '../../modules/sky/lightShafts/wgsl.ts'
 import { lightShaftTemporalProgram } from '../../modules/sky/lightShafts/temporalWgsl.ts'
@@ -224,8 +229,13 @@ export const ENGINE_SHADERS: Record<string, string> = {
   BOUNCE_TABLE_SHADER,
   BOUNCE_MARK_SHADER,
   BOUNCE_CENSUS_SHADER,
+  CACHE_TILES_PROGRAM,
+  CACHE_TRACE_PROGRAM,
+  CACHE_FILTER_PROGRAM,
+  CACHE_MIPS_PROGRAM,
   AS_IS_SHARE_SHADER,
   ...POST_SHADERS,
+  ...BLUR_SHADERS,
   OUTLINE_WGSL,
   FRAME_DIFFERENCE_WGSL,
   GUIDE_WGSL,
@@ -276,6 +286,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   VIS_VOXEL_SHADER: visVoxelShader(),
   SHADE_SHADER,
   SHADE_DIAGNOSTIC: shadeShader({ diagnostic: DIAGNOSTIC_SHADE_WGSL }),
+  SHADE_DISPLACED: shadeShader({ displaced: true }),
   BLEND_SHADER,
   DISPLAY_FILTER_SHADER,
   // The transmissive stages (`../../blend/transmission/transmitWgsl.ts`), the dual blend where
@@ -354,7 +365,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   LIGHT_FUNCTION_SLOT_GRAPH_PLAIN: graphSlotShader(false),
   // The screen-space ambient occlusion's setup and every shape of its search (`../../lighting/ao/`).
   AO_SETUP_WGSL,
-  ...Object.fromEntries(Object.entries(AO_SHADERS).map(([name, code]) => [`AO_${name}`, code])),
+  ...Object.fromEntries(Object.entries(aoShaders()).map(([name, code]) => [`AO_${name}`, code])),
   // The light shafts' passes and their temporal filter (`../../modules/sky/lightShafts/`).
   lightShaftProgram,
   lightShaftTemporalProgram,
@@ -362,12 +373,20 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...Object.fromEntries(
     Object.entries(DFAO_SHADERS).map(([name, code]) => [`DFAO_${name.toUpperCase()}`, code]),
   ),
-  // What a device with `clip-distances` compiles: the vertex stages that return the clip distance
-  // of the view's plane (`../clipDistances.ts`).
-  VIS_CLIP: visShader({ clipDistances: true }),
-  VIS_XRAY_CLIP: visXrayShader(true),
-  BLEND_CLIP: blendShader({}, { clip: true }),
-  BLEND_TRANSMIT_CLIP: blendShader({}, { stage: transmitWgsl({}, false), clip: true }),
-  FRONT_STAGE_CLIP: blendFrontShader(2, true),
-  PARTICLE_DRAW_CLIP: particleDrawShader(true),
+  // The modules the project switch makes (`../clipDistances.ts`): the plane's distance, or the pixel's test.
+  VIS_CLIP: visShader({ clipping: 'distance' }),
+  VIS_CLIP_PIXEL: visShader({ clipping: 'pixel' }),
+  VIS_XRAY_CLIP: visXrayShader('distance'),
+  VIS_XRAY_CLIP_PIXEL: visXrayShader('pixel'),
+  VIS_VOXEL_CLIP: visVoxelShader('distance'),
+  BIN_CLIP_ROUTE: binSource(4096, false, true),
+  DAG_SELECTION_CLIP: dagSelectionShader(true),
+  BLEND_CLIP: blendShader({}, { clipping: 'distance' }),
+  BLEND_CLIP_PIXEL: blendShader({}, { clipping: 'pixel' }),
+  BLEND_TRANSMIT_CLIP: blendShader({}, { stage: transmitWgsl({}, false), clipping: 'distance' }),
+  BLEND_TRANSMIT_CLIP_PIXEL: blendShader({}, { stage: transmitWgsl({}, false), clipping: 'pixel' }),
+  FRONT_STAGE_CLIP: blendFrontShader(2, 'distance'),
+  FRONT_STAGE_CLIP_PIXEL: blendFrontShader(2, 'pixel'),
+  PARTICLE_DRAW_CLIP: particleDrawShader('distance'),
+  PARTICLE_DRAW_CLIP_PIXEL: particleDrawShader('pixel'),
 }

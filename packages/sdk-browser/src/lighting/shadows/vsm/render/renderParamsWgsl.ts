@@ -36,17 +36,23 @@ export const VSM_RENDER_ARGS_BIN = 6
 export const VSM_RENDER_ARGS_TIER_EXPAND = 9
 export const VSM_RENDER_ARGS_DRAW = VSM_RENDER_ARGS_TIER_EXPAND + 3 * VSM_RENDER_TIERS
 export const VSM_RENDER_ARGS_STRIDE_WORDS = VSM_RENDER_ARGS_DRAW + 4 * VSM_RENDER_TIERS
-/** Counter words: [0] candidates, [1] the views the GPU listed (`renderViewsWgsl.ts`), then
- *  `VSM_RENDER_CHUNK_COUNTS` per chunk from word 4: commands, then each tier's pairs, commands
- *  and bin cursor (`VSM_RENDER_TIER_PAIRS`, `_CMDS`, `_CURSOR` + tier). */
+/** Counter words: [0] candidates, [1] the lights the GPU listed — those with a page to draw — and
+ *  [2] the maps listed in their runs (`renderViewsWgsl.ts`), then `VSM_RENDER_CHUNK_COUNTS` per
+ *  chunk from word 4: commands, then each tier's pairs, commands and bin cursor
+ *  (`VSM_RENDER_TIER_PAIRS`, `_CMDS`, `_CURSOR` + tier). */
 export const VSM_RENDER_COUNTS_HEAD = 4
 const VSM_RENDER_TIER_PAIRS = 1
 const VSM_RENDER_TIER_CMDS = VSM_RENDER_TIER_PAIRS + VSM_RENDER_TIERS
 const VSM_RENDER_TIER_CURSOR = VSM_RENDER_TIER_CMDS + VSM_RENDER_TIERS
 export const VSM_RENDER_CHUNK_COUNTS = VSM_RENDER_TIER_CURSOR + VSM_RENDER_TIERS
 export const VSM_RENDER_COUNT_VIEWS = 1
+export const VSM_RENDER_COUNT_RUNS = 2
 /** Map view flag: directional (clipmap level, 1 mip, clamp to near plane — the near-plane clamp). */
 const VSM_RENDER_VIEW_DIRECTIONAL = 1
+/** The bits of `VsmRenderParams.tessellated`: the kinds of light whose maps take a displaced
+ *  surface tessellated — the suns', the local lights'. */
+export const VSM_RENDER_TESSELLATE_DIRECTIONAL = 1
+export const VSM_RENDER_TESSELLATE_LOCAL = 2
 
 /**
  * Per-chunk parameters (one slot each, the device's `uniformStride` apart, same frame values in
@@ -65,7 +71,11 @@ const VSM_RENDER_VIEW_DIRECTIONAL = 1
  * their group 1, zero for a view that filters none. A slot belongs to
  * one view pass (`renderViewPasses.ts`): `viewFirst` and `viewCount` are the ids of its maps, `chunk`
  * its index among the chunks of every pass, `chunkCount` the chunks of its pass and `chunkFirst`
- * the first candidate of its rows.
+ * the first candidate of its rows; `lightCount`, the lights of the frame (`vsmRenderViews`: its
+ * table, and where the views' runs begin in its list); `tessellated`, the kinds of light whose maps
+ * take a displaced surface's tessellated shape (`VSM_RENDER_TESSELLATE_*`), zero for none;
+ * `radiusThresholdSq`, the square of the least radius over distance an object may span on the main
+ * view to be drawn into a map that is redrawn whole (`vsmRadiusCulled`), zero for none.
  */
 export const VSM_RENDER_PARAMS = fieldLayout('VsmRenderParams', [
   ['eyeHigh', 'vec3f'],
@@ -92,6 +102,9 @@ export const VSM_RENDER_PARAMS = fieldLayout('VsmRenderParams', [
   ['farDrop', 'f32'],
   ['viewFirst', 'u32'],
   ['filterBase', 'u32'],
+  ['lightCount', 'u32'],
+  ['tessellated', 'u32'],
+  ['radiusThresholdSq', 'f32'],
 ] as const)
 const VSM_RENDER_PARAMS_STRUCT_WGSL = wgslBlock(
   'VSM_RENDER_PARAMS_STRUCT_WGSL',
@@ -104,9 +117,11 @@ export const VSM_RENDER_PARAMS_WGSL = wgslBlock(
   `
 /** A caster row the camera's cut selects: world sphere (centre high + radius, centre low), its row,
  *  corners and flags (bit 0 cache as dynamic, bit 1 deforming: it invalidates the pages it draws),
- *  and its far depth: the depth along the main view of the nearest point of the sphere of the whole
- *  object it belongs to, which a sun's far-shadow test reads (\`vsmFarShadowSkipped\`). */
-struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,corners:u32,flags:u32,farDepth:f32,}
+ *  its far depth: the depth along the main view of the nearest point of the sphere of the whole
+ *  object it belongs to, which a sun's far-shadow test reads (\`vsmFarShadowSkipped\`), and its
+ *  screen ratio: that sphere's radius squared over its squared distance to the main view's eye,
+ *  which a map redrawn whole tests (\`vsmRadiusCulled\`). */
+struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,corners:u32,flags:u32,farDepth:f32,screenRatio:f32,}
 const VSM_RENDER_CAND_DYNAMIC:u32=1u;
 const VSM_RENDER_CAND_DEFORMING:u32=2u;
 /** Bit 2: the row's triangles face the light clockwise in world space — a mirroring placement
@@ -116,16 +131,28 @@ const VSM_RENDER_CAND_FLIPPED:u32=4u;
  *  far shadows, which the test never leaves out. */
 const VSM_RENDER_CAND_FAR_TESTED:u32=8u;
 const VSM_RENDER_CAND_FAR_CAST:u32=16u;
+/** Bit 5: the row is an unmasked displaced surface the frame tessellates (\`tessellatedFlags\`) while a
+ *  kind of light's maps take it so (\`params.tessellated\`): its pairs are cut into patches and not
+ *  drawn as its triangles. A masked one casts its flat triangles, cut out as any: the vertex stage
+ *  that dices the patches has no storage buffer left for the colour atlas the cutout reads. */
+const VSM_RENDER_CAND_TESSELLATED:u32=32u;
 /** Whether a sun whose far-shadow distance is \`distance\` (a map's \`farShadowDistance\`, 0 for none)
  *  leaves the candidate out: its row is tested, does not cast far shadows, and its object's nearest
  *  point (\`farDepth\`) lies past \`distance\` along the main view. */
 fn vsmFarShadowSkipped(flags:u32,farDepth:f32,distance:f32)->bool{
  return distance>0.0&&(flags&VSM_RENDER_CAND_FAR_TESTED)!=0u&&(flags&VSM_RENDER_CAND_FAR_CAST)==0u&&farDepth>distance;
 }
+/** Whether a map redrawn whole (\`uncached\`) leaves out a caster whose object spans less of the
+ *  main view than the threshold (\`thresholdSq\`, the square of its radius over distance; 0 none):
+ *  its \`ratio\`, radius squared over distance squared, is under it. */
+fn vsmRadiusCulled(ratio:f32,thresholdSq:f32,uncached:bool)->bool{
+ return uncached&&ratio<thresholdSq;
+}
 ${wgslConsts({
   VSM_RENDER_VIEW_DIRECTIONAL,
   VSM_RENDER_COUNTS_HEAD,
   VSM_RENDER_COUNT_VIEWS,
+  VSM_RENDER_COUNT_RUNS,
   VSM_RENDER_CHUNK_COUNTS,
   VSM_RENDER_TIER_PAIRS,
   VSM_RENDER_TIER_CMDS,
@@ -135,6 +162,8 @@ ${wgslConsts({
   VSM_RENDER_CORNER_TIERS,
   VSM_RENDER_VOXEL_TIERS,
   VSM_RENDER_VOXEL_BIT,
+  VSM_RENDER_TESSELLATE_DIRECTIONAL,
+  VSM_RENDER_TESSELLATE_LOCAL,
 })}
 fn vsmRenderChunkCounter(chunk:u32,k:u32)->u32{return VSM_RENDER_COUNTS_HEAD+chunk*VSM_RENDER_CHUNK_COUNTS+k;}
 /** The least tier whose pairs draw \`corners\` corners: \`VSM_RENDER_TIER_CORNERS << tier\` ≥ corners;
@@ -162,7 +191,8 @@ export const VSM_RENDER_ARGS_WGSL = wgslProgram(
 @group(0) @binding(2) var<storage,read_write> args:array<u32>;
 fn vsmRenderArgsAt(chunk:u32,word:u32)->u32{return chunk*${VSM_RENDER_ARGS_STRIDE_WORDS}u+word;}
 /** Cull dispatch of every chunk of the view pass whose first slot is bound (\`chunk\`, then
- *  \`chunkCount\` chunks), once the candidates and the pass's views are known. */
+ *  \`chunkCount\` chunks), once the candidates and the pass's lights are known: its y the lights
+ *  listed. */
 @compute @workgroup_size(1) fn vsmRenderArgsCull(){
  let total=atomicLoad(&counts[0]);
  for(var c=0u;c<params.chunkCount;c++){
@@ -170,7 +200,7 @@ fn vsmRenderArgsAt(chunk:u32,word:u32)->u32{return chunk*${VSM_RENDER_ARGS_STRID
   let n=select(0u,min(total-first,params.chunkRows),total>first);
   let at=vsmRenderArgsAt(params.chunk+c,${VSM_RENDER_ARGS_CULL}u);
   args[at]=ceilDiv(n,WORKGROUP_THREADS);
-  args[at+1u]=select(0u,min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.viewCount),n>0u);
+  args[at+1u]=select(0u,min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.lightCount),n>0u);
   args[at+2u]=1u;
  }
 }

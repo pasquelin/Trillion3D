@@ -16,6 +16,7 @@ import type { ShadowOptions } from '../../../../sdk-core/src/contracts/shadowOpt
 import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import type { DepthOfFieldSettings } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
 import type { BloomSettings } from '../../../../sdk-core/src/contracts/bloomRules.ts'
+import type { GaussianBlurSettings } from '../../../../sdk-core/src/contracts/gaussianBlurRules.ts'
 import type { FilmSettings } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 import type { AmbientOcclusionOptions } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import type { SkyQualityOptions } from '../../../../sdk-core/src/modules/sky/quality.ts'
@@ -191,8 +192,8 @@ export function worldImageSettings({ switches, live }: WorldParts) {
      *  `shadowDistance`; `farShadowCulling`, whether a sun's shadow maps leave out the casters
      *  past the edge of that distance unless their object sets `castFarShadow`;
      *  `farShadowCullsAllMeshes`, whether that test reaches every caster or the world's merged
-     *  shells alone; and the three that shape the edge, `shadowNearLevels`, `shadowOverlapScale`
-     *  and `shadowFarField`. Written, the
+     *  shells alone; the three that shape the edge, `shadowNearLevels`, `shadowOverlapScale`
+     *  and `shadowFarField`; and the shadow maps' own (`shadowMapOptions.ts`). Written, the
      *  settings named apply from the next frame over the preset — one `null` gives it back to it,
      *  one left out stays —; one a setting does not take is refused. */
     get shadows() {
@@ -217,9 +218,9 @@ export function worldImageSettings({ switches, live }: WorldParts) {
       switches.motionBlur = options
     },
     /** How the depth of field is drawn, each setting by its field (`WorldOptions`), resolved over the
-     *  page and the quality preset: `depthOfFieldQuality` (`'off'`, `'low'`, `'high'`, `'veryHigh'`,
-     *  `'extreme'`), the gather's divisor, accumulator, bokeh, post-filter and rings, the scatter's
-     *  modes and limits, and the recombine's quality. The lens, the focus and the camera are the
+     *  page and the quality preset: `depthOfFieldQuality` (`'off'`, `'on'`), the gather's divisor,
+     *  accumulator, bokeh, post-filter and rings, the scatter's modes and limits, the recombine's
+     *  quality and the temporal accumulation's. The lens, the focus and the camera are the
      *  effect's (`world.effects`, `effect.depthOfField`). Written, the settings named apply from the next
      *  frame over the preset — one `null` gives it back to it, one left out stays —; one a setting
      *  does not take is refused. */
@@ -232,8 +233,8 @@ export function worldImageSettings({ switches, live }: WorldParts) {
     },
     /** How the bloom is drawn, each setting by its field (`WorldOptions`), resolved over the page
      *  and the quality preset: `bloomQuality` (`'off'`, `'lowest'`, `'low'`, `'medium'`, `'high'`,
-     *  `'highest'`), `bloomCross`, `bloomScreenPercentage`, `bloomApplyLocalExposure` and
-     *  `bloomCacheKernel`. The glow's method, intensity, levels, convolution and dirt mask are the
+     *  `'highest'`), `bloomCross`, `bloomScreenPercentage`,
+     *  `bloomApplyLocalExposure` and `bloomCacheKernel`. The glow's method, intensity, levels, convolution and dirt mask are the
      *  effect's (`world.effects`, `effect.bloom`). Written, the settings named apply from the next
      *  frame over the preset — one `null` gives it back to it, one left out stays —; one a setting
      *  does not take is refused. */
@@ -243,6 +244,20 @@ export function worldImageSettings({ switches, live }: WorldParts) {
     set bloom(options: BloomSettings) {
       live()
       switches.bloom = options
+    },
+    /** How the Gaussian blur of the bloom's levels and of the local exposure's blurred luminance is
+     *  drawn, each setting by its field (`WorldOptions`), resolved over the page and the quality
+     *  preset: `gaussianFastBlurThreshold` (the radius from which a blur writes its first pass at
+     *  half the width), `gaussianSampleScale` (the reach of the kernel as a multiple of its radius)
+     *  and `gaussianLoopMode` (the most reads of a pass). Written, the settings named apply from the
+     *  next frame over the preset — one `null` gives it back to it, one left out stays —; one a
+     *  setting does not take is refused. */
+    get gaussianBlur() {
+      return switches.gaussianBlur
+    },
+    set gaussianBlur(options: GaussianBlurSettings) {
+      live()
+      switches.gaussianBlur = options
     },
     /** The film effects of the display finishing, each setting by its field (`WorldOptions`),
      *  resolved over the page and the quality preset: the film grain (`filmGrain…`), the colour
@@ -287,10 +302,10 @@ export function worldImageSettings({ switches, live }: WorldParts) {
       switches.indirectLight = options
     },
     /** The reflections' trace settings, each by its field (`WorldOptions`), resolved over the page
-     *  and the quality preset: `reflectionScreenSteps`, the iterations of a reflected ray's march of
-     *  the screen, and `reflectionRingSteps`, the steps it takes in each of the scene's four rings.
-     *  Written, the settings named apply from the next frame over the preset — one `null` gives it
-     *  back to it, one left out stays —; one a setting does not take is refused. */
+     *  and the quality preset: the iterations of a reflected ray's march of the screen, the steps it
+     *  takes in each ring of the scene, its detail window, and the screen's far trace
+     *  (`reflectionOptions.ts`). Written, the settings named apply from the next frame over the preset
+     *  — one `null` gives it back to it, one left out stays —; one a setting does not take is refused. */
     get reflections() {
       return switches.reflections
     },
@@ -330,7 +345,8 @@ export function worldImageSettings({ switches, live }: WorldParts) {
      *  names a displacement is cut into micro-triangles and displaced; `tessellationDicingRate`,
      *  their size in pixels; `tessellationMaxPatchesPerGroup`; `tessellationMaxCandidatePatches`
      *  and `tessellationMaxVisiblePatches`, the patches the splitting queue and the visible list
-     *  hold. Written, the settings named apply from the next frame over the preset — one `null`
+     *  hold; `tessellationShadowsDirectional` and `tessellationShadowsLocal`, whether the displaced
+     *  shape is cast into the shadow maps of the suns and of the local lights. Written, the settings named apply from the next frame over the preset — one `null`
      *  gives it back to it, one left out stays —; one a setting does not take is refused. */
     get tessellation() {
       return switches.tessellation

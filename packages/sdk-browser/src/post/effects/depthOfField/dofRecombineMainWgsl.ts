@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { PI } from '../../../../../math/src/wgsl/constants.ts'
+import { workgroupSumLoop } from '../../../gpu/core/workgroupSumWgsl.ts'
 import { rand3dPcg16 } from '../../../../../math/src/wgsl/sampling.ts'
 import { GROUP } from './dofLayout.ts'
 import { RECOMBINE_PAIRS, RECOMBINE_SLIGHT_WGSL } from './dofRecombineWgsl.ts'
@@ -102,7 +103,9 @@ fn recombine(@builtin(global_invocation_id) gid:vec3u,@builtin(local_invocation_
  let base=(vec2f(id)+0.5)*(size-0.5)/size;
  let texel=vec2i(floor(clamp(base,vec2f(0.0),size-0.5)));
  let buffer=vec2f(view.gather.zw);
- let dofUV=min(((vec2f(id)+0.5)/size)*(vec2f(view.gather.xy)/buffer),(vec2f(view.gather.xy)-0.5)/buffer);
+ // The layers are stable in time where the setup is accumulated: a pixel of the jittered image reads them
+ // where the jitter moved it from.
+ let dofUV=min(((vec2f(id)+0.5-view.temporal.xy)/size)*(vec2f(view.gather.xy)/buffer),(vec2f(view.gather.xy)-0.5)/buffer);
  let centre=FullSample(textureLoad(sceneTexture,texel,0),fullCoc(texel),1.0);
  var reachHere=select(0.0,abs(centre.coc),abs(centre.coc)<DOF_SLIGHT);
  for(var j=0u;j<4u;j++){
@@ -112,11 +115,7 @@ fn recombine(@builtin(global_invocation_id) gid:vec3u,@builtin(local_invocation_
   reachHere=max(reachHere,select(reachHere,reached,reached<DOF_SLIGHT));
  }
  reach[lane]=reachHere;
- workgroupBarrier();
- for(var span=32u;span>0u;span=span>>1u){
-  if(lane<span){reach[lane]=max(reach[lane],reach[lane+span]);}
-  workgroupBarrier();
- }
+ ${workgroupSumLoop(GROUP * GROUP, 'reach[lane]=max(reach[lane],reach[lane+stride]);')}
  let tileReach=reach[0];
  if(any(id>=view.image.xy)){return;}
  var fg=vec4f(0.0);

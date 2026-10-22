@@ -6,6 +6,7 @@ import { createWebgpuTimingState } from '../backend/state/timing.ts'
 import type { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import type { WebgpuEffects } from '../../post/effects/webgpuEffects.ts'
+import { createKindSettings } from '../../post/effects/kindSettings.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
 
@@ -58,7 +59,13 @@ export function settledRt() {
     views: { main, active: main, persistent: [] },
     // No root and no caster row: the frame entry asks no roots' or rows' pass (`askFramePipelines`).
     layout: { rows, selectionRoots: [] as unknown[], rootIndex: { revision: 0 } },
-    vis: { gpuDraw: true, textureJobs: [] as unknown[], gpuHiz: undefined },
+    vis: {
+      gpuDraw: true,
+      textureJobs: [] as unknown[],
+      gpuHiz: undefined,
+      // No displaced surface: the frame tessellates nothing (`tessellationWanted`).
+      materialTable: { displaced: { count: 0 } },
+    },
     lights: {
       changes: { deferred: () => false },
       // A manual exposure: the lit image asks no exposure meter (`../../post/exposure/frame.ts`).
@@ -97,6 +104,7 @@ export function settledRt() {
       deferred: undefined as Awaited<ReturnType<typeof createDeferredLighting>> | undefined,
       effects: undefined as WebgpuEffects | undefined,
       effectsRevision: 0,
+      kindSettings: createKindSettings(),
       guideRevision: 0,
     },
     // No effect chain and no guides unless a test gives them (`world.effects`, `world.guides`).

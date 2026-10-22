@@ -3,8 +3,10 @@ import {
   environmentCurve,
   environmentSharpness,
 } from '../../../../sdk-core/src/scene/core/environment.ts'
-import { FILM_RULES, tonemapperSharpness } from '../../../../sdk-core/src/contracts/filmOptions.ts'
-import { readSetting } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import {
+  readFilmSetting,
+  tonemapperSharpness,
+} from '../../../../sdk-core/src/contracts/filmOptions.ts'
 import { appliedExposureOf } from '../../post/exposure/applied.ts'
 import { beginPreExposure } from '../../post/exposure/pre.ts'
 import { DIRECT_AT } from '../../lighting/deferred/view.ts'
@@ -104,7 +106,7 @@ export function encodeDirectLights(
   // The eye itself, under any projection: an orthographic camera's view point is a direction.
   directParams.set(cam.eye, 5)
   directParams[DIRECT_AT.sharpness] = tonemapperSharpness(
-    readSetting(FILM_RULES, rt.context, 'tonemapperSharpen'),
+    readFilmSetting(rt, 'tonemapperSharpen'),
     environmentSharpness(environment),
   )
   // The unlit view reads neither light lists nor a shadow map: it therefore encodes none of them.

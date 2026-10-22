@@ -1,13 +1,13 @@
 // What a ray of the run-time proxy brings back, the shipped WGSL run as JavaScript: the emission and the
 // lit tint of the first opaque surface, the light a blended one lets through, the reach of a deformed
-// placement against the footprint, and a ray that spends its budget.
+// placement against the footprint, a ray that spends its budget, and a walk cut into rings.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
 import type { Vec3 } from '../../../../../math/src/vector/vectorTuple.ts'
 import { RAY_SPREAD_FLOOR, RAY_WORK, SURFACE_BLENDED } from './runtimeLayout.ts'
-import { NO_SKY, along, ahead, origin, runOver } from './runtimeRun.fixture.ts'
-import { joinedCubes, world } from './runtimeScene.fixture.ts'
+import { NO_SKY, along, ahead, origin, runOver, type RtRings } from './runtimeRun.fixture.ts'
+import { fitRoot, joinedCubes, world } from './runtimeScene.fixture.ts'
 
 test('a ray returns the emission and the lit tint of the first opaque surface it meets', () => {
   // One surface: tint (0.5, 0.25, 0), emission (3, 2, 1), opaque.
@@ -187,4 +187,104 @@ test('a probe ray reaches the sky for the share of it the scene lets through, no
   const want = [0.8, 0.4, 0.2].map((tint, i) => 0.75 * tint + 0.25 * sky[i])
   seen.slice(0, 3).forEach((c, i) => assert.ok(Math.abs(c - want[i]) < 1e-6, `${seen}`))
   assert.equal(seen[3], 3.5, 'the distance is the first surface’s')
+})
+
+/** The rings of a walk: `ends`, each ring's `work` units, `begins` where each may enter at the soonest, and a detail
+ *  window `detail` (end, fade by the eye's distance, noise, beginning) on a budget of its own. */
+const ringed = (
+  ends: number[],
+  work: number,
+  detail: number[] = [0, 0, 0, 0],
+  detailWork = 0,
+  begins: number[] = [],
+): RtRings => ({
+  begins: [...begins, 0, 0, 0, 0].slice(0, 4),
+  ends: [...ends, 0, 0, 0].slice(0, 4),
+  count: ends.length,
+  work,
+  tests: 1e6,
+  on: true,
+  detail,
+  detailWork,
+  detailTests: 1e6,
+})
+const BIG = 1e6
+type Run = ReturnType<typeof runOver>
+/** The walk of a ray along +x over `rings`, a reflection's, its own budgets in the rings alone. */
+const through = (run: Run, rings: RtRings) =>
+  run.rtLayersOver(origin, ahead, 1000, 0.01, 0, 0, false, rings)
+const CUBES = { places: along(2, 4), surfaces: [[0.5, 0.25, 0, 1, 3, 2, 1, 0]] }
+
+test('a ring that spends its budget having found a surface keeps it; a walk without rings still answers nothing', () => {
+  const run = runOver(world(2, 1, CUBES))
+  // A budget of exactly the units the walk spends to meet the first cube is spent as it ends.
+  run.rtRadiance(origin, ahead, 1000, 0.01)
+  const units = run.testOwnWork()
+  const alone = run.rtLayersOver(origin, ahead, 1000, 0.01, units, BIG, false, run.rtNoRings())
+  assert.equal(alone.answer.confidence, 0, 'one walk: spent is nothing')
+  const kept = through(run, ringed([1000], units))
+  assert.deepEqual(kept.answer.color, [3.5, 2.25, 1])
+  assert.deepEqual([kept.answer.confidence, kept.answer.distance, kept.spent], [1, 3.5, 1])
+  assert.equal(kept.work, units)
+})
+
+test('the rings are walked in order, the nearest surface of the first that holds one answers, a spent one is skipped', () => {
+  const run = runOver(world(2, 1, CUBES))
+  // The first cube lies at 3.5, in the second ring.
+  const two = through(run, ringed([3, 1000], BIG))
+  assert.deepEqual([two.answer.distance, two.answer.confidence, two.spent], [3.5, 1, 0])
+  // A cube just past the boundary: the seam lets none through, the front face answers.
+  const edge = runOver(world(1, 1, { places: along(1, 4) }))
+  const seam = through(edge, ringed([3.5 - 5e-5, 1000], BIG))
+  assert.ok(Math.abs(seam.answer.distance - 3.5) < 1e-6, `${seam.answer.distance}: the front face`)
+  // Every ring spends its one unit having met nothing: all are skipped, the ray leaves through the end.
+  const skipped = through(run, ringed([3, 1000], 1))
+  assert.deepEqual([skipped.spent, skipped.answer.confidence, skipped.open], [1, 0, 1])
+})
+
+test('a detail window that spends its budget is a hit where it stopped, by noise against the fade; else the rings go on', () => {
+  const run = runOver(world(2, 1, CUBES))
+  const detail = (noise: number, fade = 0) =>
+    through(run, ringed([1000], BIG, [2, fade, noise, 0], 1))
+  // One unit: spent before any placement was entered, a surface of no tint where it stopped.
+  const stopped = detail(0.5)
+  assert.deepEqual(stopped.answer.color, [1, 1, 1])
+  assert.deepEqual([stopped.answer.confidence, stopped.answer.distance, stopped.spent], [1, 0, 1])
+  // Faded out (fade not under the noise): the rings find the cube.
+  const faded = detail(0.5, 0.5)
+  assert.deepEqual(faded.answer.color, [3.5, 2.25, 1])
+})
+
+test('a surface the detail window finds is taken by noise against the fade of the window’s last third, else the rings go on past it', () => {
+  // The front of the cube at 1.75 of a window of 2: fade (1.75 − 1.4) / 0.6 = 0.583. The one ring ends at 1.6.
+  const run = runOver(world(1, 1, { ...CUBES, places: along(1, 2.25) }))
+  const seen = (noise: number) => through(run, ringed([1.6], BIG, [2, 0, noise, 0], BIG))
+  assert.equal(seen(0.9).answer.distance, 1.75, 'fade under the noise: a hit')
+  const refused = seen(0.3)
+  assert.deepEqual([refused.answer.confidence, refused.open], [0, 1], 'refused: rings go on')
+  // A window whose ring covers the surface finds it again.
+  assert.equal(through(run, ringed([1000], BIG, [2, 0, 0.3, 0], BIG)).answer.distance, 1.75)
+})
+
+test('a detail window is not walked for a surface 40 metres from the eye, and begins where the screen left the ray', () => {
+  const run = runOver(world(2, 1, CUBES))
+  const faraway = through(run, ringed([1000], BIG, [2, 1, 0.5, 0], 1))
+  assert.equal(faraway.work, through(run, ringed([1000], BIG)).work, 'no unit spent in the window')
+  // The cube’s front at 0.5, its back at 1.5: a window begun at 0.6, the ray already inside it, meets the back.
+  const near = runOver(world(1, 1, { ...CUBES, places: along(1, 1) }))
+  assert.equal(through(near, ringed([1000], BIG, [2, 0, 1, 0], BIG)).answer.distance, 0.5)
+  assert.equal(through(near, ringed([1000], BIG, [2, 0, 1, 0.6], BIG)).answer.distance, 1.5)
+})
+
+test('a ring is not walked outside the box of the tree’s root, and enters where its beginning lets it', () => {
+  // Seventy cubes, a tree: a ring over the metres before the first costs nothing.
+  const crowded = world(70, 1, { places: along(70, 4) })
+  fitRoot(crowded, [3.5, -0.5, -0.5], [280.5, 0.5, 0.5])
+  const run = runOver(crowded)
+  const whole = through(run, ringed([1000], BIG))
+  const before = through(run, ringed([2, 1000], BIG))
+  assert.deepEqual([before.answer.distance, before.work], [3.5, whole.work])
+  // Entered past the first cube’s front, at 5, its back at 4.5 behind it: the second cube’s front answers.
+  const past = through(run, ringed([1000], BIG, [0, 0, 0, 0], 0, [5]))
+  assert.equal(past.answer.distance, 7.5)
 })

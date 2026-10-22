@@ -1,8 +1,5 @@
 import type { ResolvedVolumetricFog } from '../../../../sdk-core/src/scene/core/fogVolumetric.ts'
-import {
-  VOLUMETRIC_FOG_FILTERS,
-  type VolumetricFogValues,
-} from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
+import type { VolumetricFogValues } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import { putVec4 as put } from '../../gpu/core/fieldLayout.ts'
 import { writeClipDepth } from '../../gpu/core/selectionProjection.ts'
 import {
@@ -12,10 +9,11 @@ import {
   writeSampleOffsets,
   sliceParams,
   volumeUvMax,
+  FOG_MATCH_GLOW_SCALE,
   type FogGrid,
 } from './layout.ts'
 import type { FogStaticLight } from './staticLight.ts'
-import { FOG_VIEW_FLOATS, FOG_VIEW_SLOT } from './viewSlots.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /** The bits of the frame's `medium.w`: which of the medium's switches are on. */
 export const FOG_VOLUME_FLAG = {
@@ -26,10 +24,6 @@ export const FOG_VOLUME_FLAG = {
   /** The objects of the volume material domain were voxelised into this image's volume. */
   voxels: 16,
 } as const
-
-/** The filtering of the volume's read, by the number the shader branches on: its place in the list. */
-const filterCode = (settings: VolumetricFogValues) =>
-  VOLUMETRIC_FOG_FILTERS.indexOf(settings.volumetricFogReadFilter)
 
 /** What one image tells the volume about its camera: the matrices as column-major arrays — the
  *  unjittered projection, view-projection and its inverse, the one the depth buffer was drawn with
@@ -49,7 +43,8 @@ export interface FogVolumeCamera {
   near: number
   width: number
   height: number
-  /** Whether the projection is a perspective: an orthographic view has no volume. */
+  /** Whether the projection is a perspective, or an orthographic one: its depth buffer is then linear in
+   *  the view depth, and its rays parallel. */
   perspective: boolean
 }
 
@@ -125,7 +120,7 @@ function writeGrid(out: Float32Array, image: FogVolumeImage) {
   put(out, at.grid, grid.x, grid.y, grid.z, pixel)
   put(out, at.texture, resource.x, resource.y, resource.z, pixel)
   put(out, at.sliceMap, zs.b, zs.o, zs.s, 1 / grid.z)
-  put(out, at.depthMap, depthMap[0], depthMap[1])
+  put(out, at.depthMap, depthMap[0], depthMap[1], camera.perspective ? 0 : 1)
   const [maxU, maxV] = volumeUvMax(camera.width, camera.height, resource)
   put(
     out,
@@ -137,24 +132,38 @@ function writeGrid(out: Float32Array, image: FogVolumeImage) {
   )
 }
 
-/** The history's fields: the previous image's constants, and the weight it is blended in with. */
+/** How far the cells of a view of `size` pixels overhang it, along an axis: the view over what
+ *  `cells` cells of `pixel` pixels cover. */
+const overhang = (size: number, cells: number, pixel: number) => size / (cells * pixel)
+
+/** The history's fields. The cells of an image are spread over its view, `overhang` of them past its
+ *  edge, and the textures are made for the targets, so that a view drawn smaller than they were —
+ *  or than the image before was — reads the volume before where its cells were: the ratio of the
+ *  two overhangs (`previous.xy`), the previous image's cells over the textures' (`history.xy`, with
+ *  the ratio), where its cells end (`history.zw`) and where a read may reach (`previous.zw`). The
+ *  weight the history is blended in with: none without one. */
 function writeHistory(out: Float32Array, image: FogVolumeImage) {
   const at = FOG_VOLUME_FRAME_AT
-  const { camera, resource, settings, previous } = image
+  const { camera, grid, resource, settings, previous } = image
   const before = previous ?? camera
-  const usable = !!previous && settings.volumetricFogUsesHistory
-  const { pixelSize } = resource
+  const { pixelSize: pixel } = resource
+  const cells = [ceilDiv(before.width, pixel), ceilDiv(before.height, pixel)]
+  const ratio = [
+    overhang(before.width, cells[0], pixel) / overhang(camera.width, grid.x, pixel),
+    overhang(before.height, cells[1], pixel) / overhang(camera.height, grid.y, pixel),
+  ]
   const [prevU, prevV] = volumeUvMax(before.width, before.height, resource)
+  const covered = [cells[0] / resource.x, cells[1] / resource.y]
+  put(out, at.previous, ratio[0], ratio[1], prevU, prevV)
+  put(out, at.history, ratio[0] * covered[0], ratio[1] * covered[1], covered[0], covered[1])
+  const usable = !!previous && settings.volumetricFogUsesHistory
   put(
     out,
-    at.previous,
-    before.width / (resource.x * pixelSize),
-    before.height / (resource.y * pixelSize),
-    prevU,
-    prevV,
+    at.blend,
+    usable ? settings.volumetricFogHistoryShare : 0,
+    image.rebuildSamples,
+    settings.volumetricFogEdgeFade,
   )
-  const weight = usable ? settings.volumetricFogHistoryShare : 0
-  put(out, at.blend, weight, image.rebuildSamples)
   // The history's light, written multiplied by its own pre-exposure, is brought to this image's.
   const now = image.preExposure
   put(out, at.exposure, now, previous ? now / previous.preExposure : 1, 1 / now)
@@ -164,7 +173,7 @@ function writeHistory(out: Float32Array, image: FogVolumeImage) {
 function writeMedium(out: Float32Array, image: FogVolumeImage) {
   const at = FOG_VOLUME_FRAME_AT
   const { medium, settings } = image
-  put(out, at.lighting, image.sunRank, image.lightCells[0], image.lightCells[1])
+  put(out, at.lighting, image.sunRank, image.lightCells[0], image.lightCells[1], 0)
   const jitter = settings.volumetricFogMovesSamples
   put(
     out,
@@ -189,7 +198,14 @@ function writeMedium(out: Float32Array, image: FogVolumeImage) {
     medium.particleColor[1],
     medium.particleColor[2],
   )
-  put(out, at.glow, medium.glow[0], medium.glow[1], medium.glow[2])
+  const glowScale = settings.fogMatchesVolume ? FOG_MATCH_GLOW_SCALE : 1
+  put(
+    out,
+    at.glow,
+    medium.glow[0] * glowScale,
+    medium.glow[1] * glowScale,
+    medium.glow[2] * glowScale,
+  )
   const { staticLight } = image
   put(
     out,
@@ -234,41 +250,3 @@ export function writeFogVolumeFrame(out: Float32Array, image: FogVolumeImage) {
 export const newFogVolumeFrame = () => new Float32Array(FOG_VOLUME_FRAME_WORDS)
 /** The WGSL declaration of the frame's structure. */
 export const FOG_VOLUME_FRAME_WGSL = FOG_VOLUME_FRAME.wgsl
-
-/** `count` words of `frame` from `from` into the slot `slot` of the view block `out`. */
-function copyWords(
-  out: Float32Array,
-  slot: number,
-  frame: Float32Array,
-  from: number,
-  count: number,
-) {
-  for (let i = 0; i < count; i++) out[slot * 4 + i] = frame[from + i]
-}
-
-/**
- * Writes the read side's view block (`FOG_VIEW_SLOT`, `FOG_VIEW_FLOATS` floats) from the frame `frame`
- * the volume was built with, `settings` naming the filter a surface reads it through: the
- * view-projection, the eye with 1 in its last lane, the forward, the depth's numbers, the span of
- * the cells and their count. Where the volume was not built for the image (`frame` none), all
- * zero: a surface reads no volume (`fogVolumeBuilt`). Nothing is allocated.
- */
-export function writeFogViewBlock(
-  out: Float32Array,
-  frame: Float32Array | undefined,
-  settings: VolumetricFogValues,
-) {
-  const at = FOG_VOLUME_FRAME_AT
-  out.fill(0, 0, FOG_VIEW_FLOATS)
-  if (!frame) return out
-  copyWords(out, FOG_VIEW_SLOT.projection, frame, at.viewProj, 16)
-  copyWords(out, FOG_VIEW_SLOT.eye, frame, at.eye, 3)
-  out[FOG_VIEW_SLOT.eye * 4 + 3] = 1
-  copyWords(out, FOG_VIEW_SLOT.forward, frame, at.forward, 3)
-  out[FOG_VIEW_SLOT.forward * 4 + 3] = filterCode(settings)
-  copyWords(out, FOG_VIEW_SLOT.sliceMap, frame, at.sliceMap, 4)
-  copyWords(out, FOG_VIEW_SLOT.uv, frame, at.uv, 4)
-  copyWords(out, FOG_VIEW_SLOT.grid, frame, at.texture, 4)
-  copyWords(out, FOG_VIEW_SLOT.exposure, frame, at.exposure, 4)
-  return out
-}

@@ -46,6 +46,7 @@ import {
   type ObjectSettingsWire,
   type SkinnedInstanceWire,
 } from './compilerAbi.ts'
+import { isFiniteNumber as finite } from '../../../math/src/scalar/reals.ts'
 import { isGridName } from './partitionGridOptions.ts'
 import {
   fieldsOf,
@@ -115,10 +116,6 @@ export type ObjectRule = ObjectSettings & { match: NamePattern | NameMatch }
 
 /** The object settings: the scene's, and the rules setting them by object, the first wins. */
 export type ObjectSettingsOption = ObjectSettings & { objects?: readonly ObjectRule[] }
-
-/** A finite number. */
-const finite = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isFinite(value)
 
 /** What a distance, or a position in a clip, takes. */
 const NON_NEGATIVE: [string, (v: unknown) => boolean] = [

@@ -1,133 +1,115 @@
 import type { Bloom } from '../../../../../../sdk-core/src/world/effect/bloom.ts'
 import type { BloomValues } from '../../../../../../sdk-core/src/contracts/bloomRules.ts'
-import type { BloomKernelImage } from '../../../../../../sdk-core/src/contracts/bloomConvolutionOptions.ts'
 import { createWebgpuBindIdentity } from '../../../../gpu/bind/bindIdentity.ts'
 import { retire } from '../../../../gpu/core/frameRetire.ts'
-import { writeChanged } from '../../../../gpu/core/writeChanged.ts'
-import { textureLimits } from '../../../../gpu/core/textureLimits.ts'
+import { namedGroup } from '../../../../gpu/core/computeBindings.ts'
+import { dispatchOn } from '../../../../gpu/core/computeStages.ts'
+import { sameValues } from '../../../../../../math/src/matrix/matrixElements.ts'
+import { uniformBlock, type UniformBlock } from '../../../../gpu/core/uniformBlock.ts'
 import { BLOOM_PASS } from '../../../../diagnostic/stage/passLabels.ts'
 import { fullscreenDraw } from '../../../filters/fullscreenDraw.ts'
-import type { PostFrame } from '../../../finish/finish.ts'
-import { FFT_BYTES } from './fftWgsl.ts'
-import { CONVOLUTION_INPUT, CONVOLUTION_INPUT_BYTES } from './inputWgsl.ts'
-import { bindTo, convolutionPrograms, dispatchStage } from './convolutionPrograms.ts'
+import { EXPOSURE_BYTE, type PostFrame } from '../../../finish/finish.ts'
+import { FFT_BINDINGS, FFT_BYTES, FFT_PARAMS } from './fftWgsl.ts'
+import { CONVOLUTION_INPUT, CONVOLUTION_INPUT_BYTES, INPUT_BINDINGS } from './inputWgsl.ts'
+import {
+  convolutionLimits,
+  convolutionPrograms,
+  transformLineOf,
+  type ConvolutionTransform,
+} from './convolutionPrograms.ts'
 import { createConvolutionKernel } from './convolutionKernel.ts'
 import type { ConvolutionTargets } from './convolutionTargets.ts'
-import { defaultBloomKernel } from './defaultKernel.ts'
-import { applyConstants, type KernelStats, type Vec4 } from './kernelStats.ts'
-import { planConvolution, type ConvolutionAsk, type ConvolutionPlan } from './plan.ts'
-import { channelScale, transformShape, writeTransformWords } from './transformShape.ts'
+import { applyConstants, type ApplyConstants, type KernelStats, type Vec4 } from './kernelStats.ts'
+import { planConvolution, type ConvolutionPlan } from './plan.ts'
+import { writeTransformWords } from './transformShape.ts'
 
 /** What a convolution leaves for the composition: the glow, what the image keeps of its own light —
  *  its colour times this, the rest having moved to the glow — and the passes encoded. */
-export interface ConvolutionGlow {
+interface ConvolutionGlow {
   glow: GPUTextureView
   sceneTint: Vec4
   passes: number
 }
 
-/** WebGPU's guaranteed `maxStorageBufferBindingSize`: the bytes of a buffer every device binds. */
-const GUARANTEED_STORAGE_BYTES = 134217728
-
-/**
- * THE SHARES THE KERNEL ASKS (`applyConstants`) and the multiplier of each channel they make
- * (`channelScale`), made again only when the kernel's reading or the strength moves.
- */
-function createConstants() {
-  let held:
-    { stats: KernelStats; scatter: number; made: { sceneTint: Vec4; scale: Vec4 } } | undefined
-  return {
-    of(stats: KernelStats, scatter: number) {
-      if (held?.stats === stats && held.scatter === scatter) return held.made
-      const { sceneTint, multiply } = applyConstants(stats, scatter)
-      held = { stats, scatter, made: { sceneTint, scale: channelScale(multiply) } }
-      return held.made
-    },
-  }
-}
-
-/** The kernel a page did not give, drawn once. */
-let fallback: BloomKernelImage | undefined
-const defaultKernel = () => (fallback ??= defaultBloomKernel())
-
 type Programs = ReturnType<typeof convolutionPrograms>
 
-/** A uniform buffer of `size` bytes, written from `words` by what changed of them. */
-function uniformOf(device: GPUDevice, size: number) {
-  const buffer = device.createBuffer({
-    label: BLOOM_PASS,
-    size,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
-  const words = new Float32Array(size / 4)
-  const image = new Uint32Array(words.buffer)
-  return { buffer, words, send: () => writeChanged(device, buffer, image, 0, image.length) }
-}
-
-/** The plan of the transform for an ask, kept while the ask holds. */
-function createPlanner(device: GPUDevice, programs: Programs) {
-  let planned: { ask: ConvolutionAsk; plan: ConvolutionPlan } | undefined
-  return (ask: ConvolutionAsk) => {
-    const last = planned?.ask
-    if (
-      last &&
-      last.view[0] === ask.view[0] &&
-      last.view[1] === ask.view[1] &&
-      last.percent === ask.percent &&
-      last.size === ask.size &&
-      last.bufferScale === ask.bufferScale
-    )
-      return planned!.plan
-    const limits = {
-      side: textureLimits(device.limits).side,
-      maxLine: programs.maxLine,
-      bytes: device.limits?.maxStorageBufferBindingSize ?? GUARANTEED_STORAGE_BYTES,
-    }
-    const view = [ask.view[0], ask.view[1]]
-    planned = { ask: { ...ask, view }, plan: planConvolution(ask, limits) }
-    return planned.plan
+/** The shares the kernel asks (`applyConstants`), made again only when the kernel's reading or the
+ *  strength moves. */
+function createConstants() {
+  let held: { stats: KernelStats; scatter: number; made: ApplyConstants } | undefined
+  return (stats: KernelStats, scatter: number) => {
+    if (held?.stats !== stats || held.scatter !== scatter)
+      held = { stats, scatter, made: applyConstants(stats, scatter) }
+    return held.made
   }
 }
 
+/** The plan of the transform for what it is made from — the image's size, the resolution, the kernel's
+ *  size and the padding —, kept while they hold. */
+function createPlanner(device: GPUDevice, programs: Programs) {
+  const asked = [0, 0, NaN, NaN, NaN]
+  let plan: ConvolutionPlan | undefined
+  return (
+    view: readonly number[],
+    percent: number,
+    { size, bufferScale }: Bloom['convolution'],
+  ) => {
+    const now = [view[0], view[1], percent, size, bufferScale]
+    if (plan && sameValues(asked, now)) return plan
+    asked.splice(0, 5, ...now)
+    const limits = convolutionLimits(device, programs)
+    return (plan = planConvolution({ view, percent, size, bufferScale }, limits))
+  }
+}
+
+/** The image the plan reads: the level of the scene's chain it names, `image` where it names none. */
+function levelOf(post: PostFrame, plan: ConvolutionPlan, image: GPUTextureView) {
+  if (plan.level < 0) return image
+  post.scene.need(plan.level + 1)
+  return post.scene.view(plan.level)!
+}
+
 /**
- * THE IMAGE THE TRANSFORM READS: drawn from the level of the scene's chain the plan reads (or the
- * image itself) at the plan's size, with the local exposure the finishing applies where the settings
- * ask for it and the boost of its bright pixels (`./inputWgsl.ts`). A uniform and a bind group are
- * kept while their images and settings hold.
+ * THE IMAGE THE TRANSFORM READS WHERE THE LEVEL IS NOT IT: drawn from the level of the scene's chain
+ * the plan reads (or the image itself) at the plan's size, with the local exposure the finishing
+ * applies where the settings ask for it (`./inputWgsl.ts`). A level that is the plan's size and
+ * needs no local exposure is read as it is — no pass, no image —: the transform's first pass holds
+ * it to light that is a number and boosts what is bright as it loads (`./fftWgsl.ts`). A uniform and
+ * a bind group are kept while their images and settings hold.
  */
 function createInputPass(device: GPUDevice, programs: Programs, targets: ConvolutionTargets) {
-  const uniform = uniformOf(device, CONVOLUTION_INPUT_BYTES)
+  const uniform = uniformBlock(device, BLOOM_PASS, CONVOLUTION_INPUT_BYTES)
   const draw = fullscreenDraw(BLOOM_PASS)
   const identity = createWebgpuBindIdentity(2),
     groups: GPUBindGroup[] = []
   return {
-    draw(
+    /** The image the transform reads for the plan over `source`: `source` itself, or the image drawn. */
+    view(
       encoder: GPUCommandEncoder,
       plan: ConvolutionPlan,
-      bloom: Bloom,
       post: PostFrame,
       settings: BloomValues,
       source: GPUTextureView,
     ) {
-      const { preFilterMin: min, preFilterMax: max, preFilterMult: mult } = bloom.convolution
+      const layers = post.local && settings.bloomApplyLocalExposure
+      if (!layers && plan.image[0] === plan.input[0] && plan.image[1] === plan.input[1]) {
+        targets.dropInput()
+        return source
+      }
+      const { f } = uniform.words
       const at = CONVOLUTION_INPUT.at
-      const words = uniform.words
-      words[at.outTexel] = 1 / plan.image[0]
-      words[at.outTexel + 1] = 1 / plan.image[1]
-      words[at.layers] = post.local && settings.bloomApplyLocalExposure ? 1 : 0
-      words[at.lift] = min
-      words[at.lift + 1] = max
-      words[at.lift + 2] = mult
-      words[at.lift + 3] = min < max ? 1 : 0
+      f[at.outTexel] = 1 / plan.image[0]
+      f[at.outTexel + 1] = 1 / plan.image[1]
+      f[at.layers] = layers ? 1 : 0
       uniform.send()
       identity.next[0] = source
       identity.next[1] = uniform.buffer
       if (identity.moved())
-        groups[identity.slot] = bindTo(device, programs.layouts.input, [
-          [0, source],
-          [1, programs.clamped],
-          [2, { buffer: uniform.buffer, size: CONVOLUTION_INPUT_BYTES }],
-        ])
+        groups[identity.slot] = namedGroup(device, programs.layouts.input, INPUT_BINDINGS, {
+          image: source,
+          reader: programs.clamped,
+          params: { buffer: uniform.buffer, size: CONVOLUTION_INPUT_BYTES },
+        })
       const image = targets.inputImage(plan.image[0], plan.image[1])
       draw(encoder, image, programs.input.get(), groups[identity.slot], post.layers)
       return image
@@ -140,13 +122,55 @@ function createInputPass(device: GPUDevice, programs: Programs, targets: Convolu
   }
 }
 
+/** The three bind groups of the transform over `image`, the planes of its spectrum, the kernel's
+ *  and the glow it writes, `uniform` its uniform. */
+function transformGroups(
+  device: GPUDevice,
+  programs: Programs,
+  uniform: GPUBuffer,
+  views: {
+    image: GPUTextureView
+    planes: GPUBuffer
+    kernel: GPUBuffer
+    glow: GPUTextureView
+    twiddles: GPUBuffer
+  },
+) {
+  const params = { buffer: uniform, size: FFT_BYTES },
+    factors = { buffer: views.twiddles },
+    planes = { buffer: views.planes }
+  const { forward, columns, inverse } = programs.layouts
+  const group = (layout: GPUBindGroupLayout, resources: Parameters<typeof namedGroup>[3]) =>
+    namedGroup(device, layout, FFT_BINDINGS, resources)
+  return [
+    group(forward, { params, source: views.image, planes, factors }),
+    group(columns, { params, planes, factors, kernel: { buffer: views.kernel } }),
+    group(inverse, { params, planes, factors, glow: views.glow }),
+  ]
+}
+
+/** Writes the pre-filter of `boost` into the transform's uniform and sends it; whether it lifts. */
+function sendPreFilter(uniform: UniformBlock, boost: Bloom['convolution']) {
+  const { u, f } = uniform.words,
+    at = FFT_PARAMS.at
+  const lifts = boost.preFilterMin < boost.preFilterMax
+  u[at.mode + 1] = lifts ? 1 : 0
+  f[at.lift] = boost.preFilterMin
+  f[at.lift + 1] = boost.preFilterMax
+  f[at.lift + 2] = boost.preFilterMult
+  uniform.send()
+  return lifts
+}
+
 /**
- * THE TRANSFORM OF AN IMAGE: its rows, its columns — multiplied by the kernel's transform, divided by
- * its sum and transformed back — and its rows transformed back into the glow (`./fftWgsl.ts`). The
- * uniform and the three bind groups are kept while the images, the buffers and the settings hold.
+ * THE TRANSFORM OF AN IMAGE: its rows, loaded with the bright pixels boosted — the boost
+ * `preFilterMin`, `preFilterMax` and `preFilterMult` of the convolution, read at the exposure the
+ * finishing copies in —, its columns — multiplied by the kernel's transform, divided by its sum and
+ * transformed back — and its rows transformed back into the glow (`./fftWgsl.ts`). The uniform and
+ * the three bind groups are kept while the images, the buffers and the settings hold.
  */
 function createTransformPass(device: GPUDevice, programs: Programs, targets: ConvolutionTargets) {
-  const uniform = uniformOf(device, FFT_BYTES)
+  const uniform = uniformBlock(device, BLOOM_PASS, FFT_BYTES)
   const identity = createWebgpuBindIdentity(1)
   let groups: GPUBindGroup[] = []
   let written: { shape: object; scale: Vec4 } | undefined
@@ -154,16 +178,27 @@ function createTransformPass(device: GPUDevice, programs: Programs, targets: Con
     run(
       encoder: GPUCommandEncoder,
       plan: ConvolutionPlan,
+      { stages: transform, twiddles }: ConvolutionTransform,
       image: GPUTextureView,
       kernel: GPUBuffer,
       scale: Vec4,
+      boost: Bloom['convolution'],
+      post: PostFrame,
     ) {
-      const shape = transformShape(plan, false)
+      const shape = plan.shapes.image
       if (written?.shape !== shape || written.scale !== scale) {
         writeTransformWords(uniform.words, shape, scale)
-        uniform.send()
         written = { shape, scale }
       }
+      // The luminance is read at the exposure the image is shown at, which only the GPU knows.
+      if (sendPreFilter(uniform, boost))
+        encoder.copyBufferToBuffer(
+          post.uniform,
+          EXPOSURE_BYTE,
+          uniform.buffer,
+          (FFT_PARAMS.at.lift + 3) * 4,
+          4,
+        )
       const planes = targets.spectrum(plan.bytes.image)
       const glow = targets.glowImage(plan.image[0], plan.image[1])
       identity.next[0] = image
@@ -171,35 +206,20 @@ function createTransformPass(device: GPUDevice, programs: Programs, targets: Con
       identity.next[2] = kernel
       identity.next[3] = glow
       identity.next[4] = uniform.buffer
-      if (identity.moved()) {
-        const binding = { buffer: uniform.buffer, size: FFT_BYTES },
-          factors = { buffer: programs.twiddles },
-          rw = { buffer: planes }
-        const { forward, columns, inverse } = programs.layouts
-        groups = [
-          bindTo(device, forward, [
-            [0, binding],
-            [1, image],
-            [2, rw],
-            [3, factors],
-          ]),
-          bindTo(device, columns, [
-            [0, binding],
-            [2, rw],
-            [3, factors],
-            [4, { buffer: kernel }],
-          ]),
-          bindTo(device, inverse, [
-            [0, binding],
-            [2, rw],
-            [3, factors],
-            [5, glow],
-          ]),
-        ]
-      }
-      dispatchStage(encoder, programs.transform.forwardRows, groups[0], shape.lines)
-      dispatchStage(encoder, programs.transform.convolveColumns, groups[1], shape.columns)
-      dispatchStage(encoder, programs.transform.inverseRows, groups[2], shape.lines)
+      identity.next[5] = twiddles
+      if (identity.moved())
+        groups = transformGroups(device, programs, uniform.buffer, {
+          image,
+          planes,
+          kernel,
+          glow,
+          twiddles,
+        })
+      const pass = encoder.beginComputePass({ label: BLOOM_PASS })
+      dispatchOn(pass, transform.forwardRows, groups[0], shape.lines)
+      dispatchOn(pass, transform.convolveColumns, groups[1], shape.columns)
+      dispatchOn(pass, transform.inverseRows, groups[2], shape.lines)
+      pass.end()
       return glow
     },
     dispose() {
@@ -239,30 +259,21 @@ export function createConvolution(device: GPUDevice, targets: ConvolutionTargets
       image: GPUTextureView,
     ): ConvolutionGlow | undefined {
       const conv = bloom.convolution
-      const plan = planFor({
-        view: post.scene.imageSize,
-        percent: settings.bloomScreenPercentage,
-        size: conv.size,
-        bufferScale: conv.bufferScale,
-      })
-      const spectrum = kernel.ensure(
-        encoder,
-        plan,
-        conv.kernel ?? defaultKernel(),
-        settings.bloomCacheKernel,
-      )
+      const plan = planFor(post.scene.imageSize, settings.bloomScreenPercentage, conv)
+      // The transform's programs for this plan's line: asked at the first sight of a size, the frames held
+      // on them and the kind's `arriving` told; nothing is drawn meanwhile.
+      const line = programs.transforms.of(transformLineOf(plan))
+      if (!line.ready) return undefined
+      // The method requires the kernel (`resolveBloom`).
+      const spectrum = kernel.ensure(encoder, plan, conv.kernel!, settings.bloomCacheKernel)
       if (!spectrum.buffer) return undefined
-      let source = image
-      if (plan.level >= 0) {
-        post.scene.need(plan.level + 1)
-        source = post.scene.view(plan.level)!
-      }
+      const source = levelOf(post, plan, image)
       const scatter = conv.scatterDispersion * bloom.intensity * conv.intensity
-      const { sceneTint, scale } = constants.of(spectrum.stats, scatter)
-      const read = input.draw(encoder, plan, bloom, post, settings, source)
-      result.glow = transform.run(encoder, plan, read, spectrum.buffer, scale)
+      const { sceneTint, multiply } = constants(spectrum.stats, scatter)
+      const read = input.view(encoder, plan, post, settings, source)
+      result.glow = transform.run(encoder, plan, line, read, spectrum.buffer, multiply, conv, post)
       result.sceneTint = sceneTint
-      result.passes = spectrum.passes + 4
+      result.passes = spectrum.passes + (read === source ? 1 : 2)
       return result
     },
     /** Bytes of the kernel's transform and picture. */

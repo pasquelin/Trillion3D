@@ -7,6 +7,7 @@ import { scenePages, sceneRoots } from '../../../geometry/dag/cut/cutFrontierSce
 import { packDagSelection } from '../../../geometry/dag/pack/pack.ts'
 import { treeNodeCount, TREE_SPAN } from '../../../geometry/dag/placement/placementTree.ts'
 import { DAG_NODE_FLOATS } from '../../../geometry/dag/types.ts'
+import { NODE_MAX, NODE_MIN } from '../../../geometry/dag/nodeLayout.ts'
 import { TREE_TABLE } from '../../../geometry/dag/tree/treeTable.ts'
 import { sdkWasm } from '../../../wasm/sdkWasm.fixture.ts'
 import { PROXY_TRIANGLE_FLOATS } from '../../../../../sdk-core/src/contracts/writtenFormats.ts'
@@ -122,6 +123,15 @@ export function world(
     tree: treeTable,
     scene: { packed, columns, instances } satisfies OracleScene,
   }
+}
+
+/** The root of `w`'s placement tree fitted to the box `low`–`high`, as the GPU's refit leaves it in production: the packing
+ *  leaves every node's box as wide as the world. */
+export function fitRoot(w: Pick<ReturnType<typeof world>, 'tree'>, low: Vec3, high: Vec3) {
+  const node = w.tree.get('Node', 0)
+  node.set(new Uint32Array(new Float32Array(low).buffer), NODE_MIN)
+  node.set(new Uint32Array(new Float32Array(high).buffer), NODE_MAX)
+  w.tree.set('Node', 0, node)
 }
 
 /** One placement of one mesh made of unit cubes joined, one `scale`d and moved to each of `offsets`: a mesh whose

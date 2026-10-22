@@ -27,8 +27,8 @@
  * (`firstImageShown`) —, nor while a load blocks on slow streaming (`blockingLoad`), when no cell
  * turns visible, nor any cell file but those the load waits for. The HLOD actors off
  * (`hlodEnabled`), no cell draws its actor nor its HLOD 0 actor; the cells not activated
- * (`activated`), nothing the partition places draws — each cell and file stays loaded, wished and
- * counted as it is, its word zero.
+ * (`activated`), nothing a cell holds draws — each cell and file stays loaded, wished and counted
+ * as it is, its word zero — but the actors always loaded, which no cell holds.
  *
  * What draws is then: a cell's actor as above; a visible HLOD 0 cell's placements — its HLOD 0
  * actor, the source meshes instanced —; and the placements of a cell file shown as its main cell,
@@ -157,12 +157,13 @@ export function createLinkFollower(resources: { packed: PackedDag; cold: RangeTa
     if (was && !wished && warmedOut(base, cell)) visible[at] = 0
     else if (!was && wished && !warmth.blocking && loaded(base, cell) && warmedIn(base, cell))
       visible[at] = 1
-    // The HLOD actors off, or the world hidden, no cell draws its actor, nor its placements as its
-    // HLOD 0 actor.
+    // The HLOD actors off, no cell draws its actor, nor its placements as its HLOD 0 actor; the
+    // world hidden, only the actors always loaded (`up < 0`) draw: no cell holds them.
     const within = up < 0 || visible[base + up] === 1,
-      on = warmth.hlodOn && !files.hidden
-    const stands = on && !visible[at] && within ? CELL_DRAW.hlod : 0
-    const own = on && layer[cell] === 0 && visible[at] ? CELL_DRAW.placements : 0
+      on = warmth.hlodOn,
+      held = !files.hidden
+    const stands = on && (held || up < 0) && !visible[at] && within ? CELL_DRAW.hlod : 0
+    const own = on && held && layer[cell] === 0 && visible[at] ? CELL_DRAW.placements : 0
     if (states[at] !== (stands | own)) {
       switchedPages.cellMoved(at, states[at] ^ (stands | own))
       states[at] = stands | own

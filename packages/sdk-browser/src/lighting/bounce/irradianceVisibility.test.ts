@@ -16,6 +16,7 @@ import { TILE_NO_SLICE } from '../tiles/noSlice.ts'
 import { builtins } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
 import { spCommon } from './screen/commonWgsl.ts'
 import { spHistory } from './screen/historyWgsl.ts'
+import { SCREEN_INDIRECT_WGSL } from './screen/indirectWgsl.ts'
 import { spVectors } from './screen/vectorsWgsl.ts'
 import { SCREEN_PROBE_FLAGS } from './screen/screenProbeLayout.ts'
 
@@ -208,13 +209,14 @@ test("a history texel counts where its depth is the expected one within a thresh
   )
 })
 
-test('a surface the camera alone moves keeps its exact reprojection, one that moves by itself the one its vector names', () => {
+test('a pixel the camera alone moves keeps its exact reprojection and no speed, a dynamic one the vector it names, however small', () => {
   const identity = builtins.mat4x4f(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
   let vector = [0, 0]
-  const { encodeVector, spMotionOf } = shaderRun<{
-    encodeVector: (v: number[]) => number
+  let own = false
+  const { encodeOwnVector, spMotionOf } = shaderRun<{
+    encodeOwnVector: (v: number[], own: boolean) => number
     spMotionOf: (pixel: number[], P: number[], camera: number[]) => { ndc: number[]; speed: number }
-  }>(wgslModule(spCommon([4, 2]), spVectors(9)), ['encodeVector', 'spMotionOf'], {
+  }>(wgslModule(spCommon([4, 2]), spVectors(9)), ['encodeOwnVector', 'spMotionOf'], {
     sp: {
       size: [64, 64, 16, 0],
       mode: [0, 0, SCREEN_PROBE_FLAGS.velocity, 0],
@@ -224,7 +226,7 @@ test('a surface the camera alone moves keeps its exact reprojection, one that mo
     reflectionView: { radianceViewProj: identity, viewProj: identity, slab: [1, 0, 0, 1] },
     view: { camera: [0, 0, 10, 1] },
     sceneVectors: {},
-    textureLoad: () => [encodeVector(vector), 0, 0, 0],
+    textureLoad: () => [encodeOwnVector(vector, own), 0, 0, 0],
   })
   // The pixel (32, 32) shows the point whose device position the identity view-projection gives.
   const pixel = [32, 32],
@@ -233,12 +235,83 @@ test('a surface the camera alone moves keeps its exact reprojection, one that mo
     camera = [here, -here]
   const near = (a: number[], b: number[], within: number) =>
     a.every((v, i) => Math.abs(v - b[i]) <= within)
-  vector = [0, 0]
-  const still = spMotionOf(pixel, P, camera)
-  assert.ok(still.speed < 2e-4, `the camera alone: no velocity, ${still.speed}`)
-  assert.deepEqual(still.ndc, camera, 'and its camera reprojection')
   vector = [0.1, 0]
+  const still = spMotionOf(pixel, P, camera)
+  assert.equal(still.speed, 0, 'not dynamic: no velocity')
+  assert.deepEqual(still.ndc, camera, 'and its camera reprojection, whatever the vector holds')
+  own = true
   const moved = spMotionOf(pixel, P, camera)
   assert.ok(Math.abs(moved.speed - 0.1) < 2e-3, `a surface that moved: ${moved.speed}`)
   assert.ok(near(moved.ndc, [here - 0.1, -here], 2e-3), 'its vector')
+  vector = [0.0002, 0]
+  const slow = spMotionOf(pixel, P, camera)
+  assert.ok(
+    near(slow.ndc, [here - 0.0002, -here], 5e-4),
+    'a dynamic pixel takes its vector at any speed',
+  )
+  assert.ok(!near(slow.ndc, camera, 1e-5), 'not the camera’s reprojection')
+})
+
+test('the probes’ light goes under the material’s occlusion through the albedo’s multi-bounce, then under the short-range occlusion at its strength; their occlusion alone goes over the world’s light', () => {
+  type Seen = [number, number, number, number]
+  const lit = shaderRun<{
+    screenDiffuse: (rgb: number[], metal: number, seen: Seen, ao: number) => number[]
+    screenLights: (seen: Seen) => boolean
+    screenShortRange: (rgb: number[], metal: number, seen: Seen) => number[]
+    lambertDiffuse: (rgb: number[], metal: number, irradiance: number[], ao: number) => number[]
+  }>(
+    wgslModule(SCREEN_INDIRECT_WGSL),
+    ['screenDiffuse', 'screenLights', 'screenShortRange', 'lambertDiffuse'],
+    { view: { screenProbes: [1, 0.5, 1, 0] }, screenIndirect: {}, textureLoad: () => [0, 0, 0, 0] },
+  )
+  const multi = (albedo: number[], ao: number) =>
+    albedo.map((a) =>
+      Math.max(
+        ao,
+        ((ao * (2.0404 * a - 0.3324) + (-4.7951 * a + 0.6417)) * ao + (2.7552 * a + 0.6903)) * ao,
+      ),
+    )
+  const rgb = [0.8, 0.4, 0.2],
+    seen: Seen = [2, 1, 0.5, 0.4],
+    ao = 0.6
+  const capped = rgb.map((v) => Math.min(v, 0.5))
+  const base = lit.lambertDiffuse(rgb, 0, [2, 1, 0.5], 1)
+  const factor = (made: number[]) => made.map((v, i) => v / base[i])
+  const material = multi(capped, ao),
+    occlusion = multi(capped, 0.4)
+  const near3 = (actual: number[], expected: number[], label: string) =>
+    expected.forEach((v, i) => nearRelative(actual[i], v, label, 1e-5))
+  near3(
+    factor(lit.screenDiffuse(rgb, 0, seen, ao)),
+    material.map((v, i) => v * occlusion[i]),
+    'the material’s multi-bounce, then the occlusion’s',
+  )
+  assert.ok(lit.screenLights(seen), 'mode 0: the probes’ light')
+  assert.deepEqual(lit.screenShortRange(rgb, 0, seen), [1, 1, 1], 'nothing over the world’s light')
+  // The material's occlusion off: the light is under the short-range occlusion alone, and a strength of a half takes half of it.
+  const off = shaderRun<typeof lit>(
+    wgslModule(SCREEN_INDIRECT_WGSL),
+    ['screenDiffuse', 'screenLights', 'screenShortRange', 'lambertDiffuse'],
+    {
+      view: { screenProbes: [0, 0.5, 0.5, 1] },
+      screenIndirect: {},
+      textureLoad: () => [0, 0, 0, 0],
+    },
+  )
+  near3(
+    factor(off.screenDiffuse(rgb, 0, seen, ao)),
+    occlusion.map((v) => 1 + (v - 1) * 0.5),
+    'the strength is taken after the multi-bounce',
+  )
+  assert.ok(!off.screenLights(seen), 'mode 1: the probes’ occlusion alone')
+  near3(
+    off.screenShortRange(rgb, 0, seen),
+    occlusion.map((v) => 1 + (v - 1) * 0.5),
+    'over the world’s light',
+  )
+  assert.deepEqual(
+    off.screenShortRange(rgb, 0, [2, 1, 0.5, 0]),
+    [1, 1, 1],
+    'none where they left none',
+  )
 })

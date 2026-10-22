@@ -89,7 +89,7 @@ test('no kernel writes a placement’s row: its pose is made where it is read', 
   // Made once per thread, from the pose at the eye (`placed`): every read goes through it.
   const text = wgslSource(DAG_PRIMITIVE_WGSL)
   assert.equal(text.match(/worldPose\(/g)?.length, 1, 'one pose a thread')
-  for (const read of ['viewWorld', 'preparedPose', 'planeOf']) {
+  for (const read of ['viewWorld', 'preparedPose', 'placedPlane']) {
     const body = text.slice(text.indexOf(`fn ${read}(`))
     assert.ok(
       body.slice(0, body.indexOf('\n')).includes('placed(w)') || body.includes(' placed(w);'),

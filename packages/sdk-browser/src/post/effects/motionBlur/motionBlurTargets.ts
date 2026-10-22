@@ -3,13 +3,16 @@ import { madeTextureBytes } from '../../../gpu/core/textureBytes.ts'
 import { MOTION_BLUR_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import { createList } from '../../../gpu/dispatch/list.ts'
 import {
-  FLAT_FORMAT,
+  BASE_VARIANT,
+  FLAT_FORMS,
   OUTPUT_FORMAT,
   TILE_DEPTH_FORMAT,
   TILE_FORMAT,
   classEntries,
   flattenTiles,
+  sameVariant,
   tileClasses,
+  type BlurVariant,
 } from './motionBlurLayout.ts'
 
 /** One image of the blur: its texture and the view the passes name. */
@@ -52,9 +55,14 @@ function imageOf(
   return { texture, view: texture.createView() }
 }
 
-/** What a blur holds for a motion measured on a grid of at most `grid`: the motion flattened and
- *  the tiles, at the grid, and with `directions` of 2 the images of their second largest motions. */
-function makeHeld(device: GPUDevice, grid: readonly number[], directions: number): Made {
+/** What a blur holds for a motion measured on a grid of at most `grid`: the motion flattened, in the
+ *  form of the variant, and the tiles, at the grid, and with two directions the images of their
+ *  second largest motions. */
+function makeHeld(
+  device: GPUDevice,
+  grid: readonly number[],
+  { directions, flat }: BlurVariant,
+): Made {
   const STORAGE = GPUTextureUsage.STORAGE_BINDING,
     TEXTURE = GPUTextureUsage.TEXTURE_BINDING
   const tiles = [flattenTiles(grid[0]), flattenTiles(grid[1])]
@@ -68,7 +76,7 @@ function makeHeld(device: GPUDevice, grid: readonly number[], directions: number
       : {}
   return {
     ...seconds,
-    flat: imageOf(device, 'flat', grid, FLAT_FORMAT, STORAGE | TEXTURE),
+    flat: imageOf(device, 'flat', grid, FLAT_FORMS[flat].format, STORAGE | TEXTURE),
     tilesA: imageOf(device, 'tiles', tiles, TILE_FORMAT, STORAGE | TEXTURE),
     tilesB: imageOf(device, 'spread tiles', tiles, TILE_FORMAT, spread),
     depth: imageOf(
@@ -132,7 +140,7 @@ function createClassLists(device: GPUDevice) {
 export function createMotionBlurTargets(device: GPUDevice) {
   let size: readonly number[] = [0, 0],
     allocated: readonly number[] = [0, 0],
-    directions = 1,
+    variant = BASE_VARIANT,
     made: Made | undefined,
     generation = 0
   const images: (Image | undefined)[] = [],
@@ -153,16 +161,16 @@ export function createMotionBlurTargets(device: GPUDevice) {
       return generation
     },
     /** Makes what a blur needs for images in textures of `extent` — the image's own size, or the
-     *  largest a frame is drawn at, the image lying in their top-left — and a motion measured on
-     *  a grid of at most `grid`, with `ways` of 1 or 2 directions; the images and lists made again
-     *  where a size or the directions moved. */
-    ensure(extent: readonly number[], grid: readonly number[], ways = 1) {
-      if (made && same(size, extent) && same(allocated, grid) && directions === ways) return
+     *  largest a frame is drawn at, the image lying in their top-left — and a motion measured on a
+     *  grid of at most `grid`, drawn by the programs of `wanted`: remade where a size or it moved. */
+    ensure(extent: readonly number[], grid: readonly number[], wanted = BASE_VARIANT) {
+      if (made && same(size, extent) && same(allocated, grid) && sameVariant(variant, wanted))
+        return
       drop()
       size = [extent[0], extent[1]]
       allocated = [grid[0], grid[1]]
-      directions = ways
-      made = makeHeld(device, allocated, ways)
+      variant = wanted
+      made = makeHeld(device, allocated, variant)
       generation++
     },
     /** What the flattening, the spread and the classifying write and the filter reads. */
@@ -176,7 +184,7 @@ export function createMotionBlurTargets(device: GPUDevice) {
       return (images[at] ??= imageOf(device, `image ${at}`, size, OUTPUT_FORMAT, usage))
     },
     /** The lists of the filter tiles of the `nth` blur, one a class (`tileClasses`). */
-    lists: (nth: number) => classLists.of(nth, size, directions),
+    lists: (nth: number) => classLists.of(nth, size, variant.directions),
     /** Bytes of every image and list made. */
     get bytes() {
       return every().reduce((sum, { texture }) => sum + madeTextureBytes(texture), classLists.bytes)

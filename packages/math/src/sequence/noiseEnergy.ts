@@ -54,13 +54,6 @@ export function axisWeights(size: number, sigma: number, centre: boolean): AxisW
   return { from: reach * 2 + 1 > size ? 1 - reach : -reach, to: reach, weights }
 }
 
-/** The three axes' weights of a mask of `volume`. */
-export interface EnergyWeights {
-  x: AxisWeights
-  y: AxisWeights
-  z: AxisWeights
-}
-
 /** The weights of a mask of `volume` at `sigma` on every axis; `centre` is whether each axis's weights sum with the centre's. */
 export function energyWeights(volume: NoiseVolume, sigma = NOISE_SIGMA, centre = false) {
   return {

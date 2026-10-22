@@ -3,7 +3,10 @@
 // turned into the values `shaderRun` runs the shipped programs with, and the textures those programs
 // load from and store to, as plain tables.
 import { newFogStaticLight } from './fog/staticLight.ts'
-import { perspectiveProjection } from '../../../math/src/projection/camera.ts'
+import {
+  orthographicProjection,
+  perspectiveProjection,
+} from '../../../math/src/projection/camera.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { builtins } from '../materials/texture/shaderRunBuiltins.fixture.ts'
@@ -12,10 +15,13 @@ import {
   VOLUMETRIC_FOG_RULES,
   type VolumetricFogValues,
 } from '../../../sdk-core/src/contracts/volumetricFogOptions.ts'
+import { dotVector3 } from '../../../math/src/vector/vector.ts'
+import type { Vec3 as V3 } from '../../../math/src/vector/vectorTuple.ts'
 import { cellGrid, FOG_VOLUME_FRAME_AT, sliceParams } from './fog/layout.ts'
+import type { ResolvedHeightFog } from '../../../sdk-core/src/scene/core/fogHeight.ts'
+import { writeFogViewBlock } from './fog/viewBlock.ts'
 import { FOG_VIEW_FLOATS, FOG_VIEW_SLOTS } from './fog/viewSlots.ts'
 import {
-  writeFogViewBlock,
   writeFogVolumeFrame,
   newFogVolumeFrame,
   type FogVolumeCamera,
@@ -36,30 +42,57 @@ export const sliceAtDepth = (depth: number, p: { b: number; o: number; s: number
 
 /** A camera at `eye` looking down −z, a vertical field of view of 60°, the engine's projection:
  *  `viewProj` and its inverse as column-major numbers, the pixels of the view. */
-export function camera(
-  eye: [number, number, number],
-  width = 160,
-  height = 90,
-  near = 0.1,
-): FogVolumeCamera & { half: [number, number] } {
+export function camera(eye: [number, number, number], width = 160, height = 90, near = 0.1) {
   const projection = perspectiveProjection(new Float64Array(16), 60, width / height, near, 1)
+  // The ray through a pixel at ndc (x, y) is (x · half[0], y · half[1], −1) per unit of depth.
+  return cameraOf(eye, projection, [width, height], near, true, [
+    1 / projection[0],
+    1 / projection[5],
+  ])
+}
+
+/** An orthographic camera at `eye` looking down −z over a box of `box` half width and half height,
+ *  between `near` and 100 m: the engine's reversed depth, linear in the view depth. */
+export function orthoCamera(
+  eye: [number, number, number],
+  [width, height] = [160, 90],
+  box: [number, number] = [8, 4.5],
+) {
+  const projection = orthographicProjection(
+    new Float64Array(16),
+    -box[0],
+    box[0],
+    -box[1],
+    box[1],
+    0.1,
+    100,
+  )
+  return cameraOf(eye, projection, [width, height], 0.1, false, box)
+}
+
+function cameraOf(
+  eye: [number, number, number],
+  projection: Float64Array,
+  [width, height]: number[],
+  near: number,
+  perspective: boolean,
+  half: [number, number],
+): FogVolumeCamera & { half: [number, number] } {
   const view = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -eye[0], -eye[1], -eye[2], 1])
   const viewProj = multiplyMatrix4(new Float64Array(16), projection, view)
-  const inverse = invertMatrix4(new Float64Array(16), viewProj)
   return {
     eye,
     forward: [0, 0, -1],
     projection,
     viewProj,
-    inverseViewProj: inverse,
+    inverseViewProj: invertMatrix4(new Float64Array(16), viewProj),
     depthViewProj: viewProj,
     world: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, eye[0], eye[1], eye[2], 1],
     near,
     width,
     height,
-    perspective: true,
-    // The ray through a pixel at ndc (x, y) is (x · half[0], y · half[1], −1) per unit of depth.
-    half: [1 / projection[0], 1 / projection[5]],
+    perspective,
+    half,
   }
 }
 
@@ -116,6 +149,7 @@ export function frameScope(img: FogVolumeImage) {
           'depthMap',
           'uv',
           'previous',
+          'history',
           'blend',
           'lighting',
           'tune',
@@ -136,7 +170,8 @@ export function frameScope(img: FogVolumeImage) {
  *  slots, or all zero where `built` is false. */
 export function viewBlockOf(img: FogVolumeImage, built = true) {
   const words = built ? writeFogVolumeFrame(newFogVolumeFrame(), img) : undefined
-  const out = writeFogViewBlock(new Float32Array(FOG_VIEW_FLOATS), words, img.settings)
+  const look = { perspective: true, eyeHeight: img.camera.eye[1], fog: {} as ResolvedHeightFog }
+  const out = writeFogViewBlock(new Float32Array(FOG_VIEW_FLOATS), words, img.settings, look)
   return Array.from({ length: FOG_VIEW_SLOTS }, (_, k) =>
     Array.from(out.subarray(4 * k, 4 * k + 4)),
   )
@@ -162,36 +197,27 @@ export const emptyLights = (slots: { fog: number; sky: number; atmosphere: numbe
   fog: Array.from({ length: slots.fog }, () => [0, 0, 0, 0]),
   sky: Array.from({ length: slots.sky }, () => [0, 0, 0, 0]),
   atmosphere: Array.from({ length: slots.atmosphere }, () => [0, 0, 0, 0]),
+  fogView: Array.from({ length: FOG_VIEW_SLOTS }, () => [0, 0, 0, 0]),
   items: [] as Record<string, number[]>[],
 })
 
-export type V3 = [number, number, number]
+export type { V3 }
 export const EYE: V3 = [0, 2, 0]
 export const CAM = camera(EYE)
 /** The grid of the images below: 8-pixel cells over 160 × 90, eight slices. */
 export const GRID = { x: 20, y: 12, z: 8 }
-/** The side of a cell in pixels: a cell lies at the pixel `cell · SIDE`, the last row of cells
- *  reaching past the view's edge where the side does not divide it. */
-const SIDE = 8
-
 /** The point of a cell at `offset`, from the camera's own geometry: the ray through its pixel, its
  *  view depth along it (the slices of `sliceParams`, the volume's far end 60 m). */
 export function pointOf(cell: V3, offset: V3 = [0.5, 0.5, 0.5], start = 0): V3 {
   const p = sliceParams(Math.max(0.1, start), 60 + start, 32, GRID.z)
   const depth = depthAtSlice(cell[2] + offset[2], p)
-  const ndc = [
-    (((cell[0] + offset[0]) * SIDE) / CAM.width) * 2 - 1,
-    1 - (((cell[1] + offset[1]) * SIDE) / CAM.height) * 2,
-  ]
+  const ndc = [((cell[0] + offset[0]) / GRID.x) * 2 - 1, 1 - ((cell[1] + offset[1]) / GRID.y) * 2]
   return [
     EYE[0] + ndc[0] * CAM.half[0] * depth,
     EYE[1] + ndc[1] * CAM.half[1] * depth,
     EYE[2] - depth,
   ]
 }
-export const norm = (v: number[]) => v.map((c) => c / Math.hypot(...v))
-export const sub = (a: number[], b: number[]) => a.map((c, i) => c - b[i])
-export const dot = (a: number[], b: number[]) => a.reduce((s, c, i) => s + c * b[i], 0)
 /** The phase function toward the eye of the light in the unit direction `toLight`. */
 export const phase = (g: number, toLight: number[], toEye: number[]) =>
-  (1 - g * g) / (4 * Math.PI * (1 + g * g + 2 * g * dot(toLight, toEye)) ** 1.5)
+  (1 - g * g) / (4 * Math.PI * (1 + g * g + 2 * g * dotVector3(toLight, toEye)) ** 1.5)

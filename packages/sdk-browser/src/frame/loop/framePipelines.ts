@@ -11,14 +11,21 @@ import { askRowWords } from '../../placement/rows/rowWordsPass.ts'
 import { askRootPasses } from '../../placement/roots/rootPasses.ts'
 import { askEntryCorners } from '../../blend/transparent/entryCorners.ts'
 import { wantsEmissiveAo } from '../prepare/emissiveAoLayer.ts'
-import { askLobedPrograms } from '../prepare/contractLight.ts'
+import { askLobedPrograms, wantsContractLighting } from '../prepare/contractLight.ts'
 import { askAtmosphere } from '../render/encodeAtmosphere.ts'
 import { askFogVolume } from '../render/encodeFogVolume.ts'
 import { askScreenProbes } from '../../lighting/bounce/screen/frame.ts'
+import { track } from '../../lighting/deferred/compileLedger.ts'
+import {
+  blueNoiseNow,
+  blueNoiseRefused,
+  blueNoiseTextures,
+} from '../../gpu/noise/blueNoiseTextures.ts'
 import { askExposure } from '../../post/exposure/frame.ts'
 import { askFinish } from '../../post/finish/frame.ts'
-import { askBloomPrograms } from '../../post/effects/bloom/bloomAsk.ts'
+import { askEffectPrograms } from '../../post/effects/stagePlan.ts'
 import { askVelocity } from '../../post/taa/velocityFrame.ts'
+import { askDisplacedClasses, displacedKeys } from '../../visibility/tessellation/prismFrame.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 /** The class set each census last asked its classes of. */
@@ -40,6 +47,7 @@ function askShadeClasses(rt: WebgpuPagesRuntime) {
     const layered = classes.withEmissiveAo()
     let ready = true
     for (const key of census.keys) ready = layered.of(key).ask().ready && ready
+    for (const key of displacedKeys(rt)) ready = layered.displaced(key).ask().ready && ready
     if (!ready) return
     // The drawn view's surfaces take the layer before the resolve (`followEmissiveAo`).
     vis.shadeClasses = layered
@@ -49,6 +57,15 @@ function askShadeClasses(rt: WebgpuPagesRuntime) {
     for (const key of census.keys) classes.of(key).ask()
     asked.set(census, classes)
   }
+}
+
+/** The engine's blue noise, asked of the device at a frame's entry once a lit image can read it (the shadow projection, the screen probes): the
+ *  frames wait for it (`track`) while it is read and made, showing the previous image. Asked once: a refusal (the file missing, the budget) is
+ *  the device's answer, and the passes that read it go without. */
+function askBlueNoise(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  if (!wantsContractLighting(rt) || blueNoiseRefused(device)) return
+  if (blueNoiseNow(device) || blueNoiseRefused(device)) return
+  track(device, blueNoiseTextures(device), true)
 }
 
 /**
@@ -61,10 +78,10 @@ function askShadeClasses(rt: WebgpuPagesRuntime) {
  * four once the session's cut is adopted, never queued ahead of its compiles —, the
  * lobe code of a lobed surface (`askLobedPrograms`), the atmosphere's passes once the scene
  * declares one (`askAtmosphere`), the fog's volume once the scene turns it on
- * (`askFogVolume`), the screen probes' kernels once the level casts them (`askScreenProbes`), the automatic exposure's measure once an image
+ * (`askFogVolume`), the screen probes' kernels once the level casts them (`askScreenProbes`), the blue noise the shadows and the probes read (`askBlueNoise`), the automatic exposure's measure once an image
  * lit by declared lamps asks it (`askExposure`), the local exposure's passes once its settings
- * ask them (`askFinish`), the bloom's convolution and the finishing of its glow once a bloom
- * draws one (`askBloomPrograms`), the velocity stage's program once a pass reads the motion
+ * ask them (`askFinish`), the programs an effect pass that draws needs — the bloom's convolution
+ * (`askEffectPrograms`) —, the velocity stage's program once a pass reads the motion
  * (`askVelocity`), the visibility raster once the targets it spans are made —,
  * each compiled off the thread (`PreparedPipeline.ask`): the frame is held while one compiles
  * (`deviceAnswering`), showing the previous image, never compiling one itself. Prepare asks them
@@ -74,6 +91,7 @@ export function askFramePipelines(rt: WebgpuPagesRuntime) {
   const device = rt.gpu.device
   if (!device || rt.run.lost) return
   askShadeClasses(rt)
+  askDisplacedClasses(rt)
   askGuidePass(rt, device)
   askParticles(rt, device)
   if (wantsAsIsShare(rt)) askAsIsSeed(device)
@@ -88,10 +106,11 @@ export function askFramePipelines(rt: WebgpuPagesRuntime) {
   askLobedPrograms(rt, device)
   askAtmosphere(rt, device)
   askFogVolume(rt, device)
+  askBlueNoise(rt, device)
   askScreenProbes(rt, device)
   askExposure(rt, device)
   askFinish(rt, device)
-  askBloomPrograms(rt, device)
+  askEffectPrograms(rt, device)
   askVelocity(rt, device)
   if (rt.gpu.depthView) ensureGpuRaster(rt, device)
   // The primed pyramid's targets and kernel, once a view asks one (`hizPrime`).

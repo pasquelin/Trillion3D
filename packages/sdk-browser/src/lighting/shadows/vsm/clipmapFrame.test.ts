@@ -4,8 +4,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  VSM_SUN_COARSE_FROM,
-  VSM_SUN_COARSE_TO,
   VSM_NEXT_KEEPS_PAGES,
   VSM_MAP_COARSE_KEEPS_DYNAMIC,
   VSM_MAP_COARSE,
@@ -42,7 +40,7 @@ test('a frame builds every level, its LOD bias from the screen, its data packed 
   clipmap.cacheEntry.mapCaches.forEach(({ projectionData }, index) => {
     const level = 6 + index
     assert.deepEqual([projectionData.mapLevel, projectionData.levelsLeft], [level, LEVELS - index])
-    const coarse = (level >= VSM_SUN_COARSE_FROM && level <= VSM_SUN_COARSE_TO) || level === 22
+    const coarse = (level >= 15 && level <= 18) || level === 22
     assert.equal(!!(projectionData.flags & VSM_MAP_COARSE), coarse, `level ${level}`)
     assert.ok(projectionData.flags & VSM_MAP_COVERAGE)
     assert.ok(projectionData.flags & VSM_MAP_COARSE_KEEPS_DYNAMIC)
@@ -192,6 +190,34 @@ test("a sun's far-shadow distance is in its maps' records, and another distance 
     assert.deepEqual([distance, flags & VSM_MAP_UNCACHED], [250, 0], 'still cached: no restage')
   const none = frame(new VsmCacheManager(), [0, 0, 0]).cacheEntry.mapCaches
   assert.equal(none[0].projectionData.farShadowDistance, 0, 'a light that names none has no limit')
+})
+
+test("a sun's own shadow distance is part of its cache key: a new one draws every page again, the same one with another edge none", () => {
+  const cache = new VsmCacheManager()
+  const sun = (shadowDistance: number | undefined, farShadowDistance = 427) =>
+    createVsmClipmap(
+      cache,
+      { ...SUN, shadowDistance, farShadowDistance },
+      { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] },
+      { width: 1024, height: 1024 },
+    )
+  for (let n = 0; n < 2; n++) {
+    cache.frameStamp = n
+    sun(400).cacheEntry.markRendered(n)
+  }
+  cache.frameStamp = 2
+  const cached = (distance: number | undefined, edge?: number) =>
+    sun(distance, edge).cacheEntry.mapCaches.every(
+      ({ projectionData: d }) => (d.flags & VSM_MAP_UNCACHED) === 0,
+    )
+  assert.equal(cached(400, 240), true, 'the view’s scale moved the edge: cached')
+  assert.equal(cached(undefined), true, 'the default is 400 metres')
+  assert.equal(cached(250), false, '400 to 250 metres: the light is re-created, nothing cached')
+  cache.frameStamp = 3
+  sun(250).cacheEntry.markRendered(3)
+  cache.frameStamp = 4
+  assert.equal(cached(250), true, 'held again')
+  assert.equal(cached(0), false, '250 to none: re-created too')
 })
 
 test("a sun's far-shadow distance is the edge of its shadow distance, its settings and the view's scale, none when the culling is off", () => {

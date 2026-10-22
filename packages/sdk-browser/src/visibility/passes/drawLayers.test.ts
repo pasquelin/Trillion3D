@@ -23,6 +23,7 @@ import { VIS_UNIFORM, SHADE_UNIFORM } from '../shader/uniformLayout.ts'
 import { createEngineCamera } from '../../camera/engineCamera.ts'
 import { createWebgpuVisibilityShaders } from './shaders.ts'
 import { PAGE_INFO } from '../pageInfo.ts'
+import { NO_VIEW_SET } from '../../../../sdk-core/src/world/camera/viewSet.ts'
 
 // Follow-up of `../../frame/backend/layersState.test.ts`: the per-image draw modules, where the coplanar-
 // layer lot was reapplied too. `../../geometry/rows/page/pageRowWriter.ts` stays covered by `../../geometry/rows/page/pageRowDepthBias.test.ts` and has
@@ -144,7 +145,7 @@ test('createWebgpuVisibilityShaders sizes the visibility uniform buffer for the 
   assert.equal((shaders.visUniform as unknown as { size: number }).size, uniformSlots * 256)
 })
 
-test('the visibility uniform carries the view’s plane and whether the split routes what reaches behind it', () => {
+test('the visibility uniform carries the view’s plane where the project switch is on, and whether the split routes what reaches behind it', () => {
   const { device } = fakeDevice(),
     cam = createEngineCamera(),
     slots = (rt: WebgpuPagesRuntime) => rt.vis.visUniPacked
@@ -164,7 +165,7 @@ test('the visibility uniform carries the view’s plane and whether the split ro
     },
     layout: { rows: { packedCount: 3 } },
     gpu: { targetSize: [64, 32], displaySize: [64, 32], temporal: undefined },
-    setup: { pixelRatio: () => 1 },
+    setup: { pixelRatio: () => 1, clipping: undefined as 'pixel' | undefined },
     capture: { capturing: false },
     context: {},
   } as unknown as WebgpuPagesRuntime
@@ -174,15 +175,19 @@ test('the visibility uniform carries the view’s plane and whether the split ro
       route: new Uint32Array(slots(rt).buffer)[U.clipRoute],
     })
   const write = () => writeWebgpuVisibilityUniforms(rt, device, cam, 4)
-  // A camera whose plane the host has not allowed: nothing to clip.
+  // A camera with a plane, the project switch off: nothing to clip, nothing to route.
   cam.viewSet = Object.freeze({ clipPlane: [0, 0, 1, 2], hidden: [], showOnly: null }) as never
   write()
   assert.deepEqual(read(), { plane: [0, 0, 0, 0], route: 0 })
-  // Allowed: the unit normal and the offset the other way round, the cut's cull routing the split.
-  Object.assign(rt.context, { cutClipPlane: true })
+  // On: the unit normal and the offset the other way round, the cut's cull routing the split.
+  rt.setup.clipping = 'pixel'
   write()
   assert.deepEqual(read(), { plane: [0, 0, 1, -2], route: 1 })
   Object.assign(rt.context, { cutClipPlaneCulling: false })
   write()
   assert.deepEqual(read(), { plane: [0, 0, 1, -2], route: 0 })
+  // A view that has no plane holds zeros, whatever the switch.
+  cam.viewSet = NO_VIEW_SET
+  write()
+  assert.deepEqual(read(), { plane: [0, 0, 0, 0], route: 0 })
 })

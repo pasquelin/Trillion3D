@@ -2,7 +2,7 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { PI } from '../../../../../math/src/wgsl/constants.ts'
-import { SCREEN_PROBE_CONSTANTS } from '../../../../../sdk-core/src/bounce/screenProbeLevels.ts'
+import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
 import { spSurface } from './probesWgsl.ts'
 import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
@@ -13,6 +13,7 @@ export const OCCLUSION_BINDINGS = bindingTable({
   normals: [1, 'float'],
   flags: [2, 'uint'],
   occlusion: [3, { store: F.occlusion }],
+  blue: [4, 'float'],
 })
 
 const B = OCCLUSION_BINDINGS.at
@@ -55,9 +56,9 @@ fn spHorizonCos(at:vec2f,P:vec3f,V:vec3f,depth:f32,invForeground:f32,low:f32,cur
 
 /**
  * THE SHORT-RANGE OCCLUSION: the contact shadow the probes, a probe a tile of pixels, cannot hold. A search of the depth round
- * each pixel for the horizon the nearby surfaces make, along slices of the pixel's view: `SP_SLICES` of them, each a plane
- * through the eye and the pixel at an angle the noise turns (the pixel's noise, `spNoise`), and in each plane, from the pixel along both
- * ways, `SP_STEPS` samples of the depth, at a distance that grows as the square of their rank up to two tiles of pixels
+ * each pixel for the horizon the nearby surfaces make, along slices of the pixel's view: `sp.occlusion.x` of them, each a plane
+ * through the eye and the pixel at an angle the noise turns (the pixel's blue noise, `blueNoiseVec2`), and in each plane, from the pixel along both
+ * ways, `sp.occlusion.y` samples of the depth, at a distance that grows as the square of their rank up to two tiles of pixels
  * (`2 · tile`, a pixel further than the self-occlusion of a texel). A slice's visibility is the analytic integral of the cosine
  * between its two horizons (`spSliceArcs`), its projected normal's weight; the pixel's, the slices' sum over what the
  * normal's projections could have given, never under a thirtieth. The planes are the world's: the camera's right and up read as
@@ -67,7 +68,6 @@ const SP_OCCLUSION = wgslBlock(
   'SP_OCCLUSION',
   [PI],
   `@group(0) @binding(${B.occlusion}) var occlusionOut:texture_storage_2d<${F.occlusion},write>;
-const SP_FOREGROUND:f32=${SCREEN_PROBE_CONSTANTS.occlusionForegroundFraction};
 /** The arcs of one slice at angle \`phi\`: the weighted visibility (\`x\`) and what the normal's projection could have given (\`y\`). */
 fn spSliceArcs(phi:f32,centre:vec2f,s:SpSurface,V:vec3f,right:vec3f,up:vec3f,depth:f32,noise:vec2f)->vec2f{
  let cs=cos(phi);let sn=sin(phi);
@@ -83,9 +83,9 @@ fn spSliceArcs(phi:f32,centre:vec2f,s:SpSurface,V:vec3f,right:vec3f,up:vec3f,dep
  let low1=cos(angle-0.5*PI);
  var horizon0=low0;
  var horizon1=low1;
- let invForeground=1.0/(depth*SP_FOREGROUND);
- for(var n=0u;n<SP_STEPS;n++){
-  let fraction=(f32(n)+noise.y)/f32(SP_STEPS);
+ let invForeground=1.0/(depth*sp.occlusion.z);
+ for(var n=0u;n<u32(sp.occlusion.y);n++){
+  let fraction=(f32(n)+noise.y)/sp.occlusion.y;
   let offset=vec2f(cs,-sn)*(fraction*fraction*f32(sp.size.z)*2.0+1.0);
   horizon0=spHorizonCos(centre+offset,s.P,V,depth,invForeground,low0,horizon0);
   horizon1=spHorizonCos(centre-offset,s.P,V,depth,invForeground,low1,horizon1);
@@ -108,10 +108,10 @@ fn occlusion(@builtin(global_invocation_id) id:vec3u){
   let V=viewToEye(s.P);
   let right=normalize(worldAt(centre+vec2f(1.0,0.0),s.z)-s.P);
   let up=normalize(worldAt(centre-vec2f(0.0,1.0),s.z)-s.P);
-  let noise=spNoise(pixel,sp.size.w);
+  let noise=blueNoiseVec2(pixel,sp.size.w);
   var arcs=vec2f(0.0);
-  for(var slice=0u;slice<SP_SLICES;slice++){
-   arcs+=spSliceArcs((f32(slice)+noise.x)/f32(SP_SLICES)*PI,centre,s,V,right,up,depth,noise);
+  for(var slice=0u;slice<u32(sp.occlusion.x);slice++){
+   arcs+=spSliceArcs((f32(slice)+noise.x)/sp.occlusion.x*PI,centre,s,V,right,up,depth,noise);
   }
   visibility=max(arcs.x/max(arcs.y,1e-6),0.03);
  }
@@ -123,10 +123,12 @@ fn occlusion(@builtin(global_invocation_id) id:vec3u){
 export const occlusionShader = (shape: OcclusionShape, samples: readonly [number, number]) =>
   wgslProgram(
     `${spParams(B.params)}
-${wgslConsts({
-  SP_OCCLUSION_DOWNSAMPLE: shape.downsample,
-  SP_SLICES: SCREEN_PROBE_CONSTANTS.occlusionSlices,
-  SP_STEPS: SCREEN_PROBE_CONSTANTS.occlusionSteps,
-})}`,
-    [spCommon(samples), spSurface(B.normals, B.flags), SP_HORIZON(shape), SP_OCCLUSION],
+${wgslConsts({ SP_OCCLUSION_DOWNSAMPLE: shape.downsample })}`,
+    [
+      spCommon(samples),
+      spSurface(B.normals, B.flags),
+      blueNoiseWgsl(0, B.blue),
+      SP_HORIZON(shape),
+      SP_OCCLUSION,
+    ],
   )

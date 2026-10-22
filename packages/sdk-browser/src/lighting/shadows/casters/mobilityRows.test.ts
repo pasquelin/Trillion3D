@@ -6,6 +6,8 @@ import {
   MOBILITY_CORNER_SHIFT,
   MOBILITY_CUTOUT,
   MOBILITY_FAR_SHADOW,
+  MOBILITY_FAR_SKIPPED,
+  MOBILITY_FAR_TESTED,
   MOBILITY_MOVING,
 } from '../mobilityBits.ts'
 import { createShadowMobility } from './mobility.ts'
@@ -66,6 +68,33 @@ test("a cutout row's word carries the cutout bit, beside its moving bit", () => 
 
 // A placement that casts far shadows gives each of its rows the far-shadow bit, which a sun's
 // far-shadow test reads (`vsmRenderFarFlags`).
+// A placement that says the far-shadow test reaches it, or never does, gives its rows one bit or
+// the other, and a rewrite clears the one it no longer says.
+test('a placement’s far-shadow test bits reach its rows and are cleared when it stops saying them', () => {
+  const mobility = createShadowMobility()
+  mobility.ensure(1, 2, () => new Float64Array(16))
+  let said = MOBILITY_FAR_TESTED
+  const write = (to: number) =>
+    mobility.writeRows(
+      () => 0,
+      2,
+      0,
+      to,
+      () => {},
+      () => 0,
+      2,
+      () => false,
+      () => said,
+    )
+  write(1)
+  assert.deepEqual([...mobility.rowWords], [MOBILITY_FAR_TESTED, MOBILITY_FAR_TESTED])
+  for (said of [MOBILITY_FAR_SKIPPED, 0]) {
+    mobility.touch(0)
+    write(-1)
+    assert.deepEqual([...mobility.rowWords], [said, said], `${said}`)
+  }
+})
+
 test('a placement that casts far shadows gives its rows the far bit, written again when touched', () => {
   const mobility = createShadowMobility()
   mobility.ensure(2, 4, () => new Float64Array(16))

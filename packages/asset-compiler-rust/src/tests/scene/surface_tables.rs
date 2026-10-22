@@ -193,3 +193,88 @@ fn a_slot_keeps_its_own_coordinate_set_beside_the_one_its_transform_names() {
     assert_eq!(m["emissiveMap"]["slotTexCoord"], json!(1));
     assert_eq!(tables["materialTableVersion"], json!(5));
 }
+
+/// The entry of the one material the fixture wears, whose glTF `extras` are `extras`: a height map
+/// is no glTF slot, so the displacement is read from them (`DISPLACEMENT_EXTRA`).
+fn entry_with(extras: Value) -> Value {
+    let (_root, tables) = published(|gltf| {
+        gltf["images"] = json!([{"uri":"albedo.png"}]);
+        gltf["textures"] = json!([{"source":0}]);
+        gltf["materials"] = json!([{"name":"bricks","extras":extras}]);
+        gltf["meshes"][0]["primitives"][0]["material"] = json!(0);
+    });
+    tables["materials"][0].clone()
+}
+
+#[test]
+fn a_material_is_displaced_only_when_it_names_a_height_map_and_switches_its_tessellation_on() {
+    // A material has no displacement until its tessellation is switched on, whatever else it
+    // names: its entry then has no `displacement` field at all, which is the table of before.
+    for extras in [
+        json!({}),
+        json!({"displacement":{"texture":{"index":0}}}),
+        json!({"displacement":{"texture":{"index":0},"tessellation":false,"magnitude":2.0}}),
+    ] {
+        let entry = entry_with(extras);
+        assert!(entry.get("displacement").is_none(), "{entry}");
+    }
+    // Switched on, every number left out is the default: a magnitude of 4, a centre of one half,
+    // and no fade.
+    let on = entry_with(json!({"displacement":{"texture":{"index":0},"tessellation":true}}));
+    assert_eq!(
+        on["displacement"],
+        json!({"map":{"texture":0,"texCoord":0,"slotTexCoord":0,"transform":null},
+            "magnitude":4.0,"center":0.5,"fade":null})
+    );
+    // A fade is asked by `true` — its default range, 4 pixels to 1 — or by a range, either end of
+    // which may be left to its default.
+    let faded = entry_with(
+        json!({"displacement":{"texture":{"index":0},"tessellation":true,
+        "fade":true}}),
+    );
+    assert_eq!(
+        faded["displacement"]["fade"],
+        json!({"start":4.0,"end":1.0})
+    );
+    let tuned = entry_with(json!({"displacement":{"texture":{"index":0,"texCoord":1},
+        "tessellation":true,"magnitude":2.5,"center":0.25,"fade":{"start":8.0}}}));
+    assert_eq!(
+        tuned["displacement"],
+        json!({"map":{"texture":0,"texCoord":1,"slotTexCoord":1,"transform":null},
+            "magnitude":2.5,"center":0.25,"fade":{"start":8.0,"end":1.0}})
+    );
+}
+
+#[test]
+fn a_displacement_that_does_not_read_is_refused_naming_the_material_and_the_field() {
+    // A displaced material whose `fields` replace those of a valid one.
+    let displaced = |fields: Value| {
+        let mut displacement = json!({"texture":{"index":0},"tessellation":true});
+        for (key, value) in fields.as_object().expect("fields") {
+            displacement[key] = value.clone();
+        }
+        json!({"displacement": displacement})
+    };
+    for (fields, name) in [
+        (json!({"magnitude":-1.0}), "magnitude"),
+        (json!({"center":1.5}), "center"),
+        (json!({"texture":null}), "texture"),
+        (json!({"fade":{"start":0.0}}), "fade.start"),
+        (json!({"bump":1}), "bump"),
+    ] {
+        let (root, options) = fixture();
+        let mut gltf = read_gltf(&options);
+        gltf["images"] = json!([{"uri":"albedo.png"}]);
+        gltf["textures"] = json!([{"source":0}]);
+        gltf["materials"] = json!([{"name":"bricks","extras":displaced(fields)}]);
+        gltf["meshes"][0]["primitives"][0]["material"] = json!(0);
+        write_gltf(&options, &gltf, None);
+        let error = compile(&options, |_| {}).expect_err("refused");
+        assert_eq!(error.code, "INVALID_OPTIONS");
+        assert!(
+            error.message.contains("bricks") && error.message.contains(name),
+            "{error}"
+        );
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+}

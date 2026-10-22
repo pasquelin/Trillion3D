@@ -28,6 +28,7 @@ import { DEPTH_OF_FIELD_RULES } from '../../../../sdk-core/src/contracts/depthOf
 import { AMBIENT_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import { SKY_QUALITY_RULES } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import { BLOOM_RULES } from '../../../../sdk-core/src/contracts/bloomRules.ts'
+import { GAUSSIAN_BLUR_RULES } from '../../../../sdk-core/src/contracts/gaussianBlurRules.ts'
 import { FILM_RULES } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 
 /** The rules the world's registry holds: every kind but a vector, which no registry entry types. */
@@ -171,6 +172,9 @@ export const worldFamilies = (settings: WorldSettings) => ({
   ),
   bloom: ruledSwitches(settings, BLOOM_RULES, (session, field, value) =>
     session.setBloom(field, value),
+  ),
+  gaussianBlur: ruledSwitches(settings, GAUSSIAN_BLUR_RULES, (session, field, value) =>
+    session.setGaussianBlur(field, value),
   ),
   film: ruledSwitches(settings, FILM_RULES, (session, field, value) =>
     session.setFilm(field, value),

@@ -40,53 +40,18 @@ export const REFLECTION_CONSTANTS = {
   /** The least N·V the same-surface test (`reflectionSameSurface`) divides by: a surface seen this
    *  close to edge-on spans ⌈1/8⌉ = eight pixels' depth across a pixel, a steeper one no more. */
   REFLECTION_GRAZING: 1 / 8,
-  /** The temporal clamp's width (`temporalWgsl.ts`), in standard deviations of the resolved pixels
-   *  around a pixel, or of the history's own images where wider: a history further from their mean
-   *  than this is pulled back to it — one deviation keeps a moving reflection from ghosting and still
-   *  lets a noisy one average. */
-  REFLECTION_CLAMP: 1,
-  /** The relative depth past which a history texel is another surface than the pixel reprojected onto
-   *  it (`temporalWgsl.ts`): 3 %, past a depth buffer's and a reprojection's error, under a modelled
-   *  step's; jittered by half of it either way, so the cut is no hard line, and widened as the surface
-   *  turns edge-on, where one pixel spans more depth. */
-  REFLECTION_HISTORY_DISTANCE: 0.03,
   /** The least extent of that window the clamp's move is measured against (`temporalPixel`), in
    *  the display's white (the view's exposure applied): the window's extent, held at 0.1 at least,
    *  a tenth of the display's white. A window of near-equal texels — a smooth glass reflecting a
    *  smooth sky — has a width near zero, against which any history moved across the whole window and
    *  counted for a quarter of its images, image after image. */
   REFLECTION_CLAMP_FLOOR: 0.1,
-  /** The share of the visible normals' cap, nearest the horizon, a sampled ray is never drawn from
-   *  (`sampleWgsl.ts`): the grazing microfacets, whose rays leave nearly along the surface, are rarely
-   *  seen, dim and the noisiest of a lobe; a tenth of the cap's height left out removes their flicker
-   *  for a share of the lobe's energy under its noise. */
-  REFLECTION_TAIL_BIAS: 0.1,
-  /** The range of the denoiser's space (`texelWgsl.ts`), in the display's white (the view's exposure
-   *  applied): a radiance under it is averaged as itself, one past it weighs as about the range — ten,
-   *  so every highlight a display shows is averaged whole, and a firefly a thousand times brighter than
-   *  its neighbours weighs ten. */
-  REFLECTION_DENOISER_RANGE: 10,
-  /** The roughness past which a lobe casts no ray (`reach.ts`), the probes' field answering it whole:
-   *  past it a traced reflection is too blurred to beat the probes' field, so no ray is spent. A pixel no
-   *  lobe of which traces is never in a traced tile's grid (`tiles.ts`): it reads the field alone. */
-  REFLECTION_TRACE_ROUGHNESS: 0.4,
-  /** The roughness band under `REFLECTION_TRACE_ROUGHNESS` over which a lobe's ray gives way to the
-   *  field (`reflectionTraceShare`): whole under 0.3. */
-  REFLECTION_TRACE_FADE: 0.1,
   /** The floor of the reflections' normalised lengths (`ReflectionLobe.T`, a footprint's direction),
    *  of a sum of upsample weights and of a hit's slab: under it, the value is none. Under math's
    *  `DIVISOR_FLOOR` (1e-20) on purpose: these values can fall between the two — an axis a hair
    *  off the reflection, a neighbour's faint weight, a slab at a far depth —, where 1e-20 would
    *  shorten the normalised vector or scale the weighted mean down instead of normalising it. */
   REFLECTION_FLOOR: 1e-30,
-  /** The images a history counts under which the last pass's spatial filter runs, boosted the more
-   *  the fewer (`bilateralWgsl.ts`, its disocclusion): two, past which the history's own average is
-   *  less noisy than the filter's blur. */
-  REFLECTION_DISOCCLUSION_FRAMES: 2,
-  /** The spatial filter's radius at a roughness of ⅛ and over, in pixels (`bilateralWgsl.ts`): as
-   *  wide as the widest spatial reuse (`REFLECTION_REUSE_RADIUS`), the blur a disoccluded pixel takes
-   *  for the images it lacks. */
-  REFLECTION_FILTER_RADIUS: 8,
 } as const
 
 /**
@@ -96,35 +61,19 @@ export const REFLECTION_CONSTANTS = {
  * (`ReflectionView.scene`).
  */
 export const REFLECTION_COUNTS = {
-  /** The images a pixel's history averages at most (`temporalWgsl.ts`), on every image, whatever moves
-   *  elsewhere in the scene: 12 — a dozen images of a ray and its reused neighbours each, about a
-   *  hundred samples of a lobe, the window an exponential mean then keeps; a history held far by the
-   *  clamp counts for fewer (`historyCount`, not rounded). */
-  REFLECTION_HISTORY: 12,
-  /** The widest spatial reuse, in pixels (`resolveWgsl.ts`): the lobe's own reach bounds it below this,
-   *  which a ray that met the far scene through a wide lobe reaches. */
-  REFLECTION_REUSE_RADIUS: 8,
-  /** The neighbours the resolve's reconstruction reads at most (`resolveWgsl.ts`), on a disc of its
-   *  radius: five — with the pixel's own ray and a history of `REFLECTION_HISTORY` images, about
-   *  seventy samples of a lobe. */
-  REFLECTION_REUSE_TAPS: 5,
-  /** The neighbours the last pass's spatial filter reads (`bilateralWgsl.ts`), twice as many at a full
-   *  disocclusion: few, since it runs only where the history is short. */
-  REFLECTION_FILTER_TAPS: 4,
-  /** The side of the blocks of pixels the reflections trace one ray of each image (`trace/trace.ts`),
-   *  two — one ray a pixel is the full rate, past two a block's pixels share too little of its ray —, a
-   *  quarter of the rays for the same image: the pixel of each 2 × 2 block the tile jitter picks
-   *  (`reflectionJitter`, `reflectionTracedPixel`) casts the block's ray where its lobe traces, the
-   *  four rooks taking turns image after image, and every pixel resolves its own answer from the rays
-   *  around it (`resolveWgsl.ts`). A still view traces every traced pixel within four
-   *  images, within its history's twelve. */
-  REFLECTION_TRACE_BLOCK: 2,
+  /** The bits of the view's flags (`ReflectionView.scene.w`, `reflectionOptions.ts`): the scene is traced, its first
+   *  metres in detail, the screen looked at again past the rings, the screen traced, the history accumulated, the
+   *  neighbours' rays read, the last filter run, a scene hit taking the lit image, the lighting fogged along its ray. */
+  REFLECTION_SCENE_TRACES: 1,
+  REFLECTION_DETAIL_TRACES: 2,
+  REFLECTION_DISTANT_TRACES: 4,
+  REFLECTION_SCREEN_TRACES: 8,
+  REFLECTION_TEMPORAL: 16,
+  REFLECTION_RECONSTRUCTION: 32,
+  REFLECTION_BILATERAL: 64,
+  REFLECTION_SCENE_COLOR: 128,
+  REFLECTION_HEIGHT_FOG: 256,
 } as const
-
-/** The period of the per-image sample sequence (`sampleWgsl.ts`, `viewWrite.ts`): the turn wraps
- *  on it once, on the CPU (`stageReflectionImage`), so the word the shaders read stays below it and
- *  exact in an `f32`. */
-export const REFLECTION_SEQUENCE = 4096
 
 /** Threads per side of a reflection workgroup: one pixel or one texel each. */
 export const REFLECTION_SIDE = 8

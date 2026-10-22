@@ -49,6 +49,7 @@ import type { ShadowOptions } from '../../../../sdk-core/src/contracts/shadowOpt
 import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import type { DepthOfFieldSettings } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
 import type { BloomSettings } from '../../../../sdk-core/src/contracts/bloomRules.ts'
+import type { GaussianBlurSettings } from '../../../../sdk-core/src/contracts/gaussianBlurRules.ts'
 import type { FilmSettings } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 import type { AmbientOcclusionOptions } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import type { SkyQualityOptions } from '../../../../sdk-core/src/modules/sky/quality.ts'
@@ -217,6 +218,9 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
  *  `setDepthOfField`, read at each image by the depth of field (`../../frame/render/encodeEffects.ts`);
  *  the bloom's drawing (`../../../../sdk-core/src/contracts/bloomRules.ts`), written by `setBloom`,
  *  read at each image by the bloom (`../../frame/render/encodeEffects.ts`);
+ *  the Gaussian blur's (`../../../../sdk-core/src/contracts/gaussianBlurRules.ts`), written by
+ *  `setGaussianBlur`, read at each image by the bloom and by the local exposure
+ *  (`../../post/finish/frame.ts`);
  *  the film effects' (`../../../../sdk-core/src/contracts/filmOptions.ts`), written by `setFilm`,
  *  read at each image by the finishing (`../../post/finish/frame.ts`);
  *  the volumetric fog's (`../../../../sdk-core/src/contracts/volumetricFogOptions.ts`), written by
@@ -259,6 +263,7 @@ export interface EngineContext
     MotionBlurSettings,
     DepthOfFieldSettings,
     BloomSettings,
+    GaussianBlurSettings,
     FilmSettings,
     VolumetricFogOptions,
     TessellationOptions,

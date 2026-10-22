@@ -123,7 +123,7 @@ fn cloudMarch(r:CloudRay,closestCm:f32,p:vec2u)->CloudMarched{
  let rayX=normalize(cloudUnproject(cloudNdc(p+vec2u(1u,0u)),0.5)-frame.eye.xyz);
  let rayY=normalize(cloudUnproject(cloudNdc(p+vec2u(0u,1u)),0.5)-frame.eye.xyz);
  var jitter=0.5;
- if(cloudTrace.options.y==0u){jitter=vsmNoiseOne(pixel,cloudTrace.sizes.x);}
+ if(cloudTrace.options.y==0u){jitter=blueNoiseScalar(pixel,cloudTrace.sizes.x);}
  var t=r.tMin+jitter*stepT;
  var i=cloudStartSteps(p,&t,stepT);
  loop{

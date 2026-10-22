@@ -3,6 +3,7 @@ import { bufferEntries } from '../../gpu/core/computeBindings.ts'
 import { compileStep, stepLayouts, type StepPipelines } from './particleStep.ts'
 import { createPoolStates, usedSlots } from './poolStates.ts'
 import { createWebgpuParticleDraw, type DrawState } from './webgpuParticleDraw.ts'
+import type { Clipping } from '../../gpu/core/clipDistances.ts'
 import { DRAW_FLOATS } from '../drawWords.ts'
 import { dispatchRows } from '../../gpu/dispatch/grid.ts'
 import {
@@ -43,9 +44,14 @@ const stateBytes = (pool: ParticlePool) => PARTICLE_STATE_HEAD + pool.capacity *
  * (`PARTICLE_CAPACITY`), told once. Its records ride in a staging buffer of the pool's per-image
  * emission (`ParticlePool.emitPerFrame`), written up to the image's count. The pipelines compile in
  * the background; until they arrive no pool is taken, so what they stage waits. `fail` hears a
- * pipeline that could not be made, and every pool is then `refused`.
+ * pipeline that could not be made, and every pool is then `refused`. `clipping`, the way the draw
+ * cuts at a view's plane (`../../gpu/core/clipDistances.ts`).
  */
-export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) => void) {
+export function createWebgpuParticles(
+  device: GPUDevice,
+  fail: (error: unknown) => void,
+  clipping?: Clipping,
+) {
   const { layout, boundLayout } = stepLayouts(device)
   let pipeline: StepPipelines | null | undefined
   compileStep(device, layout, boundLayout)
@@ -73,7 +79,7 @@ export function createWebgpuParticles(device: GPUDevice, fail: (error: unknown) 
   // The pools stepped this image: their states and record workgroups, kept from image to image.
   const stepped: PoolState[] = [],
     records: number[] = []
-  const drawn = createWebgpuParticleDraw(device, made.peek, fail)
+  const drawn = createWebgpuParticleDraw(device, made.peek, fail, clipping)
   return {
     /** Steps `pools` in `encoder`; returns the dispatches encoded. */
     run(pools: readonly ParticlePool[], encoder: GPUCommandEncoder) {

@@ -11,6 +11,7 @@ import {
 } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import type { SceneLight } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
+import type { VsmMapSettings } from '../mapSettings.ts'
 import type { VsmBoundLight } from '../rows/rowPageBound.ts'
 
 /** The sun's shadow setting `field` the session holds (`shadowOptions.ts`), by its one reading. */
@@ -31,8 +32,17 @@ export const casterDrawDistance = (
     ? { scale: cutSetting(rt, 'cutViewDistanceScale') }
     : undefined
 
-/** The sun's shadow settings the session holds, resolved once a sun and frame. */
+/** The shadow settings the session holds, resolved into the one object each call rewrites. */
 const shadows = {} as ShadowValues
+const mapSettings = { shadows, frame: 0 }
+
+/** The shadow settings the session holds and the scene frame, as the maps' setup reads them
+ *  (`VsmMapSettings`): the one object, rewritten by each call. */
+export function vsmMapSettings(rt: WebgpuPagesRuntime): VsmMapSettings {
+  resolveSettingsInto(SHADOW_RULES, rt.context, shadows)
+  mapSettings.frame = rt.run.frame
+  return mapSettings
+}
 
 /**
  * How far from the eye, in metres, the shadow maps of `light` still take every caster

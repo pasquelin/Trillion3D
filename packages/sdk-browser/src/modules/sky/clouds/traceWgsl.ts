@@ -8,7 +8,7 @@ import {
   DEFAULT_AIR_SHAPE,
   type AirShape,
 } from '../../../lighting/atmosphere/shape.ts'
-import { vsmBlueNoiseWgsl } from '../../../lighting/shadows/vsm/blueNoise.ts'
+import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { cloudMaterialBindings } from './materialWgsl.ts'
 import { CLOUD_FORMAT, DEVICE_DEPTH_FLOOR } from './reconstructLayout.ts'
 import { cloudDepthBinding, cloudSceneDepthFn } from './traceDepthWgsl.ts'
@@ -169,7 +169,7 @@ export function cloudTraceProgram(key: CloudTraceKey, shape: AirShape = DEFAULT_
         unprojectPoint,
         HAZE_READ_WGSL,
         SEPARATED_READ_WGSL,
-        vsmBlueNoiseWgsl(G, B.blueNoise),
+        blueNoiseWgsl(G, B.blueNoise),
       ],
       shape,
     ).code

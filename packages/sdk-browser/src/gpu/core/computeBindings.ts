@@ -92,6 +92,23 @@ export const namedEntries = <Name extends string>(
     resource: resources[name]!,
   }))
 
+/** The bind group of `layout` whose resources land at the bindings `bindings` name (`namedEntries`),
+ *  labelled `label` when it is, the entries `first` — a uniform every pass of a family binds — before
+ *  them. */
+export const namedGroup = <Name extends string>(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  bindings: Record<Name, number>,
+  resources: Partial<Record<Name, GPUBindingResource>>,
+  label?: string,
+  first: GPUBindGroupEntry[] = [],
+) =>
+  device.createBindGroup({
+    ...(label && { label }),
+    layout,
+    entries: [...first, ...namedEntries(bindings, resources)],
+  })
+
 /** Bind-group entries of `resources` in their order, the first at binding `first`, each next one a
  *  binding further: the group of a shader that numbers its bindings as it lists them. */
 export const sequentialEntries = (

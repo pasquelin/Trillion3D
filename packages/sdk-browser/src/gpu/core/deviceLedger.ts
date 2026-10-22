@@ -172,3 +172,23 @@ export const ledgerTentative = <T>(device: LedgerDevice | undefined, build: () =
   const ledger = gpuDeviceLedgerOf(device)
   return ledger ? ledger.tentative(build) : build()
 }
+
+/**
+ * An optional allocation the device's budget may refuse, the one admission sequence every such view makes: `make` built
+ * tentatively, as the replacement of the `replaced` bytes the held one gives back, where the room holds the `asked` bytes
+ * past them — `{ value }` —; else `{ why }`, naming `what`: no room, or the budget refused it. Any other error is thrown.
+ * The caller gives the held allocation back, whichever answers.
+ */
+export function ledgerAdmitted<T>(
+  device: LedgerDevice | undefined,
+  { replaced, asked, what, make }: { replaced: number; asked: number; what: string; make: () => T },
+): { value?: T; why?: string } {
+  if (asked - replaced > ledgerRoom(device))
+    return { why: `the memory budget leaves no room for ${what}` }
+  try {
+    return { value: ledgerTentative(device, () => ledgerReplacing(device, replaced, make)) }
+  } catch (error) {
+    if (budgetRefused(error)) return { why: `the memory budget refused ${what}` }
+    throw error
+  }
+}

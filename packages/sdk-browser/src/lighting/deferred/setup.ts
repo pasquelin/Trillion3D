@@ -19,8 +19,8 @@ import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { SCREEN_PROBE_FORMATS } from '../bounce/screen/screenProbeLayout.ts'
 import { AO_OCCLUSION_FORMAT } from '../ao/layout.ts'
 import { createFogStandIns } from '../fog/read.ts'
-import { VSM_BLUE_NOISE_FORMAT } from '../shadows/vsm/blueNoise.ts'
 import { createLightFunctionStandIns } from '../lightFunction/standIns.ts'
+import { BLUE_NOISE_FORMAT } from '../../gpu/noise/blueNoiseTextures.ts'
 
 /** The resolve's layout; each composition's is its own (`compositions.ts`). */
 export const createDeferredLightingLayout = (device: GPUDevice, direct: boolean, bounce = false) =>
@@ -190,7 +190,7 @@ function createVsmPlaceholders(device: GPUDevice) {
   const vsmBlueNoise = standInTexture(
     device,
     'Trillion3D empty VSM blue noise',
-    VSM_BLUE_NOISE_FORMAT,
+    BLUE_NOISE_FORMAT,
     { storage: true },
   )
   // One texel: the resolve tells it from a real transmission by its size, and never reads it.

@@ -6,7 +6,7 @@ import {
   namedEntries,
 } from '../../gpu/core/computeBindings.ts'
 import { fogReadLayoutEntries } from '../fog/read.ts'
-import { vsmBlueNoiseWgsl } from '../shadows/vsm/blueNoise.ts'
+import { blueNoiseWgsl } from '../../gpu/noise/blueNoiseWgsl.ts'
 import { AIR_SHADOW_WGSL } from './airShadowWgsl.ts'
 import { cloudShadowReadWgsl, type CloudShadowBindings } from './cloudShadowRead.ts'
 import { AIR_BINDING, type AirBindingName } from './binding.ts'
@@ -57,7 +57,7 @@ export type AirBindings = {
   /** The virtual shadow maps the air's lights shade the air with (`airShadowWgsl.ts`); the program
    *  declares `airToScene`. The buffer is declared whole. */
   shadow?: boolean
-  /** The blue noise the march jitters its samples by (`vsmNoiseOne`, `blueNoise.ts`). */
+  /** The blue noise the march jitters its samples by (`blueNoiseScalar`, `../../gpu/noise/blueNoiseWgsl.ts`). */
   noise?: boolean
   /** The volumes the clouds read besides the haze (`separatedWgsl.ts`). */
   volumes?: boolean
@@ -190,7 +190,7 @@ export const airProgram = (
     SCATTER_WGSL,
     FRAME_WGSL,
     ...(bindings.shadow ? [AIR_SHADOW_WGSL] : []),
-    ...(bindings.noise ? [vsmBlueNoiseWgsl(0, b.noise)] : []),
+    ...(bindings.noise ? [blueNoiseWgsl(0, b.noise)] : []),
     ...(bindings.cloudShadow ? [cloudShadowReadWgsl(AIR_CLOUD_SHADOW)] : []),
     ...uses,
   ]),

@@ -88,7 +88,7 @@ export interface FogPassContext {
 function furthestEntries(resources: FogVolumeResources, hiz: HizDepth, plane: GPUTextureView) {
   return [
     ...namedEntries(FOG_BINDING, {
-      frame: { buffer: resources.frameBuffer },
+      frame: { buffer: resources.frame.buffer },
       furthestOut: plane,
     }),
     ...hizDepthBindEntries(FOG_BINDING.hiz, hiz),
@@ -105,7 +105,7 @@ function scatterEntries(context: FogPassContext, input: FogPassInputs, textures:
   return namedEntries(FOG_BINDING, {
     lights: { buffer: input.lights },
     tiles: { buffer: input.tiles },
-    frame: { buffer: resources.frameBuffer },
+    frame: { buffer: resources.frame.buffer },
     depth: input.depth,
     furthest: planes[ping].view,
     previousFurthest: planes[1 - ping].view,
@@ -142,7 +142,7 @@ function integrateEntries(
   integrated: GPUTextureView,
 ) {
   return namedEntries(FOG_BINDING, {
-    frame: { buffer: resources.frameBuffer },
+    frame: { buffer: resources.frame.buffer },
     scatterIn,
     integrated,
   })

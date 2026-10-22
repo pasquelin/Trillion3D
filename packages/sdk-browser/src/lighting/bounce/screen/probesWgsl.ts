@@ -1,7 +1,7 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { SURFACE_MODEL_MASK, MODEL_FLAG } from '../../../materials/surface/surfaceModel.ts'
 import { WORLD_AT_WGSL } from '../../deferred/worldAtWgsl.ts'
-import { BOUNCE_GRID_HEAD_WGSL } from '../gridWgsl.ts'
+import { CACHE_WORDS_WGSL } from '../cache/cacheWordsWgsl.ts'
 
 /**
  * THE WEIGHTS OF THE PROBES ROUND A PIXEL: bilinear in the tile, each corner's by how near its plane the pixel's point lies
@@ -96,21 +96,16 @@ fn spProbeOrDead(atlas:vec2u)->SpProbe{
   )
 
 /**
- * THE RANGE THE SCREEN IS TRUSTED TO, and the scene is traced over: the reach of a probe's cell (`spLocalReach`),
- * twice the diagonal of the cell of the finest cascade level that holds the probe (`bounceRead`, the rule the
- * field is read by), or the scene's limit where none does. A kernel names the bounce grid (`bounce`) beside this block.
+ * THE RANGE THE SCREEN IS TRUSTED TO, and the scene is traced over: the distance the radiance cache asks to be traced before it
+ * is read (`spLocalReach`, `CacheCoverage.minTrace`: twice the diagonal of the cell of the finest level that covers the point),
+ * or the scene's limit where the cache is not read or covers none. A kernel names the bounce grid (`bounce`) beside this block.
  */
 export const spReach = wgslBlock(
   'spReach',
-  [BOUNCE_GRID_HEAD_WGSL],
-  `const SP_CELL_REACH:f32=${2 * Math.sqrt(3)};
-fn spLocalReach(P:vec3f,N:vec3f)->f32{
- if(bounce.counts.w==0u){return SP_MAX_TRACE;}
- for(var level=0u;level<CASCADE_LEVELS;level++){
-  if(level>=bounce.counts.y){break;}
-  let read=bounceRead(level,P,N);
-  if(read.holds&&read.fade>0.0){return min(SP_MAX_TRACE,bounce.levels[level].spacing*SP_CELL_REACH);}
- }
- return SP_MAX_TRACE;
+  [CACHE_WORDS_WGSL],
+  `fn spLocalReach(P:vec3f)->f32{
+ if(!spFlag(SP_FLAG_CACHE)){return spMaxTrace();}
+ let cover=cacheCoverage(P);
+ return select(spMaxTrace(),min(spMaxTrace(),cover.minTrace),cover.valid);
 }`,
 )

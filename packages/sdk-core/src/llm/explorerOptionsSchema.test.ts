@@ -23,9 +23,11 @@ import { VOLUMETRIC_LIGHTMAP_RULES } from '../contracts/volumetricLightmapOption
 import { SHADOW_RULES } from '../contracts/shadowOptions.ts'
 import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
 import { BLOOM_RULES } from '../contracts/bloomRules.ts'
+import { GAUSSIAN_BLUR_RULES } from '../contracts/gaussianBlurRules.ts'
 import { FILM_RULES } from '../contracts/filmOptions.ts'
 import { VOLUMETRIC_FOG_RULES } from '../contracts/volumetricFogOptions.ts'
 import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
+import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
 import { RASTER_RULES } from '../contracts/rasterOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
 import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
@@ -124,9 +126,11 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...SHADOW_RULES,
     ...MOTION_BLUR_RULES,
     ...BLOOM_RULES,
+    ...GAUSSIAN_BLUR_RULES,
     ...FILM_RULES,
     ...VOLUMETRIC_FOG_RULES,
     ...SCREEN_PROBE_RULES,
+    ...REFLECTION_RULES,
     ...AMBIENT_OCCLUSION_RULES,
     ...TESSELLATION_RULES,
     ...DEPTH_OF_FIELD_RULES,
@@ -161,12 +165,12 @@ test('a level setting takes its names, true for its default and false for off, a
   }
 })
 
-test('the depth of field level takes its five names, true for its default and false for off', () => {
+test('the depth of field level is the switch the reference reads: on or off, true for on and false for off', () => {
   const key = 'depthOfFieldQuality'
-  for (const value of [true, false, 'off', 'low', 'high', 'veryHigh', 'extreme'])
+  for (const value of [true, false, 'off', 'on'])
     assert.equal(validate({ ...explorer, [key]: value }), true, `${key} ${String(value)}`)
-  for (const value of ['ultra', 3, null])
+  for (const value of ['high', 'extreme', 3, null])
     assert.equal(validate({ ...explorer, [key]: value }), false, `${key} ${String(value)}`)
   assert.equal(EXPLORER_OPTIONS_SCHEMA.properties.depthOfFieldGatherDivisor.default, 2)
-  assert.equal(EXPLORER_OPTIONS_SCHEMA.properties.depthOfFieldRingCount.default, 4)
+  assert.equal(EXPLORER_OPTIONS_SCHEMA.properties.depthOfFieldTemporalQuality.default, 'high')
 })

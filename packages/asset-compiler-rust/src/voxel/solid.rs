@@ -29,15 +29,16 @@ pub(super) struct Voxel {
 }
 
 impl Voxel {
-    /// Cell `cell` of side `side` sampled (`sample`) against its overlapping triangles `ranks`, its
-    /// joint `joint`: what an HLOD cell's levels and a mesh's far groups both sample.
+    /// Cell `cell` of side `side` and rank `rank` sampled (`sample`) against its overlapping
+    /// triangles `ranks`, its joint `joint`: what an HLOD cell's levels and a mesh's far groups both
+    /// sample.
     pub(super) fn sampled(
         probe: &Probe<'_>,
-        (cell, side): (Cell, f64),
+        (cell, side, rank): (Cell, f64, u32),
         ranks: &[u32],
         joint: Option<u16>,
     ) -> Self {
-        let (coverage, faces) = sample(probe, cell, side, ranks);
+        let (coverage, faces) = sample(probe, (cell, side, rank), ranks);
         Self {
             cell,
             coverage,

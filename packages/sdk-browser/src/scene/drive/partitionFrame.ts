@@ -20,16 +20,18 @@ import type { WorldStreaming } from '../../../../sdk-core/src/contracts/worldStr
 
 /** The streaming source a camera is, written into `view`: where its eye stands in the world — the
  *  source's location the grids' ranges are read from — and where it looks, unit, its `-z`: the
- *  source's axis the cells are sorted by, weighed by their distance and their angle to it. */
+ *  source's axis the cells are sorted by, weighed by their distance and their angle to it; and its
+ *  up, unit, its `y`: where a view looking straight down heads. */
 function viewOf(
   camera: HostCamera,
-  view = { eye: new Float64Array(3), axis: new Float64Array(3) },
+  view = { eye: new Float64Array(3), axis: new Float64Array(3), up: new Float64Array(3) },
 ) {
   const elements = resolveCameraWorld(camera).matrixWorld.elements
   view.eye[0] = elements[12]
   view.eye[1] = elements[13]
   view.eye[2] = elements[14]
   writeNormalizedVector3(view.axis, 0, -elements[8], -elements[9], -elements[10])
+  writeNormalizedVector3(view.up, 0, elements[4], elements[5], elements[6])
   return view
 }
 
@@ -166,6 +168,10 @@ export function createPartitionFrame(inputs: Inputs) {
         get initialLoad() {
           return backend.initialLoad()
         },
+        // What the view's velocity is measured by, seconds.
+        get time() {
+          return performance.now() / 1000
+        },
       }
       ios.set(cells, own)
     }
@@ -178,10 +184,10 @@ export function createPartitionFrame(inputs: Inputs) {
   const step = () => {
     let blocks = false
     if (partitions.length) {
-      const { eye, axis } = viewOf(camera, seen)
+      const { eye, axis, up } = viewOf(camera, seen)
       later = false
       for (const cells of partitions) {
-        later = cells.frame(eye, io(cells), budget, axis) || later
+        later = cells.frame(eye, io(cells), budget, axis, up) || later
         if (cells.blocking) blocks = true
       }
       asks.end()

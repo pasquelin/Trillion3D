@@ -1,6 +1,8 @@
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { ViewSet } from '../../../../sdk-core/src/world/camera/viewSet.ts'
-import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { bitWords } from '../../../../math/src/scalar/integers.ts'
+import { clearBit, setBit } from '../../../../math/src/scalar/bits.ts'
+import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 
 /** The ranks of the roots drawn from `node` or anything under it, written into `out` from `at` on;
  *  where they end (`../../frame/render/movedNode.ts`, `appendRootsUnder`). */
@@ -35,7 +37,7 @@ export function createViewFilter() {
       }
       if (seen?.set === set && seen.roots === rootCount && seen.revision === revision) return held
       seen = { set, roots: rootCount, revision }
-      const words = Math.max(1, ceilDiv(rootCount, 32))
+      const words = Math.max(1, bitWords(rootCount))
       if (scratch.length < words) scratch = new Uint32Array(words)
       const bits = scratch.subarray(0, words)
       bits.fill(set.showOnly ? 0xffffffff : 0)
@@ -45,7 +47,7 @@ export function createViewFilter() {
       if (set.showOnly)
         for (const node of set.showOnly) mark(bits, node, under, ranks, rootCount, false)
       for (const node of set.hidden) mark(bits, node, under, ranks, rootCount, true)
-      return (held = held && sameBits(held, bits) ? held : bits.slice())
+      return (held = held && sameValues(held, bits) ? held : bits.slice())
     },
   }
 }
@@ -63,10 +65,7 @@ function mark(
   for (let k = 0; k < end; k++) {
     const rank = ranks[k]
     if (rank >= rootCount) continue
-    if (set) bits[rank >> 5] |= 1 << (rank & 31)
-    else bits[rank >> 5] &= ~(1 << (rank & 31))
+    if (set) setBit(bits, rank)
+    else clearBit(bits, rank)
   }
 }
-
-const sameBits = (a: Uint32Array, b: Uint32Array) =>
-  a.length === b.length && a.every((word, i) => word === b[i])

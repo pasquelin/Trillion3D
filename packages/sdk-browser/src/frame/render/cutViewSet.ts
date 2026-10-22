@@ -1,10 +1,11 @@
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { SelectionUniforms } from '../../gpu/core/selection.ts'
 import { createViewFilter } from '../../geometry/selection/viewFilter.ts'
-import { hasClipPlane } from '../../../../sdk-core/src/contracts/viewOptions.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { appendRootsUnder } from './movedNode.ts'
 import { deriveRootRows } from '../../placement/rows/rowWords.ts'
+import { writeViewClipPlaneAtEye } from './viewClip.ts'
+import { lowestBit } from '../../../../math/src/scalar/bits.ts'
 
 /** The filter of each view, held beside the uniforms of its cut: a view's own object. */
 const filters = new WeakMap<SelectionUniforms, ReturnType<typeof createViewFilter>>()
@@ -12,30 +13,22 @@ const filters = new WeakMap<SelectionUniforms, ReturnType<typeof createViewFilte
 /**
  * What a view carries beside its eye, written into its cut's uniforms (`Camera.clipPlane`,
  * `Camera.hidden`, `Camera.showOnly`, `../../../../sdk-core/src/contracts/viewOptions.ts`): its
- * clip plane in the render frame — the world plane's offset less the eye's along its normal, in
- * double, then single —, when the host allows planes (`clipPlane`) and the view has one; its
- * filter's bits (`../../geometry/selection/viewFilter.ts`), when the host allows filters
- * (`filtering`) and the view lists any. A view with neither writes none and pays nothing.
+ * clip plane in the render frame — the world plane's offset taken to the eye, in double, then
+ * single (`writeViewClipPlaneAtEye`) —, all zero unless the project switch is on and the view has
+ * one; its filter's bits (`../../geometry/selection/viewFilter.ts`), when the host allows filters
+ * (`filtering`) and the view lists any. A view with neither writes zeros and no bits.
  */
 export function writeCutViewSet(
   rt: WebgpuPagesRuntime,
   cam: EngineCamera,
   uniforms: SelectionUniforms,
-  allow: { clipPlane: boolean; filtering: boolean },
+  filtering: boolean,
 ) {
-  const { clipPlane, hidden, showOnly } = cam.viewSet
-  if (allow.clipPlane && hasClipPlane(clipPlane)) {
-    const [x, y, z, w] = clipPlane,
-      eye = uniforms.cameraWorld
-    const plane = (uniforms.clipPlane ??= [0, 0, 0, 0])
-    plane[0] = x
-    plane[1] = y
-    plane[2] = z
-    plane[3] = x * eye[0] + y * eye[1] + z * eye[2] - w
-  } else uniforms.clipPlane = undefined
+  const { hidden, showOnly } = cam.viewSet
+  writeViewClipPlaneAtEye(rt, cam, uniforms.clipPlane, 0)
   const before = uniforms.filter
   let filter = filters.get(uniforms)
-  if (!allow.filtering || (!filter && hidden.length === 0 && showOnly === null)) {
+  if (!filtering || (!filter && hidden.length === 0 && showOnly === null)) {
     uniforms.filter = undefined
     if (before) staleCasters(rt, before, undefined)
     return
@@ -66,7 +59,7 @@ function staleCasters(
   for (let k = 0; k < words; k++) {
     let differ = (before?.[k] ?? 0) ^ (after?.[k] ?? 0)
     while (differ !== 0) {
-      const rank = (k << 5) | (31 - Math.clz32(differ & -differ))
+      const rank = (k << 5) | lowestBit(differ)
       rt.lights.mobility.touch(rank)
       deriveRootRows(rt, rank)
       differ &= differ - 1

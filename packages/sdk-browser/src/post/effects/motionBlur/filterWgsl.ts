@@ -1,10 +1,24 @@
-import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { type WgslDecl, wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
+import { zOrderDecode } from '../../../../../math/src/wgsl/integer.ts'
 import { interleavedGradientNoise } from '../../../../../math/src/wgsl/sampling.ts'
-import { MINIMAL_PIXEL_VELOCITY } from './classifyWgsl.ts'
+import { LEAST_STREAK_PIXELS } from './classifyWgsl.ts'
+import { SUBGROUP_ALL_WGSL } from '../../../gpu/core/subgroups.ts'
+import { unpackLight } from '../../../gpu/core/smallFloatWgsl.ts'
 import { listWgsl } from '../../../gpu/dispatch/list.ts'
-import { FILTER_TILE, FLATTEN_TILE, OUTPUT_FORMAT } from './motionBlurLayout.ts'
-import { FLAT_PACK_WGSL, MOTION_BLUR_PARAMS_WGSL } from './motionBlurWgsl.ts'
+import {
+  FILTER_TILE,
+  FLAT_FORMS,
+  FLATTEN_TILE,
+  OUTPUT_FORMAT,
+  type FlatForm,
+} from './motionBlurLayout.ts'
+import { MOTION_BLUR_PARAMS_WGSL } from './motionBlurWgsl.ts'
+
+/** What a filter program is made for: how the flattened motion it reads is kept (`FlatForm`), and
+ *  whether the samples a tile takes and the vote that gathers it are the subgroup's, where the
+ *  device grants subgroups, or the workgroup's. */
+export type FilterShape = { flat?: FlatForm; subgroups?: boolean }
 
 /** The filter's bindings: the blur's uniform, the image to blur and its sampler, the flattened
  *  motion, the tile ranges, the list of the filter tiles of the class, the blurred image written. */
@@ -21,7 +35,27 @@ export const FILTER_BINDINGS = {
 /** The scene depth, in centimetres, the unit the flattened depth is kept in, two samples must
  *  differ by for one of them to be taken as hiding the other: one, the soft extent of the depth
  *  test. */
-export const SOFT_Z_EXTENT = 1
+export const DEPTH_SOFT_EXTENT_CM = 1
+
+/** The flattened motion's read, in the form of its texture (`FlatForm`): `loadFlat` returns the
+ *  `(length, angle, depth)` of the texel `at` of `flatTexture`, unpacked from its word
+ *  (`unpackLight`, the engine's one pack of the 11-11-10 format) or as it is. */
+const FLAT_LOAD_WGSL: Record<FlatForm, WgslDecl> = {
+  packed: wgslBlock(
+    'FLAT_LOAD_PACKED_WGSL',
+    [unpackLight],
+    `
+@group(0) @binding(${FILTER_BINDINGS.flat}) var flatTexture:texture_2d<${FLAT_FORMS.packed.value}>;
+fn loadFlat(at:vec2i)->vec3f{return unpackLight(textureLoad(flatTexture,at,0).r);}`,
+  ),
+  float: wgslBlock(
+    'FLAT_LOAD_FLOAT_WGSL',
+    [],
+    `
+@group(0) @binding(${FILTER_BINDINGS.flat}) var flatTexture:texture_2d<${FLAT_FORMS.float.value}>;
+fn loadFlat(at:vec2i)->vec3f{return textureLoad(flatTexture,at,0).xyz;}`,
+  ),
+}
 
 /**
  * What the filter reads and weighs by:
@@ -35,24 +69,30 @@ export const SOFT_Z_EXTENT = 1
  *   streak that the sample takes, the nearer of the two weighing more, within the soft extent
  *   of their depths.
  */
-export const FILTER_INPUTS_WGSL = wgslBlock(
-  'FILTER_INPUTS_WGSL',
-  [
-    MOTION_BLUR_PARAMS_WGSL,
-    FLAT_PACK_WGSL,
-    listWgsl({
-      name: 'tileList',
-      group: 0,
-      binding: FILTER_BINDINGS.list,
-      entry: 'u32',
-      append: false,
-    }),
-  ],
-  `
+/** One declaration of each form, made once: the programs that name it share it. */
+export const once = <V>(make: (flat: FlatForm) => V) => {
+  const made: Partial<Record<FlatForm, V>> = {}
+  return (flat: FlatForm) => (made[flat] ??= make(flat))
+}
+
+export const filterInputs = once((flat) =>
+  wgslBlock(
+    `FILTER_INPUTS_WGSL(${flat})`,
+    [
+      MOTION_BLUR_PARAMS_WGSL,
+      FLAT_LOAD_WGSL[flat],
+      listWgsl({
+        name: 'tileList',
+        group: 0,
+        binding: FILTER_BINDINGS.list,
+        entry: 'u32',
+        append: false,
+      }),
+    ],
+    `
 @group(0) @binding(${FILTER_BINDINGS.params}) var<uniform> mb:MotionBlurParams;
 @group(0) @binding(${FILTER_BINDINGS.color}) var colorTexture:texture_2d<f32>;
 @group(0) @binding(${FILTER_BINDINGS.sampler}) var colorSampler:sampler;
-@group(0) @binding(${FILTER_BINDINGS.flat}) var flatTexture:texture_2d<u32>;
 @group(0) @binding(${FILTER_BINDINGS.tiles}) var tilesTexture:texture_2d<f32>;
 @group(0) @binding(${FILTER_BINDINGS.blurred}) var blurredOut:texture_storage_2d<${OUTPUT_FORMAT},write>;
 fn colorAt(uv:vec2f,mip:f32)->vec4f{
@@ -65,7 +105,7 @@ fn colorAt(uv:vec2f,mip:f32)->vec4f{
 }
 fn flatAt(uv:vec2f)->vec3f{
  let size=mb.grid;
- return unpackFlat(textureLoad(flatTexture,clamp(vec2i(uv*size),vec2i(0),vec2i(size)-vec2i(1)),0).r);
+ return loadFlat(clamp(vec2i(uv*size),vec2i(0),vec2i(size)-vec2i(1)));
 }
 fn tileTexelAt(uv:vec2f,jitter:vec2f)->vec2i{
  let grid=mb.grid;
@@ -75,9 +115,10 @@ fn tileTexelAt(uv:vec2f,jitter:vec2f)->vec2i{
 }
 fn spreadWeight(spread:f32,offset:f32,scale:f32)->f32{return saturate(scale*spread-max(offset-1.0,0.0));}
 fn sampleWeight(centre:vec3f,other:vec3f,offset:f32,scale:f32)->f32{
- let apart=${SOFT_Z_EXTENT}.0*(other.z-centre.z);
+ let apart=${DEPTH_SOFT_EXTENT_CM}.0*(other.z-centre.z);
  return saturate(0.5+apart)*spreadWeight(centre.x,offset,scale)+saturate(0.5-apart)*spreadWeight(other.x,offset,scale);
 }`,
+  ),
 )
 
 /**
@@ -92,10 +133,11 @@ fn sampleWeight(centre:vec3f,other:vec3f,offset:f32,scale:f32)->f32{
  * - `finished`: the pixel's own colour times that share, plus the streak, its alpha held to 0 or
  *   1 within half a percent of them.
  */
-export const STREAK_WGSL = wgslBlock(
-  'STREAK_WGSL',
-  [FILTER_INPUTS_WGSL],
-  `
+export const streakWgsl = once((flat) =>
+  wgslBlock(
+    `STREAK_WGSL(${flat})`,
+    [filterInputs(flat)],
+    `
 struct Streak{color:vec4f,weight:f32,}
 fn gatherStreak(uv:vec2f,search:vec2f,noise:f32,count:u32,inv:f32,mip:f32)->vec4f{
  let low=mb.color.zw*0.5;
@@ -144,21 +186,42 @@ fn finished(centre:vec4f,blend:f32,blurred:vec4f)->vec4f{
  result.a=select(select(result.a,0.0,result.a<0.005),1.0,result.a>0.995);
  return result;
 }`,
+  ),
 )
+
+/** The workgroup's way of the head: its lanes' raster order, the samples a tile takes and the vote
+ *  that gathers it counted in workgroup memory, by atomics and barriers. */
+const WORKGROUP_COUNTS = `var<workgroup> sampleCount:atomic<u32>;
+var<workgroup> togetherCount:atomic<u32>;
+`
+const WORKGROUP_VOTE = ` if(lane==0u){atomicStore(&sampleCount,0u);atomicStore(&togetherCount,0u);}
+ workgroupBarrier();
+ atomicMax(&sampleCount,u32(wanted));
+ atomicAdd(&togetherCount,select(0u,1u,together));
+ workgroupBarrier();
+ let count=atomicLoad(&sampleCount);
+ let allTogether=atomicLoad(&togetherCount)==TILE*TILE;
+`
+/** The subgroup's way: the lanes in Z order — a subgroup then covers a block of pixels, not a strip
+ *  —, the samples and the vote those of the subgroup (`subgroupMax`, `subgroupAllTrue`). */
+const SUBGROUP_VOTE = ` let count=subgroupMax(u32(wanted));
+ let allTogether=subgroupAllTrue(together);
+`
 
 /**
  * The head of the filter's entry `entry`, which the classes of one motion and of two share: the
- * tile's coordinates from its list, its pixel, its noise and the range of its tile of motion, and,
- * across the workgroup, the samples a pixel takes (`count`, `inv`) and whether every pixel's motion
- * is nearly all the same (`togetherCount`).
+ * tile's coordinates from its list, its pixel, its noise and the range of its tile of motion, and
+ * the samples a pixel takes (`count`, `inv`) with whether every pixel's motion is nearly all the same
+ * (`allTogether`). They are the workgroup's — the most any thread asks, every pixel's together —,
+ * or, with `subgroups`, the subgroup's: a tile is then gathered at a density for each block of
+ * pixels a subgroup holds, the lanes in Z order, and a pixel whose subgroup's motions are all alike
+ * is gathered whole.
  */
-export const filterHead = (entry: string) => `override TILE:u32=${FILTER_TILE}u;
+export const filterHead = (entry: string, subgroups = false) => `override TILE:u32=${FILTER_TILE}u;
 override HALF_RES:bool=false;
 override WEIGH:bool=false;
-var<workgroup> sampleCount:atomic<u32>;
-var<workgroup> togetherCount:atomic<u32>;
-@compute @workgroup_size(TILE,TILE)
-fn ${entry}(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) groups:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(local_invocation_index) lane:u32){
+${subgroups ? '' : WORKGROUP_COUNTS}@compute @workgroup_size(TILE,TILE)
+fn ${entry}(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) groups:vec3u,${subgroups ? '' : '@builtin(local_invocation_id) lid:vec3u,'}@builtin(local_invocation_index) lane:u32){
  let index=flatIndex(wg,groups,1u);
  let valid=index<tileList.count;
  var tileAt=vec2u(0u);
@@ -166,7 +229,7 @@ fn ${entry}(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) groups:vec3
   let word=tileList.entries[index];
   tileAt=vec2u(word&0xffffu,word>>16u);
  }
- let id=lid.xy+tileAt*TILE;
+ let id=${subgroups ? 'zOrderDecode(lane)' : 'lid.xy'}+tileAt*TILE;
  var uv=(vec2f(id)+vec2f(0.5))*mb.color.zw;
  if(HALF_RES){uv=(vec2f(id*2u)+vec2f(1.0))*mb.color.zw;}
  let noise=interleavedGradientNoise(vec2f(id),0.0);
@@ -176,14 +239,12 @@ fn ${entry}(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) groups:vec3
  let reach=length(largest);
  let wanted=clamp(4.0*ceil(reach*0.25),4.0,mb.knobs.x);
  let together=dot(range.xy,range.xy)>0.4*reach*reach;
- if(lane==0u){atomicStore(&sampleCount,0u);atomicStore(&togetherCount,0u);}
- workgroupBarrier();
- atomicMax(&sampleCount,u32(wanted));
- atomicAdd(&togetherCount,select(0u,1u,together));
- workgroupBarrier();
- let count=atomicLoad(&sampleCount);
- let inv=1.0/f32(count);
+${subgroups ? SUBGROUP_VOTE : WORKGROUP_VOTE} let inv=1.0/f32(count);
 `
+/** What a head of `subgroups` adds to the program's declarations. */
+export const headDeclarations = (subgroups = false): readonly WgslDecl[] =>
+  subgroups ? [SUBGROUP_ALL_WGSL, zOrderDecode] : []
+
 /** The tail of the filter's entry, the classes' too: the blurred pixels written, a half-resolution
  *  thread's four, each its own colour kept by `blend`. */
 export const FILTER_STORE = ` let size=vec2i(mb.color.xy);
@@ -201,8 +262,8 @@ export const FILTER_STORE = ` let size=vec2i(mb.color.xy);
 const ONE_MOTION = ` let mip=saturate(reach*inv-1.0);
  var color=vec4f(0.0);
  var blend=1.0;
- if(reach>=${MINIMAL_PIXEL_VELOCITY}){
-  if(!WEIGH||atomicLoad(&togetherCount)==TILE*TILE){
+ if(reach>=${LEAST_STREAK_PIXELS}){
+  if(!WEIGH||allTogether){
    color=gatherStreak(uv,largest*mb.color.zw,noise,count,inv,mip);
    blend=0.0;
   }else{
@@ -222,15 +283,18 @@ const ONE_MOTION = ` let mip=saturate(reach*inv-1.0);
  *   motion at its place, shifted by up to a quarter tile by its noise (the interleaved gradient
  *   of its coordinates), so the borders of the tiles do not show;
  * - the samples a pixel takes — 4 times the length of its motion over 4, up to the quality's —
- *   are the most any thread of the workgroup asks, so a tile is gathered at one density; a tile
- *   of the weighing classes whose every pixel's motion is nearly all the same (its smallest
- *   over 0.4 of its largest) is gathered instead;
+ *   are the most any thread of its group asks (`filterHead`: the workgroup, or the subgroup of
+ *   `shape.subgroups`), so a tile is gathered at one density; a tile of the weighing classes
+ *   whose every pixel's motion is nearly all the same (its smallest over 0.4 of its largest) is
+ *   gathered instead;
  * - a pixel whose motion is under half a pixel is left as it is; the others take the gather's mean,
  *   or the weighing's, plus what is left of the pixel's own colour (`finished`).
+ * `shape.flat` is the form of the flattened motion it reads (`FlatForm`).
  */
-export const filterShader = () =>
-  wgslProgram(`${filterHead('filterTiles')}${ONE_MOTION}${FILTER_STORE}`, [
+export const filterShader = ({ flat = 'packed', subgroups = false }: FilterShape = {}) =>
+  wgslProgram(`${filterHead('filterTiles', subgroups)}${ONE_MOTION}${FILTER_STORE}`, [
     MOTION_BLUR_PARAMS_WGSL,
-    STREAK_WGSL,
+    streakWgsl(flat),
     interleavedGradientNoise,
+    ...headDeclarations(subgroups),
   ])

@@ -74,7 +74,8 @@ export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
 
 /** What the blend programs are built with (`createWebgpuBlendPipelines`): the session's
  *  context, and the key each pass's first frame asks for, as the lit programs' (`keyFor`); a failed
- *  variant is said, the pass's twin lighting in its place. */
+ *  variant is said, the pass's twin lighting in its place; how they cut at a view's plane (the
+ *  project switch, `../../gpu/core/clipDistances.ts`). */
 export const blendContext = (rt: WebgpuPagesRuntime) => {
   const lit = (pass: LitPass) => ({
     precompile: wantsContractLighting(rt),
@@ -82,7 +83,7 @@ export const blendContext = (rt: WebgpuPagesRuntime) => {
     onFailure: (error: unknown) =>
       rt.diag.diagnosticFailure('forward-lighting-program-failed', error),
   })
-  return { ...rt.context, lit: lit('blend') }
+  return { ...rt.context, lit: lit('blend'), clipping: rt.setup.clipping }
 }
 
 /**

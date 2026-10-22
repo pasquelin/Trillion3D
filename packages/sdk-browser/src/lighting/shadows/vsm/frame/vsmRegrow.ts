@@ -5,7 +5,7 @@ import type { VsmFrameLight } from '../frameSetup.ts'
 import { VSM_PRESSURE_CALM_FRAMES, VSM_PROJECTION_RECORD_BYTES } from '../constants.ts'
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
 import { destroyEngineVsm, engineVsmSideBytes, type EngineVsm } from './engineVsm.ts'
-import { directionalCount, engineVsmOptions, sunsOf, vsmPoolAsked } from './vsmLightMaps.ts'
+import { engineVsmOptions, sunMapsFor, sunMapsOf, vsmPoolAsked } from './vsmLightMaps.ts'
 import { engineVsmBytes } from './vsmStats.ts'
 import { growVsmTables } from '../resources.ts'
 import { constructGpuResources } from '../../../../gpu/core/errorScope.ts'
@@ -33,7 +33,7 @@ export function growEngineVsm(
   const { layout } = vsm.res
   const options = engineVsmOptions(
     Math.max(fullMapCapacity, layout.fullMapCapacity),
-    Math.max(vsm.suns, directionalCount(list)),
+    Math.max(vsm.sunMaps, sunMapsFor(list)),
     layout.poolPages,
   )
   const grown = vsmLayout(options)
@@ -71,7 +71,7 @@ export function regrowEngineVsm(
   if (pages >= asked || rt.run.frame < vsm.regrowFrame) return vsm
   vsm.regrowFrame = rt.run.frame + VSM_PRESSURE_CALM_FRAMES
   const { fullMapCapacity } = layout
-  const options = engineVsmOptions(fullMapCapacity, directionalCount(list), asked)
+  const options = engineVsmOptions(fullMapCapacity, sunMapsFor(list), asked)
   const room = ledgerRoom(device)
   const beside = bytesBeside(rt, device, list, layout, heldBeside(vsm))
   const pool = vsmPoolWithin(room + engineVsmBytes(vsm) - beside, options)
@@ -105,7 +105,7 @@ export function regrowEngineVsm(
 function growEngineVsmTables(device: GPUDevice, vsm: EngineVsm, options: VsmResourceOptions) {
   const layout = constructGpuResources(device, () => growVsmTables(device, vsm.res, options))
   if (!layout) return false
-  vsm.suns = Math.max(vsm.suns, sunsOf(options))
+  vsm.sunMaps = Math.max(vsm.sunMaps, sunMapsOf(options))
   rebindVsmPageManagement(vsm.res)
   const { state } = vsm
   const slots = layout.mapSlots

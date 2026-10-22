@@ -17,7 +17,7 @@ import {
 } from '../../lighting/distanceField/ao/state.ts'
 import type { DistanceFieldScene } from '../../lighting/distanceField/scene.ts'
 import { NO_SKY_LIGHT_OCCLUSION } from '../../modules/sky/skyLight/read.ts'
-import { probesRead } from '../../post/taa/velocityFrame.ts'
+import { screenProbesCast } from '../../lighting/bounce/screen/cast.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { wantsContractLighting } from '../prepare/contractLight.ts'
@@ -48,7 +48,7 @@ function skyOcclusionGate(
   const part = scene && rt.distanceFields?.skyLight
   if (!scene || !part || rt.views.active !== rt.views.main) return undefined
   const { overrides } = rt.views.active
-  if (!overrides.lighting || !overrides.skyLighting || probesRead(rt)) return undefined
+  if (!overrides.lighting || !overrides.skyLighting || screenProbesCast(rt)) return undefined
   const { light } = part
   if (light.mobility !== 'movable' || !light.castShadows || scene.meshes.count === 0)
     return undefined

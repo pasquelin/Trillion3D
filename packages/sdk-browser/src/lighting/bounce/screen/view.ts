@@ -1,11 +1,6 @@
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { constructGpuResources } from '../../../gpu/core/errorScope.ts'
-import {
-  budgetRefused,
-  ledgerReplacing,
-  ledgerRoom,
-  ledgerTentative,
-} from '../../../gpu/core/deviceLedger.ts'
+import { ledgerAdmitted } from '../../../gpu/core/deviceLedger.ts'
 import { retire } from '../../../gpu/core/frameRetire.ts'
 import { createScreenProbeGroups } from './groups.ts'
 import type { ScreenProbeKernels } from './kernels.ts'
@@ -58,16 +53,18 @@ export interface ScreenProbeView {
 
 /** What the shape of the resources depends on in the settings, once a settings object: the key two views of the same shape agree on. */
 const keys = new WeakMap<ScreenProbeSettings, string>()
-export function settingsKeyOf(settings: ScreenProbeSettings) {
+function settingsKeyOf(settings: ScreenProbeSettings) {
   let key = keys.get(settings)
   if (key === undefined)
     keys.set(
       settings,
       (key = [
+        settings.casts,
         settings.downsampleFactor,
         settings.adaptiveProbes,
-        settings.adaptiveFraction,
+        settings.values.screenProbeAdaptiveFraction,
         settings.tracingResolution,
+        settings.gatherResolution,
         settings.irradianceFormat,
         settings.occlusionDownsample,
       ].join('|')),
@@ -118,7 +115,7 @@ function makeView(
 /**
  * THE VIEW'S SCREEN PROBES at `size`, the size its targets are made at — never the size an image is drawn at in them, which a render
  * scale moves without remaking a thing —: the one it holds while it was made for these settings and this size, else made, the old
- * one given back. Made where the device's budget leaves room (`ledgerRoom`, the bytes the old one gives back credited), the tile
+ * one given back. Made where the device's budget leaves room (`ledgerAdmitted`, the bytes the old one gives back credited), the tile
  * raised until the atlas fits the device's textures; none where it does not, and the reason: the pixels then read the world's probes.
  */
 export function ensureScreenProbeView(
@@ -140,21 +137,15 @@ export function ensureScreenProbeView(
     settings,
     device.limits?.maxTextureDimension2D,
   )
-  const replaced = held?.bytes ?? 0
-  const asked = screenProbeBytes(capacity, settings)
-  if (asked - replaced > ledgerRoom(device)) {
-    held?.dispose()
-    return { why: 'the memory budget leaves no room for the screen probes' }
-  }
   try {
-    const view = ledgerTentative(device, () =>
-      ledgerReplacing(device, replaced, () => makeView(device, size, settings, capacity)),
-    )
+    const { value, why } = ledgerAdmitted(device, {
+      replaced: held?.bytes ?? 0,
+      asked: screenProbeBytes(capacity, settings),
+      what: 'the screen probes',
+      make: () => makeView(device, size, settings, capacity),
+    })
+    return { view: value, why }
+  } finally {
     held?.dispose()
-    return { view }
-  } catch (error) {
-    held?.dispose()
-    if (budgetRefused(error)) return { why: 'the memory budget refused the screen probes' }
-    throw error
   }
 }

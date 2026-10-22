@@ -191,3 +191,38 @@ test('the reference walk reads the full-resolution depth: a one-pixel wall is it
   const { at } = reference(wall).hit(o, d)
   assert.ok(at && at[0] >= 81 && at[0] < 82, `${at?.[0]}`)
 })
+
+test('the reference walk gives a ray up behind a thin surface at the surface, where the planes march passes behind it', () => {
+  // The ray runs 0.3 behind a one-pixel pole (x = 50) over a far floor, and meets a wall at x = 100.
+  const scene = (x: number) => (x === 50 ? 0.8 : x === 100 ? 0.5 + SLAB / 4 : 0.1)
+  const march = marcher(W, H, scene)
+  const ray: [number[], number[]] = [
+    [20.5, 30.5, 0.5],
+    [100, 0, 0],
+  ]
+  const plain = march.hit(...ray)
+  assert.ok(plain.at && plain.at[0] >= 100 && plain.at[0] < 101, `${plain.at?.[0]}`)
+  const strict = reference(scene).hit(...ray)
+  assert.equal(strict.at, undefined)
+  // It proved the ray in front of everything up to the pole's pixel, x = 50: t = 0.295.
+  assert.ok(strict.above > 0.29 && strict.above < 0.3055, `${strict.above}`)
+  assert.ok(strict.loads <= plain.bound)
+})
+
+test('the reference walk that spends its iterations meets nothing, and says how far it proved the ray clear', () => {
+  const march = reference((x) => (x === 100 ? 0.5 : 0.1))
+  const { o, d } = falling(20, 120, 30, 100, 0.5, 0.01)
+  const whole = march.hit(o, d)
+  assert.ok(whole.at && whole.at[0] >= 100 && whole.at[0] < 101, `${whole.at?.[0]}`)
+  // Three iterations cover a few pixels of the way: no coarse cell stands in for the wall.
+  const cut = march.hit(o, d, { cap: 3 })
+  assert.equal(cut.at, undefined)
+  assert.ok(cut.above > 0 && cut.above < (100 - 20) / 100, `${cut.above}`)
+})
+
+test('the reference walk of a ray in front of everything proves it clear to the end of the screen', () => {
+  const march = reference((x) => (x < 64 ? 0.2 : 0.1))
+  const { at, above, end } = march.hit([5.5, 5.5, 0.6], [200, 100, 0.2])
+  assert.equal(at, undefined)
+  assert.ok(Math.abs(above - end) < 1e-6, `${above} of ${end}`)
+})

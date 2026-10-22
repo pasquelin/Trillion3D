@@ -11,11 +11,12 @@ import {
   computeTextureEntry,
   computeUniformEntry,
 } from '../../../../gpu/core/computeBindings.ts'
-import { writeChangedSlots } from '../../../../gpu/core/writeChanged.ts'
+import { writeChanged, writeChangedSlots } from '../../../../gpu/core/writeChanged.ts'
 import { uniformSlots, type UniformSlots } from '../../../../session/memory/pools.ts'
 import { VSM_RENDER_PARAMS } from '../render/renderParamsWgsl.ts'
 import type { VsmRenderScene } from '../render/renderPass.ts'
 import type { VsmViewPass } from '../render/renderViewPasses.ts'
+import type { VsmBoundLight } from '../rows/rowPageBound.ts'
 
 /** The main view whose level of detail the casters take (the level of detail the main view
  *  draws). */
@@ -67,9 +68,10 @@ export const vsmCandidatesWorldEntries = () => [
  *  pass (`../render/renderPass.ts`, `../transmission/transmissionBinPlan.ts`), handed to
  *  `vsmWriteChunkParams`. Each of the `passes` view passes (`../render/renderViewPasses.ts`: the
  *  maps it lists, at most those the GPU then lists as having pages to draw) runs the same `chunks`
- *  chunks over its own maps. */
+ *  chunks over its own maps; `lights` the lights of the frame (`vsmWriteLights`). */
 export interface VsmRenderChunking {
   rowCount: number
+  lights: number
   chunks: number
   chunkRows: number
   cmds: number
@@ -82,10 +84,11 @@ export interface VsmRenderChunking {
 export const vsmChunkSlot = (chunks: number, pass: number, chunk: number) => pass * chunks + chunk
 
 /** What the parameters take of a raster's scene: its camera, its cut's world switch, which
- *  casters its suns' far-shadow test reaches and the draw distances its casters take. */
+ *  casters its suns' far-shadow test reaches, the draw distances its casters take and the size
+ *  under which an uncached map leaves a caster out. */
 type VsmParamsScene = Pick<
   VsmRenderScene,
-  'camera' | 'world' | 'farMeshes' | 'farDrop' | 'drawDistance'
+  'camera' | 'world' | 'farMeshes' | 'farDrop' | 'drawDistance' | 'tessellation' | 'radiusThreshold'
 >
 
 /** An image of parameter slots, its words seen as floats and as integers. */
@@ -107,7 +110,15 @@ const VIEW_ROWS = [
  *  out —, the slot's own index, the range of its rows and the maps of its view pass — into `image`
  *  (its words past the struct's left as they are: zero, as nothing else writes them). */
 function vsmRenderParams(
-  { camera, world, farMeshes, farDrop, drawDistance }: VsmParamsScene,
+  {
+    camera,
+    world,
+    farMeshes,
+    farDrop,
+    drawDistance,
+    tessellation,
+    radiusThreshold,
+  }: VsmParamsScene,
   chunking: VsmRenderChunking,
   image: VsmRenderParamsImage,
   slots: UniformSlots,
@@ -141,6 +152,7 @@ function vsmRenderParams(
       u[o + at.rowCount] = chunking.rowCount
       u[o + at.viewCount] = pass.maps
       u[o + at.viewFirst] = pass.first
+      u[o + at.lightCount] = chunking.lights
       u[o + at.chunk] = slot
       u[o + at.chunkFirst] = c * chunkRows
       u[o + at.chunkRows] = chunkRows
@@ -153,6 +165,8 @@ function vsmRenderParams(
       u[o + at.filterBase] = world?.filter?.base ?? 0
       u[o + at.drawDistances] = drawDistance ? 1 : 0
       f[o + at.viewDistanceScale] = drawDistance?.scale ?? 1
+      u[o + at.tessellated] = tessellation?.kinds ?? 0
+      f[o + at.radiusThresholdSq] = (radiusThreshold ?? 0) ** 2
     }
 }
 
@@ -186,4 +200,27 @@ function vsmGrowParamsImage(image: VsmRenderParamsImage, slotWords: number) {
   const raw = new ArrayBuffer(grownLength(image.u.length, slotWords) * 4)
   image.f = new Float32Array(raw)
   image.u = new Uint32Array(raw)
+}
+
+/** The table of the frame's lights, rewritten by each frame. */
+let lightImage = new Uint32Array(0)
+
+/**
+ * The frame's `lights` laid in `buffer` for the views' kernel (`../render/renderViewsWgsl.ts`): a
+ * `vec4u` a light — its first map's id, its map count, two pad words —, only the words that
+ * changed going up (`writeChanged`): a still frame sends none.
+ */
+export function vsmWriteLights(
+  device: GPUDevice,
+  buffer: GPUBuffer,
+  lights: readonly Pick<VsmBoundLight, 'firstId' | 'count'>[],
+) {
+  const words = lights.length * 4
+  if (lightImage.length < words)
+    lightImage = new Uint32Array(new ArrayBuffer(grownLength(lightImage.length, words) * 4))
+  lights.forEach(({ firstId, count }, k) => {
+    lightImage[4 * k] = firstId
+    lightImage[4 * k + 1] = count
+  })
+  writeChanged(device, buffer, lightImage, 0, words)
 }

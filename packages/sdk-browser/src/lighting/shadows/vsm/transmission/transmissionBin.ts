@@ -17,7 +17,8 @@ import {
 } from '../chunks/chunkGroups.ts'
 import { vsmBufferGroup } from '../passKit.ts'
 import { vsmEnsureLists } from '../chunks/chunkLists.ts'
-import { vsmWriteChunkParams } from '../chunks/chunkParams.ts'
+import { vsmWriteChunkParams, vsmWriteLights } from '../chunks/chunkParams.ts'
+import type { VsmBoundLight } from '../rows/rowPageBound.ts'
 import { vsmBindGroupEntries, vsmPerFrameSet, type VsmResources } from '../resources.ts'
 import type { VsmRenderScene } from '../render/renderPass.ts'
 import { VSM_TRANSMISSION_PAGES_SPECS } from './transmissionPagesWgsl.ts'
@@ -123,9 +124,15 @@ export function binLists(
   res: VsmResources,
   scene: VsmRenderScene,
   plan: BinPlan,
+  lights: readonly VsmBoundLight[],
 ) {
-  const { params, counts } = vsmEnsureLists(ctx, TRANSMISSION_LABEL, plan.within.size!)
+  const {
+    params,
+    counts,
+    lights: table,
+  } = vsmEnsureLists(ctx, TRANSMISSION_LABEL, plan.within.size!)
   vsmWriteChunkParams(ctx.device, scene, plan, params, ctx.slots)
+  vsmWriteLights(ctx.device, table, lights)
   encoder.clearBuffer(counts, 0, plan.within.size!.counts)
   const b = ctx.buffers as Required<VsmTransmissionContext['buffers']>
   if (vsmSceneRowsMoved(ctx.bound, scene, b, trans)) ctx.lists = undefined
@@ -147,7 +154,7 @@ export function encodeBin(
     args = ctx.buffers.args!
   const world = vsmWorldGroup(ctx.device, ctx.world, ctx.candidates.groups[1], scene.world)
   encodeVsmCandidates(pass, ctx.candidates.pipeline, lists.cand, world, plan.rowCount)
-  encodeVsmViews(pass, ctx, tables, ctx.passes.chunk(0).offset, plan.passes[0].maps)
+  encodeVsmViews(pass, ctx, tables, ctx.passes.chunk(0).offset, plan.lights)
   for (let c = 0; c < plan.chunks; c++) {
     const { offset } = ctx.passes.chunk(c)
     encodeVsmChunkCommands(pass, ctx, tables, args, c, offset)

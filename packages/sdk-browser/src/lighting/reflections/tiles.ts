@@ -1,7 +1,7 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { surfaceReflects } from '../../materials/surface/surfaceModel.ts'
-import { REFLECTION_COUNTS, REFLECTION_SIDE } from './constants.ts'
+import { REFLECTION_SIDE } from './constants.ts'
 import { listWgsl } from '../../gpu/dispatch/list.ts'
 import { REFLECTION_REACH_WGSL } from './reach.ts'
 import { REFLECTION_SURFACES_WGSL } from './surfacesWgsl.ts'
@@ -57,8 +57,7 @@ export const REFLECTION_CLASSIFY_WGSL = wgslBlock(
 var<workgroup> tileTraces:atomic<u32>;
 /** Whether the reflecting pixel \`coord\` of flags \`flags\` traces: where the lobe it traces — its clear
  *  coat where it carries one, its base elsewhere (\`surfaceTopAt\`) — answers a share of its rays
- *  (\`reflectionTraceShare\`, \`reach.ts\`): its roughness under \`REFLECTION_TRACE_ROUGHNESS\`, or
- *  every lobe where no probe answers.
+ *  (\`reflectionTraceShare\`, \`reach.ts\`): its roughness under the roughness a lobe traces to.
  *  The base lobe's narrower width is its round one (αt ≥ α, \`lobesWgsl.ts\`), so its roughness alone
  *  decides it. */
 fn reflectionPixelTraces(coord:vec2i,flags:u32)->bool{
@@ -67,14 +66,14 @@ fn reflectionPixelTraces(coord:vec2i,flags:u32)->bool{
 /** The pixel texel \`g\` casts from this image: its jitter (\`reflectionJitter\`), held to the viewport,
  *  so a block cut by the viewport's edge still casts from a pixel inside it. */
 fn classifyPicked(g:vec2u)->vec2u{
- return min(g*REFLECTION_TRACE_BLOCK+reflectionJitter(g),reflectionViewport()-vec2u(1u));
+ return min(g*reflectionBlock()+reflectionJitter(g),reflectionViewport()-vec2u(1u));
 }
 /** The ray word (\`rayPack\`) of texel \`g\`, whose block's traced pixels are \`mask\`, a bit each in its
  *  pixels' order: the rank of the pixel this image picks (\`classifyPicked\`), under the traced bit where
  *  it traces — a picked pixel that does not trace casts no ray, never handing it to a block neighbour. */
 fn classifyTraced(mask:u32,g:vec2u)->u32{
- let o=classifyPicked(g)-g*REFLECTION_TRACE_BLOCK;
- let k=o.x+o.y*REFLECTION_TRACE_BLOCK;
+ let o=classifyPicked(g)-g*reflectionBlock();
+ let k=o.x+o.y*reflectionBlock();
  return k|select(0u,REFLECTION_TRACED,((mask>>k)&1u)!=0u);
 }
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
@@ -83,7 +82,7 @@ fn classifyTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id)
  let inside=all(coord<reflectionGridSize());
  let viewport=reflectionViewport();
  var mask=0u;
- for(var k=0u;inside&&k<REFLECTION_TRACE_BLOCK*REFLECTION_TRACE_BLOCK;k++){
+ for(var k=0u;inside&&k<reflectionBlock()*reflectionBlock();k++){
   let pixel=reflectionBlockPixel(coord,k);
   if(any(pixel>=viewport)){continue;}
   let flags=surfaceFlagsAt(vec2i(pixel));
@@ -120,9 +119,13 @@ fn clearTracing(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) group
 )
 
 /** The workgroups of the classification over a view drawn `size` pixels, one a tracing tile of its
- *  grid (`gridExtent`), written into `into`. */
-export const classifyGroups = (size: readonly [number, number], into: [number, number]) => {
-  const side = REFLECTION_SIDE * REFLECTION_COUNTS.REFLECTION_TRACE_BLOCK
+ *  grid, a texel a block of `block` pixels a side, written into `into`. */
+export const classifyGroups = (
+  size: readonly [number, number],
+  block: number,
+  into: [number, number],
+) => {
+  const side = REFLECTION_SIDE * block
   into[0] = ceilDiv(size[0], side)
   into[1] = ceilDiv(size[1], side)
   return into

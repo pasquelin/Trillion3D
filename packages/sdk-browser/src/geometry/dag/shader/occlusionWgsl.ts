@@ -32,6 +32,58 @@ const BOX_CULLED = 0,
   BOX_OCCLUDED = 2
 
 /**
+ * What judging a box against a Hi-Z pyramid needs of neither the cut's views nor its poses: the box
+ * in clip space (`clipBoxOf`, the projection's weight given), the pixel centres its rectangle covers
+ * (`centreRect`, `coversCentre`), and the pyramid's verdict on a rectangle at a depth
+ * (`footprintLevel`, `pyramidShows`). The host declares the pyramid and its levels uniform
+ * (`hizPyramid`, `hizLevels`): the cut's boxes (`DAG_OCCLUSION_WGSL`) and the tessellation's patches
+ * (`../../../visibility/tessellation/splitWgsl.ts`) read them through the one test.
+ */
+export const PYRAMID_BOX_WGSL = wgslBlock(
+  'PYRAMID_BOX_WGSL',
+  [HIZ_FOOTPRINT_WGSL, transformHalfExtent, DAG_INF],
+  `/** A box in clip space: its normalized rectangle and depths (\`lo\`, \`hi\`; reversed depth, the
+ *  nearest the largest), whether it reaches the near plane, and whether it lies between the near and
+ *  the far planes. */
+struct ClipBox{lo:vec3f,hi:vec3f,crossesNear:bool,inside:bool,}
+/** The box of centre \`c\` and half extent \`e\` under \`m\`, local to clip, the projection's depth
+ *  \`clip.z = depth.x * w + depth.y\` along its clip weight \`w\`: its eight corners' rectangle and
+ *  the depths at their nearest and farthest weights. Orthographic: the centre and its extent mapped
+ *  whole, the weight one. A box across the eye's plane covers the whole screen. */
+fn clipBoxOf(c:vec3f,e:vec3f,m:mat4x4f,depth:vec2f,perspective:bool)->ClipBox{
+ if(!perspective){
+  let centre=(m*vec4f(c,1.0)).xyz;let d=transformHalfExtent(m,e);
+  let lo=centre-d;let hi=centre+d;
+  return ClipBox(lo,hi,hi.z>1.0,hi.z>0.0&&lo.z<1.0);
+ }
+ let dx=(2.0*e.x)*m[0];let dy=(2.0*e.y)*m[1];let dz=(2.0*e.z)*m[2];
+ let p000=m*vec4f(c-e,1.0);let p100=p000+dz;let p001=p000+dx;let p101=p100+dx;
+ let p011=p001+dy;let p111=p101+dy;let p010=p011-dx;let p110=p111-dx;
+ var corners=array<vec4f,8>(p000,p100,p001,p101,p011,p111,p010,p110);
+ var minW=INF;var maxW=-INF;var lo=vec2f(1.0);var hi=vec2f(-1.0);
+ for(var k=0u;k<8u;k++){
+  let p=corners[k];
+  minW=min(minW,p.w);maxW=max(maxW,p.w);
+  let s=p.xy/p.w;lo=min(lo,s);hi=max(hi,s);
+ }
+ let farZ=maxW*depth.x+depth.y;let nearZ=minW*depth.x+depth.y;
+ var box=ClipBox(vec3f(lo,farZ/maxW),vec3f(hi,nearZ/minW),minW<=nearZ,maxW>farZ&&0.0<nearZ);
+ if(minW<=0.0&&maxW>0.0){box.lo=vec3f(-1.0);box.hi=vec3f(1.0);}
+ return box;
+}
+/** The pixels whose centres a normalized rectangle covers in a view of \`size\`, inclusive, clipped
+ *  to the view: empty when \`xy\` passes \`zw\`. */
+fn centreRect(lo:vec2f,hi:vec2f,size:vec2u)->vec4i{
+ let t=saturate(vec4f(lo,hi)*vec4f(0.5,-0.5,0.5,-0.5)+vec4f(0.5));
+ let s=vec2f(size);
+ let p=vec4i(vec4f(t.x,t.w,t.z,t.y)*vec4f(s,s)+vec4f(0.5,0.5,-0.5,-0.5));
+ return vec4i(max(p.xy,vec2i(0)),min(p.zw,vec2i(size)-vec2i(1)));
+}
+fn coversCentre(r:vec4i)->bool{return all(r.zw>=r.xy);}
+`,
+)
+
+/**
  * THE TWO-PASS OCCLUSION OF THE CUT.
  *
  * Every box the cut keeps past its frustum and its level of detail — a cell of the placement tree,
@@ -65,48 +117,12 @@ const BOX_CULLED = 0,
  */
 export const DAG_OCCLUSION_WGSL = wgslBlock(
   'DAG_OCCLUSION_WGSL',
-  [HIZ_FOOTPRINT_WGSL, transformHalfExtent, DAG_INF, NO_INDEX],
+  [PYRAMID_BOX_WGSL, NO_INDEX],
   `@group(${OCCLUSION_GROUP}) @binding(${OCCLUSION_BINDING.pyramid}) var hizPyramid:texture_2d_array<u32>;
 @group(${OCCLUSION_GROUP}) @binding(${OCCLUSION_BINDING.levels}) var<uniform> hizLevels:HizLevels;
 ${wgslConsts({ OCCLUSION_TWO_PASS, CUT_MAIN, CUT_POST, BOX_CULLED, BOX_SEEN, BOX_OCCLUDED })}
-/** A box in clip space: its normalized rectangle and depths (\`lo\`, \`hi\`; reversed depth, the
- *  nearest the largest), whether it reaches the near plane, and whether it lies between the near and
- *  the far planes. */
-struct ClipBox{lo:vec3f,hi:vec3f,crossesNear:bool,inside:bool,}
-/** The box of centre \`c\` and half extent \`e\` under \`m\`, local to clip, the projection's depth
- *  \`clip.z = depth.x * w + depth.y\` along its clip weight \`w\`: its eight corners' rectangle and
- *  the depths at their nearest and farthest weights. Orthographic: the centre and its extent mapped
- *  whole, the weight one. A box across the eye's plane covers the whole screen. */
-fn clipBox(c:vec3f,e:vec3f,m:mat4x4f,depth:vec2f)->ClipBox{
- if(views[0u].perspective<=0.0){
-  let centre=(m*vec4f(c,1.0)).xyz;let d=transformHalfExtent(m,e);
-  let lo=centre-d;let hi=centre+d;
-  return ClipBox(lo,hi,hi.z>1.0,hi.z>0.0&&lo.z<1.0);
- }
- let dx=(2.0*e.x)*m[0];let dy=(2.0*e.y)*m[1];let dz=(2.0*e.z)*m[2];
- let p000=m*vec4f(c-e,1.0);let p100=p000+dz;let p001=p000+dx;let p101=p100+dx;
- let p011=p001+dy;let p111=p101+dy;let p010=p011-dx;let p110=p111-dx;
- var corners=array<vec4f,8>(p000,p100,p001,p101,p011,p111,p010,p110);
- var minW=INF;var maxW=-INF;var lo=vec2f(1.0);var hi=vec2f(-1.0);
- for(var k=0u;k<8u;k++){
-  let p=corners[k];
-  minW=min(minW,p.w);maxW=max(maxW,p.w);
-  let s=p.xy/p.w;lo=min(lo,s);hi=max(hi,s);
- }
- let farZ=maxW*depth.x+depth.y;let nearZ=minW*depth.x+depth.y;
- var box=ClipBox(vec3f(lo,farZ/maxW),vec3f(hi,nearZ/minW),minW<=nearZ,maxW>farZ&&0.0<nearZ);
- if(minW<=0.0&&maxW>0.0){box.lo=vec3f(-1.0);box.hi=vec3f(1.0);}
- return box;
-}
-/** The pixels whose centres a normalized rectangle covers in a view of \`size\`, inclusive, clipped
- *  to the view: empty when \`xy\` passes \`zw\`. */
-fn centreRect(lo:vec2f,hi:vec2f,size:vec2u)->vec4i{
- let t=saturate(vec4f(lo,hi)*vec4f(0.5,-0.5,0.5,-0.5)+vec4f(0.5));
- let s=vec2f(size);
- let p=vec4i(vec4f(t.x,t.w,t.z,t.y)*vec4f(s,s)+vec4f(0.5,0.5,-0.5,-0.5));
- return vec4i(max(p.xy,vec2i(0)),min(p.zw,vec2i(size)-vec2i(1)));
-}
-fn coversCentre(r:vec4i)->bool{return all(r.zw>=r.xy);}
+/** \`clipBoxOf\` under the cut's view: its projection's weight. */
+fn clipBox(c:vec3f,e:vec3f,m:mat4x4f,depth:vec2f)->ClipBox{return clipBoxOf(c,e,m,depth,views[0u].perspective>0.0);}
 /** The cut's pass, which the main pass's prepare and the post pass's open write (\`dagPrepare\`,
  *  \`dagPostPrepare\`). */
 fn cutPass()->u32{return atomicLoad(&work[passWord()]);}

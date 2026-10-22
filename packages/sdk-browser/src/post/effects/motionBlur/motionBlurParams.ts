@@ -1,5 +1,7 @@
 import {
   MOTION_BLUR_SAMPLES,
+  effectiveAmount,
+  effectiveMax,
   type MotionBlurValues,
   type ResolvedMotionBlur,
 } from '../../../../../sdk-core/src/contracts/motionBlurOptions.ts'
@@ -16,7 +18,7 @@ const AT = MOTION_BLUR_PARAMS.at
 
 /** What the uniform is written from, refilled at each image. */
 export interface MotionBlurInput {
-  /** The pass's settings. */
+  /** The pass's settings, under the view's scale and overrides (`effectiveAmount`, `effectiveMax`). */
   blur: ResolvedMotionBlur
   /** How the blur is drawn (`MOTION_BLUR_RULES`). */
   settings: MotionBlurValues
@@ -44,7 +46,8 @@ export const spreadsByDrawing = (max: number, scatter: boolean, width: number) =
  * - the image's size, with its inverses, and the motion grid's;
  * - the scale that takes a motion in device units to pixels of the image: the image's half size
  *   times the time scale, the amount and one half — a streak goes both ways —, the vertical axis
- *   flipped; the longest streak, `max` percent of the image's width, half of it a side; and the
+ *   flipped; the longest streak, `max` percent of the image's width, half of it a side (the amount
+ *   and the longest streak as the view sets them, `effectiveAmount`, `effectiveMax`); and the
  *   tile units a pixel of the grid is (`1 / FLATTEN_TILE` of the grid over the image's width, the
  *   grid's pixels in the image's);
  * - the tiles of motion and the filter tiles, across and down;
@@ -68,13 +71,13 @@ export function writeMotionBlurParams(
   const [width, height] = image
   const quality = settings.motionBlurQuality
   const samples = quality === 'off' ? 0 : MOTION_BLUR_SAMPLES[quality]
-  const scale = timeScale * blur.amount * 0.5
+  const scale = timeScale * effectiveAmount(blur, settings) * 0.5
   into.set([width, height, 1 / width, 1 / height], AT.color)
   into.set(
     [
       width * 0.5 * scale,
       -height * 0.5 * scale,
-      width * 0.5 * (blur.max / 100),
+      width * 0.5 * (effectiveMax(blur, settings) / 100),
       (1 / FLATTEN_TILE) * (grid[0] / width),
     ],
     AT.scale,

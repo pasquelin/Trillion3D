@@ -20,6 +20,7 @@ export function copyObject<T extends Object3D>(into: T, source: Object3D, recurs
   into.castShadow = source.castShadow
   into.castFarShadow = source.castFarShadow
   into.farField = source.farField
+  into.farShadowTest = source.farShadowTest
   into.receiveShadow = source.receiveShadow
   into.frustumCulled = source.frustumCulled
   into.renderOrder = source.renderOrder

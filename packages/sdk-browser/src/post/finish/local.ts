@@ -1,3 +1,4 @@
+import type { GaussianBlurValues } from '../../../../sdk-core/src/contracts/gaussianBlurRules.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { preparedComputeStage } from '../../gpu/core/computeStages.ts'
 import {
@@ -14,8 +15,8 @@ import { createGaussianStage, createGaussianTargets } from '../filters/gaussianS
 import { filterPrograms, type FilterPairs } from '../filters/filterPrograms.ts'
 import { fullscreenDraw } from '../filters/fullscreenDraw.ts'
 import type { SceneChain } from '../filters/sceneChain.ts'
+import { createLayer } from '../filters/sizedImage.ts'
 import { BLURRED_LEVEL, FINISH_BYTES, GRID_DEPTH, GRID_TILE, finishLayout } from './finishLayout.ts'
-import { createLayer } from './localLayer.ts'
 import { GRID_WGSL, LOG_LIGHT_WGSL } from './localWgsl.ts'
 
 /**
@@ -157,16 +158,17 @@ function createBlurredLight(device: GPUDevice, programs: LocalPrograms, bare: GP
       return layer.bytes + targets.bytes
     },
     /** Draws the log luminance of `source`, a level of `size` texels, and blurs it over `percent`
-     *  of its width. */
+     *  of its width, the blur sized as the view's Gaussian blur settings `look` say. */
     encode(
       encoder: GPUCommandEncoder,
       source: GPUTextureView,
       size: readonly number[],
       percent: number,
+      look: GaussianBlurValues,
     ) {
       layer.fit(size[0], size[1])
       draw(encoder, layer.view!, programs.light.get(), layer.groupOver(source, group), bare)
-      blur.resize(size[0], size[1], percent)
+      blur.resize(size[0], size[1], percent, look)
       blur.encode(encoder, layer.view!)
     },
     release() {
@@ -210,15 +212,22 @@ export function createLocalExposure(device: GPUDevice, uniform: GPUBuffer, bare:
     },
     /**
      * Draws the layers of the frame's image into the chain `scene` was begun with: the grid, and
-     * with `percent` of a blur above 0 the log luminance of the fifth level and its blur. They
-     * read the finishing's uniform, whose exposure the frame copied in.
+     * with `percent` of a blur above 0 the log luminance of the fifth level and its blur, sized as
+     * the view's Gaussian blur settings `look` say. They read the finishing's uniform, whose
+     * exposure the frame copied in.
      */
-    encode(encoder: GPUCommandEncoder, scene: SceneChain, percent: number, blurred: boolean) {
+    encode(
+      encoder: GPUCommandEncoder,
+      scene: SceneChain,
+      percent: number,
+      blurred: boolean,
+      look: GaussianBlurValues,
+    ) {
       blurring = blurred
       scene.need(blurred ? BLURRED_LEVEL + 1 : 1)
       grid.encode(encoder, scene.view(0)!, scene.size(0))
       if (blurred)
-        light.encode(encoder, scene.view(BLURRED_LEVEL)!, scene.size(BLURRED_LEVEL), percent)
+        light.encode(encoder, scene.view(BLURRED_LEVEL)!, scene.size(BLURRED_LEVEL), percent, look)
     },
     dispose: release,
   }

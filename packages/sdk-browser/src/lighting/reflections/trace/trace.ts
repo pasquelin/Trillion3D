@@ -28,8 +28,8 @@ import { reflectionStagesWgsl } from '../wgsl.ts'
  * texel every image where a pixel's lobe is smooth enough to show what the field cannot, resolved at
  * every pixel, shared in space and time; the probes' field alone where none is; for each pixel's two
  * surfaces — the opaque one, and the transparents' front one (`../frontLayer.ts`) — in the image's compute
- * passes, before its lighting. A grid texel stands for a block of pixels (`../grids.ts`): 2 × 2
- * (`REFLECTION_TRACE_BLOCK`), a quarter of the rays, every pixel resolving its own answer from them. A
+ * passes, before its lighting. A grid texel stands for a block of pixels (`../grids.ts`): one pixel at the default level,
+ * 2 × 2 at the level `high` (`ReflectionView.grid`), a quarter of the rays, every pixel resolving its own answer from them. A
  * pixel traces one lobe, its top layer's (`reflectingPixelAt`): its clear coat's where it carries one,
  * its base's elsewhere — the sharpest lobe it shows. The kernels of a surface, a thread a texel, a ray
  * or a pixel, each small enough for the GPU to keep many of its threads in flight — a tile
@@ -37,9 +37,8 @@ import { reflectionStagesWgsl } from '../wgsl.ts'
  * a temporal accumulation and a spatial filter:
  *
  * 0. CLASSIFY (`../tiles.ts`): a workgroup a tracing tile of `REFLECTION_SIDE`² grid texels writes each
- *    texel's picked pixel — the tile jitter, the four rooks of its 2 × 2 (`reflectionJitter`) — and
- *    whether it traces (`reflectionPixelTraces`: under a roughness of 0.4, or every lobe without
- *    probes), and fills four lists: the tracing tiles and the unused ones, whose ray words a
+ *    texel's picked pixel — the tile jitter, the rooks of its block (`reflectionJitter`) — and
+ *    whether it traces (`reflectionPixelTraces`: under a roughness of 0.4), and fills four lists: the tracing tiles and the unused ones, whose ray words a
  *    clear empties (`clearTracing`); the resolve tiles of `REFLECTION_SIDE`² pixels a pixel traces in,
  *    and the clear ones. Every kernel after it is dispatched indirectly over one of the lists, on the GPU
  *    alone: a tile of rough surfaces is no texel of the grid.
@@ -49,16 +48,15 @@ import { reflectionStagesWgsl } from '../wgsl.ts'
  *    direction drawn among its GGX lobe's visible normals — a mirror's at its centre —, a
  *    low-discrepancy sequence turning every image (`../sampleWgsl.ts`), marched on the screen exactly (the
  *    chain's first stage, `../wgsl.ts`: the Hi-Z march, `../../../visibility/hiz/gpu/screenMarch.ts`, read in the radiance
- *    pyramid, to the image's edge). It writes the ray's direction and, where the screen answered the
- *    texel whole or its pixel lies past the near field (`reflectionNearField`, the field then answering
- *    the rest here), its fresh texel — the radiance and the distance of what answered (`../texelWgsl.ts`).
+ *    pyramid, to the image's edge or where it gave the ray up). It writes the ray's direction and, where the screen answered the
+ *    texel whole, its fresh texel — the radiance and the distance of what answered (`../texelWgsl.ts`).
  *    A ray it left is listed, its partial texel written into the scratch: the workgroup counts its rays
  *    left, one append adds them to the list (`../../../gpu/dispatch/list.ts`), so the rays that go on sit
  *    side by side.
  * 1′. SCENE (`traceScene`): a thread a ray left, dispatched over the list, indirectly: its ray drawn
- *    again — the same numbers, the same ray —, the run-time proxy (`../proxy.ts`, its hit's radiance read,
- *    never lit light by light), then the environment where its walk left the scene, else the probes'
- *    field, the fresh texel written whole.
+ *    again — the same numbers, the same ray —, the run-time proxy from where the screen stopped knowing the ray (`../proxy.ts`, its hit's radiance read,
+ *    never lit light by light), then, where its walk left the scene, the screen's far trace and the
+ *    environment, else the probes' field, the fresh texel written whole.
  * 2. RESOLVE (`../resolveWgsl.ts`): every pixel of a resolve tile upsamples the rays of the four texels
  *    around it and averages them with its neighbours', each weighed by its BRDF over its pdf on the
  *    pixel's own lobe and by the same-surface test, as far as the lobe's width at the rays' hits covers
@@ -66,7 +64,7 @@ import { reflectionStagesWgsl } from '../wgsl.ts'
  * 3. TEMPORAL (`../temporalWgsl.ts`): every pixel blends that with its history reprojected from its surface
  *    and from its hit through the last image's view-projection, held to its resolved neighbourhood on
  *    every image, the images it counts for shrinking with how far the clamp moved it,
- *    `REFLECTION_HISTORY` at most; a change elsewhere in the scene neither shortens nor restarts it.
+ *    the history's images at most; a change elsewhere in the scene neither shortens nor restarts it.
  * 4. BILATERAL (`../bilateralWgsl.ts`), over the resolve tiles, its clear over the clear ones: a pixel with
  *    a history keeps it, and averages it with its neighbours' while it counts under two images (the
  *    spatial filter); one without reads the field through its lobes — the opaque
@@ -79,17 +77,16 @@ import { reflectionStagesWgsl } from '../wgsl.ts'
  * no case of motion, resolution or surface chooses between two ways to one result.
  *
  * DISTANCE, by tiers (`../reach.ts`): the screen for every ray, its march ending at the image's edge or
- * `reflectionScreenSteps` iterations (50), its answer taken as far as it is sure (the fades of the image's
- * border and of the radiance pyramid's last level); the proxy for the rest of a ray of a pixel in the
- * near field — inside the cascades that follow the camera —, no further than the surface the screen
- * met, in rings, one for each cascade cube it crosses, each `reflectionRingSteps` steps at most (256,
- * `../proxy.ts`); the probes' field and the surroundings past it, and for every ray of a pixel past the
- * near field: a far pixel's reflection costs its march and the field.
+ * `reflectionScreenSteps` iterations, its answer taken as far as it is sure (the fades of the image's
+ * border and of the radiance pyramid's last level); the proxy for the rest of a ray, from where the screen stopped knowing it
+ * and no further than the surface the screen met, its detail window and its rings on budgets of their own
+ * (`../proxy.ts`); the screen's far trace where the ray left the field, then the surroundings and the probes' field.
  *
  * COST. N pixels, R the rays (one a traced pixel traced this image, one a block, opaque and front), T
- * the tracing tiles, P the pixels of the resolve tiles, K̄ ≤ the march's iterations its mean, p_miss the
- * share of near rays whose screen answer is not taken, W̄ ≤ the rings' work their mean walk in units
- * (a ring's work at most, a ray's four rings'); r_m, r_w the iterations and units the GPU runs a second:
+ * the tracing tiles, P the pixels of the resolve tiles, K the screen march's iterations at most, K̄ their
+ * mean, p_miss the share of near rays whose screen answer is not taken, W̄ their mean walk in units, W a
+ * ring's work at most (a ray's rings, four, spend at most four times it); r_m, r_w the iterations and units
+ * the GPU runs a second:
  * - classify: N flag reads at most, a normal and a lobe word a reflecting pixel, a ray word a texel of a
  *   tracing tile, three atomics a listed tile a list;
  * - screen: 64·T threads, a ray word read each (`reflectionTracedPixel`); R · K̄ march iterations (one
@@ -97,18 +94,18 @@ import { reflectionStagesWgsl } from '../wgsl.ts'
  *   and a partial texel written for each ray left, one append a workgroup;
  * - scene: a thread a ray left, R · p_miss of them, a 16-byte ray and a partial texel read each;
  *   R · p_miss · W̄ walk units, a proxy hit one read of its radiance, then 8 probes a cascade;
- * - resolve: P · (4 + `REFLECTION_REUSE_TAPS`) ray words and texels, a ray's data a tap; temporal:
+ * - resolve: P · (4 + the reconstruction's samples) ray words and texels, a ray's data a tap; temporal:
  *   P · (8 history texels) and 144 resolved pixels a tile, staged once (`temporalStage`); bilateral: a
- *   pixel one history texel, and `REFLECTION_FILTER_TAPS` to twice as many, with their depths and
+ *   pixel one history texel, and the filter's taps to twice as many, with their depths and
  *   normals, where its history counts under two images; a pixel without one its coat's 8 probes a
  *   cascade, the front surface's base too.
  * - t ≈ R · (K̄ / r_m + p_miss · W̄ / r_w) + P · (c_r + c_t + c_b), bounded by the view's pixels —
- *   at most R · (K / r_m + 4 · W / r_w) for the rays, K the march's iterations, W a ring's work —, never by
- *   the scene nor its lights. Every image drawn pays it, still or moving.
+ *   at most R · (K / r_m + 4 · W / r_w) for the rays —, never by the scene nor its lights. Every image drawn
+ *   pays it, still or moving.
  *
  * CENSUS (`../censusWgsl.ts`): the two ray stages tally their rays in the workgroup's own memory —
  * the screen stage where each ray ended, the scene stage how each walk of the proxy ended and the
- * units its rings spent — and add them to one buffer of counters per workgroup, which the host reads back
+ * units its windows spent — and add them to one buffer of counters per workgroup, which the host reads back
  * a few images late (`../census.ts`).
  */
 export const REFLECTION_TRACE_SHADER = wgslProgram(
@@ -120,12 +117,11 @@ export const REFLECTION_TRACE_SHADER = wgslProgram(
 @group(0) @binding(${B.rayDataOut}) var rayDataOut:texture_storage_2d<${REFLECTION_GRID_FORMAT},write>;
 var<workgroup> pendingCount:atomic<u32>;
 var<workgroup> pendingBase:u32;
-/** The screen stage's tally of a ray (\`reflectionCensus\`): met by the screen in part, then past the
- *  near field, answered whole by the screen or left to the scene stage. */
-fn countScreen(far:bool,b:ReflectionChain){
+/** The screen stage's tally of a ray (\`reflectionCensus\`): met by the screen in part, then answered whole by
+ *  the screen or left to the scene stage. */
+fn countScreen(b:ReflectionChain){
  if(b.bound<REFLECTION_FAR){tallyAdd(REFLECTION_CENSUS_SCREEN,1u);}
- if(far){tallyAdd(REFLECTION_CENSUS_FAR,1u);}
- else{tallyAdd(select(REFLECTION_CENSUS_LEFT,REFLECTION_CENSUS_WHOLE,b.rest<=REFLECTION_EPSILON),1u);}
+ tallyAdd(select(REFLECTION_CENSUS_LEFT,REFLECTION_CENSUS_WHOLE,b.rest<=REFLECTION_EPSILON),1u);
 }
 /** The scene stage's tally of a ray: how its walk of the proxy ended, and the units it spent where
  *  it walked. */
@@ -138,10 +134,9 @@ fn countScene(){
 /** The screen stage of grid texel \`g\` of the surface \`layer\`, cast from the pixel of its block that
  *  traces this image (\`reflectionTracedPixel\`): its ray marched on the screen, its direction written
  *  and, beside it, its surface's depth and its pdf (\`rayDataOut\`),
- *  and its fresh texel where the screen answered it whole, or where the pixel lies past the near field
- *  (\`reflectionNearField\`), the field answering the rest here; otherwise the partial texel written and
- *  the ray left returned — its texel, its rest (over \`REFLECTION_EPSILON\`), bound and hit, each
- *  \`f32\`'s bits —, zero otherwise. A texel whose picked pixel does not trace writes nothing: no kernel
+ *  and its fresh texel where the screen answered it whole; otherwise the partial texel written and
+ *  the ray left returned — its texel, its rest (over \`REFLECTION_EPSILON\`), then where the screen stopped knowing
+ *  it and whether it met a surface (\`reflectionChainPack\`) —, zero otherwise. A texel whose picked pixel does not trace writes nothing: no kernel
  *  reads a texel its ray word does not trace. */
 fn traceScreenTexel(g:vec2u,layer:u32)->vec4u{
  let texel=vec2i(g);
@@ -152,10 +147,8 @@ fn traceScreenTexel(g:vec2u,layer:u32)->vec4u{
  let coord=vec2i(id);
  let own=reflectingPixelAt(layer,coord,surfaceFlagsAt(coord));
  let ray=reflectionTopRay(own.N,own.V,own.rough,reflectionSampleAt(id,layer));
- // Past the near field the field answers here all the screen left, in the gather of the whole lobe.
- let far=!reflectionNearField(own.P);
- let b=reflectionScreenStage(own.P,own.topN,own.V,ray,far);
- countScreen(far,b);
+ let b=reflectionScreenStage(own.P,own.topN,own.V,ray);
+ countScreen(b);
  textureStore(surfaceRays,texel,vec4u(rayPack(ray.R,word),0u,0u,0u));
  // What the resolve weighs the ray by, beside it: its surface's depth and its pdf.
  let q=lobeAlpha(own.top);
@@ -166,7 +159,8 @@ fn traceScreenTexel(g:vec2u,layer:u32)->vec4u{
   return vec4u(0u);
  }
  textureStore(partialOut,texel,fresh);
- return vec4u(g.x|(g.y<<16u),bitcast<u32>(b.rest),bitcast<u32>(b.bound),bitcast<u32>(b.hit));
+ let packed=reflectionChainPack(b);
+ return vec4u(g.x|(g.y<<16u),bitcast<u32>(b.rest),packed.x,packed.y);
 }
 /** One thread a grid texel of a tracing tile (\`tiles.ts\`); the rays its group left listed at once, one
  *  atomic a group on the list, the scene stage's dispatch raised to hold them. */
@@ -199,7 +193,9 @@ fn traceSceneRay(left:vec4u){
  let own=reflectingPixelAt(REFLECTION_LAYER,coord,surfaceFlagsAt(coord));
  let ray=reflectionTopRay(own.N,own.V,own.rough,reflectionSampleAt(id,REFLECTION_LAYER));
  let partial=texelRadiance(textureLoad(partialIn,texel,0).xy);
- let b=reflectionSceneStage(own.P,own.topN,ray,ReflectionChain(partial,bitcast<f32>(left.y),bitcast<f32>(left.z),bitcast<f32>(left.w)));
+ var chain=reflectionChainOf(own.P,ray.R,bitcast<f32>(left.y),left.zw);
+ chain.radiance=partial;
+ let b=reflectionSceneStage(own.P,own.topN,ray,chain,id);
  textureStore(traceOut,texel,freshPack(b.radiance,b.hit));
  countScene();
 }

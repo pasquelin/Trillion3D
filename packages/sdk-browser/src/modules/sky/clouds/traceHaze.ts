@@ -72,7 +72,7 @@ fn ${CLOUD_HAZE_ENTRY}(@builtin(global_invocation_id) id:vec3u){
  let depthKm=textureLoad(depthIn,vec2i(id.xy),0).x;
  let dir=normalize(cloudUnproject(cloudNdc(id.xy),0.5)-frame.eye.xyz);
  let pixel=vec2u((vec2f(id.xy)+0.5)*f32(cloudTrace.mapping.y));
- let haze=cloudHaze(dir,depthKm,vsmNoiseOne(pixel,cloudTrace.sizes.x));
+ let haze=cloudHaze(dir,depthKm,blueNoiseScalar(pixel,cloudTrace.sizes.x));
  textureStore(cloudOut,vec2i(id.xy),cloudHazeOver(cloud,vec4f(preExposed(haze.rgb),haze.a)));
 }`
 

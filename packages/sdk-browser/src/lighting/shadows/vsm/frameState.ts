@@ -8,6 +8,7 @@ import { VsmCacheManager } from './cacheManager.ts'
 import { VSM_NEXT_MAP_BYTES, VsmMapIds } from './mapIds.ts'
 import { VsmTableBlocks } from './tableBlocks.ts'
 import type { VsmFrameLight } from './frameSetup.ts'
+import { VSM_DEFAULT_MAPS, type VsmMapSettings } from './mapSettings.ts'
 
 export interface VsmFrameState {
   device: GPUDevice
@@ -26,6 +27,9 @@ export interface VsmFrameState {
   ids: VsmMapIds
   /** The tables' packing, emptied each frame (`VsmTableBlocks.reset`). */
   tableBlocks: VsmTableBlocks
+  /** The view's shadow settings the frame's maps are set up from, and the scene frame they count
+   *  mobility in: rewritten by each plan (`planVsmFrame`), the defaults until then. */
+  maps: VsmMapSettings
 }
 
 export function createVsmFrameState(
@@ -51,6 +55,7 @@ export function createVsmFrameState(
     uniformsImage: new ArrayBuffer(VSM_UNIFORMS_BYTES),
     ids: new VsmMapIds(),
     tableBlocks: new VsmTableBlocks(),
+    maps: VSM_DEFAULT_MAPS,
   }
 }
 

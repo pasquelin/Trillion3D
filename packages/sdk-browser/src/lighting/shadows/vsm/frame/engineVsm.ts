@@ -23,7 +23,7 @@ import { releaseVsmPageManagement } from '../pageManagementPass.ts'
 import { createVsmFrameState, type VsmFrameState } from '../frameState.ts'
 import type { VsmFramePlan } from '../frameSetup.ts'
 import { createVsmProjectionHold } from './vsmProjectionHold.ts'
-import { VsmFeedbackReadback, vsmFeedbackReadbackBytes } from '../cacheManager.ts'
+import { VsmFeedbackReadback, vsmFeedbackReadbackBytes } from '../feedbackReadback.ts'
 import { createVsmMarking, vsmMarkingBytes, type VsmMarking } from '../markingPass.ts'
 import { releaseVsmRender } from '../render/renderPass.ts'
 import { releaseVsmProjection } from '../projection/projectionStore.ts'
@@ -47,14 +47,14 @@ import {
 import type { VsmResourceOptions } from '../layout.ts'
 import type { VsmFrameScratch } from './vsmEncode.ts'
 import { destroyMask, type VsmMask } from './vsmMask.ts'
-import { sunsOf } from './vsmLightMaps.ts'
+import { sunMapsOf } from './vsmLightMaps.ts'
 import { createVsmEngineStats, type VsmEngineStats } from './vsmStats.ts'
 
 /** What the engine keeps of the virtual shadow maps between frames. */
 export interface EngineVsm {
   res: VsmResources
-  /** The suns the tables' receiver cover holds (`engineVsmOptions`): more grow them. */
-  suns: number
+  /** The clipmap maps the tables' receiver cover holds (`engineVsmOptions`): more grow them. */
+  sunMaps: number
   state: VsmFrameState
   marking: VsmMarking
   feedback: VsmFeedbackReadback
@@ -150,7 +150,7 @@ export function createEngineVsm(device: GPUDevice, options: VsmResourceOptions):
     const settle = createVsmSettle()
     return {
       res,
-      suns: sunsOf(options),
+      sunMaps: sunMapsOf(options),
       state,
       marking: createVsmMarking(device, res),
       feedback: new VsmFeedbackReadback(device, state.cache),

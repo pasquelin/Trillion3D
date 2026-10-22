@@ -291,6 +291,7 @@ impl Hlod {
             default,
             marks,
             named: named.clone(),
+            dropped: Vec::new(),
         };
         hlod.chains()?;
         Ok(hlod)

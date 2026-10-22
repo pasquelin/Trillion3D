@@ -8,8 +8,17 @@ import { BIN_KIND } from '../../../visibility/draw/contract.ts'
 import { mobilityRows } from './rowBuffers.ts'
 import type { RowRunVisitor } from '../../../geometry/rows/dirty.ts'
 import { CASTS_NO_SHADOW } from '../../../visibility/shader/spriteWgsl.ts'
-import { FAR_SHADOW_ROOT } from '../../../visibility/shader/castingMark.ts'
-import { MOBILITY_FAR_SHADOW, MOBILITY_SHADOWLESS } from '../mobilityBits.ts'
+import {
+  FAR_SHADOW_ROOT,
+  FAR_SKIP_ROOT,
+  FAR_TEST_ROOT,
+} from '../../../visibility/shader/castingMark.ts'
+import {
+  MOBILITY_FAR_SHADOW,
+  MOBILITY_FAR_SKIPPED,
+  MOBILITY_FAR_TESTED,
+  MOBILITY_SHADOWLESS,
+} from '../mobilityBits.ts'
 import { growClusterBox } from './spheres.ts'
 import {
   rootOfPacked,
@@ -68,7 +77,9 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
         mark = root?.mark ?? 0
       return (
         (!root || root.parked || mark & CASTS_NO_SHADOW ? MOBILITY_SHADOWLESS : 0) |
-        (mark & FAR_SHADOW_ROOT ? MOBILITY_FAR_SHADOW : 0)
+        (mark & FAR_SHADOW_ROOT ? MOBILITY_FAR_SHADOW : 0) |
+        (mark & FAR_TEST_ROOT ? MOBILITY_FAR_TESTED : 0) |
+        (mark & FAR_SKIP_ROOT ? MOBILITY_FAR_SKIPPED : 0)
       )
     },
   }
@@ -95,7 +106,8 @@ const mobilityRun: RowRunVisitor<MobilitySource> = (source, from, to) => {
 /**
  * Mobility word of rows `[from, to]` — whether its placement moves, whether it is a cutout,
  * whether it casts no shadow (`castShadow = false`, hidden or parked), whether it casts far
- * shadows (`castFarShadow`), the corners its row draws — pushed on the same
+ * shadows (`castFarShadow`), whether a sun's far-shadow test reaches it or never does
+ * (`farShadowTest`), the corners its row draws — pushed on the same
  * dirty interval as the spheres and the page table's flags — a row whose cut readiness moved is
  * marked too (`gpuCutStream.ts`) —, and the rows of each placement that turned moving or static,
  * or started or stopped casting (`mobility.touch`): what the

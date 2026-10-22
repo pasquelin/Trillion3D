@@ -4,6 +4,8 @@ import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
 import { AO_PARAMS } from './layout.ts'
 import { aoTargetExtent, aoTargetRect, AO_TARGETS, type AoPass, type AoTarget } from './plan.ts'
+import { TAA_VIEW } from '../../post/taa/bindingsWgsl.ts'
+import { writeDepthTerms } from '../../post/taa/view.ts'
 import { AO_NOISE_SIDE, AO_TEMPORAL_IMAGES, AO_TEMPORAL_STEP } from './tables.ts'
 
 /** What an image tells the passes: the size drawn and the textures' base size, the camera's projection and pose,
@@ -16,13 +18,15 @@ export interface AoImage {
   /** The camera's projection and world matrix, column-major: its scale on x and y, its axes. */
   projection: ArrayLike<number>
   world: ArrayLike<number>
-  /** Nearest and farthest distance drawn, and whether the projection is a perspective. */
-  near: number
-  far: number
+  /** Whether the projection is a perspective (`EngineCamera.perspective`). */
   perspective: boolean
   /** The image's rank in the temporal sequence (the temporal pass's), 0 with none. */
   noiseIndex: number
 }
+
+const TERMS = TAA_VIEW.at
+/** Where the temporal passes' depth terms are written, before the two words the occlusion takes of them are copied. */
+const terms = new Float32Array(TAA_VIEW.words)
 
 /** The share of the depth a view-space radius is, per the 400 units of the view the reference locks it to. */
 const VIEW_SPACE_UNITS = 400
@@ -65,7 +69,7 @@ function settingWords(out: Float32Array, scale: number, settings: AmbientOcclusi
   const fadeMultiplier = 1 / fadeRadius
   const { power, bias, intensity, mipBlend, mipLevelFactor, mipThreshold } = settings
   putVec4(out, at.shape, power, bias / 1000, intensity, mipBlend)
-  putVec4(out, at.radius, radius, +inWorld, scale, clamp(mipLevelFactor, 0, 100))
+  putVec4(out, at.reach, radius, +inWorld, scale, clamp(mipLevelFactor, 0, 100))
   const fadeAdd = -(settings.fadeDistanceCm - fadeRadius) * fadeMultiplier
   putVec4(out, at.fade, fadeMultiplier, fadeAdd, mipThreshold / scale)
 }
@@ -86,9 +90,10 @@ function imageWords(out: Float32Array, pass: AoPass, image: AoImage) {
   axisOf(out, at.up, image.world, 1, 1)
   // The camera looks down its own -z.
   axisOf(out, at.forward, image.world, 2, -1)
-  // A device depth is `near / distance` under the engine's perspective, linear between near and far under an orthographic one.
-  if (image.perspective) putVec4(out, at.depth, image.near, 0, 1)
-  else putVec4(out, at.depth, image.far - image.near, image.near, 0)
+  // The projection's depth terms, the engine's one reading of a device depth (`sceneDepthOf`).
+  writeDepthTerms(terms, image.projection, image.perspective, image.view[0])
+  out.set(terms.subarray(TERMS.depth, TERMS.depth + 4), at.depth)
+  out.set(terms.subarray(TERMS.radius, TERMS.radius + 4), at.radius)
 }
 
 /**

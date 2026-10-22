@@ -1,5 +1,6 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { workgroupSumLoop } from '../../../gpu/core/workgroupSumWgsl.ts'
 import { DOF_PARAMS_WGSL, DOF_STEP_WGSL, DOF_TILE_WGSL } from './dofCommonWgsl.ts'
 import { COC_TILE, GROUP, TILE_FORMAT } from './dofLayout.ts'
 
@@ -18,43 +19,55 @@ export const DILATE_BINDINGS = {
 /** The dilation's kinds, as the pipeline constant `MODE` reads them. */
 export const DILATE_MODES = { standalone: 0, minMax: 1, minAbs: 2 } as const
 
+/** The range of the circles at one texel of the gather: its own circle, or the four of the setup around it. */
+const FLAT_TILE_WGSL = wgslBlock(
+  'FLAT_TILE_WGSL',
+  [DOF_PARAMS_WGSL, DOF_TILE_WGSL],
+  `override GATHER4:bool=false;
+@group(0) @binding(${FLATTEN_BINDINGS.coc}) var cocTexture:texture_2d<f32>;
+fn cocLoad(p:vec2i,last:vec2i)->f32{return textureLoad(cocTexture,clamp(p,vec2i(0),last),0).x;}
+fn flatTile(id:vec2u)->CocTile{
+ if(!GATHER4){return cocTileOf(cocLoad(vec2i(min(id,view.gather.xy-vec2u(1u))),vec2i(view.gather.xy)-vec2i(1)));}
+ let last=vec2i(view.pre.xy)-vec2i(1);
+ let stride=vec2f(view.pre.xy)/vec2f(view.gather.xy);
+ let at=vec2i(floor(min(vec2f(id)*stride+0.5,vec2f(view.pre.xy)-0.5)-0.5));
+ var tile=cocTileOf(cocLoad(at,last));
+ for(var i=1;i<4;i++){
+  let other=cocTileOf(cocLoad(at+vec2i(i%2,i/2),last));
+  tile=CocTile(min(tile.fgMin,other.fgMin),max(tile.fgMax,other.fgMax),min(tile.bgMin,other.bgMin),max(tile.bgMax,other.bgMax),min(tile.bgNear,other.bgNear),0.0);
+ }
+ return tile;
+}`,
+)
+
 /**
  * The tiles of the circle of confusion's range: each workgroup of `COC_TILE` texels a side of the
- * setup reduces the circles of its texels — a texel past the image's edge reads the edge's — to
+ * gather reduces the circles of its texels — a texel past the gather's edge reads the edge's — to
  * the foreground's smallest and largest circle, the background's largest, smallest and smallest
  * intersectable, one tile texel; the distance to the closest geometry starts at the smallest
- * background circle. The reduction halves the lanes in workgroup memory.
+ * background circle. The reduction halves the lanes in workgroup memory. Where the setup is accumulated
+ * at another size than the gather (`GATHER4`), each texel reads the 2 × 2 texels of the setup around its
+ * place (`stride`, the setup's size over the gather's), the range of the four.
  */
 export const cocFlattenShader = () =>
   wgslProgram(
-    `@group(0) @binding(${FLATTEN_BINDINGS.coc}) var cocTexture:texture_2d<f32>;
-@group(0) @binding(${FLATTEN_BINDINGS.fg}) var fgOut:texture_storage_2d<${TILE_FORMAT},write>;
+    `@group(0) @binding(${FLATTEN_BINDINGS.fg}) var fgOut:texture_storage_2d<${TILE_FORMAT},write>;
 @group(0) @binding(${FLATTEN_BINDINGS.bg}) var bgOut:texture_storage_2d<${TILE_FORMAT},write>;
 var<workgroup> ranges:array<vec4f,${COC_TILE * COC_TILE}>;
 var<workgroup> nears:array<f32,${COC_TILE * COC_TILE}>;
 @compute @workgroup_size(${GROUP},${GROUP})
 fn flattenCoc(@builtin(global_invocation_id) gid:vec3u,@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32){
- let texel=vec2i(min(gid.xy,view.gather.xy-vec2u(1u)));
- let tile=cocTileOf(textureLoad(cocTexture,texel,0).x);
+ let tile=flatTile(gid.xy);
  ranges[lane]=vec4f(tile.fgMin,tile.fgMax,tile.bgMin,tile.bgMax);
  nears[lane]=tile.bgNear;
- workgroupBarrier();
- for(var reach=${(COC_TILE * COC_TILE) / 2}u;reach>0u;reach=reach>>1u){
-  if(lane<reach){
-   let a=ranges[lane];
-   let b=ranges[lane+reach];
-   ranges[lane]=vec4f(min(a.x,b.x),max(a.y,b.y),min(a.z,b.z),max(a.w,b.w));
-   nears[lane]=min(nears[lane],nears[lane+reach]);
-  }
-  workgroupBarrier();
- }
+ ${workgroupSumLoop(COC_TILE * COC_TILE, 'let a=ranges[lane];let b=ranges[lane+stride];ranges[lane]=vec4f(min(a.x,b.x),max(a.y,b.y),min(a.z,b.z),max(a.w,b.w));nears[lane]=min(nears[lane],nears[lane+stride]);')}
  if(lane==0u){
   let r=ranges[0];
   textureStore(fgOut,vec2i(wg.xy),cocTileFg(CocTile(r.x,r.y,r.z,r.w,nears[0],r.z)));
   textureStore(bgOut,vec2i(wg.xy),cocTileBg(CocTile(r.x,r.y,r.z,r.w,nears[0],r.z)));
  }
 }`,
-    [DOF_PARAMS_WGSL, DOF_TILE_WGSL],
+    [FLAT_TILE_WGSL],
   )
 
 /** One tile's neighbour sample's reach, in tiles of the largest circle's error. */

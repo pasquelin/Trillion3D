@@ -61,8 +61,13 @@ export const VSM_RENDER_CULL_SPECS: readonly VsmBindingSpec[] = [
 
 /**
  * `vsmRenderCull`: group 0 = `VSM_RENDER_CULL_SPECS`; group 1: 0 params (uniform, dynamic),
- * 1 map views (vec4u: id, mip count, flags, stale layers), 2 candidates, 3 counters (rw atomic),
- * 4 commands (rw). Dispatch: x over the chunk's candidates (64 each), y = map view index.
+ * 1 views (vec4u: the listed lights' groups — run start, run length, first listed map, flags —,
+ * then, from `params.lightCount`, their runs of listed maps — id, mip count, flags, stale layers —,
+ * `vsmRenderViews`), 2 candidates, 3 counters (rw atomic), 4 commands (rw). Dispatch: x over the
+ * chunk's candidates (64 each), y = listed light (group) index: a thread a (caster, light) tests the
+ * light's culling volume — the range sphere of a local light, the far-shadow distance of a sun —
+ * once, and only a caster the volume holds goes on to cull against each of the light's listed maps
+ * (`vsmRenderCullView`), the volume's tests no map repeats.
  *
  * Command (vec4u): x row; y VSM id | mip << 16 | static << 19 | clamp-to-near << 20 | swapped << 21
  * (\`vsmRenderSwapped\`);
@@ -91,30 +96,22 @@ fn vsmRenderSwapped(m:mat4x4f,ortho:bool,flags:u32)->bool{
  let d=dot(vec3f(m[0].x,m[1].x,m[2].x),cross(vec3f(m[0].y,m[1].y,m[2].y),r3));
  return select(d>0.0,d<0.0,ortho)!=((flags&VSM_RENDER_CAND_FLIPPED)!=0u);
 }
-@compute @workgroup_size(WORKGROUP_THREADS) fn vsmRenderCull(@builtin(workgroup_id) wid:vec3u,@builtin(local_invocation_index) lane:u32){
- let local=wid.x*WORKGROUP_THREADS+lane;
- let k=params.chunkFirst+local;
- if(local>=params.chunkRows||k>=atomicLoad(&counts[0])||wid.y>=min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.viewCount)){return;}
- let cand=candidates[k];
- let view=views[wid.y];
+/**
+ * One caster against one listed map of a light that holds it (\`vsmRenderCull\`): the map's layer,
+ * its frustum, then per mip the page rect and a command.
+ */
+fn vsmRenderCullView(cand:VsmRenderCandidate,view:vec4u,directional:bool){
  let h=vsmHandleFromId(view.x);
  let pd=vsmProjectionOf(h);
- let directional=(view.z&VSM_RENDER_VIEW_DIRECTIONAL)!=0u;
- // A caster past a sun's far-shadow distance, along the main view, that does not cast far shadows,
- // is left out of every level of the sun's clipmap.
- if(directional&&vsmFarShadowSkipped(cand.flags,cand.farDepth,pd.farShadowDistance)){return;}
- // Local views enable distance cull and near clip.
+ // A map redrawn whole leaves out a caster too small on the main view (\`shadowRadiusThreshold\`).
+ if(vsmRadiusCulled(cand.screenRatio,params.radiusThresholdSq,pd.uncached)){return;}
  let nearClip=!directional;
- let distanceCull=!directional;
  let viewToClip=pd.lightViewToClip;
  let isOrtho=viewToClip[3][3]>=1.0;
  let shiftedToClip=vsmShiftedToClip(pd.shiftedToMapUv);
  let center=(cand.c.xyz+pd.originShiftHigh)+(cand.l+pd.originShiftLow);
  let radius=cand.c.w;
  var visible=true;
- // Range-based culling distance = the light's radius.
- if(distanceCull){visible=dot(center,center)<=(pd.lightRange+radius)*(pd.lightRange+radius);}
- if(!visible){return;}
  // The static layer takes a caster that stands still (the engine's mobility) in a cached map; a
  // moving one draws into the dynamic layer: its mobility decides it, frame by frame.
  let staticLayer=!pd.uncached&&(cand.flags&VSM_RENDER_CAND_DYNAMIC)==0u;
@@ -138,6 +135,10 @@ fn vsmRenderSwapped(m:mat4x4f,ortho:bool,flags:u32)->bool{
  let deformsNow=(cand.flags&VSM_RENDER_CAND_DEFORMING)!=0u;
  ${marksDirty ? 'let dirtyFlags=vsmRasterMarkBits(staticLayer,deformsNow);' : 'let dirtyFlags=0u;'}
  let swapped=select(0u,1u<<21u,vsmRenderSwapped(pd.shiftedToMapUv,isOrtho,cand.flags));
+ // A displaced surface goes to the tessellation where this kind of light's maps ask it: its pairs
+ // are marked (bit 22 of the command, bit 23 of the pair).
+ let kind=select(VSM_RENDER_TESSELLATE_LOCAL,VSM_RENDER_TESSELLATE_DIRECTIONAL,directional);
+ let tessellated=select(0u,1u<<22u,(cand.flags&VSM_RENDER_CAND_TESSELLATED)!=0u&&(params.tessellated&kind)!=0u);
  let mips=min(view.y,VSM_MIPS);
  // The map's mips from its finest on: its table holds no finer one (\`vsmTableLevelOrigin\`).
  var pixelRadius=vsmClipRadius(isOrtho,radius,center,viewToClip)*f32(VSM_LEVEL0_TEXELS>>pd.finestMip);
@@ -155,10 +156,32 @@ fn vsmRenderSwapped(m:mat4x4f,ortho:bool,flags:u32)->bool{
   atomicAdd(&counts[vsmRenderChunkCounter(params.chunk,VSM_RENDER_TIER_CMDS+vsmRenderTierOf(cand.corners))],1u);
   cmds[slot]=vec4u(
    cand.row,
-   view.x|(mipLevel<<16u)|select(0u,1u<<19u,staticLayer)|select(0u,1u<<20u,directional)|swapped,
+   view.x|(mipLevel<<16u)|select(0u,1u<<19u,staticLayer)|select(0u,1u<<20u,directional)|swapped|tessellated,
    pagesRect.x|(pagesRect.y<<7u)|(pagesRect.z<<14u)|(pagesRect.w<<21u),
    (cand.corners&0xFFFFu)|(markMask<<16u)|(dirtyFlags<<24u));
  }
+}
+@compute @workgroup_size(WORKGROUP_THREADS) fn vsmRenderCull(@builtin(workgroup_id) wid:vec3u,@builtin(local_invocation_index) lane:u32){
+ let local=wid.x*WORKGROUP_THREADS+lane;
+ let k=params.chunkFirst+local;
+ if(local>=params.chunkRows||k>=atomicLoad(&counts[0])||wid.y>=min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.lightCount)){return;}
+ let cand=candidates[k];
+ let listing=views[wid.y];
+ let pd=vsmProjectionOf(vsmHandleFromId(listing.z));
+ let directional=(listing.w&VSM_RENDER_VIEW_DIRECTIONAL)!=0u;
+ // A caster past a sun's far-shadow distance, along the main view, that does not cast far shadows,
+ // is left out of every level of the sun's clipmap.
+ if(directional&&vsmFarShadowSkipped(cand.flags,cand.farDepth,pd.farShadowDistance)){return;}
+ // Local views enable distance cull and near clip.
+ let distanceCull=!directional;
+ let center=(cand.c.xyz+pd.originShiftHigh)+(cand.l+pd.originShiftLow);
+ let radius=cand.c.w;
+ var visible=true;
+ // Range-based culling distance = the light's radius: its culling volume, one for all its maps (they
+ // share the light's origin and range).
+ if(distanceCull){visible=dot(center,center)<=(pd.lightRange+radius)*(pd.lightRange+radius);}
+ if(!visible){return;}
+ for(var run=0u;run<listing.y;run++){vsmRenderCullView(cand,views[params.lightCount+listing.x+run],directional);}
 }
 `,
     [

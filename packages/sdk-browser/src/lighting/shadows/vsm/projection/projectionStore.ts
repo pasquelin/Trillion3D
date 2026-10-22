@@ -1,9 +1,9 @@
 /**
- * WHAT A SET'S PROJECTION HOLDS (`projectionPass.ts`): its view uniform, its blue noise, its groups
- * and the bytes they take, made before the frame's lists and freed with the set.
+ * WHAT A SET'S PROJECTION HOLDS (`projectionPass.ts`): its view uniform, its groups and the bytes they take, made before
+ * the frame's lists and freed with the set; and the engine's blue noise it reads, the device's, never freed with a set.
  */
 import { heldGroup, type HeldGroup } from '../../../../gpu/bind/bindIdentity.ts'
-import { createVsmBlueNoiseTexture, VSM_BLUE_NOISE_BYTES } from '../blueNoise.ts'
+import { blueNoiseNow } from '../../../../gpu/noise/blueNoiseTextures.ts'
 import { VSM_PROJECTION_VIEW_BYTES } from './projectionView.ts'
 import { vsmFrameSetHeld, type VsmPerFrameSet, type VsmResources } from '../resources.ts'
 import type { ViewWords } from './projectionViewWrite.ts'
@@ -28,8 +28,7 @@ export interface VsmProjectionState {
   /** The view uniform's image, uploaded each frame, and its words. */
   staging: ArrayBuffer
   words: ViewWords
-  /** The set's blue noise (`createVsmBlueNoiseTexture`) and its view. */
-  blueNoise?: GPUTexture
+  /** The engine's blue noise view (`blueNoiseNow`), once the device has made it. */
   blueNoiseView?: GPUTextureView
   /** What a pass binds without translucent casters (`vsmProjectionStandIns`): a one-texel memory
    *  and a one-texel transmission target, which no pixel reads or writes. */
@@ -38,22 +37,19 @@ export interface VsmProjectionState {
   standIns?: { transmission: GPUTextureView; through: GPUTextureView }
 }
 
-/** Bytes the projection of `res` holds — its view uniform and blue noise —, which freeing the
- *  set gives back (`releaseVsmProjection`; the pass draws into the engine's mask). */
-export const vsmProjectionHeldBytes = (res: VsmResources) => {
-  const state = res.projection
-  return (
-    (state?.uniform ? VSM_PROJECTION_VIEW_BYTES : 0) + (state?.blueNoise ? VSM_BLUE_NOISE_BYTES : 0)
-  )
-}
+/** Bytes the projection of `res` holds — its view uniform —, which freeing the set gives back
+ *  (`releaseVsmProjection`; the pass draws into the engine's mask). */
+export const vsmProjectionHeldBytes = (res: VsmResources) =>
+  res.projection?.uniform ? VSM_PROJECTION_VIEW_BYTES : 0
 
-/** Bytes the projection of `res` still asks — its view uniform and its blue noise, each where it
- *  holds none —; of a set not made yet, both. */
+/** Bytes the projection of `res` still asks — its view uniform, where it holds none —; of a set not
+ *  made yet, all of it. */
 export const vsmProjectionBytesToMake = (res: VsmResources | undefined) =>
-  VSM_PROJECTION_VIEW_BYTES + VSM_BLUE_NOISE_BYTES - (res ? vsmProjectionHeldBytes(res) : 0)
+  VSM_PROJECTION_VIEW_BYTES - (res ? vsmProjectionHeldBytes(res) : 0)
 
-/** Makes the projection view uniform of `res` and its blue noise, where it holds none: before the
- *  frame's lists, so that they never take the room they need. */
+/** Makes the projection view uniform of `res`, where it holds none, and takes the device's blue noise
+ *  once it is made (`blueNoiseView` is none before it: `projectionReady`): before the frame's lists,
+ *  so that they never take the room they need. */
 export function vsmProjectionReserve(device: GPUDevice, res: VsmResources) {
   const state = projectionState(res)
   state.uniform ??= device.createBuffer({
@@ -61,12 +57,12 @@ export function vsmProjectionReserve(device: GPUDevice, res: VsmResources) {
     size: VSM_PROJECTION_VIEW_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  if (!state.blueNoise) {
-    state.blueNoise = createVsmBlueNoiseTexture(device)
-    state.blueNoiseView = state.blueNoise.createView()
-  }
+  state.blueNoiseView ??= blueNoiseNow(device)?.view
   return state
 }
+
+/** Whether the projection of `state` can run: the engine's blue noise is made. */
+export const projectionReady = (state: VsmProjectionState) => !!state.blueNoiseView
 
 /** The view uniform and the blue noise the projection of `res` reads: what a blended surface's
  *  trace reads too (`vsmTraceFactor`), the same view and noise. None before the set's
@@ -105,7 +101,6 @@ export function releaseVsmProjection(res: VsmResources) {
   if (!state) return
   res.projection = undefined
   state.uniform?.destroy()
-  state.blueNoise?.destroy()
   state.noTransmission?.destroy()
   state.noThrough?.destroy()
 }

@@ -38,7 +38,7 @@ export function askParticles(rt: WebgpuPagesRuntime, device: GPUDevice) {
     const fail = (error: unknown) => rt.diag.diagnosticFailure('particles-unavailable', error)
     const code = particleCode()
     if (!code) return
-    rt.gpu.particles = code.createWebgpuParticles(device, fail)
+    rt.gpu.particles = code.createWebgpuParticles(device, fail, rt.setup.clipping)
   }
   if (!drawsParticles(rt)) return
   if (opensDisplayFilter(rt)) rt.gpu.particles.askRouted()

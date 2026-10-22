@@ -1,21 +1,10 @@
 import { constructGpuResources } from '../../gpu/core/errorScope.ts'
-import {
-  budgetRefused,
-  ledgerReplacing,
-  ledgerRoom,
-  ledgerTentative,
-} from '../../gpu/core/deviceLedger.ts'
+import { ledgerAdmitted } from '../../gpu/core/deviceLedger.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 import { AMBIENT_OCCLUSION_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { AO_PARAMS_BYTES } from './layout.ts'
 import { AO_TARGETS, aoPasses, aoTargetExtent, aoTargetsOf, type AoTarget } from './plan.ts'
-
-/** A texture of the occlusion and the view the passes draw and read it through. */
-export interface AoTexture {
-  readonly texture: GPUTexture
-  readonly view: GPUTextureView
-}
 
 /**
  * A VIEW'S OCCLUSION, at the extent its targets are made at — never the size an image is drawn at in them, which a
@@ -26,11 +15,12 @@ export interface AoTexture {
 export interface AoView {
   readonly levels: number
   readonly extent: readonly [number, number]
-  readonly textures: Readonly<Partial<Record<AoTarget, AoTexture>>>
+  /** The view of each texture of the plan: drawn into and read through. */
+  readonly textures: Readonly<Partial<Record<AoTarget, GPUTextureView>>>
   /** The uniform of each pass of the plan, in its order. */
   readonly params: readonly GPUBuffer[]
   /** The passes' bind groups, made for the resources they were made over (`frame.ts`). */
-  groups: { depth: unknown; normals: unknown; made: GPUBindGroup[] } | undefined
+  groups: { key: readonly unknown[]; made: GPUBindGroup[] } | undefined
   /** Bytes the textures and the uniforms hold. */
   readonly bytes: number
   /** Gives them back, destroyed once the image that names them is submitted (`retire`). */
@@ -59,7 +49,7 @@ function makeView(
   bytes: number,
 ): AoView {
   const made: { destroy(): void }[] = []
-  const textures: Partial<Record<AoTarget, AoTexture>> = {}
+  const textures: Partial<Record<AoTarget, GPUTextureView>> = {}
   for (const target of aoTargetsOf(levels)) {
     const [width, height] = aoTargetExtent(target, extent)
     const texture = device.createTexture({
@@ -69,7 +59,7 @@ function makeView(
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
     })
     made.push(texture)
-    textures[target] = { texture, view: texture.createView() }
+    textures[target] = texture.createView()
   }
   const params = aoPasses(levels).map((_, at) => {
     const buffer = device.createBuffer({
@@ -94,34 +84,25 @@ function makeView(
 
 /**
  * The view of `levels` resolutions over `extent`: the one `held` while it is that, else made, the old one given
- * back — made where the device's budget leaves room (`ledgerRoom`, the bytes the old one gives back credited);
- * none where it does not, and the reason: the image is then lit without the occlusion.
+ * back — made where the device's budget leaves room (`ledgerAdmitted`, the bytes the old one gives back credited);
+ * none where it does not: the image is then lit without the occlusion.
  */
 export function ensureAoView(
   held: AoView | undefined,
   device: GPUDevice,
   levels: number,
   extent: readonly [number, number],
-): { view?: AoView; why?: string } {
-  if (held && aoViewKey(held.levels, held.extent) === aoViewKey(levels, extent))
-    return { view: held }
-  const replaced = held?.bytes ?? 0
+): AoView | undefined {
+  if (held && aoViewKey(held.levels, held.extent) === aoViewKey(levels, extent)) return held
   const asked = aoViewBytes(levels, extent)
-  if (asked - replaced > ledgerRoom(device)) {
-    held?.dispose()
-    return { why: 'the memory budget leaves no room for the ambient occlusion' }
-  }
   try {
-    const view = ledgerTentative(device, () =>
-      ledgerReplacing(device, replaced, () =>
-        constructGpuResources(device, () => makeView(device, levels, extent, asked)),
-      ),
-    )
+    return ledgerAdmitted(device, {
+      replaced: held?.bytes ?? 0,
+      asked,
+      what: 'the ambient occlusion',
+      make: () => constructGpuResources(device, () => makeView(device, levels, extent, asked)),
+    }).value
+  } finally {
     held?.dispose()
-    return { view }
-  } catch (error) {
-    held?.dispose()
-    if (budgetRefused(error)) return { why: 'the memory budget refused the ambient occlusion' }
-    throw error
   }
 }

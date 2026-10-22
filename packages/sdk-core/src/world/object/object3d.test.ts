@@ -89,6 +89,26 @@ test('a node casts no far shadow unless set: the write is counted and told once,
   assert.equal(told.length, 2, 'turned off again, told again')
 })
 
+test('a node leaves the far-shadow test to the view unless set: the write is counted and told once, and a clone keeps it', () => {
+  const node = new Mesh()
+  assert.equal(node.farShadowTest, null, 'null by default: the view decides')
+  const told: object[] = []
+  const world = new Group()
+  world._link = { shadow: (n: object) => told.push(n), structure() {} } as unknown as SceneLink
+  world.add(node)
+  const writes = nodeWrites()
+  node.farShadowTest = true
+  assert.deepEqual([node.farShadowTest, told, nodeWrites() - writes], [true, [node], 1])
+  node.farShadowTest = true
+  assert.deepEqual([told.length, nodeWrites() - writes], [1, 1], 'the same value moves nothing')
+  node.farShadowTest = false
+  assert.deepEqual([node.farShadowTest, told.length], [false, 2], 'false is a value of its own')
+  assert.equal(node.clone().farShadowTest, false)
+  assert.equal(new Object3D().copy(node).farShadowTest, false)
+  node.farShadowTest = null
+  assert.deepEqual([node.farShadowTest, told.length], [null, 3], 'back to the view’s rule, told')
+})
+
 test("a clone keeps a light's values, a camera's optics, and shares a mesh's content", () => {
   const lamp = new Light('point', { color: 0xff0000, intensity: 5, distance: 9, sh: [1, 2] })
   lamp.target.position.set(0, 0, -4)

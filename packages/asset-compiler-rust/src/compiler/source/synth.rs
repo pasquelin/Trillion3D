@@ -1,131 +1,67 @@
-//! Arrays the compiler writes into the document it read, as a pass before the plan: bytes appended
-//! to the one binary, each array with the view and the accessor that name it, so that every stage
-//! after the load reads them as it reads the source's own (`spline.rs`, `assembly.rs`).
+//! Arrays the spline pass writes into the document it read (`spline.rs`): bytes appended to the one
+//! binary, each array with the view and the accessor that name it, so that every stage after the
+//! load reads them as it reads the source's own.
 use crate::compiler::accessor::codes::{ARRAY_BUFFER, ELEMENT_ARRAY_BUFFER, FLOAT, UNSIGNED_INT};
-use crate::compiler::source::buffers::append_view;
+use crate::compiler::source::buffers::append_accessor;
+use crate::support::le::{f32_bytes, u32_bytes};
 use crate::*;
+use trillion3d_math::geometry::aabb::aabb_of_f32;
 
-/// The `type` of an accessor of `width` floats, none for a width glTF has no vector of.
-fn kind_of(width: usize) -> Option<&'static str> {
-    ["SCALAR", "VEC2", "VEC3", "VEC4"]
-        .get(width.checked_sub(1)?)
-        .copied()
-}
-
-/// The binary as a vector the pass can grow: the bytes themselves when it owns them, else a copy.
-pub(crate) fn owned(binary: Binary) -> Result<Vec<u8>> {
-    match binary {
-        Binary::Owned(bytes) => Ok(bytes),
-        mapped => {
-            let bytes = mapped.bytes();
-            let mut out = reserve(bytes.len())?;
-            out.extend_from_slice(bytes);
-            Ok(out)
-        }
-    }
-}
-
-/// Appends `bytes` to the binary `out` as one view, and an accessor of `count` elements of
-/// `component` and `kind` over it; returns the accessor's rank. `extra` joins the accessor's fields
-/// (`min`, `max`).
-fn append_accessor(
+/// A `VEC3` accessor over `positions`, laid after the binary's end, with the extremes glTF asks of
+/// a position array; the accessor's rank.
+pub(crate) fn position_accessor(
     g: &mut Value,
     out: &mut Vec<u8>,
-    (bytes, target): (&[u8], u32),
-    (count, component, kind): (usize, usize, &str),
-    extra: Option<Value>,
+    positions: &[f32],
 ) -> Result<usize> {
-    let views = g["bufferViews"]
-        .as_array_mut()
-        .ok_or_else(|| invalid("bufferViews array is required"))?;
-    let view = append_view(out, views, bytes, Some(target));
-    let mut accessor = json!({
-        "bufferView": view, "byteOffset": 0, "componentType": component, "count": count, "type": kind,
+    let points = positions.as_chunks::<3>().0.iter().copied();
+    let (low, high) = aabb_of_f32(points);
+    let accessor = json!({
+        "componentType": FLOAT, "count": positions.len() / 3, "type": "VEC3",
+        "min": low, "max": high,
     });
-    if let (Some(Value::Object(fields)), Some(map)) = (extra, accessor.as_object_mut()) {
-        map.extend(fields);
-    }
-    let accessors = g["accessors"]
-        .as_array_mut()
-        .ok_or_else(|| invalid("accessors array is required"))?;
-    accessors.push(accessor);
-    Ok(accessors.len() - 1)
+    append_accessor(g, out, accessor, &f32_bytes(positions), Some(ARRAY_BUFFER))
 }
 
-/// A float accessor of `width` components over `values`, laid after the binary's end; the rank of
-/// the accessor. A position array (`width` 3, `bounds`) names its extremes, as glTF asks.
+/// A float accessor of `kind` (`"VEC3"`, `"VEC4"`) over `values`, `width` floats an element; its
+/// rank.
 pub(crate) fn float_accessor(
     g: &mut Value,
     out: &mut Vec<u8>,
     values: &[f32],
-    width: usize,
-    bounds: bool,
+    (kind, width): (&str, usize),
 ) -> Result<usize> {
-    let kind = kind_of(width).ok_or_else(|| invalid("A synthesized accessor has no such width"))?;
-    let mut bytes: Vec<u8> = reserve(values.len() * 4)?;
-    for value in values {
-        bytes.extend_from_slice(&value.to_le_bytes());
-    }
-    let count = values.len() / width;
-    let extra = bounds.then(|| {
-        let mut low = vec![f32::INFINITY; width];
-        let mut high = vec![f32::NEG_INFINITY; width];
-        for element in values.chunks_exact(width) {
-            for (c, &value) in element.iter().enumerate() {
-                low[c] = low[c].min(value);
-                high[c] = high[c].max(value);
-            }
-        }
-        json!({"min": low, "max": high})
-    });
-    append_accessor(
-        g,
-        out,
-        (bytes.as_slice(), ARRAY_BUFFER),
-        (count, FLOAT, kind),
-        extra,
-    )
+    let accessor = json!({"componentType": FLOAT, "count": values.len() / width, "type": kind});
+    append_accessor(g, out, accessor, &f32_bytes(values), Some(ARRAY_BUFFER))
 }
 
-/// An index accessor over `indices`, 32-bit; its rank.
+/// A 32-bit index accessor over `indices`; its rank.
 pub(crate) fn index_accessor(g: &mut Value, out: &mut Vec<u8>, indices: &[u32]) -> Result<usize> {
-    let mut bytes: Vec<u8> = reserve(indices.len() * 4)?;
-    for index in indices {
-        bytes.extend_from_slice(&index.to_le_bytes());
-    }
-    let shape = (indices.len(), UNSIGNED_INT, "SCALAR");
-    append_accessor(
-        g,
-        out,
-        (bytes.as_slice(), ELEMENT_ARRAY_BUFFER),
-        shape,
-        None,
-    )
+    let accessor = json!({"componentType": UNSIGNED_INT, "count": indices.len(), "type": "SCALAR"});
+    let bytes = u32_bytes(indices);
+    append_accessor(g, out, accessor, &bytes, Some(ELEMENT_ARRAY_BUFFER))
 }
 
-/// The float attribute `semantic` of primitive `p`, one element a vertex of `count`, of one of
-/// `widths` floats: its values and its width; `None` when the primitive has none. Normalized
-/// integers read as the floats they stand for.
+/// The float attribute `semantic` of primitive `p`, `width` floats a vertex, one element for each
+/// of `count` vertices; `None` when the primitive has none.
 pub(crate) fn attribute(
     g: &Value,
     bin: &[u8],
     p: &Value,
-    (semantic, widths): (&str, &[usize]),
+    (semantic, width): (&str, usize),
     count: usize,
-) -> Result<Option<(Vec<f32>, usize)>> {
-    let Some(id) = p.pointer(&format!("/attributes/{semantic}")) else {
+) -> Result<Option<Vec<f32>>> {
+    let named = p.get("attributes").and_then(|a| a.get(semantic));
+    let Some(id) = named else {
         return Ok(None);
     };
     let reader = accessor(g, bin, required_index(Some(id), semantic)?, None)?;
-    if !widths.contains(&reader.width) || reader.count != count {
-        let wanted: Vec<String> = widths.iter().map(|w| format!("VEC{w}")).collect();
+    if reader.width != width || reader.count != count {
         return Err(invalid(format!(
-            "{semantic} must be a {} with one element a vertex",
-            wanted.join(" or ")
+            "{semantic} must be a VEC{width} with one element a vertex"
         )));
     }
-    let width = reader.width;
-    Ok(Some((reader.collect_f32()?, width)))
+    Ok(Some(reader.collect_f32()?))
 }
 
 /// Declares the binary's final length once the pass has appended everything.

@@ -32,6 +32,9 @@ export interface VsmFrameLight {
   /** A sun: how far from the eye, in metres, its maps take every caster, 0 or absent for no limit
    *  (`sunFarShadowDistance`, `frame/vsmFarShadow.ts`). */
   farShadowDistance?: number
+  /** The clipmap levels a sun's maps take at most (`vsmSunLevels`, read of a sun alone); absent,
+   *  the defaults'. */
+  sunLevels?: number
 }
 
 /** Where each light's maps landed this frame. */

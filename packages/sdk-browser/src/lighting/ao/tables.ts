@@ -26,7 +26,7 @@ export const AO_QUALITY_SHAPES: readonly AoQualityShape[] = [
  *  the six near the surface and fading out. */
 export const AO_SAMPLE_SETS: Readonly<Record<1 | 3, readonly (readonly [number, number])[]>> = {
   1: [
-    [0 * 0.43, -1 * 0.43],
+    [0, -0.43],
     [0.58 * 0.7, 0.814 * 0.7],
     [-0.58, 0.814],
   ],
@@ -40,40 +40,35 @@ export const AO_SAMPLE_SETS: Readonly<Record<1 | 3, readonly (readonly [number, 
   ],
 }
 
-/** The order the sixteen directions of a 4 × 4 block of pixels are spread in. */
-const REORDER = [0, 11, 7, 3, 10, 4, 15, 12, 6, 8, 1, 14, 13, 2, 9, 5] as const
-const ANGLE_OFFSET_2 = 198
-const ANGLE_OFFSET_3 = 23
-/** The largest value of an 8-bit unsigned normalised channel. */
-const BYTE = 255
-
-/** A float32, as a GPU holds one; the sum and the product of two, rounded once each. */
-const f32 = Math.fround
-const sum = (a: number, b: number) => f32(a + b)
-const product = (a: number, b: number) => f32(a * b)
-
-/** The byte a value of `[-1, 1]` is stored as (halved, shifted and rounded to nearest), and the
- *  value read back from it. */
-const throughByte = (x: number) =>
-  (Math.trunc(sum(product(sum(product(x, 0.5), 0.5), BYTE), 0.5)) / BYTE) * 2 - 1
-
 /**
- * The sixteen directions a 4 × 4 block of pixels turns its samples by, indexed `x + 4 y`: the
- * block's rotation basis in order (`REORDER`) over half a turn, each scaled down by a share that
- * varies with its rank, and stored in a byte a channel, as the texture of the occlusion's noise holds
- * them — each pair `(cos, sin)` read back from its bytes, a value of `[-1, 1]`.
+ * The sixteen directions a 4 × 4 block of pixels turns its samples by, indexed `x + 4 y`, as the two bytes of each
+ * texel of the noise texture hold them: the block's rotation basis spread over half a turn in a fixed order, each
+ * scaled down by a share that varies with its rank, its cosine and its sine quantised to a byte (`bytes / 255 · 2 − 1`).
+ * Written as the bytes; the derivation, in single precision, is checked against them where the tables are tested.
  */
-export const AO_RANDOM_BASIS: readonly (readonly [number, number])[] = REORDER.map((w) => {
-  const angle = product(product(w, 1 / 16), Math.PI)
-  const wobble = Math.sin(product(product(ANGLE_OFFSET_2, w), 0.01))
-  const length = f32(
-    1 - product(product(sum(product(f32(wobble), 0.5), 0.5), ANGLE_OFFSET_3), 0.01),
-  )
-  return [
-    throughByte(product(f32(Math.cos(angle)), length)),
-    throughByte(product(f32(Math.sin(angle)), length)),
-  ] as const
-})
+export const AO_NOISE_BYTES = [
+  [240, 128],
+  [67, 219],
+  [147, 224],
+  [225, 193],
+  [89, 221],
+  [197, 197],
+  [3, 152],
+  [38, 217],
+  [174, 240],
+  [127, 242],
+  [225, 147],
+  [30, 168],
+  [41, 186],
+  [242, 175],
+  [103, 250],
+  [194, 227],
+] as const
+
+/** The directions the bytes hold, each a pair `(cos, sin)` of `[-1, 1]`. */
+export const AO_RANDOM_BASIS: readonly (readonly [number, number])[] = AO_NOISE_BYTES.map(
+  ([cos, sin]) => [(cos / 255) * 2 - 1, (sin / 255) * 2 - 1] as const,
+)
 
 /** The texels of the noise block along an axis. */
 export const AO_BASIS_SIDE = 4

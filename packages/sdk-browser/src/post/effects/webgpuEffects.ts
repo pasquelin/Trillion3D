@@ -1,5 +1,7 @@
 import { createKinds } from './effectKinds.ts'
+import { createKindSettings, type KindSettings } from './kindSettings.ts'
 import { createHdrStage, createOverlayStage, createResolveStage } from './effectStages.ts'
+import type { PlanStage } from './stagePlan.ts'
 
 /**
  * The WebGPU side of `world.effects`: the passes that run on the resolved image (the motion blur),
@@ -12,19 +14,40 @@ import { createHdrStage, createOverlayStage, createResolveStage } from './effect
  * every kind of the chain is ready the image is drawn without the chain (`loading`), which its
  * caller draws again once they arrive (`settled`) rather than hold. `fail` is called when one
  * cannot be made, and the image stays without the chain.
+ *
+ * Its members: `stage(at)` is the passes around the temporal pass, `'before-resolve'` on the lit image and
+ * `'after-resolve'` on the resolved one — `ready` says whether every kind the passes need is compiled (the
+ * compile of those that are not starts there, so a frame that draws nothing yet still brings them),
+ * `resolve` draws them over `input` in order and returns the image after them, `input` itself when none
+ * draws (what the kinds of a stage hold is sized for the passes that draw, and freed when none does),
+ * `passes` the render and compute passes the last `resolve` encoded, `holds` whether the stage holds
+ * anything; `ready` and `encode` do the same for the passes before tone mapping, over `input`, an image of
+ * `w` × `h` — `encode` returns what composition reads, `input` itself when there is nothing to draw: a last
+ * pass whose kind has a blend leaves it to the composition (`blend`) and writes no target — the glow of the
+ * chain's last bloom is added there (`finished`, `../finish/finishWgsl.ts`) —; a pass before it writes the
+ * next one's input; the kinds' settings are read from the session `context` it is handed. Every stage is
+ * handed the passes that draw (`KindSettings.drawn`), an idle pass or one the view's settings turn off
+ * excluded. `overlay` draws those after tone mapping over `frame`'s display image and returns the render
+ * passes encoded, none while a kind they need compiles; with no pass to draw, what the overlays hold is
+ * freed.
  */
-export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) => void) {
+export function createWebgpuEffects(
+  device: GPUDevice,
+  fail: (error: unknown) => void,
+  settings: KindSettings = createKindSettings(),
+) {
   const kinds = createKinds(device, fail)
-  const resolved = createResolveStage(kinds)
-  const hdr = createHdrStage(device, kinds)
+  const stages = {
+    'before-resolve': createResolveStage(kinds, settings, 'before-resolve'),
+    'after-resolve': createResolveStage(kinds, settings, 'after-resolve'),
+  }
+  const hdr = createHdrStage(device, kinds, settings)
   const overlays = createOverlayStage(kinds)
   return {
     /** True while programs compile: the image drawn meanwhile lacks the chain. */
     get loading() {
       return kinds.loading
     },
-    /** Whether every kind `passes` needs is compiled; the compile of those that are not starts
-     *  here, so a frame that draws nothing yet still brings them. */
     ready: hdr.ready,
     /** Resolves once every program in compilation has arrived or failed. */
     settled: kinds.settled,
@@ -36,32 +59,13 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
     get draws() {
       return hdr.drawn.draws
     },
-    /** Whether every kind the passes on the resolved image need is compiled; the compile of those
-     *  that are not starts here. */
-    readyResolved: resolved.ready,
-    /** The render and compute passes the last `resolve` encoded. */
-    get resolvedPasses() {
-      return resolved.passes
-    },
-    /** Draws `passes`, the chain's on the resolved image, over `input` in order, an idle one
-     *  passed by, and returns the image after them: `input` itself when none draws. What the kinds
-     *  of this stage hold is sized for the passes that draw, and freed when none does. */
-    resolve: resolved.resolve,
-    /** The last pass's blend the last `encode` left to the composition, which then reads the
-     *  image returned through it. */
+    /** The passes before the temporal pass (`'before-resolve'`) or after it (`'after-resolve'`). */
+    stage: (at: PlanStage) => stages[at],
+    /** The last pass's blend the last `encode` left to the composition. */
     get blend() {
       return hdr.drawn.blend
     },
-    /** Encodes `passes` over `input`, an image of `w` × `h`, and returns what composition reads:
-     *  `input` itself when there is nothing to draw. A last pass whose kind has a blend leaves it
-     *  to the composition (`blend`) and writes no target: the glow of the chain's last bloom is
-     *  added by the composition (`finished`, `../finish/finishWgsl.ts`); a pass before it writes
-     *  the next one's input. */
     encode: hdr.encode,
-    /** Draws `passes`, the chain's after tone mapping, over `frame`'s display image, in order, an
-     *  idle one passed by; returns the render passes encoded, none while a kind they need compiles
-     *  (`loading`). With no pass to draw, what the overlays hold is freed: nothing is allocated for
-     *  an idle pass. */
     overlay: overlays.overlay,
     /** Frees what the overlays hold: the chain draws none. */
     releaseOverlays: overlays.release,

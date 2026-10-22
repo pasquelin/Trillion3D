@@ -20,7 +20,7 @@ export function displacementRange({
 }
 
 /** The greatest distance a point moves, whichever way: what grows a bound that must hold it. */
-export function displacementReach(range: { min: number; max: number }) {
+function displacementReach(range: { min: number; max: number }) {
   return Math.max(-range.min, range.max)
 }
 
@@ -29,7 +29,7 @@ export function displacementReach(range: { min: number; max: number }) {
  * faded out wholly and the surface draws flat: the smaller of the fade range's two ends, none (0)
  * for a displacement that never fades. A bound the displacement is kept inside only above it.
  */
-export function displacementFadeOut({ fade }: Pick<SurfaceDisplacement, 'fade'>) {
+export function fadeOutPixels({ fade }: Pick<SurfaceDisplacement, 'fade'>) {
   return fade ? Math.min(fade.start, fade.end) : 0
 }
 

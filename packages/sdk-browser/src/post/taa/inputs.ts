@@ -18,8 +18,8 @@ export interface TaaInputs {
   ids: GPUTextureView
   pages: GPUBuffer
   motion: GPUBuffer
-  /** Each render texel's reprojection vector, the velocity stage's (`../velocity.ts`): the
-   *  history's reprojection reads it. */
+  /** Each render texel's own reprojection vector, the velocity stage's (`../velocity.ts`): the
+   *  history's reprojection dilates it by the closest surface of each texel's 3×3. */
   vectors: GPUTextureView
   flags?: GPUTextureView
   share?: GPUTextureView
@@ -78,7 +78,7 @@ export function taaGroupEntries(
   })
 }
 
-/** The layout entries of what the nearest velocity reads of the frame (`VELOCITY_INPUT_BINDINGS`):
+/** The layout entries of what the velocity passes read of the frame (`VELOCITY_INPUT_BINDINGS`):
  *  the pass uniform, the depth, the identifiers, the page records, the placements' motion, the
  *  pools and the roots' world boxes. */
 export const velocityInputEntries = (): GPUBindGroupLayoutEntry[] => [
@@ -90,14 +90,14 @@ export const velocityInputEntries = (): GPUBindGroupLayoutEntry[] => [
   ),
 ]
 
-/** What the nearest velocity reads of the frame: its depth, identifiers, page records, motion,
+/** What the velocity passes read of the frame: its depth, identifiers, page records, motion,
  *  pools and roots' world boxes. */
 export type VelocityInputs = Pick<
   TaaInputs,
   'depth' | 'ids' | 'pages' | 'motion' | 'pool' | 'positions' | 'uvs' | 'boxes'
 >
 
-/** What a group of the nearest velocity names of the frame's `inputs`, the pass `uniform` beside
+/** What a group of a velocity pass names of the frame's `inputs`, the pass `uniform` beside
  *  them. */
 export const velocityInputResources = (inputs: VelocityInputs, uniform: GPUBuffer) => ({
   view: { buffer: uniform },

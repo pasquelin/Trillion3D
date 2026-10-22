@@ -4,7 +4,7 @@ import { renderScaleBounds, type RenderScale, type RenderScaleBounds } from './r
 import { createTargetCap, displayMoved, FALLBACK_REFRESH_MS, PERIOD } from './scaleTargets.ts'
 import { createScaleMemory } from './scaleMemory.ts'
 import { tickScale } from './scaleTick.ts'
-import { createScaleWindow, forgetHistory, holdFrame } from './scaleWindow.ts'
+import { createScaleWindow, edgeOf, forgetHistory, holdFrame } from './scaleWindow.ts'
 import { recordFrame, refreshFraction } from './dynamicResolution.ts'
 
 /**
@@ -22,7 +22,7 @@ import { recordFrame, refreshFraction } from './dynamicResolution.ts'
  *   Without GPU times the dynamic resolution records nothing and the image is drawn at the bounds'
  *   maximum (`scaleTick.ts`).
  * - The cut's edge scale, one more budget of the same heuristic: a fraction of its screen error
- *   (`edgeScale`), fitted to the GPU time of the passes that build the visibility buffer
+ *   (`edge`), fitted to the GPU time of the passes that build the visibility buffer
  *   (`observe`) while the host gives it a budget. It is forgotten, and back at 1, where the render
  *   scale's history is.
  *
@@ -41,10 +41,8 @@ import { recordFrame, refreshFraction } from './dynamicResolution.ts'
  * the display began at `now`, ms, its rAF timestamp, `timed`: the device has a GPU timer
  * (`tickScale`); `observe(gpuMs, scale, steered, edgeMs, edge)`, the GPU busy time of an image drawn
  * at `scale`, a few frames late, null where the timer read none, and the time of its visibility
- * passes (NaN where there is none to fit) drawn at the edge fraction `edge`; `edge`, that fraction
- * now, to stamp an image with; `edgeScale(budgetMs, percent)`, the budget the host gives the cut's
- * passes and the lowest fraction it takes the screen error to, in percent: the fraction the cut
- * divides its threshold by, 1 for a budget of 0 or less; `edgeBudgetMs`, the budget last given.
+ * passes (NaN where there is none to fit) drawn at the edge fraction `edge`; `edge`, the cut's edge
+ * scale (`edgeOf`).
  */
 export function createScaleControl(option: RenderScale | undefined, maxFrameRate?: number) {
   const display = { width: 0, height: 0, ratio: 0 }
@@ -109,17 +107,7 @@ export function createScaleControl(option: RenderScale | undefined, maxFrameRate
       forgetHistory(w)
     },
     wanted: () => (w.bounds.auto ? Math.min(w.s, w.max) : w.bounds.max),
-    get edge() {
-      return w.edge
-    },
-    get edgeBudgetMs() {
-      return w.edgeBudgetMs
-    },
-    edgeScale(budgetMs: number, percent: number) {
-      w.edgeBudgetMs = budgetMs
-      w.edgeMin = percent / 100
-      return budgetMs > 0 ? w.edge : 1
-    },
+    edge: edgeOf(w),
     allocated: memory.allocated,
     capMemory: memory.cap,
     uncapMemory: memory.uncap,

@@ -9,8 +9,8 @@ import { aoOcclusionShader, aoShapeKey, type AoShape } from './occlusionWgsl.ts'
 import { AO_SETUP_WGSL } from './setupWgsl.ts'
 import { AMBIENT_OCCLUSION_PASS } from '../../diagnostic/stage/passLabels.ts'
 
-/** The layout of every occlusion pass's group: its uniform, the depth pyramid, the surfaces' normals, the setup
- *  texture and the coarser occlusion, all read by the fragment stage. The ones a pass does not read are bound to a
+/** The layout of every occlusion pass's group: its uniform, the depth pyramid, the surfaces' normals, the half-size
+ *  depth map, the setup texture and the coarser occlusion, all read by the fragment stage. The ones a pass does not read are bound to a
  *  stand-in. */
 export function aoLayoutEntries(): GPUBindGroupLayoutEntry[] {
   const fragment = GPUShaderStage.FRAGMENT
@@ -18,6 +18,7 @@ export function aoLayoutEntries(): GPUBindGroupLayoutEntry[] {
     computeUniformEntry(AO_BINDINGS.params, { minBindingSize: AO_PARAMS_BYTES }, fragment),
     ...hizDepthEntries(AO_BINDINGS.depth, fragment),
     computeTextureEntry(AO_BINDINGS.normals, 'unfilterable-float', '2d', fragment),
+    computeTextureEntry(AO_BINDINGS.half, 'unfilterable-float', '2d', fragment),
     computeTextureEntry(AO_BINDINGS.setup, 'unfilterable-float', '2d', fragment),
     computeTextureEntry(AO_BINDINGS.lower, 'unfilterable-float', '2d', fragment),
   ]
@@ -26,8 +27,9 @@ export function aoLayoutEntries(): GPUBindGroupLayoutEntry[] {
 /**
  * THE OCCLUSION'S PROGRAMS, once a device: the setup's pipeline, and one for each shape of the search an image asks
  * (`AoShape`: the quality, the pass's kind, whether it blends a coarser result), each prepared off the thread, the
- * frame held until they landed (`PreparedPipeline.ask`); the layout of their one group, and the stand-ins an unread
- * binding is given: a pixel of each format the passes read.
+ * frame held until they landed (`PreparedPipeline.ask`); the layout of their one group, and the stand-in a setup
+ * binding no pass reads is given. A coarser occlusion no pass reads is bound to the lighting's own stand-in
+ * (`DeferredPlaceholders.ambientOcclusion`).
  */
 export const aoPrograms = oncePerDevice((device: GPUDevice) => {
   const layout = device.createBindGroupLayout({
@@ -52,15 +54,17 @@ export const aoPrograms = oncePerDevice((device: GPUDevice) => {
       ),
     aoShapeKey,
   )
-  const standIns = [
-    standInTexture(device, `${AMBIENT_OCCLUSION_PASS} empty setup`, AO_SETUP_FORMAT),
-    standInTexture(device, `${AMBIENT_OCCLUSION_PASS} empty occlusion`, AO_OCCLUSION_FORMAT),
-  ]
+  // What a pass that reads no setup texture is bound to: the same texel of zero every such pass shares.
+  const emptySetup = standInTexture(
+    device,
+    `${AMBIENT_OCCLUSION_PASS} empty setup`,
+    AO_SETUP_FORMAT,
+  )
   return {
+    device,
     layout,
     setup,
     search: (shape: AoShape) => searches.of(shape),
-    emptySetup: standIns[0].createView(),
-    emptyOcclusion: standIns[1].createView(),
+    emptySetup: emptySetup.createView(),
   }
 })

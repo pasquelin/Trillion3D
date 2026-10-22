@@ -9,10 +9,13 @@ import { SKY_PRESET_LEVELS } from '../modules/sky/qualityPresets.ts'
 import { SCREEN_PROBE_PRESET_LEVELS } from '../bounce/screenProbeLevels.ts'
 import { AMBIENT_OCCLUSION_PRESET_LEVELS } from '../contracts/ambientOcclusionOptions.ts'
 import { BLOOM_PRESET_LEVELS } from '../contracts/bloomRules.ts'
+import { GAUSSIAN_BLUR_PRESET_LEVELS } from '../contracts/gaussianBlurRules.ts'
 import { VIEW_DISTANCE_SCALE_LEVELS } from '../contracts/cutOptions.ts'
 import { DEPTH_OF_FIELD_PRESET_LEVELS } from '../contracts/depthOfFieldRules.ts'
 import { FILM_PRESET_LEVELS } from '../contracts/filmOptions.ts'
 import { MOTION_BLUR_PRESET_LEVELS } from '../contracts/motionBlurOptions.ts'
+import { REFLECTION_PRESET_LEVELS } from '../contracts/reflectionLevels.ts'
+import { SHADOW_MAP_PRESET_LEVELS } from '../contracts/shadowMapOptions.ts'
 import { VOLUMETRIC_FOG_PRESET_LEVELS } from '../contracts/volumetricFogOptions.ts'
 import { QUALITY_GROUPS, type QualityGroup, type RenderSettingValue } from './renderSettings.ts'
 
@@ -71,6 +74,7 @@ export const QUALITY_LEVELS: QualityLevels = {
     smooth: {
       ...MOTION_BLUR_PRESET_LEVELS.smooth,
       ...BLOOM_PRESET_LEVELS.smooth,
+      ...GAUSSIAN_BLUR_PRESET_LEVELS.smooth,
       ...DEPTH_OF_FIELD_PRESET_LEVELS.smooth,
       ...FILM_PRESET_LEVELS.smooth,
       ...AMBIENT_OCCLUSION_PRESET_LEVELS.smooth,
@@ -79,6 +83,7 @@ export const QUALITY_LEVELS: QualityLevels = {
     balanced: {
       ...MOTION_BLUR_PRESET_LEVELS.balanced,
       ...BLOOM_PRESET_LEVELS.balanced,
+      ...GAUSSIAN_BLUR_PRESET_LEVELS.balanced,
       ...DEPTH_OF_FIELD_PRESET_LEVELS.balanced,
       ...FILM_PRESET_LEVELS.balanced,
       ...AMBIENT_OCCLUSION_PRESET_LEVELS.balanced,
@@ -87,6 +92,7 @@ export const QUALITY_LEVELS: QualityLevels = {
     fine: {
       ...MOTION_BLUR_PRESET_LEVELS.fine,
       ...BLOOM_PRESET_LEVELS.fine,
+      ...GAUSSIAN_BLUR_PRESET_LEVELS.fine,
       ...DEPTH_OF_FIELD_PRESET_LEVELS.fine,
       ...FILM_PRESET_LEVELS.fine,
       ...AMBIENT_OCCLUSION_PRESET_LEVELS.fine,
@@ -97,7 +103,9 @@ export const QUALITY_LEVELS: QualityLevels = {
   // The shadows' levels write the reference's four shadow rows: the sun's shadow distance scale, its
   // count of near levels, the scale on their overlap and whether a far-field shadow follows them
   // (`shadowDistanceScale`, `shadowNearLevels`, `shadowOverlapScale`, `shadowFarField`: the edge of
-  // the far-shadow test, `farShadowDistance`), and the volumetric fog's quality level
+  // the far-shadow test, `farShadowDistance`), the shadow maps' rows of the same scalability levels
+  // (`SHADOW_MAP_PRESET_LEVELS`: resolution biases, radius threshold, ray and sample counts, page
+  // pool, local coarse marking), and the volumetric fog's quality level
   // (`VOLUMETRIC_FOG_PRESET_LEVELS`); the culling's switches and the fog's other settings stay at
   // their defaults at every level.
   shadows: {
@@ -106,6 +114,7 @@ export const QUALITY_LEVELS: QualityLevels = {
       shadowNearLevels: 1,
       shadowOverlapScale: 0,
       shadowFarField: false,
+      ...SHADOW_MAP_PRESET_LEVELS.smooth,
       ...VOLUMETRIC_FOG_PRESET_LEVELS.smooth,
     },
     balanced: {
@@ -113,6 +122,7 @@ export const QUALITY_LEVELS: QualityLevels = {
       shadowNearLevels: 1,
       shadowOverlapScale: 0.25,
       shadowFarField: false,
+      ...SHADOW_MAP_PRESET_LEVELS.balanced,
       ...VOLUMETRIC_FOG_PRESET_LEVELS.balanced,
     },
     fine: {
@@ -120,20 +130,32 @@ export const QUALITY_LEVELS: QualityLevels = {
       shadowNearLevels: 4,
       shadowOverlapScale: 0.8,
       shadowFarField: true,
+      ...SHADOW_MAP_PRESET_LEVELS.fine,
       ...VOLUMETRIC_FOG_PRESET_LEVELS.fine,
     },
     max: {},
   },
   // The indirect light's levels write the screen probes' level (`SCREEN_PROBE_LEVELS`) and the sky light's intensity factor (`SKY_PRESET_LEVELS`): the two coarser
   // presets read the world's probes alone (`off`), the one below the top the `high` level, the top the
-  // default one; the screen probes' other settings stay at their defaults at every level.
+  // default one; and the reflections' level (`REFLECTION_LEVELS`): the two coarser presets trace none (`off`),
+  // the one below the top the `high` level, the top the default one; the other settings of both stay at their
+  // defaults at every level.
   indirectLight: {
-    smooth: { ...SCREEN_PROBE_PRESET_LEVELS.smooth, ...SKY_PRESET_LEVELS.indirectLight.smooth },
+    smooth: {
+      ...SCREEN_PROBE_PRESET_LEVELS.smooth,
+      ...SKY_PRESET_LEVELS.indirectLight.smooth,
+      ...REFLECTION_PRESET_LEVELS.smooth,
+    },
     balanced: {
       ...SCREEN_PROBE_PRESET_LEVELS.balanced,
       ...SKY_PRESET_LEVELS.indirectLight.balanced,
+      ...REFLECTION_PRESET_LEVELS.balanced,
     },
-    fine: { ...SCREEN_PROBE_PRESET_LEVELS.fine, ...SKY_PRESET_LEVELS.indirectLight.fine },
+    fine: {
+      ...SCREEN_PROBE_PRESET_LEVELS.fine,
+      ...SKY_PRESET_LEVELS.indirectLight.fine,
+      ...REFLECTION_PRESET_LEVELS.fine,
+    },
     max: {},
   },
 }

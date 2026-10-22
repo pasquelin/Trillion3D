@@ -37,9 +37,18 @@ export class Mat3 {
   }
 }
 
-/** `a * b` where one side is a matrix: a matrix times a column vector, or a row vector times a
- *  3×3 matrix (the dot of the vector with each column); undefined when neither side is one. */
-export function matrixProduct(a: unknown, b: unknown): number[] | undefined {
+/** `a * b` where one side is a matrix: a matrix times a column vector or a 4×4 matrix, or a row
+ *  vector times a matrix (the dot of the vector with each column); undefined when neither side is
+ *  one. */
+export function matrixProduct(a: unknown, b: unknown): number[] | Mat | undefined {
+  if (a instanceof Mat && b instanceof Mat) {
+    return new Mat(
+      Array.from({ length: 16 }, (_, i) => {
+        const [column, row] = [Math.floor(i / 4), i % 4]
+        return [0, 1, 2, 3].reduce((sum, k) => sum + a.m[k * 4 + row]! * b.m[column * 4 + k]!, 0)
+      }),
+    )
+  }
   if (a instanceof Mat3) {
     const v = b as number[]
     return [0, 1, 2].map((row) =>
@@ -53,6 +62,12 @@ export function matrixProduct(a: unknown, b: unknown): number[] | undefined {
   if (b instanceof Mat3) {
     const v = a as number[]
     return b.columns.map((column) => column.reduce((sum, x, row) => sum + x * v[row], 0))
+  }
+  if (b instanceof Mat) {
+    const v = a as number[]
+    return [0, 1, 2, 3].map((column) =>
+      v.reduce((sum, x, row) => sum + x * b.m[column * 4 + row]!, 0),
+    )
   }
   return undefined
 }

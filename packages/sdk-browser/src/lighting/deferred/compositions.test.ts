@@ -8,14 +8,9 @@ import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from './shaders.ts'
 import { lobelessLighting } from './recorder.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { commandArgs } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
-import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
-import { FILM_RULES, type FilmSettings } from '../../../../sdk-core/src/contracts/filmOptions.ts'
-import { resolveSettings } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import type { ExposureSettings } from '../../post/exposure/meterParams.ts'
-import { FINISH } from '../../post/finish/finishLayout.ts'
-import { writeFinishParams, type FinishInput } from '../../post/finish/finishParams.ts'
+import { finishScope } from '../../post/finish/finishScope.fixture.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { near } from '../../../../math/src/float/near.fixture.ts'
 
 test('the finishing compositions compile off the frame at the first that asks, for every input', async () => {
   const { device, renderPipelines, pipelineLayouts } = fakeDevice()
@@ -90,29 +85,6 @@ test('a composition handed the finishing’s group binds it as group 1, one hand
   lighting.dispose()
 })
 
-/** The finishing's uniform as the shader's `finish`: each field its four words, for the finishing
- *  functions the shipped text runs in doubles. */
-function finishScope(options: Partial<ExposureSettings>, input: Partial<FinishInput> = {}) {
-  const settings = { ...resolveSettings(EXPOSURE_RULES, {}), ...options } as ExposureSettings
-  const words = new Float32Array(FINISH.words)
-  writeFinishParams(words, {
-    settings,
-    film: resolveSettings(FILM_RULES, {}),
-    vignette: 0.4,
-    auto: true,
-    local: true,
-    glow: false,
-    size: [1920, 1080],
-    format: 'rgba8unorm',
-    frame: 0,
-    ...input,
-  })
-  const field = (at: number) => [...words.subarray(at, at + 4)]
-  const finish = Object.fromEntries(
-    Object.entries(FINISH.at).map(([name, at]) => [name, field(at)]),
-  )
-  return { finish, words, settings }
-}
 const smoothstep = (low: number, high: number, x: number) => {
   const t = Math.min(Math.max((x - low) / (high - low), 0), 1)
   return t * t * (3 - 2 * t)
@@ -140,111 +112,6 @@ function layered(
   const detail = (logExposed - base) * s.localExposureDetailStrength
   return 2 ** (grey + shift + centred * contrast + detail - logExposed)
 }
-
-/** The shipped finishing functions `names`, run over the words the film settings `film` write. */
-function filmRun<T>(
-  film: FilmSettings,
-  names: string[],
-  scope = {},
-  input: Partial<FinishInput> = {},
-) {
-  const resolved = resolveSettings(FILM_RULES, film)
-  const { finish } = finishScope({}, { size: [1000, 1000], film: resolved, ...input })
-  return {
-    ...shaderRun<T>(CONTRACT_COMPOSITIONS.finish.accumulated, names, { finish, ...scope }),
-    finish,
-  }
-}
-const maskOf = (film: FilmSettings, input: Partial<FinishInput> = {}) =>
-  filmRun<{ vignetteMask: (uv: number[]) => number[] }>(film, ['vignetteMask'], {}, input)
-    .vignetteMask
-
-test('the finishing’s vignette is the cosine-fourth falloff, 1 at the centre', () => {
-  for (const [size, strength] of [
-    [[1920, 1080], 0.4],
-    [[1000, 1000], 1],
-    [[400, 1200], 0.25],
-  ] as const) {
-    const mask = (uv: number[]) => maskOf({}, { size, vignette: strength })(uv)[0]
-    assert.equal(mask([0.5, 0.5]), 1)
-    // The corner is on the circle through the corners, whatever the aspect: 1 / (1 + 2 v²)².
-    const corner = 1 / (1 + 2 * strength ** 2) ** 2
-    const corners = [mask([0, 0]), mask([1, 0]), mask([0, 1]), mask([1, 1])]
-    near(corners, [corner, corner, corner, corner], `${size}`, 1e-6)
-  }
-})
-
-test('the vignette darkens toward its colour, around its centre, or as the oval its size and softness say', () => {
-  const mask = (film: FilmSettings, vignette = 0.4) => maskOf(film, { vignette })
-  const weight = 1 / (1 + 2 * 0.4 ** 2) ** 2
-  const colours = mask({ vignetteColorRed: 1, vignetteColorBlue: 0.5 })([0, 0])
-  near(colours, [1, weight, 0.5 + 0.5 * weight], 'colour', 1e-6)
-  assert.equal(mask({ vignetteCenterX: 0.8 })([0.65, 0.5])[0], 1)
-  // The oval: lerp(1, (1 − d²)^softness, strength); at (0.8, 0.7) of a square image the position
-  // from the centre is (0.6, 0.4), the width's half.
-  const oval = mask({ vignetteType: 'oval', vignetteSizeX: 2, vignetteSoftness: 3 }, 0.5)
-  near(oval([0.8, 0.7])[0], 0.5 + 0.5 * (1 - (0.3 ** 2 + 0.4 ** 2)) ** 3, 'oval', 1e-6)
-})
-
-test('the colour fringe reads the red and the green nearer the centre by their wavelengths, the blue where it is', () => {
-  type Fringe = { fringeActive: () => boolean; fringeTaps: (uv: number[]) => number[] }
-  const fringe = (film: FilmSettings) => filmRun<Fringe>(film, ['fringeActive', 'fringeTaps'])
-  const active = (film: FilmSettings) => fringe(film).fringeActive()
-  assert.equal(active({}), false)
-  assert.equal(active({ chromaticAberration: 0.01 }), false, 'no more than 0.01 draws nothing')
-  assert.equal(active({ chromaticAberration: 5, chromaticAberrationQuality: 'off' }), false)
-  assert.equal(active({ chromaticAberration: 5, chromaticAberrationMax: 0.005 }), false)
-  assert.equal(active({ chromaticAberration: 5, chromaticAberrationMax: 0.5 }), true)
-  assert.equal(active({ chromaticAberrationMax: -2 }), true, '−2 forces an extreme one')
-  const { fringeTaps } = fringe({ chromaticAberration: 5, chromaticAberrationStartOffset: 0.5 })
-  near(fringeTaps([0.6, 0.5]), [0.6, 0.5, 0.6, 0.5], 'under the start offset', 1e-6)
-  // At the right edge: 0.5 past the start offset, 5 % of 0.007 a nanometre from the blue's, over 0.5.
-  const read = (nanometres: number) => 1 - 0.5 * 0.05 * 0.007 * (nanometres - 464.3)
-  const [red, , green] = fringeTaps([1, 0.5])
-  near([red, green], [read(611.3), read(549.1)], 'edge', 1e-6)
-})
-
-test('the dither is the reference’s triangular noise of one display step, its pattern following the image', () => {
-  const dither = (film: FilmSettings, input: Partial<FinishInput> = {}) =>
-    filmRun<{ ditherOf: (uv: number[]) => number }>(film, ['ditherOf'], {}, input).ditherOf
-  // fract(sin(x + y · 543.31) · 493013) at the image's offset, triangular.
-  const noise = (uv: number[], [dx, dy]: number[]) => {
-    const hash = Math.sin(uv[0] + dx + (uv[1] + dy) * 543.31) * 493013
-    const n = 2 * (hash - Math.floor(hash)) - 1
-    return Math.sign(n) * (1 - Math.sqrt(1 - Math.abs(n)))
-  }
-  const next = [0.5, Math.fround(1 / 3)] // the Halton point 1
-  for (const x of [0.1, 0.37, 0.9]) {
-    const uv = [x, 1 - 0.7 * x]
-    near(dither({})(uv), noise(uv, [0, 0]) / 255, 'an 8-bit target steps by 1/255')
-    near(dither({}, { frame: 1 })(uv), noise(uv, next) / 255, 'the next image')
-    assert.equal(dither({}, { frame: 8 })(uv), dither({})(uv), 'the ninth image is the first')
-    near(dither({}, { format: 'rgba16float' })(uv), noise(uv, [0, 0]) / 1023, '1/1023 elsewhere')
-    near(dither({ quantizationDitheringBits: 6 })(uv), noise(uv, [0, 0]) / 63, 'bits')
-  }
-})
-
-test('the grain multiplies the light by its texture times its decode, by the share of the luminance zone', () => {
-  type Grain = { grained: (light: number[], coverage: number, uv: number[]) => number[] }
-  const film = {
-    filmGrainIntensity: 0.5,
-    filmGrainIntensityShadows: 0.2,
-    filmGrainIntensityHighlights: 0.4,
-  }
-  const raw = [0.25, 0.5, 1, 1]
-  const scope = { grainImage: 'grain', grainSampler: 'repeat', textureSampleLevel: () => raw }
-  const { grained, finish } = filmRun<Grain>(film, ['grained'], scope)
-  assert.equal(finish.grainLevels[3], 1, 'drawn')
-  const weights = finish.grainLuma.slice(0, 3) // the luminance row; greys of each zone
-  const words = [...finish.grainLevels.slice(0, 3), ...weights]
-  near(words, [0.1, 0.5, 0.2, 0.040555, 0.73297, -0.031568], 'zones and luminance', 1e-5)
-  for (const [at, share] of Object.entries({ 0: 0.1, 0.3: 0.5, 2: 0.2 })) {
-    const light = weights.map(() => Number(at) / weights.reduce((sum, w) => sum + w))
-    const factor = (c: number) => 1 + (raw[c] * finish.grainDecode[c] - 1) * share
-    const expected = light.map((v, c) => v * factor(c))
-    near(grained(light, 1, [0.3, 0.4]), expected, at, 1e-6)
-  }
-})
 
 test('the local exposure moves a pixel by its layers, as their definition says, the thresholds too', () => {
   const grid = { cell: [0, 0] }

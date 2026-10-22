@@ -36,6 +36,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     drawSlots,
     visUniformSlots(vis),
     variant,
+    rt.setup.clipping,
   )
   vis.shadeUniform = shaders.shadeUniform
   vis.visBindGroupLayout = shaders.visBindGroupLayout

@@ -1,5 +1,5 @@
 /** The shortest frame the clock divides by, seconds: a frame never takes none. */
-const SMALL_NUMBER = 1e-8
+const LEAST_FRAME_SECONDS = 1e-8
 /** The share of the frame's length the target of a blur relative to the page's own rate moves to
  *  the length of each new frame. */
 const FOLLOW = 0.1
@@ -24,7 +24,7 @@ export function createMotionBlurClock() {
       const measured = Number.isNaN(last) ? undefined : (now - last) / 1000
       last = now
       if (targetFps > 0) target = 1 / targetFps
-      const frame = Math.max(measured ?? target, SMALL_NUMBER)
+      const frame = Math.max(measured ?? target, LEAST_FRAME_SECONDS)
       if (targetFps <= 0) target += (frame - target) * FOLLOW
       return target / frame
     },

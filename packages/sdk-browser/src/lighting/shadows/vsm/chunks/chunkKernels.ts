@@ -50,7 +50,14 @@ export function vsmChunkKernels(
   ) => vsmComputePipe(device, `${label}.${name}`, code, entryPoint, groups)
   const views = pipe('views', vsmRenderViewsWgsl(layout), 'vsmRenderViews', [
     vsmBindGroupLayoutEntries(VSM_RENDER_VIEWS_SPECS, layout, COMPUTE),
-    [P(0), computeBufferEntry(1, 'storage', COMPUTE), computeBufferEntry(2, 'storage', COMPUTE)],
+    [
+      ...[
+        P(0),
+        computeBufferEntry(1, 'storage', COMPUTE),
+        computeBufferEntry(2, 'storage', COMPUTE),
+      ],
+      computeBufferEntry(3, 'read-only-storage', COMPUTE),
+    ],
   ])
   const cull = pipe('cull', cullCode, 'vsmRenderCull', [
     vsmBindGroupLayoutEntries(VSM_RENDER_CULL_SPECS, layout, COMPUTE),

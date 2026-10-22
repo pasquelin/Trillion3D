@@ -15,6 +15,7 @@ import {
   VECTOR_FORMAT,
 } from './velocityWgsl.ts'
 import { CATMULL_ROM_TAPS_WGSL } from './historyWgsl.ts'
+import { CAMERA_MOTION_WGSL } from './nearestSurfaceWgsl.ts'
 import { COLOR_SPACES_WGSL, DITHER_WGSL, quantizationError } from './colorSpaceWgsl.ts'
 import { TILE_CLAMP_WGSL } from './tileWgsl.ts'
 
@@ -33,6 +34,7 @@ export const REPROJECT_BINDINGS = {
   word: 10,
   filled: 11,
   prevThin: 12,
+  depth: 13,
 } as const
 
 /** The render-resolution histories: the shading history (the colour in the perceptual space and the reprojection
@@ -73,6 +75,10 @@ fn reprojectionEdge(word:u32)->f32{return f32((word>>8u)&0xffu)/255.0;}`,
 /**
  * The history reprojection, per render texel, after the nearest velocity (`velocityWgsl.ts`), reprojecting the
  * render-resolution histories to this image:
+ * - the texel's reprojection vector, the velocity dilated (`dilatedVector`): the velocity stage's
+ *   word at the closest surface of its 3×3, the offset the nearest velocity kept in the marks, where
+ *   that surface moves by itself; else the camera's motion at the texel with the closest surface's
+ *   depth (`cameraOnlyMotion`), the stage's own word where it took no neighbour's;
  * - the reprojection edge over the 3×3's reprojection vectors: for each of the four pairs of opposite
  *   neighbours, one less the share of a render pixel each one's vector differs from the texel's
  *   along its own offset, the least of them, times 1.1; the velocity pass's own edge where it exceeds
@@ -89,8 +95,8 @@ fn reprojectionEdge(word:u32)->f32{return f32((word>>8u)&0xffu)/255.0;}`,
  *   as its reprojection, when it is one, so the history update reads the surface the occluder left;
  * - the thin geometry coverage history at the texel the reprojected point falls in, kept in the word
  *   for the thin geometry detection (`thinGeometryWgsl.ts`).
- * A vector load, and 9 where the texel took a neighbour's velocity, 5 bilinear shading history
- * taps, a flicker history load, a coverage history load and 4 occluder words per render texel.
+ * A vector load, a marks load and a depth load where the texel took a neighbour's velocity, and 9
+ * of each for its edge, 5 bilinear shading history taps, a flicker history load, a coverage history load and 4 occluder words per render texel.
  */
 export const reprojectShader = () =>
   wgslProgram(
@@ -107,9 +113,18 @@ export const reprojectShader = () =>
 @group(0) @binding(${REPROJECT_BINDINGS.word}) var reprojectedOut:texture_storage_2d<${REPROJECTED_FORMAT},write>;
 @group(0) @binding(${REPROJECT_BINDINGS.filled}) var filledOut:texture_storage_2d<${VECTOR_FORMAT},write>;
 @group(0) @binding(${REPROJECT_BINDINGS.prevThin}) var prevThin:texture_2d<u32>;
+@group(0) @binding(${REPROJECT_BINDINGS.depth}) var depth:texture_depth_2d;
+fn dilatedVector(n:vec2i)->vec2f{
+ let code=textureLoad(marks,n,0).a&0xfu;
+ let offset=vec2i(i32(code&3u),i32((code>>2u)&3u))-vec2i(1);
+ let q=clampTexel(n+offset);
+ let word=textureLoad(vectors,q,0).r;
+ if(hasOwnMotion(word)||all(offset==vec2i(0))){return decodeVector(word);}
+ return cameraOnlyMotion(screenOfTexel(n),textureLoad(depth,q,0));
+}
 fn neighbourEdge(p:vec2i)->f32{
  var v:array<vec2f,9>;
- for(var k=0;k<9;k++){v[k]=pixelVelocity(decodeVector(textureLoad(vectors,clampTexel(p+vec2i(k%3-1,k/3-1)),0).r));}
+ for(var k=0;k<9;k++){v[k]=pixelVelocity(dilatedVector(clampTexel(p+vec2i(k%3-1,k/3-1))));}
  let centre=v[4];
  var edge=1.0;
  for(var k=0;k<4;k++){
@@ -179,7 +194,7 @@ fn reprojectHistories(@builtin(global_invocation_id) gid:vec3u){
  let zError=decodeDepthError(prevZ,mark.g);
  var edge=1.0;
  if(hasOffset){edge=select(neighbourEdge(p),preliminary,preliminary>0.9);}
- let v=decodeVector(textureLoad(vectors,p,0).r);
+ let v=dilatedVector(p);
  let screen=screenOfTexel(p);
  let prevScreen=screen-v;
  let offScreen=view.params.x!=0.0||any(prevScreen<vec2f(-1.0))||any(prevScreen>vec2f(1.0));
@@ -208,6 +223,7 @@ fn reprojectHistories(@builtin(global_invocation_id) gid:vec3u){
     [
       TAA_VIEW_WGSL,
       DEPTH_WGSL,
+      CAMERA_MOTION_WGSL,
       REPROJECTION_VECTOR_WGSL,
       HOLE_FILL_WGSL,
       OCCLUDER_WORD_WGSL,

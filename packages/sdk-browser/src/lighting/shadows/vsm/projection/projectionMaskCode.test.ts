@@ -12,10 +12,10 @@ import { wgslConstants } from '../../../../materials/texture/shaderRule.fixture.
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { directShadowWgsl } from '../../../direct/shadowWgsl.ts'
 import { createDeferredPlaceholders } from '../../../deferred/setup.ts'
-import { VSM_CONSTANTS_WGSL } from '../constants.ts'
+import { VSM_TRACE_RAYS_MAX } from '../constants.ts'
+import { SHADOW_RULES } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { vsmLayout } from '../layout.ts'
 import { wgslModule } from '../../../../../../math/src/wgsl/assemble.ts'
-const K = wgslConstants(VSM_CONSTANTS_WGSL)
 /** A factor through the rgba16float store the mask was: round to nearest even. */
 const halfOf = (x: number) => {
   if (x === 0) return 0
@@ -37,14 +37,16 @@ const { vsmMaskDecode } = shaderRun<{ vsmMaskDecode: (c: number) => number }>(
 /** Every result a trace gives: no ray traced (factor 1), or k of n rays missed. */
 function* results() {
   yield { shadowFactor: 1, rayCount: 0 }
-  const most = Math.max(K.VSM_TRACE_RAYS, 8)
+  const most = VSM_TRACE_RAYS_MAX
   for (let n = 1; n <= most; n++)
     for (let k = 0; k <= n; k++)
       yield { shadowFactor: Math.fround(Math.fround(k) / Math.fround(n)), rayCount: n }
 }
 
-test('a lane holds four bits of rays: every ray count the traces use fits', () => {
-  assert.ok(K.VSM_TRACE_RAYS <= 15)
+test('a lane holds four bits of rays: every ray count the settings take fits', () => {
+  assert.ok(VSM_TRACE_RAYS_MAX <= 15)
+  const { shadowRayCountDirectional: sun, shadowRayCountLocal: local } = SHADOW_RULES
+  assert.deepEqual([sun.range[1], local.range[1]], [VSM_TRACE_RAYS_MAX, VSM_TRACE_RAYS_MAX])
 })
 
 test('the decode computes a factor by the very expression the trace stores, as a half float', () => {

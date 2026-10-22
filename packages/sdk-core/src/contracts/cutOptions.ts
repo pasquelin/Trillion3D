@@ -42,6 +42,8 @@ export const CUT_RULES = /* @__PURE__ */ (() =>
     flag('cutMinLodCulling', true),
     flag('cutDrawDistanceCulling', true),
     nonNegative('cutViewDistanceScale', 1),
+    // The one setting read once, when the session opens: the project switch that picks the programs'
+    // text (`../../../sdk-browser/src/gpu/core/clipDistances.ts`, `clippingFor`).
     flag('cutClipPlane', false),
     flag('cutClipPlaneCulling', true),
     flag('cutViewFiltering', true),

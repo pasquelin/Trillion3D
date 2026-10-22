@@ -7,6 +7,7 @@
  */
 import { ceilDiv } from '../../../../../../math/src/scalar/integers.ts'
 import { clamp } from '../../../../../../math/src/scalar/reals.ts'
+import { SRGB_LUMINANCE } from '../../../../../../math/src/color/color.ts'
 import type { BloomKernelImage } from '../../../../../../sdk-core/src/contracts/bloomConvolutionOptions.ts'
 
 /** A value of the four channels. */
@@ -27,9 +28,8 @@ export interface KernelStats {
   maxScatter: Vec4
 }
 
-/** The weights of a colour's luminance. */
-const LUMA = [0.2126390059, 0.7151686788, 0.0721923154] as const
-/** Texels along a side of a group of the surveys. */
+/** Texels along a side of a group of the reference's surveys, which the survey's reach is a whole
+ *  number of. */
 const TILE = 8
 /** Texels of margin the survey reaches past the centre's footprint. */
 const SURVEY_MARGIN = 4
@@ -37,26 +37,15 @@ const SURVEY_MARGIN = 4
 /** `x` held to [0, 1], 0 for a value that is none. */
 const unit = (x: number) => (x > 0 ? (x < 1 ? x : 1) : 0)
 
-const words = new Float32Array(1)
-const bits = new Uint32Array(words.buffer)
-/** The bit pattern of `x` as a 32-bit float: the order the surveys keep their largest by, which is
- *  a float's own for the values of a picture. */
-function bitsOf(x: number) {
-  words[0] = x
-  return bits[0]
-}
-/** The 32-bit float of a bit pattern. */
-function floatOf(pattern: number) {
-  bits[0] = pattern
-  return words[0]
-}
-
 /** The texel of the kernel brightest in luminance, the first of them, none when it is all dark. */
 function brightest({ width, height, pixels }: BloomKernelImage) {
   let best = 0,
     at = -1
   for (let i = 0, n = width * height; i < n; i++) {
-    const luma = pixels[4 * i] * LUMA[0] + pixels[4 * i + 1] * LUMA[1] + pixels[4 * i + 2] * LUMA[2]
+    const luma =
+      pixels[4 * i] * SRGB_LUMINANCE[0] +
+      pixels[4 * i + 1] * SRGB_LUMINANCE[1] +
+      pixels[4 * i + 2] * SRGB_LUMINANCE[2]
     if (luma > best) {
       best = luma
       at = i
@@ -65,75 +54,64 @@ function brightest({ width, height, pixels }: BloomKernelImage) {
   return at < 0 ? undefined : ([at % width, Math.floor(at / width)] as const)
 }
 
-/** The value of a texel's channel, 0 where it is not a number. */
+/** The light of a texel's channel: 0 where it is not a number or is under 0, as the kernel's
+ *  preparation holds it (`holdKernel`). */
 const texel = (pixels: Float32Array, at: number, channel: number) => {
   const value = pixels[4 * at + channel]
-  return Number.isFinite(value) ? value : 0
+  return value > 0 && Number.isFinite(value) ? value : 0
 }
 
 /**
- * The survey of the texels around the centre, in `grid` × `grid` groups of 8 × 8 centred on it:
- * `visit(at, m, group)` for each, `at` the texel's index — wrapped around the kernel's edges as an
- * unsigned word wraps —, `m` the larger of its two offsets from the centre in absolute value, and
- * `group` the group it belongs to.
+ * The survey of the texels around the centre, `reach` texels out each side but the last on each
+ * axis: `visit(at, m)` for each, `at` the texel's index — wrapped around the kernel's edges as an
+ * unsigned word wraps — and `m` the larger of its two offsets from the centre in absolute value.
  */
 function survey(
-  kernel: BloomKernelImage,
+  { width, height }: BloomKernelImage,
   centre: readonly [number, number],
-  grid: number,
-  visit: (at: number, m: number, group: number) => void,
+  reach: number,
+  visit: (at: number, m: number) => void,
 ) {
-  const { width, height } = kernel
-  const first = (-TILE * grid) / 2
-  for (let gy = 0; gy < grid; gy++)
-    for (let gx = 0; gx < grid; gx++)
-      for (let ty = 0; ty < TILE; ty++)
-        for (let tx = 0; tx < TILE; tx++) {
-          const ox = first + gx * TILE + tx,
-            oy = first + gy * TILE + ty
-          const x = ((centre[0] + ox) >>> 0) % width,
-            y = ((centre[1] + oy) >>> 0) % height
-          visit(y * width + x, Math.max(Math.abs(ox), Math.abs(oy)), gy * grid + gx)
-        }
+  for (let oy = -reach; oy < reach; oy++)
+    for (let ox = -reach; ox < reach; ox++) {
+      const x = ((centre[0] + ox) >>> 0) % width,
+        y = ((centre[1] + oy) >>> 0) % height
+      visit(y * width + x, Math.max(Math.abs(ox), Math.abs(oy)))
+    }
 }
 
-/** The brightest haze around the centre's footprint of radius `radius` (`analyseKernel`). */
+/** The brightest haze around the centre's footprint of radius `radius` (`analyseKernel`): the
+ *  brightest of red, green and blue shared by the three, the alpha's own, each as a float32 holds
+ *  it, the way the uniform that carries it will. */
 function haze(
   kernel: BloomKernelImage,
   centre: readonly [number, number],
-  grid: number,
+  reach: number,
   radius: number,
 ) {
   const { pixels } = kernel
-  // Each group keeps its largest value by the word of its float; the groups' are then joined as floats.
-  const groups = Array.from({ length: grid * grid }, () => [0, 0, 0, 0])
-  survey(kernel, centre, grid, (at, m, group) => {
-    const inner = unit(2 * radius + 1 - m),
-      zone = unit(1 - inner) * unit(2 * radius + 4 - m)
-    const r = Math.fround(texel(pixels, at, 0) * zone),
-      g = Math.fround(texel(pixels, at, 1) * zone),
-      b = Math.fround(texel(pixels, at, 2) * zone),
-      a = Math.fround(texel(pixels, at, 3) * zone)
-    const rgb = bitsOf(Math.max(r, g, b))
-    const held = groups[group]
-    held[0] = held[1] = held[2] = Math.max(held[0], rgb)
-    held[3] = Math.max(held[3], bitsOf(a))
+  let colour = 0,
+    alpha = 0
+  survey(kernel, centre, reach, (at, m) => {
+    const zone = unit(1 - unit(2 * radius + 1 - m)) * unit(2 * radius + 4 - m)
+    colour = Math.max(colour, texel(pixels, at, 0) * zone, texel(pixels, at, 1) * zone)
+    colour = Math.max(colour, texel(pixels, at, 2) * zone)
+    alpha = Math.max(alpha, texel(pixels, at, 3) * zone)
   })
-  const out = [0, 0, 0, 0]
-  for (const held of groups) for (let c = 0; c < 4; c++) out[c] = Math.max(out[c], floatOf(held[c]))
-  return out as unknown as Vec4
+  const [rgb, a] = [Math.fround(colour), Math.fround(alpha)]
+  return [rgb, rgb, rgb, a] as unknown as Vec4
 }
 
 /** The light the footprint holds over the haze (`analyseKernel`). */
 function footprint(
   kernel: BloomKernelImage,
   centre: readonly [number, number],
-  grid: number,
+  reach: number,
   radius: number,
   haze: Vec4,
 ) {
   const sum = [0, 0, 0, 0]
-  survey(kernel, centre, grid, (at, m) => {
+  survey(kernel, centre, reach, (at, m) => {
     const zone = unit(radius + 0.5 - m)
     for (let c = 0; c < 4; c++) sum[c] += Math.max(texel(kernel.pixels, at, c) - haze[c], 0) * zone
   })
@@ -166,12 +144,12 @@ export function analyseKernel(
     return { centre: [0, 0], lit: false, centreEnergy: NONE, scatterEnergy: NONE, maxScatter: NONE }
   const across = Math.max(Math.fround(imageWidth * support), 1)
   const radius = Math.fround(Math.max(Math.fround(kernel.width / across), 1) * 0.5)
-  const grid = 2 * ceilDiv(Math.ceil(radius) + SURVEY_MARGIN, TILE)
-  const maxScatter = haze(kernel, centre, grid, radius)
+  const reach = TILE * ceilDiv(Math.ceil(radius) + SURVEY_MARGIN, TILE)
+  const maxScatter = haze(kernel, centre, reach, radius)
   return {
     centre,
     lit: true,
-    centreEnergy: footprint(kernel, centre, grid, radius, maxScatter),
+    centreEnergy: footprint(kernel, centre, reach, radius, maxScatter),
     scatterEnergy: spread(kernel, maxScatter),
     maxScatter,
   }
@@ -204,13 +182,3 @@ export function applyConstants(stats: KernelStats, scatterIntensity: number): Ap
     multiply: share(scatter) as unknown as Vec4,
   }
 }
-
-/**
- * Which kernel sum each channel (red, green, blue, alpha) is divided by, and which part of the
- * glow's multiplier it is scaled with. The transform reads the sums as (red, blue | green, alpha) and
- * the multiplier as (red, green | blue, alpha) but divides and scales in the order it lays the
- * channels out, so blue meets green's sum and green blue's, and blue takes red's multiplier: kept,
- * as it loses nothing — a neutral kernel and tint are the same in every channel.
- */
-export const NORMALISED_BY = [0, 2, 1, 3] as const
-export const SCALED_BY = [0, 1, 0, 3] as const

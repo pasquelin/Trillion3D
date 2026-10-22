@@ -40,7 +40,7 @@ export const VSM_RENDER_COMMAND_WGSL = wgslBlock(
 @group(1) @binding(2) var<storage,read_write> counts:array<atomic<u32>>;
 /** The chunk's commands, as many as it holds. */
 fn vsmRenderCommandCount()->u32{return min(atomicLoad(&counts[vsmRenderChunkCounter(params.chunk,0u)]),params.cmdCapacity);}
-struct VsmRenderCommand{id:u32,mip:u32,staticLayer:bool,flatten:u32,swapped:u32,rect:vec4u,corners:u32,markMask:u32,markBits:u32,}
+struct VsmRenderCommand{id:u32,mip:u32,staticLayer:bool,flatten:u32,swapped:u32,tessellated:u32,rect:vec4u,corners:u32,markMask:u32,markBits:u32,}
 fn vsmRenderCommandOf(cmd:vec4u)->VsmRenderCommand{
  return VsmRenderCommand(
   cmd.y&0xFFFFu,
@@ -48,6 +48,7 @@ fn vsmRenderCommandOf(cmd:vec4u)->VsmRenderCommand{
   bitIsSet(cmd.y,19u),
   bitAt(cmd.y,20u),
   bitAt(cmd.y,21u),
+  bitAt(cmd.y,22u),
   vec4u(cmd.z&0x7Fu,(cmd.z>>7u)&0x7Fu,(cmd.z>>14u)&0x7Fu,(cmd.z>>21u)&0x7Fu),
   cmd.w&0xFFFFu,
   (cmd.w>>16u)&0xFFu,
@@ -66,7 +67,8 @@ fn vsmRenderCommandOf(cmd:vec4u)->VsmRenderCommand{
  * pairs follow the lower tiers' in the list and draw by their tier's corners (`vsmRenderArgsDraw`).
  *
  * Pair (vec4u): x row; y VSM id | mip << 16 | clamp-to-near << 20 | pool slice << 21 | swapped
- * << 22 (`vsmRenderVs`); z virtual page x | y << 8; w physical page address x | y << 10.
+ * << 22 | tessellated << 23 (`vsmRenderVs`: a tessellated pair draws nothing of its own triangles, the
+ * tessellation draws its patches); z virtual page x | y << 8; w physical page address x | y << 10.
  */
 export const vsmRenderExpandWgsl = (layout: VsmLayout) =>
   wgslProgram(
@@ -121,7 +123,7 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
   if(page.thisLevelDrawable&&layerStale){
    let at=first+atomicAdd(&counts[vsmRenderTierCounter(VSM_RENDER_TIER_PAIRS,VSM_RENDER_TIER)],1u);
    if(at<params.pairCapacity){
-    pairs[at]=vec4u(cmd.x,c.id|(c.mip<<16u)|(c.flatten<<20u)|(slice<<21u)|(c.swapped<<22u),vPage.x|(vPage.y<<8u),page.physicalAddress.x|(page.physicalAddress.y<<10u));
+    pairs[at]=vec4u(cmd.x,c.id|(c.mip<<16u)|(c.flatten<<20u)|(slice<<21u)|(c.swapped<<22u)|(c.tessellated<<23u),vPage.x|(vPage.y<<8u),page.physicalAddress.x|(page.physicalAddress.y<<10u));
    }
   }
  }

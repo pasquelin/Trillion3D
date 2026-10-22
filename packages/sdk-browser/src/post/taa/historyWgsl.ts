@@ -51,7 +51,9 @@ export const HISTORY_LAWS = historySampleLaws(HISTORY_TO_DISPLAY)
  * weights folded into the cross (an approximation of the 4×4's separable weights): the
  * centre tap at the bilinear point that carries the inner 2×2, and one tap beyond each side. The
  * weights sum to one; a tap's coordinates are the caller's to clamp. At a texel centre the weights
- * are those of the texel itself, its neighbours' lobes cancelling.
+ * are those of the texel itself, its neighbours' lobes cancelling. `bicubicRead` sums the five taps of
+ * `tex` through `samp`, each clamped to the box `lo` to `hi` of its coordinates: the one read of every
+ * history that is read this way.
  */
 export const CATMULL_ROM_TAPS_WGSL = wgslBlock(
   'CATMULL_ROM_TAPS_WGSL',
@@ -69,6 +71,12 @@ fn catmullRomTaps(uv:vec2f,size:vec2f,inv:vec2f)->TaaTaps{
  return TaaTaps(
   array<vec2f,5>(c+vec2f(-inv.x,u.y),c+vec2f(2.0*inv.x,u.y),c+u,c+vec2f(u.x,-inv.y),c+vec2f(u.x,2.0*inv.y)),
   array<f32,5>(w0.x,w3.x,1.0-w0.x-w3.x-w0.y-w3.y,w0.y,w3.y));
+}
+fn bicubicRead(tex:texture_2d<f32>,samp:sampler,taps:TaaTaps,lo:vec2f,hi:vec2f)->vec4f{
+ var t=taps;
+ var sum=vec4f(0.0);
+ for(var k=0;k<5;k++){sum+=textureSampleLevel(tex,samp,clamp(t.uv[k],lo,hi),0.0)*t.weight[k];}
+ return sum;
 }`,
 )
 
@@ -87,15 +95,11 @@ struct TaaPast{color:vec4f,tag:vec4f}
 fn historyRead(uv:vec2f)->TaaPast{
  var taps=catmullRomTaps(uv,view.viewport.xy,view.viewport.zw);
  let lo=0.5*view.viewport.zw;let hi=vec2f(1.0)-lo;
- var color=vec4f(0.0);var tag=vec4f(0.0);var middle=vec4f(0.0);
- for(var k=0;k<5;k++){
-  let at=clamp(taps.uv[k],lo,hi);
-  let c=textureSampleLevel(history,historySampler,at,0.0);
-  if(k==2){middle=c;}
-  color+=c*taps.weight[k];
-  tag+=textureSampleLevel(shareHistory,historySampler,at,0.0)*taps.weight[k];
+ var color=bicubicRead(history,historySampler,taps,lo,hi);
+ let tag=bicubicRead(shareHistory,historySampler,taps,lo,hi);
+ if(any(color.rgb<vec3f(0.0))){
+  color=max(textureSampleLevel(history,historySampler,clamp(taps.uv[2],lo,hi),0.0),vec4f(0.0));
  }
- if(any(color.rgb<vec3f(0.0))){color=max(middle,vec4f(0.0));}
  // The light of the image before held as this image holds its own; an as-is pixel (a display value) is not.
  color=vec4f(color.rgb*mix(view.preExposure.x,1.0,saturate(tag.r)),color.a);
  return TaaPast(color,max(tag,vec4f(0.0)));

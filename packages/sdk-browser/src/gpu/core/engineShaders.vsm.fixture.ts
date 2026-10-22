@@ -30,6 +30,12 @@ import {
 } from '../../lighting/shadows/vsm/transmission/transmissionNumberWgsl.ts'
 import { vsmTransmissionPagesWgsl } from '../../lighting/shadows/vsm/transmission/transmissionPagesWgsl.ts'
 import { vsmTransmissionResolveWgsl } from '../../lighting/shadows/vsm/transmission/transmissionResolveWgsl.ts'
+import {
+  vsmTessArgsSource,
+  vsmTessSeedSource,
+  vsmTessSplitSource,
+} from '../../lighting/shadows/vsm/tessellation/shadowKernelsWgsl.ts'
+import { vsmTessellatedVertexWgsl } from '../../lighting/shadows/vsm/tessellation/shadowRasterWgsl.ts'
 import { vsmLayout } from '../../lighting/shadows/vsm/layout.ts'
 import { ROW_BINS_WGSL } from '../../lighting/shadows/vsm/rows/rowBinsWgsl.ts'
 
@@ -54,6 +60,12 @@ export function vsmVariants() {
     VSM_RENDER_ARGS_WGSL,
     VSM_RENDER_RASTER: vsmRenderRasterWgsl(layout),
     VSM_RENDER_VOXEL: vsmRenderVoxelWgsl(layout),
+    // The displaced surfaces' patches in the shadow maps: the chain over a chunk's pairs, then the
+    // vertex stage that dices them.
+    VSM_TESSELLATION_SEED: vsmTessSeedSource(),
+    VSM_TESSELLATION_SPLIT: vsmTessSplitSource(layout),
+    VSM_TESSELLATION_ARGS: vsmTessArgsSource(),
+    VSM_TESSELLATION_VERTEX: vsmTessellatedVertexWgsl(layout),
     VSM_TRANSMISSION_CANDIDATES: vsmTransmissionCandidatesWgsl(),
     VSM_TRANSMISSION_CLEAR: vsmTransmissionClearWgsl(layout),
     VSM_TRANSMISSION_PAGES: vsmTransmissionPagesWgsl(layout),

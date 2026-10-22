@@ -1,5 +1,10 @@
 /** Real-number helpers of ranges and blends: each the plain expression; NaN propagates unless said. */
 
+/** Whether `value` is a number that is neither NaN nor an infinity: the one test of a finite number
+ *  every contract field is read with. */
+export const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value)
+
 /** `x` held to `[lo, hi]`, `hi` when `lo > hi`, -0 at a 0 bound made +0. */
 export const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x))
 

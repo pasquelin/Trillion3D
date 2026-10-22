@@ -32,6 +32,26 @@ export function createScaleWindow(bounds: RenderScaleBounds) {
 
 export type ScaleWindow = ReturnType<typeof createScaleWindow>
 
+/**
+ * The cut's edge scale as the frame reads it (`ScaleControl.edge`): `now` its fraction; `budgetMs`
+ * the budget the cut was last given; `ask(budgetMs, percent)` the budget given, with the lowest
+ * fraction it takes the screen error to, in percent: the fraction the cut divides its threshold
+ * by — 1 for a budget of 0 or less, what was learnt kept.
+ */
+export const edgeOf = (w: ScaleWindow) => ({
+  get now() {
+    return w.edge
+  },
+  get budgetMs() {
+    return w.edgeBudgetMs
+  },
+  ask(budgetMs: number, percent: number) {
+    w.edgeBudgetMs = budgetMs
+    w.edgeMin = percent / 100
+    return budgetMs > 0 ? w.edge : 1
+  },
+})
+
 /** The interactive loop held the display frame that began: it draws nothing. */
 export function holdFrame(w: ScaleWindow) {
   w.held++

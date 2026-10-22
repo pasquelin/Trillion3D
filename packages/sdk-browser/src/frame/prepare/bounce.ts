@@ -1,6 +1,7 @@
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import type { SceneProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
 import { createGpuBounceProbes } from '../../lighting/bounce/probes/probes.ts'
+import { probesPerFrameOf, screenProbeSettingsOf } from '../../lighting/bounce/screen/settingsOf.ts'
 import { NO_PROXY_BOXES } from '../../lighting/bounce/probes/probeSync.ts'
 import { grantCapability } from '../io/drops.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -18,7 +19,7 @@ const BOUNCE_APPROXIMATIONS = [
   'a probe ray that exhausts the published traversal bound ends as a hit where it stopped, lit by the cascades alone, and a shadow ray has a budget of its own and, exhausted, is lit unless the walk of one mesh ran out of stack in it',
   'a probe ray lights the surface it lands on at the point it lands, every light and its shadow, so the cost of a ray grows with the lights',
   'a probe buried in a surface or lost in open sky goes to sleep and is skipped until a light or the sky changes',
-  'a frame traces a fixed count of probes (`probesPerFrame`) whatever the time the pass takes: a slow device lowers the count, nothing lowers it for it',
+  'a frame traces a fixed budget of probes (`probesPerFrame`, in the cost of a whole map each: a quarter for a probe past the downsample distance) whatever the time the pass takes: a slow device lowers the count, nothing lowers it for it',
   'a point no level holds a probe for gets no bounce from the probes, never a guess: the sky light, where one shines, is all it gets',
   'a probe is given to a cell only once the image has read it, a few images late, and traced a few updates after: a view that turns finds the cells it turns to unanswered for an instant',
   'the pool holds a fixed count of probes: past it a cell asked for goes unanswered until a probe is given back',
@@ -84,9 +85,10 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
           boxes: () => rt.run.gpuSelection?.proxyBoxes() ?? NO_PROXY_BOXES,
         },
         () => lights.buffer!,
-        bounce.probesPerFrame,
+        () => probesPerFrameOf(rt),
         rt.gpu.deferred!.placeholders.tiles,
         () => lights.tiles,
+        () => screenProbeSettingsOf(rt),
       )
     })
     .then((probes) => {
@@ -129,7 +131,7 @@ function publish(rt: WebgpuPagesRuntime) {
     refusedMarks: probes?.pool.refused ?? null,
     probeBytes: probes?.probeBytes ?? null,
     // The probes a frame traces, those never traced first, and the last duration of the pass.
-    probesPerFrame: bounce.probesPerFrame,
+    probesPerFrame: probesPerFrameOf(rt),
     passMs: probes ? bounce.passMs : null,
     unavailable: bounce.reason,
     approximations: BOUNCE_APPROXIMATIONS,

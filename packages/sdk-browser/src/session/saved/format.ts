@@ -61,6 +61,9 @@ export interface SavedNode {
   castFarShadow?: true
   /** Whether it is a far-field object, which the primed depth pyramid draws; absent, it is not. */
   farField?: true
+  /** Whether a directional light's far-shadow test reaches it or never does; absent, the view's
+   *  rule decides. */
+  farShadowTest?: boolean
   /** Whether shadows fall on it. */
   receiveShadow: boolean
   /** Its drawing order among see-through things. */

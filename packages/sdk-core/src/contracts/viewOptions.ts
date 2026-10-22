@@ -1,5 +1,6 @@
 import { refusal, type Refuse } from './nameMatch.ts'
-import { length3 } from '../../../math/src/vector/vector.ts'
+import { writeNormalizedVector3 } from '../../../math/src/vector/vector.ts'
+import { readVec3, type Vec3Like } from '../../../math/src/vector/vec3Input.ts'
 
 /**
  * WHAT A VIEW CARRIES BESIDE ITS EYE (`Camera`, `../world/camera/camera.ts`): a plane that clips
@@ -8,11 +9,14 @@ import { length3 } from '../../../math/src/vector/vector.ts'
  * them alone.
  *
  * THE CLIP PLANE is off by default: a view has none. Given a point of it, `base` (the origin), and
- * its `normal` (up, +z), the plane lets through what lies on the side the normal points to; the
- * normal is made a unit vector, and a zero normal names no plane. It takes effect only while the
- * run-time setting `cutClipPlane` is on (`./cutOptions.ts`), as the reference's project switch is
- * off by default; the cut culls what lies wholly behind it and the raster cuts what straddles it.
- * Shadows are not clipped: the light's views carry none.
+ * its `normal` (up, +y: the engine's up), the plane lets through what lies on the side the normal
+ * points to; the normal is made a unit vector, and a zero normal names no plane. It takes effect
+ * only where the world was made with the project switch `cutClipPlane` on (`./cutOptions.ts`), read
+ * once when the session opens, as the reference's read-only project switch is, off by default;
+ * then the cut culls what lies wholly behind it, every pass that draws the scene's geometry cuts
+ * what straddles it, and the fog starts at it. A view with a plane draws without temporal jitter
+ * (`ViewSet.jitters`), as the reference's capture does. Shadows are not clipped: the light's views
+ * carry none.
  *
  * THE LISTS are empty by default: nothing is filtered. `hidden` names objects the view does not
  * draw; `showOnly`, when it is a list — a view with none is `null` —, names the only objects it
@@ -22,15 +26,14 @@ import { length3 } from '../../../math/src/vector/vector.ts'
  */
 
 /** A point or a direction, as a page writes it: `[x, y, z]` or anything with those three fields. */
-export type ClipPlaneVector =
-  readonly [number, number, number] | { readonly x: number; readonly y: number; readonly z: number }
+export type ClipPlaneVector = Vec3Like
 
 /** A plane that clips a view: what a page writes (`Camera.clipPlane`). */
 export interface ClipPlane {
   /** Any point of the plane. @defaultValue [0, 0, 0] */
   base?: ClipPlaneVector
   /** The direction the drawn side lies in; made a unit vector, a zero one naming no plane.
-   *  @defaultValue [0, 0, 1] */
+   *  @defaultValue [0, 1, 0] */
   normal?: ClipPlaneVector
 }
 
@@ -43,16 +46,14 @@ export const NO_CLIP_PLANE: ClipPlaneValues = Object.freeze([0, 0, 0, 0]) as Cli
 /** The plane's point when the page names none. */
 export const DEFAULT_CLIP_PLANE_BASE: readonly [number, number, number] = [0, 0, 0]
 /** The plane's normal when the page names none. */
-export const DEFAULT_CLIP_PLANE_NORMAL: readonly [number, number, number] = [0, 0, 1]
+export const DEFAULT_CLIP_PLANE_NORMAL: readonly [number, number, number] = [0, 1, 0]
 
 /** Three finite numbers of `value`, or the refusal `refuse` says. */
 function triple(value: ClipPlaneVector, what: string, refuse: Refuse): [number, number, number] {
-  const read = Array.isArray(value)
-    ? [value[0], value[1], value[2]]
-    : [(value as { x: number }).x, (value as { y: number }).y, (value as { z: number }).z]
+  const read = readVec3(value)
   if (read.some((n) => typeof n !== 'number' || !Number.isFinite(n)))
     return refuse(`${what} must be three finite numbers, got ${JSON.stringify(value)}`)
-  return read as [number, number, number]
+  return read
 }
 
 /**
@@ -68,9 +69,10 @@ export function resolveClipPlane(option?: ClipPlane | false | null): ClipPlaneVa
     return refuse(`must be false, null or { base, normal }, got ${String(option)}`)
   const base = triple(option.base ?? DEFAULT_CLIP_PLANE_BASE, 'base', refuse),
     normal = triple(option.normal ?? DEFAULT_CLIP_PLANE_NORMAL, 'normal', refuse)
-  const length = length3(normal[0], normal[1], normal[2])
-  if (!(length > 0)) return NO_CLIP_PLANE
-  const unit = [normal[0] / length, normal[1] / length, normal[2] / length] as const
+  const unit: [number, number, number] = [0, 0, 0]
+  writeNormalizedVector3(unit, 0, normal[0], normal[1], normal[2])
+  // A zero normal stays zero through the normalisation: it names no plane.
+  if (unit[0] === 0 && unit[1] === 0 && unit[2] === 0) return NO_CLIP_PLANE
   return [unit[0], unit[1], unit[2], unit[0] * base[0] + unit[1] * base[1] + unit[2] * base[2]]
 }
 

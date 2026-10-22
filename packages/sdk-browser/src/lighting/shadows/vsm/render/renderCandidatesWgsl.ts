@@ -2,12 +2,19 @@ import { CUT_RULE_WGSL } from '../../../../geometry/cut/rule.ts'
 import { FLOAT32_MAX } from '../../../../../../math/src/wgsl/constants.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../../gpu/dispatch/grid.ts'
 import { projectedBoundWgsl } from '../../../../geometry/dag/shader/projectedBoundWgsl.ts'
-import { MOBILITY_FAR_SHADOW, MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../../mobilityBits.ts'
+import {
+  MOBILITY_FAR_SHADOW,
+  MOBILITY_FAR_SKIPPED,
+  MOBILITY_FAR_TESTED,
+  MOBILITY_MOVING,
+  MOBILITY_SHADOWLESS,
+} from '../../mobilityBits.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../../../visibility/shader/pageWgsl.ts'
 import {
   FLAG_BACK,
   FLAG_BLEND_CASTER,
   FLAG_DOUBLE,
+  FLAG_MASK,
   FLAG_SPRITE,
   FLAG_VOXEL,
 } from '../../../../visibility/types.ts'
@@ -24,6 +31,7 @@ import {
 } from '../../../../geometry/dag/frameTable.ts'
 import { OUTSIDE_DRAW_DISTANCES_WGSL } from '../../../../geometry/dag/shader/drawDistanceWgsl.ts'
 import { worldGateWgsl } from '../../../../geometry/dag/shader/worldGateWgsl.ts'
+import { TESSELLATED_FLAGS_WGSL } from '../../../../visibility/tessellation/rowWgsl.ts'
 import { VSM_RENDER_PARAMS_WGSL } from './renderParamsWgsl.ts'
 
 /** THE NON-CLUSTER RASTER'S CASTER CANDIDATES (`renderCullWgsl.ts`): one thread a row, the rows the
@@ -85,6 +93,7 @@ export const VSM_RENDER_ROWS_WGSL = wgslBlock(
     matrixWindingCw,
     VSM_RENDER_WORLD_WGSL,
     OUTSIDE_DRAW_DISTANCES_WGSL,
+    TESSELLATED_FLAGS_WGSL,
   ],
   `
 struct VsmRenderSphere{c:vec4f,l:vec4f,}
@@ -113,13 +122,17 @@ fn vsmRenderCandidateFlags(word:u32,deformOutput:u32)->u32{
  if((word&${MOBILITY_MOVING}u)==0u){return 0u;}
  return VSM_RENDER_CAND_DYNAMIC|select(0u,VSM_RENDER_CAND_DEFORMING,deformOutput!=0u);
 }
-/** A caster row's far-shadow flags, for the suns' test (\`vsmFarShadowSkipped\`): tested when the
- *  parameters say every mesh is (\`farMeshes\`) or the row belongs to the world's merged shells — a
- *  placement of the world DAG (\`worldPlaced\`), asked of \`placement\` only then —, and casting far
- *  when its object does (\`MOBILITY_FAR_SHADOW\` of its mobility \`word\`). The objects drawn as
- *  themselves keep casting at any distance unless the parameters ask for every mesh. */
+/** A caster row's far-shadow flags, for the suns' test (\`vsmFarShadowSkipped\`): tested as its object
+ *  says (\`MOBILITY_FAR_TESTED\`, \`MOBILITY_FAR_SKIPPED\` of its mobility \`word\`: \`farShadowTest\`),
+ *  else when the parameters say every mesh is (\`farMeshes\`) or the row belongs to the world's merged
+ *  shells — a placement of the world DAG (\`worldPlaced\`) —, and casting far when its object does
+ *  (\`MOBILITY_FAR_SHADOW\`). The objects drawn as themselves, saying nothing, keep casting at any
+ *  distance unless the parameters ask for every mesh. */
 fn vsmRenderFarFlags(word:u32,placement:u32)->u32{
- return select(0u,VSM_RENDER_CAND_FAR_TESTED,params.farMeshes!=0u||worldPlaced(placement))|select(0u,VSM_RENDER_CAND_FAR_CAST,(word&${MOBILITY_FAR_SHADOW}u)!=0u);
+ var tested=params.farMeshes!=0u||worldPlaced(placement);
+ if((word&${MOBILITY_FAR_TESTED}u)!=0u){tested=true;}
+ if((word&${MOBILITY_FAR_SKIPPED}u)!=0u){tested=false;}
+ return select(0u,VSM_RENDER_CAND_FAR_TESTED,tested)|select(0u,VSM_RENDER_CAND_FAR_CAST,(word&${MOBILITY_FAR_SHADOW}u)!=0u);
 }
 /** The centre of the row's whole object from the main view's eye. The object's sphere is the row's
  *  own (\`c\` centre high and radius, \`l\` centre low) moved by the offset and given the radius the
@@ -132,6 +145,15 @@ fn vsmRenderObjectDelta(c:vec4f,l:vec3f,lod:VsmRenderRowLod)->vec3f{
  *  far-shadow test compares to its distance, all or nothing for every row of the object. */
 fn vsmRenderFarDepth(c:vec4f,l:vec3f,lod:VsmRenderRowLod)->f32{
  return -dot(params.viewRow2.xyz,vsmRenderObjectDelta(c,l,lod))-select(c.w,lod.object.w,lod.object.w>0.0);
+}
+/** The radius of the row's whole object, squared, over its squared distance from the main view's
+ *  eye (\`vsmRenderObjectDelta\`): the share of the view it spans; the greatest float where the eye
+ *  is at its centre. All or nothing for every row of the object. */
+fn vsmRenderScreenRatio(c:vec4f,l:vec3f,lod:VsmRenderRowLod)->f32{
+ let radius=select(c.w,lod.object.w,lod.object.w>0.0);
+ let delta=vsmRenderObjectDelta(c,l,lod);
+ let distanceSq=dot(delta,delta);
+ return select(INF,radius*radius/distanceSq,distanceSq>0.0);
 }
 /** Whether the object of placement \`w\`, \`delta\` from the main view's eye (\`vsmRenderObjectDelta\`),
  *  is out of the draw distances it names — its mark's bit, then its two frame words — and casts
@@ -154,8 +176,9 @@ fn vsmRenderCasterSkipped(page:PageInfo,row:u32,blend:bool)->bool{
  *  with the corners it draws: \`corners\` (its indices, twice for a two-sided row of the opaque raster,
  *  a voxel row's marked \`VSM_RENDER_VOXEL_BIT\`, the tier of its own it draws in,
  *  \`vsmRenderVs\`), and whether its faces turn: a mirroring placement (the main raster's
- *  \`windingCw\`) against a back-side row, which keeps its back faces (\`vsmRenderSwapped\`). */
-fn vsmRenderAppendCandidate(row:u32,page:PageInfo,corners:u32){
+ *  \`windingCw\`) against a back-side row, which keeps its back faces (\`vsmRenderSwapped\`).
+ *  \`extra\` adds flags the kind of row decides: an opaque displaced surface's tessellation. */
+fn vsmRenderAppendCandidate(row:u32,page:PageInfo,corners:u32,extra:u32){
  let lod=lods[row];
  let parentPixels=vsmRenderMainPixels(lod.parent,lod.parentLow,lod.radii.y);
  let ownPixels=vsmRenderMainPixels(lod.own,lod.ownLow,lod.radii.x);
@@ -164,12 +187,12 @@ fn vsmRenderAppendCandidate(row:u32,page:PageInfo,corners:u32){
  if(vsmRenderOutsideDrawDistance(page.placement,vsmRenderObjectDelta(s.c,s.l.xyz,lod))){return;}
  let flipped=matrixWindingCw(page.world)!=((page.flags&${FLAG_BACK}u)!=0u);
  let word=mobility[row];
- let flags=vsmRenderCandidateFlags(word,page.deformOutput)|select(0u,VSM_RENDER_CAND_FLIPPED,flipped)|vsmRenderFarFlags(word,page.placement);
+ let flags=vsmRenderCandidateFlags(word,page.deformOutput)|select(0u,VSM_RENDER_CAND_FLIPPED,flipped)|vsmRenderFarFlags(word,page.placement)|extra;
  // Out of every map view's far-shadow distance: no view takes it, no cull need read it.
  let farDepth=vsmRenderFarDepth(s.c,s.l.xyz,lod);
  if(vsmFarShadowSkipped(flags,farDepth,params.farDrop)){return;}
  let at=atomicAdd(&counts[0],1u);
- candidates[at]=VsmRenderCandidate(s.c,s.l.xyz,row,corners,flags,farDepth);
+ candidates[at]=VsmRenderCandidate(s.c,s.l.xyz,row,corners,flags,farDepth,vsmRenderScreenRatio(s.c,s.l.xyz,lod));
 }`,
 )
 
@@ -184,8 +207,8 @@ export const vsmCandidatesKernel = (name: string, blend: boolean) => `
  if(vsmRenderCasterSkipped(page,row,${blend})){return;}
  vsmRenderAppendCandidate(row,page,${
    blend
-     ? 'page.indexCount'
-     : `select(page.indexCount,2u*page.indexCount,(page.flags&${FLAG_DOUBLE}u)!=0u)|select(0u,VSM_RENDER_VOXEL_BIT,(page.flags&${FLAG_VOXEL}u)!=0u)`
+     ? 'page.indexCount,0u'
+     : `select(page.indexCount,2u*page.indexCount,(page.flags&${FLAG_DOUBLE}u)!=0u)|select(0u,VSM_RENDER_VOXEL_BIT,(page.flags&${FLAG_VOXEL}u)!=0u),select(0u,VSM_RENDER_CAND_TESSELLATED,params.tessellated!=0u&&tessellatedFlags(page)&&(page.flags&${FLAG_MASK}u)==0u)`
  });
 }
 `

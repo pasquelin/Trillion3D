@@ -14,6 +14,7 @@ import { SHADOW_RULES } from '../../../sdk-core/src/contracts/shadowOptions.ts'
 import { MOTION_BLUR_RULES } from '../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import { DEPTH_OF_FIELD_RULES } from '../../../sdk-core/src/contracts/depthOfFieldRules.ts'
 import { BLOOM_RULES } from '../../../sdk-core/src/contracts/bloomRules.ts'
+import { GAUSSIAN_BLUR_RULES } from '../../../sdk-core/src/contracts/gaussianBlurRules.ts'
 import { FILM_RULES } from '../../../sdk-core/src/contracts/filmOptions.ts'
 import { VOLUMETRIC_FOG_RULES } from '../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import { TESSELLATION_RULES } from '../../../sdk-core/src/contracts/tessellationOptions.ts'
@@ -101,6 +102,10 @@ export function createExplorerRuleApi({ check, context }: Inputs) {
      *  convolution's resolution, whether the local exposure reaches the bloom and whether the
      *  convolution keeps its kernel's transform; read by the next image. */
     setBloom: settingWriter(BLOOM_RULES, context, check),
+    /** Writes the Gaussian blur's drawing setting `field` (`gaussianBlurRules.ts`): the radius from which
+     *  a blur writes its first pass at half the width, the reach of its kernel and the most reads of a
+     *  pass, for the bloom's levels and the local exposure's blur; read by the next image. */
+    setGaussianBlur: settingWriter(GAUSSIAN_BLUR_RULES, context, check),
     /** Writes the film effects' setting `field` (`filmOptions.ts`): the film grain, the colour
      *  fringe, the vignette's look, the tonemapper's quality and sharpening, the scene's tint and
      *  the dither; read by the next image's finishing. */

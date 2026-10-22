@@ -25,7 +25,7 @@ export const FILM_MEANINGS: Readonly<Record<FilmField, string>> = {
   chromaticAberration:
     "The colour fringe's intensity, in percent of the distance to the centre, 0 by default: none. The red and the green of a pixel are read nearer the centre of the image than its blue, by their wavelengths, which fringes edges toward the corners. An intensity of 0.01 or less draws nothing.",
   chromaticAberrationStartOffset:
-    'The distance from the centre where the colour fringe starts, from 0, the centre, to 1, the corner (default 0); 1 draws nothing.',
+    'How far from the centre along each axis the colour fringe starts, from 0, the centre, to 1, the edge of the image (default 0); 1 draws nothing.',
   chromaticAberrationQuality:
     "The colour fringe's quality: 'off' draws no fringe whatever its intensity, 'high' (default) reads three samples a pixel. The quality levels write 'off' at 'smooth' and 'balanced'.",
   chromaticAberrationMax:
@@ -52,5 +52,5 @@ export const FILM_MEANINGS: Readonly<Record<FilmField, string>> = {
   sceneColorTintGreen: "The green of the scene's tint (default 1).",
   sceneColorTintBlue: "The blue of the scene's tint (default 1).",
   quantizationDitheringBits:
-    "The dither that hides the display's steps: a triangular noise of one level of the display's channel added to the colour shown. 0 (default) takes the step from the target, 1/255 for an 8-bit one and 1/1023 for another; a number of bits from 1 makes the step 1/(2^bits - 1), 32 making it too small to show.",
+    "The dither that hides the display's steps: a triangular noise of one level of the display's channel added to the colour shown. 0 (default) takes the step from the display, 1/255 for an 8-bit one; a number of bits from 1 makes the step 1/(2^bits - 1). From 24 bits no dither is drawn: set 32 to switch it off, for images compared pixel for pixel.",
 }

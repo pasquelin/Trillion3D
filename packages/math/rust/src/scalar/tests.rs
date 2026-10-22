@@ -109,6 +109,21 @@ fn hermite_follows_values_and_tangents() {
 }
 
 #[test]
+fn hermite_slope_basis_is_the_derivative_of_the_basis() {
+    // The ends weigh the tangents alone; a line through its tangents has its slope everywhere.
+    assert_eq!(hermite_slope_basis(0.0), [0.0, 1.0, 0.0, 0.0]);
+    assert_eq!(hermite_slope_basis(1.0), [0.0, 0.0, 0.0, 1.0]);
+    let slope = hermite_slope_basis(0.3);
+    assert!((hermite(slope, 1.0, [0.0, 2.0, 2.0, 2.0]) - 2.0).abs() < 1e-12);
+    // Against the basis' own difference quotient.
+    let (w, h) = (0.37, 1e-6);
+    let (before, after) = (hermite_basis(w - h), hermite_basis(w + h));
+    for (k, weight) in hermite_slope_basis(w).into_iter().enumerate() {
+        assert!((weight - (after[k] - before[k]) / (2.0 * h)).abs() < 1e-6);
+    }
+}
+
+#[test]
 fn mean_sums_in_order_from_negative_zero_and_divides() {
     assert_eq!(mean([1.0, 2.0, 6.0]), 3.0);
     assert!(mean([-0.0]).is_sign_negative());

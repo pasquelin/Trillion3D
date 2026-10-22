@@ -1,5 +1,6 @@
 //! The bend of a spline mesh: where a vertex of the mesh lands on a cubic Hermite curve, and how its
-//! normal and tangent turn with it, in single precision as the renderer bends them.
+//! normal and tangent turn with it, in single precision as the renderer bends them (the curve
+//! itself, its position and its direction, from the maths crate's Hermite basis).
 //!
 //! A vertex's distance along the curve is its coordinate on the forward axis, fitted to [0, 1]
 //! (`Fit`). The slice of the curve at that distance (`Bend::slice`) holds a position, the curve's
@@ -7,8 +8,9 @@
 //! and the scale across them; the vertex's other two coordinates, scaled, are laid along those axes
 //! from the slice's position (`Bend::vertex`). A normal and a tangent take the slice's rotation, with
 //! no scale: an axis whose scale is negative is turned over.
-use trillion3d_math::vector::vec3::{cross, divide};
-use trillion3d_math::vector::vecn::{add, length, lerp, scale, sub};
+use trillion3d_math::scalar::{hermite, hermite_basis, hermite_slope_basis};
+use trillion3d_math::vector::vec3::{cross, normalize_finite_f32};
+use trillion3d_math::vector::vecn::{add, lerp, scale, sub};
 
 pub(super) type V3 = [f32; 3];
 pub(super) type V2 = [f32; 2];
@@ -58,8 +60,9 @@ pub(super) struct Bent {
     pub tangent: Option<V3>,
 }
 
+/// `a` made unit; NaN when it has no length, which the bend refuses by name.
 fn unit(a: V3) -> V3 {
-    divide(a, length(a))
+    normalize_finite_f32(a).unwrap_or([f32::NAN; 3])
 }
 
 /// `smoothstep(0, 1, x)`: `x` held within [0, 1], then `x² (3 − 2x)`.
@@ -100,33 +103,29 @@ impl Bend {
         }
     }
 
-    /// The curve's position at `a`.
-    fn position(&self, a: f32) -> V3 {
-        let (a2, a3) = (a * a, a * a * a);
-        let at_start = scale(self.start_pos, 2.0 * a3 - 3.0 * a2 + 1.0);
-        let start_tangent = scale(self.start_tangent, a3 - 2.0 * a2 + a);
-        let end_tangent = scale(self.end_tangent, a3 - a2);
-        let at_end = scale(self.end_pos, -2.0 * a3 + 3.0 * a2);
-        add(add(add(at_start, start_tangent), end_tangent), at_end)
-    }
-
-    /// The curve's unit direction at `a`: its derivative `C a² + D a + E`, normalized.
-    fn direction(&self, a: f32) -> V3 {
-        let (p0, t0, t1, p1) = (
+    /// The curve's two ends and tangents, each axis taken to the basis `weights` — the position
+    /// of the curve at one distance, or its slope.
+    fn along(&self, weights: [f64; 4]) -> V3 {
+        let ends = [
             self.start_pos,
             self.start_tangent,
-            self.end_tangent,
             self.end_pos,
-        );
-        let c = sub(
-            add(scale(p0, 6.0), add(scale(t0, 3.0), scale(t1, 3.0))),
-            scale(p1, 6.0),
-        );
-        let d = add(
-            sub(scale(p0, -6.0), add(scale(t0, 4.0), scale(t1, 2.0))),
-            scale(p1, 6.0),
-        );
-        unit(add(add(scale(c, a * a), scale(d, a)), t0))
+            self.end_tangent,
+        ];
+        core::array::from_fn(|c| {
+            let values = ends.map(|end| f64::from(end[c]));
+            hermite(weights, 1.0, values) as f32
+        })
+    }
+
+    /// The curve's position at `a`.
+    fn position(&self, a: f32) -> V3 {
+        self.along(hermite_basis(f64::from(a)))
+    }
+
+    /// The curve's unit direction at `a`: its slope, normalized.
+    fn direction(&self, a: f32) -> V3 {
+        unit(self.along(hermite_slope_basis(f64::from(a))))
     }
 
     /// The slice at distance `a`: the curve's position and direction, the frame across it — the up
@@ -263,6 +262,26 @@ mod tests {
                 offset: 0.0
             }
         );
+    }
+
+    // Behaviour: the curve leaves its start along the start tangent and reaches its end along the
+    // end tangent, passing through both ends, and its direction is a unit vector all the way.
+    #[test]
+    fn the_curve_runs_from_its_start_tangent_to_its_end_tangent() {
+        let mut bend = straight();
+        bend.start_tangent = [4.0, 0.0, 0.0];
+        bend.end_pos = [4.0, 0.0, 4.0];
+        bend.end_tangent = [0.0, 0.0, 4.0];
+        assert!(near(bend.position(0.0), [0.0; 3]));
+        assert!(near(bend.position(1.0), [4.0, 0.0, 4.0]));
+        assert!(near(bend.direction(0.0), [1.0, 0.0, 0.0]));
+        assert!(near(bend.direction(1.0), [0.0, 0.0, 1.0]));
+        let middle = bend.direction(0.5);
+        assert!(
+            (middle[0] * middle[0] + middle[1] * middle[1] + middle[2] * middle[2] - 1.0).abs()
+                < 1e-5
+        );
+        assert!(middle[0] > 0.0 && middle[2] > 0.0);
     }
 
     // Behaviour: a quarter turn of roll turns the frame about the curve: the vertex's third

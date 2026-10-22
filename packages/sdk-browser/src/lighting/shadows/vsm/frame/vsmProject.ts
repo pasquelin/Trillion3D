@@ -10,13 +10,15 @@ import { shadowPageGroup } from '../../casters/pageGroup.ts'
 import { stochasticPhase } from '../../../../post/taa/frameState.ts'
 import { shadowEpoch } from '../../../../frame/backend/state/shadowEpoch.ts'
 import { shadowsUnsettled } from '../../../../frame/backend/state/lights.ts'
-import { focalPixels } from '../../../../../../math/src/projection/camera.ts'
 import { ensureMask } from './vsmMask.ts'
 import type { EngineVsm } from './engineVsm.ts'
 import type { VsmFrameScratch } from './vsmEncode.ts'
 import { projectionLight } from './vsmPlan.ts'
-import { casterDrawDistance, farDropOf, shadowSetting } from './vsmFarShadow.ts'
+import { vsmRasterScene } from './vsmRasterScene.ts'
+import { vsmMapSettings } from './vsmFarShadow.ts'
+import { vsmTraceKey } from './vsmProjectionHold.ts'
 import { encodeVsmRenderAndTransmission } from './vsmTransmission.ts'
+import { vsmShadowTessellation } from '../tessellation/shadowChain.ts'
 import { encodeRowBins } from '../rows/rowBinsGpu.ts'
 
 /** What a frame's VSM steps read: the engine, the device, the encoder, the camera, the projection
@@ -35,58 +37,16 @@ export interface VsmFrame {
 
 /** The non-cluster raster: the resident cluster rows at the main view's detail. */
 export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFrame) {
-  const { lights, gpu, vis, layout, run } = rt
-  const [width, height] = gpu.targetSize
+  const { lights, vis, layout } = rt
   const pageGroup = shadowPageGroup(rt, device)
   const { spheres, mobilityRows, rowLods, pageLayout } = lights
   if (!pageGroup || !spheres || !mobilityRows || !rowLods || !pageLayout || !vis.pageTable) return
   vsm.renderedPlan = plan
-  const cut = run.gpuSelection,
-    cells = cut?.cellStates
-  vsm.stats.render = encodeVsmRenderAndTransmission(
-    rt,
-    vsm,
-    encoder,
-    vsm.res,
-    { device, lights: plan.lights },
-    {
-      rowCount: layout.rows.packedCount,
-      pageTable: vis.pageTable,
-      spheres: spheres.buffer,
-      mobility: mobilityRows,
-      rowLods: rowLods.buffer,
-      pageLayout,
-      pageGroup,
-      rowSpheres: spheres,
-      // The voxel tier is drawn while the table holds a voxel row (`vsmEncodeChunks`).
-      voxels: layout.itemWordsHold.voxelRows > 0,
-      // The suns' far-shadow test: the world's merged shells, or every caster, and the distance
-      // past which no view of the frame takes a caster (`vsmFarShadowSkipped`).
-      farMeshes: shadowSetting(rt, 'farShadowCullsAllMeshes'),
-      farDrop: farDropOf(plan.lights),
-      // The lights whose views pass a pass's limit are drawn in several passes (`vsmViewPasses`).
-      multipassViews: shadowSetting(rt, 'shadowMultipassViews'),
-      camera: {
-        eye: cam.eye,
-        view: cam.view,
-        focalPixels: focalPixels(cam.projection, width, height),
-        near: cam.near,
-        perspective: cam.perspective === 1,
-        threshold: run.gate.pixelError,
-      },
-      // The cut's world switch: a row the view does not draw casts nothing (`worldDraws`); its
-      // frame words, where the objects' draw distances lie, a cut without a world has as well.
-      world: cut && {
-        cold: cells?.view,
-        frames: cut.frames,
-        links: cells?.links,
-        // The main view's filter: a hidden object casts nothing into its shadows.
-        filter: cut.holdFilter(run.selectionUniforms.filter),
-      },
-      // The draw distances the objects name: an object out of its own casts nothing.
-      drawDistance: casterDrawDistance(rt, cut),
-    },
-  )
+  const tessellation = vsmShadowTessellation(rt, device, vsm, pageLayout)
+  const held = { pageTable: vis.pageTable, spheres, mobility: mobilityRows, rowLods }
+  const scene = vsmRasterScene(rt, cam, plan, { ...held, pageLayout, pageGroup }, tessellation)
+  const frame = { device, lights: plan.lights }
+  vsm.stats.render = encodeVsmRenderAndTransmission(rt, vsm, encoder, vsm.res, frame, scene)
   // The histograms the chunks of a later frame are sized from (`rowPageBound.ts`): the spheres as
   // the rows pass wrote them this frame, the raster's rows and the blended casters'.
   const binned = { spheres: spheres.buffer, mobility: mobilityRows, rowSpheres: spheres },
@@ -130,6 +90,7 @@ function projectionContext(
   context.camera.projection = projection
   context.camera.perspective = cam.perspective === 1
   context.frameIndex = stochasticPhase(gpu.temporal?.frame)
+  context.trace = vsmMapSettings(rt).shadows
   writeVsmProjectionFrame(vsm.res, context)
   scratch.projecting = true
   return context
@@ -163,6 +124,7 @@ function encodeVsmProjection(frame: VsmFrame, scratch: VsmFrameScratch, views: G
   hold.lightsEpoch = lights.store.epoch
   hold.shadowEpoch = shadowEpoch(lights)
   hold.phase = context.frameIndex
+  hold.trace = vsmTraceKey(context.trace!)
   hold.size = gpu.allocatedSize
   hold.lights = context.lights
   const held = vsm.projectionHold.held(mask.array)

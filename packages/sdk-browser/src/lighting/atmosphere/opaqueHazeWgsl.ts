@@ -37,7 +37,7 @@ export const opaqueHazeProgram = (shape: AirShape) =>
  let depth=textureLoad(depthTex,vec2i(pixel.xy),0);
  let world=frame.inverseViewProj*vec4f(pixel.x*frame.size.z*2.0-1.0,1.0-pixel.y*frame.size.w*2.0,depth,1.0);
  let ray=world.xyz/world.w-frame.eye.xyz;
- let haze=cloudHaze(normalize(ray),length(ray)*0.001,vsmNoiseOne(vec2u(pixel.xy),frame.index.x));
+ let haze=cloudHaze(normalize(ray),length(ray)*0.001,blueNoiseScalar(vec2u(pixel.xy),frame.index.x));
  return vec4f(preExposed(haze.rgb),haze.a);
 }`,
     [CLOUD_HAZE_WGSL, preExposedWgsl('frame.preExposure.x')],

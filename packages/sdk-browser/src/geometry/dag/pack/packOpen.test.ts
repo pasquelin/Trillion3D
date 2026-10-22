@@ -11,6 +11,9 @@ import { createDagReadiness } from '../readiness.ts'
 import { DAG_NODE_FLOATS } from '../types.ts'
 import { NODE_MAX, NODE_MIN, NODE_SPHERE } from '../nodeLayout.ts'
 import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
+import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { boxGrownByDisplacement } from '../../../visibility/tessellation/patchWgsl.ts'
 
 type Reads = { sphere: number; url: number; parentError: number }
 
@@ -113,4 +116,63 @@ test('a displaced surface grows the culling boxes of its primitive by its reach,
       const at = n * DAG_NODE_FLOATS + NODE_SPHERE + a
       assert.equal(displaced.nodes[at], plain.nodes[at])
     }
+})
+
+/** The box a displacement grows, as the tessellation's splitting reads it (`boxGrownByDisplacement`). */
+const run = shaderRun<{
+  boxGrownByDisplacement(...args: unknown[]): { lo: number[]; hi: number[] }
+}>(wgslBlock('bounds', [boxGrownByDisplacement], ''), ['boxGrownByDisplacement'], {})
+
+test('the box a displacement grows holds every point a normal of the cone can push a corner to', () => {
+  const box = { lo: [0, 0, 0], hi: [1, 2, 3] }
+  const unit = (v: number[]) => v.map((x) => x / Math.hypot(...v))
+  const perpendicular = (axis: number[]) => {
+    const across = unit(Math.abs(axis[0]!) < 0.9 ? [1, 0, 0] : [0, 1, 0])
+    const along = across.map(
+      (x, i) =>
+        x - axis[i]! * (across[0]! * axis[0]! + across[1]! * axis[1]! + across[2]! * axis[2]!),
+    )
+    const first = unit(along)
+    const second = [
+      axis[1]! * first[2]! - axis[2]! * first[1]!,
+      axis[2]! * first[0]! - axis[0]! * first[2]!,
+      axis[0]! * first[1]! - axis[1]! * first[0]!,
+    ]
+    return [first, second] as const
+  }
+  // A cone round `center` of the half angle whose cosine is `cos`, and displacements from -0.5 to 2.
+  for (const [center, cos] of [
+    [unit([0, 0, 1]), 1],
+    [unit([1, 2, 2]), 0.9],
+    [unit([-1, 0.3, 0.5]), 0.6],
+    [unit([0, 1, 0]), -0.2],
+  ] as const) {
+    const grown = run.boxGrownByDisplacement(center, cos, -0.5, 2, box)
+    let seed = 7
+    const next = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32
+    // Two axes across the cone's: the normals are its axis turned by an angle within it, round it.
+    const [u, v] = perpendicular(center)
+    for (let i = 0; i < 4000; i++) {
+      const theta = Math.acos(cos) * next(),
+        phi = 2 * Math.PI * next()
+      const n = [0, 1, 2].map(
+        (a) =>
+          center[a]! * Math.cos(theta) +
+          (u[a]! * Math.cos(phi) + v[a]! * Math.sin(phi)) * Math.sin(theta),
+      )
+      const d = -0.5 + 2.5 * next()
+      const corner = [0, 1, 2].map((a) => (next() < 0.5 ? box.lo[a]! : box.hi[a]!))
+      for (let a = 0; a < 3; a++) {
+        const point = corner[a]! + n[a]! * d
+        assert.ok(
+          point >= grown.lo[a]! - 1e-9 && point <= grown.hi[a]! + 1e-9,
+          `axis ${a} of ${center} ${cos}`,
+        )
+      }
+    }
+    // And no larger than the whole the displacement reaches on every side.
+    for (let a = 0; a < 3; a++) {
+      assert.ok(grown.lo[a]! >= box.lo[a]! - 2 - 1e-9 && grown.hi[a]! <= box.hi[a]! + 2 + 1e-9)
+    }
+  }
 })

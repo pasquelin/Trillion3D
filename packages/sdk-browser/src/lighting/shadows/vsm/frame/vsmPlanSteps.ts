@@ -4,7 +4,7 @@ import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import type { planVirtualShadowFrame, VsmFrameLight } from '../frameSetup.ts'
 import { noteResidenceChange } from '../../casters/bounds.ts'
 import { castsBound } from '../../../../placement/rows/rowWordsGpu.ts'
-import { directionalCount, fullMapsFor } from './vsmLightMaps.ts'
+import { fullMapsFor, sunMapsFor } from './vsmLightMaps.ts'
 import { grantEngineVsm } from './vsmGrant.ts'
 import { growEngineVsm, regrowEngineVsm } from './vsmRegrow.ts'
 import { reserveProjection } from './vsmBeside.ts'
@@ -20,8 +20,7 @@ const channels = new Map<string, number>()
 export function heldVsm(rt: WebgpuPagesRuntime, device: GPUDevice, list: VsmFrameLight[]) {
   let vsm = rt.lights.vsm
   const wanted = fullMapsFor(list)
-  const short =
-    !!vsm && (vsm.res.layout.fullMapCapacity < wanted || vsm.suns < directionalCount(list))
+  const short = !!vsm && (vsm.res.layout.fullMapCapacity < wanted || vsm.sunMaps < sunMapsFor(list))
   if (!vsm || (short && !growEngineVsm(device, list, vsm, wanted)))
     vsm = grantEngineVsm(rt, device, list, wanted)
   else if (!short) vsm = regrowEngineVsm(rt, device, list, vsm)

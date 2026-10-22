@@ -98,7 +98,7 @@ ${SKY_FUNCTIONS}
   let hitsGround=raySphereNearest(vec3f(0.0,0.0,height),dirTable,vec3f(0.0),bottomRadius())>=0.0;
   scattered=textureSampleLevel(skyViewTable,tableSampler,skyViewUv(hitsGround,dirTable,height),0.0).rgb;
  }else{
-  scattered=marchedSky(dir,${shape.skyView.fast ? '0.3' : 'vsmNoiseOne(vec2u(pixel.xy),frame.index.x)'});
+  scattered=marchedSky(dir,${shape.skyView.fast ? '0.3' : 'blueNoiseScalar(vec2u(pixel.xy),frame.index.x)'});
  }
  var radiance=scattered*atmo(${ATMOSPHERE_SLOT.skyFactor}u).xyz;
  if(raySphereNearest(frame.camera.xyz,dir,vec3f(0.0),bottomRadius())<0.0){radiance+=lightDisks(frame.camera.xyz,dir);}

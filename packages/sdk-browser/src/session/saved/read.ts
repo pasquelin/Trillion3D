@@ -90,6 +90,7 @@ function wear(o: Object3D, saved: SavedNode) {
   o.castShadow = saved.castShadow
   o.castFarShadow = saved.castFarShadow ?? false
   o.farField = saved.farField ?? false
+  o.farShadowTest = saved.farShadowTest ?? null
   o.receiveShadow = saved.receiveShadow
   o.renderOrder = saved.renderOrder
   o.userData = saved.userData

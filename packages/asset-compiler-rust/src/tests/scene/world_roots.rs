@@ -168,3 +168,33 @@ fn a_voxel_layer_names_how_its_voxels_are_sampled() {
         "mergeMaterials": true, "meshBuild": {"voxelRays": 16}});
     assert!(top(merged).is_err());
 }
+
+// Behaviour: a layer whose parent closes a cycle, or wears its sources' own materials above a layer
+// whose actors wear materials of their own, loses that parent and the job is told, as the reference
+// keeps the layer and clears its parent; it is never refused.
+#[test]
+fn a_layer_whose_parent_is_invalid_loses_it_and_the_job_is_told() {
+    let layer = |name: &str, builder: &str, parent: &str| json!({"name": name, "builder": builder, "parent": parent});
+    let chain = json!({"layers": [
+        layer("a", "simplify", "b"),
+        layer("b", "simplify", "a"),
+    ]});
+    let hlod = crate::Hlod::read(Some(&chain)).expect("a cycle is not refused");
+    assert_eq!(
+        hlod.layers[0].parent, None,
+        "the first layer of the cycle lets its parent go"
+    );
+    assert_eq!(hlod.layers[1].parent, Some(0));
+    assert!(hlod.dropped[0].contains("cycle"), "{:?}", hlod.dropped);
+    let chain = json!({"layers": [
+        layer("own", "simplify", "kept"),
+        {"name": "kept", "builder": "instanced"},
+    ]});
+    let hlod = crate::Hlod::read(Some(&chain)).expect("a material reuse is not refused");
+    assert_eq!(hlod.layers[0].parent, None);
+    assert!(
+        hlod.dropped[0].contains("own materials"),
+        "{:?}",
+        hlod.dropped
+    );
+}

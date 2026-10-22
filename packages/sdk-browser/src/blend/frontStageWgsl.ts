@@ -8,8 +8,8 @@ import { REFLECTION_CONSTANTS_WGSL } from '../lighting/reflections/constantsWgsl
 import { FRONT_OUTPUTS, type FrontOutputs } from '../lighting/reflections/frontLayer.ts'
 import { fragmentMembers, fragmentZeros } from '../gpu/core/fragmentOutputs.ts'
 import type { VisMaterial } from '../visibility/materialType.ts'
-import { blendVertexWgsl } from './vertexWgsl.ts'
-import { CLIP_DISTANCES_WGSL, guardedFragments } from '../gpu/core/clipDistances.ts'
+import { blendVertexWgsl, cutBlendByPixel } from './vertexWgsl.ts'
+import { clipDirective, type Clipping } from '../gpu/core/clipDistances.ts'
 import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
 import { blendLit, blendSurfaceWgsl } from './shaderSurface.ts'
 import { BLEND_LOBELESS_WGSL, BLEND_PHYSICAL_RECORD_WGSL } from './physicalWgsl.ts'
@@ -79,13 +79,12 @@ ${
 }
 
 /** The front stage's module (`fsFront`) of `outputs`: the blend's vertex stage, its maps, and the stage. */
-export const blendFrontShader = (outputs: FrontOutputs, clip = false) => {
+export const blendFrontShader = (outputs: FrontOutputs, clipping?: Clipping) => {
   const code = wgslModule(
-    blendVertexWgsl(outputs === 2, clip),
+    blendVertexWgsl(outputs === 2, clipping),
     BLEND_MAPS_WGSL,
     frontStageWgsl(outputs),
-    ...(clip ? [CLIP_DISTANCES_WGSL] : []),
+    ...clipDirective(clipping),
   )
-  // Cut at the view's plane by the hardware where the device has clip distances, else by pixel.
-  return clip ? code : guardedFragments(code, 'VSOut', 'if(blendClipped(in)){discard;}')
+  return cutBlendByPixel(code, clipping)
 }

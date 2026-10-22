@@ -13,6 +13,7 @@ import { VSM_RENDER_CANDIDATE_BYTES } from './constants.ts'
 import { wgslStructLayout } from './wgslStructLayout.fixture.ts'
 import { vsmRenderCandidatesWgsl } from './render/renderCandidatesWgsl.ts'
 import { vsmRenderCullWgsl } from './render/renderCullWgsl.ts'
+import { vsmRenderExpandWgsl } from './render/renderExpandWgsl.ts'
 import { vsmTransmissionCandidatesWgsl } from './transmission/transmissionClearWgsl.ts'
 import { VSM_RENDER_PARAMS } from './render/renderParamsWgsl.ts'
 import {
@@ -267,4 +268,31 @@ test('a caster the main view’s filter leaves out casts no shadow, in both cand
       ),
     )
   assert.equal(VSM_RENDER_PARAMS.at.filterBase !== undefined, true, 'the parameters carry it')
+})
+
+// A displaced surface's pair is marked for the tessellation where its light's maps ask it
+// (`VsmRenderParams.tessellated`): candidate, command (bit 22), pair (bit 23); the raster drops it.
+test('a displaced surface’s pairs are marked from its candidate to the raster, which draws none of their triangles', () => {
+  const expand = vsmRenderExpandWgsl(LAYOUT)
+  const { vsmRenderCommandOf } = shaderRun<{
+    vsmRenderCommandOf(cmd: number[]): { tessellated: number }
+  }>(expand, ['bitAt', 'bitIsSet', 'lowBits', 'vsmRenderCommandOf'], wgslConstants(expand))
+  assert.deepEqual(
+    [1 << 22, 0, 1 << 21].map((y) => vsmRenderCommandOf([0, y, 0, 0]).tessellated),
+    [1, 0, 0],
+  )
+  const mark = 'params.tessellated!=0u&&tessellatedFlags(page)'
+  assert.ok(vsmRenderCandidatesWgsl().includes(mark), 'an opaque row is marked')
+  assert.ok(!vsmTransmissionCandidatesWgsl().includes(mark), 'a blended one is not')
+  const cull = functionsOf(CULL, ['vsmRenderCullView'])
+  for (const text of [
+    'select(VSM_RENDER_TESSELLATE_LOCAL,VSM_RENDER_TESSELLATE_DIRECTIONAL,directional)',
+    '(cand.flags&VSM_RENDER_CAND_TESSELLATED)!=0u&&(params.tessellated&kind)!=0u',
+    '|swapped|tessellated,',
+  ])
+    assert.ok(cull.includes(text), text)
+  assert.ok(expand.includes('|(c.tessellated<<23u)'), 'the pair carries it')
+  const vs = functionsOf(CODE, ['vsmRenderVs'])
+  const drop = vs.indexOf('if(bitIsSet(pair.y,23u)){out.position=vsmRenderNan();return out;}')
+  assert.ok(drop > 0 && drop < vs.indexOf('pages['), 'dropped before its row is read')
 })

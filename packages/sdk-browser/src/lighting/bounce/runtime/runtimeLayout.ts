@@ -74,10 +74,10 @@ export const SURFACE_BLENDED = 1
  * fired, none renormalised away. A shadow ray that spends its own is lit, as a point no object was tested
  * against is: it has found nothing that stands in the light, and only a cut of one placement that ran out
  * of stack (`RT_CAUSE_MESH`) shades the point, as that placement's own walk could not tell.
- * A reflection's ray keeps answering zero confidence, its share left to the next stage of the chain
- * (`rtRadiance`): its budget (`REFLECTION_PROXY_WORK`) is about one node's scan of the placement tree (a full
- * node of `TREE_SPAN` children costs as many units), so the walk that ends it has entered few placements, if
- * any, and would end as a hit on a surface it hardly knows.
+ * A reflection's ray is walked in rings, each a budget of its own (`rtLayersOver`, `lighting/reflections/proxy.ts`): a
+ * ring that spends it before it found a surface is skipped, the ray going on at its end; one that found a surface
+ * keeps it. A walk of no rings that spends its budget (`rtRadiance`) answers zero confidence, its share left to the
+ * next stage of the chain.
  */
 export const RAY_WORK = 512
 export const RAY_TRIANGLES = 128

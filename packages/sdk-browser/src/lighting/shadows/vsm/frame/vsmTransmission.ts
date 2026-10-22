@@ -29,9 +29,10 @@ function transmissionFloor(
     device.limits,
     rt.services.blendCasters.used,
     Math.max(0, casterSlots - blendFirst),
-    4 * views,
+    4 * (lights.length + views),
     viewMips,
     res.layout.poolPages,
+    lights.length,
   )
 }
 

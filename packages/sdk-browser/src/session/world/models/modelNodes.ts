@@ -28,6 +28,7 @@ export function modelNode(graph: Object3D): Object3D {
   node.castShadow = graph.castShadow
   node.castFarShadow = graph.castFarShadow
   node.farField = graph.farField
+  node.farShadowTest = graph.farShadowTest
   // A morphed mesh's weights are one list for both: a clip writing them moves the drawn mesh.
   const weights = (graph as Weighted).morphTargetInfluences
   if (weights) (node as Weighted).morphTargetInfluences = weights
@@ -51,6 +52,7 @@ export function writeModelNode(node: Object3D) {
   graph.castShadow = node.castShadow
   graph.castFarShadow = node.castFarShadow
   graph.farField = node.farField
+  graph.farShadowTest = node.farShadowTest
   if (!graph.matrixAutoUpdate) graph.matrix.fromArray(node._matrixElements)
 }
 

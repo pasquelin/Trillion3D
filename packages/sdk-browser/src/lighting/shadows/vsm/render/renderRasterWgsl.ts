@@ -10,8 +10,8 @@
  *
  * One non-indexed `drawIndirect` per corner tier of a chunk (vertex pulling, `vsmRenderArgsDraw`):
  * a tier's pipeline draws `VSM_RENDER_CORNERS` corners a pair (an override), vertex k of pair p
- * being `vertex_index` p · corners + k of one instance; corners past a row's own and culled
- * triangles output a NaN position.
+ * being `vertex_index` p · corners + k of one instance; corners past a row's own, culled
+ * triangles and the corners of a tessellated pair (bit 23) output a NaN position.
  *
  * Face culling: the mesh's cull mode, by the rasterizer (`cullMode: 'back'`, `frontFace: 'ccw'`): each
  * vertex emits its triangle in the winding that makes a face toward the light counter-clockwise on
@@ -35,6 +35,7 @@
  */
 import { VSM_CASTER_PROJECTION_WGSL } from './renderCasterWgsl.ts'
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
+import { wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
 import { bitAt, bitIsSet, byteOf } from '../../../../../../math/src/wgsl/integer.ts'
 import { PAGE_GEOMETRY_WGSL, UV_READ } from '../../../../visibility/shader/pageGeometryWgsl.ts'
 import { maskUvWgsl } from '../../../../visibility/shader/pageUvSetWgsl.ts'
@@ -66,17 +67,12 @@ export const VSM_RENDER_RASTER_FRAGMENT_SPECS: readonly VsmBindingSpec[] = [
 /** The dummy attachment: one page. */
 export const VSM_RENDER_TARGET_FORMAT: GPUTextureFormat = 'depth16unorm'
 
-export const vsmRenderRasterWgsl = (layout: VsmLayout) =>
-  wgslProgram(
-    /* wgsl */ `
-${PAGE_BINDING.indices}
-${PAGE_BINDING.positions}
-${PAGE_BINDING.pages}
-${materialDeclarations()}
-@group(1) @binding(0) var<storage,read> vsmRenderPairs:array<vec4u>;
-/** The corners a pair of this pipeline's tier draws (\`VSM_RENDER_TIER_CORNERS << tier\`). */
-override VSM_RENDER_CORNERS:u32=96u;
-struct VsmRenderOut{
+/** What a vertex stage hands the depth fragment (`vsmRenderFs`), the tiers' and the tessellated
+ *  patches' (`../tessellation/shadowRasterWgsl.ts`) alike, and the position a dropped corner takes. */
+export const VSM_RENDER_OUT_WGSL = wgslBlock(
+  'VSM_RENDER_OUT_WGSL',
+  [],
+  `struct VsmRenderOut{
  @builtin(position) position:vec4f,
  @location(0) @interpolate(flat) row:u32,
  @location(1) uv:vec2f,
@@ -89,12 +85,26 @@ struct VsmRenderOut{
 }
 /** A dropped corner: every corner of a dropped triangle lands on this one point outside the
  *  viewport, a zero-area triangle no rasterizer covers (a NaN constant does not compile in Tint). */
-fn vsmRenderNan()->vec4f{return vec4f(-4.0,-4.0,0.5,1.0);}
+fn vsmRenderNan()->vec4f{return vec4f(-4.0,-4.0,0.5,1.0);}`,
+)
+
+export const vsmRenderRasterWgsl = (layout: VsmLayout) =>
+  wgslProgram(
+    /* wgsl */ `
+${PAGE_BINDING.indices}
+${PAGE_BINDING.positions}
+${PAGE_BINDING.pages}
+${materialDeclarations()}
+@group(1) @binding(0) var<storage,read> vsmRenderPairs:array<vec4u>;
+/** The corners a pair of this pipeline's tier draws (\`VSM_RENDER_TIER_CORNERS << tier\`). */
+override VSM_RENDER_CORNERS:u32=96u;
 @vertex fn vsmRenderVs(@builtin(vertex_index) vertexIndex:u32)->VsmRenderOut{
  let pair=vsmRenderPairs[vertexIndex/VSM_RENDER_CORNERS];
  let pairCorner=vertexIndex%VSM_RENDER_CORNERS;
  var out:VsmRenderOut;
  out.row=pair.x;out.uv=vec2f(0.0);out.dest=vec2u(pair.w,bitAt(pair.y,21u));out.fromEmitter=vec4f(0.0);
+ // A tessellated pair's triangles are not drawn: its patches are (\`vsmTessellatedVs\`).
+ if(bitIsSet(pair.y,23u)){out.position=vsmRenderNan();return out;}
  let page=pages[pair.x];
  out.masked=page.flags&${FLAG_MASK}u;
  let n=page.indexCount;
@@ -141,6 +151,7 @@ fn vsmRenderNan()->vec4f{return vec4f(-4.0,-4.0,0.5,1.0);}
 }
 `,
     [
+      VSM_RENDER_OUT_WGSL,
       PAGE_INFO_WGSL,
       VSM_CASTER_PROJECTION_WGSL,
       SHADOW_TILE_POOL_WGSL,

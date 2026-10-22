@@ -2,7 +2,9 @@
 // the GPU's joint histograms (`rowBins.fixture.ts` lands them): what a chunk of K rows is said to
 // hold is never below what the K rows of the most pairs and commands make under the shipped cull
 // (`bruteForceLocal`) — spots and point lights, rows near and far, with a sun or alone, a light
-// that moves then holds still; lamps that cannot beat the worst case binned no more.
+// that moves then holds still; lamps that cannot beat the worst case binned no more. And the cull's
+// per-light culling volume: a caster reaches a map's cull where the per-map tests held it, in a
+// fraction of the threads.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -24,6 +26,11 @@ import {
   type SceneRows,
 } from './rowPageBound.fixture.ts'
 import { landBins, topSums } from './rowBins.fixture.ts'
+import { mulberry32 } from '../../../../../../math/src/sequence/random.ts'
+import { shaderRun } from '../../../../materials/texture/shaderRun.fixture.ts'
+import { wgslConstants } from '../../../../materials/texture/shaderRule.fixture.ts'
+import { vsmRenderCullWgsl } from '../render/renderCullWgsl.ts'
+import { vsmLayout } from '../layout.ts'
 
 /** One frame's bound of `rows` under `lights`, then the histogram it asks, landed at once; commands
  *  a row at most the views' mips. */
@@ -160,4 +167,91 @@ test('lamps whose rows cannot beat the worst case are binned no more until they 
   frame()
   assert.equal(bound.bins.hopeless, undefined, 'judged anew under another worst case')
   assert.ok(bound.bins.seq > asked, 'their histogram asked again')
+})
+
+/** A frame of a sun (17 levels) and `points` point lights (6 faces): the cull's records, the groups
+ *  and runs the views kernel lists when every map has a page to draw. */
+function litFrame(points: number, random: () => number) {
+  const code = vsmRenderCullWgsl(vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 }))
+  const K = wgslConstants(code)
+  const records: Record<string, unknown>[] = [],
+    runs: number[][] = [],
+    groups: number[][] = []
+  const lamp = (maps: number, sun: boolean, range: number) => {
+    const at = random() * 400 - 200
+    const shift = [-at, -(random() * 40), -(random() * 400 - 200)]
+    groups.push([runs.length, maps, records.length, sun ? K.VSM_RENDER_VIEW_DIRECTIONAL : 0])
+    for (let m = 0; m < maps; m++) {
+      runs.push([records.length, 1, sun ? 1 : 0, 3])
+      const kind = sun ? K.LIGHT_KIND_DIRECTIONAL : 0
+      // A sun's levels share the far-shadow distance; a light's faces share its origin and range.
+      records.push({
+        lightKind: kind,
+        originShiftHigh: sun ? [0, 0, 0] : shift,
+        originShiftLow: [0, 0, 0],
+      })
+      Object.assign(records.at(-1)!, { lightRange: range, farShadowDistance: sun ? 120 : 0 })
+    }
+  }
+  lamp(17, true, 0)
+  for (let i = 0; i < points; i++) lamp(6, false, 8 + random() * 40)
+  const rows = Array.from({ length: 150 }, (_, row) => {
+    const radius = 0.5 + random() * 8,
+      flags = K.VSM_RENDER_CAND_FAR_TESTED | (row % 5 ? 0 : K.VSM_RENDER_CAND_FAR_CAST)
+    const c = [random() * 400 - 200, random() * 40, random() * 400 - 200, radius]
+    return { c, l: [0, 0, 0], row, corners: 96, flags, farDepth: random() * 300 }
+  })
+  return { code, K, records, runs, groups, rows }
+}
+
+test('a light’s culling volume is tested once for its maps: a caster reaches a map’s cull exactly where the per-map tests held it, in far fewer threads', () => {
+  for (const points of [0, 84, 199]) {
+    const { code, K, records, runs, groups, rows } = litFrame(points, mulberry32(points + 1))
+    const lights = groups.length
+    const reached: string[] = []
+    const views = [...groups, ...runs]
+    const { vsmRenderCull } = shaderRun<{
+      vsmRenderCull: (wid: number[], lane: number) => void
+    }>(code, ['vsmRenderCull'], {
+      ...K,
+      views,
+      candidates: rows,
+      counts: [rows.length, lights],
+      params: { chunkFirst: 0, chunkRows: rows.length, lightCount: lights },
+      vsmHandleFromId: (id: number) => id,
+      vsmProjectionOf: (id: number) => records[id],
+      // The per-map cull, seen: which (caster, map) pairs it is handed.
+      vsmRenderCullView: (cand: { row: number }, view: number[]) =>
+        void reached.push(`${cand.row}:${view[0]}`),
+    })
+    // The threads: a (caster, light) each, against a (caster, listed map) each before.
+    for (let g = 0; g < lights; g++)
+      for (let row = 0; row < rows.length; row++)
+        vsmRenderCull([Math.floor(row / 64), g, 0], row % 64)
+    // What the per-map cull's own first tests kept: the far-shadow test of a sun's level, the range
+    // of a light's face, each against the map's own record.
+    const kept: string[] = []
+    for (const cand of rows)
+      for (const [id, , sun] of runs) {
+        const pd = records[id] as {
+          originShiftHigh: number[]
+          farShadowDistance: number
+          lightRange: number
+        }
+        const c = [0, 1, 2].map((a) => cand.c[a] + pd.originShiftHigh[a])
+        const skipped =
+          (cand.flags & K.VSM_RENDER_CAND_FAR_TESTED) !== 0 &&
+          (cand.flags & K.VSM_RENDER_CAND_FAR_CAST) === 0 &&
+          cand.farDepth > pd.farShadowDistance &&
+          pd.farShadowDistance > 0
+        const reach = pd.lightRange + cand.c[3]
+        if (sun ? !skipped : c[0] ** 2 + c[1] ** 2 + c[2] ** 2 <= reach * reach)
+          kept.push(`${cand.row}:${id}`)
+      }
+    assert.deepEqual([...reached].sort(), kept.sort(), `${points + 1} lights: the same pairs`)
+    const before = rows.length * runs.length,
+      after = rows.length * lights
+    assert.ok(before >= 6 * after, `${points + 1} lights: ${after} threads, ${before} before`)
+    assert.ok(kept.length < before, 'the volume rejects casters')
+  }
 })

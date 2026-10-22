@@ -108,8 +108,8 @@ fn tile_bricks(
         sampling.reach(),
         tris.iter().map(|&t| t as usize),
     );
-    let sampled: Vec<Voxel> = (candidates.iter().zip(&bins))
-        .map(|(&cell, ranks)| Voxel::sampled(probe, (cell, side), ranks, None))
+    let sampled: Vec<Voxel> = (candidates.iter().zip(&bins).zip(0u32..))
+        .map(|((&cell, ranks), rank)| Voxel::sampled(probe, (cell, side, rank), ranks, None))
         .collect();
     let remembered = (sampled.iter())
         .filter(|v| v.coverage > 0.0 || sampling.remembers_empty())

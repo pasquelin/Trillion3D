@@ -38,7 +38,7 @@ test('the reflection rays placed in the world: back toward the eye, out of the v
     ...sample(15.5, 15.5, 10, [0, 1, 0], HALF_MAX),
     ...[0, 0, 0, 0, 0, 0, 0, 0],
   ])
-  const rays = decodeReflections(samples, 4, 2, cam, [64, 64])
+  const rays = decodeReflections(samples, 4, 2, cam, [64, 64], 2)
   assert.equal(rays.count, 3)
   assert.equal(rays.stride, 2)
   // Each leaves the surface 10 m ahead on the axis.

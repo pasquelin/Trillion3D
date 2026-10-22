@@ -39,8 +39,9 @@ import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 export type SettingRange = readonly [number, number]
 /** One setting: its kind — the render settings' (`../runtime/renderSettings.ts`) —, its field, its
  *  default — the reference's — and, a number, its range; a choice, the names it takes. A number
- *  `above` its range's start excludes it, and `takes` says in words what it takes where the range
- *  does not. */
+ *  `above` its range's start excludes it, `excluding` takes one value out of its range (zero, where
+ *  a quotient would divide by it), and `takes` says in words what it takes where the range does
+ *  not. */
 export type SettingRule =
   | { readonly kind: 'flag'; readonly field: string; readonly default: boolean }
   | {
@@ -49,6 +50,7 @@ export type SettingRule =
       readonly default: number
       readonly range: SettingRange
       readonly above?: true
+      readonly excluding?: number
       readonly takes?: string
     }
   | {
@@ -113,6 +115,12 @@ const bounded = <F extends string, K extends 'int' | 'float'>(
   takes: string,
   above = false,
 ) => ({ kind, field, default: value, range, takes, ...(above && { above: true as const }) })
+/** A finite number but zero of field `field` and default `value`, `takes` its words: a scale the
+ *  engine divides by, which may be negative where the reference lets it. */
+export const nonZeroSetting = <F extends string>(field: F, value: number, takes: string) => ({
+  ...bounded('float', field, value, ANY_NUMBER, takes),
+  excluding: 0,
+})
 /** A finite number above zero of field `field` and default `value`, `takes` its words. */
 export const positiveSetting = <F extends string>(field: F, value: number, takes: string) =>
   bounded('float', field, value, FROM_ZERO, takes, true)
@@ -196,7 +204,8 @@ export function settingFits(rule: SettingRule, value: unknown) {
     Number.isFinite(value) &&
     (rule.kind === 'float' || Number.isInteger(value)) &&
     (rule.above ? value > low : value >= low) &&
-    value <= high
+    value <= high &&
+    value !== rule.excluding
   )
 }
 
@@ -293,10 +302,13 @@ export const resolveSettings = <T extends SettingRules>(rules: T, options: Field
  * every setting of `rules` into one object and `moved` then says whether any differs from the last reading
  * that moved — the first reading always does. What a pass that rebuilds its derived values or its resources
  * only when a setting changed asks each image: nothing is resolved twice, nothing allocated past the two
- * objects it holds.
+ * objects it holds. `peek(options)` reads them apart, into an object of its own, and takes nothing of
+ * the watch: a reader that is not the one the pass is told by — which asks the same rules for another
+ * purpose — cannot make the pass miss a change.
  */
 export function settingsWatch<T extends SettingRules>(rules: T) {
-  const now = {} as SettingValues<T>
+  const now = {} as SettingValues<T>,
+    apart = {} as SettingValues<T>
   let used: SettingValues<T> | undefined
   const watch = {
     /** Whether the last reading differs from the one before it that moved. */
@@ -308,6 +320,11 @@ export function settingsWatch<T extends SettingRules>(rules: T) {
       if (watch.moved) used = { ...now }
       return now
     },
+    /** The settings `options` hold, resolved into an object the next peek overwrites; `moved` and
+     *  what the watch compares to are untouched. */
+    peek: (options: FieldOptions<T>) => resolveSettingsInto(rules, options, apart),
   }
   return watch
 }
+/** The watch of the settings of the rules `R` (`settingsWatch`): what a pass or a kind keeps beside its state. */
+export type SettingsWatch<R extends SettingRules> = ReturnType<typeof settingsWatch<R>>

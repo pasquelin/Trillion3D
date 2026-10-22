@@ -55,7 +55,7 @@ fn spPickProbes(pixel:vec2u,offset:vec2f,s:SpSurface,depth:f32)->SpPicked{
  }
  weights=select(vec4f(0.0),weights/max(dot(weights,vec4f(1.0)),SP_MIN_WEIGHT),valid);
  if(spFlag(SP_FLAG_STOCHASTIC)&&valid){
-  var draw=min(spNoise(pixel,sp.size.w).x,0.99)*dot(weights,vec4f(1.0));
+  var draw=min(blueNoiseScalar(pixel,sp.size.w),0.99)*dot(weights,vec4f(1.0));
   var picked=0u;
   for(var corner=0u;corner<3u;corner++){
    if(draw>=weights[corner]){draw-=weights[corner];picked=corner+1u;}else{break;}
@@ -110,13 +110,13 @@ fn spPickedIrradiance(picked:SpPicked,N:vec3f)->vec3f{
 /**
  * THE INTEGRATION: each pixel reads its irradiance from the probes round it (`spIntegrate`, the temporal pass calls it for the
  * pixel it blends). The probes it reads are the four uniform ones of the tile round it (`spInterpolation`, bilinear in the tile,
- * each by how near its plane the pixel lies), the point it reads them from moved by a jitter of a tile's side (the noise of the
+ * each by how near its plane the pixel lies), the point it reads them from moved by a jitter of a tile's side (the blue noise of the
  * pixel and the frame, `jitterWidth`, halved from five to ten units of depth; kept only where the jittered pixel lies on the
  * pixel's own plane): the probes' footprints blur into each other where the surface is continuous, never across an edge. A corner
  * whose weight falls under the minimum takes the best adaptive probe of its tile (`spAdaptiveWeight`) where one is better; the
  * weights are then normalised, those of a gentler plane where the first leave none, and a pixel with none reads nothing (its
  * alpha is zero: the temporal pass leans on its history). With the stochastic interpolation one probe of the four is drawn by
- * the pixel's noise, weighed whole. The alpha of a pixel that reads probes is the share of the light that moves (`probeMoving` of
+ * the pixel's blue noise, weighed whole. The alpha of a pixel that reads probes is the share of the light that moves (`probeMoving` of
  * the probes it reads, by their weights), a four-thousandth at least. The probe's light is its nine coefficients, interpolated
  * and evaluated once at the pixel's normal (`irradianceShader`), or its octahedral irradiance map, read bilinearly at it.
  */
@@ -134,7 +134,7 @@ const SP_JITTER_PLANE_SCALE:f32=${SCREEN_PROBE_CONSTANTS.jitterPlaneWeightScale}
 fn spJitterOffset(pixel:vec2u,s:SpSurface,depth:f32)->vec2f{
  if(sp.spatial.z<=0.0){return vec2f(0.0);}
  let width=sp.spatial.z*mix(1.0,0.5,saturate((depth-5.0)/5.0));
- let jitter=(spNoise(pixel,sp.size.w)*2.0-vec2f(1.0))*f32(sp.size.z)*width;
+ let jitter=(blueNoiseVec2(pixel,sp.size.w)*2.0-vec2f(1.0))*f32(sp.size.z)*width;
  let jittered=clamp(vec2f(pixel)+jitter,vec2f(0.0),vec2f(sp.size.xy)-vec2f(1.0));
  let other=spSurfaceAt(vec2u(floor(jittered)));
  let away=abs(dot(other.P,s.N)-dot(s.P,s.N))/depth;

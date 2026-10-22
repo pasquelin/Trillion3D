@@ -15,10 +15,10 @@ import { blendFrontShader } from './frontStageWgsl.ts'
 
 // Retaken when the vertex came to pass the item's history share code above the triangle's rank
 // (`TRI_GIVEN_UP_SHIFT`), the page reads drew a voxel row's bricks as boxes (`voxelWgsl.ts`), and
-// the lobed vertex took the one texture set past the first its maps name (`channelsAlt`), and a
-// device without clip distances came to test the pixel against the view's plane (`blendClipped`),
-// and the view came to hold the pre-exposure every light is written multiplied by (`preExposure`).
-const VERTEX = '98b07d71bf889792b26783bc9dcdf52e09123dddea0d34033c4cba3e37d40c4a'
+// the lobed vertex took the one texture set past the first its maps name (`channelsAlt`), the view
+// came to hold the pre-exposure every light is written multiplied by (`preExposure`), and a view with
+// a plane draws with a module of its own (`clipping`): its text holds no clipping code.
+const VERTEX = 'e2ba8300621ede614f51709a2e74dd74976ac408a35d5df8936d50d45fd53566'
 // Retaken when the blend module took that vertex, the per-material history share it writes for
 // the temporal pass where its material gives the history up, and the stored tangents' frame in a
 // module of its own (`tangentFrameWgsl.ts`) for the normal map and the lobes both, and then the
@@ -41,8 +41,13 @@ const VERTEX = '98b07d71bf889792b26783bc9dcdf52e09123dddea0d34033c4cba3e37d40c4a
 // volume and sampler were bound in the module and read where a pixel is fogged (`fogResourcesWgsl`),
 // the volume's view being read from the light buffer, and the casters' memory, the blue noise and the
 // front's radiance became read-only storage textures read by load (`loadOnlyTarget`), and then the
-// layers came to write their light multiplied by the pre-exposure (`preExposed`), the sum clipped after it (`preExposedClipped`), and the sky light's cubes joined the reflection group.
-const BLEND = '97ec7dc9a348490305416e12221e97ed1bbbaba7b3969887b848f1ea55092217'
+// layers came to write their light multiplied by the pre-exposure (`preExposed`), the sum clipped after it
+// (`preExposedClipped`), and the sky light's cubes joined the reflection group, and then the fog
+// started its ray at the view's clip plane (`heightFogAlong`, the plane in the fog's view block), and
+// then took the fog's switches, its lobe and its observer from that block, and a light record its
+// share in the volume (`DirectLight.volume`), and then the reflections' field stage held a ray's answer to a ceiling
+// (`reflectionClampRay`) and read the trace's settings from the view (`reflectionView.lobe`, `.taps`, `.denoise`).
+const BLEND = 'dc960cb1edde5f3a8232bc28b40ce15f12458bd6394d5a52ae9bfa632f05b20a'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */
@@ -83,13 +88,39 @@ const fragmentEntries = (code: string) =>
     ),
   ].map(([, name, guard]) => [name, !!guard] as const)
 
-test('a device that has clip distances cuts at the view’s plane in the vertex stage, one that has none in each fragment entry', () => {
+/** What a module made to cut at the plane adds beyond the plain module, one way or the other. */
+const PLANE_CODE = [
+  'clip_distances',
+  'VSOutClipped',
+  'VSOutWithClip',
+  'blendClipped',
+  'uni.clipPlane',
+]
+
+test('the module of a view without a plane holds none of the clipping code, whatever stages it takes', () => {
   const stage = transmitWgsl({}, false)
   for (const code of [
     blendShader({}),
     blendShader({}, { stage }),
     blendFrontShader(1),
     blendFrontShader(2),
+    wgslModule(blendVertexWgsl(true)),
+    wgslModule(blendVertexWgsl(false)),
+  ])
+    for (const text of PLANE_CODE)
+      assert.ok(!code.includes(text), `${text} is not in the module without a plane`)
+})
+
+test('a device without clip distances tests the pixel against the plane in each fragment entry, and only there', () => {
+  const stage = transmitWgsl({}, false)
+  const guard = /\n if\(blendClipped\(in\)\)\{discard;\}/g,
+    clipFn = /\nfn blendClipped\(in:VSOut\)->bool\{[^}]*\}\n/,
+    distanceFn = /fn planeDistance\([^}]*\}\n/
+  for (const [plain, code] of [
+    [blendShader({}), blendShader({}, { clipping: 'pixel' })],
+    [blendShader({}, { stage }), blendShader({}, { stage, clipping: 'pixel' })],
+    [blendFrontShader(1), blendFrontShader(1, 'pixel')],
+    [blendFrontShader(2), blendFrontShader(2, 'pixel')],
   ]) {
     const entries = fragmentEntries(code)
     assert.ok(entries.length >= 1, 'entries read')
@@ -99,19 +130,26 @@ test('a device that has clip distances cuts at the view’s plane in the vertex 
     )
     assert.ok(
       code.includes(
-        'fn blendClipped(in:VSOut)->bool{return dot(uni.clipPlane.xyz,in.view)+uni.clipPlane.w<0.0;}',
+        'fn blendClipped(in:VSOut)->bool{return planeDistance(uni.clipPlane,in.view)<0.0;}',
       ),
     )
     assert.ok(!code.includes('clip_distances') && !code.includes('VSOutClipped'))
+    // Those guards, that function and the plane's distance are all it adds: the plain module is
+    // the rest, word for word.
+    assert.equal(code.replace(guard, '').replace(clipFn, '').replace(distanceFn, ''), plain)
   }
   assert.ok(
-    fragmentEntries(blendShader({}, { stage })).length >= 8,
+    fragmentEntries(blendShader({}, { stage, clipping: 'pixel' })).length >= 8,
     'the lit, covered and transmissive ones',
   )
+})
+
+test('a device that has clip distances cuts at the view’s plane in the vertex stage', () => {
+  const stage = transmitWgsl({}, false)
   for (const code of [
-    blendShader({}, { clip: true }),
-    blendShader({}, { stage, clip: true }),
-    blendFrontShader(1, true),
+    blendShader({}, { clipping: 'distance' }),
+    blendShader({}, { stage, clipping: 'distance' }),
+    blendFrontShader(1, 'distance'),
   ]) {
     assert.ok(
       code.indexOf('enable clip_distances;') >= 0 &&
@@ -120,7 +158,7 @@ test('a device that has clip distances cuts at the view’s plane in the vertex 
     assert.ok(code.includes('@builtin(clip_distances) clipDistances:array<f32,1>'))
     assert.ok(code.includes('fn vs(') && code.includes('->VSOutClipped{'))
     assert.equal(code.split('VSOutWithClip(out,1.0)').length, 2, 'a dropped lane is kept')
-    assert.ok(code.includes('VSOutWithClip(out,dot(uni.clipPlane.xyz,out.view)+uni.clipPlane.w)'))
+    assert.ok(code.includes('VSOutWithClip(out,planeDistance(uni.clipPlane,out.view))'))
     assert.ok(!code.includes('blendClipped'))
     assert.ok(
       fragmentEntries(code).length >= 1 && fragmentEntries(code).every(([, guarded]) => !guarded),

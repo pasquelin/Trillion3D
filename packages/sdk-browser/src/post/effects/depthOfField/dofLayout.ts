@@ -13,8 +13,6 @@ export const COC_TILE = 8
 export const GROUP = 8
 /** Tiles a dilation reads each way at most, and dilations of each kind at most. */
 export const MAX_DILATE_RADIUS = 3
-/** The smallest circle radius a sprite is scattered at, in gather texels. */
-export const MIN_SCATTER_COC = 3
 /** The largest radius, in gather texels, the recombine's slight out of focus covers. */
 export const MAX_RECOMBINE_COC = 3
 /** Sprite groups the scatter budget keeps in reserve (a group is 2 × 2 samples). */
@@ -50,6 +48,9 @@ export const DOF_PARAMS = fieldLayout('DofParams', [
   ['gather', 'vec4u'],
   // The tile grid, and the size of the first mip level of the reduced setup.
   ['tiles', 'vec4u'],
+  // The size the setup is accumulated in time at and read by the reduction and the gather at, and the
+  // size of the textures it is made at (`DofPlan.pre`): the gather's where it is not accumulated.
+  ['pre', 'vec4u'],
   // The sprite groups the draw lists hold, the pairs of samples the recombine takes, the layers.
   ['counts', 'vec4u'],
   // The ratio of the depth's size to the image's, and the depth's last texel.
@@ -59,7 +60,8 @@ export const DOF_PARAMS = fieldLayout('DofParams', [
   ['coc', 'vec4f'],
   // The squeeze and its inverse, the depth blur's rate per metre, the focus distance.
   ['lens', 'vec4f'],
-  // The gather's width, the tile buckets' bound and its inverse, the radius' error.
+  // The gather's width, the tile buckets' bound — the radius' error times the ratio of the gather's
+  // width to the setup's — and its inverse, the setup's width: the bases of the circles of confusion.
   ['basis', 'vec4f'],
   // The bokeh: blades, rotation, the factors to its corners and to its sides.
   ['bokeh', 'vec4f'],
@@ -84,6 +86,12 @@ export const DOF_PARAMS = fieldLayout('DofParams', [
   // The projection's depth terms and a pixel's radius (`post/taa/view.ts`).
   ['depth', 'vec4f'],
   ['radius', 'vec4f'],
+  // The temporal accumulation of the setup: the image's jitter in render pixels, whether the history
+  // describes nothing (1), how far a differing circle rejects it.
+  ['temporal', 'vec4f'],
+  // The display's size, and the one the history was written at; the weight of the image in the history.
+  ['display', 'vec4f'],
+  ['current', 'vec4f'],
 ] as const)
 /** Bytes of the uniform. */
 export const DOF_PARAMS_BYTES = DOF_PARAMS.words * 4

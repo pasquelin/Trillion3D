@@ -16,6 +16,7 @@ import { SHADOW_RULES } from '../../../sdk-core/src/contracts/shadowOptions.ts'
 import { MOTION_BLUR_RULES } from '../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import { DEPTH_OF_FIELD_RULES } from '../../../sdk-core/src/contracts/depthOfFieldRules.ts'
 import { BLOOM_RULES } from '../../../sdk-core/src/contracts/bloomRules.ts'
+import { GAUSSIAN_BLUR_RULES } from '../../../sdk-core/src/contracts/gaussianBlurRules.ts'
 import { FILM_RULES } from '../../../sdk-core/src/contracts/filmOptions.ts'
 import { SCREEN_PROBE_RULES } from '../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../../../sdk-core/src/contracts/reflectionOptions.ts'
@@ -126,6 +127,7 @@ function optionContext(session: ExplorerSession) {
     ...resolveSettings(MOTION_BLUR_RULES, options),
     ...resolveSettings(DEPTH_OF_FIELD_RULES, options),
     ...resolveSettings(BLOOM_RULES, options),
+    ...resolveSettings(GAUSSIAN_BLUR_RULES, options),
     ...resolveSettings(FILM_RULES, options),
     ...resolveSettings(SCREEN_PROBE_RULES, options),
     ...resolveSettings(REFLECTION_RULES, options),

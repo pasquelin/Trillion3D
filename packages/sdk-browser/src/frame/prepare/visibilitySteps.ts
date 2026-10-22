@@ -63,6 +63,7 @@ export async function prepareRasterPipelines(
     shaders.visModule,
     shaders.visBindGroupLayout,
     variant,
+    rt.setup.clipping,
   ).catch((error: unknown) => {
     if (isCancelled(rt.signal)) throw error
     throw new Error(`WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE: ${String(error)}`)

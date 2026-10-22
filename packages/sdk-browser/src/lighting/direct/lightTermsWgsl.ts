@@ -55,8 +55,8 @@ export const irradianceTerm = (rectless = false) => `
 
 /** A lamp's irradiance before its shadow: its incidence, then its falloff and cosine, a lamp of
  *  size's own (\`lampSeen\`), the inverse square taken at the distance itself, with no centimetre
- *  added, as a cache of lit surfaces is (held at \`LAMP_BIAS\` at least); its shadow's ray goes
- *  toward its centre. */
+ *  added, as a cache of lit surfaces is (nothing at the lamp's own centre, \`inverseOf\`); its
+ *  shadow's ray goes toward its centre. */
 const PUNCTUAL_IRRADIANCE = `${INCIDENCE('vec3f(0.0)')}
  let lamp=lampSeen(light,P,N,incidence,0.0);
  let cosine=select(lamp.side,lamp.cosine,lamp.capsule);

@@ -40,7 +40,10 @@ export const SCREEN_MARCH_BASE_WGSL = (group: number, binding: number) =>
     `SCREEN_MARCH_BASE_WGSL(${group}, ${binding})`,
     [hizDepthWgsl(group, binding), slabPerspective],
     `const SCREEN_DEPTH_FLOOR:f32=${wgslF32(DEPTH_FLOOR_CENTIMETRES / CENTIMETRES_PER_METRE)};
-struct ScreenHit{t:f32,plane:vec3f,pixel:vec2f,front:bool,steps:u32,}
+struct ScreenHit{t:f32,plane:vec3f,pixel:vec2f,front:bool,steps:u32,above:f32,}
+fn screenMarchMissed(steps:u32,above:f32)->ScreenHit{
+ return ScreenHit(-1.0,vec3f(0.0),vec2f(0.0),false,steps,above);
+}
 fn screenBackAt(z:f32,infinite:f32,k:f32)->f32{return z-(z-infinite)*k/(1.0+k);}
 fn screenBack(z:f32,pixels:f32,slab:vec4f)->f32{
  return select(z-pixels*slab.z,screenBackAt(z,slab.y,pixels*slab.x),slabPerspective(slab));

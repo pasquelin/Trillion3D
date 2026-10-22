@@ -26,10 +26,10 @@ import {
  * noisy; a last pass recombines the layers with the full-size image.
  */
 
-/** The quality levels, `off` first, then coarsest to finest: the reference's `0` to `4`. The
- *  reference reads it as on or off alone (above 0): the levels above the first are the same method,
- *  its quality fixed by the other settings. */
-export const DEPTH_OF_FIELD_LEVELS = ['off', 'low', 'high', 'veryHigh', 'extreme'] as const
+/** The quality levels: `off` draws no depth of field, `on` draws it. The reference reads its quality
+ *  level as on or off alone (above 0) for this method — what differs between its levels are the
+ *  settings each level writes (`DEPTH_OF_FIELD_PRESET_LEVELS`) —, so the level is no more than the switch. */
+export const DEPTH_OF_FIELD_LEVELS = ['off', 'on'] as const
 /** A quality level of the depth of field. */
 export type DepthOfFieldLevel = (typeof DEPTH_OF_FIELD_LEVELS)[number]
 
@@ -46,13 +46,15 @@ export const DEPTH_OF_FIELD_BACKGROUND_SCATTERS = ['off', 'additive', 'occlusion
 /** The quality of the recombine's slight out of focus: none, 12 pairs of samples at the full size,
  *  or 16. */
 export const DEPTH_OF_FIELD_RECOMBINES = ['off', 'low', 'high'] as const
+/** The quality of the temporal accumulation of the setup: both read the history bicubically, bound it by
+ *  the neighbourhood and filter the image's samples by a window the size of the jitter's pixels; the
+ *  stable one also works in a luma-chroma space, which keeps the colours of the box together. */
+export const DEPTH_OF_FIELD_TEMPORALS = ['low', 'high'] as const
 
 /**
  * The settings of how the depth of field is drawn, by field, each with the default of the
- * reference's third post-process level (`PostProcessQuality@3`: the level the reference's image is
- * compared at):
- * - `depthOfFieldQuality` (`'high'`): the level, `'off'` draws no depth of field; the other levels
- *   are the same method (`DEPTH_OF_FIELD_LEVELS`);
+ * reference's third quality level (the one its images are compared at):
+ * - `depthOfFieldQuality` (`'on'`): `'off'` draws no depth of field (`DEPTH_OF_FIELD_LEVELS`);
  * - `depthOfFieldGatherDivisor` (2): the gather runs at the image's size divided by this, 1 or 2;
  * - `depthOfFieldAccumulator` (`'high'`): which accumulator the gather uses;
  * - `depthOfFieldDistinctionLimit` (0): a bright, large circle that is not scattered but exceeds this
@@ -80,11 +82,16 @@ export const DEPTH_OF_FIELD_RECOMBINES = ['off', 'low', 'high'] as const
  * - `depthOfFieldMaxForegroundRadius`, `depthOfFieldMaxBackgroundRadius` (0.025): the largest circle
  *   radius, in shares of the image's width;
  * - `depthOfFieldSlightFocusRejection` (0): widens the range the recombine's slight out of focus is
- *   held to, a share of it, 0 to 0.125.
+ *   held to, a share of it, 0 to 0.125;
+ * - `depthOfFieldTemporalQuality` (`'high'`), `depthOfFieldBilateralStrength` (0) and
+ *   `depthOfFieldTemporalCurrentWeight` (0.04): the temporal accumulation of the setup the pass runs
+ *   before the image's own (`DEPTH_OF_FIELD_TEMPORALS`) — where the image is temporally accumulated —,
+ *   how far a circle of confusion that differs from the history's rejects it, 0 to 1, and the weight of
+ *   the image in the history.
  */
 export const DEPTH_OF_FIELD_RULES = /* @__PURE__ */ (() =>
   rulesOf([
-    choice('depthOfFieldQuality', 'high', DEPTH_OF_FIELD_LEVELS),
+    choice('depthOfFieldQuality', 'on', DEPTH_OF_FIELD_LEVELS),
     integer('depthOfFieldGatherDivisor', 2, [1, 2]),
     choice('depthOfFieldAccumulator', 'high', DEPTH_OF_FIELD_ACCUMULATORS),
     nonNegative('depthOfFieldDistinctionLimit', 0),
@@ -104,6 +111,9 @@ export const DEPTH_OF_FIELD_RULES = /* @__PURE__ */ (() =>
     nonNegative('depthOfFieldMaxForegroundRadius', 0.025),
     nonNegative('depthOfFieldMaxBackgroundRadius', 0.025),
     number('depthOfFieldSlightFocusRejection', 0, [0, 0.125]),
+    choice('depthOfFieldTemporalQuality', 'high', DEPTH_OF_FIELD_TEMPORALS),
+    number('depthOfFieldBilateralStrength', 0, [0, 1]),
+    number('depthOfFieldTemporalCurrentWeight', 0.04, [0, 1]),
   ] as const))()
 /** The field of one setting of how the depth of field is drawn. */
 export type DepthOfFieldField = keyof typeof DEPTH_OF_FIELD_RULES
@@ -113,14 +123,13 @@ export type DepthOfFieldSettings = SettingOptions<typeof DEPTH_OF_FIELD_RULES>
 /** The settings of how the depth of field is drawn as the engine reads them: every field set. */
 export type DepthOfFieldValues = SettingValues<typeof DEPTH_OF_FIELD_RULES>
 
-/** What each quality level below the top writes: the reference's own scalability levels, the
- *  first three of its four post-process levels — none at `smooth`, the cheap level `low` at
- *  `balanced`, the next at `fine`; `max` writes nothing, the defaults. Each level writes only the
- *  settings the reference's level does (`runtime/qualityLevels.ts`). */
+/** What each quality level below the top writes: the reference's own, the first three of its four
+ *  quality levels — none at `smooth`, the cheap level at `balanced`, the next at `fine`; `max`
+ *  writes nothing, the defaults. Each level writes only the settings the reference's level does
+ *  (`runtime/qualityLevels.ts`). */
 export const DEPTH_OF_FIELD_PRESET_LEVELS = {
   smooth: { depthOfFieldQuality: 'off' },
   balanced: {
-    depthOfFieldQuality: 'low',
     depthOfFieldGatherDivisor: 2,
     depthOfFieldAccumulator: 'low',
     depthOfFieldPostfilter: 'max',
@@ -129,11 +138,11 @@ export const DEPTH_OF_FIELD_PRESET_LEVELS = {
     depthOfFieldForegroundScatter: 'off',
     depthOfFieldBackgroundScatter: 'off',
     depthOfFieldRecombine: 'off',
+    depthOfFieldTemporalQuality: 'low',
     depthOfFieldMaxForegroundRadius: 0.006,
     depthOfFieldMaxBackgroundRadius: 0.006,
   },
   fine: {
-    depthOfFieldQuality: 'high',
     depthOfFieldGatherDivisor: 2,
     depthOfFieldAccumulator: 'low',
     depthOfFieldPostfilter: 'max',
@@ -144,6 +153,7 @@ export const DEPTH_OF_FIELD_PRESET_LEVELS = {
     depthOfFieldScatterBokeh: false,
     depthOfFieldScatterMaxRatio: 0.04,
     depthOfFieldRecombine: 'off',
+    depthOfFieldTemporalQuality: 'low',
     depthOfFieldMaxForegroundRadius: 0.012,
     depthOfFieldMaxBackgroundRadius: 0.012,
   },

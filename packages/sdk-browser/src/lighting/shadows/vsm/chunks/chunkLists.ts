@@ -15,6 +15,7 @@ const LIST_FLOOR = 256
 /** The lists the kernels fill that are storage alone, in the order they are made. */
 const STORAGE_LISTS: readonly VsmListName[] = [
   'views',
+  'lights',
   'candidates',
   'counts',
   'cmds',
@@ -116,7 +117,7 @@ function ensureList(
   ctx.buffers[name] = sizedBuffer(ctx.device, held, bytes, usage, `${label}.${name}`)
 }
 
-/** The eight lists of a chunked raster under `label`, grown to `size` (`vsmChunkListSizes`): the
+/** The nine lists of a chunked raster under `label`, grown to `size` (`vsmChunkListSizes`): the
  *  context's own buffers, every one made, returned — its parameters, its views, its counters and
  *  its arguments are written or cleared in them. A frame allocates nothing. */
 export function vsmEnsureLists(

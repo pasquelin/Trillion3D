@@ -4,6 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSceneLightStore } from '../../../../../../sdk-core/src/scene/light/store.ts'
+import type { ShadowOptions } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { SUN } from '../../../../../../sdk-core/src/scene/light/shadow/lightShadow.fixture.ts'
 import { installGpuGlobals } from '../../../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
@@ -87,4 +88,29 @@ test('a set the device refuses in its verdict alone is held until it comes, then
   } finally {
     disposeQuadRun(backend, fixture)
   }
+})
+
+test('the most physical pages the setting names caps the pool the view asks, rounded down to a power of two', async () => {
+  const pool = async (settings: ShadowOptions) => {
+    installGpuGlobals()
+    const gpu = fakeDevice({ ...BACKEND, limits: SHADOW_LIMITS })
+    const sceneLights = createSceneLightStore()
+    sceneLights.add(SUN)
+    // A view wide enough to ask the pool's whole window of 2048 pages.
+    const options = { sceneLights, viewport: [2048, 2048] as [number, number], renderScale: 1 }
+    const { fixture, backend } = quadBackend(gpu.device, { ...options, ...settings })
+    try {
+      await backend.prepare()
+      backend.render(camera())
+      await backend.flush()
+      return gpu.buffers.find((buffer) => buffer.label?.startsWith(POOL))!.size
+    } finally {
+      disposeQuadRun(backend, fixture)
+    }
+  }
+  const asked = await pool({})
+  assert.equal(await pool({ shadowMaxPhysicalPages: 4096 }), asked, 'the window is the most')
+  const capped = await pool({ shadowMaxPhysicalPages: 512 })
+  assert.ok(capped < asked, `${capped} < ${asked}: 512 pages`)
+  assert.equal(await pool({ shadowMaxPhysicalPages: 700 }), capped, '700 reads as 512')
 })

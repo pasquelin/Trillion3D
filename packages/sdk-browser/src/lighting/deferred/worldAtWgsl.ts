@@ -14,7 +14,10 @@ import { pixelToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection
  *  `writeAmbientOcclusion`; `w` unused); `preExposure` the number every light is written multiplied
  *  by (`x`, `../../post/exposure/pre.ts`) and the scale the composition multiplies the image by
  *  (`y`): the exposure over that number, the scene's, or the one an automatic exposure measured
- *  and copied there on the GPU (`../../post/exposure/frame.ts`). The
+ *  and copied there on the GPU (`../../post/exposure/frame.ts`; `z`, `w` unused); `screenProbes` how the resolve reads the screen probes' history: `x` whether the
+ *  material's occlusion multiplies their light (through the multi-bounce of the albedo), `y` the albedo that is capped at,
+ *  `z` the strength of their short-range occlusion and `w` their mode, 0 their light, 1 their occlusion alone over the
+ *  world's probes' light (`writeScreenProbes`). The
  *  environment's irradiance and fog travel with the lights. */
 export const VIEW_LAYOUT = fieldLayout('View', [
   ['inverseViewProjection', 'mat4x4f'],
@@ -27,12 +30,15 @@ export const VIEW_LAYOUT = fieldLayout('View', [
   ['source', 'vec4f'],
   ['views', 'vec4f'],
   ['preExposure', 'vec4f'],
+  ['screenProbes', 'vec4f'],
 ] as const)
 export const VIEW_WGSL = wgslBlock('VIEW_WGSL', [], VIEW_LAYOUT.wgsl)
 /** World position of a pixel at a depth, reconstructed through that view: the one reading of
  *  the depth buffer every fullscreen pass shares. \`viewToEye\` is the direction from a point to the
  *  eye (the view direction, \`camera.w\` 0, under an orthographic camera): the one reading of the
- *  camera every lit pass shares. */
+ *  camera every lit pass shares. \`viewEyeDistance\` is the distance of a point from the eye, in metres: its straight
+ *  distance, or, under an orthographic camera, where a point's distance from the eye has no meaning, its distance
+ *  from the plane of the eye along the view direction (its depth). */
 export const WORLD_AT_WGSL = wgslBlock(
   'WORLD_AT_WGSL',
   [VIEW_WGSL, pixelToNdc, unprojectPoint],
@@ -40,5 +46,9 @@ export const WORLD_AT_WGSL = wgslBlock(
 fn worldAt(pixel:vec2f,z:f32)->vec3f{
  return unprojectPoint(view.inverseViewProjection,vec3f(pixelToNdc(pixel,view.viewport.xy),z));
 }
-fn viewToEye(P:vec3f)->vec3f{return normalize(view.camera.xyz-P*view.camera.w);}`,
+fn viewToEye(P:vec3f)->vec3f{return normalize(view.camera.xyz-P*view.camera.w);}
+fn viewEyeDistance(P:vec3f)->f32{
+ if(view.camera.w!=0.0){return length(P-view.camera.xyz);}
+ return abs(dot(P-view.display.yzw,normalize(view.camera.xyz)));
+}`,
 )

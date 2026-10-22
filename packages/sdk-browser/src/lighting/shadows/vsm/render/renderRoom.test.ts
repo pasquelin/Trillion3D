@@ -8,7 +8,8 @@ import { installGpuDeviceLedger } from '../../../../gpu/core/deviceLedger.ts'
 import { createVsmResources } from '../resources.ts'
 import { encodeVsmRender } from './renderPass.ts'
 import { vsmChunkRowsWithin } from '../chunks/chunkLists.ts'
-import { recordingRaster } from '../recordingRaster.fixture.ts'
+import { encodeLights, paramWords, recordingRaster } from '../recordingRaster.fixture.ts'
+import { VSM_RENDER_PARAMS } from './renderParamsWgsl.ts'
 import { MIB } from '../../../../../../math/src/constants.ts'
 
 const BINDING = 1 << 27
@@ -76,4 +77,41 @@ test('a raster whose lists the room cannot hold whole draws in smaller chunks, o
   r.box.limit = 1e12
   const free = draw(4096)!
   assert.deepEqual([free.chunkRows, free.roomLimited], [4096, false], 'with room, as asked')
+})
+
+test('the casters’ chunks run the shadow tessellation when the frame has one, and say which lights take it', () => {
+  const sun = [{ kind: 'directional' as const, firstId: 0, count: 17 }]
+  const calls: string[] = []
+  const offsets: unknown[] = []
+  const tessellation = {
+    kinds: 3,
+    begin: () => calls.push('begin'),
+    compute: (
+      _: unknown,
+      lists: { counts: unknown; pairs: unknown },
+      offset: readonly number[],
+    ) => {
+      assert.ok(lists.counts && lists.pairs)
+      offsets.push(offset[0])
+      calls.push('compute')
+    },
+    draw: () => calls.push('draw'),
+  }
+  const on = encodeLights(sun, { tessellation })
+  const chunks = on.stats.chunks
+  assert.deepEqual(calls, Array.from({ length: chunks }, () => ['begin', 'compute', 'draw']).flat())
+  assert.equal(new Set(offsets).size, chunks, 'each chunk its own slot of the parameters')
+  const words = (fake: typeof on.fake) => {
+    const { words, stride } = paramWords(fake)
+    return Array.from(
+      { length: chunks },
+      (_, k) => words[k * stride + VSM_RENDER_PARAMS.at.tessellated],
+    )
+  }
+  assert.deepEqual(words(on.fake), Array(chunks).fill(3))
+  // A frame with none touches nothing of it: the parameters say none.
+  calls.length = 0
+  const off = encodeLights(sun)
+  assert.deepEqual(calls, [])
+  assert.deepEqual(words(off.fake), Array(off.stats.chunks).fill(0))
 })

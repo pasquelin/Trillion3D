@@ -14,7 +14,7 @@ import {
 /** First float of light `slot` in the packed store. */
 export const baseOf = (slot: number) => SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS
 
-/** Field of a light in the buffer, in floats from its base. Five `vec4f` per light. */
+/** Field of a light in the buffer, in floats from its base. Seven `vec4f` per light. */
 export const LIGHT_FIELD = {
   /** Where it stands. */
   position: 0,

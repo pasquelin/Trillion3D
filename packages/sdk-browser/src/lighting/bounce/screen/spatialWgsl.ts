@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
+import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
 import { spProbes } from './probesWgsl.ts'
 import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
@@ -17,6 +18,7 @@ export const SPATIAL_BINDINGS = bindingTable({
   gatherIn: [6, 'float'],
   gatherOut: [7, { store: F.gather }],
   moving: [8, 'buffer-read'],
+  blue: [9, 'float'],
 })
 
 const B = SPATIAL_BINDINGS.at
@@ -67,7 +69,7 @@ fn spGatherNeighbour(tile:vec2i,t:vec2u,P:vec3f,direction:vec3f,depth:f32,hit:f3
  let probe=spReadProbe(atlas);
  let position=spFilterPosition(probe.depth,depth);
  if(position<=0.0){return vec4f(0.0);}
- let kept=textureLoad(gatherIn,vec2i(atlas*SP_TRACE+t),0);
+ let kept=textureLoad(gatherIn,vec2i(atlas*SP_GATHER+t),0);
  if(kept.w<0.0){return vec4f(0.0);}
  var angleWeight=1.0;
  if(!relax){
@@ -81,16 +83,16 @@ fn spGatherNeighbour(tile:vec2i,t:vec2u,P:vec3f,direction:vec3f,depth:f32,hit:f3
 }
 @compute @workgroup_size(8,8)
 fn spatialFilter(@builtin(global_invocation_id) id:vec3u){
- let atlas=id.xy/SP_TRACE;
+ let atlas=id.xy/SP_GATHER;
  if(atlas.x>=sp.grid.x||atlas.y>=sp.grid.z){return;}
- let t=id.xy%SP_TRACE;
+ let t=id.xy%SP_GATHER;
  let index=spIndexOf(atlas);
  let own=textureLoad(gatherIn,vec2i(id.xy),0);
  let probe=spProbeOrDead(atlas);
  var out=vec4f(0.0,0.0,0.0,own.w);
  if(probe.depth>0.0){
   let tile=spProbeTile(probePixels[index]);
-  let direction=equalAreaDecode((vec2f(t)+spNoise(tile,sp.mode.w))/f32(SP_TRACE));
+  let direction=equalAreaDecode((vec2f(t)+blueNoiseVec2(tile,sp.mode.w))/f32(SP_GATHER));
   let moving=probeMoving[index]>0.01;
   let relax=disocclusion[index]!=0u||moving;
   var total=select(vec4f(0.0),vec4f(own.rgb,1.0),own.w>=0.0);
@@ -103,10 +105,10 @@ fn spatialFilter(@builtin(global_invocation_id) id:vec3u){
 }`,
 )
 
-/** The spatial filter's program over `side × side` texels a probe and `samples` of a tile. */
-export const spatialFilterShader = (side: number, samples: readonly [number, number]) =>
+/** The spatial filter's program over `gather × gather` texels a probe and `samples` of a tile. */
+export const spatialFilterShader = (gather: number, samples: readonly [number, number]) =>
   wgslProgram(
     `${spParams(B.params)}
-${wgslConsts({ SP_TRACE: side })}`,
-    [spCommon(samples), spProbes(B.info, B.normal, B.counts), SP_SPATIAL],
+${wgslConsts({ SP_GATHER: gather })}`,
+    [spCommon(samples), spProbes(B.info, B.normal, B.counts), blueNoiseWgsl(0, B.blue), SP_SPATIAL],
   )

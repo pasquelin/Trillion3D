@@ -22,7 +22,7 @@ const DEPTH_BLUR_REFERENCE_WIDTH = 1920
 
 /** The view the model is compiled for: the unscaled image's size, in pixels, and the camera's
  *  projection. */
-export interface CocView {
+interface CocView {
   /** The size of the image the pass draws on, in pixels (the display's under an upscaler). */
   readonly width: number
   readonly height: number
@@ -66,7 +66,7 @@ export interface CocModel {
 }
 
 /** The radii the quality settings hold the circle to, as shares of the image's width. */
-export interface CocLimits {
+interface CocLimits {
   readonly maxForeground: number
   readonly maxBackground: number
 }
@@ -82,7 +82,7 @@ export function compileCocModel(
   view: CocView,
   limits: CocLimits,
 ): CocModel {
-  const squeeze = clamp(volume.squeezeFactor, 0.1, 10)
+  const squeeze = volume.squeezeFactor
   const aspectRatio = (view.width / view.height) * volume.aspectRatioScalar
   const sensorWidth = volume.sensorWidth * METRES_PER_MILLIMETRE
   const sensorHeight = sensorWidth / (aspectRatio / squeeze)

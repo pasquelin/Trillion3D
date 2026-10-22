@@ -15,6 +15,7 @@ import {
   PARTITION_GRID_NAME_KEY,
   PARTITION_GRIDS_FIELD,
 } from './compilerAbi.ts'
+import { isFiniteNumber } from '../../../math/src/scalar/reals.ts'
 import { fieldsOf, refusal } from './nameMatch.ts'
 
 /** The main grid's settings only the `hashSet` scheme reads: the bounds a cell of its finest
@@ -127,8 +128,7 @@ export type PartitionGridSettingsWire = {
 export type PartitionGridWire = false | PartitionGridSettingsWire
 
 /** A finite number above 0. */
-const positive = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isFinite(value) && value > 0
+const positive = (value: unknown): value is number => isFiniteNumber(value) && value > 0
 /** A boolean. */
 const boolean = (value: unknown): value is boolean => typeof value === 'boolean'
 
@@ -157,7 +157,7 @@ function readGrid(
   const point = (value: unknown) =>
     Array.isArray(value) &&
     (value.length === 2 || value.length === 3) &&
-    value.every((v) => typeof v === 'number' && Number.isFinite(v))
+    value.every(isFiniteNumber)
   const level = (value: unknown, at: number) => {
     if (value === null) return null
     const fields = fieldsOf(value, PARTITION_HLOD_GRID_SETTINGS, `hlodGrids[${at}]`, refuse)

@@ -6,17 +6,42 @@ import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import { VELOCITY_BINDINGS, velocityShader } from './nearestVelocityWgsl.ts'
+import { reprojectShader } from './reprojectWgsl.ts'
+import { flattenShader } from '../effects/motionBlur/flattenWgsl.ts'
 import { SURFACE_VELOCITY_BINDINGS, SURFACE_VELOCITY_WGSL } from './surfaceVelocityWgsl.ts'
-import { RAD2DEG } from '../../../../math/src/constants.ts'
 import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { builtins } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
+import { blurUniform } from '../effects/motionBlur/motionBlurRun.fixture.ts'
 import { createTaaFrameState } from './frameState.ts'
 import { TAA_VIEW } from './bindingsWgsl.ts'
 import { writeTaaView } from './view.ts'
 
 const T = TAA_VIEW.at
+/** The vector codec, as the velocity stage's text has it (`velocityWgsl.ts`). */
+const { encodeOwnVector, encodeVector, decodeVector, hasOwnMotion } = shaderRun<{
+  encodeOwnVector: (v: number[], own: boolean) => number
+  encodeVector: (v: number[]) => number
+  decodeVector: (word: number) => number[]
+  hasOwnMotion: (word: number) => boolean
+}>(SURFACE_VELOCITY_WGSL, ['encodeOwnVector', 'encodeVector', 'decodeVector', 'hasOwnMotion'], {})
+type Vec = number[]
+/** Whether `actual` is `expected` to three decimals. */
+const close = (actual: Vec, expected: Vec) =>
+  assert.deepEqual(
+    actual.map((v) => +v.toFixed(3) || 0),
+    expected,
+  )
+/** The view the camera moved by 0.1 along x, whose still surfaces are carried by `(−0.1, 0)`; an
+ *  orthographic one where `ortho`, a cut where `cut`. */
+const movedView = ({ ortho = false, cut = false } = {}) => ({
+  prevViewProj: builtins.mat4x4f(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0.1, 0, 0, 1),
+  invViewProj: builtins.mat4x4f(...IDENTITY_MATRIX4),
+  render: [64, 32, 1 / 64, 1 / 32],
+  params: [cut ? 1 : 0, 0, 0, 0],
+  radius: [0, 0, 1, ortho ? 1 : 0],
+})
 
 /** The history update with an as-is share, the frame's usual one. */
 const TAA_SHADER = taaResolveShader(true)
@@ -107,20 +132,33 @@ test('the flagless resolve is the flag-reading one without its share, written as
   for (const line of removed) assert.match(line, /share|var flags|asIs|TaaOut/, line)
 })
 
-test('the velocity stage writes the vector the temporal pass reads, from the same nearest surface; its analysis writes none', () => {
+test("the velocity stage writes each texel's own vector alone; the analysis dilates by its closest surface", () => {
   const surface = SURFACE_VELOCITY_WGSL
-  for (const text of [VELOCITY_SHADER, surface])
-    assert.equal(occurrences(text, 'fn nearestSurface('), 1)
   assert.match(
     surface,
-    /vectorOut,p,vec4u\(encodeVector\(nearestSurface\(p\)\.motion\.velocity\.xy\),/,
+    /vectorOut,p,vec4u\(encodeOwnVector\(motion\.velocity\.xy,moves\),/,
+    'the surface at the texel, flagged where it moves by itself',
   )
-  // The analysis starts from the same surface for its marks and occluders, and leaves the vector to
-  // the stage: the motion blur reads it after the pass.
+  // No neighbour is read by the stage, none of the analysis's outputs written.
+  for (const gone of [
+    'nearestSurface',
+    'packDepthOffset',
+    'occluders',
+    'closestOut',
+    'marksOut',
+    'pageOf(',
+    'scatterOccluder',
+  ])
+    assert.equal(occurrences(surface, gone), 0, gone)
+  // The motion of a surface is one text for both: the analysis finds the closest surface by its
+  // 3×3 and measures it, once, and leaves the vector to the stage and the dilation to the reprojection.
+  for (const text of [VELOCITY_SHADER, surface]) {
+    assert.equal(occurrences(text, 'fn surfaceMotion('), 1)
+    assert.equal(occurrences(text, 'fn drawsMotion('), 1)
+  }
+  assert.equal(occurrences(VELOCITY_SHADER, 'fn nearestSurface('), 1)
   assert.match(VELOCITY_SHADER, /let nearest=surface\.motion;/)
   assert.doesNotMatch(VELOCITY_SHADER, /vectorOut/)
-  for (const gone of ['occluders', 'closestOut', 'marksOut', 'pageOf(', 'scatterOccluder'])
-    assert.equal(occurrences(surface, gone), 0, gone)
   // The inputs sit at the same bindings, the vector after them.
   const inputs = [
     ...['view', 'depth', 'ids', 'pages', 'motion', 'indices', 'positions', 'uvs', 'boxes'],
@@ -128,6 +166,67 @@ test('the velocity stage writes the vector the temporal pass reads, from the sam
   for (const name of inputs)
     assert.equal(SURFACE_VELOCITY_BINDINGS[name], VELOCITY_BINDINGS[name], name)
   assert.match(surface, /@binding\(9\) var vectorOut:texture_storage_2d<r32uint,write>/)
+})
+
+test('a vector says in its first code whether the surface moved by itself, to a step of the code', () => {
+  for (const v of [
+    [0, 0],
+    [0.001, -0.002],
+    [0.3, 0.7],
+    [-1.5, 1.9],
+  ])
+    for (const own of [true, false]) {
+      const word = encodeOwnVector(v, own)
+      assert.equal(hasOwnMotion(word), own)
+      // The code is read as it was, one step of its first axis apart at the most.
+      const plain = decodeVector(encodeVector(v)),
+        flagged = decodeVector(word)
+      assert.ok(Math.abs(flagged[0] - plain[0]) <= 2e-4 && flagged[1] === plain[1], `${v} ${own}`)
+    }
+})
+
+test("the flattening takes the corner's own motion where it moves by itself, else the camera's at the pixel", () => {
+  // The corner (4, 4) of the pixel (3, 3) holds the word `word` at depth 0.5.
+  const run = (word: number, { cancel = false, ...view } = {}) =>
+    shaderRun<{ cornerMotion: (pixel: Vec, nearest: Vec) => Vec }>(
+      flattenShader(),
+      ['cornerMotion'],
+      {
+        mb: { ...blurUniform, knobs: [16, 0, 1, cancel ? 1 : 0] },
+        view: movedView(view),
+        depthTexture: { load: () => 0.5 },
+        vectors: { load: () => [word] },
+      },
+    ).cornerMotion([3, 3], [4, 4])
+  // A foreground's vector the 3×3 dilated onto a still texel: not its own, never read as it is.
+  const dilated = encodeOwnVector([0.3, 0.2], false)
+  close(run(dilated), [-0.1, 0, 0.5])
+  close(run(dilated, { cancel: true }), [0, 0, 0.5])
+  // Held down by the depth under an orthographic projection, cancelled all the same.
+  close(run(dilated, { ortho: true }), [-0.05, 0, 0.5])
+  close(run(dilated, { ortho: true, cancel: true }), [0, 0, 0.5])
+  // A surface that moves by itself keeps its own vector, the camera's taken out of it where asked.
+  const own = encodeOwnVector([0.3, 0.2], true)
+  close(run(own), [0.3, 0.2, 0.5])
+  close(run(own, { cancel: true }), [0.4, 0.2, 0.5])
+  close(run(own, { cut: true }), [0, 0, 0.5])
+})
+
+test('the reprojection dilates the stage’s vectors by the closest surface its marks name', () => {
+  // The texel (5, 5) took the neighbour at the offset its marks' first nibble codes.
+  const code = (x: number, y: number) => x + 1 + (y + 1) * 4
+  const run = (offset: Vec, word: number) =>
+    shaderRun<{ dilatedVector: (texel: Vec) => Vec }>(reprojectShader(), ['dilatedVector'], {
+      view: movedView(),
+      marks: { load: () => [0, 0, 0, code(offset[0], offset[1])] },
+      vectors: { load: (at: Vec) => [at[0] === 6 ? word : encodeOwnVector([-0.1, 0], false)] },
+      depth: { load: () => 0.5 },
+    }).dilatedVector([5, 5])
+  // A neighbour that moves by itself lends its own vector; one that does not, the camera's motion at
+  // the texel with its depth; none taken, the texel's own word.
+  close(run([1, 0], encodeOwnVector([0.3, 0.2], true)), [0.3, 0.2])
+  close(run([1, 0], encodeOwnVector([0.7, 0.7], false)), [-0.1, 0])
+  close(run([0, 0], encodeOwnVector([0.7, 0.7], false)), [-0.1, 0])
 })
 
 /** A double's two words, high then low, as the roots' world boxes keep them. */
@@ -155,19 +254,30 @@ test('an object smaller on the screen than `perObjectSize` is measured as still,
     const run = shaderRun<{
       smallObject: (rank: number) => boolean
       drawsMotion: (id: number) => boolean
-    }>(SURFACE_VELOCITY_WGSL, ['smallObject', 'drawsMotion'], {
+      texelMotion: (p: number[], q: number[], z: number, id: number) => { velocity: number[] }
+    }>(SURFACE_VELOCITY_WGSL, ['smallObject', 'drawsMotion', 'texelMotion'], {
       view: {
         rates: [...rates],
         eye: [0, 0, 0, 0],
         radius: [0, 0, 1, orthographic ? 1 : 0],
         params: [0, 0, 1, 0],
+        render: [8, 8, 0.125, 0.125],
+        prevViewProj: builtins.mat4x4f(...IDENTITY_MATRIX4),
+        invViewProj: builtins.mat4x4f(...IDENTITY_MATRIX4),
       },
       boxes: [...box, [0, 0]],
       pages: new Proxy([], { get: () => ({ deformOutput: 0, placement: 0 }) }),
       motion: [builtins.mat4x4f(...moved)],
     })
-    // The object is left out of the velocity pass as it is measured small: a moving one draws none.
+    // The object is left out of the velocity pass as it is measured small: a moving one draws none,
+    // and its texel is carried by the camera's motion alone, which here is none.
     assert.equal(run.drawsMotion(1), !run.smallObject(0))
+    const [vx] = run.texelMotion([4, 4], [4, 4], 0.5, 1).velocity
+    assert.equal(
+      Math.abs(vx) < 1e-6,
+      run.smallObject(0),
+      'a moving object is measured by its motion',
+    )
     return run.smallObject(0)
   }
   // Its sphere, 0.87 m of radius, takes 0.5 · 0.87 / 10 of the screen at ten metres: a diameter
@@ -178,11 +288,4 @@ test('an object smaller on the screen than `perObjectSize` is measured as still,
   assert.equal(small(0, 10), false, 'a size of 0 leaves none out')
   assert.equal(small(10, 10, true), false, 'no foreshortening in an orthographic view')
   assert.equal(small(10, 1000), true, 'far away')
-  // The least radius, squared, follows the field of view over 90 degrees: a narrower view asks less.
-  projection[0] = 2
-  state.objectSize = 10
-  writeTaaView(device, {} as GPUBuffer, state, cam as never, [64, 32], [64, 32], [64, 32], false)
-  const u = writes.at(-1)!.data as Float32Array
-  const fov = (2 * Math.atan(0.5) * RAD2DEG) / 90
-  assert.deepEqual([u[T.rates + 2], u[T.rates + 3]], [1, Math.fround((0.05 * fov) ** 2)])
 })

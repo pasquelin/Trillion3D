@@ -7,7 +7,7 @@ import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { byteOf } from '../../../../math/src/wgsl/integer.ts'
 import { VSM_MASK_THROUGH_SHIFT, VSM_PROJECTION_GROUP_SHIFT } from '../shadows/vsm/constants.ts'
 import { vsmReceiverTraceWgsl } from '../shadows/vsm/trace/receiverTraceWgsl.ts'
-import { vsmBlueNoiseTwo, vsmBlueNoiseWgsl } from '../shadows/vsm/blueNoise.ts'
+import { blueNoiseWgsl } from '../../gpu/noise/blueNoiseWgsl.ts'
 import { VSM_PROJECTION_VIEW_STRUCT } from '../shadows/vsm/projection/projectionView.ts'
 import { vsmTraceLightWgsl } from '../shadows/vsm/trace/traceWgsl.ts'
 import { vsmSampleLightWgsl } from '../shadows/vsm/sampleLightWgsl.ts'
@@ -47,10 +47,10 @@ export const vsmFragmentTraceWgsl = (
     `vsmFragmentTraceWgsl(${pool}, ${vsmTraceBindingsLabel(t)}, ${transmission}, ${kinds})`,
     [
       vsmTraceViewWgsl(t.view, kinds),
-      vsmBlueNoiseWgsl(0, t.noise, t.loadOnly),
+      blueNoiseWgsl(0, t.noise, t.loadOnly),
       vsmReceiverTraceWgsl({
         pool: forwardPool(pool),
-        noise: vsmBlueNoiseTwo(0, t.noise, t.loadOnly),
+        noise: blueNoiseWgsl(0, t.noise, t.loadOnly),
         hiz: [REFLECTION_GROUP, REFLECTION_DEPTH_BINDING],
         lone: true,
         subgroups: t.subgroups,
@@ -73,7 +73,7 @@ fn vsmTraceFactor(channel:u32,P:vec3f,N:vec3f)->f32{
  r.shifted=(P+vsmView.originShiftHigh)+vsmView.originShiftLow;
  r.sceneDepth=(vsmView.shiftedToView*vec4f(r.shifted,1.0)).z;
  r.screenRayWorld=(vsmView.screenRayScale.xy*(vsm.screenRayShare*r.sceneDepth)+vsmView.screenRayScale.zw).y;
- r.noise=vsmNoiseOne(r.pos,vsmView.frameIndex);
+ r.noise=blueNoiseScalar(r.pos,vsmView.frameIndex);
  let traced=vsmProjectLight(channel,r,true);
  shadowTransmission=traced.through;
  return traced.shadowFactor;

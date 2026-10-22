@@ -118,8 +118,6 @@ export const AMBIENT_OCCLUSION_PRESET_LEVELS = {
   },
 } as const
 
-/** Resolutions the search runs at, at most. */
-const MAX_LEVELS = 3
 /** The smallest radius that draws, in centimetres, once scaled: under it no occlusion is made. */
 const LEAST_RADIUS_CM = 0.1
 
@@ -151,16 +149,16 @@ export interface AmbientOcclusionSettings {
 }
 
 /** The quality in percent: the setting under the ceiling; a negative ceiling names it, in absolute value. */
-export const ambientOcclusionQuality = (quality: number, maxQuality: number) =>
-  maxQuality < 0 ? Math.min(-maxQuality, 100) : Math.min(maxQuality, quality)
+const ambientOcclusionQuality = (quality: number, maxQuality: number) =>
+  maxQuality < 0 ? -maxQuality : Math.min(maxQuality, quality)
 
-/** The resolutions a quality searches: the setting when it is not negative, else one more for each step
- *  of the quality over 35 and over 70; at most three. */
-export const ambientOcclusionLevels = (levels: number, quality: number) =>
-  Math.min(levels >= 0 ? levels : 1 + +(quality > 70) + +(quality > 35), MAX_LEVELS)
+/** The resolutions a quality searches: the setting (0 to 3) when it is not negative, else one more for each step
+ *  of the quality over 35 and over 70. */
+const ambientOcclusionLevels = (levels: number, quality: number) =>
+  levels >= 0 ? levels : 1 + +(quality > 70) + +(quality > 35)
 
 /** The samples' shape a quality picks, 0 (the fewest) to 4: one more for each step over 5, 25, 55 and 75. */
-export const ambientOcclusionShaderQuality = (quality: number) =>
+const ambientOcclusionShaderQuality = (quality: number) =>
   +(quality > 75) + +(quality > 55) + +(quality > 25) + +(quality > 5)
 
 /**
@@ -182,7 +180,6 @@ export function resolveAmbientOcclusion(values: AmbientOcclusionValues): Ambient
       values.ambientOcclusion &&
       values.ambientOcclusionIntensity > 0 &&
       radiusCm >= LEAST_RADIUS_CM &&
-      values.ambientOcclusionLevels !== 0 &&
       levels > 0,
     intensity: values.ambientOcclusionIntensity,
     staticFraction: values.ambientOcclusionStaticFraction,

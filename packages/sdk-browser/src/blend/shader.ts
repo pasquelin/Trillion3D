@@ -15,7 +15,7 @@ import { BLEND_TO_EYE_WGSL, blendLit, blendSurfaceWgsl } from './shaderSurface.t
 import { DIAGNOSTIC_PALETTE_WGSL } from '../diagnostic/colors.ts'
 import { DIAGNOSTIC_VIEWS } from '../visibility/shader/shadeMode.ts'
 import { DISPLAY_MASK_GROUP, DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './display/displayFilter.ts'
-import { blendVertexWgsl } from './vertexWgsl.ts'
+import { blendVertexWgsl, cutBlendByPixel } from './vertexWgsl.ts'
 import { TRI_CHANNELS_SHIFT } from './vertexReadsWgsl.ts'
 import { BLEND_LOBELESS_WGSL, BLEND_PHYSICAL_WGSL } from './physicalWgsl.ts'
 import { type ContractKey, variantLabel } from '../lighting/deferred/contractCuts.ts'
@@ -24,10 +24,10 @@ import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wireframeEdge } from '../../../math/src/wgsl/barycentric.ts'
 import { REFLECTION_GROUP, reflectionLightViewWgsl } from '../lighting/reflections/viewLayout.ts'
 import { f0Of } from '../../../math/src/wgsl/lighting.ts'
-import { forwardIndirectWgsl } from '../lighting/reflections/weight.ts'
+import { forwardIndirectWgsl } from '../lighting/reflections/forward.ts'
 import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
 import { BLEND_PRE_EXPOSED_WGSL } from './viewLayout.ts'
-import { CLIP_DISTANCES_WGSL, guardedFragments } from '../gpu/core/clipDistances.ts'
+import { clipDirective, type Clipping } from '../gpu/core/clipDistances.ts'
 
 /** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
  *  (`declaredLightingWgsl`), the program of a scene that holds none (`pipelines.ts`). Without
@@ -35,7 +35,7 @@ import { CLIP_DISTANCES_WGSL, guardedFragments } from '../gpu/core/clipDistances
  *  them (`physicalWgsl.ts`), its lights, environment, bounce and reflection go through them, a
  *  fragment
  *  without them summing the very same terms (`../lighting/direct/lobesWgsl.ts`). */
-const blendProgram = (key: Partial<ContractKey>, subgroups: boolean, clip: boolean) => {
+const blendProgram = (key: Partial<ContractKey>, subgroups: boolean, clipping?: Clipping) => {
   const lobes = !key.lobeless
   const bindings = {
     transmittance: BLEND_BINDINGS.shadowTransmittance,
@@ -45,9 +45,9 @@ const blendProgram = (key: Partial<ContractKey>, subgroups: boolean, clip: boole
     lightFunction: BLEND_LIGHT_FUNCTION_BINDINGS,
   }
   return wgslBlock(
-    `blendProgram(${variantLabel(key)}, ${subgroups}${clip ? ', clip' : ''})`,
+    `blendProgram(${variantLabel(key)}, ${subgroups}${clipping ? `, ${clipping}` : ''})`,
     [
-      blendVertexWgsl(lobes, clip),
+      blendVertexWgsl(lobes, clipping),
       STANDARD_LIGHTING_WGSL,
       declaredLightingWgsl(bindings, key),
       bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes),
@@ -74,9 +74,10 @@ const DUAL_SOURCE_WGSL = wgslBlock('DUAL_SOURCE_WGSL', [], 'enable dual_source_b
 /** The blend module's text (`blendProgram`), with what a pass adds to it: the transmissive stages
  *  (`stage`, `./transmission/transmitWgsl.ts`), the dual blend enabled for them where the device
  *  grants it (`dual`), a diagnostic variant's entries (`diagnostic`); its shadow traces vote over
- *  the subgroup where the device grants subgroups (`subgroups`); its vertex stage cutting the
- *  view's plane by the hardware where the device grants clip distances (`clip`), else each
- *  fragment stage by its pixel (`../gpu/core/clipDistances.ts`). */
+ *  the subgroup where the device grants subgroups (`subgroups`); made to cut at the view's plane
+ *  (`clipping`: by the vertex stage's clip distance, or by each fragment stage's pixel, the module
+ *  the project switch makes, `../gpu/core/clipDistances.ts`), the plain module holding none of that
+ *  code. */
 export const blendShader = (
   key: Partial<ContractKey> = {},
   {
@@ -84,24 +85,23 @@ export const blendShader = (
     diagnostic,
     dual = false,
     subgroups = false,
-    clip = false,
+    clipping,
   }: {
     stage?: WgslDecl
     diagnostic?: WgslDecl
     dual?: boolean
     subgroups?: boolean
-    clip?: boolean
+    clipping?: Clipping
   } = {},
 ) => {
   const code = wgslModule(
-    blendProgram(key, subgroups, clip),
+    blendProgram(key, subgroups, clipping),
     ...(dual ? [DUAL_SOURCE_WGSL] : []),
-    ...(clip ? [CLIP_DISTANCES_WGSL] : []),
+    ...clipDirective(clipping),
     ...(stage ? [stage] : []),
     ...(diagnostic ? [diagnostic] : []),
   )
-  // A device without clip distances cuts at the plane in each fragment stage (`blendClipped`).
-  return clip ? code : guardedFragments(code, 'VSOut', 'if(blendClipped(in)){discard;}')
+  return cutBlendByPixel(code, clipping)
 }
 
 /** The fragment stage of the runs, its surface and lobes those of `lobes`, and its entry points. */

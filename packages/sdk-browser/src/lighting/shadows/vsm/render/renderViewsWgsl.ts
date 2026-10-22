@@ -1,18 +1,22 @@
 /**
- * THE RASTER'S VIEWS, LISTED ON THE GPU (`../chunks/chunkGroups.ts` `encodeVsmViews`): a thread a map
- * of the view pass (`renderViewPasses.ts`: the `params.viewCount` maps from `params.viewFirst`, the
- * whole frame's in a pass that holds every light), which lists the map as a view (VSM id, mips,
- * flags, layers) where one of its mips has a page to draw this frame (a stale rect,
+ * THE RASTER'S VIEWS, LISTED ON THE GPU (`../chunks/chunkGroups.ts` `encodeVsmViews`): a thread a
+ * light of the frame (`lights`, the CPU's table: its first map's id and its map count, laid by
+ * `vsmWriteLights`), of those whose maps lie in the view pass (`params.viewFirst`,
+ * `params.viewCount`: the ids of its maps, all the frame's in a pass that holds every light), which
+ * lists the light as a group where one of its maps has a page to draw this frame (a stale rect,
  * `vsmStaleRects`, not empty; `layers` bit 0 where one of its dynamic layer, bit 1 its static
- * layer's: the cull drops a caster of a layer it has none of) — the views the cull runs over,
- * their count in the counters' `VSM_RENDER_COUNT_VIEWS` word. A map whose pages are all cached is
- * no view: a still far light costs the raster nothing, however many lights the frame holds. A
- * map's mips are those the raster draws of it (`vsmMapViewMips`, `../mapViews.ts`): one for a clipmap
- * level, every mip from its finest for a local map. The list holds `params.viewCount` views at
- * most, the pass's maps.
+ * layer's: the cull drops a caster of a layer it has none of) — the groups the cull runs over,
+ * their count in the counters' `VSM_RENDER_COUNT_VIEWS` word. A group is its run of listed maps
+ * (id, mips, flags, layers), laid one after the other from `params.lightCount` in `views`, the
+ * counters' `VSM_RENDER_COUNT_RUNS` word reserving them: the run's start and length, its first
+ * map's id and its flags are the group's own entry, at the light's rank in the groups listed
+ * (`views[0 .. lightCount)`). A light whose maps are all cached is no group: a still far light
+ * costs the raster nothing, however many lights the frame holds. A map's mips are those the raster
+ * draws of it (`vsmMapViewMips`, `../mapViews.ts`): one for a clipmap level, every mip from its
+ * finest for a local map.
  *
- * Group 0: `VSM_RENDER_VIEWS_SPECS`; group 1: 0 params (uniform, dynamic), 1 views (rw), 2 counters
- * (rw atomic).
+ * Group 0: `VSM_RENDER_VIEWS_SPECS`; group 1: 0 params (uniform, dynamic), 1 views (rw),
+ * 2 counters (rw atomic), 3 lights (read).
  */
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../../gpu/dispatch/grid.ts'
@@ -34,10 +38,9 @@ export const vsmRenderViewsWgsl = (layout: VsmLayout) =>
 @group(1) @binding(0) var<uniform> params:VsmRenderParams;
 @group(1) @binding(1) var<storage,read_write> views:array<vec4u>;
 @group(1) @binding(2) var<storage,read_write> counts:array<atomic<u32>>;
-@compute @workgroup_size(WORKGROUP_THREADS) fn vsmRenderViews(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
- let local=flatIndex(wid,nwg,1u)*WORKGROUP_THREADS+lane;
- let id=params.viewFirst+local;
- if(local>=params.viewCount||id>=vsm.mapCount){return;}
+@group(1) @binding(3) var<storage,read> lights:array<vec4u>;
+/** Map \`id\`'s view: its id, its mips, its flags and its stale layers (0 when no mip has a page to draw). */
+fn vsmRenderMapView(id:u32)->vec4u{
  let pd=vsmProjectionData[id];
  let directional=pd.lightKind==LIGHT_KIND_DIRECTIONAL;
  let mips=select(VSM_MIPS,1u,directional);
@@ -48,9 +51,35 @@ export const vsmRenderViewsWgsl = (layout: VsmLayout) =>
    if(all(r.xy<=r.zw)){layers|=1u<<layer;}
   }
  }
- if(layers==0u){return;}
- let at=atomicAdd(&counts[VSM_RENDER_COUNT_VIEWS],1u);
- if(at<params.viewCount){views[at]=vec4u(id,mips,select(0u,VSM_RENDER_VIEW_DIRECTIONAL,directional),layers);}
+ return vec4u(id,mips,select(0u,VSM_RENDER_VIEW_DIRECTIONAL,directional),layers);
+}
+@compute @workgroup_size(WORKGROUP_THREADS) fn vsmRenderViews(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
+ let rank=flatIndex(wid,nwg,1u)*WORKGROUP_THREADS+lane;
+ if(rank>=params.lightCount){return;}
+ let light=lights[rank];
+ if(light.x<params.viewFirst||light.x>=params.viewFirst+params.viewCount){return;}
+ let end=min(light.x+light.y,vsm.mapCount);
+ var listed=0u;
+ var first=vec4u(0u);
+ for(var id=light.x;id<end;id++){
+  let view=vsmRenderMapView(id);
+  if(view.w!=0u){
+   if(listed==0u){first=view;}
+   listed++;
+  }
+ }
+ if(listed==0u){return;}
+ let at=atomicAdd(&counts[VSM_RENDER_COUNT_RUNS],listed);
+ var next=at;
+ for(var id=light.x;id<end;id++){
+  let view=vsmRenderMapView(id);
+  if(view.w!=0u){
+   views[params.lightCount+next]=view;
+   next++;
+  }
+ }
+ let slot=atomicAdd(&counts[VSM_RENDER_COUNT_VIEWS],1u);
+ views[slot]=vec4u(at,listed,first.x,first.z);
 }
 `,
     [

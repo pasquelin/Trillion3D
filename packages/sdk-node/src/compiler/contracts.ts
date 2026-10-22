@@ -145,8 +145,8 @@ export interface CompilerEvent {
    *  voxel sides (default 0), whether the rays run along the axes alone (default `false`), whether
    *  a voxel keeps its normals' spread (default `true`) and its coverage as opacity (default
    *  `false`), whether the assembly its glTF `extras.assembly` names — parts and nodes — is built,
-   *  its own triangles and every node's part carried by its transform (default `false`: its own
-   *  triangles alone), the position grid of its pages (cells
+   *  each node a node of the scene carrying its part's mesh, whose pages are written once (default
+   *  `false`: its own triangles alone), the position grid of its pages (cells
    *  of 2^-n centimetre, a whole number from -20 to 43; default none: the mesh's density sets it),
    *  the bits an axis of its normals (1 to 15, default 8) and of its stored tangents' angle (0 to
    *  12, default 7), `objects`

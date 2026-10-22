@@ -36,7 +36,10 @@ import { FOG_SKY_LIGHT_WGSL } from './skyLightWgsl.ts'
  * `frame.tune.w`) longer, so that no cell spikes near the light — a square centimetre at least,
  * `LAMP_BIAS` —, and the window of its range, the cone of a spot; a rectangle by its form factor
  * with no normal (`rectFormOf`). A local light whose `shadowsFog` is set and that holds a shadow
- * slot is shadowed by one sample of its map at the cell's point, as the sun is.
+ * slot is shadowed by one sample of its map at the cell's point, as the sun is. The edge of a spot's
+ * cone and of a rectangle's plane fade over a number of cells (`frame.blend.z`, none by default), so
+ * that they flicker less. An orthographic view's rays are parallel: the eye's direction is the
+ * view's own, its distance the one along the forward.
  */
 export const FOG_LIGHTS_WGSL = wgslBlock(
   'FOG_LIGHTS_WGSL',
@@ -59,14 +62,29 @@ fn fogSun(P:vec3f,toEye:vec3f)->vec3f{
  if(shade<=0.0){return vec3f(0.0);}
  return colour*(shade*hgPhase(frame.medium.x,dot(-light.directionCone.xyz,toEye)));
 }
+/** How much of a spot's light a point keeps near the edge of its cone, over \`fade\` metres: the distance
+ *  of the point inside the cone, over the fade; none for a cone as wide as a half space. */
+fn fogSpotFade(light:DirectLight,P:vec3f,fade:f32)->f32{
+ let cosine=light.directionCone.w;
+ if(cosine<=0.0){return 1.0;}
+ let offset=P-light.positionRange.xyz;
+ let along=dot(light.directionCone.xyz,offset);
+ let across=length(offset-light.directionCone.xyz*along);
+ return saturate((along*sqrt(1.0-cosine*cosine)/cosine-across)/fade);
+}
 /** One local light's light at \`P\`, \`biasSquared\` the squared distance its inverse square is taken
- *  at longer than the real one, in the way of the cell's size: its colour times its share, its
- *  attenuation as a medium sees it (\`volumeLamp\`), its shadow where it shadows the fog, and the
- *  phase function. */
-fn fogLocal(rank:u32,P:vec3f,toEye:vec3f,biasSquared:f32)->vec3f{
+ *  at longer than the real one, in the way of the cell's size, \`fade\` the distance over which the edge
+ *  of its cone or of its plane fades (0 none): its colour times its share, its attenuation as a medium
+ *  sees it (\`volumeLamp\`), faded at the cone's edge or in front of the plane, its shadow where it
+ *  shadows the fog, and the phase function. */
+fn fogLocal(rank:u32,P:vec3f,toEye:vec3f,biasSquared:f32,fade:f32)->vec3f{
 ${REACH('vec3f(0.0)')}
  if(isSun(light)||light.params.z<=0.0){return vec3f(0.0);}
  var seen=volumeLamp(light,P,biasSquared);
+ if(fade>0.0){
+  if(isRect(light)){seen.w*=saturate(dot(P-light.positionRange.xyz,light.directionCone.xyz)/fade);}
+  else if(isSpot(light)){seen.w*=fogSpotFade(light,P,fade);}
+ }
  if(seen.w>0.0&&shadowsFog(light)){seen.w*=shadowFactor(i32(light.params.y),light,P,vec3f(0.0),true);}
  return light.colorIntensity.rgb*lightFunctionFogLocalOf(light.params.x,P)*(light.colorIntensity.w*light.params.z)*(seen.w*hgPhase(frame.medium.x,dot(seen.xyz,toEye)));
 }
@@ -76,8 +94,13 @@ ${REACH('vec3f(0.0)')}
 fn fogLightAt(cell:vec3u,offset:vec3f)->vec3f{
  let P=fogCellPoint(cell,offset).xyz;
  let toEyeFull=frame.eye.xyz-P;
- let span=max(sqrt(dot(toEyeFull,toEyeFull)),1e-6);
- let toEye=toEyeFull/span;
+ var span=max(sqrt(dot(toEyeFull,toEyeFull)),1e-6);
+ var toEye=toEyeFull/span;
+ if(fogOrtho()){
+  // Parallel rays: the eye's direction is the view's own, its distance the one along the forward.
+  span=max(span*span/max(dot(-toEyeFull,frame.forward.xyz),1e-6),1e-6);
+  toEye=-frame.forward.xyz;
+ }
  var light=fogSun(P,toEye);
  if(frame.staticLight.y<=0.0){
   let sky=fogSky(toEye,span);
@@ -86,9 +109,11 @@ fn fogLightAt(cell:vec3u,offset:vec3f)->vec3f{
  let clip=frame.viewProj*vec4f(P,1.0);
  let slice=cellSlice(gridCell((vec2f(cell.xy)+0.5)*frame.grid.w,clip.z/clip.w,vec2u(frame.lighting.yz)));
  if(slice.y>0u){
-  let radius=length(P-fogCellPoint(cell+vec3u(1u),offset).xyz)*frame.tune.w;
-  let biasSquared=max(radius*radius,LAMP_BIAS);
-  for(var index=0u;index<slice.y;index++){light+=fogLocal(listedLight(slice,index),P,toEye,biasSquared);}
+  let radius=max(length(P-fogCellPoint(cell+vec3u(1u),offset).xyz)*frame.tune.w,sqrt(LAMP_BIAS));
+  let biasSquared=radius*radius;
+  // The edge fade is a number of cells of the flat grid: the distance to the cell's far corner on its slice.
+  let fade=select(0.0,length(P-fogCellPoint(cell+vec3u(1u,1u,0u),offset).xyz)*frame.blend.z,frame.blend.z>0.0);
+  for(var index=0u;index<slice.y;index++){light+=fogLocal(listedLight(slice,index),P,toEye,biasSquared,fade);}
  }
  return light;
 }`,

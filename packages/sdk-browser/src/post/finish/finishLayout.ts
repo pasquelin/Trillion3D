@@ -28,20 +28,26 @@ export const GRID_EMPTY = 0.001 / 64
  *   shadows' contrast scale, the detail's strength;
  * - `grid`: the grid's coordinates per image coordinate, the highlight and shadow thresholds;
  * - `reach`: how far past each threshold the contrast scale takes over, highlights then shadows;
- * - `tint`: the scene colour's tint;
+ * - `tint`: the scene colour's tint, 1 in its fourth word where it is not 1 (else not applied);
  * - `fringe`: how far the red and the green are read toward the centre, the start offset, 1 where
  *   the fringe is drawn;
  * - `shape`: the colour the vignette darkens toward, its softness;
  * - `around`: where the vignette is brightest, from the middle of the image, and the reciprocals
  *   of its size;
- * - `grainLevels`: the grain's strength in the dark, middle and bright pixels, 1 where it is drawn;
+ * - `grainLevels`: the grain's strength in the dark, middle and bright pixels, all 0 where it is
+ *   not drawn;
  * - `grainBounds`: the luminance up to which a pixel is dark, from which it starts to be bright
  *   and from which it is wholly so;
- * - `grainLuma`: the weights of a colour's channels in the luminance the grain reads;
  * - `grainDecode`: what each channel of the grain's texture is multiplied by to have a mean of 1;
  * - `grainUv`: the grain's texture coordinates per image coordinate, and their offset;
- * - `dither`: the dither's step, and the offset of its pattern.
- * `screen`'s third word is the vignette's shape, 0 the cosine-fourth law, 1 the oval.
+ * - `dither`: the dither's step, 0 where none is drawn, and the offset of its pattern;
+ * - `keep`: what the image's colour is multiplied by where the glow took some of its light (the
+ *   bloom's convolution moves light, it does not add it), its fourth word 1 where it applies;
+ * - `dirt`: what the glow's dirt mask multiplies it by, `1 + mask × dirt`, per channel — the mask's
+ *   tint times its intensity over the bloom's —, its fourth word 1 where a mask is drawn.
+ * `screen`'s third word is the vignette's shape, 0 the cosine-fourth law, 1 the oval, its fourth
+ * 1 where the vignette's colour is not black. A film effect that is off is a 0 or a 1 the shader
+ * tests once, a uniform branch: the pixel does none of its work.
  */
 export const FINISH = fieldLayout('Finish', [
   ['look', 'vec4f'],
@@ -57,10 +63,11 @@ export const FINISH = fieldLayout('Finish', [
   ['around', 'vec4f'],
   ['grainLevels', 'vec4f'],
   ['grainBounds', 'vec4f'],
-  ['grainLuma', 'vec4f'],
   ['grainDecode', 'vec4f'],
   ['grainUv', 'vec4f'],
   ['dither', 'vec4f'],
+  ['keep', 'vec4f'],
+  ['dirt', 'vec4f'],
 ] as const)
 /** Bytes of the finishing's uniform. */
 export const FINISH_BYTES = FINISH.words * 4
@@ -68,8 +75,8 @@ export const FINISH_BYTES = FINISH.words * 4
 /**
  * The group the finishing reads, 1 of the programs that read it: the uniform, the local
  * exposure's grid and its blurred log luminance, a bilinear sampler, the bloom's glow, the grain's
- * texture and the sampler that repeats it. A slot a frame has nothing for is bound to an empty
- * image, with its flag in the uniform at 0.
+ * texture and the sampler that repeats it, the glow's dirt mask. A slot a frame has nothing for is
+ * bound to an empty image, with its flag in the uniform at 0.
  */
 export const finishLayout = oncePerDevice((device: GPUDevice) => {
   const fragment = GPUShaderStage.FRAGMENT
@@ -83,6 +90,7 @@ export const finishLayout = oncePerDevice((device: GPUDevice) => {
       computeTextureEntry(4, 'float', '2d', fragment),
       computeTextureEntry(5, 'float', '2d', fragment),
       computeSamplerEntry(6, 'filtering', fragment),
+      computeTextureEntry(7, 'float', '2d', fragment),
     ],
   })
 })

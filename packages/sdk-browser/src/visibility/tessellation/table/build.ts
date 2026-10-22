@@ -5,7 +5,7 @@ import { pattern } from './remesh.ts'
  *  its vertex and triangle counts packed `vertices << 13 | triangles << 22` —, and `data`, each
  *  pattern's vertices then its triangles, a pattern at the index its factors give
  *  (`patternIndex`). */
-export type TessellationTable = { offsets: Uint32Array; data: Uint32Array }
+type TessellationTable = { offsets: Uint32Array; data: Uint32Array }
 
 /** Every ordered triple of factors `x >= y >= z` from 1 to `TABLE_SIZE`, in the table's order. */
 function* triples(): Generator<[number, number, number]> {

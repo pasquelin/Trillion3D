@@ -2,6 +2,7 @@ import { validationScope } from '../../gpu/core/errorScope.ts'
 import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { variesVisibility, visVariantFragment } from '../../diagnostic/gpuGeometry.ts'
 import { VIS_FRAGMENT, VIS_ID_PHASE, VIS_UNMASKED } from '../shader/visWgsl.ts'
+import type { Clipping } from '../../gpu/core/clipDistances.ts'
 import { VIS_VOXEL_FRAGMENT, VIS_VOXEL_VERTEX, visVoxelShader } from '../shader/visVoxelWgsl.ts'
 import { BIN_KIND, type BinKind } from '../draw/contract.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
@@ -45,8 +46,8 @@ const twinRank = (kind: BinKind, ids: boolean) => 2 * kind + (ids ? 1 : 0)
  *   bricks and write their depth; the one-sided pipelines alone have one — a voxel row draws by
  *   one side (`rowSide`) —, and every variant but the one that draws no fragment keeps it: a view
  *   shows the voxels' own shape, the x-ray view the boxes. Both phases are made — their module
- *   with them — the first time a frame holds a voxel row (`askVoxelTwin`): a scene without voxels
- *   compiles none.
+ *   with them, cutting at the view's plane where the project switch is on (`Clipping`) — the first
+ *   time a frame holds a voxel row (`askVoxelTwin`): a scene without voxels compiles none.
  * A slot without its twin draws with the pipeline itself.
  */
 const twins = new WeakMap<GPURenderPipeline, Array<GPURenderPipeline | undefined>>()
@@ -101,10 +102,12 @@ function visBuild(
   module: GPUShaderModule,
   bindGroupLayout: GPUBindGroupLayout,
   variant?: DiagnosticGpuVariant,
+  clipping?: Clipping,
 ): VisBuild {
   const twins = !variesVisibility(variant)
   let voxel: GPUShaderModule | undefined
-  const voxelModule = () => (voxel ??= device.createShaderModule({ code: visVoxelShader() }))
+  const voxelModule = () =>
+    (voxel ??= device.createShaderModule({ code: visVoxelShader(clipping) }))
   return {
     ...{ device, module },
     layout: device.createPipelineLayout({
@@ -115,6 +118,25 @@ function visBuild(
     voxelModule: visVariantFragment(variant).fragmentless ? undefined : voxelModule,
   }
 }
+/** A pipeline's voxel twins over `build`'s layout and the states `primitive`: the voxel module's
+ *  stages `module`, in the depth phase and the identifier phase. */
+function voxelPipelines(build: VisBuild, module: GPUShaderModule, primitive: GPUPrimitiveState) {
+  const voxel = (phase: boolean) =>
+    buildRenderPipeline(build.device, {
+      layout: build.layout,
+      vertex: { module, entryPoint: VIS_VOXEL_VERTEX },
+      fragment: {
+        module,
+        entryPoint: VIS_VOXEL_FRAGMENT,
+        targets: [],
+        constants: phased(undefined, phase),
+      },
+      primitive,
+      depthStencil: VIS_DEPTH,
+    })
+  return Promise.all([voxel(false), voxel(true)])
+}
+
 /** The pipeline of a face mode, both halves' and both phases', and its twins (above). */
 async function visPipeline(build: VisBuild, [cullMode, frontFace]: [GPUCullMode, GPUFrontFace]) {
   const { device, layout, module } = build
@@ -152,37 +174,22 @@ async function visPipeline(build: VisBuild, [cullMode, frontFace]: [GPUCullMode,
   }
   twins.set(pipeline, held)
   const voxelModule = cullMode === 'none' ? undefined : build.voxelModule
-  if (voxelModule)
-    voxelRecipes.set(pipeline, () => {
-      const stages = voxelModule()
-      const voxel = (phase: boolean) =>
-        buildRenderPipeline(device, {
-          layout,
-          vertex: { module: stages, entryPoint: VIS_VOXEL_VERTEX },
-          fragment: {
-            module: stages,
-            entryPoint: VIS_VOXEL_FRAGMENT,
-            targets: [],
-            constants: phased(undefined, phase),
-          },
-          primitive,
-          depthStencil: VIS_DEPTH,
-        })
-      return Promise.all([voxel(false), voxel(true)])
-    })
+  if (voxelModule) voxelRecipes.set(pipeline, () => voxelPipelines(build, voxelModule(), primitive))
   return pipeline
 }
 
 /** The visibility raster's pipelines: one per face mode, for both halves, both phases and every
  *  coplanar layer — a layer is the row's own depth units in the visibility write
- *  (`page.depthBias`), never a pipeline's. */
+ *  (`page.depthBias`), never a pipeline's. `clipping`, the way `visModule` cuts at a view's plane
+ *  (the voxel slots' module cuts the same way). */
 export function createWebgpuVisibilityRasterPipelines(
   device: GPUDevice,
   visModule: GPUShaderModule,
   bindGroupLayout: GPUBindGroupLayout,
   variant?: DiagnosticGpuVariant,
+  clipping?: Clipping,
 ) {
-  const build = visBuild(device, visModule, bindGroupLayout, variant)
+  const build = visBuild(device, visModule, bindGroupLayout, variant, clipping)
   return scoped(device, async () => {
     const [back, none, front] = await Promise.all(
       LAYER_CULLS.map((cull) => visPipeline(build, cull)),

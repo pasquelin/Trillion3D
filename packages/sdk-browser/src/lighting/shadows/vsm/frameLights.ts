@@ -66,9 +66,13 @@ function setupDirectionalLights(
     if (light.kind !== 'directional' || !light.direction) continue
     const clipmap = createVsmClipmap(
       state.cache,
-      { id: light.id, direction: light.direction, farShadowDistance },
+      {
+        ...{ id: light.id, direction: light.direction, farShadowDistance },
+        shadowDistance: light.shadowDistance,
+      },
       camera,
       viewport,
+      state.maps,
     )
     suns.push(light)
     clipmaps.push(clipmap)
@@ -107,7 +111,7 @@ function setupLocalLights(
     input.innerConeAngle =
       light.coneAngle !== undefined ? light.coneAngle * (1 - (light.penumbra ?? 1)) : undefined
     input.sourceRadius = light.emitterRadius
-    const setup = addVsmLocalLightShadow(state.cache, input, localViews)
+    const setup = addVsmLocalLightShadow(state.cache, input, localViews, state.maps)
     locals.push(light)
     setups.push(setup)
   }

@@ -48,10 +48,6 @@ pub(crate) struct DagInputs {
     /// The largest world scale its mesh is placed at, which brings its bundles' bands to metres
     /// (`lay_bundles`).
     pub scale: Option<f64>,
-    /// The blocks its arrays are cut in when its mesh is an assembly: each is built as a DAG of its
-    /// own and the levels above their roots join them (`dag::build_assembly`); none for a mesh
-    /// that is not.
-    pub assembly: Option<crate::dag::AssemblyBlocks>,
 }
 /// The DAG of the primitive `pos`, `carried` and `index_values` describe, its pages and what the
 /// later stages read of it, built under `inputs`.
@@ -77,7 +73,6 @@ pub(crate) fn build_dag_primitive(
         root_pages,
         precision,
         scale,
-        assembly,
     } = inputs;
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
     let settings = crate::dag::DagSettings {
@@ -99,14 +94,7 @@ pub(crate) fn build_dag_primitive(
         grown,
         indices,
         triangle_source,
-    } = match &assembly {
-        Some(blocks) => {
-            crate::dag::build_assembly(pos, attributes, index_values, blocks, settings, &|| {
-                check(o)
-            })
-        }
-        None => crate::dag::build_dag(pos, attributes, index_values, settings, &|| check(o)),
-    }?;
+    } = crate::dag::build_dag(pos, attributes, index_values, settings, &|| check(o))?;
     laps.lap("dagMs");
     let (pos, carried) = crate::dag::Grown::arrays(&grown, pos, attributes);
     let attributes = crate::dag::DagAttributes { carried: &carried };

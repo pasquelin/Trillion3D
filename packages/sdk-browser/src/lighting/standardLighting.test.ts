@@ -141,7 +141,7 @@ test('a flat wall, a box’s face and the open sky are unoccluded; a concave cor
     const { aoSearch } = shaderRun<{ aoSearch: (p: number[]) => { value: number } }>(
       aoOcclusionShader(aoShapeOf('final', settings.shaderQuality, false)),
       ['aoSearch'],
-      sceneScope(scene, uniformOf(1, 0, settings)),
+      sceneScope(scene, uniformOf(1, 1, settings)),
     )
     return { scene, at: (x: number, y: number) => aoSearch([x, y]).value }
   }
@@ -196,7 +196,7 @@ test('the occlusion’s passes are the search written apart, through each qualit
       ambientOcclusionQuality: quality,
       ambientOcclusionLevels: levels,
     })
-    assert.equal(chain.passes.length, [1, 3, 5][levels - 1])
+    assert.equal(chain.passes.length, [2, 3, 5][levels - 1])
     assert.ok(chain.worst < 2e-6, `quality ${quality}, ${levels} levels: ${chain.worst}`)
   }
   // The radius in the world's units, a larger bias, power and intensity, another climb of the pyramid.
@@ -244,7 +244,7 @@ test('a pixel blends with its two neighbours of the quad by how alike their norm
   const { aoSearch } = shaderRun<{ aoSearch: (p: number[]) => AoSample }>(
     text,
     ['aoSearch'],
-    sceneScope(scene, uniformOf(1, 0, settings)),
+    sceneScope(scene, uniformOf(1, 1, settings)),
   )
   type AoSample = { value: number; depth: number; normal: number[] }
   const at = (x: number, y: number) => aoSearch([x, y])

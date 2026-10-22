@@ -101,4 +101,10 @@ export type DisplacementWire = {
   magnitude: number
   center: number
   fade: { start: number; end: number } | null
+  /** How many units of the object's space one unit of each of its first four texture-coordinate
+   *  sets covers, measured over the triangles that wear the material (the compiler's
+   *  `uv_density`): the level of the height map each micro-triangle reads is chosen by it, one
+   *  number a set and never one a triangle. Absent where no triangle measured a set, and a set it
+   *  measured not at all is 0; the runtime reads 1 for either. */
+  uvDensities?: readonly number[]
 }

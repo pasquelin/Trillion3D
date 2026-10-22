@@ -15,6 +15,7 @@ import {
 } from '../contracts/worldStreamingOptions.ts'
 import type { SettingRule } from '../contracts/settingRules.ts'
 import { CUT_RULES, type CutField } from '../contracts/cutOptions.ts'
+import { WORLD_SOURCE_MEANINGS, type WorldSourceField } from './worldSourceMeanings.ts'
 import { CUT_VIEW_MEANINGS, type CutViewField } from './cutViewMeanings.ts'
 import { CUT_BUDGET_MEANINGS, type CutBudgetField } from './cutBudgetMeanings.ts'
 import { ANIMATION_RULES, type AnimationField } from '../contracts/animationOptions.ts'
@@ -44,10 +45,13 @@ import { DEPTH_OF_FIELD_MEANINGS } from './depthOfFieldMeanings.ts'
 import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
 import { TESSELLATION_MEANINGS } from './tessellationMeanings.ts'
 import { BLOOM_RULES } from '../contracts/bloomRules.ts'
+import { GAUSSIAN_BLUR_RULES } from '../contracts/gaussianBlurRules.ts'
 import { BLOOM_MEANINGS } from './bloomMeanings.ts'
+import { GAUSSIAN_BLUR_MEANINGS } from './gaussianBlurMeanings.ts'
 import { FILM_RULES } from '../contracts/filmOptions.ts'
 import { FILM_MEANINGS } from './filmMeanings.ts'
-import { VOLUMETRIC_FOG_RULES, type VolumetricFogField } from '../contracts/volumetricFogOptions.ts'
+import { VOLUMETRIC_FOG_RULES } from '../contracts/volumetricFogOptions.ts'
+import { VOLUMETRIC_FOG_MEANINGS } from './volumetricFogMeanings.ts'
 import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
 import { SCREEN_PROBE_MEANINGS } from './screenProbeMeanings.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
@@ -73,7 +77,9 @@ const rasterMeanings = (): Readonly<Record<RasterField, string>> => ({
 
 /** What each setting of a partitioned scene's streaming and of the HLOD warm-up means
  *  (`../contracts/worldStreamingOptions.ts`). */
-const WORLD_STREAMING_MEANINGS: Readonly<Record<WorldStreamingField, string>> = {
+const WORLD_STREAMING_MEANINGS: Readonly<
+  Record<Exclude<WorldStreamingField, WorldSourceField>, string>
+> = {
   worldStreamingMaxLoadingCells:
     'Cells of a partitioned scene that may load at once once the first image is shown; the next in load order starts as one ends. 0 or less, no limit: every cell wished starts at once. The initial load holds none back.',
   worldStreamingAngleWeight:
@@ -112,7 +118,7 @@ const WORLD_STREAMING_MEANINGS: Readonly<Record<WorldStreamingField, string>> = 
   worldStreamingExtraAngle:
     "Degrees added to the angle of the view's sector (worldStreamingSector), a whole turn at most.",
   worldStreamingTargetState:
-    'What the view asks of the cells it reaches: activated, to load and draw them; loaded, to load them and keep them placed in memory without activating them: nothing of them draws, no HLOD cell, HLOD 0 actor nor cell file, and none holds the images back. Cells of a scene whose cut packs no world DAG have nothing to hide and stay drawn.',
+    'What the view asks of the cells it reaches: activated, to load and draw them; loaded, to load them and keep them placed in memory without activating them: no cell file, HLOD 0 actor nor HLOD actor a cell holds draws, and none holds the images back. The actors always loaded — held by no cell — stay activated and drawn. Cells of a scene whose cut packs no world DAG have nothing to hide and stay drawn.',
   hlodEnabled:
     "Whether the HLOD actors load and draw; false, no HLOD cell is held, none draws its actor, and the main grid's cells draw alone.",
   hlodWarmup:
@@ -293,39 +299,6 @@ const SHADOW_MEANINGS: Readonly<Record<Exclude<ShadowField, ShadowViewField>, st
     'Factor from 0 to 2 on the tenth of its span the last near level overlaps into the next: it moves the edge of the far-shadow test past the shadow distance, when a far-field shadow follows. The quality levels write 0, 0.25 and 0.8 below the top one.',
   shadowFarField:
     'Whether a far-field shadow follows the near levels of a directional light whose scaled shadow distance is under 512 metres: the edge of the far-shadow test then lies past the distance by the overlap of the last near level; false puts the edge at the distance. The quality levels turn it off at the two coarser ones.',
-}
-
-/** What each setting of the fog's volume means (`../contracts/volumetricFogOptions.ts`); they apply
- *  where the scene's fog turns its volume on (the sky module's `heightFog.volumetric`). */
-const VOLUMETRIC_FOG_MEANINGS: Readonly<Record<VolumetricFogField, string>> = {
-  volumetricFogQuality:
-    "The quality of the fog's volume, which fixes its grid: off draws none (the analytic fog alone); low cells of 16 pixels, 64 slices deep, 4 lighting samples where a cell has no history; high, the default, 8 pixels, 128 slices, 4 samples; ultra 4 pixels, 128 slices, 16 samples.",
-  volumetricFogReadFilter:
-    "How a surface reads the fog's volume: trilinear, one read; bicubic, a cubic B-spline across the screen from four reads; tricubic, across the depth too from eight.",
-  volumetricFogUsesHistory:
-    "Whether the fog's volume of the image before is blended into this one, so that the samples of many images average: smoother, at the cost of some lag on a light that moves.",
-  volumetricFogMovesSamples:
-    "Whether each image's lighting samples sit at another place in the cell (a low-discrepancy sequence), so that the blend over images averages them; effective with volumetricFogUsesHistory.",
-  volumetricFogHistoryShare:
-    'The share of the previous volume kept in each cell, from 0 to 1: the nearer 1, the smoother and the slower to follow.',
-  volumetricFogSliceSpread:
-    "How the slices are spread along the depth of the fog's volume: the smaller, the more of them lie near the eye.",
-  volumetricFogGlow:
-    'Whether the light the fog emits by itself is read: its glow (heightFog.volumetric.glow of the sky module) and the emissive light of the objects voxelised into it (material.volume).',
-  volumetricFogSkipHidden:
-    'Whether a cell wholly behind the surfaces of its pixels is left unlit, which spares its lighting and keeps what stands behind a wall out of the history.',
-  volumetricFogLampSoftening:
-    "Scale of the cell's size added to the distance a local light's inverse-square falloff is taken at, against the spike near the light.",
-  volumetricFogSampleScatter:
-    'A random offset, in cells, added to each lighting sample, 0 none; effective with volumetricFogMovesSamples.',
-  volumetricFogSurfaceLift:
-    "Cells: how far a cell's sample is moved out of the depth buffer along the depth, so that a cell on a surface does not light itself with what stands behind it; -1, not at all.",
-  volumetricFogLiftRange:
-    'Cells: how far behind the depth buffer a sample is still brought forward (volumetricFogSurfaceLift); only the cells the surface cuts are moved at 1.',
-  volumetricFogVoxelizationSlicesPerPass:
-    'The slices of an object voxelised into the fog (a mesh or a fog volume with a volume material) that make one pass, at least 1; the passes only divide the slices, the sum is the same.',
-  volumetricFogVoxelizationShowOnlyPass:
-    'From 0, the one pass of each voxelised object that is kept, to see where the passes lie (a pass is volumetricFogVoxelizationSlicesPerPass slices from the nearest one the object reaches); -1 keeps them all.',
 }
 
 /** What each setting of the exposure means (`../contracts/exposureOptions.ts`); the first twelve
@@ -598,7 +571,10 @@ export const rasterProperties = () => ruleProperties(RASTER_RULES, rasterMeaning
  *  the exposure's, then the temporal pass's, then the depth pyramid's, then the sun's shadows', then the motion blur's,
  *  then the sky's quality. */
 export const settingRuleProperties = () => ({
-  ...ruleProperties(WORLD_STREAMING_RULES, WORLD_STREAMING_MEANINGS),
+  ...ruleProperties(WORLD_STREAMING_RULES, {
+    ...WORLD_STREAMING_MEANINGS,
+    ...WORLD_SOURCE_MEANINGS,
+  }),
   ...ruleProperties(CUT_RULES, { ...CUT_MEANINGS, ...CUT_VIEW_MEANINGS, ...CUT_BUDGET_MEANINGS }),
   ...ruleProperties(ANIMATION_RULES, ANIMATION_MEANINGS),
   ...ruleProperties(SHADING_RULES, SHADING_MEANINGS),
@@ -615,6 +591,7 @@ export const settingRuleProperties = () => ({
   ...ruleProperties(DEPTH_OF_FIELD_RULES, DEPTH_OF_FIELD_MEANINGS),
   ...ruleProperties(TESSELLATION_RULES, TESSELLATION_MEANINGS),
   ...ruleProperties(BLOOM_RULES, BLOOM_MEANINGS),
+  ...ruleProperties(GAUSSIAN_BLUR_RULES, GAUSSIAN_BLUR_MEANINGS),
   ...ruleProperties(FILM_RULES, FILM_MEANINGS),
   ...ruleProperties(VOLUMETRIC_FOG_RULES, VOLUMETRIC_FOG_MEANINGS),
   ...ruleProperties(SCREEN_PROBE_RULES, SCREEN_PROBE_MEANINGS),

@@ -31,6 +31,8 @@ const config: KnipConfig = {
         // script is dead.
         // Run by hand: the area-light table fit (`ltcTable.ts`).
         'scripts/dev/ltc-fit.ts',
+        // Run by hand: the blue noise masks (`blueNoise.bin`).
+        'scripts/dev/blue-noise.ts',
         // Run by `scripts/build/build.ts`, steps of `pnpm run build`.
         'scripts/build/{build-witnesses,copy-resources}.ts',
         // Run by git through the one-line shims of `.githooks/`.

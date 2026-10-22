@@ -35,7 +35,10 @@ const DEFAULT_PATCHES = 2 * 1048576
  *   a whole number of at least 1, held to what a group's threads hold at three a patch;
  * - `tessellationMaxCandidatePatches` (2 Mi) and `tessellationMaxVisiblePatches` (2 Mi): the
  *   patches the splitting queue and the visible list hold at most, each a whole number from 1; a
- *   patch past either is lost for the image.
+ *   patch past either is lost for the image;
+ * - `tessellationShadowsDirectional` (on) and `tessellationShadowsLocal` (on): whether the
+ *   displaced surfaces cast their displaced shape into the shadow maps of the suns and of the local
+ *   lights; off, the casters of that kind of light keep the flat shape their triangles describe.
  */
 export const TESSELLATION_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -44,6 +47,8 @@ export const TESSELLATION_RULES = /* @__PURE__ */ (() =>
     count('tessellationMaxPatchesPerGroup', 5, 1),
     integer('tessellationMaxCandidatePatches', DEFAULT_PATCHES, PATCH_ENTRIES),
     integer('tessellationMaxVisiblePatches', DEFAULT_PATCHES, PATCH_ENTRIES),
+    flag('tessellationShadowsDirectional', true),
+    flag('tessellationShadowsLocal', true),
   ] as const))()
 /** The field of one tessellation setting. */
 export type TessellationField = keyof typeof TESSELLATION_RULES

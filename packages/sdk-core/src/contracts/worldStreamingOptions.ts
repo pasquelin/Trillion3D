@@ -35,7 +35,8 @@ const LOADING_CELLS: readonly [number, number] = INT32_RANGE
  *  HLOD actors on, the cells wished again only once the view moved 4 m or turned 10° (an update
  *  optimisation on, never forced to run; a quantization of 0 compares the exact value), no shape
  *  forced to the ground, no extra radius (metres) nor angle (degrees), the cells wished to
- *  activate, not only to load. */
+ *  activate, not only to load, the view's priority 128 (normal; 0 the highest, 255 the lowest),
+ *  its velocity not added to the axis the cells are sorted along. */
 const WORLD_STREAMING_SETTINGS = /* @__PURE__ */ (() =>
   ({
     maxLoadingCells: integer('worldStreamingMaxLoadingCells', 4, LOADING_CELLS),
@@ -59,6 +60,8 @@ const WORLD_STREAMING_SETTINGS = /* @__PURE__ */ (() =>
     extraRadius: nonNegative('worldStreamingExtraRadius', 0),
     extraAngle: nonNegative('worldStreamingExtraAngle', 0),
     targetState: choice('worldStreamingTargetState', 'activated', ['activated', 'loaded']),
+    priority: integer('worldStreamingPriority', 128, [0, 255]),
+    useVelocity: flag('worldStreamingUseVelocity', false),
   }) as const)()
 /** How the view streams a partitioned scene's cells, every setting named. */
 export type WorldStreaming = SettingValues<typeof WORLD_STREAMING_SETTINGS>

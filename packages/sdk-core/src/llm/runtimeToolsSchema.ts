@@ -21,6 +21,7 @@ import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
 import { DEPTH_OF_FIELD_RULES } from '../contracts/depthOfFieldRules.ts'
 import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
 import { BLOOM_RULES } from '../contracts/bloomRules.ts'
+import { GAUSSIAN_BLUR_RULES } from '../contracts/gaussianBlurRules.ts'
 import { FILM_RULES } from '../contracts/filmOptions.ts'
 import { VOLUMETRIC_FOG_RULES } from '../contracts/volumetricFogOptions.ts'
 import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
@@ -190,7 +191,7 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_shadows',
-    "Changes from the next frame how a directional light's shadow maps take their casters by distance: the factor on every light's shadow distance, whether the casters past that distance are left out, and whether that test reaches every caster or the world's merged far-field shells alone, and whether the lights whose maps would pass what one pass of the shadow raster lists are drawn in several passes.",
+    "Changes from the next frame how a directional light's shadow maps take their casters by distance: the factor on every light's shadow distance, whether the casters past that distance are left out, and whether that test reaches every caster or the world's merged far-field shells alone, and whether the lights whose maps would pass what one pass of the shadow raster lists are drawn in several passes. It also sets the shadow maps' own: the sun clipmap's levels and depth range, the coarse pages, the resolution biases at rest and while a light moves, the size under which a caster is left out of a map redrawn whole, the rays and steps of a shadow trace, and the page pool.",
     SHADOW_RULES,
   ),
   /* @__PURE__ */ settingTool(
@@ -214,8 +215,13 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
     BLOOM_RULES,
   ),
   /* @__PURE__ */ settingTool(
+    'trillion3d_set_gaussian_blur',
+    "Changes from the next frame how the Gaussian blur of the bloom's levels and of the local exposure's blurred luminance is drawn: the radius from which a blur writes its first pass at half the width, the reach of its kernel as a multiple of its radius, and the most reads of a pass.",
+    GAUSSIAN_BLUR_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
     'trillion3d_set_film',
-    "Changes from the next frame the film effects of the display finishing: the film grain (off by default) with its shares in the dark, middle and bright pixels, its size and its repeat; the colour fringe toward the corners (off by default), its start, quality and cap; the vignette's shape, colour, centre, size and softness (its strength is the scene's); the tonemapper's quality, which gates the vignette and the grain, its sharpening, and the scene's tint; and the dither that hides the display's steps, on by default.",
+    "Changes from the next frame the film effects of the display finishing: the film grain (off by default) with its shares in the dark, middle and bright pixels, its size and its repeat; the colour fringe toward the corners (off by default), its start, quality and cap; the vignette's shape, colour, centre, size and softness (its strength is the scene's); the tonemapper's quality, which gates the vignette and the grain, its sharpening, and the scene's tint; and the dither that hides the display's steps, on by default (24 bits or more switches it off).",
     FILM_RULES,
   ),
   /* @__PURE__ */ settingTool(
@@ -235,7 +241,7 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_reflections',
-    "Changes from the next frame how far a reflected ray looks before the sky answers: the iterations of its march of the screen, and the steps it may take in each of the four rings the world's probes cut it into, the scene's surfaces it meets there lit by what the probes hold.",
+    "Changes from the next frame how the reflections are traced: their level (off, high, ultra, cinematic: how many rays a pixel's reflection is made of and how the rays round it are read), how far a reflected ray looks before the sky answers — the iterations of its march of the screen, the steps it may take in each of the four rings the world's probes cut it into (a ring that spends them before it found a surface is skipped, one that found a surface keeps it), whether and how its first metres are walked in detail, whether the screen is looked at once more past the rings, how far and in how many steps —, what a ray brings back (the ceiling of its radiance, the fog along it, the lit image where a scene hit agrees with the screen) and how the rays are denoised in space and time.",
     REFLECTION_RULES,
   ),
   /* @__PURE__ */ settingTool(

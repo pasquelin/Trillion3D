@@ -14,4 +14,8 @@ export const TESSELLATION_MEANINGS: Readonly<Record<TessellationField, string>> 
     'The patches the splitting queue holds at most for an image, a whole number from 1; 2 097 152 by default. A patch past it is lost for that image.',
   tessellationMaxVisiblePatches:
     'The patches the visible list holds at most for an image, a whole number from 1; 2 097 152 by default. A patch past it is lost for that image.',
+  tessellationShadowsDirectional:
+    'Whether a displaced material casts its displaced shape into the shadow maps of the directional lights (suns), cut into micro-triangles for each shadow map page like the image; true by default. Off, those shadows keep the flat surface the triangles describe. Needs the tessellation to be on.',
+  tessellationShadowsLocal:
+    'Whether a displaced material casts its displaced shape into the shadow maps of the local lights (points and spots), cut into micro-triangles for each shadow map page like the image; true by default. Off, those shadows keep the flat surface the triangles describe. Needs the tessellation to be on.',
 }

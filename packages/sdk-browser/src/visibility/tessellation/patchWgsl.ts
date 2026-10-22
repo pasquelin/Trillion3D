@@ -1,39 +1,39 @@
-import { wgslBlock, wgslFn, wgslStruct } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn, wgslStruct, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import {
-  BARYCENTRIC_MAX,
+  BARYCENTRIC_ONE,
   PATTERN_FLIP,
   TABLE_DATA_WORD,
-  TABLE_PO2_SIZE,
+  TABLE_STRIDE,
   TABLE_SIZE,
 } from './contract.ts'
 
 /**
  * A triangle's patches, as the shaders read them: a patch is a sub-triangle of a source triangle,
- * the barycentrics of its three corners each a fraction of `BARYCENTRIC_MAX` in 15 bits, two to a
+ * the barycentrics of its three corners each a fraction of `BARYCENTRIC_ONE` in 15 bits, two to a
  * word — the third is what is left —, and the pattern that cuts it is read from the table
  * (`table/build.ts`) at the binding `tess`, an `array<u32>` the host declares.
  */
 
 /** A barycentric triple as the two 16-bit halves of a word: each rounded to the grid, the largest
  *  recomputed from the other two so that the three sum to the whole. */
-export const encodeBarycentrics = wgslFn(
-  'encodeBarycentrics',
+export const packCorner = wgslFn(
+  'packCorner',
   [],
-  `fn encodeBarycentrics(b:vec3f)->u32{
- var r=round(b*${BARYCENTRIC_MAX}.0);
- if(r.x>max(r.y,r.z)){r.x=${BARYCENTRIC_MAX}.0-r.y-r.z;}
- else if(r.y>r.z){r.y=${BARYCENTRIC_MAX}.0-r.x-r.z;}
- else{r.z=${BARYCENTRIC_MAX}.0-r.x-r.y;}
+  `fn packCorner(b:vec3f)->u32{
+ var r=round(b*${BARYCENTRIC_ONE}.0);
+ if(r.x>max(r.y,r.z)){r.x=${BARYCENTRIC_ONE}.0-r.y-r.z;}
+ else if(r.y>r.z){r.y=${BARYCENTRIC_ONE}.0-r.x-r.z;}
+ else{r.z=${BARYCENTRIC_ONE}.0-r.x-r.y;}
  return u32(r.x)|(u32(r.y)<<16u);
 }`,
 )
 
-/** The triple `encodeBarycentrics` wrote. */
-export const decodeBarycentrics = wgslFn(
-  'decodeBarycentrics',
+/** The triple `packCorner` wrote. */
+export const unpackCorner = wgslFn(
+  'unpackCorner',
   [],
-  `fn decodeBarycentrics(e:u32)->vec3f{
- let x=f32(e&0xffffu)/${BARYCENTRIC_MAX}.0;let y=f32(e>>16u)/${BARYCENTRIC_MAX}.0;
+  `fn unpackCorner(e:u32)->vec3f{
+ let x=f32(e&0xffffu)/${BARYCENTRIC_ONE}.0;let y=f32(e>>16u)/${BARYCENTRIC_ONE}.0;
  return vec3f(x,y,1.0-x-y);
 }`,
 )
@@ -49,15 +49,15 @@ export const patchBarycentrics = wgslFn(
 /**
  * How many pieces each edge of a patch is cut in, before they are rounded to a pattern: the edge's
  * length in the world over the depth of its nearer end — at least the near plane, one in an
- * orthographic view — times `lodScale`, the pixels a unit subtends at depth one per pixel an edge
- * is allowed (the cut's), times `invDiceRate`, the pixels an edge is allowed over the dicing rate;
+ * orthographic view — times `edgesPerUnit`, the pixels a unit subtends at depth one per pixel an edge
+ * is allowed (the cut's), times `piecesPerEdge`, the pixels an edge is allowed over the dicing rate;
  * a quarter of that where the edge lies farther than `lowDistance` (above 0), past which the
  * displacement has faded. `world` holds the three corners in the world, `depth` their depths.
  */
 export const edgeFactors = wgslFn(
   'edgeFactors',
   [],
-  `fn edgeFactors(world:mat3x3f,depth:vec3f,near:f32,perspective:bool,lodScale:f32,invDiceRate:f32,lowDistance:f32)->vec3f{
+  `fn edgeFactors(world:mat3x3f,depth:vec3f,near:f32,perspective:bool,edgesPerUnit:f32,piecesPerEdge:f32,lowDistance:f32)->vec3f{
  var f=vec3f(0.0);var far=vec3f(1.0);
  for(var i=0u;i<3u;i++){
   let next=(i+1u)%3u;
@@ -65,27 +65,27 @@ export const edgeFactors = wgslFn(
   f[i]=length(world[i]-world[next])/scale;
   if(perspective&&lowDistance>0.0&&scale>lowDistance){far[i]=0.25;}
  }
- return f*lodScale*invDiceRate*far;
+ return f*edgesPerUnit*piecesPerEdge*far;
 }`,
 )
 
 /** The depth beyond which an edge is cut a quarter as finely: where the largest displacement
  *  (`absMax`, at the object's `scale`) subtends `fadeOut` pixels; zero without a fade. */
-export const lowTessDistance = wgslFn(
-  'lowTessDistance',
+export const quarterRateDepth = wgslFn(
+  'quarterRateDepth',
   [],
-  `fn lowTessDistance(absMax:f32,scale:f32,lodScale:f32,fadeOut:f32)->f32{
+  `fn quarterRateDepth(absMax:f32,scale:f32,edgesPerUnit:f32,fadeOut:f32)->f32{
  if(fadeOut==0.0){return 0.0;}
- return (absMax*scale*lodScale)/fadeOut;
+ return (absMax*scale*edgesPerUnit)/fadeOut;
 }`,
 )
 
 /** The factors a triangle that is too large is first cut by: a fourteenth, which one pattern of the
  *  table then holds. */
-export const splitFactors = wgslFn(
-  'splitFactors',
+export const coarseFactors = wgslFn(
+  'coarseFactors',
   [],
-  `fn splitFactors(f:vec3f)->vec3f{return f/${TABLE_SIZE}.0;}`,
+  `fn coarseFactors(f:vec3f)->vec3f{return f/${TABLE_SIZE}.0;}`,
 )
 
 /** A patch's edge factors turned for the table (`sortedFactors`): the factors, which corner of the
@@ -118,7 +118,7 @@ export const patternOf = wgslFn(
   'patternOf',
   [],
   `fn patternOf(f:vec3f,flip:bool)->u32{
- let index=u32(f.x+f.y*${TABLE_PO2_SIZE}.0+f.z*${TABLE_PO2_SIZE * TABLE_PO2_SIZE}.0-${1 + TABLE_PO2_SIZE + TABLE_PO2_SIZE * TABLE_PO2_SIZE}.0);
+ let index=u32(f.x+f.y*${TABLE_STRIDE}.0+f.z*${TABLE_STRIDE * TABLE_STRIDE}.0-${1 + TABLE_STRIDE + TABLE_STRIDE * TABLE_STRIDE}.0);
  return index|select(0u,${PATTERN_FLIP}u,flip);
 }`,
 )
@@ -126,13 +126,18 @@ export const patternOf = wgslFn(
 /** A word of the `tess` buffer, the table's, the queue's, the lists': the program declares it as an
  *  `array<atomic<u32>>`, which a kernel that counts into it must, and every read goes by `atomicLoad`. */
 export const tessWord = wgslFn('tw', [], 'fn tw(i:u32)->u32{return atomicLoad(&tess[i]);}')
+/** The same read where the program declares `tess` as a plain read-only `array<u32>`: a vertex stage
+ *  binds no writable buffer. */
+export const tessWordPlain = wgslFn('tw', [], 'fn tw(i:u32)->u32{return tess[i];}')
 
 /** A pattern as the table holds it: where its words start, and its pattern number with the counts
- *  of its vertices and triangles above it (`vertices << 13 | triangles << 22`). */
-export const PATTERN_WGSL = wgslBlock(
-  'PATTERN_WGSL',
-  [decodeBarycentrics, tessWord],
-  `struct Pattern{offset:u32,packed:u32,}
+ *  of its vertices and triangles above it (`vertices << 13 | triangles << 22`); read by `word`, the
+ *  `tw` the program's `tess` is read with. */
+const patternWgsl = (name: string, word: WgslDecl) =>
+  wgslBlock(
+    name,
+    [unpackCorner, word],
+    `struct Pattern{offset:u32,packed:u32,}
 /** The pattern \`bits\` (\`patternOf\`) of the table. */
 fn patternAt(bits:u32)->Pattern{
  let at=2u*(bits&0xfffu);
@@ -142,32 +147,39 @@ fn patternBits(p:Pattern)->u32{return p.packed&0x1fffu;}
 fn patternVertices(p:Pattern)->u32{return (p.packed>>13u)&0x1ffu;}
 fn patternTriangles(p:Pattern)->u32{return p.packed>>22u;}
 /** Vertex \`i\` of the pattern: its barycentrics on the patch. */
-fn patternVertex(p:Pattern,i:u32)->vec3f{return decodeBarycentrics(tw(${TABLE_DATA_WORD}u+p.offset+i));}
+fn patternVertex(p:Pattern,i:u32)->vec3f{return unpackCorner(tw(${TABLE_DATA_WORD}u+p.offset+i));}
 /** The three vertices of triangle \`t\` of the pattern, in the winding the patch has. */
 fn patternCorners(p:Pattern,t:u32)->vec3u{
  let w=tw(${TABLE_DATA_WORD}u+p.offset+patternVertices(p)+t);
  let v=vec3u(w&1023u,(w>>10u)&1023u,(w>>20u)&1023u);
  return select(v,vec3u(v.x,v.z,v.y),(p.packed&${PATTERN_FLIP}u)!=0u);
 }`,
-)
+  )
+export const PATTERN_WGSL = patternWgsl('PATTERN_WGSL', tessWord)
+/** The patterns of a program that reads `tess` plain (`tessWordPlain`). */
+export const PATTERN_PLAIN_WGSL = patternWgsl('PATTERN_PLAIN_WGSL', tessWordPlain)
 
 /** A box by its low and high corners. */
 export const BOX3 = wgslStruct('Box3', [], 'struct Box3{lo:vec3f,hi:vec3f,}')
 /**
  * The box a patch's corners span, grown by what a displacement of `[dMin, dMax]` along normals in
- * the cone of axis `center` and half-angle cosine `coneCos` can move them: per axis, the extreme
- * of the displacement times the cone's cap over that axis, both ends and both signs.
+ * the cone of axis `center` and half-angle cosine `coneCos` can move them: per axis, the extremes
+ * of the product of the cone's cap over that axis (the least and the greatest component of a unit
+ * vector in the cone, one where the cone holds the axis, minus one where it holds its opposite) and
+ * the displacement, over the four products of the two ends. A cone that straddles an axis has its
+ * greatest push at the other cap's end of the range, which two of the four products would leave out.
  */
-export const displaceBounds = wgslFn(
-  'displaceBounds',
+export const boxGrownByDisplacement = wgslFn(
+  'boxGrownByDisplacement',
   [BOX3],
-  `fn displaceBounds(center:vec3f,coneCos:f32,dMin:f32,dMax:f32,box:Box3)->Box3{
+  `fn boxGrownByDisplacement(center:vec3f,coneCos:f32,dMin:f32,dMax:f32,box:Box3)->Box3{
  let a=coneCos*abs(center);
  let b=sqrt(saturate(1.0-coneCos*coneCos)*saturate(1.0-center*center));
- let capMin=a-b;
+ let capMin=select(a-b,vec3f(-1.0),-abs(center)>=vec3f(coneCos));
  let capMax=select(a+b,vec3f(1.0),abs(center)>=vec3f(coneCos));
- let low=select(capMax,capMin,dMin>0.0)*dMin;
- let high=select(capMin,capMax,dMax>0.0)*dMax;
+ let p0=capMin*dMin;let p1=capMin*dMax;let p2=capMax*dMin;let p3=capMax*dMax;
+ let low=min(min(p0,p1),min(p2,p3));
+ let high=max(max(p0,p1),max(p2,p3));
  let up=center>=vec3f(0.0);
  return Box3(box.lo+select(-high,low,up),box.hi+select(-low,high,up));
 }`,

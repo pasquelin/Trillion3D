@@ -4,10 +4,10 @@
 // along the long axis of a stretched one.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { REFLECTION_CONSTANTS } from './constants.ts'
-import { reflectionRunner, sceneOver, viewOf } from './scene.fixture.ts'
+import { REFLECTION_CONSTANTS, REFLECTION_COUNTS } from './constants.ts'
+import { reflectionRunner, sceneFromDepth, sceneOver, viewOf } from './scene.fixture.ts'
 import { depthField } from './depthField.fixture.ts'
-import { camera, castBoxes, type Box } from './boxes.fixture.ts'
+import { camera, castBoxes, rasterize, type Box } from './boxes.fixture.ts'
 import type { Vec3 } from '../../../../math/src/vector/vectorTuple.ts'
 
 const TAPS = REFLECTION_CONSTANTS.REFLECTION_TAPS
@@ -54,12 +54,13 @@ test('a thin sheet over a plank reflects no streak at grazing angles', () => {
         const P = [0, 1, 2].map((k) => eye[k] + d[k] * front.t) as Vec3
         if (Math.abs(P[2] - sheet.high[2]) > 1e-9) continue
         const R: Vec3 = [d[0], d[1], -d[2]]
+        const N: Vec3 = [0, 0, 1]
         const seen = scene.reflectionSeen(
           P,
-          [0, 0, 1],
+          N,
           scene.reflectionLobeOf(R, 0.01, [0, 0, 0, 0.01]),
-          scene.reflectionPixelAt(P),
-        )
+          scene.reflectionRayBias(P, N),
+        ).answer
         if (!(seen.confidence > 0)) continue
         hits++
         const Q = seen.color
@@ -156,4 +157,105 @@ test('a round footprint is one tap at its level; a stretched one, taps along its
       `${span}`,
     )
   }
+})
+
+test('the screen is marched over a span of the ray alone: past a hit or short of it, nothing', () => {
+  // A floor and a wall in front of it, seen from above the floor: the mirror ray of a floor point climbs to the wall.
+  const wall: Box = { low: [-20, 0, -12], high: [20, 8, -11] }
+  const floor: Box = { low: [-20, -0.2, -30], high: [20, 0, 30] }
+  const view = camera([0, 2, 6], [0, 1, -10], 192, 108, (50 * Math.PI) / 180)
+  const scene = sceneOver(view, [floor, wall])
+  const P: Vec3 = [0, 0, 0],
+    N: Vec3 = [0, 1, 0]
+  const lobe = scene.reflectionLobeOf([0, 0.316, -0.949], 0.01, [0, 0, 0, 0.01])
+  const bias = scene.reflectionRayBias(P, N)
+  const whole = scene.reflectionSeen(P, N, lobe, bias)
+  assert.ok(whole.answer.confidence > 0, 'the wall is seen')
+  // The distance the march finds along the span, none where it meets nothing.
+  const span = (start: number, stop: number) => {
+    const ray = scene.reflectionRaySpan(P, N, lobe, bias, start, stop)
+    const marched = scene.screenMarch(
+      ray.o,
+      ray.d,
+      ray.end,
+      scene.reflectionThickness(),
+      scene.relativeThickness,
+      scene.slab,
+      50,
+      true,
+    )
+    return marched.t < 0 ? undefined : scene.reflectionRayDistance(ray, marched.t)
+  }
+  // The wall lies about 11.6 along the ray: the whole ray finds it, and so does a span that brackets it.
+  assert.ok(Math.abs(span(0, 1e9)! - whole.answer.distance) < 0.2, `${span(0, 1e9)}`)
+  assert.ok(Math.abs(span(5, 1e9)! - whole.answer.distance) < 0.2, `${span(5, 1e9)}`)
+  assert.equal(span(14, 1e9), undefined, 'a span that starts past the wall sees none')
+  assert.equal(span(0, 8), undefined, 'a span that ends short of it sees none')
+  // On a hit, where the screen stopped knowing the ray is the wall's distance.
+  assert.equal(whole.left, whole.answer.distance)
+})
+
+test('the screen is looked at once more where the ray left the field, from the outermost cube’s exit drawn back by its steps’ jitter', () => {
+  const wall: Box = { low: [-20, 0, -12], high: [20, 8, -11] }
+  const floor: Box = { low: [-20, -0.2, -30], high: [20, 0, 30] }
+  const view = camera([0, 2, 6], [0, 1, -10], 192, 108, (50 * Math.PI) / 180)
+  const [field, views] = sceneFromDepth(view, rasterize(view, [floor, wall]).depth)
+  // The far trace on (the scene's flags' third bit), 100 m long; a field of one cube, `half` from the origin each way.
+  views.reflectionView.scene = [50, 0, 0, REFLECTION_COUNTS.REFLECTION_DISTANT_TRACES]
+  views.reflectionView.reach = [0, 0, 0, 100]
+  const run = (half: number) =>
+    reflectionRunner(field, views, {
+      bounce: {
+        counts: [8, 1, 0, 1],
+        levels: [{ base: [-4, -4, -4], spacing: half / 4 }],
+        reach: [200, 0, 0, 0],
+      },
+    })
+  const P: Vec3 = [0, 0, 0],
+    N: Vec3 = [0, 1, 0]
+  const far = (half: number) => {
+    const scene = run(half)
+    const lobe = scene.reflectionLobeOf([0, 0.316, -0.949], 0.01, [0, 0, 0, 0.01])
+    return scene.reflectionDistant(P, N, lobe, [0, 0])
+  }
+  // The ray leaves a cube of half 4 at about 4.2 along it, before the wall at 11.6: the far trace, from the exit less
+  // (1 − t) / 31 of its length (the 16 steps' jitter, t the exit's share of it), sees the wall.
+  assert.ok(far(4).confidence > 0 && Math.abs(far(4).distance - 11.6) < 0.5)
+  // One of half 14 holds the wall: the far trace starts past the ray's exit less the jitter, at about 11.9, and still sees
+  // the wall it lies within the slope tolerance of (2 by default).
+  assert.ok(far(14).confidence > 0 && Math.abs(far(14).distance - 11.7) < 0.5)
+  // The far trace starts at the cube's exit, drawn in by a voxel of 252 across the cube, less (1 − t) / 31 of its length.
+  const near = run(4)
+  const lobe = near.reflectionLobeOf([0, 0.316, -0.949], 0.01, [0, 0, 0, 0.01])
+  const [entry, exit] = near.reflectionRingSpan(0, P, lobe.R)
+  assert.equal(entry, 0)
+  const t = exit / 100
+  assert.ok(Math.abs(near.reflectionDistantStart(P, lobe.R) - (t + (t - 1) / 31) * 100) < 1e-4)
+  // With the switch off, or no field, none.
+  views.reflectionView.scene = [50, 0, 0, 0]
+  assert.equal(far(4).confidence, 0)
+})
+
+test('a hit takes the lit image only where it agrees with the depth and faces the eye; a ray brings back no more than its ceiling', () => {
+  const wall: Box = { low: [-20, 0, -12], high: [20, 8, -11] }
+  const view = camera([0, 2, 6], [0, 1, -10], 192, 108, (50 * Math.PI) / 180)
+  const [field, views] = sceneFromDepth(view, rasterize(view, [wall]).depth)
+  views.reflectionView.light = [40, 0.01, Math.cos((85 * Math.PI) / 180), 1000]
+  const scene = reflectionRunner(field, views)
+  const eye: Vec3 = [0, 2, 6],
+    d = view.ray(96.5, 54.5)
+  const front = castBoxes(eye, d, [wall]).t
+  const at = (t: number) => [0, 1, 2].map((k) => eye[k] + d[k] * t) as Vec3
+  const facing: Vec3 = [0, 0, 1]
+  // The wall's own point agrees with the depth the image drew: the lit image's texel, the pixel it projects to, whole.
+  const held = scene.reflectionHeld(at(front), facing)
+  const pixel = view.project(at(front))
+  assert.ok(Math.abs(held[0] - pixel[0]) < 1 && Math.abs(held[1] - pixel[1]) < 1, `${held}`)
+  assert.ok(held[3] > 0.9, `${held[3]}`)
+  // A point a metre behind the wall, or one whose face looks away from the eye, takes nothing.
+  assert.equal(scene.reflectionHeld(at(front + 1), facing)[3], 0, 'off the depth')
+  assert.equal(scene.reflectionHeld(at(front), [0, 0, -1])[3], 0, 'facing away')
+  // The ceiling: the largest component 40, the colour scaled whole; a radiance under it unchanged.
+  assert.deepEqual(scene.reflectionClampRay([100, 50, 10]), [40, 20, 4])
+  assert.deepEqual(scene.reflectionClampRay([10, 5, 1]), [10, 5, 1])
 })

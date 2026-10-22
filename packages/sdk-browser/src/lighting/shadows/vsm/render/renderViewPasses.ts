@@ -2,9 +2,11 @@
  * THE RASTER'S VIEW PASSES (`renderPass.ts`): the frame's lights, in the order of their map ids,
  * grouped into the passes that each list and cull their own views over the caster rows. A view of
  * the raster is a map — its mips are looped inside the cull —, and the cull runs a thread row per
- * listed map on the y axis of one dispatch, so a pass lists at most as many maps as a dispatch has
- * rows: `maxComputeWorkgroupsPerDimension` (65 535 on any device), and the ids the commands and
- * the pairs pack are `VSM_MAP_ID_BITS` wide, which no frame passes (`layout.mapSlots`). A light is
+ * listed light on the y axis of one dispatch (`vsmRenderViews`, `vsmRenderCull`): a pass lists at
+ * most as many lights as a dispatch has rows, `maxComputeWorkgroupsPerDimension` (65 535 on any
+ * device), and so at most that many maps — a light holds one at least —; the ids the commands and
+ * the pairs pack are `VSM_MAP_ID_BITS` wide, which no frame passes (`layout.mapSlots`). The limit
+ * counts maps, which bound the lights from above and are what the ids number. A light is
  * never split: when the next one would take the pass past what a dispatch carries, the pass closes
  * and a new one opens (`vsmViewPasses`). A frame whose lights fit has one pass, which is what the
  * raster always was; `multipass` off (the setting `shadowMultipassViews`) keeps every light in one
@@ -24,8 +26,9 @@ export const VSM_MAP_ID_BITS = 16
  *  timed passes are sized for it (`gpu/timing/vsmPasses.ts`). */
 export const VSM_MAX_VIEW_PASSES = ceilDiv(1 << VSM_MAP_ID_BITS, groupWidth())
 
-/** The maps a view pass lists at most on a device of `limits`: the rows of its dispatch, none past
- *  the ids a map takes; unbounded when `multipass` is off. */
+/** The maps a view pass takes at most on a device of `limits`: the rows of its dispatch — its
+ *  lights are at most its maps —, none past the ids a map takes; unbounded when `multipass` is
+ *  off. */
 export const vsmViewsPerPass = (limits: Parameters<typeof groupWidth>[0], multipass: boolean) =>
   multipass ? Math.min(groupWidth(limits), 1 << VSM_MAP_ID_BITS) : Infinity
 

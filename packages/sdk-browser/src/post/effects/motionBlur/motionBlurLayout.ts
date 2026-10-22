@@ -21,14 +21,32 @@ export const GATHER_REACH = 3
  *  that one range of the classifying pass covers. */
 export const FILTER_TILE = 16
 
-/** The flattened motion of each texel, one word of 4 bytes: its length in pixels and its angle
- *  (0 to 1 round the circle) as unsigned floats of 11 bits (5 of exponent, 6 of mantissa), its
- *  scene depth, in centimetres, as one of 10 (`FLAT_PACK_WGSL`): the precision of a 3-channel
- *  11-11-10 float, what an image of a 3840 × 2160 render keeps in 33 MB. */
-export const FLAT_FORMAT: GPUTextureFormat = 'r32uint'
-/** Centimetres in a unit of the scene (a metre), the unit the flattened depth is kept and weighed
- *  in: the soft extent of a depth test is one of them. */
-export const CENTIMETRES_PER_UNIT = 100
+/** How the flattened motion of each texel is kept — its length in pixels, its angle (0 to 1 round
+ *  the circle) and its scene depth, in centimetres —: under a perspective projection in one word of
+ *  4 bytes, three unsigned floats of 11, 11 and 10 bits (`packLight`: 5 bits of exponent and 6, 6 and 5
+ *  of mantissa), what an image of a 3840 × 2160 render keeps in 33 MB; under an orthographic one, whose
+ *  depth is linear and wants its precision, in 32-bit floats, 16 bytes. */
+export type FlatForm = 'packed' | 'float'
+/** What each form is: the texture's format, the type its texels are read as in the shader, and
+ *  the sample type its binding is declared with. */
+export const FLAT_FORMS = {
+  packed: { format: 'r32uint', value: 'u32', sample: 'uint' },
+  float: { format: 'rgba32float', value: 'f32', sample: 'unfilterable-float' },
+} as const satisfies Record<
+  FlatForm,
+  { format: GPUTextureFormat; value: string; sample: GPUTextureSampleType }
+>
+/** The form of the flattened motion of a view of a `perspective` projection or not. */
+export const flatFormOf = (perspective: boolean): FlatForm => (perspective ? 'packed' : 'float')
+
+/** What the blur's programs are made for: the motions a tile keeps and a pixel gathers along, and
+ *  how the flattened motion is kept. */
+export type BlurVariant = { directions: 1 | 2; flat: FlatForm }
+/** The variant every blur has its programs for from the first: one direction, the perspective's form. */
+export const BASE_VARIANT: BlurVariant = { directions: 1, flat: 'packed' }
+/** Whether two variants are the same. */
+export const sameVariant = (a: BlurVariant, b: BlurVariant) =>
+  a.directions === b.directions && a.flat === b.flat
 /** The range of each tile: its smallest motion and its largest, in pixels; with two directions
  *  beside it, in an image of the same format, the second largest in its first two channels. */
 export const TILE_FORMAT: GPUTextureFormat = 'rgba16float'
@@ -99,7 +117,7 @@ export function motionBlurBytes(width: number, height: number) {
     textureBytesOf({ size, format }) ?? 0
   return (
     bytes([width, height], OUTPUT_FORMAT) +
-    bytes([width, height], FLAT_FORMAT) +
+    bytes([width, height], FLAT_FORMS[BASE_VARIANT.flat].format) +
     2 * bytes(tile, TILE_FORMAT) +
     bytes(tile, TILE_DEPTH_FORMAT) +
     TILE_CLASSES.length * listBytes(classEntries(width, height), 1) +

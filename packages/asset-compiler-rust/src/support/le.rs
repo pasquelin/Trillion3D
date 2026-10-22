@@ -67,6 +67,16 @@ pub(crate) fn words<'a, const N: usize, T: 'a>(
     bytes.as_chunks::<N>().0.iter().copied().map(from)
 }
 
+/// The little-endian bytes of `values`, four each: what a glTF float accessor holds, written.
+pub(crate) fn f32_bytes(values: &[f32]) -> Vec<u8> {
+    values.iter().flat_map(|v| v.to_le_bytes()).collect()
+}
+
+/// The little-endian bytes of `values`, four each: what a glTF 32-bit index accessor holds.
+pub(crate) fn u32_bytes(values: &[u32]) -> Vec<u8> {
+    values.iter().flat_map(|v| v.to_le_bytes()).collect()
+}
+
 /// `bytes` up to their first null byte, all of them when there is none: a C string's text.
 pub(crate) fn until_nul(bytes: &[u8]) -> &[u8] {
     let end = bytes.iter().position(|byte| *byte == 0);

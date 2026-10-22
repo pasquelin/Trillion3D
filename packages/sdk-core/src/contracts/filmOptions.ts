@@ -6,6 +6,7 @@ import {
   nonNegativeSetting as nonNegative,
   numberSetting as number,
   rulesOf,
+  contextReader,
   type SettingOptions,
   type SettingValues,
 } from './settingRules.ts'
@@ -32,41 +33,8 @@ export const VIGNETTE_TYPES = ['cosineFourthLaw', 'oval'] as const
 /** The levels of the colour fringe's quality: none, or the fringe read with three samples. */
 const FRINGE_LEVELS = ['off', 'high'] as const
 
-/** The fringe's intensity, in percent, over which the effect draws at all: a smaller one is
- *  skipped. */
-export const FRINGE_LEAST = 0.01
-/** The fringe's intensity `chromaticAberrationMax` of −2 forces, to look at an extreme one. */
-export const FRINGE_EXTREME = 5
-/** The wavelengths of the three primaries, in nanometres: a simple lens bends a colour
- *  roughly in proportion to its wavelength's distance from the blue's. */
-export const FRINGE_PRIMARIES = { red: 611.3, green: 549.1, blue: 464.3 } as const
-/** The fringe's shift of a colour per nanometre away from the blue's wavelength, for an intensity
- *  of 100 percent, as a share of the position's distance past the start offset: the shift is
- *  `intensity / 100 × 0.007 × nanometres`, over what remains of the image past that offset. */
-export const FRINGE_PER_NANOMETRE = 0.007
-/** The start offset from which the fringe does nothing: the whole image lies under it. */
-export const FRINGE_START_LIMIT = 1 - 1e-4
-
-/** The tonemapper quality under which the vignette is off. */
-export const VIGNETTE_LEAST_QUALITY = 2
-/** The tonemapper quality under which the grain is off. */
-export const GRAIN_LEAST_QUALITY = 4
 /** The strongest sharpening the tonemapper takes. */
 const SHARPEN_MOST = 10
-
-/** Side of the grain's texture, in texels. */
-export const GRAIN_TEXTURE_SIDE = 128
-/** Width of the image, in pixels, the grain's texels are sized for: at this width a texel is a
- *  pixel at a `filmGrainScale` of 1, and the grain grows with the image. */
-export const GRAIN_REFERENCE_WIDTH = 1920
-/** The smallest `filmGrainScale` read: under it the grain would grow past every image. */
-export const GRAIN_LEAST_SCALE = 0.001
-/** The smallest `vignetteSize` read. */
-export const VIGNETTE_LEAST_SIZE = 0.001
-
-/** The bits of a channel whose level the dither's step is, where the display target is not an
- *  8-bit one: ten. An 8-bit target steps by 1/255. */
-export const DITHER_OTHER_BITS = 10
 
 /**
  * The film settings by field, each with the reference's default.
@@ -89,8 +57,8 @@ export const DITHER_OTHER_BITS = 10
  * their wavelengths, the blue staying where it is (`chromaticAberration` is 0, off, by default):
  * - `chromaticAberration` (0): the intensity, in percent of the distance to the centre; an
  *   intensity of at most 0.01 draws nothing;
- * - `chromaticAberrationStartOffset` (0), from 0 to 1: the distance from the centre, 1 the
- *   corner's, where the fringe starts; 1 draws nothing;
+ * - `chromaticAberrationStartOffset` (0), from 0 to 1: how far from the centre along each axis the
+ *   fringe starts, 1 the edge of the image; 1 draws nothing;
  * - `chromaticAberrationQuality` (`'high'`): `'off'` draws none whatever the intensity;
  * - `chromaticAberrationMax` (−1): −1 leaves the intensity as it is, 0 or more caps it there, −2
  *   forces an extreme one, 5, to look at the fringe.
@@ -114,8 +82,9 @@ export const DITHER_OTHER_BITS = 10
  *
  * The dither adds a triangular noise of one step of the display's channel to the colour shown, so
  * that a smooth gradient does not band: `quantizationDitheringBits` (0): 0 takes the step from the
- * target — 1/255 for an 8-bit target, 1/1023 for another —, a number of bits from 1 makes the step
- * 1/(2^bits − 1), 32 or so making it too small to show.
+ * display — 1/255 for an 8-bit one —, a number of bits from 1 makes the step 1/(2^bits − 1); from
+ * 24 bits the step is under what a single-precision colour holds, and no dither is drawn: the way
+ * to switch it off, for images compared pixel for pixel.
  */
 export const FILM_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -149,6 +118,9 @@ export const FILM_RULES = /* @__PURE__ */ (() =>
     nonNegative('sceneColorTintBlue', 1),
     integer('quantizationDitheringBits', 0, [0, 32]),
   ] as const))()
+/** The film setting `field` of a runtime's context (`contextReader`): its default where the
+ *  context holds none. */
+export const readFilmSetting = contextReader(FILM_RULES)
 /** The field of one film setting. */
 export type FilmField = keyof typeof FILM_RULES
 /** The film settings as a host writes them, by their fields: each its value, or nothing for its

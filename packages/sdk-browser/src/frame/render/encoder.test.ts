@@ -92,3 +92,28 @@ test("encoding-submit: drawnTriangles is the metrics' count, never null once the
     disposeQuadRun(backend, fixture)
   }
 })
+
+// The timer's sample carries what the controller pairs the image's time with: the render scale it
+// was drawn at and the fraction of the cut's screen error it was cut at (`../prepare/timing.ts`).
+test('a timed image’s sample carries the render scale and the edge fraction it was made at', async () => {
+  installGpuGlobals()
+  const events: Array<{ phase: string; context: Record<string, unknown> }> = []
+  const { device } = fakeDevice({ ...BACKEND, features: ['timestamp-query'] })
+  const { fixture, backend } = quadBackend(device, {
+    diagnosticDetail: 'trace' as never,
+    onDiagnostic: (event) => events.push(event),
+  })
+  try {
+    await backend.prepare()
+    backend.render(camera())
+    await backend.flush()
+    // The sample's readback lands a few tasks later.
+    for (let wait = 0; wait < 5; wait++) await new Promise((done) => setTimeout(done, 5))
+    const samples = events.filter((event) => event.phase === 'gpu-timing')
+    assert.ok(samples.length > 0, 'an image was timed')
+    for (const { context } of samples)
+      assert.deepEqual([context.renderScale, context.edgeScale], [1, 1])
+  } finally {
+    disposeQuadRun(backend, fixture)
+  }
+})

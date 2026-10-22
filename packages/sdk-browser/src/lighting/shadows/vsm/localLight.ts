@@ -2,17 +2,23 @@ import { LIGHT_KIND } from '../../../../../sdk-core/src/scene/light/contracts.ts
 import {
   VSM_LOCAL_NEAR_PLANE,
   VSM_MIPS,
+  VSM_MAP_COARSE,
   VSM_MAP_COARSE_KEEPS_DYNAMIC,
   VSM_MAP_UNCACHED,
   VSM_MAP_COVERAGE,
-  VSM_LOCAL_LEVEL_BIAS,
   VSM_UNIT_PER_CM,
   VSM_LEVEL0_TEXELS,
   vsmLocalMipLevel,
 } from './constants.ts'
 import { vsmShadowMatrices } from './projection/projectionData.ts'
+import {
+  VSM_DEFAULT_MAPS,
+  vsmLightMobility,
+  vsmLocalBias,
+  type VsmMapSettings,
+} from './mapSettings.ts'
 import { vsmMapsOf } from './mapViews.ts'
-import { cross } from '../../../../../math/src/vector/vectorTuple.ts'
+import { clampedOuterConeAngle, POINT_FACE_VIEWS } from './localFaces.ts'
 import { multiplyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import type { VsmCacheManager, VsmLightCache } from './cacheManager.ts'
 import {
@@ -22,8 +28,7 @@ import {
   type VsmCameraInput,
   type VsmViewport,
 } from './clipmap.ts'
-import { clamp } from '../../../../../math/src/scalar/reals.ts'
-import { DEG2RAD, QUARTER_PI } from '../../../../../math/src/constants.ts'
+import { QUARTER_PI } from '../../../../../math/src/constants.ts'
 import { focalScale } from '../../../../../math/src/projection/camera.ts'
 import { forwardPerspectiveProjection } from '../../../../../math/src/projection/forwardZ.ts'
 import {
@@ -83,58 +88,6 @@ export interface VsmLocalLightSetup {
   finestMip: number
 }
 
-/** Declared: the widest half angle a spot's one perspective map takes, 88.9°: its 1 / tan, the
- *  map's scale, is 0.019 there and falls to 0 at 90°, where the map's texels stretch without bound. */
-const MAX_SPOT_HALF_ANGLE = 88.9 * DEG2RAD
-/** Declared: the least gap of the outer cone over the inner one, 0.001 rad. */
-const SPOT_CONE_GAP = 0.001
-
-/** The outer half angle of a spot's map, radians: at least the inner one (itself within [0, the
- *  widest]) plus the gap, at most the widest plus the gap; rounded once, to an f32. */
-function clampedOuterConeAngle(innerRad: number, outerRad: number) {
-  const inner = clamp(innerRad, 0, MAX_SPOT_HALF_ANGLE)
-  return Math.fround(clamp(outerRad, inner + SPOT_CONE_GAP, MAX_SPOT_HALF_ANGLE + SPOT_CONE_GAP))
-}
-
-/** The cube face directions and up vectors. */
-const CUBE_DIRECTIONS: [number, number, number][] = [
-  [-1, 0, 0],
-  [1, 0, 0],
-  [0, -1, 0],
-  [0, 1, 0],
-  [0, 0, -1],
-  [0, 0, 1],
-]
-const UP_VECTORS: [number, number, number][] = [
-  [0, 1, 0],
-  [0, 1, 0],
-  [0, 0, -1],
-  [0, 0, 1],
-  [0, 1, 0],
-  [0, 1, 0],
-]
-/**
- * Face i's view rotation, a look-from matrix of (Dir_i, Up_i) scaled by (1,-1,1) then (1,1,-1)
- * (light position removed: the face matrices are relative to the light). The
- * same six for every point light (`POINT_FACE_VIEWS`).
- */
-function pointFaceView(face: number) {
-  const z: [number, number, number] = [0, 0, 0],
-    x: [number, number, number] = [0, 0, 0]
-  normalizeVector3OrZero(z, CUBE_DIRECTIONS[face], VSM_MIN_DIRECTION_SQ)
-  normalizeVector3OrZero(x, cross(UP_VECTORS[face], z), VSM_MIN_DIRECTION_SQ)
-  const y = cross(z, x)
-  const m = new Float64Array(16)
-  for (let r = 0; r < 3; r++) {
-    m[r * 4 + 0] = x[r]
-    m[r * 4 + 1] = -y[r]
-    m[r * 4 + 2] = -z[r]
-  }
-  m[15] = 1
-  return m
-}
-const POINT_FACE_VIEWS = Array.from({ length: 6 }, (_, face) => pointFaceView(face))
-
 /** The conservative mip level of a local light. */
 function coarsestMipNeeded(
   view: VsmLocalViewData,
@@ -155,6 +108,31 @@ function coarsestMipNeeded(
   return vsmLocalMipLevel(shadowFootprint, levelBias, pressureBias)
 }
 
+/** The finest mip level any of `views` needs of the light, conservatively. */
+function finestMipNeeded(
+  views: readonly VsmLocalViewData[],
+  origin: ArrayLike<number>,
+  radius: number,
+  projectionScale: number,
+  levelBias: number,
+  cache: VsmCacheManager,
+) {
+  const footprintPerDistance = Math.fround(Math.fround(projectionScale) * VSM_LEVEL0_TEXELS)
+  let finestMip = VSM_MIPS
+  for (const view of views) {
+    const needed = coarsestMipNeeded(
+      view,
+      origin,
+      radius,
+      footprintPerDistance,
+      levelBias,
+      cache.pressureBias,
+    )
+    finestMip = Math.min(finestMip, needed)
+  }
+  return finestMip
+}
+
 // The frame's scratch: what a light computes before its cache entry is known (the entry copies
 // its key when it changes), and its maps' rendering matrices, copied into each map's own record.
 const X_AXIS = [1, 0, 0],
@@ -170,18 +148,19 @@ const X_AXIS = [1, 0, 0],
 /**
  * Sets up a local light's shadow: finds/updates the light's cache entry, computes the finest mip level, and
  * refreshes the cached projection data of each of its maps. The setup returned is the one the
- * entry keeps (`VsmLightCache.localSetup`): the next frame of the same light rewrites it.
+ * entry keeps (`VsmLightCache.localSetup`): the next frame of the same light rewrites it. Its
+ * resolution bias and its coarse pages are the settings' (`maps`).
  */
 export function addVsmLocalLightShadow(
   cache: VsmCacheManager,
   light: VsmLocalLightInput,
   views: readonly VsmLocalViewData[],
+  maps: VsmMapSettings = VSM_DEFAULT_MAPS,
 ): VsmLocalLightSetup {
   const isSpot = light.kind === 'spot'
   const radius = light.range
   const origin = light.position
   for (let k = 0; k < 3; k++) preShadow[k] = -origin[k]
-  const localLevelBias = Math.fround(VSM_LOCAL_LEVEL_BIAS + (light.levelBias ?? 0))
 
   // Light rotation (the world-to-light rotation, no translation): a spot's X axis is its direction; a
   // point light's faces are world-aligned and its rotation is the identity.
@@ -233,22 +212,6 @@ export function addVsmLocalLightShadow(
     )
   const projectionScale = viewToClip[0]
 
-  // The finest mip level any view needs, conservatively.
-  const footprintPerDistance = Math.fround(Math.fround(projectionScale) * VSM_LEVEL0_TEXELS)
-  let finestMip = VSM_MIPS
-  for (let v = 0; v < views.length; v++)
-    finestMip = Math.min(
-      finestMip,
-      coarsestMipNeeded(
-        views[v],
-        origin,
-        radius,
-        footprintPerDistance,
-        localLevelBias,
-        cache.pressureBias,
-      ),
-    )
-
   const numMaps = vsmMapsOf(light.kind)
   const cacheEntry = cache.lightEntryFor(light.id, numMaps)
 
@@ -257,11 +220,22 @@ export function addVsmLocalLightShadow(
   shape[0] = isSpot ? 1 : 0
   shape[1] = radius
   shape[2] = outerCone
-  cacheEntry.updateLocal(localKey, forceInvalidate)
+  const moved = cacheEntry.updateLocal(localKey, forceInvalidate)
+
+  // The light's bias: the view's, coarser while the light moves (`vsmLightMobility`), its own added.
+  const { shadows } = maps
+  const frame = maps.frame ?? cache.frameStamp
+  const mobility = vsmLightMobility(cacheEntry, moved, frame, shadows.shadowLightActiveFrameCount)
+  const localLevelBias = vsmLocalBias(shadows, mobility, light.levelBias ?? 0)
+  const finestMip = finestMipNeeded(views, origin, radius, projectionScale, localLevelBias, cache)
 
   let flags = cacheEntry.isUncached ? VSM_MAP_UNCACHED : 0
   flags |= cacheEntry.useCover ? VSM_MAP_COVERAGE : 0
-  flags |= VSM_MAP_COARSE_KEEPS_DYNAMIC
+  // The last mip's page is marked unless the view turns local coarse pages off (mode 0); in mode 2
+  // it keeps its dynamic layer cached.
+  const marks = shadows.shadowMarkCoarsePagesLocal
+  flags |= marks === 0 ? 0 : VSM_MAP_COARSE
+  flags |= marks === 2 ? VSM_MAP_COARSE_KEEPS_DYNAMIC : 0
 
   // Matrices only change when something invalidated the light rewritten then
   // alone, into each map's own record.

@@ -17,7 +17,14 @@ import { cornerBarycentric, wireframeEdge } from '../../../../math/src/wgsl/bary
 import { DIAGNOSTIC_WIRE_WGSL } from '../../diagnostic/colors.ts'
 import { FLAG_DYNAMIC, FLAG_MASK } from '../types.ts'
 import { visTriangle } from '../visWords.ts'
-import { CLIP_DISTANCES_WGSL, clippedStructText } from '../../gpu/core/clipDistances.ts'
+import { planeDistance } from '../../../../math/src/wgsl/geometry.ts'
+import {
+  clipDirective,
+  clippedStructText,
+  clipReturn,
+  clipReturnType,
+  type Clipping,
+} from '../../gpu/core/clipDistances.ts'
 
 /** The raster's one fragment stage, the override that compiles its mask test out for a slot
  *  that holds no cutout row (`MASKED` false), the opaque twins' constants, and the one that makes
@@ -38,33 +45,34 @@ const VIS_MEMBERS = [
   '@location(2) tc:vec3f',
 ]
 
-/** The struct of the raster's stages: on a device with `clip-distances` the vertex stage's own
- *  output beside it (`clippedStructText`), else one interpolant more, the distance of the vertex
- *  to the view's plane, which the fragment stage tests (`visClipTest`). */
-const visOut = (native: boolean) =>
-  native
+/** The struct of the raster's stages: as it was where the module does not cut at the view's plane;
+ *  cutting by distance, the vertex stage's own output beside it (`clippedStructText`); cutting by
+ *  pixel, one interpolant more, the distance of the vertex to the plane, which the fragment stage
+ *  tests (`visClipTest`). */
+const visOut = (clipping?: Clipping) =>
+  clipping === 'distance'
     ? `struct VSOut{${VIS_MEMBERS.join(',')},}\n${clippedStructText('VSOut', VIS_MEMBERS)}`
-    : `struct VSOut{${[...VIS_MEMBERS, '@location(3) clip:f32'].join(',')},}`
+    : `struct VSOut{${(clipping ? [...VIS_MEMBERS, '@location(3) clip:f32'] : VIS_MEMBERS).join(',')},}`
 
 /** The distance of a vertex, at world position `world`, to the view's plane (`Uniforms.clipPlane`):
  *  zero for a view without one, which is kept. */
-const VIS_CLIP = 'dot(uni.clipPlane.xyz,world.xyz)+uni.clipPlane.w'
+const VIS_CLIP = 'planeDistance(uni.clipPlane,world.xyz)'
 
-/** The fragment stage's part of a device without `clip-distances`: the pixel behind the plane
- *  leaves, as the clipped primitive would not have covered it. */
-const visClipTest = (native: boolean, leave: string) =>
-  native ? '' : ` if(in.clip<0.0){${leave}}\n`
+/** The fragment stage's part of a module that cuts by pixel: the pixel behind the plane leaves, as
+ *  the clipped primitive would not have covered it. */
+const visClipTest = (clipping: Clipping | undefined, leave: string) =>
+  clipping === 'pixel' ? ` if(in.clip<0.0){${leave}}\n` : ''
 
 /** A vertex stage over the indirect slots, the hardware raster's (`vis_vs`) or the x-ray view's
- *  (`vis_xray_vs`): one text, ending with `tail`, what it writes into `tc`; `native`, the device
- *  has `clip-distances`: it then returns the struct that carries the clip distance. */
-const visVertex = (entry: string, tail: string, native: boolean) =>
-  `@vertex fn ${entry}(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->${native ? 'VSOutClipped' : 'VSOut'}{
+ *  (`vis_xray_vs`): one text, ending with `tail`, what it writes into `tc`; cutting by distance it
+ *  returns the struct that carries the clip distance, by pixel it writes the distance in `clip`. */
+const visVertex = (entry: string, tail: string, clipping?: Clipping) =>
+  `@vertex fn ${entry}(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->${clipReturnType('VSOut', clipping)}{
  var out:VSOut;
  let at=drawBatch(instanceIndex);let pageIndex=at.x;let corner=at.y+vertexIndex;
  let page=pages[pageIndex];
  out.instance=pageIndex;out.tc=vec3f(0.0);
- if(corner>=page.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return ${native ? 'VSOutWithClip(out,1.0)' : 'out'};}
+ if(corner>=page.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return ${clipReturn('VSOut', clipping, 'out', '1.0')};}
  let h=pageHeaderFor(page,pageSurfaceRead(page));
  let shape=pageShape(page);
  let id=pageCorner(page,h,corner);
@@ -74,19 +82,25 @@ const visVertex = (entry: string, tail: string, native: boolean) =>
  if(shape.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position,shape.lineWidth);}
  if(shape.sprite.y!=0.0){out.position=uni.viewProj*pageSprite(page,p,shape.sprite);}
  out.id=page.packedBase|visTriangle(corner/3u);
-${tail} ${native ? `return VSOutWithClip(out,${VIS_CLIP});` : `out.clip=${VIS_CLIP};return out;`}
+${tail} ${visClipEnd(clipping)}
 }
 `
 
+/** What a vertex stage ends with: its output, with the distance to the plane where it cuts. */
+const visClipEnd = (clipping?: Clipping) =>
+  clipping === 'pixel'
+    ? `out.clip=${VIS_CLIP};return out;`
+    : `return ${clipReturn('VSOut', clipping, 'out', VIS_CLIP)};`
+
 /** The vertex stage of the hardware raster, both halves': a row neither of the cut's masks holds
  *  never reaches it (`GpuDraw.encode`, `GpuDraw.encodePost`). */
-const visRasterVertex = (native: boolean) =>
+const visRasterVertex = (clipping?: Clipping) =>
   visVertex(
     'vis_vs',
     ` if((page.flags&${UV_READ}u)==${UV_READ}u){out.tc=vec3f(pageMaskUv(page,h,id),0.0);}
  if((page.flags&${FLAG_MASK}u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
 `,
-    native,
+    clipping,
   )
 
 /**
@@ -102,13 +116,13 @@ const visRasterVertex = (native: boolean) =>
  */
 export const VIS_XRAY_VERTEX = 'vis_xray_vs',
   VIS_XRAY_FRAGMENT = 'vis_xray_fs'
-const visXrayWgsl = (native: boolean) =>
+const visXrayWgsl = (clipping?: Clipping) =>
   wgslBlock(
-    `VIS_XRAY_WGSL(${native})`,
+    `VIS_XRAY_WGSL(${clipping})`,
     [wireframeEdge, cornerBarycentric, DIAGNOSTIC_WIRE_WGSL],
-    `${visVertex(VIS_XRAY_VERTEX, ' out.tc=cornerBarycentric(corner%3u);\n', native)}
+    `${visVertex(VIS_XRAY_VERTEX, ' out.tc=cornerBarycentric(corner%3u);\n', clipping)}
 @fragment fn ${VIS_XRAY_FRAGMENT}(in:VSOut)->@location(0) vec4f{
-${visClipTest(native, 'discard;')} let coverage=wireframeEdge(in.tc,max(fwidth(in.tc),vec3f(1e-6)));
+${visClipTest(clipping, 'discard;')} let coverage=wireframeEdge(in.tc,max(fwidth(in.tc),vec3f(1e-6)));
  if(coverage==0.0){discard;}
  return vec4f(diagnosticWireColor((pages[in.instance].flags&${FLAG_DYNAMIC}u)!=0u)*coverage,0.0);
 }
@@ -126,8 +140,8 @@ ${visClipTest(native, 'discard;')} let coverage=wireframeEdge(in.tc,max(fwidth(i
  */
 export const visShader = ({
   diagnostic,
-  clipDistances = false,
-}: { diagnostic?: WgslDecl; clipDistances?: boolean } = {}) =>
+  clipping,
+}: { diagnostic?: WgslDecl; clipping?: Clipping } = {}) =>
   wgslProgram(
     `${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
@@ -139,8 +153,8 @@ ${PAGE_BINDING.slotOffsets}
 ${VIS_WORK_BINDING}
 // \`tc\` is the UV and, on a masked row, the vertex alpha of its cutout: one interpolant, as the UV
 // alone was.
-${visOut(clipDistances)}
-${visRasterVertex(clipDistances)}
+${visOut(clipping)}
+${visRasterVertex(clipping)}
 // A slot that holds no cutout row (no \`FLAG_MASK\`) is drawn with \`MASKED\` false: \`maskKeep\` keeps
 // every pixel of such a row, so the pipeline's constant removes the page read and the cutout
 // before the stage is compiled. One text, the mask test present only where a row can cut.
@@ -150,7 +164,7 @@ override ${VIS_ID_PHASE}:bool=false;
  // The cutout's footprint, taken while every lane of the quad still runs.
  var gx=vec2f(0.0);var gy=vec2f(0.0);
  if(MASKED){gx=dpdx(in.tc.xy);gy=dpdy(in.tc.xy);}
-${visClipTest(clipDistances, 'return;')} let page=pages[in.instance];
+${visClipTest(clipping, 'return;')} let page=pages[in.instance];
  let offset=pixelOffset(vec2u(in.position.xy));
  let key=visKey(in.position.z,page.depthBias);
  if(!visPasses(offset,key,${VIS_ID_PHASE})){return;}
@@ -171,21 +185,19 @@ ${visClipTest(clipDistances, 'return;')} let page=pages[in.instance];
       VIS_WRITE_WGSL,
       pixelOffset,
       visTriangle,
-      ...(clipDistances ? [CLIP_DISTANCES_WGSL] : []),
+      ...clipDirective(clipping),
+      ...(clipping ? [planeDistance] : []),
       ...(diagnostic ? [diagnostic] : []),
     ],
   )
 
-/** The raster's module without a diagnostic stage and for a device without `clip-distances`: what
- *  production compiles there, and the text every audit reads; a device that has the feature
- *  compiles `visShader({ clipDistances: true })`. */
+/** The raster's module without a diagnostic stage and without a cut at the view's plane: what a view
+ *  with no plane draws with, and the text every audit reads; a view with one draws with its twin,
+ *  `visShader({ clipping })`. */
 export const VIS_SHADER = visShader()
 
 /** The x-ray pass's module: the raster's, with its x-ray stages (`visXrayWgsl`), assembled at
- *  its first use only, once for each way a device clips. */
+ *  its first use only, once for each way to cut at the plane, or none. */
 const xrayShaders: Record<string, string> = {}
-export const visXrayShader = (clipDistances = false) =>
-  (xrayShaders[`${clipDistances}`] ??= visShader({
-    diagnostic: visXrayWgsl(clipDistances),
-    clipDistances,
-  }))
+export const visXrayShader = (clipping?: Clipping) =>
+  (xrayShaders[`${clipping}`] ??= visShader({ diagnostic: visXrayWgsl(clipping), clipping }))

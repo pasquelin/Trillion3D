@@ -65,6 +65,19 @@
 // parameters' new far drop (`farDrop`) is 0 here, and the draw-distance scale they took beside it
 // (`viewDistanceScale`) is 1 where a frame holds no distance: that one word moves the chunk
 // parameters; every other buffer kept.
+// Retaken when the raster's cull took the lights as groups (`render/renderViewsWgsl.ts`,
+// `render/renderCullWgsl.ts`): the render parameters' new `lightCount` (the frame's lights, in the
+// word the struct left a pad) moves the chunk parameters, and the table of the lights
+// (`vsm.render.lights`: a map's first id and its count a light, `vsmWriteLights`) is a buffer the
+// CPU now writes; with that word held at 0 and that table unwritten the digests are the ones
+// before, every other buffer kept.
+// Retaken when the shadow maps' settings reached the plan (`mapSettings.ts`, `shadowMapOptions.ts`):
+// a local light just made reads its moving resolution bias (1, the reference's fourth row, over
+// 0 at rest: its records' bias word, hence the finest mip and the page-table blocks it takes) and
+// its maps' flags the coarse page of the last mip (marked in mode 1) without the keeps-dynamic bit
+// (mode 2 only); the render parameters took a last word (the radius threshold, 0 where the scene
+// names none, as here) and the view uniform one of rays and steps, neither written in this plan.
+// A sun's records, its levels, depth range and coarse flags are the defaults': kept.
 import { mulberry32 } from '../../../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -72,14 +85,14 @@ import { planFrames, randomWorld } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
-    'af27059debf41b13b073c6f3dab1398c34d9c659a3b480e678e13246a22f552f',
-    'bac0b39a61902fa71e6e22f4cfd6804ea3a7360201eaf3dd4f809b3a2a173357',
-    'ded882d071cd1bb4ad4f376a4e6a854fd04a27b649ce455e743c0c6c52943efc',
+    '75eb8b6beeae45ef727c8c4c58eefab6b3c22c9c9d2f4820a9bffe736be31888',
+    'd9baa1af0baa1c39ec22193e533f3fb8cc58bb14f0eefb9ab89bab4295e4b469',
+    '76220f82de6e5aaf39a57bb337b96e37997669c39e76cf580d16b3779bdcb75b',
   ],
   2: [
-    '0ca5575be2b779b1e86af6a3eb75efcc34e0f569ec2506bbbe8a22ccc4aa8113',
-    '111e3021f0b8ca84a77002b2acd0fefd79a01ab053a2e6aa0e0c06adbc6732fd',
-    '1c03d5a1f2c412d6a414c4641958e6e560b606b820ba118be0c4d288274b1e43',
+    '319be5fd7354fccf0dfb6402461b04bb676832663cf25cb7aca7450d7c8c12f2',
+    'fec1c40d919156a7a1704da0513050df13042b59363ee4d5ab7b23af1021c531',
+    '6c70d23a78f21bd72335696e564115b1b4964073359db777df8c567e4848263f',
   ],
 }
 

@@ -1,4 +1,5 @@
 import {
+  ANY_NUMBER,
   choiceSetting,
   flagSetting,
   integerSetting,
@@ -37,9 +38,9 @@ import {
 
 /** The quality levels, `off` first, then coarsest to finest: each names how many samples a pixel
  *  gathers at most (`MOTION_BLUR_SAMPLES`). */
-export const MOTION_BLUR_LEVELS = ['off', 'low', 'medium', 'high', 'veryHigh'] as const
+const MOTION_BLUR_LEVELS = ['off', 'low', 'medium', 'high', 'veryHigh'] as const
 /** A quality level of the motion blur. */
-export type MotionBlurLevel = (typeof MOTION_BLUR_LEVELS)[number]
+type MotionBlurLevel = (typeof MOTION_BLUR_LEVELS)[number]
 /** A level that draws. */
 type MotionBlurRunningLevel = Exclude<MotionBlurLevel, 'off'>
 
@@ -59,9 +60,11 @@ export const MOTION_BLUR_SAMPLES: Readonly<Record<MotionBlurRunningLevel, number
  * - `motionBlurHalfResGather` (off): whether a tile whose streak is longer, in pixels, than the
  *   samples a pixel takes is gathered at half the resolution of the image — the value the
  *   reference runs at by default; every tile is gathered at the full resolution;
- * - `motionBlurHalfResInput` (on): whether the samples of a streak spaced more than a pixel apart
- *   read the half-resolution image, wholly so from two pixels apart, which lets the few samples
- *   cover the whole streak without gaps;
+ * - `motionBlurHalfResInput` (on): whether the samples of a streak that lie 3 pixels or more apart
+ *   read the half-resolution image of the temporal pass's, the mean of the 2 × 2 pixels of its texel
+ *   (the level the spacing names, `spacing / 2 − 1`, taken to the nearest), which lets the few
+ *   samples cover the whole streak without gaps; an image the temporal pass did not resolve has no
+ *   half-resolution image, its samples read the full one;
  * - `motionBlurSeparable` (off): whether the blur runs twice, the second pass smoothing the grain
  *   of the first and reading the full-size image alone;
  * - `motionBlurScatter` (off): whether the largest motion of each tile is always spread over the
@@ -73,7 +76,12 @@ export const MOTION_BLUR_SAMPLES: Readonly<Record<MotionBlurRunningLevel, number
  *   of a tile where two motions cross gathers along both, the two weighed by depth and by how
  *   well each sample's motion follows the one it is gathered along, and the gaps either leaves
  *   filled from the other; a tile with one motion is blurred as with 1. Costs one more image of
- *   ranges per tile image, a list of tiles and the passes that read them.
+ *   ranges per tile image, a list of tiles and the passes that read them;
+ * - `motionBlurScale` (1), from 0 to 50: the scale of the pass's `amount`, whatever it is;
+ * - `motionBlurAmountOverride`, `motionBlurMaxOverride` (−1) and `motionBlurTargetFpsOverride` (−1,
+ *   or up to 120): a value from 0 up replaces the pass's `amount` (the scale then does not apply),
+ *   `max` or `targetFps`, a way to set them for the whole view, as a quality level of the page does;
+ *   −1 leaves the pass's.
  */
 export const MOTION_BLUR_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -83,6 +91,10 @@ export const MOTION_BLUR_RULES = /* @__PURE__ */ (() =>
     flagSetting('motionBlurSeparable', false),
     flagSetting('motionBlurScatter', false),
     integerSetting('motionBlurDirections', 1, [1, 2]),
+    numberSetting('motionBlurScale', 1, [0, 50]),
+    numberSetting('motionBlurAmountOverride', -1, [-1, ANY_NUMBER[1]]),
+    numberSetting('motionBlurMaxOverride', -1, [-1, ANY_NUMBER[1]]),
+    integerSetting('motionBlurTargetFpsOverride', -1, [-1, 120]),
   ] as const))()
 /** The field of one setting of how the motion blur is drawn. */
 export type MotionBlurField = keyof typeof MOTION_BLUR_RULES
@@ -144,6 +156,37 @@ export type ResolvedMotionBlur = Readonly<SettingValues<typeof MOTION_BLUR_PASS_
 /** The amount and the longest streak under which the blur draws nothing, the reference's: a pass
  *  of either is idle. */
 export const MOTION_BLUR_LEAST = 0.001
+
+/** The strength of the blur the view draws: the pass's `amount` scaled by `motionBlurScale`, or the
+ *  override where it is not negative (`motionBlurAmountOverride`). */
+export const effectiveAmount = (
+  blur: Pick<ResolvedMotionBlur, 'amount'>,
+  values: MotionBlurValues,
+) =>
+  values.motionBlurAmountOverride >= 0
+    ? values.motionBlurAmountOverride
+    : blur.amount * values.motionBlurScale
+
+/** The longest streak of the blur the view draws, in percent of the width: the pass's `max`, or the
+ *  override where it is not negative (`motionBlurMaxOverride`). */
+export const effectiveMax = (blur: Pick<ResolvedMotionBlur, 'max'>, values: MotionBlurValues) =>
+  values.motionBlurMaxOverride >= 0 ? values.motionBlurMaxOverride : blur.max
+
+/** The frame rate the streak of the blur the view draws is relative to: the pass's `targetFps`, or
+ *  the override where it is not negative (`motionBlurTargetFpsOverride`). */
+export const effectiveTargetFps = (
+  blur: Pick<ResolvedMotionBlur, 'targetFps'>,
+  values: MotionBlurValues,
+) => (values.motionBlurTargetFpsOverride >= 0 ? values.motionBlurTargetFpsOverride : blur.targetFps)
+
+/** Whether the view draws no blur of the pass `blur`: its strength or its longest streak, as the view
+ *  sets them (`effectiveAmount`, `effectiveMax`), is not above the least (`MOTION_BLUR_LEAST`). */
+export const motionBlurIdle = (
+  blur: Pick<ResolvedMotionBlur, 'amount' | 'max'>,
+  values: MotionBlurValues,
+) =>
+  !(effectiveAmount(blur, values) > MOTION_BLUR_LEAST) ||
+  !(effectiveMax(blur, values) > MOTION_BLUR_LEAST)
 
 /**
  * The motion blur an option names: every field it leaves out is the default

@@ -38,7 +38,7 @@ export const sinFromCosUnclamped = wgslFn(
 )
 
 /** The signed distance of `point` to `plane`, in units of the plane normal's length. */
-const planeDistance = wgslFn(
+export const planeDistance = wgslFn(
   'planeDistance',
   [],
   'fn planeDistance(plane:vec4f,point:vec3f)->f32{return dot(plane.xyz,point)+plane.w;}',

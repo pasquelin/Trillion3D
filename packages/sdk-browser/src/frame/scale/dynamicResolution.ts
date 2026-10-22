@@ -68,8 +68,10 @@ export function createDynamicResolution() {
     /** The frame time budget, ms: written by the controller,
      *  read in place. */
     budgetMs: Number.NaN,
-    /** The fractions a refresh gives each budget, applied together. */
+    /** The fractions a refresh gives each budget, applied together, and whether it found a budget
+     *  that `panics` all over its budget. */
     next: new Float64Array(BUDGETS),
+    panicked: false,
   }
 }
 
@@ -120,69 +122,74 @@ export function recordFrame(
   for (let b = 0; b < BUDGETS; b++) h.sizes[b] = Math.min(h.sizes[b] + 1, HISTORY_SIZE)
 }
 
+/** Budget `b`'s fraction after the history, written to `h.next[b]`: the one it has where the history
+ *  holds none or it is not asked for, within its bounds. A GPU time that is not positive is no
+ *  timing and is skipped; a budget that `panics` and whose newest times were all over its budget
+ *  forgets the history (`h.panicked`). Fields only: a frame boxes no number. */
+function fitBudget(h: DynamicResolution, f: Fraction, b: number, canChange: boolean) {
+  const render = b === RENDER_SCALE,
+    model = MODELS[b],
+    budgetMs = render ? h.budgetMs : f.edgeBudgetMs,
+    current = render ? f.s : f.edge,
+    size = Math.min(h.size, h.sizes[b])
+  h.next[b] = current
+  // The render scale is always fitted, another budget while it is asked for.
+  if (size === 0 || (!render && !(budgetMs > 0))) return
+  const min = render ? f.bounds.min : f.edgeMin,
+    max = render ? f.bounds.max : 1,
+    target = budgetMs * (1 - model.headroom)
+  let sum = 0,
+    total = 0,
+    weight = 1,
+    over = 0,
+    count = 0
+  for (let back = 0; back < size; back++) {
+    const at = b * HISTORY_SIZE + ((h.newest - back + HISTORY_SIZE) % HISTORY_SIZE),
+      ms = h.gpuMs[at]
+    if (!(ms > 0)) continue
+    if (ms > budgetMs) over++
+    else over = 0
+    const ratio = target / ms
+    sum += (model.quadratic ? Math.sqrt(ratio) : ratio) * h.fractions[at] * weight
+    total += weight
+    count++
+    weight *= FRAME_WEIGHT_EXPONENT
+    if (over === MAX_OVER_BUDGET) break
+  }
+  let next = current
+  if (count > 0) {
+    next = sum / total
+    if (over === count) {
+      h.sizes[b] = 0
+      if (model.panics) {
+        h.size = 0
+        h.panicked = true
+      }
+    } else {
+      const enough =
+        canChange &&
+        (next > current * (1 + model.threshold) ||
+          next < current * (1 - model.threshold) ||
+          (next !== current && (next === min || next === max)))
+      if (!enough) next = current
+      if (next > current) next = current + (next - current) * INCREASE_AMORTIZATION
+    }
+  }
+  h.next[b] = clamp(next, min, max)
+}
+
 /** The fractions of the next frame written into `f.s` and `f.edge`, on the frame time budget
- *  `h.budgetMs` and `f.edgeBudgetMs`; whether one changed. A GPU time that is not positive is no
- *  timing and is skipped. Numbers read from fields and written to fields: a frame boxes none. */
+ *  `h.budgetMs` and `f.edgeBudgetMs`; whether one changed. The render scale last: its panic
+ *  forgets the history (`h.size`) at the next refresh, and the other budgets browse their own
+ *  entries, at least the newest, before and after it. Numbers read from fields and written to
+ *  fields: a frame boxes none. */
 export function refreshFraction(h: DynamicResolution, f: Fraction) {
   const canChange = h.framesSinceChange >= CHANGE_PERIOD
-  let panic = false,
-    worth = false
-  // The render scale last: its panic forgets the history (`h.size`) at the next refresh, and the
-  // other budgets browse their own entries, at least the newest, before and after it.
-  for (let b = BUDGETS - 1; b >= 0; b--) {
-    const model = MODELS[b],
-      render = b === RENDER_SCALE,
-      budgetMs = render ? h.budgetMs : f.edgeBudgetMs,
-      current = render ? f.s : f.edge,
-      size = Math.min(h.size, h.sizes[b])
-    let next = current
-    // The render scale is always fitted, another budget while it is asked for.
-    if (size > 0 && (render || budgetMs > 0)) {
-      const min = render ? f.bounds.min : f.edgeMin,
-        max = render ? f.bounds.max : 1,
-        target = budgetMs * (1 - model.headroom)
-      let sum = 0,
-        total = 0,
-        weight = 1,
-        over = 0,
-        count = 0
-      for (let back = 0; back < size; back++) {
-        const at = b * HISTORY_SIZE + ((h.newest - back + HISTORY_SIZE) % HISTORY_SIZE),
-          ms = h.gpuMs[at]
-        if (!(ms > 0)) continue
-        if (ms > budgetMs) over++
-        else over = 0
-        const ratio = target / ms
-        sum += (model.quadratic ? Math.sqrt(ratio) : ratio) * h.fractions[at] * weight
-        total += weight
-        count++
-        weight *= FRAME_WEIGHT_EXPONENT
-        if (over === MAX_OVER_BUDGET) break
-      }
-      if (count > 0) {
-        next = sum / total
-        if (over === count) {
-          h.sizes[b] = 0
-          if (model.panics) {
-            h.size = 0
-            panic = true
-          }
-        } else {
-          const enough =
-            canChange &&
-            (next > current * (1 + model.threshold) ||
-              next < current * (1 - model.threshold) ||
-              (next !== current && (next === min || next === max)))
-          if (!enough) next = current
-          if (next > current) next = current + (next - current) * INCREASE_AMORTIZATION
-        }
-      }
-      next = clamp(next, min, max)
-    }
-    h.next[b] = next
-    if (next !== current) worth = true
-  }
-  if ((worth && canChange) || panic) {
+  h.panicked = false
+  fitBudget(h, f, EDGE_SCALE, canChange)
+  fitBudget(h, f, RENDER_SCALE, canChange)
+  const worth = h.next[EDGE_SCALE] !== f.edge || h.next[RENDER_SCALE] !== f.s
+  if ((worth && canChange) || h.panicked) {
     h.framesSinceChange = 0
     f.s = h.next[RENDER_SCALE]
     f.edge = h.next[EDGE_SCALE]

@@ -31,6 +31,11 @@ export interface ScreenProbeFrameMetrics {
   velocity: boolean
   /** Bytes the view's screen probes hold. */
   bytes: number
+  /** Whether the rays past the screen and the near scene read the radiance cache (the maps of the light by direction in the
+   *  world's probes), the texels a side of its maps, and the bytes it holds: none of them where it is not read. */
+  radianceCache: boolean
+  radianceCacheResolution: number
+  radianceCacheBytes: number
   /** Why the screen probes did not run this image, when they did not. */
   unavailable: string | null
 }

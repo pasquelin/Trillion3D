@@ -4,7 +4,7 @@ import {
   transformHomogeneousPoint,
 } from '../../../../math/src/wgsl/projection.ts'
 import { toF32 } from '../../../../math/src/wgsl/f32.ts'
-import { CENTIMETRES_PER_UNIT } from '../effects/motionBlur/motionBlurLayout.ts'
+import { CENTIMETRES_PER_METRE } from '../../../../sdk-core/src/page/format.ts'
 import { ROOT_BOX_DOUBLES } from '../../placement/roots/rootWorldSends.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { visPageIndex } from '../../visibility/visWords.ts'
@@ -74,37 +74,30 @@ fn cameraOnlyMotion(screen:vec2f,z:f32)->vec2f{
 )
 
 /**
- * The nearest surface of a render texel (`nearestSurface`), what both passes that measure the
- * velocity start from:
- * - the 3×3's depths, and the closest of the two horizontal and the two vertical neighbours that
- *   stand out of the texel — their mean nearer than the texel by more than a quarter of their own
- *   difference and than the texel's pixel depth error (`pixelDeviceZError`) —: on a flat surface the
- *   texel keeps its own velocity, on a depth edge it takes the foreground's. The depth and its
- *   offset are packed in one word, the offset in the low four bits, so one maximum picks both;
- * - the closest surface's velocity, the motion of a surface point (`texelMotion`): a point that
- *   moved by itself — a placement whose motion is not the identity, a deformed geometry
- *   (`drawsMotion`) — at its own texel, any other at this texel's centre and the closest depth,
- *   so the camera's motion is the closest surface's. An object too small on the screen to be
- *   measured (`smallObject`, `perObjectSize`) is measured as one that did not move by itself.
- * 9 depth loads, one identifier load — two where the texel takes a neighbour's velocity — and one
- * reprojection.
+ * What a velocity pass measures a surface point by, declared once for every pass that reads the
+ * frame's surfaces (`VELOCITY_INPUT_BINDINGS`):
+ * - `drawsMotion`: whether the surface at identifier `id` moves by itself — a placement whose motion
+ *   is not the identity, a deformed geometry — and is large enough on the screen to be measured
+ *   (`smallObject`, `perObjectSize`: an object under it is left out, as one the velocity is not
+ *   drawn for, and is measured as a surface that did not move by itself);
+ * - `surfaceMotion`: the motion of the surface point a texel shows, `moves` saying whether its own
+ *   motion carries it back (`pointBefore`) before the camera's does; `texelMotion`: that of texel
+ *   `p`'s surface, taken at texel `q` — the one it was found at — where it moves by itself, else
+ *   at `p`'s own centre and depth, so the camera's motion alone moves it.
  */
-export const NEAREST_SURFACE_WGSL = wgslBlock(
-  'NEAREST_SURFACE_WGSL',
+export const SURFACE_MOTION_WGSL = wgslBlock(
+  'SURFACE_MOTION_WGSL',
   [
     VELOCITY_INPUTS_WGSL,
     CAMERA_MOTION_WGSL,
     TAA_REPROJECT_WGSL,
-    DEPTH_WGSL,
     REPROJECTION_VECTOR_WGSL,
-    TILE_CLAMP_WGSL,
     visPageIndex,
     perspectiveDivide,
     transformHomogeneousPoint,
     toF32,
   ],
-  `fn packDepthOffset(o:vec2i,z:f32)->u32{return ((bitcast<u32>(z)<<2u)&~0xfu)|u32(1+o.x)|(u32(1+o.y)<<2u);}
-fn boxCorner(at:u32)->vec3f{
+  `fn boxCorner(at:u32)->vec3f{
  return vec3f(bitcast<f32>(toF32(boxes[at])),bitcast<f32>(toF32(boxes[at+1u])),bitcast<f32>(toF32(boxes[at+2u])));
 }
 fn smallObject(rank:u32)->bool{
@@ -112,10 +105,10 @@ fn smallObject(rank:u32)->bool{
  let at=rank*${ROOT_BOX_DOUBLES}u;
  let low=boxCorner(at);
  let high=boxCorner(at+3u);
- let radius=length(high-low)*0.5*${CENTIMETRES_PER_UNIT}.0;
+ let radius=length(high-low)*0.5*${CENTIMETRES_PER_METRE}.0;
  if(!(radius>0.0)){return false;}
  let offset=(low+high)*0.5-view.eye.xyz;
- let reach=select(dot(offset,offset)*${CENTIMETRES_PER_UNIT * CENTIMETRES_PER_UNIT}.0,0.0,view.radius.w!=0.0);
+ let reach=select(dot(offset,offset)*${CENTIMETRES_PER_METRE * CENTIMETRES_PER_METRE}.0,0.0,view.radius.w!=0.0);
  let screen=view.rates.z*radius;
  return screen*screen/max(1.0,reach)<view.rates.w;
 }
@@ -129,17 +122,36 @@ fn drawsMotion(id:u32)->bool{
  }
  return moves&&!smallObject(page.placement);
 }
-fn surfaceMotion(screen:vec2f,z:f32,id:u32)->TaaMotion{
+fn surfaceMotion(screen:vec2f,z:f32,id:u32,moves:bool)->TaaMotion{
  let here=transformHomogeneousPoint(view.invViewProj,vec3f(screen,z));
- let before=pointBefore(here,id);
+ var before=here;
+ if(moves){before=pointBefore(here,id);}
  var shift=0.0;
  if(here.w!=0.0&&before.w!=0.0){shift=length(perspectiveDivide(before)-perspectiveDivide(here));}
  return lastScreenMotion(screen,z,before,shift);
 }
 fn texelMotion(p:vec2i,q:vec2i,z:f32,id:u32)->TaaMotion{
- if(drawsMotion(id)){return surfaceMotion(screenOfTexel(q),z,id);}
- return surfaceMotion(screenOfTexel(p),z,id);
-}
+ let moves=drawsMotion(id);
+ return surfaceMotion(screenOfTexel(select(p,q,moves)),z,id,moves);
+}`,
+)
+
+/**
+ * The nearest surface of a render texel (`nearestSurface`), what the temporal pass's analysis starts
+ * from:
+ * - the 3×3's depths, and the closest of the two horizontal and the two vertical neighbours that
+ *   stand out of the texel — their mean nearer than the texel by more than a quarter of their own
+ *   difference and than the texel's pixel depth error (`pixelDeviceZError`) —: on a flat surface the
+ *   texel keeps its own velocity, on a depth edge it takes the foreground's. The depth and its
+ *   offset are packed in one word, the offset in the low four bits, so one maximum picks both;
+ * - the closest surface's motion (`texelMotion`).
+ * 9 depth loads, one identifier load — two where the texel takes a neighbour's velocity — and one
+ * reprojection.
+ */
+export const NEAREST_SURFACE_WGSL = wgslBlock(
+  'NEAREST_SURFACE_WGSL',
+  [SURFACE_MOTION_WGSL, DEPTH_WGSL, TILE_CLAMP_WGSL],
+  `fn packDepthOffset(o:vec2i,z:f32)->u32{return ((bitcast<u32>(z)<<2u)&~0xfu)|u32(1+o.x)|(u32(1+o.y)<<2u);}
 struct NearestSurface{depths:array<f32,9>,closestZ:f32,offset:vec2i,id:u32,motion:TaaMotion}
 fn nearestSurface(p:vec2i)->NearestSurface{
  var z:array<f32,9>;

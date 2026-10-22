@@ -1,4 +1,5 @@
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
+import { postSamplers } from '../../gpu/core/postSamplers.ts'
 import { preparedPipelines } from '../../gpu/core/preparedPipelines.ts'
 import { fullscreenDescriptor, preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import {
@@ -93,12 +94,8 @@ export const filterPrograms = oncePerDevice((device: GPUDevice) => {
     /** Resolves once the pipelines `pairs` name are compiled. */
     prepare: (pairs: FilterPairs) =>
       Promise.all(pairs.map(([entry, format]) => tables[entry].of(format).prepare())),
-    /** Bilinear, clamping to the edge. */
-    clamped: device.createSampler({
-      label: `${DOWNSAMPLE_PASS} clamp`,
-      magFilter: 'linear',
-      minFilter: 'linear',
-    }),
+    /** Bilinear, clamping to the edge (`postSamplers`). */
+    clamped: postSamplers(device).clamped,
     /** A 1 × 1 image of zeros: what an unused slot of a group is bound to. */
     empty: empty.createView(),
   }

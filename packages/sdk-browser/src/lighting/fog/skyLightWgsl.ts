@@ -1,5 +1,4 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { ATMOSPHERE_SLOT } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
 import { IRRADIANCE_TERMS } from '../../../../sdk-core/src/scene/core/irradianceTerms.ts'
 import { FOG_VOLUME_FLAG } from './frame.ts'
 
@@ -30,7 +29,7 @@ fn fogSky(toEye:vec3f,span:f32)->vec3f{
  let share=skyLightScattering();
  if(share<=0.0){return vec3f(0.0);}
  if((u32(frame.medium.w)&${FOG_VOLUME_FLAG.fogColors}u)!=0u){
-  return share*max(fogInscattering(-toEye*span,span,directLights.atmosphere[${ATMOSPHERE_SLOT.planet}].x!=0.0)*FOG_AMBIENT,vec3f(0.0));
+  return share*max(fogInscattering(-toEye*span,span,fogSkyShown())*FOG_AMBIENT,vec3f(0.0));
  }
  if(frame.staticLight.z<=0.0){return vec3f(0.0);}
  return share*skyLightDiffuseSimple(toEye*frame.medium.x);

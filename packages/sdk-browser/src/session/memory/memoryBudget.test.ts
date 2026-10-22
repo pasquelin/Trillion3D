@@ -19,6 +19,9 @@ import { MIB } from '../../../../math/src/constants.ts'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { OverlayFrame } from '../../post/effects/webgpuKinds.ts'
 import { createFinish } from '../../post/finish/finish.ts'
+import { createWorldEffects } from '../../../../sdk-core/src/world/effect/defaultChain.ts'
+import { createKindSettings } from '../../post/effects/kindSettings.ts'
+import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { frameOf } from '../../post/effects/webgpuEffects.fixture.ts'
 
 const [width, height] = [3840, 2160]
@@ -49,12 +52,18 @@ test('the default reserve is the target rule on a 3840 × 2160 canvas, the most 
   await webgpu.settled()
   webgpu.encode(encoder, chain, input, width, height, framed())
   // The local exposure's grid, log luminance and blur, over the scene's half-size image.
-  finish.local.encode(encoder, finish.scene, 50, true)
+  finish.local.encode(
+    encoder,
+    finish.scene,
+    50,
+    true,
+    createKindSettings().peek('bloom', undefined),
+  )
   // The motion blur on the resolved image, ahead of the chain: its image, its motion and its tiles.
   const blur = [effect.motionBlur()]
-  webgpu.readyResolved(blur)
+  webgpu.stage('after-resolve').ready(blur)
   await webgpu.settled()
-  webgpu.resolve(encoder, blur, input, frameOf(gpu, width, height))
+  webgpu.stage('after-resolve').resolve(encoder, blur, input, frameOf(gpu, width, height))
   // An outline of an object, drawn over the display image: its scan's target.
   const outline = [effect.outline({ objects: [new Object3D()] })]
   const frame = {
@@ -112,4 +121,47 @@ test('the split reserves the effect targets before the pools, whose defaults sta
   assert.throws(() => splitMemoryBudget(fixed - 1, DEFAULT_CACHED_BYTES), /UNDER_SHADOW_POOL/)
   const least = splitMemoryBudget(fixed + 2, DEFAULT_CACHED_BYTES)
   assert.ok(fixed + least.geometryPool + least.texturePool <= fixed + 2)
+})
+
+test('a chain with no depth of field reads none of its settings, one with it reads them', () => {
+  const read: string[] = []
+  const context = new Proxy({}, { get: (_, name) => (read.push(String(name)), undefined) })
+  const chain = createWorldEffects() // the motion blur and the bloom
+  const settings = createKindSettings()
+  const asked = () => read.some((name) => name.startsWith('depthOfField'))
+  settings.drawn(chain.stage('before-resolve'), context, [])
+  settings.moved(chain.passes, context)
+  assert.equal(asked(), false, 'nothing is read for a kind the chain holds no pass of')
+  chain.add(effect.depthOfField({ focusDistance: 2 }))
+  assert.equal(settings.drawn(chain.stage('before-resolve'), context, []).length, 1)
+  assert.equal(asked(), true)
+})
+
+test('the pass targets a chain gives back are retired with the frame that may still name them', async () => {
+  const gpu = fakeDevice()
+  const webgpu = createWebgpuEffects(gpu.device, (error) => assert.fail(String(error)))
+  const [input, encoder] = [{} as GPUTextureView, gpu.device.createCommandEncoder()]
+  const finish = createFinish(gpu.device)
+  const draw = (passes: typeof chain) => {
+    finish.scene.begin(encoder, input, 64, 32)
+    const layers = finish.groupFor(false)
+    webgpu.encode(encoder, passes, input, 64, 32, {
+      scene: finish.scene,
+      bare: finish.bare,
+      layers,
+      local: false,
+    })
+  }
+  draw(chain.slice(0, 2))
+  await webgpu.settled()
+  draw(chain.slice(0, 2))
+  const targets = () => gpu.textures.filter(({ label }) => label?.includes('effect target'))
+  assert.ok(targets().length > 0, 'a bloom another follows writes a target')
+  draw([])
+  assert.deepEqual([webgpu.bytes, targets().some((t) => gpu.destroyed.includes(t))], [0, false])
+  destroyRetired(gpu.device)
+  assert.ok(
+    targets().every((target) => gpu.destroyed.includes(target)),
+    'destroyed once the frame is',
+  )
 })

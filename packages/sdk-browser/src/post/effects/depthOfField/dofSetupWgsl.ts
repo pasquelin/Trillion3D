@@ -8,8 +8,8 @@ export const SETUP_BINDINGS = { scene: 2, depth: 3, color: 4, coc: 5 } as const
 /** The downsample's: the colour and circle of confusion read, the quarter-size ones written. */
 export const DOWNSAMPLE_BINDINGS = { color: 2, coc: 3, outColor: 4, outCoc: 5 } as const
 
-/** The depth at a texel of the image, which the depth, of the render's size, is read at the texel
- *  under its centre; `sceneCoc` the circle of confusion there, in texels of the gather's width. */
+/** The circle of confusion at a texel of the image (`sceneCoc`), from the depth under its centre, in
+ *  texels of the setup accumulation's width (`view.basis.w`: the unit the setup and its history hold it in). */
 const SETUP_INPUTS_WGSL = wgslBlock(
   'SETUP_INPUTS_WGSL',
   [DOF_PARAMS_WGSL, DOF_COC_WGSL],
@@ -18,11 +18,8 @@ const SETUP_INPUTS_WGSL = wgslBlock(
 @group(0) @binding(${SETUP_BINDINGS.depth}) var depthTexture:texture_depth_2d;
 @group(0) @binding(${SETUP_BINDINGS.color}) var colorOut:texture_storage_2d<${COLOR_FORMAT},write>;
 @group(0) @binding(${SETUP_BINDINGS.coc}) var cocOut:texture_storage_2d<${COC_FORMAT},write>;
-fn depthTexel(p:vec2i)->vec2i{
- return clamp(vec2i(floor((vec2f(p)+0.5)*view.depthMap.xy)),vec2i(0),vec2i(view.depthMap.zw));
-}
 fn sceneCoc(p:vec2i)->f32{
- return cocOfDepth(sceneDepthOf(textureLoad(depthTexture,depthTexel(p),0)),view.basis.x);
+ return cocOfDepth(sceneDepthOf(textureLoad(depthTexture,depthTexel(p),0)),view.basis.w);
 }`,
 )
 
@@ -67,8 +64,9 @@ fn setupFull(@builtin(global_invocation_id) gid:vec3u){
 
 /**
  * The quarter-size copy the scatter's decision compares against (`downsampleCoc`): each texel takes
- * the four of the half-size setup under it — clamped to the setup's last texel — and downsamples them
- * (the first-smaller circle's operator). A workgroup of `GROUP` texels a side.
+ * the four of the setup accumulation's under it — clamped to its last texel — and downsamples them
+ * (the first-smaller circle's operator), the circle in the gather's texels (`circleRatio`). A workgroup of
+ * `GROUP` texels a side.
  */
 export const cocDownsampleShader = () =>
   wgslProgram(
@@ -78,9 +76,9 @@ export const cocDownsampleShader = () =>
 @group(0) @binding(${DOWNSAMPLE_BINDINGS.outCoc}) var cocOut:texture_storage_2d<${COC_FORMAT},write>;
 @compute @workgroup_size(${GROUP},${GROUP})
 fn downsampleCoc(@builtin(global_invocation_id) gid:vec3u){
- let size=(view.gather.xy+vec2u(1u))/2u;
+ let size=(view.pre.xy+vec2u(1u))/2u;
  let quarter=vec2i(gid.xy);
- let last=vec2i(view.gather.xy)-vec2i(1);
+ let last=vec2i(view.pre.xy)-vec2i(1);
  var colors:array<vec4f,4>;
  var cocs=vec4f(0.0);
  for(var i=0;i<4;i++){
@@ -91,7 +89,7 @@ fn downsampleCoc(@builtin(global_invocation_id) gid:vec3u){
  let down=dofDownsample(colors,cocs,1.0,false);
  if(all(gid.xy<size)){
   textureStore(colorOut,quarter,down.color);
-  textureStore(cocOut,quarter,vec4f(down.coc,0.0,0.0,0.0));
+  textureStore(cocOut,quarter,vec4f(down.coc*circleRatio(),0.0,0.0,0.0));
  }
 }`,
     [DOF_PARAMS_WGSL, DOF_DOWNSAMPLE_WGSL],

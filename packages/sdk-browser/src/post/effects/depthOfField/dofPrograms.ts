@@ -1,12 +1,14 @@
 import { preparedComputeStage } from '../../../gpu/core/computeStages.ts'
+import { postSamplers } from '../../../gpu/core/postSamplers.ts'
 import { preparedPipelines } from '../../../gpu/core/preparedPipelines.ts'
 import { createCheckedShaderModule } from '../../../gpu/core/shaderModule.ts'
 import { preparedPipeline } from '../../../lighting/deferred/fullscreen.ts'
 import { DEPTH_OF_FIELD_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import { COLOR_FORMAT } from './dofLayout.ts'
-import { dofLayouts, dofSamplers } from './dofLayouts.ts'
+import { dofLayouts } from './dofLayouts.ts'
 import { DILATE_MODES, dilateShader, cocFlattenShader } from './dofTilesWgsl.ts'
 import { cocDownsampleShader, setupFullShader, setupHalfShader } from './dofSetupWgsl.ts'
+import { dofTemporalShader } from './dofTemporalWgsl.ts'
 import { dofReduceShader } from './dofReduceWgsl.ts'
 import { bokehLutShader } from './dofLutWgsl.ts'
 import { dofGatherShader } from './dofGatherWgsl.ts'
@@ -16,7 +18,7 @@ import { dofRecombineShader } from './dofRecombineMainWgsl.ts'
 
 /** What decides a pipeline of each pass: its pipeline constants, which name the layer, the rings,
  *  the quality, the bokeh, the tiles' dilation, the reduction's outputs. */
-export type Constants = Readonly<Record<string, number>>
+type Constants = Readonly<Record<string, number>>
 
 /** The additive blend the scattered sprites are drawn with: one of each. */
 const ADDITIVE: GPUBlendState = {
@@ -24,49 +26,41 @@ const ADDITIVE: GPUBlendState = {
   alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
 }
 
-/** The shader modules, compiled and checked together. */
+/** The shader modules, compiled and checked together, each under its pass's name (`ENTRIES`; the
+ *  sprites' beside them). */
 async function dofModules(device: GPUDevice) {
   const label = (name: string) => `${DEPTH_OF_FIELD_PASS} ${name}`
-  const [tiles, layers] = await Promise.all([
-    Promise.all([
-      createCheckedShaderModule(device, setupHalfShader(), label('setup half')),
-      createCheckedShaderModule(device, setupFullShader(), label('setup full')),
-      createCheckedShaderModule(device, cocFlattenShader(), label('flatten')),
-      createCheckedShaderModule(device, dilateShader(), label('dilate')),
+  const named = async <N extends string>(name: N, module: Promise<GPUShaderModule>) =>
+    [name, await module] as const
+  const compiled = await Promise.all([
+    named('setupHalf', createCheckedShaderModule(device, setupHalfShader(), label('setup half'))),
+    named('setupFull', createCheckedShaderModule(device, setupFullShader(), label('setup full'))),
+    named('temporal', createCheckedShaderModule(device, dofTemporalShader(), label('temporal'))),
+    named('flatten', createCheckedShaderModule(device, cocFlattenShader(), label('flatten'))),
+    named('dilate', createCheckedShaderModule(device, dilateShader(), label('dilate'))),
+    named(
+      'downsample',
       createCheckedShaderModule(device, cocDownsampleShader(), label('downsample')),
-      createCheckedShaderModule(device, dofReduceShader(), label('reduce')),
-    ]),
-    Promise.all([
-      createCheckedShaderModule(device, packShader(), label('pack')),
-      createCheckedShaderModule(device, bokehLutShader(), label('table')),
-      createCheckedShaderModule(device, dofGatherShader(), label('gather')),
+    ),
+    named('reduce', createCheckedShaderModule(device, dofReduceShader(), label('reduce'))),
+    named('pack', createCheckedShaderModule(device, packShader(), label('pack'))),
+    named('lut', createCheckedShaderModule(device, bokehLutShader(), label('table'))),
+    named('gather', createCheckedShaderModule(device, dofGatherShader(), label('gather'))),
+    named(
+      'postfilter',
       createCheckedShaderModule(device, dofPostfilterShader(), label('post-filter')),
-      createCheckedShaderModule(device, spriteShader(), label('sprites')),
-      createCheckedShaderModule(device, dofRecombineShader(), label('recombine')),
-    ]),
+    ),
+    named('sprites', createCheckedShaderModule(device, spriteShader(), label('sprites'))),
+    named('recombine', createCheckedShaderModule(device, dofRecombineShader(), label('recombine'))),
   ])
-  const [setupHalf, setupFull, flatten, dilate, downsample, reduce] = tiles
-  const [pack, lut, gather, postfilter, sprites, recombine] = layers
-  return {
-    setupHalf,
-    setupFull,
-    flatten,
-    dilate,
-    downsample,
-    reduce,
-    pack,
-    lut,
-    gather,
-    postfilter,
-    sprites,
-    recombine,
-  }
+  return Object.fromEntries(compiled) as Record<(typeof compiled)[number][0], GPUShaderModule>
 }
 
 /** Each compute pass's layout and entry point. */
 const ENTRIES = {
   setupHalf: ['setup', 'setupHalf'],
   setupFull: ['setup', 'setupFull'],
+  temporal: ['temporal', 'temporalSetup'],
   flatten: ['flatten', 'flattenCoc'],
   dilate: ['dilate', 'dilateCoc'],
   downsample: ['downsample', 'downsampleCoc'],
@@ -136,7 +130,7 @@ export async function createDofPrograms(device: GPUDevice) {
   const modules = await dofModules(device)
   return {
     layouts,
-    samplers: dofSamplers(device),
+    samplers: postSamplers(device),
     compute: computePipelines(device, layouts, modules),
     sprites: spritePipelines(device, layouts, modules),
   }

@@ -5,7 +5,11 @@
  */
 import { ceilDiv } from '../../../../../../math/src/scalar/integers.ts'
 import type { UniformSlots } from '../../../../session/memory/pools.ts'
-import { VSM_RENDER_CANDIDATE_BYTES, VSM_RENDER_CMD_BYTES } from '../constants.ts'
+import {
+  VSM_RENDER_CANDIDATE_BYTES,
+  VSM_RENDER_CMD_BYTES,
+  VSM_RENDER_LIGHT_BYTES,
+} from '../constants.ts'
 import {
   VSM_RENDER_ARGS_STRIDE_WORDS,
   VSM_RENDER_CHUNK_COUNTS,
@@ -15,7 +19,7 @@ import type { VsmChunk } from '../rows/rowPageBound.ts'
 
 /** The lists a chunked raster holds, by name. */
 export type VsmListName =
-  'params' | 'views' | 'candidates' | 'counts' | 'cmds' | 'order' | 'pairs' | 'args'
+  'params' | 'views' | 'lights' | 'candidates' | 'counts' | 'cmds' | 'order' | 'pairs' | 'args'
 
 /** Bytes of each list a chunk takes, by buffer (`vsmChunkListSizes`). */
 export type VsmListSizes = Record<VsmListName, number>
@@ -32,7 +36,8 @@ export interface VsmWithin<S> {
  * How a chunked raster's lists are sized, rewritten by each frame: `chunked` rows drawn in chunks
  * over `candidates` candidate rows, run once in each of `passes` view passes
  * (`../render/renderViewPasses.ts`: their parameters, counters and arguments are one slot each,
- * their other lists reused pass after pass), `viewWords` words of views, a chunk holding `holds`,
+ * their other lists reused pass after pass), `viewWords` words of views, `lights` lights of the
+ * frame (the table of `vsmWriteLights`), a chunk holding `holds`,
  * its parameter slots `slots`, `pairBytes` a pair and `headerBytes` a command in the pairs' list
  * (the transmission's page list heads each command), `orderBytes` a command in the tiers' order
  * (the opaque raster's bin, `vsmRenderBin`). Its sizes, `sizes` and `within` are made once and
@@ -43,6 +48,7 @@ export interface VsmListSizing {
   candidates: number
   passes: number
   viewWords: number
+  lights: number
   holds?: Omit<VsmChunk, 'rows'>
   slots?: UniformSlots
   readonly pairBytes: number
@@ -60,10 +66,14 @@ export function vsmListSizing(pairBytes: number, headerBytes: number, orderBytes
     candidates: 0,
     passes: 1,
     viewWords: 0,
+    lights: 0,
     pairBytes,
     headerBytes,
     orderBytes,
-    size: { params: 0, views: 0, candidates: 0, counts: 0, cmds: 0, order: 0, pairs: 0, args: 0 },
+    size: {
+      ...{ params: 0, views: 0, lights: 0, candidates: 0, counts: 0, cmds: 0 },
+      ...{ order: 0, pairs: 0, args: 0 },
+    },
     sizes: (rows) => vsmChunkListSizes(sizing, rows),
     within: { rows: 0, limited: false },
   }
@@ -76,6 +86,7 @@ function vsmChunkListSizes(sizing: VsmListSizing, rows: number) {
     chunks = ceilDiv(sizing.chunked, rows) * sizing.passes
   size.params = chunks * sizing.slots!.stride
   size.views = sizing.viewWords * 4
+  size.lights = sizing.lights * VSM_RENDER_LIGHT_BYTES
   size.candidates = sizing.candidates * VSM_RENDER_CANDIDATE_BYTES
   size.counts = (VSM_RENDER_COUNTS_HEAD + chunks * VSM_RENDER_CHUNK_COUNTS) * 4
   size.cmds = holds!.cmds(rows) * VSM_RENDER_CMD_BYTES
@@ -86,14 +97,15 @@ function vsmChunkListSizes(sizing: VsmListSizing, rows: number) {
 }
 
 /** `sizing` for `chunked` rows drawn in chunks over `candidates` candidate rows, run in `passes`
- *  view passes, under `viewWords` words of views, a chunk holding `holds`, its parameter slots
- *  `slots` (`VsmListSizing`): the opaque raster's and the transmission's one writer; rewritten in
- *  place. */
+ *  view passes, under `viewWords` words of views and `lights` lights, a chunk holding `holds`, its
+ *  parameter slots `slots` (`VsmListSizing`): the opaque raster's and the transmission's one
+ *  writer; rewritten in place. */
 export function vsmSizingFor(
   sizing: VsmListSizing,
   chunked: number,
   candidates: number,
   viewWords: number,
+  lights: number,
   holds: Omit<VsmChunk, 'rows'>,
   slots: UniformSlots,
   passes: number,
@@ -102,6 +114,7 @@ export function vsmSizingFor(
   sizing.candidates = candidates
   sizing.passes = passes
   sizing.viewWords = viewWords
+  sizing.lights = lights
   sizing.holds = holds
   sizing.slots = slots
   return sizing

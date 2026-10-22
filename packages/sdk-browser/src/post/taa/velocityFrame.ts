@@ -2,11 +2,9 @@ import { sameMatrixBits } from '../../../../math/src/matrix/matrixElements.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { WebgpuGpuState } from '../../frame/backend/state/gpu.ts'
-import { wantsContractLighting } from '../../frame/prepare/contractLight.ts'
-import { SCREEN_PROBE_RULES } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
-import { contextReader } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { screenProbesCast } from '../../lighting/bounce/screen/cast.ts'
 import { encodeComposedMotion } from '../../placement/compose/composedMotionPass.ts'
-import { blurWanted, perObjectSizeOf } from '../effects/blurPlan.ts'
+import { motionWanted, perObjectSizeOf } from '../effects/stagePlan.ts'
 import type { TaaFrameState } from './frameState.ts'
 import type { VelocityInputs } from './inputs.ts'
 import { askVelocityProgram, createVelocity, type Velocity } from './velocity.ts'
@@ -21,17 +19,9 @@ import { writeTaaView } from './view.ts'
  * for all of them.
  */
 
-/** The screen probes' level the session holds (`screenProbeOptions.ts`), read at each image. */
-const screenProbeSetting = contextReader(SCREEN_PROBE_RULES)
-
-/** Whether the screen probes cast this image, and read its vectors: the indirect light is lit by
- *  declared lamps and the level is not `'off'`. */
-export const probesRead = (rt: WebgpuPagesRuntime) =>
-  rt.bounce.wanted && wantsContractLighting(rt) && screenProbeSetting(rt, 'screenProbes') !== 'off'
-
 /** Whether a pass other than the temporal pass reads this image's vectors: the motion blur or the
- *  screen probes. */
-const readsVelocity = (rt: WebgpuPagesRuntime) => blurWanted(rt) || probesRead(rt)
+ *  screen probes (`screenProbesCast`). */
+const readsVelocity = (rt: WebgpuPagesRuntime) => motionWanted(rt) || screenProbesCast(rt)
 
 /** The view's velocity stage, made at the first ask. */
 export const velocityOf = (

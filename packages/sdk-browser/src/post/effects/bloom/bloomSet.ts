@@ -1,6 +1,6 @@
 import type { Bloom } from '../../../../../sdk-core/src/world/effect/bloom.ts'
-import type { BloomValues } from '../../../../../sdk-core/src/contracts/bloomRules.ts'
 import type { PostFrame } from '../../finish/finish.ts'
+import type { ValuesOf } from '../kindRules.ts'
 import type { createBloomPrograms } from './bloomPrograms.ts'
 import { createGaussianGlow } from './bloomGaussian.ts'
 import type { BloomTargets } from './bloomTargets.ts'
@@ -57,20 +57,19 @@ export function createBloomSet(device: GPUDevice, programs: BloomPrograms, targe
     },
     /**
      * Draws `bloom`'s glow over `image`, the frame's image, as `settings` ask, the scene's chain
-     * `post` shares; returns the passes drawn, 0 when nothing draws: the quality off, every level
-     * left out, a kernel of no light.
+     * `post` shares; returns the passes drawn, 0 when nothing draws: every level left out, a kernel
+     * of no light. The quality `'off'` is no pass that draws (`KIND_RULES.bloom.off`).
      */
     encode(
       encoder: GPUCommandEncoder,
       bloom: Bloom,
       post: PostFrame,
-      settings: BloomValues,
+      settings: ValuesOf<'bloom'>,
       image: GPUTextureView,
     ) {
       set.view = set.tint = undefined
       set.usedConvolution = false
       gaussian.reset()
-      if (settings.bloomQuality === 'off') return 0
       if (bloom.method !== 'convolution') {
         convolution.drop()
         const drawn = gaussian.encode(encoder, bloom, post, settings)

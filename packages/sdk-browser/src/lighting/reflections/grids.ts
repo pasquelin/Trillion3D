@@ -1,17 +1,18 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
-import { REFLECTION_COUNTS, REFLECTION_SIDE } from './constants.ts'
+import { REFLECTION_SIDE } from './constants.ts'
 import { createList, listBytes, resetList } from '../../gpu/dispatch/list.ts'
 import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
 
 /**
  * THE TEXTURES OF A SURFACE'S REFLECTIONS, sized on the targets' whole extent — the render
  * resolution's buffer, a render scale drawing within it, so a scale change reallocates nothing —
- * divided by the downsample factor for what the rays write, whole for what every pixel resolves and
- * accumulates; their texels laid out by
+ * whole for what every pixel resolves and accumulates, and for what the rays write — a texel a pixel, the
+ * grid's extent the one block of one pixel can fill, the level's block (`reflectionBlock`) narrowing what is used of
+ * it, so a level change reallocates nothing —; their texels laid out by
  * `texelWgsl.ts`, two words each in `REFLECTION_GRID_FORMAT`.
  *
- * - THE GRID, a texel a block of `REFLECTION_TRACE_BLOCK` pixels a side (`gridExtent`), the tracing
+ * - THE GRID, a texel a block of the level's pixels a side (`ReflectionView.grid`; here `pixels` texels at most), the tracing
  *   buffers: the fresh texels the trace writes (`fresh`, a ray's radiance and hit), the partial
  *   answers of the rays the screen left (`partial`), and the ray words in `REFLECTION_RAY_FORMAT`
  *   (`rayPack`): the block's pixel that traces this image,
@@ -42,16 +43,11 @@ export const REFLECTION_HISTORY_FORMAT: GPUTextureFormat = 'rgba32uint'
 /** Words of a ray the screen left (`trace/trace.ts`): its texel, its rest, bound and hit. */
 const REFLECTION_PENDING_WORDS = 4
 
-/** The grid's texels along `pixels` pixels: a texel a block of `REFLECTION_TRACE_BLOCK` pixels a
- *  side. */
-export const gridSide = (pixels: number) =>
-  ceilDiv(pixels, REFLECTION_COUNTS.REFLECTION_TRACE_BLOCK)
+/** The grid's texels along `pixels` pixels, a texel a block of `block` pixels a side: what a view uses of it. */
+export const gridSide = (pixels: number, block: number) => ceilDiv(pixels, block)
 
-/** The grid over a view of `width × height` pixels (`gridSide`). */
-const gridExtent = (width: number, height: number): [number, number] => [
-  gridSide(width),
-  gridSide(height),
-]
+/** The grid's extent over a view of `width × height` pixels: a texel a pixel, whatever the block. */
+const gridExtent = (width: number, height: number): [number, number] => [width, height]
 
 /** The tiles of `width × height` texels or pixels, a word each. */
 const tilesOf = (width: number, height: number) =>
@@ -64,7 +60,7 @@ const TEXEL = texelBytesOf(REFLECTION_GRID_FORMAT)
 export const resolvedBytes = (width: number, height: number) => width * height * TEXEL
 
 /** Bytes of a surface's textures over targets of `width × height` pixels: the grid's 3 · 8 + 4 = 28
- *  a texel, the history's 2 · 16 = 32 a pixel, the four tile lists, the list of the rays the screen
+ *  a texel, a pixel's, the history's 2 · 16 = 32 a pixel, the four tile lists, the list of the rays the screen
  *  left, 16 a texel at most, and the one head every image copies over theirs (`head`). */
 export const gridBytes = (width: number, height: number) => {
   const [w, h] = gridExtent(width, height)

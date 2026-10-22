@@ -2,8 +2,8 @@
  * The view uniform of deferred resolve and composition (`VIEW_WGSL`): the inverse view-projection,
  * the camera, the viewport — size, raw-output flag, sharpening strength —, the background, the
  * contract's light parameters, the TAA jitter, the composition's source (`writeSource`), the
- * lighting term a view shows (`writeLightView`) and how the ambient occlusion is applied
- * (`writeAmbientOcclusion`). One
+ * lighting term a view shows (`writeLightView`), how the ambient occlusion is applied
+ * (`writeAmbientOcclusion`) and how the screen probes' history is read (`writeScreenProbes`). One
  * buffer, one packed array, written once per image; its words are those of `VIEW_LAYOUT`, which
  * makes the shader's struct.
  */
@@ -72,6 +72,19 @@ function writeDirect(packed: Float32Array, direct: ArrayLike<number>) {
   packed[AT.preExposure + 1] = direct[DIRECT_AT.shown]
 }
 
+/** Writes `values` at the word `at` of `packed` and of `buffer`, the words alone, when one changed. */
+function writeWords(
+  device: GPUDevice,
+  buffer: GPUBuffer,
+  packed: Float32Array<ArrayBuffer>,
+  at: number,
+  values: readonly number[],
+) {
+  if (values.every((value, i) => packed[at + i] === Math.fround(value))) return
+  packed.set(values, at)
+  device.queue.writeBuffer(buffer, at * 4, packed, at, values.length)
+}
+
 export function createDeferredView(device: GPUDevice) {
   const buffer = device.createBuffer({
     label: 'Trillion3D deferred view v1',
@@ -123,19 +136,30 @@ export function createDeferredView(device: GPUDevice) {
      *  `../../visibility/shader/shadeMode.ts`), zero the lit surface: its word alone is written,
      *  when it changes. */
     writeLightView(code: number) {
-      if (packed[AT.views] === code) return
-      packed[AT.views] = code
-      device.queue.writeBuffer(buffer, AT.views * 4, packed, AT.views, 1)
+      writeWords(device, buffer, packed, AT.views, [code])
     },
     /** How the resolve applies the ambient occlusion this image drew (`../ao/frame.ts`): the mode's code — 0 none, 1 to the
      *  scene's emission and sky light, 2 to the screen probes' light — and the share it applies at. Its two words
      *  alone are written, when they change. */
     writeAmbientOcclusion(mode: number, amount: number) {
-      const at = AT.views + 1
-      if (packed[at] === mode && packed[at + 1] === amount) return
-      packed[at] = mode
-      packed[at + 1] = amount
-      device.queue.writeBuffer(buffer, at * 4, packed, at, 2)
+      writeWords(device, buffer, packed, AT.views + 1, [mode, amount])
+    },
+    /** How the resolve reads the screen probes' history this image (`../bounce/screen/indirectWgsl.ts`): whether the material's
+     *  occlusion multiplies their light (1 or 0), the albedo the occlusion's multi-bounce is capped at, the strength of their
+     *  short-range occlusion and their mode — 0 their light, 1 their occlusion alone over the world's probes' light. Its four
+     *  words alone are written, when they change. */
+    writeScreenProbes(
+      materialOcclusion: number,
+      maxAlbedo: number,
+      intensity: number,
+      mode: number,
+    ) {
+      writeWords(device, buffer, packed, AT.screenProbes, [
+        materialOcclusion,
+        maxAlbedo,
+        intensity,
+        mode,
+      ])
     },
     dispose() {
       buffer.destroy()

@@ -75,15 +75,19 @@ test('each image tells the rays’ scene the main eye and the scale of the draw 
   assert.equal(view.cullOff & CULL_DRAW_DISTANCE_OFF, CULL_DRAW_DISTANCE_OFF)
 })
 
-test('a view’s clip plane reaches its cut in the render frame once the host allows planes, its cull on unless turned off', () => {
+test('a view’s clip plane reaches its cut in the render frame where the project switch is on, its cull on unless turned off', () => {
   const b = banc(),
     { selectionUniforms: view } = b.rt.run
   // The camera stands at z = 5; the world plane z = 2 keeps what lies above it.
   const plane = [0, 0, 1, 2] as const
   b.camera.viewSet = Object.freeze({ clipPlane: plane, hidden: [], showOnly: null })
   b.image()
-  assert.equal(view.clipPlane, undefined, 'planes are off by default: the view’s is ignored')
-  Object.assign(b.rt.context, { cutClipPlane: true })
+  assert.deepEqual(
+    view.clipPlane,
+    [0, 0, 0, 0],
+    'the switch is off by default: the view’s is ignored',
+  )
+  Object.assign(b.rt.setup, { clipping: 'pixel' })
   b.image()
   // `dot(xyz, p) + w` at least 0 is drawn: the world point z = 2 is at -3 from the eye.
   assert.deepEqual(view.clipPlane, [0, 0, 1, 3])
@@ -93,7 +97,7 @@ test('a view’s clip plane reaches its cut in the render frame once the host al
   assert.equal(view.cullOff & CULL_CLIP_PLANE_OFF, CULL_CLIP_PLANE_OFF)
   b.camera.viewSet = Object.freeze({ clipPlane: NO_CLIP_PLANE, hidden: [], showOnly: null })
   b.image()
-  assert.equal(view.clipPlane, undefined, 'a view without a plane writes none')
+  assert.deepEqual(view.clipPlane, [0, 0, 0, 0], 'a view without a plane holds zeros')
 })
 
 test('a view’s lists reach its cut as the bits of the roots they name, none for a view with no list', () => {
@@ -148,7 +152,7 @@ test('a GPU time budget coarsens the cut’s threshold by the lesser of the edge
     scale.tick((now += 8), true)
     scale.drew(scale.wanted(), true)
     renderGpuCut(rt, b.camera, 2, 0)
-    scale.observe(1, scale.wanted(), true, 20, scale.edge)
+    scale.observe(1, scale.wanted(), true, 20, scale.edge.now)
     return view.pixelError
   }
   scale.set('auto')
@@ -156,10 +160,11 @@ test('a GPU time budget coarsens the cut’s threshold by the lesser of the edge
   Object.assign(rt.context, { cutEdgeScaleBudgetMs: 10 })
   for (let i = 0; i < 20; i++) image()
   const coarse = image()
-  assert.ok(scale.edge < 1 && scale.edge >= 0.3, `${scale.edge}`)
-  assert.equal(coarse, 2 / scale.edge, 'the threshold over the scale')
-  residency.qualityScale = scale.edge / 2
-  assert.equal(image(), 2 / (scale.edge / 2), 'the streaming scale, the lesser')
+  const fraction = scale.edge.now
+  assert.ok(fraction < 1 && fraction >= 0.3, `${fraction}`)
+  assert.equal(coarse, 2 / fraction, 'the threshold over the scale')
+  residency.qualityScale = fraction / 2
+  assert.equal(image(), 2 / (fraction / 2), 'the streaming scale, the lesser')
   residency.qualityScale = 1
   Object.assign(rt.context, { cutEdgeScaleBudgetMs: 0 })
   assert.equal(image(), 2, 'a budget of 0 turns it off, what it learnt kept')

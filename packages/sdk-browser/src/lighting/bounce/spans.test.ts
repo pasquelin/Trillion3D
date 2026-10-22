@@ -8,6 +8,7 @@ import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbe
 import { createScreenProbeStore } from './screen/store.ts'
 import { spHistory } from './screen/historyWgsl.ts'
 import { spCommon } from './screen/commonWgsl.ts'
+import { BLUE_NOISE_HALF_PERIOD } from '../../gpu/noise/blueNoiseWgsl.ts'
 import {
   equalAreaDecode,
   equalAreaEncode,
@@ -61,10 +62,16 @@ test('a table past its capacity answers nothing until it is grown', () => {
 
 test('every screen-probe kernel is a module a device takes, at every level: its names declared, none reserved or twice, its bindings the layout holds', () => {
   const levels = SCREEN_PROBE_LEVELS.filter((level) => level !== 'off')
-  assert.deepEqual(levels, ['high', 'ultra', 'cinematic'])
+  assert.deepEqual(levels, ['low', 'high', 'ultra', 'cinematic'])
   for (const level of levels) {
     const shape = kernelShapeOf(screenProbeSettings({ screenProbes: level }))
-    for (const [name, { code, entries, points }] of Object.entries(screenProbeSources(shape))) {
+    const sources = screenProbeSources(shape)
+    assert.deepEqual(
+      Object.keys(sources).filter((name) => name !== 'occlusion' && name !== 'temporal').length > 0,
+      level !== 'low',
+      `${level} makes the kernels over the probes only where it casts them`,
+    )
+    for (const [name, { code, entries, points }] of Object.entries(sources)) {
       const where = `${level} ${name}`
       assert.deepEqual(unresolvedNames(code), [], where)
       assert.deepEqual(reservedNames(code), [], where)
@@ -80,6 +87,32 @@ test('every screen-probe kernel is a module a device takes, at every level: its 
       for (const point of points) assert.ok(code.includes(`fn ${point}(`), `${where} ${point}`)
     }
   }
+})
+
+test('every kernel reads the blue noise where the probes need a random number — the rays and their texels by the tile and the rays turn, the pixels by the frame — and keeps no hash', () => {
+  const sources = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })))
+  const reads = {
+    composite: ['blueNoiseVec2(tile,sp.mode.w)', 'blueNoiseVec2(tile,sp.mode.w+31u)'],
+    spatial: ['blueNoiseVec2(tile,sp.mode.w)'],
+    rays: ['blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w)'],
+    traceScreen: ['blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w)'],
+    traceField: ['blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w)'],
+    traceScene: ['blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w)'],
+    screenData: ['blueNoiseScalar(pixel,sp.size.w)'],
+    occlusion: ['blueNoiseVec2(pixel,sp.size.w)'],
+    temporal: [
+      'blueNoiseScalar(id.xy,sp.size.w)',
+      'blueNoiseScalar(pixel,sp.size.w)',
+      'blueNoiseVec2(pixel,sp.size.w)',
+      'ditherLight(',
+    ],
+  }
+  for (const [name, { code }] of Object.entries(sources)) {
+    for (const call of reads[name as keyof typeof reads] ?? [])
+      assert.ok(code.includes(call), `${name} reads ${call}`)
+    assert.ok(!/spNoise|rand3dPcg16\(vec3i\(vec2i\(coord/.test(code), `${name} holds no hash noise`)
+  }
+  assert.equal(BLUE_NOISE_HALF_PERIOD, 31, 'half of the frames largest index, rounded down')
 })
 
 test('the screen probes settings are read again at each image, and resolved only where a value moved', () => {
@@ -140,6 +173,28 @@ test('the history word keeps the depth, the fast update, the frames and the occl
     14,
     'fourteen of fifteen stay fourteen',
   )
+  // A longest history past the four bits: the frames are coded over fifteen at most, and the code 15 is the longest, whatever it is.
+  const wide = shaderRun<typeof meta>(wgslModule(spHistory(7, 8)), ['spMetaOf', 'spMetaFrames'], {
+    sp: { counts: [40, 0, 0, 0] },
+  })
+  assert.equal(wide.spMetaFrames(wide.spMetaOf(1, 14, 0, 1)), 14)
+  assert.equal(wide.spMetaFrames(wide.spMetaOf(1, 15, 0, 1)), 40, 'fifteen frames code the most')
+  assert.equal(wide.spMetaFrames(wide.spMetaOf(1, 40, 0, 1)), 40)
+})
+
+test('the scene stage lists a ray by its texel alone, the disocclusion is read only where its flag is up, the occlusion search takes its slices and steps from the parameters', () => {
+  const sources = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })))
+  for (const name of ['traceScreen', 'traceScene'] as const)
+    assert.ok(/entries:array<u32>,\}/.test(sources[name].code), `${name} lists one word a ray`)
+  assert.ok(
+    !/bitcast<u32>\(seen\.distance\)/.test(sources.traceScreen.code),
+    'no second word a ray',
+  )
+  assert.match(sources.screenData.code, /spFlag\(SP_FLAG_DISOCCLUSION\)&&spDisoccluded/)
+  assert.match(sources.screenData.code, /spFlag\(SP_FLAG_DISOCCLUSION\)&&partial\[0\]\[10\]/)
+  const search = sources.occlusion.code
+  assert.ok(search.includes('u32(sp.occlusion.x)') && search.includes('u32(sp.occlusion.y)'))
+  assert.ok(!/const SP_(SLICES|STEPS)/.test(search), 'no constant of the level')
 })
 
 test('the equal-area map of the sphere and its inverse agree, and the octahedron border wraps to a texel inside', () => {

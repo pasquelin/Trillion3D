@@ -18,59 +18,64 @@ fn reuses_materials(layer: &HlodLayer) -> bool {
 }
 
 impl Hlod {
-    /// Whether the layers form chains (`parse`): no cycle; no parent wearing its sources' own
-    /// materials above a layer whose actors wear materials of their own (`reuses_materials`); no
-    /// chain longer than `MAX_HLOD_LEVELS` — the world table writes a level in 8 bits. Any layer
-    /// may take objects and stand at HLOD 0, any may be another's parent; the parent a layer not
-    /// spatially loaded names is let go: its actors are always loaded, so nothing is built of them.
-    /// A layer no object's chain reaches builds nothing (`levels`).
+    /// Whether the layers form chains (`parse`), as the reference keeps them: a layer whose parent
+    /// closes a cycle, or wears its sources' own materials above a layer whose actors wear
+    /// materials of their own (`reuses_materials`), loses that parent — its chain ends there — and
+    /// the job is told (`dropped`), never refused; a chain longer than `MAX_HLOD_LEVELS` — the world
+    /// table writes a level in 8 bits — is refused. Any layer may take objects and stand at HLOD 0,
+    /// any may be another's parent; the parent a layer not spatially loaded names is let go: its
+    /// actors are always loaded, so nothing is built of them. A layer no object's chain reaches
+    /// builds nothing (`levels`).
     pub(super) fn chains(&mut self) -> Result<()> {
         // The parent of a layer not spatially loaded is let go before any check: the edge never
         // carries an actor, so it can neither close a cycle nor wear a material above anything.
         for layer in self.layers.iter_mut().filter(|l| !l.spatially_loaded) {
             layer.parent = None;
         }
-        let layers = &self.layers;
-        let refuse = |message: String| Err(OPTIONS.bad(message));
-        // A cycle first: a chain followed up from any layer that does not end within as many
-        // steps as there are layers.
-        for (start, layer) in layers.iter().enumerate() {
-            let mut at = start;
-            for _ in 0..=layers.len() {
-                match layers[at].parent {
-                    Some(parent) => at = parent,
-                    None => break,
-                }
-            }
-            if layers[at].parent.is_some() {
-                return refuse(format!(
-                    "{HLOD_FIELD} layers form a cycle through {}",
-                    layer.name
-                ));
-            }
-        }
-        for layer in layers {
-            let Some(parent) = layer.parent.map(|p| &layers[p]) else {
+        for at in 0..self.layers.len() {
+            let Some(parent) = self.layers[at].parent else {
                 continue;
             };
-            if reuses_materials(parent) && !reuses_materials(layer) {
-                return refuse(format!(
-                    "{HLOD_FIELD} layer {} wears its sources' own materials, so it builds nothing \
-                     above {}, whose actors wear materials of their own: name another parent",
-                    parent.name, layer.name
-                ));
-            }
+            let (name, above) = (&self.layers[at].name, &self.layers[parent].name);
+            let why = match (
+                self.closes_cycle(at),
+                reuses_materials(&self.layers[parent]),
+            ) {
+                (true, _) => format!("its parent {above} closes a cycle of parents"),
+                (false, true) if !reuses_materials(&self.layers[at]) => format!(
+                    "its parent {above} wears its sources' own materials, so it builds nothing \
+                     above {name}, whose actors wear materials of their own"
+                ),
+                _ => continue,
+            };
+            self.dropped.push(format!(
+                "{HLOD_FIELD} layer {name}: {why}: its chain ends at it"
+            ));
+            self.layers[at].parent = None;
         }
         let longest = (0..self.layers.len())
             .map(|at| (at, 1 + self.ancestors(Some(at)).count()))
             .find(|&(_, levels)| levels > MAX_HLOD_LEVELS);
         if let Some((at, levels)) = longest {
-            return refuse(format!(
+            return Err(OPTIONS.bad(format!(
                 "{HLOD_FIELD} layer {}'s chain has {levels} levels, at most {MAX_HLOD_LEVELS}",
                 self.layers[at].name
-            ));
+            )));
         }
         Ok(())
+    }
+
+    /// Whether the chain followed up from `start` comes back to a layer it passed: within as many
+    /// steps as there are layers, a chain that ends does.
+    fn closes_cycle(&self, start: usize) -> bool {
+        let mut at = start;
+        for _ in 0..=self.layers.len() {
+            match self.layers[at].parent {
+                Some(parent) => at = parent,
+                None => return false,
+            }
+        }
+        true
     }
 
     /// Each layer's HLOD level once the scene names the layers its objects take (`used`): its

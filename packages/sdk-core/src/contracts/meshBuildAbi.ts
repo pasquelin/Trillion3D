@@ -112,9 +112,11 @@ export const VOXEL_REMEMBER_BELOW_RAYS = 32
  *    `distanceFieldTwoSided`, `distanceFieldDensity`, `distanceFieldMaxResolution`.
  *  - `allowAssemblies`: whether the assembly a mesh's glTF `extras.assembly` names — parts, the
  *    meshes drawn once for each node that names them, and nodes, a part and a transform each — is
- *    built: the mesh is then its own triangles and every node's part, carried by its transform
- *    (`false`, the default: the mesh is its own triangles alone, as the reference draws a mesh
- *    whose assembly it does not build, where its project switch is off). */
+ *    built: each node of the assembly is then a node of the scene under every node that places the
+ *    mesh, carrying its part's mesh, whose pages are written once however many nodes name it
+ *    (`true`); or the mesh is its own triangles alone and the import report counts the assemblies
+ *    left unbuilt (`false`, the default, as the reference does not build an assembly where its
+ *    project switch is off). */
 export const MESH_BUILD_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flagSetting('storedTangents', false),

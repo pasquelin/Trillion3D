@@ -216,3 +216,47 @@ fn an_object_naming_a_draw_distance_carries_it_in_its_core_node_or_its_cell_row(
         .collect();
     assert_eq!(drawn, [&json!({"min": 5.0, "max": 120.0})], "{rows:?}");
 }
+
+/// `count` unit right triangles side by side, each covering `covered` in the texture coordinate of
+/// set 0 (twice its area): the positions, the indices and the sets of a primitive that has one.
+fn stretched(count: usize, covered: f32) -> (Vec<f32>, Vec<u32>, [Option<Vec<f32>>; 4]) {
+    let (mut positions, mut uv) = (Vec::new(), Vec::new());
+    for i in 0..count {
+        let x = 2.0 * i as f32;
+        positions.extend([x, 0.0, 0.0, x + 1.0, 0.0, 0.0, x, 1.0, 0.0]);
+        uv.extend([0.0, 0.0, covered.sqrt(), 0.0, 0.0, covered.sqrt()]);
+    }
+    let indices = (0..3 * count as u32).collect();
+    (positions, indices, [Some(uv), None, None, None])
+}
+
+#[test]
+fn a_displaced_materials_uv_density_is_the_trimmed_weighted_mean_over_its_triangles() {
+    use crate::compiler::tables::uv_density::Density;
+    // Each triangle is a unit right triangle: twice its area is 1. It covers 1/4 of the coordinate,
+    // so a unit of the coordinate spans 2 units of the object.
+    let (mut positions, mut indices, mut sets) = stretched(9, 0.25);
+    // A tenth triangle that covers 1/100 says 10; the tenth of the triangles that say the most, and
+    // that many of those that say the least, are left out: the density is that of the other eight.
+    let (last_position, _, last_set) = stretched(1, 0.01);
+    positions.extend(last_position.iter().map(|x| x + 20.0));
+    indices.extend(27..30);
+    sets[0]
+        .as_mut()
+        .expect("set 0")
+        .extend(last_set[0].as_ref().expect("set"));
+    let mut one = Density::default();
+    one.add(&positions, &indices, &sets);
+    assert_eq!(one.per_set(), Some([2.0, 0.0, 0.0, 0.0]));
+    // Another primitive of the same material adds its weight before the division: the density is
+    // the mean of both, a set no triangle measures staying 0.
+    let (positions, indices, sets) = stretched(10, 0.0625);
+    let mut both = one;
+    both.add(&positions, &indices, &sets);
+    assert_eq!(both.per_set(), Some([3.0, 0.0, 0.0, 0.0]));
+    // A primitive with no coordinates, or whose triangles cover nothing of them, measures nothing.
+    let mut none = Density::default();
+    none.add(&positions, &indices, &[None, None, None, None]);
+    none.add(&positions, &indices, &stretched(10, 0.0).2);
+    assert_eq!(none.per_set(), None);
+}

@@ -66,11 +66,15 @@ const SHADOW_SETUP_WGSL = wgslBlock(
  *  wrote it. */
 const SURFACE_TERMS = {
   bounce: {
-    indirect: 'resolvedIndirect(coord,albedo,base.a,normal.a,N,V,P,occlusion.sky)',
+    indirect: 'resolvedIndirect(coord,albedo,base.a,normal.a,N,V,P,occlusion.sky,occlusion.both)',
     diagnostic: 'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
     blocks: [RESOLVED_INDIRECT_WGSL],
   },
-  direct: { indirect: 'mat2x3f(vec3f(0.0),resolvedReflection(coord))', diagnostic: '', blocks: [] },
+  direct: {
+    indirect: 'mat2x3f(vec3f(0.0),resolvedReflection(coord,occlusion.both,N,V,normal.a))',
+    diagnostic: '',
+    blocks: [],
+  },
 }
 
 /**

@@ -52,8 +52,10 @@ pub(crate) fn cells_within(
     let d = dominant_axis(n);
     let (u, v) = ((d + 1) % 3, (d + 2) % 3);
     let offset = dot(n, t[0]);
-    for cu in low[u]..=high[u] {
-        for cv in low[v]..=high[v] {
+    // Rows along `v`, columns along `u` within a row, then along `d`: the order the voxels are
+    // found in, which is their rank (`Sampler::set`).
+    for cv in low[v]..=high[v] {
+        for cu in low[u]..=high[u] {
             // The plane's span along `d` over the column's square, when the plane is not along it.
             let (from, to) = if n[d] != 0.0 {
                 let at = |a: i32, b: i32| (offset - n[u] * a as f64 - n[v] * b as f64) / n[d];
