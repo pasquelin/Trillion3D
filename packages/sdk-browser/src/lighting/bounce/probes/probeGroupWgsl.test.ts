@@ -35,9 +35,13 @@ test('the probe update is as wide as a probe’s rays, its sums within the guara
     new RegExp(`var<workgroup> tally:array<atomic<u32>,${CENSUS_WORDS}>;`),
   )
   assert.ok(threads * (15 * 16 + 4) + FILTER_BYTES + CENSUS_WORDS * 4 <= GUARANTEED_WORKGROUP_BYTES)
-  // The census's tally gives each of its words a lane of the group; a group with fewer lanes is refused.
+  // The census's tally gives each of its words a lane of the group; the tally block (`workgroupTallyWgsl`, the
+  // same refusal for the reflections' and the cut's) refuses a group with fewer lanes, naming both numbers.
   assert.ok(CENSUS_WORDS <= threads)
-  assert.throws(() => censusWgsl(0, CENSUS_WORDS - 1), RangeError)
+  assert.throws(
+    () => censusWgsl(0, CENSUS_WORDS - 1),
+    new RangeError(`${CENSUS_WORDS} counters, ${CENSUS_WORDS - 1} lanes`),
+  )
 })
 
 test('a probe’s rays are its threads: each lane its one ray', () => {
@@ -62,7 +66,7 @@ test('the update counts the rays that left the scene, what their shadow rays fou
 
 test('no ray is left out of a probe’s estimate: an exhausted one answers, every lane adds its sums', () => {
   // `rtProbeRay` answers a distance for every ray (an exhausted walk is a hit, a shadow ray that is
-  // exhausted a blocker): the update has no branch for a ray without an answer.
+  // exhausted lit): the update has no branch for a ray without an answer.
   assert.match(BOUNCE_PROBE_SHADER, /let rays=f32\(PROBE_THREADS\);/)
 })
 

@@ -1,6 +1,7 @@
 import { CLUSTER_TRANSPARENT } from '../clusterFlags.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { workgroupTallyWgsl } from '../../../gpu/core/workgroupTallyWgsl.ts'
+import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 
 /**
  * Triangle totals of a frame, held BY THE GPU.
@@ -21,13 +22,13 @@ import { workgroupTallyWgsl } from '../../../gpu/core/workgroupTallyWgsl.ts'
  * THE SUM HAPPENS IN THE WORKGROUP FIRST. Unique words added by EVERY live cluster serialize the
  * whole GPU on a few addresses: that is the classic atomic hotspot, and it grows with the scene.
  * Each group of 64 threads therefore sums in its own shared memory, then two of its threads pour
- * the subtotal into the frame words (`workgroupTallyWgsl`, the engine's one such reduction): two
+ * the subtotal into the frame words (`workgroupTallyWgsl`, the engine's lane-a-counter reduction): two
  * global adds per group instead of per cluster, for exactly the same numbers.
  */
 const POUR = `if(lane==0u){atomicAdd(&out.selectedTriangles,n);}else{atomicAdd(&out.transparentTriangles,n);}`
 export const DAG_TOTALS_WGSL = wgslBlock(
   'DAG_TOTALS_WGSL',
-  [workgroupTallyWgsl('DAG_TALLY_WGSL', 2, 'true', POUR)],
+  [workgroupTallyWgsl('DAG_TALLY_WGSL', 2, WORKGROUP_THREADS, POUR)],
   `fn tallyDrawn(r:u32,flags:u32){
  let tri=trianglesOf(r);
  tallyAdd(0u,tri);

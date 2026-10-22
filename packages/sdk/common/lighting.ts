@@ -16,7 +16,7 @@ export type {
   LightLattice,
 } from '../../sdk-core/src/bounce/cascades.ts'
 export { cloneSceneLight } from '../../sdk-core/src/scene/light/clone.ts'
-export { CORNER_INFLUENCES, proxyTriangleCount } from '../../sdk-core/src/contracts/proxy.ts'
+export { CORNER_INFLUENCES } from '../../sdk-core/src/contracts/proxy.ts'
 export type {
   CutDeformation,
   RuntimeCutProxy,

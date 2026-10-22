@@ -62,16 +62,18 @@ export const SURFACE_BLENDED = 1
  * THE BUDGET OF A RAY. One counter of `work` units per ray, shared by the placement
  * tree and the cuts' own nodes: a child a tree node examines costs one, a cut's node four, a triangle
  * two; a ray stops at `RAY_WORK` units or `RAY_TRIANGLES` triangle tests. The shadow rays its hits'
- * lighting casts (`rtBlocked`) spend the same budget: a ray, its lighting included, costs `RAY_WORK`
- * units at most, whatever the lights its hits see — never one budget more a light.
+ * lighting casts (`rtBlocked`) spend none of it: each has a budget of its own (`SHADOW_RAY_WORK`), the
+ * counters of the ray it is cast for set aside and given back, so a ray's own walk is never shortened by
+ * its lighting, whatever the lights its hits see.
  *
  * AN EXHAUSTED RAY IS A HIT, never a ray that is dropped: a trace that runs out of budget has not found
- * the light, nor the shade, so it answers as one that met a surface where it stopped. A shadow ray that
- * spends the budget (`rtBlocked`) is a blocker: the point it was cast from is shaded, and the ray it was
- * cast for keeps its weight. A probe's ray whose own walk spends it ends as an opaque hit at the surface
- * the walk had found, else at the distance it had reached (`rtReached`) in the placement it had last reached
- * (`rtReachedPlacement`), carrying the light the cascades hold there (`rtLayers`, `rtProbeRay`): the estimate
- * of a probe counts every ray it fired, none renormalised away.
+ * the light, nor the shade, so it answers as one that met a surface where it stopped. A probe's ray whose
+ * own walk spends its budget ends as an opaque hit at the surface the walk had found, else at the distance
+ * it had reached (`rtReached`) in the placement of its furthest entry (`rtReachedPlacement`), carrying the
+ * light the cascades hold there (`rtLayers`, `rtProbeRay`): the estimate of a probe counts every ray it
+ * fired, none renormalised away. A shadow ray that spends its own is lit, as a point no object was tested
+ * against is: it has found nothing that stands in the light, and only a cut of one placement that ran out
+ * of stack (`RT_CAUSE_MESH`) shades the point, as that placement's own walk could not tell.
  * A reflection's ray keeps answering zero confidence, its share left to the next stage of the chain
  * (`rtRadiance`): its budget (`REFLECTION_PROXY_WORK`) is about one node's scan of the placement tree (a full
  * node of `TREE_SPAN` children costs as many units), so the walk that ends it has entered few placements, if
@@ -79,11 +81,14 @@ export const SURFACE_BLENDED = 1
  */
 export const RAY_WORK = 512
 export const RAY_TRIANGLES = 128
-/** The budget of a probe's ray, its shadow rays' included (`BOUNCE_SETTINGS.probeRayWork`): the
- *  reflections keep `RAY_WORK`, a probe's ray starts inside the street's boxes and casts a shadow ray
- *  that nothing stops where it is lit. */
+/** The budget of a probe's ray (`BOUNCE_SETTINGS.probeRayWork`): the reflections keep `RAY_WORK`, a probe's
+ *  ray starts inside the street's boxes. */
 export const PROBE_RAY_WORK = BOUNCE_SETTINGS.probeRayWork
 export const PROBE_RAY_TRIANGLES = BOUNCE_SETTINGS.probeRayTriangles
+/** The budget of one shadow ray, its own (`BOUNCE_SETTINGS.shadowRayWork`): one that meets nothing walks its
+ *  whole segment, where the probe's ray stops at its first surface. */
+export const SHADOW_RAY_WORK = BOUNCE_SETTINGS.shadowRayWork
+export const SHADOW_RAY_TRIANGLES = BOUNCE_SETTINGS.shadowRayTriangles
 /** Surfaces met in a ray before it ends: a blended one is looked through, up to this many — a closed
  *  blended solid is two, its front face and its back. */
 export const RAY_LAYERS = 3

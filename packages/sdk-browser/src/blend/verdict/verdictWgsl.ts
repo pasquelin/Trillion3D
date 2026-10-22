@@ -1,5 +1,6 @@
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 import { recordTextureWgsl } from '../../gpu/core/recordTextureWgsl.ts'
+import { workgroupTallyWgsl } from '../../gpu/core/workgroupTallyWgsl.ts'
 import { COLD_TABLE } from '../../geometry/dag/cut/cutTables.ts'
 import { ACTOR_ROW } from '../../geometry/dag/worlds/worldLinks.ts'
 import { linkDrawsWgsl } from '../../geometry/dag/shader/worldGateWgsl.ts'
@@ -91,7 +92,9 @@ const BOUNDED_EXPONENT = 1023 + SINGLE_BOUND_LOG2
  * One thread an item, a workgroup's 64 verdicts packed into its two keep words from workgroup
  * memory. The frame's counts — the drawn items that draw nothing (`VERDICT_REJECTED`) and the drawn
  * transmissive items the frustum keeps (`VERDICT_IN_VIEW`, their box tested for it alone) —
- * take one atomic a workgroup.
+ * are counted in the workgroup and poured with one atomic a workgroup (`workgroupTallyWgsl`); its
+ * `flushTally` barrier is the one that also puts every lane's `bits` in place for `packLane`, which
+ * only reads them, after it.
  */
 export const BLEND_VERDICT_SHADER = wgslProgram(
   `@group(0) @binding(${VERDICT_BINDING.keyed}) var<storage,read> keyed:array<u32>;
@@ -121,7 +124,6 @@ fn cellDraws(at:u32,flags:u32)->bool{
  if(file!=${NO_INDEX}u){fileWord=cellsWord(frame[FRAME_FILE_STATES]+file,0u).x;}
  return linkDraws(cell,cellWord,fileWord);
 }
-var<workgroup> tally:array<atomic<u32>,2>;
 /** Whether double \`v\` enters the single-precision test: finite, below 2^60 in magnitude. */
 fn boundedDouble(v:vec2u)->bool{return dExponent(v)<${BOUNDED_EXPONENT}u;}
 /** \`frustumExcludesBox\` on the record's box at word \`at\`, proven in single precision
@@ -180,10 +182,10 @@ fn judgeLane(group:u32,lane:u32){
  var v=0u;
  if(item<frame[FRAME_ITEMS]){v=judgeItem(item);}
  bits[lane]=select(0u,bitMask(lane),(v&1u)!=0u);
- if((v&2u)!=0u){atomicAdd(&tally[0],1u);}
- if((v&4u)!=0u){atomicAdd(&tally[1],1u);}
+ if((v&2u)!=0u){tallyAdd(0u,1u);}
+ if((v&4u)!=0u){tallyAdd(1u,1u);}
 }
-/** The last: two lanes write the group's keep words, one adds its counts. */
+/** The last: two lanes write the group's keep words. */
 fn packLane(group:u32,lane:u32){
  if(lane<2u){
   let w=group*2u+lane;
@@ -193,22 +195,22 @@ fn packLane(group:u32,lane:u32){
    keep[w]=word;
   }
  }
- if(lane==0u){
-  let rejected=atomicLoad(&tally[0]);
-  let seen=atomicLoad(&tally[1]);
-  if(rejected!=0u){atomicAdd(&verdict[VERDICT_REJECTED],rejected);}
-  if(seen!=0u){atomicAdd(&verdict[VERDICT_IN_VIEW],seen);}
- }
 }
 @compute @workgroup_size(${VERDICT_GROUP})
 fn judgeBlendItems(@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) n:vec3u){
  let group=flatIndex(wid,n,1u);
  judgeLane(group,lid.x);
- workgroupBarrier();
+ flushTally(lid.x);
  packLane(group,lid.x);
 }
 `,
   [
+    workgroupTallyWgsl(
+      'VERDICT_TALLY_WGSL',
+      2,
+      VERDICT_GROUP,
+      'atomicAdd(&verdict[select(VERDICT_REJECTED,VERDICT_IN_VIEW,lane==1u)],n);',
+    ),
     dSub,
     dExponent,
     toF32,

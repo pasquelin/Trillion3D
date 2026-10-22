@@ -91,8 +91,9 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  // sixty-four rays occupies a whole group, where a single thread chained them and left the GPU idle.
  let d=rayDirection(lane,jitter,rotation);
  let sample=rtProbeRay(origin,d,reach);
- // The ray counted in the group's tally (\`tallyAdd\`), flushed once: the work it and its shadow rays spent, by
- // bucket and in all, the part the tree's groups took (this image's rays only), what its shadow rays found.
+ // The ray counted in the group's tally (\`tallyAdd\`), flushed once: the work it and its shadow rays spent (each
+ // its own budget), by bucket and in all, the part the tree's groups took (this image's rays only), what its
+ // shadow rays found.
  let spent=rtWork+rtExtra;
  tallyAdd(CENSUS_WORK+min(CENSUS_BUCKETS-1u,firstLeadingBit(max(spent>>5u,1u))),1u);
  tallyAdd(CENSUS_WALK_WORK,spent);
@@ -100,7 +101,8 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  tallyAdd(CENSUS_SHADOW_FREE,rtShadowFree);
  tallyAdd(CENSUS_SHADOW_BLOCKED,rtShadowHit);
  // What spent a ray's walk and its shadow ray is counted: the ray answers all the same (\`rtProbeRay\`), an
- // exhausted walk as a hit where it stopped and an exhausted shadow ray as a blocker, none left out.
+ // exhausted walk as a hit where it stopped, an exhausted shadow ray as lit (blocked where a cut ran out of
+ // stack in it), none left out.
  if(rtCause!=0u){tallyAdd(CENSUS_EXHAUSTED_BY+rtCause-1u,1u);}
  if(rtShadowCause!=0u){tallyAdd(CENSUS_EXHAUSTED_BY+3u+rtShadowCause,1u);}
  let span=sample.w;
@@ -130,7 +132,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
    partialTravelled[lane]+=partialTravelled[lane+stride];
   }
  }
- // The tally's barrier is the gather's last: every round's sums are in place for the thread that writes the probe.
+ // \`flushTally\` holds the group's one barrier after the gather; lane 0 reads its own last sums.
  flushTally(lane);
  if(lane!=0u){return;}
  for(var k=0u;k<PROBE_SUMS;k++){sums[k]=partial[k][0];}

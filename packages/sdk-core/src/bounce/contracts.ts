@@ -122,14 +122,21 @@ export const BOUNCE_SETTINGS = {
    */
   rayReachMetres: 200,
   /**
-   * Units of work and triangle tests a probe's ray may spend, its shadow rays included
-   * (`runtime/runtimeLayout.ts`, `RAY_WORK`): a unit a box tested, a node visited, a triangle tested.
-   * A street's rays cross many overlapping boxes, and a shadow ray that meets nothing has no hit to
-   * stop it: a ray that spends them has not finished, which counts as a hit (its shadow ray, as a
-   * blocker), so the budget is the whole of what the probes can learn of the light.
+   * Units of work and triangle tests a probe's ray may spend (`runtime/runtimeLayout.ts`, `RAY_WORK`): a unit
+   * a box tested, a node visited, a triangle tested. A street's rays cross many overlapping boxes: a ray
+   * that spends them has not finished, which counts as a hit, so the budget is the whole of what the probes
+   * can learn of the surfaces. The shadow rays its hits cast spend their own (`shadowRayWork`).
    */
   probeRayWork: 4096,
   probeRayTriangles: 1024,
+  /**
+   * Units of work and triangle tests one shadow ray, cast from the hit of a probe's ray, may spend, its
+   * own: it never takes them from the ray it is cast for. A shadow ray that meets nothing has no hit to
+   * stop it and walks its whole segment, the only kind that does. One that spends them has not finished:
+   * it counts as lit, where only a cut of one placement that ran out of stack counts as a blocker.
+   */
+  shadowRayWork: 4096,
+  shadowRayTriangles: 1024,
 } as const
 
 /**

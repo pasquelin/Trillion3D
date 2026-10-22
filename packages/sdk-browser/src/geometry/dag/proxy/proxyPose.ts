@@ -7,10 +7,8 @@
  * layout and what each copy is belong to `proxyInstances.ts`.
  */
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
-import {
-  proxyTriangleCount,
-  type RuntimeCutProxy,
-} from '../../../../../sdk-core/src/contracts/proxy.ts'
+import type { RuntimeCutProxy } from '../../../../../sdk-core/src/contracts/proxy.ts'
+import { proxyTriangleCount } from './proxyArena.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { heldBuffers } from '../../../gpu/core/heldBuffers.ts'
 import { writeChanged } from '../../../gpu/core/writeChanged.ts'

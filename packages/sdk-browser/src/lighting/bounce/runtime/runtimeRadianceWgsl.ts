@@ -8,6 +8,7 @@ import { faceNormal } from '../../../../../math/src/wgsl/geometry.ts'
 import { worldMatrix3 } from '../../../../../math/src/wgsl/matrix.ts'
 import { markReachWgsl } from '../../../deformation/halfFloat.ts'
 import { runtimeSceneWgsl } from './runtimeSceneWgsl.ts'
+import { runtimeShadowWgsl } from './runtimeShadowWgsl.ts'
 import { sceneKey, type SceneBindings } from '../sceneBindings.ts'
 import { SKY_READ_WGSL } from '../../atmosphere/skyReadWgsl.ts'
 import {
@@ -73,7 +74,7 @@ const rtStoppedWgsl = (scene: SceneBindings) =>
     [rtSurfaceWgsl(scene), SURFACE_RAY_WGSL, worldMatrix3, NO_INDEX],
     `
 /** The surface is the hit's, its tint and its face that looks at the ray; where the walk found none, that of the
- *  placement it had last reached (\`rtReachedPlacement\`), turned to the ray; where it had entered none, a surface
+ *  placement of its furthest entry (\`rtReachedPlacement\`), turned to the ray; where it had entered none, a surface
  *  of no tint (no surface it can vouch for is known). */
 fn rtStoppedSeen(hit:RtHit,start:vec3f,direction:vec3f,stop:f32)->vec3f{
  let at=start+direction*stop;
@@ -131,11 +132,9 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,tests:
  var start=origin;
  var left=reach;
  for(var layer=0u;layer<RT_LAYERS;layer++){
-  let carried=rtSpent();let hit=rtScene(start,direction,left);
+  let hit=rtScene(start,direction,left);
   if(rtSpent()){
-   // The budget was crossed before this walk began, by the shadow rays it shares it with (\`rtBlocked\`), or by the walk.
-   if(carried){if(rtShadowCause==0u){rtShadowCause=rtWhy();}}
-   else{rtCause=rtWhy();}
+   rtCause=rtWhy();
    if(!lit){return RtWalk(RadianceAnswer(vec3f(0.0),0.0,first),0.0,0.0);}
    let stop=select(rtReached,hit.distance,hit.found);
    if(layer==0u){first=stop;}
@@ -188,7 +187,7 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,tests:
 export const runtimeRadianceWgsl = (scene: SceneBindings) =>
   wgslBlock(
     `runtimeRadianceWgsl(${sceneKey(scene)})`,
-    [rtLayersWgsl(scene), SKY_READ_WGSL],
+    [rtLayersWgsl(scene), runtimeShadowWgsl(scene), SKY_READ_WGSL],
     `
 /** A reflection's ray (\`rtLayers\`, read). */
 fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32)->RadianceAnswer{
@@ -198,8 +197,8 @@ fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32)->Ra
  *  far, its first surface lit and those a blended one lets it reach read behind it, weighed by what
  *  they stop, the sky for the share that leaves the scene (\`RtWalk.open\`), and the distance to the
  *  first, \`reach\` where it meets nothing. Every ray answers: one whose walk spent its budget ends as a hit
- *  where it stopped, one whose shadow ray did lit its hit as blocked (\`runtimeLayout.ts\`); what spent
- *  them is left in \`rtCause\` and \`rtShadowCause\`, for the census. */
+ *  where it stopped (\`runtimeLayout.ts\`); what spent it is left in \`rtCause\`, what spent a shadow ray of
+ *  its hits in \`rtShadowCause\`, for the census. */
 fn rtProbeRay(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  let walk=rtLayers(origin,direction,reach,0.0,RT_PROBE_WORK,RT_PROBE_TRIANGLES,true);
  var seen=walk.answer.color*walk.stopped;

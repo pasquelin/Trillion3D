@@ -49,13 +49,15 @@ export interface BounceFrameMetrics {
   probesWrittenTotal: number | null
   probesBuriedTotal: number | null
   /** The rays that spent their budget, by what spent it: the ray's own work, its triangle tests, its
-   *  walk of the placement tree, a mesh's walk; then the same four for its shadow ray (totals). An
-   *  exhausted walk ends as a hit where it stopped, an exhausted shadow ray as a blocker. */
+   *  walk of the placement tree, a mesh's walk; then the same four for its shadow ray, which has a budget
+   *  of its own (totals). An exhausted walk ends as a hit where it stopped, an exhausted shadow ray as lit,
+   *  blocked only where a mesh's walk ran out of stack in it. */
   raysExhaustedBy: number[] | null
   /** Every ray by the work it spent: under 64 units, 128, 256, 512, 1024, 2048, 4096, more (totals). */
   rayWork: number[] | null
   /** Rays that answered by meeting no surface, so that the sky answered them; shadow rays of the rays'
-   *  hits that found nothing on their segment (the point is lit); those that found a surface (totals). */
+   *  hits that came back lit (no surface found on their segment, those that spent their budget before
+   *  they found one included); those that found a surface (totals). */
   raysEscaped: number | null
   shadowRaysFree: number | null
   shadowRaysBlocked: number | null

@@ -11,6 +11,7 @@ import {
   PROXY_NODE_WORDS,
   PROXY_TRIANGLE_FLOATS,
 } from '../../../../../sdk-core/src/contracts/writtenFormats.ts'
+import type { RuntimeCutProxy } from '../../../../../sdk-core/src/contracts/proxy.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
 import { constructGpuResources } from '../../../gpu/core/errorScope.ts'
 import type { PageSurface } from '../../pages/surface.ts'
@@ -21,6 +22,10 @@ import {
   SURFACE_WORDS,
 } from '../../../lighting/bounce/runtime/runtimeLayout.ts'
 import { writeSurface } from '../../../lighting/bounce/runtime/runtimeSurface.ts'
+
+/** The triangles of a proxy: its `triangles` numbers over `PROXY_TRIANGLE_FLOATS`. */
+export const proxyTriangleCount = (cut: RuntimeCutProxy) =>
+  cut.triangles.length / PROXY_TRIANGLE_FLOATS
 
 /** Surfaces, triangles, nodes and corners a first buffer is laid out for: doubled as needed. */
 const START = { surfaces: 16, triangles: 4096, nodes: 1024, corners: 4096 }

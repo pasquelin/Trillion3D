@@ -7,7 +7,6 @@ import { worldMatrix3 } from '../../../../../math/src/wgsl/matrix.ts'
 import { transformHalfExtent } from '../../../../../math/src/wgsl/geometry.ts'
 import {
   PLACEMENT_TREE_WALK_WGSL,
-  placementTreeAnyHit,
   placementTreeWalk,
 } from '../../../geometry/dag/tree/treeWalkWgsl.ts'
 import { wideNodeFns } from '../nodeWgsl.ts'
@@ -19,6 +18,8 @@ import {
   RAY_TRIANGLES,
   RAY_WORK,
   RUNTIME_PROXY_WGSL,
+  SHADOW_RAY_TRIANGLES,
+  SHADOW_RAY_WORK,
 } from './runtimeLayout.ts'
 import { worldTableWgsl } from '../../../geometry/dag/worlds/worldTable.ts'
 import { treeTableWgsl } from '../../../geometry/dag/tree/treeTable.ts'
@@ -26,9 +27,9 @@ import { sceneKey, type SceneBindings } from '../sceneBindings.ts'
 
 /**
  * THE RAY'S STATE: the constants the proxy's rays share and what one ray spends and finds — the units
- * and triangle tests it has spent (`rtWork`, `rtTests`), those its shadow rays did (`rtExtra`), its
- * budget, what exhausted it, how far its walk had reached, the first surface it hit —, none of it
- * bound to a scene.
+ * and triangle tests it has spent (`rtWork`, `rtTests`), those its shadow rays did, counted apart
+ * (`rtExtra`), its budget, what exhausted it, how far its walk had reached, the first surface it hit —,
+ * none of it bound to a scene.
  */
 const RT_RAY_WGSL = wgslBlock(
   'RT_RAY_WGSL',
@@ -39,6 +40,8 @@ ${wgslConsts({
   RT_TRIANGLES: RAY_TRIANGLES,
   RT_PROBE_WORK: PROBE_RAY_WORK,
   RT_PROBE_TRIANGLES: PROBE_RAY_TRIANGLES,
+  RT_SHADOW_WORK: SHADOW_RAY_WORK,
+  RT_SHADOW_TRIANGLES: SHADOW_RAY_TRIANGLES,
   RT_CAUSE_WORK: 1,
   RT_CAUSE_TESTS: 2,
   RT_CAUSE_TREE: 3,
@@ -52,13 +55,13 @@ ${wgslConsts({
 /** The ray's spending: box tests and node visits in \`rtWork\`, triangle tests in \`rtTests\`. */
 var<private> rtWork:u32;
 var<private> rtTests:u32;
-/** The work of the shadow rays a hit's lighting cast (\`rtBlocked\`), which the ray that hit is charged:
- *  the ray and its shadow rays share one budget (\`runtimeLayout.ts\`). */
+/** The work of the shadow rays a hit's lighting cast (\`rtBlocked\`), for the census alone: each spends its own
+ *  budget (\`runtimeLayout.ts\`), none of the ray's, which \`rtSpent\` never counts it against. */
 var<private> rtExtra:u32;
 /** Whether the cuts' traversal answers the first surface it meets, not the nearest (\`rtBlocked\`). */
 var<private> rtAnyHit:bool;
-/** The units and the triangle tests the ray may spend, its shadow rays' included: \`RT_WORK\` and
- *  \`RT_TRIANGLES\`, or fewer (\`rtRadiance\`) or more (\`rtProbeRay\`). */
+/** The units and the triangle tests the ray may spend: \`RT_WORK\` and \`RT_TRIANGLES\`, or fewer
+ *  (\`rtRadiance\`) or more (\`rtProbeRay\`); a shadow ray's own while it walks (\`rtBlocked\`). */
 var<private> rtBudget:u32;
 var<private> rtTestBudget:u32;
 /** Why a ray's own walk was exhausted, the first thing that spent it (\`RT_CAUSE_*\`), zero while it is not. */
@@ -68,8 +71,9 @@ var<private> rtCause:u32;
 var<private> rtReached:f32;
 var<private> rtReachedPlacement:u32;
 fn rtAdvance(at:f32,w:u32){if(at>=rtReached){rtReached=at;rtReachedPlacement=w;}}
-/** What the shadow rays its hits' lighting cast found, for the census: those that found nothing on their segment,
- *  those that found a surface, and what spent the first that spent the budget (\`RT_CAUSE_*\`, zero while none did). */
+/** What the shadow rays its hits' lighting cast found, for the census: those that lit the point (found nothing on
+ *  their segment, or ran out of their budget before they found a surface), those that found a surface, and what spent
+ *  the first that spent its own budget (\`RT_CAUSE_*\`, zero while none did). */
 var<private> rtShadowFree:u32;
 var<private> rtShadowHit:u32;
 var<private> rtShadowCause:u32;
@@ -78,7 +82,7 @@ var<private> rtShadowCause:u32;
 var<private> rtMembers:u32;
 /** A ray begins: nothing spent, nothing charged, the whole budget before it. */
 fn rtBegin(){rtWork=0u;rtTests=0u;rtExtra=0u;rtBudget=RT_WORK;rtTestBudget=RT_TRIANGLES;rtCause=0u;rtShadowFree=0u;rtShadowHit=0u;rtShadowCause=0u;rtMembers=0u;}
-fn rtSpent()->bool{return rtWork+rtExtra>=rtBudget||rtTests>=rtTestBudget;}
+fn rtSpent()->bool{return rtWork>=rtBudget||rtTests>=rtTestBudget;}
 /** What spent the ray: a cause already named, else its units or its triangle tests. */
 fn rtWhy()->u32{
  if(rtCause!=0u){return rtCause;}
@@ -128,7 +132,7 @@ ${wideTraversal({
   )
 
 /** One placement: its world read in its record, where the ray enters its box and the ray against its cut. */
-const runtimePlacementWgsl = (scene: SceneBindings) =>
+export const runtimePlacementWgsl = (scene: SceneBindings) =>
   wgslBlock(
     `runtimePlacementWgsl(${sceneKey(scene)})`,
     [
@@ -176,17 +180,31 @@ fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
   )
 
 /** What both walks of the placement tree spend: a unit a child or a member read (the members counted apart). */
-const TREE_WALK_SPENDING = {
+export const TREE_WALK_SPENDING = {
   stop: 'if(rtSpent()){done=true;break;}',
   visit: 'rtWork+=1u;rtMembers+=select(0u,1u,group);',
   steps: '2u*rtBudget',
   cut: 'rtWork=rtBudget;rtCause=RT_CAUSE_TREE;',
 }
 
-/** The nearest hit: the placement tree walked front to back. */
-const runtimeWalkWgsl = (scene: SceneBindings) =>
+/**
+ * THE PROXY'S RAYS: what a ray meets of the scene, compiled meshes and the cuts the world made at run time
+ * alike. One traversal over two levels: the culling's placement tree, read in its record table — its nodes hold
+ * the world boxes of up to 64 children, a group's children being placements — and, in each placement whose box the ray meets, its
+ * mesh's own wide tree (`rtTraceCut`, the engine's one wide traversal, `wideTraversal`) in the mesh's own space,
+ * the ray taken there by the inverse of the placement's world. The world is the culling's, read where it lies:
+ * nothing is copied per placement; its four-word instance lies in its record beside it (`geometry/dag/worlds/worldTable.ts`).
+ *
+ * `rtScene` answers the nearest hit, the placement tree walked front to back; the shadow rays ask only whether
+ * anything stands on a segment (`runtimeShadowWgsl.ts`).
+ *
+ * ONE BUDGET A RAY (`RAY_WORK`, `RAY_TRIANGLES`): every box, node and triangle a ray tests spends from the same
+ * counters; a ray that spends them is exhausted, which ends it as a hit (`runtimeLayout.ts`). The shadow rays
+ * its hits' lighting casts spend their own.
+ */
+export const runtimeSceneWgsl = (scene: SceneBindings) =>
   wgslBlock(
-    `runtimeWalkWgsl(${sceneKey(scene)})`,
+    `runtimeSceneWgsl(${sceneKey(scene)})`,
     [
       runtimePlacementWgsl(scene),
       treeTableWgsl('rtTree', { group: scene.group, binding: scene.tree, access: 'read' }),
@@ -219,82 +237,6 @@ ${placementTreeWalk({
 })}
  }
  return best;
-}
-`,
-  )
-
-/**
- * THE PROXY'S RAYS: what a ray meets of the scene, compiled meshes and the cuts the world made at run time
- * alike. One traversal over two levels: the culling's placement tree, read in its record table — its nodes hold
- * the world boxes of up to 64 children, a group's children being placements — and, in each placement whose box the ray meets, its
- * mesh's own wide tree (`rtTraceCut`, the engine's one wide traversal, `wideTraversal`) in the mesh's own space,
- * the ray taken there by the inverse of the placement's world. The world is the culling's, read where it lies:
- * nothing is copied per placement; its four-word instance lies in its record beside it (`geometry/dag/worlds/worldTable.ts`).
- *
- * `rtScene` answers the nearest hit, the placement tree walked front to back; `rtBlocked` whether anything stands on
- * a segment — a shadow does not need the nearest: `rtSceneAny` walks the tree once, in index order, and returns at
- * the first surface.
- *
- * ONE BUDGET A RAY (`RAY_WORK`, `RAY_TRIANGLES`): every box, node and triangle, its shadow rays' too, spends
- * from the same counters; a ray that spends them is exhausted, which ends it as a hit (`runtimeLayout.ts`).
- * `rtBlocked` asks the shadow ray: it spends what the ray it is cast for left of their one budget, charged to it
- * (`rtExtra`). A shadow ray that spends it has not finished: it counts as a blocker, as a trace that runs out of
- * steps counts as a hit, which spares the rest of its lighting, and the ray it is cast for keeps its weight. A
- * surface found answers whatever it cost. What spent a shadow ray is kept (`rtShadowCause`), the ray's own cause
- * (`rtCause`) left as it was.
- */
-export const runtimeSceneWgsl = (scene: SceneBindings) =>
-  wgslBlock(
-    `runtimeSceneWgsl(${sceneKey(scene)})`,
-    [
-      runtimeWalkWgsl(scene),
-      treeTableWgsl('rtTree', { group: scene.group, binding: scene.tree, access: 'read' }),
-      NO_INDEX,
-    ],
-    `
-/** The first surface of the proxy the ray meets within \`limit\`, any of them: the placement tree walked
- *  once in index order (\`placementTreeAnyHit\`), the first placement whose cut the ray meets answering.
- *  What a shadow ray asks: the same visibility as \`rtScene\`'s, without its order. */
-fn rtSceneAny(origin:vec3f,direction:vec3f,limit:f32)->RtHit{
- var best=RtHit(limit,0u,0u,false);
- if(rtProxy.instances==0u){return best;}
- let inverse=rayInverseDirection(direction);
- if(rtProxy.treeRoot==NO_INDEX){
-  for(var w=0u;w<rtProxy.members;w++){
-   if(rtSpent()){break;}
-   rtWork+=1u;
-   best=rtEnter(w,origin,direction,inverse,best);
-   if(best.found){return best;}
-  }
- }else{
-${placementTreeAnyHit({
-  root: 'rtProxy.treeRoot',
-  table: 'rtTree',
-  enter: 'best=rtEnter(w,origin,direction,inverse,best);if(best.found){return best;}',
-  ...TREE_WALK_SPENDING,
-})}
- }
- return best;
-}
-/** Whether anything of the proxy stands on the segment of length \`span\` from \`origin\` along \`direction\`: the
- *  first surface met answers, and a shadow ray that spends the ray's budget (\`rtExtra\`) counts as a blocker. */
-fn rtBlocked(origin:vec3f,direction:vec3f,span:f32)->bool{
- let work=rtWork;
- let tests=rtTests;
- let cause=rtCause;
- rtTests=0u;
- rtAnyHit=true;
- let hit=rtSceneAny(origin,direction,span);
- rtAnyHit=false;
- let spent=rtSpent();
- if(hit.found){rtShadowHit++;}
- else if(!spent){rtShadowFree++;}
- else if(rtShadowCause==0u){rtShadowCause=rtWhy();}
- rtCause=cause;
- rtExtra+=max(rtWork,work)-work;
- rtWork=work;
- rtTests=tests;
- return hit.found||spent;
 }
 `,
   )

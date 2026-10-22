@@ -20,11 +20,14 @@ const FIELD = ESCAPED + 3
  * fired their rays (every ray answers, so the rays fired are theirs times `raysPerProbe`), the rays
  * that brought light back, the probes written, the probes written buried; the rays that spent their
  * budget, by what spent it (`exhaustedBy`: the ray's own work, its triangle tests, its walk of the
- * placement tree, a mesh's walk; then the same four for its shadow ray — an exhausted walk ends as a hit
- * where it stopped, an exhausted shadow ray as a blocker, and a ray may count in two); every ray by the
- * work it spent (`work`: under 64 units, 128, 256, 512, 1024, 2048, 4096, more); the rays that answered by
+ * placement tree, a mesh's walk; then the same four for its shadow ray, which spends a budget of its own — an
+ * exhausted walk ends as a hit where it stopped, an exhausted shadow ray as lit, blocked only where a mesh's
+ * walk ran out of stack in it, and a ray may count in two); every ray by the work it and its shadow rays spent
+ * (`work`: under 64 units, 128, 256, 512, 1024, 2048, 4096, more); the rays that answered by
  * meeting no surface (`escaped`: the sky answers them) and the shadow rays that came back, by what they
- * found (`shadowFree`: nothing stood on the segment, the point is lit; `shadowBlocked`: a surface did).
+ * found (`shadowFree`: no surface stood on the segment that the ray found, the point is lit, those that spent their
+ * budget before they found one included; `shadowBlocked`: a surface did; a ray blocked by a mesh's walk that ran
+ * out of stack is neither, only counted by what spent it).
  * The last words are the field as the last census found it, cleared then counted by `countField`
  * over the whole pool and the whole table: the probes that hold light, those that hold none, those
  * buried, the entries of the table that name a probe; and, cleared with them, the work the rays of
@@ -57,14 +60,12 @@ export const CENSUS_WORDS = CENSUS.walkMembers + 1
 /**
  * The counters' names in a shader, and their buffer at binding `binding` of group 0, with the tally a
  * workgroup of `lanes` threads counts them in (`tallyAdd`, then `flushTally` from every thread): a lane a
- * word, so no more words than lanes.
+ * word, which the tally refuses a workgroup too narrow for.
  */
-export const censusWgsl = (binding: number, lanes: number) => {
-  if (CENSUS_WORDS > lanes)
-    throw new RangeError(`the census holds ${CENSUS_WORDS} words, more than ${lanes} lanes`)
-  return wgslBlock(
+export const censusWgsl = (binding: number, lanes: number) =>
+  wgslBlock(
     `censusWgsl(${binding})`,
-    [workgroupTallyWgsl('CENSUS_TALLY_WGSL', CENSUS_WORDS, 'true', 'atomicAdd(&census[lane],n);')],
+    [workgroupTallyWgsl('CENSUS_TALLY_WGSL', CENSUS_WORDS, lanes, 'atomicAdd(&census[lane],n);')],
     `${wgslConsts({
       CENSUS_UPDATED: CENSUS.updated,
       CENSUS_LIT: CENSUS.lit,
@@ -85,7 +86,6 @@ export const censusWgsl = (binding: number, lanes: number) => {
     })}
 @group(0) @binding(${binding}) var<storage,read_write> census:array<atomic<u32>,${CENSUS_WORDS}>;`,
   )
-}
 
 /**
  * The field's census: a thread a probe of the pool, then a thread a texel of the table. A probe that
@@ -111,7 +111,7 @@ export const BOUNCE_CENSUS_SHADER = wgslProgram(
    let lanes=textureLoad(probes,vec2u(texel%TABLE_WIDTH,texel/TABLE_WIDTH),TABLE_LAYER,0);
    var named=0u;
    for(var lane=0u;lane<TABLE_LANES;lane++){named+=select(0u,1u,lanes[lane]>0.0);}
-   tallyAdd(CENSUS_FIELD_PUBLISHED,named);
+   if(named>0u){tallyAdd(CENSUS_FIELD_PUBLISHED,named);}
   }
  }
 }

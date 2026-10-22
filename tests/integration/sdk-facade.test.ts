@@ -58,7 +58,7 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 781 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 780 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
@@ -75,7 +75,7 @@ test('generated inventory and explicit facade files are current', async () => {
   // two (boxTransformBatch, multiplyMatrix4Batch, boxTransformUnionBatch) stands beside them; nor a
   // second page source beside the streaming (httpPageSource): `page.httpSource` reads through a
   // streamer. The run-time proxy a placement
-  // wears carries its deformation (CutDeformation, CORNER_INFLUENCES) and its triangle count (proxyTriangleCount). The bounce publishes its
+  // wears carries its deformation (CutDeformation, CORNER_INFLUENCES). The bounce publishes its
   // frame metrics (BounceFrameMetrics) and its count of probes traced an image (resolveProbesPerFrame,
   // BOUNCE_PROBE_QUEUE); the reflections publish theirs (ReflectionFrameMetrics, ReflectionProxyEnded); no time servo (createProxyBudget) nor world-sized cascades
   // (createBounceCascades) stand beside it. A mesh wears the one surface record its material declared
@@ -126,7 +126,7 @@ test('generated inventory and explicit facade files are current', async () => {
   // scene's sky, height fog and exposure carry their own names (SceneAtmosphere, ResolvedAtmosphere,
   // SceneOzoneLayer, SceneSky, SceneHeightFog, SceneFogDirectional, SceneExposure), and the bloom its
   // levels (BloomLevelOptions, BloomTint, ResolvedBloomLevel).
-  assert.equal(inventory.exports.length, 781)
+  assert.equal(inventory.exports.length, 780)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

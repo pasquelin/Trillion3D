@@ -9,10 +9,8 @@ import {
   proxyBuffer,
   proxyHeader,
 } from '../../../packages/sdk-browser/src/lighting/bounce/proxyBuffer.fixture.ts'
-import {
-  PROXY_NODE_FLOATS,
-  PROXY_TRIANGLE_FLOATS,
-} from '../../../packages/sdk-core/src/contracts/writtenFormats.ts'
+import { PROXY_NODE_FLOATS } from '../../../packages/sdk-core/src/contracts/writtenFormats.ts'
+import { proxyTriangleCount } from '../../../packages/sdk-browser/src/geometry/dag/proxy/proxyArena.ts'
 import { buildCutProxy } from '../../../packages/sdk-browser/src/geometry/runtime/runtimeProxy.ts'
 import { sdkWasm } from '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import { worldTableOn } from '../../../packages/sdk-browser/src/geometry/dag/worlds/worldTable.fixture.ts'
@@ -37,7 +35,7 @@ function proxyWords(faces: readonly RigFace[]) {
   cuts.forEach((cut, k) => {
     instances.push(node, triangle, k, 0)
     node += cut.nodeBounds.length / PROXY_NODE_FLOATS
-    triangle += cut.triangles.length / PROXY_TRIANGLE_FLOATS
+    triangle += proxyTriangleCount(cut)
   })
   const columns = {
     triangles: Float32Array.from(cuts.flatMap((cut) => [...cut.triangles])),

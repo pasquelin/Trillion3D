@@ -45,9 +45,6 @@ export const REFLECTION_CENSUS = {
   work: 4 + REFLECTION_FATES.length,
 } as const
 export const REFLECTION_CENSUS_WORDS = REFLECTION_CENSUS.work + REFLECTION_WORK_BUCKETS
-// The tally gives each word a lane of the trace's workgroup.
-if (REFLECTION_CENSUS_WORDS > REFLECTION_SIDE * REFLECTION_SIDE)
-  throw new RangeError(`the census holds more words than a workgroup has lanes`)
 
 /** The index of a fate in `REFLECTION_FATES`. */
 const fate = (name: ReflectionFate) => REFLECTION_FATES.indexOf(name)
@@ -88,7 +85,7 @@ export const reflectionCensusWgsl = (binding: number) =>
       workgroupTallyWgsl(
         'REFLECTION_CENSUS_TALLY_WGSL',
         REFLECTION_CENSUS_WORDS,
-        'true',
+        REFLECTION_SIDE * REFLECTION_SIDE,
         'atomicAdd(&reflectionCensus[lane],n);',
       ),
     ],

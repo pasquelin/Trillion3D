@@ -12,11 +12,13 @@ import type { WebgpuBlendState } from '../state.ts'
 
 type Kernel = {
   judgeLane(group: number, lane: number): void
+  flushTally(lane: number): void
   packLane(group: number, lane: number): void
 }
 
 const NAMES = [
   'judgeLane',
+  'flushTally',
   'packLane',
   'judgeItem',
   'cellDraws',
@@ -37,8 +39,8 @@ type VerdictWords = {
   verdict: number[] | Uint32Array
 }
 
-/** The verdict kernel over `words`, the items the frame names, its two barrier steps replayed
- *  group by group over fresh workgroup memory. */
+/** The verdict kernel over `words`, the items the frame names, its steps before and after the
+ *  group's barrier replayed group by group over fresh workgroup memory. */
 export function runVerdict(words: VerdictWords) {
   const scope = {
     keyed: words.keyed,
@@ -49,6 +51,7 @@ export function runVerdict(words: VerdictWords) {
     verdict: words.verdict,
     bits: new Array<number>(VERDICT_GROUP).fill(0),
     tally: [0, 0],
+    workgroupBarrier: () => {},
   }
   // The kernel's own functions; the library's are reached on their own.
   const kernel = shaderRun<Kernel>(BLEND_VERDICT_SHADER, NAMES, scope)
@@ -56,6 +59,7 @@ export function runVerdict(words: VerdictWords) {
   for (let group = 0; group * VERDICT_GROUP < items; group++) {
     scope.tally[0] = scope.tally[1] = 0
     for (let lane = 0; lane < VERDICT_GROUP; lane++) kernel.judgeLane(group, lane)
+    for (let lane = 0; lane < VERDICT_GROUP; lane++) kernel.flushTally(lane)
     for (let lane = 0; lane < VERDICT_GROUP; lane++) kernel.packLane(group, lane)
   }
 }

@@ -34,13 +34,15 @@ export type BounceCensus = {
   written: number
   buried: number
   /** The rays that spent their budget, by what spent it: the ray's own work, its triangle tests, its
-   *  walk of the placement tree, a mesh's walk; then the same four for its shadow ray: totals. An exhausted
-   *  walk ends as a hit where it stopped, an exhausted shadow ray as a blocker; a ray may count in two. */
+   *  walk of the placement tree, a mesh's walk; then the same four for its shadow ray, which has its own
+   *  budget: totals. An exhausted walk ends as a hit where it stopped, an exhausted shadow ray as lit, blocked
+   *  only where a mesh's walk ran out of stack in it; a ray may count in two. */
   exhaustedBy: number[]
   /** Every ray by the work it spent: under 64 units, 128, 256, 512, 1024, 2048, 4096, more: totals. */
   work: number[]
   /** The rays that answered by meeting no surface (the sky answers them), and the shadow rays that came
-   *  back finding nothing on their segment (the point is lit) or a surface (it is shaded): totals. */
+   *  back lit (no surface found on their segment, those that spent their budget first included) or finding
+   *  a surface (the point is shaded): totals. */
   escaped: number
   shadowFree: number
   shadowBlocked: number

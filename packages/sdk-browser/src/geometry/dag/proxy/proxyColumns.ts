@@ -9,11 +9,8 @@ import {
   PROXY_NODE_WORDS,
   PROXY_TRIANGLE_FLOATS,
 } from '../../../../../sdk-core/src/contracts/writtenFormats.ts'
-import {
-  proxyTriangleCount,
-  type RuntimeCutProxy,
-} from '../../../../../sdk-core/src/contracts/proxy.ts'
-import type { ProxyArena } from './proxyArena.ts'
+import type { RuntimeCutProxy } from '../../../../../sdk-core/src/contracts/proxy.ts'
+import { proxyTriangleCount, type ProxyArena } from './proxyArena.ts'
 
 /** Where a proxy lies in the arena: its first node and triangle, and what it holds. */
 export type Placed = {

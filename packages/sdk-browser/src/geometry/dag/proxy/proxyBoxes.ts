@@ -8,10 +8,8 @@
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import { boxTransform } from '../../../../../math/src/geometry/box.ts'
 import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
-import {
-  proxyTriangleCount,
-  type RuntimeCutProxy,
-} from '../../../../../sdk-core/src/contracts/proxy.ts'
+import type { RuntimeCutProxy } from '../../../../../sdk-core/src/contracts/proxy.ts'
+import { proxyTriangleCount } from './proxyArena.ts'
 import { createChangedRuns } from '../../residency/ranges.ts'
 import type { ProxyBoxes } from '../../../lighting/bounce/probes/probeSync.ts'
 import type { DagRoot, PackedDag } from '../types.ts'
