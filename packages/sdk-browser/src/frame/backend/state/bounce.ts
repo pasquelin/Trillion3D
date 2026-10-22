@@ -42,6 +42,7 @@ export interface WebgpuBounceState {
  *  probes queued, whether the series is closed. */
 function rigState(bounce: WebgpuBounceState) {
   const probes = bounce.probes
+  const worn = probes?.worn()
   return {
     rigged: !!probes,
     loading: !probes && !!bounce.pending && !bounce.reason,
@@ -59,8 +60,8 @@ function rigState(bounce: WebgpuBounceState) {
     converged: probes ? !probes.working : null,
     rayReach: probes?.cascades.reach ?? null,
     // What the proxy held at the last sync of the probes with the placements.
-    proxyPlacements: probes ? probes.worn().placements : null,
-    proxyTriangles: probes ? probes.worn().triangles : null,
+    proxyPlacements: worn?.placements ?? null,
+    proxyTriangles: worn?.triangles ?? null,
   }
 }
 

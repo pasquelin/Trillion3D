@@ -1,6 +1,6 @@
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { censusTally } from '../censusTallyWgsl.ts'
+import { workgroupTallyWgsl } from '../../gpu/core/workgroupTallyWgsl.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 
 /**
@@ -20,7 +20,7 @@ import { REFLECTION_SIDE } from './constants.ts'
  * the proxy can tell; and, for the rays that walked, the units the walk spent (`work`: under 8, 16,
  * 32, 64, 128, 256, 512, more).
  *
- * A workgroup counts in its own memory and adds its words to the buffer once (`../censusTallyWgsl.ts`).
+ * A workgroup counts in its own memory and adds its words to the buffer once (`workgroupTallyWgsl`).
  */
 export const REFLECTION_FATES = [
   'noProxy',
@@ -45,6 +45,9 @@ export const REFLECTION_CENSUS = {
   work: 4 + REFLECTION_FATES.length,
 } as const
 export const REFLECTION_CENSUS_WORDS = REFLECTION_CENSUS.work + REFLECTION_WORK_BUCKETS
+// The tally gives each word a lane of the trace's workgroup.
+if (REFLECTION_CENSUS_WORDS > REFLECTION_SIDE * REFLECTION_SIDE)
+  throw new RangeError(`the census holds more words than a workgroup has lanes`)
 
 /** The index of a fate in `REFLECTION_FATES`. */
 const fate = (name: ReflectionFate) => REFLECTION_FATES.indexOf(name)
@@ -73,14 +76,22 @@ var<private> reflectionWork:u32;`,
 )
 
 /**
- * The counters in a shader, their buffer at binding `binding` of group 0: `censusAdd` counts in a word of
- * the workgroup's own, `censusFlush`, after a workgroup barrier, adds the workgroup's words to the buffer, a
+ * The counters in a shader, their buffer at binding `binding` of group 0: `tallyAdd` counts in a word of
+ * the workgroup's own, `flushTally`, which holds a workgroup barrier, adds the workgroup's words to the buffer, a
  * lane a word, and `censusWorkBucket` is the bucket of a walk's units.
  */
 export const reflectionCensusWgsl = (binding: number) =>
   wgslBlock(
     `reflectionCensusWgsl(${binding})`,
-    [REFLECTION_FATE_WGSL],
+    [
+      REFLECTION_FATE_WGSL,
+      workgroupTallyWgsl(
+        'REFLECTION_CENSUS_TALLY_WGSL',
+        REFLECTION_CENSUS_WORDS,
+        'true',
+        'atomicAdd(&reflectionCensus[lane],n);',
+      ),
+    ],
     `${wgslConsts({
       REFLECTION_CENSUS_WORDS,
       REFLECTION_CENSUS_FAR: REFLECTION_CENSUS.far,
@@ -92,7 +103,6 @@ export const reflectionCensusWgsl = (binding: number) =>
       REFLECTION_WORK_BUCKETS,
     })}
 @group(0) @binding(${binding}) var<storage,read_write> reflectionCensus:array<atomic<u32>,${REFLECTION_CENSUS_WORDS}>;
-${censusTally('reflectionCensus', REFLECTION_CENSUS_WORDS, REFLECTION_SIDE * REFLECTION_SIDE)}
 fn censusWorkBucket(units:u32)->u32{
  let eighths=units>>3u;
  return min(select(0u,firstLeadingBit(eighths)+1u,eighths>0u),REFLECTION_WORK_BUCKETS-1u);

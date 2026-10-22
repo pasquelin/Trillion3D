@@ -1,6 +1,7 @@
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { wgslBlock, wgslStruct } from '../../../../../math/src/wgsl/decl.ts'
+import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 import { SURFACE_RAY_WGSL } from '../surfaceRayWgsl.ts'
 import { NORMAL_TRANSFORM_WGSL } from '../../standardLighting.ts'
 import { faceNormal } from '../../../../../math/src/wgsl/geometry.ts'
@@ -64,6 +65,27 @@ fn rtFacing(hit:RtHit,direction:vec3f,world:mat3x3f)->vec3f{
 `,
   )
 
+/** The light an exhausted walk brings back (`rtLayers`): the cascades' light at `stop` along `direction` from
+ *  `start`, read by the surface the walk was at. */
+const rtStoppedWgsl = (scene: SceneBindings) =>
+  wgslBlock(
+    `rtStoppedWgsl(${sceneKey(scene)})`,
+    [rtSurfaceWgsl(scene), SURFACE_RAY_WGSL, worldMatrix3, NO_INDEX],
+    `
+/** The surface is the hit's, its tint and its face that looks at the ray; where the walk found none, that of the
+ *  placement it had last reached (\`rtReachedPlacement\`), turned to the ray; where it had entered none, a surface
+ *  of no tint (no surface it can vouch for is known). */
+fn rtStoppedSeen(hit:RtHit,start:vec3f,direction:vec3f,stop:f32)->vec3f{
+ let at=start+direction*stop;
+ let placement=select(rtReachedPlacement,hit.placement,hit.found);
+ if(placement==NO_INDEX){return surfaceSeen(vec3f(1.0),at,-direction);}
+ let tint=rtSurfaceOf(rtWorldsInstance(placement,0u)[RT_INSTANCE_SURFACE]).tint;
+ if(!hit.found){return surfaceSeen(tint,at,-direction);}
+ return surfaceSeen(tint,at,rtFacing(hit,direction,worldMatrix3(rtWorldOf(placement))));
+}
+`,
+  )
+
 /**
  * The run-time proxy's one walk of a ray of length `reach` from `origin`: its first surface, and
  * the ones behind it while the surfaces met let light through (a blended one's opacity), up to
@@ -79,24 +101,22 @@ fn rtFacing(hit:RtHit,direction:vec3f,world:mat3x3f)->vec3f{
  * irradiance the cascades already hold (`surfaceSeen`), plus a reflection's emission, no light
  * evaluated and no shadow ray cast. A walk that spends its `budget` of units (`RT_WORK` at most) has
  * not finished (`runtimeLayout.ts`): a probe's ray (`lit`) ends as an opaque hit where the walk stopped, at
- * the surface it had found, else at the distance reached (`rtReached`), its radiance what the cascades hold
- * there (`rtStoppedSeen`); a reflection's answers nothing, confidence zero, the next stage's, its budget
- * being under one node.
+ * the surface it had found, else at the distance reached (`rtReached`) in the placement it had reached,
+ * its radiance what the cascades hold there (`rtStoppedSeen`); a reflection's answers nothing, confidence
+ * zero, the next stage's, its budget being about one node's scan.
  */
 const rtLayersWgsl = (scene: SceneBindings) =>
   wgslBlock(
     `rtLayersWgsl(${sceneKey(scene)})`,
-    [RADIANCE_ANSWER, rtSurfaceWgsl(scene), SURFACE_RAY_WGSL, worldMatrix3, markReachWgsl],
+    [
+      RADIANCE_ANSWER,
+      rtStoppedWgsl(scene),
+      rtSurfaceWgsl(scene),
+      SURFACE_RAY_WGSL,
+      worldMatrix3,
+      markReachWgsl,
+    ],
     `
-/** The light an exhausted walk brings back (\`rtLayers\`): the cascades' light at \`stop\` along \`direction\` from
- *  \`start\`, read by the surface the walk had found — its tint, its face that looks at the ray —, or, where it
- *  had found none, by a surface of no tint turned to the ray (no surface it can vouch for is known). */
-fn rtStoppedSeen(hit:RtHit,start:vec3f,direction:vec3f,stop:f32)->vec3f{
- let at=start+direction*stop;
- if(!hit.found){return surfaceSeen(vec3f(1.0),at,-direction);}
- let surface=rtSurfaceOf(rtWorldsInstance(hit.placement,0u)[RT_INSTANCE_SURFACE]);
- return surfaceSeen(surface.tint,at,rtFacing(hit,direction,worldMatrix3(rtWorldOf(hit.placement))));
-}
 /** The run-time proxy's one walk of a ray (\`rtLayers\`), the layers it crosses. */
 struct RtWalk{answer:RadianceAnswer,stopped:f32,open:f32,}
 fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,tests:u32,lit:bool)->RtWalk{
@@ -111,10 +131,10 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,tests:
  var start=origin;
  var left=reach;
  for(var layer=0u;layer<RT_LAYERS;layer++){
-  let hit=rtScene(start,direction,left);
+  let carried=rtSpent();let hit=rtScene(start,direction,left);
   if(rtSpent()){
-   // Its own walk spent no more than its share: the shadow rays it shares the budget with did (\`rtBlocked\`).
-   if(rtWork<rtBudget&&rtTests<rtTestBudget){if(rtShadowCause==0u){rtShadowCause=rtWhy();}}
+   // The budget was crossed before this walk began, by the shadow rays it shares it with (\`rtBlocked\`), or by the walk.
+   if(carried){if(rtShadowCause==0u){rtShadowCause=rtWhy();}}
    else{rtCause=rtWhy();}
    if(!lit){return RtWalk(RadianceAnswer(vec3f(0.0),0.0,first),0.0,0.0);}
    let stop=select(rtReached,hit.distance,hit.found);

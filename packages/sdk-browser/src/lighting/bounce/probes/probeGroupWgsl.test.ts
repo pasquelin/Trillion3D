@@ -11,8 +11,7 @@ import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts'
 import { FILTER_BYTES, PROBE_FILTER_WGSL } from './probeFilterWgsl.ts'
 import { BOUNCE_SETTINGS } from '../../../../../sdk-core/src/bounce/contracts.ts'
 import { GUARANTEED_WORKGROUP_BYTES } from '../../../gpu/core/textureLimits.ts'
-import { censusTallyBytes } from '../../censusTallyWgsl.ts'
-import { CENSUS_WORDS } from './censusWgsl.ts'
+import { CENSUS_WORDS, censusWgsl } from './censusWgsl.ts'
 
 test('the probe update is as wide as a probe’s rays, its sums within the guaranteed memory', () => {
   const body = BOUNCE_PROBE_SHADER.split('fn updateProbes(')[0]
@@ -33,12 +32,12 @@ test('the probe update is as wide as a probe’s rays, its sums within the guara
   assert.equal(threads & (threads - 1), 0, 'the sums gather by halves')
   assert.match(
     BOUNCE_PROBE_SHADER,
-    new RegExp(`var<workgroup> censusLocal:array<atomic<u32>,${CENSUS_WORDS}>;`),
+    new RegExp(`var<workgroup> tally:array<atomic<u32>,${CENSUS_WORDS}>;`),
   )
-  assert.ok(
-    threads * (15 * 16 + 4) + FILTER_BYTES + censusTallyBytes(CENSUS_WORDS) <=
-      GUARANTEED_WORKGROUP_BYTES,
-  )
+  assert.ok(threads * (15 * 16 + 4) + FILTER_BYTES + CENSUS_WORDS * 4 <= GUARANTEED_WORKGROUP_BYTES)
+  // The census's tally gives each of its words a lane of the group; a group with fewer lanes is refused.
+  assert.ok(CENSUS_WORDS <= threads)
+  assert.throws(() => censusWgsl(0, CENSUS_WORDS - 1), RangeError)
 })
 
 test('a probe’s rays are its threads: each lane its one ray', () => {
@@ -48,7 +47,7 @@ test('a probe’s rays are its threads: each lane its one ray', () => {
 
 test('the update counts the rays that left the scene, what their shadow rays found, what spent them and where their work went', () => {
   // Each ray counts in the group's tally, flushed to the buffer once, after the rays' last barrier.
-  const counted = (word: string) => new RegExp(`censusAdd\\(${word}`)
+  const counted = (word: string) => new RegExp(`tallyAdd\\(${word}`)
   for (const word of [
     'CENSUS_ESCAPED',
     'CENSUS_SHADOW_FREE',
@@ -58,18 +57,12 @@ test('the update counts the rays that left the scene, what their shadow rays fou
     'CENSUS_WALK_MEMBERS',
   ])
     assert.match(BOUNCE_PROBE_SHADER, counted(word), word)
-  assert.doesNotMatch(BOUNCE_PROBE_SHADER, /CENSUS_ANSWERED|CENSUS_WALK_CELLS/)
-  assert.match(
-    BOUNCE_PROBE_SHADER,
-    /workgroupBarrier\(\);\n censusFlush\(lane\);\n if\(lane!=0u\)\{return;\}/,
-  )
+  assert.match(BOUNCE_PROBE_SHADER, /flushTally\(lane\);\n if\(lane!=0u\)\{return;\}/)
 })
 
 test('no ray is left out of a probe’s estimate: an exhausted one answers, every lane adds its sums', () => {
   // `rtProbeRay` answers a distance for every ray (an exhausted walk is a hit, a shadow ray that is
   // exhausted a blocker): the update has no branch for a ray without an answer.
-  assert.doesNotMatch(BOUNCE_PROBE_SHADER, /sample\.w<0\.0/)
-  assert.doesNotMatch(BOUNCE_PROBE_SHADER, /No ray answered/)
   assert.match(BOUNCE_PROBE_SHADER, /let rays=f32\(PROBE_THREADS\);/)
 })
 

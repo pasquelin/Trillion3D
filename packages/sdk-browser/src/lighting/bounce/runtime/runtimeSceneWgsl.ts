@@ -63,9 +63,11 @@ var<private> rtBudget:u32;
 var<private> rtTestBudget:u32;
 /** Why a ray's own walk was exhausted, the first thing that spent it (\`RT_CAUSE_*\`), zero while it is not. */
 var<private> rtCause:u32;
-/** How far along the ray the walk of the scene (\`rtScene\`) had entered a placement's box when it last
- *  stopped, in metres: where the walk was, if its budget ran out. */
+/** How far along the ray the walk of the scene (\`rtScene\`) has reached, in metres, and in which placement: the
+ *  furthest entry of a placement's box or of a leaf its cut tests (\`rtAdvance\`), where the walk was if its budget ran out. */
 var<private> rtReached:f32;
+var<private> rtReachedPlacement:u32;
+fn rtAdvance(at:f32,w:u32){if(at>=rtReached){rtReached=at;rtReachedPlacement=w;}}
 /** What the shadow rays its hits' lighting cast found, for the census: those that found nothing on their segment,
  *  those that found a surface, and what spent the first that spent the budget (\`RT_CAUSE_*\`, zero while none did). */
 var<private> rtShadowFree:u32;
@@ -75,7 +77,7 @@ var<private> rtShadowCause:u32;
  *  census: the rest went to the tree's cells and the cuts. */
 var<private> rtMembers:u32;
 /** A ray begins: nothing spent, nothing charged, the whole budget before it. */
-fn rtBegin(){rtWork=0u;rtTests=0u;rtExtra=0u;rtBudget=RT_WORK;rtTestBudget=RT_TRIANGLES;rtCause=0u;rtReached=0.0;rtShadowFree=0u;rtShadowHit=0u;rtShadowCause=0u;rtMembers=0u;}
+fn rtBegin(){rtWork=0u;rtTests=0u;rtExtra=0u;rtBudget=RT_WORK;rtTestBudget=RT_TRIANGLES;rtCause=0u;rtShadowFree=0u;rtShadowHit=0u;rtShadowCause=0u;rtMembers=0u;}
 fn rtSpent()->bool{return rtWork+rtExtra>=rtBudget||rtTests>=rtTestBudget;}
 /** What spent the ray: a cause already named, else its units or its triangle tests. */
 fn rtWhy()->u32{
@@ -116,7 +118,7 @@ ${wideTraversal({
   child: 'rtChild(node0+node,slot,frame)',
   visit: 'rtWork+=4u;',
   stop: 'if(rtSpent()){break;}',
-  test: `rtTests++;rtWork+=2u;
+  test: `rtTests++;rtWork+=2u;rtAdvance(span,placement);
      let distance=rayTriangleDistance(origin,direction,rtVertex(tri0+index,0u),rtVertex(tri0+index,1u),rtVertex(tri0+index,2u),best.distance);
      if(distance<best.distance){best=RtHit(distance,placement,tri0+index,true);if(rtAnyHit){return best;}}`,
   answer: 'best',
@@ -161,7 +163,7 @@ fn rtEntry(w:u32,origin:vec3f,inverse:vec3f,limit:f32)->f32{
 fn rtEnter(w:u32,origin:vec3f,direction:vec3f,inverse:vec3f,best:RtHit)->RtHit{
  let entry=rtEntry(w,origin,inverse,best.distance);
  if(entry>best.distance){return best;}
- rtReached=max(rtReached,entry);
+ rtAdvance(entry,w);
  let instance=rtWorldsInstance(w,0u);
  let m=rtWorldOf(w);
  let placed=placementRay(worldMatrix3(m),origin-m[3].xyz,direction);
@@ -198,7 +200,7 @@ const runtimeWalkWgsl = (scene: SceneBindings) =>
  *  far the walk had got. A packing with no tree holds a few placements, tried in turn. */
 fn rtScene(origin:vec3f,direction:vec3f,limit:f32)->RtHit{
  var best=RtHit(limit,0u,0u,false);
- rtReached=0.0;
+ rtReached=0.0;rtReachedPlacement=NO_INDEX;
  if(rtProxy.instances==0u){return best;}
  let inverse=rayInverseDirection(direction);
  if(rtProxy.treeRoot==NO_INDEX){

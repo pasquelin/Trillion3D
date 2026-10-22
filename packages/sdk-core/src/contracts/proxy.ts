@@ -11,6 +11,7 @@
  * it contained. The engine tests all four at once, descends on the nearest and stacks the
  * others: the same traversal bound covers four times more tree than a binary tree.
  */
+import { PROXY_TRIANGLE_FLOATS } from './writtenFormats.ts'
 
 /** What poses a deformed placement's proxy from its rest shape: for each corner of the proxy's triangles, in
  *  triangle order and corner order, the vertex it was built from keeps its skin and its morph deltas
@@ -41,6 +42,10 @@ export interface RuntimeCutProxy {
    *  by. None on a run-time cut, whose grid step is all its error. */ errorMetres?: number
   /** Present on a mesh that deforms: what poses it (`CutDeformation`). */ deform?: CutDeformation
 }
+
+/** The triangles of a proxy: its `triangles` numbers over `PROXY_TRIANGLE_FLOATS`. */
+export const proxyTriangleCount = (cut: RuntimeCutProxy) =>
+  cut.triangles.length / PROXY_TRIANGLE_FLOATS
 
 /** The proxy's columns as its cache object carries them: one proxy a compiled primitive. */
 export interface SceneProxyColumns {

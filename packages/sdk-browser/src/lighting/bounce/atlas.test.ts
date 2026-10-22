@@ -161,12 +161,20 @@ test('the census counts the probes that hold light and the entries of the table 
   table(3, [1, 1, 1, 1])
   table(entries / 4, [9, 9, 9, 9])
   const census = new Uint32Array(CENSUS_WORDS)
-  const { countField } = shaderRun<{ countField: (id: number[]) => void }>(
-    BOUNCE_CENSUS_SHADER,
-    ['countField', 'poolProbe', 'probeAt', 'probeTexel'],
-    { ...ATLAS_CALLS, probes: atlas, census, bounce: { counts: [48, 1, entries, pool] } },
-  )
-  for (let id = 0; id < pool + entries / 4 + 8; id++) countField([id, 0, 0])
+  const { countThread, flushTally } = shaderRun<{
+    countThread: (id: number) => void
+    flushTally: (lane: number) => void
+  }>(BOUNCE_CENSUS_SHADER, ['countThread', 'flushTally', 'poolProbe', 'probeAt', 'probeTexel'], {
+    ...ATLAS_CALLS,
+    probes: atlas,
+    census,
+    tally: new Uint32Array(CENSUS_WORDS),
+    workgroupBarrier: () => {},
+    bounce: { counts: [48, 1, entries, pool] },
+  })
+  // One workgroup: its threads count in the tally, then each lane adds a word of it to the census.
+  for (let id = 0; id < pool + entries / 4 + 8; id++) countThread(id)
+  for (let lane = 0; lane < WORKGROUP_THREADS; lane++) flushTally(lane)
   assert.equal(census[CENSUS.fieldLit], 1, 'a probe that holds light')
   assert.equal(census[CENSUS.fieldDark], 1, 'one that holds none')
   assert.equal(census[CENSUS.fieldBuried], 1, 'one buried')

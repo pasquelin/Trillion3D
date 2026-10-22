@@ -1,4 +1,5 @@
 import type { BounceCascades } from '../../../../sdk-core/src/bounce/cascades.ts'
+import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import { TABLE_LANES } from '../../../../sdk-core/src/bounce/probeSlots.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { createReadbackRing } from '../../gpu/core/readbackRing.ts'
@@ -85,7 +86,7 @@ function censusOf(words: Uint32Array, reads: number): BounceCensus {
   return {
     reads,
     updated: words[CENSUS.updated],
-    fired: words[CENSUS.fired],
+    fired: words[CENSUS.updated] * BOUNCE_SETTINGS.raysPerProbe,
     lit: words[CENSUS.lit],
     written: words[CENSUS.written],
     buried: words[CENSUS.buried],
@@ -138,7 +139,7 @@ export async function createBounceCensus(
     },
     /** The field's words cleared, before the pass that counts. */
     clear: (encoder: GPUCommandEncoder) =>
-      encoder.clearBuffer(census, CENSUS.field * 4, (CENSUS_WORDS - CENSUS.field) * 4),
+      encoder.clearBuffer(census, CENSUS.fieldLit * 4, (CENSUS_WORDS - CENSUS.fieldLit) * 4),
     /** The counting, in the bounce pass after the update. */
     dispatch(pass: GPUComputePassEncoder) {
       pass.setPipeline(pipeline)

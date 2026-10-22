@@ -13,7 +13,7 @@ import { BOUNCE_ATLAS_FORMAT, PROBE_TEXELS } from '../atlas.ts'
 import { PROBE_BINDINGS, PROBE_PROXY, SNAPSHOT_BINDINGS } from './probeBindings.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { QUEUED_PROBE_WGSL } from './probeQueueWgsl.ts'
-import { PROBE_GROUP_WGSL } from './probeGroupWgsl.ts'
+import { PROBE_GROUP_WGSL, PROBE_THREADS } from './probeGroupWgsl.ts'
 import { censusWgsl } from './censusWgsl.ts'
 import { PROBE_FILTER_WGSL } from './probeFilterWgsl.ts'
 
@@ -91,22 +91,22 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  // sixty-four rays occupies a whole group, where a single thread chained them and left the GPU idle.
  let d=rayDirection(lane,jitter,rotation);
  let sample=rtProbeRay(origin,d,reach);
- // The ray counted in the group's tally (\`censusAdd\`), flushed once: the work it and its shadow rays spent, by
+ // The ray counted in the group's tally (\`tallyAdd\`), flushed once: the work it and its shadow rays spent, by
  // bucket and in all, the part the tree's groups took (this image's rays only), what its shadow rays found.
  let spent=rtWork+rtExtra;
- censusAdd(CENSUS_WORK+min(CENSUS_BUCKETS-1u,firstLeadingBit(max(spent>>5u,1u))),1u);
- censusAdd(CENSUS_WALK_WORK,spent);
- censusAdd(CENSUS_WALK_MEMBERS,rtMembers);
- censusAdd(CENSUS_SHADOW_FREE,rtShadowFree);
- censusAdd(CENSUS_SHADOW_BLOCKED,rtShadowHit);
+ tallyAdd(CENSUS_WORK+min(CENSUS_BUCKETS-1u,firstLeadingBit(max(spent>>5u,1u))),1u);
+ tallyAdd(CENSUS_WALK_WORK,spent);
+ tallyAdd(CENSUS_WALK_MEMBERS,rtMembers);
+ tallyAdd(CENSUS_SHADOW_FREE,rtShadowFree);
+ tallyAdd(CENSUS_SHADOW_BLOCKED,rtShadowHit);
  // What spent a ray's walk and its shadow ray is counted: the ray answers all the same (\`rtProbeRay\`), an
  // exhausted walk as a hit where it stopped and an exhausted shadow ray as a blocker, none left out.
- if(rtCause!=0u){censusAdd(CENSUS_EXHAUSTED_BY+rtCause-1u,1u);}
- if(rtShadowCause!=0u){censusAdd(CENSUS_EXHAUSTED_BY+3u+rtShadowCause,1u);}
+ if(rtCause!=0u){tallyAdd(CENSUS_EXHAUSTED_BY+rtCause-1u,1u);}
+ if(rtShadowCause!=0u){tallyAdd(CENSUS_EXHAUSTED_BY+3u+rtShadowCause,1u);}
  let span=sample.w;
- if(any(sample.rgb>vec3f(0.0))){censusAdd(CENSUS_LIT,1u);}
+ if(any(sample.rgb>vec3f(0.0))){tallyAdd(CENSUS_LIT,1u);}
  // A ray that met no surface answers with its whole reach: the sky is all it brings.
- if(span>=reach){censusAdd(CENSUS_ESCAPED,1u);}
+ if(span>=reach){tallyAdd(CENSUS_ESCAPED,1u);}
  ${radianceProjectionShader((k) => `sums[${k}]`, 'sample.rgb', 'd')}
  let weight=abs(d);
  let positive=select(vec3f(0.0),weight,d>vec3f(0.0));
@@ -130,14 +130,13 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
    partialTravelled[lane]+=partialTravelled[lane+stride];
   }
  }
- workgroupBarrier();
- censusFlush(lane);
+ // The tally's barrier is the gather's last: every round's sums are in place for the thread that writes the probe.
+ flushTally(lane);
  if(lane!=0u){return;}
  for(var k=0u;k<PROBE_SUMS;k++){sums[k]=partial[k][0];}
  // Every ray answered (\`rtProbeRay\`): the mean is over the group's rays.
  let rays=f32(PROBE_THREADS);
  atomicAdd(&census[CENSUS_UPDATED],1u);
- atomicAdd(&census[CENSUS_FIRED],PROBE_THREADS);
  let travelled=partialTravelled[0]/rays;
  // A probe locked in a surface hits something in every direction, at point-blank
  // range; a probe in open sky hits nothing. The criterion is a distance, never a winding
@@ -202,7 +201,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
     QUEUED_PROBE_WGSL,
     PROBE_GROUP_WGSL,
     PROBE_FILTER_WGSL,
-    censusWgsl(PROBE_BINDINGS.census),
+    censusWgsl(PROBE_BINDINGS.census, PROBE_THREADS),
     TWO_PI,
     hashUnit,
     ACCUMULATION_WGSL,

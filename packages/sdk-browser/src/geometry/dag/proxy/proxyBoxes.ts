@@ -8,8 +8,10 @@
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import { boxTransform } from '../../../../../math/src/geometry/box.ts'
 import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
-import type { RuntimeCutProxy } from '../../../../../sdk-core/src/contracts/proxy.ts'
-import { PROXY_TRIANGLE_FLOATS } from '../../../../../sdk-core/src/contracts/writtenFormats.ts'
+import {
+  proxyTriangleCount,
+  type RuntimeCutProxy,
+} from '../../../../../sdk-core/src/contracts/proxy.ts'
 import { createChangedRuns } from '../../residency/ranges.ts'
 import type { ProxyBoxes } from '../../../lighting/bounce/probes/probeSync.ts'
 import type { DagRoot, PackedDag } from '../types.ts'
@@ -20,19 +22,19 @@ function createWornCuts(slots: number) {
   const cuts: (RuntimeCutProxy | undefined)[] = new Array(slots)
   let placements = 0,
     triangles = 0
-  const trianglesOf = (cut: RuntimeCutProxy) => cut.triangles.length / PROXY_TRIANGLE_FLOATS
   return {
     cuts,
     /** Placement `w` wears `cut` from now on, none if it is left out. */
     wear(w: number, cut?: RuntimeCutProxy) {
       const before = cuts[w]
+      if (before === cut) return
       if (before) {
         placements--
-        triangles -= trianglesOf(before)
+        triangles -= proxyTriangleCount(before)
       }
       if (cut) {
         placements++
-        triangles += trianglesOf(cut)
+        triangles += proxyTriangleCount(cut)
       }
       cuts[w] = cut
     },

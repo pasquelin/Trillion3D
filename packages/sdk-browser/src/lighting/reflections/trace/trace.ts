@@ -122,16 +122,16 @@ var<workgroup> pendingBase:u32;
 /** The screen stage's tally of a ray (\`reflectionCensus\`): met by the screen in part, then past the
  *  near field, answered whole by the screen or left to the scene stage. */
 fn countScreen(far:bool,b:ReflectionChain){
- if(b.bound<REFLECTION_FAR){censusAdd(REFLECTION_CENSUS_SCREEN,1u);}
- if(far){censusAdd(REFLECTION_CENSUS_FAR,1u);}
- else{censusAdd(select(REFLECTION_CENSUS_LEFT,REFLECTION_CENSUS_WHOLE,b.rest<=REFLECTION_EPSILON),1u);}
+ if(b.bound<REFLECTION_FAR){tallyAdd(REFLECTION_CENSUS_SCREEN,1u);}
+ if(far){tallyAdd(REFLECTION_CENSUS_FAR,1u);}
+ else{tallyAdd(select(REFLECTION_CENSUS_LEFT,REFLECTION_CENSUS_WHOLE,b.rest<=REFLECTION_EPSILON),1u);}
 }
 /** The scene stage's tally of a ray: how its walk of the proxy ended, and the units it spent where
  *  it walked. */
 fn countScene(){
- censusAdd(REFLECTION_CENSUS_FATES+reflectionFate,1u);
+ tallyAdd(REFLECTION_CENSUS_FATES+reflectionFate,1u);
  if(reflectionFate!=REFLECTION_FATE_NO_PROXY&&reflectionFate!=REFLECTION_FATE_BOUND){
-  censusAdd(REFLECTION_CENSUS_WORK+censusWorkBucket(reflectionWork),1u);
+  tallyAdd(REFLECTION_CENSUS_WORK+censusWorkBucket(reflectionWork),1u);
  }
 }
 /** The screen stage of grid texel \`g\` of the surface \`layer\`, cast from the pixel of its block that
@@ -178,8 +178,8 @@ fn traceScreen(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) groups
  if(all(id<reflectionGridSize())){left=traceScreenTexel(id,REFLECTION_LAYER);}
  var slot=0u;
  if(left.y!=0u){slot=atomicAdd(&pendingCount,1u);}
- workgroupBarrier();
- censusFlush(lane);
+ // The tally's barrier also orders the group's adds to \`pendingCount\`.
+ flushTally(lane);
  if(lane==0u){
   let n=atomicLoad(&pendingCount);
   if(n>0u){pendingBase=pendingOutAppend(n,${REFLECTION_SIDE * REFLECTION_SIDE}u);}
@@ -208,8 +208,7 @@ fn traceSceneRay(left:vec4u){
 fn traceScene(@builtin(global_invocation_id) thread:vec3u,@builtin(num_workgroups) groups:vec3u,@builtin(local_invocation_index) lane:u32){
  let at=flatIndex(thread,groups,${REFLECTION_SIDE * REFLECTION_SIDE}u);
  if(at<pendingIn.count){traceSceneRay(pendingIn.entries[at]);}
- workgroupBarrier();
- censusFlush(lane);
+ flushTally(lane);
 }`,
   [
     // The lights' struct its group declares: what a proxy hit and a lobe's weight read of them.

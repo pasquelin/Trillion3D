@@ -105,24 +105,26 @@ for (const count of [5, 400]) {
   })
 }
 
+/** A probe's ray over `scene` with `budget`, the lighting of its hits casting a shadow ray back toward the
+ *  origin, where nothing stands: the point is lit, or shaded where the shadow ray is blocked. */
+const shadowed = (scene: ReturnType<typeof world>, budget: number) => {
+  const held: { blocked?: (o: Vec3, d: Vec3, span: number) => boolean } = {}
+  const run = runOver(scene, NO_SKY, {
+    RT_PROBE_WORK: budget,
+    surfaceLit: (tint: Vec3, at: Vec3, _normal: Vec3, reach: number) =>
+      held.blocked?.(at, [-1, 0, 0], reach) ? [0, 0, 0] : tint,
+  })
+  held.blocked = run.rtBlocked
+  return run
+}
+
 test('a shadow ray that spends the budget is a blocker, and the probe ray it was cast for keeps its weight', () => {
   const w = world(2, 1, { places: along(2, 4) })
   // The ray meets the first cube at 3.5 and spends `walked` units doing so.
   const measure = runOver(w, NO_SKY, { RT_PROBE_WORK: 1e6 })
   assert.deepEqual(measure.rtProbeRay(origin, ahead, 1000), [1, 1, 1, 3.5])
   const walked = measure.testWork()
-  // The hit's lighting casts a shadow ray back toward the origin, where nothing stands: the point is lit,
-  // or shaded where the shadow ray is blocked.
-  const lit = (budget: number, scene = w) => {
-    const held: { blocked?: (o: Vec3, d: Vec3, span: number) => boolean } = {}
-    const run = runOver(scene, NO_SKY, {
-      RT_PROBE_WORK: budget,
-      surfaceLit: (tint: Vec3, at: Vec3, _normal: Vec3, reach: number) =>
-        held.blocked?.(at, [-1, 0, 0], reach) ? [0, 0, 0] : tint,
-    })
-    held.blocked = run.rtBlocked
-    return run
-  }
+  const lit = (budget: number, scene = w) => shadowed(scene, budget)
   const free = lit(walked + 100)
   assert.deepEqual(free.rtProbeRay(origin, ahead, 1000), [1, 1, 1, 3.5], 'nothing stands: lit')
   assert.equal(free.testShadowFree(), 1)
@@ -144,4 +146,26 @@ test('a shadow ray that spends the budget is a blocker, and the probe ray it was
   assert.equal(through.rtProbeRay(origin, ahead, 1000)[3], 3.5, 'the first surface’s distance')
   assert.equal(through.testShadowCause(), 1, 'the shadow ray spent it')
   assert.equal(through.testCause(), 0, 'not the ray’s own walk')
+})
+
+test('a probe ray whose own walk crosses the budget in a later layer is exhausted by its walk, not by the shadow rays before it', () => {
+  // Six blended cubes in a row: the ray goes through them layer by layer, the lighting of each hit casting a
+  // shadow ray back, which spends part of the one budget the next layer's walk then shares.
+  const glass = world(6, 1, {
+    places: along(6, 4),
+    surfaces: [[1, 1, 1, 0.5, 0, 0, 0, SURFACE_BLENDED]],
+  })
+  // Its own walk of every layer spends `own` units alone; with the shadow rays it costs more.
+  const alone = runOver(glass, NO_SKY, { RT_PROBE_WORK: 1e6 })
+  alone.rtProbeRay(origin, ahead, 1000)
+  const own = alone.testWork()
+  const both = shadowed(glass, 1e6)
+  both.rtProbeRay(origin, ahead, 1000)
+  assert.ok(both.testWork() > own + 10, `${both.testWork()} units against ${own}`)
+  // A budget just under what the walk needs alone: it is the walk that crosses it, in a layer past the first,
+  // where the shadow rays already hold part of the budget.
+  const run = shadowed(glass, own - 2)
+  run.rtProbeRay(origin, ahead, 1000)
+  assert.equal(run.testCause(), 1, 'the walk spent the units')
+  assert.equal(run.testShadowCause(), 0, 'not a shadow ray')
 })

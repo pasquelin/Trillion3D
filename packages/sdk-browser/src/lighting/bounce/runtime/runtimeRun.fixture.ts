@@ -24,6 +24,7 @@ const FUNCTIONS = [
   'placementRay',
   'rtTraceCut',
   'rtSpent',
+  'rtAdvance',
   'rtWhy',
   'rtFloat',
   'rtVec',
@@ -52,16 +53,6 @@ export const BINDINGS = { group: 0, proxy: 12, worlds: 13, tree: 14 }
 /** Helpers the tests call: a ray's work and triangle tests, what exhausted its walk and how far the walk had
  *  reached, what its shadow rays found and what exhausted the first that did, and the units the tree's groups
  *  took of its work (`rtBegin` clears them). */
-const TESTS = [
-  'testWork',
-  'testTests',
-  'testCause',
-  'testReached',
-  'testShadowFree',
-  'testShadowHit',
-  'testShadowCause',
-  'testMembers',
-]
 const HELPERS = `fn testWork()->u32{return rtWork+rtExtra;}
 fn testTests()->u32{return rtTests;}
 fn testCause()->u32{return rtCause;}
@@ -71,6 +62,8 @@ fn testShadowHit()->u32{return rtShadowHit;}
 fn testShadowCause()->u32{return rtShadowCause;}
 fn testMembers()->u32{return rtMembers;}
 `
+/** The helpers' names, read from their text. */
+const TESTS = [...HELPERS.matchAll(/fn (test\w+)/g)].map((m) => m[1])
 
 /** The light buffer's sky of a scene that shows none: every slot zero, no air. */
 export const NO_SKY = {
@@ -121,6 +114,7 @@ export function runOver(
     rtTestBudget: RAY_TRIANGLES,
     rtCause: 0,
     rtReached: 0,
+    rtReachedPlacement: 0,
     rtAnyHit: false,
     rtShadowFree: 0,
     rtShadowHit: 0,

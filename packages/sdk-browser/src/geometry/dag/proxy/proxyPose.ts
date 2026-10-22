@@ -7,8 +7,10 @@
  * layout and what each copy is belong to `proxyInstances.ts`.
  */
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
-import type { RuntimeCutProxy } from '../../../../../sdk-core/src/contracts/proxy.ts'
-import { PROXY_TRIANGLE_FLOATS } from '../../../../../sdk-core/src/contracts/writtenFormats.ts'
+import {
+  proxyTriangleCount,
+  type RuntimeCutProxy,
+} from '../../../../../sdk-core/src/contracts/proxy.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { heldBuffers } from '../../../gpu/core/heldBuffers.ts'
 import { writeChanged } from '../../../gpu/core/writeChanged.ts'
@@ -73,8 +75,7 @@ export function createProxyPose(device: GPUDevice) {
     schedule = poseSchedule(entries.map((entry) => levelsOfCut(entry.cut)))
     if (schedule.depth > MAX_LEVELS) throw new Error('PROXY_POSE_LEVELS')
     corners = 0
-    for (const entry of entries)
-      corners = Math.max(corners, (entry.cut.triangles.length / PROXY_TRIANGLE_FLOATS) * 3)
+    for (const entry of entries) corners = Math.max(corners, proxyTriangleCount(entry.cut) * 3)
     ids = held.grow(
       device,
       'Trillion3D proxy pose levels',
@@ -106,7 +107,7 @@ export function createProxyPose(device: GPUDevice) {
         const at = k * POSE_WORDS
         table[at + POSE_ENTRY.rest] = entry.restTriangle
         table[at + POSE_ENTRY.posed] = entry.posedTriangle
-        table[at + POSE_ENTRY.triangles] = entry.cut.triangles.length / PROXY_TRIANGLE_FLOATS
+        table[at + POSE_ENTRY.triangles] = proxyTriangleCount(entry.cut)
         table[at + POSE_ENTRY.node] = entry.posedNode
         table[at + POSE_ENTRY.corners] = entry.corners
         table[at + POSE_ENTRY.record] = entry.record

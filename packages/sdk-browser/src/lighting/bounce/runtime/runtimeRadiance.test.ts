@@ -4,6 +4,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
+import { NO_INDEX } from '../../../../../math/src/constants.ts'
+import type { Vec3 } from '../../../../../math/src/vector/vectorTuple.ts'
+import { buildCutProxy } from '../../../geometry/runtime/runtimeProxy.ts'
+import { cubeGeometry } from '../../../geometry/runtime/cube.fixture.ts'
+import { sdkWasm } from '../../../wasm/sdkWasm.fixture.ts'
+import { proxyArena, proxyHeader } from '../proxyBuffer.fixture.ts'
 import { RAY_SPREAD_FLOOR, RAY_WORK, SURFACE_BLENDED } from './runtimeLayout.ts'
 import { NO_SKY, along, ahead, origin, runOver } from './runtimeRun.fixture.ts'
 import { world } from './runtimeScene.fixture.ts'
@@ -122,6 +128,48 @@ test('a probe’s ray that spends its walk ends as a hit where the walk stopped,
   assert.ok(Math.abs(found[3] - 10) < 1e-9, `${found}`)
   assert.deepEqual(stopped, found, 'the exhausted ray ends where the whole walk finds the surface')
   assert.deepEqual(stopped.slice(0, 3), [0.5, 0.25, 0])
+})
+
+/** One placement of one mesh, two cubes three metres either side of its origin: the box of the placement holds the
+ *  origin, the boxes of the mesh's leaves (a cube's faces each) do not. The placements are tried in turn. */
+const barbell = () => {
+  const { indices, positions } = cubeGeometry()
+  const moved = new Float32Array(positions.length * 2),
+    joined = new Uint32Array(indices.length * 2)
+  ;[-3, 3].forEach((x, k) => {
+    positions.forEach((p, i) => (moved[k * positions.length + i] = p + (i % 3 === 0 ? x : 0)))
+    indices.forEach((v, i) => (joined[k * indices.length + i] = v + 8 * k))
+  })
+  const surfaces = [[0.5, 0.25, 0, 1, 0, 0, 0, 0]]
+  const arena = proxyArena(buildCutProxy(sdkWasm, joined, moved), surfaces)
+  const header = proxyHeader(arena, { instances: 1, treeRoot: NO_INDEX, members: 1 })
+  return {
+    ...world(1, 1, { places: [new Matrix4()], surfaces }),
+    header: { ...header, words: arena.words },
+  }
+}
+
+test('a probe’s ray that spends its walk before it finds a surface ends in the placement it had reached', () => {
+  // The origin lies in the box of the placement, in the box of neither leaf: the ray, a little off the x axis,
+  // meets the near cube's leaf at about 2.49 m and is allowed one triangle test, which it spends without a hit.
+  const apart = barbell()
+  const aim: Vec3 = [Math.cos(0.05), Math.sin(0.05), 0]
+  const found = runOver(apart, NO_SKY).rtProbeRay(origin, aim, 1000)
+  assert.deepEqual(found.slice(0, 3), [0.5, 0.25, 0], 'the whole walk finds the surface')
+  const run = runOver(apart, NO_SKY, { RT_PROBE_TRIANGLES: 1 })
+  const stopped = run.rtProbeRay(origin, aim, 1000)
+  assert.equal(run.testCause(), 2, 'the walk spent its triangle tests')
+  assert.ok(stopped[3] > 2.4 && stopped[3] < found[3], `${stopped[3]} m, where the walk was`)
+  assert.deepEqual(
+    stopped.slice(0, 3),
+    [0.5, 0.25, 0],
+    'the tint of the placement, not the white of none',
+  )
+  // A walk that spends its units before it enters a placement has reached none: no tint, no distance.
+  assert.deepEqual(
+    runOver(apart, NO_SKY, { RT_PROBE_WORK: 0 }).rtProbeRay(origin, aim, 1000),
+    [1, 1, 1, 0],
+  )
 })
 
 /** A light buffer whose sky light gives the probes the flat sky `upper`, black below the horizon. */

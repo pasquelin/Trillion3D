@@ -68,12 +68,14 @@ export const SURFACE_BLENDED = 1
  * AN EXHAUSTED RAY IS A HIT, never a ray that is dropped: a trace that runs out of budget has not found
  * the light, nor the shade, so it answers as one that met a surface where it stopped. A shadow ray that
  * spends the budget (`rtBlocked`) is a blocker: the point it was cast from is shaded, and the ray it was
- * cast for keeps its weight. A probe's ray whose own walk spends it ends as an opaque hit at the
- * distance the walk had reached (`rtReached`), carrying the light the cascades hold there
- * (`rtLayers`, `rtProbeRay`): the estimate of a probe counts every ray it fired, none renormalised away.
+ * cast for keeps its weight. A probe's ray whose own walk spends it ends as an opaque hit at the surface
+ * the walk had found, else at the distance it had reached (`rtReached`) in the placement it had last reached
+ * (`rtReachedPlacement`), carrying the light the cascades hold there (`rtLayers`, `rtProbeRay`): the estimate
+ * of a probe counts every ray it fired, none renormalised away.
  * A reflection's ray keeps answering zero confidence, its share left to the next stage of the chain
- * (`rtRadiance`): its budget (`REFLECTION_PROXY_WORK`) is under one node of the placement tree, so the
- * walk that ends it has entered no placement yet and would end as a hit on the surface it left.
+ * (`rtRadiance`): its budget (`REFLECTION_PROXY_WORK`) is about one node's scan of the placement tree (a full
+ * node of `TREE_SPAN` children costs as many units), so the walk that ends it has entered few placements, if
+ * any, and would end as a hit on a surface it hardly knows.
  */
 export const RAY_WORK = 512
 export const RAY_TRIANGLES = 128
