@@ -98,15 +98,18 @@ export function hostCpuStep(rt: WebgpuPagesRuntime, step: HostCpuStep, ms: numbe
  * that just drew, so the row is filed only here. An image that has not filled a row — an image
  * waiting for coverage — deposits nothing rather than a row of zeros. Nor does an image no one
  * profiles: the windows are filed in debug mode, for the stage profile, or for a listened
- * channel, which publishes them.
+ * channel, which publishes them; and for a reader's own window (`openCpuSteps`), which reads the
+ * rows and nothing else of the debug tools.
  */
 export function endCpuFrame(rt: WebgpuPagesRuntime) {
   const { timing, run } = rt
   if (!timing.rowFilled) return
   timing.rowFilled = false
   const { profiler } = timing
-  if (!(profiler.stages || rt.diag.listened || debugMode())) return
-  profiler.record(run.frame, profiler.row[CPU_STEP.totalMs])
+  const profiled = profiler.stages || rt.diag.listened || debugMode()
+  if (!profiled && profiler.readers === 0) return
+  profiler.record(run.frame, profiler.row[CPU_STEP.totalMs], !profiled)
+  if (!profiled) return
   recordStages(rt)
   publishCpuProfile(rt)
 }

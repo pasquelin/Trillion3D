@@ -12,7 +12,7 @@ import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store
 import type { StageProfile } from '../../../../sdk-core/src/runtime/stageProfile.ts'
 import type { EngineDrawCounters, EngineMetrics } from '../../diagnostic/metricKeys.ts'
 import type { MemoryBudgets, MemoryBudgetsReport } from '../memory/pools.ts'
-import type { CpuStepSummary } from '../../diagnostic/stage/profiler.ts'
+import type { CpuStepSummary, CpuStepWindow } from '../../diagnostic/stage/profiler.ts'
 import type { HostCpuStep } from '../host/cpuProfile.ts'
 import type { EngineDiagnostic, DiagnosticDetail } from '../../diagnostic/types.ts'
 import type { DrawSource } from '../../geometry/selection/drawSource.ts'
@@ -94,6 +94,9 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   resetStageProfile(): void
   /** CPU bounds of the images since that reset, read once then forgotten; `null` with no row. */
   cpuSteps(): CpuStepSummary | null
+  /** A CPU step window of the caller's own, over the images filed from now on: reading it never
+   *  moves `cpuSteps`'s window, nor another reader's. */
+  openCpuSteps(): CpuStepWindow
   /** A bound the host recorded itself — outside the frame it would have lengthened —, slotted in
    *  the engine's own bound table. */
   cpuStep(step: HostCpuStep, ms: number): void

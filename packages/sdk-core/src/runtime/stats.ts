@@ -3,6 +3,11 @@ import { mean, summaryOf } from '../../../math/src/scalar/quantile.ts'
 /** A frame interval longer than this, in milliseconds, is a stutter. */
 export const STUTTER_MS = 50
 
+/** A frame is a stutter when it lasts more than `STUTTER_MS` AND more than this many times the
+ *  window's median: a stream that is slow all along (every frame 43 ms) is GPU or CPU bound, its
+ *  slowness is not a hitch; only frames far above the usual one are. */
+export const STUTTER_OVER_MEDIAN = 2
+
 /** The mean, median, 95th, 99th and worst of a list of times. */
 export function summarize(values: readonly number[]) {
   if (values.some((v) => !Number.isFinite(v) || v < 0)) return null
@@ -12,7 +17,8 @@ export function summarize(values: readonly number[]) {
   )
 }
 
-/** Frame rate and smoothness from the times between frames. */
+/** Frame rate and smoothness from the times between frames; `stutters` counts the frames that
+ *  are stutters (`STUTTER_MS` and `STUTTER_OVER_MEDIAN`). */
 export function frameStatistics(intervals: readonly number[]) {
   const finite = intervals.filter((v) => Number.isFinite(v) && v > 0).sort((a, b) => a - b)
   const found = summaryOf(finite)
@@ -32,6 +38,6 @@ export function frameStatistics(intervals: readonly number[]) {
     p95Ms: found.p95,
     p99Ms: found.p99,
     onePercentLowFps: 1000 / mean(worst),
-    stutters: finite.filter((v) => v > STUTTER_MS).length,
+    stutters: finite.filter((v) => v > STUTTER_MS && v > STUTTER_OVER_MEDIAN * found.p50).length,
   }
 }

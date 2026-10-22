@@ -2,32 +2,42 @@ import { clamp } from '../../../math/src/scalar/reals.ts'
 import { MIB } from '../../../math/src/constants.ts'
 import type { TelemetryReport } from './telemetryTypes.ts'
 import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
-import { frameStatistics, STUTTER_MS } from '../../../sdk-core/src/runtime/stats.ts'
+import {
+  frameStatistics,
+  STUTTER_MS,
+  STUTTER_OVER_MEDIAN,
+} from '../../../sdk-core/src/runtime/stats.ts'
 import { FALLBACK_REFRESH_MS, SECOND_MS } from '../frame/scale/scaleTargets.ts'
 import { DEFAULT_PAGE_WORKERS } from '../session/engine/common.ts'
 
-/** Judged on the slowest display the engine draws for (60 Hz): submit chokes past half its frame. */
-const FRAME_RATE = Math.round(SECOND_MS / FALLBACK_REFRESH_MS),
-  SUBMIT_MS = FALLBACK_REFRESH_MS / 2
-
-/** The first limit the frame hits: stutters, main thread, submit, pages past the fetch workers. */
-function diagnoseBottleneck(
+/** The first limit the frame hits: stutters (`stutters` is their count, from `frameStatistics` of
+ *  the frame intervals), the GPU (past the refresh budget and not under the main thread), main
+ *  thread, submit, pages past the fetch workers. `gpuFrameMs` is the device time of the image, null when unmeasured; `budgetMs` is the
+ *  display's refresh: the submit limit is half of it and the healthy message states its rate. */
+export function diagnoseBottleneck(
   stutters: number,
   cpuFrameMs: number,
   cpuSubmitMs: number | null,
   pagesLoading: number,
+  gpuFrameMs: number | null,
+  budgetMs: number,
 ): Pick<TelemetryReport, 'bottleneck' | 'bottleneckMessage'> {
   if (stutters > 0)
     return {
       bottleneck: 'memory_pressure',
-      bottleneckMessage: `⚠️ Stutters detected (${stutters} frame(s) > ${STUTTER_MS}ms)`,
+      bottleneckMessage: `⚠️ Stutters detected (${stutters} frame(s) > ${STUTTER_MS}ms and over ${STUTTER_OVER_MEDIAN}x the median)`,
     }
-  if (cpuFrameMs > FALLBACK_REFRESH_MS)
+  if (gpuFrameMs != null && gpuFrameMs > budgetMs && gpuFrameMs >= cpuFrameMs)
+    return {
+      bottleneck: 'gpu_bound',
+      bottleneckMessage: `⚠️ GPU choke (${gpuFrameMs.toFixed(1)} ms)`,
+    }
+  if (cpuFrameMs > budgetMs)
     return {
       bottleneck: 'cpu_bound',
       bottleneckMessage: `⚠️ Main CPU thread choke (${cpuFrameMs.toFixed(1)} ms)`,
     }
-  if (cpuSubmitMs != null && cpuSubmitMs > SUBMIT_MS)
+  if (cpuSubmitMs != null && cpuSubmitMs > budgetMs / 2)
     return {
       bottleneck: 'gpu_submit_bound',
       bottleneckMessage: `⚠️ WebGPU submit choke (${cpuSubmitMs.toFixed(1)} ms)`,
@@ -37,7 +47,10 @@ function diagnoseBottleneck(
       bottleneck: 'streaming_bound',
       bottleneckMessage: `⚠️ Network / streaming choke (${pagesLoading} pages in flight)`,
     }
-  return { bottleneck: 'healthy', bottleneckMessage: `✅ Smooth pipeline (${FRAME_RATE}+ FPS)` }
+  return {
+    bottleneck: 'healthy',
+    bottleneckMessage: `✅ Smooth pipeline (${Math.round(SECOND_MS / budgetMs)}+ FPS)`,
+  }
 }
 
 /** The triangle block of the report: source, selected and submitted counts and the culled share. */
@@ -83,13 +96,16 @@ export function frameReport(
   const stats = frameStatistics(intervals)
   const cpuFrameMs = m?.cpuFrameMs ?? 0
   const cpuSubmitMs = m?.cpuSubmitMs ?? null
-  const stutters = stats.stutters ?? 0
   const pagesLoading = m?.pagesLoading ?? 0
+  // The verdict reads the frame as the stats panel does: the GPU time of its own image (none for a
+  // held image, whose time is an earlier one's) and the display's refresh (60 Hz when unknown).
   const { bottleneck, bottleneckMessage } = diagnoseBottleneck(
-    stutters,
+    stats.stutters ?? 0,
     cpuFrameMs,
     cpuSubmitMs,
     pagesLoading,
+    m?.frameHeld ? null : (m?.gpuFrameMs ?? null),
+    m?.displayRefreshMs ?? FALLBACK_REFRESH_MS,
   )
 
   return {

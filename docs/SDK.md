@@ -138,11 +138,16 @@ fails is `FAMILY_LOAD_FAILED` (`T3D-E090`, `details.family`) on
 `world.diagnostic.error` (and `world.physics.error`), asked again at the next use, ten seconds later
 at the soonest. Frames that need a family wait for it, never draw without it. A page downloads only the renderer it draws with.
 
-**Debug mode** (`createWorld(target, { debug: true })`, `world.diagnostic.debug = true`, a stats
-overlay, `?profile` in the address) files frames into `world.cpuSteps` and the frame report
+**Debug mode** (`createWorld(target, { debug: true })`, `world.diagnostic.debug = true`, `?profile` in the address) files frames into `world.cpuSteps` and the frame report
 (`EngineProfiler`). The pass mapping (`gpuPassStageOf`, `gpuPassBlockOf`, `gpuPassBlockTotals`)
 is the engine's own, there from the first frame; a page reading the frame report from its first
 frame turns debug mode on before it.
+
+`world.openCpuSteps()` opens a CPU step window of the caller's own: `read()` summarises the images
+filed since it opened (or since its last read) and opens it again, `close()` stops it. It fills
+outside debug mode while it is open, and does not move `world.cpuSteps()`. The stats module
+(`startStats(world, { parts, parent?, corner?, words?, worlds? })`, handle `read`, `stop`, `ready`)
+reads one for its CPU section, open only while full reports are asked for.
 
 **Frame inspection.** `await world.diagnostic.inspect()` reads what the main view's next image
 computed, in world metres, for a map drawn from above (`FrameInspection`, `null` when the session
@@ -831,17 +836,17 @@ The height fog's own fields are the reference's numbers in metres, each with its
 is [ENGINE.md](ENGINE.md#fog). A reference number in centimetres converts exactly: a density or
 falloff is divided by 10 (they are per 1000 centimetres), a distance by 100.
 
-| Field | Default | Meaning (the reference's number → ours) |
-| --- | --- | --- |
-| `color` | black | The light the fog scatters by itself, linear RGB. With an atmosphere the sky's light is added to it. |
-| `baseDensity` | `0.002` | Density at `baseHeight`, per metre, ≥ 0 (its `0.02` ÷ 10). |
-| `falloff` | `0.02` | Per metre, ≥ 0: the density halves every `1 / falloff` metres up, 50 m (its `0.2` ÷ 10). |
-| `baseHeight` | `0` | The height the density is `baseDensity` at, metres. |
-| `maxOpacity` | `1` | The most of a surface's light the fog may hide, in [0, 1]. |
-| `startDistance` | `0` | Metres from the eye where the fog starts, ≥ 0. |
-| `cutoffDistance` | `0` | Metres from the eye past which there is no fog, ≥ 0; 0 none. |
-| `directional` | `{ exponent: 4, startDistance: 100, color: [0, 0, 0] }` | The sun's lobe: sharpness `exponent` > 0, metres before the sun's light is scattered (its `10 000` ÷ 100), the luminance scattered toward the sun times the sun's own. |
-| `skyContribution` | `[1, 1, 1]` | The factor of the atmosphere's sky radiance the fog takes on, per channel, ≥ 0. |
+| Field             | Default                                                 | Meaning (the reference's number → ours)                                                                                                                                |
+| ----------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `color`           | black                                                   | The light the fog scatters by itself, linear RGB. With an atmosphere the sky's light is added to it.                                                                   |
+| `baseDensity`     | `0.002`                                                 | Density at `baseHeight`, per metre, ≥ 0 (its `0.02` ÷ 10).                                                                                                             |
+| `falloff`         | `0.02`                                                  | Per metre, ≥ 0: the density halves every `1 / falloff` metres up, 50 m (its `0.2` ÷ 10).                                                                               |
+| `baseHeight`      | `0`                                                     | The height the density is `baseDensity` at, metres.                                                                                                                    |
+| `maxOpacity`      | `1`                                                     | The most of a surface's light the fog may hide, in [0, 1].                                                                                                             |
+| `startDistance`   | `0`                                                     | Metres from the eye where the fog starts, ≥ 0.                                                                                                                         |
+| `cutoffDistance`  | `0`                                                     | Metres from the eye past which there is no fog, ≥ 0; 0 none.                                                                                                           |
+| `directional`     | `{ exponent: 4, startDistance: 100, color: [0, 0, 0] }` | The sun's lobe: sharpness `exponent` > 0, metres before the sun's light is scattered (its `10 000` ÷ 100), the luminance scattered toward the sun times the sun's own. |
+| `skyContribution` | `[1, 1, 1]`                                             | The factor of the atmosphere's sky radiance the fog takes on, per channel, ≥ 0.                                                                                        |
 
 With `scene.atmosphere` on, the default fog is coloured by the sky and scatters the sun's light: a
 fog of `{}` over `atmosphere = true` and a `light.directional` is the reference's default fog. A
@@ -960,14 +965,14 @@ child of the model, changed like any light. A cache without `lights.json` has no
 
 What a host sets and reads; the pools' mechanics are [RESIDENCY.md](RESIDENCY.md).
 
-| Setting                     | Default                      | What it is                                                                                                           |
-| --------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `world.budget.gpu`          | 2 179 MiB                    | every GPU pool together, divided by `world.budget.split`                                                             |
-| `world.budget.cpu`          | the page cache's own default | what the world keeps in CPU memory                                                                                   |
+| Setting                     | Default                      | What it is                                                                                                                                                   |
+| --------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `world.budget.gpu`          | 2 179 MiB                    | every GPU pool together, divided by `world.budget.split`                                                                                                     |
+| `world.budget.cpu`          | the page cache's own default | what the world keeps in CPU memory                                                                                                                           |
 | `world.budget.geometryPool` | 512 MiB                      | slots of a 128 KiB streaming page each, the root pages held beside them in the root region; clamped to `geometryPoolCeiling`; the call a memory slider makes |
-| `world.budget.texturePool`  | 512 MiB                      | virtual-texture tiles, every texture's tail always resident; clamped to `texturePoolCeiling`                         |
-| `world.budget.canvas`       | 3840 × 2160                  | the largest drawing buffer, `{ width, height }`, the effect targets are reserved at                                  |
-| `world.budget.physics`      | `DEFAULT_PHYSICS_BUDGET`     | [PHYSICS.md](PHYSICS.md#budgets)                                                                                     |
+| `world.budget.texturePool`  | 512 MiB                      | virtual-texture tiles, every texture's tail always resident; clamped to `texturePoolCeiling`                                                                 |
+| `world.budget.canvas`       | 3840 × 2160                  | the largest drawing buffer, `{ width, height }`, the effect targets are reserved at                                                                          |
+| `world.budget.physics`      | `DEFAULT_PHYSICS_BUDGET`     | [PHYSICS.md](PHYSICS.md#budgets)                                                                                                                             |
 
 - **GPU split.** The shadow pool, bounce probes and effect targets are reserved first (at
   their live descriptor bytes), then the geometry and texture pools up to their ceilings; root

@@ -41,7 +41,13 @@ export interface TelemetryReport {
     cacheHitRate: number | null
   }
   /** What limits the frame. */
-  bottleneck: 'healthy' | 'cpu_bound' | 'gpu_submit_bound' | 'streaming_bound' | 'memory_pressure'
+  bottleneck:
+    | 'healthy'
+    | 'cpu_bound'
+    | 'gpu_bound'
+    | 'gpu_submit_bound'
+    | 'streaming_bound'
+    | 'memory_pressure'
   /** Why, in words. */
   bottleneckMessage: string
 }

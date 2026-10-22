@@ -45,7 +45,7 @@ export function worldMethods(parts: WorldParts) {
       live()?.resize(Math.floor(width), Math.floor(height))
       invalidate()
     },
-    ...worldTelemetry(live),
+    ...worldTelemetry(live, () => state.disposed),
     /** Resolves once the pages the current view reads are resident (`awaitViewPages`).
      *  @param options - `onProgress` hears `pages`, `completed` of `total`, as they land. */
     awaitPages: (options?: { onProgress?: (event: JobProgress) => void }) =>

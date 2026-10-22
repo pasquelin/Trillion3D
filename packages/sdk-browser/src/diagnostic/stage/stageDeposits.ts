@@ -9,6 +9,20 @@ import {
 import type { StageAdd } from './profiler.ts'
 import { createRings } from '../../../../math/src/sequence/rings.ts'
 
+/** The steps of each stage, in table order, from the engine's step table: a step with no stage
+ *  (`null`, a sum) belongs to none. */
+export function stepsByStage(names: readonly string[], stages: ReadonlyArray<string | null>) {
+  const steps = new Map<string, string[]>()
+  names.forEach((name, index) => {
+    const stage = stages[index]
+    if (stage === null) return
+    const list = steps.get(stage)
+    if (list) list.push(name)
+    else steps.set(stage, [name])
+  })
+  return steps
+}
+
 /**
  * The per-stage profile: a ring of durations per stage, CPU side and GPU side, separate and never
  * added. Each filed row deposits its bounds onto their stages (`stepStages`), each GPU readback its
