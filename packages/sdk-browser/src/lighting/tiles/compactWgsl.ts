@@ -22,7 +22,7 @@ const GRID_CACHE = 512
  * integer: the counts, cursors and lists are the single-thread loop's (`gridColumn.test.ts`).
  *
  * A column holds `slices` cells (`COLUMN_SLICES`): the view's columns their depth slices
- * (`gridSlices`), the bounce's world columns their cells along z (`cascadeSize`, `./shader.ts`).
+ * (`gridSlices`), the bounce's world columns their cells along z (`lightGridSide`, `./shader.ts`).
  * A lane mask is `LANE_WORDS` words, as many as the batch's lanes need, whatever
  * `WORKGROUP_THREADS` occupancy tunes it to.
  */

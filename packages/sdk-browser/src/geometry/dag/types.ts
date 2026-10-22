@@ -86,6 +86,9 @@ export type DagRoot = {
 export type DagCutLinks = {
   structure?: ClusterStructureIndex
   links: CullingLinks
+  /** The deepest level a descent must reach once each page of the primitive is resident
+   *  (`../hierarchy.ts`, `pageDepths`), shared by its placements; none reads as level 0. */
+  depth?: Uint8Array
   pageBase: number
   pageCount: number
   nodeBase: number
@@ -96,6 +99,8 @@ export type DagCutLinks = {
  *  array and root-cluster count. */
 export type DagPackShared = {
   levelSizesOf: Map<Float64Array, readonly number[]>
+  /** Per page array, the levels its pages need reached once resident (`pageDepths`). */
+  depthsOf: Map<DagRoot['pages'], Uint8Array>
   firstOf: Map<
     DagRoot['pages'],
     { pageBase: number; recordBase: number; nodes: Float64Array; rootClusters: number }
@@ -167,6 +172,11 @@ export type PackedDag = {
   /** The open counts the placements hold of their own (`heldOpen.ts`), set by the readiness that
    *  keeps them (`readiness.ts`): none until one does. */
   heldOpen?: HeldOpen
+  /** The levels the descent dispatches now (`encode.ts`): one past the deepest level a resident
+   *  page needs reached (`DagCutLinks.depth`), its placement's tree levels above it counted, at
+   *  most `levelSizes.length` and one at least. Set by the readiness that keeps the residency
+   *  (`readiness.ts`): none until one does, every level then. */
+  residentLevels?: () => number
   /** The placements' group structures as the GPU reads them, each primitive's once
    *  (`structureTable.ts`): made as the frame words name them. */
   structures?: StructureTable

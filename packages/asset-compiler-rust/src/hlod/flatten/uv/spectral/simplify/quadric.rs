@@ -53,17 +53,17 @@ fn shared_planes(a: &[u32], b: &[u32]) -> Vec<u32> {
 /// The error of quadric `q` at `p`.
 fn error_at(q: &Quadric, p: [f32; 3]) -> f64 {
     let mut ap = [0f64; 3];
-    for i in 0..3 {
-        for j in 0..3 {
-            ap[i] += p[j] as f64 * q.a[i][j];
+    for (i, product) in ap.iter_mut().enumerate() {
+        for (j, &component) in p.iter().enumerate() {
+            *product += component as f64 * q.a[i][j];
         }
     }
     let mut error = 0.0;
     for i in 0..3 {
         error += ap[i] * p[i] as f64;
     }
-    for i in 0..3 {
-        error += 2.0 * q.b[i] * p[i] as f64;
+    for (i, &component) in p.iter().enumerate() {
+        error += 2.0 * q.b[i] * component as f64;
     }
     error + q.c
 }

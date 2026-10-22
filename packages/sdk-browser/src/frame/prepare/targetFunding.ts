@@ -81,6 +81,9 @@ function frameShareBytes(rt: WebgpuPagesRuntime) {
   return bytes
 }
 
+/** The bytes a pass holds in targets, none for a pass the image has not made. */
+const heldBytes = (pass: { readonly bytes: number } | undefined) => pass?.bytes ?? 0
+
 export function fundFrameTargets(
   rt: WebgpuPagesRuntime,
   size: FrameSize,
@@ -100,7 +103,7 @@ export function fundFrameTargets(
   const shadowHeld = shadowHeldBytes(rt)
   const shadowPool = shadowHeld + vsmAskedBytes(rt, size.renderWidth, size.renderHeight)
   const bounceProbes = bounce.probes ? 2 * bounce.probes.probeBytes : 0
-  const effectTargets = gpu.effects?.bytes ?? 0
+  const effectTargets = heldBytes(gpu.effects) + heldBytes(gpu.finish)
   const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot()
   if (ledger?.unknownFormats) throw new Error('GPU_BUDGET_UNKNOWN_FORMAT')
   // Auxiliary buffers, other views/captures and proxy resources are already live.

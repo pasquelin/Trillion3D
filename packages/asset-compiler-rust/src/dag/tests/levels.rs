@@ -1,5 +1,6 @@
 use super::*;
 use std::collections::HashMap;
+use trillion3d_math::scalar::not_above;
 use trillion3d_math::vector::vecn::{length, sub};
 
 #[test]
@@ -104,7 +105,7 @@ fn every_threshold_selects_exactly_one_cluster_per_ancestor_chain() {
     let (_, _, dag) = build(160);
     // Projected error at a fixed eye: monotone in the stored object error and in the sphere radius.
     let project = |error: f64, sphere: [f64; 4]| -> f64 {
-        if error.partial_cmp(&0.0) != Some(std::cmp::Ordering::Greater) {
+        if not_above(error, 0.0) {
             return 0.0;
         }
         if !error.is_finite() {

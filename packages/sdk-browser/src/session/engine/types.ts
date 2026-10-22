@@ -20,6 +20,7 @@ import type { StreamPage } from '../../geometry/streaming/types.ts'
 import type { EngineSceneUpdates } from '../../placement/engineSceneUpdates.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { EngineProbes } from './probes.ts'
+import type { SkyCapture } from '../../lighting/atmosphere/gpu.ts'
 import type { Ray } from '../../../../sdk-core/src/world/math/volumes.ts'
 import type { Intersection, RayFilter, RayReach } from '../../api/query/types.ts'
 import type { PresentRect } from '../../gpu/core/presentAt.ts'
@@ -33,6 +34,8 @@ import type {
 import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
+import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
+import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import type { RasterOptions } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
 import type { StreamingOptions } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
 type ViewSize = { width: number; height: number }
@@ -59,6 +62,10 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   freezeCut(frozen: boolean): void
   /** The contract light store has changed: the next frame will reread it. */
   refreshSceneLights(): void
+  /** The radiance of the atmosphere's sky, as nine harmonic coefficients (27 numbers) the engine
+   *  captured when the air or its sun changed, and how many captures have landed; none before the
+   *  first. What a sky light gives the scene. */
+  skyCapture(): SkyCapture | undefined
   /** Extra lighting facts: shadow support and a reason when absent. */
   lighting: { shadows: boolean; reason?: string }
   /** Sets memory pools during the session; returns what the engine holds afterwards. */
@@ -161,6 +168,12 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
  *  read at each frame by the animation banks' tracks (`../../deformation/bankTracks.ts`); the
  *  shading's likewise (`../../../../sdk-core/src/contracts/shadingOptions.ts`), written by
  *  `setShading`, read at each frame by the material pass (`../../materials/classes/materialPasses.ts`);
+ *  the exposure's, the automatic one's and the local one's
+ *  (`../../../../sdk-core/src/contracts/exposureOptions.ts`), written by `setExposure`, read at
+ *  each frame by the meter (`../../post/exposure/frame.ts`) and the local exposure
+ *  (`../../post/finish/frame.ts`); the temporal pass's
+ *  (`../../../../sdk-core/src/contracts/temporalOptions.ts`), written by `setTemporal`, read at
+ *  each image by the pass (`../../post/taa/frame.ts`);
  *  the software raster, on by default, and the projected edge in pixels from which a cluster is
  *  the hardware rasterizer's (`../../../../sdk-core/src/contracts/rasterOptions.ts`), written by
  *  `setSoftwareRaster` and `setHardwareRasterEdgePixels` and read each image by the cluster split
@@ -174,6 +187,8 @@ export interface EngineContext
     CutOptions,
     AnimationOptions,
     ShadingOptions,
+    ExposureOptions,
+    TemporalOptions,
     RasterOptions,
     StreamingOptions {
   source: Object3D
@@ -234,10 +249,10 @@ export interface EngineContext
   particles?: readonly import('../../../../sdk-core/src/fluids/particles.ts').ParticlePool[]
   sceneLights?: SceneLightStore // the host's contract lights, shared by the session's engines
   importedLightIds?: string[] // imported light ids in cache order, set by `importedLights()`
-  /** Bounced light, off by default; `bounceBudgetMs`, the GPU target a frame of every proxy ray —
-   *  reflections first, probes the rest — (2 ms by default). */
+  /** Bounced light, on by default (`false` turns it off); `bounceProbesPerFrame`, the probes a frame traces,
+   *  those never traced first (100 by default, at most 768: `resolveProbesPerFrame`). */
   bounce?: boolean
-  bounceBudgetMs?: number
+  bounceProbesPerFrame?: number
   stageProfile?: boolean // Off by default; the bench and harness time the frame steps.
   feedbackTargetAB?: boolean
   /** A still view's temporal pass drawn every frame once its history is whole, never held on the

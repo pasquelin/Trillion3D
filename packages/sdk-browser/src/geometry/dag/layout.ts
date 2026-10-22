@@ -63,16 +63,16 @@ export function packClusterFlags(never: boolean, level: number, transparent = fa
  * (`tests/gpu/dag/cut-snapshot.gpu.ts`): 1.17 ms per frame for the full readout vs
  * 0.52 ms for a capped readout, when the kernels themselves cost 0.99.
  *
- * The cap is WIDE next to a real cut: the same bench keeps 7,812 ranks of 1,992,187 at
- * threshold 64, 31,250 at threshold 16. It holds for the cut's life: overflow remains possible — a
- * camera placed in the geometry at a tiny threshold, hundreds of thousands of placements — and
+ * The cap follows what the cut asks of its lists, between two frames (`lists/requestSize.ts`,
+ * `queueGrowth.ts`): overflow remains possible — a camera placed in the geometry at a tiny
+ * threshold, hundreds of thousands of placements, a readout at the most the settings allow — and
  * it is SAID: the kernel sets the overflow bit, the frame still draws by its mask, and the host
  * adopts the head of each list, never an exit from it (`../cut/adoption/adoption.ts`). The GPU's
  * own lists, which the frame draws from, hold their settings' caps (`lists/cutListCaps.ts`).
+ * `size`, the ranks the settings and the cut's demand give it, is bounded by the catalogue: no cut
+ * lists more clusters than it has.
  */
-export const SELECTION_LIST_CAP = 262144
-/** Cap of a scene: never more than its catalogue, which no cut can exceed. */
-export const selectionListCap = (pageCount: number) => clamp(pageCount, 0, SELECTION_LIST_CAP)
+export const selectionListCap = (pageCount: number, size: number) => clamp(pageCount, 0, size)
 /** Bytes a resident cut's frame copies: every list up to the requests' priorities. */
 export const residentReadbackBytes = (listCap: number) => copiedWords(listCap) * 4
 /** Word of `out` where the snapshot the next difference is taken against waits, behind the

@@ -1,11 +1,12 @@
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { ACES, AGX, CINEON, GAMMA, NEUTRAL } from './toneCurveConstants.ts'
+import { FILMIC_WGSL } from './filmCurveWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { linearToSrgb } from '../../../math/src/wgsl/color.ts'
 import { maxChannel, minChannel } from '../../../math/src/wgsl/sampling.ts'
 
-/** The filmic curve (ACES, its 0.6 exposure scale folded in), the default one. */
+/** The ACES curve, its 0.6 exposure scale folded in. */
 const ACES_WGSL = wgslBlock(
   'ACES_WGSL',
   [],
@@ -29,11 +30,12 @@ const R = TONE_MAPPING_RANK
  *   that the power 2.2 takes back to linear before the sRGB transfer;
  * - `agx` is a filmic image formation: to the BT.2020 primaries, the inset, a log2 encoding
  *   over [-12.47, 4.03] EV, the sixth-degree contrast fit, the outset, back to linear sRGB;
- * - `neutral` is a neutral operator, which keeps base colours below 0.76 as they are.
+ * - `neutral` is a neutral operator, which keeps base colours below 0.76 as they are;
+ * - `filmic`, the default, is a film's response in a wide gamut (`filmCurveWgsl.ts`).
  */
 const TONE_MAPPING_WGSL = wgslBlock(
   'TONE_MAPPING_WGSL',
-  [ACES_WGSL, maxChannel, minChannel],
+  [ACES_WGSL, FILMIC_WGSL, maxChannel, minChannel],
   `fn cineonCurve(color:vec3f)->vec3f{
  let x=max(vec3f(0.0),color-${CINEON.offset});
  return pow(${CINEON.curve},vec3f(${GAMMA}));
@@ -68,7 +70,8 @@ fn toneMap(color:vec3f,curve:u32)->vec3f{
   case ${R.cineon}u:{return cineonCurve(color);}
   case ${R.agx}u:{return agxCurve(color);}
   case ${R.neutral}u:{return neutralCurve(color);}
-  default:{return aces(color);}
+  case ${R.aces}u:{return aces(color);}
+  default:{return filmicCurve(color);}
  }
 }`,
 )

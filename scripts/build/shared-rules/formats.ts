@@ -115,8 +115,6 @@ export function writtenFormatsTs() {
   })
   const sheet = rustString(`${COMPILER}/cutout.rs`, 'DECISIONS_FILE')
   declarations.push(`${docOf(sheet.doc)}export const CUTOUT_SHEET_FILE = '${sheet.value}'`)
-  const banks = rustString(`${COMPILER}/compiler/tables/motion/bank.rs`, 'ANIMATION_BANKS_FILE')
-  declarations.push(`${docOf(banks.doc)}export const ANIMATION_BANKS_FILE = '${banks.value}'`)
   declarations.push(`${docOf(joltDoc)}export const JOLT_COMMIT = '${joltCommit()}'`)
   return `${header(files, '//')}
 ${declarations.join('\n\n')}

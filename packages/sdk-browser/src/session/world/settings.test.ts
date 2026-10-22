@@ -9,6 +9,9 @@ import {
 import {
   DEFAULT_STREAMING_MAX_INSTALLS_PER_FRAME,
   DEFAULT_STREAMING_MAX_PENDING_PAGES,
+  DEFAULT_STREAMING_MAX_REQUESTS,
+  DEFAULT_STREAMING_MIN_REQUESTS,
+  DEFAULT_STREAMING_NUM_RETRIES,
   DEFAULT_STREAMING_QUALITY_MAX_POOL_PERCENT,
   DEFAULT_STREAMING_QUALITY_MIN_POOL_PERCENT,
   DEFAULT_STREAMING_QUALITY_MIN_SCALE,
@@ -18,6 +21,8 @@ import { WORLD_STREAMING_RULES } from '../../../../sdk-core/src/contracts/worldS
 import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import { ANIMATION_RULES } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
+import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
+import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import { createWorldSettings } from './settings.ts'
 
 const WORLD_SETTINGS = createWorldSettings().table
@@ -26,7 +31,7 @@ const WORLD_SETTINGS = createWorldSettings().table
 const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   pixelError: DEFAULT_PIXEL_ERROR,
   antialiasing: DEFAULT_TEMPORAL_AA_LEVEL, // `WorldOptions.temporalAntialiasing`'s default
-  bounce: false, // `world.bounce`'s default
+  bounce: true, // `world.bounce`'s default
   softwareRaster: RASTER_RULES.softwareRaster.default, // on, the reference's own
   hardwareRasterEdgePixels: DEFAULT_HARDWARE_RASTER_EDGE_PIXELS,
   streamingMaxPendingPages: DEFAULT_STREAMING_MAX_PENDING_PAGES,
@@ -34,6 +39,9 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   streamingQualityMinPoolPercent: DEFAULT_STREAMING_QUALITY_MIN_POOL_PERCENT,
   streamingQualityMaxPoolPercent: DEFAULT_STREAMING_QUALITY_MAX_POOL_PERCENT,
   streamingQualityMinScale: DEFAULT_STREAMING_QUALITY_MIN_SCALE,
+  streamingNumRetries: DEFAULT_STREAMING_NUM_RETRIES,
+  streamingMinRequests: DEFAULT_STREAMING_MIN_REQUESTS,
+  streamingMaxRequests: DEFAULT_STREAMING_MAX_REQUESTS,
   // The partition's streaming and the HLOD warm-up: each its contract's default.
   ...resolveSettings(WORLD_STREAMING_RULES, {}),
   // The cut's occlusion, culls and level-of-detail bias: each its contract's default.
@@ -42,6 +50,11 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(ANIMATION_RULES, {}),
   // The material shading's bins: each its contract's default.
   ...resolveSettings(SHADING_RULES, {}),
+  // The exposure's bias, range, histogram, shares, speeds and luminance, and the local
+  // exposure's contrasts, detail, blur, grey and thresholds: each its contract's default.
+  ...resolveSettings(EXPOSURE_RULES, {}),
+  // The temporal pass's thin geometry detection: off, its contract's default.
+  ...resolveSettings(TEMPORAL_RULES, {}),
 }
 
 test('every default is the constant the engine reads today, and a fresh registry resolves it', () => {

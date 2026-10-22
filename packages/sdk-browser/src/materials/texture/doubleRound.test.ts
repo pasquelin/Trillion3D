@@ -1,48 +1,21 @@
-// The GPU's integer roundings, word conversions and JavaScript-ordered extrema of a double, run in
-// JavaScript from the shipped text (`shaderRun`), against `Math` bit for bit.
+// The GPU's finiteness test and JavaScript-ordered extrema of a double, run in JavaScript from the
+// shipped text (`shaderRun`), against `Math` bit for bit.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from './shaderRun.fixture.ts'
-import {
-  dCeil,
-  dFloor,
-  dFromU32,
-  dIsFinite,
-  dToU32,
-} from '../../../../math/src/wgsl/doubleRound.ts'
-import { dBelow, dMathMax, dMathMin } from '../../../../math/src/wgsl/doubleOrder.ts'
+import { dIsFinite } from '../../../../math/src/wgsl/doubleRound.ts'
+import { dMathMax, dMathMin } from '../../../../math/src/wgsl/doubleOrder.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Pair = number[]
 type Run = {
-  dTrunc(a: Pair): Pair
-  dFloor(a: Pair): Pair
-  dCeil(a: Pair): Pair
   dIsFinite(a: Pair): boolean
-  dFromU32(n: number): Pair
-  dToU32(a: Pair): number
-  dBelow(a: Pair, b: Pair): boolean
   dMathMin(a: Pair, b: Pair): Pair
   dMathMax(a: Pair, b: Pair): Pair
 }
-const NAMES = [
-  'dTrunc',
-  'dFloor',
-  'dCeil',
-  'dIsFinite',
-  'dFromU32',
-  'dToU32',
-  'dBelow',
-  'dMathMin',
-  'dMathMax',
-]
-const run = shaderRun<Run>(
-  // `dTrunc` comes with the roundings that call it.
-  wgslModule(dFloor, dCeil, dIsFinite, dFromU32, dToU32, dBelow, dMathMin, dMathMax),
-  NAMES,
-  {},
-)
+const NAMES = ['dIsFinite', 'dMathMin', 'dMathMax']
+const run = shaderRun<Run>(wgslModule(dIsFinite, dMathMin, dMathMax), NAMES, {})
 
 const cell = new Float64Array(1),
   bits = new Uint32Array(cell.buffer)
@@ -98,36 +71,18 @@ function values(seed: number, count: number) {
   return out
 }
 
-test('trunc, floor and ceil are Math’s, sign of zero, infinities and NaN included', () => {
-  for (const x of [...EDGES, ...values(11, 4000)]) {
-    for (const [name, cpu] of [
-      ['dTrunc', Math.trunc(x)],
-      ['dFloor', Math.floor(x)],
-      ['dCeil', Math.ceil(x)],
-    ] as const)
-      assert.deepEqual(words(run[name](expected(x))), expected(cpu), `${name}(${x})`)
+test('finiteness is Number.isFinite’s, infinities and NaN included', () => {
+  for (const x of [...EDGES, ...values(11, 4000)])
     assert.equal(run.dIsFinite(expected(x)), Number.isFinite(x), `isFinite(${x})`)
-  }
 })
 
-test('a word widens exactly, and an integer double gives its word back', () => {
-  const next = lcgRandom(12)
-  const samples = [0, 1, 2, 3, 255, 256, 65535, 2 ** 24 - 1, 2 ** 24 + 1, 2 ** 31, 2 ** 32 - 1]
-  for (let i = 0; i < 2000; i++) samples.push(Math.floor(next() * 2 ** Math.floor(next() * 33)))
-  for (const n of samples) {
-    assert.deepEqual(words(run.dFromU32(n)), toPair(n), `dFromU32(${n})`)
-    assert.equal(run.dToU32(toPair(n)) >>> 0, n, `dToU32(${n})`)
-  }
-})
-
-test('comparisons and extrema read NaN as JavaScript does', () => {
+test('extrema read NaN as JavaScript does', () => {
   const pool = [...EDGES, ...values(13, 200)]
   const next = lcgRandom(14)
   for (let i = 0; i < 8000; i++) {
     const a = pool[Math.floor(next() * pool.length)],
       b = pool[Math.floor(next() * pool.length)]
     const [pa, pb] = [expected(a), expected(b)]
-    assert.equal(run.dBelow(pa, pb), a < b, `${a} < ${b}`)
     assert.deepEqual(words(run.dMathMin(pa, pb)), expected(Math.min(a, b)), `min(${a}, ${b})`)
     assert.deepEqual(words(run.dMathMax(pa, pb)), expected(Math.max(a, b)), `max(${a}, ${b})`)
   }

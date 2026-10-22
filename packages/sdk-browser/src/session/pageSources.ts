@@ -8,7 +8,11 @@ import type { PageQueue } from '../geometry/streaming/types.ts'
 import { createDiagnosticChannel } from '../diagnostic/channel.ts'
 import type { Engine } from './engine/types.ts'
 import type { MeasuredWorldOptions } from './options.ts'
-import { indexManifestBundles, indexManifestPages } from '../scene/manifestPageIndex.ts'
+import {
+  indexManifestBundles,
+  indexManifestObjects,
+  indexManifestPages,
+} from '../scene/manifestPageIndex.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import type { PartitionCells } from '../geometry/partition/cells.ts'
 import type { WorldRootsHold } from '../geometry/hlod/worldRoots.ts'
@@ -57,6 +61,9 @@ export function openExplorerPageSources(
   diagnosticChannel: ReturnType<typeof createDiagnosticChannel>,
   progress: Progress,
   stalled: Stalled = () => {},
+  /** How many times a read that failed is tried again before its page is given up, read at each
+   *  failure (`streamingNumRetries`): the session's setting, written in place. */
+  numRetries?: () => number,
 ) {
   const { pages, geometryPages, pageIdByUrl } = indexManifestPages(metadata)
   const bundles = indexManifestBundles(metadata)
@@ -80,6 +87,8 @@ export function openExplorerPageSources(
         ? diagnosticChannel.emit
         : undefined,
     onStalled: ({ key, cause }) => stalled(`${key}: ${String(cause)}`, streamer.stats().failed),
+    numRetries,
+    objectOf: indexManifestObjects(metadata),
   })
   const preload = options.preload ?? 'visible'
   const sources = preloaded(streamer, pages, preload, progress).then((indices) => ({

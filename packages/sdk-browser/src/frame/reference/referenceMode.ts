@@ -3,7 +3,7 @@ import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { DEFAULT_HEIGHT, DEFAULT_WIDTH, pixelRatioOf } from '../../session/engine/common.ts'
 import { referenceTilePlan, type ReferenceTilePlan } from './referenceTiles.ts'
 import type { MeasuredWorldOptions } from '../../session/options.ts'
-import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenceApproximations.ts'
+import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_PROBES } from './referenceApproximations.ts'
 
 /**
  * THE ENGINE'S REFERENCE MODE (#1281): the image a rendering technique is held to (CONTRIBUTING.md,
@@ -57,7 +57,7 @@ export function referenceOptions(options: MeasuredWorldOptions): {
       ...options,
       renderScale: 1,
       temporalAntialiasing: false,
-      bounceBudgetMs: REFERENCE_BOUNCE_BUDGET_MS,
+      bounceProbesPerFrame: REFERENCE_BOUNCE_PROBES,
     },
     reference: { factor: tiles.factor, approximations: REFERENCE_APPROXIMATIONS, tiles },
   }

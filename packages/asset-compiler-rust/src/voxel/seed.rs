@@ -63,8 +63,8 @@ impl SeedGroup {
         for &c in children {
             let child = &dag[c];
             seed.vertices += first_use(child.indices.iter().copied()).0.len();
-            let corner = |t: &[u32], k: usize| point(pos, t[k]);
-            seed.area += (child.indices.chunks_exact(3))
+            let corner = |t: &[u32; 3], k: usize| point(pos, t[k]);
+            seed.area += (child.indices.as_chunks::<3>().0.iter())
                 .map(|t| triangle_area(corner(t, 0), corner(t, 1), corner(t, 2)))
                 .sum::<f64>();
             seed.children.push((child.source, child.lod_error));
@@ -199,7 +199,7 @@ fn own_triangles(
         .collect();
     // A triangle's source rank by its corners, from whichever it starts; a repeated triangle takes
     // its first rank.
-    let rank: WordMap<[u32; 3], u32> = (indices.chunks_exact(3).enumerate().rev())
+    let rank: WordMap<[u32; 3], u32> = (indices.as_chunks::<3>().0.iter().enumerate().rev())
         .map(|(t, c)| (turned(c), source[t]))
         .collect();
     let mut next = seeded.iter_mut().peekable();
@@ -218,7 +218,7 @@ fn own_triangles(
         if let Some(seed) = next.next_if(|s| s.group == g) {
             let corners = leaves
                 .iter()
-                .flat_map(|&l| dag[l as usize].indices.chunks_exact(3));
+                .flat_map(|&l| dag[l as usize].indices.as_chunks::<3>().0);
             let mut triangles: Vec<u32> = corners
                 .filter_map(|c| rank.get(&turned(c)).copied())
                 .collect();

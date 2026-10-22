@@ -1,7 +1,6 @@
-//! The `lowest` LOD a merged layer takes of a source: its fallback, the source simplified to an
-//! error of a hundredth of the source's size, the square root of the smaller of twice its level-0
-//! area and a quarter of its box's surface, stopping at 256 triangles at the latest. On generated
-//! plates.
+//! The `lowest` LOD a merged layer takes of a source: its fallback mesh
+//! (`hlod::flatten::merge::fallback`, by its `RELATIVE_ERROR`, `AT_LEAST`, `OVERSHOOT` and
+//! `LIMIT`). On generated plates.
 use super::attributes::vertex_normals;
 use super::plate;
 use crate::dag::{build_dag, DagAttributes, DagStrategy, Grown};
@@ -27,7 +26,7 @@ fn cover(positions: &[f32], indices: &[u32], carried: &[Attribute]) -> SourceCov
         lowest: true,
     };
     let asked = Some((taken, SolveRules::default()));
-    SourceCover::of(strategy, dag, (pos, &carried), asked).expect("cover")
+    SourceCover::of(dag, (pos, &carried), asked).expect("cover")
 }
 
 /// The geometry a merged layer takes of `cover` at its `lowest` LOD, placed where it lies.

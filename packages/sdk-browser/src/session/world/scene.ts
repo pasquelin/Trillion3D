@@ -11,6 +11,11 @@ import { readScene } from '../saved/read.ts'
 import type { SavedScene } from '../saved/format.ts'
 import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs/jobs.ts'
 import { validateSceneFog } from '../../../../sdk-core/src/scene/core/fog.ts'
+import {
+  validateSceneAtmosphere,
+  type ResolvedAtmosphere,
+  type SceneAtmosphere,
+} from '../../../../sdk-core/src/scene/core/atmosphere.ts'
 import { sceneFogOf, type Fog } from './sceneFog.ts'
 
 /** What `scene.load` may be told about the model it loads; every field is optional. */
@@ -37,9 +42,9 @@ export type SceneLoader = ((url: string, options: LoadOptions) => Promise<Loaded
   added?: (model: LoadedModel) => void
 }
 
-/** What a world hears from its scene: a node's changes, its background and its fog set or
- *  written. */
-export type WorldSceneLink = SceneLink & { background(): void; fog(): void }
+/** What a world hears from its scene: a node's changes, its background, its fog and its
+ *  atmosphere set or written. */
+export type WorldSceneLink = SceneLink & { background(): void; fog(): void; atmosphere(): void }
 
 /**
  * The root of a world's scene: objects are added to it, a compiled model is loaded into it, and
@@ -59,6 +64,9 @@ export class Scene extends Object3D {
   private _fog: Fog | null = null
   /** Tells the world the fog changed, chained on its colour to hear writes in place. */
   private readonly refogged = () => (this._link as Partial<WorldSceneLink> | null)?.fog?.()
+
+  private _atmosphere: SceneAtmosphere | true | null = null
+  private _air: ResolvedAtmosphere | undefined
 
   /** Called before the scene is drawn; none by default. */
   declare onBeforeRender?: () => void
@@ -99,19 +107,45 @@ export class Scene extends Object3D {
    *  for none, at no cost. `{ color, near, far }` fades objects into `color` from `near` to `far`,
    *  distances from the camera; `{ color, density }` thickens by `density` per unit of distance;
    *  add `heightFalloff` (and `baseHeight`, 0 by default) and it lies on the ground, thinning out
-   *  above `baseHeight` — divided by e every `1 / heightFalloff` units up. A change shows at the
-   *  next frame: a new fog set here, or its colour written through its methods. A direct write of
-   *  `near`, `far`, `density`... is not heard: set `fog` again after one. A fog out of range —
-   *  `far` not beyond `near`, a negative density — is refused (`INVALID_SCENE_ENVIRONMENT`). */
+   *  above `baseHeight` — divided by e every `1 / heightFalloff` units up. The height fog's own
+   *  fields (`SceneHeightFog`: `baseDensity`, `falloff`, `maxOpacity`, `startDistance`,
+   *  `cutoffDistance`, the sun's `directional` lobe, `skyContribution`, every one with its default,
+   *  `{}` the default fog) say the same law in base 2, in metres (`fogHeight.ts`).
+   *  A change shows at the next frame: a new fog set here, or its colour written through its
+   *  methods. A direct write of `near`, `far`, `density`... is not heard: set `fog` again after
+   *  one. A fog out of range — `far` not beyond `near`, a negative density — is refused
+   *  (`INVALID_SCENE_ENVIRONMENT`). */
   get fog() {
     return this._fog
   }
   set fog(value: Fog | null) {
     if (value) validateSceneFog(sceneFogOf(value)!)
-    if (this._fog) unlisten(this._fog.color, this.refogged)
+    if (this._fog?.color) unlisten(this._fog.color, this.refogged)
     this._fog = value ?? null
-    if (value) listen(value.color, this.refogged)
+    if (value?.color) listen(value.color, this.refogged)
     this.refogged()
+  }
+  /** The planet's air: the sky behind every surface, the haze over the distance, and the sun's
+   *  light tinted by what it crosses; `null`, the default, for none, at no cost. `true` is an
+   *  Earth-like atmosphere; an object sets any of its fields over those defaults (`planetRadius`
+   *  and `height` in kilometres, the scattering coefficients per kilometre, `groundHeight` in
+   *  metres: the height of the planet's ground in the scene, 0 by default). The sun is the
+   *  brightest directional light (`light.directional({ atmosphereSun: false })` leaves one out);
+   *  `light.sky()` lights the scene from the sky. Where the atmosphere is on, `background` is not
+   *  shown. A change shows at the next frame: set `atmosphere` again after writing a field of
+   *  it. A value out of range — a negative radius, an anisotropy outside (−1, 1) — is refused
+   *  (`INVALID_SCENE_ENVIRONMENT`). */
+  get atmosphere() {
+    return this._atmosphere
+  }
+  set atmosphere(value: SceneAtmosphere | true | null) {
+    this._air = value ? validateSceneAtmosphere(value) : undefined
+    this._atmosphere = value ?? null
+    ;(this._link as Partial<WorldSceneLink> | null)?.atmosphere?.()
+  }
+  /** The atmosphere with every field set, what the lighting reads; none without one. */
+  get resolvedAtmosphere() {
+    return this._air
   }
   /** Loads a compiled model — its manifest URL — and adds it to this scene. A manifest this world
    *  loaded already is not read again: the model returned is another placement of it, its own

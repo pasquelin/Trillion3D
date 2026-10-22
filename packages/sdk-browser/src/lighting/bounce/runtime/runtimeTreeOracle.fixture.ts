@@ -11,7 +11,7 @@ import {
   NODE_MIN,
 } from '../../../geometry/dag/nodeLayout.ts'
 import { TREE_GROUP, type PlacementTree } from '../../../geometry/dag/placement/placementTree.ts'
-import { RAY_TREE_STEPS, RAY_WORK } from './runtimeLayout.ts'
+import { RAY_WORK } from './runtimeLayout.ts'
 import { PLACEMENT_TREE_WALK_WGSL } from '../../../geometry/dag/tree/treeWalkWgsl.ts'
 import { boxEntry, spent, type Hit, type Spent } from './runtimeOracle.fixture.ts'
 import type { Vec3 } from '../../../../../math/src/vector/vectorTuple.ts'
@@ -21,6 +21,8 @@ const walkConst = (name: string) =>
   Number(new RegExp(`const ${name}:u32=(\\d+)u;`).exec(PLACEMENT_TREE_WALK_WGSL.text)![1])
 const TREE_DEPTH = walkConst('WALK_DEPTH'),
   WALK_LIST = walkConst('WALK_LIST')
+/** The steps a ray's walk takes at most, twice its units (`steps` of the run-time proxy's walk). */
+const RAY_TREE_STEPS = 2 * RAY_WORK
 
 /** The nearest hit from `hit` over `tree`'s members, each ordered by where the ray enters its box (`entry`)
  *  and entered by `enter`, the walk's units spent in `s`. */
@@ -118,6 +120,74 @@ export function walkTree(
     if (group) best = enter(tree.order[first + k], best)
     else if (levels.length < TREE_DEPTH)
       levels.push({ node: first + k, held: [], taken: 0, more: true })
+  }
+  // A walk that ran out of steps, not of tree, is a spent ray as well.
+  if (!done) s.work = RAY_WORK
+  return best
+}
+
+/** The first hit over `tree`'s members in index order, as `placementTreeAnyHit` walks it: each node's children
+ *  read once, a cell the ray meets entered at once and its parent resumed after it, a group's members entered
+ *  in turn by `enter`, which answers a hit that ends the walk; the walk's units spent in `s`. */
+export function walkTreeAny(
+  tree: PlacementTree,
+  o: Vec3,
+  d: Vec3,
+  hit: Hit,
+  s: Spent,
+  enter: (w: number, best: Hit) => Hit,
+): Hit {
+  let best = hit
+  const nodes = new Uint32Array(tree.nodes.buffer, tree.nodes.byteOffset, tree.nodes.length)
+  const float = (n: number, at: number) => tree.nodes[n * DAG_NODE_FLOATS + at]
+  const box = (n: number, at: number): Vec3 => [float(n, at), float(n, at + 1), float(n, at + 2)]
+  const word = (n: number, k: number) => nodes[n * DAG_NODE_FLOATS + k]
+  // A level is a node and the next of its children to read.
+  const levels = [{ node: 0, next: 0 }]
+  let done = false,
+    step = 0
+  while (step < RAY_TREE_STEPS) {
+    if (spent(s)) {
+      done = true
+      break
+    }
+    const top = levels[levels.length - 1]
+    const count = word(top.node, NODE_CHILD_COUNT),
+      first = word(top.node, NODE_FIRST_CHILD)
+    const group = word(top.node, NODE_KIND) === TREE_GROUP
+    let into = false
+    for (let k = top.next; k < count; k++) {
+      if (step >= RAY_TREE_STEPS) break
+      if (spent(s)) {
+        done = true
+        break
+      }
+      step++
+      s.work += 1
+      if (group) {
+        const w = tree.order[first + k]
+        if (w !== NO_INDEX) {
+          best = enter(w, best)
+          if (best.found) return best
+        }
+      } else if (
+        levels.length < TREE_DEPTH &&
+        boxEntry(box(first + k, NODE_MIN), box(first + k, NODE_MAX), o, d, best.distance) <=
+          best.distance
+      ) {
+        top.next = k + 1
+        levels.push({ node: first + k, next: 0 })
+        into = true
+        break
+      }
+    }
+    if (done || step >= RAY_TREE_STEPS) break
+    if (into) continue
+    if (levels.length === 1) {
+      done = true
+      break
+    }
+    levels.pop()
   }
   // A walk that ran out of steps, not of tree, is a spent ray as well.
   if (!done) s.work = RAY_WORK

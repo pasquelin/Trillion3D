@@ -1,7 +1,7 @@
 import { AS_IS_SHARE_SHADER } from './asIsShareWgsl.ts'
 import { BLEND_EQUATIONS } from '../../materials/surface/materialBlending.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
-import { preparedPipeline, started } from './fullscreen.ts'
+import { fullscreenDescriptor, preparedPipeline, started } from './fullscreen.ts'
 import { AS_IS_SHARE_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { sequentialEntries, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 
@@ -10,7 +10,7 @@ export const AS_IS_SHARE_FORMAT: GPUTextureFormat = 'rg8unorm'
 /** What the layers over a pixel give up of its temporal history, beside it: one channel, so the
  *  blend pass's targets stay within WebGPU's 32 colour bytes a sample (31 with the display
  *  layers; four channels would cost 8). */
-export const GIVEN_UP_FORMAT: GPUTextureFormat = 'r8unorm'
+const GIVEN_UP_FORMAT: GPUTextureFormat = 'r8unorm'
 /** Bytes per pixel of both targets, as the frame's target cost counts them (`targets.ts`). */
 export const AS_IS_SHARE_BYTES = 3
 
@@ -49,21 +49,17 @@ const seedProgram = oncePerDevice((device) => {
   const layout = device.createBindGroupLayout({
     entries: [computeTextureEntry(0, 'uint', '2d', GPUShaderStage.FRAGMENT)],
   })
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   // By the pass's targets: the share alone, then with the history given up, which the pass
   // clears and the seed never draws.
   const pipelines = [[], [{ format: GIVEN_UP_FORMAT, writeMask: 0 }]].map((givenUp) =>
     started(
-      preparedPipeline(device, {
-        layout: pipelineLayout,
-        vertex: { module, entryPoint: 'fullscreen' },
-        fragment: {
-          module,
-          entryPoint: 'seed',
-          targets: [{ format: AS_IS_SHARE_FORMAT }, ...givenUp],
-        },
-        primitive: { topology: 'triangle-list' },
-      }),
+      preparedPipeline(
+        device,
+        fullscreenDescriptor(device, module, layout, 'seed', [
+          { format: AS_IS_SHARE_FORMAT },
+          ...givenUp,
+        ]),
+      ),
     ),
   )
   return { layout, pipelines }

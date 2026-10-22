@@ -1,5 +1,5 @@
 // The frame, cofactor and projection declarations of the maths library
-// (`packages/math/src/wgsl/basis.ts`, `matrix.ts`, `selection/projection.ts`), their shipped text run in
+// (`packages/math/src/wgsl/basis.ts`, `matrix.ts`, `projection.ts`), their shipped text run in
 // JavaScript against what each one claims: an orthonormal frame, det · M⁻ᵀ, a pixel and a uv.
 import test from 'node:test'
 import assert from 'node:assert/strict'

@@ -116,6 +116,27 @@ export function started<P>(pipeline: PreparedPipeline<P>) {
   return pipeline
 }
 
+/** The descriptor of a fullscreen-triangle pipeline on one bind group layout or one per group, at
+ *  the targets given, named `label` when it is, its fragment program's override `constants` set
+ *  when they are: the one every fullscreen pass is described by. */
+export function fullscreenDescriptor(
+  device: GPUDevice,
+  module: GPUShaderModule,
+  bind: GPUBindGroupLayout | readonly GPUBindGroupLayout[],
+  entryPoint: string,
+  targets: GPUColorTargetState[],
+  label?: string,
+  constants?: Record<string, number>,
+): GPURenderPipelineDescriptor {
+  return {
+    ...(label !== undefined && { label }),
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bind].flat() }),
+    vertex: { module, entryPoint: 'fullscreen' },
+    fragment: { module, entryPoint, targets, ...(constants && { constants }) },
+    primitive: { topology: 'triangle-list' },
+  }
+}
+
 /** A fullscreen-triangle pipeline on one bind group layout or one per group, at the targets given. */
 export function makeFullscreenPipeline(
   device: GPUDevice,
@@ -124,10 +145,8 @@ export function makeFullscreenPipeline(
   entryPoint: string,
   targets: GPUColorTargetState[],
 ) {
-  return buildRenderPipeline(device, {
-    layout: device.createPipelineLayout({ bindGroupLayouts: [bind].flat() }),
-    vertex: { module, entryPoint: 'fullscreen' },
-    fragment: { module, entryPoint, targets },
-    primitive: { topology: 'triangle-list' },
-  })
+  return buildRenderPipeline(
+    device,
+    fullscreenDescriptor(device, module, bind, entryPoint, targets),
+  )
 }

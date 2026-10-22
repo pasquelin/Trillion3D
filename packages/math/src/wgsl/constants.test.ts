@@ -14,7 +14,6 @@ import {
   RANGE_BOUND,
   SQRT2,
 } from './constants.ts'
-import { OCT_BYTE_STEP } from './octahedral.ts'
 import { FINITE_SENTINEL as FINITE, FLOAT32_MAX, GOLDEN_FRACTION } from '../constants.ts'
 
 /** The number a WGSL scalar constant's literal names, as the device reads it. */
@@ -48,7 +47,6 @@ test('each new constant names the f32 of its value, the shaders’ hand-typed li
     [HALF_MAX, 65504, ['65504.0']],
     [DIVISOR_FLOOR, 1e-20, ['1e-20']],
     [RANGE_BOUND, 1e9, ['1e9']],
-    [OCT_BYTE_STEP, 2 / 255, [String(Math.fround(2 / 255))]],
   ] as const
   for (const [decl, value, typed] of pairs) {
     assert.equal(Math.fround(literal(decl.text)), Math.fround(value), decl.name)

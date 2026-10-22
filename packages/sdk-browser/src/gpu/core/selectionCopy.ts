@@ -1,9 +1,9 @@
-import { sameElements, sameValues } from '../../../../math/src/matrix/matrixElements.ts'
+import { sameElements } from '../../../../math/src/matrix/matrixElements.ts'
 import type { SelectionUniforms } from './selection.ts'
 
-/** Same threshold, projection and pose: the view a readback describes. The occlusion's inputs —
- *  the render matrices, the pyramid's image — are not compared: whether a cut stands across frames
- *  is the swap's question (`../../geometry/dag/swap/swap.ts`, `stampMatches`). */
+/** Same threshold, projection and pose: the view a readback describes. The render matrices, the
+ *  planes that follow their jitter and the pyramid's image are not compared: whether a cut stands
+ *  across frames is the swap's question (`../../geometry/dag/swap/swap.ts`, `stampMatches`). */
 export function sameSelectionUniforms(a: SelectionUniforms, b: SelectionUniforms) {
   if (
     a.pixelError !== b.pixelError ||
@@ -20,7 +20,7 @@ export function sameSelectionUniforms(a: SelectionUniforms, b: SelectionUniforms
     a.cameraWorld[2] !== b.cameraWorld[2]
   )
     return false
-  return sameElements(a.view, b.view) && sameValues(a.planes, b.planes)
+  return sameElements(a.view, b.view)
 }
 
 export function copySelectionUniforms(source: SelectionUniforms): SelectionUniforms {

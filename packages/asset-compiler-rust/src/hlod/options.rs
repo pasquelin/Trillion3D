@@ -164,10 +164,8 @@ pub enum HlodLodSelection {
     /// view (`'calculate'`, the default).
     #[default]
     Calculate,
-    /// The source's fallback (`'lowest'`): the source simplified to an error of a hundredth of the
-    /// source's size, the square root of the smaller of twice its level-0 area and a quarter of its
-    /// box's surface, stopping at 256 triangles at the latest; a source of 256 triangles or fewer
-    /// stays as it is (`flatten::merge::fallback`).
+    /// The source's fallback mesh (`'lowest'`), made as `flatten::merge::fallback` makes it, by
+    /// its `RELATIVE_ERROR`, `AT_LEAST`, `OVERSHOOT` and `LIMIT`.
     Lowest,
 }
 

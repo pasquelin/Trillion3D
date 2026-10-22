@@ -18,17 +18,17 @@
 //! the entry and the coordinates of its twin, the primitive of that first object with the same
 //! source.
 //!
-//! Each entry is baked at the side the sources' sizing gives, one sample a texel (`merge::baked`),
-//! its images shrunk to one texel when they hold one value and their background filled outward
-//! (`merge::shrunk`, `smeared`, `uniform`). Each source primitive then reads its entry's images at
-//! its object's generated coordinates, or — on a quad, an image of one texel — anywhere.
+//! Each entry is baked at the side the sources' sizing gives, one sample a texel, on the GPU
+//! (`merge::baked`), its images shrunk to one texel when they hold one value and their background
+//! filled outward (`merge::shrunk`, `smeared`, `uniform`). Each source primitive then reads its
+//! entry's images at its object's generated coordinates, or — on a quad, an image of one texel —
+//! anywhere.
 use super::parts::Home;
 use super::transfer::Flattened;
-use crate::hlod::flatten::bake::sources::Sources;
 use crate::hlod::flatten::bake::Maps;
 use crate::hlod::flatten::merge::{
     baked, coordinates, lightmapped, quad, seen_through, shrunk, smeared, uniform, Baked, Behind,
-    Image, Part,
+    Image, Part, Read,
 };
 use crate::hlod::flatten::{Library, Piece};
 use crate::hlod::options::HlodUvMethod;
@@ -55,7 +55,7 @@ fn on_mesh(worn: &[&Part], library: &Library, maps: Maps) -> bool {
         || (maps.specular && surface.specular_map.is_some())
         || (maps.emissive && surface.emission_map.is_some());
     let tinted = worn.iter().any(|p| p.carried(FLAG_COLOR).is_some());
-    textured || tinted || seen_through(worn[0], library, maps)
+    textured || tinted || seen_through(worn[0].material, library, maps)
 }
 
 /// The texture coordinates the object made of the primitives `parts` is baked at: the texture set
@@ -123,7 +123,7 @@ pub(super) fn flattened(
     let kinds: BTreeMap<Option<u64>, (bool, bool)> = by_material
         .iter()
         .map(|(&material, worn)| {
-            let seen = seen_through(worn[0], library, maps);
+            let seen = seen_through(material, library, maps);
             (material, (on_mesh(worn, library, maps), seen))
         })
         .collect();
@@ -194,20 +194,21 @@ pub(super) fn flattened(
         } = match object {
             None => {
                 let (sources, coordinates) = quad(*material, library);
-                baked(&sources, &coordinates, (side, maps), None)
+                baked(Read::Own(&sources), &coordinates, (side, maps), library)?
             }
             Some(_) => {
                 let own: Vec<usize> = (members.iter())
                     .copied()
                     .filter(|&k| homes[k].own)
                     .collect();
-                let pieces: Vec<Piece> = own.iter().map(|&k| parts[k].piece()).collect();
-                let sources = Sources::of(&pieces, library);
                 let laid_out: Vec<[[f64; 2]; 3]> = (own.iter())
                     .flat_map(|&k| laid[k].iter().flatten().copied())
                     .collect();
                 let behind = behind.as_ref().filter(|_| seen(*material));
-                baked(&sources, &laid_out, (side, maps), behind)
+                let piece_of = |k: usize| parts[k].piece();
+                Read::of(behind, &own, piece_of, library, |read| {
+                    baked(read, &laid_out, (side, maps), library)
+                })?
             }
         };
         made.push(Flattened {

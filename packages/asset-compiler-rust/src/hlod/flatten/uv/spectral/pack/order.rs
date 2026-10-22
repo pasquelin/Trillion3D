@@ -210,7 +210,7 @@ fn pop_hole<T: Copy>(
         items[hole] = items[at];
         hole = at;
     }
-    if at == last_parent && bottom % 2 == 0 {
+    if at == last_parent && bottom.is_multiple_of(2) {
         items[hole] = items[bottom - 1];
         hole = bottom - 1;
     }

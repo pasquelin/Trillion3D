@@ -1,5 +1,6 @@
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts'
+import type { SceneExposure } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { holdWorldDevice } from './device.ts'
 import type { createWorldFrames } from './frames/frames.ts'
 import { createWorldRuntime } from './runtime.ts'
@@ -11,13 +12,14 @@ import { sessionPools, type worldPools } from './budget.ts'
 import type { worldSwitches } from './switches.ts'
 import type { createWorldViews } from './views.ts'
 
-/** What a world shows of itself and its page sets: its camera, curve, exposure and sharpening,
- *  and whether it is gone. */
+/** What a world shows of itself and its page sets: its camera, curve, exposure, sharpening and
+ *  vignette, and whether it is gone. */
 export type WorldState = {
   camera: Camera
   toneMapping: ToneMapping
-  exposure: number
+  exposure: SceneExposure
   sharpness: number
+  vignette: number
   /** A clip still plays: the frame drawn asks for the next. */
   animating: boolean
   disposed: boolean
@@ -89,7 +91,9 @@ export function worldRuntimeOf(parts: RuntimeNeeds) {
       exposure: state.exposure,
       toneMapping: state.toneMapping,
       sharpness: state.sharpness,
+      vignette: state.vignette,
       fog: sceneFogOf(scene.fog),
+      atmosphere: scene.resolvedAtmosphere,
     }),
     diagnostic,
   })

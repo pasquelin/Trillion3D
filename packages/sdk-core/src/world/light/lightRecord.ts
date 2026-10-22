@@ -65,6 +65,7 @@ export function lampRecord(
   }
   if (kind === 'directional') {
     if (light.angularRadius > 0) record.angularRadius = light.angularRadius
+    if (!light.atmosphereSun) record.atmosphereSun = false
     return record
   }
   record.position = eye.toArray()
@@ -78,18 +79,73 @@ export function lampRecord(
   return record
 }
 
+/** What a sky light sees of the sky: the atmosphere's radiance as the engine captured it — nine
+ *  coefficients of it, none yet — when the scene has an atmosphere, else the flat colour behind
+ *  the scene, linear. */
+export interface SkySource {
+  /** Whether the scene has an atmosphere: the sky is then the captured one. */
+  atmosphere: boolean
+  /** The radiance coefficients of the atmosphere's upper sky (27 numbers), once captured. */
+  captured?: ArrayLike<number>
+  /** The scene's background colour, linear: the sky of a scene without an atmosphere. */
+  background: readonly number[]
+}
+
+/** The axis a sky light's two halves are cut along: the scene's up. */
+const ZENITH = [0, 1, 0]
+
+/** A sky light's irradiance: the sky above, its `groundColor` below. The captured atmosphere is
+ *  radiance coefficients (`addIrradianceCoefficients` lays them in, a colour's channels scaling
+ *  each); a flat sky is a hemisphere of that radiance, `π L` of irradiance on a normal facing it. */
+function addSkyIrradiance(light: Light, sh: IrradianceSum, source: SkySource) {
+  const { intensity, color } = light
+  const tint = [color.r * intensity, color.g * intensity, color.b * intensity]
+  const lower = light.groundColor.toArray().map((c) => c * intensity * Math.PI)
+  if (!source.atmosphere) {
+    const upper = source.background.map((c, i) => c * tint[i] * Math.PI)
+    addHemisphereIrradiance(sh, upper, lower, ZENITH)
+    return
+  }
+  const { captured } = source
+  if (captured) for (let k = 0; k < captured.length; k++) sh[k] += captured[k] * tint[k % 3]
+  addHemisphereIrradiance(sh, [0, 0, 0], lower, ZENITH)
+}
+
+/**
+ * Adds what the sky light `light` shows a ray that leaves the scene to `upper` and `lower`, three
+ * numbers each (`SceneSky`): above the horizon its colour times its intensity — a factor of the
+ * atmosphere's sky, or with no atmosphere that factor of the sky's own colour, the background —,
+ * below it its `groundColor` times its intensity (black by default). Returns whether it added any:
+ * not a sky light, or one giving nothing, adds none.
+ */
+export function addSkyRadiance(light: Light, source: SkySource, upper: number[], lower: number[]) {
+  if (light.kind !== 'sky' || !(light.intensity > 0)) return false
+  const { intensity, color, groundColor } = light
+  const tint = [color.r * intensity, color.g * intensity, color.b * intensity]
+  const ground = groundColor.toArray()
+  for (let c = 0; c < 3; c++) {
+    upper[c] += source.atmosphere ? tint[c] : source.background[c] * tint[c]
+    lower[c] += ground[c] * intensity
+  }
+  return true
+}
+
 /**
  * Adds what `light` gives from every direction — its irradiance, a function of the normal alone —
  * to the nine coefficients `sh` (`scene/core/environment.ts`): an ambient its colour times
  * intensity everywhere; a sky over a ground (`hemisphere`) its colour on normals toward its
  * position seen from the origin and `groundColor` on the opposite ones; a probe its coefficients,
- * or its colour everywhere when it carries none. A lamp adds nothing here; whether the light is
+ * or its colour everywhere when it carries none; a sky light the sky `sky` describes above and
+ * its `groundColor` below (black by default). A lamp adds nothing here; whether the light is
  * shown is the caller's to decide, as for `lampRecord`. Returns whether it added anything.
  */
-export function addLightIrradiance(light: Light, sh: IrradianceSum) {
+export function addLightIrradiance(light: Light, sh: IrradianceSum, sky?: SkySource) {
   if (!(light.intensity > 0)) return false
   const scale = light.intensity
-  if (light.kind === 'probe' && light.sh) addIrradianceCoefficients(sh, light.sh, scale)
+  if (light.kind === 'sky') {
+    if (!sky) return false
+    addSkyIrradiance(light, sh, sky)
+  } else if (light.kind === 'probe' && light.sh) addIrradianceCoefficients(sh, light.sh, scale)
   else if (light.kind === 'ambient' || light.kind === 'probe')
     addUniformIrradiance(sh, scaled(light.color, scale))
   else if (light.kind === 'hemisphere') {

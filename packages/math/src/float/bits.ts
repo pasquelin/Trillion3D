@@ -30,9 +30,6 @@ const double = new Float64Array(1),
 /** The high word of the double `value`: sign, eleven exponent bits, twenty mantissa bits. */
 export const f64High = (value: number) => ((double[0] = value), doubleWords[1])
 
-/** The low word of the double `value`: its last thirty-two mantissa bits. */
-export const f64Low = (value: number) => ((double[0] = value), doubleWords[0])
-
 /** Writes the double `value` as its two words, the high word at `out[at]` and the low word at
  *  `out[at + 1]`: one store, both words read off it. */
 export function f64WordsInto(out: Uint32Array, at: number, value: number) {

@@ -1,3 +1,4 @@
+use crate::hlod::options::Assigned;
 use crate::*;
 mod finish;
 mod primitives;
@@ -112,10 +113,13 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         json!({"phase":"import","completed":1,"total":1,"ms":import_ms,"primitives":jobs.len(),"nodes":chosen.len(),"sharedMeshNodes":shared_nodes,"unsupported":loaded.manifest["unsupported"]}),
     );
     let cluster_start = Instant::now();
+    // Each node's HLOD layer, read once for every stage that needs it (`Hlod::assignments`).
+    let assignments = o.hlod()?.assignments(g)?;
     let (world, mesh_scales, compiled, waited) = compile_primitives(
         (o, g, bin, &pool),
         (&jobs, &working, room),
         (&chosen, &mesh_map, unique_triangles, &accessors),
+        &assignments,
         &progress,
     )?;
     let super::primitive::compiled::SplitCompiled {
@@ -189,7 +193,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         (&voxel_seeds, &mesh_scales),
         (&primitives, &geometry_files, covers, &collisions),
         (&proxy_cuts, &proxy_thresholds, &texture_previews),
-        (&scene_nodes, &hidden, &source),
+        (&scene_nodes, &hidden, &source, &assignments),
         (source_bin, source_gltf),
         &progress,
     )?;
@@ -204,9 +208,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     );
     finish_job(
         (o, &key, &directory),
-        staged,
+        (staged, reports),
         (&primitives, &geometry_files, &texture_previews),
-        reports,
         (selected_triangles, &chosen, manifest),
         (&phases, started, cluster_start, import_ms),
         (bin, offset, threads, estimated_working_bytes, waited),

@@ -6,10 +6,8 @@ import { reflectionGroup, reflectionLightView, reflectionProxy } from './group.t
 import { encodeImageRadiance, stageReflectionImage } from './image.ts'
 import { encodeReflectionTrace } from './trace/traceEncode.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
-import {
-  environmentCurve,
-  environmentExposure,
-} from '../../../../sdk-core/src/scene/core/environment.ts'
+import { environmentCurve } from '../../../../sdk-core/src/scene/core/environment.ts'
+import { appliedExposureOf } from '../../post/exposure/applied.ts'
 
 /** Stages the image's reflection view (`stageReflectionImage`), which the trace and the forward
  *  programs read: `traced`, whether the trace runs this image; unchanged, nothing is sent. */
@@ -21,7 +19,7 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced
   const { environment } = rt.lights.store
   frame.surroundings = reflection.surroundings(
     run.clearColor,
-    environmentExposure(environment),
+    appliedExposureOf(rt),
     environmentCurve(environment),
   )
   // The transparents' front surface, answered where this very image's pass wrote it (`encodeFrontPass`).

@@ -10,10 +10,11 @@
  * it — what is held is what is loaded, never the world's rows. Read, they are placed while the cut
  * follows the world (`turn`, `place`): each lies in its HLOD cell as that cell's actor's
  * (`RowCell.actor`), drawn while the cell draws its actor and counted in its readiness
- * (`../dag/worlds/worldLinks.ts`, `ACTOR_ROW`); till then the cell's parent does not load. The
- * rows of the actors read are counted per mesh (`loaded`), what the rows are sized by beside what
- * the cells' view asks (`../partition/sizing.ts`): a mesh short of rows keeps an actor's waiting,
- * the rows grown for it (`shortage`), and they are placed at a next frame.
+ * (`../dag/worlds/worldLinks.ts`, `ACTOR_ROW`); the cell's parent holds a loading slot no longer
+ * than the reads last (`hlodCells.ts`), rows placed or not. The rows of the actors read are counted
+ * per mesh (`loaded`), what the rows are sized by beside what the cells' view asks
+ * (`../partition/sizing.ts`): a mesh short of rows keeps an actor's waiting, the rows grown for it
+ * (`shortage`), and they are placed at a next frame.
  *
  * Cost: per actor held, read or let go, O(its rows); per frame, O(actors read and not placed).
  */
@@ -48,12 +49,10 @@ export function createActorRows(
 ) {
   const table: Pick<WorldRoots, 'rows' | 'chain'> | undefined = world?.table,
     rows = table?.rows
-  /** Per cell whose actor is held, what lets its read go; its rows once read; the cells whose read
-   *  failed for good — their hold fails with it (`../partition/cellHolds.ts`) —, those read and
+  /** Per cell whose actor is held, what lets its read go; its rows once read; the cells read and
    *  not placed, those a mesh short of rows keeps waiting, and those placed. */
   const holding = new Map<number, AbortController>(),
     landed = new Map<number, CellRows>(),
-    failed = new Set<number>(),
     unplaced = new Set<number>(),
     short = new Set<number>(),
     seated = new Set<number>()
@@ -108,14 +107,14 @@ export function createActorRows(
           unplaced.add(cell)
           count(decoded, 1)
         },
-        () => void (stop.signal.aborted || failed.add(cell)),
+        // A read refused is its hold's: the hold fails with it (`../partition/cellHolds.ts`).
+        () => undefined,
       )
     },
     /** Cell `cell`'s actor let go: its read let go, its rows parked and forgotten. */
     release(cell: number) {
       holding.get(cell)?.abort()
       holding.delete(cell)
-      failed.delete(cell)
       park(cell)
       unplaced.delete(cell)
       short.delete(cell)
@@ -136,10 +135,8 @@ export function createActorRows(
     place(moved: (cell: number) => void) {
       for (const cell of unplaced) place(cell, moved)
     },
-    /** Whether cell `cell`'s actor's rows are placed, and whether they are to be while the cut
-     *  follows the world: its actor held, its rows not placed yet, their read not failed. */
+    /** Whether cell `cell`'s actor's rows are placed. */
     seated: (cell: number) => seated.has(cell),
-    pending: (cell: number) => on && holding.has(cell) && !seated.has(cell) && !failed.has(cell),
   }
 }
 

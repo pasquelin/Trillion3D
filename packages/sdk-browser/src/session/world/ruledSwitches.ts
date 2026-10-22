@@ -11,6 +11,8 @@ import { RASTER_RULES } from '../../../../sdk-core/src/contracts/rasterOptions.t
 import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import { ANIMATION_RULES } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
+import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
+import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 
 /** A family's rules, by field. */
 type Rules = Readonly<Record<string, SettingRule>>
@@ -36,7 +38,7 @@ type Field<R extends Rules> = keyof R & string
  *   preset, one left out stays as it is.
  * The registry is typed over every family at once; a family names its own fields alone.
  */
-export function ruledSwitches<R extends Rules>(
+function ruledSwitches<R extends Rules>(
   settings: WorldSettings,
   rules: R,
   write: (session: MeasuredWorld, field: Field<R>, value: never) => void,
@@ -84,7 +86,7 @@ export function ruledSwitches<R extends Rules>(
 /** The world's families by rule over its registry `settings`, each read by its rules' one
  *  resolver and written into a session by its own setter: the cluster raster's split, the geometry
  *  streaming, the partition's streaming and the HLOD warm-up, the cut, the animation, the
- *  shading. */
+ *  shading, the automatic exposure, the temporal pass. */
 export const worldFamilies = (settings: WorldSettings) => ({
   raster: ruledSwitches(settings, RASTER_RULES, (session, field, value) =>
     field === 'softwareRaster'
@@ -103,5 +105,11 @@ export const worldFamilies = (settings: WorldSettings) => ({
   ),
   shading: ruledSwitches(settings, SHADING_RULES, (session, field, value) =>
     session.setShading(field, value),
+  ),
+  exposure: ruledSwitches(settings, EXPOSURE_RULES, (session, field, value) =>
+    session.setExposure(field, value),
+  ),
+  temporal: ruledSwitches(settings, TEMPORAL_RULES, (session, field, value) =>
+    session.setTemporal(field, value),
   ),
 })

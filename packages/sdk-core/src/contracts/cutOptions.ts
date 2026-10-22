@@ -10,17 +10,8 @@ import {
 /**
  * The run-time settings of the GPU cluster cut (`packages/sdk-browser/src/geometry/dag/`): its
  * occlusion in two passes, the culls it makes, and how a temporally upscaled image's level of
- * detail follows the display. They are the engine's own, read again at each frame: no compiler job
- * names them, so no manifest carries them and no cache key holds them. None has quality levels: the
- * scalability groups of the reference leave every one at its default, so a quality preset writes
- * none (`../runtime/qualityLevels.ts`). Each is a world option (`WorldOptions`), a session option
- * (`MeasuredWorldOptions`), a render setting of the view distance's group
- * (`packages/sdk-browser/src/session/world/settings.ts`), and the LLM schemas name it by its field
- * and say what it means (`../llm/settingProperties.ts`). Each is read by the one resolver of the
- * rules (`resolveSetting`, `./settingRules.ts`) wherever it is taken — the world, a session at its
- * opening, the session's setter, the frame —: a value it takes as itself, `undefined` or `null` its
- * default, anything else refused with a `TypeError` naming the field and the values it takes. The
- * cut's threshold itself, the pixels per edge, is `pixelError` (`../lod/policy.ts`).
+ * detail follows the display. Run-time settings, as `./settingRules.ts` says. The cut's threshold
+ * itself, the pixels per edge, is `pixelError` (`../lod/policy.ts`).
  */
 
 /** What a list's cap takes: a whole number of entries the cut's 32-bit counters and word

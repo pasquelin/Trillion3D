@@ -6,7 +6,7 @@
 //! shell's the tangents it stores (`approximate::tangents`), each texel's frame its corners'
 //! tangents and bitangents blended and made unit, the map's value the sources' normal against the
 //! tangent, the bitangent and the shell's normal; a merged mesh's the frame the engine rebuilds
-//! from a triangle without tangents (`cluster/cotangentFrameWgsl.ts`, `merge/tile.rs`). The
+//! from a triangle without tangents (`cluster/cotangentFrameWgsl.ts`, `gpu/tile.wgsl`). The
 //! flattened material draws opaque unless its layer bakes the opacity or the mask (`Coverage`):
 //! its opacity is then the base image's alpha, never folded into the colour. A roughness or
 //! metallic not baked is the constant of a plain dielectric (`maps::ROUGHNESS`,
@@ -24,10 +24,11 @@
 //! each value as the view's buffers keep it: eight-bit sRGB colour, ten-bit normal, eight-bit
 //! roughness, metallic and specular, half-precision emission. Each texture is read as an
 //! anisotropic sampler reads it, at the layer's anisotropy clamp (`captureAnisotropy`). A merged
-//! atlas reads a translucent part by the same rule (`merge/tile.rs`). A texel no view sees is a
-//! hole, filled from the texels around it. It reads a source's properties as its material holds
-//! them, each texture wrapped as its sampler wraps it, on the GPU (`gpu`), the texels placed and
-//! filled on the CPU (`atlas::captured`).
+//! atlas reads a translucent part by the same rule (`merge/tile.rs`, `gpu/tile.wgsl`). A texel no
+//! view sees is a hole, filled from the texels around it. It reads a source's properties as its
+//! material holds them, each texture wrapped as its sampler wraps it, on the GPU (`gpu`), the
+//! texels placed and filled on the CPU (`atlas::captured`); a merged atlas's entries are read by
+//! the same program, each texel from the triangle that covers it (`gpu/tile.wgsl`).
 use crate::hlod::options::HlodMapSides;
 pub(crate) mod appearance;
 mod atlas;

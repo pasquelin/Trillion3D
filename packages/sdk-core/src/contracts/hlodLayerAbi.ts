@@ -38,9 +38,10 @@ export interface HlodLayer {
   /** A `simplify` layer's own settings, each defaulted. */
   simplification?: HlodSimplifySettings
   /** A `merge` layer's LOD of each source (`HLOD_LOD_SELECTIONS`), its merged mesh never
-   *  simplified; `lowest` takes each source's fallback: the source simplified to an error of a
+   *  simplified; `lowest` takes each source's fallback mesh: the source simplified to an error of a
    *  hundredth of the source's size, the square root of the smaller of twice its level-0 area and
-   *  a quarter of its box's surface, stopping at 256 triangles at the latest.
+   *  a quarter of its box's surface, stopping at 256 triangles at the latest (a source of 256 or
+   *  fewer stays as it is).
    *  @defaultValue 'calculate' */
   lodSelection?: HlodLodSelection
   /** The share of the view, above 0 and 1 at most, a source's bounding sphere spans when the LOD
@@ -167,14 +168,12 @@ export interface HlodLayer {
    *  at every distance. An `instanced` layer builds no mesh while it is `true`: each object it
    *  takes keeps its own DAG, its source mesh placed. `false` is the same switch for it — the
    *  objects no longer drawn through their cluster DAG —: each is drawn at the last LOD of its
-   *  mesh, its fallback (`lodSelection: 'lowest'`: the source simplified to an error of a
-   *  hundredth of the source's size, the square root of the smaller of twice its level-0 area and
-   *  a quarter of its box's surface, stopping at 256 triangles at the latest), as the
-   *  reference draws an instanced mesh whose cluster DAG is disallowed. The layer then builds
-   *  those fallbacks as a `merge` layer keeping its materials does — one mesh per cell and
-   *  material, drawn whole, wearing the source's material, never a copy of an object's own DAG —
-   *  and every `merge` rule applies to it (`parent`, `spatiallyLoaded`, the grid of its cells);
-   *  an object marked `hlodInstance` still stands as itself. @defaultValue true */
+   *  mesh, its fallback mesh (`lodSelection: 'lowest'`), as the reference draws an instanced mesh
+   *  whose cluster DAG is disallowed. The layer then builds those fallbacks as a `merge` layer
+   *  keeping its materials does — one mesh per cell and material, drawn whole, wearing the source's
+   *  material, never a copy of an object's own DAG — and every `merge` rule applies to it
+   *  (`parent`, `spatiallyLoaded`, the grid of its cells); an object marked `hlodInstance` still
+   *  stands as itself. @defaultValue true */
   clusterDag?: boolean
   /** How a `merge` or `simplify` layer builds the mesh of each actor it makes
    *  (`HLOD_MESH_BUILD_SETTINGS`), as the reference reads it from those layers alone: what

@@ -19,12 +19,19 @@ import {
   BOUNCE_PROBE_SHADER,
   BOUNCE_SNAPSHOT_SHADER,
 } from '../../lighting/bounce/probes/probeWgsl.ts'
+import { BOUNCE_TABLE_SHADER } from '../../lighting/bounce/probes/tableWgsl.ts'
+import { BOUNCE_MARK_SHADER } from '../../lighting/bounce/markWgsl.ts'
+import { BOUNCE_CENSUS_SHADER } from '../../lighting/bounce/probes/censusWgsl.ts'
 import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts'
 import { DIAGNOSTIC_SHADE_WGSL, DIAGNOSTIC_VIS_WGSL } from '../../diagnostic/gpuGeometry.ts'
 import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts'
-import { BLOOM_WGSL } from '../../post/effects/bloom/bloomWgsl.ts'
+import { BLOOM_COMPOSITE_WGSL, BLOOM_SETUP_WGSL } from '../../post/effects/bloom/bloomWgsl.ts'
+import { DOWNSAMPLE_WGSL } from '../../post/filters/downsampleWgsl.ts'
+import { GAUSSIAN_WGSL } from '../../post/filters/gaussianWgsl.ts'
+import { GRID_WGSL, LOG_LIGHT_WGSL } from '../../post/finish/localWgsl.ts'
+import { ADAPT_WGSL, MEASURE_WGSL } from '../../post/exposure/meterWgsl.ts'
 import { OUTLINE_WGSL } from '../../post/effects/outline/outlineWgsl.ts'
-import { FRAME_DIFFERENCE_WGSL } from '../../frame/render/frameDifference.ts'
+import { FRAME_DIFFERENCE_WGSL } from '../../frame/render/frameDifferenceWgsl.ts'
 import { GUIDE_WGSL } from '../../guides/guideShaders.ts'
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from '../../lighting/deferred/shaders.ts'
 import { lightTilesShader } from '../../lighting/tiles/shader.ts'
@@ -32,7 +39,7 @@ import { taaResolveShader } from '../../post/taa/resolveWgsl.ts'
 import { spatialAntiAliasingShader } from '../../post/taa/spatialAntiAliasingWgsl.ts'
 import { velocityShader } from '../../post/taa/velocityWgsl.ts'
 import { reprojectShader } from '../../post/taa/reprojectWgsl.ts'
-import { flickerShader } from '../../post/taa/flickerWgsl.ts'
+import { flickerPlanFor, flickerShader } from '../../post/taa/flickerWgsl.ts'
 import { thinGeometryShader } from '../../post/taa/thinGeometryWgsl.ts'
 import { heldMeasureShader, rejectionShader } from '../../post/taa/rejectionWgsl.ts'
 import {
@@ -63,6 +70,7 @@ import {
   UNLIT_LIGHTING_SHADER,
 } from './shaderTexts.fixture.ts'
 import { vsmVariants } from './engineShaders.vsm.fixture.ts'
+import { AIR_SHADERS } from '../../lighting/atmosphere/shaders.ts'
 
 /**
  * Every WGSL text the engine hands to `createShaderModule`, by its module's name, each variant a
@@ -101,8 +109,18 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...COMPOSE_SHADERS,
   BOUNCE_PROBE_SHADER,
   BOUNCE_SNAPSHOT_SHADER,
+  BOUNCE_TABLE_SHADER,
+  BOUNCE_MARK_SHADER,
+  BOUNCE_CENSUS_SHADER,
   AS_IS_SHARE_SHADER,
-  BLOOM_WGSL,
+  BLOOM_SETUP_WGSL,
+  BLOOM_COMPOSITE_WGSL,
+  DOWNSAMPLE_WGSL,
+  GAUSSIAN_WGSL,
+  GRID_WGSL,
+  LOG_LIGHT_WGSL,
+  MEASURE_WGSL,
+  ADAPT_WGSL,
   OUTLINE_WGSL,
   FRAME_DIFFERENCE_WGSL,
   GUIDE_WGSL,
@@ -126,8 +144,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   BOUNCE_LOBES_LIGHTING: contractLightingShader(true, {}),
   ...compositions('COMPOSE', CONTRACT_COMPOSITIONS.plain),
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),
-  ...compositions('COMPOSE_BLOOM', CONTRACT_COMPOSITIONS.bloom),
-  ...compositions('UNLIT_COMPOSE_BLOOM', UNLIT_COMPOSITIONS.bloom),
+  ...compositions('COMPOSE_FINISH', CONTRACT_COMPOSITIONS.finish),
   LIGHT_TILES_SHADER: lightTilesShader('view'),
   LIGHT_TILES_WORLD_SHADER: lightTilesShader('world'),
   TAA_SHADER,
@@ -140,6 +157,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   TAA_REPROJECT: reprojectShader(),
   TAA_THIN_GEOMETRY: thinGeometryShader(),
   TAA_FLICKER: flickerShader(),
+  TAA_FLICKER_WIDE: flickerShader(flickerPlanFor(32768), 32768),
   TAA_HELD_MEASURE: heldMeasureShader(),
   TAA_REJECTION: rejectionShader(),
   TAA_SPATIAL_AA: spatialAntiAliasingShader(),
@@ -182,4 +200,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   PARTICLES_SUBGROUPS: particlesWgsl(true),
   PARTICLE_DRAW_WGSL,
   ...vsmVariants(),
+  // The atmosphere's tables, haze, sky and sums (`../../lighting/atmosphere/`).
+  ...Object.fromEntries(
+    Object.entries(AIR_SHADERS).map(([name, code]) => [`AIR_${name.toUpperCase()}`, code]),
+  ),
 }

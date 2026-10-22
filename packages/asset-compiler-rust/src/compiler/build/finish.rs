@@ -8,9 +8,8 @@ use crate::texture::TexturePreview;
 /// manifest returned, with the prune's and the whole job's times.
 pub(super) fn finish_job(
     (o, key, directory): (&Options, &str, &Path),
-    staged: Staged,
+    (staged, reports): (Staged, Reports),
     (primitives, geometry_files, texture_previews): (&[Value], &[Value], &[TexturePreview]),
-    reports: (Option<Value>, Value, Value, Value),
     (selected_triangles, chosen, manifest): (usize, &BTreeSet<usize>, &Value),
     (phases, started, cluster_start, import_ms): (
         &crate::support::perf::JobPhases,
@@ -96,6 +95,10 @@ pub(super) fn finish_job(
     progress(json!({"phase":"complete","completed":1,"total":1,"pruned":pruned}));
     Ok(result)
 }
+
+/// What the stages report beside their products: the scene plugin's provenance, the coplanar, the
+/// texture preview and the cutout reports.
+type Reports = (Option<Value>, Value, Value, Value);
 
 /// What the job's metrics weigh: the source binary, the geometry written, the workers, the
 /// admitted working set and the primitives the room made wait (`budget/admission.rs`).

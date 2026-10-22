@@ -36,6 +36,9 @@ export interface LightParameters {
   radius?: number
   /** Directional source angular radius, in radians. */
   angularRadius?: number
+  /** Whether a directional light may be the sun of the scene's atmosphere (`scene.atmosphere`):
+   *  of the lights that may, the brightest is; `true` by default. */
+  atmosphereSun?: boolean
   /** A probe's irradiance: 27 numbers, nine RGB spherical-harmonic coefficients of the radiance
    *  in the band order constant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`, scaled by
    *  `intensity`; built by `emptyIrradiance` and the `add…Irradiance` helpers. Absent, the probe is
@@ -59,6 +62,9 @@ type LightNumber = (typeof NUMBERS)[number]
 /** The kinds placed by a direction: a sky's is its position seen from the origin. */
 const AIMED = new Set(['directional', 'spot', 'hemisphere'])
 const point = new Vector3()
+/** The lights a page left out of the atmosphere's candidates: few, so a set and not a field each
+ *  light would carry (`Light.atmosphereSun`). */
+const NOT_SUN = new WeakSet<Light>()
 
 /**
  * A light placed in the scene. Its numbers are accessors: a write reaches the world's light
@@ -127,11 +133,23 @@ export class Light extends Object3D {
       angularRadius:
         p.angularRadius ?? (kind === 'directional' ? LIGHT_SETTINGS.sunAngularRadius : 0),
     }
+    if (p.atmosphereSun === false) NOT_SUN.add(this)
     if (p.position) this.position.set(...readVec3(p.position))
     else if (AIMED.has(kind)) this.position.set(0, 1, 0)
     if (p.sh) this.sh = Array.from(p.sh)
     if (p.target) this.target.position.set(...readVec3(p.target))
     this.castShadow = p.castShadow ?? false
+  }
+  /** Whether a directional light may be the sun of the scene's atmosphere (`scene.atmosphere`): of
+   *  the lights that may, the brightest is; `true` by default. A write reaches the world at once. */
+  get atmosphereSun() {
+    return !NOT_SUN.has(this)
+  }
+  set atmosphereSun(value: boolean) {
+    if (value) NOT_SUN.delete(this)
+    else NOT_SUN.add(this)
+    noteNodeWrite(this)
+    this._link?.content(this)
   }
   /** Only a light in a world hears its colours and its target's place: out of one, they hold no
    *  reference to it, and a write reaches nothing. */
@@ -153,6 +171,8 @@ export class Light extends Object3D {
     super.copy(source, recursive)
     if (!(source instanceof Light)) return this
     ;(this as { _values: Light['_values'] })._values = { ...source._values }
+    if (source.atmosphereSun) NOT_SUN.delete(this)
+    else NOT_SUN.add(this)
     this.color.copy(source.color)
     this.groundColor.copy(source.groundColor)
     this.sh = source.sh && [...source.sh]
@@ -210,4 +230,10 @@ export const light = {
   rectArea: kind('rectArea'),
   /** Light measured around a point and given back to what is near it. */
   probe: kind('probe'),
+  /** The sky's light on everything, from every direction above: the scene's atmosphere captured
+   *  once and again whenever it changes, or, with no atmosphere, its background colour; its
+   *  `groundColor`, black by default, is what the lower half gives. With the bounce on (the
+   *  default) the sky reaches a surface only where the scene lets it, and a reflection that leaves
+   *  the scene shows it; with the bounce off it lights every surface unoccluded. */
+  sky: kind('sky'),
 }

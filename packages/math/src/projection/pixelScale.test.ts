@@ -1,12 +1,11 @@
 // camera.ts: pixels per unit at unit depth, the focal length in pixels, a pixel's footprint, the
-// projection scale of a half field and back, and the diagonal slope —
+// projection scale of a half field, and the diagonal slope —
 // against exact cameras and the expressions they replace.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   focalPixels,
   focalScale,
-  halfAngleOfFocalScale,
   perspectiveDiagonalSlope,
   perspectiveProjection,
   perspectiveSlope,
@@ -41,17 +40,11 @@ test('pixelScale and focalPixels are the bodies they replace, bit for bit', () =
   }
 })
 
-test('focalScale is the engine projection scale; halfAngleOfFocalScale inverts it, either sign', () => {
+test('focalScale is the engine projection scale', () => {
   // The engine's 90° projection: a scale of cot 45°.
   const p = perspectiveProjection(new Float64Array(16), 90, 1, 1, 1)
   assert.ok(Math.abs(focalScale(Math.PI / 4) - p[5]) <= Number.EPSILON)
   assert.ok(Math.abs(focalScale(Math.PI / 6) - Math.sqrt(3)) <= 2 * Number.EPSILON)
-  for (let i = 1; i <= HALTON_SWEEP; i++) {
-    const half = haltonSpan(i, 2, 1e-3, Math.PI / 2 - 1e-3),
-      s = focalScale(half)
-    assert.ok(Math.abs(halfAngleOfFocalScale(s) - half) <= 4 * Number.EPSILON, `${i}`)
-    assert.equal(halfAngleOfFocalScale(-s), halfAngleOfFocalScale(s))
-  }
 })
 
 test('perspectiveDiagonalSlope: the corner ray of a 90° square picture leans √2', () => {

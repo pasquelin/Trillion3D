@@ -239,7 +239,7 @@ fn lay(triangles: &[[u32; 3]], point: &dyn Fn(u32) -> [f32; 3]) -> Lay {
         }
         state.visit(start, true, false);
         let mut current = start;
-        while state.triangles.len() % RUN != 0 {
+        while !state.triangles.len().is_multiple_of(RUN) {
             let (left, right) = (
                 opposite[next(current) as usize],
                 opposite[prev(current) as usize],

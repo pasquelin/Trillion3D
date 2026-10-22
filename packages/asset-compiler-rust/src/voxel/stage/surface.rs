@@ -151,7 +151,7 @@ fn triangle_joints(
         return Ok(None);
     };
     let per = joints.len() / count.max(1);
-    let joint = |t: &[u32]| {
+    let joint = |t: &[u32; 3]| {
         let mut weighed: BTreeMap<u32, f32> = BTreeMap::new();
         for k in t
             .iter()
@@ -162,5 +162,5 @@ fn triangle_joints(
         let best = weighed.into_iter().max_by(|a, b| a.1.total_cmp(&b.1));
         best.map_or(u16::MAX, |(j, _)| j.min(u32::from(u16::MAX - 1)) as u16)
     };
-    Ok(Some(indices.chunks_exact(3).map(joint).collect()))
+    Ok(Some(indices.as_chunks::<3>().0.iter().map(joint).collect()))
 }

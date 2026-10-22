@@ -1,6 +1,6 @@
-// The walks of the trees a capture reads (`capture.wgsl`) — the sources' and the shell's —: the
-// first hit of a ray, the same whatever order the walk meets the triangles in; and the footprint
-// carried onto the triangle a ray hits.
+// The walks of the trees a capture (`capture.wgsl`) and a tile (`tile.wgsl`) read — the sources'
+// and a capture's shell's —: the first hit of a ray, the same whatever order the walk meets the
+// triangles in; and the footprint carried onto the triangle a ray hits.
 
 // A tree on the device: its nodes' first record and its leaf triangles' first corner record, the
 // triangles in leaf order.
@@ -97,7 +97,7 @@ fn ray_triangle(corners: u32, slot: u32, origin: vec3f, ray: vec3f, low: f32, hi
 fn stops(slot: u32, at: vec2f, ray: vec3f) -> bool {
     let tri = edges(slot);
     let front = dot(cross(tri.e0, tri.e1), ray) < 0.0;
-    return (front || double_sided(slot)) && drawn(slot, at);
+    return (front || double_sided(slot)) && drawn(slot, at, ray);
 }
 
 // The first hit of the ray from `origin` along `ray` for `past < t < limit` on `tree`: on the

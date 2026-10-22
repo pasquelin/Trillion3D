@@ -3,33 +3,32 @@
  * (`TablePartition.scheme`).
  *
  * The camera is the scene's one streaming source (`createStreamingSource`), its shape set by the
- * session's streaming settings (`WorldStreaming`, `WORLD_STREAMING_SETTINGS`): at its eye, seen from
- * above while the grids lie flat (`TablePartition.flat`), their up axis dropped, a circle of each
- * grid's own loading range scaled (`useGridRange`, `rangeScale`), or of one radius for every grid
- * (`radius`) — a sphere of it while they do not —; a sector of it around the view's axis when the
- * settings ask one (`sector`, `sectorAngle`). A cell is wished while that shape meets the bounds
- * it streams by (`meets`), and, a sector, not wholly beside or behind it: on `hashSet`'s loose
- * grids, the box around its content within or on the circle, the
- * sector around the view's own axis without its up part — or within or on the sphere, the sector a
- * cone around the view's axis that the box's bounding sphere meets —; on `spatialHash`'s square
- * grids, its square strictly within the circle, the sector around the view's unit heading on the
- * ground, and, when the settings cull by height (`zCulling`), its content's height range meeting
- * the eye's within the radius.
+ * session's streaming settings (`WorldStreaming`, `WORLD_STREAMING_SETTINGS`): at its eye, seen
+ * from above while the grids lie flat (`TablePartition.flat`), their up axis dropped, a circle of
+ * each grid's own loading range scaled (`useGridRange`, `rangeScale`), or of one radius for every
+ * grid (`radius`) — a sphere of it while they do not —; a sector of it around the view's axis when
+ * the settings ask one (`sector`, `sectorAngle`). A cell is wished while that shape meets the
+ * bounds it streams by (`meets`), and, a sector, not wholly beside or behind it: on `hashSet`'s
+ * loose grids, the box around its content within or on the circle, the sector around the view's own
+ * axis without its up part — or within or on the sphere, the sector a cone around the view's axis
+ * that the box's bounding sphere meets —; on `spatialHash`'s square grids, its square strictly
+ * within the circle, the sector around the view's unit heading on the ground, and, when the
+ * settings cull by height (`zCulling`), its content's height range meeting the eye's within the
+ * radius.
  *
  * What ranks the cells wished and not loaded by distance (`ranked`) is the scheme's too: the
- * order they load in, and how many load at once, are `loadSlots.ts`'s.
+ * order they load in, and how many load at once, are `loadOrder.ts`'s and `loadSlots.ts`'s.
  *
  * Cost: O(1) per cell tested or ranked.
  */
+import { DEG2RAD } from '../../../../math/src/constants.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { cross2, length2 } from '../../../../math/src/vector/vector.ts'
 import { boxGroundDistance } from '../../../../math/src/geometry/boxDistance.ts'
 import { slabCut } from '../../../../math/src/geometry/slab.ts'
 import type { WorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import type { TablePartition } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
-import type { LoadingCell } from './loadSlots.ts'
-
-/** The 2D cross product of `(ax, az)` and `(bx, bz)`. */
-const cross = (ax: number, az: number, bx: number, bz: number) => ax * bz - az * bx
+import type { LoadingCell } from './loadOrder.ts'
 
 /**
  * The view as the source for a partition of `scheme` whose grids lie `flat` or not, under the
@@ -58,7 +57,7 @@ export function createStreamingSource(
   const toward = (x: number, z: number, out: number[]) => {
     const dx = x - eye[0],
       dz = z - eye[1],
-      length = Math.hypot(dx, dz)
+      length = length2(dx, dz)
     out[0] = length > 0 ? dx / length : 0
     out[1] = length > 0 ? dz / length : 0
     return out
@@ -85,7 +84,7 @@ export function createStreamingSource(
     cornersZ[2] = cornersZ[3] = bounds[at + 5]
     for (let k = 0; k < 4; k++) {
       toward(cornersX[k], cornersZ[k], corner)
-      sines[k] = cross(heading[0], heading[1], corner[0], corner[1])
+      sines[k] = cross2(heading[0], heading[1], corner[0], corner[1])
       cosines[k] = heading[0] * corner[0] + heading[1] * corner[1]
     }
     // How many corners lie on each side: all four decide (a corner that is no number counts none).
@@ -95,7 +94,7 @@ export function createStreamingSource(
       ahead = 0,
       inGap = 0
     if (angle <= 180) {
-      const half = Math.sin((angle * 0.5 * Math.PI) / 180)
+      const half = Math.sin(angle * 0.5 * DEG2RAD)
       for (let k = 0; k < 4; k++) {
         if (sines[k] < -half) left++
         if (sines[k] > half) right++
@@ -106,7 +105,7 @@ export function createStreamingSource(
     for (let k = 0; k < 4; k++) if (cosines[k] >= 0) ahead++
     if (ahead > 0) return false
     // Past a half circle: out only within the gap the sector leaves behind the view.
-    const gap = Math.sin(((360 - angle) * 0.5 * Math.PI) / 180)
+    const gap = Math.sin((360 - angle) * 0.5 * DEG2RAD)
     for (let k = 0; k < 4; k++) if (-sines[k] > -gap && -sines[k] < gap) inGap++
     return inGap === 4
   }
@@ -129,7 +128,7 @@ export function createStreamingSource(
    *  the half angle's sine, or behind the eye past that radius. */
   const outsideCone = (bounds: ArrayLike<number>, at: number) => {
     if (!sectored()) return false
-    const half = (streaming.sectorAngle * 0.5 * Math.PI) / 180,
+    const half = streaming.sectorAngle * 0.5 * DEG2RAD,
       sine = Math.sin(half),
       cosine = Math.cos(half)
     let extent = 0
@@ -201,9 +200,9 @@ export function createStreamingSource(
           toward(pointsX[k], pointsZ[k], point)
           most = Math.max(most, heading[0] * point[0] + heading[1] * point[1])
         }
-        angle = Math.abs(Math.acos(clamp(most, -1, 1)) / Math.PI)
+        angle = Math.acos(clamp(most, -1, 1)) / Math.PI
       }
-      factor = clamp(angle, Math.PI / 180, 1) ** streaming.angleWeight
+      factor = clamp(angle, DEG2RAD, 1) ** streaming.angleWeight
     }
     out.distance = raw * factor * factor
     out.raw = raw
@@ -247,7 +246,7 @@ export function createStreamingSource(
       if (moved) revision++
       eye[0] = at[0]
       eye[1] = at[2]
-      const length = Math.hypot(axis[0], axis[2])
+      const length = length2(axis[0], axis[2])
       headed = length > 1e-9
       // A loose grid's sector keeps the axis as it is, its up part dropped; a square grid's turns
       // it to a unit heading on the ground.

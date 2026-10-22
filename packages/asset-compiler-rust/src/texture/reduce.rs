@@ -145,7 +145,7 @@ fn halve(previous: &[u8], size: (u32, u32), next: (u32, u32), kind: AtlasKind) -
         .for_each(|(row, line)| {
             let y0 = (row * 2).min(height - 1);
             let y1 = (row * 2 + 1).min(height - 1);
-            for (column, texel) in line.chunks_exact_mut(4).enumerate() {
+            for (column, texel) in line.as_chunks_mut::<4>().0.iter_mut().enumerate() {
                 let x0 = (column * 2).min(width - 1);
                 let x1 = (column * 2 + 1).min(width - 1);
                 let at = |x: usize, y: usize| (y * width + x) * 4;

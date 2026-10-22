@@ -43,7 +43,8 @@ function unused(
     | 'angularRadius'
     | 'penumbra'
     | 'right'
-    | 'size',
+    | 'size'
+    | 'atmosphereSun',
   why: string,
 ) {
   if (light[field] !== undefined)
@@ -78,6 +79,38 @@ function coneAngle(value: unknown, id: string): number {
   return value
 }
 /**
+ * The fields of a directional light: whether it is the atmosphere's sun, its angular radius, and
+ * its direction, required. It has neither position nor range, and says so by refusing them.
+ */
+function validateDirectional(light: SceneLight, validated: SceneLight): SceneLight {
+  const { id } = light
+  if (light.atmosphereSun !== undefined) {
+    if (typeof light.atmosphereSun !== 'boolean')
+      throw new EngineError('INVALID_SCENE_LIGHT', `${id}: atmosphereSun expects a boolean`, {
+        atmosphereSun: light.atmosphereSun,
+      })
+    validated.atmosphereSun = light.atmosphereSun
+  }
+  if (light.angularRadius !== undefined) {
+    if (!finite(light.angularRadius) || light.angularRadius < 0 || light.angularRadius >= HALF_PI)
+      throw new EngineError('INVALID_SCENE_LIGHT', `${id}: invalid angularRadius`, {
+        angularRadius: light.angularRadius,
+      })
+    validated.angularRadius = light.angularRadius
+  }
+  unused(light, 'position', 'does not exist for a directional light')
+  unused(light, 'range', 'does not exist for a directional light: it carries everywhere')
+  unused(light, 'coneAngle', 'exists only for a spot')
+  unused(light, 'penumbra', 'exists only for a spot')
+  unused(light, 'emitterRadius', 'does not exist for a directional light: it has no position')
+  validated.direction = requiredDirection(
+    light.direction,
+    id,
+    'a directional requires its direction',
+  )
+  return validated
+}
+/**
  * Validates a light and returns a normalised copy. A rejected light never enters the buffer:
  * the contract accepts neither negative intensity, nor zero range, nor a spot without direction, nor
  * a directional light that would claim a position or a range.
@@ -108,26 +141,9 @@ export function validateSceneLight(light: SceneLight): SceneLight {
     unused(light, 'right', 'exists only for a rect')
     unused(light, 'size', 'exists only for a rect')
   }
-  if (light.kind === 'directional') {
-    if (light.angularRadius !== undefined) {
-      if (!finite(light.angularRadius) || light.angularRadius < 0 || light.angularRadius >= HALF_PI)
-        throw new EngineError('INVALID_SCENE_LIGHT', `${id}: invalid angularRadius`, {
-          angularRadius: light.angularRadius,
-        })
-      validated.angularRadius = light.angularRadius
-    }
-    unused(light, 'position', 'does not exist for a directional light')
-    unused(light, 'range', 'does not exist for a directional light: it carries everywhere')
-    unused(light, 'coneAngle', 'exists only for a spot')
-    unused(light, 'penumbra', 'exists only for a spot')
-    unused(light, 'emitterRadius', 'does not exist for a directional light: it has no position')
-    validated.direction = requiredDirection(
-      light.direction,
-      id,
-      'a directional requires its direction',
-    )
-    return validated
-  }
+  if (light.kind !== 'directional')
+    unused(light, 'atmosphereSun', 'exists only for a directional light')
+  if (light.kind === 'directional') return validateDirectional(light, validated)
   unused(light, 'angularRadius', 'exists only for a directional light')
   validated.position = vector(light.position, 'position', id)
   validated.range = range(light.range, id)

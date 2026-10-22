@@ -7,6 +7,8 @@ import assert from 'node:assert/strict'
 import { LIGHT_FIELD, baseOf } from './fields.ts'
 import { createSceneLightStore } from './store.ts'
 import { SCENE_LIGHT_HEADER_FLOATS, type SceneLight } from './contracts.ts'
+import { SKY_FLOATS, SKY_SLOT, type SceneSky } from '../core/environmentSky.ts'
+import { DEFAULT_VIGNETTE, environmentVignette } from '../core/environment.ts'
 
 const LIGHT: SceneLight = {
   id: 'l0',
@@ -80,6 +82,75 @@ test('the environment follows the same rule as the lights', () => {
   store.setEnvironment({ exposure: 1.6 })
   assert.equal(store.epoch, epoch + 1)
   assert.equal(store.environment!.exposure, 1.6)
+})
+
+test('the vignette is a look: checked, 0.4 by default, and a change of it moves no light', () => {
+  const store = createSceneLightStore()
+  assert.equal(environmentVignette(store.environment), DEFAULT_VIGNETTE)
+  assert.equal(DEFAULT_VIGNETTE, 0.4)
+  store.setEnvironment({ exposure: 1, vignette: 0.4 })
+  const { epoch, transportEpoch } = store
+  store.setEnvironment({ exposure: 1, vignette: 0.4 })
+  assert.equal(store.epoch, epoch, 'a vignette reset as-is does not stale the frame')
+  store.setEnvironment({ exposure: 1, vignette: 0.8 })
+  assert.equal(store.epoch, epoch + 1)
+  assert.equal(store.transportEpoch, transportEpoch, 'it carries no light: no transport moves')
+  assert.equal(environmentVignette(store.environment), 0.8)
+  store.setEnvironment({ exposure: 1, vignette: 0 })
+  assert.equal(environmentVignette(store.environment), 0, 'none')
+  assert.throws(() => store.setEnvironment({ exposure: 1, vignette: -0.1 }), /vignette/)
+  assert.throws(() => store.setEnvironment({ exposure: 1, vignette: Number.NaN }), /vignette/)
+})
+
+test('the sky is a block of its own behind the environment, and a change of it moves light transport', () => {
+  // Every number a binary fraction, which the buffer's floats hold as they are.
+  const sky = (upper: number[], light = true): SceneSky => ({
+    irradiance: Array.from({ length: 27 }, (_, i) => i / 8),
+    upper,
+    lower: [0.125, 0.25, 0.5],
+    light,
+  })
+  const store = createSceneLightStore()
+  assert.equal(store.skyPacked.length, SKY_FLOATS)
+  assert.ok(
+    store.skyPacked.every((c) => c === 0),
+    'no sky: all zero',
+  )
+  store.setEnvironment({ exposure: 1, sky: sky([0.25, 0.5, 0.75]) })
+  const slot = (at: number) => Array.from(store.skyPacked.subarray(at * 4, at * 4 + 4))
+  assert.deepEqual(slot(0), [0, 0.125, 0.25, 0], 'the first coefficient, a colour a slot')
+  assert.deepEqual(slot(1), [0.375, 0.5, 0.625, 0])
+  assert.deepEqual(
+    slot(SKY_SLOT.upper),
+    [0.25, 0.5, 0.75, 1],
+    'a sky light gives the probes the sky',
+  )
+  assert.deepEqual(slot(SKY_SLOT.lower), [0.125, 0.25, 0.5, 1], 'and the scene shows one')
+  // The same sky set again stales nothing; another one is a change of light the probes must see.
+  const { epoch, transportEpoch } = store
+  store.setEnvironment({ exposure: 1, sky: sky([0.25, 0.5, 0.75]) })
+  assert.equal(store.epoch, epoch)
+  store.setEnvironment({ exposure: 1, sky: sky([0.25, 0.5, 1]) })
+  assert.equal(store.transportEpoch, transportEpoch + 1)
+  // The sky light's own irradiance, which no probe reads, moves no transport: it follows the capture.
+  const unoccluded = sky([0.25, 0.5, 1])
+  store.setEnvironment({
+    exposure: 1,
+    sky: { ...unoccluded, irradiance: unoccluded.irradiance.map((c) => c + 1) },
+  })
+  assert.equal(store.transportEpoch, transportEpoch + 1, 'the epoch rose, the transport did not')
+  // A sky of the air alone, which lights nothing, is not given to the probes.
+  store.setEnvironment({ exposure: 1, sky: sky([1, 1, 1], false) })
+  assert.equal(slot(SKY_SLOT.upper)[3], 0)
+  assert.throws(
+    () => store.setEnvironment({ exposure: 1, sky: { ...sky([1, 1, 1]), upper: [1, 1] } }),
+    /sky upper/,
+  )
+  store.setEnvironment({ exposure: 1 })
+  assert.ok(
+    store.skyPacked.every((c) => c === 0),
+    'the sky left: all zero again',
+  )
 })
 
 test('the lit view without a light is no longer an albedo view', () => {

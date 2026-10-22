@@ -74,8 +74,13 @@ export function createWorldLink(parts: Parts): WorldSceneLink {
       lights.boundsMoved()
       parts.invalidate()
     },
-    background: parts.invalidate,
+    // The background is what a sky light gives a scene without an atmosphere: the lights follow it.
+    background() {
+      parts.relight()
+      parts.invalidate()
+    },
     fog: parts.relight,
+    atmosphere: parts.relight,
   }
 }
 

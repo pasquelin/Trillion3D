@@ -11,6 +11,7 @@
 //! never the batch's.
 use super::name_match::{present, NameMatch, NodeNames};
 use super::*;
+use crate::hlod::options::Assigned;
 use crate::voxel::ShapePreservation;
 
 /// A job's `voxelize` match, none for none, and what named it, its cache identity.
@@ -40,8 +41,14 @@ impl VoxelizeOptions {
     }
 
     /// The source meshes of `g` drawn as voxels far away, by the precedence the module states:
-    /// `hlod`'s assignment read as every stage reads it (`Hlod::assigned`).
-    pub fn meshes(&self, g: &Value, hlod: &Hlod) -> Result<BTreeSet<usize>> {
+    /// `hlod`'s assignment of each node, `assignments`, read as every stage reads it
+    /// (`Hlod::assignments`).
+    pub fn meshes(
+        &self,
+        g: &Value,
+        hlod: &Hlod,
+        assignments: &[Assigned],
+    ) -> Result<BTreeSet<usize>> {
         let mut out = BTreeSet::new();
         let nodes = g.get("nodes").and_then(Value::as_array);
         for (node, declared) in nodes.into_iter().flatten().enumerate() {
@@ -50,7 +57,7 @@ impl VoxelizeOptions {
             };
             let matched = (self.matcher.as_ref())
                 .is_some_and(|matcher| matcher.matches(&NodeNames::of(g, node)));
-            if matched || hlod.voxelizes(hlod.assigned(g, node)?.layer) {
+            if matched || hlod.voxelizes(assignments[node].layer) {
                 out.insert(mesh as usize);
             }
         }

@@ -8,7 +8,7 @@ import { replayBundles } from '../../../../../tests/kit/fakeDevice/fakeBundles.t
 import { BASE_SLOTS, BIN_KIND, CULL_BINS } from '../draw/contract.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { createWebgpuVisState } from '../../frame/backend/state/vis.ts'
-import { drawVis } from './drawer.ts'
+import { drawVis } from './drawVis.ts'
 import { createDrawItemWordsHold } from './itemWords.ts'
 import { VIS_DEPTH } from './pipelines.ts'
 

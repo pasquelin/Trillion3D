@@ -1,3 +1,5 @@
+import { SRGB_LUMINANCE } from '../../../../math/src/color/color.ts'
+import { dotVector3 } from '../../../../math/src/vector/vector.ts'
 import {
   LIGHT_KIND,
   LIGHT_SETTINGS,
@@ -42,6 +44,12 @@ export const LIGHT_FIELD = {
 } as const
 /** A point tests no cone, and a spot without penumbra no inner cone: this cosine never bounds. */
 export const NO_CONE = -2
+
+/** The luminance of a light: its colour times its intensity, each channel weighed by the eye's
+ *  sensitivity to it (the working space's weights): what picks the sun of the air among the
+ *  directional lights (`atmosphereSun.ts`), and what the fog's sun scatters (`fogSun.ts`). */
+export const lightLuminance = (light: SceneLight) =>
+  light.intensity * dotVector3(SRGB_LUMINANCE, light.color)
 
 function writeVector(packed: Float32Array, at: number, value: readonly number[]) {
   packed[at] = value[0]

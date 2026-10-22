@@ -52,6 +52,24 @@ test('the lighting reads the fog colour in linear components and the law as writ
   })
 })
 
+test('a height fog needs no colour: black by default, and nothing to listen to', () => {
+  const { scene, calls } = wiredScene()
+  const law = { baseDensity: 0.004, directional: { exponent: 2 } }
+  assert.deepEqual(sceneFogOf(law), law)
+  scene.fog = law
+  assert.equal(calls.relight, 1)
+  const color = new Color().setRGB(0.25, 0.5, 0.75)
+  scene.fog = { ...law, color }
+  assert.deepEqual(sceneFogOf(scene.fog), { ...law, color: [0.25, 0.5, 0.75] })
+  color.setHex(0x112233)
+  assert.equal(calls.relight, 3)
+  scene.fog = {}
+  color.setHex(0xffffff)
+  assert.equal(calls.relight, 4)
+  assert.deepEqual(sceneFogOf(scene.fog), {})
+  assert.throws(() => (scene.fog = { maxOpacity: 2 }), { code: 'INVALID_SCENE_ENVIRONMENT' })
+})
+
 test('a fog out of range is refused where it is set, the fog in place kept', () => {
   const { scene } = wiredScene()
   const kept = { color: new Color(), density: 0.01 }
@@ -82,4 +100,14 @@ test('a saved scene keeps its fog, height fog included', async () => {
   await again.fromJSON(saved)
   assert.deepEqual(sceneFogOf(again.fog), saved.fog)
   assert.ok(again.fog?.color instanceof Color)
+  // The height fog's own fields, a colour not among them, come back as they went.
+  scene.fog = { falloff: 0.03, cutoffDistance: 900, directional: { color: [1, 0.5, 0.25] } }
+  const height = JSON.parse(JSON.stringify(scene.toJSON()))
+  await again.fromJSON(height)
+  assert.deepEqual(height.fog, {
+    falloff: 0.03,
+    cutoffDistance: 900,
+    directional: { color: [1, 0.5, 0.25] },
+  })
+  assert.deepEqual(sceneFogOf(again.fog), height.fog)
 })

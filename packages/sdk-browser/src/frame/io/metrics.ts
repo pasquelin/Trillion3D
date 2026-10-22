@@ -15,6 +15,7 @@ import { destroyEngineVsm } from '../../lighting/shadows/vsm/frame/engineVsm.ts'
 import { releaseWebgpuView, useWebgpuView } from '../backend/state/viewSwitch.ts'
 import { transparentCounts } from '../backend/state/transparentCounts.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
+import { bounceState } from '../backend/state/bounce.ts'
 import { viewTargetBytes } from '../backend/state/gpu.ts'
 
 /** Geometry bytes beside the page pool: the float pool's three lists. */
@@ -29,9 +30,21 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
   return Object.assign(frameMetricsOf(rt), vsmFrameMetrics(rt, rt.timing.lastGpuPassMs))
 }
 
+/** The geometry pool's size, slots and pressure, and the texture pool's clamp. */
+function poolMetricsOf(rt: WebgpuPagesRuntime) {
+  const { geometryPool, texturePools } = rt.setup
+  return {
+    geometryPoolBytes: geometryPool.budgetBytes,
+    geometryPoolSlots: geometryPool.slots,
+    geometryPoolAllocatedBytes: geometryPool.allocatedBytes,
+    geometryPoolClamp: geometryPool.clamp,
+    geometryPoolSaturated: Math.max(0, rt.services.residencySets.keepCount - geometryPool.slots),
+    texturePoolClamp: texturePools?.pool.clamp ?? null,
+  }
+}
+
 function frameMetricsOf(rt: WebgpuPagesRuntime) {
-  const { run, gpu, vis, timing, services, lights } = rt,
-    { geometryPool } = rt.setup
+  const { run, gpu, vis, timing, services, lights } = rt
   const stats = gpu.cache?.stats()
   const vertexBytes = vertexBytesOf(vis)
   const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot()
@@ -82,19 +95,38 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
     gpuAllocatedByLabel: ledger?.byLabel ?? null,
     gpuAllocationsUnknownFormat: ledger?.unknownFormats ?? null,
     gpuFrameTargetBytes: viewTargetBytes(gpu) || null,
-    geometryPoolBytes: geometryPool.budgetBytes,
-    geometryPoolSlots: geometryPool.slots,
-    geometryPoolAllocatedBytes: geometryPool.allocatedBytes,
-    geometryPoolClamp: geometryPool.clamp,
-    geometryPoolSaturated: Math.max(0, services.residencySets.keepCount - geometryPool.slots),
-    texturePoolClamp: rt.setup.texturePools?.pool.clamp ?? null,
+    ...poolMetricsOf(rt),
     drawCalls: run.gpuDrawCalls,
     voxelStepsMean: steps?.mean ?? null,
     voxelStepsMax: steps?.max ?? null,
     lightsActive: lights.lightsActive,
+    bounce: bounceState(rt.bounce),
     ...directLightTimings(timing.lastGpuPassMs),
     ...lights.tiles?.poolMetrics(),
   }
+}
+
+/** The passes that make the image after the lighting resolve, released: the deferred resolve, the
+ *  temporal pass, the exposure, the finishing, the effects, the guides, the particles, the frame
+ *  difference and the atmosphere. */
+function disposeImagePasses(gpu: WebgpuPagesRuntime['gpu']) {
+  gpu.deferred?.dispose()
+  gpu.temporal?.dispose()
+  gpu.temporal = undefined
+  gpu.exposure?.dispose()
+  gpu.exposure = undefined
+  gpu.finish?.dispose()
+  gpu.finish = undefined
+  gpu.effects?.dispose()
+  gpu.effects = undefined
+  gpu.guides?.dispose()
+  gpu.guides = undefined
+  gpu.particles?.dispose()
+  gpu.particles = undefined
+  gpu.frameDifference?.dispose()
+  gpu.frameDifference = undefined
+  gpu.atmosphere?.dispose()
+  gpu.atmosphere = undefined
 }
 
 /** Releases every GPU resource and the scene; the trace queue is drained before the promise settles. */
@@ -135,17 +167,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   blendState.kernels = undefined
   gpu.zeroUv = undefined
   capture.surfaceCapture?.dispose()
-  gpu.deferred?.dispose()
-  gpu.temporal?.dispose()
-  gpu.temporal = undefined
-  gpu.effects?.dispose()
-  gpu.effects = undefined
-  gpu.guides?.dispose()
-  gpu.guides = undefined
-  gpu.particles?.dispose()
-  gpu.particles = undefined
-  gpu.frameDifference?.dispose()
-  gpu.frameDifference = undefined
+  disposeImagePasses(gpu)
   rt.lights.tiles?.dispose()
   if (rt.lights.vsm) destroyEngineVsm(rt.lights.vsm)
   rt.lights.vsm = undefined

@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolveWorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import { createStreamingSource } from './source.ts'
-import type { LoadingCell } from './loadSlots.ts'
+import type { LoadingCell } from './loadOrder.ts'
 
 test('a square cell straight ahead of the heading is ranked by a number, its angle zero', () => {
   const source = createStreamingSource(resolveWorldStreaming({}), {

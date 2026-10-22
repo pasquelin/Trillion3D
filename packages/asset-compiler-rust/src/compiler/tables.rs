@@ -12,6 +12,7 @@
 //! No lamp is written here: `lights.json` (`lights.rs`) is the one reading of a light —
 //! its type, colour, intensity, range, cone and world transform — and the one policy on a light it
 //! cannot read (counted in `rejected`, never a failed compile).
+use crate::hlod::options::Assigned;
 use crate::*;
 use serde_json::Map;
 
@@ -102,6 +103,24 @@ impl Materials {
 /// the world's clusters name them (`hlod/chain.rs`).
 pub(crate) type WorldMaterials = Option<(Value, Vec<usize>)>;
 
+/// What the partition reads of the job: its HLOD, each node's HLOD layer, its main grid and its
+/// object settings.
+type PartitionInputs<'a> = (
+    &'a crate::Hlod,
+    &'a [Assigned],
+    &'a crate::PartitionGrid,
+    &'a crate::ObjectSettings,
+);
+
+/// What `stage_scene_tables` returns: the tables' product, the animation banks' product with its
+/// descriptor, the published nodes each cell places, and the published scene.
+type StagedTables = (
+    Product,
+    Option<(Product, Value)>,
+    partition::CellMembers,
+    Option<Value>,
+);
+
 /// Compilation stage: the tables come out as a cache product under their own name, outside the
 /// manifest, written from the scene this job publishes. The partition's region pages name the mesh
 /// pages of `mesh_pages`; `world` places the published nodes, computed once for the job
@@ -115,12 +134,13 @@ pub(crate) type WorldMaterials = Option<(Value, Vec<usize>)>;
 /// descriptor the manifest names it by (`animationBanks`), none for a scene with no item; the
 /// published nodes each cell places, with its HLOD 0 cell (`partition::CellMembers`); and the
 /// published scene the tables describe. The cells stream on the job's main `grid`, their files
-/// written in `directory` by the job's `pool`.
+/// written in `directory` by the job's `pool`. `assignments` is each node's HLOD layer, read once
+/// for the job (`Hlod::assignments`).
 pub(crate) fn stage_scene_tables(
-    (g, bin, (hlod, grid, objects), materials): (
+    (g, bin, (hlod, assignments, grid, objects), materials): (
         &Value,
         &[u8],
-        (&crate::Hlod, &crate::PartitionGrid, &crate::ObjectSettings),
+        PartitionInputs<'_>,
         &crate::MaterialOptions,
     ),
     (published, world, mesh_map): (
@@ -132,12 +152,7 @@ pub(crate) fn stage_scene_tables(
     (directory, pool): (&Path, &rayon::ThreadPool),
     progress: impl Fn(Value),
     world_roots: impl FnOnce(&partition::CellMembers) -> Result<WorldMaterials>,
-) -> Result<(
-    Product,
-    Option<(Product, Value)>,
-    partition::CellMembers,
-    Option<Value>,
-)> {
+) -> Result<StagedTables> {
     let started = Instant::now();
     let mut table = node_table(published)?;
     let mut roots =
@@ -158,7 +173,7 @@ pub(crate) fn stage_scene_tables(
     };
     let (split, members) = partition::partition(
         (published, world),
-        (hlod, grid),
+        (hlod, assignments, grid),
         (objects, &banks, (g, bin, &boxes)),
         (&mut table, &mut roots),
         &mesh_pages.by_mesh,

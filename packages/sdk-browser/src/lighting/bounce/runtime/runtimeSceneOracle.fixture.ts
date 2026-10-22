@@ -3,7 +3,7 @@
 // compare it with every triangle tested in turn.
 import { PROXY_NODE_FLOATS } from '../../../../../sdk-core/src/contracts/writtenFormats.ts'
 import type { PackedDag } from '../../../geometry/dag/types.ts'
-import { walkTree } from './runtimeTreeOracle.fixture.ts'
+import { walkTree, walkTreeAny } from './runtimeTreeOracle.fixture.ts'
 import { dotVector3, transformAffinePoint } from '../../../../../math/src/vector/vector.ts'
 import { cross, subtract, type Vec3 } from '../../../../../math/src/vector/vectorTuple.ts'
 import {
@@ -59,8 +59,16 @@ function entryOf(scene: OracleScene, w: number, o: Vec3, d: Vec3, limit: number)
   return boxEntry(low, high, o, d, limit)
 }
 
-/** `rtEnter`: the ray against placement `w`, its world box first. */
-function enter(scene: OracleScene, w: number, o: Vec3, d: Vec3, best: Hit, s: Spent): Hit {
+/** `rtEnter`: the ray against placement `w`, its world box first; `anyHit`, the cut answers its first triangle. */
+function enter(
+  scene: OracleScene,
+  w: number,
+  o: Vec3,
+  d: Vec3,
+  best: Hit,
+  s: Spent,
+  anyHit = false,
+): Hit {
   const instance = scene.instances.get(w)
   if (!instance || entryOf(scene, w, o, d, best.distance) > best.distance) return best
   const [a, b, c, t] = columnsOf(scene, w)
@@ -78,6 +86,7 @@ function enter(scene: OracleScene, w: number, o: Vec3, d: Vec3, best: Hit, s: Sp
     instance.triangle,
     w,
     s,
+    anyHit,
   )
   return hit.found && hit.distance < best.distance ? hit : best
 }
@@ -104,6 +113,23 @@ export function traceScene(scene: OracleScene, o: Vec3, d: Vec3, limit: number, 
     (w, hit) => enter(scene, w, o, d, hit, s),
     (w, limit) => entryOf(scene, w, o, d, limit),
   )
+}
+
+/** `rtSceneAny`: the first hit over the placements, the tree walked once in index order (`walkTreeAny`). */
+export function traceAny(scene: OracleScene, o: Vec3, d: Vec3, limit: number, s: Spent): Hit {
+  let best = missed(limit)
+  const { packed } = scene,
+    tree = packed.placementTree
+  if (!tree) {
+    for (let w = 0; w < packed.worldSources.length; w++) {
+      if (spent(s)) break
+      s.work += 1
+      best = enter(scene, w, o, d, best, s, true)
+      if (best.found) return best
+    }
+    return best
+  }
+  return walkTreeAny(tree, o, d, best, s, (w, hit) => enter(scene, w, o, d, hit, s, true))
 }
 
 /** Every triangle of every placement tested in turn, through the placement's world. */

@@ -1,6 +1,7 @@
 use super::*;
 use crate::compiler::primitive::triangles::read;
 use trillion3d_math::geometry::aabb::{aabb_of, corners};
+use trillion3d_math::scalar::not_above;
 use trillion3d_math::vector::vec2::{barycentric, double_area};
 use trillion3d_math::vector::vec3::point_checked;
 use trillion3d_math::vector::vecn::dot;
@@ -28,10 +29,7 @@ pub fn intersection(a: &Rect, b: &Rect) -> Option<Rect> {
     for axis in 0..2 {
         low[axis] = a.0[axis].max(b.0[axis]);
         high[axis] = a.1[axis].min(b.1[axis]);
-        if !matches!(
-            high[axis].partial_cmp(&low[axis]),
-            Some(std::cmp::Ordering::Greater)
-        ) {
+        if not_above(high[axis], low[axis]) {
             return None;
         }
     }

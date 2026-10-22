@@ -117,11 +117,7 @@ function dispatchMain(cut: MainCut, next: SelectionUniforms, shared?: GPUCommand
 
 /** `GpuSelection.encodePost`: the post pass of the cut the last dispatch left open, its finish and
  *  its readback's copy, into `encoder`; false when it left none. */
-export function encodeMainPost(
-  cut: MainCut,
-  encoder: GPUCommandEncoder,
-  pyramid: CutPyramid | undefined,
-) {
+function encodeMainPost(cut: MainCut, encoder: GPUCommandEncoder, pyramid: CutPyramid | undefined) {
   const open = cut.post
   if (!open) return false
   cut.post = undefined

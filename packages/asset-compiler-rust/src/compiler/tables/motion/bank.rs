@@ -36,6 +36,7 @@ use super::super::graph::node_parents;
 use super::sample::Clip;
 use super::*;
 use crate::compiler::validate::OPTIONS;
+use std::collections::btree_map::Entry;
 use trillion3d_math::geometry::aabb::grow_flat;
 
 mod bakes;
@@ -163,8 +164,8 @@ pub(crate) fn bake_banks(
                 continue;
             }
         };
-        if !skins.contains_key(&skin) {
-            skins.insert(skin, Skin::read(g, bin, &parents, skin)?);
+        if let Entry::Vacant(vacant) = skins.entry(skin) {
+            vacant.insert(Skin::read(g, bin, &parents, skin)?);
         }
         let read = &skins[&skin];
         let Some(clip) = chosen(node, &instance, animations, &read.joints)? else {
@@ -173,9 +174,9 @@ pub(crate) fn bake_banks(
                 .push((node, "no animation moves its skin".into()));
             continue;
         };
-        if !sampled.contains_key(&(skin, clip)) {
-            if !clips.contains_key(&clip) {
-                clips.insert(clip, Clip::read(g, bin, clip)?);
+        if let Entry::Vacant(vacant) = sampled.entry((skin, clip)) {
+            if let Entry::Vacant(unread) = clips.entry(clip) {
+                unread.insert(Clip::read(g, bin, clip)?);
             }
             let played = &clips[&clip];
             let baked = bake(nodes, read, played)?.map(|(baked, reach)| Sampled {
@@ -183,7 +184,7 @@ pub(crate) fn bake_banks(
                 reach,
                 duration: played.duration,
             });
-            sampled.insert((skin, clip), baked);
+            vacant.insert(baked);
         }
         let played = match &sampled[&(skin, clip)] {
             Ok(played) => *played,

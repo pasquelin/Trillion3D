@@ -70,7 +70,7 @@ export function defaultGpuBudget(
  * One memory budget, split by a fixed rule — never by what the machine says it has:
  * - GPU: the shadows first (`SHADOW_POOL_BYTES`), what the virtual shadow maps of one sun take at
  *   the default pool — their buffers, the raster's lists at their ceiling and the first
- *   transmission atlas; then the bounce probe cascades at their largest
+ *   transmission atlas; then the bounce probes at their largest
  *   (`BOUNCE_PROBE_BYTES`), then the effect chain's targets on the declared `canvas`
  *   (`effectTargetReserve`, 3840 × 2160 by default); the rest in two halves, the geometry pool
  *   and the texture pool, each no larger than its ceiling. The three fixed shares never shrink: a total under them is

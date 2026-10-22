@@ -8,6 +8,7 @@ import type { StdioOptions } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { currentCompilerExecutable } from '../../packages/sdk-node/src/compiler/executable.mts'
 import { compilerArguments } from '../../packages/sdk-node/src/compiler/arguments.mts'
+import { DEFAULT_RAM_BUDGET_MB } from '../../packages/sdk-core/src/contracts/compilerAbi.ts'
 import type { HlodOptions } from '../../packages/sdk-core/src/contracts/hlodOptions.ts'
 import type { JobOptions } from '../../packages/sdk-core/src/contracts/jobOptions.ts'
 import { runChecked } from '../test/run.ts'
@@ -38,10 +39,10 @@ export interface FullCompile extends JobOptions {
   resourceBase?: string
   /** Threads the compiler may use: the compiler's own default, every core, when omitted. */
   threads?: number
+  /** Memory the compiler may use, in MB: the SDK's own default when omitted. */
   ramMb?: number
   simplification?: 'none' | 'qem-endpoints'
-  /** The HLOD, either form (`resolveHlod`); none when left out. It needs `simplification:
-   *  'qem-endpoints'`: exact clusters build none, so the pair is refused. */
+  /** The HLOD, either form (`resolveHlod`); none when left out. */
   hlod?: HlodOptions | null
   stdio?: StdioOptions
   /** The compiler to run: this checkout's by default (`nativeCompiler`). */
@@ -55,7 +56,7 @@ export function compileFullCache({
   cache = 'cache',
   resourceBase = '../../../../source/',
   threads,
-  ramMb = 256,
+  ramMb = DEFAULT_RAM_BUDGET_MB,
   // Explicit `none`, not the compiler's default: the reference caches and hashes are pinned on it.
   simplification = 'none',
   stdio = 'inherit',
@@ -63,13 +64,6 @@ export function compileFullCache({
   hlod,
   ...options
 }: FullCompile) {
-  // Exact clusters (`none`) are never simplified, so the compiler builds no HLOD of them and
-  // ignores the flag: a job naming both is refused, not written and silently dropped.
-  if (hlod && simplification === 'none')
-    throw new Error(
-      "`hlod` needs `simplification: 'qem-endpoints'`: with `simplification: 'none'` the compiler " +
-        'builds exact clusters and no HLOD',
-    )
   runChecked(
     executable,
     compilerArguments(
@@ -78,8 +72,7 @@ export function compileFullCache({
         cache,
         scope: 'full',
         triangleBudget: TRIANGLE_BUDGET,
-        // Empty: the compiler's own default (`machine_threads`).
-        threads: threads === undefined ? '' : String(threads),
+        threads,
         ramBudgetMb: String(ramMb),
         resourceBaseUrl: resourceBase,
         simplification,

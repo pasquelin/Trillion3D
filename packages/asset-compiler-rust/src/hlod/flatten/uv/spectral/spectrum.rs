@@ -123,10 +123,15 @@ impl Spectrum {
         }
         let mut required = 0;
         let mut largest_drop = 0.0;
-        for i in accumulate - 1..destine - 1 {
-            if i == accumulate - 1 || largest_drop < drops[i] {
+        for (i, &fall) in drops
+            .iter()
+            .enumerate()
+            .take(destine - 1)
+            .skip(accumulate - 1)
+        {
+            if i == accumulate - 1 || largest_drop < fall {
                 required = i;
-                largest_drop = drops[i];
+                largest_drop = fall;
             }
         }
         if required == 0 {

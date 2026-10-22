@@ -6,6 +6,7 @@
 use crate::matrix::rotation::rotation_quaternion;
 use crate::matrix::MATRIX_VALUES;
 use crate::scalar::acos::acos;
+use crate::scalar::not_above;
 use crate::scalar::trig::sin;
 use crate::vector::vec3::{cross, divide};
 use crate::vector::vecn::{dot, length};
@@ -59,7 +60,7 @@ pub fn max_stretch(m: &[f64; MATRIX_VALUES]) -> f64 {
     let mean = (m00 + m11 + m22) / 3.0;
     let (d0, d1, d2) = (m00 - mean, m11 - mean, m22 - mean);
     let spread = ((d0 * d0 + d1 * d1 + d2 * d2 + 2.0 * off) / 6.0).sqrt();
-    if !(spread > 0.0) {
+    if not_above(spread, 0.0) {
         return mean.max(0.0).sqrt();
     }
     let (b00, b11, b22) = (d0 / spread, d1 / spread, d2 / spread);

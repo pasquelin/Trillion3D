@@ -71,7 +71,6 @@ function encodeMain(
 ) {
   const {
     blockCount,
-    levelSizes,
     dispatchArgs,
     bindGroup,
     preparePipeline,
@@ -108,7 +107,8 @@ function encodeMain(
   // bounds a level: a member
   // drawn whatever the view opens from queue 0 (`shader/placementTreeWgsl.ts`), so its root's
   // children join level 1 beside the tree's own nodes, where the layout counts them levels lower.
-  for (let level = 1; level < levelSizes.length; level++) levelPass(pass, resources, level)
+  const levels = levelsDispatched(resources)
+  for (let level = 1; level < levels; level++) levelPass(pass, resources, level)
   // Pages of kept leaves, and they alone: a page under a rejected node is not read.
   arm(pass, resources)
   pass.setPipeline(wantedPipeline)
@@ -142,7 +142,7 @@ export function encodeDagPost(
   pyramid: CutPyramid | undefined,
   differ: boolean,
 ) {
-  const { dispatchArgs, bindGroup, levelSizes } = resources,
+  const { dispatchArgs, bindGroup } = resources,
     width = groupWidth(resources.device?.limits)
   const pass = encoder.beginComputePass(DAG_PASS)
   pass.setBindGroup(0, bindGroup)
@@ -156,13 +156,22 @@ export function encodeDagPost(
   pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.postClusters)
   // What it shows enters queue 0 at any depth: every level runs again on what the one before it
   // kept, from queue 0.
-  for (let level = 0; level < levelSizes.length; level++) levelPass(pass, resources, level)
+  const levels = levelsDispatched(resources)
+  for (let level = 0; level < levels; level++) levelPass(pass, resources, level)
   arm(pass, resources)
   pass.setPipeline(resources.wantedPipeline)
   pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.cand)
   encodeDraws(pass, resources)
   encodeFinish(pass, resources, width, differ)
   pass.end()
+}
+
+/** The levels the descent dispatches: those a resident page needs reached, never more than the
+ *  hierarchies hold (`PackedDag.residentLevels`); all of them where no residency is followed. A
+ *  level no resident page reaches is never dispatched — it could ask for no page a resident one
+ *  does not bring within reach — and costs nothing. */
+function levelsDispatched({ packed, levelSizes }: DagResources) {
+  return Math.min(levelSizes.length, packed.residentLevels?.() ?? levelSizes.length)
 }
 
 /** Level `level` of the descent: its queue's argument armed, then a thread an entry. */

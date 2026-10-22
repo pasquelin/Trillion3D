@@ -3,7 +3,7 @@
 //! only as cache objects. Every level of the world's HLOD remeshes, merges or voxelizes them and
 //! reads their materials onto its actors (`place.rs`, `builds.rs`): a source mesh of one LOD — a
 //! glTF mesh — gives its LOD 0.
-use crate::dag::{DagCluster, DagGroup, DagStrategy};
+use crate::dag::{DagCluster, DagGroup};
 use crate::hlod::flatten::merge::{Lods, Taken};
 use crate::simplify::{compact_region, SolveRules};
 use crate::Result;
@@ -27,17 +27,14 @@ impl SourceCover {
     /// The level 0 of `dag`, whose clusters its `groups` made, on `pos` and the attributes its
     /// pages carry (`carried`, one value set per vertex of `pos`), with the LODs the merged layers
     /// take (`merged`: what they take, `merged_lods`, and the rules the source's solves kept) —
-    /// none where no merged layer takes any. A scene cooked with exact clusters (`simplification`
-    /// `none`) is never simplified, so no HLOD is built of it: it carries none.
+    /// none where no merged layer takes any. A DAG of exact clusters (`simplification` `none`) has
+    /// no group: its level 0 is its every root, the LOD a merged layer takes whatever the screen
+    /// size, and its fallback is made from that level 0.
     pub(crate) fn of(
-        strategy: DagStrategy,
         (dag, groups): (&[DagCluster], &[DagGroup]),
         (pos, carried): (&[f32], &[&Attribute]),
         merged: Option<(Taken, SolveRules)>,
     ) -> Result<Self> {
-        if strategy == DagStrategy::ExactClusters {
-            return Ok(Self::default());
-        }
         let (positions, carried_level0, indices) = level0(dag, (pos, carried));
         let lods = merged
             .map(|(taken, rules)| Lods::of((dag, groups), (pos, carried), taken, rules))

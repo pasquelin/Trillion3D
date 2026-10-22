@@ -98,8 +98,9 @@ export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
  *   device depth into a scene depth and back (`depthWgsl.ts`); `radius`: a render pixel's world
  *   radius per unit of scene depth and at none (`xy`), and the sign of the view axis (`z`).
  * - `quality`: the level's knobs (`TaaLevelKnobs`, `levels.ts`): the flicker rejection on (`x`,
- *   1 or 0), the spatial anti-aliaser's samples a side, 0 for none (`y`), and the history
- *   update's kernel moving its far neighbour (`z`, 1 or 0).
+ *   1 or 0), the spatial anti-aliaser's samples a side, 0 for none (`y`), the history
+ *   update's kernel moving its far neighbour (`z`, 1 or 0), and whether the thin geometry detection
+ *   runs this image (`w`, 1 or 0: else the passes that read its mask read none).
  */
 export const TAA_VIEW_WGSL = wgslBlock('TAA_VIEW_WGSL', [], TAA_VIEW.wgsl)
 

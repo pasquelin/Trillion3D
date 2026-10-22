@@ -134,7 +134,7 @@ impl Grids {
         spec: impl Fn(K) -> GridSpec,
     ) -> Self {
         let key_of = |(l, level): (&HlodLayer, &Option<usize>)| {
-            Some(key(l, (*level)?)).filter(|_| l.spatially_loaded)
+            l.spatially_loaded.then_some(key(l, (*level)?))
         };
         let keys: BTreeSet<K> = (hlod.layers.iter().zip(levels))
             .filter_map(key_of)

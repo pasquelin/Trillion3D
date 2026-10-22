@@ -26,7 +26,7 @@ const items: DrawItem[] = Array.from({ length: 130 }, (_, i) => ({
   pageIndex: 17 + ((i * 37) % 130),
   // Every bin: the three face modes and their cutout bins.
   bin: (i * 7) % HALF_SLOTS,
-  rest: ((i * 11) % 2) as 0 | 1,
+  post: ((i * 11) % 2) as 0 | 1,
   selectionIndex: i,
 }))
 const CASES: DrawCase[] = [
@@ -90,7 +90,7 @@ test('the GPU compaction feeds the visibility raster the CPU model’s draws', a
       const pages = model.overflow
         ? []
         : selected(CASES[k])
-            .filter((item) => item.rest * HALF_SLOTS + item.bin === slot)
+            .filter((item) => item.post * HALF_SLOTS + item.bin === slot)
             .map((item) => item.pageIndex)
             .sort((a, b) => a - b)
       assert.deepEqual(visiblePages[slot], pages, `${name}: slot ${slot} draws its rows' pages`)

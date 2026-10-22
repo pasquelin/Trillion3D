@@ -70,12 +70,13 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 
 | Mechanism                                                 | Where                                                                       |
 | --------------------------------------------------------- | --------------------------------------------------------------------------- |
-| The pages each view asks for, at the GPU's priorities     | `dag/request/request.ts`, `gpu/core/selection.ts`                           |
-| The requests and what they depend on, one higher a group  | `geometry/residency/pageRequests.ts`, `geometry/cut/groupClosure.ts`        |
+| The pages each view asks for, a request a leaf, at the GPU's priorities | `dag/request/request.ts`, `gpu/core/selection.ts`                |
+| The readout's size, followed between two frames           | `dag/lists/requestSize.ts`, `dag/queueGrowth.ts`                            |
+| The requests and what they depend on, one higher a streaming page | `geometry/residency/pageRequests.ts`, `geometry/cut/groupClosure.ts` |
 | The update: new pages, victims, installs                  | `geometry/residency/queue.ts`                                               |
 | The use order of the streamed pages and their dependents  | `geometry/residency/streamedPages.ts`                                       |
 | The quality under the pool's pressure                     | `geometry/residency/poolPressure.ts`, `frame/render/gpuCut.ts`              |
-| The streaming's five settings                             | `packages/sdk-core/src/contracts/streamingOptions.ts`                       |
+| The streaming's eight settings                            | `packages/sdk-core/src/contracts/streamingOptions.ts`                       |
 | The engine's frames, which pace the installs              | `geometry/integration/frameBudget.ts` (`createFrameGate`)                   |
 | Rows, a cache of what the GPU cut draws and asks          | `geometry/rows/slots.ts`, `rows/demand/rowDemand.ts`, `geometry/rows/rowOrder.ts` |
 | The cache's one hold: the root cover's pins               | `geometry/residency/pinUpdater.ts`, `pages/pool/eviction.ts`                |
@@ -83,12 +84,25 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 - Every count below counts streaming pages: requests, pending, installs, the use order, its
   victims and the pool's pressure (`geometry/residency/queue.ts`, `queueStarts.ts`,
   `queueInstalls.ts`).
+- A view asks for a LEAF of the culling tree — the clusters of one group, consecutive packed pages
+  that may lie in more than one streaming page — in one request of three words: its first page, how
+  many pages it names from there and its priority; every page of the range is asked. The readout
+  holds one request a leaf, and its two lists as many ranks as the cut asks of it: it starts at
+  `streamingMinRequests` (65 536) ranks, grows to a quarter over what a readback asked of it when
+  two in a row asked more than it holds, and gives a fiftieth back at each readback after thirty
+  under half of it, never over `streamingMaxRequests` (1 048 576) — both
+  from 4 096 to 1 048 576 —, made again between two frames and never in a frame's critical path
+  (`dag/lists/requestSize.ts`, `dag/queueGrowth.ts`). A cut past it is read by its head, its mask
+  drawn whole.
 - One update a frame, its requests read again whenever a view's readback is new, the capture's
-  first. The requests are the streaming pages of the pages every view asks for, each at the
+  first. The requests are the streaming pages of the leaves every view asks for, each at the
   highest priority any view gives one of its pages, and of the pages they depend on, each at one
-  more than the highest of its dependents ([FORMAT.md](FORMAT.md#cluster-dag)). The requested ones
-  already started or resident move to the end of the use order, the views' own first, in their
-  order.
+  more than the highest of its dependents — one per hop from streaming page to streaming page,
+  however many groups a page holds, and theirs in turn as long as a priority rises
+  ([FORMAT.md](FORMAT.md#cluster-dag)). The requested ones already started or resident move to
+  the end of the use order, the views' own first, in their order. A caller may ask pages of its
+  own at a priority it gives, from 1 to 0xffffffe0 as the GPU's requests are (`prefetch`, the
+  residency queue's third argument).
 - The unique requests, as a percent of the streaming pool's slots, scale the cut's screen error:
   over `streamingQualityMaxPoolPercent` (85) two updates running, the scale falls by 3 % an update,
   down to `streamingQualityMinScale` (0.3); under `streamingQualityMinPoolPercent` (70) thirty
@@ -104,7 +118,10 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 - The started streaming pages are installed in the order started, each once its pages' bytes are
   in — none passes one still waiting —, at most `streamingMaxInstallsPerFrame` (128, never more
   than may be pending) a frame, and no time budget: a page costs its frame what it costs. One whose
-  bytes fail for good is never started again by the session.
+  bytes fail for good is never started again by the session: a read that failed is tried again
+  `streamingNumRetries` times (3; a negative value without end), after a wait of 0.5 s · 2^k, 8 s
+  at most; past the last the page is given up, the object it names invalid, no page of it asked for
+  again.
 - The reads keep up: as many run at once as may be pending (`DEFAULT_PAGE_WORKERS`, 128), the
   transfer queue holding those pending pages at 128 KiB each (`DEFAULT_PAGE_TRANSFER_BYTES`,
   16 MiB, `session/engine/common.ts`), so neither bounds the streaming below its own settings.
@@ -116,7 +133,7 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
   grows it. The rows of the pages a frame installs are written that frame, whole, on no clock — its
   installs bound them (`geometry/rows/rowPasses.ts`, `followArrivals`) —; the rows the cut's
   requests claim spend the main-thread clock.
-- Fetching and decoding stay in workers. The five settings are world options, session options and
+- Fetching and decoding stay in workers. The eight settings are world options, session options and
   render settings of the view distance's group; `explorer.setStreaming` changes them from the next
   update.
 

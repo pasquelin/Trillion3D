@@ -17,7 +17,7 @@ import { createWebgpuVisState, type WebgpuVisState } from '../../frame/backend/s
 import { replayBundles } from '../../../../../tests/kit/fakeDevice/fakeBundles.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { createDrawItemWordsHold, refreshDrawItemWords } from './itemWords.ts'
-import { drawVis } from './drawer.ts'
+import { drawVis } from './drawVis.ts'
 import { visUniformSlots } from './uniforms.ts'
 import { createWebgpuVisibilityShaders } from './shaders.ts'
 import { PAGE_INFO } from '../pageInfo.ts'
@@ -69,7 +69,7 @@ test("a row's coplanar layer goes into its record word, capped, and its triangle
   assert.equal(hold.total, 4, 'the drawable-triangle total follows the two rows')
 })
 
-// drawer.ts
+// drawVis.ts
 test("drawVis draws each coplanar layer's slots by their own indirect command", () => {
   const drawCalls: number[] = []
   const pass = {

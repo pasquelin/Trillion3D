@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Ajv } from 'ajv'
 import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts'
-import { BOUNCE_SETTINGS } from '../bounce/contracts.ts'
+import { BOUNCE_PROBE_QUEUE, BOUNCE_SETTINGS } from '../bounce/contracts.ts'
 import { explorerSwitch, type ExplorerSwitch } from '../runtime/explorerSwitches.ts'
 import { EXPLORER_SWITCH_NAMES } from '../runtime/explorerSwitches.fixture.ts'
 import {
@@ -14,6 +14,7 @@ import { WORLD_STREAMING_RULES } from '../contracts/worldStreamingOptions.ts'
 import { resolveSetting, type SettingRule } from '../contracts/settingRules.ts'
 import { CUT_RULES } from '../contracts/cutOptions.ts'
 import { ANIMATION_RULES } from '../contracts/animationOptions.ts'
+import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
 import { RASTER_RULES } from '../contracts/rasterOptions.ts'
 
 const validate = new Ajv().compile(EXPLORER_OPTIONS_SCHEMA)
@@ -31,7 +32,7 @@ test('explorer arguments accept a complete host request and keep host extensions
       temporalAntialiasing: false,
       pixelError: 1.5,
       bounce: true,
-      bounceBudgetMs: 1,
+      bounceProbesPerFrame: 50,
       importedLights: false,
       preload: 'all',
       stageProfile: true,
@@ -66,8 +67,9 @@ test('explorer arguments name every choice the engine takes and refuse the rest'
     { maxTextureUploadMsPerFrame: 17 },
     { pixelError: -1 },
     { pixelError: 'pixels' },
-    { bounceBudgetMs: 0 },
-    { bounceBudgetMs: 9 },
+    { bounceProbesPerFrame: 0 },
+    { bounceProbesPerFrame: 1.5 },
+    { bounceProbesPerFrame: BOUNCE_PROBE_QUEUE + 1 },
     { replicaCount: 2 },
     { replicaCount: '4' },
     { clearColor: 0.5 },
@@ -81,7 +83,7 @@ test('an explorer request naming only its manifest is completed with the engine 
   assert.equal(request.geometryPoolBytes, DEFAULT_GEOMETRY_POOL_BUDGET)
   assert.equal(request.texturePoolBytes, DEFAULT_TEXTURE_POOL_BUDGET)
   assert.equal(request.maxTextureUploadMsPerFrame, DEFAULT_TEXTURE_UPLOAD_MS)
-  assert.equal(request.bounceBudgetMs, BOUNCE_SETTINGS.budgetMs)
+  assert.equal(request.bounceProbesPerFrame, BOUNCE_SETTINGS.probesPerFrame)
   for (const [key, property] of Object.entries(EXPLORER_OPTIONS_SCHEMA.properties)) {
     if (property.default === undefined) continue
     assert.notEqual(request[key], undefined, key)
@@ -91,13 +93,14 @@ test('an explorer request naming only its manifest is completed with the engine 
 })
 
 test('a switch the host leaves out is set in the engine as the schema advertises it', () => {
-  // The raster's settings, the world streaming's, the cut's and the animation's are read by their
-  // contract's one resolver; every other switch is the explorer's.
+  // The raster's settings, the world streaming's, the cut's, the animation's and the temporal
+  // pass's are read by their contract's one resolver; every other switch is the explorer's.
   const rules: Readonly<Record<string, SettingRule>> = {
     ...RASTER_RULES,
     ...WORLD_STREAMING_RULES,
     ...CUT_RULES,
     ...ANIMATION_RULES,
+    ...TEMPORAL_RULES,
   }
   const advertised = Object.entries(EXPLORER_OPTIONS_SCHEMA.properties).filter(
     ([, property]) => property.type === 'boolean' && property.default !== undefined,

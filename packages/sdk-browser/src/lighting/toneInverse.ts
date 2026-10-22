@@ -4,13 +4,14 @@
  * rational fit's quadratic, around ACES's two matrices inverted; Reinhard is `y / (1 − y)`; AgX
  * inverts its matrices and its power, its contrast polynomial by bisection over its [0, 1] domain,
  * then its log encoding; the neutral operator undoes its shoulder at the peak, then its toe at the
- * lowest channel. `linear` and `none` keep `y`.
-
+ * lowest channel; the film curve, which has no closed form, is solved by a descent
+ * (`filmInverse.ts`). `linear` and `none` keep `y`.
  */
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
 import { applyMatrix3Vector3 } from '../../../math/src/vector/vector.ts'
 import { ACES, AGX, CINEON, GAMMA, NEUTRAL } from './toneCurveConstants.ts'
+import { filmicInverse } from './filmInverse.ts'
 
 export type V3 = [number, number, number]
 const R = TONE_MAPPING_RANK
@@ -97,5 +98,6 @@ export function toneUnmap(y: readonly number[], curve: number): V3 {
   if (curve === R.cineon) return cineonInverse(y)
   if (curve === R.agx) return agxInverse(y)
   if (curve === R.neutral) return neutralInverse(y)
+  if (curve === R.filmic) return filmicInverse(y)
   return acesInverse(y)
 }

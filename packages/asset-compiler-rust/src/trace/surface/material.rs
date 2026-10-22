@@ -16,7 +16,7 @@ use std::sync::Arc;
 use trillion3d_math::scalar::unit_to_byte;
 
 mod texels;
-pub(crate) use texels::{Texels, Wrap};
+pub(crate) use texels::Texels;
 
 /// Texture coordinate steps across a footprint, `[du, dv]` along each of its two sides.
 pub(crate) type Across = [[f64; 2]; 2];

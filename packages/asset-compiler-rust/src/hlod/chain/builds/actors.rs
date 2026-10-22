@@ -6,7 +6,7 @@ use super::{actor, build, Actor, Builder, Job, Spent, Wears, DAG, MERGE};
 use crate::hlod::flatten::{merge, step, timed, Placements, Sides, SourceMesh};
 use crate::hlod::options::{HlodMapSides, MERGE_FLOORS};
 use crate::HlodLayer;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// The actor of cell `cell` of layer `hlod` wearing its own flattened material that `made` holds,
 /// its mesh given a cluster DAG when the layer asks for one (`clusterDag`); `Err` with the reason
@@ -204,19 +204,29 @@ pub(super) fn merged_actors(
 /// The bytes merged layer `hlod`'s actors hold while they are made (`merge::working_bytes`): the
 /// cuts the layer takes of the objects `members`, and when their materials are merged their atlas
 /// cooked for `families` block families — its side the layer's, or, sized automatically, the
-/// largest it may reach: that side is known once the merged mesh is.
+/// largest it may reach: that side is known once the merged mesh is —, a translucent material
+/// among them of `library` read over what lies behind it where the layer sees through
+/// (`Maps::seen_through`).
 pub(super) fn merged_bytes(
     instances: &[Instance],
-    (hlod, families): (&HlodLayer, usize),
+    (hlod, families, library): (&HlodLayer, usize, &Library),
     members: &[usize],
 ) -> usize {
     let cut = (hlod.lod_selection, hlod.merging.lod_screen_size);
-    let pieces = merge::cut_bytes(instances, members, Some(cut));
+    let pieces = merge::cut_counts(instances, members, Some(cut));
     let maps = hlod.merging.maps;
     let largest = |sizes: &HlodMapSides| Sides::of_baked(sizes, maps).0;
     let side = hlod.merging.sizing.baked_side(hlod.texture_size, largest);
-    let flattened = hlod
-        .merge_materials
-        .then_some((side, families, maps.has_more()));
+    let flattened = hlod.merge_materials.then(|| {
+        let materials: BTreeSet<Option<u64>> =
+            members.iter().map(|&i| instances[i].material).collect();
+        let behind = (materials.into_iter()).any(|m| merge::seen_through(m, library, maps));
+        merge::Flattened {
+            side,
+            families,
+            maps,
+            behind,
+        }
+    });
     merge::working_bytes(pieces, flattened)
 }

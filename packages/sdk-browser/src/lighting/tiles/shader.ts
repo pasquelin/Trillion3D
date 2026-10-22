@@ -24,7 +24,7 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
  * (`../../camera/depthConvention.ts`): the near plane at one, the background at zero.
  *
  * The same pass lists the lights of the bounce's world grid (`kind` `world`): its columns the
- * squares of the last cascade level's lattice, their cells along z (`WORLD_GRID_BOUNDS_WGSL`), so a
+ * squares of the lattice laid on the scene (`lightLattice`), their cells along z (`WORLD_GRID_BOUNDS_WGSL`), so a
  * bounce point walks the lights that reach its cell (`../bounce/lightCellWgsl.ts`). Only the
  * column's bounds and its cell count differ; the runs, the compaction, the pool and the records
  * are the view's.
@@ -98,7 +98,7 @@ fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index)
 }`,
     [
       directLightWgsl(),
-      gridCompactWgsl(kind === 'view' ? LIGHT_SETTINGS.gridSlices : BOUNCE_SETTINGS.cascadeSize),
+      gridCompactWgsl(kind === 'view' ? LIGHT_SETTINGS.gridSlices : BOUNCE_SETTINGS.lightGridSide),
       kind === 'view' ? GRID_BOUNDS_WGSL : WORLD_GRID_BOUNDS_WGSL,
     ],
   )

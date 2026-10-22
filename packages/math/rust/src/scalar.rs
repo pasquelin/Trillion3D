@@ -1,8 +1,9 @@
-//! Single numbers: interpolations, a range remapped, the unit interval on a byte, Hermite's cubic
-//! and means. Two interpolations give different floats and keep apart: `lerp`, `a + (b − a)·t`,
+//! Single numbers: interpolations, a range remapped, comparisons that keep NaN on their side, the
+//! unit interval on a byte, Hermite's cubic and means. Two interpolations give different floats and keep apart: `lerp`, `a + (b − a)·t`,
 //! exact at `t = 0`; `mix`, `a·(1 − t) + b·t`, exact at both ends.
 
 use crate::scalar::real::Real;
+use std::cmp::Ordering;
 
 /// `a + (b − a) · t`.
 #[inline]
@@ -21,6 +22,41 @@ pub fn mix<T: Real>(a: T, b: T, t: T) -> T {
 #[inline]
 pub fn remap<T: Real>(value: T, low: T, high: T) -> T {
     (value - low) / (high - low)
+}
+
+// The four comparisons below each write a negated test, `!(a > b)`, in the form a lint on partial
+// orders accepts. NaN is neither above, below nor equal to anything: all four answer true for it,
+// on either side, so a NaN takes the branch of the test that failed. Between numbers each is
+// exactly the negation of its relation:
+//
+//   call                  a < b   a = b   a > b   NaN
+//   not_above(a, b)       true    true    false   true
+//   not_below(a, b)       false   true    true    true
+//   not_at_least(a, b)    true    false   false   true
+//   not_at_most(a, b)     false   false   true    true
+
+/// `!(a > b)`: true when `a` is not above `b`, NaN included.
+#[inline]
+pub fn not_above<T: PartialOrd>(a: T, b: T) -> bool {
+    a.partial_cmp(&b) != Some(Ordering::Greater)
+}
+
+/// `!(a < b)`: true when `a` is not below `b`, NaN included.
+#[inline]
+pub fn not_below<T: PartialOrd>(a: T, b: T) -> bool {
+    a.partial_cmp(&b) != Some(Ordering::Less)
+}
+
+/// `!(a >= b)`: true when `a` is short of `b`, NaN included.
+#[inline]
+pub fn not_at_least<T: PartialOrd>(a: T, b: T) -> bool {
+    matches!(a.partial_cmp(&b), None | Some(Ordering::Less))
+}
+
+/// `!(a <= b)`: true when `a` is past `b`, NaN included.
+#[inline]
+pub fn not_at_most<T: PartialOrd>(a: T, b: T) -> bool {
+    matches!(a.partial_cmp(&b), None | Some(Ordering::Greater))
 }
 
 /// Half the diagonal of a `width` by `height` rectangle, `hypot(width, height) / 2`.

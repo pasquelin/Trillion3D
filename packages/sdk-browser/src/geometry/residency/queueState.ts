@@ -15,12 +15,13 @@ import {
 import { readSetting } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { createFrameGate } from '../integration/frameBudget.ts'
 import { createPageRequests } from './pageRequests.ts'
+import { createUnitParents } from './queueHold.ts'
 import { createPoolPressure } from './poolPressure.ts'
 
 export type QueueOptions = {
   tracking: WebgpuPageTracking
   sets: WebgpuResidencySets
-  /** The groups a request's cut rule needs, up to the roots: what it depends on. */
+  /** The groups a request's cut rule needs, up to the roots: what the pages it asks depend on. */
   closure: Pick<GroupClosure, 'closeOver'>
   /** The packed catalogue the readbacks' ids resolve in. */
   packedPages: PageList
@@ -103,9 +104,12 @@ export type ViewReadbacks = {
 }
 
 export function createQueueState(o: QueueOptions) {
-  const { tracking, sets } = o
+  const { tracking, sets } = o,
+    parents = createUnitParents(o.parentsOf, tracking)
   return {
     o,
+    /** The streaming pages each streaming page depends on (`createUnitParents`). */
+    parents,
     /** The pool the streaming holds pages of: another one lets them all go (`reset`). */
     cache: undefined as GpuPageCache | undefined,
     /** The readbacks the last requests were read from: an update reads them again only once one
@@ -115,7 +119,8 @@ export function createQueueState(o: QueueOptions) {
     requests: createPageRequests({
       packedPages: o.packedPages,
       keyOf: tracking.keyOf,
-      unitOf: tracking.units.of,
+      units: tracking.units,
+      parents,
       covers: sets.covers,
       closure: o.closure,
     }),

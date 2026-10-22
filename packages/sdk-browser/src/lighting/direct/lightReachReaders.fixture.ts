@@ -91,8 +91,8 @@ export function projectionOf(lights: readonly SceneLight[]) {
   return (k: number, P: V3) => vsmLightParticipates(k, surface, P)
 }
 
-/** Whether the bounce's world lists hold the light at P's cell: the lattice of the last cascade
- *  level, 8 m cells, its corner 8 cells below the origin on each axis. The reader's cell is
+/** Whether the bounce's world lists hold the light at P's cell: the lattice laid on the scene,
+ *  8 m cells, its corner 8 cells below the origin on each axis. The reader's cell is
  *  `bounceLightSlice`'s of `bounce` (a program that walks the lists); the run, `entryOf`'s. */
 export function listsOf(bounce: string) {
   const WORLD = lightTilesShader('world')
@@ -127,14 +127,13 @@ export function listsOf(bounce: string) {
   )
   const { bounceLightSlice } = shaderRun<{ bounceLightSlice: (P: V3) => number[] }>(
     bounce,
-    ['bounceLightSlice', 'bounceLevelLow'],
+    ['bounceLightSlice'],
     {
       ...F32_SCOPE,
       ...B,
       bounce: {
-        lists: [0, 0, 0, 0],
-        counts: [side, 1, 0, 0],
-        levels: [{ base: [corner, corner, corner], spacing }],
+        lists: [0, side, 0, 0],
+        lattice: [corner * spacing, corner * spacing, corner * spacing, spacing],
       },
       directLights: { count: 1 },
       // The cell's record word itself: the reader's cell, read back below.

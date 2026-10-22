@@ -1,6 +1,6 @@
 //! The spatial queries over a triangle soup, on the one tree the compiler builds over triangles
-//! (`trillion3d_page_codec::proxy::bvh`) — the tree a capture's rays walk on the GPU too
-//! (`gpu/walk.wgsl`) —: whether a ray escapes, the first triangle it stops at, and the nearest
+//! (`trillion3d_page_codec::proxy::bvh`) — the tree the rays of a capture and of a merged atlas's
+//! translucent texels walk on the GPU (`gpu/walk.wgsl`) —: whether a ray escapes, and the nearest
 //! point of the triangles.
 //! The queries over the tree live in `queries`.
 use crate::trace::surface::Traceable;
@@ -22,16 +22,16 @@ pub(crate) struct Tree<T = Vec<f32>> {
 }
 
 /// `sources`' triangles, materials and corners reordered into the leaf order of the tree built on
-/// them, in place of a copy: the tree's nodes, each slot then its triangle's rank. Its primitives'
-/// ranges are left as they were: a bake's sources hold none (`sources::traceable`).
-pub(crate) fn order_sources(sources: &mut Traceable) -> Vec<Node> {
+/// them, in place of a copy: the tree's nodes, and per leaf slot its triangle's rank before. Its
+/// primitives' ranges are left as they were: a bake's sources hold none (`sources::traceable`).
+pub(crate) fn order_sources(sources: &mut Traceable) -> (Vec<Node>, Vec<usize>) {
     let world = &mut sources.world;
     let (nodes, order) = build_ordered(&mut world.triangles, &mut world.tags);
     let mut corners = std::mem::take(&mut sources.corners);
     sources.corners = (order.iter())
         .map(|&rank| std::mem::take(&mut corners[rank]))
         .collect();
-    nodes
+    (nodes, order)
 }
 
 /// Corner `corner` of the triangle at leaf slot `slot`.

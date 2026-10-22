@@ -1,17 +1,18 @@
 // What a frame copies to bring the cut back stays at the readout cap's size whatever the
 // catalogue: the engine's real cut on scenes from 24 thousand to 2 million pages, its readback
-// against the size the engine's own layout gives the cap (`residentReadbackBytes`,
-// `SELECTION_LIST_CAP`), and the catalogue-sized readout it replaced well past it. The cost of
+// against the size the engine's own layout gives the cap (`residentReadbackBytes`, the least the
+// settings allow, `streamingMinRequests`), and the catalogue-sized readout it replaced well past
+// it. The cost of
 // each copy and the cut each threshold keeps are published, never asserted: a timing is the
 // machine's, not the engine's (`cutSnapshotPage.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import {
-  SELECTION_LIST_CAP,
   residentReadbackBytes,
   selectionListCap,
 } from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
+import { DEFAULT_STREAMING_MIN_REQUESTS as LEAST } from '../../../packages/sdk-core/src/contracts/streamingOptions.ts'
 import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 
 const SWEEP = {
@@ -36,13 +37,14 @@ test('the readback a frame copies stays at the cap’s size, whatever the catalo
   console.log(JSON.stringify({ adapter, refused, rows }, null, 2))
   assert.deepEqual([...errors, ...pageErrors], [])
   assert.ok(rows.length >= 2, 'at least two sizes must fit on the device')
-  const ceiling = residentReadbackBytes(SELECTION_LIST_CAP)
+  const ceiling = residentReadbackBytes(LEAST)
   for (const { pages, listCap, deliveredBytes } of rows) {
-    assert.equal(listCap, selectionListCap(pages), `${pages} pages: the cut starts at the cap`)
+    const start = selectionListCap(pages, LEAST)
+    assert.equal(listCap, start, `${pages} pages: the cut starts at the cap`)
     assert.equal(deliveredBytes, residentReadbackBytes(listCap), `${pages} pages: the copy`)
     assert.ok(deliveredBytes <= ceiling, `${pages} pages: ${deliveredBytes} B past ${ceiling} B`)
   }
   const largest = rows[rows.length - 1]
-  assert.ok(largest.pages > SELECTION_LIST_CAP, 'the sweep must reach past the cap')
+  assert.ok(largest.pages > LEAST, 'the sweep must reach past the cap')
   assert.ok(largest.worstBytes > largest.deliveredBytes, 'the cap must spare a copy')
 })

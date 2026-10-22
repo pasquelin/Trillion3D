@@ -14,6 +14,7 @@
 use super::plane::{line_crossing, root_min0};
 use super::{Link, Window, Windows};
 use crate::hlod::flatten::uv::spectral::mesh::NONE;
+use trillion3d_math::scalar::not_above;
 use trillion3d_math::vector::vecn::distance2;
 
 /// The pseudo source and distance of the window joining `left` (first) and `right` (second), and
@@ -104,7 +105,7 @@ fn probe(case: usize, left: &Window, right: &Window, spie: [f64; 2]) -> Option<(
             let outside = |x: f64| x < w.b0 || x > w.b1;
             let x = if a0 > f32::EPSILON as f64 || a0 < -(f32::EPSILON as f64) {
                 let disc = b0 * b0 - 4.0 * a0 * c0;
-                if !(disc > 0.0) {
+                if not_above(disc, 0.0) {
                     return None;
                 }
                 let mut x = (-b0 + root_min0(disc)) / (2.0 * a0);

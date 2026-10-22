@@ -129,16 +129,26 @@ fn page_bytes() -> usize {
     record + text + links
 }
 
-/// Cost of `triangles` triangles over `vertices` vertices. Level zero cuts
+/// What the DAG's build of `triangles` triangles over `vertices` vertices holds beside the mesh it
+/// reads, whoever builds it (a primitive's, an HLOD actor's): the index lists of every level, the
+/// vertices' copies and the vertices the solves place, the clusters. Level zero cuts
 /// `DAG_CLUSTER_TRIANGLES` per cluster and each coarser level at most halves the one below, so
 /// the whole DAG holds at most twice level zero's clusters and index lists.
+pub(crate) fn dag_bytes(triangles: usize, vertices: usize) -> Option<usize> {
+    let clusters = triangles.div_ceil(DAG_CLUSTER_TRIANGLES).checked_mul(2)?;
+    triangles
+        .checked_mul(3 * size_of::<u32>())?
+        .checked_mul(2)?
+        .checked_add(vertices.checked_mul(VERTEX_BYTES + PLACED_VERTEX_BYTES)?)?
+        .checked_add(clusters.checked_mul(size_of::<DagCluster>())?)
+}
+
+/// Cost of `triangles` triangles over `vertices` vertices: the DAG's build (`dag_bytes`), the
+/// collider and the pages' packing beside it.
 pub(crate) fn of_counts(triangles: usize, vertices: usize) -> Option<PrimitiveCost> {
     let clusters = triangles.div_ceil(DAG_CLUSTER_TRIANGLES).checked_mul(2)?;
     let indices = triangles.checked_mul(3 * size_of::<u32>())?;
-    let working = indices
-        .checked_mul(2)?
-        .checked_add(vertices.checked_mul(VERTEX_BYTES + PLACED_VERTEX_BYTES)?)?
-        .checked_add(clusters.checked_mul(size_of::<DagCluster>())?)?
+    let working = dag_bytes(triangles, vertices)?
         .checked_add(triangles.checked_mul(COLLIDER_TRIANGLE_BYTES)?)?
         .checked_add(clusters.checked_mul(PACKING_CLUSTER_BYTES)?)?;
     let retained = clusters.checked_mul(page_bytes())?;

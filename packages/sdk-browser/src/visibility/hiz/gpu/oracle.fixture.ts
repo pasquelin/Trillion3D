@@ -4,7 +4,7 @@ import {
   hizReduceNearestCeil,
 } from '../../../../../sdk-core/src/hiz/oracles.fixture.ts'
 import { pyramidBytes } from './oracle.ts'
-import { HIZ_WHOLE_FARTHEST, hizTextureSize } from './pyramidTexture.ts'
+import { HIZ_WHOLE_FARTHEST } from './pyramidTexture.ts'
 
 /** One ceil-2×2 reduction of a packed level: the farthest of each square (the minimum, the
  *  engine's depth being reversed), or, `nearest`, the nearest (the maximum). */
@@ -46,30 +46,7 @@ export function packWholeFarthest(level0: readonly (readonly number[])[]) {
   return packed
 }
 
-/** The words of the pyramid texture's layers (`pyramidTexture.ts`) that hold the bound `packed`
- *  (`layer`'s, its texels as depths): the layer's own level 0, when it has one, and the share of the
- *  last layer its coarser levels take (`hizRoute`). Each is a full layer, row after row of
- *  `hizTextureSize`, zero elsewhere. */
-export function hizLayerWords(packed: PackedHiz, layer: number) {
-  const split = packed
-  const size = hizTextureSize(split)
-  const bits = new Uint32Array(packed.data.buffer, packed.data.byteOffset, packed.data.length)
-  const layers = new Map<number, Uint32Array<ArrayBuffer>>()
-  if (layer !== HIZ_WHOLE_FARTHEST)
-    layers.set(
-      layer,
-      Uint32Array.from({ length: size.width * size.height }, (_, i) => bits[i] ?? 0).fill(
-        0,
-        split.first,
-      ),
-    )
-  const last = new Uint32Array(size.width * size.height)
-  last.set(bits.subarray(split.first), layer * split.upper)
-  layers.set(HIZ_WHOLE_FARTHEST, last)
-  return { ...size, layers }
-}
-
-/** The packed pyramid of the bound `layer` (`hizLayerWords`) read back from the texture's layers
+/** The packed pyramid of the bound `layer` read back from the texture's layers
  *  `layers`, level 0 of the whole bound zero. */
 export function hizPackedFrom(
   layers: readonly Uint32Array[],

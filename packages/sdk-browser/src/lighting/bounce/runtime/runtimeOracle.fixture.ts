@@ -66,7 +66,8 @@ export const vertex = (columns: ArenaColumns, index: number, k: number): Vec3 =>
 }
 
 /** A cut's wide tree walked as `rtTraceCut` walks it, `node0` and `tri0` the cut's first node and
- *  triangle in the columns. */
+ *  triangle in the columns; `anyHit`, as it walks while a shadow ray asks (`rtAnyHit`): it returns at the
+ *  first triangle it meets. */
 export function traceCut(
   columns: ArenaColumns,
   o: Vec3,
@@ -76,6 +77,7 @@ export function traceCut(
   tri0: number,
   placement: number,
   s: Spent,
+  anyHit = false,
 ): Hit {
   let best = missed(limit)
   const stack: number[] = []
@@ -123,7 +125,10 @@ export function traceCut(
             t * PROXY_TRIANGLE_FLOATS,
             best.distance,
           )
-          if (distance < best.distance) best = { distance, placement, triangle: t, found: true }
+          if (distance < best.distance) {
+            best = { distance, placement, triangle: t, found: true }
+            if (anyHit) return best
+          }
         }
         continue
       }

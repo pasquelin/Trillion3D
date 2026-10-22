@@ -15,6 +15,7 @@ use super::super::tree::{shift, Coord, Leaf, Tree, LEAF_SIZE};
 use super::MARGIN;
 use crate::hlod::flatten::uv::extremes::{greater, lesser};
 use rayon::prelude::*;
+use trillion3d_math::scalar::{not_above, not_below};
 
 /// Each squared distance in voxels² made a world distance, signed: positive outside, where it was
 /// negative, negative inside.
@@ -61,10 +62,10 @@ pub(super) fn trim(tree: &mut Tree<f32>, outside: f32, inside: f32) {
     let inner = -inside;
     change_active(tree, |value| {
         let below = *value < 0.0;
-        if below && !(*value > inner) {
+        if below && not_above(*value, inner) {
             *value = inner;
             false
-        } else if !below && !(*value < outside) {
+        } else if !below && not_below(*value, outside) {
             *value = outside;
             false
         } else {

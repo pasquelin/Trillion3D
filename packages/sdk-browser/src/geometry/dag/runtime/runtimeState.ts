@@ -35,6 +35,12 @@ export type DagRuntimeState = {
   /** The slots of open counts the row cache's growth asked (`../queueGrowth.ts`, `followRows`); 0:
    *  none. */
   growHeld: number
+  /** The ranks the readout is to be made for, as the cut's demand moved its size since
+   *  (`../queueGrowth.ts`, `askListCap`); 0: none. */
+  growList: number
+  /** The ranks the device or the cut's share last refused the readout at: none asked at or past
+   *  them; 0: none. */
+  refusedList: number
   /** The device refused the saved regions the views aside ask (`../swap/swap.ts`): they cut without one. */
   regionsFull: boolean
 }
@@ -54,6 +60,8 @@ export const createDagRuntimeState = (): DagRuntimeState => ({
   reshape: undefined,
   refusedCaps: undefined,
   growHeld: 0,
+  growList: 0,
+  refusedList: 0,
   regionsFull: false,
 })
 

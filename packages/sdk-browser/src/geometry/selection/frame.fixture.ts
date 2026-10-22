@@ -1,5 +1,5 @@
-import { projectedClusterError, type ClusterCut } from './math.ts'
-import { projectedErrorAt, viewDepth, viewLateral } from './projection.ts'
+import { projectedClusterError, type ClusterCut } from './clusterError.fixture.ts'
+import { projectedErrorAt, viewDepth, viewLateral } from './projection.fixture.ts'
 import type { PageRecord, SelectionState } from '../cut/state.fixture.ts'
 
 /** `clusterPixels` through the frame's own lens — its view, stretch, focal length, near plane and

@@ -97,6 +97,16 @@ pub fn current_bytes() -> Option<u64> {
     None
 }
 
+/// Whether `current_bytes` counts the device's buffers, the platform deciding it: on macOS the GPU
+/// shares the CPU's memory and the kernel charges its buffers, staging ones too, to the process —
+/// its physical footprint holds them —; where the measure is the process's own anonymous pages,
+/// the GPU's memory is no part of it, whatever the drivers do, and the buffers are the device's.
+/// What an estimate counts of them follows (`hlod::flatten::gpu::counted`): the admission compares
+/// the estimate with the growth this measure reads.
+pub const fn counts_device_buffers() -> bool {
+    cfg!(target_os = "macos")
+}
+
 /// Has the allocator give back to the system now what it holds freed — the pages this thread
 /// holds free, and every range returned to its arenas — rather than after its purge delay, a
 /// second: the bytes measured next are those the process still uses, not those of a step it ended.

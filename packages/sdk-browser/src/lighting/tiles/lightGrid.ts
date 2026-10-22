@@ -70,7 +70,7 @@ export async function createGrid(
     packed,
     words: new Uint32Array(packed.buffer),
     label: kind === 'view' ? LIGHT_TILES_PASS : BOUNCE_LIGHT_LISTS_PASS,
-    slices: kind === 'view' ? LIGHT_SETTINGS.gridSlices : BOUNCE_SETTINGS.cascadeSize,
+    slices: kind === 'view' ? LIGHT_SETTINGS.gridSlices : BOUNCE_SETTINGS.lightGridSide,
     bound: createWebgpuBindIdentity(),
     tilesX: 0,
     tilesY: 0,

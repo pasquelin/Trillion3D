@@ -20,11 +20,11 @@ const HEAD_ORACLE = 4
 /**
  * The readback reduced to what both sides can carry. `drawablePageIds` is normalised — the oracle
  * only wrote the key when a mask existed, the reused readback always carries it. Fields that only
- * one of the two produces — `truncated`, `peaks`, the requests' `priorities` and the occlusion's
- * counts that only the reader takes, `complete` that only the oracle still reads (the cut rule
- * leaves no surface undrawn), the difference only the GPU takes (`shader/differenceWgsl.ts`), and
- * the totals — are STRIPPED and asserted separately: comparing them would ask a side for something
- * it never knew.
+ * one of the two produces — `truncated`, `peaks`, the `requests` with their page counts and
+ * priorities and the occlusion's counts that only the reader takes, `complete` that only the oracle
+ * still reads (the cut rule leaves no surface undrawn), the difference only the GPU takes
+ * (`shader/differenceWgsl.ts`), and the totals — are STRIPPED and asserted separately: comparing
+ * them would ask a side for something it never knew.
  */
 const champs = (reading: (Partial<SelectionResult> & { complete?: boolean }) | null) => {
   if (!reading) return reading
@@ -32,7 +32,7 @@ const champs = (reading: (Partial<SelectionResult> & { complete?: boolean }) | n
     truncated: _t,
     peaks: _w,
     complete: _c,
-    priorities: _r,
+    requests: _r,
     occluded: _o,
     postHidden: _h,
     selectedTriangles: _s,
@@ -45,15 +45,21 @@ const champs = (reading: (Partial<SelectionResult> & { complete?: boolean }) | n
 /** Where a readback's lists lie, in words, as the reader is handed them. */
 type ReadbackAt = Parameters<typeof parseDagOutput>[3]
 
-/** The readback in the reader's layout: the header, the pages, then each page's priority at its
- *  rank of the priority list (`priorityWord`, `readoutWords.ts`); no drawn list. */
+/** The readback in the reader's layout: the header, the requests' first pages, then each request's
+ *  priority and page count — one — at its rank of their lists (`priorityWord`, `countWord`,
+ *  `readoutWords.ts`); no drawn list. */
 function readback(header: number[], pageIds: number[], priorities = pageIds.map((_, s) => s + 1)) {
   const head = SELECTION_HEADER_WORDS,
-    at: ReadbackAt = { drawn: 0, priorities: head + pageIds.length }
-  const ints = new Uint32Array(at.priorities + pageIds.length)
+    at: ReadbackAt = {
+      drawn: 0,
+      priorities: head + pageIds.length,
+      counts: head + 2 * pageIds.length,
+    }
+  const ints = new Uint32Array(at.counts + pageIds.length)
   ints.set(header, 0)
   ints.set(pageIds, head)
   ints.set(priorities, at.priorities)
+  ints.fill(1, at.counts)
   return { bytes: ints.buffer, at }
 }
 
@@ -65,12 +71,13 @@ function oracleBuffer(header: number[], pageIds: number[]) {
   return ints.buffer
 }
 
-/** The readback as the GPU returns it: the header and the pages, their priorities, then the
- *  compacted list; the reader is handed where each list lies. */
+/** The readback as the GPU returns it: the header and the pages, their priorities and page counts,
+ *  then the compacted list; the reader is handed where each list lies. */
 function withDrawn(header: number[], pageIds: number[], drawn: number[], pageCount: number) {
   const head = SELECTION_HEADER_WORDS,
     priorities = head + pageCount,
-    words = priorities + pageCount
+    counts = priorities + pageCount,
+    words = counts + pageCount
   const ints = new Uint32Array(words + head + pageCount)
   ints.set(header, 0)
   ints.set(pageIds, head)
@@ -78,9 +85,13 @@ function withDrawn(header: number[], pageIds: number[], drawn: number[], pageCou
     pageIds.map((_, s) => s + 1),
     priorities,
   )
+  ints.set(
+    pageIds.map(() => 1),
+    counts,
+  )
   ints[words] = drawn.length
   ints.set(drawn, words + head)
-  return { bytes: ints.buffer, at: { drawn: words, priorities } }
+  return { bytes: ints.buffer, at: { drawn: words, priorities, counts } }
 }
 
 /** Both readbacks of the same content, each in its reader's layout. The oracle only receives the
@@ -118,7 +129,8 @@ test('the host reads the requests in the order the GPU wrote them, and ranks not
   const requests = [70, 11, 2 ** 31 + 42, 8, 7]
   const reading = lire(readback([5, 0, 0, 0], requests, [9, 3, 0xffffffe0, 1, 5]))!
   assert.deepEqual(reading.pageIds, requests)
-  assert.deepEqual(reading.priorities, [9, 3, 0xffffffe0, 1, 5])
+  assert.deepEqual(reading.requests.pages, requests)
+  assert.deepEqual(reading.requests.priorities, [9, 3, 0xffffffe0, 1, 5])
 })
 
 test('triangle totals are reread as the GPU posted them, no drawn counter beside them', () => {
@@ -168,7 +180,7 @@ test('an empty buffer (all zero) and a zero-length byte range never crash', () =
   )
   const rien = new ArrayBuffer(0)
   assert.deepEqual(
-    champs(lire({ bytes: rien, at: { drawn: 0, priorities: 0 } })),
+    champs(lire({ bytes: rien, at: { drawn: 0, priorities: 0, counts: 0 } })),
     champs(lireOracle(rien)),
   )
 })

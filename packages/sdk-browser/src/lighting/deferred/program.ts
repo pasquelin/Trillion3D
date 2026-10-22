@@ -57,11 +57,17 @@ export interface DeferredSources {
   direct: boolean
   bounce?: boolean
 }
-/** What composition reads: a colour and its accumulated share, else the lit image's flags, and
- *  the chain's last blend when it left it to the composition. */
-export type ComposedImage = { color: GPUTextureView; share?: GPUTextureView; bloom?: FusedBlend }
+/** What composition reads: a colour and its accumulated share, else the lit image's flags; the
+ *  glow the effect chain's last bloom left to it, and the group that finishes the image with it
+ *  (`../../post/finish/frame.ts`) — none where the image is shown as it is. */
+export type ComposedImage = {
+  color: GPUTextureView
+  share?: GPUTextureView
+  glow?: FusedBlend['glow']
+  finish?: GPUBindGroup
+}
 /** What the temporal pass resolves: the colour, its pixels' as-is share, the filtering layers. */
-export type AccumulatedImage = Required<Omit<ComposedImage, 'bloom'>> & {
+export type AccumulatedImage = Required<Omit<ComposedImage, 'glow' | 'finish'>> & {
   filter?: readonly [GPUTextureView, GPUTextureView]
 }
 export interface DeferredBindings {

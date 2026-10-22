@@ -8,6 +8,7 @@
 use super::face::met;
 use super::{Below, Bounds, Hit, Tree};
 use crate::hlod::flatten::uv::extremes::{least, most};
+use trillion3d_math::scalar::not_below;
 
 /// The inverse of a segment's span along an axis it does not move along: single precision's
 /// largest value, widened.
@@ -83,7 +84,10 @@ pub(super) fn closest(tree: &Tree, segment: &Segment, steps: &mut Vec<Step>) -> 
     let mut time = 1.0f32;
     let mut found = None;
     while let Some(step) = steps.pop() {
-        if step.after.is_some_and(|entry| !(entry < f64::from(time))) {
+        if step
+            .after
+            .is_some_and(|entry| not_below(entry, f64::from(time)))
+        {
             continue;
         }
         let node = &tree.nodes[step.node as usize];

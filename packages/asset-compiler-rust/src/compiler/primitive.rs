@@ -10,6 +10,9 @@ pub(crate) mod pages;
 pub(crate) mod stalls;
 pub(crate) mod triangles;
 pub(crate) mod warn;
+/// What the merged layers of a job take: the source meshes a merged layer may take
+/// (`Hlod::merged_meshes`), and what the layers take of them (`chain::merged_lods`).
+pub(crate) type Merged = (BTreeSet<usize>, crate::hlod::flatten::merge::Taken);
 pub(crate) struct PrimitiveInputs<'a> {
     pub o: &'a Options,
     pub g: &'a Value,
@@ -18,9 +21,10 @@ pub(crate) struct PrimitiveInputs<'a> {
     pub mesh_map: &'a BTreeMap<usize, usize>,
     /// The source meshes whose far levels may be voxels (`VoxelizeOptions::meshes`).
     pub voxelized: &'a BTreeSet<usize>,
-    /// The source meshes a merged layer may take (`Hlod::merged_meshes`): the LODs of the others
-    /// are never cut for the merge (`flatten::merge::Lods`).
-    pub merged: &'a BTreeSet<usize>,
+    /// The source meshes a merged layer may take (`Hlod::merged_meshes`) and what the merged
+    /// layers take of them (`chain::merged_lods`), none for a job with no merged layer: the LODs
+    /// of the other meshes are never cut for the merge (`flatten::merge::Lods`).
+    pub merged: Option<&'a Merged>,
     /// Each source mesh's build settings, by its rank (`MeshBuildOptions::meshes`).
     pub mesh_builds: &'a [crate::compiler::args::mesh_build::MeshBuild],
     /// Largest world scale under which each source mesh is placed: it is what
@@ -158,10 +162,7 @@ pub(crate) fn compile_primitive(
         *scene_triangles,
     );
     // What the merged layers take of it, when one may take it.
-    let taken = merged
-        .contains(&old)
-        .then(|| crate::hlod::chain::merged_lods(o))
-        .flatten();
+    let taken = merged.and_then(|(meshes, taken)| meshes.contains(&old).then_some(*taken));
     let DagResult {
         pages,
         cluster_planes,
@@ -181,9 +182,14 @@ pub(crate) fn compile_primitive(
         &pos,
         &carried,
         &index_values,
-        (demand, taken),
-        (shaping, build.root_pages),
-        (build.precision, scale),
+        DagInputs {
+            proxy_demand: demand,
+            taken,
+            shaping,
+            root_pages: build.root_pages,
+            precision: build.precision,
+            scale,
+        },
         &encode,
     )?;
     let event = primitive_event(mesh, primitive, pages.len(), timings, warnings);

@@ -191,3 +191,60 @@ export const placementTreeWalk = (t: TreeWalk) => `
   }
   // A walk that ran out of steps, not of tree, answers nothing it can vouch for.
   if(!done){${t.cut}}`
+
+/** What differs between the any-hit walks (`placementTreeAnyHit`): the walk's own fields, none of its ordering. */
+type AnyHitWalk = Pick<TreeWalk, 'root' | 'table' | 'enter' | 'stop' | 'visit' | 'steps' | 'cut'>
+
+/**
+ * THE ANY-HIT WALK OF THE PLACEMENT TREE, for a ray that asks only whether something stands on its
+ * segment — a shadow ray —: no nearest surface, so no order, and nothing kept to order by. The tree is
+ * walked once, in index order: a child's box is tested a single time, a cell the ray meets is entered at
+ * once and its parent resumed after it, a group's members are entered in turn (`enter` tests each one's own
+ * box, and `return`s at the first surface it meets). A node's children cost one `visit` each however many
+ * of them the ray meets, where the front-to-back walk (`placementTreeWalk`) reads a node again for every
+ * `WALK_LIST` of them. The same bound (`steps`), the same `cut` for a walk that ran out of steps; the text
+ * is a function's body reading `origin`, `inverse` and `best`, and declaring `at`, `next`, `level`, `step`
+ * and `done`.
+ */
+export const placementTreeAnyHit = (t: AnyHitWalk) => `
+  var at:array<u32,WALK_DEPTH>;
+  var next:array<u32,WALK_DEPTH>;
+  var level=0u;
+  var step=0u;
+  var done=false;
+  at[0]=${t.root};
+  next[0]=0u;
+  while(step<${t.steps}){
+   ${t.stop}
+   let node=at[level];
+   let count=${t.table}Word(node,WALK_NODE_COUNT);
+   let first=${t.table}Word(node,WALK_NODE_FIRST);
+   let group=${t.table}Word(node,WALK_NODE_KIND)==WALK_GROUP;
+   var into=false;
+   for(var k=next[level];k<count;k++){
+    if(step>=${t.steps}){break;}
+    ${t.stop}
+    step++;
+    ${t.visit}
+    if(group){
+     let w=${t.table}Member(first+k);
+     if(w!=NO_INDEX){
+      ${t.enter}
+     }
+    }else if(level+1u<WALK_DEPTH&&rayBoxEntry(${t.table}Low(first+k),${t.table}High(first+k),origin,inverse,best.distance)<=best.distance){
+     next[level]=k+1u;
+     level++;
+     at[level]=first+k;
+     next[level]=0u;
+     into=true;
+     break;
+    }
+   }
+   if(done||step>=${t.steps}){break;}
+   if(into){continue;}
+   // Every child of this node is read: back to its parent, or the tree's end.
+   if(level==0u){done=true;break;}
+   level--;
+  }
+  // A walk that ran out of steps, not of tree, answers nothing it can vouch for.
+  if(!done){${t.cut}}`

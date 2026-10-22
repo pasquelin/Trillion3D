@@ -45,6 +45,7 @@ export const webgpuPagesEngine = ((context) => {
     refreshSceneLights() {
       refreshSceneLights(rt)
     },
+    skyCapture: () => rt.gpu.atmosphere?.skyCapture(),
     /** The only engine that carries the contract's shadow atlas: everything else is read in its methods. */
     lighting: { shadows: true },
     ...backendSetters(rt),

@@ -74,6 +74,8 @@ export const VIEW_GPU_KEYS = [
   'targetGrant',
   'temporal',
   'temporalLevel',
+  'exposure',
+  'finish',
   'effects',
   'effectsRevision',
   // The canvas the view presents into: the main view's, or one of its own (`./persistentView.ts`).

@@ -4,6 +4,7 @@
 use super::gpu::{Pass, Queries};
 use super::marching::corner_offset;
 use super::{Scene, LEAST_VOXELS};
+use crate::hlod::flatten::units::CENTIMETRES;
 use std::sync::atomic::AtomicBool;
 use trillion3d_math::geometry::aabb::{centre, longest_side};
 use trillion3d_math::vector::vecn::{length, sub};
@@ -39,14 +40,22 @@ impl Grid {
     }
 }
 
-/// The voxel count across `bounds` for `accuracy`: the diagonal over the accuracy, plus one, at
-/// least `LEAST_VOXELS`, then at most `clamp` — an endless diagonal (empty bounds) held at the
-/// clamp, never past `usize`.
+/// `metres` as centimetres kept in single precision, the width the voxel count and the solid's
+/// cell are sized with.
+fn centimetres(metres: f64) -> f64 {
+    f64::from((metres * CENTIMETRES) as f32)
+}
+
+/// The voxel count across `bounds` for `accuracy`: the diagonal over the accuracy, both in
+/// centimetres rounded to single precision (`centimetres`) and divided in single precision, then
+/// truncated, plus one, at least `LEAST_VOXELS`, then at most `clamp` — an endless diagonal (empty
+/// bounds) held at the clamp, never past `usize`.
 pub(super) fn voxel_target(
     (low, high): ([f64; 3], [f64; 3]),
     (accuracy, clamp): (f64, usize),
 ) -> usize {
-    let across = length(sub(high, low)) / accuracy;
+    let diagonal = centimetres(length(sub(high, low))) as f32;
+    let across = f64::from(diagonal / centimetres(accuracy) as f32);
     let cells = if across > clamp as f64 {
         clamp
     } else {
@@ -55,10 +64,16 @@ pub(super) fn voxel_target(
     (cells + 1).max(LEAST_VOXELS).min(clamp)
 }
 
-/// The solid's cell for `bounds` over `target` cells: the largest side, extended by twice the
-/// accuracy on each end, so the surface never touches the grid's border.
+/// How far the solid's grid extends past `bounds` on each end for `accuracy`: twice the accuracy
+/// in single-precision centimetres (`centimetres`), in metres.
+fn solid_extension(accuracy: f64) -> f64 {
+    2.0 * centimetres(accuracy) / CENTIMETRES
+}
+
+/// The solid's cell for `bounds` over `target` cells: the largest side, extended on each end
+/// (`solid_extension`), so the surface never touches the grid's border.
 fn solid_cell((low, high): ([f64; 3], [f64; 3]), accuracy: f64, target: usize) -> f64 {
-    (longest_side(low, high) + 4.0 * accuracy) / target as f64
+    (longest_side(low, high) + 2.0 * solid_extension(accuracy)) / target as f64
 }
 
 /// The bytes a cell of the surface holds at the widest of the steps, which follow one another and
@@ -138,7 +153,7 @@ pub(super) fn solidify<'a>(
     cancelled: &'a AtomicBool,
 ) -> crate::Result<Surface<'a>> {
     let (low, high) = scene.bounds;
-    let extend = 2.0 * accuracy;
+    let extend = solid_extension(accuracy);
     let cell = solid_cell(scene.bounds, accuracy, target);
     let inner_low: [f64; 3] = std::array::from_fn(|k| low[k] - extend);
     let inner_high: [f64; 3] = std::array::from_fn(|k| high[k] + extend);

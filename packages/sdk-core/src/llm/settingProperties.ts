@@ -1,7 +1,7 @@
 /**
  * The schema of the run-time settings declared by rule (`../contracts/settingRules.ts`) — the
  * geometry streaming, the cluster raster, a partitioned scene's streaming and the HLOD warm-up, the
- * cut, the animation the GPU plays, the material shading —, each by its field with its kind,
+ * cut, the animation the GPU plays, the material shading, the exposure, the temporal pass —, each by its field with its kind,
  * default, bounds or names and meaning, as the explorer's options name them
  * (`explorerOptionsSchema.ts`). The meanings live here, not in the rules: a bundle that never
  * reads the schema drops them.
@@ -15,9 +15,14 @@ import type { SettingRule } from '../contracts/settingRules.ts'
 import { CUT_RULES, type CutField } from '../contracts/cutOptions.ts'
 import { ANIMATION_RULES, type AnimationField } from '../contracts/animationOptions.ts'
 import { SHADING_RULES, type ShadingField } from '../contracts/shadingOptions.ts'
+import { EXPOSURE_RULES, type ExposureField } from '../contracts/exposureOptions.ts'
+import { TEMPORAL_RULES, type TemporalField } from '../contracts/temporalOptions.ts'
 import {
   DEFAULT_STREAMING_MAX_INSTALLS_PER_FRAME,
   DEFAULT_STREAMING_MAX_PENDING_PAGES,
+  DEFAULT_STREAMING_MAX_REQUESTS,
+  DEFAULT_STREAMING_MIN_REQUESTS,
+  DEFAULT_STREAMING_NUM_RETRIES,
   DEFAULT_STREAMING_QUALITY_MAX_POOL_PERCENT,
   DEFAULT_STREAMING_QUALITY_MIN_POOL_PERCENT,
   DEFAULT_STREAMING_QUALITY_MIN_SCALE,
@@ -38,6 +43,9 @@ const streamingMeanings = (): Readonly<Record<StreamingField, string>> => ({
   streamingQualityMinPoolPercent: `Streaming pool load, in percent of its slots (a 128 KiB streaming page each), under which the quality rises again: after 30 updates under it, the screen error scale grows by 1 % an update (default ${DEFAULT_STREAMING_QUALITY_MIN_POOL_PERCENT}). Any other value is refused.`,
   streamingQualityMaxPoolPercent: `Streaming pool load, in percent of its slots (a 128 KiB streaming page each), over which the quality falls: after 2 updates over it, the screen error scale shrinks by 3 % an update (default ${DEFAULT_STREAMING_QUALITY_MAX_POOL_PERCENT}, read no lower than streamingQualityMinPoolPercent). Any other value is refused.`,
   streamingQualityMinScale: `Lowest scale of the screen error the pool pressure falls to (default ${DEFAULT_STREAMING_QUALITY_MIN_SCALE}); 1 never scales: an overcommitted pool then draws the coarser parents of what does not fit. Any other value is refused.`,
+  streamingNumRetries: `Times a failed read of a streaming page is tried again, each after a longer wait (default ${DEFAULT_STREAMING_NUM_RETRIES}); after the last, the object the page belongs to is given up: no page of it is asked for again. A negative value tries without end. Any other value is refused.`,
+  streamingMinRequests: `Least requests the readout of the camera's cut holds (default ${DEFAULT_STREAMING_MIN_REQUESTS}, from 4096 to 1048576); a request is a leaf the cut keeps and sees, and the readout also bounds the clusters listed drawn. It starts at this size, grows to a quarter over what the cut asks of it and shrinks by 2 % a readback after 30 under half its size, never under this value nor over streamingMaxRequests. Any other value is refused.`,
+  streamingMaxRequests: `Most requests the readout of the camera's cut holds (default ${DEFAULT_STREAMING_MAX_REQUESTS}, from 4096 to 1048576), read no lower than streamingMinRequests: a cut past it is read by its head. Any other value is refused.`,
 })
 
 /** What each setting of the cluster raster means (`../contracts/rasterOptions.ts`): a function,
@@ -126,6 +134,61 @@ const SHADING_MEANINGS: Readonly<Record<ShadingField, string>> = {
     "How the material pass bins each material's pixels before shading them: 'auto' as the material's shading asks (by pixel for every material of the engine, whose gradients are its triangles' own), 'pixel' every pixel alone, 'quad' every pixel with its 2 × 2 quad. The image is the same in each mode; only the shading's cost moves.",
 }
 
+/** What each setting of the temporal pass means (`../contracts/temporalOptions.ts`). */
+const TEMPORAL_MEANINGS: Readonly<Record<TemporalField, string>> = {
+  temporalThinGeometry:
+    "Whether the temporal anti-aliasing looks for geometry thinner than a pixel — a wire, a rail — and relaxes its history there, so it flickers less; off by default, the finding costing every image some work. Applies at any level of temporalAntialiasing but 'off'.",
+}
+
+/** What each setting of the exposure means (`../contracts/exposureOptions.ts`); the first twelve
+ *  apply where the exposure is 'auto', the default, which measures each image on the GPU, the
+ *  local exposure's to a lit view whatever its exposure. */
+const EXPOSURE_MEANINGS: Readonly<Record<ExposureField, string>> = {
+  exposureBias:
+    'Stops added to the target of the automatic exposure: the mean of the image lands at 0.18 times two to the bias, before the display curve.',
+  exposureMinBrightness:
+    'Lowest mean luminance the automatic exposure follows, in EV100 (a stop is a doubling of luminance, EV100 0 a luminance of 1). The same value as exposureMaxBrightness fixes the exposure.',
+  exposureMaxBrightness: 'Highest mean luminance the automatic exposure follows, in EV100.',
+  exposureHistogramLogMin:
+    "Lowest stop of luminance the exposure's histogram spans; read no higher than one stop under exposureHistogramLogMax. A pixel under it counts in the lowest bucket.",
+  exposureHistogramLogMax:
+    "Highest stop of luminance the exposure's histogram spans; a pixel over it counts in the highest bucket.",
+  exposureLowPercent:
+    'Share of the pixels, darkest first, in percent from 1 to 99, left out of the mean; read no higher than exposureHighPercent.',
+  exposureHighPercent:
+    'Share of the pixels, darkest first, in percent from 1 to 99, past which the brightest are left out of the mean.',
+  exposureSpeedUp:
+    'Stops a second the automatic exposure moves when the view brightens; 0 holds it. A camera cut jumps to the target.',
+  exposureSpeedDown:
+    'Stops a second the automatic exposure moves when the view darkens; 0 holds it.',
+  exposureTransitionDistance:
+    'Distance in stops from its target inside which the automatic exposure slows from its linear speed to an exponential approach.',
+  exposureBlackBucketWeight:
+    "How much the darkest bucket of the exposure's histogram, the pixels of no light, counts: 0 ignores them, 1 counts them as any pixel.",
+  exposureLuminanceMethod:
+    "How a pixel's luminance is read for the histogram: 'uniform' the mean of its three channels, 'ntsc' the legacy video weights, 'workingSpace' the weights of the sRGB primaries.",
+  localExposureHighlightContrast:
+    'Scale of the smooth light of the neighbourhood above middle grey, from 0 up: under 1 the highlights come down, 1 leaves them. 1 for both contrasts and for the detail strength turns the local exposure off.',
+  localExposureShadowContrast:
+    'Scale of the smooth light of the neighbourhood under middle grey, from 0 up: under 1 the shadows come up, 1 leaves them.',
+  localExposureDetailStrength:
+    'Scale of what each pixel adds to the light around it, from 0 up: 1 keeps the detail as it is, 0 flattens it.',
+  localExposureBlurBlend:
+    'Share of the base layer taken from a wide blur of the luminance, from 0 to 1; the rest comes from the bilateral grid, which follows edges but rings at them.',
+  localExposureBlurSize:
+    "Width of the luminance blur, in percent of the image, read at 1/32 of the image's size.",
+  localExposureMiddleGreyBias:
+    'Stops added to the middle grey the base layer is pulled toward; an automatic exposure already moves it by exposureBias.',
+  localExposureHighlightThreshold:
+    'Distance in stops above middle grey inside which the base layer keeps its own contrast, from 0 up.',
+  localExposureShadowThreshold:
+    'Distance in stops under middle grey inside which the base layer keeps its own contrast, from 0 up.',
+  localExposureHighlightThresholdStrength:
+    'How sharply the highlight contrast takes over past its threshold, from 0 to 1: 1 the sharpest.',
+  localExposureShadowThresholdStrength:
+    'How sharply the shadow contrast takes over past its threshold, from 0 to 1: 1 the sharpest.',
+}
+
 /** The schema of each setting of a contract's rules by field (`SettingRule`): its kind, its
  *  default, its bounds and what it means. */
 function ruleProperties<F extends string>(
@@ -165,17 +228,20 @@ function ruleProperties<F extends string>(
   return properties
 }
 
-/** The schema of the geometry streaming's five settings, by field. */
+/** The schema of the geometry streaming's eight settings, by field. */
 export const streamingProperties = () => ruleProperties(STREAMING_RULES, streamingMeanings())
 
 /** The schema of the cluster raster's two settings, by field. */
 export const rasterProperties = () => ruleProperties(RASTER_RULES, rasterMeanings())
 
 /** The schema of every other run-time setting declared by rule, by its field: the partition's
- *  streaming and the HLOD warm-up's, then the cut's, then the animation's, then the shading's. */
+ *  streaming and the HLOD warm-up's, then the cut's, then the animation's, then the shading's, then
+ *  the exposure's, then the temporal pass's. */
 export const settingRuleProperties = () => ({
   ...ruleProperties(WORLD_STREAMING_RULES, WORLD_STREAMING_MEANINGS),
   ...ruleProperties(CUT_RULES, CUT_MEANINGS),
   ...ruleProperties(ANIMATION_RULES, ANIMATION_MEANINGS),
   ...ruleProperties(SHADING_RULES, SHADING_MEANINGS),
+  ...ruleProperties(EXPOSURE_RULES, EXPOSURE_MEANINGS),
+  ...ruleProperties(TEMPORAL_RULES, TEMPORAL_MEANINGS),
 })

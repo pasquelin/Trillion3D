@@ -17,8 +17,8 @@ type Captured = { uniforms: SelectionUniforms; worldRevision: number }
 const ASIDE_LEAST_RANKS = 1024
 
 /** Bytes of a copy of `ranks` ranks of each list (`aside.ts`, `copyLists`): the requests and the
- *  drawn list, a header each, then the requests' priorities. */
-export const asideCopyBytes = (ranks: number) => (2 * listWords(ranks) + ranks) * 4
+ *  drawn list, a header each, then the requests' priorities and their page counts. */
+export const asideCopyBytes = (ranks: number) => (2 * listWords(ranks) + 2 * ranks) * 4
 
 /** What a copy of a view's lists was: `ranks` of each list out of a list of `listCap`, the cut
  *  `serial` of `captured`, under the withdrawals in place when its encoder was submitted
@@ -110,6 +110,7 @@ function readAsideSlot(
       bytes: asideCopyBytes(ranks),
       drawnWordOffset: drawn,
       priorityWordOffset: 2 * drawn,
+      countWordOffset: 2 * drawn + ranks,
       scratch,
     },
     { feedback: resources.listFeedback, caps: resources.listCaps },

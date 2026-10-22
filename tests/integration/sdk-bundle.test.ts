@@ -62,7 +62,10 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // partition's setting lists — is built by a call marked pure or written as literals, so a bundle
   // that never reads one drops it, as it drops the schemas themselves. The light settings' two
   // translucent-shadow fields (`translucentShadowQuality`, `translucentLocalShadows`) put 54
-  // bytes on the core: 1 791; the browser condition loses 38.
+  // bytes on the core: 1 791; the browser condition loses 38. The atmosphere, the fog's height law,
+  // the exposure, the sky and the streaming's request counts keep nothing in it — their frozen
+  // defaults, slot counts and range bounds are built by a call marked pure or written as literals —:
+  // the core keeps its 1 791 bytes.
   assert.equal(baseline.outputFiles[0].contents.length, 1_791)
   assert.equal(proposed.outputFiles[0].contents.length, 1_397)
   assert.equal(browserProposed.outputFiles[0].contents.length, 3_064)

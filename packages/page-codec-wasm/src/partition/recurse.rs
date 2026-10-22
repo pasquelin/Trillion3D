@@ -14,7 +14,7 @@ pub(super) fn recurse(
 ) -> Vec<Range<usize>> {
     let n = ranks.len();
     if n <= sizes.1 {
-        return vec![offset..offset + n];
+        return std::iter::once(offset..offset + n).collect();
     }
     let (split, children) = bisect_graph(graph, ranks, sizes);
     let Some((first, second)) = children else {

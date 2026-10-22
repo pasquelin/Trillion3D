@@ -14,6 +14,7 @@
 //! - a key change sinks the entry when the new key is strictly less than the old one, else raises
 //!   it; a change to an id not held does nothing.
 use std::cmp::Ordering;
+use trillion3d_math::scalar::not_above;
 
 /// The slot of an id not held.
 const OUT: u32 = u32::MAX;
@@ -148,7 +149,7 @@ impl<K: PartialOrd + Copy + Default> Ranked<K> {
     fn up(&mut self, mut at: usize) {
         while at > 0 {
             let parent = (at - 1) >> 1;
-            if !(self.weight(at) > self.weight(parent)) {
+            if not_above(self.weight(at), self.weight(parent)) {
                 break;
             }
             self.swap(at, parent);

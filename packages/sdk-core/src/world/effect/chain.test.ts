@@ -5,6 +5,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EffectChain } from './chain.ts'
 import { effect } from './index.ts'
+import { createWorldEffects } from './defaultChain.ts'
+import { Bloom } from './bloom.ts'
 
 test('passes run in the order they were added, or at the index given', () => {
   const chain = new EffectChain()
@@ -25,7 +27,7 @@ test('every change counts one revision and asks for a frame; a setting reaches t
   const bloom = effect.bloom()
   chain.add(bloom)
   bloom.intensity = 0.5
-  bloom.radius = 2
+  bloom.sizeScale = 2
   assert.equal(chain.remove(bloom), true)
   bloom.intensity = 0.2 // out of the chain: nothing to redraw
   assert.equal(chain.remove(bloom), false)
@@ -50,13 +52,57 @@ test('a pass belongs to one chain; an index outside the chain and a foreign pass
   assert.deepEqual([a.size, b.size], [0, 1])
 })
 
-test('bloom takes its defaults and refuses a blend outside [0, 1] or a spread of 0', () => {
+test('bloom takes its defaults and refuses a value outside its range', () => {
   const bloom = effect.bloom()
-  assert.deepEqual([bloom.intensity, bloom.radius], [0.04, 1], 'defaults')
+  assert.deepEqual([bloom.intensity, bloom.threshold, bloom.sizeScale], [0.675, -1, 4], 'defaults')
+  assert.deepEqual(
+    bloom.levels.map(({ size }) => size),
+    [0.3, 1, 2, 10, 30, 64],
+  )
+  assert.deepEqual(
+    bloom.levels.map(({ tint }) => tint[0]),
+    [0.3465, 0.138, 0.1176, 0.066, 0.066, 0.061],
+  )
   assert.equal(bloom.stage, 'before-tone-mapping')
-  assert.deepEqual([effect.bloom({ intensity: 1, radius: 3 }).radius], [3])
-  assert.throws(() => effect.bloom({ intensity: 1.5 }), /BLOOM_INTENSITY/)
+  assert.equal(effect.bloom({ intensity: 1, sizeScale: 3 }).sizeScale, 3)
+  assert.throws(() => effect.bloom({ intensity: -1 }), /BLOOM_INTENSITY/)
   assert.throws(() => (bloom.intensity = Number.NaN), /BLOOM_INTENSITY/)
-  assert.throws(() => (bloom.radius = 0), /BLOOM_RADIUS/)
-  assert.throws(() => effect.bloom({ radius: Infinity }), /BLOOM_RADIUS/)
+  assert.throws(() => (bloom.threshold = -2), /BLOOM_THRESHOLD/)
+  assert.throws(() => (bloom.sizeScale = -0.5), /BLOOM_SIZE_SCALE/)
+  assert.throws(() => effect.bloom({ sizeScale: Infinity }), /BLOOM_SIZE_SCALE/)
+  assert.throws(() => effect.bloom({ levels: [{ size: -1 }] }), /BLOOM_SIZE:0/)
+  assert.throws(() => effect.bloom({ levels: [{}, {}, { tint: [1, -1, 1] }] }), /BLOOM_TINT:2/)
+  assert.throws(() => effect.bloom({ levels: new Array(7).fill({}) }), /at most 6 levels/)
+})
+
+test('a level, a tint or a field left out keeps its default; a write names what it changes', () => {
+  const bloom = effect.bloom({ levels: [{}, { size: 5, tint: 0.5 }] })
+  assert.deepEqual(
+    [bloom.levels[0].size, bloom.levels[1].size, bloom.levels[1].tint, bloom.levels[2].size],
+    [0.3, 5, [0.5, 0.5, 0.5], 2],
+  )
+  bloom.levels = [{ size: 0 }, {}, { tint: [1, 0, 0] }]
+  assert.deepEqual(
+    [bloom.levels[0].size, bloom.levels[1].size, bloom.levels[2].tint, bloom.levels[5].size],
+    [0, 5, [1, 0, 0], 64],
+  )
+})
+
+test('a bloom of intensity 0 is idle: the engine passes it by', () => {
+  const bloom = effect.bloom()
+  assert.equal(bloom.idle, false)
+  bloom.intensity = 0
+  assert.equal(bloom.idle, true)
+})
+
+test('a world starts with the default bloom in its chain, which one can remove', () => {
+  let asked = 0
+  const chain = createWorldEffects(() => void asked++)
+  const [bloom] = chain.passes
+  assert.deepEqual([chain.size, chain.revision, asked], [1, 0, 0], 'a start is no change')
+  assert.ok(bloom instanceof Bloom)
+  assert.deepEqual([bloom.intensity, bloom.threshold, bloom.sizeScale], [0.675, -1, 4])
+  assert.deepEqual(chain.stage('before-tone-mapping'), [bloom])
+  chain.clear()
+  assert.deepEqual([chain.size, chain.revision, asked], [0, 1, 1], 'a removal is')
 })

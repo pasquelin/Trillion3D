@@ -3,13 +3,7 @@
 // rank reaches every thread of them once. The WGSL runs in Node, as shipped.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  DEFAULT_GROUP_WIDTH,
-  FLAT_INDEX_WGSL,
-  GROUP_GRID_WGSL,
-  dispatchGrid,
-  dispatchRows,
-} from './grid.ts'
+import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, dispatchGrid, dispatchRows, groupWidth } from './grid.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
@@ -35,7 +29,7 @@ test('the WGSL split is the host one, and slice by slice it rises to it', () => 
       if (groups) assert.deepEqual(raised, dispatchGrid(groups, width))
     }
   }
-  const wide = kernel(DEFAULT_GROUP_WIDTH)
+  const wide = kernel(groupWidth())
   for (const groups of [0, 1, 65_535, 65_536, 131_071, 200_000])
     assert.deepEqual(wide.groupGrid(groups), dispatchGrid(groups), `${groups} groups`)
   assert.deepEqual(dispatchGrid(65_535), [65_535, 1], 'one row: the dispatch of before')
@@ -43,7 +37,7 @@ test('the WGSL split is the host one, and slice by slice it rises to it', () => 
 })
 
 test('the flat rank reaches every thread and every group of the rows once, in order', () => {
-  const { flatIndex } = kernel(DEFAULT_GROUP_WIDTH)
+  const { flatIndex } = kernel(groupWidth())
   for (const groups of [1, 3, 4, 10]) {
     const [x, y] = dispatchGrid(groups, 3),
       n = [x, y, 1],

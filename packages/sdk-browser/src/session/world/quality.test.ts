@@ -107,7 +107,7 @@ test('levels() lists every group and level with the values they resolve to', () 
   assert.deepEqual(table.presets, ['smooth', 'balanced', 'fine', 'max'])
   assert.equal(table.groups.viewDistance.fine.pixelError, 1)
   assert.equal(table.groups.viewDistance.max.pixelError, WORLD_SETTINGS.pixelError.default)
-  assert.equal(table.groups.indirectLight.max.bounce, false)
+  assert.equal(table.groups.indirectLight.max.bounce, true)
   assert.equal(table.resolution.fast, 0.5)
 })
 

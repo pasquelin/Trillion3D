@@ -63,9 +63,12 @@ pub(crate) struct Taken {
 /// DAG from the finest cut it takes at any such layer's screen size up to its roots — the
 /// clusters whose parent's error passes it —, on the vertices they use, with every attribute its
 /// pages carry on them; its fallback (`fallback`), when a merged layer takes it, after them; and
-/// its level 0's bounds. Empty for a source no merged layer takes (`compile_primitive`).
+/// its level 0's bounds. Empty, and not built (`built`), for a source no merged layer takes
+/// (`compile_primitive`).
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Lods {
+    /// Whether they were made for a merged layer (`of`).
+    built: bool,
     positions: Vec<f32>,
     carried: Vec<Attribute>,
     indices: Vec<u32>,
@@ -117,6 +120,7 @@ impl Lods {
             indices.extend(more_indices.into_iter().map(|v| v + first));
         }
         Ok(Self {
+            built: true,
             positions,
             carried: attributes,
             indices,
@@ -124,6 +128,12 @@ impl Lods {
             fallback: lowest,
             bounds,
         })
+    }
+
+    /// Whether the LODs were made for a merged layer: a mesh the merge takes
+    /// (`Hlod::merged_meshes`) has them built, whatever its cut takes of them.
+    pub(super) fn built(&self) -> bool {
+        self.built
     }
 
     /// The corners of the clusters `cut` takes, by the engine's cut rule (`in_cut`): `Calculate`'s
@@ -153,11 +163,11 @@ impl Lods {
         }
     }
 
-    /// The bytes the LOD `cut` takes holds as a cover: at most a vertex per corner, each carrying
-    /// every attribute a page may.
-    pub(super) fn cut_bytes(&self, cut: Cut) -> usize {
+    /// The vertices and corners the LOD `cut` takes holds as a cover — at most a vertex per corner,
+    /// within the source's own.
+    pub(super) fn cut_counts(&self, cut: Cut) -> (usize, usize) {
         let corners: usize = self.selected(cut).map(<[u32]>::len).sum();
-        mesh_bytes(corners.min(self.positions.len() / 3), corners)
+        (corners.min(self.positions.len() / 3), corners)
     }
 }
 

@@ -6,6 +6,8 @@ import type { SurfaceBuffer } from '../../../materials/surface/surfaceBuffer.ts'
 import type { AsIsShare } from '../../../lighting/deferred/asIsShare.ts'
 import type { DisplayFilter } from '../../../blend/display/displayFilter.ts'
 import type { TemporalAntialiasing } from '../../../post/taa/temporalAntialiasing.ts'
+import type { ExposureMeter } from '../../../post/exposure/meter.ts'
+import type { Finish } from '../../../post/finish/finish.ts'
 import { isTaaLevelOn } from '../../../post/taa/levels.ts'
 import {
   DEFAULT_TEMPORAL_AA_LEVEL,
@@ -16,6 +18,7 @@ import type { WebgpuGuidePass } from '../../../guides/guidePass.ts'
 import type { WebgpuParticles } from '../../../particles/gpu/webgpuParticles.ts'
 import type { TargetGrant } from '../../prepare/targetsSet.ts'
 import type { FrameDifference } from '../../render/frameDifference.ts'
+import type { AtmosphereGpu } from '../../../lighting/atmosphere/gpu.ts'
 
 /** GPU resources of the image: page cache, frame targets and presentation. */
 export interface WebgpuGpuState {
@@ -73,6 +76,15 @@ export interface WebgpuGpuState {
   /** The level the host wants the pass at (`../../../post/taa/levels.ts`), `'off'` none: set at
    *  preparation, then by `setTemporalAntialiasing` (`taaWanted`). */
   temporalLevel: TemporalAntialiasingLevel
+  /** The view's automatic exposure, made at the first image lit by declared lamps whose exposure
+   *  is `'auto'` (`../../../post/exposure/frame.ts`). */
+  exposure: ExposureMeter | undefined
+  /** The display finishing's scene chain, local exposure and uniform, made at the first image
+   *  lit by declared lamps (`../../../post/finish/frame.ts`). */
+  finish: Finish | undefined
+  /** Whether the last image was drawn without a finishing its composition did not compile yet:
+   *  the view is drawn again once it has. */
+  finishPending: boolean
   /** The effect chain's targets and programs, made at the first frame with a pass. */
   effects: WebgpuEffects | undefined
   /** Revision of the chain the last encoded image drew, -1 while its programs compile: another
@@ -87,6 +99,9 @@ export interface WebgpuGpuState {
   /** The frame-difference view's previous image and pass, made while that view is chosen alone
    *  (`../../render/frameDifference.ts`). */
   frameDifference?: FrameDifference
+  /** The scene's atmosphere: its tables, passes and the sky's capture, made once a scene declares
+   *  one (`../../render/encodeAtmosphere.ts`). */
+  atmosphere?: AtmosphereGpu
 }
 
 /** The copy of the opaque scene the distortion rereads and the offsets it accumulates, with their
@@ -133,6 +148,9 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     deferred: undefined,
     temporal: undefined,
     temporalLevel: DEFAULT_TEMPORAL_AA_LEVEL,
+    exposure: undefined,
+    finish: undefined,
+    finishPending: false,
     effects: undefined,
     effectsRevision: 0,
     guides: undefined,
@@ -158,6 +176,6 @@ export function swapSurfaces(
   gpu.targetBytes += next.allocationBytes - old.allocationBytes
 }
 
-/** Bytes of a view's frame targets: those it made, and its effect chain's. */
-export const viewTargetBytes = (gpu: Pick<WebgpuGpuState, 'targetBytes' | 'effects'>) =>
-  gpu.targetBytes + (gpu.effects?.bytes ?? 0)
+/** Bytes of a view's frame targets: those it made, its effect chain's and its finishing's. */
+export const viewTargetBytes = (gpu: Pick<WebgpuGpuState, 'targetBytes' | 'effects' | 'finish'>) =>
+  gpu.targetBytes + (gpu.effects?.bytes ?? 0) + (gpu.finish?.bytes ?? 0)

@@ -1,8 +1,10 @@
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import {
-  DEFAULT_EXPOSURE,
   DEFAULT_SHARPNESS,
+  DEFAULT_TONE_MAPPING,
+  DEFAULT_VIGNETTE,
 } from '../../../../sdk-core/src/scene/core/environment.ts'
+import { DEFAULT_EXPOSURE } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { cameraAdopter } from './link.ts'
 import { resolveWorldTarget, type WorldTarget } from './target.ts'
 import { holdWorldDevice } from './device.ts'
@@ -19,20 +21,24 @@ import { worldMixerView } from './mixerView.ts'
 import { createWorldViews } from './views.ts'
 import { worldRuntimeOf, type WorldState } from './worldRuntime.ts'
 
+/** The state a world starts in: a perspective camera, the display defaults, nothing animating. */
+const startingState = (): WorldState => ({
+  camera: new Camera('perspective'),
+  toneMapping: DEFAULT_TONE_MAPPING,
+  exposure: DEFAULT_EXPOSURE,
+  sharpness: DEFAULT_SHARPNESS,
+  vignette: DEFAULT_VIGNETTE,
+  animating: false,
+  disposed: false,
+})
+
 /** The parts of one world: its canvas, frames, pools, device, scene, session runtime, physics and
  *  controls, built around one state. */
 export function worldParts(target: WorldTarget, options: WorldOptions) {
   const { canvas, release: releaseCanvas } = resolveWorldTarget(target)
   const frames = createWorldFrames()
   const pools = worldPools()
-  const state: WorldState = {
-    camera: new Camera('perspective'),
-    toneMapping: 'aces',
-    exposure: DEFAULT_EXPOSURE,
-    sharpness: DEFAULT_SHARPNESS,
-    animating: false,
-    disposed: false,
-  }
+  const state = startingState()
   const device = holdWorldDevice((lostAt) => runtime.renew('device-lost', lostAt))
   const loader = worldModelLoader(
     device.ready,

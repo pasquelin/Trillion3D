@@ -12,6 +12,7 @@ import { admitCutTables } from './targetFunding.ts'
 import { log } from '../../diagnostic/log.ts'
 import { createRowEviction } from '../../geometry/rows/rowEviction.ts'
 import { cutListCaps } from '../../geometry/dag/lists/cutListCaps.ts'
+import { requestBounds } from '../../geometry/dag/lists/requestSize.ts'
 
 /**
  * The GPU cut, the engine's one cut (#1483): one thread per cluster, each with its own error band.
@@ -77,8 +78,10 @@ export async function createSessionCut(
       frame: () => rt.run.frame,
       order: rt.services.followRowOrder,
     }),
-    // Its lists at the session's caps, their warnings said as the engine's (`cutMaxNodes`, …).
+    // Its lists at the session's caps, their warnings said as the engine's (`cutMaxNodes`, …), its
+    // readout within the session's bounds (`streamingMinRequests`, `streamingMaxRequests`).
     lists: cutListCaps(rt.context),
+    requests: requestBounds(rt.context),
     onListNote: (message, details) =>
       rt.diag.engineDiagnostic('gpu-cut-lists', message, { kind: 'warning', ...details }),
   })

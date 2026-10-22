@@ -123,9 +123,9 @@ impl<'a> Chart<'a> {
                     continue;
                 }
                 let corners = &mut child.faces[faces[j] as usize].verts;
-                for k in 0..3 {
-                    if corners[k] == v && owners[j] == v {
-                        corners[k] = next;
+                for corner in corners.iter_mut() {
+                    if *corner == v && owners[j] == v {
+                        *corner = next;
                         faces[j] = NONE;
                     }
                 }

@@ -1,9 +1,10 @@
 //! The simplified mesh's vertex colours, as the method carries the sources' onto it
 //! (`allowVertexColors`): each vertex white, unless the source triangle nearest it (`Nearest`) holds
-//! its projection — then the triangle's corner colours blended at the projection's weights, set
-//! back to the corners' mean luminance when both that and the blend's pass a hundred-thousandth.
-//! A colour depends on its vertex's position alone: vertices that share a position share it.
-use super::colour::luminance;
+//! its projection — then the triangle's corner colours, each kept as an sRGB byte (`rounded`),
+//! blended at the projection's weights, set back to the corners' mean luminance when both that and
+//! the blend's pass a hundred-thousandth. A colour depends on its vertex's position alone: vertices
+//! that share a position share it.
+use super::colour::{linear, luminance, srgb};
 use crate::hlod::flatten::simplify::nearest::{blend, missed, weights, Nearest};
 use rayon::prelude::*;
 use trillion3d_math::vector::vecn::scale;
@@ -13,6 +14,11 @@ const WHITE: [f32; 4] = [1.0; 4];
 
 /// The luminance a colour must pass for its luminance to be set.
 const LEAST: f32 = 1e-5;
+
+/// Linear colour `c` as the method holds a corner's colour: an sRGB byte a channel, read back.
+fn rounded(c: [f32; 4]) -> [f32; 4] {
+    linear(srgb(c))
+}
 
 /// The colour of the vertex at `p`, in the method's frame (module doc).
 fn colour(nearest: &Nearest, p: [f32; 3]) -> [f32; 4] {
@@ -24,7 +30,7 @@ fn colour(nearest: &Nearest, p: [f32; 3]) -> [f32; 4] {
     if missed(w) {
         return WHITE;
     }
-    let corners = nearest.sources.corner_colours(t);
+    let corners = nearest.sources.corner_colours(t).map(rounded);
     let colour = blend(w, corners);
     let mean = (luminance(corners[0]) + luminance(corners[1]) + luminance(corners[2])) / 3.0;
     let blended = luminance(colour);

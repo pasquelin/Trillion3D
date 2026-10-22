@@ -25,7 +25,7 @@ import {
 } from './renderParamsWgsl.ts'
 import { uniformStride } from '../../../../session/memory/pools.ts'
 import { ceilDiv } from '../../../../../../math/src/scalar/integers.ts'
-import { DEFAULT_GROUP_WIDTH } from '../../../../gpu/dispatch/grid.ts'
+import { groupWidth } from '../../../../gpu/dispatch/grid.ts'
 
 /** The raster of 200 000 rows under 17 sun views on `device`, encoded into `encoder`: its stats. */
 function encodeRows(device: GPUDevice, encoder: GPUCommandEncoder) {
@@ -68,7 +68,7 @@ function argumentKernels(scope: {
       'ceilDiv',
       'vsmRenderArgsCull',
     ].concat(['vsmRenderArgsExpand', 'vsmRenderArgsDraw']),
-    { ...wgslConstants(VSM_RENDER_ARGS_WGSL), GROUP_WIDTH: DEFAULT_GROUP_WIDTH, ...scope },
+    { ...wgslConstants(VSM_RENDER_ARGS_WGSL), GROUP_WIDTH: groupWidth(), ...scope },
   )
 }
 

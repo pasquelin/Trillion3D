@@ -23,9 +23,12 @@ const NOT_MESSAGES = new Set([
   ...['ATTRIBUTE', 'BOUND', 'BOX_NODE', 'CORNER', 'FIELD_NODE', 'FRAME', 'INSTANCE'].map(
     (record) => `${record}_RECORDS`,
   ),
-  ...['MESH', 'NODE', 'SURFACE', 'TEXTURE', 'TRIANGLE', 'VIEW'].map(
+  ...['LAID', 'MESH', 'NODE', 'SURFACE', 'TEXTURE', 'TRIANGLE', 'VIEW'].map(
     (record) => `${record}_RECORDS`,
   ),
+  // The merged tiles' surface slots and map bits the same prelude prints (`bake/gpu/layout.rs`).
+  ...['TRANSFORMS', 'LIT', 'MORE', 'EXTRA', 'STRENGTHS'].map((slot) => `SURFACE_${slot}`),
+  ...['OCCLUSION', 'ANISOTROPY', 'BLEND', 'MASK'].map((map) => `MAP_${map}`),
   'WRAP_CLAMP',
   'WRAP_MIRROR',
   'CARGO_PKG_VERSION',

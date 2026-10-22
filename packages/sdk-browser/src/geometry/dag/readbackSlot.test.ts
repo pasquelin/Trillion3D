@@ -26,7 +26,13 @@ test('a cut past a cap is read as any, its overflow said once a high-water mark'
   const read = (range: ArrayBuffer) =>
     readDagSlot(
       range,
-      { bytes: 64, drawnWordOffset: 8, priorityWordOffset: 12, scratch: createDagOutputScratch() },
+      {
+        bytes: 64,
+        drawnWordOffset: 8,
+        priorityWordOffset: 12,
+        countWordOffset: 12,
+        scratch: createDagOutputScratch(),
+      },
       { feedback, caps },
     )
   assert.ok(read(asking(20, 10)).parsed?.drawablePageIds, 'past a cap, read as any')

@@ -23,12 +23,13 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/g
  * (`ENTRY_TEST`) — and pass 0 tests them. Every later queue holds only what the level before it
  * KEPT: a pass reads an accepted node and tests its children in its own thread — each in the
  * frustum, its subtree needed at the threshold, not too coarse, then under the pyramid
- * (`occlusionWgsl.ts`) —, and only the children it keeps enter the next queue. A kept leaf deposits
- * its pages in the candidate list, which `dagWanted` then dispatches over, and asks for every one of
- * them (`depositLeaf`); the children of a node the previous image's pyramid alone hides are held
- * for the post pass by their parent, one entry and the mask of them (`openNode`, `postNode`), which
- * the post pass tests again (`postPassWgsl.ts`) — but a leaf none of whose pages is resident, which
- * is dropped (`heldBack`). The pass count is the hierarchy depth, known at packing and small: pass
+ * (`occlusionWgsl.ts`) —, and only the children it keeps enter the next queue. A kept leaf asks for
+ * its pages in one request, loaded or not, and, loaded, deposits them in the candidate list, which
+ * `dagWanted` then dispatches over (`depositLeaf`); the children of a node the previous image's
+ * pyramid alone hides are held for the post pass by their parent, one entry and the mask of them
+ * (`openNode`, `postNode`), which the post pass tests again (`postPassWgsl.ts`) — but a leaf none
+ * of whose pages is resident, which is dropped (`heldBack`). The pass count is the hierarchy depth,
+ * known at packing and small, less the levels no resident page needs reached (`encode.ts`): pass
  * `L` tests the items of depth `L`.
  *
  * Every level lies in the one descent array, behind the level before it (`listsWgsl.ts`,
@@ -110,7 +111,7 @@ fn testRoot(dst:u32,w:u32){
  let root=rootOf(w);let node=nodeAt(root);deformReach=reachOf(w);
  if(outsideFrustum(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
  let sight=sightOf(node,w);
- if(sight==BOX_SEEN){acceptNode(dst,root,node,w,false);}
+ if(sight==BOX_SEEN){acceptNode(dst,root,node,w);}
  if(sight==BOX_OCCLUDED){postNode(root,w,1u);}
 }
 /** The children of node \`index\` of placement \`w\`, accepted at the level before, each tested; those
@@ -142,7 +143,7 @@ fn testNode(dst:u32,c:u32,w:u32)->bool{
  if(!subtreeNeeded(node,sphereEdges(node.sphere,e).x)){atomicAdd(&out.frustumRejected,1u);return false;}
  if(floorPrunes(openOf(w,c,node.open),node,e)){return false;}
  let sight=sightOf(node,w);
- if(sight==BOX_SEEN){acceptNode(dst,c,node,w,false);}
+ if(sight==BOX_SEEN){acceptNode(dst,c,node,w);}
  return sight==BOX_OCCLUDED&&heldBack(node,w);
 }
 /** Whether a node's subtree is needed at the threshold: the error its clusters replace is seen
@@ -161,28 +162,27 @@ fn sightOf(node:CullNode,w:u32)->u32{
  *  pass can draw of it. A leaf none of whose pages is resident is dropped, neither tested again nor
  *  asked for this image. */
 fn heldBack(node:CullNode,w:u32)->bool{
- if(node.childCount>0u){return true;}
- let first=pageBaseOf(w)+node.firstPage;
- for(var k=0u;k<node.pageCount;k++){if(isResident(first+k)){return true;}}
+ return node.childCount>0u||leafLoaded(pageBaseOf(w)+node.firstPage,node.pageCount);
+}
+/** Whether a page of the \`count\` from \`first\`, a leaf's, is resident: what the cut can draw. */
+fn leafLoaded(first:u32,count:u32)->bool{
+ for(var k=0u;k<count;k++){if(isResident(first+k)){return true;}}
  return false;
 }
 /** Node \`index\` of placement \`w\` kept: its children tested at the next level, or, a leaf, its pages
- *  deposited — a leaf the main pass held below the root (\`held\`), its resident pages alone asked
- *  for. */
-fn acceptNode(dst:u32,index:u32,node:CullNode,w:u32,held:bool){
+ *  deposited. */
+fn acceptNode(dst:u32,index:u32,node:CullNode,w:u32){
  if(node.childCount>0u){queueAppend(dst,index,1u,w);return;}
- depositLeaf(node,w,held);
+ depositLeaf(node,w);
 }
-/** A leaf kept and seen: its pages — counted from the placement's first — are candidates, and each
- *  is asked for at the leaf's priority (\`leafPriority\`). A leaf the main pass held below the root
- *  (\`held\`, \`heldBack\`) asks for its resident pages alone: the others were dropped there. */
-fn depositLeaf(node:CullNode,w:u32,held:bool){
+/** A leaf kept and seen: ONE request for its pages — the first of them, counted from the
+ *  placement's first, how many, and the leaf's priority (\`leafPriority\`) —, whatever they hold
+ *  resident; its pages are candidates only when it is loaded (\`leafLoaded\`), else the cut draws
+ *  its parent, whose finer group is not resident (\`childResident\`). */
+fn depositLeaf(node:CullNode,w:u32){
  let first=pageBaseOf(w)+node.firstPage;
- let priority=leafPriority(node,viewWorld(w));
- for(var k=0u;k<node.pageCount;k++){
-  if(!held||isResident(first+k)){requestPage(first+k,priority);}
- }
- candAppend(first,node.pageCount,w);
+ requestPage(first,node.pageCount,leafPriority(node,viewWorld(w)));
+ if(leafLoaded(first,node.pageCount)){candAppend(first,node.pageCount,w);}
 }
 /** Queue \`q\`'s level, a thread an entry. Pass 0 is \`dagLevel0\` on queue 0: without a tree one root
  *  per slot, with one its few entries (\`rootSlots\`); queue 0 reused deeper (level 3, 6…) alike. */

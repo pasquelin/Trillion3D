@@ -1,11 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createBounceCascades, type BounceCascadeLevel } from './cascades.ts'
+import { cellSpacing, createBounceCascades, lightLattice } from './cascades.ts'
 import { BOUNCE_SETTINGS } from './contracts.ts'
 import { near } from '../../../math/src/float/near.fixture.ts'
 
-const { cascadeLevels, cascadeSize, cascadeSpacingMetres, cascadeLayersAcross, cascadeShares } =
-  BOUNCE_SETTINGS
+const {
+  cascadeLevels,
+  cascadeSize,
+  cascadeHalfExtentMetres,
+  cascadeBase,
+  lightGridSide,
+  probePool,
+} = BOUNCE_SETTINGS
 
 /** Extents of every shape: cubes, long slabs, thin sheets and flat planes, by size per axis. */
 const SIZES = [
@@ -15,6 +21,7 @@ const SIZES = [
   [500, 500, 0],
   [10, 1, 1],
   [4000, 900, 120],
+  [2680, 60, 1340],
 ]
 
 /** The bounds of an extent of `sizes` whose low corner is at `at`. */
@@ -23,36 +30,112 @@ const boundsOf = (sizes: number[], at: number[]) => [
   ...sizes.map((size, axis) => at[axis] + size),
 ]
 
-/**
- * True when a level's cube holds, on every axis, each cell the extent touches and the cells on
- * either side of it: the probes that interpolate anything in the extent, offset along a normal.
- */
-function holds(level: BounceCascadeLevel, bounds: readonly number[]) {
-  return [0, 1, 2].every(
-    (axis) =>
-      Math.floor(bounds[axis] / level.spacing) - 1 >= level.base[axis] &&
-      Math.floor(bounds[3 + axis] / level.spacing) + 1 <= level.base[axis] + cascadeSize - 1,
+test('the levels are four cubes of 48 cells whose cell doubles: 1.04, 2.08, 4.17 and 8.33 m', () => {
+  const { levels, size, cells, probes } = createBounceCascades([0, 0, 0, 10, 10, 10])
+  assert.equal(levels.length, cascadeLevels)
+  assert.equal(size, cascadeSize)
+  assert.equal(cells, cascadeSize ** 3)
+  assert.equal(probes, probePool)
+  near(
+    levels.map((level) => level.spacing),
+    [1.0416667, 2.0833333, 4.1666667, 8.3333333],
+    'the cells',
+    1e-6,
   )
+  // The first cube reaches 25 m from the eye, the others 50, 100 and 200.
+  near(
+    levels.map((level) => (level.spacing * cascadeSize) / 2),
+    [25, 50, 100, 200],
+    'half extents',
+    1e-9,
+  )
+  levels.forEach((level, i) => assert.equal(level.spacing, cellSpacing(i)))
+  assert.equal(cellSpacing(0), (2 * cascadeHalfExtentMetres) / cascadeSize)
+  assert.equal(cellSpacing(3), cellSpacing(0) * cascadeBase ** 3)
+})
+
+test('the cells never depend on the scene: a street is as many cells across wherever it lies', () => {
+  const fine = createBounceCascades([0, 0, 0, 3, 3, 3]).levels.map((level) => level.spacing)
+  for (const sizes of SIZES)
+    for (const at of [
+      [0, 0, 0],
+      [-37.3, 5.25, -1234.5],
+      [0.999, 1e4 - 0.001, -0.001],
+    ])
+      assert.deepEqual(
+        createBounceCascades(boundsOf(sizes, at)).levels.map((level) => level.spacing),
+        fine,
+        `${sizes} at ${at}`,
+      )
+  // On a district 2 680 m across, the finest cell is a metre, not a twenty-fifth of the extent.
+  assert.ok(createBounceCascades([0, 0, 0, 2680, 60, 1340]).levels[0].spacing < 1.05)
+})
+
+/** Asserts the viewpoint lies in the cell at the middle of every level, on every axis. */
+function centred(cascades: ReturnType<typeof createBounceCascades>, viewpoint: number[]) {
+  for (const level of cascades.levels)
+    for (let axis = 0; axis < 3; axis++) {
+      const low = level.base[axis] * level.spacing,
+        middle = low + (cascades.size / 2) * level.spacing
+      assert.ok(
+        middle <= viewpoint[axis] && viewpoint[axis] < middle + level.spacing,
+        `${viewpoint}: axis ${axis}, middle ${middle}`,
+      )
+    }
 }
 
-/** The most lattice cells of `spacing` a segment of `length` can touch, wherever it lies. */
-const worstCells = (length: number, spacing: number) => Math.ceil(length / spacing - 1e-9) + 1
-
-test('each level doubles the spacing of the one before, and only the last stays fixed', () => {
-  for (const sizes of SIZES) {
-    const { levels } = createBounceCascades(boundsOf(sizes, [0, 0, 0]))
-    assert.ok(levels.length >= 1 && levels.length <= cascadeLevels, `${sizes}`)
-    for (let i = 1; i < levels.length; i++)
-      assert.equal(levels[i].spacing, 2 * levels[i - 1].spacing)
-    assert.deepEqual(
-      levels.map((level) => level.moving),
-      levels.map((_, i) => i < levels.length - 1),
-      `${sizes}`,
-    )
+test('following the eye centres every level on it, snapped to the cells of its own', () => {
+  const cascades = createBounceCascades([0, 0, 0, 1000, 1, 1])
+  for (const viewpoint of [
+    [0, 0, 0],
+    [-3.7, 12.5, 250.3],
+    [999, -0.01, 0.5],
+    [123456.7, -8.2, 0.001],
+  ]) {
+    cascades.follow(viewpoint)
+    centred(cascades, viewpoint)
   }
 })
 
-test('the last level holds the whole extent wherever it lies', () => {
+test('follow reports a move only when a level crosses a cell, on any axis', () => {
+  const cascades = createBounceCascades([0, 0, 0, 1000, 1, 1])
+  const spacing = cascades.levels[0].spacing
+  const at = [0.25 * spacing, 0.25 * spacing, 0.25 * spacing]
+  assert.equal(cascades.follow(at), true, 'the first placement moves the levels')
+  assert.equal(cascades.follow(at), false)
+  assert.equal(cascades.follow(at.map((value) => value + 0.5 * spacing)), false, 'same cell')
+  for (let axis = 0; axis < 3; axis++) {
+    const next = at.slice()
+    next[axis] -= 0.5 * spacing
+    assert.equal(cascades.follow(next), true, `axis ${axis}`)
+    assert.equal(cascades.follow(at), true, `back on axis ${axis}`)
+  }
+  // A step of a finer cell moves the finest level alone: the coarser cells hold it.
+  const before = cascades.levels.map((level) => level.base.slice())
+  assert.equal(cascades.follow([at[0] + spacing, at[1], at[2]]), true)
+  assert.notDeepEqual(cascades.levels[0].base, before[0])
+  assert.deepEqual(cascades.levels[3].base, before[3], 'the coarsest cell is not crossed')
+})
+
+test('a level holds exactly the cells of its cube, and no cell past it', () => {
+  const cascades = createBounceCascades([0, 0, 0, 100, 100, 100])
+  cascades.follow([10, 20, 30])
+  for (let level = 0; level < cascadeLevels; level++) {
+    const [bx, by, bz] = cascades.levels[level].base
+    assert.ok(cascades.holds(level, bx, by, bz))
+    assert.ok(
+      cascades.holds(level, bx + cascadeSize - 1, by + cascadeSize - 1, bz + cascadeSize - 1),
+    )
+    assert.ok(!cascades.holds(level, bx - 1, by, bz))
+    assert.ok(!cascades.holds(level, bx, by - 1, bz))
+    assert.ok(!cascades.holds(level, bx, by, bz - 1))
+    assert.ok(!cascades.holds(level, bx + cascadeSize, by, bz))
+    assert.ok(!cascades.holds(level, bx, by + cascadeSize, bz))
+    assert.ok(!cascades.holds(level, bx, by, bz + cascadeSize))
+  }
+})
+
+test('the world light lattice holds the whole extent wherever it lies, one cell before it', () => {
   for (const sizes of SIZES)
     for (const at of [
       [0, 0, 0],
@@ -60,117 +143,50 @@ test('the last level holds the whole extent wherever it lies', () => {
       [0.999, 1e4 - 0.001, -0.001],
     ]) {
       const bounds = boundsOf(sizes, at)
-      const { levels } = createBounceCascades(bounds)
-      assert.ok(holds(levels.at(-1)!, bounds), `${sizes} at ${at}`)
+      const { spacing, corner } = lightLattice(bounds)
+      for (let axis = 0; axis < 3; axis++) {
+        const low = (bounds[axis] - corner[axis]) / spacing,
+          high = (bounds[3 + axis] - corner[axis]) / spacing
+        assert.ok(low >= 1 - 1e-9 && low < 2 + 1e-9, `${sizes} at ${at}: ${low}`)
+        assert.ok(high <= lightGridSide - 1, `${sizes} at ${at}: ${high}`)
+      }
     }
 })
 
-test('a cascade stops at the first level able to hold the extent wherever it lies', () => {
-  let exact = 0
-  for (const sizes of SIZES) {
-    const { levels } = createBounceCascades(boundsOf(sizes, [0, 0, 0]))
-    const extent = Math.max(...sizes)
-    const needs = (level: BounceCascadeLevel) => worstCells(extent, level.spacing) + 2
-    if (levels.length < cascadeLevels) assert.ok(needs(levels.at(-1)!) <= cascadeSize, `${sizes}`)
-    if (needs(levels.at(-1)!) === cascadeSize) exact++
-    if (levels.length > 1)
-      assert.ok(needs(levels.at(-2)!) > cascadeSize, `${sizes}: one level too many`)
-  }
-  assert.ok(exact > 0, 'some extents fill their last level exactly')
+test('a replan moves the lattice and the reach, never a level', () => {
+  const cascades = createBounceCascades([0, 0, 0, 1000, 1, 1])
+  cascades.follow([7, 7, 7])
+  const levels = structuredClone(cascades.levels)
+  assert.equal(cascades.replan([0, 0, 0, 1000, 1, 1]), false, 'the same extent changes nothing')
+  const moved = [100, 200, 300, 1100, 201, 301]
+  assert.equal(cascades.replan(moved), true)
+  assert.deepEqual(cascades.levels, levels)
+  assert.deepEqual(cascades.lattice, lightLattice(moved))
+  assert.equal(cascades.reach, createBounceCascades(moved).reach)
 })
 
-test('the finest spacing keeps layers across the thinnest side under its ceiling, and no finer', () => {
-  for (const sizes of SIZES) {
-    const { levels } = createBounceCascades(boundsOf(sizes, [0, 0, 0]))
-    const finest = levels[0].spacing,
-      thinnest = Math.max(Math.min(...sizes), 1e-3)
-    const limit = Math.min(cascadeSpacingMetres, thinnest / cascadeLayersAcross)
-    if (finest > limit * (1 + 1e-12)) {
-      // Coarser than both limits only to let a full cascade reach across the extent, just so.
-      assert.equal(levels.length, cascadeLevels, `${sizes}`)
-      assert.equal(
-        worstCells(Math.max(...sizes), levels.at(-1)!.spacing) + 2,
-        cascadeSize,
-        `${sizes}`,
-      )
-    } else near([finest], [limit], `${sizes}`, limit * 1e-12)
-  }
-})
-
-test('every plan fits the reserved probe storage, and the largest plan fills it', () => {
-  let largest = 0
-  for (const sizes of SIZES) {
-    const cascades = createBounceCascades(boundsOf(sizes, [0, 0, 0]))
-    assert.equal(cascades.size, cascadeSize)
-    assert.equal(cascades.probesPerLevel, cascadeSize ** 3)
-    assert.equal(cascades.probes, cascades.probesPerLevel * cascades.levels.length)
-    assert.ok(cascades.probes <= cascades.reserveCount, `${sizes}`)
-    largest = Math.max(largest, cascades.probes)
-  }
-  assert.equal(largest, createBounceCascades([0, 0, 0, 1, 1, 1]).reserveCount)
-})
-
-test('a fixed level keeps one boundary cell before the extent on every axis, and no more', () => {
-  for (const bounds of [
-    [-4, 7, -2, 6, 11, 3],
-    [0, 0, 0, 4000, 900, 120],
-  ]) {
-    const fixed = createBounceCascades(bounds).levels.at(-1)!
-    for (let axis = 0; axis < 3; axis++) {
-      const second = (fixed.base[axis] + 1) * fixed.spacing
-      assert.ok(
-        second <= bounds[axis] && bounds[axis] < second + fixed.spacing,
-        `${bounds}: ${axis}`,
-      )
-    }
-  }
-})
-
-test('the batch splits by the published shares, at least one probe per level', () => {
-  const city = createBounceCascades([0, 0, 0, 4000, 900, 120])
-  assert.equal(city.levels.length, cascadeShares.length)
-  const weight = cascadeShares.reduce((sum, share) => sum + share, 0)
-  near(
-    city.shareOf(1e6).map((probes) => probes / 1e6),
-    cascadeShares.map((share) => share / weight),
-    'shares',
-    1e-6,
-  )
-  assert.deepEqual(
-    city.shareOf(0),
-    cascadeShares.map(() => 1),
-    'no level starves',
-  )
-  for (let total = 0; total < 200; total++) {
-    const shares = city.shareOf(total)
-    const sum = shares.reduce((a, b) => a + b, 0)
-    assert.ok(Math.abs(sum - total) <= shares.length, `${total}: ${shares}`)
-  }
-  const small = createBounceCascades([0, 0, 0, 1, 1, 1])
-  assert.deepEqual(small.shareOf(12), [12], 'a single level takes the whole batch')
-  const two = createBounceCascades([0, 0, 0, 20, 3, 3])
-  assert.equal(two.levels.length, 2)
-  const [fine, coarse] = two.shareOf(3000)
-  near(
-    [fine / coarse],
-    [cascadeShares[0] / cascadeShares[1]],
-    'two levels share as published',
-    1e-3,
-  )
-})
-
-test('rays reach across the extent, wherever it lies and in proportion to its size', () => {
+test('rays reach across the extent, wherever it lies, and no further than the distance the sky answers past', () => {
   const diagonal = (bounds: number[]) =>
     Math.hypot(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2])
   for (const bounds of [
     [0, 0, 0, 1, 1, 1],
     [-4, 7, -2, 6, 11, 3],
     [100, -200, 300, 1100, -199, 301],
+    [0, 0, 0, 3000, 100, 3000],
   ])
     near(
       [createBounceCascades(bounds).reach],
-      [diagonal(bounds) * BOUNCE_SETTINGS.rayReachFraction],
+      [
+        Math.min(
+          diagonal(bounds) * BOUNCE_SETTINGS.rayReachFraction,
+          BOUNCE_SETTINGS.rayReachMetres,
+        ),
+      ],
       `${bounds}`,
       1e-9,
     )
+  assert.equal(
+    createBounceCascades([0, 0, 0, 3000, 100, 3000]).reach,
+    BOUNCE_SETTINGS.rayReachMetres,
+  )
 })

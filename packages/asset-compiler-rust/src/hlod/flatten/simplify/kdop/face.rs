@@ -1,6 +1,7 @@
 //! A triangle as a leaf of the tree holds it (`Face`): its corners and its plane, and where a
 //! segment meets it (`Face::crossed`, the module doc of `kdop.rs`).
 use super::walk::Segment;
+use trillion3d_math::scalar::{not_at_most, not_below};
 use trillion3d_math::vector::vec3::cross;
 use trillion3d_math::vector::vecn::{dot, sub};
 
@@ -30,7 +31,7 @@ impl Face {
         let [nx, ny, nz, w] = self.plane;
         let distance = |p: [f64; 3]| ((nx * p[0] + w) + ny * p[1]) + nz * p[2];
         let (from, to) = (distance(segment.start), distance(segment.end));
-        if !(from * to <= SIDES) {
+        if not_at_most(from * to, SIDES) {
             return None;
         }
         let time = from / (from - to);
@@ -41,7 +42,7 @@ impl Face {
         for side in 0..3 {
             let (a, b) = (self.corners[side], self.corners[(side + 1) % 3]);
             let outward = cross([nx, ny, nz], sub(b, a));
-            if !(dot(outward, point) - dot(outward, a) < EDGE) {
+            if not_below(dot(outward, point) - dot(outward, a), EDGE) {
                 return None;
             }
         }

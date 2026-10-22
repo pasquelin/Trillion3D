@@ -1,7 +1,7 @@
 import type { GpuRasterInput } from './types.ts'
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
 import { VIS_UNIFORM_BYTES } from '../../gpu/bind/bindLayout.ts'
-import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
+import { fullscreenDescriptor, preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { RASTER_OCCLUDER_HIZ_PASS, RASTER_RESOLVE_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
 import { sequentialEntries, computeBufferEntry } from '../../gpu/core/computeBindings.ts'
@@ -100,28 +100,19 @@ function resolvePipelines(device: GPUDevice, code: string) {
     ],
   })
   const module = device.createShaderModule({ code })
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
-  const vertex = { module, entryPoint: 'fullscreen' }
-  const primitive = { topology: 'triangle-list' as const }
   // Asked, compiled off the thread from now, the frames held on them, as the raster's own
   // (`raster.ts`).
   const resolved = preparedPipeline(device, {
-    layout: pipelineLayout,
-    vertex,
-    fragment: {
-      module,
-      entryPoint: 'resolved',
-      targets: [{ format: 'r32uint' as const }, { format: 'r32float' as const }],
-    },
-    primitive,
+    ...fullscreenDescriptor(device, module, layout, 'resolved', [
+      { format: 'r32uint' },
+      { format: 'r32float' },
+    ]),
     depthStencil: RESOLVE_DEPTH,
   }).ask()
-  const depthLevel = preparedPipeline(device, {
-    layout: pipelineLayout,
-    vertex,
-    fragment: { module, entryPoint: 'depthLevel', targets: [{ format: 'r32float' as const }] },
-    primitive,
-  }).ask()
+  const depthLevel = preparedPipeline(
+    device,
+    fullscreenDescriptor(device, module, layout, 'depthLevel', [{ format: 'r32float' }]),
+  ).ask()
   return { layout, resolved, depthLevel }
 }
 

@@ -16,9 +16,11 @@
  * - the field (`reflectionProbesGathered` over `reflectionEnvironment`): the bounce probes' radiance
  *   through the lobe added to the radiance around the scene, `Lf = Le + Lg`, where the probes reach —
  *   so that the chain's last two stages are `Le + Cf·Lg`, the environment always under the probes —,
- *   for a ray whose fate the proxy did not settle; one its walk proved to leave the scene skips it;
- * - the environment (`reflectionEnvironment`): the background the screen draws around the scene,
- *   as radiance, the last word.
+ *   for a ray whose fate the proxy did not settle; one its walk proved to leave the scene skips it.
+ *   Where a sky light gives the probes the sky, their radiance holds it already: the environment
+ *   then stands for the share they do not answer, `Lf = (1 − Cf)·Le + Cf·Lg`, the sky never twice;
+ * - the environment (`reflectionEnvironment`): the sky the scene shows along the ray, or else the
+ *   background the screen draws around the scene, as radiance, the last word.
  *
  * Every confidence is continuous in what it reads: a stage whose share of the radiance is left under
  * `REFLECTION_EPSILON` is not evaluated. The screen's confidence is its share of the ray, the proxy
@@ -105,14 +107,16 @@ const reflectionSeenWgsl = (group: number) =>
 }`,
   )
 
-/** The field's answer of a gather of the probes through a lobe (`reflectionFieldOver`, its mean and
- *  share as `reflectionProbesGathered` answers them): the probes added to the radiance around the
- *  scene as far as they answer, the surroundings alone past them. */
+/** The field's answer of a gather of the probes through a lobe of centre `R` (`reflectionFieldOver`,
+ *  its mean and share as `reflectionProbesGathered` answers them): the probes added to the radiance
+ *  around the scene as far as they answer, the surroundings alone past them — and where the probes
+ *  hold the sky (`skyLit`), the surroundings only for the share they leave. */
 export const REFLECTION_FIELD_OVER_WGSL = wgslBlock(
   'REFLECTION_FIELD_OVER_WGSL',
   [REFLECTION_ENVIRONMENT_WGSL, REFLECTION_PROBES_SHARE_WGSL],
-  `fn reflectionFieldOver(gathered:vec4f)->vec3f{
- return reflectionEnvironment()+reflectionProbesShare(gathered);
+  `fn reflectionFieldOver(gathered:vec4f,R:vec3f)->vec3f{
+ let under=select(1.0,1.0-min(gathered.w,1.0),skyLit());
+ return under*reflectionEnvironment(R)+reflectionProbesShare(gathered);
 }`,
 )
 
@@ -124,7 +128,7 @@ export const REFLECTION_FIELD_STAGE_WGSL = wgslBlock(
   'REFLECTION_FIELD_STAGE_WGSL',
   [REFLECTION_FIELD_OVER_WGSL, REFLECTION_PROBES_WGSL],
   `fn reflectionField(P:vec3f,N:vec3f,lobe:ReflectionLobe)->vec3f{
- return reflectionFieldOver(reflectionProbesGathered(P,N,lobe));
+ return reflectionFieldOver(reflectionProbesGathered(P,N,lobe),lobe.R);
 }`,
 )
 
@@ -135,7 +139,7 @@ const REFLECTION_FIELD_PAIR_WGSL = wgslBlock(
   [REFLECTION_FIELD_OVER_WGSL, REFLECTION_PROBES_PAIR_WGSL],
   `fn reflectionFieldPair(P:vec3f,N:vec3f,lobe:ReflectionLobe,other:ReflectionLobe)->mat2x3f{
  let gathered=reflectionProbesPairGathered(P,N,lobe,other);
- return mat2x3f(reflectionFieldOver(gathered[0]),reflectionFieldOver(gathered[1]));
+ return mat2x3f(reflectionFieldOver(gathered[0],lobe.R),reflectionFieldOver(gathered[1],other.R));
 }`,
 )
 
@@ -227,7 +231,7 @@ fn reflectionSceneStage(P:vec3f,N:vec3f,lobe:ReflectionLobeRay,screen:Reflection
   reflectionTake(&ray,proxied.answer);
   // The share that left the scene sees the environment alone; the field stands for the rest.
   let open=min(before*proxied.open,ray.rest);
-  ray.radiance+=open*reflectionEnvironment();
+  ray.radiance+=open*reflectionEnvironment(lobe.R);
   ray.rest-=open;
  }
  return reflectionFieldRest(P,N,lobe,ray);

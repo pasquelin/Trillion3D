@@ -15,6 +15,7 @@ use super::super::tree::{offset, shift, Coord, Leaf, Tree, LEAF_SIDE, LEAF_SIZE}
 use super::closest::on_polygon;
 use super::{Polygons, BOUNDARY, NEIGHBOURS, NO_POLYGON};
 use rayon::prelude::*;
+use trillion3d_math::scalar::not_below;
 use trillion3d_math::vector::vec3::unit_where;
 use trillion3d_math::vector::vecn::{dot, sub};
 
@@ -82,7 +83,7 @@ impl<P: Polygons> Reads<'_, P> {
                 for z in low[2]..=high[2] {
                     let near = offset([x, y, z]);
                     let polygon = indices.values[near];
-                    if polygon == NO_POLYGON || !(leaf.values[near] < -BOUNDARY) {
+                    if polygon == NO_POLYGON || not_below(leaf.values[near], -BOUNDARY) {
                         continue;
                     }
                     let (point, away) =
@@ -97,7 +98,7 @@ impl<P: Polygons> Reads<'_, P> {
             let other = shift(voxel, step);
             let boxed = (0..3).all(|k| (low[k]..=high[k]).contains(&other[k]));
             let (value, active) = self.field.probe(other);
-            if boxed || !active || !(value < -BOUNDARY) {
+            if boxed || !active || not_below(value, -BOUNDARY) {
                 return false;
             }
             let (point, away) = self.point_of(other, self.closest.get(other));

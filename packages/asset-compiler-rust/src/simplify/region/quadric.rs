@@ -22,6 +22,7 @@
 
 pub(crate) type V3 = [f64; 3];
 
+use trillion3d_math::scalar::not_at_least;
 use trillion3d_math::vector::vec3::{cross, divide};
 use trillion3d_math::vector::vecn::{dot, scale, sub};
 
@@ -74,7 +75,7 @@ pub(crate) fn triangle(q: &mut [f64], p: [V3; 3], s: [&[f32]; 3], weights: &[f32
     q[DV] = -dot(n, p[0]);
     let length = dot(n, n).sqrt();
     let area = 0.5 * length;
-    if !(area >= 1e-12) {
+    if not_at_least(area, 1e-12) {
         q[NV..NV + 3].fill(0.0);
         q[DV] = 0.0;
         return;

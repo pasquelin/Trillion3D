@@ -1,6 +1,8 @@
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { shadowsUnsettled } from '../backend/state/lights.ts'
 import { reflectionsPending } from '../../lighting/reflections/gpu.ts'
+import { exposureMoving } from '../../post/exposure/frame.ts'
+import { finishMoving } from '../../post/finish/frame.ts'
 
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
@@ -23,6 +25,7 @@ const REASONS = [
   'deforming',
   'reflections',
   'hlodWarming',
+  'exposure',
 ] as const
 const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << index])) as Record<
   (typeof REASONS)[number],
@@ -72,6 +75,9 @@ function loadMask(rt: WebgpuPagesRuntime) {
   // An HLOD switch waiting on its actor's warm-up switches on a later cut: a still view keeps
   // drawing till it has (`../prepare/hlodWarm.ts`).
   if (run.gpuSelection?.world?.warming) mask |= BIT.hlodWarming
+  // The automatic exposure still moving toward what the image asks (`exposureMoving`), or the
+  // finishing's settings or composition not yet shown (`finishMoving`).
+  if (exposureMoving(rt) || finishMoving(rt)) mask |= BIT.exposure
   return mask
 }
 /** The temporal histories still advancing: bounce probes and deformation. */

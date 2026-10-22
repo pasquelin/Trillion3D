@@ -2,7 +2,7 @@
 //! and pages, computed on one thread and on many, on an empty primitive, one triangle, a random
 //! surface and a mesh of many tiles.
 use super::{on, surface};
-use crate::compiler::primitive::dag::{build_dag_primitive, DagResult};
+use crate::compiler::primitive::dag::{build_dag_primitive, DagInputs, DagResult};
 use crate::tests::fixtures::files;
 use crate::tests::random::Xorshift;
 use serde_json::Value;
@@ -29,9 +29,14 @@ fn primitive(
             pos,
             &[],
             triangles,
-            (demand, None),
-            (crate::dag::MeshShaping::default(), 1),
-            (Default::default(), None),
+            DagInputs {
+                proxy_demand: demand,
+                taken: None,
+                shaping: crate::dag::MeshShaping::default(),
+                root_pages: 1,
+                precision: Default::default(),
+                scale: None,
+            },
             &encode,
         )
     });

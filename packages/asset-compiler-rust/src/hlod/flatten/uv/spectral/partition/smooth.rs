@@ -40,7 +40,7 @@ impl<'a> Chart<'a> {
         let own = face_charts[f as usize];
         let mut around = [own; 3];
         let mut others = 0;
-        for k in 0..3 {
+        for (k, charted) in around.iter_mut().enumerate() {
             let edge = &self.edges[face.edges[k] as usize];
             if edge.boundary {
                 continue;
@@ -50,8 +50,8 @@ impl<'a> Chart<'a> {
             } else {
                 edge.faces[0]
             };
-            around[k] = face_charts[across as usize];
-            if around[k] != own {
+            *charted = face_charts[across as usize];
+            if *charted != own {
                 others += 1;
             }
         }

@@ -34,7 +34,7 @@ export function install(s: QueueState, cache: GpuPageCache, entry: Started) {
 
 /** `entry` settled: a free slot or root grain it was to take is counted free again — taken, or
  *  never. */
-export function freed(s: QueueState, entry: Started) {
+function freed(s: QueueState, entry: Started) {
   if (s.cache !== entry.cache) return
   if (entry.onFree) s.onFree--
   if (entry.onGrain) s.onGrain--
@@ -67,7 +67,7 @@ function keepVictim(s: QueueState, entry: Started) {
  * failure; a pool that had no slot after all leaves it to a later update; any other failure is the
  * streaming page's for good — never started again — and said.
  */
-export function missed(s: QueueState, entry: Started, error: unknown) {
+function missed(s: QueueState, entry: Started, error: unknown) {
   if (s.cache !== entry.cache) return
   if (entry.cover) s.covering.delete(entry.unit)
   else {

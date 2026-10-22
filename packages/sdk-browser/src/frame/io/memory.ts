@@ -20,7 +20,7 @@ import { textureBudgetBeside, textureBytesBeside } from './besidePools.ts'
 import { ledgerReplacing } from '../../gpu/core/deviceLedger.ts'
 import { growRows } from '../prepare/growTables.ts'
 import type { GrownPages } from '../../geometry/pages/pool/resize.ts'
-import { roundUpToSignificantBits } from '../prepare/rootCover.ts'
+import { roundUpToSignificantBits } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * Changes memory pools mid-session without emptying what they hold: pages and tiles that fit in

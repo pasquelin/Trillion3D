@@ -50,8 +50,13 @@ const rowQueueWords = (listCap: number) => SELECTION_HEADER_WORDS + rowBurst(lis
  *  `shader/snapshotWgsl.ts`, `request/request.ts`). */
 export const priorityWord = (listCap: number) => rowQueueWord(listCap) + rowQueueWords(listCap)
 
-/** Words of `out` the frame copies: every list up to the priorities' end. */
-export const copiedWords = (listCap: number) => priorityWord(listCap) + listCap
+/** Word of `out` where the requests' page counts lie, behind their priorities and in what the frame
+ *  copies: one word a request, at its rank of the first list — its pages are the `count` packed
+ *  pages from the one the first list names (`countAt` of `shader/snapshotWgsl.ts`). */
+export const countWord = (listCap: number) => priorityWord(listCap) + listCap
+
+/** Words of `out` the frame copies: every list up to the page counts' end. */
+export const copiedWords = (listCap: number) => countWord(listCap) + listCap
 
 /** A list the GPU wrote behind a header at word `at`: its count, bounded by the `ranks` it holds —
  *  the kernel counts past them (`shader/compactWgsl.ts`) — and by what the readback holds, then its

@@ -5,6 +5,7 @@ import { createWebgpuRunState } from '../backend/state/runState.ts'
 import { createWebgpuVisState } from '../backend/state/vis.ts'
 import { createWebgpuBlendState } from '../../blend/state.ts'
 import { createWebgpuLightState } from '../backend/state/lights.ts'
+import { createWebgpuBounceState } from '../backend/state/bounce.ts'
 import { createWebgpuTimingState } from '../backend/state/timing.ts'
 import { createScaleControl } from '../scale/scaleControl.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -22,6 +23,7 @@ function runtimeOver(run: ReturnType<typeof createWebgpuRunState>, gpu: object =
     services: { bootstrapState: { ready: true }, residencySets: { keepCount: 0 } },
     setup: { geometryPool: { slots: 0 }, texturePool: {} },
     lights: createWebgpuLightState(),
+    bounce: createWebgpuBounceState(false),
     views: { main: { scale: createScaleControl(undefined) } },
   } as unknown as WebgpuPagesRuntime
 }

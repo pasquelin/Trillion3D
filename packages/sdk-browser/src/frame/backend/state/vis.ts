@@ -96,7 +96,7 @@ export interface WebgpuVisState {
   /** What those groups, and the resolve's, currently name: a moved identity voids them. */
   visIdentity: WebgpuBindIdentity
   /** The render bundles of the raster's slot draws — main pass's half then post pass's, in the depth
-   *  phase then in the identifier phase (`../../../visibility/passes/drawer.ts`): recorded again
+   *  phase then in the identifier phase (`../../../visibility/passes/drawVis.ts`): recorded again
    *  only when what decides their commands moved. */
   visBundles: [RenderBundles, RenderBundles, RenderBundles, RenderBundles]
   shadeIdentity: WebgpuBindIdentity

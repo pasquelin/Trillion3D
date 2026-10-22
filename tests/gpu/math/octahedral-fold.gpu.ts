@@ -1,16 +1,14 @@
 // One octahedral map for every caller (`packages/math/src/wgsl/octahedral.ts`), one fold
-// (`octFold`): on Dawn, the lobes' pack (`surface/physicalLobes.ts`), the shadow receiver's plane
-// encode (`visibility/shader/receiverTargetWgsl.ts`) and the impostor card's direction to its grid
-// and back return, bit for bit, what each one's own formula
-// returned before they shared it — kept below as `develop` wrote it. The decode is the packed
+// (`octFold`): on Dawn, the lobes' pack (`surface/physicalLobes.ts`) and the shadow receiver's plane
+// encode (`visibility/shader/receiverTargetWgsl.ts`) return, bit for bit, what each one's own
+// formula returned before they shared it — kept below as `develop` wrote it. The decode is the packed
 // page normals' (`cluster/decodeWgsl.ts`) and the compiler's `oct_decode`: the lower half folded
 // per axis in one rounding, `1 − |other|` on its side. The lobes' unpack and the receiver's plane
 // decode take it too: their lower half, which added `−z` to each axis in a second rounding, moves
 // by at most `ROUNDINGS` units of 2^-24 per component against `develop`'s decode, and no component's
 // 8-bit unorm by more than one step (class 1). A million directions of every octant, on and off
-// the axes, at lengths from 2^-8 to 2^7; a million lobe words; every 10-bit receiver cell and
-// impostor frame. The zero vector, which no caller encodes, is left out. Straight down on the
-// hemi-octahedron, where `develop` divided zero by zero, reads the zenith frame `(0, 0)`.
+// the axes, at lengths from 2^-8 to 2^7; a million lobe words; every 10-bit receiver cell. The
+// zero vector, which no caller encodes, is left out.
 //
 //   node bench/dawn/proofs.ts tests/gpu/math/octahedral-fold.gpu.ts
 import test from 'node:test'
@@ -18,12 +16,7 @@ import assert from 'node:assert/strict'
 import { computeOnDawn } from '../../kit/device/computeRun.ts'
 import { LOBE_PACK_WGSL } from '../../../packages/sdk-browser/src/materials/surface/physicalLobes.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
-import {
-  octDecode,
-  octDecodeHemi,
-  octEncode,
-  octEncodeHemi,
-} from '../../../packages/math/src/wgsl/octahedral.ts'
+import { octDecode, octEncode } from '../../../packages/math/src/wgsl/octahedral.ts'
 import { hashUnit } from '../../../packages/math/src/wgsl/sampling.ts'
 
 /** The codecs as `develop` wrote them, each its own fold; the decode folded per axis, as the
@@ -58,25 +51,6 @@ fn foldedPerAxis(e:vec2f)->vec3f{
 fn wasReceiverOct(n:vec3f)->vec2f{
  let p=n.xy/(abs(n.x)+abs(n.y)+abs(n.z));
  return select(p,(1.0-abs(p.yx))*select(vec2f(-1.0),vec2f(1.0),p>=vec2f(0.0)),n.z<0.0);
-}
-fn wasImpSide(x:f32)->f32{return select(1.0,-1.0,x<0.0);}
-fn wasImpOctDecode(f:vec2f,hemi:f32)->vec3f{
- let hx=f.x-f.y;
- let hz=f.x+f.y-1.0;
- let hemiDir=normalize(vec3f(hx,1.0-abs(hx)-abs(hz),hz));
- let u=f*2.0-1.0;
- let y=1.0-abs(u.x)-abs(u.y);
- let folded=normalize(vec3f(wasImpSide(u.x)*(1.0-abs(u.y)),y,wasImpSide(u.y)*(1.0-abs(u.x))));
- let full=select(folded,normalize(vec3f(u.x,y,u.y)),y>=0.0);
- return select(full,hemiDir,hemi==1.0);
-}
-fn wasImpOctEncode(d:vec3f,hemi:f32)->vec2f{
- let o=d/(abs(d.x)+abs(d.y)+abs(d.z));
- let folded=vec2f(wasImpSide(o.x)*(1.0-abs(o.z)),wasImpSide(o.z)*(1.0-abs(o.x)));
- let full=select(o.xz,folded,o.y<0.0);
- let hd=vec3f(d.x,max(d.y,0.0),d.z);
- let ho=hd/(abs(hd.x)+max(hd.y,0.0)+abs(hd.z));
- return select(full,vec2f(ho.x+ho.z,ho.z-ho.x),hemi==1.0);
 }`
 
 const THREADS = 1 << 20
@@ -99,7 +73,7 @@ const ROUNDINGS = 32
  *  zero encodes 127.5, a step's edge: a rounding's residue moves it by one. */
 const SHADER = wgslProgram(
   `${DEVELOP_WGSL}
-@group(0) @binding(0) var<storage,read_write> differ:array<atomic<u32>,12>;
+@group(0) @binding(0) var<storage,read_write> differ:array<atomic<u32>,8>;
 fn same2(a:vec2f,b:vec2f)->bool{return all(bitcast<vec2u>(a)==bitcast<vec2u>(b));}
 fn same3(a:vec3f,b:vec3f)->bool{return all(bitcast<vec3u>(a)==bitcast<vec3u>(b));}
 fn tally(k:u32,same:bool){if(!same){atomicAdd(&differ[k],1u);}}
@@ -116,43 +90,28 @@ fn moved(k:u32,now:vec3f,was:vec3f){
  if(i<27u){v=vec3f(f32(i%3u),f32((i/3u)%3u),f32(i/9u))-1.0;}
  let word=select(i*2654435761u,reverseBits(i),(i&1u)==1u);
  let q=vec2f(f32(i&1023u),f32((i>>10u)&1023u))/1023.0*2.0-1.0;
- tally(4u,same3(lobeOctDecode(word),foldedPerAxis(unpack2x16snorm(word))));
- tally(5u,same3(octDecode(q),foldedPerAxis(q)));
- moved(8u,lobeOctDecode(word),wasLobeDecode(word));
- moved(9u,octDecode(q),wasReceiverUnoct(q));
- let f=q*0.5+0.5;
- tally(6u,same3(octDecodeHemi(f,0.0),wasImpOctDecode(f,0.0)));
- tally(7u,same3(octDecodeHemi(f,1.0),wasImpOctDecode(f,1.0)));
+ tally(2u,same3(lobeOctDecode(word),foldedPerAxis(unpack2x16snorm(word))));
+ tally(3u,same3(octDecode(q),foldedPerAxis(q)));
+ moved(4u,lobeOctDecode(word),wasLobeDecode(word));
+ moved(5u,octDecode(q),wasReceiverUnoct(q));
  if(i==13u){return;}
  let n=normalize(v);
  let plane=v*exp2(f32(i%16u)-8.0);
  tally(0u,lobeOctEncode(n)==wasLobeEncode(n));
  tally(1u,same2(octEncode(plane),wasReceiverOct(plane)));
- tally(2u,same2(octEncodeHemi(n,0.0),wasImpOctEncode(n,0.0)));
- let down=all(n.xz==vec2f(0.0))&&n.y<0.0;
- tally(3u,same2(octEncodeHemi(n,1.0),select(wasImpOctEncode(n,1.0),vec2f(0.0),down)));
 }`,
-  [hashUnit, LOBE_PACK_WGSL, octEncode, octDecode, octEncodeHemi, octDecodeHemi],
+  [hashUnit, LOBE_PACK_WGSL, octEncode, octDecode],
 )
 
 test('every octahedral caller returns, bit for bit, its own fold or the per-axis decode', async () => {
-  const { values, errors } = await computeOnDawn(SHADER, 48, THREADS / 64, { words: 'u32' })
+  const { values, errors } = await computeOnDawn(SHADER, 32, THREADS / 64, { words: 'u32' })
   assert.deepEqual(errors, [])
-  const names = [
-    'lobe encode',
-    'receiver encode',
-    'impostor encode, full',
-    'impostor encode, hemi',
-    'lobe decode',
-    'receiver decode',
-    'impostor decode, full',
-    'impostor decode, hemi',
-  ]
+  const names = ['lobe encode', 'receiver encode', 'lobe decode', 'receiver decode']
   assert.deepEqual(
     Object.fromEntries(names.map((name, k) => [name, values[k]])),
     Object.fromEntries(names.map((name) => [name, 0])),
   )
-  const [lobeApart, receiverApart, lobeStep, receiverStep] = values.slice(8)
+  const [lobeApart, receiverApart, lobeStep, receiverStep] = values.slice(4)
   assert.ok(lobeApart <= ROUNDINGS, `lobe decode moved ${lobeApart} · 2^-24 from develop's`)
   assert.ok(
     receiverApart <= ROUNDINGS,

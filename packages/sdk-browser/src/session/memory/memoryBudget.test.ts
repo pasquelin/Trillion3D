@@ -1,6 +1,7 @@
 import { DEFAULT_CACHED_BYTES } from '../../geometry/streaming/pageCache.ts'
-// The effect chain's targets in the GPU total: reserved on the declared canvas
-// by the rule the renderers count them with, before the pools, whose defaults stay what they were.
+// The effect chain's and the display finishing's targets in the GPU total: reserved on the declared
+// canvas by the rule the renderers count them with, before the pools, whose defaults stay what
+// they were.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -17,11 +18,17 @@ import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from './budget.fixture.ts'
 import { MIB } from '../../../../math/src/constants.ts'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { OverlayFrame } from '../../post/effects/webgpuKinds.ts'
+import { createFinish } from '../../post/finish/finish.ts'
 
 const [width, height] = [3840, 2160]
-// Three blooms: the last one's blend is the composition's, the two before it fill both pass
-// targets.
-const chain = [effect.bloom(), effect.bloom({ intensity: 0.5 }), effect.bloom({ intensity: 0.25 })]
+// Three blooms: the last one's glow is the composition's, the two before it fill both pass
+// targets; a threshold makes the first draw a setup and a chain of its own, the most a bloom
+// holds, which the blooms of a chain share.
+const chain = [
+  effect.bloom({ threshold: 1 }),
+  effect.bloom({ intensity: 0.5 }),
+  effect.bloom({ intensity: 0.25 }),
+]
 
 test('the default reserve is the target rule on a 3840 × 2160 canvas, the most a chain holds', async () => {
   assert.deepEqual(DEFAULT_BUDGET_CANVAS, { width, height })
@@ -30,9 +37,16 @@ test('the default reserve is the target rule on a 3840 × 2160 canvas, the most 
   const webgpu = createWebgpuEffects(gpu.device, (error) => assert.fail(String(error)))
   const input = {} as GPUTextureView,
     encoder = gpu.device.createCommandEncoder()
-  webgpu.encode(encoder, chain, input, width, height)
+  const finish = createFinish(gpu.device)
+  const framed = () => {
+    finish.scene.begin(encoder, input, width, height)
+    return { scene: finish.scene, bare: finish.bare, layers: finish.groupFor(false), local: false }
+  }
+  webgpu.encode(encoder, chain, input, width, height, framed())
   await webgpu.settled()
-  webgpu.encode(encoder, chain, input, width, height)
+  webgpu.encode(encoder, chain, input, width, height, framed())
+  // The local exposure's grid, log luminance and blur, over the scene's half-size image.
+  finish.local.encode(encoder, finish.scene, 50, true)
   // An outline of an object, drawn over the display image: its scan's target.
   const outline = [effect.outline({ objects: [new Object3D()] })]
   const frame = {
@@ -43,7 +57,11 @@ test('the default reserve is the target rule on a 3840 × 2160 canvas, the most 
   webgpu.overlay(encoder, outline, frame)
   await webgpu.settled()
   webgpu.overlay(encoder, outline, frame)
-  assert.equal(webgpu.bytes, EFFECT_TARGET_BYTES, 'two pass targets, bloom levels, outline scan')
+  assert.equal(
+    webgpu.bytes + finish.bytes,
+    EFFECT_TARGET_BYTES,
+    'two pass targets, the blooms’ images, outline scan, the finishing’s chain and layers',
+  )
 })
 
 test('the default GPU total grows by exactly that reserve, and each pool keeps 512 MiB', () => {

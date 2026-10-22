@@ -30,6 +30,7 @@
 //!    what lies under it removed, each cut loop filled flat with the second
 //!    (`approximate/ground.rs`);
 //! 7. hard normals past the crease angle (60°), else one normal a vertex.
+//!
 //! The scene lives in `scene` — its base cap, where the layer closes its base (`baseCapping`), in
 //! `scene/base.rs` —, the solid in `solid`, the hidden faces in `occlusion`, the GPU's queries in
 //! `gpu`; the tangents the shell's normal map is baked in, once it has its atlas coordinates

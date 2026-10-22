@@ -183,7 +183,6 @@ pub(crate) fn captured(
             .iter_mut()
             .for_each(|image| image.mean(at, from));
     });
-    drop(emission_image);
     let held_tone = tone(&base, &occupancy, &[SAMPLED, HOLE]);
     // Each image averaged down to its own side: by the supersampling, and by the share of the
     // baked side its sizing gives it.

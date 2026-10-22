@@ -1,11 +1,13 @@
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import {
   environmentCurve,
-  environmentExposure,
   environmentSharpness,
 } from '../../../../sdk-core/src/scene/core/environment.ts'
+import { appliedExposureOf } from '../../post/exposure/applied.ts'
 import { uploadSceneLights } from '../backend/state/lightBuffer.ts'
 import { ensureBounce, syncLightingProxies } from '../prepare/bounce.ts'
+import { probesWaitForSky } from './encodeAtmosphere.ts'
+import { createMarkSurface } from '../../lighting/bounce/marks.ts'
 import { planVsmFrame } from '../../lighting/shadows/vsm/frame/vsmPlan.ts'
 import { encodeVsmFrame } from '../../lighting/shadows/vsm/frame/vsmEncode.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -15,6 +17,37 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 const directParams = new Float32Array(9)
 /** Camera world position, reused from one image to the next: bounce allocates nothing. */
 const viewpoint = new Float64Array(3)
+/** What the image drew, for the probes' marks, refilled each image. */
+const drawn = createMarkSurface()
+
+/** The surfaces the image drew — depth, normals, the view's uniform, its size, the camera that drew it
+ *  and what it drew: the rows and the cut, whose revisions and counts are what the frame's hold reads
+ *  (`../loop/signature.ts`) — for the marks of the cells it reads (`lighting/bounce/marks.ts`); none
+ *  when no opaque surface was drawn: nothing to mark. */
+function drawnSurface(rt: WebgpuPagesRuntime, cam: EngineCamera) {
+  const { gpu, run } = rt
+  if (!run.depthDrawn || !gpu.depthView || !gpu.surfaces || !gpu.deferred) return undefined
+  drawn.key = rt.views.active
+  drawn.depth = gpu.depthView
+  drawn.normals = gpu.surfaces.views()[1]
+  drawn.view = gpu.deferred.uniform
+  drawn.size[0] = gpu.targetSize[0]
+  drawn.size[1] = gpu.targetSize[1]
+  const { signature } = drawn,
+    { rows } = rt.layout
+  signature.set(cam.view, 0)
+  signature.set(cam.projection, 16)
+  signature[32] = rows.tableEpoch
+  signature[33] = rows.rowsEpoch
+  signature[34] = rows.packedCount
+  signature[35] = rows.rowCount
+  signature[36] = run.cutEpoch
+  signature[37] = run.pageArrayEpoch
+  signature[38] = run.visible
+  signature[39] = run.selectedTriangles
+  signature[40] = run.lodLevel
+  return drawn
+}
 
 /**
  * Direct lighting of an image, in order: the virtual shadow maps' CPU plan, the light buffer,
@@ -36,8 +69,10 @@ export function encodeDirectLights(
   const environment = store.environment
   directParams.fill(0)
   // Exposure is not a light: it sets conversion of radiance into an image, and cannot light anything
-  // the declared lights do not already light.
-  directParams[3] = environmentExposure(environment)
+  // the declared lights do not already light. The word is the one the CPU knows
+  // (`appliedExposureOf`); an automatic exposure replaces it, on the GPU, with the one measured on
+  // this very image (`../../post/exposure/meter.ts`) before the composition reads it.
+  directParams[3] = appliedExposureOf(rt)
   directParams[4] = environmentCurve(environment)
   // The eye itself, under any projection: an orthographic camera's view point is a direction.
   directParams.set(cam.eye, 5)
@@ -124,17 +159,23 @@ function encodeBounce(
   if (!probes) return
   syncLightingProxies(rt)
   probes.setIrradianceView(irradiance)
-  // The store revision rises as soon as a light is added, set or removed: that is the only signal
-  // the grid needs to restart, and it costs no read. A change of fog alone is not one.
-  if (bounce.lightEpoch !== lights.store.transportEpoch) {
+  // The sky their rays reach is built a frame after the first one that asks (`encodeAtmosphere`).
+  if (probesWaitForSky(rt)) return
+  // The store revision rises as soon as a light is added, set or removed: that is the signal the
+  // grid needs to restart, and it costs no read. A change of fog alone is not one. The sky is the
+  // other: a ray that leaves the scene reads the table the atmosphere builds when its sun or its air
+  // changes (`skyBuilds`), which no light's revision tells.
+  const skyBuilds = rt.gpu.atmosphere?.skyBuilds ?? 0
+  if (bounce.lightEpoch !== lights.store.transportEpoch || bounce.skyBuilds !== skyBuilds) {
     bounce.lightEpoch = lights.store.transportEpoch
+    bounce.skyBuilds = skyBuilds
     probes.restart()
   }
-  // Camera world position, posted by image entry: cascades re-centre on it by cell step. No
-  // allocation, and nothing else of the camera enters bounce — neither its direction nor its view
-  // frustum: a pivoting camera would then invalidate nothing useful.
+  // Camera world position, posted by image entry: the levels re-centre on it by cell step. No
+  // allocation. What the image draws tells which cells it reads (`drawnSurface`): a pivoting camera
+  // marks the cells it turns to.
   viewpoint.set(cam.eye)
-  bounce.encoded = probes.encode(encoder, active, viewpoint)
+  bounce.encoded = probes.encode(encoder, active, viewpoint, drawnSurface(rt, cam))
   bounce.probesUpdated = probes.lastProbes
   bounce.raysLaunched = probes.lastRays
 }

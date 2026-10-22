@@ -14,6 +14,7 @@ pub(crate) mod tables;
 use super::builds::world_dag;
 use super::*;
 use crate::compiler::tables::partition::HlodNode;
+use crate::dag::DagStrategy;
 use crate::dag::{build_dag, DagAttributes};
 use trillion3d_math::matrix::translation;
 use trillion3d_math::vector::vecn::{length, sub};
@@ -42,7 +43,7 @@ pub(crate) fn cover((positions, indices): (Vec<f32>, Vec<u32>)) -> SourceCover {
     let attributes = DagAttributes::default();
     let built = build_dag(&positions, attributes, &indices, strategy, &|| Ok(())).expect("dag");
     let dag = (&built.clusters[..], &built.groups[..]);
-    SourceCover::of(strategy, dag, (&positions, &[]), None).expect("cover")
+    SourceCover::of(dag, (&positions, &[]), None).expect("cover")
 }
 
 pub(crate) fn covers() -> [SourceCover; 2] {

@@ -1,107 +1,68 @@
-import {
-  BOUNCE_PROBES_PER_FRAME,
-  BOUNCE_SETTINGS,
-} from '../../../../sdk-core/src/bounce/contracts.ts'
-import type { BounceCascades } from '../../../../sdk-core/src/bounce/cascades.ts'
-import type { BounceOccupancy } from '../../../../sdk-core/src/bounce/occupancy.ts'
-import { wrap } from '../../../../math/src/scalar/reals.ts'
-import { PROBE_QUEUE_WORDS } from './probes/probeQueueWgsl.ts'
+import { BOUNCE_PROBE_QUEUE } from '../../../../sdk-core/src/bounce/contracts.ts'
+import type { ProbePool, ProbeEmit, TableEmit } from '../../../../sdk-core/src/bounce/probePool.ts'
+import { ATLAS_WIDTH } from './atlas.ts'
+import { PROBE_QUEUE_WORDS, packQueued } from './probes/probeQueueWgsl.ts'
+import { TABLE_RECORD_WORDS } from './probes/tableWgsl.ts'
+
+/** Texels of the table written a frame at most: those that change wait for the next frame. */
+const TABLE_RECORDS = 4096
 
 /**
- * Probe scheduler: who works this frame, and how far.
+ * Probe scheduler: what the GPU does this frame, from what the pool holds.
  *
- * The total batch comes from the millisecond budget; this is where it is split among
- * levels, at the published shares — the finest surrounds the camera, it is the one the
- * frame reads most, it receives the most. Each level advances its own cursor in a circle
- * over its probes and counts its rounds: bounce is deemed converged only when the slowest
- * level has finished its own.
- *
- * The cursor **skips cells that do not deserve a probe** — empty sky, the solid heart of a
- * block — which the occupancy map knows before the frame. That is what lets a small room
- * sweep its few dozen useful probes in one frame instead of walking a whole cube, and it
- * is also what gives the requested priority: what surrounds the camera and touches
- * geometry goes before the rest.
- *
- * No per-frame allocation: the queue and the cursors are set once and for all.
+ * The queue (`probes`) names the probes to trace — their slot, level, cell and whether it is their
+ * first trace: the ones that hold nothing yet, up to the queue's capacity and not the budget, then the
+ * others by the priority the pool gives them (`ProbePool.probes`), up to the budget in all. The
+ * records (`records`) are the texels of the table that changed, which tell the lit passes where each
+ * probe is: the first record holds their count. Both are written once for all and refilled in place:
+ * a frame allocates nothing.
  */
-export function createBounceSchedule(cascades: BounceCascades, occupancy: BounceOccupancy) {
-  const levels = BOUNCE_SETTINGS.cascadeLevels
-  const side = cascades.size
-  const cursors = new Uint32Array(levels)
-  const rounds = new Uint32Array(levels)
-  // The frame ceiling, plus one probe per level: `shareOf` guarantees at least one to each.
-  const capacity = BOUNCE_PROBES_PER_FRAME + levels
-  /** An entry's words (`PROBE_QUEUE_WORDS`): the level's rank `level · probesPerLevel + rank`, then
-   *  the cell that rank carries, its three signed coordinates — computed once here, where the
-   *  occupancy is asked, and read as is by the update (`queuedProbe`). */
-  const queue = new Uint32Array(capacity * PROBE_QUEUE_WORDS)
+export function createBounceSchedule(pool: ProbePool) {
+  const queue = new Uint32Array(BOUNCE_PROBE_QUEUE * PROBE_QUEUE_WORDS)
   const cells = new Int32Array(queue.buffer)
-  const cell = [0, 0, 0]
-  /** True when a level rank holds a cell that deserves a probe: the inverse of toroidal storage, in
-   *  `[base, base + side)`, into `cell`. */
-  const holds = (level: number, index: number) => {
-    const base = cascades.levels[level].base
-    let rank = index
-    for (let axis = 0; axis < 3; axis++) {
-      const wrapped = rank % side
-      rank = (rank - wrapped) / side
-      cell[axis] = base[axis] + wrap(wrapped - base[axis], side)
-    }
-    return occupancy.occupied(level, cell[0], cell[1], cell[2])
+  const records = new Uint32Array((TABLE_RECORDS + 1) * TABLE_RECORD_WORDS)
+  const lanes = new Float32Array(records.buffer)
+  let groups = 0,
+    written = 0
+  const probe: ProbeEmit = (slot, level, x, y, z, fresh) => {
+    const at = groups++ * PROBE_QUEUE_WORDS
+    queue[at] = packQueued(slot, level, fresh)
+    cells[at + 1] = x
+    cells[at + 2] = y
+    cells[at + 3] = z
   }
-  /** Frames of the last complete round of each level: measured, never estimated. */
-  const roundFrames = new Uint32Array(levels).fill(1)
-  const elapsed = new Uint32Array(levels)
+  const table: TableEmit = (texel, a, b, c, d) => {
+    const at = ++written * TABLE_RECORD_WORDS
+    records[at] = texel % ATLAS_WIDTH
+    records[at + 1] = Math.floor(texel / ATLAS_WIDTH)
+    lanes[at + 2] = a
+    lanes[at + 3] = b
+    lanes[at + 4] = c
+    lanes[at + 5] = d
+  }
   return {
     queue,
-    /** Complete rounds of the slowest level since the last invalidation. */
-    get sweeps() {
-      return Math.min(...rounds.subarray(0, cascades.levels.length))
+    records,
+    /** Probes queued by the last plan. */
+    get groups() {
+      return groups
     },
-    /** Frames of a complete round, the longest of the level measurements: the lag bound. */
-    get sweepFrames() {
-      return Math.max(1, ...roundFrames.subarray(0, cascades.levels.length))
-    },
-    /**
-     * A light has changed, or the cascade has slid: the bounce series is no longer closed and
-     * work resumes. The cursors themselves do not rewind — a light that moves every frame
-     * would put them back at the start forever, and only the first probes would ever be
-     * updated. Refresh is rolling, never blocking.
-     */
-    restart() {
-      rounds.fill(0)
+    /** Texels of the table written by the last plan. */
+    get texels() {
+      return written
     },
     /**
-     * The frame queue: ranks to update and their cells, level by level, within the batch. Returns the number
-     * of groups to dispatch. Each level examines its own probes at most once: the loop is
-     * bounded before the frame, like all the others.
+     * Fills the queue and the records of image `frame` for an eye at `viewpoint`, a budget of `budget`
+     * probes; returns the probes queued. The texels written are `texels`; a pool with no work queues
+     * nothing.
      */
-    plan(total: number) {
-      const shares = cascades.shareOf(total)
-      let groups = 0
-      for (let level = 0; level < cascades.levels.length; level++) {
-        let taken = 0
-        elapsed[level]++
-        for (
-          let examined = 0;
-          examined < cascades.probesPerLevel && taken < shares[level] && groups < capacity;
-          examined++
-        ) {
-          const index = cursors[level]
-          cursors[level] = index + 1
-          if (cursors[level] >= cascades.probesPerLevel) {
-            cursors[level] = 0
-            rounds[level]++
-            roundFrames[level] = Math.max(1, elapsed[level])
-            elapsed[level] = 0
-          }
-          if (!holds(level, index)) continue
-          const at = groups++ * PROBE_QUEUE_WORDS
-          queue[at] = level * cascades.probesPerLevel + index
-          cells.set(cell, at + 1)
-          taken++
-        }
-      }
+    plan(frame: number, viewpoint: ArrayLike<number>, budget: number) {
+      groups = 0
+      written = 0
+      if (!pool.working) return 0
+      pool.probes(frame, viewpoint, BOUNCE_PROBE_QUEUE, budget, probe)
+      pool.table(TABLE_RECORDS, table)
+      records[0] = written
       return groups
     },
   }

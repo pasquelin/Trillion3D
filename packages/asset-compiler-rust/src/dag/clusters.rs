@@ -30,7 +30,7 @@ const MOST_MATCHES: usize = 127;
 pub(crate) struct Pool;
 impl Fork for Pool {
     fn fork(&self, a: &mut (dyn FnMut() + Send), b: &mut (dyn FnMut() + Send)) {
-        rayon::join(|| a(), || b());
+        rayon::join(a, b);
     }
 }
 

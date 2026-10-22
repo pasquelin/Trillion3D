@@ -1,4 +1,10 @@
-import type { MovedRows } from '../../../../../sdk-core/src/bounce/occupancy.ts'
+/** The placements a change touched, as runs of rows: `count` `[first, last]` pairs. */
+type MovedRows = {
+  /** How many runs `pairs` holds. */
+  readonly count: number
+  /** The runs, `[first, last]` row pairs, first-inclusive and last-inclusive. */
+  readonly pairs: ArrayLike<number>
+}
 
 /** The placements' world boxes as the proxy keeps them (`geometry/dag/proxy/proxyInstances.ts`): six world bounds a
  *  placement (an empty box for one that wears no proxy), the runs of those that moved since the last call,
@@ -15,24 +21,20 @@ export const NO_PROXY_BOXES: ProxyBoxes = {
 /** What a sync of the probes with the proxy's placements touches. */
 type ProbeSyncParts = {
   boxes(): ProxyBoxes
-  cascades: { replan(bounds: readonly number[]): boolean; invalidLevels: number }
-  occupancy: { moved(boxes: ArrayLike<number>, rows: MovedRows): void }
-  /** Levels whose probes the cascades dropped, cleared at the next encode. */
-  invalidate(levels: number): void
-  /** The bounce series starts over: probe sweeps. */
+  cascades: { replan(bounds: readonly number[]): boolean }
+  /** The bounce series starts over: the light the probes hold is not the scene's now. */
   restart(): void
 }
 
 /**
- * Motion replans the cascades over the placements' new extent, marks the cells of the boxes that moved or
- * arrived and restarts the series. Nothing moved, nothing is touched. Returns the boxes and their extent
- * when something did. The work follows the boxes that moved: the proxy keeps the others and the extent.
+ * Motion places the world light grid and the rays' reach on the placements' new extent and restarts
+ * the series: the probes hold the light of a scene that was. Nothing moved, nothing is touched.
+ * Whether anything did.
  */
 export function syncBounceProbes(parts: ProbeSyncParts) {
-  const { boxes, moved, extent } = parts.boxes()
-  if (!moved.count) return undefined
-  if (parts.cascades.replan(extent)) parts.invalidate(parts.cascades.invalidLevels)
-  parts.occupancy.moved(boxes, moved)
+  const { moved, extent } = parts.boxes()
+  if (!moved.count) return false
+  parts.cascades.replan(extent)
   parts.restart()
-  return { boxes, extent }
+  return true
 }

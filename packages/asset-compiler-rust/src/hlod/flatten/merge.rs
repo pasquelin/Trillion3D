@@ -3,8 +3,8 @@
 //!
 //! - each source at the LOD a mesh shows when its bounding sphere spans the layer's
 //!   `lodScreenSize` of the view, a quarter by default (`LodSelection::Calculate`, `lod_error`),
-//!   or at its fallback (`LodSelection::Lowest`): the source simplified once to an error of a
-//!   hundredth of its size (`fallback`);
+//!   or at its fallback mesh (`LodSelection::Lowest`, `fallback`: `RELATIVE_ERROR`, `AT_LEAST`,
+//!   `OVERSHOOT`, `LIMIT`);
 //! - equivalent materials — one definition under two names — collapsed into the first of them
 //!   the sources name (`collapseEquivalentMaterials`, on by default, `classes`);
 //! - its materials kept (`mergeMaterials` false by default): one section per unique material, in
@@ -23,7 +23,7 @@
 //! The flattened merge and the bytes a cut and its work hold live in `flat`, the LODs a source
 //! offers in `lods` and its fallback in `fallback`, the atlas's cells in `grid`, an entry's bake
 //! in `tile`.
-use super::super::chain::place::{empty, gather};
+use super::super::chain::place::{empty, gather, Normals};
 use crate::hlod::chain::{Instance, SourceCover};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -39,13 +39,13 @@ mod resize;
 mod smear;
 mod tile;
 pub(in crate::hlod) use flat::{
-    area, atlas_sides, coordinates, cut_bytes, lightmapped, merged_flat, quad, seen_through,
-    sphere, working_bytes, Flattening,
+    area, atlas_sides, coordinates, cut_counts, lightmapped, merged_flat, quad, seen_through,
+    sphere, working_bytes, Flattened, Flattening,
 };
 use lods::mesh_bytes;
 pub(crate) use lods::{Lods, MeshBounds, Taken};
 pub(in crate::hlod) use smear::{shrunk, smeared, uniform, Image};
-pub(in crate::hlod) use tile::{baked, cotangent, Baked, Behind};
+pub(in crate::hlod) use tile::{baked, cotangent, Baked, Behind, Read};
 
 /// Which LOD of each source the merge takes (`HlodLodSelection`, a merged layer's
 /// `lodSelection`).
@@ -231,16 +231,21 @@ pub(in crate::hlod) fn merged(
     members: &[usize],
     (cut, classes): (Cut, Option<&Classes>),
 ) -> Vec<Part> {
-    let mut firsts: BTreeMap<Option<u64>, Option<u64>> = BTreeMap::new();
+    let mut firsts = Classes::new();
     // Each source's cover at the cut, made once whatever its copies.
     let mut covers: BTreeMap<usize, SourceCover> = BTreeMap::new();
     (members.iter())
         .map(|&i| {
             let source = &instances[i];
+            debug_assert!(
+                source.cover.lods.built(),
+                "a merged layer takes mesh {}, whose LODs were not built (`Hlod::merged_meshes`)",
+                source.mesh
+            );
             let cover = covers
                 .entry(source.source())
                 .or_insert_with(|| source.cover.lods.cut(cut));
-            let geometry = gather(&Instance { cover, ..*source });
+            let geometry = gather(&Instance { cover, ..*source }, Normals::Axes);
             let material = match classes {
                 Some(classes) => {
                     let class = classes.get(&source.material).copied();

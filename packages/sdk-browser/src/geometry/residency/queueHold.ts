@@ -2,22 +2,42 @@
 // on held for it, its desired pages taken on, everything let go at once, and the pages of it the
 // pool still holds.
 import type { GpuPageCache } from '../pages/pool/pages.ts'
-import type { QueueState } from './queueState.ts'
+import type { PageRec } from '../selection/types.ts'
+import type { QueueState, QueueOptions } from './queueState.ts'
 
-/** The streaming pages `dependOn` found, one scratch the one call at a time fills and empties. */
+/** The streaming pages `parents` found, one scratch the one call at a time fills and empties. */
 const held = new Set<number>()
 
+/**
+ * The streaming pages each streaming page depends on — those holding a parent of one of its pages
+ * (`QueueOptions.parentsOf`), itself apart —: one read off the structure, the same each time, kept
+ * for as long as the streaming page holds the pages it did (`PageUnits`). The graph the requests
+ * lift their priorities along (`./pageRequests.ts`) and the streaming holds the pages it started
+ * by (`dependOn`).
+ */
+export function createUnitParents(
+  parentsOf: (page: PageRec) => readonly PageRec[],
+  { units, keyOf }: QueueOptions['tracking'],
+) {
+  const kept: { pages: number; parents: readonly number[] }[] = []
+  return (unit: number): readonly number[] => {
+    const pages = units.keys(unit).length,
+      known = kept[unit]
+    if (known?.pages === pages) return known.parents
+    held.clear()
+    for (const page of units.records(unit))
+      for (const parent of parentsOf(page)) held.add(units.of(keyOf(parent)))
+    held.delete(unit)
+    const parents = [...held]
+    kept[unit] = { pages, parents }
+    return parents
+  }
+}
+
 /** `by` more started or resident streaming pages depend on each streaming page holding a parent
- *  of a page of `unit` (fewer when negative), `unit` itself apart: one read off the structure, the
- *  same each time. */
+ *  of a page of `unit` (fewer when negative), `unit` itself apart (`createUnitParents`). */
 export function dependOn(s: QueueState, unit: number, by: number) {
-  const { parentsOf, tracking, sets } = s.o,
-    { units } = tracking
-  held.clear()
-  for (const page of units.records(unit))
-    for (const parent of parentsOf(page)) held.add(units.of(tracking.keyOf(parent)))
-  held.delete(unit)
-  for (const parent of held) sets.streamed.depend(parent, by)
+  for (const parent of s.parents(unit)) s.o.sets.streamed.depend(parent, by)
 }
 
 /** The desired pages of `unit` — those the cut asks for (`sets.requests`), and `asked`, the page

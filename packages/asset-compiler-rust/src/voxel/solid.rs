@@ -105,7 +105,7 @@ pub(super) fn solid(voxels: Vec<Voxel>) -> Vec<Voxel> {
             // Face `2a` takes rays along `+a`, from the voxel before it on axis `a`.
             let open = |face: usize| {
                 let mut from = v.cell;
-                from[face / 2] += if face % 2 == 0 { -1 } else { 1 };
+                from[face / 2] += if face.is_multiple_of(2) { -1 } else { 1 };
                 !solid(from)
             };
             let seen = |f: &usize| open(*f) && v.faces[*f].hits > 0.0;

@@ -7,7 +7,7 @@ import { freshSpent } from './runtimeOracle.fixture.ts'
 import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
 import { along, runOver } from './runtimeRun.fixture.ts'
 import { RAY_WORK } from './runtimeLayout.ts'
-import { traceScene } from './runtimeSceneOracle.fixture.ts'
+import { bruteForce, traceAny, traceScene } from './runtimeSceneOracle.fixture.ts'
 import type { Vec3 } from '../../../../../math/src/vector/vectorTuple.ts'
 
 for (const count of [5, 400]) {
@@ -58,3 +58,42 @@ test('a long ray across a dense field meets the near cube first, its budget neve
   }
   assert.equal(run.testWork(), spent.work, 'the shipped walk and its twin spend alike')
 })
+
+for (const count of [5, 400]) {
+  test(`${count} placements: a shadow ray walks the tree once, in index order, and is blocked where a triangle stands`, () => {
+    const w = world(count, count),
+      run = runOver(w)
+    const random = lcgRandom(9)
+    let blocked = 0,
+      anyWork = 0,
+      nearestWork = 0
+    for (let ray = 0; ray < 120; ray++) {
+      const { origin, direction } = fieldRay(random, count)
+      const twin = freshSpent(),
+        nearest = freshSpent()
+      const want = traceAny(w.scene, origin, direction, 100, twin)
+      traceScene(w.scene, origin, direction, 100, nearest)
+      run.rtBegin()
+      const got = run.rtBlocked(origin, direction, 100)
+      // The shipped walk and its twin spend alike, and a shadow ray that is not exhausted answers what
+      // every triangle tested in turn would.
+      assert.equal(run.testWork(), twin.work, `ray ${ray} work`)
+      assert.equal(got, want.found, `ray ${ray}`)
+      if (twin.work < RAY_WORK) {
+        assert.equal(
+          got,
+          bruteForce(w.scene, origin, direction, 100).found,
+          `ray ${ray} visibility`,
+        )
+        anyWork += twin.work
+        nearestWork += nearest.work
+      }
+      if (got) blocked++
+    }
+    assert.ok(blocked > 3 && blocked < 120, `${blocked} blocked`)
+    assert.ok(
+      anyWork <= nearestWork,
+      `${anyWork} units against ${nearestWork} walked nearest first`,
+    )
+  })
+}

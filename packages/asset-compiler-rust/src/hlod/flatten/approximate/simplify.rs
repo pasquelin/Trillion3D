@@ -219,6 +219,7 @@ fn nearest_on_segment(a: V3, b: V3, p: V3) -> V3 {
 /// - to a density, the shell's area in square metres times the triangles a square metre asks,
 ///   whole: past ten times that the fast pass down to five times, then down to it;
 /// - to a triangle count: past it twice, or a million, the fast pass down to that, then down to it.
+///
 /// With it, its triangles after each pass: the fast one, the first and the last (the first again
 /// where there is one pass after the fast one).
 pub(crate) fn simplify(

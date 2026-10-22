@@ -15,7 +15,10 @@ import {
   MORPH_WORDS,
 } from '../../../../sdk-core/src/page/format.ts'
 import { TRIANGLE_BLOCK, WIDTH_BITS } from '../../../../sdk-core/src/page/format.ts'
-import { bitLength, ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { ceilDiv, floorLog2 } from '../../../../math/src/scalar/integers.ts'
+
+/** The bits an unsigned 32-bit integer spans, 0 for 0 (`bitLength` of the WGSL library). */
+const bitLength = (v: number) => floorLog2(v) + 1
 
 export type Header = Record<string, number | number[]>
 const words32 = (count: number, bits: number) => Math.ceil((count * bits) / 32)

@@ -11,6 +11,7 @@ import { dagBindEntries } from '../../../packages/sdk-browser/src/geometry/dag/s
 import { OCCLUSION_GROUP } from '../../../packages/sdk-browser/src/geometry/dag/shader/occlusionWgsl.ts'
 import { createCutOcclusion } from '../../../packages/sdk-browser/src/geometry/dag/occlusion.ts'
 import {
+  countWord,
   priorityWord,
   SELECTION_HEADER_WORDS,
 } from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
@@ -31,9 +32,10 @@ import { hasBit } from '../../../packages/math/src/scalar/bits.ts'
 /** What one case's cut left on the GPU. */
 interface SelectionReading {
   name: string
-  /** Requested pages in the order the GPU's threads asked them, a whole word each. */
+  /** Requested pages, request after request in the order the GPU's threads asked them — each
+   *  leaf's pages from its first (`countWord`) —, a whole word each. */
   requests: number[]
-  /** Each request's priority word, at its rank: read at the same rank of the priority list. */
+  /** Each page's priority word: its request's, read at the same rank of the priority list. */
   priorities: number[]
   /** The requested pages, in increasing order. */
   pages: number[]
@@ -132,16 +134,28 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
     // The frame's draw mask, a bit a page in `work` (`compactWgsl.ts`).
     const drawBits = work.subarray(at.work.drawMask)
     const count = Math.min(out[OUT_COUNT], packed.pageCount)
-    const requests = Array.from(out.subarray(header, header + count))
-    // Each request's priority at its rank of the priority list (`priorityWord`). None asked reads
-    // nothing: a readback of no byte is none.
-    const priorities = count
-      ? (await readGpuBuffer(device, buffers.out.buffer, count * 4, priorityWord(at.listCap) * 4))!
-      : new Uint32Array(0)
+    const firsts = Array.from(out.subarray(header, header + count))
+    // Each request's priority and page count at its rank of their lists (`priorityWord`,
+    // `countWord`). None asked reads nothing: a readback of no byte is none.
+    const listAt = async (word: number) =>
+      count
+        ? (await readGpuBuffer(device, buffers.out.buffer, count * 4, word * 4))!
+        : new Uint32Array(0)
+    const requestPriorities = await listAt(priorityWord(at.listCap)),
+      counts = await listAt(countWord(at.listCap))
+    // The pages the requests name, one by one, each at its request's priority.
+    const requests: number[] = [],
+      priorities: number[] = []
+    firsts.forEach((first, rank) => {
+      for (let k = 0; k < counts[rank]; k++) {
+        requests.push(first + k)
+        priorities.push(requestPriorities[rank])
+      }
+    })
     const reading: SelectionReading = {
       name: selection.name,
       requests,
-      priorities: Array.from(priorities),
+      priorities,
       pages: [...requests].sort((a, b) => a - b),
       frustumRejected: out[OUT_FRUSTUM_REJECTED],
       overflow: out[OUT_FLAGS],

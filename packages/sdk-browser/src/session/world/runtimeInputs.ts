@@ -1,6 +1,8 @@
 import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts'
+import type { ResolvedAtmosphere } from '../../../../sdk-core/src/scene/core/atmosphere.ts'
 import type { SceneToneMapping } from '../../../../sdk-core/src/scene/core/environment.ts'
+import type { SceneExposure } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import type { openMeasuredWorld, MeasuredWorld } from '../explorer.ts'
 import type { MeasuredWorldOptions } from '../options.ts'
@@ -19,12 +21,15 @@ export type WorldRuntimeInputs = {
    *  changed since it was `given` its options. */
   opened: (explorer: MeasuredWorld, given: MeasuredWorldOptions) => void
   frame: (metrics: FrameMetrics) => void
-  /** What the page set: exposure, curve, sharpening and fog; the lights add their irradiance. */
+  /** What the page set: exposure, curve, sharpening, vignette, fog and atmosphere; the lights add
+   *  their irradiance. */
   display: () => {
-    exposure: number
+    exposure: SceneExposure
     toneMapping: SceneToneMapping
     sharpness?: number
+    vignette?: number
     fog?: SceneFog
+    atmosphere?: ResolvedAtmosphere
   }
   /** Whether the world has drawn a frame yet. */
   drawn: () => boolean

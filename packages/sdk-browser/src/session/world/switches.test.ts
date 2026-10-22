@@ -86,8 +86,9 @@ test('the effect chain is given to every session, and a change of it asks for a 
   const switches = worldSwitches({}, () => runtime, unseen)
   const chain = switches.held.effects
   assert.equal(sessionOptions({}, switches.held).effects, chain)
+  assert.deepEqual([chain.size, chain.passes[0]?.kind, invalidated], [1, 'bloom', 0], 'a start')
   chain.add(effect.bloom())
-  ;(chain.passes[0] as ReturnType<typeof effect.bloom>).radius = 2
+  ;(chain.passes[0] as ReturnType<typeof effect.bloom>).sizeScale = 2
   assert.equal(sessionOptions({}, switches.held).effects, chain, 'the same chain on reopen')
   assert.deepEqual([invalidated, renewed], [2, 0])
 })

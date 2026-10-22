@@ -37,10 +37,10 @@ struct Drawn {
 }
 
 /// The texture slots of a material the bakes read, in the order a bake's surface lists its maps
-/// (`gpu/scene.rs`): base colour, metal-roughness map, normal map, emission map and specular map
-/// — the `GPU_SLOTS` the approximation's bake reads —, then the occlusion map and the anisotropy
-/// map, which only a merged atlas baking them reads (`Maps::reads_extra_textures`,
-/// `merge/tile.rs`): the maps the flattened material carries (`../bake.rs`).
+/// (`gpu/surfaces.rs`): base colour, metal-roughness map, normal map, emission map and specular
+/// map — the `GPU_SLOTS` the approximation's bake reads —, then the occlusion map and the
+/// anisotropy map, which only a merged atlas baking them reads (`Maps::reads_extra_textures`,
+/// `gpu/tile.wgsl`): the maps the flattened material carries (`../bake.rs`).
 const SLOTS: [(&str, AtlasKind); 7] = [
     (
         "/pbrMetallicRoughness/baseColorTexture/index",

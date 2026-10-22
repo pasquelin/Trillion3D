@@ -1,10 +1,12 @@
-// The readout's list, the cut's for its life: the largest one whose readout and kept ranks' tables
-// one binding of the device holds, within the catalogue. A cut that lists more is read by its head
+// The readout's list, at the size the settings and the cut's demand give it (`requestSize.ts`):
+// the largest one whose readout and kept ranks' tables one binding of the device holds, within the
+// catalogue; one given its ranks holds them. A cut that lists more is read by its head
 // (`../../cut/adoption/adoption.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { initialListCap } from './listCap.ts'
-import { SELECTION_LIST_CAP, stagedOutputBytes } from '../layout.ts'
+import { listCapFor } from './listCap.ts'
+import { stagedOutputBytes } from '../layout.ts'
+import { DEFAULT_STREAMING_MIN_REQUESTS as LEAST } from '../../../../../sdk-core/src/contracts/streamingOptions.ts'
 import { deviceListCap } from '../deviceListCap.ts'
 import { keptRankRow } from '../keptRanks.ts'
 import { createDagResources } from '../resources.ts'
@@ -24,9 +26,9 @@ test('the list a device holds is the largest whose readout and kept ranks one bi
   // The readout of `cap` ranks and each kept list's table fit the binding; one rank more breaks one.
   assert.ok(stagedOutputBytes(cap) <= binding && keptRankRow(0, cap).size <= binding)
   assert.ok(stagedOutputBytes(cap + 1) > binding || keptRankRow(0, cap + 1).size > binding)
-  assert.equal(initialListCap(limits, 2_000_000), SELECTION_LIST_CAP, 'a real device: as before')
-  assert.equal(initialListCap(limits, 1000), 1000, 'never more than the catalogue')
-  assert.equal(initialListCap({ maxStorageBufferBindingSize: stagedOutputBytes(9) }, 1000), 9)
+  assert.equal(listCapFor(limits, 2_000_000, LEAST), LEAST, 'a real device: the size asked')
+  assert.equal(listCapFor(limits, 1000, LEAST), 1000, 'never more than the catalogue')
+  assert.equal(listCapFor({ maxStorageBufferBindingSize: stagedOutputBytes(9) }, 1000, LEAST), 9)
 })
 
 /** Forty-eight placements of the fixture's primitive, cut on a list of `cap` ranks. */

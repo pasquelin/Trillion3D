@@ -8,10 +8,10 @@
 //! normals summed, made unit, leaning along the forward ray —, the nearer of two such, the reverse
 //! one when neither does; one hit alone is kept as it is.
 //!
-//! The point hit is read at the hit's fraction of the ray times the ray's unit direction from the
-//! ray's start, not at that fraction of the ray's length: the method reads it so, and the transfer
-//! keeps its points. The source triangle's weights there are those of the point projected on its
-//! plane (`nearest::weights`).
+//! The point hit lies along the ray at the hit's fraction of the ray's length from its start, on
+//! the source triangle itself, so a texel reads the source's textures where its ray met them. The
+//! source triangle's weights there are those of the point projected on its plane
+//! (`nearest::weights`).
 use super::raster::Texel;
 use crate::hlod::flatten::simplify::convert::clockwise_normal;
 use crate::hlod::flatten::simplify::kdop::{Hit, Tree, Walk};
@@ -108,11 +108,11 @@ impl Rays<'_> {
         dot(normal, direction) > 0.0
     }
 
-    /// The source `hit` along the ray `(start, direction)` meets, and its weights at the point read
-    /// at the hit's fraction along the ray's unit direction (module doc).
+    /// The source `hit` along the ray `(start, direction)` meets, and its weights at the point hit:
+    /// the hit's fraction (of the segment, `reach` long) times `reach` along the unit direction.
     fn evaluated(&self, (hit, (start, direction)): (Hit, Ray)) -> Answer {
         let source = hit.triangle as usize;
-        let point = add(start, scale(direction, hit.time));
+        let point = add(start, scale(direction, hit.time * self.reach));
         Answer::Hit {
             source: hit.triangle,
             weights: weights(self.sources.corners(source), point),

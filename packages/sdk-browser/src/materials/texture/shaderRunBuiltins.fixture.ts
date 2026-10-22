@@ -145,6 +145,7 @@ export const builtins = {
   cos: numeric(Math.cos),
   asin: numeric(Math.asin),
   atan: numeric(Math.atan),
+  atan2: numeric(Math.atan2),
   sqrt: numeric(Math.sqrt),
   inverseSqrt: numeric((x) => 1 / Math.sqrt(x)),
   // Two halves in one word, the first in the low bits, and back.

@@ -93,9 +93,7 @@ impl Windows {
         }
         let (start, from_fresh) = if fresh.b0 > existing.b0 && fresh.b0 < existing.b1 {
             (fresh.b0, true)
-        } else if existing.b0 > fresh.b0 && existing.b0 < fresh.b1 {
-            (existing.b0, false)
-        } else if fresh.b1 < existing.b1 {
+        } else if (existing.b0 > fresh.b0 && existing.b0 < fresh.b1) || fresh.b1 < existing.b1 {
             (existing.b0, false)
         } else {
             (fresh.b0, true)

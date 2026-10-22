@@ -6,6 +6,10 @@ import {
   POINT_FACES,
 } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts'
+import { FOG_SLOTS } from '../../../../sdk-core/src/scene/core/fog.ts'
+import { ATMOSPHERE_SLOTS } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
+import { AERIAL_TEXELS, ATMOSPHERE_VIEW_SLOTS, SKY_RAYS_TEXELS } from '../atmosphere/layout.ts'
+import { SKY_SLOTS } from '../../../../sdk-core/src/scene/core/environmentSky.ts'
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -16,18 +20,12 @@ import { isKind, localLightReaches, rangeWindow } from './lightReachWgsl.ts'
  *  where its list starts in the view's pool. */
 export const TILE_STRIDE_WORDS = 2
 
-/**
- * Structures shared by the light-list pass and deferred resolve: a single GPU-side
- * declaration of the `SceneLight` contract, and a single physical attenuation. Shader
- * bounds come from the published settings, never from hand-written constants. `slots` sizes
- * the light array for a pass that knows the scene holds no more (`../tiles/shader.ts`); by
- * default it holds as many as the buffer bound.
- */
-export const directLightWgsl = (slots?: number) =>
-  wgslBlock(
-    `directLightWgsl(${slots ?? ''})`,
-    [RECT_LIGHT_WGSL, localLightReaches, rangeWindow, isKind],
-    `
+/** The light grid (`../tiles/`): cells of pixels, slices of depth, the record of each cell and the
+ *  cell a pixel at a depth falls in. */
+const LIGHT_GRID_WGSL = wgslBlock(
+  'LIGHT_GRID_WGSL',
+  [],
+  `
 const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
 /** The light grid: cells of \`TILE_SIZE\` pixels across, \`GRID_SLICES\` deep, a doubling of
  *  the view depth every \`SLICES_PER_OCTAVE\` slices from the near plane, the last reaching to
@@ -53,18 +51,37 @@ fn gridCell(pixel:vec2f,z:f32,cells:vec2u)->u32{
  let column=vec2u(pixel)/TILE_SIZE;
  if(column.x>=cells.x||column.y>=cells.y){return TILE_NO_SLICE;}
  return ((column.y*cells.x+column.x)*GRID_SLICES+gridSlice(z))*TILE_STRIDE;
-}
-const POINT_FACES:u32=${POINT_FACES}u;
+}`,
+)
+
+/**
+ * Structures shared by the light-list pass and deferred resolve: a single GPU-side
+ * declaration of the `SceneLight` contract, and a single physical attenuation. Shader
+ * bounds come from the published settings, never from hand-written constants. `slots` sizes
+ * the light array for a pass that knows the scene holds no more (`../tiles/shader.ts`); by
+ * default it holds as many as the buffer bound.
+ */
+export const directLightWgsl = (slots?: number) =>
+  wgslBlock(
+    `directLightWgsl(${slots ?? ''})`,
+    [RECT_LIGHT_WGSL, localLightReaches, rangeWindow, isKind, LIGHT_GRID_WGSL],
+    `const POINT_FACES:u32=${POINT_FACES}u;
 const SPOT_EDGE:f32=${LIGHT_SETTINGS.spotEdgeSoftness};
 const KIND_SPOT:f32=${LIGHT_KIND.spot}.0;
 const KIND_SUN:f32=${LIGHT_KIND.directional}.0;
 struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,shape:vec4f,}
 /** The count; the environment's irradiance: nine spherical-harmonic coefficients
  *  (\`packages/sdk-core/src/scene/core/environment.ts\`), zero where the host declared none; its fog,
- *  colour and mode then law (\`packages/sdk-core/src/scene/core/fog.ts\`); the fitted specular lobe
- *  a rectangle is integrated with, written once (\`ltcTable.ts\`); then every light, as many as
- *  the scene holds. */
-struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,fog:array<vec4f,2>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,items:array<DirectLight${slots ? `,${slots}` : ''}>,}
+ *  six \`vec4\`: colour and mode, law, range, the sun's lobe, the sky's factor and the sun
+ *  (\`FOG_SLOT\`, \`packages/sdk-core/src/scene/core/fog.ts\`); the sky's block, the
+ *  irradiance of the sky light and the radiance a ray that leaves the scene reaches
+ *  (\`packages/sdk-core/src/scene/core/environmentSky.ts\`), zero where the scene shows no sky; its
+ *  atmosphere, the block the CPU writes, the view's block and the haze volume the GPU builds each
+ *  image, then the sky by direction it builds when the sun or the air changes
+ *  (\`../atmosphere/layout.ts\`), all zero without an atmosphere; the fitted specular lobe a
+ *  rectangle is integrated with, written once (\`ltcTable.ts\`); then every light, as many as the
+ *  scene holds. */
+struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,fog:array<vec4f,${FOG_SLOTS}>,sky:array<vec4f,${SKY_SLOTS}>,atmosphere:array<vec4f,${ATMOSPHERE_SLOTS}>,atmosphereView:array<vec4f,${ATMOSPHERE_VIEW_SLOTS}>,aerial:array<vec2u,${AERIAL_TEXELS}>,skyRays:array<vec2u,${SKY_RAYS_TEXELS}>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,items:array<DirectLight${slots ? `,${slots}` : ''}>,}
 /** Each kind's test reads the rank through \`isKind\` (\`isRect\` too, \`rectLightWgsl.ts\`). */
 fn isSunKind(kind:f32)->bool{return isKind(kind,KIND_SUN);}
 fn isSun(light:DirectLight)->bool{return isSunKind(light.params.x);}

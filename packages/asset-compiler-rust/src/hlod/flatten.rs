@@ -135,11 +135,15 @@ impl Recipe {
     }
 }
 
-/// Whether `layer` bakes an atlas on the GPU: a shell's; a merged layer's atlas is baked on the
-/// CPU, one sample a texel (`merge/tile.rs`), as a simplified layer's is transferred
-/// (`simplify.rs`), and a voxel layer bakes none.
+/// Whether `layer` bakes an atlas on the GPU: a shell's, a merged layer's merging its materials
+/// (`merge/tile.rs`), a simplified layer's flattened sources (`simplify/flattened.rs`); a voxel
+/// layer, and a merged layer keeping its materials, bake none.
 pub(crate) fn bakes(layer: &HlodLayer) -> bool {
-    Recipe::of(layer.builder) == Some(Recipe::Shell)
+    match Recipe::of(layer.builder) {
+        Some(Recipe::Shell | Recipe::Simplified) => true,
+        Some(Recipe::Merge) => layer.merge_materials,
+        Some(Recipe::Voxel) | None => false,
+    }
 }
 
 /// The whole milliseconds since `started`, a step's share of `StageMs`.
@@ -168,31 +172,25 @@ pub(crate) fn pieces(objects: &[Object]) -> Vec<Piece<'_>> {
 }
 
 /// The bytes a texel of the atlas holds while it is baked: the three RGBA8 images (12), the
-/// occupancy (4), the infill's hole ranks (4), its entry in the GPU's sample list (16) and, were
-/// every texel a hole or an empty one, the larger of the infill's and the dilation's own
-/// (`raster::INFILL_HOLE_BYTES`, `raster::dilate`) (`bake::captured`, `raster.rs`).
+/// occupancy (4), the infill's hole ranks (4), its entry in the list of samples the GPU is sent
+/// (16) and, were every texel a hole or an empty one, the larger of the infill's and the
+/// dilation's own (`raster::INFILL_HOLE_BYTES`, `raster::dilate`) (`bake::captured`, `raster.rs`).
+/// What the device holds — the bake's batches, its scene — is counted beside, where the process's
+/// footprint holds it (`bake::gpu::captured_device_bytes`).
 const ATLAS_TEXEL_BYTES: usize = 36 + uv::raster::INFILL_HOLE_BYTES;
-
-/// The bytes a bake's batches hold on the device, two full batches in flight: `bake::gpu::
-/// SAMPLE_BYTES` per sample in each slot. More than a shell's queries hold beside their scene (two
-/// batches of 24 a point, `approximate/gpu.rs`), which are let go before the bake.
-const GPU_BATCH_BYTES: usize = bake::gpu::SAMPLE_BYTES * gpu::layout::BATCH * 2;
 
 /// The bytes a texel of an atlas baking an emission map holds beside `ATLAS_TEXEL_BYTES`: its three
 /// half-precision channels as read (6) and its RGBA8 image (4) (`bake::emission`).
 const EMISSION_TEXEL_BYTES: usize = 10;
 
 /// The bytes a `texture_size` atlas holds while it is baked `side` texels a side — its own side, or
-/// larger when it is supersampled (`atlas::captured`) — (`ATLAS_TEXEL_BYTES` a texel, and its
-/// batch on the device, `GPU_BATCH_BYTES`), an emission map's more where it bakes one (`emissive`,
-/// `EMISSION_TEXEL_BYTES`), and while its three images — four with the emission — are cooked side
-/// by side for `families` block families (`publish::images`, `texture::admission::cook_bytes`).
+/// larger when it is supersampled (`atlas::captured`) — (`ATLAS_TEXEL_BYTES` a texel), an emission
+/// map's more where it bakes one (`emissive`, `EMISSION_TEXEL_BYTES`), and while its three images —
+/// four with the emission — are cooked side by side for `families` block families
+/// (`publish::images`, `texture::admission::cook_bytes`).
 fn atlas_bytes((texture_size, side): (usize, usize), families: usize, emissive: bool) -> usize {
-    let texels = side * side;
-    // A slot is made for the next power of two of its batch, so twice the texels at most.
-    let batch = GPU_BATCH_BYTES.min(bake::gpu::SAMPLE_BYTES * 2 * texels);
     let per_texel = ATLAS_TEXEL_BYTES + if emissive { EMISSION_TEXEL_BYTES } else { 0 };
-    let baked = (per_texel * texels).saturating_add(batch);
+    let baked = per_texel.saturating_mul(side * side);
     let images = if emissive { 4 } else { 3 };
     baked.saturating_add(
         crate::texture::admission::cook_bytes(texture_size as u32, families).saturating_mul(images),
@@ -209,21 +207,23 @@ fn baked_side(layer: &HlodLayer) -> usize {
 
 /// The bytes a source triangle holds while an actor is made: its placed copy, its welded points
 /// and triangles, its edges and components, its field's moments, the bake's traced copy and tree
-/// (`approximate::scene`, `winding.rs`, `sources::traceable`, `tree.rs`), or, merged, its unwrap's
-/// patches and charts and its traced copy (`unwrap.rs`,
-/// `chain/bundles.rs`, `sources::traceable`), and the GPU bake's scene: its corners, attributes and
-/// share of the tree's nodes packed (≈ 208, `bake/gpu/scene.rs`), held three times while it goes up
-/// — the words, the queue's staging, the buffer on the device — (≈ 624). The shell's scene on the
-/// device (≈ 140 a triangle of each source mesh, held once however many objects place it, three
-/// times, `approximate/winding/pack.rs`) is let go before the bake.
-pub(crate) const SOURCE_TRIANGLE_BYTES: usize = 1136;
+/// (`approximate::scene`, `winding.rs`, `sources::traceable`, `tree.rs`), or, simplified, its
+/// unwrap's patches and charts and its traced copy (`unwrap.rs`, `chain/bundles.rs`,
+/// `sources::traceable`), and the GPU bake's scene as the process packs it: its corners,
+/// attributes and share of the tree's nodes as words (≈ 208, `bake/gpu/records.rs`), held once
+/// until they go up. The queue's staging and the buffer they go to are the device's, counted
+/// beside where the footprint holds them (`bake::gpu::captured_device_bytes`); the shell's scene
+/// (`approximate/winding/pack.rs`), let go before the bake, is not counted. A merged actor's own
+/// terms are `merge::working_bytes`'.
+pub(crate) const SOURCE_TRIANGLE_BYTES: usize = 720;
 
 /// The bytes the actor of approximated HLOD layer `layer` holds while it is made from `triangles`
 /// source triangles whose solid's skin shows the grid's axes `skin` square metres
 /// (`chain/builds.rs`) within `bounds`: its sources, its surface at the layer's accuracy
 /// (`approximate::surface_bytes`), and its atlas while it is baked at the largest side it may
 /// reach (`baked_side`) and its images cooked side by side for `families` block families
-/// (`atlas_bytes`).
+/// (`atlas_bytes`), and what its bake holds on the device where the footprint counts it
+/// (`bake::gpu::captured_device_bytes`).
 pub(crate) fn working_bytes(
     (triangles, skin): (usize, f64),
     bounds: ([f64; 3], [f64; 3]),
@@ -239,4 +239,5 @@ pub(crate) fn working_bytes(
     (triangles.saturating_mul(SOURCE_TRIANGLE_BYTES))
         .saturating_add(surface)
         .saturating_add(atlas_bytes((baked, side), families, emissive))
+        .saturating_add(bake::gpu::captured_device_bytes(triangles, side * side))
 }

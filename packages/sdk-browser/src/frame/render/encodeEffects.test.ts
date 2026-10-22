@@ -12,13 +12,13 @@ import { createExplorerFrameScheduler } from '../schedule/frameScheduler.ts'
 import { frameQueue } from '../schedule/frameQueue.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { WEBGPU_KINDS } from '../../post/effects/webgpuKinds.ts'
-import { drawing, encoder, input, passes } from './encodeEffects.fixture.ts'
+import { drawing, encoder, framed, input, passes } from './encodeEffects.fixture.ts'
 
 /** Two identical complete frames, each encoding the chain: what arms the hold. */
 function drawTwice(rt: ReturnType<typeof drawing>, device: GPUDevice) {
   for (let i = 0; i < 2; i++) {
     rt.run.gpuDrawCalls = 2 // what a frame counts from, before its passes
-    encodeEffects(rt, device, encoder, input)
+    encodeEffects(rt, device, encoder, input, framed(rt, device))
     rt.run.frame++
     keepWebgpuFrame(rt)
   }
@@ -30,18 +30,18 @@ test('a held frame with a chain does no work; a change of the chain draws it aga
     bloom = effect.bloom()
   const rt = drawing(chain)
   chain.add(bloom)
-  encodeEffects(rt, device, encoder, input)
+  encodeEffects(rt, device, encoder, input, framed(rt, device))
   await rt.gpu.effects!.settled()
   drawTwice(rt, device)
-  // The last bloom's blend is the composition's: it reads the image the levels read.
-  const composed = encodeEffects(rt, device, encoder, input)
+  // The last bloom's glow is the composition's: it reads the image the levels read.
+  const composed = encodeEffects(rt, device, encoder, input, framed(rt, device))
   assert.equal(composed?.color, input.color, 'composition reads the image the chain read')
-  assert.ok(composed?.bloom, "with the chain's blend")
+  assert.ok(composed?.glow, "with the chain's glow")
   assert.equal(composed?.share, input.share, 'with the as-is share of the image it read')
   const lit = {} as GPUTextureView
   rt.gpu.hdrView = lit
-  const still = encodeEffects(rt, device, encoder, undefined)
-  assert.ok(still?.color === lit && still.bloom && still.share === undefined, 'a still image too')
+  const still = encodeEffects(rt, device, encoder, undefined, framed(rt, device, lit))
+  assert.ok(still?.color === lit && still.glow && still.share === undefined, 'a still image too')
   drawTwice(rt, device)
   const drawn = passes.length
   assert.ok(drawn > 0, 'the full frames drew the bloom')
@@ -88,7 +88,7 @@ test('an idle loop waits for the programs, then draws the image with the chain o
     render() {
       if (holdWebgpuFrame(rt, device)) return
       rt.run.gpuDrawCalls = 2
-      encodeEffects(rt, device, encoder, input)
+      encodeEffects(rt, device, encoder, input, framed(rt, device))
       rt.run.frame++
       keepWebgpuFrame(rt)
     },

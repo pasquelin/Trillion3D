@@ -17,6 +17,7 @@
 use super::Link;
 use trillion3d_math::geometry::aabb::{aabb_of, merge_aabb};
 use trillion3d_math::geometry::triangle::{centroid, triangle_area};
+use trillion3d_math::scalar::not_above;
 use trillion3d_math::vector::vec3::cross;
 use trillion3d_math::vector::vecn::{distance2, sub};
 
@@ -134,7 +135,7 @@ fn expansion(triangles: &[[[f64; 3]; 3]]) -> Option<Far> {
         area += a;
         (0..3).for_each(|k| weighted[k] += a * c[k]);
     }
-    if !(area > 0.0) {
+    if not_above(area, 0.0) {
         return None;
     }
     let centre = weighted.map(|x| x / area);

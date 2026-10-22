@@ -6,7 +6,7 @@
 //! first of those nodes: its images, and the texture coordinates generated for its triangles,
 //! which each other node's primitive of the same source reads at its own triangles, the same in
 //! number and order.
-use crate::hlod::chain::place::gather;
+use crate::hlod::chain::place::{gather, Normals};
 use crate::hlod::chain::Instance;
 use crate::hlod::flatten::merge::Part;
 use std::collections::BTreeMap;
@@ -33,7 +33,7 @@ pub(super) fn gathered(
     let mut firsts: BTreeMap<(u64, usize), usize> = BTreeMap::new();
     for &i in members {
         let instance = &instances[i];
-        let geometry = gather(instance);
+        let geometry = gather(instance, Normals::Adjoint);
         if geometry.2.is_empty() {
             continue;
         }

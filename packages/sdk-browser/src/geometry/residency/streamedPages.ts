@@ -2,8 +2,6 @@ import type { PageRec } from '../selection/types.ts'
 import { createSparseInts } from '../cut/sparseInts.ts'
 import { byteLengths } from '../../../../math/src/sequence/byteLengths.ts'
 
-export type StreamedPages = ReturnType<typeof createStreamedPages>
-
 /**
  * THE STREAMING PAGES THE STREAMING HOLDS (`./pageUnits.ts`, keyed by their number), the root
  * cover apart: each it started — its bytes on their way (`pending`) — or holds resident, in the

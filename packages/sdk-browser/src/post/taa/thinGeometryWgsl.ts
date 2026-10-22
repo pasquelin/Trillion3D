@@ -20,6 +20,11 @@ import {
   type TilePlan,
 } from './tileWgsl.ts'
 
+/** Whether the thin geometry detection runs this image, as a WGSL condition the whole workgroup
+ *  shares (`TAA_VIEW`'s `quality.w`, `writeTaaView`): where it does not, the mask and the coverage
+ *  history are left as they were and every pass that reads the mask reads none. */
+export const THIN_RUNS = 'view.quality.w!=0.0'
+
 /** The thin geometry detection's tile and the border its chain of five 3×3 operators reads. */
 export const THIN_GEOMETRY_PLAN: TilePlan = { width: 16, height: 16, border: 5 }
 

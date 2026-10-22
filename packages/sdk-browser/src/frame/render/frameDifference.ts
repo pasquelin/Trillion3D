@@ -1,29 +1,55 @@
-import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { luminance } from '../../../../math/src/wgsl/color.ts'
-import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts'
-import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
+import { fullscreenDescriptor, preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 import { FRAME_DIFFERENCE_PASS } from '../../diagnostic/stage/passLabels.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { FRAME_DIFFERENCE_WGSL } from './frameDifferenceWgsl.ts'
 
-/** How many times the frame-difference view amplifies a change: a step of one 8-bit level in the
- *  display shows as eight. */
-export const FRAME_DIFFERENCE_GAIN = 8
-
-/** The display image against the one before, pixel for pixel: the luminance of their difference,
- *  in display values — what the eye sees change —, amplified (`FRAME_DIFFERENCE_GAIN`) and shown as
- *  grey. A still pixel is black to the bit. */
-export const FRAME_DIFFERENCE_WGSL = wgslProgram(
-  `
-@group(0) @binding(0) var current:texture_2d<f32>;
-@group(0) @binding(1) var previous:texture_2d<f32>;
-@fragment fn difference(@builtin(position) pixel:vec4f)->@location(0) vec4f{
- let coord=vec2i(pixel.xy);
- let step=textureLoad(current,coord,0).rgb-textureLoad(previous,coord,0).rgb;
- return vec4f(vec3f(saturate(abs(luminance(step))*${FRAME_DIFFERENCE_GAIN}.0)),1.0);
-}`,
-  [FULLSCREEN_VERTEX, luminance],
-)
+/**
+ * The display image before the current one, kept at the display's size and format with the bind
+ * group that reads both. Made again when the display is another texture: that first image is
+ * compared with itself.
+ */
+function createKeptDisplay(device: GPUDevice, layout: GPUBindGroupLayout) {
+  let kept: { source: GPUTexture; previous: GPUTexture; group: GPUBindGroup } | undefined
+  const copy = (encoder: GPUCommandEncoder, display: GPUTexture, previous: GPUTexture) =>
+    encoder.copyTextureToTexture(
+      { texture: display },
+      { texture: previous },
+      { width: display.width, height: display.height },
+    )
+  const release = () => {
+    kept?.previous.destroy()
+    kept = undefined
+  }
+  return {
+    /** The bind group that reads `display` and the image before it. */
+    groupOf(encoder: GPUCommandEncoder, display: GPUTexture) {
+      if (kept?.source === display) return kept.group
+      release()
+      const previous = device.createTexture({
+        label: 'Trillion3D previous display',
+        size: { width: display.width, height: display.height },
+        format: display.format,
+        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+      })
+      const group = device.createBindGroup({
+        layout,
+        entries: [
+          { binding: 0, resource: display.createView() },
+          { binding: 1, resource: previous.createView() },
+        ],
+      })
+      kept = { source: display, previous, group }
+      copy(encoder, display, previous)
+      return group
+    },
+    /** Keeps `display` as the image before the next one. */
+    keep(encoder: GPUCommandEncoder, display: GPUTexture) {
+      if (kept) copy(encoder, display, kept.previous)
+    },
+    release,
+  }
+}
 
 /**
  * The frame-difference view (`frame-difference`): each image's final display colour — after the
@@ -47,16 +73,18 @@ export function createFrameDifference(device: GPUDevice) {
     code: FRAME_DIFFERENCE_WGSL,
   })
   // Asked now, off the frame: the frames wait for it rather than compile it.
-  const pipeline = preparedPipeline(device, {
-    label: 'Trillion3D frame difference',
-    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    vertex: { module, entryPoint: 'fullscreen' },
-    fragment: { module, entryPoint: 'difference', targets: [{ format: 'bgra8unorm' }] },
-    primitive: { topology: 'triangle-list' },
-  }).ask()
-  let previous: GPUTexture | undefined,
-    source: GPUTexture | undefined,
-    group: GPUBindGroup | undefined
+  const pipeline = preparedPipeline(
+    device,
+    fullscreenDescriptor(
+      device,
+      module,
+      layout,
+      'difference',
+      [{ format: 'bgra8unorm' }],
+      'Trillion3D frame difference',
+    ),
+  ).ask()
+  const held = createKeptDisplay(device, layout)
   const target: GPURenderPassColorAttachment = {
     view: undefined as unknown as GPUTextureView,
     loadOp: 'clear',
@@ -67,41 +95,19 @@ export function createFrameDifference(device: GPUDevice) {
     label: FRAME_DIFFERENCE_PASS,
     colorAttachments: [target],
   }
-  const release = () => {
-    previous?.destroy()
-    previous = source = group = undefined
-  }
   return {
     /** Draws `display`'s difference with the image before onto `canvas`, then keeps `display`. */
     encode(encoder: GPUCommandEncoder, display: GPUTexture, canvas: GPUTextureView) {
-      const extent = { width: display.width, height: display.height }
-      if (source !== display || !previous || !group) {
-        release()
-        previous = device.createTexture({
-          label: 'Trillion3D previous display',
-          size: extent,
-          format: display.format,
-          usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-        })
-        group = device.createBindGroup({
-          layout,
-          entries: [
-            { binding: 0, resource: display.createView() },
-            { binding: 1, resource: previous.createView() },
-          ],
-        })
-        source = display
-        encoder.copyTextureToTexture({ texture: display }, { texture: previous }, extent)
-      }
+      const group = held.groupOf(encoder, display)
       target.view = canvas
       const pass = encoder.beginRenderPass(descriptor)
       pass.setPipeline(pipeline.get())
       pass.setBindGroup(0, group)
       pass.draw(3)
       pass.end()
-      encoder.copyTextureToTexture({ texture: display }, { texture: previous }, extent)
+      held.keep(encoder, display)
     },
-    dispose: release,
+    dispose: held.release,
   }
 }
 

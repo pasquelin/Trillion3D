@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { mock } from 'node:test'
 import { createExplorerFrameScheduler } from './frameScheduler.ts'
 import { DAG_READBACK_SLOTS } from '../../geometry/dag/layout.ts'
 /** A browser frame queue that runs nothing by itself: the test runs what was asked, oldest first,
@@ -22,32 +21,6 @@ export function frameQueue() {
       return true
     },
   }
-}
-
-/** A page in `visibility` on the globals: its frames a `frameQueue` the test runs, its
- *  `visibilitychange` listeners kept, its timers held so no frame wait times out by itself;
- *  `restore` takes it all away. */
-export function stubPage(visibility: DocumentVisibilityState) {
-  const frames = frameQueue(),
-    listeners = new Set<() => void>(),
-    host = globalThis as Record<string, unknown>
-  const document = {
-    visibilityState: visibility,
-    addEventListener: (_: string, listener: () => void) => void listeners.add(listener),
-    removeEventListener: (_: string, listener: () => void) => void listeners.delete(listener),
-  }
-  const stubs = {
-    document,
-    requestAnimationFrame: frames.request,
-    cancelAnimationFrame: frames.cancel,
-  }
-  Object.assign(host, stubs)
-  mock.timers.enable({ apis: ['setTimeout'] })
-  const restore = () => {
-    mock.timers.reset()
-    for (const key of Object.keys(stubs)) delete host[key]
-  }
-  return { frames, document, listeners, restore }
 }
 
 /** One turn of the event loop: what the frames' feedbacks decided has run. */

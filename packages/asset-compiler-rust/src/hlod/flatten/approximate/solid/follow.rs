@@ -105,7 +105,7 @@ pub(super) fn follow(
             );
         }
         let (next, _) = first_seen(named);
-        front = next.into_par_iter().map(|cell| unkey(cell)).collect();
+        front = next.into_par_iter().map(unkey).collect();
         for &cell in &front {
             done.insert(cell, ());
         }

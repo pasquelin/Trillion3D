@@ -12,8 +12,9 @@ import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER, snapshotGroups } from './p
 import { PROBE_TEXELS } from './atlas.ts'
 import { ATLAS_CALLS, simulatedAtlas } from './atlas.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
-import { floorProbes } from './floorProbes.fixture.ts'
+import { FLOOR_EYE, floorProbes } from './floorProbes.fixture.ts'
 import { BOUNCE_LIGHT_LISTS_PASS, BOUNCE_PASS } from '../../diagnostic/stage/passLabels.ts'
+import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 
 test('after the follow-up, the snapshot is the probes, word for word', () => {
   const r = lcgRandom(7),
@@ -75,6 +76,11 @@ test('the update stores only the texels of the queued probe the follow-up copies
   // The probe it writes is the queue's, by the same function the follow-up calls.
   assert.match(body, /let queued=queuedProbe\(group\.x\);\n if\(!queued\.valid\)\{return;\}/)
   assert.match(body, /let probe=queued\.probe;/)
+  // A probe taken for another cell, or for its first trace, keeps nothing of what its slot held.
+  assert.match(
+    body,
+    /let held=!queued\.fresh&&all\(probeCell\(probe\)==cell\)&&probeLevel\(probe\)==level;/,
+  )
   // Its stores: vectors 0 to 8, then the two distance vectors — all below `PROBE_TEXELS`.
   const stores = [...body.matchAll(/probeStore\(probe,(\w+),/g)].map((m) => m[1])
   assert.deepEqual(stores, ['k', 'PROBE_DISTANCE_POSITIVE', 'PROBE_DISTANCE_NEGATIVE'])
@@ -109,20 +115,25 @@ test('a working image copies no atlas: one bounce pass updates, then the snapsho
     }
     return log
   }
-  assert.equal(probes.encode(encoder, 1, [4, 4, 2]), true)
+  assert.equal(probes.encode(encoder, 1, FLOOR_EYE), true)
   const groups = probes.lastProbes,
     work = workOf()
   assert.ok(groups > 0)
   assert.equal(gpu.textureCopies.length, 0, 'no copy of the atlas')
-  // One pass: the probes' update, the snapshot's follow-up.
+  // One pass: the table's writes (the probes the first update tells the shaders of come after them,
+  // the entries of the cells named before the update reads the snapshot), the probes' update, the
+  // snapshot's follow-up, the census of the field; then the bitmap of the cells the rays hit copied for
+  // the CPU and cleared, and the census's counts copied.
   const at = work.indexOf(`pass ${BOUNCE_PASS}`)
   assert.deepEqual(
     work.slice(at).map((step) => step.split(' ')[0]),
-    ['pass', 'updateProbes', 'followSnapshot'],
+    ['pass', 'writeTable', 'updateProbes', 'followSnapshot', 'countField', 'copy', 'clear', 'copy'],
   )
-  assert.deepEqual(work.slice(at + 1), [
+  assert.deepEqual(work.slice(at + 1, -3), [
+    `writeTable ${Math.ceil(probes.lastTexels / WORKGROUP_THREADS)}`,
     `updateProbes ${groups}`,
     `followSnapshot ${snapshotGroups(groups)}`,
+    `countField ${Math.ceil((BOUNCE_SETTINGS.probePool + (BOUNCE_SETTINGS.cascadeLevels * BOUNCE_SETTINGS.cascadeSize ** 3) / 4) / WORKGROUP_THREADS)}`,
   ])
   // The world grid's lists before it, on the frame that lists them; a frame whose lights and
   // lattice did not change lists nothing again.
@@ -131,7 +142,7 @@ test('a working image copies no atlas: one bounce pass updates, then the snapsho
       work.includes(`pass ${BOUNCE_LIGHT_LISTS_PASS}`),
   )
   const before = work.length
-  assert.equal(probes.encode(encoder, 1, [4, 4, 2]), true)
+  assert.equal(probes.encode(encoder, 1, FLOOR_EYE), true)
   assert.equal(workOf().slice(before).includes(`pass ${BOUNCE_LIGHT_LISTS_PASS}`), false)
   probes.dispose()
   tiles!.dispose()

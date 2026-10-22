@@ -32,9 +32,12 @@ function recordStages(rt: WebgpuPagesRuntime) {
     probesUpdated: bounce.probesUpdated,
     raysPerFrame: bounce.raysLaunched,
     cascadeProbes: bounce.probes?.cascades.probes ?? 0,
-    // Fraction of the ceiling the millisecond budget holds, in thousandths: a count is an integer,
-    // and it is the duration that decides this count, never the reverse.
-    budgetFraction: Math.round((bounce.probes ? bounce.budget.load : 0) * 1000),
+    // Probes alive, taken by the cells the image reads; and, of those, the ones that hold nothing
+    // yet: zero once the light the image reads is filled.
+    liveProbes: bounce.probes?.pool.live ?? 0,
+    unfilledProbes: bounce.probes?.unfilled ?? 0,
+    // The count a frame traces, the probes never traced first.
+    probesPerFrame: bounce.probesPerFrame,
   })
   if (!bounce.probes)
     stages.setReason('bounce', {

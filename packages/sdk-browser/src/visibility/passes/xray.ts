@@ -4,7 +4,7 @@ import { SEE_THROUGH_BACKGROUND_PASS, XRAY_PASS } from '../../diagnostic/stage/p
 import { VIS_XRAY_FRAGMENT, VIS_XRAY_VERTEX, visXrayShader } from '../shader/visWgsl.ts'
 import { ADD_ONE } from '../../blend/equations.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
-import { walkSlots } from './drawer.ts'
+import { walkSlots } from './slotWalk.ts'
 
 /** Each visibility group layout's x-ray pipeline: made with the first see-through image of its
  *  device, dropped with the layout. */

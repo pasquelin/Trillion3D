@@ -5,6 +5,9 @@ use super::super::SEARCH_STEPS;
 use super::Implicit;
 use rayon::prelude::*;
 
+/// The two ends of the interval an edge's crossing lies in.
+type Bracket = ([f64; 3], [f64; 3]);
+
 fn middle(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     std::array::from_fn(|k| (a[k] + b[k]) * 0.5)
 }
@@ -20,7 +23,7 @@ pub(super) fn crossings(
     implicit: &mut Implicit,
 ) -> crate::Result<Vec<f32>> {
     // Each edge's bracket, low value first, or its crossing when no search is needed.
-    let (mut brackets, settled): (Vec<([f64; 3], [f64; 3])>, Vec<bool>) = (ends.par_iter())
+    let (mut brackets, settled): (Vec<Bracket>, Vec<bool>) = (ends.par_iter())
         .map(|&(p1, v1, p2, v2)| {
             if let Some(p) = settled_crossing((p1, v1), (p2, v2), threshold) {
                 return ((p, p), true);

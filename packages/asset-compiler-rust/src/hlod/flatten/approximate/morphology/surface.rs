@@ -8,6 +8,10 @@ use crate::hlod::flatten::first_seen::first_seen;
 use rayon::prelude::*;
 use trillion3d_page_codec::hash::WordSet;
 
+/// The vertices one block names, each with its edge's id, and the corners of its triangles as those
+/// ids.
+type Part = (Vec<(u64, [f64; 3])>, Vec<[u64; 3]>);
+
 /// Marching cubes of `-field` at `iso` over `bounds` in cubes of side `cube`, enlarged past
 /// `SAFETY_MAX_DIMENSION` cubes across: the surface, inside where the value is at or above `iso`,
 /// and the cube side kept.
@@ -34,7 +38,7 @@ pub(super) fn generate(field: &Field, iso: f64, bounds: Bounds, cube: f64) -> (M
             let first = (((low - bounds.0[k]) / cube).floor() as i32 - 2).max(0);
             let last = (((high - bounds.0[k]) / cube).ceil() as i32 + 1).min(dims[k] - 1);
             if first > last {
-                return 1..=0;
+                return std::ops::RangeInclusive::new(1, 0);
             }
             (first / BLOCK)..=(last / BLOCK)
         };
@@ -49,7 +53,7 @@ pub(super) fn generate(field: &Field, iso: f64, bounds: Bounds, cube: f64) -> (M
     }
     wanted.par_sort_unstable();
     wanted.dedup();
-    let parts: Vec<(Vec<(u64, [f64; 3])>, Vec<[u64; 3]>)> = wanted
+    let parts: Vec<Part> = wanted
         .par_iter()
         .map(|&block| {
             let low = unkey::<i32>(block).map(|b| b * BLOCK);

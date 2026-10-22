@@ -2,11 +2,13 @@ import type { EffectKind } from '../../../../sdk-core/src/world/effect/chain.ts'
 import { type EffectPassOf } from './targets.ts'
 import type { RootsOwner } from '../../frame/render/movedNode.ts'
 import type { FrameRevisions } from '../../frame/revisions.ts'
+import type { PostFrame } from '../finish/finish.ts'
 import { createWebgpuBloom } from './webgpuBloom.ts'
 import { createWebgpuOutline } from './webgpuOutline.ts'
 
-/** A pass's last blend left to the composition: the group it reads, at its dynamic offset. */
-export type FusedBlend = { group: GPUBindGroup; offset: number }
+/** What a pass left to the composition: the glow it drew, which the composition adds to the image
+ *  it reads. */
+export type FusedBlend = { glow: GPUTextureView }
 
 /** What every kind of pass holds on WebGPU, whatever its stage. */
 type KindResources = {
@@ -22,13 +24,15 @@ type KindResources = {
 export type WebgpuEffectKind<P> = KindResources & {
   /** Encodes `pass`, the `nth` of its kind in the chain, from `input` into `output`, or with no
    *  `output` leaves its last blend to the composition (`blend`); returns the render passes
-   *  encoded, zero when it cannot draw at this size. */
+   *  encoded, zero when it has nothing to draw. `post` is what the frame's passes share
+   *  (`../finish/finish.ts`). */
   encode(
     encoder: GPUCommandEncoder,
     pass: P,
     nth: number,
     input: GPUTextureView,
     output: GPUTextureView | undefined,
+    post: PostFrame,
   ): number
   /** The blend the last `encode` left to the composition, if it did: a kind without it never
    *  leaves one, and is always handed an output. */

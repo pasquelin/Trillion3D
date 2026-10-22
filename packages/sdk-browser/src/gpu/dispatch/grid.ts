@@ -15,7 +15,10 @@ import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
  * flat dispatch's rows come from the host (`dispatchRows`, `dispatchGrid`); an indirect one's from
  * the kernel that writes its arguments, by the same split (`groupGrid`).
  */
-export const DEFAULT_GROUP_WIDTH = 65535
+
+/** WebGPU's default `maxComputeWorkgroupsPerDimension`: the width a dispatch in rows is cut at when
+ *  the device names none (`groupWidth`). */
+const DEFAULT_GROUP_WIDTH = 65535
 
 /** The threads of the engine's one-dimensional workgroup: every pass that runs a thread per page,
  *  node, slot or entry, the lane scan's width, a cluster block's pages — a multiple of 32, its draw

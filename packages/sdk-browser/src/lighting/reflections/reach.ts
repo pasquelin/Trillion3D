@@ -14,16 +14,16 @@
  *
  * DISTANCE, by tiers, each coarser and cheaper than the one before: the screen first, the frame itself,
  * for every ray (`reflectionSeen`); then the proxy, the scene's simplified geometry, for the rays the
- * screen left of a pixel in the NEAR FIELD (`reflectionNearField`): inside the cascades that follow the
- * camera — detailed geometry is worth tracing around the camera alone; past them, the
+ * screen left of a pixel in the NEAR FIELD (`reflectionNearField`): inside the levels that follow the
+ * eye — detailed geometry is worth tracing around the eye alone; past them, the
  * probes' field and the surroundings, the coarse far field, for the rest. The near field's bound is the
- * cascades' own, no count of metres: past the levels that follow the camera only the world-fixed level's
- * coarse cells hold the light, the pixels are far and few, and a reflection there takes the screen and the
- * field, a pixel's whole cost the march and eight probes a cascade. Without a field every pixel is near.
+ * levels' own, no count of metres: past the coarsest level no probe holds light, the sky light answers, the
+ * pixels are far and few, and a reflection there takes the screen and the
+ * field, a pixel's whole cost the march and eight probes a level. Without a field every pixel is near.
  *
- * THE HARD BOUND of a ray the proxy walks, the scene's extent (`reflectionSceneReach`): the field's last
- * cascade is world-fixed and covers the proxy's extent (`../bounce/gridWgsl.ts`), so no ray meets
- * anything past its cube's diagonal, √3 · side · s_last; without a field, `REFLECTION_FAR`. It costs
+ * THE HARD BOUND of a ray the proxy walks, the scene's extent (`reflectionSceneReach`): no ray meets
+ * anything past the diagonal of the extent of the placements that wear a proxy (`bounce.reach`,
+ * `../bounce/uniform.ts`); without a field, `REFLECTION_FAR`. It costs
  * nothing: the placement tree's walk stops at the root's box anyway, the bound only keeps the ray finite.
  *
  * Cost of the rules: one square root and a clamp a lobe, a box test a traced texel. What they save: a
@@ -36,9 +36,9 @@ import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 
 /** `reflectionTraceShare`: the share of a lobe of narrower width `alpha` (α, its roughness squared)
  *  a ray answers, the rest the field's; the whole lobe where no probe answers.
- *  `reflectionNearField`: whether `P` lies in the box of the coarsest cascade that follows the camera;
- *  every point where no field or no such cascade stands.
- *  `reflectionSceneReach`: the hard bound, the last cascade's diagonal, or `REFLECTION_FAR`. The program
+ *  `reflectionNearField`: whether `P` lies in the box of the coarsest level that follows the eye;
+ *  every point where no field stands.
+ *  `reflectionSceneReach`: the hard bound, the scene's diagonal, or `REFLECTION_FAR`. The program
  *  declares `bounce` (`BounceGrid`). */
 export const REFLECTION_REACH_WGSL = wgslBlock(
   'REFLECTION_REACH_WGSL',
@@ -49,15 +49,14 @@ export const REFLECTION_REACH_WGSL = wgslBlock(
 }
 fn reflectionNearField(P:vec3f)->bool{
  let levels=min(bounce.counts.y,CASCADE_LEVELS);
- if(bounce.counts.w==0u||levels<2u){return true;}
- let level=levels-2u;
+ if(bounce.counts.w==0u||levels==0u){return true;}
+ let level=levels-1u;
  let low=bounceLevelLow(level);
  let high=low+f32(bounce.counts.x)*bounce.levels[level].spacing;
  return all(P>=low)&&all(P<=high);
 }
 fn reflectionSceneReach()->f32{
  if(bounce.counts.w==0u||bounce.counts.y==0u){return REFLECTION_FAR;}
- let last=min(bounce.counts.y,CASCADE_LEVELS)-1u;
- return sqrt(3.0)*f32(bounce.counts.x)*bounce.levels[last].spacing;
+ return bounce.reach.x;
 }`,
 )

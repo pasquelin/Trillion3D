@@ -34,22 +34,24 @@ session never mounts one.
 
 One WebGPU image is one command buffer, encoded in this order:
 
-| Stage                                                     | Code                                                                         |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Stage                                                     | Code                                                                   |
+| --------------------------------------------------------- | ---------------------------------------------------------------------- |
 | Frame gate: camera copy, held-frame test, pipelines asked | `gate/gateCore.ts`, `frame/loop/hold.ts`, `src/frame/render/render.ts` |
-| World poses uploaded                                      | `src/frame/render/worldUpload.ts`                                         |
-| GPU deformation                                           | `deformation/compute.ts`                                                     |
-| Composed placements                                       | `compose/gpuCompose.ts`                                                    |
-| Cut: GPU selection, the engine's one cut                  | `src/frame/render/gpuCut.ts`                                              |
-| Draw compaction of the cut's main pass                    | `visibility/draw/drawOps.ts`                                                 |
-| Visibility raster, the cut's post pass between its halves | `visibility/passes/passes.ts`                                                |
-| Material surfaces, one dispatch per class                 | `materials/classes/materialPasses.ts`                                              |
-| Light buffer, bounce, light grid, virtual shadow maps     | `src/frame/render/encodeLights.ts`                                        |
-| Deferred resolve                                          | `lighting/deferred/deferred.ts`                                              |
-| Transparents, distortion, particles                       | `src/frame/render/encodeBlend.ts`                                         |
-| Temporal resolve                                          | `taa/frame.ts`                                                               |
-| Effect chain                                              | `src/frame/render/encodeEffects.ts`                                       |
-| Composition, presentation, submission                     | `lighting/deferred/deferred.ts`, `src/frame/render/encoder.ts`            |
+| World poses uploaded                                      | `src/frame/render/worldUpload.ts`                                      |
+| GPU deformation                                           | `deformation/compute.ts`                                               |
+| Composed placements                                       | `compose/gpuCompose.ts`                                                |
+| Cut: GPU selection, the engine's one cut                  | `src/frame/render/gpuCut.ts`                                           |
+| Draw compaction of the cut's main pass                    | `visibility/draw/drawOps.ts`                                           |
+| Visibility raster, the cut's post pass between its halves | `visibility/passes/passes.ts`                                          |
+| Material surfaces, one dispatch per class                 | `materials/classes/materialPasses.ts`                                  |
+| Light buffer, bounce, light grid, virtual shadow maps     | `src/frame/render/encodeLights.ts`                                     |
+| Deferred resolve                                          | `lighting/deferred/deferred.ts`                                        |
+| Transparents, distortion, particles                       | `src/frame/render/encodeBlend.ts`                                      |
+| Temporal resolve                                          | `taa/frame.ts`                                                         |
+| Exposure: histogram and update of the image composed      | `post/exposure/meter.ts`                                               |
+| Finishing: scene chain, local exposure's grid and blur    | `post/finish/frame.ts`                                                 |
+| Effect chain (bloom)                                      | `src/frame/render/encodeEffects.ts`                                    |
+| Composition, presentation, submission                     | `lighting/deferred/deferred.ts`, `src/frame/render/encoder.ts`         |
 
 `src/frame/render/surfaceLighting.ts` encodes the stages from the light buffer on.
 
@@ -130,14 +132,15 @@ beside or behind the sector (`geometry/partition/plan.ts`, `geometry/hlod/hlodCe
   times the angle the view turns to reach it, over a half turn, raised to the angle weight.
 
 At most `worldStreamingMaxLoadingCells` load at once, the next starting as one ends: those loading,
-less than that, are the room left; at 0 or less none is held back. The actors always loaded — held by no cell — make one unit a level; it ranks after every
-cell the view reaches, starts only while room is left and takes none, and counts among those loading
-till its actors are held (`geometry/hlod/hlodTops.ts`). Each cell that starts takes a turn, and its
-reads — a cell's files, an HLOD cell's actors' roots and rows — ask the session's queue by it, in a
-lane ahead of the cut's pages: the queue serves every cell's reads in the one load order, a page
-never ranked among them (`geometry/streaming/priority.ts`, `geometry/partition/loadSlots.ts`).
-The cells not started are ranked again at each frame; one loading keeps its turn, its reads staying
-where they were asked. The initial load — till the session's first image is shown — holds none back, and that image waits
+less than that, are the room left; at 0 or less none is held back. The actors always loaded — held
+by no cell — make one unit a level; it ranks after every cell the view reaches, starts only while
+room is left and takes none, and counts among those loading while the reads of its actors are not
+done (`geometry/hlod/hlodTops.ts`). Each cell that starts takes a turn, and its reads — a cell's
+files, an HLOD cell's actors' roots and rows — ask the session's queue by it, in a lane ahead of the
+cut's pages: the queue serves every cell's reads in the one load order, a page never ranked among
+them (`geometry/streaming/priority.ts`, `geometry/partition/loadOrder.ts`, `geometry/partition/loadSlots.ts`). The cells not started
+are ranked again at each frame; one loading keeps its turn, its reads staying where they were asked.
+The initial load — till the session's first image is shown — holds none back, and that image waits
 for it: every cell wished visible, its content placed and its roots resident
 (`frame/loop/firstImage.ts`).
 
@@ -199,27 +202,27 @@ world.worldStreaming = { hlodEnabled: false }
 world.worldStreaming = { hlodEnabled: null }
 ```
 
-| Field                           | Meaning                                                                                   | Default |
-| ------------------------------- | ----------------------------------------------------------------------------------------- | ------- |
-| `worldStreamingMaxLoadingCells` | Cells that may load at once once the first image is shown, a whole number; 0 or less, no limit | `4`     |
-| `worldStreamingAngleWeight`     | How much the angle to the view's heading weighs in a cell's turn, from 0 to 1             | `0.4`   |
-| `worldStreamingSortByExtent`    | The wider cells first by their half side; `false`, by their level                         | `true`  |
-| `worldStreamingSortByPriority`  | A grid's priority ranks before the distance; `false`, after                               | `true`  |
-| `worldStreamingUseGridRange`    | The circle takes each grid's range times `worldStreamingRangeScale`; `false`, `worldStreamingRadius` | `true` |
-| `worldStreamingRangeScale`      | The scale of each grid's loading range, from 0                                            | `1`     |
-| `worldStreamingRadius`          | The circle's radius for every grid, metres, from 0                                        | `100`   |
-| `worldStreamingSector`          | Only a sector of the circle around the view's heading streams cells                       | `false` |
-| `worldStreamingSectorAngle`     | That sector's angle, degrees, from 0 to 360                                               | `360`   |
-| `worldStreamingZCulling`        | A square grid's cell (`spatialHash`) is wished only while its content's height range meets the eye's height within the radius | `false` |
-| `worldStreamingBlockOnSlowStreaming` | A grid compiled with `blockOnSlowStreaming` holds the images back while a cell near the view is not shown | `true` |
-| `worldStreamingBlockOnSlowStreamingRatio` | The ratio under which a cell of a blocking grid not yet shown blocks, from 0          | `0.25`  |
-| `hlodEnabled`                   | The HLOD actors load and draw; `false`, the main grid's cells draw alone                   | `true`  |
-| `hlodWarmup`                    | A switch that draws an HLOD actor whose layer asks one waits on its warm-up               | `true`  |
-| `hlodWarmupFrames`              | The frames in a row a warm-up lasts, a whole number from 0                                | `5`     |
-| `hlodWarmupGeometry`            | A warm-up asks the actor's geometry, ahead of the views' requests                         | `true`  |
-| `hlodWarmupTextures`            | A warm-up asks the actor's textures                                                       | `true`  |
-| `hlodWarmupTextureScale`        | The scale of the size the actor covers on screen its textures are asked at, from 0        | `2`     |
-| `hlodWarmupTextureClamp`        | The most texels asked along a texture's side, a whole number from 1                       | `2048`  |
+| Field                                     | Meaning                                                                                                                       | Default |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `worldStreamingMaxLoadingCells`           | Cells that may load at once once the first image is shown, a whole number; 0 or less, no limit                                | `4`     |
+| `worldStreamingAngleWeight`               | How much the angle to the view's heading weighs in a cell's turn, from 0 to 1                                                 | `0.4`   |
+| `worldStreamingSortByExtent`              | The wider cells first by their half side; `false`, by their level                                                             | `true`  |
+| `worldStreamingSortByPriority`            | A grid's priority ranks before the distance; `false`, after                                                                   | `true`  |
+| `worldStreamingUseGridRange`              | The circle takes each grid's range times `worldStreamingRangeScale`; `false`, `worldStreamingRadius`                          | `true`  |
+| `worldStreamingRangeScale`                | The scale of each grid's loading range, from 0                                                                                | `1`     |
+| `worldStreamingRadius`                    | The circle's radius for every grid, metres, from 0                                                                            | `100`   |
+| `worldStreamingSector`                    | Only a sector of the circle around the view's heading streams cells                                                           | `false` |
+| `worldStreamingSectorAngle`               | That sector's angle, degrees, from 0 to 360                                                                                   | `360`   |
+| `worldStreamingZCulling`                  | A square grid's cell (`spatialHash`) is wished only while its content's height range meets the eye's height within the radius | `false` |
+| `worldStreamingBlockOnSlowStreaming`      | A grid compiled with `blockOnSlowStreaming` holds the images back while a cell near the view is not shown                     | `true`  |
+| `worldStreamingBlockOnSlowStreamingRatio` | The ratio under which a cell of a blocking grid not yet shown blocks, from 0                                                  | `0.25`  |
+| `hlodEnabled`                             | The HLOD actors load and draw; `false`, the main grid's cells draw alone                                                      | `true`  |
+| `hlodWarmup`                              | A switch that draws an HLOD actor whose layer asks one waits on its warm-up                                                   | `true`  |
+| `hlodWarmupFrames`                        | The frames in a row a warm-up lasts, a whole number from 0                                                                    | `5`     |
+| `hlodWarmupGeometry`                      | A warm-up asks the actor's geometry, ahead of the views' requests                                                             | `true`  |
+| `hlodWarmupTextures`                      | A warm-up asks the actor's textures                                                                                           | `true`  |
+| `hlodWarmupTextureScale`                  | The scale of the size the actor covers on screen its textures are asked at, from 0                                            | `2`     |
+| `hlodWarmupTextureClamp`                  | The most texels asked along a texture's side, a whole number from 1                                                           | `2048`  |
 
 ## WebGPU page raster
 
@@ -252,10 +255,14 @@ pixels (1 by default), divided by the streaming pool's quality scale
 ([RESIDENCY.md](RESIDENCY.md)) and, while the temporal antialiasing upscales, by the bias
 `min(displayWidth / renderWidth · 2^-cutLodBiasOffset, 2^-cutLodBiasMin)`
 (`cutLodBiasFollowsUpscale`; `src/frame/render/gpuCut.ts`, `lodBiasFactor`). A leaf kept and seen
-asks for each of its pages at the threshold over the leaf's projected error, under the view's
-category (`geometry/dag/request/request.ts`); the descent opens no node of a world actor whose cell
-does not draw it — each actor its own subtree of the world's hierarchy —, so none of its clusters
-is drawn or asked for (`geometry/dag/shader/worldGateWgsl.ts`).
+asks for its pages in one request — its first page, how many follow it and its priority, the
+threshold over the leaf's projected error under the view's category
+(`geometry/dag/request/request.ts`) —, whatever it holds resident; its clusters are candidates
+only when one is resident, else the cut draws its parent. The descent dispatches only the levels a
+resident page needs reached — its leaf's level and that of the finer clusters it brings within reach
+(`geometry/dag/encode.ts`, `PackedDag.residentLevels`). It opens no node of a world actor whose
+cell does not draw it — each actor its own subtree of the world's hierarchy —, so none of its
+clusters is drawn or asked for (`geometry/dag/shader/worldGateWgsl.ts`).
 
 Occlusion runs in two passes (`cutTwoPassOcclusion`, `cutOcclusionCulling`; `geometry/dag/shader/occlusionWgsl.ts`).
 The main pass tests every cell, node and cluster that passed the frustum against the previous
@@ -264,7 +271,8 @@ that image's pixels: what it hides is held on the post lists, what it shows is d
 The children of a node it hides are held by their parent, one entry and the mask of them, within
 the post pass's node budget; a placement's root and a cell of the placement tree are held alone.
 A leaf below a placement's root it hides is held only with a resident page, the post pass asking
-for those pages alone; one without is dropped, neither tested again nor asked for. The raster
+for its pages as the main pass does once it shows it; one without is dropped, neither tested again
+nor asked for. The raster
 draws the main pass's clusters, the pyramid is built from that depth, and the post pass
 (`GpuSelection.encodePost`, `geometry/dag/shader/postPassWgsl.ts`) tests what was held against it,
 at the current poses: what shows descends and is drawn by the raster's second pass, what stays
@@ -297,9 +305,16 @@ keeps its high-water mark: a cut past a cap that raises the mark is said
 once, as a `gpu-cut-lists` warning naming the list, its peak over its cap, the mark and the
 setting that raises the cap (`geometry/dag/lists/listFeedback.ts`). Caps changed at run time lay
 the flags out again between two frames; caps the device or the cut's share refuses keep the lists
-as they are, said once. The readout the host adopts the cut from keeps its own cap for the cut's
-life (`geometry/dag/lists/listCap.ts`): a cut that lists more is adopted by its head, its mask
+as they are, said once. The readout the host adopts the cut from follows what the cut asks of it
+(`geometry/dag/lists/requestSize.ts`): a request a leaf, drawn clusters and requests in lists of as
+many ranks, from `streamingMinRequests` (65 536) to `streamingMaxRequests` (1 048 576), made again
+between two frames when the size moves; a cut that lists more is adopted by its head, its mask
 drawn whole.
+
+```ts
+const world = createWorld(canvas, { streamingMinRequests: 262144 }) // the readout starts larger
+explorer.setStreaming('streamingMaxRequests', 524288) // and stops growing there, from the next readback
+```
 
 ```ts
 const world = createWorld(canvas, { cutMaxVisibleClusters: 8 * 1048576 })
@@ -316,18 +331,18 @@ world.cut = { cutLodBiasFollowsUpscale: false, cutLodBiasMin: -1 }
 world.cut = { cutTwoPassOcclusion: null } // back to the preset's, here the default
 ```
 
-| Field                      | Meaning                                                                          | Default |
-| -------------------------- | -------------------------------------------------------------------------------- | ------- |
-| `cutTwoPassOcclusion`      | Each view's cut runs its two passes; `false`, one pass that occludes nothing      | `true`  |
-| `cutOcclusionCulling`      | The cut tests its boxes against the depth pyramids at all                         | `true`  |
-| `cutFrustumCulling`        | The cut rejects the boxes outside the frustum                                     | `true`  |
-| `cutMinLodCulling`         | The cut prunes a leaf whose least own error still shows at its nearest            | `true`  |
-| `cutLodBiasFollowsUpscale` | An upscaled image's threshold follows the display over the render width          | `true`  |
-| `cutLodBiasOffset`         | The bias's offset, in powers of two, any finite number                            | `0`     |
-| `cutLodBiasMin`            | The bias's floor, in powers of two, any finite number                             | `-2`    |
-| `cutMaxNodes`              | Most nodes one pass opens, a whole number from 1 to 2³¹ − 1                       | `2097152`  |
-| `cutMaxCandidateClusters`  | Most candidate clusters one cut lists, a whole number from 1 to 2³¹ − 1           | `16777216` |
-| `cutMaxVisibleClusters`    | Most clusters one cut draws, a whole number from 1 to 2³¹ − 1                     | `4194304`  |
+| Field                      | Meaning                                                                      | Default    |
+| -------------------------- | ---------------------------------------------------------------------------- | ---------- |
+| `cutTwoPassOcclusion`      | Each view's cut runs its two passes; `false`, one pass that occludes nothing | `true`     |
+| `cutOcclusionCulling`      | The cut tests its boxes against the depth pyramids at all                    | `true`     |
+| `cutFrustumCulling`        | The cut rejects the boxes outside the frustum                                | `true`     |
+| `cutMinLodCulling`         | The cut prunes a leaf whose least own error still shows at its nearest       | `true`     |
+| `cutLodBiasFollowsUpscale` | An upscaled image's threshold follows the display over the render width      | `true`     |
+| `cutLodBiasOffset`         | The bias's offset, in powers of two, any finite number                       | `0`        |
+| `cutLodBiasMin`            | The bias's floor, in powers of two, any finite number                        | `-2`       |
+| `cutMaxNodes`              | Most nodes one pass opens, a whole number from 1 to 2³¹ − 1                  | `2097152`  |
+| `cutMaxCandidateClusters`  | Most candidate clusters one cut lists, a whole number from 1 to 2³¹ − 1      | `16777216` |
+| `cutMaxVisibleClusters`    | Most clusters one cut draws, a whole number from 1 to 2³¹ − 1                | `4194304`  |
 
 Two rasterizers write the one visibility buffer, chosen cluster by cluster (`visibility/raster/`).
 A binning kernel, one workgroup a drawable row (`visibility/raster/binWgsl.ts`), reads each row's
@@ -443,8 +458,8 @@ const world = createWorld(canvas, { shadeBinningMode: 'quad' })
 world.shading = { shadeBinningMode: null } // back to the preset's, here the default
 ```
 
-| Field              | Meaning                                                                         | Default  |
-| ------------------ | ------------------------------------------------------------------------------- | -------- |
+| Field              | Meaning                                                                          | Default  |
+| ------------------ | -------------------------------------------------------------------------------- | -------- |
 | `shadeBinningMode` | `'auto'` as each class asks, `'pixel'` every pixel alone, `'quad'` by 2 × 2 quad | `'auto'` |
 
 A normal map bends the normal in a tangent frame. A row whose geometry carries tangents
@@ -471,7 +486,10 @@ converged image like any still view (`taaConverging`, `frame/loop/hold.ts`); a c
 on the history it holds, and a session opened with `drawConverged` (the bench's cost series) keeps
 drawing it. Its level (`off`, `low`, `medium`, `high`, `max`, `taa/levels.ts`) sets the
 kernel, the flicker rejection and the spatial anti-aliaser; a level without either skips its
-pass. The render
+pass. The thin geometry detection, which relaxes the history where geometry is thinner than a
+pixel, runs where the setting `temporalThinGeometry` (`world.temporal`, off by default) asks for
+it, at any level but `off`, and in the analysis views of the diagnostic; a change of the setting
+starts the history again. The render
 scale is a dynamic resolution (`scale/dynamicResolution.ts`): a history of the frame's GPU busy
 times against the frame time budget, both directions, with or without the temporal upscaler
 (spatial upscale in the composition where it is off). The loop draws every refresh, or under the
@@ -482,12 +500,126 @@ page's frame cap every few (`frame/cadence.ts`), whose interval is the budget. T
 
 `world.effects` (`sdk-core/world/effect/`; API in [SDK.md](SDK.md#canvas-camera-and-teardown)) runs
 over linear radiance between the temporal resolve and tone mapping:
-`post/effects/webgpuEffects.ts`, one table of pass kinds. An empty chain adds no pass; bloom is `effects/bloom/bloomFilter.ts`.
+`post/effects/webgpuEffects.ts`, one table of pass kinds. An empty chain adds no pass; bloom is `post/effects/bloom/`, [the display finishing](#the-display-finishing).
 The passes after tone mapping draw over the composed display image and the canvas
 (`encodeOverlayEffects`); an idle pass (an outline of no object) is passed by. The outline
 (`effects/outline/outlineWgsl.ts`) reads the visibility identifiers through the page table to each
 pixel's root (`pages[row].placement`) and one bit per root its objects' subtrees draw, then an
 exact separable distance in two passes scissored to the roots' projected boxes (`rootsRect.ts`).
+
+## Exposure and the display curve
+
+The image the lighting writes is linear radiance. Composition multiplies it by an exposure, then the
+display curve brings it into [0, 1], then the sRGB transfer: `lighting/deferred/shaders.ts`,
+`lighting/toneMappingWgsl.ts`. `world.exposure` is a number above zero — the manual multiplier, used
+as it is — or `'auto'`, the default. `world.toneMapping` is `'filmic'` by default, `'aces'`, `'agx'`,
+`'cineon'`, `'neutral'`, `'reinhard'`, `'linear'` or `'none'` the others
+(`TONE_MAPPING_RANK`, `packages/sdk-core/src/scene/core/environment.ts`).
+
+**Automatic exposure** (`post/exposure/`) measures the image composition reads, on the GPU, every
+image: a compute pass bins the log2 luminance of its half-resolution pixels into a 64-bucket
+histogram over a span of stops (workgroup-local counters, one merge into the buffer, `meterWgsl.ts`),
+then one thread takes the mean of the logs between two percentiles, holds it to a range, and moves
+the exposure toward `2^bias · 0.18 / mean`: linearly while it is farther than the transition
+distance, exponentially inside, at the rise's or the fall's speed, with the frame's time; a view cut
+(`gate.temporalRevision`) and the first image jump to the target. The exposure it leaves is copied,
+on the GPU, into the composition's view uniform, so an image is shown at the exposure measured on it,
+and into a staging buffer of the readback ring (`gpu/core/readbackRing.ts`), which brings it to the
+CPU a few images late: `appliedExposureOf`, 1 until one came back. That value is the exposure every
+reader outside the composition uses — the lighting parameters, the temporal resolve's weights and its
+correction by the ratio of one image's exposure to the last's, the reflections' ranges and the
+background a mirror shows, the display layers —, so the lag is theirs and the image's never. A frame
+waits for nothing: no stall, no readback awaited. The settings are `world.exposureSettings`
+(`packages/sdk-core/src/contracts/exposureOptions.ts`); a view whose exposure is still moving toward
+its target is drawn again (`exposureMoving`, `frame/loop/unsettled.ts`) and a still one is held.
+A view lit by no declared lamp shows its albedo as it is (`UNLIT_COMPOSITIONS`): no exposure, no
+curve, whatever `world.exposure` says. The flat `scene.background` is a display colour, drawn as it
+is, never exposed. A manual exposure runs no pass: its number is the lighting parameter and the
+composition's multiplier, exactly as before the automatic one existed.
+
+**The film curve** (`lighting/filmCurveWgsl.ts`, constants `filmCurveConstants.ts`) is evaluated
+analytically in the composition, no table: exposed sRGB radiance to the film's wide working gamut,
+a widening of bright saturated colours, a blue correction, a glow and a red pull by hue in the
+grading gamut, a first desaturation, the curve of each channel — a toe and a shoulder in log
+luminance (slope 0.88, toe 0.55, shoulder 0.26, black clip 0, white clip 0.04) —, a second
+desaturation, the blue correction undone, back to sRGB. Middle grey in is middle grey out. A mirror
+shows the background as the display shows it, so every curve has an inverse (`toneInverse.ts`); the
+film curve's, which has no closed form, is solved by a descent on the CPU (`filmInverse.ts`), once
+for each background colour and curve, never per image.
+
+## The display finishing
+
+Three effects follow the exposure's measure and come before the curve, in the lit image only (a view
+lit by no declared lamp shows its albedo as it is, a diagnostic view and a capture the engine's
+image): the bloom, the local exposure and the vignette. All three are the defaults of a view — a
+world starts with its bloom in `world.effects`, the local exposure's contrasts are 0.8, the
+environment's vignette 0.4 — and each is off by its own setting: the bloom removed or at intensity 0,
+both contrasts and the detail strength at 1, the vignette at 0. An image whose three are off is
+composed plain, with no pass, no target and no group (`post/finish/frame.ts`). The order of a frame
+(`frame/render/surfaceLighting.ts`): the temporal resolve, the exposure (`post/exposure/`), the
+finishing's passes, the effect chain, the composition.
+
+**The scene's chain** (`post/filters/sceneChain.ts`) is the lit image brought to half size — one
+bilinear read at the centre of each four pixels, their mean — and then a chain of levels, each the
+mean of the 4 × 4 texels around the one above (`downsampleWgsl.ts`), half its size rounded up; a
+level past the edge reads the last texel. The local exposure and the bloom share it: each asks the
+levels it reads (`need`), each is drawn once.
+
+**Bloom** (`post/effects/bloom/`, settings `packages/sdk-core/src/contracts/bloomOptions.ts`) is six
+Gaussian blurs of the chain's levels, finest to widest, added up and added to the image — the glow adds
+light: it conserves nothing. A level's blur is `size × sizeScale` percent of that level's width across
+(`gaussianRadius`: half of it a radius), tinted by the level's tint and `intensity / 6`; the sizes are
+0.3, 1, 2, 10, 30 and 64 percent times 4, the tints 0.3465, 0.138, 0.1176, 0.066, 0.066, 0.061, and
+the intensity 0.675, so the glow is about 9 percent of the light. The blur is separable in two passes
+(`filters/gaussianStage.ts`) with the Gaussian `exp(−16.7 (x / radius)²)` written for bilinear reads: two
+neighbouring texels are one read, placed between them by their weights, at most 32 reads a pass, the
+kernel cut at 31 texels (`gaussianKernel.ts`). From a radius of 7 texels the first pass writes half
+the width, in the corner of its target, and the second reads it bilinearly. A read past the image is
+zero (the sampler clamps; the shader scales a read by how far inside the image it was). From the
+widest level to the finest each stage's second pass adds the stage below's output at its pixel, so
+the finest stage's is the glow. With a threshold above −1 or a local exposure on, a setup pass
+(`bloomWgsl.ts`) draws the half-size image with its local exposure applied and the pixels under the
+threshold dimmed, and the bloom's own chain is built under it; otherwise the scene's levels are read as
+they are. The blooms of a chain share their images (`bloomTargets.ts`) — they run one after the other —
+and each glows from the image the chain was handed. The last bloom's glow is added by the
+composition, where the exposure is applied; one before it adds its own to a target the next reads
+(`composite`). Coverage is blurred with the colour, and the glow adds to it up to 1, so a glow over a
+background shows over it.
+
+**Local exposure** (`post/finish/`, settings `localExposure…` of `world.exposureSettings`,
+`exposureOptions.ts`) splits each pixel's log luminance into a base layer, the light of its
+neighbourhood, and a detail layer, what the pixel adds to it; it pulls the base toward middle grey by a
+contrast scale — highlights above, shadows under — and keeps the detail by its strength, then moves
+the pixel's light by the difference (`localGain`, `finishWgsl.ts`). The base is a mix of two
+estimates. The bilateral grid (`localWgsl.ts`) is one compute pass over the half-size image: a
+workgroup a tile of 64 × 64 pixels, each of its 64 threads sums the 8 × 8 block it reads into 32 bands
+of log luminance, a pixel shared between the two bands it lies between, in fixed point; the grid's
+cell is the band's sum of log luminance and its sum of weights (each a 64th, in half floats). The
+grid is read trilinearly at the pixel's own luminance, so it follows edges; its ratio is the mean log
+luminance of the pixels near it and as bright. The blurred luminance is the log2 luminance of the
+chain's fifth level — 1/32 of the image —, Gaussian-blurred over `localExposureBlurSize` percent of its
+width, mirrored at the edges, bilinearly read; `localExposureBlurBlend` (0.6) is its share, and the
+only base where the grid holds no pixel. Middle grey is 0.18 times two to the exposure's bias — the
+exposure's own target, where it is automatic — and the local bias. Thresholds keep the base's own
+contrast within a distance of middle grey. The composition computes the gain per pixel from the
+pixel's own luminance; the bloom's setup applies the same gain to the half-size image, so the glow is
+the glow of what is shown. A manual exposure leaves the grey at 0.18. The settings of one view are
+read at each image; a change draws it again (`finishMoving`).
+
+**Vignette** (`SceneEnvironment.vignette`, `world.vignette`, 0.4) is the cosine-fourth law, `1 / (1 +
+(v · r)²)²`, `r` the distance from the centre over a circle through the corners whatever the aspect:
+it multiplies the image's light, the glow's included, after the exposure.
+
+**One group, one pipeline.** The composition binds the finishing as group 1 (`finishLayout.ts`): the
+uniform (`finishParams.ts`) — the vignette, the exposure copied on the GPU from the view's, the
+luminance reading the exposure uses, the local exposure's settings —, the grid, the blurred luminance, a
+sampler and the glow; a slot with nothing is an empty image, its flag in the uniform 0. The pipelines
+that finish compile off the frame at the first image that asks (`composesFinish`); until then the image
+is drawn plain and drawn again once they arrive. A frame's cost at 1920 × 1080 with all three on: 26
+render passes and one compute pass beside the exposure's — the chain down to the fifth level (5), the
+local exposure (1 compute, 3 render), the bloom's setup, chain and blurs (18) —, all but four of them
+under 500 × 300 texels, and 22 MB of `rgba16float` targets; the composition reads three more textures
+per pixel.
 
 ## Direct lighting
 
@@ -499,20 +631,226 @@ shadowed or rectangular light runs a program built without that code
 
 ## Light that bounces
 
-Dynamic, off by default: irradiance probes in nested cascades trace rays against the resident
-proxy the compiler writes ([FORMAT.md](FORMAT.md)), under a budget in milliseconds (`bounce/`). The
-probes and the environment share one basis
+Dynamic, on by default (`bounce: false` turns it off): irradiance probes trace
+rays against the resident proxy the compiler writes ([FORMAT.md](FORMAT.md)), a count of probes a
+frame (`bounceProbesPerFrame`, `bounce/`). The probes and the environment share one basis
 (`packages/sdk-core/src/scene/core/irradianceBasis.ts`). Its points are lit by the one light function and loop, in their irradiance
 term, shadowed by proxy rays (`lighting/direct/lightLoopWgsl.ts`); each walks the lights of its cell
-of a world light grid that the light grid pass lists over the last cascade level, in the view
-grid's own buffer (`bounce/lightCellWgsl.ts`), again only when a light, that level or the buffer
+of a world light grid that the light grid pass lists over a lattice laid on the scene's extent, in the view
+grid's own buffer (`bounce/lightCellWgsl.ts`), again only when a light, that lattice or the buffer
 changes — the probe rays and the reflections' proxy hits walk the same lists.
+
+**Where the probes are.** Four levels of probes, each a cube of 48 cells a side centred on the eye and
+snapped to its own cells: the first reaches 25 m, its cell 1.04 m, and each next level twice as far,
+its cell twice as wide — 2.08, 4.17, 8.33 m (`cascadeLevels`, `cascadeSize`, `cascadeHalfExtentMetres`,
+`cascadeBase`, `sdk-core/src/bounce/cascades.ts`). The cells never depend on the scene: a 20 m street is
+twenty cells across wherever it lies and however large the district is, where a grid laid on the whole
+extent made its cell a fraction of it. A level slides by whole cells with the eye. Beyond the last level,
+the sky light answers (below).
+
+**Probes only where the image reads.** A level holds 110 592 cells, the four 442 368; a probe is made
+only for a cell the image reads, from a pool of 16 384 (`probePool`, `sdk-core/src/bounce/probePool.ts`).
+Each image marks the cells it reads (`bounce/markWgsl.ts`): a tile of 16 pixels, one thread, takes the
+pixel its jitter picks, reads the surface there, finds the finest level that holds it — the rule the lit
+passes read the field by, the normal bias a third of a cell included — and sets a bit for each of the eight
+probes around it; sky marks nothing. The bitmap (55 KB) is read back a few images late through the
+engine's readback ring (`bounce/marks.ts`, no frame waits): a cell marked with no probe takes one from the
+pool, a cell marked again keeps it, one that left its level when the level slid is given back, and so is
+one nothing read for 8 marks (`probeKeptMarks`). A change of view owes `markJitter` marks, each another
+point of every tile, so a cell one point missed is found by the next; a still, marked view costs nothing.
+A pool with none left refuses a mark: that cell goes unanswered, and the next level or the sky light
+answers for it (`refusedMarks` in the diagnostic).
+
+**Probes for the surfaces the probes see.** A surface near the eye is lit by the light its neighbours
+cast on it whether the screen shows it or not, so the cells round it need probes too. A probe's ray
+that hits a surface reads the light the levels hold there (below), and the update marks the eight
+probes round that point by the very rule the image's marks follow (`markPoint`, `bounce/markWgsl.ts`):
+at the finest level that holds it, at most one mark a ray, a hit past every level marking nothing.
+Each image that traces probes copies that bitmap to a second readback ring and clears it
+(`bounce/hitMarks.ts`), and a few images later each cell it names takes a probe, so the surfaces the
+probes see get probes of their own over the next images, and those probes' rays reach further still,
+until no new cell is hit or the pool is full. These cells are kept while their level holds them: no
+age takes them back, since the surface a ray lit stays where it is whether the screen shows it or not
+(`KEPT`, `probePool.ts`); the image's own marks keep their age (`probeKeptMarks`). The pool refuses what
+it cannot hold, counted in `refusedMarks`, and `raysMarked` counts the rays whose hit a level held.
+
+**What the lit passes read.** The atlas of the probes holds, in a second layer, a table naming the slot
+of the pool that holds each cell of each level, by its remainder modulo the side, so that sliding by a
+cell changes only the entries that come in (`bounce/atlas.ts`, `bounce/probes/tableWgsl.ts`). The table
+names a probe once its first update was queued, and forgets it the moment it is given back; the probe
+says which cell and level it carries, and a mismatch is as good as none. Reading is the same
+rule as ever, the eight probes around a point, each weighed by its cell's trilinear share, its facing and
+its measured visibility, each level taking its share (`fade`) of what the finer left.
+
+**What is traced, in what order.** A probe that holds nothing yet comes before every refresh: the finest
+level first, the cells nearest the eye first, up to the frame's queue of 768 probes (49 152 rays of 64)
+rather than the count. The probes already traced take what the count leaves, by the priority a light
+cache gives them — the longer since a probe was traced, over its level plus one, in log₂ buckets, the most
+important filled first (`bounce/probePool.ts`, `probePlan.ts`) — each until it took `settledTraces`
+updates since the lights last changed: then the series closes and the frame holds. The count is a
+number of probes, `bounceProbesPerFrame`, 100 by default and at most the queue — not a duration: the
+probes of a frame run side by side and the pass lasts about as long as its longest ray, so the time of a
+batch does not follow its size, and a servo on it starved the field (`passMs` in `metrics.bounce`
+publishes the last duration of the pass, and steers nothing). The reference mode traces the whole queue.
+
+**Smooth probes.** A probe's fresh estimate is averaged with its six neighbours' — the cells beside its
+own on each axis, one level — before it is kept (`filterProbes`, `bounce/probes/probeFilterWgsl.ts`):
+its own weighs one, a neighbour's the share of the probe's rays that, in their direction, ended where
+the neighbour's ray ended — the angle between the ray and the line from the probe to the neighbour's end
+point, at the shorter of the two ends, weighs `1 − angle / filterHitAngle` (0.2 rad), zero past it —, kept
+where nothing stands between the two probes on either side (the visibility test the field reads by) and
+where the neighbour holds light for its cell and level. Light from a surface both probes see alike is
+shared, light from a contact is not. A probe holds an order-2 basis, not a map of directions: the rays'
+shares are averaged into one weight a neighbour, which weighs the whole basis, and a probe keeps its
+own distances unfiltered, so the filter never blurs what stands between probes. The frozen atlas is
+read, so an update never sees a neighbour half-written.
+
+A probe ray that leaves the scene reaches the sky (`lighting/atmosphere/skyReadWgsl.ts`): the share
+of the ray the scene lets through times the radiance of the sky in its direction, above the horizon
+the atmosphere's sky by direction, below it the sky light's ground colour, black by default — when a
+sky light gives it (`light.sky()`). The probes thus hold the sky the scene lets through: a street is
+lit from above, an arcade is not. A probe in open sky is no longer asleep for good: it is updated
+again when the sky or the sun changes, as when any light does (`frame/render/encodeLights.ts`).
+A pixel takes the sky light's diffuse light from the probes alone, never added again beside the
+environment; the share of a point they do not answer — no probe yet, a point no level holds a probe
+for — is the sky light's own unoccluded irradiance (`bounce/applyWgsl.ts`), so the image shows no hole
+while the probes fill. A scene with no sky light has no unoccluded light to give there: its
+environment (ambient, hemisphere) is the pixel's own term beside the probes, so the probes that
+answer stand for the share they leave, and a partial read is no darker. In a scene with an
+atmosphere the probes wait for the sky by direction to be built (its first image), so none holds a
+sky of none. With the bounce off, or no lamp to bounce, the sky light lights with its unoccluded
+irradiance everywhere.
+
+A probe that holds nothing yet — a cell no probe holds, a probe never updated for the cell it carries, as
+on the first image or after the eye jumped — answers "not yet": its share of a point goes on to the next
+level and, past the last, for a pixel, to the sky light, never to dark. A surface a probe's ray or a
+reflection hits is read by another rule (`indirectHeld`, `bounce/indirectWgsl.ts`): the light the
+probes hold there and no more, nothing for the share they do not answer. The sky already reaches the
+probes through their own rays, occluded by the scene, so the unoccluded sky added to a hit would count
+it a second time for a surface the sky does not reach and light every street from above. A surface
+whose probes hold nothing yet is dark for the rays that read it, and fills as its probes do, update
+after update; those probes are asked for by the hits themselves (above). The frame's bounce counts
+publish how many probes are alive and how many hold nothing yet (`liveProbes`, `unfilledProbes`, zero
+once the light the image reads is filled), and the probe series stays open until none is, until every
+probe has its updates and the marks owed, the image's and the rays', are in.
+
+A probe's ray is cut at `rayReachMetres` (200 m by default), past which the sky answers, and so is the
+shadow ray its hit casts. A ray, shadow rays included, spends at most `probeRayWork` units — a box
+tested, a node visited, a triangle tested — and `probeRayTriangles` triangle tests
+(`lighting/bounce/runtime/runtimeLayout.ts`): in a street a ray crosses many overlapping boxes, and a
+shadow ray that meets nothing has no hit to stop it, so the budget is the whole of what the probes can
+learn of the light. A shadow ray asks only whether anything stands on its segment: it walks the placement
+tree once, in index order, and stops at the first surface (`placementTreeAnyHit`,
+`geometry/dag/tree/treeWalkWgsl.ts`), where the rays that need the nearest surface walk it front to
+back and read a node again for every four of its children they meet. A ray that spends it carries no weight and a probe none of whose rays answered
+keeps what it held, which is nothing on its first update. The marks follow what the image draws: a view
+that stands still but whose cut refines, or whose pages arrive, marks the cells of its new surfaces
+again (`lighting/bounce/marks.ts`, `frame/render/encodeLights.ts`). The frame metrics publish the state
+of the field as `metrics.bounce` (`BounceFrameMetrics`): whether the probes exist, the probes alive,
+those still unfilled, the entries of the table that name a probe, the probes that hold light, and,
+counted on the GPU a few images late, the rays fired, those that answered, those that brought light
+back, those whose hit marked the cells round it (`raysMarked`), those that carried no weight by what
+spent them, and every ray by the work it spent (`lighting/bounce/census.ts`).
 
 ## Fog
 
 `scene.fog` is a term of the one lighting model, applied by every program that lights a surface:
-the law is `packages/sdk-core/src/scene/core/fog.ts`, its shader text `lighting/fogShader.ts`, its options
-[SDK.md](SDK.md#scene-fog).
+the law is `packages/sdk-core/src/scene/core/fog.ts` and `fogHeight.ts`, its shader text
+`lighting/fogShader.ts`, its options [SDK.md](SDK.md#scene-fog). A surface's radiance `L` reaches the
+eye as `L · T + S`, before the exposure; `T` is the transmittance along the view ray, `S` the light
+the medium scatters toward the eye. The linear fog is the ramp from `near` to `far`, `S = color ·
+(1 − T)`. The height fog is the reference's:
+
+- **Law.** The density at the height `y` is `baseDensity · 2^(−falloff · (y − baseHeight))`. A ray of
+  length `d` that rises by `dy` from an eye at `yEye` gathers `X = baseDensity · 2^(−falloff · (yEye
+− baseHeight)) · d · (1 − 2^(−F)) / F`, `F = falloff · dy` (`ln 2` where `F` is nil), and
+  `T = max(2^(−X), 1 − maxOpacity)`. `X` is `ln 2` times the integral of the density along the ray,
+  used as the exponent of 2: a uniform medium of `baseDensity` extinguishes at `(ln 2)² ·
+baseDensity` per metre (`T = exp(−0.4805 · baseDensity · d)`). Steps, in the shader's order: no fog
+  past `cutoffDistance`; the eye's height held to 655 m above `baseHeight`, the rise compensated;
+  `startDistance` moves the ray's origin along it; the line integral is the mean density of what
+  remains, shared with the sun's lobe. The mean density is written from the ray's lower end
+  (the same value as from the eye) so a high eye over a steep falloff loses nothing to a product of a
+  huge number and a tiny one.
+- **Units, and the exact conversion.** The numbers are those of the reference, in scene metres.
+  Its density and falloff are per 1000 centimetres: `baseDensity` is its density ÷ 10 per metre,
+  `falloff` its falloff ÷ 10 per metre; its distances are centimetres, metres are ÷ 100. So
+  the reference's `0.02`, `0.2`, `10 000` are `baseDensity` 0.002 (extinction 9.6e-4 per metre at the
+  base height), `falloff` 0.02 (the density halves every 50 m) and a lobe start of 100 m.
+- **Defaults**, the reference's, converted: `color` black; `baseDensity` 0.002; `falloff` 0.02;
+  `baseHeight` 0; `maxOpacity` 1; `startDistance` 0; `cutoffDistance` 0 (none);
+  `directional.exponent` 4, `.startDistance` 100, `.color` black; `skyContribution` white. A fog that
+  declares nothing is that fog (`{}`), whose colour a scene with an atmosphere gives it.
+- **Colour from the sky.** With an atmosphere, `S = (color + skyContribution · skyMean ·
+heightFogContribution) · (1 − T)`, `skyMean` the sky's mean radiance at 6 km (the table the
+  atmosphere builds each image, `lighting/atmosphere/captureWgsl.ts`) and `heightFogContribution`
+  the atmosphere's (1 by default); the black default `color` leaves the sky alone. The sun's lobe
+  adds `(directional.color · sunLuminance + heightFogContribution · E_ground) · max(0, ray · sun)^exponent
+/ 4π · (1 − T_lobe)`: `sunLuminance` is the luminance of the sun's colour times its intensity (the
+  weights of the sRGB primaries), `E_ground` the sun's illuminance after the air, `T_lobe` the
+  transmittance of the same mean density over the length past `directional.startDistance` (none
+  before it). So the sun's light is scattered by the default fog over an atmosphere, its declared
+  colour black. The sun is the atmosphere's, else the first directional light added
+  (`scene/light/fogSun.ts`, written in the fog block by the store). With no atmosphere the colour is
+  the declared one and the lobe the declared lobe.
+- **Old fields.** `{ color, density, heightFalloff?, baseHeight? }`, the extinction form — `T =
+exp(−density · d)` where nothing falls off, the density divided by e every `1 / heightFalloff`
+  metres up — is a spelling of this law, mapped exactly: `baseDensity = density / (ln 2)²`,
+  `falloff = heightFalloff / ln 2`, the other fields at their defaults (`heightFogOf`). The GPU holds
+  one law; no scene changes its image.
+- **Block.** Six `vec4` of the light buffer, behind the irradiance (`FOG_SLOT`): colour and mode, the
+  law, the range, the lobe, the sky's factor, the sun (direction toward it and luminance).
+
+## Atmosphere and sky light
+
+`scene.atmosphere` is a planet's air lit by the sun: a term of the one lighting model like the fog,
+whose coefficients and defaults are `packages/sdk-core/src/scene/core/atmosphere.ts` (an Earth-like
+planet of 6360 km, air 60 km thick, ground at `y = groundHeight`, 0 by default). Distances of the
+planet are kilometres, the scene stays in metres. Where it is on, `scene.background` is not shown.
+
+**Units.** The sun is the brightest directional light not flagged `atmosphereSun: false` — its
+colour times its intensity, each channel weighed by the eye's sensitivity (the sRGB luminance
+weights, the fog's sun the same) —, an illuminance `E`. Of equals the first added is the sun, and a
+light added later replaces it only if brighter; a removal moves no one's place in that order. The radiance reaching the eye through the air is `L = E · ∫ T(eye→p) · T(p→sun) ·
+(σs_R φ_R + σs_M φ_M) dt`, plus the multiply-scattered share, per steradian — the scale a surface
+reads (`L = albedo / π · E · cosθ`), so a 10-lux sun gives the same sky-to-sun ratio at any
+intensity. A surface is lit by `E · T(ground→sun)`, written into the sun's own slot of the light
+buffer by the store (`atmosphereSun.ts`; the declared light is untouched, the transmittance
+integrated on the CPU over 15 samples, once when the air or the sun moves). The sun's disk is drawn
+at `E / (2π(1 − cos α))`, `α` its angular radius, times the transmittance toward it.
+
+**The tables** (`lighting/atmosphere/`): a transmittance table (256 × 64) and a multiple-scattering
+table (32 × 32), built when the air changes; the sky seen from the eye (192 × 104, 4 to 32 samples
+by distance) and the haze volume (32 × 32 × 16 cells over 96 km, 2 samples a slice) built each image,
+a thread to a texel; a mean sky radiance at 6 km (64 directions), the sky light's capture (1024
+directions) and the sky by direction (128 × 64 texels, in the scene's own axes, kept in the light
+buffer) when the sun or the air moves. About 20 000 and 16 000 short marches per image, no
+readback in the frame, no pipeline compiled on it.
+
+**Drawing.** The sky is premultiplied radiance over the HDR image where the resolve left the
+background, so exposure, the curve and the temporal resolve treat it as any surface. The haze
+(aerial perspective) is read by every surface through the light buffer — the volume lives behind
+the fog's block (`lighting/atmosphere/layout.ts`) —, over the fog: `L' = L · T + S`, opaque and
+transparent alike (`fogged`, `fogOver`, `lighting/fogShader.ts`); the fog takes the sky's mean
+radiance on as its own colour and scatters the sun's light on the ground ([Fog](#fog)). A scene
+without an atmosphere reads none of it. The unlit view and the views that paint raw values show none.
+
+**Sky light.** `light.sky()` gives the scene the sky's irradiance. The sky's upper half is
+projected on the nine harmonics of the environment (`irradianceBasis.ts`) on the GPU, read back
+a few frames later without waiting (`Engine.skyCapture`), and kept as the sky light's own block
+of the light buffer (`environmentSky.ts`), apart from the environment's other lights; its lower half
+is the light's `groundColor`, black by default. Without an atmosphere it is the background colour,
+a uniform sky. It is captured once and again whenever the air or the sun changes, never per frame.
+That block is the irradiance of a surface the bounce probes do not answer; where they answer they
+carry the sky ([Light that bounces](#light-that-bounces)), occluded by the scene.
+
+**Reflections.** A reflection ray that leaves the scene reaches the sky along its direction, sharp
+(`reflectionEnvironment`, `lighting/reflections/field.ts`): above the horizon the atmosphere's sky,
+scaled by the sky light's colour and intensity — as it is drawn where the scene has no sky light —,
+or with no atmosphere the sky light's flat colour; below it the sky light's ground colour. A scene
+with neither an atmosphere nor a sky light keeps the flat background the screen draws. Where the
+probes hold the sky, the field of a reflection takes the environment for the share they do not
+answer alone, the sky never twice.
 
 ## Transparent surfaces
 
@@ -583,11 +921,11 @@ refused:
 const world = createWorld(canvas, { animationMinScreenSize: 0.05 })
 ```
 
-| Field                        | Meaning                                                                                       | Default |
-| ---------------------------- | --------------------------------------------------------------------------------------------- | ------- |
-| `animationMinScreenSize`     | The screen size under which an instanced skinned object is drawn in its rest pose, from 0       | `0.1`   |
-| `animationBankInterpolation` | A track blends its two nearest keys; `false`, its pose is the earlier key's                    | `true`  |
-| `animationBankTimeScale`     | The scale of the world's seconds the tracks advance by                                         | `1`     |
+| Field                        | Meaning                                                                                   | Default |
+| ---------------------------- | ----------------------------------------------------------------------------------------- | ------- |
+| `animationMinScreenSize`     | The screen size under which an instanced skinned object is drawn in its rest pose, from 0 | `0.1`   |
+| `animationBankInterpolation` | A track blends its two nearest keys; `false`, its pose is the earlier key's               | `true`  |
+| `animationBankTimeScale`     | The scale of the world's seconds the tracks advance by                                    | `1`     |
 
 ## Diagnostics and timing
 
@@ -630,5 +968,7 @@ then tone-mapped and encoded to sRGB once, at composition.
   `frame/loop/framePipelines.ts`); no wait on a readback; no allocation in a steady frame; no work
   in a held frame — a view without temporal accumulation where nothing moved
   (`frame/loop/hold.ts`); no bounce pass once converged.
-- **The jitter stays in the image**: it never reaches the cut; the stochastic terms converge in the
-  temporal history, which accumulates them over the jitter's phases.
+- **The jitter stays in the image**: the cut reads it only in the render matrix its boxes are
+  projected with and the frustum planes of that matrix — a box the raster covers in the half pixel
+  it moves is never rejected before it —, never in a level of detail or a request; the stochastic
+  terms converge in the temporal history, which accumulates them over the jitter's phases.

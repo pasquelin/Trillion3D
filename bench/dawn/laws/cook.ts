@@ -7,6 +7,7 @@
 // finely tessellated sphere, for the distance law. Prints the manifest's path.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { DEFAULT_RAM_BUDGET_MB } from '../../../packages/sdk-core/src/contracts/compilerAbi.ts'
 import { compileFullCache } from '../../../scripts/native/native-compiler.ts'
 import { measureOutput } from '../../core/paths.ts'
 import { sceneGltf, type SceneMesh, type SceneNode } from './gltf.ts'
@@ -48,7 +49,7 @@ function cookScene(key: string, build: () => { meshes: SceneMesh[]; nodes: Scene
     cwd: folder,
     source: 'source/scene.gltf',
     threads: 4,
-    ramMb: 4096,
+    ramMb: DEFAULT_RAM_BUDGET_MB,
     simplification: 'qem-endpoints',
     stdio: ['ignore', 'ignore', 'inherit'],
   })

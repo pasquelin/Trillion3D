@@ -30,7 +30,7 @@ test('createGpuDrawBuffers sizes the item and instance buffers from slotCap alon
   assert.equal(buffers.uniforms.size, UNIFORM_BYTES)
   assert.equal(buffers.postUniforms.size, UNIFORM_BYTES)
   assert.equal(buffers.instanceBuffer.size, slotCap * 4)
-  // A command of 16 B per slot, then each slot's total and the occluders' end.
+  // A command of 16 B per slot, then each slot's total and where the main pass's half ends.
   assert.equal(buffers.indirectBuffer.size, BASE_SLOTS * 16 + (BASE_SLOTS + 1) * 4)
   // One group of eight rows: its offsets, then its counts.
   assert.equal(buffers.groupEntries, BASE_SLOTS)

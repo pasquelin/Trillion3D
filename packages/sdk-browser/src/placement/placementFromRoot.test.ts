@@ -125,8 +125,11 @@ test('rows, draw items and cut of repeated and moved placements are those of dev
     // was recorded again at their new length — the seven rows alone digest as they did. Recorded
     // again when a row became its geometry and its surface's rank, 32 words (#1527), and once more
     // when it became 44 words — the Hi-Z slot out, the cluster's LOD sphere and box in
-    // (`PAGE_INFO`) —, the binding that holds the grown rows now the session's own (`GROWN_ROWS`).
-    'b647b06febcf42b6',
+    // (`PAGE_INFO`) —, the binding that holds the grown rows now the session's own (`GROWN_ROWS`),
+    // and once more when the cut's planes followed the image's jitter: the session draws one
+    // pixel, so the half pixel the jitter moves is the whole frustum, and the cut at this frame is
+    // the one that jitter phase leaves.
+    '6bf24ee1b4c8644f',
   ])
 })
 

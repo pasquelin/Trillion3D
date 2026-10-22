@@ -15,6 +15,7 @@ use super::super::tree::{local, Leaf, LEAF_SIDE, LEAF_SIZE, STRIDES};
 use super::links::{face, Links, NONE};
 use super::BOUNDARY;
 use rayon::prelude::*;
+use trillion3d_math::scalar::not_above;
 
 /// A leaf's marked voxels, a bit per voxel by rank.
 type Marks = [u64; 8];
@@ -62,7 +63,7 @@ fn within(values: &mut [f32; LEAF_SIZE]) {
     while again {
         again = false;
         for pos in 0..LEAF_SIZE {
-            if !(values[pos] > BOUNDARY) {
+            if not_above(values[pos], BOUNDARY) {
                 continue;
             }
             let [x, y, z] = local(pos);

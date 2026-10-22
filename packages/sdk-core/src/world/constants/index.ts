@@ -68,9 +68,11 @@ export const colorSpace = Object.freeze({
  * @property linear - Scales the light by the exposure, then cuts off at white.
  * @property reinhard - Squeezes bright light smoothly toward white.
  * @property cineon - The look of cinema film.
- * @property aces - The film industry's standard curve, and the world's default.
+ * @property aces - The film industry's standard curve.
  * @property agx - Keeps colours natural even in very bright light.
  * @property neutral - Changes colours as little as it can.
+ * @property filmic - A film's own response, in a wide gamut: a toe, a straight run and a
+ *   shoulder, a touch of desaturation at both ends. The world's default.
  */
 export const toneMapping = Object.freeze(
   Object.fromEntries(Object.keys(TONE_MAPPING_RANK).map((name) => [name, name])) as {

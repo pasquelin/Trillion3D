@@ -1,6 +1,7 @@
 // The layout of the run-time proxy's buffer, kept apart from the passes that read it (`runtimeSceneWgsl.ts`)
 // and the object that writes it (`geometry/dag/proxy/proxyInstances.ts`): both read it from here.
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
+import { BOUNCE_SETTINGS } from '../../../../../sdk-core/src/bounce/contracts.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /**
@@ -72,10 +73,12 @@ export const SURFACE_BLENDED = 1
  * (`rtProbeRay`, `../probes/probeWgsl.ts`).
  */
 export const RAY_WORK = 512
-/** The steps a ray's walk of the placement tree takes at most (`placementTreeWalk`), twice its
- *  units: the one bound the shipped walk and its CPU twin read. */
-export const RAY_TREE_STEPS = 2 * RAY_WORK
 export const RAY_TRIANGLES = 128
+/** The budget of a probe's ray, its shadow rays' included (`BOUNCE_SETTINGS.probeRayWork`): the
+ *  reflections keep `RAY_WORK`, a probe's ray starts inside the street's boxes and casts a shadow ray
+ *  that nothing stops where it is lit. */
+export const PROBE_RAY_WORK = BOUNCE_SETTINGS.probeRayWork
+export const PROBE_RAY_TRIANGLES = BOUNCE_SETTINGS.probeRayTriangles
 /** Surfaces met in a ray before it ends: a blended one is looked through, up to this many — a closed
  *  blended solid is two, its front face and its back. */
 export const RAY_LAYERS = 3

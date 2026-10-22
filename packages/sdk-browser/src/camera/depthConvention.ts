@@ -12,7 +12,7 @@
  * would crush them onto the same value.
  *
  * WHAT THIS FILE DECIDES, and that no one else redecides:
- *  - depth comparison of the pipelines (`DEPTH_COMPARE`) and of the shadow atlases;
+ *  - depth comparison of the pipelines (`'greater'`) and of the shadow atlases;
  *  - the clear value of a depth target (`DEPTH_CLEAR`), which is the far;
  *  - the sense of extrema: what "nearer" is (`depthNearer`), hence the sense of Hi-Z
  *    reduction, which keeps the FARTHEST of a square, hence the MINIMUM;
@@ -21,9 +21,8 @@
  * depends on nothing here.
  */
 
-/** Depth comparison of every pipeline: in reversed depth, the greater wins. */
-export const DEPTH_COMPARE: GPUCompareFunction = 'greater'
-/** The same comparison, equality included: what a resolve redraws on its own depth. */
+/** The comparison of a resolve that redraws on its own depth, equality included: every other
+ *  pipeline's is `'greater'`, the greater winning in reversed depth. */
 export const DEPTH_COMPARE_OR_EQUAL: GPUCompareFunction = 'greater-equal'
 
 /** Near-plane depth. Nothing can be nearer. */

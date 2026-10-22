@@ -132,14 +132,16 @@ fn environmentIrradiance(N:vec3f)->vec3f{
  let e=directLights.environment;
  return max(${irradianceShader((k) => `e[${k}].rgb`, 'N')},vec3f(0.0));
 }
-/** The environment's diffuse light on a surface (\`lambertDiffuse\`). */
-fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{return lambertDiffuse(rgb,metal,environmentIrradiance(N),ao);}
-/** A thin two-sided surface's back, the one sum of it: the bounce and the environment lit from
- *  \`-N\` on its subsurface colour (\`lambertDiffuse\`); a pass with no bounce samples none
- *  (its \`sampleBounce\` answers zero). Zero on any other surface. */
+/** The environment's diffuse light on a surface (\`lambertDiffuse\`): its irradiance and, in a
+ *  program that reads no probes, the sky light's (\`environmentSky\`) — in one that does, the probes
+ *  carry the sky (\`indirectIrradiance\`). */
+fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{return lambertDiffuse(rgb,metal,environmentIrradiance(N)+environmentSky(N),ao);}
+/** A thin two-sided surface's back, the one sum of it: the light the probes give and the environment's,
+ *  lit from \`-N\` on its subsurface colour (\`lambertDiffuse\`); a pass with no bounce samples none
+ *  (its \`indirectIrradiance\` answers zero). Zero on any other surface. */
 fn thinBack(N:vec3f,P:vec3f,ao:f32)->vec3f{
  if(!thinSurface()){return vec3f(0.0);}
- return lambertDiffuse(thinSubsurface,0.0,sampleBounce(P,-N)+environmentIrradiance(-N),ao);
+ return lambertDiffuse(thinSubsurface,0.0,indirectIrradiance(P,-N)+environmentIrradiance(-N)+environmentSky(-N),ao);
 }
 /** The lit surface, one sum for every pass that lights one (the opaque resolve, the translucent
  *  surfaces): its declared \`lights\`, its \`bounce\` and \`environment\` under the coat

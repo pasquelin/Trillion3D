@@ -47,7 +47,12 @@ pub(super) fn stage_products(
         &[Value],
     ),
     (proxy_cuts, proxy_thresholds, texture_previews): (&[Vec<f32>], &[f64], &[TexturePreview]),
-    (scene_nodes, hidden, source): (&BTreeSet<usize>, &BTreeSet<usize>, &Value),
+    (scene_nodes, hidden, source, assignments): (
+        &BTreeSet<usize>,
+        &BTreeSet<usize>,
+        &Value,
+        &[Assigned],
+    ),
     (source_bin, source_gltf): (Product, Product),
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<Staged> {
@@ -108,7 +113,12 @@ pub(super) fn stage_products(
         (
             g,
             bin,
-            (o.hlod()?, o.partition_grid()?, o.object_settings()?),
+            (
+                o.hlod()?,
+                assignments,
+                o.partition_grid()?,
+                o.object_settings()?,
+            ),
             o.materials()?,
         ),
         (source, &placement.world, mesh_map),

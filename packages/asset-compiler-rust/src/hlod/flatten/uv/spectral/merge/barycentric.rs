@@ -87,7 +87,7 @@ impl<'a> Chart<'a> {
             }
             circle[2 * map[next]] = total;
         }
-        for pair in circle.chunks_exact_mut(2) {
+        for pair in circle.as_chunks_mut::<2>().0.iter_mut() {
             let angle = 2.0 * pair[0] * PI / total;
             pair[0] = angle.cos();
             pair[1] = angle.sin();

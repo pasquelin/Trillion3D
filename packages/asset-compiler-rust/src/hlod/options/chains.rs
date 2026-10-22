@@ -92,27 +92,35 @@ impl Hlod {
         levels
     }
 
+    /// Whether the chain from `layer` up holds a `builder` layer, its own or one above.
+    fn chain_has(&self, layer: Option<usize>, builder: HlodBuilder) -> bool {
+        (layer.into_iter().chain(self.ancestors(layer))).any(|l| self.layers[l].builder == builder)
+    }
+
     /// Whether the chain from `layer` up voxelizes its cells — a `voxel` layer in it, its own or
     /// one above —: its objects' meshes are then candidates for voxels far away too
     /// (`VoxelizeOptions::meshes`), each group voxels only where they beat its triangles — a small
     /// mesh stays triangles —; the `voxel` layer still voxelizes each cell's objects together.
     pub fn voxelizes(&self, layer: Option<usize>) -> bool {
-        (layer.into_iter().chain(self.ancestors(layer)))
-            .any(|l| self.layers[l].builder == HlodBuilder::Voxel)
+        self.chain_has(layer, HlodBuilder::Voxel)
     }
 
     /// Whether the chain from `layer` up merges — a `merge` layer in it, its own or one above —:
     /// the objects of the layer are built into that layer's actors from their sources' LODs.
     pub fn merges(&self, layer: Option<usize>) -> bool {
-        (layer.into_iter().chain(self.ancestors(layer)))
-            .any(|l| self.layers[l].builder == HlodBuilder::Merge)
+        self.chain_has(layer, HlodBuilder::Merge)
     }
 
     /// The source meshes of `g` a merged layer may take (`merges`): those of the `chosen` objects
     /// whose layer's chain merges and that do not stand as themselves (`instanced`), the layers
-    /// read as every stage reads them (`Hlod::assigned`). A mesh of none is no merged layer's
-    /// source: its LODs are never cut for one (`flatten::merge::Lods`).
-    pub fn merged_meshes(&self, g: &Value, chosen: &BTreeSet<usize>) -> Result<BTreeSet<usize>> {
+    /// read as every stage reads them (`assignments`, one per node of `g`). A mesh of none is no
+    /// merged layer's source: its LODs are never cut for one (`flatten::merge::Lods`).
+    pub fn merged_meshes(
+        &self,
+        g: &Value,
+        chosen: &BTreeSet<usize>,
+        assignments: &[Assigned],
+    ) -> Result<BTreeSet<usize>> {
         let mut meshes = BTreeSet::new();
         if !self.layers.iter().any(|l| l.builder == HlodBuilder::Merge) {
             return Ok(meshes);
@@ -121,7 +129,10 @@ impl Hlod {
             let Some(mesh) = node_of(g, node).and_then(|n| n.get("mesh")?.as_u64()) else {
                 continue;
             };
-            if self.merges(self.assigned(g, node)?.layer) && !instanced(g, node)? {
+            if meshes.contains(&(mesh as usize)) {
+                continue;
+            }
+            if self.merges(assignments[node].layer) && !instanced(g, node)? {
                 meshes.insert(mesh as usize);
             }
         }
@@ -134,6 +145,23 @@ impl Hlod {
     pub fn ancestors(&self, layer: Option<usize>) -> impl Iterator<Item = usize> + '_ {
         let first = layer.and_then(|l| self.layers[l].parent);
         std::iter::successors(first, |&l| self.layers[l].parent).take(self.layers.len())
+    }
+
+    /// The assignment (`assigned`) of every node of `g`, by rank, read once for the job: what
+    /// every stage reads. A node that draws no mesh and carries no mark, which no stage reads,
+    /// holds the default. `Err` as `assigned` is, for the first node that refuses.
+    pub fn assignments(&self, g: &Value) -> Result<Vec<Assigned>> {
+        let nodes = g.get("nodes").and_then(Value::as_array).map_or(0, Vec::len);
+        (0..nodes)
+            .map(|node| {
+                let entry = node_of(g, node);
+                let drawn = entry.is_some_and(|n| n.get("mesh").is_some_and(Value::is_u64));
+                match drawn || mark_of(entry).is_some() {
+                    true => self.assigned(g, node),
+                    false => Ok(Assigned::default()),
+                }
+            })
+            .collect()
     }
 
     /// Published node `node` of `g`'s assignment, the one every stage reads (`Assigned`): the

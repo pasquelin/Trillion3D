@@ -5,10 +5,13 @@ import { directTiles, encodeDirectLights } from './encodeLights.ts'
 import { finishVsmFrame } from '../../lighting/shadows/vsm/frame/vsmFrameEnd.ts'
 import { composesOffscreen } from '../../diagnostic/gpuVariant.ts'
 import { encodeTaaPass } from '../../post/taa/frame.ts'
+import { encodeExposure, exposureSettings } from '../../post/exposure/frame.ts'
+import { encodeFinish, finishedGroup } from '../../post/finish/frame.ts'
 import { stochasticPhase } from '../../post/taa/frameState.ts'
 import { composedImage, encodeEffects, encodeOverlayEffects } from './encodeEffects.ts'
 import { seedAsIsShare } from '../prepare/asIsShareTarget.ts'
 import { directLightResources, readsAsIs, wantsContractLighting } from '../prepare/contractLight.ts'
+import { encodeAtmosphere, encodeSky } from './encodeAtmosphere.ts'
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
 import { bindBlend, encodeBlend, prepareBlend } from './encodeBlend.ts'
@@ -50,6 +53,57 @@ function differenceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
   return (rt.gpu.frameDifference ??= createFrameDifference(device))
 }
 
+/** The image the composition reads, and the size it is composed at (`source`): the exposure measured
+ *  on the radiance the image holds, the finishing's passes, the chain's, and the group that
+ *  finishes it — its local exposure, the chain's glow, the vignette — when it draws any; the lit
+ *  image is the HDR target the lighting wrote. */
+function encodeImageChain(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  accumulated: ReturnType<typeof encodeTaaPass>,
+  blendShare: ReturnType<typeof seedAsIsShare>,
+  asIs: boolean,
+  raw: boolean,
+) {
+  const { gpu } = rt,
+    lit = gpu.hdrView!
+  // The resolve's image is at the display's size; the lit one, and the chain's over it, at the
+  // size drawn, which the composition upscales.
+  source.drawn = accumulated ? gpu.displaySize : gpu.targetSize
+  source.shown = gpu.displaySize
+  // The exposure the composition multiplies by, measured on the radiance the image holds before
+  // the finishing and the chain touch it; the finishing's passes, which read it, then the chain's.
+  const image = accumulated?.color ?? lit
+  const exposure = exposureSettings(rt)
+  encodeExposure(rt, device, encoder, image, source.drawn, raw, exposure)
+  const post = encodeFinish(rt, device, encoder, image, source.drawn, raw, exposure)
+  const effects = encodeEffects(rt, device, encoder, accumulated, post)
+  let composed =
+    asIs && blendShare && !accumulated
+      ? composedImage(effects?.color ?? lit, blendShare.view, effects?.glow)
+      : effects
+  const finish = finishedGroup(rt, post, effects?.glow)
+  if (finish)
+    composed = composedImage(composed?.color ?? lit, composed?.share, composed?.glow, finish)
+  return composed
+}
+
+/** The swap-chain view the image is composed onto, none when it composes offscreen: a capture, a
+ *  diagnostic variant, a guide (`guided`) or a view placed at a canvas rectangle composes
+ *  offscreen; an image withheld — till the view has loaded, or while a load blocks on slow
+ *  streaming — composes offscreen and is never shown (`../loop/firstImage.ts`). */
+function presentationOf(rt: WebgpuPagesRuntime, guided: boolean) {
+  const { gpu, run, capture } = rt
+  return capture.capturing ||
+    guided ||
+    !!rt.views.active.rect ||
+    run.imageWithheld ||
+    composesOffscreen(rt.context.diagnosticGpuVariant)
+    ? undefined
+    : gpu.presenter?.targetView(...gpu.displaySize)
+}
+
 /** Lights the surfaces into the HDR target, draws the forward transparents over it, and composes the
  *  display image at its size; returns whether it landed on the presented swap-chain view. */
 export function encodeSurfaceLighting(
@@ -58,7 +112,7 @@ export function encodeSurfaceLighting(
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
 ) {
-  const { gpu, run, capture } = rt,
+  const { gpu, run } = rt,
     clear = clearValueOf(run.clearColor)
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView || !gpu.depthView || !gpu.displayView)
     throw new Error('DEFERRED_UNAVAILABLE')
@@ -77,6 +131,8 @@ export function encodeSurfaceLighting(
   // every lighting resource the blend group names made with them.
   const blendRuns = prepareBlend(rt, encoder)
   const direct = encodeDirectLights(rt, device, encoder, cam, viewProj)
+  // The air's tables and haze volume, which the lighting reads through the light buffer just pushed.
+  const air = encodeAtmosphere(rt, device, encoder, cam, viewProj, inverseViewProj)
   for (let i = 0; i < 4; i++) cameraWorldArray[i] = cam.viewPoint[i]
   // The transparents bound for the image, and their front pass drawn: their nearest depth and the
   // surface the trace reads.
@@ -105,6 +161,8 @@ export function encodeSurfaceLighting(
   gpu.deferred.update(inverseViewProj, cameraWorldArray, width, height, clear, raw, direct)
   gpu.deferred.light(encoder, gpu.hdrView)
   run.gpuDrawCalls++
+  // The sky where no surface was drawn, before the transparents lie over it.
+  if (air) encodeSky(rt, encoder)
   // A see-through view's opaque background, which its edges are drawn over
   // (`../../visibility/passes/xray.ts`).
   encodeSeeThroughBackground(rt, encoder, clear)
@@ -121,33 +179,14 @@ export function encodeSurfaceLighting(
   // Composition reads the temporal result, or the lit image without accumulation.
   const asIs = readsAsIs(rt)
   const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView, asIs, blendShare)
-  const effects = encodeEffects(rt, device, encoder, accumulated)
-  const composed =
-    asIs && blendShare && !accumulated
-      ? composedImage(effects?.color ?? gpu.hdrView, blendShare.view, effects?.bloom)
-      : effects
-  // A diagnostic variant, a guide or a view placed at a canvas rectangle composes offscreen; an
-  // image withheld — till the view has loaded, or while a load blocks on slow streaming — composes
-  // offscreen and is never shown (`../loop/firstImage.ts`).
-  const guided = guidesShown(rt),
-    placed = !!rt.views.active.rect
-  const presentation =
-    capture.capturing ||
-    guided ||
-    placed ||
-    run.imageWithheld ||
-    composesOffscreen(rt.context.diagnosticGpuVariant)
-      ? undefined
-      : gpu.presenter?.targetView(...gpu.displaySize)
+  const composed = encodeImageChain(rt, device, encoder, accumulated, blendShare, asIs, raw)
+  const guided = guidesShown(rt)
+  const presentation = presentationOf(rt, guided)
   // The frame-difference view composes the display image alone, then draws its difference with
   // the image before onto the canvas (`frameDifference.ts`).
   const difference = presentation && differenceOf(rt, device)
   const shown = difference ? undefined : presentation
   run.gpuDrawCalls++
-  // The resolve's image is at the display's size; the lit one, and the chain's over it, at the
-  // size drawn, which the composition upscales.
-  source.drawn = accumulated ? gpu.displaySize : gpu.targetSize
-  source.shown = gpu.displaySize
   gpu.deferred.compose(encoder, gpu.displayView, clear, shown, composed, asIs, source)
   if (filter) endDisplayFilter(rt, filter, encoder, accumulated?.filter, shown)
   // The chain's passes after tone mapping, over the display image whole: an outline's line.

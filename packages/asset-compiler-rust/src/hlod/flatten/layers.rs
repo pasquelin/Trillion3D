@@ -77,10 +77,17 @@ pub(super) fn unwrapped(
     (unwrapped.corners, unwrapped.held)
 }
 
+/// A mesh's points, its triangles over them and one normal per corner.
+type CornerMesh<'a> = (&'a [[f64; 3]], &'a [[usize; 3]], &'a [[f32; 3]]);
+
+/// The views' bounding sphere, its centre and radius, and the distance in metres the actor is
+/// first drawn at.
+type Framing = (([f64; 3], f64), f64);
+
 /// An approximated shell given unique texture coordinates as `approximation` names their method
 /// (`unwrapped_by`), its vertices split by them (`split`).
 fn charted(
-    (points, triangles, normals): (&[[f64; 3]], &[[usize; 3]], &[[f32; 3]]),
+    (points, triangles, normals): CornerMesh<'_>,
     (texture_size, approximation): (usize, &HlodApproximation),
 ) -> Flat {
     let topology = Topology { points, triangles };
@@ -92,10 +99,7 @@ fn charted(
 /// The mesh of `points`, `triangles` over them and `normals` per corner, its vertices split by its
 /// corners' texture coordinates `corners` and by the tangents averaged over those wedges
 /// (`approximate::tangents`).
-fn split(
-    (points, triangles, normals): (&[[f64; 3]], &[[usize; 3]], &[[f32; 3]]),
-    corners: Vec<[f64; 2]>,
-) -> Flat {
+fn split((points, triangles, normals): CornerMesh<'_>, corners: Vec<[f64; 2]>) -> Flat {
     // Each corner's wedge: its point, its normal's and its coordinates' bits, numbered in the order
     // corners first name them (`first_seen`).
     use rayon::prelude::*;
@@ -226,7 +230,7 @@ fn atlas_sides(
 /// before, given the unwrap's and the bake's here. `Err` when its atlas could not be baked.
 fn baked(
     (positions, indices, normals): (Vec<f32>, Vec<u32>, Vec<[f32; 3]>),
-    (objects, (framed, seen), library): (Vec<Object>, (([f64; 3], f64), f64), &Library),
+    (objects, (framed, seen), library): (Vec<Object>, Framing, &Library),
     (texture_size, approximation): (usize, &HlodApproximation),
     (stages, mut ms): (Stages, StageMs),
 ) -> crate::Result<Made> {
@@ -244,7 +248,7 @@ fn baked(
     drop(traced);
     drop(objects);
     let atlas = timed(&mut ms[step::BAKE], || {
-        let nodes = tree::order_sources(&mut sources.mesh);
+        let (nodes, _) = tree::order_sources(&mut sources.mesh);
         let read = (&nodes[..], &views);
         let maps = (
             approximation.maps,

@@ -4,7 +4,6 @@ import {
   CULL_FIRST_CHILD,
   CULL_FIRST_PAGE,
   CULL_FLOOR,
-  CULL_MIN,
   CULL_PAGE_COUNT,
   CULL_STRIDE,
 } from '../dag/types.ts'
@@ -13,7 +12,6 @@ import {
   pageCarriesClusterError,
   type CullingHierarchy,
   type Page,
-  type Primitive,
   type StreamCatalogue,
 } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { PageRec } from './types.ts'

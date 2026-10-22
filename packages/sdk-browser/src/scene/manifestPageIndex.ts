@@ -45,6 +45,20 @@ export function primitivePages(primitive: Primitive) {
   return pages
 }
 
+/** The object each page url of the manifest belongs to, as its primitive's place in the manifest:
+ *  the pages and bundles a primitive is read through (`primitivePages`), those of a primitive
+ *  joined to the manifest later too. A url the manifest does not name belongs to none. */
+export function indexManifestObjects(metadata: ClusterManifest) {
+  const objectByUrl = new Map<string, number>()
+  let indexed = 0
+  return (url: string) => {
+    for (; indexed < metadata.primitives.length; indexed++)
+      for (const page of primitivePages(metadata.primitives[indexed]))
+        objectByUrl.set(page.url, indexed)
+    return objectByUrl.get(url)
+  }
+}
+
 /** Manifest streaming bundles, deduplicated by URL, in order of appearance. */
 export function indexManifestBundles(metadata: ClusterManifest) {
   const bundleByUrl = new Map<string, StreamBundle>()

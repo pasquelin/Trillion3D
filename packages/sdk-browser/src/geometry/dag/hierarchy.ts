@@ -1,4 +1,6 @@
 import { CULL_CHILD_COUNT, CULL_FIRST_CHILD } from './types.ts'
+import type { CullingLinks } from '../cut/links.ts'
+import type { ClusterStructureIndex } from '../selection/types.ts'
 
 /**
  * Node count of each hierarchy level, root at level zero. Its length is the depth,
@@ -37,4 +39,48 @@ export function hierarchyLevelSizes(nodes: Float64Array, stride: number) {
     frontier = next
   }
   return sizes
+}
+
+/**
+ * The deepest level of the hierarchy a descent must reach for each cluster of a primitive once the
+ * cluster is resident: its leaf's own level, and — so the descent reaches the finer clusters that
+ * replace it, which only a resident page lets it ask for — the deepest leaf level among the
+ * clusters of every group it is an output of. A level a resident cluster does not need reached is
+ * never dispatched (`../encode.ts`, `PackedDag.residentLevels`). A cluster in no leaf stands at
+ * level 0.
+ */
+export function pageDepths(
+  nodes: Float64Array,
+  stride: number,
+  links: CullingLinks,
+  structure: ClusterStructureIndex | undefined,
+) {
+  const count = nodes.length / stride,
+    level = new Uint8Array(count)
+  const frontier = count ? [0] : []
+  for (let at = 0; at < frontier.length; at++) {
+    const base = frontier[at] * stride,
+      children = nodes[base + CULL_CHILD_COUNT]
+    for (let c = 0; c < children; c++) {
+      const child = nodes[base + CULL_FIRST_CHILD] + c
+      level[child] = level[frontier[at]] + 1
+      frontier.push(child)
+    }
+  }
+  const own = new Uint8Array(links.leafOfPage.length),
+    depth = new Uint8Array(own.length)
+  for (let page = 0; page < own.length; page++) {
+    const leaf = links.leafOfPage[page]
+    depth[page] = own[page] = leaf < 0 ? 0 : level[leaf]
+  }
+  if (!structure) return depth
+  const s = structure
+  for (let g = 0; g < s.groupCount; g++) {
+    let deepest = 0
+    for (let i = s.childOffsets[g]; i < s.childOffsets[g + 1]; i++)
+      deepest = Math.max(deepest, own[s.children[i]])
+    for (let i = s.outputOffsets[g]; i < s.outputOffsets[g + 1]; i++)
+      depth[s.outputs[i]] = Math.max(depth[s.outputs[i]], deepest)
+  }
+  return depth
 }

@@ -12,6 +12,7 @@ use super::super::tree::{Coord, Leaf, Tree, LEAF_SIDE, LEAF_SIZE, STRIDES};
 use super::links::{face, Links, NONE};
 use super::spread::spread;
 use super::BOUNDARY;
+use trillion3d_math::scalar::not_above;
 
 /// `tree`'s outside voxels made negative: the sweeps along each axis, then the spread.
 pub(super) fn outside(tree: &mut Tree<f32>) {
@@ -58,7 +59,7 @@ fn sweep_line(values: &mut [f32; LEAF_SIZE], start: usize, step: isize) -> bool 
         if *value < 0.0 {
             outside = true;
         } else {
-            if !(*value > BOUNDARY) {
+            if not_above(*value, BOUNDARY) {
                 outside = false;
             }
             if outside {

@@ -11,6 +11,7 @@
 //!   neighbours never share a texel (`rasterize`, `rasterize_triangle`), placed by the segment
 //!   search (`Layout::find`) where its right plus its top is least, keeping the square's corner
 //!   filled first.
+//!
 //! The raster lives in `raster`, the layout in `layout`, the packer in `packer`.
 use trillion3d_math::geometry::aabb::aabb_of;
 use trillion3d_math::vector::vec2::double_area;

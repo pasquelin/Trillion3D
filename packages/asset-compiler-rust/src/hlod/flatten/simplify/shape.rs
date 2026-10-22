@@ -133,11 +133,7 @@ pub(super) fn shaped(
     if settings.folded_walls {
         correct_walls(&mut proxy, voxel);
     }
-    proxy.normals = vertex_normals(
-        &proxy.points,
-        &proxy.indices,
-        HlodNormalMethod::AngleWeighted,
-    );
+    proxy.normals = vertex_normals(&proxy.points, &proxy.indices, HlodNormalMethod::Angle);
     proxy.transfer = proxy.normals.clone();
     if let Some(angle) = settings
         .hard_angle

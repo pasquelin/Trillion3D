@@ -80,7 +80,7 @@ function surfaceGroups(
   const { flags, normals, lobes } = surface
   const { rays, history } = grids
   const list = (buffer: GPUBuffer) => ({ buffer })
-  const field = { bounceGrid: scene.bounceGrid, probes: scene.probes }
+  const field = { bounceGrid: scene.bounceGrid, probes: scene.probes, lights: scene.lights }
   // The ray words sampled (`raysRead`) but by their writers, the classification, the screen stage and
   // the clear of the unused tracing tiles, which bind them as storage.
   const group = (layout: GPUBindGroupLayout, named: Named) =>
@@ -208,7 +208,7 @@ export function traceGroups(
     opaque: surfaceGroups(device, layouts, scene, inputs, grids, resolvedView, {
       bilateral: layouts.bilateral,
       clear: layouts.clear,
-      out: { lights: { buffer: inputs.lights }, base: inputs.base, target: targetView },
+      out: { base: inputs.base, target: targetView },
     }),
     front: surfaceGroups(device, layouts, scene, front.views, front.grids, resolvedView, {
       bilateral: layouts.bilateralFront,

@@ -18,7 +18,7 @@ const CELL_MAX: f32 = 2_147_483_520.0;
 /// The most cells an axis of one page spans above its start.
 const MAX_SPAN: i64 = (1 << MAX_POSITION_BITS) - 1;
 /// The factor of a natural logarithm to a base-2 one, in `f32`.
-const LOG_TO_LOG2: f32 = 1.442_695_02;
+const LOG_TO_LOG2: f32 = std::f32::consts::LOG2_E;
 
 /// The box of one cluster of a primitive, in metres of its own space: the clusters of the finest
 /// level (`finest`) set the position precision, every one must fit it.

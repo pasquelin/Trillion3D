@@ -7,7 +7,7 @@ import type { ShareTargets } from '../../blend/blendTargets.ts'
 
 /** Whether the transparents write the share: a blended image that can show a debug view,
  *  or whose temporal pass reads their coverage as the reactive value. */
-export const blendWritesShare = (rt: WebgpuPagesRuntime) =>
+const blendWritesShare = (rt: WebgpuPagesRuntime) =>
   rt.blendState.blendGpu.length > 0 && (readsAsIs(rt) || taaWanted(rt.gpu))
 
 /** The share targets the transparents write (`ShareTargets`): none without a share; the history

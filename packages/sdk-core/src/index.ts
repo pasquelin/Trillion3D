@@ -2,8 +2,7 @@ export * from './contracts/index.ts'
 export * from './bounce/contracts.ts'
 export * from './contracts/proxy.ts'
 export * from './bounce/cascades.ts'
-export * from './bounce/occupancy.ts'
-export * from './proxy/budget.ts'
+export * from './bounce/probePool.ts'
 export { assertSceneProxy, decodeSceneProxy } from './scene/core/proxy.ts'
 export {
   DEPTH_LAYER_BIAS_UNITS,
@@ -162,7 +161,20 @@ export {
   emptyIrradiance,
 } from './scene/core/environment.ts'
 export type { SceneToneMapping, SceneEnvironment } from './scene/core/environment.ts'
-export type { SceneExponentialFog, SceneFog, SceneLinearFog } from './scene/core/fog.ts'
+export type {
+  SceneExponentialFog,
+  SceneFog,
+  SceneFogDirectional,
+  SceneHeightFog,
+  SceneLinearFog,
+} from './scene/core/fog.ts'
+export type {
+  ResolvedAtmosphere,
+  SceneAtmosphere,
+  SceneOzoneLayer,
+} from './scene/core/atmosphere.ts'
+export type { SceneExposure } from './contracts/exposureOptions.ts'
+export type { SceneSky } from './scene/core/environmentSky.ts'
 export type { SceneLight, SceneLightingView, ShadowViewpoint } from './scene/light/contracts.ts'
 export type { LightingCapabilities } from './scene/light/capabilities.ts'
 export { validateSceneLight } from './scene/light/validate.ts'

@@ -47,6 +47,8 @@ test('a core scene and camera hold no field the engine needs beyond a page one',
     'environment',
     '_fog',
     'refogged',
+    '_atmosphere',
+    '_air',
   ])
   const camera = new Camera('perspective')
   assert.deepEqual(own(camera), ['isCamera', '_optics', '_fitAspect', 'projection'])

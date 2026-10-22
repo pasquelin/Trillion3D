@@ -26,12 +26,12 @@ export const twoPassOf = (uniforms: { readonly occlusion?: number }) =>
 
 /** What the cut runs (`cutPass`, a word of `work`): the main pass, tested against the previous
  *  image's pyramid, then the post pass, against the pyramid of what the main pass drew. */
-export const CUT_MAIN = 0,
+const CUT_MAIN = 0,
   CUT_POST = 1
 
 /** A box's verdict: covers no pixel centre or hidden for good, drawn on, or hidden by the previous
  *  image's pyramid alone — tested again in the post pass. */
-export const BOX_CULLED = 0,
+const BOX_CULLED = 0,
   BOX_SEEN = 1,
   BOX_OCCLUDED = 2
 

@@ -6,7 +6,6 @@ import type { RowWords } from '../../placement/rows/rowWords.ts'
 import type { GrowthInFlight } from '../../placement/growth/webgpuGrowth.ts'
 import type { RayQueue } from '../../lighting/rays/rayQueue.ts'
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
-import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import { TAA_CAPABILITIES } from '../../post/taa/capability.ts'
 import { BOUNCE_CAPABILITY } from '../prepare/bounce.ts'
 import type { EngineCapabilities } from '../../../../sdk-core/src/contracts/metrics.ts'
@@ -157,7 +156,7 @@ export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRun
     lights,
     bounce: createWebgpuBounceState(
       explorerSwitch(context, 'bounce'),
-      context.bounceBudgetMs ?? BOUNCE_SETTINGS.budgetMs,
+      context.bounceProbesPerFrame,
     ),
     run,
     capture: createWebgpuCaptureState(),

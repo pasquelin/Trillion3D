@@ -16,14 +16,25 @@ import { createDeferred } from '../../../../sdk-core/src/runtime/deferred.ts'
 type Holder = Pick<WorldRootsHold, 'hold' | 'release'>
 
 /** The holds on their way, and what a frame waits on: the next to land or fail, asked as a list of
- *  one made when first asked, or nothing while none reads. */
+ *  one made when first asked, or nothing while none reads; and the cells whose hold landed or
+ *  failed, not told yet (`arrived`). */
 function createLandings() {
-  const none: readonly Promise<void>[] = []
+  const none: readonly Promise<void>[] = [],
+    arrivals: number[] = []
   let next: { asked: Promise<void>[]; settle: () => void } | undefined,
     reading = 0
   return {
+    /** Tells `told` each cell whose hold landed or failed since the last call, a cell let go since
+     *  included: it no longer reads. */
+    arrived(told: (cell: number) => void) {
+      for (const cell of arrivals) told(cell)
+      arrivals.length = 0
+    },
     started: () => void reading++,
-    settled() {
+    /** A hold landed or failed; `arrived`, the cell it held unless that cell left meanwhile, is
+     *  told at the next call of `arrived`. */
+    settled(arrived?: number) {
+      if (arrived !== undefined) arrivals.push(arrived)
       reading--
       next?.settle()
       next = undefined
@@ -60,8 +71,9 @@ export function createCellHolds(world?: Holder) {
       revision++
       landings.started()
       const landed = () => {
-        if (!stop.signal.aborted) reading.delete(cell)
-        landings.settled()
+        const left = stop.signal.aborted
+        if (!left) reading.delete(cell)
+        landings.settled(left ? undefined : cell)
       }
       world.hold(cell, { signal: stop.signal, priority }).then(landed, () => {
         if (!stop.signal.aborted) {
@@ -86,6 +98,9 @@ export function createCellHolds(world?: Holder) {
     cells: () => holding.keys(),
     /** Whether `cell`'s hold still reads: a cell loading waits on it. */
     stillReads: (cell: number) => reading.has(cell),
+    /** Tells `told` each cell whose hold landed or failed since the last call, a cell let go since
+     *  included: it no longer reads. */
+    arrived: landings.arrived,
     /** Whether `cell`'s hold failed for good: its actor never comes while it stays held. */
     failed: (cell: number) => failed.has(cell),
     /** Advanced by every hold, release and failure. */

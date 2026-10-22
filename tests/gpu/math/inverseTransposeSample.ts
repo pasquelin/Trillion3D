@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { buildCase, type Case } from './inverseTransposeCases.ts'
 
 /** Two triangles of world size 2 turned about X. */
-export const turned = (s: number, kind: 'uniform' | 'anisotropic', angleDeg: number) =>
+const turned = (s: number, kind: 'uniform' | 'anisotropic', angleDeg: number) =>
   buildCase({ s, kind, worldSize: 2, axis: [1, 0, 0], angleDeg })
 
 /**

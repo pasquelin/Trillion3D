@@ -133,6 +133,9 @@ export async function run() {
   sun.target.position.set(0, 0, 0)
   const stores = { none: createSceneLightStore(), sun: createSceneLightStore() }
   stores.sun.add(SUN)
+  // The witness draws at an exposure of 1 through ACES, with no vignette: the engine is asked for
+  // the same.
+  stores.sun.setEnvironment({ exposure: 1, toneMapping: 'aces', vignette: 0 })
   const sides: Sides = {
     device,
     renderer,

@@ -4,12 +4,12 @@ import type { readCellPage } from '../scene/core/tablePartition.ts'
 
 /**
  * Off-main-thread page-task contract, version 12: `cut` turns drawn triangles into pages, which
- * come back as bytes with their descriptors, in the order of the
- * culling hierarchy that comes back with them (version 10); `cells` reads a partition's cell file
- * into the rows it places, `cellPage` a page of its cell index (#575), and `blocks` decodes a texture tile's BC blocks to
- * RGBA8 for a device that samples none (version 11, `texture/blockDecode.ts`). No geometry page is decoded on the CPU: the GPU reads
- * it in place (#1483), and a fetched page's digest is taken where it lands (`crypto.subtle`, which
- * runs off the main thread already).
+ * come back as bytes with their descriptors, in the order of the culling hierarchy that comes back
+ * with them (version 10); `cells` reads a partition's cell file into the rows it places, `cellPage`
+ * a page of its cell index (#575), and `blocks` decodes a texture tile's BC blocks to RGBA8 for a
+ * device that samples none (version 11, `texture/blockDecode.ts`). No geometry page is decoded on
+ * the CPU: the GPU reads it in place (#1483), and a fetched page's digest is taken where it lands
+ * (`crypto.subtle`, which runs off the main thread already).
  *
  * The calling thread sends a `PageTaskRequest`, the executor returns a `PageTaskAnswer` carrying
  * the same `id`. Nothing here touches the platform: no `Worker`, no fetch, no clock — the browser

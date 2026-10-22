@@ -29,7 +29,7 @@ const SPAN = 0x1000000
 export const coarserKey = (level: number, x: number, z: number) => (level * SPAN + x) * SPAN + z
 
 /** The pull of square grid `grid`, of finest cell side `cell`. */
-export function createCoarserPull(grid: CoarserGrid, cell: number) {
+function createCoarserPull(grid: CoarserGrid, cell: number) {
   const top = Math.log2(grid.cells)
   const side = (level: number) => cell * 2 ** level
   /** The cells per side of `level`: the finest level's halved, one more below the top. */

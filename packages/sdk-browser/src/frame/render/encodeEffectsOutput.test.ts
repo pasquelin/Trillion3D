@@ -1,6 +1,7 @@
-// What the effect chain on the WebGPU path hands on: a diagnostic view, a capture and an empty
-// chain show the engine's image without it; a composition gets the last bloom's blend; an outline
-// draws over the display only with objects.
+// What the effect chain on the WebGPU path hands on: a view the finishing leaves as it is — a
+// diagnostic view, a capture, one lit by no declared lamp — and an empty chain show the engine's
+// image without it; a composition gets the last bloom's glow; an outline draws over the display
+// only with objects.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
@@ -8,39 +9,76 @@ import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import { encodeEffects, encodeOverlayEffects } from './encodeEffects.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { drawing, encoder, input } from './encodeEffects.fixture.ts'
+import { computePasses, drawing, encoder, framed, input, passes } from './encodeEffects.fixture.ts'
+import { askLocalPrograms, localProgramsReady } from '../../post/finish/local.ts'
+import { commandArgs } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
+import type { PostFrame } from '../../post/finish/finish.ts'
 
-test('a diagnostic view, a capture and an empty chain make nothing and hand the input on', () => {
+test('a view left as it is and an empty chain make nothing and hand the input on', () => {
   const { device, textures } = fakeDevice()
   const chain = new EffectChain()
   const rt = drawing(chain)
-  assert.equal(encodeEffects(rt, device, encoder, input), input)
+  assert.equal(encodeEffects(rt, device, encoder, input, {} as PostFrame), input)
   assert.equal(rt.gpu.effects, undefined, 'an empty chain has no targets and no programs')
   chain.add(effect.bloom())
   Object.assign(rt.run, { diagnostic: 'normals' })
-  assert.equal(encodeEffects(rt, device, encoder, input), input)
+  assert.equal(framed(rt, device), undefined, 'a diagnostic view is not finished')
+  assert.equal(encodeEffects(rt, device, encoder, input, undefined), input)
   Object.assign(rt.run, { diagnostic: 'beauty' })
   rt.capture.capturing = true
-  assert.equal(encodeEffects(rt, device, encoder, input), input)
+  assert.equal(framed(rt, device), undefined, 'nor a capture')
+  assert.equal(encodeEffects(rt, device, encoder, input, undefined), input)
+  rt.capture.capturing = false
+  Object.assign(rt.lights.store, { unlit: true })
+  assert.equal(framed(rt, device), undefined, 'nor a view that shows the albedo')
+  assert.equal(encodeEffects(rt, device, encoder, input, undefined), input)
   assert.deepEqual([rt.gpu.effects, textures.length], [undefined, 0])
   assert.equal(rt.gpu.effectsRevision, chain.revision, 'the revision drawn is kept all the same')
 })
 
-test('a composition that blends the last bloom in gets its blend, and reads the image it read', async () => {
+test('a composition that adds the last bloom gets its glow, and reads the image it read', async () => {
   const { device } = fakeDevice()
   const rt = drawing(new EffectChain().add(effect.bloom()))
   let composes = false
   const asked: unknown[] = []
-  const deferred = { composesBloom: (fail: unknown) => (asked.push(fail), composes) }
-  Object.assign(rt.gpu, { deferred })
-  encodeEffects(rt, device, encoder, input)
+  Object.assign(rt.gpu, {
+    deferred: {
+      ...rt.gpu.deferred,
+      composesFinish: (sink: unknown) => (asked.push(sink), composes),
+    },
+  })
+  encodeEffects(rt, device, encoder, input, framed(rt, device))
   await rt.gpu.effects!.settled()
-  assert.equal(encodeEffects(rt, device, encoder, input)?.bloom, undefined, 'still compiling')
+  const compiling = encodeEffects(rt, device, encoder, input, framed(rt, device))
+  assert.equal(compiling?.glow, undefined, 'still compiling')
   composes = true
-  const composed = encodeEffects(rt, device, encoder, input)
+  const composed = encodeEffects(rt, device, encoder, input, framed(rt, device))
   assert.deepEqual([composed?.color, composed?.share], [input.color, input.share])
-  assert.ok(composed?.bloom?.group, 'the level group and slot the composition binds')
+  assert.ok(composed?.glow, 'the glow the composition adds')
   assert.ok(asked.length > 0)
+})
+
+test('the local exposure draws its layers before the chain, and the bloom sets up with them', async () => {
+  const { device } = fakeDevice()
+  const rt = drawing(new EffectChain().add(effect.bloom()))
+  askLocalPrograms(device)
+  while (!localProgramsReady(device)) await new Promise((resolve) => setTimeout(resolve))
+  encodeEffects(rt, device, encoder, input, framed(rt, device))
+  await rt.gpu.effects!.settled()
+  passes.length = computePasses.length = 0
+  const post = framed(rt, device)
+  assert.equal(post?.local, true, 'the settings ask for it, its programs are compiled')
+  // The grid, one workgroup a tile of the half-size image; then the scene's levels the blur
+  // reads — the half-size image and four more —, the log luminance and its two blur passes.
+  assert.equal(computePasses.length, 1)
+  assert.equal(passes.length, 5 + 1 + 2)
+  encodeEffects(rt, device, encoder, input, post)
+  // The bloom's setup, which applies the layers, the five levels under it, the six blurs.
+  assert.equal(passes.length, 5 + 1 + 2 + 1 + 5 + 12)
+  const setup = passes[5 + 1 + 2]
+  const groups = commandArgs(setup.commands, 'setBindGroup')
+  assert.equal(groups[1][1], post?.layers, 'the finishing’s group, with the layers, at 1')
+  assert.notEqual(post?.layers, post?.bare)
 })
 
 test('an outline draws over the display only with objects, in the beauty view, outside a capture', async () => {

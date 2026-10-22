@@ -73,17 +73,20 @@ export function rangeOf(table: WorldRoots, first: number, end: number) {
   return `bytes=${table.bundles[first].offset}-${last.offset + last.bytes - 1}`
 }
 
-/** How `opened` opens a world: the queue's transfers, its transfer budget and who hears a
- *  stall. */
-type Opening = Pick<PageStreamerOptions, 'onStalled' | 'maxTransferBytes'> & {
+/** How `opened` opens a world: the queue's transfers, its transfer budget, the tries again of a
+ *  failed read and who hears a stall. */
+type Opening = Pick<PageStreamerOptions, 'onStalled' | 'maxTransferBytes' | 'numRetries'> & {
   transfers?: number
 }
 
 /** The world `manifest` declares, opened at `http://world/` as a session's load opens it: through
  *  the session's queue, closed with the test. */
 export async function opened(t: TestContext, manifest: ClusterManifest, opening: Opening = {}) {
-  const { transfers, onStalled, maxTransferBytes } = opening
-  const options = { cache: createPageCache(), workerCount: transfers, onStalled, maxTransferBytes }
+  const { transfers, onStalled, maxTransferBytes, numRetries } = opening
+  const options = {
+    ...{ cache: createPageCache(), workerCount: transfers, onStalled, maxTransferBytes },
+    numRetries,
+  }
   const queue = createPageStreamer([], 'http://world/', options)
   t.after(() => queue.dispose())
   const roots = (await openWorldRoots(manifest, 'http://world/', queue))!

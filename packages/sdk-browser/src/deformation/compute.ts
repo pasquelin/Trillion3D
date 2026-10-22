@@ -45,8 +45,8 @@ function deformationImage(device: GPUDevice) {
  * posed into its record in the float pool `positions`, before the stage reads them. Each image it
  * sends the tracks' table and its own record — the tracks, whether they blend their keys, the
  * deformation block's first float in the pool —; the banks' floats only when a banks joined the
- * session's tracks since they were last sent (`BankTracks.revision`). Each buffer is made again, at
- * its size, when what it holds grew.
+ * session's tracks since they were last sent (the tracks' `revision`). Each buffer is made again,
+ * at its size, when what it holds grew.
  */
 function animationBankPass(
   device: GPUDevice,

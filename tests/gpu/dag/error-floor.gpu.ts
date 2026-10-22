@@ -28,6 +28,10 @@ const VIEWPORT: [number, number] = [1280, 720]
 const byPage = (pages: readonly number[], priorities: readonly number[]) =>
   pages.map((page, s) => [page, priorities[s]]).sort((a, b) => a[0] - b[0])
 
+/** The priority word of each page the oracle's requests name: its request's. */
+const pagePriorities = ({ counts, priorities }: { counts: number[]; priorities: number[] }) =>
+  counts.flatMap((count, rank) => Array<number>(count).fill(priorities[rank]))
+
 /**
  * Name, camera x and z, threshold, and the depths the pyramid is placed at. One depth keeps one
  * level, hence one priority: placed far apart, the copies resolve to different levels and the
@@ -98,7 +102,7 @@ test('the GPU cut, its oracle and the CPU cut agree while every pose prunes', as
     // Each request's priority decides which page the host uploads first.
     assert.deepEqual(
       byPage(gpu.requests, priorities),
-      byPage(oracle.pageIds, oracle.priorities),
+      byPage(oracle.pageIds, pagePriorities(oracle.requests)),
       `${name}: priorities diverge`,
     )
   }

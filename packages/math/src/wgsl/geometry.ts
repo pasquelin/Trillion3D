@@ -53,7 +53,7 @@ const boxPositiveVertex = wgslFn(
 )
 
 /** How far the box reaches past the plane: its positive corner's signed distance. */
-export const boxPlaneDistance = wgslFn(
+const boxPlaneDistance = wgslFn(
   'boxPlaneDistance',
   [planeDistance, boxPositiveVertex],
   'fn boxPlaneDistance(plane:vec4f,bmin:vec3f,bmax:vec3f)->f32{return planeDistance(plane,boxPositiveVertex(plane,bmin,bmax));}',

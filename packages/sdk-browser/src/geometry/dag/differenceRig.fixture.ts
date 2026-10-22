@@ -15,12 +15,13 @@ import { createDagRuntime } from './runtime/runtime.ts'
 import { packDagSelection } from './pack/pack.ts'
 import { mirrorDifferenceStage } from './difference.fixture.ts'
 import { OUT_COUNT, OUT_FLAGS } from './layout.ts'
-import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
+import { SELECTION_HEADER_WORDS, countWord } from './readoutWords.ts'
 import { dagFixture } from '../selection/dag.fixture.ts'
 import { packed } from './selection/selectionHelpers.fixture.ts'
 import { hostStretches } from './hostStretches.fixture.ts'
 
-/** The two lists one cut publishes: the camera's requests, the drawn pages. */
+/** The two lists one cut publishes: the camera's requests, a leaf of one page each, the drawn
+ *  pages. */
 export type RigCut = { asked: number[]; drawn: number[] }
 
 /** `dagMask` and the kernels before the snapshot, as their outputs: `cut` written into `out`, on a
@@ -32,6 +33,7 @@ function writeCut(out: Uint32Array, cap: number, cut: RigCut) {
   out[OUT_COUNT] = cut.asked.length
   out[OUT_FLAGS] = cut.asked.length > cap || cut.drawn.length > cap ? 1 : 0
   out.set(asked, SELECTION_HEADER_WORDS)
+  out.fill(1, countWord(cap), countWord(cap) + asked.length)
   out[SELECTION_HEADER_WORDS + cap] = cut.drawn.length
   out.set(drawn, 2 * SELECTION_HEADER_WORDS + cap)
 }

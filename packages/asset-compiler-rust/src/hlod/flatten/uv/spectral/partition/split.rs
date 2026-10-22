@@ -20,8 +20,7 @@ fn farthest_pair(chart: &Chart, ids: &[u32]) -> (u32, u32) {
             let a = uvs[i];
             let mut best = None;
             let mut largest = -f32::MAX;
-            for j in i + 1..uvs.len() {
-                let b = uvs[j];
+            for (j, &b) in uvs.iter().enumerate().skip(i + 1) {
                 let (dx, dy) = (a[0] - b[0], a[1] - b[1]);
                 let d = dx * dx + dy * dy;
                 if largest < d {

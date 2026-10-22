@@ -142,3 +142,27 @@ fn min_median_max_orders_hostile_values_by_total_cmp() {
         [-0.0f64, 0.0, 0.0].map(f64::to_bits)
     );
 }
+
+#[test]
+fn negated_comparisons_keep_nan_on_the_failed_side() {
+    let nan = f64::NAN;
+    // Each case: `(a, b)`, then `not_above`, `not_below`, `not_at_least` and `not_at_most`.
+    let cases = [
+        ((1.0, 2.0), [true, false, true, false]),
+        ((2.0, 2.0), [true, true, false, false]),
+        ((3.0, 2.0), [false, true, false, true]),
+        ((nan, 2.0), [true; 4]),
+        ((2.0, nan), [true; 4]),
+    ];
+    for ((a, b), expected) in cases {
+        let got = [
+            not_above(a, b),
+            not_below(a, b),
+            not_at_least(a, b),
+            not_at_most(a, b),
+        ];
+        assert_eq!(got, expected, "{a} against {b}");
+    }
+    // Single precision answers alike.
+    assert!(not_above(1.5f32, f32::NAN) && not_below(f32::NAN, 1.5f32));
+}

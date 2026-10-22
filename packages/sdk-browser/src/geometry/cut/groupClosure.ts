@@ -32,17 +32,14 @@ export type GroupClosure = ReturnType<typeof createGroupClosure>
 /** A visitor a `closeOver` walk hands each page to, with the priority it is reached at. */
 type Visitor = (id: number, rec: PageRec, priority: number) => void
 
-/** The highest priority a walk hands: a u32's. */
-const PRIORITY_MAX = 0xffffffff
-
 /**
  * The closure's state: holders per group and per page, the pages whose count moved in this
  * difference with whether each was held before it (`seen`: 1 no, 2 yes), the groups one
  * `closeOver` walk reached at the highest priority it reached them at (a u32 held in an int's
  * bits), and what a walk does — counts `step` on what it reaches, or hands each page to `visitor`,
- * naming each placement's own pages under `perInstance` rather than its primitive's holder's, each
- * group above a request at one more than the group below it (`rise`). `holder` is the placement a
- * shared page list is held at: the first that asked, while it still places it.
+ * naming each placement's own pages under `perInstance` rather than its primitive's holder's.
+ * `holder` is the placement a shared page list is held at: the first that asked, while it still
+ * places it.
  */
 function createWalk(
   roots: readonly ClusterRoot<PageRec>[],
@@ -69,7 +66,6 @@ function createWalk(
     step: 0,
     visitor: undefined as Visitor | undefined,
     perInstance: false,
-    rise: 0,
     holder: new Map<readonly unknown[], number>(),
   }
 }
@@ -99,10 +95,11 @@ function touchId(w: Walk, id: number, rec: PageRec, priority: number) {
 const touch = (w: Walk, r: number, page: number, priority: number) =>
   touchId(w, baseOf(w, r) + page, w.roots[r].pages[page], priority)
 
-/** Group `g` of placement `r` and what it holds: its members at `priority`, and each output's own
- *  group — the output itself when nothing replaces it — one higher (`rise`). A counted group is
- *  walked when it is first held or last released; a visited one once per walk, again only for a
- *  higher priority. */
+/** Group `g` of placement `r` and what it holds: its members, and each output's own group — the
+ *  output itself when nothing replaces it —, all at `priority`: what a page of a group is asked at
+ *  is the page's own, the streaming page's hop one higher is the residency's
+ *  (`../residency/pageRequests.ts`). A counted group is walked when it is first held or last
+ *  released; a visited one once per walk, again only for a higher priority. */
 function reach(w: Walk, r: number, g: number, priority: number) {
   const s = w.roots[r].structure!,
     key = baseOf(w, r) + s.children[s.childOffsets[g]]
@@ -113,14 +110,13 @@ function reach(w: Walk, r: number, g: number, priority: number) {
     const count = w.heldGroups.add(key, w.step)
     if (count - w.step > 0 === count > 0) return
   }
-  const above = Math.min(priority + w.rise, PRIORITY_MAX)
   for (let i = s.childOffsets[g]; i < s.childOffsets[g + 1]; i++)
     touch(w, r, s.children[i], priority)
   for (let i = s.outputOffsets[g]; i < s.outputOffsets[g + 1]; i++) {
     const output = s.outputs[i],
       owner = s.owners[output]
-    if (owner >= 0) reach(w, r, owner, above)
-    else touch(w, r, output, above)
+    if (owner >= 0) reach(w, r, owner, priority)
+    else touch(w, r, output, priority)
   }
 }
 
@@ -195,9 +191,9 @@ export function createGroupClosure(
     /**
      * Visits every page `ids` close over, themselves included, each group once per call. Given
      * `priorities`, beside `ids`, each page is handed the highest priority a request reaches it at:
-     * its own request's for a request and its group-mates, one more for each group up to the roots
-     * — the coarser a group, the more pages wait on it —, a group walked again only when a request
-     * reaches it higher: what the residency's requests read (`../residency/pageRequests.ts`).
+     * its own request's for a request, its group-mates and every group up to the roots, a group
+     * walked again only when a request reaches it higher: what the residency's requests read
+     * (`../residency/pageRequests.ts`), which raises the streaming pages the requests depend on.
      * Without them every page is handed 1. `instances` names each placement's own packed ranks, as
      * the row cache holds them (`../rows/demand/rowDemand.ts`), rather than the ranks of the
      * placement its primitive's records are held at.
@@ -210,12 +206,10 @@ export function createGroupClosure(
     ) {
       w.visitor = visit
       w.perInstance = instances
-      w.rise = priorities ? 1 : 0
       for (let i = 0; i < ids.length; i++)
         enter(w, ids[i], priorities ? Math.max(1, priorities[i] >>> 0) : 1)
       w.visitor = undefined
       w.perInstance = false
-      w.rise = 0
       w.walked.clear()
     },
     /** Turns the cut's difference into the difference of the pages it closes over. */

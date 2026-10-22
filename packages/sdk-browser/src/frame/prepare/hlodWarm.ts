@@ -37,6 +37,7 @@ import { PHYSICAL_MAP_FIELDS, SURFACE_MAP_FIELDS } from '../../visibility/materi
 import { placementWorld } from '../../placement/rows/rows.ts'
 import { BOX_VALUES, boxTransform } from '../../../../math/src/geometry/box.ts'
 import { frustumExcludesBox } from '../../../../math/src/geometry/frustum/box.ts'
+import { length3 } from '../../../../math/src/vector/vector.ts'
 import { FRUSTUM_PLANE_VALUES } from '../../../../math/src/geometry/frustum/frustum.ts'
 import {
   resolveHlodWarmup,
@@ -196,7 +197,7 @@ function createWarmUp(rt: WebgpuPagesRuntime): WarmUp {
       { pixelScale } = uniforms,
       [width, height] = rt.setup.viewport
     eye = uniforms.cameraWorld
-    planes.set(uniforms.planes)
+    planes.set(rt.run.gate.cam.planesRelative) // the camera's own, never the cut's: no jitter
     multiple = Math.max(pixelScale[0] / width, pixelScale[1] / height)
     scale = Math.max(pixelScale[0], pixelScale[1])
   }
@@ -211,8 +212,8 @@ function createWarmUp(rt: WebgpuPagesRuntime): WarmUp {
       y1 = box[4] - eye[1],
       z1 = box[5] - eye[2]
     if (frustumExcludesBox(planes, x0, y0, z0, x1, y1, z1)) return 0
-    const radius = Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2,
-      distance = Math.hypot(x0 + x1, y0 + y1, z0 + z1) / 2
+    const radius = length3(x1 - x0, y1 - y0, z1 - z0) / 2,
+      distance = length3(x0 + x1, y0 + y1, z0 + z1) / 2
     return ((2 * multiple * radius) / Math.max(NEAREST, distance)) * scale * 2
   }
   /** Each image: every actor warming in view asks its geometry, and every map of each material

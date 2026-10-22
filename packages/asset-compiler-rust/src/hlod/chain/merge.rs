@@ -173,16 +173,19 @@ fn actor_subtrees(
         // other nodes laid after every node so far, their links moved with them.
         let own = &subtrees[nodes[at].first_cluster];
         let base = tree + below.len();
-        let placed = |node: &CullingNode| {
-            let mut node = node.clone();
-            if node.child_count > 0 {
-                node.first_child += base - 1;
-            }
-            node
-        };
-        nodes[at] = placed(&own[0]);
-        below.extend(own[1..].iter().map(placed));
+        nodes[at] = laid_after(&own[0], base);
+        below.extend(own[1..].iter().map(|node| laid_after(node, base)));
     }
     nodes.extend(below);
     nodes
+}
+
+/// `node` of an actor's subtree laid after the `base` nodes before it, the subtree's root having
+/// taken the place of its own leaf: its first child's link moved with it.
+fn laid_after(node: &CullingNode, base: usize) -> CullingNode {
+    let mut node = node.clone();
+    if node.child_count > 0 {
+        node.first_child += base - 1;
+    }
+    node
 }

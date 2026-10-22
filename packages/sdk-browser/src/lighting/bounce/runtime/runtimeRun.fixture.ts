@@ -6,7 +6,7 @@ import { wgslModule } from '../../../../../math/src/wgsl/assemble.ts'
 import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
 import type { world } from './runtimeScene.fixture.ts'
 import type { Hit } from './runtimeOracle.fixture.ts'
-import { RAY_WORK } from './runtimeLayout.ts'
+import { RAY_TRIANGLES, RAY_WORK } from './runtimeLayout.ts'
 import type { Vec3 } from '../../../../../math/src/vector/vectorTuple.ts'
 
 /** The functions of the program the run reaches, each named: the interpreter follows the library's alone. */
@@ -17,11 +17,13 @@ const FUNCTIONS = [
   'rtSurfaceOf',
   'rtFacing',
   'rtScene',
+  'rtSceneAny',
   'rtEnter',
   'rtEntry',
   'placementRay',
   'rtTraceCut',
   'rtSpent',
+  'rtWhy',
   'rtFloat',
   'rtVec',
   'rtVertex',
@@ -46,13 +48,24 @@ const FUNCTIONS = [
 /** The proxy's bindings the run declares. */
 export const BINDINGS = { group: 0, proxy: 12, worlds: 13, tree: 14 }
 
-/** Helpers the tests call: a ray's work and triangle tests (`rtBegin` clears both). */
+/** Helpers the tests call: a ray's work and triangle tests (`rtBegin` clears both), and the first
+ *  surface it hit: where, which way it faces, whether it met one. */
 const HELPERS = `fn testWork()->u32{return rtWork+rtExtra;}
 fn testTests()->u32{return rtTests;}
+fn testHit()->vec4f{return vec4f(select(vec3f(0.0),rtHitAt,rtHitFound),select(0.0,1.0,rtHitFound));}
+fn testHitNormal()->vec3f{return rtHitNormal;}
 `
 
-/** The shipped program over `w`; its rays' budget the whole one, `RAY_WORK`, unless one is given. */
-export function runOver(w: ReturnType<typeof world>) {
+/** The light buffer's sky of a scene that shows none: every slot zero, no air. */
+export const NO_SKY = {
+  sky: Array.from({ length: 11 }, () => [0, 0, 0, 0]),
+  atmosphere: [[0, 0, 0, 0]],
+  skyRays: [],
+}
+
+/** The shipped program over `w`, the sky its rays that leave the scene reach the light buffer's
+ *  (`directLights`, none by default); its rays' budget the whole one, `RAY_WORK`. */
+export function runOver(w: ReturnType<typeof world>, directLights: object = NO_SKY) {
   const { header } = w
   const text = wgslModule(runtimeRadianceWgsl(BINDINGS)) + HELPERS
   const run = shaderRun<{
@@ -64,10 +77,15 @@ export function runOver(w: ReturnType<typeof world>) {
       tangent: number,
       budget: number,
     ) => { color: Vec3; confidence: number; distance: number }
+    rtProbeRay: (o: Vec3, d: Vec3, reach: number) => number[]
+    rtBlocked: (o: Vec3, d: Vec3, span: number) => boolean
     testWork: () => number
     testTests: () => number
+    testHit: () => number[]
+    testHitNormal: () => number[]
     rtBegin: () => void
-  }>(text, [...FUNCTIONS, 'testWork', 'testTests'], {
+  }>(text, [...FUNCTIONS, 'testWork', 'testTests', 'testHit', 'testHitNormal'], {
+    directLights,
     rtProxy: header,
     rtWorlds: w.worlds,
     rtTree: w.tree,
@@ -75,6 +93,11 @@ export function runOver(w: ReturnType<typeof world>) {
     rtTests: 0,
     rtExtra: 0,
     rtBudget: RAY_WORK,
+    rtTestBudget: RAY_TRIANGLES,
+    rtCause: 0,
+    rtHitAt: [0, 0, 0],
+    rtHitNormal: [0, 0, 0],
+    rtHitFound: false,
     rtAnyHit: false,
     rtLost: false,
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.

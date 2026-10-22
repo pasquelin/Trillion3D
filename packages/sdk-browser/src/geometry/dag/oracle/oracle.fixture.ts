@@ -39,11 +39,14 @@ export function evaluateDagSelectionKernel(
   // Descent, mirror of `../shader/levelWgsl.ts`, set aside: it returns each node's verdict.
   const nodeFlags = dagOracleDescent(packed, frames, oracleWorldCovers(packed))
   const { visible, draws } = createDagOraclePredicates({ records, nodeFlags, ...frames, rule })
-  /** The camera's requests (`depositLeaf`, `../shader/levelWgsl.ts`): every page of a kept leaf,
-   *  seen or not by the frustum and the cut rule, at its leaf's priority — in page order, one of
-   *  the orders the kernel's threads give; the host ranks them (`../request/request.ts`). */
-  const pageIds: number[] = [],
-    priorities: number[] = []
+  /** The camera's requests (`depositLeaf`, `../shader/levelWgsl.ts`): one a kept leaf, seen or not
+   *  by the frustum and the cut rule — its first page, its page count, its priority — in page
+   *  order, one of the orders the kernel's threads give; the host ranks them
+   *  (`../request/request.ts`). `pageIds` are the pages they name, request after request. The
+   *  candidates are the pages of the kept leaves with a resident page (`leafLoaded`). */
+  const requests = { pages: [] as number[], counts: [] as number[], priorities: [] as number[] },
+    pageIds: number[] = []
+  let candidates = 0
   // Totals the GPU holds, replayed where `dagMask` notes them (`../shader/totalsWgsl.ts`).
   const totals = { drawn: 0, transparent: 0 }
   const note = (i: number) => {
@@ -60,9 +63,28 @@ export function evaluateDagSelectionKernel(
     // Room past the roots, as a table read back from the GPU holds it: no placement, no cut.
     if (w === NO_INDEX || hides(i)) continue
     const leaf = ownerOf(records, i)
-    if (leaf !== NO_INDEX && nodeFlags.at(w, leaf) === 0) {
-      pageIds.push(i)
-      priorities.push(dagLeafPriority(frames, packed.nodes, leaf, w))
+    if (
+      leaf !== NO_INDEX &&
+      nodeFlags.at(w, leaf) === 0 &&
+      (i === 0 || worldOf(records, i - 1) !== w || ownerOf(records, i - 1) !== leaf)
+    ) {
+      // The leaf's pages: the run of consecutive packed pages its placement and node own.
+      let count = 1
+      while (
+        i + count < livePages &&
+        worldOf(records, i + count) === w &&
+        ownerOf(records, i + count) === leaf
+      )
+        count++
+      requests.pages.push(i)
+      requests.counts.push(count)
+      requests.priorities.push(dagLeafPriority(frames, packed.nodes, leaf, w))
+      let loaded = !resident
+      for (let k = 0; k < count; k++) {
+        pageIds.push(i + k)
+        loaded ||= !!resident?.ready[i + k]
+      }
+      if (loaded) candidates += count
     }
     if (!visible(i)) {
       frustumRejected++
@@ -85,8 +107,8 @@ export function evaluateDagSelectionKernel(
     drawablePageIds.push(i)
   }
   return {
+    requests,
     pageIds,
-    priorities,
     frustumRejected,
     lodLevel,
     drawablePageIds,
@@ -97,7 +119,7 @@ export function evaluateDagSelectionKernel(
     transparentTriangles: totals.transparent,
     // What the kernel's queues and lists hold (`../shader/levelWgsl.ts`): past their caps, it drops
     // work and the cut is not drawn. The live list holds the clusters drawn (`../shader/liveWgsl.ts`).
-    work: { ...nodeFlags.work, live: drawablePageIds.length },
+    work: { ...nodeFlags.work, candidates, live: drawablePageIds.length },
   }
 }
 

@@ -71,7 +71,7 @@ impl Source {
     ) -> Source {
         let face_count = indices.len() / 3;
         let (points, diagonal) = scaled(positions);
-        let signal = signal.map(|s| s.chunks_exact(3).map(|t| [t[0], t[1], t[2]]).collect());
+        let signal = signal.map(|s| s.as_chunks::<3>().0.to_vec());
         let mut source = Source {
             points,
             vertex_count: positions.len(),
@@ -98,7 +98,7 @@ impl Source {
 
     /// Each face's normal, area and, with a signal, canonical frame; the mesh's area.
     fn measure_faces(&mut self, indices: &[u32]) {
-        for face in indices.chunks_exact(3) {
+        for face in indices.as_chunks::<3>().0 {
             let p = [0, 1, 2].map(|k| self.points[face[k] as usize]);
             let n = cross(sub(p[1], p[0]), sub(p[2], p[0]));
             let double_area = length(n);

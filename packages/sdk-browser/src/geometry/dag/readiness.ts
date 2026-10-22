@@ -11,6 +11,29 @@ import { VIEW_ROWS } from '../rows/tableRows.ts'
 import { rootOfPacked, type PlacementIndex } from '../selection/placements.ts'
 import type { PageResidency } from '../../gpu/core/selection.ts'
 
+/** The open count of `node` of the placement being settled, kept in `heldOpen`: a count equal to
+ *  the shared node's is no placement's own, and the table holds none for it. */
+function keepOwnOpen(r: Readiness, heldOpen: ReturnType<typeof createHeldOpen>, node: number) {
+  const at = r.packed.cutLinks[r.w].nodeBase + node,
+    open = r.worlds[r.w].openAt(node)
+  const own = open === r.nodeInts[at * DAG_NODE_FLOATS + NODE_OPEN] ? undefined : open
+  heldOpen.set(r.w, at, own)
+}
+
+/** The resident pages of every placement by the level their descent must reach, counted in
+ *  `levels` as pages join and leave: the levels the cut dispatches are one past the deepest
+ *  (`packed.residentLevels`, `encode.ts`). A page of a placement under the tree stands `shift`
+ *  levels lower (`packPlan`). */
+function residentLevelsOf(packed: PackedDag) {
+  const levels = new Uint32Array(Math.max(1, packed.levelSizes.length))
+  packed.residentLevels = () => {
+    let deepest = levels.length
+    while (deepest > 0 && levels[deepest - 1] === 0) deepest--
+    return Math.max(1, deepest)
+  }
+  return { levels, shift: packed.placementTree?.depth ?? 0 }
+}
+
 /**
  * The cut rule's residency over a whole packing: one `createCutReadiness` per placement, read at
  * its packed index. The kernel's host feeds it the per-page residency and uploads what changed
@@ -27,6 +50,7 @@ export function createDagReadiness(packed: PackedDag, heldSlots = 0) {
   // oracle reads it.
   const heldOpen = createHeldOpen(heldSlots || heldOpenSlots(VIEW_ROWS))
   packed.heldOpen = heldOpen
+  const { levels, shift } = residentLevelsOf(packed)
   const r: Readiness = {
     packed,
     nodeInts: new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset, packed.nodes.length),
@@ -36,14 +60,10 @@ export function createDagReadiness(packed: PackedDag, heldSlots = 0) {
     held: new Uint8Array(Math.max(packed.worldCount, packed.cutLinks.length)),
     dirty: createChangedRuns(),
     ...{ heldCount: 0, pages: [], w: 0, hostBytes: 0 },
+    levels,
+    shift,
     onPage: (page: number) => r.pages.push(packed.cutLinks[r.w].pageBase + page),
-    // A count equal to the shared node's is no placement's own: the table holds none for it.
-    onNode: (node: number) => {
-      const at = packed.cutLinks[r.w].nodeBase + node,
-        open = r.worlds[r.w].openAt(node)
-      const own = open === r.nodeInts[at * DAG_NODE_FLOATS + NODE_OPEN] ? undefined : open
-      heldOpen.set(r.w, at, own)
-    },
+    onNode: (node: number) => keepOwnOpen(r, heldOpen, node),
   }
   const { worlds, pageIndex } = r
   // Nothing is resident yet: each placement reads its nodes' own counts, the DAG's.
@@ -97,6 +117,10 @@ type Readiness = {
   worlds: CutReadiness[]
   blankPages: Map<CutReadiness, { ready: number[]; child: number[] }>
   held: Uint8Array
+  /** The resident pages at each level their placement's descent must reach (`levels` of
+   *  `createDagReadiness`), and the tree levels above every placement's. */
+  levels: Uint32Array
+  shift: number
   heldCount: number
   /** Placements `set` touched since the last settle. */
   dirty: ChangedRuns
@@ -165,7 +189,13 @@ function settle(r: Readiness) {
 function set(r: Readiness, page: number, value: boolean) {
   const at = rootOfPacked(r.pageIndex, page)
   if (!value && !r.held[at]) return
-  if (own(r, at).set(page - r.packed.cutLinks[at].pageBase, value)) r.dirty.mark(at)
+  const links = r.packed.cutLinks[at],
+    rank = page - links.pageBase
+  if (!own(r, at).set(rank, value)) return
+  r.dirty.mark(at)
+  // The page joins or leaves the levels the descent reaches.
+  const level = Math.min((links.depth?.[rank] ?? 0) + r.shift, r.levels.length - 1)
+  r.levels[level] += value ? 1 : -1
 }
 
 function apply(r: Readiness, resident: PageResidency, changes: ResidencyChanges | undefined) {

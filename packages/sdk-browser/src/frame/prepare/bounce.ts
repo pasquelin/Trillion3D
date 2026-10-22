@@ -9,21 +9,26 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 export const BOUNCE_CAPABILITY = 'global illumination and surface cache'
 /** Named approximations of the bounce, published in the diagnostic (P5). */
 const BOUNCE_APPROXIMATIONS = [
-  'the cascades interpolate irradiance between eight probes, so a detail smaller than a cell is lost',
+  'the levels interpolate irradiance between eight probes, so a detail smaller than a cell is lost',
   'order-2 spherical harmonics carry the irradiance, so a sharp directional change is smoothed',
   'probe visibility uses six mean distances per probe, not a full distance map',
   'the proxy carries a certified geometric error, so a bounce leaves the coarse surface',
   'the proxy carries diffuse albedo only: emission, transparency and specular are not bounced',
-  'a probe update reads the cascades as they stand, so one update may see a neighbour already updated',
+  'a probe update reads the levels as they stand, so one update may see a neighbour already updated',
   'a ray that exhausts the published traversal bound, or whose shadow ray does, carries no weight: a probe renormalises over the rays that answered',
   'a probe ray lights the surface it lands on at the point it lands, every light and its shadow, so the cost of a ray grows with the lights',
-  'a probe buried in a surface or lost in open sky goes to sleep and is skipped until a light changes',
-  'the millisecond budget follows a timestamp read several frames late, and only every third or twelfth frame',
-  'a point no cascade level reaches gets exactly zero bounce, never a guess',
+  'a probe buried in a surface or lost in open sky goes to sleep and is skipped until a light or the sky changes',
+  'a frame traces a fixed count of probes (`probesPerFrame`) whatever the time the pass takes: a slow device lowers the count, nothing lowers it for it',
+  'a point no level holds a probe for gets no bounce from the probes, never a guess: the sky light, where one shines, is all it gets',
+  'a probe is given to a cell only once the image has read it, a few images late, and traced a few updates after: a view that turns finds the cells it turns to unanswered for an instant',
+  'the pool holds a fixed count of probes: past it a cell asked for goes unanswered until a probe is given back',
+  'a surface a probe ray or a reflection hits is lit by the probes alone, none of the sky light: it is dark while the probes round it hold nothing yet, and fills as they do; the cells round a hit are given probes of their own, kept while their level holds them',
+  'a probe stops being updated after a fixed count of updates, until a light changes',
+  'the sky reaches the probes as a table by direction built at the ground, the sun not in it: the sky light of a point the probes do not answer is the unoccluded one, and a scene with no sky light has none to give: the probes that answer stand for it',
 ]
 
-/** Why there is no bounce while the host has not asked for it: the one reason a toggle lifts. */
-const BOUNCE_OFF = 'the bounce is off by default; create the explorer with bounce: true'
+/** Why there is no bounce while the host has switched it off: the one reason a toggle lifts. */
+const BOUNCE_OFF = 'the bounce is switched off; create the explorer with bounce: true'
 
 /**
  * Turns bouncing light on or off during the session. Off, the grid stops being updated and read,
@@ -43,8 +48,8 @@ export function setWebgpuBounce(rt: WebgpuPagesRuntime, on: boolean) {
  *
  * Nothing is loaded before: a scene without a lamp has nothing to bounce, and the proxy's cache
  * object weighs tens of megabytes that would delay its first image for nothing. Once it arrives,
- * the proxy goes into GPU memory whole and the probe grid is allocated on its extent —
- * independent of the camera, like the proxy itself (LC1).
+ * the proxy goes into GPU memory whole and the probes' pool is allocated, its levels
+ * following the eye (LC1).
  *
  * Everything is optional: a cache without a proxy, a device that refuses the pass or a host that
  * does not want it keep a correct image and a declared missing capability. Nothing is dropped in
@@ -77,7 +82,7 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
           boxes: () => rt.run.gpuSelection?.proxyBoxes() ?? NO_PROXY_BOXES,
         },
         () => lights.buffer!,
-        bounce.budget,
+        bounce.probesPerFrame,
         rt.gpu.deferred!.placeholders.tiles,
         () => lights.tiles,
       )
@@ -115,19 +120,15 @@ function publish(rt: WebgpuPagesRuntime) {
     cascadeLevels: probes?.cascades.levels.length ?? null,
     cascadeSize: probes?.cascades.size ?? null,
     cascadeSpacings: probes?.cascades.levels.map((level) => level.spacing) ?? null,
+    // The pool, and what it holds now: probes alive, those still short of their updates, the marks
+    // the pool had no probe left for.
     probes: probes?.cascades.probes ?? null,
-    // What the occupancy map keeps: the finest-level cells that touch geometry, over all those
-    // of the extent, and what the map costs in memory.
-    occupiedCells: probes?.occupancy.marked ?? null,
-    mapCells: probes?.occupancy.cells ?? null,
-    mapBytes: probes?.occupancy.bytes ?? null,
+    liveProbes: probes?.pool.live ?? null,
+    refusedMarks: probes?.pool.refused ?? null,
     probeBytes: probes?.probeBytes ?? null,
-    // The target, the fraction the servo holds, and the last duration it saw.
-    budgetMs: bounce.budget.budgetMs,
-    budgetLoad: probes ? bounce.budget.load : null,
-    budgetLastMs: probes ? bounce.budget.lastMs : null,
-    budgetSamples: probes ? bounce.budget.samples : null,
-    sweepFrames: probes?.sweepFrames ?? null,
+    // The probes a frame traces, those never traced first, and the last duration of the pass.
+    probesPerFrame: bounce.probesPerFrame,
+    passMs: probes ? bounce.passMs : null,
     unavailable: bounce.reason,
     approximations: BOUNCE_APPROXIMATIONS,
   })
@@ -147,8 +148,8 @@ function wearProxies(rt: WebgpuPagesRuntime, proxy: SceneProxy) {
   rt.run.gpuSelection?.proxyArrived()
 }
 
-/** Probes follow the placements: the first image after one moved or arrived replans the cascades over their
- *  extent, marks their cells and restarts the series (`lighting/bounce/probes/probeSync.ts`). One look at the scene's
+/** Probes follow the placements: the first image after one moved or arrived places the world light grid and
+ *  the rays' reach on their extent and restarts the series (`lighting/bounce/probes/probeSync.ts`). One look at the scene's
  *  revision when nothing was written. */
 export function syncLightingProxies(rt: WebgpuPagesRuntime) {
   const { probes } = rt.bounce

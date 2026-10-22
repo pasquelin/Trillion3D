@@ -10,6 +10,7 @@
 //! documented function also returns are left out: no caller reads them, and the point does not
 //! depend on them.
 use super::Polygons;
+use trillion3d_math::scalar::not_above;
 use trillion3d_math::vector::vecn::{add, dot, scale, squared_length, sub};
 
 type V3 = [f64; 3];
@@ -84,7 +85,7 @@ fn coincide(p: V3, q: V3) -> bool {
 /// Whether `x` and `y` are within `COINCIDENT` of each other, absolutely (NaN included), or
 /// relative to the larger in magnitude (`x` when both are as large).
 fn coincident(x: f64, y: f64) -> bool {
-    if !((x - y).abs() > COINCIDENT) {
+    if not_above((x - y).abs(), COINCIDENT) {
         return true;
     }
     let relative = if y.abs() > x.abs() {

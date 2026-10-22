@@ -1,190 +1,85 @@
 import type { Bloom } from '../../../../sdk-core/src/world/effect/bloom.ts'
-import { bloomBlend, bloomLevelSizes, bloomLevelsTexture } from './bloom/bloomFilter.ts'
-import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
-import { retire } from '../../gpu/core/frameRetire.ts'
-import { createBloomPrograms } from './bloom/bloomPrograms.ts'
-import { BLOOM_UNIFORM_BYTES, writeBloomSlot } from './bloom/bloomLevel.ts'
-import { uniformSlots } from '../../session/memory/pools.ts'
-import { writeChangedSlots } from '../../gpu/core/writeChanged.ts'
-import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts'
-import { BLOOM_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
-import { levelViews } from '../../materials/texture/mipGroups.ts'
-
-/** Words of one uniform slot, the `Bloom` struct a pass binds. */
-const SLOT_WORDS = BLOOM_UNIFORM_BYTES / 4
-type Size = readonly [number, number]
+import { BLOOM_PASS } from '../../diagnostic/stage/passLabels.ts'
+import { fullscreenDraw } from '../filters/fullscreenDraw.ts'
+import { createBloomPrograms } from './bloom/bloomPrograms.ts'
+import { createBloomSet, type BloomSet } from './bloom/bloomSet.ts'
+import { createBloomTargets } from './bloom/bloomTargets.ts'
+import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts'
 
 /**
- * The WebGPU bloom (`bloom/bloomFilter.ts`): one `rgba16float` texture whose mip levels are the chain,
- * sized with the image (`resize`), and three programs. `encode` writes, into `output`, the image
- * `input` with its glow: the levels are filtered down, summed back up, and the first blended in —
- * or, with no `output`, that last blend left to the composition (`blend`).
- * Every bloom of the chain draws on the same levels, one after the other, but reads its own
- * uniform slots — the `nth` bloom the `nth` range of the buffer, at its dynamic offsets — since
- * every write of the buffer lands before the frame's first pass. Bind groups follow the targets
- * and the two history views the input alternates between: none is made per frame. A range is
- * written only when the size or a setting of its bloom changed.
+ * The WebGPU bloom: the images every bloom of the chain draws on (`bloom/bloomTargets.ts`), one
+ * after the other, and a set of passes for each bloom (`bloom/bloomSet.ts`), made as the chain
+ * asks (`resize`) and kept while it holds. `encode` draws the nth bloom's glow over the image it is
+ * handed — the scene's chain shared with the local exposure (`PostFrame`): every bloom of a chain
+ * glows from the image the chain was handed, and adds its own — and, with an `output`, adds it to
+ * the image there (`composite`); with none it leaves the glow to the composition, which adds it
+ * where it applies the exposure (`blend`). Bind groups follow the images and the two history views
+ * the input alternates between: none is made per frame.
  */
 export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffectKind<Bloom>> {
-  const { layouts, down, up, composite, sampler } = await createBloomPrograms(device)
-  let texture: GPUTexture | undefined,
-    uniform: GPUBuffer | undefined,
-    full: Size = [0, 0],
-    sizes: Size[] = [],
-    views: GPUTextureView[] = [],
-    groups: GPUBindGroup[] = [],
-    blends: FusedBlend[] = [],
-    blend: FusedBlend | undefined,
-    // The uniform's slots, the device's alignment apart, and their words laid as the buffer.
-    slots = uniformSlots(device.limits, 0, SLOT_WORDS),
-    packed = new Float32Array(0),
-    packedWords = new Uint32Array(0),
-    // The intensity and radius each bloom's range holds, NaN until it is written.
-    held = new Float64Array(0),
-    levelBytes = 0,
-    passes = 0
-  // The input's groups over its view and the uniform: four held, what a bloom of the chain reads —
-  // the image, of the two HDR targets taking turns, or either of the chain's own targets
-  // (`webgpuEffects.ts`).
+  const programs = await createBloomPrograms(device)
+  const targets = createBloomTargets(device)
+  const sets: BloomSet[] = [],
+    blends: FusedBlend[] = []
+  const draw = fullscreenDraw(BLOOM_PASS)
+  // The composite's groups over the image it adds to and the glow: the two images the input
+  // alternates between each keep theirs.
   const inputs = createWebgpuBindIdentity(4),
-    inputSlots: { level: GPUBindGroup; scene: GPUBindGroup }[] = []
-  const levelGroup = (view: GPUTextureView) =>
-    device.createBindGroup({
-      layout: layouts.level,
-      entries: sequentialEntries([view, sampler, { buffer: uniform!, size: BLOOM_UNIFORM_BYTES }]),
-    })
-  const inputGroups = (view: GPUTextureView) => {
-    inputs.next[0] = view
-    inputs.next[1] = uniform
-    if (inputs.moved())
-      inputSlots[inputs.slot] = {
-        level: levelGroup(view),
-        scene: device.createBindGroup({
-          layout: layouts.scene,
-          entries: sequentialEntries([view]),
-        }),
-      }
-    return inputSlots[inputs.slot]
-  }
-  /** The one descriptor every pass begins with, rewritten in place: a pass reads it when it
-   *  begins, so a frame allocates none (11 passes at 6 levels); each slot's dynamic offset is made
-   *  once (`uniformSlots`). A cleared level clears to zero, the default clear value. */
-  const attachment = { storeOp: 'store' } as GPURenderPassColorAttachment
-  const descriptor = { label: BLOOM_PASS, colorAttachments: [attachment] }
+    groups: GPUBindGroup[] = []
+  let blend: FusedBlend | undefined,
+    setups = false
   const release = () => {
-    if (!passes) return // free already: nothing is allocated for it
-    // This image's commands may still name them: retired, destroyed after the frame's submit.
-    if (texture) retire(device, texture)
-    if (uniform) retire(device, uniform)
-    texture = uniform = blend = undefined
-    attachment.view = undefined as unknown as GPUTextureView // holds no freed view
-    full = [0, 0]
-    sizes = []
-    views = []
-    groups = []
-    blends = []
-    levelBytes = passes = 0
-  }
-  const slot = (index: number, out: Size, read: Size, radius: number, keep = 0, glow = 0) =>
-    writeBloomSlot(packed, index * slots.strideWords, out, read, radius, keep, glow)
-  /** Writes the `nth` bloom's range, its last slot at `last`, when its settings are not the ones
-   *  it holds: a range depends only on them and on the size, whose change makes a new buffer. */
-  const write = (nth: number, last: number, { intensity, radius }: Bloom) => {
-    if (held[2 * nth] === intensity && held[2 * nth + 1] === radius) return
-    held[2 * nth] = intensity
-    held[2 * nth + 1] = radius
-    const count = sizes.length,
-      first = last + 1 - 2 * count,
-      { keep, glow } = bloomBlend(intensity, count)
-    for (let level = 0; level < count; level++)
-      slot(first + level, sizes[level], level ? sizes[level - 1] : full, radius)
-    for (let level = 0; level + 1 < count; level++)
-      slot(first + count + level, sizes[level], sizes[level + 1], radius)
-    slot(last, full, sizes[0], radius, keep, glow)
-    // What changed of the range's slots goes up in one write, as the whole range once did: never
-    // the padding up to the device's alignment, never more writes.
-    writeChangedSlots(device, uniform!, packedWords, slots, first, last + 1, 'one')
-  }
-  const draw = (
-    encoder: GPUCommandEncoder,
-    view: GPUTextureView,
-    pipeline: GPURenderPipeline,
-    group: GPUBindGroup,
-    uniformSlot: number,
-    scene?: GPUBindGroup,
-  ) => {
-    attachment.view = view
-    attachment.loadOp = pipeline === up ? 'load' : 'clear'
-    const pass = encoder.beginRenderPass(descriptor)
-    pass.setPipeline(pipeline)
-    pass.setBindGroup(0, group, slots.offset(uniformSlot))
-    if (scene) pass.setBindGroup(1, scene)
-    pass.draw(3)
-    pass.end()
+    for (const set of sets) set.dispose()
+    sets.length = blends.length = 0
+    blend = undefined
+    targets.dispose()
   }
   return {
-    /** Bytes of the level chain as allocated; zero before the first `resize`. */
+    /** Bytes of the blooms' images; zero before the first frame that draws one. */
     get bytes() {
-      return levelBytes
+      return targets.bytes
     },
-    /** Sizes the levels for an image and the uniform for `count` blooms; none frees them. The
-     *  uniform grows with the count, and never shrinks while the size holds. */
-    resize(width: number, height: number, count: number) {
+    /** Holds a set of passes for each of `count` blooms; none frees them and the images. A set
+     *  sizes itself at its first frame, from the scene's chain. */
+    resize(_width: number, _height: number, count: number) {
       if (!count) return release()
-      if (width === full[0] && height === full[1] && count <= passes) return
-      release()
-      full = [width, height]
-      passes = count
-      sizes = bloomLevelSizes(width, height)
-      if (!sizes.length) return
-      const levels = bloomLevelsTexture(sizes)
-      levelBytes = textureBytesOf(levels) ?? 0
-      texture = device.createTexture({
-        ...levels,
-        label: `${BLOOM_PASS} levels`,
-        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-      })
-      slots = uniformSlots(device.limits, passes * sizes.length * 2, SLOT_WORDS)
-      uniform = device.createBuffer({
-        label: `${BLOOM_PASS} uniform`,
-        size: slots.bytes,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-      })
-      packed = new Float32Array(slots.bytes / 4)
-      packedWords = new Uint32Array(packed.buffer)
-      held = new Float64Array(2 * passes).fill(Number.NaN)
-      views = levelViews(texture, sizes.length)
-      groups = views.map(levelGroup)
+      while (sets.length < count) sets.push(createBloomSet(device, programs, targets))
+      while (sets.length > count) sets.pop()!.dispose()
     },
-    /** The last blend the last `encode` left to the composition. */
+    /** The glow the last `encode` left to the composition. */
     get blend() {
       return blend
     },
-    /** Draws `input` and its glow into `output`, the `nth` bloom of the chain: 2 × levels passes,
-     *  one fewer with no `output`, none on an image too small to halve. The chain must be sized
-     *  for it. */
-    encode(encoder, bloom, nth, input, output) {
-      const count = sizes.length
+    /** Draws the nth bloom's glow over `input`, into `output` when there is one, and returns the
+     *  render passes drawn: none where every level is left out. */
+    encode(encoder, bloom, nth, input, output, post) {
       blend = undefined
-      if (!count) return 0
-      const first = nth * 2 * count,
-        last = first + 2 * count - 1
-      write(nth, last, bloom)
-      const source = inputGroups(input)
-      for (let level = 0; level < count; level++)
-        draw(encoder, views[level], down, level ? groups[level - 1] : source.level, first + level)
-      for (let level = count - 2; level >= 0; level--)
-        draw(encoder, views[level], up, groups[level + 1], first + count + level)
+      if (!nth) setups = false
+      const set = sets[nth],
+        drawn = set.encode(encoder, bloom, post)
+      setups ||= set.usedSetup
+      // The setup's image and its chain, which no bloom of the chain drew this frame, go back.
+      if (nth === sets.length - 1 && !setups) targets.freeSetup()
+      if (!drawn) return 0
+      const glow = set.view!
       if (!output) {
-        // Made once per bloom and size, kept while the levels are: a frame allocates none.
-        blend = blends[nth] ??= { group: groups[0], offset: slots.offset(last)[0] }
-        return 2 * count - 1
+        // Kept for the bloom and its frames: the composition takes the same object each frame.
+        blend = blends[nth] ??= { glow }
+        blend.glow = glow
+        return drawn
       }
-      draw(encoder, output, composite, groups[0], last, source.scene)
-      return 2 * count
+      inputs.next[0] = input
+      inputs.next[1] = glow
+      if (inputs.moved())
+        groups[inputs.slot] = device.createBindGroup({
+          layout: programs.compositeLayout,
+          entries: sequentialEntries([input, glow, programs.filters.clamped]),
+        })
+      draw(encoder, output, programs.composite, groups[inputs.slot])
+      return drawn + 1
     },
-    dispose: () => release(),
+    dispose: release,
   }
 }

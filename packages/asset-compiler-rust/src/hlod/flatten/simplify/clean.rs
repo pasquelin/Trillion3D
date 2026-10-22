@@ -138,9 +138,9 @@ fn clean(indices: &mut [u32], vertices: usize, adjacent: &mut [u32]) -> Vec<u32>
         for point in 0..3 {
             let k = adjacent[3 * face + point];
             if k != NONE {
-                for at in 3 * k as usize..3 * k as usize + 3 {
-                    if adjacent[at] == face as u32 {
-                        adjacent[at] = NONE;
+                for entry in &mut adjacent[3 * k as usize..3 * k as usize + 3] {
+                    if *entry == face as u32 {
+                        *entry = NONE;
                     }
                 }
                 adjacent[3 * face + point] = NONE;

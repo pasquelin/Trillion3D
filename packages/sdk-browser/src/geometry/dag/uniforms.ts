@@ -41,8 +41,8 @@ export type DagOutputScratch = {
 }
 export const createDagOutputScratch = (): DagOutputScratch => ({
   result: {
+    requests: { pages: [], counts: [], priorities: [] },
     pageIds: [],
-    priorities: [],
     frustumRejected: 0,
     lodLevel: 0,
     occluded: 0,
@@ -149,46 +149,74 @@ function writeOcclusion(target: Float32Array, ints: Uint32Array, uniforms: Selec
   ints.set(uniforms.prevSize!, W('prevSize'))
 }
 
-/** `at`: where the readback's lists lie in it — the drawn list's header (`drawn`, 0 when there is
- *  none) and the requests' priorities (`priorities`), in words. */
-export function parseDagOutput(
-  bytes: ArrayBufferLike,
-  byteOffset: number,
-  byteLength: number,
-  at: { drawn: number; priorities: number },
-  scratch: DagOutputScratch = createDagOutputScratch(),
-): SelectionResult | null {
-  const ints = new Uint32Array(bytes, byteOffset, Math.floor(byteLength / 4))
-  const head = SELECTION_HEADER_WORDS,
-    held = Math.max(0, (at.drawn || ints.length) - head)
-  // Arrays written rank after rank, then cut to their length, and never sized ahead: an array whose
-  // length is set before its ranks are written holds holes from then on, and each of the reads
-  // that follow — the cut's difference, its records, its packed ranks, several a frame on a
-  // hundred thousand ranks — pays the hole check, near six times a packed read (#831). A frame reuses
-  // the arrays it grew; a typed-array iterator is never unrolled.
-  const { result, drawable, peaks } = scratch,
-    { pageIds, priorities } = result
-  // Each rank is a REQUEST: the page, a whole word, in the order the GPU's threads asked them, and
-  // its priority at the same rank of the priority list (`request/request.ts`): the host ranks them.
-  const count = Math.min(ints[OUT_COUNT] ?? 0, held, Math.max(0, ints.length - at.priorities))
+/** The requests of a readback into `result`: each rank is a REQUEST — a leaf's first page, a whole
+ *  word, in the order the GPU's threads asked them, its page count and its priority at the same
+ *  rank of their lists (`request/request.ts`): the host ranks them. The pages they name follow,
+ *  request after request, in `pageIds`.
+ *
+ *  Arrays written rank after rank, then cut to their length, and never sized ahead: an array whose
+ *  length is set before its ranks are written holds holes from then on, and each of the reads that
+ *  follow — the cut's difference, its records, its packed ranks, several a frame on a hundred
+ *  thousand ranks — pays the hole check, near six times a packed read (#831). A frame reuses the
+ *  arrays it grew; a typed-array iterator is never unrolled. */
+function readRequests(
+  ints: Uint32Array,
+  head: number,
+  held: number,
+  at: { priorities: number; counts: number },
+  result: SelectionResult,
+) {
+  const { pageIds, requests } = result
+  const count = Math.min(
+    ints[OUT_COUNT] ?? 0,
+    held,
+    Math.max(0, ints.length - at.priorities),
+    Math.max(0, ints.length - at.counts),
+  )
+  let pages = 0
   for (let i = 0; i < count; i++) {
-    pageIds[i] = ints[head + i]
-    priorities[i] = ints[at.priorities + i]
+    const first = ints[head + i],
+      named = ints[at.counts + i]
+    requests.pages[i] = first
+    requests.counts[i] = named
+    requests.priorities[i] = ints[at.priorities + i]
+    for (let k = 0; k < named; k++) pageIds[pages++] = first + k
   }
-  pageIds.length = count
-  priorities.length = count
+  requests.pages.length = requests.counts.length = requests.priorities.length = count
+  pageIds.length = pages
+}
+
+/** The cut's counters of a readback into `result`: what the GPU holds describes the cut, not the
+ *  list that reports it, so a truncated sample still returns them correctly
+ *  (`shader/totalsWgsl.ts`). */
+function readTotals(ints: Uint32Array, result: SelectionResult) {
   result.frustumRejected = ints[OUT_FRUSTUM_REJECTED] ?? 0
   result.lodLevel = ints[OUT_LOD_LEVEL] ?? 0
   result.occluded = ints[OUT_OCCLUDED] ?? 0
   result.postHidden = ints[OUT_POST_HIDDEN] ?? 0
-  // Totals the GPU holds: they describe the cut, not the list that reports it, so a truncated
-  // sample still returns them correctly (`shader/totalsWgsl.ts`).
   result.selectedTriangles = ints[OUT_SELECTED_TRIANGLES] ?? 0
   result.transparentTriangles = ints[OUT_TRANSPARENT_TRIANGLES] ?? 0
   // Bit 1: the cut did not fit under the sample cap. This is not a GPU fault — the kernels ran,
   // the frame mask is correct — but the reported LIST is truncated, and nothing that lives off
   // it must take it for the whole cut.
   result.truncated = ((ints[OUT_FLAGS] ?? 0) & 1) !== 0
+}
+
+/** `at`: where the readback's lists lie in it — the drawn list's header (`drawn`, 0 when there is
+ *  none), the requests' priorities (`priorities`) and their page counts (`counts`), in words. */
+export function parseDagOutput(
+  bytes: ArrayBufferLike,
+  byteOffset: number,
+  byteLength: number,
+  at: { drawn: number; priorities: number; counts: number },
+  scratch: DagOutputScratch = createDagOutputScratch(),
+): SelectionResult | null {
+  const ints = new Uint32Array(bytes, byteOffset, Math.floor(byteLength / 4))
+  const head = SELECTION_HEADER_WORDS,
+    held = Math.max(0, (at.drawn || ints.length) - head)
+  const { result, drawable, peaks } = scratch
+  readRequests(ints, head, held, at, result)
+  readTotals(ints, result)
   result.drawablePageIds = undefined
   result.peaks = undefined
   if (!at.drawn) return result

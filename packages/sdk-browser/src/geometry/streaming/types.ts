@@ -96,6 +96,13 @@ export interface PageStreamerOptions {
   /** Hears, once, a read that fails for good or first waits the longest, by its page's url: again
    *  only after it landed. */
   onStalled?: (failure: { key: string; cause: unknown }) => void
+  /** How many times a read that failed is tried again before its page is given up, read at each
+   *  failure (`streamingNumRetries`); negative, without end. `DEFAULT_STREAMING_NUM_RETRIES` by
+   *  default. */
+  numRetries?: () => number
+  /** The object a page's url belongs to, when it belongs to one: a page given up makes its object
+   *  invalid, and no page of it is read again (`failures.ts`). */
+  objectOf?: (url: string) => number | undefined
 }
 export type Job = {
   url: string

@@ -3,12 +3,12 @@ import { createSparseInts } from '../sparseInts.ts'
 
 /**
  * A TRUNCATED READOUT NAMES NO EXIT. A cut that lists more than its readout holds — the readout's
- * cap is the cut's for its life (`../../dag/lists/listCap.ts`) — is read by its head: the frame's
- * mask draws the whole cut, so a page past the head has not left it, and must not leave the sets
- * the residency keeps and evicts from. Such a list is
- * published as its head, then every page the list held before that the head does not name, in the
- * held order: entries only. The head keeps its ranks, so the claims of the next readbacks, which
- * name ranks of the GPU list, still find their pages (`./claimedDifference.ts`).
+ * cap follows what the cut asks of it between two frames (`../../dag/lists/requestSize.ts`) — is
+ * read by its head: the frame's mask draws the whole cut, so a page past the head has not left it,
+ * and must not leave the sets the residency keeps and evicts from. Such a list is published as its
+ * head, then every page the list held before that the head does not name, in the held order:
+ * entries only. The head keeps its ranks, so the claims of the next readbacks, which name ranks of
+ * the GPU list, still find their pages (`./claimedDifference.ts`).
  *
  * The head's pages marked in a sparse map (`../sparseInts.ts`) emptied after each list,
  * so its size follows the head, never the largest page id; nothing is held on a whole list.

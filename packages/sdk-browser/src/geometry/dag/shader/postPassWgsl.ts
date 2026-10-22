@@ -15,11 +15,11 @@ import { POST_WORDS } from './listsWgsl.ts'
  * or a cell of the placement tree or a placement's root, alone —, each item of it in turn: its
  * frustum and its level of detail passed in the main pass, only the pyramid judges it now, the box
  * at its current pose; seen, it is accepted as the main pass would have (`acceptNode`), into queue
- * 0, and the levels that follow test its subtree in full, against this pyramid — a leaf held below
- * its placement's root asks for its resident pages alone, the main pass having dropped the others
- * (`heldBack`); a root, the placement's instance, held whole, asks for all. `dagPostClusters` takes
- * each cluster held: the cut rule drew it in the main pass, so seen now it is drawn (`liveAppend`).
- * What this pyramid hides is gone for this image, counted (`postHidden`).
+ * 0, and the levels that follow test its subtree in full, against this pyramid — a leaf seen asks
+ * for its pages as the main pass's would have (`depositLeaf`); the leaves held below a root were
+ * those with a resident page (`heldBack`). `dagPostClusters` takes each cluster held: the cut rule
+ * drew it in the main pass, so seen now it is drawn (`liveAppend`). What this pyramid hides is gone
+ * for this image, counted (`postHidden`).
  */
 export const DAG_POST_PASS_WGSL = wgslBlock(
   'DAG_POST_PASS_WGSL',
@@ -53,7 +53,7 @@ fn postItem(index:u32,w:u32){
   return;
  }
  let node=nodeAt(index);deformReach=reachOf(w);
- if(boxSight(node.minimum,node.maximum,w)==BOX_SEEN){acceptNode(0u,index,node,w,index!=rootOf(w));return;}
+ if(boxSight(node.minimum,node.maximum,w)==BOX_SEEN){acceptNode(0u,index,node,w);return;}
  atomicAdd(&out.postHidden,1u);
 }
 /** Held cluster \`s\`, judged by this pyramid: seen, drawn. */

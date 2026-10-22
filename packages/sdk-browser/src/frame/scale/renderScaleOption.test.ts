@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { displayResolutionFraction, renderScaleBounds } from './renderScaleOption.ts'
+import { displayResolutionFraction } from './displayResolutionFraction.ts'
+import { renderScaleBounds } from './renderScaleOption.ts'
 
 /** A 720-tall display, where the default renders the display's own size. */
 const HD = 1280 * 720,

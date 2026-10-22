@@ -16,7 +16,11 @@ import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/
 import { dagDeviceRefusal } from '../../../packages/sdk-browser/src/geometry/dag/deviceRefusal.ts'
 import { dagBindEntries } from '../../../packages/sdk-browser/src/geometry/dag/shader/bindings.ts'
 import { selectionListCap } from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
-import { priorityWord } from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
+import {
+  countWord,
+  priorityWord,
+} from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
+import { DEFAULT_STREAMING_MIN_REQUESTS } from '../../../packages/sdk-core/src/contracts/streamingOptions.ts'
 import { cutTablesAt } from '../../../packages/sdk-browser/src/geometry/dag/queueGrowth.ts'
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/geometry/dag/shader/viewsWgsl.ts'
 import { residentAll } from '../../../packages/sdk-browser/src/geometry/dag/residentAll.fixture.ts'
@@ -55,7 +59,7 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
       target,
       packed,
       null,
-      selectionListCap(packed.pageCount),
+      selectionListCap(packed.pageCount, DEFAULT_STREAMING_MIN_REQUESTS),
     )
     if (!resources) return undefined
     // The stretches the session's root boxes pass writes, as no session runs here.
@@ -76,7 +80,11 @@ export async function cutWholeAndSplit(pixelErrors: number[]) {
         (await readGpuBuffer(device, resources.output, resources.readbackBytes))!.buffer,
         0,
         resources.readbackBytes,
-        { drawn: resources.outputBytes / 4, priorities: priorityWord(resources.listCap) },
+        {
+          drawn: resources.outputBytes / 4,
+          priorities: priorityWord(resources.listCap),
+          counts: countWord(resources.listCap),
+        },
       )
       if (!result) throw new Error('unreadable output')
       cuts.push({

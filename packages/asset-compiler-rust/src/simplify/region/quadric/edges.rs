@@ -51,8 +51,8 @@ impl PositionQuadric {
             self.c[k] += e.c[k];
         }
         let a_dist = e.a * dist;
-        for k in 0..3 {
-            self.dn[k] += e.a * -point[k] - a_dist * e.n[k];
+        for (k, &component) in point.iter().enumerate() {
+            self.dn[k] += e.a * -component - a_dist * e.n[k];
         }
         self.d2 += e.a * dot(point, point) - a_dist * dist;
     }

@@ -17,6 +17,32 @@ struct Slot {
     group: wgpu::BindGroup,
 }
 
+/// The invocations a slot made for `count` holds: the next power of two of them, `BATCH` at the
+/// most.
+fn slot_count(count: usize) -> usize {
+    count.min(BATCH).next_power_of_two()
+}
+
+/// The bytes of a slot's three buffers — the items, the results and the results' read-back — made
+/// for `count` invocations (`slot_count`), an item taking `bytes.0` and a result `bytes.1`.
+fn slot_bytes(bytes: (u64, u64), count: usize) -> [u64; 3] {
+    let slot = slot_count(count) as u64;
+    let (items, results) = (slot.saturating_mul(bytes.0), slot.saturating_mul(bytes.1));
+    [items, results, results]
+}
+
+/// The bytes a pass's two slots hold on the device for `samples` invocations, an item taking
+/// `bytes.0` and a result `bytes.1`, the read-back of the results as much again (`slot_bytes`,
+/// `Batches::hold`).
+pub(crate) fn held_bytes(bytes: (usize, usize), samples: usize) -> usize {
+    let slot = slot_bytes((bytes.0 as u64, bytes.1 as u64), samples);
+    let both = slot
+        .iter()
+        .fold(0u64, |sum, &b| sum.saturating_add(b))
+        .saturating_mul(2);
+    usize::try_from(both).unwrap_or(usize::MAX)
+}
+
 /// A batch on the device: its slot, its invocations, its results' read-back asked for, and when it
 /// was sent.
 struct Flight {
@@ -93,13 +119,13 @@ impl<'a> Batches<'a> {
         if let Some(smaller) = self.slots[at].take() {
             self.device.free(&smaller.buffers);
         }
-        let count = count.next_power_of_two().min(BATCH);
+        let count = slot_count(count);
         let device = self.device;
-        let (items, results) = (count as u64 * self.bytes.0, count as u64 * self.bytes.1);
+        let [items, results, read_back] = slot_bytes(self.bytes, count);
         let buffers = [
             device.buffer("items", items, FILLED)?,
             device.buffer("results", results, WRITTEN)?,
-            device.buffer("results read-back", results, READ_BACK)?,
+            device.buffer("results read-back", read_back, READ_BACK)?,
         ];
         let group = (self.bind)(&self.params, &buffers[0], &buffers[1]);
         self.slots[at] = Some(Slot {

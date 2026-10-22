@@ -18,7 +18,13 @@ const run = shaderRun<{
   cineonCurve: Curve
   agxCurve: Curve
   neutralCurve: Curve
-}>(wgslModule(DISPLAY_VALUE_WGSL), ['aces', 'cineonCurve', 'agxCurve', 'neutralCurve'], {})
+  filmicCurve: Curve
+}>(
+  wgslModule(DISPLAY_VALUE_WGSL),
+  ['aces', 'cineonCurve', 'agxCurve', 'neutralCurve', 'filmicCurve'],
+  // The film curve reads the hue as an angle; the interpreter's built-ins hold no `atan2`.
+  { atan2: Math.atan2 },
+)
 
 const R = TONE_MAPPING_RANK
 const clip = (c: number[]) => c.map((x) => Math.min(Math.max(x, 0), 1))
@@ -31,6 +37,7 @@ const toneMap: Record<number, Curve> = {
   [R.aces]: run.aces,
   [R.agx]: run.agxCurve,
   [R.neutral]: run.neutralCurve,
+  [R.filmic]: run.filmicCurve,
 }
 
 const bytes = [
@@ -57,4 +64,23 @@ test('every display curve gives back what its inverse started from', () => {
           `${name} ${colour}: ${back.map((v) => linearToSrgb(v) * 255)}`,
         )
     }
+})
+
+// The film curve on a grey, middle grey and the greys around it, against what the film response
+// gives: a grey goes through the curve of one channel alone, and middle grey stays middle grey.
+test('the film curve gives the greys of the film response', () => {
+  const grey = [
+    [0.01, 0.0017],
+    [0.05, 0.025],
+    [0.18, 0.18],
+    [0.36, 0.402],
+    [0.72, 0.634],
+    [1, 0.723],
+    [2, 0.862],
+  ]
+  for (const [radiance, shown] of grey) {
+    const out = run.filmicCurve([radiance, radiance, radiance])
+    for (const channel of out)
+      assert.ok(Math.abs(channel - shown) < 6e-4, `${radiance}: ${channel}`)
+  }
 })

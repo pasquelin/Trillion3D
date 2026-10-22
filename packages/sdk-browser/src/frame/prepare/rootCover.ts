@@ -11,7 +11,7 @@ import {
 import type { WebgpuPageTracking } from '../../geometry/rows/page/pageTracking.ts'
 import { createCoverKeys } from '../../geometry/residency/coverKeys.ts'
 import { DEFAULT_INITIAL_ROOT_PAGES } from '../../session/engine/common.ts'
-import { alignUp, bitLength } from '../../../../math/src/scalar/integers.ts'
+import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 
 /** The pages `roots` hold whatever the view: each root page (`rootPages`), a page a cell holds
  *  (`PageRec.holder`) joining it with its cell. Records without a page take no slot. */
@@ -66,11 +66,6 @@ export function addRootUrls(roots: readonly ClusterRoot<PageRec>[], into: Set<st
   return into
 }
 
-/** Rounded up to `bits` significant bits: the steps the reference's root page allocation grows by
- *  (`growWebgpuRootRegion`). */
-export const roundUpToSignificantBits = (x: number, bits: number) =>
-  alignUp(x, 2 ** Math.max(bitLength(x - 1) - bits, 0))
-
 /**
  * The ROOT REGION the catalogue asks (`../../geometry/pages/pool/placement.ts`, `RootSlots`): a
  * grain as wide as its widest root page (`bytes`), and as many as every root page it has
@@ -86,6 +81,6 @@ export function rootRegionOf(
 ) {
   const every = rootSlotsOf(census, rootUrls),
     cover = rootSlotsOf(census, coverUrls).slots
-  const least = Math.max(cover, Math.min(DEFAULT_INITIAL_ROOT_PAGES, every.slots))
+  const least = clampLowWins(every.slots, cover, DEFAULT_INITIAL_ROOT_PAGES)
   return { least, most: every.slots, bytes: every.bytes }
 }

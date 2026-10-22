@@ -4,6 +4,11 @@ import { probeExplorerCapabilities } from './capabilityProbe.ts'
 import { prepareExplorerEngine } from './engine.ts'
 import { createExplorerCamera } from '../camera/session/camera.ts'
 import { openExplorerPageSources, type ExplorerPageSources } from './pageSources.ts'
+import {
+  STREAMING_RULES,
+  type StreamingOptions,
+} from '../../../sdk-core/src/contracts/streamingOptions.ts'
+import { readSetting } from '../../../sdk-core/src/contracts/settingRules.ts'
 import { primeFirstView, sessionScene } from './sessionScene.ts'
 import { streamFailed } from '../scene/drive/streaming.ts'
 import { loadPreparedScene } from '../scene/drive/scene.ts'
@@ -58,8 +63,29 @@ export type Inputs = {
 /** What `prepareExplorer` resolves to: a session's prepared engine and streams. */
 export type PreparedExplorer = Awaited<ReturnType<typeof prepareExplorer>>
 
+/** The camera the first view is framed with, placed, and the first view primed through it. Framing
+ *  replays the buffer reserved at load, then returns it: it is its last reader. */
+async function frameFirstView(
+  session: ExplorerSession,
+  inputs: Inputs,
+  loadedScene: Awaited<ReturnType<typeof sessionScene>>,
+  pageSources: ExplorerPageSources,
+) {
+  const { canvas, options } = session
+  const cameraState = createExplorerCamera(
+    loadedScene.source,
+    canvas,
+    options,
+    loadedScene.framingLot,
+  )
+  loadedScene.framingLot?.release()
+  inputs.placeCamera?.(cameraState.camera)
+  await primeFirstView(session, loadedScene, cameraState.camera, pageSources.streamer)
+  return cameraState
+}
+
 export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) {
-  const { canvas, options, metadata, signal, diagnosticChannel } = session
+  const { options, metadata, signal, diagnosticChannel } = session
   const { manifestUrl, metadataUrl, base, resources, progress } = inputs
   // The optional families the first frame draws with load beside the scene (#1353).
   const families = sessionFamilies(options, diagnosticChannel.enabled)
@@ -76,6 +102,9 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   // Both branches stop once the opening fails (`failedOpening`): what lands later is released.
   const failed = (resources.opening = new AbortController()).signal
   const live = signal ? AbortSignal.any([signal, failed]) : failed
+  // The streaming settings the queue reads its tries again from: the session's options till its
+  // engine is built, then the engine's context, which `explorer.setStreaming` writes.
+  let streaming: StreamingOptions = options
   const opening = openExplorerPageSources(
     metadata,
     options,
@@ -85,6 +114,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     diagnosticChannel,
     progress,
     (detail, failedPages) => streamFailed(session, resources.engine, failedPages, detail),
+    () => readSetting(STREAMING_RULES, streaming, 'streamingNumRetries'),
   )
   resources.streamer = opening.streamer
   const [pageSources, loadedScene] = await Promise.all([
@@ -97,11 +127,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     draws: loadedScene.draws,
     pageSources,
   })
-  // Framing replays the buffer reserved at load, then returns it: it is its last reader.
-  const cameraState = createExplorerCamera(source, canvas, options, loadedScene.framingLot)
-  loadedScene.framingLot?.release()
-  inputs.placeCamera?.(cameraState.camera)
-  await primeFirstView(session, loadedScene, cameraState.camera, pageSources.streamer)
+  const cameraState = await frameFirstView(session, inputs, loadedScene, pageSources)
   // The frame's one main-thread clock: cells, arrivals, the engine's row records and texture tiles.
   const frameBudget = createFrameBudget(MAIN_THREAD_FRAME_MS)
   await renderer // the engine is built once its renderer has arrived
@@ -112,11 +138,11 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     worldRoots: loadedScene.worldRoots,
   })
   resources.engine = engine
+  streaming = context
   await families
-  const { partitions } = loadedScene
   return {
     source,
-    partitions,
+    partitions: loadedScene.partitions,
     pageSources,
     capabilities,
     viewport,

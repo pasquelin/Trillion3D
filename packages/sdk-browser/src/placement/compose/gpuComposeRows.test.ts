@@ -7,7 +7,7 @@
 // (`gpuComposeDerived.test.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { composeRows, cpuTable, crystals, N } from './gpuComposeRows.fixture.ts'
+import { composeRows, cpuTable, crystals } from './gpuComposeRows.fixture.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 
 const differing = (a: Uint32Array, b: Uint32Array) => {

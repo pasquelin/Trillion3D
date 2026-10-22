@@ -70,7 +70,7 @@ export const lowBits = wgslFn('lowBits', [], 'fn lowBits(n:u32)->u32{return (1u<
 
 /** The even bits of `word` side by side, the lowest first: bit `2k` of `word` is bit `k` of the
  *  result, every odd bit dropped. */
-export const evenBits = wgslFn(
+const evenBits = wgslFn(
   'evenBits',
   [],
   `fn evenBits(word:u32)->u32{

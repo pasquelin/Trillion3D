@@ -8,10 +8,10 @@
 //! - A plane point `(x, y)` maps to `(y·M₁ + M₃) + x·M₀`, divided by its `w`.
 
 /// π, 2π, 1/(2π) and π/2 in single precision.
-pub(super) const PI: f32 = 3.141_592_654;
-const TWO_PI: f32 = 6.283_185_307;
-const ONE_OVER_TWO_PI: f32 = 0.159_154_943;
-const HALF_PI: f32 = 1.570_796_327;
+pub(super) const PI: f32 = std::f32::consts::PI;
+const TWO_PI: f32 = std::f32::consts::TAU;
+const ONE_OVER_TWO_PI: f32 = 0.159_154_94;
+const HALF_PI: f32 = std::f32::consts::FRAC_PI_2;
 
 /// The sine and cosine of `angle`.
 fn sin_cos(angle: f32) -> (f32, f32) {

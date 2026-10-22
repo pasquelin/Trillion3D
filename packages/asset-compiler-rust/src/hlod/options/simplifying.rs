@@ -18,16 +18,16 @@ use crate::hlod::flatten::bake::Maps;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum HlodNormalMethod {
     /// Each face by the angle it makes at the vertex (`'angleWeighted'`, the default).
-    AngleWeighted,
+    Angle,
     /// Each face by its area (`'areaWeighted'`).
-    AreaWeighted,
+    Area,
     /// Each face alike (`'equalWeighted'`).
-    EqualWeighted,
+    Equal,
 }
 
 impl HlodNormalMethod {
     /// Every method, in `HLOD_NORMAL_METHODS` order.
-    const ALL: [Self; 3] = [Self::AngleWeighted, Self::AreaWeighted, Self::EqualWeighted];
+    const ALL: [Self; 3] = [Self::Angle, Self::Area, Self::Equal];
 }
 
 /// How the rays that pair an atlas texel with a point of the sources pick their hit
@@ -108,7 +108,7 @@ impl Default for HlodSimplifying {
             unresolved: [0, 0, 0],
             transfer_distance: None,
             hard_angle: None,
-            normal_method: HlodNormalMethod::AngleWeighted,
+            normal_method: HlodNormalMethod::Angle,
             gap_steps: 7,
             rays: HlodTransferRays::Nearest,
             folded_walls: false,

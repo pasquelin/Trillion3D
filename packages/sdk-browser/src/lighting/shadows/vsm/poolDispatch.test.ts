@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
-import { DEFAULT_GROUP_WIDTH } from '../../../gpu/dispatch/grid.ts'
+import { groupWidth } from '../../../gpu/dispatch/grid.ts'
 import {
   VSM_ENTRY_COARSER_SHIFT,
   VSM_GROUP_WIDTH,
@@ -25,5 +25,5 @@ test('the largest pool an entry addresses fits one row of every pool-wide dispat
   const { poolPages } = vsmLayout({ fullMapCapacity: 63, poolPages: rows * perRow })
   assert.equal(poolPages, 2 ** 17)
   for (const group of [VSM_GROUP_WIDTH, VSM_TRANSMISSION_PAGE_GROUP])
-    assert.ok(ceilDiv(poolPages, group) <= DEFAULT_GROUP_WIDTH, `${group} pages a group`)
+    assert.ok(ceilDiv(poolPages, group) <= groupWidth(), `${group} pages a group`)
 })

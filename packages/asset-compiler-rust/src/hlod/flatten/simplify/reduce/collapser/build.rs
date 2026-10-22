@@ -16,10 +16,7 @@ impl Collapser {
     /// The collapser of the triangles `indices` over `vertices`.
     pub(super) fn new(vertices: Vec<Vertex>, indices: &[u32]) -> Self {
         let count = vertices.len();
-        let corners: Vec<[u32; 3]> = indices
-            .chunks_exact(3)
-            .map(|c| [c[0], c[1], c[2]])
-            .collect();
+        let corners: Vec<[u32; 3]> = indices.as_chunks::<3>().0.to_vec();
         let mut vertex_triangles = vec![Triangles::new(); count];
         for (t, corner) in corners.iter().enumerate() {
             for &v in corner {

@@ -25,6 +25,7 @@
 //! values are the same whatever order they came in, keeps one point of each run of equal ones —
 //! the same value —, and from there reads values only. The polygon — its corners, the first of
 //! them and its turn — is the same, but for the sign of a zero coordinate among equal points.
+use super::Cap;
 use crate::hlod::flatten::planar::hull::convex_hull;
 use crate::hlod::flatten::planar::polygon::triangulate_simple;
 use crate::hlod::flatten::units::{from_reference, to_reference, CENTIMETRES};
@@ -53,7 +54,7 @@ pub(super) fn base_mesh(
     bottom: f64,
     height: f64,
     thickness: f64,
-) -> Option<(Vec<[f64; 3]>, Vec<[usize; 3]>)> {
+) -> Option<Cap> {
     let low = bottom * CENTIMETRES;
     let range = (low, low + height * CENTIMETRES);
     let corners: Vec<[f64; 2]> = (instances.par_iter())

@@ -54,7 +54,7 @@ export const hlodLayers: JsonSchemaProperty = /* @__PURE__ */ (() => ({
       lodSelection: {
         type: 'string',
         enum: HLOD_LOD_SELECTIONS,
-        description: `A merge layer's LOD of each source, its merged mesh never simplified: the one it shows when its bounding sphere spans lodScreenSize of the view, or its fallback, the source simplified to an error of a hundredth of the source's size, the square root of the smaller of twice its level-0 area and a quarter of its box's surface (default ${HLOD_LOD_SELECTIONS[0]}).`,
+        description: `A merge layer's LOD of each source, its merged mesh never simplified: the one it shows when its bounding sphere spans lodScreenSize of the view, or its fallback mesh, as the lodSelection reference of the SDK tells it (default ${HLOD_LOD_SELECTIONS[0]}).`,
       },
       lodScreenSize: num(
         "The share of the view a source's bounding sphere spans when the LOD a merge layer's calculate takes is drawn, above 0 (default 0.25).",

@@ -6,6 +6,7 @@ import type { StreamContext, Job, StreamPage, BatchRead, PageStreamerOptions } f
 import { createTransferQueue } from './queueRanges.ts'
 import { createReadFailures } from './failures.ts'
 import { retriableError } from '../cluster/checked.ts'
+import { DEFAULT_STREAMING_NUM_RETRIES } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
 import { cacheStats, createStreamingCache } from './cache.ts'
 import { asIndices } from './indexView.ts'
 import { manifestEntryBytes, manifestTableBytes } from './manifestTables.ts'
@@ -17,6 +18,18 @@ const listed = (page: StreamPage) => !(page.range && page.bytes === 0)
 
 /** The page reads a session streams through (`createPageStreamer`). */
 export type PageStreaming = ReturnType<typeof createPageStreamer>
+
+/** Closed (`abort`), every job of `jobs` ends at once, its askers told: one listener, whatever the
+ *  jobs. */
+function rejectOnAbort(abort: AbortController, jobs: ReadonlyMap<string, Job>) {
+  abort.signal.addEventListener(
+    'abort',
+    () => {
+      for (const job of jobs.values()) job.reject(abort.signal.reason)
+    },
+    { once: true },
+  )
+}
 
 /** Bounded, prioritized and deduplicated reads through `options.cache`, the page cache its owner
  *  keeps (`pageCache.ts`). A request still waiting in the queue is dropped once its last consumer
@@ -40,6 +53,8 @@ export function createPageStreamer(
   // of a page no longer catalogued leaves.
   const failures = createReadFailures({
     retriable: retriableError,
+    retries: options.numRetries ?? (() => DEFAULT_STREAMING_NUM_RETRIES),
+    objectOf: options.objectOf,
     onStalled: options.onStalled,
     ended(url) {
       const job = jobs.get(url)
@@ -48,14 +63,7 @@ export function createPageStreamer(
     },
   })
   followSignal(abort, signal)
-  // Closed, every job ends at once, its askers told: one listener, whatever the jobs.
-  abort.signal.addEventListener(
-    'abort',
-    () => {
-      for (const job of jobs.values()) job.reject(abort.signal.reason)
-    },
-    { once: true },
-  )
+  rejectOnAbort(abort, jobs)
   const limit = Number.isSafeInteger(workerCount) ? Math.max(1, workerCount) : 1
   if (!Number.isSafeInteger(maxTransferBytes) || maxTransferBytes < 1)
     throw new Error('INVALID_PAGE_TRANSFER_BUDGET')

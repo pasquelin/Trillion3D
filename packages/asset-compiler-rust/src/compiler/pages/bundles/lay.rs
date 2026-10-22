@@ -14,13 +14,13 @@ pub(crate) struct Bundle {
     pub band: Option<i32>,
 }
 
-/// How a DAG's pages are assigned and laid (`lay_bundles`): where its vertices are — each
-/// cluster's own ball is read off them (`order.rs`) —, the cover that holds each DAG slot — `None`
-/// the pinned one; in the world DAG every slot of an actor its HLOD cell's, which holds its root
-/// pages while the actor is loaded (`../../../hlod/chain/bundles.rs`) —, the root pages each cover
-/// keeps at least, by cover (`root_page_count`: a primitive's mesh's, an HLOD cell's actor's
-/// layer's), and the largest world scale its mesh is placed at, 1 for world-space pages: the bands
-/// of every mesh in metres.
+/// How a DAG's pages are assigned and laid (`lay_bundles`): where its vertices are — each cluster's
+/// own ball is read off them (`order.rs`) —, the cover that holds each DAG slot — `None` the pinned
+/// one, which a primitive's slots all are: none is held; in the world DAG every slot of an actor
+/// its HLOD cell's, which holds its root pages while the actor is loaded
+/// (`../../../hlod/chain/bundles.rs`) —, the root pages each cover keeps at least, by cover
+/// (`root_page_count`: a primitive's mesh's, an HLOD cell's actor's layer's), and the largest world
+/// scale its mesh is placed at, 1 for world-space pages: the bands of every mesh in metres.
 pub(crate) struct Laying<'a> {
     pub positions: &'a [f32],
     pub held: &'a dyn Fn(usize) -> Option<usize>,

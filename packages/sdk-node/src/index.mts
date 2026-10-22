@@ -49,11 +49,10 @@ import {
   DEFAULT_RAM_BUDGET_MB,
   DEFAULT_SIMPLIFICATION,
   DEFAULT_TRIANGLE_BUDGET,
-  type JobField,
 } from '../../sdk-core/src/contracts/compilerAbi.ts'
 import { resolveHlod } from '../../sdk-core/src/contracts/hlodOptions.ts'
 import { jobOptionFields } from '../../sdk-core/src/contracts/jobOptions.ts'
-import { compilerArguments } from './compiler/arguments.mts'
+import { compilerArguments, type CompilerJob } from './compiler/arguments.mts'
 export { resolveVoxelize } from '../../sdk-core/src/contracts/voxelizeOptions.ts'
 export type { VoxelizeOption } from '../../sdk-core/src/contracts/voxelizeOptions.ts'
 export {
@@ -145,13 +144,12 @@ export async function prepare(
 ): Promise<CompilationResult> {
   if (typeof options?.resourceBaseUrl !== 'string' || !options.resourceBaseUrl)
     throw compilerError('INVALID_OPTIONS', 'resourceBaseUrl is required')
-  const job: Record<JobField, string> = {
+  const job: CompilerJob = {
     source: input,
     cache: output,
     scope,
     triangleBudget: String(budget),
-    // None named: an empty value, which the compiler reads as its own default (`machine_threads`).
-    threads: options.threads === undefined ? '' : String(options.threads),
+    threads: options.threads,
     ramBudgetMb: String(options.ramBudgetMb ?? DEFAULT_RAM_BUDGET_MB),
     resourceBaseUrl: options.resourceBaseUrl,
     simplification: options.simplification ?? DEFAULT_SIMPLIFICATION,

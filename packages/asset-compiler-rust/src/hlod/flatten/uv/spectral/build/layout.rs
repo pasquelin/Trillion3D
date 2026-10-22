@@ -62,9 +62,6 @@ pub(crate) fn root_layout(source: &mut Source, indices: &[u32]) -> crate::Result
             roots[vertex as usize] = indices[corner];
         }
     }
-    let corners = corners
-        .chunks_exact(3)
-        .map(|c| [c[0], c[1], c[2]])
-        .collect();
+    let corners = corners.as_chunks::<3>().0.to_vec();
     Ok(RootLayout { roots, corners })
 }

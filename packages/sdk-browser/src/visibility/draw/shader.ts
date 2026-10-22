@@ -91,8 +91,8 @@ fn selected(item:DrawItem)->bool{return uni.selectionEnabled==0u||maskSelects(it
 fn binOf(item:DrawItem)->u32{
  return select(item.bin,${BIN_KIND.SOFTWARE * CULL_BINS}u+item.bin%${CULL_BINS}u,item.raster==${RASTER_SOFTWARE}u);
 }
-/** The slot of \`item\` in half \`rest\`: the one formula of a slot, the layer capped at the last. */
-fn slotOf(rest:u32,item:DrawItem)->u32{return rest*${HALF_SLOTS}u+binOf(item)+${BASE_SLOTS}u*min(item.layer,${top}u);}
+/** The slot of \`item\` in half \`post\`: the one formula of a slot, the layer capped at the last. */
+fn slotOf(post:u32,item:DrawItem)->u32{return post*${HALF_SLOTS}u+binOf(item)+${BASE_SLOTS}u*min(item.layer,${top}u);}
 /** The half slot \`slot\` belongs to: a layer's main bins, then its post ones. */
 fn halfOf(slot:u32)->u32{return (slot%${BASE_SLOTS}u)/${HALF_SLOTS}u;}
 fn writeCmd(slot:u32,count:u32){

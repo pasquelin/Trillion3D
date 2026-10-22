@@ -21,6 +21,9 @@ mod topology;
 use parts::{mesh_parts, Wrap};
 use topology::seed_points;
 
+/// A cap's vertices and its triangles' corners.
+type Cap = (Vec<[f64; 3]>, Vec<[usize; 3]>);
+
 /// How a scene's thin parts are read when its layer thickens them: the thickness a part is brought
 /// to, metres, and the size under which a thin part is dropped, when the layer drops tiny parts.
 #[derive(Clone, Copy)]
@@ -129,7 +132,7 @@ fn capped(
     wraps: &[Wrap],
     (bottom, accuracy): (f64, f64),
     settings: &HlodApproximation,
-) -> Option<(Vec<[f64; 3]>, Vec<[usize; 3]>)> {
+) -> Option<Cap> {
     let base = settings.base;
     let or = |named: f64, method: f64| if named != 0.0 { named } else { method };
     let thickness = match base.capping {

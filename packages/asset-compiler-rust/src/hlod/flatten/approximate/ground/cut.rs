@@ -123,8 +123,8 @@ impl Shape {
         let least = DEGENERATE * DEGENERATE;
         loop {
             let mut collapsed = 0;
-            for slot in 0..cut.len() {
-                let e = cut[slot];
+            for entry in &mut cut {
+                let e = *entry;
                 if e == NONE || !self.mesh.is_edge(e) {
                     continue;
                 }
@@ -134,7 +134,7 @@ impl Shape {
                 }
                 if self.collapse(keep, remove) {
                     collapsed += 1;
-                    cut[slot] = NONE;
+                    *entry = NONE;
                 }
             }
             if collapsed == 0 {

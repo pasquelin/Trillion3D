@@ -10,7 +10,7 @@ import {
 } from './flagSections.ts'
 import { createFlagTable } from './cut/cutTables.ts'
 import { admitBeside } from './cut/cutBuffers.ts'
-import { cutHeldSlots, heldOpenAt, rankGroups } from './lists/listCap.ts'
+import { cutHeldSlots, heldOpenAt, listCapFor, rankGroups } from './lists/listCap.ts'
 import { growDagList } from './lists/listGrowth.ts'
 import { sameListCaps, type CutListCaps } from './lists/cutListCaps.ts'
 import { regionsWanted } from './swap/swap.ts'
@@ -21,7 +21,8 @@ import type { DagResources } from './resources.ts'
 /**
  * THE CUT'S TABLES MADE AGAIN BETWEEN TWO FRAMES, behind the readbacks in flight: its flags laid
  * out anew for the lists' caps the session asks (`holdListCaps`), its readout for the regions the
- * views aside ask and the open counts the row cache holds (`followRows`). No list grows on demand: a
+ * views aside ask, the open counts the row cache holds (`followRows`) and the ranks its lists hold
+ * as what each readback asked of them moves them (`askListCap`). No GPU list grows on demand: a
  * cut past a cap draws what fits (`shader/listsWgsl.ts`).
  */
 
@@ -43,6 +44,27 @@ export function holdListCaps(resources: DagResources, state: DagRuntimeState, ca
   const shape = dagFlagShape(resources.packed, caps)
   state.reshape = sameFlagShape(shape, resources.flagShape) ? undefined : { caps, shape }
   if (!state.reshape) resources.listCaps = caps
+}
+
+/** The readout's ranks after a readback that asked `demand` of its lists (`requestSize.ts`): when
+ *  their size moved, or the catalogue grew into it, the readout is made for it before the next
+ *  cut, unless that is more than the device or the cut's share already refused. A request that
+ *  cannot start yet, a copy being in flight, stands until it is made or the size comes back. */
+export function askListCap(resources: DagResources, state: DagRuntimeState, demand: number) {
+  const { requestSize, packed, device, listCap } = resources
+  const moved = requestSize.update(demand)
+  const wanted = listCapFor(
+    device.limits,
+    packed.live?.pages ?? packed.pageCount,
+    requestSize.ranks,
+    resources.heldSlots,
+  )
+  const refused = state.refusedList > 0 && wanted >= state.refusedList
+  // A request that stands — a shrink asked while a copy was still in flight — is kept and re-aimed
+  // by the next reading, and only cancelled when the readout already has the size wanted.
+  const standing = state.growList > 0
+  const asked = wanted > listCap || moved || standing
+  state.growList = wanted === listCap || refused || !asked ? 0 : wanted
 }
 
 /**
@@ -114,18 +136,20 @@ function carryJournal(resources: DagResources, flags: { texture: GPUTexture }, s
 }
 
 /** Lays `flags` out for the caps `state.reshape` asks, and makes `out` again for the regions the
- *  views aside ask and the open counts the row cache holds (`state.growHeld`), behind the readbacks
- *  in `state.pending`; no frame cuts until each is in place or refused, and the next one cuts and
- *  reads again — on the new tables, or, refused, on the lists at the caps they hold (said once a
- *  caps asked, `listNote`), the views aside without a region, more open counts at their nodes'
- *  (`heldOpen.ts`). */
+ *  views aside ask, the open counts the row cache holds (`state.growHeld`) and the ranks its lists
+ *  hold (`state.growList`), behind the readbacks in `state.pending`; no frame cuts until each is in
+ *  place or refused, and the next one cuts and reads again — on the new tables, or, refused, on
+ *  the lists at the caps they hold (said once a caps asked, `listNote`), the views aside without a
+ *  region, more open counts at their nodes' (`heldOpen.ts`), the ranks they have. */
 function queueDagGrowth(resources: DagResources, state: DagRuntimeState) {
   const { swap } = resources,
     reshape = state.reshape,
     held = Math.max(state.growHeld, resources.heldSlots),
-    regions = state.regionsFull ? swap.regions : Math.max(swap.regions, regionsWanted(swap))
+    regions = state.regionsFull ? swap.regions : Math.max(swap.regions, regionsWanted(swap)),
+    ranks = state.growList || resources.listCap
   state.reshape = undefined
   state.growHeld = 0
+  state.growList = 0
   state.growing = true
   void behind(state, async () => {
     try {
@@ -134,8 +158,10 @@ function queueDagGrowth(resources: DagResources, state: DagRuntimeState) {
         const made = await remakeDagFlags(resources, reshape.shape, () => state.disposed)
         reshapeLists(resources, state, reshape, made)
       }
-      if (regions === swap.regions && held === resources.heldSlots) return
-      if (await growDagList(resources, regions, () => state.disposed, held)) return
+      if (regions === swap.regions && held === resources.heldSlots && ranks === resources.listCap)
+        return
+      if (await growDagList(resources, regions, () => state.disposed, held, ranks)) return
+      if (ranks > resources.listCap) state.refusedList = ranks
       if (regions > swap.regions) state.regionsFull = true
     } finally {
       state.growing = false
@@ -166,10 +192,11 @@ function reshapeLists(
 }
 
 /** True when the flags must be laid out again, or `out` must hold the saved regions the views
- *  aside ask or the open counts the row cache holds. */
+ *  aside ask, the open counts the row cache holds or the ranks the cut's demand moved. */
 export const growthAsked = (resources: DagResources, state: DagRuntimeState) =>
   !!state.reshape ||
   state.growHeld > resources.heldSlots ||
+  state.growList > 0 ||
   (!state.regionsFull && regionsWanted(resources.swap) > resources.swap.regions)
 
 /** True when no cut may run on the tables now: disposed, lost, or tables to make again — which
@@ -191,6 +218,11 @@ export function tablesHeld(resources: DagResources, state: DagRuntimeState) {
 export function followRows(resources: DagResources, state: DagRuntimeState, rows: number) {
   if (!resources.heldSlots) return
   const { device, packed } = resources,
-    slots = cutHeldSlots(device.limits, packed.live?.pages ?? packed.pageCount, rows)
+    slots = cutHeldSlots(
+      device.limits,
+      packed.live?.pages ?? packed.pageCount,
+      rows,
+      resources.requestSize.bounds.min,
+    )
   if (slots > resources.heldSlots) state.growHeld = Math.max(state.growHeld, slots)
 }

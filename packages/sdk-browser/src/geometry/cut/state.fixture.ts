@@ -1,7 +1,7 @@
 import { FRUSTUM_PLANE_VALUES } from '../../../../math/src/geometry/frustum/frustum.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { IDENTITY_WORLD } from '../../session/host/matrixElements.ts'
-import type { ClusterCut } from '../selection/math.ts'
+import type { ClusterCut } from '../selection/clusterError.fixture.ts'
 import type { PageSurface } from '../pages/surface.ts'
 import type { CutReadiness } from './readiness.ts'
 import type { HeldResidency } from './held.fixture.ts'

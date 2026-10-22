@@ -1,3 +1,5 @@
+import { clamp } from '../../../../math/src/scalar/reals.ts'
+
 /** The marks an update reads the pool's load against (`streamingOptions.ts`): the low mark within
  *  [10, 100], the high mark within [`minPoolPercent`, 100], the lowest scale within [0.1, 1]. */
 export type PoolMarks = {
@@ -40,7 +42,7 @@ export function createPoolPressure() {
       under = percent < marks.minPoolPercent ? under + 1 : 0
       if (over >= OVER_UPDATES) scale *= FALL
       else if (under >= UNDER_UPDATES) scale *= RISE
-      scale = Math.min(1, Math.max(marks.minScale, scale))
+      scale = clamp(scale, marks.minScale, 1)
     },
   }
 }

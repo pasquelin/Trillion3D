@@ -1,6 +1,8 @@
 import type { EngineContext } from '../session/engine/types.ts'
 import { ANIMATION_RULES } from '../../../sdk-core/src/contracts/animationOptions.ts'
 import { CUT_RULES } from '../../../sdk-core/src/contracts/cutOptions.ts'
+import { EXPOSURE_RULES } from '../../../sdk-core/src/contracts/exposureOptions.ts'
+import { TEMPORAL_RULES } from '../../../sdk-core/src/contracts/temporalOptions.ts'
 import { RASTER_RULES } from '../../../sdk-core/src/contracts/rasterOptions.ts'
 import { settingWriter } from '../../../sdk-core/src/contracts/settingRules.ts'
 import { SHADING_RULES } from '../../../sdk-core/src/contracts/shadingOptions.ts'
@@ -14,7 +16,7 @@ type Inputs = { check: () => void; context: EngineContext }
  * from the next frame — the next update for the streaming's — (each family's rules,
  * `../../../sdk-core/src/contracts/`): `undefined` or `null` gives back a setting's default, a
  * value it does not take is refused by its one resolver, naming the field and the values it
- * takes. The cut's, the animation's and the shading's, the partition's streaming and the HLOD
+ * takes. The cut's, the animation's, the shading's, the exposure's and the temporal pass's, the partition's streaming and the HLOD
  * warm-up's, the geometry streaming's, and the cluster raster's split.
  */
 export function createExplorerRuleApi({ check, context }: Inputs) {
@@ -29,6 +31,13 @@ export function createExplorerRuleApi({ check, context }: Inputs) {
     /** Writes the shading's setting `field` (`shadingOptions.ts`): how the shading bins hold each
      *  material class's pixels. */
     setShading: settingWriter(SHADING_RULES, context, check),
+    /** Writes the automatic exposure's setting `field` (`exposureOptions.ts`): the bias, the range
+     *  of the mean, the histogram, the shares left out, the speeds, the transition, the black
+     *  bucket and how a pixel's luminance is read; read by the next image's meter. */
+    setExposure: settingWriter(EXPOSURE_RULES, context, check),
+    /** Writes the temporal pass's setting `field` (`temporalOptions.ts`): whether it looks for
+     *  geometry thinner than a pixel; read by the next image's pass. */
+    setTemporal: settingWriter(TEMPORAL_RULES, context, check),
     /** Writes the setting `field` of how the view streams a partitioned scene's cells and of the
      *  warm-up an HLOD switch waits on (`worldStreamingOptions.ts`). */
     setWorldStreaming: settingWriter(WORLD_STREAMING_RULES, context, check),

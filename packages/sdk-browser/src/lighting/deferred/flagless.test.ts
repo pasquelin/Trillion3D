@@ -24,8 +24,9 @@ function composed(source: string, value: object, read: object, view: object) {
     textureLoad: (texture: object) => (texture === hdr ? value : read),
     // The source at the display's size: its pixel as it is (`sourceValue`).
     sourceValue: () => value,
-    bloomed: (image: object) => image,
+    finished: (image: object) => image,
     vec2i: (xy: unknown) => xy,
+    vec2f: (xy: unknown) => xy,
     vec4f: (...parts: unknown[]) => parts,
     linearToSrgb: (c: number) =>
       c < 0.0031308 ? c * 12.92 : 1.055 * Math.pow(Math.max(c, 0), 0.41666) - 0.055,
@@ -44,37 +45,40 @@ test('the flagless composition gives the flag-reading one at every share of 0 (O
   const flags = [0, 1, 2, 4, 5]
   assert.ok(!flags.includes(AS_IS_FLAG))
   let checked = 0
-  for (const programs of [CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS])
-    for (const sources of [programs.plain, programs.bloom]) {
-      assert.doesNotMatch(
-        sources.flagless,
-        /asIs|@group\(0\) @binding\(2\)/,
-        'no share bound nor read',
-      )
-      for (const rgb of channels)
-        for (const a of coverages)
-          for (const [z, w, x] of [
-            [0, 1, 0],
-            [0, 0.3, 4],
-            [1, 1, 0],
-          ]) {
-            const view = {
-              background,
-              // No sharpening (`view.viewport.w`): the display pixel composed once.
-              viewport: { z, w: 0 },
-              lightParams: { w },
-              display: { x },
-              source: { xy: 1 },
-            }
-            const value = { rgb, a },
-              flagless = composed(sources.flagless, value, {}, view)
-            for (const flag of flags)
-              assert.deepEqual(composed(sources.still, value, { r: flag }, view), flagless)
-            assert.deepEqual(composed(sources.accumulated, value, { r: 0 }, view), flagless)
-            checked++
+  for (const sources of [
+    CONTRACT_COMPOSITIONS.plain,
+    CONTRACT_COMPOSITIONS.finish,
+    UNLIT_COMPOSITIONS.plain,
+  ]) {
+    assert.doesNotMatch(
+      sources.flagless,
+      /asIs|@group\(0\) @binding\(2\)/,
+      'no share bound nor read',
+    )
+    for (const rgb of channels)
+      for (const a of coverages)
+        for (const [z, w, x] of [
+          [0, 1, 0],
+          [0, 0.3, 4],
+          [1, 1, 0],
+        ]) {
+          const view = {
+            background,
+            // No sharpening (`view.viewport.w`): the display pixel composed once.
+            viewport: { z, w: 0 },
+            lightParams: { w },
+            display: { x },
+            source: { xy: 1 },
           }
-    }
-  assert.equal(checked, 4 * channels.length * coverages.length * 3)
+          const value = { rgb, a },
+            flagless = composed(sources.flagless, value, {}, view)
+          for (const flag of flags)
+            assert.deepEqual(composed(sources.still, value, { r: flag }, view), flagless)
+          assert.deepEqual(composed(sources.accumulated, value, { r: 0 }, view), flagless)
+          checked++
+        }
+  }
+  assert.equal(checked, 3 * channels.length * coverages.length * 3)
 })
 
 test('a flagless frame composes with its own pipelines and binds no share, compiling none', async () => {

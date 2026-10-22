@@ -35,7 +35,7 @@ function records(items: DrawItem[], cap: number) {
 }
 
 /** The cut's two masks in one buffer, a bit a selection index, as its passes leave them: the
- *  main pass's at `MASK_OFFSET` — the selected rows of the main half (`rest` 0) —, the post pass's
+ *  main pass's at `MASK_OFFSET` — the selected rows of the main half (`post` 0) —, the post pass's
  *  right after it — those of the post half. Unread words around them hold ones. */
 function masks(device: GPUDevice, items: DrawItem[], cap: number, mask?: number[]) {
   const words = ceilDiv(cap, 32),
@@ -44,7 +44,7 @@ function masks(device: GPUDevice, items: DrawItem[], cap: number, mask?: number[
     post = held.subarray(MASK_OFFSET + words, MASK_OFFSET + 2 * words).fill(0)
   for (const item of items.slice(0, cap)) {
     const index = item.selectionIndex ?? 0
-    if (!mask || mask[index]) setBit(item.rest ? post : main, index)
+    if (!mask || mask[index]) setBit(item.post ? post : main, index)
   }
   const maskBuffer = bufferHolding(device, held, GPUBufferUsage.STORAGE)
   return { maskBuffer, maskOffset: MASK_OFFSET, postMaskOffset: MASK_OFFSET + words }

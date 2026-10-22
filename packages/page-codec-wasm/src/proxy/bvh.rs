@@ -101,12 +101,12 @@ fn split(
 }
 
 /// Builds the tree and reorders triangles and albedos so each leaf names a contiguous range.
-pub fn build(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>) -> Vec<Node> {
+pub fn build(triangles: &mut [f32], albedo: &mut [u32]) -> Vec<Node> {
     build_ordered(triangles, albedo).0
 }
 
 /// The same tree, with its original triangle ranks for parallel provenance columns.
-pub fn build_ordered(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>) -> (Vec<Node>, Vec<usize>) {
+pub fn build_ordered(triangles: &mut [f32], albedo: &mut [u32]) -> (Vec<Node>, Vec<usize>) {
     let count = triangles.len() / PROXY_TRIANGLE_FLOATS;
     if count == 0 {
         return (Vec::new(), Vec::new());

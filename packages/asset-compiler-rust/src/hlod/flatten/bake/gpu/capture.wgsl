@@ -40,8 +40,9 @@ fn shell_offset() -> f32 {
     return bitcast<f32>(materials[0].w);
 }
 
-// Whether a view draws a translucent source as it is seen through (`../seen.rs`), and how far
-// past one its ray goes on (the head's fourth record).
+// Whether a view draws a translucent source as it is seen through, or a tile's texel is laid over
+// what lies behind it (`../seen.rs`), and how far past a layer a ray goes on (the head's fourth
+// record).
 fn seen_through() -> bool {
     return materials[3].x != 0u;
 }
@@ -110,7 +111,7 @@ fn view_pixel(v: View, px: i32, py: i32) -> Pixel {
     let reach = length(offset);
     let ray = offset / reach;
     var out = Pixel(vec3f(0.0), vec3f(0.0), vec2f(0.0), vec3f(0.0), 0.0);
-    var last = Shade(vec3f(0.0), vec3f(0.0), vec2f(0.0), 1.0, vec3f(0.0), 0.0);
+    var last = Shade(vec3f(0.0), vec3f(0.0), vec2f(0.0), 1.0, vec3f(0.0), 0.0, 1.0);
     var left = 1.0;
     var past = 0.0;
     var met = false;
@@ -228,7 +229,7 @@ fn capture(@builtin(global_invocation_id) id: vec3u) {
         }
     }
     let normal = normalized_or((sum.normal - 0.5) * 2.0, vec3f(0.0));
-    let read = Shade(sum.colour, normal, sum.rough_metal, 1.0, sum.emission, sum.specular);
+    let read = Shade(sum.colour, normal, sum.rough_metal, 1.0, sum.emission, sum.specular, 1.0);
     let words = texel_words(read, x.n, x.frame);
     results[i] = vec4u(words.x, words.y, words.z | u32(chosen != NONE), words.w);
 }

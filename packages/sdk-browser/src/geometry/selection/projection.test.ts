@@ -3,16 +3,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
-import { projectedClusterError, type ClusterCut } from './math.ts'
+import { projectedClusterError, type ClusterCut } from './clusterError.fixture.ts'
 import { clusterPixels } from './frame.fixture.ts'
 import {
+  errorFloorAt,
   projectedErrorAt,
   viewDepth,
   viewDepthOf,
   viewLateral,
   viewLateralOf,
-} from './projection.ts'
-import { errorFloorAt } from './projection.fixture.ts'
+} from './projection.fixture.ts'
 import {
   referenceErrorFloorPixels,
   referenceProjectCentre,

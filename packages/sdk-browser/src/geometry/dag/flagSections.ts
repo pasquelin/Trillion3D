@@ -1,6 +1,7 @@
 import { CAND_WORDS, POST_WORDS, VISIBLE_WORDS } from './shader/listsWgsl.ts'
 import { cutListCaps, type CutListCaps } from './lists/cutListCaps.ts'
 import type { PackedDag } from './types.ts'
+import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
 
 /**
  * THE CUT'S FLAGS, LAID OUT ONCE FOR ITS LISTS' CAPS (`lists/cutListCaps.ts`): its descent array,
@@ -87,11 +88,11 @@ export function dagFlagShape(
   caps: CutListCaps = cutListCaps(),
 ): FlagShape {
   const pages = Math.max(1, packed.pageCount),
-    nodeBudget = Math.min(caps.nodes, Math.max(1, packed.entryCount ?? packed.nodeCount ?? 0))
+    nodeBudget = clamp(packed.entryCount ?? packed.nodeCount ?? 0, 1, caps.nodes)
   return {
     queueWords: 2 * (nodeBudget + instanceEntries(packed)),
-    candCap: Math.max(1, Math.min(caps.candidates, 2 * pages)),
-    visCap: Math.max(1, Math.min(caps.visible, pages)),
+    candCap: clampLowWins(2 * pages, 1, caps.candidates),
+    visCap: clampLowWins(pages, 1, caps.visible),
     nodeBudget,
   }
 }

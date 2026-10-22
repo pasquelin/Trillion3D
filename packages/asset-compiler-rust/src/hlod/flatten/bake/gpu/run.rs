@@ -2,28 +2,32 @@
 //! let go once uploaded —; the texels sent in batches, two at once, as every pass of the device
 //! runs (`flatten/gpu/batches.rs`: the CPU makes the next batch while the device runs the one
 //! before, each batch read once the next is sent); each batch's results handed back as they
-//! return. Every buffer of the bake, its own pages with them, is destroyed when it ends, however it
-//! ends.
+//! return, a capture's of four words a texel, a tile's of eight. Every buffer of the bake, its own
+//! pages with them, is destroyed when it ends, however it ends.
 use super::chains::{bound, Pages};
 use super::layout::SURFACES;
 use super::scene::Scene;
 use crate::hlod::flatten::gpu::layout::FILLED;
 use crate::hlod::flatten::gpu::{scoped, Batches, Device, Owned, Passes};
+use std::mem::size_of;
 use std::sync::atomic::AtomicBool;
 
-/// The bytes a bake holds on the device per sample of a batch, in each of its two slots: its texel
-/// (16), its result and the result's read-back (16 each).
-pub(crate) const SAMPLE_BYTES: usize = 48;
+/// The bytes of a texel and of a result of `O`, the words a pass writes a texel: what a batch's
+/// items and results take on the device.
+pub(super) const fn sample_bytes<O>() -> (usize, usize) {
+    (size_of::<[u32; 4]>(), size_of::<O>())
+}
 
-/// `scene`'s texels `rows` baked on `device` by `passes`, the chains `library` holds read from its
-/// pages, each batch's results handed to `write`, each with its texel.
-pub(super) fn run(
+/// `scene`'s texels `rows` baked on `device` by pass `pass` of `passes`, the chains `library` holds
+/// read from its pages, each batch's results — of `O`, the words the pass writes a texel — handed
+/// to `write`, each with its texel.
+pub(super) fn run<O: bytemuck::Pod>(
     device: &'static Device,
-    passes: &'static Passes,
+    (passes, pass): (&'static Passes, usize),
     (scene, library): (Scene, &Pages),
     rows: &[Vec<[u32; 4]>],
     cancelled: &AtomicBool,
-    write: &mut dyn FnMut([u32; 4], [u32; 4]),
+    write: &mut dyn FnMut([u32; 4], &O),
 ) -> crate::Result<()> {
     let total: usize = rows.iter().map(Vec::len).sum();
     let (owned, chains) = scoped(device, || {
@@ -60,16 +64,18 @@ pub(super) fn run(
         let fixed = [params, &scene_buffer, &materials_buffer, items, results];
         device.bind("HLOD bake", layout, fixed.into_iter().chain(&pages))
     };
-    let pipeline = &passes.pipelines[0];
-    let mut batches = Batches::new(device, pipeline, (16, 16), bind, (Vec::new(), cancelled))?;
+    let pipeline = &passes.pipelines[pass];
+    let (item, result) = sample_bytes::<O>();
+    let bytes = (item as u64, result as u64);
+    let mut batches = Batches::new(device, pipeline, bytes, bind, (Vec::new(), cancelled))?;
     // The samples in order, once as each batch is made and once as its results return.
     let (mut making, mut landing) = (rows.iter().flatten().copied(), rows.iter().flatten());
     let mut make = |texels: &mut Vec<[u32; 4]>, count: usize| {
         texels.extend(making.by_ref().take(count));
     };
-    let mut land = |results: &[[u32; 4]]| {
+    let mut land = |results: &[O]| {
         for (result, sample) in results.iter().zip(landing.by_ref()) {
-            write(*sample, *result);
+            write(*sample, result);
         }
     };
     batches.run(total, &mut make, &mut land)

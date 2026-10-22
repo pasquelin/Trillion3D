@@ -7,10 +7,11 @@ import { chainMain, landMain, type MainCopy } from './dispatchRead.ts'
  * THE MAIN VIEW'S READBACK RING (`../../gpu/core/readbackRing.ts`): `DAG_READBACK_SLOTS` buffers the
  * frame copies the cut's lists into, read in order behind the reads and the tables made again in
  * flight (`chainMain`), each a buffer of the cut's own — within its `share` (`admitInto`), counted
- * in what it holds (`cutBytes`) —, made with the tables at `bytes`, asked of its budget first: the
- * readout's list never changes its cap (`lists/listCap.ts`), so a frame's copy never moves the
- * pools' funding. A slot refused at the start refuses the cut by name, as any table's; one refused
- * at a later take leaves that frame without a copy, the next asks again.
+ * in what it holds (`cutBytes`) —, made with the tables at `bytes`, asked of its budget first: a
+ * readout made for other ranks (`lists/listGrowth.ts`) has its slots made again as they are next
+ * taken, within the room its growth kept in the share and asked of the budget, so a frame's copy
+ * never moves the pools' funding. A slot refused at the start refuses the cut by name, as any
+ * table's; one refused at a later take leaves that frame without a copy, the next asks again.
  */
 export function createMainReadbacks(cut: CutHeld, bytes: number): ReadbackRing<MainCopy> {
   let ring: ReadbackRing<MainCopy> | undefined = undefined,
@@ -28,7 +29,10 @@ export function createMainReadbacks(cut: CutHeld, bytes: number): ReadbackRing<M
       },
     },
     device: cut.device,
-    admit: cut.admit,
+    // The budget is asked for the first slots alone: a growth asked for the rest (`growDagList`).
+    admit: (bytes) => {
+      if (!ring) cut.admit(bytes)
+    },
     share: cut.share,
   }
   const funded = {

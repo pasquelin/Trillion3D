@@ -56,6 +56,9 @@ use write::write_cells;
 /// A box, `[minX, minY, minZ, maxX, maxY, maxZ]`.
 pub(crate) type Box6 = [f64; 6];
 
+/// The input scene a partition reads: its glTF document, its binary and each input mesh's box.
+type InputScene<'a> = (&'a Value, &'a [u8], &'a [Option<Box6>]);
+
 /// Version of a page and of the root the core carries; what each version changed is told in
 /// `docs/FORMAT.md` (World partition).
 const PARTITION_VERSION: u32 = 13;
@@ -96,9 +99,9 @@ pub(crate) struct Partitioned {
 }
 
 /// The core and the cells of `table`, or `None` when it places no node, and the published nodes
-/// each cell places with their HLOD cells (`CellMembers`), each node in the cells of the HLOD
-/// layer `hlod` assigns it — once, here, for every stage after (`Hlod::assigned`) —, none for one
-/// that moves (`Candidate::still`). `objects` says which objects are spatially loaded
+/// each cell places with their HLOD cells (`CellMembers`), each node in the cells of the HLOD layer
+/// `hlod` assigns it (`assignments`, read once for the job: `Hlod::assignments`), none for one that
+/// moves (`Candidate::still`). `objects` says which objects are spatially loaded
 /// (`ObjectSettings`); `banks`, the instanced skinned objects and the items they play
 /// (`motion/bank.rs`); `source`, its binary and its meshes' boxes, the input scene a plain skinned
 /// object's bounds are sampled from (`gather`). The grids — the job's main `grid`, then the HLOD
@@ -109,17 +112,13 @@ pub(crate) struct Partitioned {
 /// objects' layers give it (`Hlod::levels`); with the streaming off (`PartitionGrid::streams`),
 /// every node is. An HLOD that assigns a layer to no placed object that may take one refuses the
 /// job. `files` is the folder the cells' files are written in, and the job's pool that writes them
-/// side by side. Whether the scene is partitioned or not, `table` and `roots`
-/// come back with each instanced skinned object the core keeps hung under its skin's frame
-/// (`hang_banks`), and each animated object a cell draws saying so (`"streamed"`).
+/// side by side. Whether the scene is partitioned or not, `table` and `roots` come back with each
+/// instanced skinned object the core keeps hung under its skin's frame (`hang_banks`), and each
+/// animated object a cell draws saying so (`"streamed"`).
 pub(crate) fn partition(
     (g, worlds): (&Value, &[Mat4]),
-    (hlod, grid): (&crate::Hlod, &crate::PartitionGrid),
-    (objects, banks, (source, bin, source_boxes)): (
-        &crate::ObjectSettings,
-        &Banks,
-        (&Value, &[u8], &[Option<Box6>]),
-    ),
+    (hlod, assignments, grid): (&crate::Hlod, &[Assigned], &crate::PartitionGrid),
+    (objects, banks, (source, bin, source_boxes)): (&crate::ObjectSettings, &Banks, InputScene<'_>),
     (table, roots): (&mut [Value], &mut Vec<usize>),
     mesh_pages: &MeshSlots,
     files: (&Path, &rayon::ThreadPool),
@@ -137,17 +136,19 @@ pub(crate) fn partition(
         table,
         (&parent, &reached),
     )?;
-    // An instanced layer's size filter turns away an object whose world box falls short of it, and
-    // an object that moves takes no layer: neither enters an HLOD (`HlodSizeFilter`). Each
-    // object's `hlodInstance` switch must read, whichever layer it takes.
+    // An instanced layer's size filter turns away an object whose world box falls short of it —
+    // never an instanced skinned object, which the filter does not see —, and an object that moves
+    // takes no layer: neither enters an HLOD (`HlodSizeFilter`). Each object's `hlodInstance`
+    // switch must read, whichever layer it takes.
     let mut turned = BTreeSet::new();
-    let assigned: Vec<crate::hlod::options::Assigned> = (candidates.iter())
+    let assigned: Vec<Assigned> = (candidates.iter())
         .map(|candidate| {
-            let mut assigned = hlod.assigned(g, candidate.node)?;
+            let mut assigned = assignments[candidate.node];
             crate::hlod::options::instanced(g, candidate.node)?;
             let b = &candidate.world;
             let world = ([b[0], b[1], b[2]], [b[3], b[4], b[5]]);
-            let admits = |l: &usize| hlod.layers[*l].size_filter.admits(world);
+            let skinned = matches!(candidate.row, Row::Track { .. });
+            let admits = |l: &usize| skinned || hlod.layers[*l].size_filter.admits(world);
             if candidate.still && assigned.layer.is_some_and(|l| !admits(&l)) {
                 turned.insert(candidate.node);
             }
@@ -187,14 +188,13 @@ pub(crate) fn partition(
         .map(|&k| (candidates[k].node, &candidates[k]))
         .collect();
     let rank = core_ranks(table.len(), &drawn);
-    // Every mark is read, a placed node's or not: one naming no group nor layer refuses the job.
-    // A marked node no HLOD takes — the core keeps it, it moves, or its layer's size filter turns
-    // it away — is told.
+    // Every mark was read with the assignments, a placed node's or not: one naming no group nor
+    // layer refuses the job. A marked node no HLOD takes — the core keeps it, it moves, or its
+    // layer's size filter turns it away — is told.
     let mut unplaced = Vec::new();
     let untaken = |id: &usize| drawn.get(id).is_none_or(|c| !c.still) || turned.contains(id);
     for id in (0..table.len()).filter(untaken) {
         if crate::compiler::args::marked(g, id) {
-            hlod.assigned(g, id)?;
             unplaced.push(id);
         }
     }

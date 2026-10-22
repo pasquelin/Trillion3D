@@ -17,6 +17,7 @@ use super::closest::on_triangle;
 use super::{Polygons, BOUNDARY, NEIGHBOURS, NO_POLYGON};
 use crate::hlod::flatten::uv::extremes::{greater, lesser};
 use rayon::prelude::*;
+use trillion3d_math::scalar::not_above;
 use trillion3d_math::vector::vecn::{add, scale, squared_length, sub};
 use trillion3d_page_codec::hash::WordSet;
 
@@ -167,7 +168,7 @@ impl Share {
             let leaf = self.closest.touch(voxel);
             leaf.values[pos] = facet.index.min(leaf.values[pos]);
         }
-        !(distance > BOUNDARY)
+        not_above(distance, BOUNDARY)
     }
 
     /// `other` merged in: its leaves where this share has none, else voxel by voxel

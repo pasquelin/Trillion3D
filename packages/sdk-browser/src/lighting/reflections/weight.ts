@@ -248,7 +248,9 @@ export const RESOLVED_INDIRECT_WGSL = wgslBlock(
  let traced=resolvedReflectionTexel(coord);
  if(traced.a!=REFLECTION_PROBES_LEFT){return mat2x3f(bounceLighting(rgb,metal,N,P,ao),traced.rgb);}
  let probes=surfaceProbesGathered(P,N,reflectionBaseLobe(N,V,rough));
- return mat2x3f(lambertDiffuse(rgb,metal,probes[0].xyz,ao),traced.rgb+reflectionProbesShare(probes[1])*reflectionWeight(f0Of(rgb,metal),rough,N,V)*lobeThrough());
+ // The surroundings the trace left in the pixel give way to the probes where these hold the sky.
+ let under=select(vec3f(0.0),min(probes[1].w,1.0)*skyRadiance(reflect(-V,N)),skyLit());
+ return mat2x3f(lambertDiffuse(rgb,metal,indirectGathered(probes[0],N),ao),traced.rgb+(reflectionProbesShare(probes[1])-under)*reflectionWeight(f0Of(rgb,metal),rough,N,V)*lobeThrough());
 }`,
 )
 
@@ -273,7 +275,7 @@ export const forwardIndirectWgsl = (group: number, lobes: boolean, traced: numbe
   return mat2x3f(bounceLighting(rgb,metal,N,P,ao),reflectionShare(forwardFrontTraced(position),f0,rough,N,V));
  }
  let probes=surfaceProbesGathered(P,N,reflectionBaseLobe(N,V,rough));
- let seen=Reflected(reflectionFieldOver(probes[1]),reflectionFieldCoat(P,V));
- return mat2x3f(lambertDiffuse(rgb,metal,probes[0].xyz,ao),reflectionShare(seen,f0,rough,N,V));
+ let seen=Reflected(reflectionFieldOver(probes[1],reflect(-V,N)),reflectionFieldCoat(P,V));
+ return mat2x3f(lambertDiffuse(rgb,metal,indirectGathered(probes[0],N),ao),reflectionShare(seen,f0,rough,N,V));
 }`,
   )

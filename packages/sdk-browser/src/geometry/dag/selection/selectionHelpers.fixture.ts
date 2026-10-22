@@ -15,7 +15,7 @@ import { packedWorldsToRenderOrigin } from '../pack/pack.fixture.ts'
 import { graphDraws } from '../../selection/drawSource.ts'
 import { hostStretches } from '../hostStretches.fixture.ts'
 
-export const VIEWPORT: [number, number] = [1280, 720]
+const VIEWPORT: [number, number] = [1280, 720]
 export function packed(fixture: ReturnType<typeof dagFixture>) {
   const { roots } = collectClusterPages(
     fixture.source,

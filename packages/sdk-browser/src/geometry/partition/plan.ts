@@ -9,17 +9,16 @@
  * axis dropped (glTF's up is `+Y`), unless the grids do not lie flat or the session culls the
  * square cells by height; and the coarser cells a wished one pulls in on a grid that asks it
  * (`coarser.ts`). A wished cell waits its turn by the level of its cell on its grid, which the
- * cook writes (`rankedCell`). A cell file of
- * objects in a layer belongs to its HLOD 0 cell — its objects are that cell's HLOD 0 actor, the
- * same meshes instanced, and the source meshes of their main grid cell —: it is placed while that
- * HLOD 0 cell loads, wished within its grid's range, which holds the main grid's. A cell file of
- * objects in no layer streams on the main grid alone. A unit wished and not loaded — an HLOD 0
- * cell some file of which is not placed, or a file of no layer not placed — waits its turn to load
- * (`waiting`, `LoadSlots`); one whose file is refused for good waits for nothing, said lost
- * (`LeafWish.lost`). An HLOD 0 cell is placed whole once every cell of it is placed and no page of
- * the index that could list one of its cells waits to be opened — one refused for good waits for
- * nothing. What draws each HLOD cell is its visibility (`../hlod/hlodCells.ts`,
- * `../dag/worlds/worldFollow.ts`). The camera's far plane plays no part.
+ * cook writes (`createRanker`). A cell file of objects in a layer belongs to its HLOD 0 cell — its
+ * objects are that cell's HLOD 0 actor, the same meshes instanced, and the source meshes of their
+ * main grid cell —: it is placed while that HLOD 0 cell loads, wished within its grid's range,
+ * which holds the main grid's. A cell file of objects in no layer streams on the main grid alone.
+ * A unit wished and not loaded — an HLOD 0 cell some file of which is not placed, or a file of no
+ * layer not placed — waits its turn to load (`waiting`, `LoadSlots`); one whose file is refused
+ * for good waits for nothing, said lost (`LeafWish.lost`). An HLOD 0 cell is placed whole once
+ * every cell of it is placed and no page of the index that could list one of its cells waits to be
+ * opened — one refused for good waits for nothing. What draws each HLOD cell is its visibility
+ * (`../hlod/hlodCells.ts`, `../dag/worlds/worldFollow.ts`). The camera's far plane plays no part.
  *
  * A placed file of an HLOD 0 cell leaves once that cell is neither wished nor visible — a cell is
  * unloaded only once it is made invisible —, a file of no layer once its cell is wished no more.
@@ -32,8 +31,10 @@ import type { PartitionGrid } from '../../../../sdk-core/src/scene/core/tablePar
 import type { CellIndex, IndexPage } from './cellIndex.ts'
 import { coarserKey, MAIN_GRID, NO_CELLS, type CoarserPull } from './coarser.ts'
 import { keepRadius, placedReach } from './reach.ts'
-import type { LoadingCell, LoadSlots } from './loadSlots.ts'
+import type { LoadingCell } from './loadOrder.ts'
+import type { LoadSlots } from './loadSlots.ts'
 import type { StreamingSource } from './source.ts'
+import { cellUnit, fileOfUnit, fileUnit, isFileUnit } from './unitKeys.ts'
 
 /** What a world DAG says of an HLOD 0 cell: whether it keeps it visible (`../hlod/hlodCells.ts`). */
 type LeafHolds = { visible(leaf: number): boolean }
@@ -58,40 +59,58 @@ type Leaf = {
   frame: number
 }
 
-/** The key a cell file of no layer waits to load by (`LoadSlots`), apart from the chain's cells'
- *  ranks. */
-export const fileKey = (cell: number) => -1 - cell
-/** The cell file a key made by `fileKey` names. */
-const fileOf = (key: number) => -1 - key
+/** An HLOD 0 cell not yet met by any frame, on `grid` at `rung`. */
+const unmetLeaf = (grid: number, rung: number): Leaf => ({
+  wished: false,
+  placed: false,
+  lost: false,
+  cells: [],
+  bounds: [],
+  grid,
+  rung,
+  frame: -1,
+})
 
-/** What ranks the cell of `grid` at `level` there streaming by `bounds` in the load order
- *  (`LoadingCell`), as `source` sees it: the half side of its bounds, its level, its grid's
+/** The ranker of the cells waiting under the view `source`, its records kept from frame to frame:
+ *  `restart` frees them at a frame's start, `ranked` takes one for the cell of `grid` at `level`
+ *  there, streaming by the bounds `bounds` at `at`, and fills it with what ranks it in the load
+ *  order (`LoadingCell`) as `source` sees it: the half side of its bounds, its level, its grid's
  *  priority, its distances. */
-export function rankedCell(
-  key: number,
-  bounds: ArrayLike<number>,
-  [grid, level]: readonly [PartitionGrid, number],
-  source: StreamingSource,
-): LoadingCell {
-  const extent = (bounds[3] - bounds[0]) / 2
-  const cell = { key, extent, level, priority: grid.priority, distance: 0, raw: 0 }
-  return source.ranked(bounds, 0, grid.range, cell)
+function createRanker(source: StreamingSource) {
+  const records: LoadingCell[] = []
+  let used = 0
+  return {
+    restart: () => void (used = 0),
+    ranked(key: number, bounds: ArrayLike<number>, at: number, grid: PartitionGrid, level: number) {
+      let cell = records[used]
+      if (!cell) records[used] = cell = { key, extent: 0, level, priority: 0, distance: 0, raw: 0 }
+      used++
+      cell.key = key
+      cell.extent = (bounds[at + 3] - bounds[at]) / 2
+      cell.level = level
+      cell.priority = grid.priority
+      return source.ranked(bounds, at, grid.range, cell)
+    },
+  }
 }
+
+export type Ranker = ReturnType<typeof createRanker>
 
 /**
  * The plan of the frames of `index` as the view `source` streams it, its lists kept from frame to
  * frame. A frame (`plan`) from `eye`, over the partition's `grids`, the cells `placed` holds,
- * whether the read of a file — a page of the index, a cell file — is refused for good (`failed`,
- * by its address) and what a world DAG says of each HLOD 0 cell (`LeafHolds`, none without one)
- * gives the placed cells that leave (`leave`), the index pages to open within the walk, nearest
- * first (`pages`), each HLOD 0 cell met (`leaves`), the cell files of no layer whose cell is
- * wished, with the square it streams by (`alone`), the cells whose main grid cell is wished with
- * the square they stream by — their rows draw the source meshes, the others their HLOD 0 actor
- * (`main`) —, and the units wished and not loaded (`waiting`). The HLOD actors off (`layers`
- * false), every cell file streams on the main grid alone. Once the load slots took the frame's
- * units, `files` gives the cell files to read and place: those of each unit loading, not placed,
- * in the order the units started, each asked by its unit's priority (`priority`) — the queue
- * serves the reads of every cell, files and HLOD actors, in the order the units took their turn.
+ * whether the read of a file — a page of the index, a cell file — is refused for good (`failed`, by
+ * its address) and what a world DAG says of each HLOD 0 cell (`LeafHolds`, none without one) gives
+ * the placed cells that leave (`leave`), the index pages to open within the walk, nearest first
+ * (`pages`), each HLOD 0 cell met (`leaves`), the cell files of no layer whose cell is wished, with
+ * the square it streams by (`alone`), the cells whose main grid cell is wished with the square they
+ * stream by — their rows draw the source meshes, the others their HLOD 0 actor (`main`) —, and the
+ * units wished and not loaded (`waiting`, each on a record of `ranker`, freed at the next frame).
+ * The HLOD actors off (`layers` false), every cell file streams on the main grid alone. Once the
+ * load slots took the frame's units, `files` gives the cell files to read and place: those of each
+ * unit loading, not placed, in the order the units started, each asked by its unit's priority
+ * (`priority`) — the queue serves the reads of every cell, files and HLOD actors, in the order the
+ * units took their turn.
  *
  * On a main grid whose wished cells pull in the coarser ones overlapping them (`pulls`,
  * `coarser.ts`), each cell met at the coordinates a wished one pulls is wished too, its HLOD 0
@@ -113,6 +132,7 @@ export function createCellPlan(
     squares = new Map<number, ArrayLike<number>>(),
     seeds: number[] = [],
     seen = new Set<number>()
+  const ranker = createRanker(source)
   const out = {
     leave: [] as number[],
     pages: [] as IndexPage[],
@@ -120,8 +140,9 @@ export function createCellPlan(
     alone: new Map<number, ArrayLike<number>>(),
     main: new Map<number, ArrayLike<number>>(),
     waiting: [] as LoadingCell[],
+    ranker,
   }
-  const visible: number[] = [],
+  const toRead: number[] = [],
     readAt = new Map<number, number>()
   /** The frames planned, the grids, and whether the files of a layer stream with their HLOD 0
    *  cell — the HLOD actors on (`layers`). */
@@ -146,20 +167,7 @@ export function createCellPlan(
     }
     const [h, , grid, rung] = hlod
     let met = leaves.get(h)
-    if (!met)
-      leaves.set(
-        h,
-        (met = {
-          wished: false,
-          placed: false,
-          lost: false,
-          cells: [],
-          bounds: [],
-          grid,
-          rung,
-          frame: -1,
-        }),
-      )
+    if (!met) leaves.set(h, (met = unmetLeaf(grid, rung)))
     if (met.frame !== frame) {
       met.frame = frame
       met.cells.length = 0
@@ -204,6 +212,7 @@ export function createCellPlan(
       grids = partitionGrids
       layered = layers
       out.leave.length = out.pages.length = out.waiting.length = 0
+      ranker.restart()
       out.alone.clear()
       out.main.clear()
       pageDistances.clear()
@@ -235,12 +244,12 @@ export function createCellPlan(
         leaf.lost = lost
         // A cell some file of which is refused for good waits for nothing.
         if (leaf.wished && !whole && !lost)
-          out.waiting.push(rankedCell(h, leaf.bounds, [grids[leaf.grid], leaf.rung], source))
+          out.waiting.push(ranker.ranked(cellUnit(h), leaf.bounds, 0, grids[leaf.grid], leaf.rung))
       }
       for (const [cell, square] of out.alone) {
         const { url, grid } = index.cell(cell)
         if (!placed.has(cell) && !failed?.(url))
-          out.waiting.push(rankedCell(fileKey(cell), square, [grids[0], grid[0]], source))
+          out.waiting.push(ranker.ranked(fileUnit(cell), square, 0, grids[0], grid[0]))
       }
       out.pages.sort(nearestPage)
       // A placed file leaves once its HLOD 0 cell is neither wished nor visible, a file of no
@@ -257,14 +266,14 @@ export function createCellPlan(
     /** The cell files to read and place now: those of each unit `slots` loads, not `placed`, the
      *  units in the order they started, each file asked by its unit's priority (`priority`). */
     files(slots: Pick<LoadSlots, 'loading' | 'priorityOf'>, placed: ReadonlyMap<number, unknown>) {
-      visible.length = 0
+      toRead.length = 0
       readAt.clear()
       for (const key of slots.loading()) {
         const priority = slots.priorityOf(key)
-        if (key < 0) {
-          const cell = fileOf(key)
+        if (isFileUnit(key)) {
+          const cell = fileOfUnit(key)
           if (out.alone.has(cell) && !placed.has(cell)) {
-            visible.push(cell)
+            toRead.push(cell)
             readAt.set(cell, priority)
           }
           continue
@@ -273,11 +282,11 @@ export function createCellPlan(
         if (leaf?.frame !== frame) continue
         for (const cell of leaf.cells) {
           if (placed.has(cell)) continue
-          visible.push(cell)
+          toRead.push(cell)
           readAt.set(cell, priority)
         }
       }
-      return visible
+      return toRead
     },
     /** The priority the read of cell file `cell` asks by, as `files` gave it: none for a file no
      *  unit loading names. */

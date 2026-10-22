@@ -40,6 +40,7 @@
 use super::tree::{Coord, Tree};
 use crate::plugins::scene::cancel::check;
 use std::sync::atomic::AtomicBool;
+use trillion3d_math::scalar::not_above;
 
 mod closest;
 mod collapse_tiles;
@@ -180,5 +181,5 @@ pub(crate) fn union(a: &mut Tree<f32>, mut b: Tree<f32>) {
 /// Whether two single-precision values are equal within `10⁻⁸`, NaN included: what tells a tile
 /// of a background, or of its negative, from another.
 fn near(a: f32, b: f32) -> bool {
-    !((a - b).abs() > 1e-8)
+    not_above((a - b).abs(), 1e-8)
 }

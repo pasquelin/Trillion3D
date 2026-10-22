@@ -113,7 +113,7 @@ test('a page read as floats joins the catalogue by its index bytes, as a quantiz
 })
 
 test('a page deeper than those held is taken; a record that is no page takes no slot', () => {
-  const { setup, rt } = session(2)
+  const { rt } = session(2)
   const pages = primitive(10)
   pages[1].level = 12
   // A world record no mesh wears: no address, no bytes.

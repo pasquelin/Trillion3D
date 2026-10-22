@@ -35,47 +35,76 @@ export const BOUNCE_SETTINGS = {
    */
   traversalStack: 32,
   /**
-   * Probe cascade levels. The first `cascadeLevels - 1` track camera position;
-   * the final level is world-static covering full scene bounds.
+   * Levels of probes, each a cube centred on the eye and snapped to its own cells, each cell twice
+   * the one before (`cascadeBase`). Beyond the last, the sky light answers.
    */
   cascadeLevels: 4,
-  /** Probes per axis per level: a level is a cube of `cascadeSize³` probes. */
-  cascadeSize: 16,
   /**
-   * Spacing ceiling for finest cascade level in meters.
+   * Cells along an axis of a level: a level is a cube of `cascadeSize³` cells, and holds a probe in
+   * a cell only while the image reads it (`probePool`).
    */
-  cascadeSpacingMetres: 2,
+  cascadeSize: 48,
   /**
-   * Minimum probe layers across the smallest scene dimension.
+   * Half the extent of the first level, in metres: from the eye to a side of its cube. Its cell is
+   * twice that over `cascadeSize`, 1.04 m by default; the next levels' cells are 2.08, 4.17 and 8.33 m.
    */
-  cascadeLayersAcross: 3,
+  cascadeHalfExtentMetres: 25,
+  /** Growth of a level's cell over the level before it. */
+  cascadeBase: 2,
   /**
-   * Budget share per level, finest to coarsest. The finest level surrounds the camera and receives
-   * the largest proportion of ray allocations.
+   * Probes alive at once, whatever the scene and the view: a cell the image reads takes one from this
+   * pool and gives it back when it is no longer read or leaves its level. 128 rows of 128 probes.
    */
-  cascadeShares: [8, 4, 2, 1],
+  probePool: 16384,
+  /**
+   * Marks a cell survives without being read by the image: its probe is given back after that many.
+   * A cell a probe's ray hit is kept while its level holds it, whatever the image reads.
+   */
+  probeKeptMarks: 8,
+  /**
+   * Pixels along the side of a tile of the image: each tile marks, at every mark, the eight cells
+   * around the visible surface point it holds, a point that moves from one mark to the next.
+   */
+  markTilePixels: 16,
+  /** Marks a view change owes, the jitter of a tile's point taking as many to come round. */
+  markJitter: 8,
+  /**
+   * Cells along an axis of the world light grid, a cube over the scene's extent whose lists the rays
+   * of the probes and of the reflections walk (`lighting/bounce/worldLightLists.ts`).
+   */
+  lightGridSide: 16,
   /** Rays traced per probe per update. Fixed configurable budget. */
   raysPerProbe: RAYS_PER_PROBE,
   /** Maximum probe rays per frame: static ceiling bounding compute dispatch size. */
   raysPerFrame: RAYS_PER_FRAME,
-  /** Target GPU duration of every proxy ray of a frame, in milliseconds: the reflections' first,
-   *  the bounce probes' the rest (`../proxy/budget.ts`). */
-  budgetMs: 2,
-  /** The probes' part of `budgetMs` at most, reflections or none: alone, they aim at 0.8 ms of
-   *  2, the frame time they had before the reflections shared the budget. */
-  probeShare: 0.4,
-  /** Error correction share retained per sample to prevent oscillations. */
-  budgetSmoothing: 0.25,
-  /** Workload fraction floor: minimum progress guarantee. */
-  budgetFloor: 0.02,
+  /**
+   * Probes a frame traces: a count, the refresh's budget. A probe never traced comes before every
+   * refresh and is never held back, up to the queue (`BOUNCE_PROBE_QUEUE`); what the count leaves goes to
+   * the probes the longest untraced (`sdk-core/src/bounce/probePlan.ts`). The host sets it with
+   * `bounceProbesPerFrame`.
+   */
+  probesPerFrame: 100,
+  /**
+   * Whether a probe's fresh estimate is filtered with its six neighbours' before it is kept
+   * (`lighting/bounce/probes/probeFilterWgsl.ts`): the neighbours' light weighs in as far as their rays,
+   * in the same directions, ended where this probe's did (`filterHitAngle`), and where nothing stands
+   * between them.
+   */
+  filterProbes: true,
+  /**
+   * The angle, in radians, between a probe's ray and the direction to where its neighbour's ray in the
+   * same direction ended, at which the neighbour's light weighs nothing: a wider angle filters more of
+   * the surfaces near the probes, and leaks more across them.
+   */
+  filterHitAngle: 0.2,
   /** Minimum blend weight for a settled probe. */
   blendStable: 0.2,
   /** Blend weight for a moving probe. */
   blendMoving: 0.8,
   /** Relative residual threshold flagging probe motion. */
   movingResidual: 0.05,
-  /** Full convergence sweeps without change after which pass skips encoding. */
-  settledSweeps: 16,
+  /** Updates a probe takes after a light changed, past which it is left alone and the pass skips encoding. */
+  settledTraces: 16,
   /** Distance ratio under which a probe flags as embedded inside geometry. */
   buriedFraction: 0.15,
   /** Distance ratio flagging a probe in open sky. */
@@ -86,14 +115,30 @@ export const BOUNCE_SETTINGS = {
   normalBias: 0.35,
   /** Probe ray reach as fraction of scene bounding diagonal. */
   rayReachFraction: 1,
+  /**
+   * The furthest a ray looks for a surface, in metres, whatever the scene's size: past it the ray has
+   * left the scene, and the sky light answers. A ray, and the shadow ray its hit casts, are cut at
+   * this distance. 200 m by default.
+   */
+  rayReachMetres: 200,
+  /**
+   * Units of work and triangle tests a probe's ray may spend, its shadow rays included
+   * (`runtime/runtimeLayout.ts`, `RAY_WORK`): a unit a box tested, a node visited, a triangle tested.
+   * A street's rays cross many overlapping boxes, and a shadow ray that meets nothing has no hit to
+   * stop it: a ray that spends them carries no weight, so the budget is the whole of what the probes
+   * can learn of the light.
+   */
+  probeRayWork: 4096,
+  probeRayTriangles: 1024,
 } as const
 
 /**
- * Maximum probes updated per frame: ray budget ceiling divided by rays per probe, whole probes.
- * Plain arithmetic on the two constants, no call nor read of the settings: a bundle that uses no
- * bounce keeps neither this nor `BOUNCE_SETTINGS`.
+ * The queue of probes one frame traces, first traces included: ray budget ceiling divided by rays
+ * per probe, whole probes — the most `probesPerFrame` can be. Plain arithmetic on the two constants,
+ * no call nor read of the settings: a bundle that uses no bounce keeps neither this nor
+ * `BOUNCE_SETTINGS`.
  */
-export const BOUNCE_PROBES_PER_FRAME =
+export const BOUNCE_PROBE_QUEUE =
   (RAYS_PER_FRAME - (RAYS_PER_FRAME % RAYS_PER_PROBE)) / RAYS_PER_PROBE
 
 /**
@@ -103,3 +148,17 @@ export const BOUNCE_PROBES_PER_FRAME =
  * 2 vectors store 6 directional mean visibility distances. The `w` components store probe state.
  */
 export const PROBE_FLOATS = 44
+
+/**
+ * The probes a frame traces at most, from the host's `bounceProbesPerFrame`: absent, the default
+ * (`BOUNCE_SETTINGS.probesPerFrame`); otherwise a whole count from one to the queue's — anything else
+ * is refused, naming what is allowed.
+ */
+export function resolveProbesPerFrame(asked: number | undefined) {
+  if (asked === undefined) return BOUNCE_SETTINGS.probesPerFrame
+  if (!Number.isInteger(asked) || asked < 1 || asked > BOUNCE_PROBE_QUEUE)
+    throw new RangeError(
+      `bounceProbesPerFrame ${asked}: a whole number of probes from 1 to ${BOUNCE_PROBE_QUEUE}`,
+    )
+  return asked
+}

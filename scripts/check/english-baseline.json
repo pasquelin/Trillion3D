@@ -1,7 +1,7 @@
 {
-  "bench": 52,
-  "packages/asset-compiler-rust": 128,
-  "packages/sdk-browser": 179,
+  "bench": 50,
+  "packages/asset-compiler-rust": 89,
+  "packages/sdk-browser": 162,
   "packages/sdk-node": 8,
   "scripts": 4,
   "tests": 1

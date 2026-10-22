@@ -1,4 +1,63 @@
 /**
+ * The state of the bouncing light's probes, as the frame leaves them (`ShadowFrameMetrics.bounce`):
+ * whether they exist, what they hold, and what their updates did. The GPU counts (`census*`, `*Total`
+ * names) are read back a few images late and are `null` before the first reading; the others are the
+ * CPU's, of the image just drawn.
+ */
+export interface BounceFrameMetrics {
+  /** Whether the probes exist: the proxy was read and the passes built. */
+  rigged: boolean
+  /** Whether they are on their way: the proxy being read, no refusal yet. */
+  loading: boolean
+  /** Why there are no probes, when there are none. */
+  unavailable: string | null
+  /** The probes the pool holds at most. */
+  probes: number | null
+  /** Probes alive: a cell the image reads holds one. */
+  liveProbes: number | null
+  /** Probes alive that were never traced: zero says the light the image reads is filled. */
+  unfilledProbes: number | null
+  /** Marks refused for want of a probe in the pool, since it was made. */
+  refusedMarks: number | null
+  /** The marks that came back from the GPU, and the cells the last one named. */
+  marksRead: number | null
+  cellsMarked: number | null
+  /** Probes queued to be traced by the last image, and the rays that makes. */
+  probesUpdated: number
+  rays: number
+  /** The GPU duration of the bounce pass in the last image timed, in milliseconds: a measure, nothing
+   *  steers by it. */
+  passMs: number | null
+  /** Whether the series is closed: nothing left to trace, to write or to mark. */
+  converged: boolean | null
+  /** Censuses of the field that came back from the GPU. */
+  censusReads: number | null
+  /** The entries of the table that name a probe, as the last census found them. */
+  publishedSlots: number | null
+  /** The probes of the pool that hold light, that hold none, that are buried, as the last census found them. */
+  nonZeroProbes: number | null
+  darkProbes: number | null
+  buriedProbes: number | null
+  /** Totals since the probes were made: probes whose update fired its rays, rays fired, rays that
+   *  answered (not exhausted), rays that brought light back, rays whose hit a level held and marked
+   *  the cells round it for probes of their own; probes written, and written buried. */
+  probesFiredTotal: number | null
+  raysFired: number | null
+  raysAnswered: number | null
+  raysLit: number | null
+  raysMarked: number | null
+  probesWrittenTotal: number | null
+  probesBuriedTotal: number | null
+  /** The rays that carried no weight, by what spent them: the ray's own work, its triangle tests, its
+   *  walk of the placement tree, a mesh's walk; then the same four for its shadow ray (totals). */
+  raysLostBy: number[] | null
+  /** Every ray by the work it spent: under 64 units, 128, 256, 512, 1024, 2048, 4096, more (totals). */
+  rayWork: number[] | null
+  /** The furthest a probe's ray looks for a surface, in metres. */
+  rayReach: number | null
+}
+
+/**
  * Lighting and shadow counters of a frame, split from `FrameMetrics` by responsibility.
  * `FrameMetrics` inherits them via `extends`: the public contract seen by consumers
  * (`../index.ts`) is unchanged, these fields remain direct properties of `FrameMetrics`.
@@ -66,4 +125,6 @@ export interface ShadowFrameMetrics {
   gpuShadowsMs?: number | null
   /** GPU time of lighting. */
   gpuLightingMs?: number | null
+  /** The bouncing light's probes: whether they exist, what they hold, what their updates did. */
+  bounce?: BounceFrameMetrics | null
 }

@@ -16,7 +16,6 @@ import {
   isNanWord,
 } from '../../../../math/src/wgsl/integer.ts'
 import { unorm8 } from '../../../../math/src/wgsl/color.ts'
-import { isFiniteScale } from '../../../../math/src/wgsl/inverseTranspose.ts'
 
 type U = (...args: number[]) => number
 type B = (...args: number[]) => boolean
@@ -29,30 +28,9 @@ const run = shaderRun<{
   unorm8: U
   isNanWord: B
   isFiniteWord: B
-  isFiniteScale: (t: number) => boolean
 }>(
-  wgslModule(
-    bitWord,
-    bitMask,
-    bitAt,
-    bitIsSet,
-    byteOf,
-    unorm8,
-    isNanWord,
-    isFiniteWord,
-    isFiniteScale,
-  ),
-  [
-    'bitWord',
-    'bitMask',
-    'bitAt',
-    'bitIsSet',
-    'byteOf',
-    'unorm8',
-    'isNanWord',
-    'isFiniteWord',
-    'isFiniteScale',
-  ],
+  wgslModule(bitWord, bitMask, bitAt, bitIsSet, byteOf, unorm8, isNanWord, isFiniteWord),
+  ['bitWord', 'bitMask', 'bitAt', 'bitIsSet', 'byteOf', 'unorm8', 'isNanWord', 'isFiniteWord'],
   {},
 )
 
@@ -106,9 +84,4 @@ test('a float classed by its bits: NaN past the infinity, finite under the full 
     assert.equal(run.isNanWord(word), Number.isNaN(x), word.toString(16))
     assert.equal(run.isFiniteWord(word), Number.isFinite(x), word.toString(16))
   }
-})
-
-test('isFiniteScale, the same exponent test as isFiniteWord: above zero and finite', () => {
-  for (const t of [1, 2 ** -149, 3.4e38, 0, -0, -1, Infinity, NaN])
-    assert.equal(run.isFiniteScale(t), t > 0 && Number.isFinite(t), String(t))
 })

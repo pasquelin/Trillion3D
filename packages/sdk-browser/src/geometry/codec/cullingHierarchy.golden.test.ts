@@ -1,7 +1,7 @@
 import test from 'node:test'
 import { assertGolden } from '../../../../math/src/golden.fixture.ts'
 import { sdkWasm } from '../../wasm/sdkWasm.fixture.ts'
-import { cullingOfParts } from './cullingHierarchy.ts'
+import { cullingOfParts } from './cullingBuilder.ts'
 
 // The culling hierarchy as the SDK module builds it for the run-time cut, against the nodes the
 // compiler's native build writes (`page-codec-wasm/src/golden/culling.rs`): grids by rows and by

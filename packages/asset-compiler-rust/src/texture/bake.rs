@@ -139,7 +139,7 @@ pub(crate) fn cook_decoded(
     for (kind, of_kind) in chains {
         let levels = {
             let _t = crate::support::perf::Timer::new(crate::support::perf::Phase::TextureBake);
-            reduce::chain(&decoded, kind)
+            reduce::chain(decoded, kind)
         };
         let pixels = reduce::tail(&levels, first_level);
         let sheet = GateSheet::of(&of_kind, ladder);

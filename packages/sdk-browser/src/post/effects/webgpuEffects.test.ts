@@ -1,137 +1,164 @@
-// The WebGPU effect chain: an empty chain adds no pass, no copy and no target; a chain
-// with a bloom makes its targets at the first frame that draws it, keeps them while the size
-// holds, counts their bytes, and gives them back when it empties.
+// The WebGPU effect chain: an empty chain adds no pass, no copy and no target; a chain with a
+// bloom makes its images at the first frame that draws it, keeps them while the size holds, counts
+// their bytes, and gives them back when it empties; every bloom blurs with its own settings.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { written } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
-import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from './bloom/bloomFilter.ts'
+import { bloomTintScale } from './bloom/bloomFilter.ts'
+import { BLUR_BYTES, BLUR_PARAMS } from '../filters/gaussianWgsl.ts'
 import {
+  DEFAULT_BLOOM,
   floatsOf,
   input,
-  loadOf,
   loaded,
-  offsetOf,
   recorder,
   viewOf,
 } from './webgpuEffects.fixture.ts'
-import { uniformStride } from '../../session/memory/pools.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
+import { chainSizes } from '../filters/levelSizes.ts'
+import { BLOOM_LEVEL_COUNT } from '../../../../sdk-core/src/contracts/bloomOptions.ts'
+
+/** Bytes of the targets of a bloom's six blurs on an image: each level twice, as wide as it is. */
+const blurBytes = (width: number, height: number) =>
+  chainSizes(width, height, BLOOM_LEVEL_COUNT).reduce((sum, [w, h]) => sum + 2 * 8 * w * h, 0)
+/** The scene's half-size image and its five levels, drawn once a frame, and the blurs' 6 × 2. */
+const SCENE_PASSES = 6,
+  BLUR_PASSES = 12
 
 test('an empty chain returns its input and creates, writes and encodes nothing', async () => {
-  const { gpu, effects } = await loaded()
+  const { gpu, effects, frame } = await loaded()
   const { encoder, passes } = recorder(gpu)
-  assert.equal(effects.encode(encoder, [], input, 64, 32), input)
+  const post = frame(encoder, 64, 32)
+  const [textures, buffers, writes] = [gpu.textures.length, gpu.buffers.length, gpu.writes.length]
+  assert.equal(effects.encode(encoder, [], input, 64, 32, post), input)
   assert.deepEqual(
     [passes.length, gpu.textures.length, gpu.buffers.length, gpu.writes.length],
-    [0, 0, 0, 0],
+    [0, textures, buffers, writes],
   )
   assert.equal(gpu.renderPipelines.length, 0, 'not even a program is compiled')
   assert.equal(effects.bytes, 0)
 })
 
-test('a bloom compiles once, then draws its levels; the composition blends it in', async () => {
-  const { gpu, effects } = await loaded()
-  const bloom = effect.bloom({ intensity: 0.5 })
+test('an idle bloom is no pass: nothing is drawn, nor compiled', async () => {
+  const { gpu, effects, frame } = await loaded()
   const { encoder, passes } = recorder(gpu)
-  assert.equal(effects.encode(encoder, [bloom], input, 64, 32), input, 'compiling: no chain yet')
+  const bloom = effect.bloom({ intensity: 0 })
+  assert.equal(effects.encode(encoder, [bloom], input, 64, 32, frame(encoder, 64, 32)), input)
+  assert.deepEqual([passes.length, gpu.renderPipelines.length, effects.loading], [0, 0, false])
+})
+
+test('a bloom compiles once, then draws its levels; the composition adds its glow', async () => {
+  const { gpu, effects, frame } = await loaded()
+  const bloom = effect.bloom()
+  const { encoder, passes } = recorder(gpu)
+  assert.equal(
+    effects.encode(encoder, [bloom], input, 64, 32, frame(encoder, 64, 32)),
+    input,
+    'compiling: no chain yet',
+  )
   assert.equal(effects.loading, true)
   await effects.settled()
-  const levels = bloomLevelSizes(64, 32).length
-  // The chain's last bloom leaves its blend to the composition, which reads the image it read.
-  assert.equal(effects.encode(encoder, [bloom], input, 64, 32), input)
-  assert.equal(passes.length, 2 * levels - 1)
-  assert.equal(effects.draws, 2 * levels - 1)
-  assert.deepEqual(
-    passes.map(loadOf),
-    [...Array(levels).fill('clear'), ...Array(levels - 1).fill('load')],
-    'down the levels, then up adding into each',
-  )
-  assert.ok(effects.blend, 'its blend, for the composition')
-  assert.equal(effects.bytes, bloomLevelBytes(64, 32))
-  const made = gpu.textures.length,
+  // The chain's last bloom leaves its glow to the composition, which reads the image it read.
+  assert.equal(effects.encode(encoder, [bloom], input, 64, 32, frame(encoder, 64, 32)), input)
+  assert.equal(effects.draws, BLUR_PASSES, 'a blur of the six levels, two passes each')
+  assert.equal(passes.length, SCENE_PASSES + BLUR_PASSES, 'after the scene’s levels')
+  assert.ok(effects.blend?.glow, 'its glow, for the composition')
+  assert.equal(effects.bytes, blurBytes(64, 32), 'the blurs’ targets: the chain is the scene’s')
+  const textures = gpu.textures.length,
+    groups = gpu.bindGroups.length,
     writes = gpu.writes.length
-  assert.equal(made, 1, 'the level chain alone: no pass target')
-  // At 256 bytes the range goes up as one write, as the whole range did, never longer than it.
-  const uniform = gpu.writes.filter((w) => w.buffer.label === 'Trillion3D bloom uniform')
-  assert.equal(uniform.length, 1, 'the range in one write')
-  assert.ok(written(uniform[0]).byteLength <= 2 * levels * 256)
-  effects.encode(encoder, [bloom], input, 64, 32)
+  effects.encode(encoder, [bloom], input, 64, 32, frame(encoder, 64, 32))
   assert.deepEqual(
-    [gpu.textures.length, gpu.writes.length],
-    [made, writes],
-    'nothing remade or rewritten',
+    [gpu.textures.length, gpu.bindGroups.length, gpu.writes.length],
+    [textures, groups, writes],
+    'nothing remade, no group made again, nothing rewritten',
   )
   bloom.intensity = 0.25
-  effects.encode(encoder, [bloom], input, 64, 32)
-  assert.equal(gpu.writes.length, writes + 1, 'a setting rewrites the uniform once')
-  effects.encode(encoder, [bloom], input, 128, 64)
-  assert.equal(effects.bytes, bloomLevelBytes(128, 64), 'the levels follow the size')
-  effects.encode(encoder, [], input, 128, 64)
-  assert.equal(effects.bytes, 0, 'an emptied chain gives its targets back')
-  // The image's commands may still name the levels: retired, destroyed after its submit.
+  effects.encode(encoder, [bloom], input, 64, 32, frame(encoder, 64, 32))
+  assert.equal(gpu.writes.length, writes + 6, 'the tint of each of the six second passes')
+  effects.encode(encoder, [bloom], input, 128, 64, frame(encoder, 128, 64))
+  assert.equal(effects.bytes, blurBytes(128, 64), 'the images follow the size')
+  effects.encode(encoder, [], input, 128, 64, frame(encoder, 128, 64))
+  assert.equal(effects.bytes, 0, 'an emptied chain gives its images back')
+  // The image's commands may still name them: retired, destroyed after its submit.
   destroyRetired(gpu.device)
-  for (const texture of gpu.textures) assert.ok(gpu.destroyed.includes(texture), texture.label)
+  const blurred = gpu.textures.filter((texture) => texture.label === 'Trillion3D bloom')
+  assert.ok(blurred.length > 0)
+  for (const texture of blurred) assert.ok(gpu.destroyed.includes(texture), texture.label)
+})
+
+test('a bloom with a threshold draws a setup and a chain of its own, under the image’s', async () => {
+  const { gpu, effects, frame } = await loaded()
+  const bloom = effect.bloom({ threshold: 1 })
+  const { encoder, passes } = recorder(gpu)
+  effects.encode(encoder, [bloom], input, 64, 32, frame(encoder, 64, 32))
+  await effects.settled()
+  passes.length = 0
+  effects.encode(encoder, [bloom], input, 64, 32, frame(encoder, 64, 32))
+  // The scene's half-size image alone, the setup, its five levels, the blurs.
+  assert.equal(passes.length, 1 + 1 + 5 + BLUR_PASSES)
+  assert.equal(effects.draws, 1 + 5 + BLUR_PASSES)
+  bloom.threshold = -1
+  passes.length = 0
+  effects.encode(encoder, [bloom], input, 64, 32, frame(encoder, 64, 32))
+  assert.equal(passes.length, SCENE_PASSES + BLUR_PASSES, 'no threshold: the scene’s levels again')
 })
 
 test('a bloom another pass follows writes the target the next one reads', async () => {
-  const { gpu, effects } = await loaded()
+  const { gpu, effects, frame } = await loaded()
   const { encoder, passes } = recorder(gpu)
   const chain = [effect.bloom(), effect.bloom()]
-  effects.encode(encoder, chain, input, 64, 32)
-  await effects.settled()
-  const output = effects.encode(encoder, chain, input, 64, 32)
-  const each = 2 * bloomLevelSizes(64, 32).length
-  assert.equal(gpu.textures.length, 2, 'one pass target and the level chain')
-  assert.equal(passes.length, 2 * each - 1, 'the second bloom leaves its blend to the composition')
-  assert.equal(viewOf(passes[each - 1]), output, 'the first wrote what the second read')
-})
-
-test('two blooms draw with their own settings, each from its own uniform range', async () => {
-  const { gpu, effects } = await loaded()
-  const { encoder, passes } = recorder(gpu)
-  const chain = [effect.bloom({ intensity: 0.2 }), effect.bloom({ intensity: 0.8, radius: 2 })]
-  effects.encode(encoder, chain, input, 64, 32)
+  effects.encode(encoder, chain, input, 64, 32, frame(encoder, 64, 32))
   await effects.settled()
   passes.length = 0
-  effects.encode(encoder, chain, input, 64, 32)
-  // The uniform buffer as the queue leaves it before the frame's first pass.
-  const uniform = gpu.buffers.find((buffer) => buffer.label === 'Trillion3D bloom uniform')!
-  const floats = new Float32Array(uniform.size / 4)
-  for (const write of gpu.writes)
-    if (write.buffer === (uniform as unknown)) floats.set(floatsOf(write), write.offset / 4)
-  const levels = bloomLevelSizes(64, 32).length,
-    each = 2 * levels
-  // The first bloom's blend is its last pass's slot; the second's, the composition's.
-  const slots = [offsetOf(passes[each - 1])!, effects.blend!.offset]
-  chain.forEach((bloom, n) => {
-    const at = slots[n] / 4,
-      { keep, glow } = bloomBlend(bloom.intensity, levels)
-    assert.deepEqual(
-      [...floats.subarray(at + 4, at + 7)],
-      [bloom.radius, keep, glow].map(Math.fround),
-      `bloom ${n} blends with its own intensity and radius`,
-    )
-  })
+  const output = effects.encode(encoder, chain, input, 64, 32, frame(encoder, 64, 32))
+  // The scene's levels once, the first bloom's blurs and the pass that adds its glow, the second's.
+  assert.equal(passes.length, SCENE_PASSES + 2 * BLUR_PASSES + 1)
+  assert.equal(viewOf(passes[SCENE_PASSES + BLUR_PASSES]), output, 'the first wrote its glow in')
+  assert.notEqual(output, input)
+  assert.ok(effects.blend, 'the second leaves its glow to the composition')
 })
 
-test('the last blend is kept from frame to frame, reading its own slot', async () => {
-  const { gpu, effects } = await loaded()
-  const { encoder, handed } = recorder(gpu)
-  const bloom = effect.bloom({ intensity: 0.5 })
-  effects.encode(encoder, [bloom], input, 64, 32)
+/** The weights each written blur uniform of a bloom holds on its red channel, summed over its
+ *  reads: 1 for the first pass of a level, its tint times the glow's scale for the second. */
+function sums(gpu: Awaited<ReturnType<typeof loaded>>['gpu']) {
+  const found: number[] = []
+  for (const write of gpu.writes) {
+    if (write.buffer.size !== BLUR_BYTES) continue
+    const words = floatsOf(write)
+    const count = words[BLUR_PARAMS.at.count]
+    let sum = 0
+    for (let i = 0; i < count; i++) sum += words[BLUR_PARAMS.at.taps + 4 * i + 1]
+    found.push(sum)
+  }
+  return found
+}
+
+test('two blooms blur with their own settings, each from its own uniforms', async () => {
+  const { gpu, effects, frame } = await loaded()
+  const { encoder } = recorder(gpu)
+  const chain = [effect.bloom({ intensity: 0.2 }), effect.bloom({ intensity: 0.8 })]
+  effects.encode(encoder, chain, input, 64, 32, frame(encoder, 64, 32))
   await effects.settled()
-  const levels = bloomLevelSizes(64, 32).length
-  effects.encode(encoder, [bloom], input, 64, 32)
-  const stride = uniformStride(gpu.device.limits)
-  assert.equal(effects.blend!.offset, (2 * levels - 1) * stride, 'the blend reads its own slot')
-  const fused = effects.blend,
-    kept = handed().size
-  effects.encode(encoder, [bloom], input, 64, 32)
-  assert.equal(effects.blend, fused, 'the same blend, kept from frame to frame')
-  assert.equal(
-    handed().size,
-    kept,
-    'a frame hands the descriptor and offset arrays it had: none made',
+  effects.encode(encoder, chain, input, 64, 32, frame(encoder, 64, 32))
+  const scale = [0.2, 0.8].map(bloomTintScale)
+  const expected = scale.flatMap((s) => [
+    ...DEFAULT_BLOOM.levels.map(() => 1),
+    ...DEFAULT_BLOOM.levels.map(({ tint }) => tint[0] * s),
+  ])
+  const found = sums(gpu)
+  assert.equal(found.length, expected.length)
+  // A bloom's blurs are written level by level, the widest first: its two uniforms each.
+  const widest = (n: number) => [n, n + 1].map((i) => found[i])
+  assert.deepEqual(
+    [widest(0), widest(12)].flat().map((sum) => Number(sum.toFixed(5))),
+    [1, DEFAULT_BLOOM.levels[5].tint[0] * scale[0], 1, DEFAULT_BLOOM.levels[5].tint[0] * scale[1]]
+      .map((sum) => Number(sum.toFixed(5)))
+      .flat(),
+  )
+  assert.deepEqual(
+    [...found].sort((a, b) => a - b).map((sum) => Number(sum.toFixed(5))),
+    [...expected].sort((a, b) => a - b).map((sum) => Number(sum.toFixed(5))),
+    'each bloom’s tints are scaled by its own intensity, over six levels',
   )
 })

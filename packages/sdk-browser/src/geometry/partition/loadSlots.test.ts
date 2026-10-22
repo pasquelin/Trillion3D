@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createLoadSlots, loadsBefore, type LoadingCell } from './loadSlots.ts'
+import { loadsBefore, type LoadingCell } from './loadOrder.ts'
+import { createLoadSlots } from './loadSlots.ts'
 import { cellPriority, PRIORITY_VISIBLE } from '../streaming/priority.ts'
 import { resolveWorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 

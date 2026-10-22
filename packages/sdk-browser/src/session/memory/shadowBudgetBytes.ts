@@ -40,9 +40,16 @@ function oneSunShadowMaps() {
 export const SHADOW_POOL_BYTES = alignUp(oneSunShadowMaps().bytes, MIB)
 
 /**
- * GPU bytes of the bounce probe cascades at their largest — every level of `cascadeSize³` probes,
- * the nine RGB coefficients, visibility and state of each, in both copies the pass binds (the
- * probes and the snapshot frozen before each update). Fixed whatever the scene.
+ * GPU bytes of the bounce probes — the pool of `probePool` probes, the nine RGB coefficients,
+ * visibility and state of each, and the table that names the probe each cell of the levels holds —,
+ * in both copies the pass binds (the probes and the snapshot frozen before each update). Fixed
+ * whatever the scene.
  */
 export const BOUNCE_PROBE_BYTES =
-  2 * atlasBytes(probeAtlasExtent(BOUNCE_SETTINGS.cascadeSize, BOUNCE_SETTINGS.cascadeLevels))
+  2 *
+  atlasBytes(
+    probeAtlasExtent(
+      BOUNCE_SETTINGS.probePool,
+      BOUNCE_SETTINGS.cascadeLevels * BOUNCE_SETTINGS.cascadeSize ** 3,
+    ),
+  )

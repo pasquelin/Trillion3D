@@ -14,24 +14,35 @@ import { PROBE_BINDINGS, PROBE_PROXY, SNAPSHOT_BINDINGS } from './probeBindings.
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { QUEUED_PROBE_WGSL } from './probeQueueWgsl.ts'
 import { PROBE_GROUP_WGSL } from './probeGroupWgsl.ts'
+import { censusWgsl } from './censusWgsl.ts'
+import { marksWgsl } from '../markWgsl.ts'
+import { PROBE_FILTER_WGSL } from './probeFilterWgsl.ts'
 
 /**
- * Update of the cascade irradiance probes.
+ * Update of the irradiance probes.
  *
  * A probe fires a fixed budget of rays against the proxy and reads, at the hit, the radiance the
  * surface is lit to there — direct, shadows traced against the proxy, and the bounce the grid
- * already holds (`rtProbeRay`). It accumulates it all in **order-2** spherical harmonics, nine
+ * already holds (`rtProbeRay`) —, and, for a ray that leaves the scene, the sky the scene's sky light
+ * gives. It accumulates it all in **order-2** spherical harmonics, nine
  * coefficients: one constant term, three linear and five quadratic, which make a much
- * sharper irradiance field than an order-1 basis on the same ray spend.
+ * sharper irradiance field than an order-1 basis on the same ray spend. So the probes hold the sky
+ * the scene lets through: the streets lit from above, the arcades dark.
  *
- * The probes updated are those of a batch split among the levels: the finest surrounds
- * the camera and receives the largest share. A probe whose cell has changed — the cascade
- * has slid — starts from zero; a probe that keeps its cell keeps its work. A probe buried
+ * The surface a ray hit reads only the light the levels hold there (`surfaceLit`, nothing for what no
+ * probe holds yet), and asks for the probes it lacks: the eight probes round the hit are marked
+ * (`markPoint`, a hit a level holds, once a ray), so the surfaces the probes see get probes of
+ * their own, as the surfaces the image shows do (`../hitMarks.ts`).
+ *
+ * The probes updated are the queue's (`../schedule.ts`): the ones that hold nothing yet first, then
+ * those the longest untouched. A probe taken for another cell, or traced for the first time, starts
+ * from zero; a probe that keeps its cell keeps its work. A probe buried
  * in a surface or lost in open sky goes to sleep: later updates skip it without firing a
- * ray, until a light changes or it changes cell. That is the requested placement —
+ * ray, until a light or the sky changes or it changes cell. That is the requested placement —
  * measured by the probe itself, never guessed by a rule on the scene.
  *
- * Damping is the engine's one accumulation law (`ACCUMULATION_WGSL`): a probe whose estimate
+ * A fresh estimate is first averaged with the six neighbours' (`PROBE_FILTER_WGSL`): the field is not as many
+ * noisy estimates as probes. Damping is the engine's one accumulation law (`ACCUMULATION_WGSL`): a probe whose estimate
  * jumps restarts and converges fast, a stable probe barely moves. Nothing allocates, nothing loops unbounded, and a scene without a declared light
  * writes exactly zero. The grid is read from a snapshot frozen before the update and
  * written elsewhere: an update never sees a neighbour half-written, and the steady-state
@@ -59,20 +70,24 @@ fn probeStore(probe:vec3u,k:u32,value:vec4f){
 @compute @workgroup_size(PROBE_THREADS)
 fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
  if(group.x>=bounce.frame.y||bounce.counts.w==0u){return;}
- // The queue says, rank by rank, which probe of which level works: the scheduler filled
- // it by skipping the cells the occupancy map declares of no interest.
+ // The queue says, entry by entry, which probe of the pool works, for which cell of which level.
  let queued=queuedProbe(group.x);
  if(!queued.valid){return;}
- let level=queued.level;let rank=queued.rank;let cell=queued.cell;let probe=queued.probe;
- let held=all(probeCell(probe)==cell);
+ let level=queued.level;let slot=queued.slot;let cell=queued.cell;let probe=queued.probe;
+ let held=!queued.fresh&&all(probeCell(probe)==cell)&&probeLevel(probe)==level;
  // A sleeping probe — buried in a surface or lost in open sky — fires no ray
  // as long as its cell does not change and no light has moved.
  if(held&&probeAt(probe,PROBE_IDLE).w==f32(bounce.frame.x)){return;}
  let spacing=bounce.levels[level].spacing;
  let origin=probeCentre(cell,spacing);
  let reach=bounce.reach.x;
- let rotation=hashUnit(rank*9781u+bounce.frame.z)*TWO_PI;
- let jitter=hashUnit(rank*6151u+bounce.frame.z*131u);
+ let rotation=hashUnit(slot*9781u+bounce.frame.z)*TWO_PI;
+ let jitter=hashUnit(slot*6151u+bounce.frame.z*131u);
+ // The neighbours the estimate is averaged with, a lane each, read before the rays: nothing waits for them.
+ if(PROBE_FILTER){
+  if(lane<FILTER_NEIGHBOURS){filterRead(lane,cell,level,spacing);}
+  workgroupBarrier();
+ }
  var sums:array<vec3f,PROBE_SUMS>;
  var travelled=0.0;
  var answered=0.0;
@@ -80,11 +95,16 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  // sixty-four rays occupies a whole group, where a single thread chained them and left the GPU idle.
  let d=rayDirection(lane,jitter,rotation);
  let sample=rtProbeRay(origin,d,reach);
+ if(rtHitFound&&markPoint(rtHitAt,rtHitNormal)){atomicAdd(&census[CENSUS_MARKED],1u);}
+ atomicAdd(&census[CENSUS_WORK+min(CENSUS_BUCKETS-1u,firstLeadingBit(max((rtWork+rtExtra)>>5u,1u)))],1u);
  // An exhausted ray carries zero weight: the estimate is renormalised over the rays that answered.
+ if(sample.w<0.0){atomicAdd(&census[CENSUS_LOST_BY+u32(-sample.w)-1u],1u);}
  if(!(sample.w<0.0)){
   let span=sample.w;
   travelled+=span;
   answered+=1.0;
+  atomicAdd(&census[CENSUS_ANSWERED],1u);
+  if(any(sample.rgb>vec3f(0.0))){atomicAdd(&census[CENSUS_LIT],1u);}
   ${radianceProjectionShader((k) => `sums[${k}]`, 'sample.rgb', 'd')}
   let weight=abs(d);
   let positive=select(vec3f(0.0),weight,d>vec3f(0.0));
@@ -92,6 +112,11 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
   sums[10]+=positive;
   sums[11]+=(weight-positive)*span;
   sums[12]+=weight-positive;
+  if(PROBE_FILTER){
+   let shares=filterShares(d,span,spacing);
+   sums[13]+=shares.low;
+   sums[14]+=shares.high;
+  }
  }
  // The group's thread sums gather by successive halves: one barrier per
  // round, and thread zero writes the probe.
@@ -108,6 +133,8 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  if(lane!=0u){return;}
  for(var k=0u;k<PROBE_SUMS;k++){sums[k]=partial[k][0];}
  answered=partialTravelled[0].y;
+ atomicAdd(&census[CENSUS_UPDATED],1u);
+ atomicAdd(&census[CENSUS_FIRED],PROBE_THREADS);
  // No ray answered: the probe keeps what it holds.
  if(answered==0.0){return;}
  travelled=partialTravelled[0].x/answered;
@@ -117,11 +144,30 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let buried=travelled<spacing*BOUNCE_BURIED;
  let asleep=buried||travelled>reach*BOUNCE_SKY;
  let usable=select(1.0,0.0,buried);
+ atomicAdd(&census[select(CENSUS_WRITTEN,CENSUS_BURIED,buried)],1u);
  // Monte-Carlo estimator over the whole sphere: 4π divided by the count of the rays that answered.
  let scale=2.0*TWO_PI/answered;
+ let meanPositive=sums[9]/max(sums[10],vec3f(1e-6));
+ let meanNegative=sums[11]/max(sums[12],vec3f(1e-6));
+ // The estimate: the basis the rays gave, averaged with the neighbours' that filter, each by its weight
+ // (\`filterWeight\`), the probe's own one. A buried probe holds none.
+ var estimate=array<vec3f,9>();
+ for(var k=0u;k<9u;k++){estimate[k]=sums[k]*scale;}
+ if(PROBE_FILTER&&!buried){
+  var total=1.0;
+  for(var n=0u;n<FILTER_NEIGHBOURS;n++){
+   let pair=select(sums[13],sums[14],n>=3u);
+   let weight=filterWeight(n,pair[n%3u]/answered,meanPositive,meanNegative,spacing);
+   if(weight<=0.0){continue;}
+   let neighbour=poolProbe(filterSlot[n]-1u);
+   for(var k=0u;k<9u;k++){estimate[k]+=weight*probeAt(neighbour,k).xyz;}
+   total+=weight;
+  }
+  for(var k=0u;k<9u;k++){estimate[k]/=total;}
+ }
  let updates=select(0.0,probeAt(probe,0u).w,held);
  let previous=select(vec3f(0.0),probeAt(probe,0u).xyz,held);
- let fresh=sums[0]*scale;
+ let fresh=estimate[0];
  let change=length(fresh-previous)/(length(fresh)+length(previous)+1e-4);
  // The engine's one accumulation law (\`ACCUMULATION_WGSL\`): a stable probe follows a running
  // average of \`PROBE_SAMPLES\` updates, which smooths Monte-Carlo noise without freezing the frame;
@@ -134,15 +180,14 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let count=accumulationCount(restart,1.0,PROBE_SAMPLES);
  // A texel is stored whole: each coefficient with the state its w lane carries, zero elsewhere.
  var state=array<f32,9>();
- state[0]=count;state[PROBE_VALID]=usable;
+ state[0]=count;state[PROBE_VALID]=select(PROBE_USABLE,PROBE_BURIED,buried);
  state[PROBE_CELL]=f32(cell.x);state[PROBE_CELL+1u]=f32(cell.y);state[PROBE_CELL+2u]=f32(cell.z);
  state[PROBE_IDLE]=select(0.0,f32(bounce.frame.x),asleep);
+ state[PROBE_LEVEL]=f32(level);
  for(var k=0u;k<9u;k++){
   let kept=select(vec3f(0.0),probeAt(probe,k).xyz,held);
-  probeStore(probe,k,vec4f(mix(kept,sums[k]*scale*usable,blend),state[k]));
+  probeStore(probe,k,vec4f(mix(kept,estimate[k]*usable,blend),state[k]));
  }
- let meanPositive=sums[9]/max(sums[10],vec3f(1e-6));
- let meanNegative=sums[11]/max(sums[12],vec3f(1e-6));
  let keptPositive=select(vec3f(0.0),probeAt(probe,PROBE_DISTANCE_POSITIVE).xyz,held);
  let keptNegative=select(vec3f(0.0),probeAt(probe,PROBE_DISTANCE_NEGATIVE).xyz,held);
  probeStore(probe,PROBE_DISTANCE_POSITIVE,vec4f(mix(keptPositive,meanPositive,blend),0.0));
@@ -155,6 +200,9 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
     BOUNCE_GRID_WGSL,
     QUEUED_PROBE_WGSL,
     PROBE_GROUP_WGSL,
+    PROBE_FILTER_WGSL,
+    censusWgsl(PROBE_BINDINGS.census),
+    marksWgsl(PROBE_BINDINGS.hits),
     TWO_PI,
     hashUnit,
     ACCUMULATION_WGSL,

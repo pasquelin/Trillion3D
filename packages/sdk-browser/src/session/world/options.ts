@@ -10,6 +10,8 @@ import type {
 import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
+import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
+import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import type { RasterOptions } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
 import type { StreamingOptions } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
 
@@ -37,7 +39,22 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  `animationBankInterpolation` (true), `animationBankTimeScale` (1); changed later by
  *  `world.animation`. The shading's likewise
  *  (`../../../../sdk-core/src/contracts/shadingOptions.ts`): `shadeBinningMode` (`'auto'`, or
- *  `'pixel'`, `'quad'`); changed later by `world.shading`. The cluster raster's split likewise
+ *  `'pixel'`, `'quad'`); changed later by `world.shading`. The automatic exposure's likewise
+ *  (`../../../../sdk-core/src/contracts/exposureOptions.ts`), used where `world.exposure` is
+ *  `'auto'`, the default: `exposureBias` (+1 stop), `exposureMinBrightness` (−10) and
+ *  `exposureMaxBrightness` (+20) in EV100, `exposureHistogramLogMin` (−10) and
+ *  `exposureHistogramLogMax` (+20) in stops of luminance, `exposureLowPercent` (10) and
+ *  `exposureHighPercent` (90), `exposureSpeedUp` (3) and `exposureSpeedDown` (1) in stops a
+ *  second, `exposureTransitionDistance` (1.5 stops), `exposureBlackBucketWeight` (0) and
+ *  `exposureLuminanceMethod` (`'uniform'`, or `'ntsc'`, `'workingSpace'`), and the local
+ *  exposure's `localExposureHighlightContrast` and `localExposureShadowContrast` (0.8),
+ *  `localExposureDetailStrength` (1), `localExposureBlurBlend` (0.6), `localExposureBlurSize`
+ *  (50 %), `localExposureMiddleGreyBias` (0) and the two thresholds and their strengths, which
+ *  apply to a lit view whatever its exposure; changed later by `world.exposureSettings`. The
+ *  temporal pass's likewise (`../../../../sdk-core/src/contracts/temporalOptions.ts`):
+ *  `temporalThinGeometry` (false) — whether it looks for geometry thinner than a pixel and relaxes
+ *  its history there, at any level but `'off'`; changed later by `world.temporal`. The cluster
+ *  raster's split likewise
  *  (`../../../../sdk-core/src/contracts/rasterOptions.ts`): `softwareRaster` (true) — a cluster
  *  whose longest edge projects under `hardwareRasterEdgePixels` and whose box crosses neither clip
  *  plane is rastered in compute, every other one by the hardware rasterizer; `false` hands every
@@ -50,8 +67,13 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  (128, the pages a frame installs at most, never more than may be pending),
  *  `streamingQualityMinPoolPercent` (70) and `streamingQualityMaxPoolPercent` (85, read no lower
  *  than the low mark) — the pool's load, in percent of its pages, under which the quality rises
- *  again and over which it falls, from 10 to 100 — and `streamingQualityMinScale` (0.3, from 0.1
- *  to 1, 1 never scales). A value a setting does not take is refused. */
+ *  again and over which it falls, from 10 to 100 —, `streamingQualityMinScale` (0.3, from 0.1
+ *  to 1, 1 never scales), `streamingNumRetries` (3, the times a failed read of a page is tried
+ *  again before its page is given up, a negative value without end) and `streamingMinRequests`
+ *  (65 536) and `streamingMaxRequests` (1 048 576), the least and the most requests the camera
+ *  cut's readout holds, from 4 096 to 1 048 576 — it starts at the least and follows what the cut
+ *  asks of it, the most read no lower than the least. A value a setting does not take is
+ *  refused. */
 export interface WorldOptions
   extends
     WorldStreamingOptions,
@@ -59,6 +81,8 @@ export interface WorldOptions
     CutOptions,
     AnimationOptions,
     ShadingOptions,
+    ExposureOptions,
+    TemporalOptions,
     RasterOptions,
     StreamingOptions {
   /**

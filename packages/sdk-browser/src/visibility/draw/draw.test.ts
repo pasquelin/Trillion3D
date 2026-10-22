@@ -26,9 +26,9 @@ const DRAW_SHADER = drawShader(1)
 
 test('compact keeps input order inside each bin and writes 16-byte indirects', () => {
   const items = [
-    { pageIndex: 4, bin: 0 as const, rest: 0 as const },
-    { pageIndex: 1, bin: 1 as const, rest: 0 as const },
-    { pageIndex: 7, bin: 0 as const, rest: 0 as const },
+    { pageIndex: 4, bin: 0 as const, post: 0 as const },
+    { pageIndex: 1, bin: 1 as const, post: 0 as const },
+    { pageIndex: 7, bin: 0 as const, post: 0 as const },
   ]
   const result = evaluateDrawCompact(items, 768, 8)
   assert.equal(result.overflow, false)
@@ -42,20 +42,20 @@ test('compact keeps input order inside each bin and writes 16-byte indirects', (
 })
 
 test('compact overflow sets the flag and writes zero instance counts', () => {
-  const items = [{ pageIndex: 0, bin: 0 as const, rest: 0 as const }]
+  const items = [{ pageIndex: 0, bin: 0 as const, post: 0 as const }]
   const result = evaluateDrawCompact(items, 768, 0)
   assert.equal(result.overflow, true)
   assert.equal(result.indirect[1], 0)
 })
 
-test('compact rest pass occupies the second half of the slots with exclusive-scan firstInstance', () => {
+test('compact post pass occupies the second half of the slots with exclusive-scan firstInstance', () => {
   const items: DrawItem[] = [
-    { pageIndex: 4, bin: BIN_BACK, rest: 0 },
-    { pageIndex: 9, bin: BIN_BACK, rest: 1 },
-    { pageIndex: 7, bin: BIN_BACK, rest: 0 },
-    { pageIndex: 2, bin: BIN_FRONT, rest: 1 },
+    { pageIndex: 4, bin: BIN_BACK, post: 0 },
+    { pageIndex: 9, bin: BIN_BACK, post: 1 },
+    { pageIndex: 7, bin: BIN_BACK, post: 0 },
+    { pageIndex: 2, bin: BIN_FRONT, post: 1 },
     // A cutout row: its face mode's cutout bin, after the opaque bins of its half.
-    { pageIndex: 5, bin: BIN_NONE + CULL_BINS, rest: 0 },
+    { pageIndex: 5, bin: BIN_NONE + CULL_BINS, post: 0 },
   ]
   const result = evaluateDrawCompact(items, 768, 8)
   assert.equal(result.overflow, false)
@@ -83,9 +83,9 @@ test('compact rest pass occupies the second half of the slots with exclusive-sca
 
 test('a row the software raster draws takes the software bin of its face mode, any kind', () => {
   const items: DrawItem[] = [
-    { pageIndex: 3, bin: BIN_FRONT, rest: 0, raster: RASTER_SOFTWARE },
-    { pageIndex: 6, bin: BIN_NONE + CULL_BINS, rest: 1, raster: RASTER_SOFTWARE },
-    { pageIndex: 8, bin: BIN_FRONT, rest: 0, raster: RASTER_HARDWARE },
+    { pageIndex: 3, bin: BIN_FRONT, post: 0, raster: RASTER_SOFTWARE },
+    { pageIndex: 6, bin: BIN_NONE + CULL_BINS, post: 1, raster: RASTER_SOFTWARE },
+    { pageIndex: 8, bin: BIN_FRONT, post: 0, raster: RASTER_HARDWARE },
   ]
   const result = evaluateDrawCompact(items, 768, 8)
   const software = BIN_KIND.SOFTWARE * CULL_BINS
@@ -99,7 +99,7 @@ test('a row the software raster draws takes the software bin of its face mode, a
 })
 
 test('overflow zeros instance counts in every indirect slot', () => {
-  const result = evaluateDrawCompact([{ pageIndex: 0, bin: 0, rest: 0 }], 768, 0)
+  const result = evaluateDrawCompact([{ pageIndex: 0, bin: 0, post: 0 }], 768, 0)
   for (let s = 0; s < BASE_SLOTS; s++) assert.equal(result.indirect[s * 4 + 1], 0)
   assert.equal(result.instances.length, 0)
 })
@@ -120,15 +120,15 @@ test('draw shader counts, prefixes and scatters page groups in parallel with sta
   // A half's run keeps the rows its mask holds, each in its slot of that half.
   assert.ok(DRAW_SHADER.includes('if(!selected(item)){return NO_INDEX;}'))
   assert.ok(DRAW_SHADER.includes('return slotOf(0u,item);'))
-  assert.ok(DRAW_SHADER.includes(`rest*${HALF_SLOTS}u+binOf(item)`))
+  assert.ok(DRAW_SHADER.includes(`post*${HALF_SLOTS}u+binOf(item)`))
   assert.ok(DRAW_SHADER.includes('atomicStore(&indirect[o+3u],0u)'))
 })
 
 test('draw consumers zero firstInstance while compact records slot starts', () => {
   const items: DrawItem[] = [
-    { pageIndex: 0, bin: BIN_BACK, rest: 0 },
-    { pageIndex: 1, bin: BIN_NONE, rest: 0 },
-    { pageIndex: 2, bin: BIN_BACK, rest: 1 },
+    { pageIndex: 0, bin: BIN_BACK, post: 0 },
+    { pageIndex: 1, bin: BIN_NONE, post: 0 },
+    { pageIndex: 2, bin: BIN_BACK, post: 1 },
   ]
   const result = evaluateDrawCompact(items, 768, 8)
   assert.equal(result.indirect[3], 0)

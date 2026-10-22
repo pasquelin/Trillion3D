@@ -15,8 +15,10 @@ test('a switch keeps its default when left out, and the boolean opposite to it m
 test('a non-boolean value reads as the engine always read it', () => {
   // On by default: only `false` turns it off.
   assert.equal(explorerSwitch({ importedLights: 0 as never }, 'importedLights'), true)
+  // On by default: only `false` turns the bounce off.
+  assert.equal(explorerSwitch({ bounce: 0 as never }, 'bounce'), true)
   // Off by default and strict: only `true` turns it on.
-  assert.equal(explorerSwitch({ bounce: 'yes' as never }, 'bounce'), false)
+  assert.equal(explorerSwitch({ stageProfile: 'yes' as never }, 'stageProfile'), false)
   // Off by default, read as truthy.
   assert.equal(explorerSwitch({ interactive: 1 as never }, 'interactive'), true)
 })

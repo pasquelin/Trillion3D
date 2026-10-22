@@ -1,172 +1,140 @@
 import { BOUNCE_SETTINGS } from './contracts.ts'
 import { boxDiagonal } from '../../../math/src/geometry/box.ts'
-import { clampLowWins } from '../../../math/src/scalar/reals.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 
 /**
- * Probe cascades: nested probe cubes, from tightest around camera to largest over full scene.
+ * Probe levels: nested cubes of cells centred on the eye, finer near it.
  *
- * A single grid across a city extent spends most probes on sky and puts none where the image needs them.
- * Cascades invert that: each level bears the same probe count, and spacing doubles between levels,
- * so probe density decreases with camera distance exactly as the image requires. The last level does not
- * follow the camera: it is fixed in world space and covers the full proxy extent, so that
- * no part of the scene falls out of range of a probe.
+ * Each level is a cube of `cascadeSize` cells a side whose cell is `cascadeBase` times the one of
+ * the level before: the first is 2 × `cascadeHalfExtentMetres` over `cascadeSize`, 1.04 m by default,
+ * and the four cover 25, 50, 100 and 200 m around the eye. A cube follows the eye, snapped to its
+ * own cells: it slides by whole cells, and a cell keeps its place in the world while it stays inside.
+ * The size of the scene, the size of the streets, enter nowhere: a street is as many cells across
+ * as its width over a metre, wherever the scene lies and however large it is.
  *
- * Two properties drive the rest. Probes of a level live on a **global lattice**,
- * at points `(gridIndex + ½) · spacing`: a probe never moves, and moving the camera only
- * shifts grid cells in and out. And a cell is indexed in the buffer by its modulo remainder of
- * the cube side: when the cascade shifts by one cell, only probes of the entering slice
- * change cells; all others keep theirs along with work already done.
+ * Probes live at the centre of a cell, `(cell + ½) · spacing`, on a lattice of the world. A cell is
+ * stored by its remainder modulo the side, so that sliding by one cell changes only the cells that
+ * enter: the others keep their place in every table that names them (`probePool.ts`).
  *
- * Nothing here names a scene: an extent, a viewpoint, two published bounds.
+ * The world light grid, the lists of lights that the rays of the probes walk, is the one thing that
+ * still covers the whole extent: a coarse lattice of its own (`lightLattice`), which holds no probe.
+ *
+ * Nothing here names a scene: a viewpoint, an extent, published settings.
  */
 export interface BounceCascadeLevel {
-  /** Spacing of this level, in meters. */
+  /** Side of the level's cell, in meters. */
   spacing: number
-  /** World cell index carried by the level's zero-index probe, on each axis. */
+  /** World cell index of the level's lowest cell, on each axis. */
   base: [number, number, number]
-  /** False for the last level, which remains fixed in world space. */
-  moving: boolean
 }
 
-/** The grids of light probes around the camera, finer near it. */
+/** The lattice of the world light grid: its lowest corner, in meters, and the side of a cell. */
+export interface LightLattice {
+  spacing: number
+  corner: [number, number, number]
+}
+
+/** The levels of probes around the eye. */
 export interface BounceCascades {
-  /** Probes along one axis and per level. */
+  /** Cells along one axis of a level. */
   size: number
-  /** Probes per level. */
-  probesPerLevel: number
-  /** Probes in all. */
+  /** Cells of a level. */
+  cells: number
+  /** Probes alive at most: the pool. */
   probes: number
-  /** Fixed capacity reserved before transforms can enlarge the scene. */
-  reserveCount: number
-  /** Levels whose spacing or presence changed during the last replan. Base shifts use cell stamps. */
-  invalidLevels: number
-  /** Reapply the existing spatial-resolution policy to current geometry bounds. */
-  replan(bounds: readonly number[]): boolean
-  /** Each level. */
+  /** Each level, finest first. */
   levels: BounceCascadeLevel[]
-  /** Ray reach: extent diagonal, beyond which there is nothing to hit. */
+  /** The world light grid's lattice, over the scene's extent. */
+  lattice: LightLattice
+  /** Ray reach: the extent's diagonal, beyond which there is nothing to hit, or `rayReachMetres`. */
   reach: number
-  /** Work batch probes per frame, by level: published shares applied to a total batch. */
-  shareOf(total: number): number[]
+  /** Places the world light grid and the reach on a new extent; whether the lattice moved. */
+  replan(bounds: readonly number[]): boolean
   /**
-   * Repositions mobile levels around a viewpoint. Returns true when at least one base cell
-   * index changed: this is the only signal convergence needs to restart, costing
-   * no GPU readback.
+   * Repositions every level around a viewpoint. Returns true when at least one base cell
+   * index changed: the only signal a slide needs, costing no GPU readback.
    */
   follow(viewpoint: ArrayLike<number>): boolean
+  /** Whether the cell `x, y, z` is inside the level's cube now. */
+  holds(level: number, x: number, y: number, z: number): boolean
+}
+
+/** Side of the cell of level `level`. */
+export function cellSpacing(level: number) {
+  const { cascadeHalfExtentMetres, cascadeSize, cascadeBase } = BOUNCE_SETTINGS
+  return ((2 * cascadeHalfExtentMetres) / cascadeSize) * cascadeBase ** level
 }
 
 /**
- * Spacing of each level: finest doubled at each step.
- *
- * The cascade stops at the first level that already covers the full extent — beyond, an extra level
- * would see nothing the previous one didn't, costing a pass. A small scene thus has
- * only one level, fixed, while a city has four. The last level, regardless of rank,
- * expands to cover the extent: no scene part remains out of reach of a probe.
+ * The lattice of the world light grid over `bounds`: its cell a thirteenth of the extent's longest
+ * side, its corner a cell before the extent on every axis. A cube of `lightGridSide` cells holds the
+ * extent whole, and a point just off a surface still falls inside it.
  */
-function spacingsOf(bounds: readonly number[]): number[] {
-  const { cascadeLevels, cascadeSize, cascadeSpacingMetres, cascadeLayersAcross } = BOUNCE_SETTINGS
+export function lightLattice(bounds: readonly number[]): LightLattice {
   const sizes = [0, 1, 2].map((axis) => Math.max(bounds[3 + axis] - bounds[axis], 1e-3))
-  const extent = Math.max(...sizes)
-  // The finest level never exceeds its ceiling and tightens until it retains enough
-  // layers across the thinnest scene dimension.
-  // A cube of `cascadeSize` probes only covers `cascadeSize - 3` useful cells: one boundary cell
-  // on each side, plus one because a probe is at the center of its cell.
-  const useful = cascadeSize - 3
-  // The finest spacing is also the one that, doubled at each step, allows the last level
-  // to cover the extent: all spacings are power-of-two multiples of the finest, and the
-  // occupancy map of a level is the exact reduction of the previous level's map.
-  const finest = clampLowWins(
-    Math.min(...sizes) / cascadeLayersAcross,
-    extent / (useful * 2 ** (cascadeLevels - 1)),
-    cascadeSpacingMetres,
-  )
-  const spacings: number[] = []
-  for (let level = 0; level < cascadeLevels; level++) {
-    spacings.push(finest * 2 ** level)
-    if (spacings[level] * useful >= extent) break
-  }
-  return spacings
+  const spacing = Math.max(...sizes) / (BOUNCE_SETTINGS.lightGridSide - 3)
+  const corner = [0, 1, 2].map((axis) => (Math.floor(bounds[axis] / spacing) - 1) * spacing)
+  return { spacing, corner: corner as LightLattice['corner'] }
 }
 
-/** Base cell indices of the three axes, from each axis cell index. */
-function baseOf(cellOf: (axis: number) => number): [number, number, number] {
-  return [cellOf(0), cellOf(1), cellOf(2)]
-}
+/** The reach of a ray over `bounds`: past the extent's diagonal there is nothing to hit, and past
+ *  `rayReachMetres` the sky answers. */
+const reachOf = (bounds: readonly number[]) =>
+  Math.min(boxDiagonal(bounds) * BOUNCE_SETTINGS.rayReachFraction, BOUNCE_SETTINGS.rayReachMetres)
 
-/**
- * Base cell index of a level placed on the extent: one cell before it. Without this boundary,
- * a ground point offset along its normal would fall outside the level, yielding zero bounce.
- */
-function fixedBase(spacing: number, bounds: readonly number[]) {
-  return baseOf((axis) => Math.floor(bounds[axis] / spacing) - 1)
-}
-
-/** Base cell index of a level following camera: cube is centered on viewpoint. */
-function movingBase(spacing: number, viewpoint: ArrayLike<number>) {
+/** The lowest cell index of a level of cell `spacing` centred on `viewpoint`, on each axis. */
+function centredBase(spacing: number, viewpoint: ArrayLike<number>): [number, number, number] {
   const half = BOUNCE_SETTINGS.cascadeSize / 2
-  return baseOf((axis) => Math.floor(viewpoint[axis] / spacing) - half)
+  return [0, 1, 2].map((axis) => Math.floor(viewpoint[axis] / spacing) - half) as [
+    number,
+    number,
+    number,
+  ]
 }
 
-/** The probe grids that cover a scene's box. */
+/** The levels of probes around the eye, first centred on the middle of `bounds`. */
 export function createBounceCascades(bounds: readonly number[]): BounceCascades {
-  const size = BOUNCE_SETTINGS.cascadeSize
-  const probesPerLevel = size * size * size
-  const spacings = spacingsOf(bounds)
-  const levels: BounceCascadeLevel[] = spacings.map((spacing, level) => ({
-    spacing,
-    base: fixedBase(spacing, bounds),
-    moving: level < spacings.length - 1,
-  }))
-  let shares = BOUNCE_SETTINGS.cascadeShares.slice(0, levels.length)
-  let weight = shares.reduce((sum, share) => sum + share, 0) || 1
+  const { cascadeLevels, cascadeSize, probePool } = BOUNCE_SETTINGS
+  const middle = [0, 1, 2].map((axis) => (bounds[axis] + bounds[3 + axis]) / 2)
+  const levels: BounceCascadeLevel[] = Array.from({ length: cascadeLevels }, (_, level) => {
+    const spacing = cellSpacing(level)
+    return { spacing, base: centredBase(spacing, middle) }
+  })
   const cascades: BounceCascades = {
-    size,
-    probesPerLevel,
-    probes: probesPerLevel * levels.length,
-    reserveCount: probesPerLevel * BOUNCE_SETTINGS.cascadeLevels,
-    invalidLevels: 0,
+    size: cascadeSize,
+    cells: cascadeSize ** 3,
+    probes: probePool,
     levels,
-    reach: boxDiagonal(bounds) * BOUNCE_SETTINGS.rayReachFraction,
+    lattice: lightLattice(bounds),
+    reach: reachOf(bounds),
     replan(nextBounds) {
-      const planned = spacingsOf(nextBounds)
-      const reach = boxDiagonal(nextBounds) * BOUNCE_SETTINGS.rayReachFraction
-      cascades.invalidLevels = 0
-      for (let i = planned.length; i < levels.length; i++) cascades.invalidLevels |= 1 << i
-      for (let i = 0; i < planned.length; i++) {
-        const spacing = planned[i],
-          moving = i < planned.length - 1
-        const previous = levels[i]
-        // Mobile bases are retained while their lattice is unchanged; follow() places them.
-        const base =
-          previous?.moving && moving && previous.spacing === spacing
-            ? previous.base
-            : fixedBase(spacing, nextBounds)
-        if (!previous || previous.spacing !== spacing) cascades.invalidLevels |= 1 << i
-        levels[i] = { spacing, moving, base }
-      }
-      levels.length = planned.length
-      cascades.probes = probesPerLevel * levels.length
-      cascades.reach = reach
-      shares = BOUNCE_SETTINGS.cascadeShares.slice(0, levels.length)
-      weight = shares.reduce((sum, share) => sum + share, 0) || 1
-      return cascades.invalidLevels !== 0
-    },
-    shareOf(total) {
-      // At least one probe per level: a level left with nothing by rounding would never
-      // converge, and the last level — carrying background geometry — would be lost.
-      return shares.map((share) => Math.max(1, Math.round((total * share) / weight)))
+      const next = lightLattice(nextBounds)
+      const moved =
+        next.spacing !== cascades.lattice.spacing ||
+        !sameValues(next.corner, cascades.lattice.corner)
+      cascades.lattice = next
+      cascades.reach = reachOf(nextBounds)
+      return moved
     },
     follow(viewpoint) {
       let moved = false
       for (const level of levels) {
-        if (!level.moving) continue
-        const base = movingBase(level.spacing, viewpoint)
+        const base = centredBase(level.spacing, viewpoint)
         if (!sameValues(base, level.base)) moved = true
         level.base = base
       }
       return moved
+    },
+    holds(level, x, y, z) {
+      const { base } = levels[level]
+      return (
+        x >= base[0] &&
+        x < base[0] + cascadeSize &&
+        y >= base[1] &&
+        y < base[1] + cascadeSize &&
+        z >= base[2] &&
+        z < base[2] + cascadeSize
+      )
     },
   }
   return cascades

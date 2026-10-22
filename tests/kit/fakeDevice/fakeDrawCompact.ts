@@ -23,18 +23,18 @@ export function simulateScatterGroups(entries: readonly BoundBuffer[], post: boo
     slotCap = uni[2]
   const itemInts = boundWords(entries, 0)
   const n = Math.min(count, slotCap)
-  const rest = post ? 1 : 0
+  const flag = post ? 1 : 0
   const items: DrawItem[] = []
   for (let i = 0; i < n; i++)
     items.push({
       pageIndex: itemInts[i * DRAW_ITEM_U32],
       bin: itemInts[i * DRAW_ITEM_U32 + 1],
-      rest,
+      post: flag,
     })
   const source =
     count > slotCap
       ? items.concat(
-          Array.from({ length: count - n }, () => ({ pageIndex: 0, bin: 0 as const, rest })),
+          Array.from({ length: count - n }, () => ({ pageIndex: 0, bin: 0 as const, post: flag })),
         )
       : items
   const mask = entries.some((entry) => entry.binding === 5) ? boundWords(entries, 5) : undefined

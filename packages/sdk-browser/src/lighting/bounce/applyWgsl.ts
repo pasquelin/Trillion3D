@@ -2,6 +2,7 @@ import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
 import { BOUNCE_GRID_WGSL, bounceBindingsWgsl } from './gridWgsl.ts'
 import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { INDIRECT_WGSL } from './indirectWgsl.ts'
 
 /**
  * Bounce application, at the bindings the calling pass gives it: opaque deferred resolve and
@@ -16,15 +17,24 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  * A pure metal has no diffuse albedo: its indirect share is zero, as in the direct term.
  * Indirect specular is not part of this term: the reflection reads the same probes through its
  * lobe (`reflectionProbesGathered`, `../reflections/field.ts`).
+ *
+ * The probes carry the sky the scene lets through (a ray of theirs that leaves the scene reaches
+ * it, `skyProbeRadiance`), so a program that reads them takes the sky light's diffuse share from
+ * them alone, never added again beside them (`environmentSky`, zero here): where they answer
+ * the whole, the share they leave unanswered — no probe yet, a point no cascade reaches — is the sky
+ * light's own irradiance, the sky nothing hides (`indirectGathered`); with no sky light, the probes
+ * that answer stand for it, the environment being the pixel's own term beside them.
  */
 export function bounceApplyWgsl(grid: number, probes: number) {
   return wgslBlock(
     `bounceApplyWgsl(${grid}, ${probes})`,
-    [lambertDiffuse, bounceBindingsWgsl(0, grid, probes), BOUNCE_GRID_WGSL],
+    [lambertDiffuse, bounceBindingsWgsl(0, grid, probes), BOUNCE_GRID_WGSL, INDIRECT_WGSL],
     `
-/** Diffuse radiance a pixel returns from light that bounced before reaching it. */
+/** What the environment adds of the sky light's diffuse: nothing, the probes carry it. */
+fn environmentSky(N:vec3f)->vec3f{return vec3f(0.0);}
+/** Diffuse radiance a pixel returns from light that bounced before reaching it, the sky's with it. */
 fn bounceLighting(rgb:vec3f,metal:f32,N:vec3f,P:vec3f,ao:f32)->vec3f{
- return lambertDiffuse(rgb,metal,sampleBounce(P,N),ao);
+ return lambertDiffuse(rgb,metal,indirectIrradiance(P,N),ao);
 }`,
   )
 }

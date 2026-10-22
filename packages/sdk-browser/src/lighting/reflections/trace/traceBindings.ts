@@ -112,15 +112,19 @@ const surface = (words = raysRead(), tiles = true) => [
   ...(tiles ? [computeBufferEntry(B.tiles, 'read-only-storage')] : []),
 ]
 
-/** The probes' field — the bounce cascades and their probes —: what answers a lobe that casts no ray
- *  (the screen stage, the last pass), the rest of a ray (the scene stage) and, its cascades alone,
+/** The probes' field — the bounce cascades and their probes — and the lights, whose buffer holds the
+ *  sky a ray that leaves the scene sees (`reflectionEnvironment`): what answers a lobe that casts no
+ *  ray (the screen stage, the last pass), the rest of a ray (the scene stage) and, its cascades alone,
  *  whether a lobe traces (the classification, `reflectionTraceShare`). */
-const field = () => [computeBufferEntry(B.bounceGrid, 'uniform'), atlasEntry(B.probes)]
-
-/** What a ray reads of the scene here — the lights, the light grid's lists, the field, the proxy it
- *  walks (`REFLECTION_PROXY_BINDINGS`). The scene stage's alone. */
-const scene = () => [
+const field = () => [
+  computeBufferEntry(B.bounceGrid, 'uniform'),
+  atlasEntry(B.probes),
   computeBufferEntry(B.lights, 'read-only-storage'),
+]
+
+/** What a ray reads of the scene here — the light grid's lists, the field with the lights, the proxy
+ *  it walks (`REFLECTION_PROXY_BINDINGS`). The scene stage's alone. */
+const scene = () => [
   computeBufferEntry(B.lightLists, 'read-only-storage'),
   ...field(),
   ...sceneLayoutEntries(REFLECTION_PROXY_BINDINGS),
@@ -137,10 +141,9 @@ export const traceLayouts = (device: GPUDevice) => {
   ) => device.createBindGroupLayout({ entries: [...surface(words, tiles), ...entries] })
   const storage = (binding: number) => computeStorageTextureEntry(binding, REFLECTION_GRID_FORMAT)
   const sampled = (binding: number) => computeTextureEntry(binding, 'uint')
-  // What the opaque surface's answer reads and writes past the field: the lights, its base colour,
+  // What the opaque surface's answer reads and writes past the field and its lights: its base colour,
   // the reflection target; the front one's: the radiance the forward fragments read.
   const opaque = [
-    computeBufferEntry(B.lights, 'read-only-storage'),
     computeTextureEntry(B.base, 'unfilterable-float'),
     computeStorageTextureEntry(B.target, HDR_FORMAT),
   ]

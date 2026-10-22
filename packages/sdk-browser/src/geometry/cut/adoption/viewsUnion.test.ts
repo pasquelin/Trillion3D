@@ -70,7 +70,7 @@ function bench() {
       uniforms: copySelectionUniforms(rt.run.selectionUniforms),
       result: {
         pageIds: ids,
-        priorities: ids.map(() => 1),
+        requests: { pages: ids, counts: ids.map(() => 1), priorities: ids.map(() => 1) },
         drawablePageIds: ids,
         frustumRejected: 0,
         lodLevel: 0,

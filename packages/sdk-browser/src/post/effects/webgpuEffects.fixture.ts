@@ -4,8 +4,13 @@ import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { written, type FakeWrite } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { commandArgs, type FakePass } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 import { createWebgpuEffects } from './webgpuEffects.ts'
+import { createFinish, type PostFrame } from '../finish/finish.ts'
+import { resolveBloom } from '../../../../sdk-core/src/contracts/bloomOptions.ts'
 
-/** A write's words as the floats the bloom's slots hold. */
+/** The bloom with every field at its default. */
+export const DEFAULT_BLOOM = resolveBloom()
+
+/** A write's words as the floats the uniform it wrote holds. */
 export const floatsOf = (write: FakeWrite) => {
   const data = written(write)
   return new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4)
@@ -13,13 +18,6 @@ export const floatsOf = (write: FakeWrite) => {
 
 /** The first target of `pass`: its view and its load. */
 export const viewOf = (pass: FakePass) => pass.colors[0]?.view
-export const loadOf = (pass: FakePass) => pass.colors[0]?.loadOp
-/** The dynamic offset `pass` set its first bind group at. */
-export const offsetOf = (pass: FakePass) =>
-  (
-    commandArgs(pass.commands, 'setBindGroup').find(([index]) => !index)?.[2] as
-      Uint32Array | undefined
-  )?.[0]
 
 /** One of `gpu`'s encoders, its render passes, and every descriptor and first group's offset array
  *  the chain handed it. */
@@ -38,9 +36,21 @@ export function recorder(gpu: ReturnType<typeof fakeDevice>) {
 
 export const input = { input: true } as unknown as GPUTextureView
 
-/** The chain on a device aligning uniform offsets at `alignment` bytes. */
-export async function loaded(alignment = 256) {
-  const gpu = fakeDevice({ limits: { minUniformBufferOffsetAlignment: alignment } })
+/** The chain on a kit device: its display finishing beside it, which a frame begins on the image
+ *  (`frame`) before the chain draws — what the renderer shares between the local exposure and the
+ *  bloom (`../finish/finish.ts`), the local exposure `local` where a test wants its setup. */
+export async function loaded() {
+  const gpu = fakeDevice()
   const effects = createWebgpuEffects(gpu.device, (error) => assert.fail(String(error)))
-  return { gpu, effects }
+  const finish = createFinish(gpu.device)
+  const frame = (
+    encoder: GPUCommandEncoder,
+    width: number,
+    height: number,
+    local = false,
+  ): PostFrame => {
+    finish.scene.begin(encoder, input, width, height)
+    return { scene: finish.scene, bare: finish.bare, layers: finish.groupFor(local), local }
+  }
+  return { gpu, effects, finish, frame }
 }

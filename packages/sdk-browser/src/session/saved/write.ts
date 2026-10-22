@@ -1,4 +1,5 @@
 import { sceneFogOf, type Fog } from '../world/sceneFog.ts'
+import type { ResolvedAtmosphere } from '../../../../sdk-core/src/scene/core/atmosphere.ts'
 import { MATERIAL_BOOKKEEPING } from '../../../../sdk-core/src/world/material/material.ts'
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
@@ -26,6 +27,7 @@ type SceneLike = Object3D & {
   background: unknown
   environment: unknown
   fog: Fog | null
+  resolvedAtmosphere?: ResolvedAtmosphere
 }
 
 /** A linear colour, or a point a light aims at. */
@@ -95,6 +97,7 @@ export function saveScene(scene: SceneLike, camera?: Camera): SavedScene {
     formatVersion: SCENE_FORMAT_VERSION,
     background: background && rgb(background),
     fog: sceneFogOf(scene.fog) ?? null,
+    ...(scene.resolvedAtmosphere && { atmosphere: plain(scene.resolvedAtmosphere) }),
     camera: camera ? saveCamera(camera) : null,
     geometries: [...tables.geometries.keys()].map(saveGeometry),
     materials: [...tables.materials.keys()].map(saveMaterial),
@@ -142,6 +145,7 @@ function saveNode(o: Object3D, tables: Tables): SavedNode {
       values: { ...lamp._values },
       target: lamp.target.position.toArray() as Triple,
       sh: lamp.sh ? [...lamp.sh] : null,
+      ...(lamp.atmosphereSun ? {} : { atmosphereSun: false as const }),
     }
   if (model.isLoadedModel) saved.model = { url: model.record.manifestUrl }
   return saved

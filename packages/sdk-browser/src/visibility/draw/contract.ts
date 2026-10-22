@@ -44,12 +44,12 @@ export const CULL_BINS = 3
 /** The kinds of rows a half's slots tell apart, in their order (`rowKind`): opaque, cutout,
  *  voxel, then the rows the software raster draws this image (`DrawItem.raster`), whatever
  *  their kind: the hardware raster walks none of their slots, the x-ray view walks them all
- *  (`../passes/drawer.ts`). */
+ *  (`../passes/slotWalk.ts`). */
 export const BIN_KIND = { OPAQUE: 0, CUTOUT: 1, VOXEL: 2, SOFTWARE: 3 } as const
 export type BinKind = (typeof BIN_KIND)[keyof typeof BIN_KIND]
 const BIN_KINDS = 4
-/** Slots of one half — the cut's main pass, the occluders, or its post pass, the tested rows — of
- *  a coplanar layer: the face modes of each kind. */
+/** Slots of one half — the main pass's, or the post pass's — of a coplanar layer: the face modes
+ *  of each kind. */
 export const HALF_SLOTS = BIN_KINDS * CULL_BINS
 /** Slots of one coplanar layer: the main pass's half, then the post pass's. */
 export const BASE_SLOTS = 2 * HALF_SLOTS
@@ -68,8 +68,8 @@ export function drawGroupWords(slotCap: number, slots: number) {
 }
 /**
  * The compaction's `indirect` buffer for `slots` slots: one command per slot, then each slot's
- * total — between the count and the prefix of a run, zero otherwise — and where the occluder
- * half's instances end, `slots + 1` words the groups sum at once, the one atomic region.
+ * total — between the count and the prefix of a run, zero otherwise — and where the instances of
+ * the main pass's half end, `slots + 1` words the groups sum at once, the one atomic region.
  */
 export const drawIndirectBytes = (slots: number) => slots * DRAW_INDIRECT_STRIDE + (slots + 1) * 4
 /**

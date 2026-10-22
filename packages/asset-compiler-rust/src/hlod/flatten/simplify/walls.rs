@@ -10,6 +10,7 @@ use super::convert::clockwise_normal;
 use super::kdop::{Tree, Walk};
 use super::proxy::Proxy;
 use rayon::prelude::*;
+use trillion3d_math::scalar::not_above;
 use trillion3d_math::vector::vecn::dot;
 
 /// The fractions of an edge past which, and under which, a hit is the edge's own corner.
@@ -39,7 +40,7 @@ fn crossed(mesh: &Proxy, tree: &Tree, f: usize, walk: &mut Walk) -> bool {
         let time = f64::from(hit.time);
         other != f
             && !(time > LAST || time < FIRST)
-            && !(dot(normal, clockwise_normal(mesh.corners(other))) > FACING)
+            && not_above(dot(normal, clockwise_normal(mesh.corners(other))), FACING)
     })
 }
 

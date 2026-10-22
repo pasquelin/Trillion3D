@@ -121,7 +121,7 @@ pub(crate) fn normal_code(n: [f32; 3], bits: u32) -> [u32; 2] {
     let max = (1u32 << bits) - 1;
     let sum = n[0].abs() + n[1].abs() + n[2].abs();
     if !(sum > 0.0 && sum.is_finite()) {
-        return [(max + 1) / 2; 2];
+        return [max.div_ceil(2); 2];
     }
     let half = 0.5 * max as f32;
     let step = 2.0 / max as f32;

@@ -4,35 +4,32 @@ import {
   SCENE_LIGHT_FLOATS,
   SCENE_LIGHT_HEADER_FLOATS,
 } from '../../../../../sdk-core/src/scene/light/contracts.ts'
-import { SCENE_ENVIRONMENT_FLOATS } from '../../../../../sdk-core/src/scene/core/environment.ts'
 import type { SceneLightStore } from '../../../../../sdk-core/src/scene/light/store.ts'
-import { LTC_SIZE, ltcTable } from '../../../../../sdk-core/src/lighting/ltcTable.ts'
+import { ltcTable } from '../../../../../sdk-core/src/lighting/ltcTable.ts'
+import { HEAD_BYTES, LIGHT_BUFFER_AT } from './lightBufferLayout.ts'
 import type { WebgpuLightState } from './lights.ts'
 
-/** Bytes before the light slots (`DirectLights`): the header, the environment's irradiance, then
- *  the fitted lobe of the rectangles, two `vec4f` per cell. */
-const HEAD_BYTES = SCENE_LIGHT_HEADER_FLOATS * 4,
-  LTC_BYTES = HEAD_BYTES + SCENE_ENVIRONMENT_FLOATS * 4,
-  ITEMS_BYTES = LTC_BYTES + LTC_SIZE * LTC_SIZE * 32
 const SLOT_BYTES = SCENE_LIGHT_FLOATS * 4
 /** Light slots of the buffer: the store's, and never fewer than a tile list's, the light array
  *  the narrow tile pass declares (`../../../lighting/tiles/shader.ts`). */
 const bufferSlots = (store: SceneLightStore) => Math.max(store.capacity, LIGHT_SETTINGS.tileLights)
 
 /** Contract light buffer for the store's light slots — the header, the environment's irradiance,
- *  the fitted lobe of the rectangles, written here once, then every slot. */
+ *  the atmosphere's regions, the fitted lobe of the rectangles, written here once, then every
+ *  slot. */
 export function createSceneLightContractBuffer(device: GPUDevice, store: SceneLightStore) {
   const buffer = device.createBuffer({
     label: 'Trillion3D direct lights v1',
-    size: ITEMS_BYTES + bufferSlots(store) * SLOT_BYTES,
+    size: LIGHT_BUFFER_AT.items + bufferSlots(store) * SLOT_BYTES,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
-  device.queue.writeBuffer(buffer, LTC_BYTES, ltcTable())
+  device.queue.writeBuffer(buffer, LIGHT_BUFFER_AT.ltc, ltcTable())
   return buffer
 }
 
 /** Light slots `buffer` holds. */
-const contractBufferSlots = (buffer: GPUBuffer) => (buffer.size - ITEMS_BYTES) / SLOT_BYTES
+const contractBufferSlots = (buffer: GPUBuffer) =>
+  (buffer.size - LIGHT_BUFFER_AT.items) / SLOT_BYTES
 
 /**
  * Pushes the store to the GPU if and only if its revision has changed since the last image. A
@@ -55,10 +52,12 @@ export function uploadSceneLights(device: GPUDevice, lights: WebgpuLightState) {
     { packed } = store
   device.queue.writeBuffer(buffer, 0, packed, 0, SCENE_LIGHT_HEADER_FLOATS)
   device.queue.writeBuffer(buffer, HEAD_BYTES, store.environmentPacked)
+  device.queue.writeBuffer(buffer, LIGHT_BUFFER_AT.sky, store.skyPacked)
+  device.queue.writeBuffer(buffer, LIGHT_BUFFER_AT.atmosphere, store.atmospherePacked)
   // Only the declared slots: those past the count are never read.
   device.queue.writeBuffer(
     buffer,
-    ITEMS_BYTES,
+    LIGHT_BUFFER_AT.items,
     packed,
     SCENE_LIGHT_HEADER_FLOATS,
     store.count * SCENE_LIGHT_FLOATS,

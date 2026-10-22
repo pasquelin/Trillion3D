@@ -6,17 +6,44 @@ import {
   type SceneLight,
   type SceneLightingView,
 } from './contracts.ts'
-import {
-  type SceneEnvironment,
-  SCENE_ENVIRONMENT_FLOATS,
-  packEnvironment,
-  validateSceneEnvironment,
-} from '../core/environment.ts'
-import { sameSceneEnvironment, sameSceneLight } from './equal.ts'
+import { type SceneEnvironment, validateSceneEnvironment } from '../core/environment.ts'
+import { sameSceneLight } from './equal.ts'
 
 import { LIGHT_FIELD, baseOf, writeLightFields } from './fields.ts'
+import { createSunBlocks } from './sunBlocks.ts'
+import { joined } from '../../runtime/joined.ts'
 import { validateSceneLight } from './validate.ts'
 import { createLightKinds } from './kinds.ts'
+import { createLightRanks } from './lightRanks.ts'
+import { createEnvironmentBlock } from './environmentBlock.ts'
+
+/** Lights casting a shadow that are suns, that are local lights; lights that are rectangles:
+ *  counted at every add, change and removal (`createLightKinds`). */
+const kindCounts = (kinds: ReturnType<typeof createLightKinds>) => ({
+  get shadowedSuns() {
+    return kinds.shadowedSuns
+  },
+  get shadowedLocals() {
+    return kinds.shadowedLocals
+  },
+  get rects() {
+    return kinds.rects
+  },
+})
+
+/** The atmosphere's block as the GPU reads it, behind the environment's (`atmospherePack.ts`), and
+ *  its versions. */
+const airReads = (air: ReturnType<typeof createSunBlocks>['air']) => ({
+  atmospherePacked: air.packed,
+  /** Bumped when the air changes: what its lookup tables are made from. */
+  get atmosphereVersion() {
+    return air.version
+  },
+  /** Bumped when the air or its sun changes: what the sky shows and the sky light captures. */
+  get atmosphereEpoch() {
+    return air.epoch
+  },
+})
 
 /** The lights of a scene as the GPU reads them, packed and kept up to date. */
 export type SceneLightStore = ReturnType<typeof createSceneLightStore>
@@ -34,10 +61,8 @@ export function createSceneLightStore() {
     revision = new Uint32Array(0)
   const ids: string[] = []
   const indexOf = new Map<string, number>()
-  /** The environment's irradiance as the GPU reads it, behind the lights (`../core/environment.ts`). */
-  const environmentPacked = new Float32Array(SCENE_ENVIRONMENT_FLOATS)
-  let environment: SceneEnvironment | undefined,
-    view: SceneLightingView = 'auto',
+  const environment = createEnvironmentBlock()
+  let view: SceneLightingView = 'auto',
     epoch = 1,
     /** The epoch's bumps that moved no light transport: a fog alone, a shadow slice alone. */
     notTransport = 0
@@ -57,14 +82,26 @@ export function createSceneLightStore() {
   /** Fields declared by the host. The shadow slice is not one: the scheduler sets it. */
   const write = (slot: number, light: SceneLight) => writeLightFields(packed, baseOf(slot), light)
   const records = new Map<string, SceneLight>(),
-    kinds = createLightKinds()
+    kinds = createLightKinds(),
+    ranks = createLightRanks(),
+    suns = createSunBlocks({
+      ids,
+      records,
+      indexOf,
+      rankOf: ranks.of,
+      packed: () => packed,
+      environment: () => environment.current,
+      environmentPacked: environment.packed,
+      write,
+    })
   const store = {
     settings: LIGHT_SETTINGS,
     /** Every light, packed for the GPU: a new array when the table grows. */
     get packed() {
       return packed
     },
-    environmentPacked,
+    environmentPacked: environment.packed,
+    skyPacked: environment.sky,
     /** Bumped on every change, per slot. */
     get revision() {
       return revision
@@ -82,17 +119,6 @@ export function createSceneLightStore() {
     get count() {
       return ids.length
     },
-    /** Lights casting a shadow that are suns, that are local lights; lights that are rectangles:
-     *  counted at every add, change and removal (`createLightKinds`). */
-    get shadowedSuns() {
-      return kinds.shadowedSuns
-    },
-    get shadowedLocals() {
-      return kinds.shadowedLocals
-    },
-    get rects() {
-      return kinds.rects
-    },
     /** Bumped when the set of lights changes. */
     get epoch() {
       return epoch
@@ -105,7 +131,7 @@ export function createSceneLightStore() {
     },
     /** The scene's environment. */
     get environment() {
-      return environment
+      return environment.current
     },
     /** View requested by the host, as-is: `auto` as long as it has asked for nothing. */
     get lightingView(): SceneLightingView {
@@ -147,12 +173,14 @@ export function createSceneLightStore() {
       ids.push(validated.id)
       indexOf.set(validated.id, slot)
       records.set(validated.id, validated)
+      ranks.take(validated.id)
       kinds.tally(validated, 1)
       revision[slot]++
       write(slot, validated)
       // A new slot is zero in the buffer; without a slice, the published value is −1.
       writeSlice(slot, -1)
       header[0] = ids.length
+      suns.touched(validated.kind === 'directional')
       epoch++
       return slot
     },
@@ -171,6 +199,7 @@ export function createSceneLightStore() {
       records.set(id, merged)
       revision[slot]++
       write(slot, merged)
+      suns.touched(merged.kind === 'directional' || current.kind === 'directional')
       epoch++
     },
     /** Removes a light. */
@@ -187,32 +216,26 @@ export function createSceneLightStore() {
         write(slot, records.get(movedId)!)
         writeSlice(slot, sliceOf(last))
       }
+      const removed = records.get(id)!
       ids.length = last
       indexOf.delete(id)
-      kinds.tally(records.get(id)!, -1)
+      kinds.tally(removed, -1)
       records.delete(id)
+      ranks.free(id)
       revision[last] = 0
       packed.fill(0, baseOf(last), baseOf(last + 1))
       header[0] = ids.length
+      // The sun, or the light that took its place in the buffer, changed: it is picked again.
+      suns.touched(removed.kind === 'directional' || suns.picked)
       epoch++
     },
     /** Sets the environment. */
     setEnvironment(next: SceneEnvironment) {
-      const validated = validateSceneEnvironment(next)
       // Same rule as `set`: an exposure reset as-is does not stale the frame.
-      if (environment && sameSceneEnvironment(environment, validated)) return
-      // Neither the fog nor the sharpening carries light: a change of theirs alone moves no transport.
-      const untransported = { fog: undefined, sharpness: undefined }
-      if (
-        environment &&
-        sameSceneEnvironment(
-          { ...environment, ...untransported },
-          { ...validated, ...untransported },
-        )
-      )
-        notTransport++
-      environment = validated
-      packEnvironment(environment, environmentPacked)
+      const change = environment.set(validateSceneEnvironment(next))
+      if (change === 'same') return
+      if (change === 'untransported') notTransport++
+      suns.environmentChanged()
       epoch++
     },
     /** Records the atlas slice a light occupies, without touching the rest of its fields. The store
@@ -226,5 +249,5 @@ export function createSceneLightStore() {
       notTransport++
     },
   }
-  return store
+  return joined(store, kindCounts(kinds), airReads(suns.air))
 }

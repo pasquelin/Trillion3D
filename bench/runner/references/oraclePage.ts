@@ -52,7 +52,7 @@ export async function measureIrradiance(options: IrradianceOptions): Promise<Irr
     },
     manifestUrl: options.manifestUrl,
     scope: 'full',
-    // Bounce is disabled by default: oracle campaign enables it.
+    // The oracle campaign names the bounce it measures, whatever the engine's default.
     bounce: true,
     width: options.width,
     height: options.height,

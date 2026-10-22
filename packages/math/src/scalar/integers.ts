@@ -14,7 +14,12 @@ export const alignDown = (x: number, n: number) => Math.floor(x / n) * n
 
 /** The bits an unsigned 32-bit integer `v` spans, 0 for 0: `32 − clz32(v)`, as the WGSL
  *  `bitLength` (`../wgsl/integer.ts`). */
-export const bitLength = (v: number) => 32 - Math.clz32(v)
+const bitLength = (v: number) => 32 - Math.clz32(v)
+
+/** Rounded up to `bits` significant bits: the steps a root page allocation and a request buffer
+ *  grow by (`growWebgpuRootRegion`, `requestSize.ts`). */
+export const roundUpToSignificantBits = (x: number, bits: number) =>
+  alignUp(x, 2 ** Math.max(bitLength(x - 1) - bits, 0))
 
 /** The exponent of the least power of two not under the integer `v`, 1 ≤ v ≤ 2^32:
  *  `bitLength(v − 1)`, exact on that whole domain (`v − 1` fits 32 bits). */

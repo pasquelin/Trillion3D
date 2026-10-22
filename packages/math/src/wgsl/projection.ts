@@ -53,13 +53,6 @@ export const clipToFramebuffer = wgslFn(
 }`,
 )
 
-/** The texture coordinates of the clip point `clip`: `ndcToUv` of its division by `w`. */
-export const clipToUv = wgslFn(
-  'clipToUv',
-  [perspectiveDivide, ndcToUv],
-  'fn clipToUv(clip:vec4f)->vec2f{return ndcToUv(perspectiveDivide(clip).xy);}',
-)
-
 /** Normalised device coordinates to texture coordinates, y kept up: a projection that already
  *  flips it. */
 export const ndcToUvUnflipped = wgslFn(

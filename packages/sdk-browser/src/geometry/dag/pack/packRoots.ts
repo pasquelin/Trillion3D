@@ -9,7 +9,7 @@ import {
 } from '../types.ts'
 import { baseOpen, linksFor } from '../../cut/links.ts'
 import { packCullingNodes } from './packNodes.ts'
-import { hierarchyLevelSizes } from '../hierarchy.ts'
+import { hierarchyLevelSizes, pageDepths } from '../hierarchy.ts'
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import type { DagCapacity } from './packCapacity.ts'
 import { WORLD_ROOT_MARK } from '../worlds/worldLinks.ts'
@@ -25,6 +25,7 @@ export type Culling = NonNullable<DagRoot['culling']>
 export type PackShared = DagPackShared
 export const emptyShared = (): PackShared => ({
   levelSizesOf: new Map(),
+  depthsOf: new Map(),
   firstOf: new Map(),
   nodeBlocks: new Map(),
 })
@@ -104,7 +105,14 @@ export function placeRoot(
   p.mark[w] = (root.mark ?? 0) | (root.hlod ? WORLD_ROOT_MARK : 0)
   const links = linksFor(culling, count)
   const { structure } = root
-  p.cutLinks.push({ structure, links, pageBase, pageCount: count, nodeBase, nodeCount })
+  // The levels its pages need reached once resident: walked once per page array.
+  let depth = p.shared.depthsOf.get(root.pages)
+  if (!depth)
+    p.shared.depthsOf.set(
+      root.pages,
+      (depth = pageDepths(culling.nodes, culling.stride, links, structure)),
+    )
+  p.cutLinks.push({ structure, links, depth, pageBase, pageCount: count, nodeBase, nodeCount })
   // A page array placed before, on the same nodes, has its records: one lookup, no record written.
   let first = p.shared.firstOf.get(root.pages)
   const base =

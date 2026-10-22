@@ -42,9 +42,14 @@ export class EffectChain {
   private readonly byStage = new Map<EffectStage, EffectPass[]>()
   private count = 0
   private readonly notify: () => void
-  /** @param changed - Runs after every change of the chain or of one of its passes. */
-  constructor(changed: () => void = () => {}) {
+  /**
+   * @param changed - Runs after every change of the chain or of one of its passes.
+   * @param passes - The passes the chain starts with, in order: none of them is a change.
+   */
+  constructor(changed: () => void = () => {}, passes: readonly EffectPass[] = []) {
     this.notify = changed
+    this.list.push(...passes)
+    for (const pass of passes) pass._chain = this
   }
   /** Counts the changes: an image drawn at another revision is out of date. */
   get revision() {

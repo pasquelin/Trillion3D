@@ -37,7 +37,7 @@ pub(super) fn recover_edges(mesh: &mut EdgeMesh, points: &[[f64; 2]], constraint
 }
 
 /// The position of `vertex`.
-fn at(points: &[[f64; 2]], vertex: i32) -> [f64; 2] {
+pub(super) fn at(points: &[[f64; 2]], vertex: i32) -> [f64; 2] {
     points[vertex as usize]
 }
 

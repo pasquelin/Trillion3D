@@ -77,7 +77,8 @@ export async function gridWorld(
   const table = Array.from({ length: side * side }, (_, cell) => gridCell(side, cell))
   const { partition, files } = paged(table, 4)
   const { manifest } = served(t, { world: gridRoots(side * side), answer })
-  const opening = { transfers, onStalled: stalled, maxTransferBytes }
+  // A failed read is tried again without end: the waits between the tries are what its tests read.
+  const opening = { transfers, onStalled: stalled, maxTransferBytes, numRetries: () => -1 }
   const { roots, queue: streamer } = await opened(t, manifest, opening)
   const cells = createPartitionCells({
     ...{ partition, base: 'https://cache.test/key/', root: new Group(), parents: [] },

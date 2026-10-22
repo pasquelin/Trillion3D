@@ -11,7 +11,7 @@ import { drawShader } from './shader.ts'
 import { BASE_SLOTS, BATCH_SHIFT, HALF_SLOTS, drawBatches, slotCount } from './contract.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
-type Item = { row: number; bin: number; rest: number; triangles: number }
+type Item = { row: number; bin: number; post: number; triangles: number }
 type Shape = { corners: number; perRow: number }
 type Prim = [row: number, triangle: number]
 
@@ -41,7 +41,7 @@ function compact(items: Item[], shape: Shape) {
   for (let group = 0; group * 64 < items.length; group++)
     for (let s = 0; s < slots; s++)
       for (const item of items.slice(group * 64, group * 64 + 64))
-        if (item.rest * HALF_SLOTS + item.bin === s)
+        if (item.post * HALF_SLOTS + item.bin === s)
           for (let b = 0; b < batchesOf(item, shape); b++)
             lists[s].push(item.row | ((b * (shape.corners / 3)) << BATCH_SHIFT))
   return lists
@@ -77,7 +77,7 @@ function frame(seed: number, rows: number, maxTriangles: number): Item[] {
   return Array.from({ length: rows }, (_, row) => ({
     row,
     bin: Math.floor(next() * HALF_SLOTS),
-    rest: next() < 0.3 ? 1 : 0,
+    post: next() < 0.3 ? 1 : 0,
     // Rows of every size, the widest page's among them, and empty rows.
     triangles: next() < 0.1 ? maxTriangles : Math.floor(next() * (maxTriangles + 1)),
   }))

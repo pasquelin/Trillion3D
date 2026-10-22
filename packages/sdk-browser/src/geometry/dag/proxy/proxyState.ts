@@ -89,7 +89,7 @@ export function createProxyState({ device, packed, frames }: ProxySource) {
   const columns = createProxyColumns(arena)
   const posed = createPosedCopies(device, arena, columns, packed)
 
-  // The placements standing, and their world boxes for the probes' occupancy map (`proxyBoxes.ts`).
+  // The placements standing, and their world boxes, whose extent the probes' world light grid is laid on (`proxyBoxes.ts`).
   const live = () => packed.live?.worlds ?? packed.worldSources.length
   const boxes = createProxyBoxes(packed, slots, live)
 

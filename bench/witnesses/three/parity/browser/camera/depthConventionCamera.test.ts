@@ -16,7 +16,6 @@ import { createEngineCamera } from '../../../../../../packages/sdk-browser/src/c
 import { readCameraWorld } from '../../../../../../packages/sdk-browser/src/camera/world.ts'
 import {
   DEPTH_CLEAR,
-  DEPTH_COMPARE,
   DEPTH_NEAR,
   depthNearer,
 } from '../../../../../../packages/sdk-browser/src/camera/depthConvention.ts'
@@ -52,7 +51,6 @@ test('the host clip convention enters no engine number', () => {
 })
 
 test('engine depth is reversed: the near plane is 1, the far is 0', () => {
-  assert.equal(DEPTH_COMPARE, 'greater')
   assert.equal(DEPTH_NEAR, 1)
   assert.equal(DEPTH_CLEAR, 0)
   assert.equal(depthNearer(DEPTH_NEAR, DEPTH_CLEAR), true)

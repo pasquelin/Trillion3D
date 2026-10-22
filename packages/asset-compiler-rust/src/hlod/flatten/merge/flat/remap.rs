@@ -23,6 +23,9 @@ pub(super) fn occupancy(cells: &[Cell], side: usize) -> Vec<u32> {
     occupancy
 }
 
+/// Each mesh's texture coordinates as generated for it, three to a triangle.
+type LaidCoordinates = BTreeMap<usize, Vec<[[f64; 2]; 3]>>;
+
 /// The merged mesh of `parts`, each part's texture coordinates in its entry's cell: on a quad its
 /// own first set, on its mesh the coordinates generated for it (`laid`), its vertices split where
 /// two of its corners take two; each moved by its cell, `uv · scale + offset`, a cell of no scale
@@ -30,7 +33,7 @@ pub(super) fn occupancy(cells: &[Cell], side: usize) -> Vec<u32> {
 pub(super) fn remapped(
     parts: &[&Part],
     (grounds, entry_of): (&[Ground], &[usize]),
-    (laid, cells): (&BTreeMap<usize, Vec<[[f64; 2]; 3]>>, &[Cell]),
+    (laid, cells): (&LaidCoordinates, &[Cell]),
 ) -> Flat {
     let mut flat = Flat {
         positions: Vec::new(),

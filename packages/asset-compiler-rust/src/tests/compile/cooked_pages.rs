@@ -150,6 +150,9 @@ pub(in crate::tests) fn page_corners(
     })
 }
 
+/// A child corner's normal, when it has one, and its vertex.
+type Wedge = (Option<[u64; 3]>, u32);
+
 /// Each coarse corner of `pages` that decodes bit for bit onto a corner of its group's children,
 /// matched again to that child corner's vertex, the same normal first: a position the
 /// simplification kept is the children's vertex, not whichever source vertex lies nearest it —
@@ -167,7 +170,7 @@ fn rematch(primitive: &Value, pages: &mut [std::result::Result<PageCorners, Stri
     let bits = |p: Point| p.map(f64::to_bits);
     for group in order {
         // Per decoded child corner, its normal and its vertex.
-        let mut kept: HashMap<[u64; 3], Vec<(Option<[u64; 3]>, u32)>> = HashMap::new();
+        let mut kept: HashMap<[u64; 3], Vec<Wedge>> = HashMap::new();
         for child in ids(group, "children") {
             let Some(Ok(d)) = pages.get(child) else {
                 continue;

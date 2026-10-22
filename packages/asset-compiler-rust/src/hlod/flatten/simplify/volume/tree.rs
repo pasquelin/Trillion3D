@@ -216,7 +216,7 @@ impl<T: Copy> Tree<T> {
             *at = Slot::Child(Box::new(Leaf::filled(origin_of(c, LEAF_SIDE), v)));
         }
         match at {
-            Slot::Child(leaf) => &mut **leaf,
+            Slot::Child(leaf) => leaf,
             Slot::Tile(_) => unreachable!("a leaf was just made"),
         }
     }

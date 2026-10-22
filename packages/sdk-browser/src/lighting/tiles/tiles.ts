@@ -19,7 +19,7 @@ export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>
 /**
  * The light grid's passes (`./shader.ts`) over ONE buffer every reader of a list binds: the view's
  * grid — its cells the view's, its records then the pool of their lists (`./pool.ts`) — then the
- * bounce's world grid over the last cascade level's lattice (`ensureWorld`), its records then its
+ * bounce's world grid over the lattice laid on the scene (`ensureWorld`), its records then its
  * pool. The grids are laid out again only when a grid needs more columns or its pool grows — the
  * buffer grown by the engine's one rule, the old one retired; then the world grid's lists are
  * listed again (`revision`) —; each grid's group follows the light buffer,

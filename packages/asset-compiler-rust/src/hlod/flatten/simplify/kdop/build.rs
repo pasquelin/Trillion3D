@@ -7,6 +7,7 @@
 //! boxes then gathered from the leaves up, each leaf's the box of its corners, each parent's the
 //! union of its children's.
 use super::{Below, Bounds, Face, Node};
+use trillion3d_math::scalar::{not_at_least, not_below};
 use trillion3d_math::vector::vec3::{cross, unit_where_squared};
 use trillion3d_math::vector::vecn::{dot, sub};
 
@@ -110,14 +111,14 @@ fn split(run: &mut [Built]) -> usize {
     let (mut left, mut right) = (-1isize, count as isize);
     loop {
         left += 1;
-        while left < right && !(along(&run[left as usize]) < at) {
+        while left < right && not_below(along(&run[left as usize]), at) {
             left += 1;
         }
         if left == right {
             break;
         }
         right -= 1;
-        while left < right && !(along(&run[right as usize]) >= at) {
+        while left < right && not_at_least(along(&run[right as usize]), at) {
             right -= 1;
         }
         if left == right {

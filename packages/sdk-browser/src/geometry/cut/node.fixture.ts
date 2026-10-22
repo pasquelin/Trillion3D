@@ -1,4 +1,4 @@
-import { viewDepth } from '../selection/projection.ts'
+import { viewDepth } from '../selection/projection.fixture.ts'
 import { errorFloorAt } from '../selection/projection.fixture.ts'
 import { CULL_FLOOR, CULL_SPHERE } from '../dag/types.ts'
 import type { PageRecord, SelectionState } from './state.fixture.ts'

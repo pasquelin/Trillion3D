@@ -1,5 +1,5 @@
 import { feedbackConstants } from '../../materials/virtual/requestWgsl.ts'
-import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
+import { fullscreenDescriptor, preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import {
   DISTORTION_BINDINGS,
   reflectedGroups,
@@ -7,11 +7,11 @@ import {
   type TransmitPipelines,
 } from '../stagePipelines.ts'
 import { cullOf, refractsRank, transmitsRank } from '../plan/planCull.ts'
-import { displayMaskLayout, displayTargets } from '../display/displayFilter.ts'
-import { companionTargets, type ShareTargets } from '../blendTargets.ts'
+import { displayMaskLayout } from '../display/displayFilter.ts'
+import { companionTargets, overTargets, type ShareTargets } from '../blendTargets.ts'
 import { ADD_ONE, OVER } from '../equations.ts'
-import { GIVEN_UP_TARGET, REACTIVE_TARGET } from '../../lighting/deferred/asIsShare.ts'
-import { DISTORTION_FORMAT, FEEDBACK_FORMAT, HDR_FORMAT } from '../../scene/targetFormats.ts'
+import { REACTIVE_TARGET } from '../../lighting/deferred/asIsShare.ts'
+import { DISTORTION_FORMAT, HDR_FORMAT } from '../../scene/targetFormats.ts'
 import {
   computeSamplerEntry,
   computeTextureEntry,
@@ -23,8 +23,6 @@ import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 /** The dual blend: the first source added, the destination multiplied by the second; the alpha
  *  the first source's coverage laid over the target's, as the fallback's (`OVER_BLEND`). */
 const DUAL_BLEND: GPUBlendState = { color: { srcFactor: 'one', dstFactor: 'src1' }, alpha: OVER }
-/** The fallback without dual-source blending: premultiplied colour over, its grey coverage laid over the target's. */
-const OVER_BLEND: GPUBlendState = { color: OVER, alpha: OVER }
 /** The distortion accumulation: every refracting layer's offset added. */
 const ACCUMULATE: GPUBlendState = { color: ADD_ONE, alpha: ADD_ONE }
 /** The offsets' target, every accumulation's. */
@@ -42,22 +40,6 @@ const ranked = (
   at: (rank, _filtered, share = 0) => culls(share)[cullOf(rank)].get(),
   skips: (rank) => !drawn(rank),
 })
-
-/** The targets of the fallback, as the blend pass lays them (`blendTargets`): the HDR target, the
- *  request, the reactive value where the frame has a share — green alone, as a particle's —, the
- *  display layers of a normal layer where it is `filtered`, the history given up at `share` 2
- *  (`ShareTargets`). */
-export const overTargets = (
-  feedback: boolean,
-  filtered: boolean,
-  share: ShareTargets,
-): (GPUColorTargetState | null)[] => [
-  { format: HDR_FORMAT, blend: OVER_BLEND },
-  feedback ? { format: FEEDBACK_FORMAT } : null,
-  share ? REACTIVE_TARGET : null,
-  ...(filtered ? displayTargets('normal') : [null, null]),
-  share === 2 ? GIVEN_UP_TARGET : null,
-]
 
 /** The distortion's accumulation group: the deferred view, the opaque depth. */
 const distortionLayout = oncePerDevice((device: GPUDevice) =>
@@ -248,20 +230,18 @@ export function createTransmitPipelines(
   )
   // The application, full screen: no vertex buffer, no
   // depth, the pixels without an offset dropped by its fragment (\`distortedScene\`).
-  const apply = preparedPipeline(device, {
-    label: 'Trillion3D distortion apply',
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [emptyLayout(device), applyLayout(device)],
-    }),
-    vertex: { module, entryPoint: 'fullscreen' },
-    fragment: {
+  const apply = preparedPipeline(
+    device,
+    fullscreenDescriptor(
+      device,
       module,
-      entryPoint: 'fsDistortionApply',
-      targets: [{ format: HDR_FORMAT }],
+      [emptyLayout(device), applyLayout(device)],
+      'fsDistortionApply',
+      [{ format: HDR_FORMAT }],
+      'Trillion3D distortion apply',
       constants,
-    },
-    primitive: { topology: 'triangle-list' },
-  })
+    ),
+  )
   return {
     over,
     dual: dual ? ranked(dualOf) : undefined,

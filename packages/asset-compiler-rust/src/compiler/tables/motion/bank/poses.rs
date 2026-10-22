@@ -82,6 +82,9 @@ pub(super) fn each_frame(
     Ok(())
 }
 
+/// Each node's parent in the input scene, none until a call that needs them reads them.
+type Parents = Option<Vec<Option<usize>>>;
+
 /// A plain skinned node's animated bounds in its skin frame's space: the mesh box grown by every
 /// joint translation of every clip moving its skin (boundsScale 1), and its frame.
 ///
@@ -94,7 +97,7 @@ pub(crate) fn animated_bounds(
     g: &Value,
     bin: &[u8],
     node: usize,
-    (boxes, parents): (&[Option<[f64; 6]>], &mut Option<Vec<Option<usize>>>),
+    (boxes, parents): (&[Option<[f64; 6]>], &mut Parents),
 ) -> Result<Option<(Option<usize>, [f64; 6])>> {
     let nodes = values(g, "nodes")?;
     let declared = item(nodes, node, "node")?;

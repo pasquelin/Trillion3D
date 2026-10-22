@@ -51,5 +51,6 @@ pub(super) fn open() -> Result<Device, String> {
         device,
         queue,
         programs: Default::default(),
+        turn: Default::default(),
     })
 }

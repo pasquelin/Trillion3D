@@ -91,6 +91,7 @@ export const ENGINE_METRIC_KEYS = [
   'tileLightPoolGrowths',
   'gpuShadowsMs',
   'gpuLightingMs',
+  'bounce',
 ] as const
 
 /** Measurements the engine publishes of every frame beside the host's own counters: `null`

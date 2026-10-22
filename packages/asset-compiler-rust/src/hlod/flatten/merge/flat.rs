@@ -12,28 +12,28 @@
 //!   material (`quad`), the tile its own texture coordinates address. Parts of one material and
 //!   one ground share one entry, one bake: every quad of a material is one, a mesh's parts
 //!   mirrored alike are one, read behind as its first part lies.
-//! - Each entry baked at the atlas's side, one sample a texel (`tile.rs`), its images then shrunk
-//!   to one texel when they hold one value, their background filled outward (`smear.rs`) and
-//!   placed in the entry's cell (`grid.rs`); the atlas's background filled outward from the cells,
-//!   each image then averaged down to its own side where the layer sizes its maps apart
-//!   (`Flattening::sides`). The emission images, each held over its entry's own strength, are
-//!   brought onto the largest (`emission`).
+//! - Each entry baked at the atlas's side, one sample a texel, on the GPU (`tile.rs`), its images
+//!   then shrunk to one texel when they hold one value, their background filled outward
+//!   (`smear.rs`) and placed in the entry's cell (`grid.rs`); the atlas's background filled
+//!   outward from the cells, each image then averaged down to its own side where the layer sizes
+//!   its maps apart (`Flattening::sides`). The emission images, each held over its entry's own
+//!   strength, are brought onto the largest (`emission`).
 //! - The mesh: every part's vertices, its normals kept, its texture coordinates — its own on a
 //!   quad, the laid ones on its mesh — moved into its entry's cell, `uv · scale + offset`.
 //!   The flattened material draws both faces when one of its materials does and the layer allows
 //!   it (`allowDoubleSided`, on by default).
 //!
 //! What an entry is baked on lives in `ground`, the mesh laid into the atlas in `remap`, the
-//! atlas's side and the bytes a cut and its work hold in `sizing`, the emission atlas in
-//! `emission`.
+//! atlas's side and the counts a cut holds in `sizing`, the bytes its making holds in `working`,
+//! the emission atlas in `emission`.
 use super::super::bake::appearance::tone;
-use super::super::bake::sources::{Piece, Sources};
+use super::super::bake::sources::Piece;
 use super::super::bake::{sized, Emission, Maps};
 use super::super::uv::raster::{EMPTY, SAMPLED};
 use super::super::{step, Atlas, Library, Made, Sides, StageMs, Stages};
 use super::grid::{binned, grid, placed, Cell};
 use super::smear::{shrunk, smeared, uniform, Image};
-use super::tile::{baked, Baked, Behind};
+use super::tile::{baked, Baked, Behind, Read};
 use super::Part;
 use crate::hlod::options::HlodUvMethod;
 use rayon::prelude::*;
@@ -46,7 +46,9 @@ use ground::{laid_out, oriented, reads_mesh, Ground};
 mod remap;
 use remap::{occupancy, remapped};
 mod sizing;
-pub(in crate::hlod) use sizing::{area, atlas_sides, cut_bytes, sphere, working_bytes};
+pub(in crate::hlod) use sizing::{area, atlas_sides, cut_counts, sphere};
+mod working;
+pub(in crate::hlod) use working::{working_bytes, Flattened};
 
 /// How a merged layer flattens its materials: the atlas's side (`side`), each cell's gutter in
 /// texels (`atlasGutter`), whether the cells are binned by their materials' texture sizes
@@ -113,7 +115,7 @@ pub(in crate::hlod) fn merged_flat(
     let started = std::time::Instant::now();
     let seen: Vec<bool> = parts
         .iter()
-        .map(|p| seen_through(p, library, maps))
+        .map(|p| seen_through(p.material, library, maps))
         .collect();
     let grounds: Vec<Ground> = (parts.iter().zip(&seen))
         .map(|(p, &through)| {
@@ -192,14 +194,16 @@ pub(in crate::hlod) fn merged_flat(
         } = match ground {
             Ground::Quad => {
                 let (sources, coordinates) = quad(material, library);
-                baked(&sources, &coordinates, (side, maps), None)
+                baked(Read::Own(&sources), &coordinates, (side, maps), library)?
             }
             Ground::Mesh(mesh, mirrored) => {
-                let sources = Sources::of(&[parts[first].piece()], library);
                 let coordinates: Vec<[[f64; 2]; 3]> =
                     laid[&mesh].iter().map(|&t| oriented(t, mirrored)).collect();
                 let behind = behind.as_ref().filter(|_| seen[first]);
-                baked(&sources, &coordinates, (side, maps), behind)
+                let piece_of = |k: usize| parts[k].piece();
+                Read::of(behind, &[first], piece_of, library, |read| {
+                    baked(read, &coordinates, (side, maps), library)
+                })?
             }
         };
         strengths.push(emission_strength);

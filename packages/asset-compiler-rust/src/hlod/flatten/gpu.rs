@@ -2,7 +2,8 @@
 //! needs it and shared by every job (`open`). Each job packs, uploads, submits and waits for its
 //! own work while others do theirs: no job waits for another's submissions, which the device runs
 //! between its own (`submit`). Two programs run on it, each compiled the first time it is asked for
-//! and kept with the device: the atlas bake (`bake/gpu.rs`) and the approximated shell's point
+//! and kept with the device: the atlas bake (`bake/gpu.rs`), of an approximated shell's atlas and
+//! of a merged or simplified layer's flattened materials, and the approximated shell's point
 //! queries (`approximate/gpu.rs`).
 //! What both share — the layout's common constants, the bindings, the compile, the packing of
 //! positions and tree links, and the batches a pass runs in, two at once (`batches`) — is written
@@ -20,7 +21,7 @@ pub(crate) mod layout;
 mod open;
 pub(crate) mod pack;
 mod submit;
-pub(crate) use batches::Batches;
+pub(crate) use batches::{held_bytes, Batches};
 pub(crate) use layout::{Passes, Source};
 pub(crate) use submit::{scoped, Pace, Reading};
 
@@ -36,6 +37,23 @@ pub(crate) struct Device {
     device: wgpu::Device,
     queue: wgpu::Queue,
     programs: [OnceLock<Result<Passes, String>>; 2],
+    /// Taken by each submission and each poll, and by nothing longer: a poll is one look at the
+    /// device that takes no time (`Poll`, never a wait on it), so its maintenance never runs beside
+    /// another job's submission — the device's own checks assume a queue it finds empty has finished
+    /// what it saw done, which a submission in between breaks — while a wait is naps between polls,
+    /// the turn free (`submit`).
+    turn: std::sync::Mutex<()>,
+}
+
+/// `bytes` of the device's buffers as an admission counts them: all where the process's measure of
+/// its memory holds them (`rss::counts_device_buffers`), none where it does not — an estimate
+/// follows what the measure reads.
+pub(crate) fn counted(bytes: usize) -> usize {
+    if crate::support::perf::rss::counts_device_buffers() {
+        bytes
+    } else {
+        0
+    }
 }
 
 impl Device {

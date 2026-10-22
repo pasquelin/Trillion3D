@@ -27,7 +27,8 @@ export const CLUSTER_HEADER_WORDS = 23
 
 /**
  * Attribute presence bits: normal, first and second texture coordinate, colour; then the skin
- * and the morph targets (`deform.rs`).
+ * and the morph targets (`deform.rs`), the stored tangent (`FLAG_TANGENT`) and the third and
+ * fourth texture coordinates (`FLAG_UV2`, `FLAG_UV3`).
  */
 export const FLAG_NORMAL = 1
 

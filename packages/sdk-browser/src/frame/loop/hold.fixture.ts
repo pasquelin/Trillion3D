@@ -61,7 +61,8 @@ export function settledRt() {
     vis: { gpuDraw: true, textureJobs: [] as unknown[], gpuHiz: undefined },
     lights: {
       changes: { deferred: () => false },
-      store: { count: 0, epoch: 1 },
+      // A manual exposure: the lit image asks no exposure meter (`../../post/exposure/frame.ts`).
+      store: { count: 0, epoch: 1, environment: { exposure: 1 } },
       // The declared-light buffer prepare makes before any frame (`preparePages.ts`): the one the
       // lit program binds (`directLightResources`).
       buffer: {} as GPUBuffer,

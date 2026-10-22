@@ -1,4 +1,5 @@
 use super::*;
+use trillion3d_math::scalar::not_above;
 
 /// The world plane of a local one, and the factor its areas are multiplied by.
 pub fn world_plane(
@@ -7,7 +8,7 @@ pub fn world_plane(
 ) -> Option<([f64; 3], f64, f64)> {
     let direction = trillion3d_math::matrix::linear::cofactor_direction(matrix, plane.normal);
     let scale = trillion3d_math::vector::vecn::length(direction);
-    if !matches!(scale.partial_cmp(&0.0), Some(std::cmp::Ordering::Greater)) {
+    if not_above(scale, 0.0) {
         return None;
     }
     let unit = [

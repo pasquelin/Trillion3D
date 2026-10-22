@@ -53,15 +53,18 @@ fn clampTexel(p:vec2i)->vec2i{return clampToExtent(p,vec2i(view.render.xy));}`,
 /**
  * One stage over the span texels within `ring` of the tile, then a barrier — none after the
  * `last`: `body` sees `l`, the texel's place in the span, `g` its image texel (past the edge for a
- * border texel), `c` the nearest drawn texel to it.
+ * border texel), `c` the nearest drawn texel to it. Under `when`, a condition the whole workgroup
+ * shares (a uniform), the stage runs only where it holds — the barrier stays outside it — and the
+ * words it would write keep their zero.
  */
-export const tileStage = (plan: TilePlan, ring: number, body: string, last = false) => {
+export const tileStage = (plan: TilePlan, ring: number, body: string, last = false, when = '') => {
   const side = ringSide(plan, ring)
-  return ` for(var ringSlot=lane;ringSlot<${ringTexels(plan, ring)}u;ringSlot+=${tileLanes(plan)}u){
+  const loop = ` for(var ringSlot=lane;ringSlot<${ringTexels(plan, ring)}u;ringSlot+=${tileLanes(plan)}u){
   let l=vec2i(i32(ringSlot%${side}u),i32(ringSlot/${side}u))+vec2i(${plan.border - ring});
   let g=origin+l;let c=clampTexel(g);
 ${body}
- }
+ }`
+  return `${when ? ` if(${when}){\n${loop}\n }` : loop}
 ${last ? '' : ' workgroupBarrier();'}`
 }
 
@@ -97,9 +100,10 @@ export const tileWithin = (plan: TilePlan, ring: number) => {
 }
 
 /** The network's words, `words` of them, and `extraBytes` of workgroup memory beside: within what
- *  every device holds (`GUARANTEED_WORKGROUP_BYTES`). */
-export const tileWords = (words: number, extraBytes = 0) => {
-  if (words * 4 + extraBytes > GUARANTEED_WORKGROUP_BYTES)
+ *  every device holds (`GUARANTEED_WORKGROUP_BYTES`), or `limit`, the bytes a device holds, for a
+ *  plan made for it. */
+export const tileWords = (words: number, extraBytes = 0, limit = GUARANTEED_WORKGROUP_BYTES) => {
+  if (words * 4 + extraBytes > limit)
     throw new Error(`TAA_TILE_WORKGROUP_BYTES ${words * 4 + extraBytes}`)
   return `var<workgroup> tileWords:array<u32,${words}>;`
 }

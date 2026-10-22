@@ -14,7 +14,6 @@ import { createHoldOrder } from '../hlod/hlodHolds.ts'
 import { createCellHolds } from './cellHolds.ts'
 import { cellPriority, PRIORITY_VISIBLE } from '../streaming/priority.ts'
 import { paged } from './paged.fixture.ts'
-import { createStreamingSource } from './source.ts'
 import { resolveWorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 
 const SIDE = 100,
@@ -93,8 +92,6 @@ test('the actors that come loaded together are held by the priority of the unit 
     },
   ]
   const { partition } = paged(records, 1)
-  const source = createStreamingSource(resolveWorldStreaming({}), partition)
-  source.set([0, 0, 0], [0, 0, 0])
   const asked = new Map<number, number | undefined>()
   const holds = createCellHolds({
     hold: async (cell: number, { priority }: { priority?: number }) =>
@@ -109,7 +106,7 @@ test('the actors that come loaded together are held by the priority of the unit 
     [0, 3],
   ])
   const slots = { priorityOf: (key?: number) => cellPriority(turns.get(key!) ?? turns.size) }
-  const order = createHoldOrder(chain, partition.hlod.grids, source, slots, { key: () => 6 }, holds)
+  const order = createHoldOrder(chain, partition.hlod.grids, slots, { key: () => 6 }, holds)
   for (const cell of [3, 4, 5, 2, 1, 0]) order.open(cell)
   order.flush(() => true)
   const [first, second, third, fourth] = [0, 1, 2, 3].map(cellPriority)

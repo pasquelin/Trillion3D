@@ -4,8 +4,9 @@ import { TAA_VIEW_WGSL } from './bindingsWgsl.ts'
 import { DISPLAY_STEP_ERROR, FLICKER_LUMA_WGSL } from './colorSpaceWgsl.ts'
 import { FLICKER_FORMAT, REPROJECTED_WORD_WGSL } from './reprojectWgsl.ts'
 import { VECTOR_FORMAT } from './velocityWgsl.ts'
-import { THIN_MASK_BITS } from './thinGeometryWgsl.ts'
+import { THIN_MASK_BITS, THIN_RUNS } from './thinGeometryWgsl.ts'
 import { SAFE_RCP_WGSL } from './historyWgsl.ts'
+import { GUARANTEED_WORKGROUP_BYTES } from '../../gpu/core/textureLimits.ts'
 import {
   NINE_OPERATORS_WGSL,
   TILE_CLAMP_WGSL,
@@ -21,6 +22,10 @@ import {
 /** The flicker measure's tile and the border its chain of nine 3×3 operators reads: 16×8, the
  *  widest whose network fits the workgroup memory every device holds. */
 export const FLICKER_PLAN: TilePlan = { width: 16, height: 8, border: 9 }
+/** The same network over 16×16 tiles, for a device that holds the workgroup memory it needs
+ *  (`flickerPlanFor`): 25.7 stage evaluations a texel written against 35.8, the same image — every
+ *  texel written is exact whatever the tile. */
+const FLICKER_WIDE_PLAN: TilePlan = { width: 16, height: 16, border: 9 }
 
 /** Its bindings. */
 export const FLICKER_BINDINGS = {
@@ -80,6 +85,34 @@ export const flickerParallaxInverse = (renderWidth: number, intervalMs: number |
   1 / (refreshShare(intervalMs) * 10 * (renderWidth / 1920))
 
 /**
+ * The words of the flicker network's workgroup memory over `plan`, each region named by what it
+ * holds, in the stages' order (`tileRegion`): the lumas, the held then the blurred pair, the swing
+ * and its count; the luma modification, then the energy and the rejection; the history held in the
+ * relaxed box beside the relaxation weight; the input luma steps a cross reads; the blurred
+ * modification beside the rejection's delta; the modification and the blended history and gradient
+ * of a written texel.
+ */
+function flickerRegions(plan: TilePlan) {
+  const pairs = tileRegion(plan, 9, 1)
+  const held = tileRegion(plan, 8, 1, pairs.end)
+  const energy = tileRegion(plan, 4, 1, held.end)
+  const blended = tileRegion(plan, 0, 2, held.end)
+  const relaxed = tileRegion(plan, 5, 1, energy.end)
+  const steps = tileRegion(plan, 3, 1, relaxed.end)
+  const delta = tileRegion(plan, 2, 2, steps.end)
+  const modified = tileRegion(plan, 0, 1, delta.end)
+  if (blended.end > energy.end) throw new Error('TAA_FLICKER_REGIONS')
+  return { pairs, held, energy, blended, relaxed, steps, delta, modified }
+}
+
+/** The tile of the flicker measure on a device holding `workgroupBytes` of workgroup memory: the
+ *  wide one where its network fits, else `FLICKER_PLAN`. */
+export const flickerPlanFor = (workgroupBytes: number) =>
+  flickerRegions(FLICKER_WIDE_PLAN).modified.end * 4 <= workgroupBytes
+    ? FLICKER_WIDE_PLAN
+    : FLICKER_PLAN
+
+/**
  * The flicker measure over time, per render texel, after the reprojection (`reprojectWgsl.ts`): a
  * luma that keeps swinging between images about a still surface — a moiré of fine geometry against
  * the jittered grid, a reflection's noise — widens the shading rejection's box by its swing
@@ -118,24 +151,17 @@ export const flickerParallaxInverse = (renderWidth: number, intervalMs: number |
  * blur, the delta, the blended history and its gradient stay single floats. Loads per span texel:
  * the colour, the reactive value and the flicker history once; the relaxation's texels read the
  * thin geometry mask, the replay's the flicker history again and the mask, the written texels the
- * flicker history, the marks and the reprojection word.
+ * flicker history, the marks and the reprojection word. Where the thin geometry detection does not
+ * run (`view.quality.w`), its mask reads none: the relaxation's stage is left out and no texel is a
+ * thin geometry region.
+ *
+ * The tile is `plan`'s, within the `workgroupBytes` of workgroup memory the device holds.
  */
-export const flickerShader = () => {
-  const plan = FLICKER_PLAN
-  // The regions, each named by what it holds, in the stages' order (`tileRegion`): the lumas, the
-  // held then the blurred pair, the swing and its count; the luma modification, then the energy
-  // and the rejection; the history held in the relaxed box beside the relaxation weight; the input
-  // luma steps a cross reads; the blurred modification beside the
-  // rejection's delta; the modification and the blended history and gradient of a written texel.
-  const pairs = tileRegion(plan, 9, 1)
-  const held = tileRegion(plan, 8, 1, pairs.end)
-  const energy = tileRegion(plan, 4, 1, held.end)
-  const blended = tileRegion(plan, 0, 2, held.end)
-  const relaxed = tileRegion(plan, 5, 1, energy.end)
-  const steps = tileRegion(plan, 3, 1, relaxed.end)
-  const delta = tileRegion(plan, 2, 2, steps.end)
-  const modified = tileRegion(plan, 0, 1, delta.end)
-  if (blended.end > energy.end) throw new Error('TAA_FLICKER_REGIONS')
+export const flickerShader = (
+  plan: TilePlan = FLICKER_PLAN,
+  workgroupBytes = GUARANTEED_WORKGROUP_BYTES,
+) => {
+  const { pairs, held, energy, blended, relaxed, steps, delta, modified } = flickerRegions(plan)
   const nine = (region: typeof pairs, k: string) =>
     ` var near:array<vec2f,9>;for(var n=0;n<9;n++){near[n]=pairAt(nearWord(${k},n,${region.side}));}`
   const Q = wgslF32(DISPLAY_STEP_ERROR)
@@ -151,7 +177,7 @@ export const flickerShader = () => {
 @group(0) @binding(${FLICKER_BINDINGS.flickerOut}) var flickerOut:texture_storage_2d<${FLICKER_FORMAT},write>;
 @group(0) @binding(${FLICKER_BINDINGS.error}) var errorOut:texture_storage_2d<${FLICKER_ERROR_FORMAT},write>;
 @group(0) @binding(${FLICKER_BINDINGS.thin}) var thin:texture_2d<u32>;
-${tileWords(modified.end)}
+${tileWords(modified.end, 0, workgroupBytes)}
 ${tileEntry(plan, 'flickerMeasure')}
 ${tileStage(
   plan,
@@ -203,6 +229,8 @@ ${tileStage(
    let weight=select(0.0,f32(mask)/${THIN_MASK_BITS.most}.0,mask>1u);
    let lo=mix(min9p(near).x,min9p(near).y,weight);let hi=mix(max9p(near).x,max9p(near).y,weight);
    putPair(${relaxed.index},clamp(near[4].y,lo,hi),weight);`,
+  false,
+  THIN_RUNS,
 )}
 ${tileStage(
   plan,
@@ -254,7 +282,7 @@ ${tileStage(
    let prevGradient=stored.y*${wgslF32(255 / 127)}-1.0;
    let within=abs(gradient)<${wgslF32(GRADIENT_EPSILON)}||abs(prevGradient)<${wgslF32(GRADIENT_EPSILON)};
    // A thin geometry region: its relaxation weight past one 127th, a gradient, both within.
-   let relaxed=(textureLoad(thin,c,0).g>>${THIN_MASK_BITS.shift}u)>1u;
+   let relaxed=${THIN_RUNS}&&(textureLoad(thin,c,0).g>>${THIN_MASK_BITS.shift}u)>1u;
    let thinRegion=relaxed&&(abs(gradient)>${wgslF32(THIN_GEOMETRY_GRADIENT)}||abs(prevGradient)>${wgslF32(THIN_GEOMETRY_GRADIENT)})&&within;
    let flickered=select(1.0,0.0,gradient*prevGradient>0.0||(within&&!thinRegion)||view.params.x!=0.0);
    putPair(${held.index},min(abs(prevGradient),abs(gradient))*flickered,flickered);

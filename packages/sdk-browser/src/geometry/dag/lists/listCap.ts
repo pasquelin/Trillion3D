@@ -13,20 +13,22 @@ import { storageBufferCap } from '../../../session/memory/pools.ts'
 import { type Limits, deviceListCap } from '../deviceListCap.ts'
 import { keptRankRow } from '../keptRanks.ts'
 
-/** The readout's cap, the cut's for its life (`selectionListCap`, `../layout.ts`), within the
- *  device beside the `heldSlots` slots of open counts its readout holds (`../heldOpen.ts`): a cut
- *  that lists more is read by its head (`../../cut/adoption/adoption.ts`), its mask drawn whole. */
-export const initialListCap = (limits: Limits, pageCount: number, heldSlots = 0) =>
-  Math.min(selectionListCap(pageCount), deviceListCap(limits, heldSlots))
+/** The readout's cap for a cut asking `size` ranks (`requestSize.ts`, `selectionListCap`,
+ *  `../layout.ts`), within the device beside the `heldSlots` slots of open counts its readout holds
+ *  (`../heldOpen.ts`): a cut that lists more is read by its head
+ *  (`../../cut/adoption/adoption.ts`), its mask drawn whole. */
+export const listCapFor = (limits: Limits, pageCount: number, size: number, heldSlots = 0) =>
+  Math.min(selectionListCap(pageCount, size), deviceListCap(limits, heldSlots))
 
 /**
  * The slots of the open counts a cut's placements hold (`../heldOpen.ts`), for the `rows` the row
  * cache holds resident: within a quarter of what one binding leaves past the lists at their first
- * cap, so the lists — and the regions the views aside add — always come first; a table that small
- * leaves more counts at their node's, never a list short.
+ * cap, the `least` ranks the settings allow (`requestSize.ts`), so the lists — and the regions the
+ * views aside add — always come first; a table that small leaves more counts at their node's,
+ * never a list short.
  */
-export function cutHeldSlots(limits: Limits, pageCount: number, rows: number) {
-  const lists = stagedOutputBytes(initialListCap(limits, pageCount))
+export function cutHeldSlots(limits: Limits, pageCount: number, rows: number, least: number) {
+  const lists = stagedOutputBytes(listCapFor(limits, pageCount, least))
   return heldOpenSlots(rows, (storageBufferCap(limits) - lists) / 4)
 }
 

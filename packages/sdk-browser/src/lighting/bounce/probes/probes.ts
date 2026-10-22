@@ -1,37 +1,123 @@
-import {
-  BOUNCE_PROBES_PER_FRAME,
-  BOUNCE_SETTINGS,
-} from '../../../../../sdk-core/src/bounce/contracts.ts'
-import { bounceBatchOf, type ProxyBudget } from '../../../../../sdk-core/src/proxy/budget.ts'
+import { BOUNCE_SETTINGS } from '../../../../../sdk-core/src/bounce/contracts.ts'
 import { createBounceCascades } from '../../../../../sdk-core/src/bounce/cascades.ts'
-import { createBounceOccupancy } from '../../../../../sdk-core/src/bounce/occupancy.ts'
+import { markWords } from '../../../../../sdk-core/src/bounce/probeMarks.ts'
+import { createProbePool } from '../../../../../sdk-core/src/bounce/probePool.ts'
 import { probeBinder, probeLayout } from './probeGroup.ts'
 import { atlasBytes, probeAtlasExtent } from '../atlas.ts'
 import { ensureBounceFits } from '../limits.ts'
 import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts'
-import { createSnapshotFollow, type SnapshotFollow } from '../snapshotFollow.ts'
+import { createSnapshotFollow } from '../snapshotFollow.ts'
 import { createBounceSchedule } from '../schedule.ts'
+import { createBounceMarks } from '../marks.ts'
+import { createHitMarks } from '../hitMarks.ts'
+import { createBounceCensus } from '../census.ts'
 import { createProbeStorage } from './probeStorage.ts'
-import { syncBounceProbes, type ProxyBoxes } from './probeSync.ts'
+import { createTableWrite } from './tableWrite.ts'
+import { syncBounceProbes } from './probeSync.ts'
+import { createProbeEncoder, type ProbeParts, type ProbeScene } from './probeEncode.ts'
 import { createCheckedShaderModule } from '../../../gpu/core/shaderModule.ts'
 import { buildComputeStage } from '../../../gpu/core/computeStages.ts'
-import { BOUNCE_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import type { GpuLightTiles } from '../../tiles/tiles.ts'
 import { worldLightLists } from '../worldLightLists.ts'
-import { PROBE_QUEUE_WORDS } from './probeQueueWgsl.ts'
-import type { ProxyResources } from '../../../geometry/dag/cut/cutReaders.ts'
 
-/** What the probes read of the scene's proxy (`geometry/dag/proxy/proxyInstances.ts`, through the selection): what its
- *  rays are traced through, when a placement wears a proxy, and the world boxes of the placements that do,
- *  which the occupancy map keeps. */
-type ProbeScene = {
-  proxy(): ProxyResources | undefined
-  boxes(): ProxyBoxes
+/** What the probes are made of, beside what they encode (`createProbeEncoder`): the extent of the atlas,
+ *  its snapshot's storage and the release of it all. */
+type ProbeRig = ProbeParts & {
+  extent: [number, number, number]
+  views: { probes: GPUTextureView; snapshot: GPUTextureView }
+  release(): void
 }
 
 export type GpuBounceProbes = Awaited<ReturnType<typeof createGpuBounceProbes>>
 
-/** Fixed-capacity cascades with bounded updates, tracing the scene's proxy wherever its placements stand. */
+/** The pass's pipelines, each compiled off the thread: the update, the snapshot's follow-up, the
+ *  table's writes, the marks, the readback of the cells the rays hit (`hitBits`: their bitmap) and the
+ *  census of the field. */
+async function buildPasses(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  parts: Pick<ProbeParts, 'cascades' | 'pool' | 'queue' | 'records' | 'uniform' | 'counts'>,
+  views: ProbeRig['views'],
+  hitBits: GPUBuffer,
+) {
+  const { cascades, pool, queue, records, uniform, counts } = parts
+  const module = await createCheckedShaderModule(device, BOUNCE_PROBE_SHADER, 'BOUNCE_PROBE')
+  return {
+    pipeline: await buildComputeStage(device, [layout], module, 'updateProbes'),
+    follow: await createSnapshotFollow(device, uniform.buffer, queue, views.probes, views.snapshot),
+    table: await createTableWrite(device, records, views.probes, views.snapshot),
+    marks: await createBounceMarks(device, cascades, pool, uniform.buffer, views.probes),
+    hits: createHitMarks(device, cascades, pool, hitBits),
+    census: await createBounceCensus(device, cascades, uniform.buffer, views.probes, counts),
+  }
+}
+
+/** The storage released whole: the levels' uniform, every buffer and both atlases. */
+function releaseStorage(storage: ReturnType<typeof createProbeStorage>) {
+  const { uniform, queue, records, census, hits, probes, snapshot } = storage
+  uniform.dispose()
+  for (const resource of [queue, records, census, hits, probes, snapshot]) resource.destroy()
+}
+
+/**
+ * What the probes are made of: the levels around the eye, the pool and its schedule, the atlas, its
+ * snapshot and the levels' uniform, the pass's bindings and its pipelines — the storage released whole when
+ * one of them fails to build.
+ */
+async function createProbeRig(
+  device: GPUDevice,
+  bounds: readonly number[],
+  lights: () => GPUBuffer,
+  tiles: () => GpuLightTiles | undefined,
+): Promise<ProbeRig> {
+  const cascades = createBounceCascades(bounds)
+  const pool = createProbePool(cascades)
+  const schedule = createBounceSchedule(pool)
+  const extent = probeAtlasExtent(pool.capacity, cascades.levels.length * cascades.cells)
+  ensureBounceFits(device, extent, schedule.queue.byteLength, [
+    { name: 'table records', bytes: schedule.records.byteLength },
+    { name: 'marks', bytes: markWords(cascades) * 4 },
+  ])
+  const storage = createProbeStorage(
+    device,
+    cascades,
+    schedule.queue.byteLength,
+    schedule.records.byteLength,
+    extent,
+  )
+  const { uniform, queue, records, census: counts, hits: hitBits, views } = storage
+  const release = () => releaseStorage(storage)
+  const layout = probeLayout(device)
+  const bind = probeBinder(device, layout, {
+    grid: uniform.buffer,
+    queue,
+    census: counts,
+    hits: hitBits,
+    ...views,
+  })
+  const parts = { cascades, pool, queue, records, uniform, counts }
+  try {
+    const passes = await buildPasses(device, layout, parts, views, hitBits)
+    const lists = worldLightLists(tiles, lights, uniform)
+    return {
+      ...parts,
+      device,
+      schedule,
+      bind,
+      lists,
+      ...passes,
+      extent,
+      views,
+      release,
+    }
+  } catch (error) {
+    release()
+    throw error
+  }
+}
+
+/** The levels of probes around the eye, a pool of probes for the cells the image reads, bounded updates,
+ *  tracing the scene's proxy wherever its placements stand. */
 export async function createGpuBounceProbes(
   device: GPUDevice,
   /** The extent of the scene's placements: three lower bounds then three upper. */
@@ -39,138 +125,55 @@ export async function createGpuBounceProbes(
   scene: ProbeScene,
   /** The declared-light buffer, read at each encode: it is replaced when the scene outgrows it. */
   lights: () => GPUBuffer,
-  /** The proxy rays' one budget (`createProxyBudget`), whose probe fraction sizes each batch. */
-  budget: ProxyBudget,
-  /** The empty light lists bound where no grid holds them (`DeferredPlaceholders.tiles`): no point
-   *  reads it (`setLightLists`). */
+  /** The probes an image traces, those never traced first (`resolveProbesPerFrame`). */
+  probesPerFrame: number,
+  /** The empty lists bound where no grid holds them (`DeferredPlaceholders.tiles`), and the light
+   *  grid whose buffer holds the world grid's lists beside the view's. */
   noLists: GPUBuffer,
-  /** The light grid, whose buffer holds the world grid's lists beside the view's. */
   tiles: () => GpuLightTiles | undefined = () => undefined,
 ) {
-  const first = scene.boxes()
-  const cascades = createBounceCascades(bounds)
-  const occupancy = createBounceOccupancy(bounds, first.boxes, cascades)
-  const schedule = createBounceSchedule(cascades, occupancy)
-  const extent = probeAtlasExtent(cascades.size, BOUNCE_SETTINGS.cascadeLevels)
-  ensureBounceFits(device, extent, schedule.queue.byteLength)
-  const { uniform, queue, probes, snapshot, views, clearLevels } = createProbeStorage(
-    device,
-    cascades,
-    schedule.queue.byteLength,
-    extent,
-  )
-  const probeBytes = atlasBytes(extent)
-  const { probes: probesView, snapshot: snapshotView } = views
-  const release = () => {
-    queue.destroy()
-    uniform.dispose()
-    probes.destroy()
-    snapshot.destroy()
-  }
-  let pipeline: GPUComputePipeline
-  let follow: SnapshotFollow
-  const lists = worldLightLists(tiles, lights, uniform)
-  const layout = probeLayout(device)
-  const bind = probeBinder(device, layout, {
-    grid: uniform.buffer,
-    queue,
-    snapshot: snapshotView,
-    probes: probesView,
-  })
-  try {
-    const module = await createCheckedShaderModule(device, BOUNCE_PROBE_SHADER, 'BOUNCE_PROBE')
-    pipeline = await buildComputeStage(device, [layout], module, 'updateProbes')
-    follow = await createSnapshotFollow(device, uniform.buffer, queue, probesView, snapshotView)
-  } catch (error) {
-    release()
-    throw error
-  }
-  let clearOwed = 0
-  let generation = 1,
-    frame = 0,
-    updates = 0
-  /** The boxes and extent of the last sync: what the occupancy map rebuilds from once the placements rest. */
-  let boxes = first.boxes,
-    placed = bounds
-  /** True while the bounce series is not closed: beyond that, nothing more is encoded. */
-  const working = () => schedule.sweeps < BOUNCE_SETTINGS.settledSweeps
-  const batch = () => bounceBatchOf(BOUNCE_PROBES_PER_FRAME, budget.load)
-  const restart = () => {
-    generation++
-    schedule.restart()
-    lists.stale()
-  }
-  const invalidate = (levels: number) => void (clearOwed |= levels)
-  const parts = { boxes: () => scene.boxes(), cascades, occupancy, invalidate, restart }
+  const rig = await createProbeRig(device, bounds, lights, tiles)
+  const { cascades, pool, uniform, marks, census } = rig
+  const readbacks = [marks, rig.hits, census]
+  const encoder = createProbeEncoder(rig, scene, lights, probesPerFrame, noLists)
+  const restart = () => (encoder.restart(), marks.stale())
+  const parts = { boxes: () => scene.boxes(), cascades, restart }
   return {
-    /** The placements moved or arrived: the cascades replanned, their cells marked, the series restarted
-     *  (`probeSync.ts`). Whether anything did. */
-    sync() {
-      const change = syncBounceProbes(parts)
-      if (change) ({ boxes, extent: placed } = change)
-      return !!change
-    },
     cascades,
-    occupancy,
-    uniform: uniform.buffer,
-    /** The probes' atlas, one layer per level, which the lit passes read. */
-    probes: probesView,
-    /** What the probes' atlas weighs; the snapshot weighs as much. */
-    probeBytes,
-    /** Frames of a full round, measured: that is the bound on convergence lag. */
-    get sweepFrames() {
-      return Math.max(schedule.sweepFrames, 1)
+    pool,
+    encode: encoder.encode,
+    restart: encoder.restart,
+    get working() {
+      return encoder.working
     },
     get lastProbes() {
-      return updates
+      return encoder.lastProbes
     },
     get lastRays() {
-      return updates * BOUNCE_SETTINGS.raysPerProbe
+      return encoder.lastProbes * BOUNCE_SETTINGS.raysPerProbe
     },
-    get working() {
-      return working()
+    get lastTexels() {
+      return encoder.lastTexels
     },
+    /** The placements moved or arrived: the light grid and the reach re-placed, the series restarted,
+     *  the cells the image reads marked again (`probeSync.ts`). Whether anything did. */
+    sync: () => syncBounceProbes(parts),
+    /** Probes alive holding nothing yet: zero once every cell the image reads holds light. */
+    get unfilled() {
+      return pool.unfilled
+    },
+    /** The marks that came back (how many, the cells of the last), and what the last census of the
+     *  field that came back counted — none before the first (`census.ts`). */
+    marked: marks.stats,
+    counted: census.reading,
+    uniform: uniform.buffer,
+    /** The probes' atlas, the pool's layer and the table's, which the lit passes read; what it weighs
+     *  (the snapshot weighs as much). */
+    probes: rig.views.probes,
+    probeBytes: atlasBytes(rig.extent),
     setIrradianceView: uniform.setIrradianceView,
-    /** A light changed: sweeps restart, sleeping probes wake. */
-    restart,
-    /**
-     * Encodes a probe batch. Returns `false` when there was nothing to do: the scene is still, the
-     * series is closed, no placement wears a proxy to trace, and the « Bounce » stage is « unmeasured ».
-     */
-    encode(encoder: GPUCommandEncoder, lightsActive: number, viewpoint: ArrayLike<number>) {
-      updates = 0
-      clearLevels(encoder, clearOwed)
-      clearOwed = 0
-      const proxy = scene.proxy()
-      occupancy.settle(boxes, placed)
-      if (cascades.follow(viewpoint)) schedule.restart()
-      // The world lists before every pass that reads them — this one, the reflections, the
-      // blends —, listed again only when a light, the last level or the grid's buffer changed.
-      const listing =
-        cascades.probes && lightsActive
-          ? lists.encode(encoder, cascades, lightsActive, frame)
-          : undefined
-      if (!proxy || !cascades.probes || !lightsActive || !working()) return false
-      const group = bind(proxy, lights(), listing ?? noLists)
-      frame++
-      const groups = schedule.plan(batch())
-      if (groups) device.queue.writeBuffer(queue, 0, schedule.queue, 0, groups * PROBE_QUEUE_WORDS)
-      uniform.write(generation, groups, frame)
-      // One pass: the probes' update, then the snapshot's follow-up. The snapshot equals the probes here — the
-      // last update's texels followed it, and a clear clears both —: the update reads it.
-      const pass = encoder.beginComputePass({ label: BOUNCE_PASS })
-      if (groups) {
-        pass.setPipeline(pipeline)
-        pass.setBindGroup(0, group)
-        pass.dispatchWorkgroups(groups, 1, 1)
-        follow(pass, groups)
-      }
-      pass.end()
-      updates = groups
-      return true
-    },
-    dispose() {
-      release()
-    },
+    /** After the image's submit: its marks, the cells its rays hit and its census map. */
+    submitted: () => readbacks.forEach((readback) => readback.submitted()),
+    dispose: () => (readbacks.forEach((readback) => readback.dispose()), rig.release()),
   }
 }

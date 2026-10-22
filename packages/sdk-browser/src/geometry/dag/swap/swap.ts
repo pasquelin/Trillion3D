@@ -97,6 +97,7 @@ export function stampMatches(
   return (
     stamp.world === state.worldRevision &&
     sameSelectionUniforms(made, uniforms) &&
+    sameValues(made.planes, uniforms.planes) &&
     sameValues(made.viewProj, uniforms.viewProj) &&
     sameValues(made.depthMap, uniforms.depthMap) &&
     sameValues(made.viewSize, uniforms.viewSize) &&

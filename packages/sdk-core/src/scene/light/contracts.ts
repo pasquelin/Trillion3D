@@ -43,6 +43,11 @@ export interface SceneLight {
   emitterRadius?: number
   /** Directional only: source disk angular radius in radians; absent is an ideal point source. */
   angularRadius?: number
+  /** Directional only: whether the light is a candidate to light the atmosphere (`SceneAtmosphere`);
+   *  absent, it is. Of the candidates the brightest is the atmosphere's sun: its light reaches
+   *  surfaces through the air, and the sky is drawn from it. Without an atmosphere it changes
+   *  nothing. */
+  atmosphereSun?: boolean
   /** Rect only: the unit axis its width runs along, perpendicular to `direction`. */
   right?: [number, number, number]
   /** Rect only: its width and height, in metres. */

@@ -69,6 +69,10 @@ fn nearest(p: [f64; 2], tri: [[f64; 2]; 3]) -> ([f64; 3], f64) {
     best
 }
 
+/// What `rasterize` hands each interior texel to: its row's output, its column, its triangle and
+/// its second and third weights.
+pub(crate) type Sampler<'a, R> = dyn Fn(&mut R, usize, usize, [f64; 3]) + Sync + 'a;
+
 /// Each texel of a `size` square atlas classified, `corners` the triangles' corners in texels;
 /// each interior texel handed to `sample(row, x, triangle, weights)` with its row's own output
 /// `rows[y]`, and marked `SAMPLED` — the bake marks a `HOLE` once it knows its sample met nothing.
@@ -76,7 +80,7 @@ pub(crate) fn rasterize<R: Send>(
     size: usize,
     corners: &[[f64; 2]],
     rows: Vec<R>,
-    sample: &(dyn Fn(&mut R, usize, usize, [f64; 3]) + Sync),
+    sample: &Sampler<'_, R>,
 ) -> Vec<u32> {
     let count = corners.len() / 3;
     let diagonal = std::f64::consts::SQRT_2;

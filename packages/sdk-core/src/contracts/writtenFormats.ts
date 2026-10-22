@@ -71,10 +71,7 @@
  * pages decode to: the pages, the box columns and the page sizes differ from a
  * version-16 cook's for the same source, and no record carries a quantization error any more.
  * Version 18 drops the page normal-cone column, the last, which the runtime read none of: a
- * sidecar holds 27 columns, and a version-17 reader would expect 28, so it refuses. A position a
- * simplification leaves on a source vertex's now comes back from the build's frame bit for bit
- * (`simplify/region.rs`): the coarse pages of a simplified cook differ from a version-17 cook's
- * for the same source.
+ * sidecar holds 27 columns, and a version-17 reader would expect 28, so it refuses.
  */
 export const MANIFEST_BINARY_VERSION = 18
 
@@ -331,11 +328,6 @@ export const ANIMATION_BANK_LOOPING = 1
  * interprets it: unknown versions are rejected rather than guessed.
  */
 export const CUTOUT_SHEET_FILE = 'decoupes.json'
-
-/**
- * The animation banks' file, beside the scene tables.
- */
-export const ANIMATION_BANKS_FILE = 'animation-banks.bin'
 
 /**
  * The Jolt commit the engine's physics module is built from: the pin of the submodule

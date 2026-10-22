@@ -34,7 +34,7 @@ export type DrawItem = {
   pageIndex: number
   /** Face mode, plus `CULL_BINS` on a cutout row, twice on a voxel row (`contract.ts`). */
   bin: number
-  rest: 0 | 1
+  post: 0 | 1
   selectionIndex?: number
   layer?: number
   triangles?: number
@@ -45,8 +45,8 @@ export type DrawItem = {
 type CompactResult = {
   instances: Uint32Array // compacted pageIndex in input order
   bins: Uint32Array // compacted bin
-  rests: Uint32Array // compacted rest flag
-  counts: number[] // (bin + HALF_SLOTS*rest + BASE_SLOTS*layer)
+  posts: Uint32Array // compacted post flag
+  counts: number[] // (bin + HALF_SLOTS*post + BASE_SLOTS*layer)
   indirect: Uint32Array // one drawIndirect per slot, four u32 each
   overflow: boolean
 }
@@ -63,7 +63,7 @@ const binOf = (item: DrawItem) =>
  *  Two languages, two writings; `prefixEquivalence.test.ts` opposes them. */
 function slotOf(item: DrawItem, layerSlots: number) {
   return (
-    item.rest * HALF_SLOTS + binOf(item) + BASE_SLOTS * Math.min(item.layer ?? 0, layerSlots - 1)
+    item.post * HALF_SLOTS + binOf(item) + BASE_SLOTS * Math.min(item.layer ?? 0, layerSlots - 1)
   )
 }
 
@@ -74,14 +74,14 @@ function emptyCompact(maxVertexCount: number, overflow: boolean, slots: number):
   return {
     instances: new Uint32Array(0),
     bins: new Uint32Array(0),
-    rests: new Uint32Array(0),
+    posts: new Uint32Array(0),
     counts,
     indirect,
     overflow,
   }
 }
 
-/** Stable exclusive-scan compact into the (bin + HALF_SLOTS*rest + BASE_SLOTS*layer) slots.
+/** Stable exclusive-scan compact into the (bin + HALF_SLOTS*post + BASE_SLOTS*layer) slots.
  *  Overflow zeros instance counts. `layerSlots` is 1 for a scene with no stacked coplanar layer. */
 export function evaluateDrawCompact(
   items: DrawItem[],
@@ -103,7 +103,7 @@ export function evaluateDrawCompact(
   }
   const instances = new Uint32Array(n)
   const bins = new Uint32Array(n)
-  const rests = new Uint32Array(n)
+  const posts = new Uint32Array(n)
   const writePos = Array.from(starts)
   for (let i = 0; i < n; i++) {
     const item = items[i]
@@ -111,12 +111,12 @@ export function evaluateDrawCompact(
     const dst = writePos[slot]++
     instances[dst] = item.pageIndex
     bins[dst] = item.bin
-    rests[dst] = item.rest
+    posts[dst] = item.post
   }
   return {
     instances,
     bins,
-    rests,
+    posts,
     counts,
     indirect,
     overflow: false,

@@ -11,7 +11,7 @@ import { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
 import { createWebgpuParticles } from './webgpuParticles.ts'
 import { particleGroups, particlesWgsl } from './particlesWgsl.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { DEFAULT_GROUP_WIDTH } from '../../gpu/dispatch/grid.ts'
+import { groupWidth } from '../../gpu/dispatch/grid.ts'
 
 /** What `gpu`'s compute passes took: each pipeline set, each dispatch and each end. */
 const logOf = (gpu: ReturnType<typeof fakeDevice>) =>
@@ -78,7 +78,7 @@ test("past one dimension's groups, bound writes the window's dispatch in rows; m
   const { groupGrid, flatIndex } = shaderRun<Run>(
     particlesWgsl(false),
     ['groupGrid', 'ceilDiv', 'flatIndex'],
-    { GROUP_WIDTH: DEFAULT_GROUP_WIDTH },
+    { GROUP_WIDTH: groupWidth() },
   )
   // A window of 65,535 · 64 + 1 slots: its 65,536 groups in two rows of 65,535.
   const instances = 65_535 * 64 + 1,

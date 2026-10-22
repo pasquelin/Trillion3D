@@ -59,7 +59,8 @@ pub const HEADER_WORDS: usize = 23;
 pub const HEADER_BYTES: usize = HEADER_WORDS * 4;
 pub const MAX_VERTICES: usize = 65_535;
 /// Attribute presence bits: normal, first and second texture coordinate, colour; then the skin
-/// and the morph targets (`deform.rs`).
+/// and the morph targets (`deform.rs`), the stored tangent (`FLAG_TANGENT`) and the third and
+/// fourth texture coordinates (`FLAG_UV2`, `FLAG_UV3`).
 pub const FLAG_NORMAL: u32 = 1;
 pub const FLAG_UV: u32 = 2;
 pub const FLAG_UV1: u32 = 4;

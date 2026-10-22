@@ -99,10 +99,10 @@ export async function createDeferredLighting(
       variants.awaited(bounceOf(direct), !!direct.narrow, cutsIn(direct)),
     /** Draws the lighting (`lightPass`). */
     light: lightPass(state),
-    /** True once the frame's program composes the chain's last bloom in (#963); the first call
-     *  compiles what it needs, and `fail` hears why it cannot. */
-    composesBloom: (fail: (error: unknown) => void) =>
-      state.active.compositions.composesBloom(fail),
+    /** True once the frame's program composes the finishing in (#963); the first call compiles
+     *  what it needs, and `sink` hears why it cannot. */
+    composesFinish: (sink: (phase: string, error: unknown) => void) =>
+      state.active.compositions.composesFinish(sink),
     /** Composes the lit image, or the one handed in (`composePass`). */
     compose: composePass(state, view),
     dispose() {
@@ -188,8 +188,8 @@ type ComposeSource = { drawn: readonly number[]; shown: readonly number[] }
 const AT_DISPLAY: ComposeSource = { drawn: [1, 1], shown: [1, 1] }
 
 /** The lighting's `compose`: composes the lit image, or `composed`: the temporal output, or the
- *  effect chain's, with the bloom blend it left; reading no as-is share when `asIs` says none is in
- *  the frame. `source` is the size of the image composed and the display's, which it upscales to
+ *  effect chain's, finished by its group when it has one; reading no as-is share when `asIs` says
+ *  none is in the frame. `source` is the size of the image composed and the display's, which it upscales to
  *  where it was drawn below it (`writeSource`); none, an image at the display's size. */
 function composePass(state: LightingState, uniform: DeferredView) {
   const target: GPURenderPassColorAttachment = {
@@ -226,11 +226,11 @@ function composePass(state: LightingState, uniform: DeferredView) {
       shown.clearValue = clear
     }
     const pass = encoder.beginRenderPass(presentation ? presented : plain)
-    const blend = composed?.bloom,
-      { draw, present } = active.compositions.pipelines(composition.input, !!blend)
+    const finish = composed?.finish,
+      { draw, present } = active.compositions.pipelines(composition.input, !!finish)
     pass.setPipeline(presentation ? present : draw)
     pass.setBindGroup(0, composition.group)
-    if (blend) pass.setBindGroup(1, blend.group, [blend.offset])
+    if (finish) pass.setBindGroup(1, finish)
     pass.draw(3)
     pass.end()
   }

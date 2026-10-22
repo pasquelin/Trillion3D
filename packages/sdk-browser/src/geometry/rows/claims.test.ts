@@ -3,10 +3,9 @@ import assert from 'node:assert/strict'
 import { serveClaims } from './claims.ts'
 import { createMarkedList } from '../../../../math/src/sequence/markedList.ts'
 
-/** A row write slower than a frame's main-thread share: the rows of what a frame installs are
+/** A row write of any duration, no clock reading it: the rows of what a frame installs are
  *  written all the same. */
-let now = 0
-const slowPlace = () => ((now += 3), true)
+const slowPlace = () => true
 
 const owed = () => {
   const claims = createMarkedList()

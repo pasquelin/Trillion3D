@@ -50,21 +50,24 @@ function bounceLimitFailure(device: GPUDevice, bindings: readonly BounceBinding[
 }
 
 /**
- * Refuses bounce before a single buffer is created when this device cannot hold it: the frame queue
- * and the cascade uniform, and the probes' atlas. The proxy the probes trace is the scene's, grown as
- * every table of the cut is, and refused by the engine's own named refusal.
+ * Refuses bounce before a single buffer is created when this device cannot hold it: the frame queue,
+ * the other storage buffers of the passes (`storage`: their names and bytes) and the levels' uniform,
+ * and the probes' atlas. The proxy the probes trace is the scene's, grown as every table of the cut
+ * is, and refused by the engine's own named refusal.
  * The caller surfaces the message as-is: it is the one that says which binding missed and by how much.
  */
 export function ensureBounceFits(
   device: GPUDevice,
   probeExtent: readonly number[],
   queueBytes: number,
+  storage: readonly { name: string; bytes: number }[] = [],
 ) {
-  const storage = 'maxStorageBufferBindingSize'
+  const limit = 'maxStorageBufferBindingSize'
   const failure =
     bounceLimitFailure(device, [
-      { name: 'probe queue', bytes: queueBytes, limit: storage },
-      { name: 'cascades uniform', bytes: BOUNCE_GRID_BYTES, limit: 'maxUniformBufferBindingSize' },
+      { name: 'probe queue', bytes: queueBytes, limit },
+      ...storage.map(({ name, bytes }) => ({ name, bytes, limit }) as const),
+      { name: 'levels uniform', bytes: BOUNCE_GRID_BYTES, limit: 'maxUniformBufferBindingSize' },
     ]) ?? atlasLimitFailure(device, [{ name: 'probes', extent: probeExtent }])
   if (failure) throw new Error(failure)
 }

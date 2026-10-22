@@ -103,9 +103,9 @@ impl Sources {
         for t in &sources.triangles {
             for &v in t {
                 let p = sources.positions[v as usize];
-                for k in 0..3 {
-                    sources.low[k] = sources.low[k].min(p[k]);
-                    sources.high[k] = sources.high[k].max(p[k]);
+                for (k, &component) in p.iter().enumerate() {
+                    sources.low[k] = sources.low[k].min(component);
+                    sources.high[k] = sources.high[k].max(component);
                 }
             }
         }

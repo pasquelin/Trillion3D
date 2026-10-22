@@ -50,8 +50,8 @@ impl Optimizer {
             self.bbt[3] += g[0] * g[1];
             self.bbt[4] += g[0] * g[2];
             self.bbt[5] += g[1] * g[2];
-            for k in 0..3 {
-                self.bd[k] += g[k] * d;
+            for (k, &component) in g.iter().enumerate() {
+                self.bd[k] += component * d;
             }
         }
     }

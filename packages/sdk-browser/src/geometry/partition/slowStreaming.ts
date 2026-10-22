@@ -20,6 +20,7 @@
  * Cost: O(1) per cell file wished on the main grid, each frame.
  */
 import { boxPointDistance } from '../../../../math/src/geometry/boxDistance.ts'
+import { length2 } from '../../../../math/src/vector/vector.ts'
 import type { PartitionGrid } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
 import type { PartitionScheme } from '../../../../sdk-core/src/contracts/partitionOptions.ts'
 import type { WorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
@@ -57,7 +58,7 @@ export function createSlowStreaming(
     // The up axis dropped: the cell's square's centre, as the cell records its position.
     const x = (bounds[0] + bounds[3]) / 2,
       z = (bounds[2] + bounds[5]) / 2
-    return Math.hypot(eye[0] - x, eye[2] - z) / radius
+    return length2(eye[0] - x, eye[2] - z) / radius
   }
   return {
     /** The cell files the load waits for this frame from `eye`, in the cells' frame, of the files
@@ -79,5 +80,3 @@ export function createSlowStreaming(
     clear: () => waits.clear(),
   }
 }
-
-export type SlowStreaming = ReturnType<typeof createSlowStreaming>

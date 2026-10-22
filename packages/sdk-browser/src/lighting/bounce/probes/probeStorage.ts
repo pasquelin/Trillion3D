@@ -1,18 +1,23 @@
-import { arrayView, layerView } from '../../../gpu/core/textureViews.ts'
+import { arrayView } from '../../../gpu/core/textureViews.ts'
 import type { BounceCascades } from '../../../../../sdk-core/src/bounce/cascades.ts'
 import { constructGpuResources } from '../../../gpu/core/errorScope.ts'
 import { createBounceUniform } from '../uniform.ts'
+import { markWords } from '../../../../../sdk-core/src/bounce/probeMarks.ts'
 import { BOUNCE_ATLAS_FORMAT } from '../atlas.ts'
-import { BOUNCE_PROBE_CLEAR_PASS } from '../../../diagnostic/stage/passLabels.ts'
+import { CENSUS_WORDS } from './censusWgsl.ts'
 
 /** Initial probe storage is atomic even when admission refuses the last resource. The probes and
  *  their snapshot are atlases of `extent` (`probeAtlasExtent`): the update writes the one, reads
- *  the other, which then takes the texels written (`BOUNCE_SNAPSHOT_SHADER`); a level is cleared
- *  in both by one render pass on its layer, so the two stay equal between updates. */
+ *  the other, which then takes the texels written (`BOUNCE_SNAPSHOT_SHADER`) — the table's texels
+ *  are written into both (`BOUNCE_TABLE_SHADER`) —, so the two stay equal between updates. Both
+ *  start zeroed: no probe, no entry. The frame's queue of probes and the table's queue of records
+ *  are storage buffers of `queueBytes` and `recordBytes`; the census, one of its own, and the
+ *  bitmap the cells the probes' rays hit are marked in (`hits`: a bit a cell of every level). */
 export function createProbeStorage(
   device: GPUDevice,
   cascades: BounceCascades,
   queueBytes: number,
+  recordBytes: number,
   extent: [number, number, number],
 ) {
   return constructGpuResources(device, () => {
@@ -22,48 +27,34 @@ export function createProbeStorage(
       size: queueBytes,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
-    /** An atlas of `extent`: written as storage, read, and cleared a layer at a time. */
+    const records = device.createBuffer({
+      label: 'Trillion3D bounce table records v1',
+      size: recordBytes,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    })
+    /** The census the update adds its counts to, and the census pass counts the field into. */
+    const census = device.createBuffer({
+      label: 'Trillion3D bounce census v1',
+      size: CENSUS_WORDS * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    })
+    /** The cells the update's rays hit, marked, and read back a few images late (`../hitMarks.ts`). */
+    const hits = device.createBuffer({
+      label: 'Trillion3D bounce hit marks v1',
+      size: markWords(cascades) * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    })
+    /** An atlas of `extent`: written as storage, and read. */
     const atlas = (label: string) =>
       device.createTexture({
         label,
         size: extent,
         format: BOUNCE_ATLAS_FORMAT,
-        usage:
-          GPUTextureUsage.STORAGE_BINDING |
-          GPUTextureUsage.TEXTURE_BINDING |
-          GPUTextureUsage.RENDER_ATTACHMENT,
+        usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
       })
-    const probes = atlas('Trillion3D bounce probes v3')
-    const snapshot = atlas('Trillion3D bounce probes snapshot v3')
-    /** One view per level of `atlas`, which a clear renders to. */
-    const layers = (atlas: GPUTexture) =>
-      Array.from({ length: extent[2] }, (_, level) => layerView(atlas, level))
-    const views = {
-      probes: arrayView(probes),
-      snapshot: arrayView(snapshot),
-      levels: layers(probes),
-      snapshotLevels: layers(snapshot),
-    }
-    /** A level's clear: one render pass on its layer in both atlases; the descriptor is made
-     *  once, its two views set to the level cleared. */
-    const attachments: GPURenderPassColorAttachment[] = [0, 1].map(() => ({
-      view: views.levels[0],
-      loadOp: 'clear',
-      storeOp: 'store',
-    }))
-    const clear: GPURenderPassDescriptor = {
-      label: BOUNCE_PROBE_CLEAR_PASS,
-      colorAttachments: attachments,
-    }
-    /** Zeroes the levels whose bit `levels` sets, in both atlases. */
-    const clearLevels = (encoder: GPUCommandEncoder, levels: number) => {
-      for (let level = 0; levels && level < views.levels.length; level++) {
-        if (!(levels & (1 << level))) continue
-        attachments[0].view = views.levels[level]
-        attachments[1].view = views.snapshotLevels[level]
-        encoder.beginRenderPass(clear).end()
-      }
-    }
-    return { uniform, queue, probes, snapshot, views, clearLevels }
+    const probes = atlas('Trillion3D bounce probes v4')
+    const snapshot = atlas('Trillion3D bounce probes snapshot v4')
+    const views = { probes: arrayView(probes), snapshot: arrayView(snapshot) }
+    return { uniform, queue, records, census, hits, probes, snapshot, views }
   })
 }

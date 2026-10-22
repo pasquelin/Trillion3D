@@ -18,7 +18,11 @@ const readback = (asked: number[], drawn: number[]) =>
     uniforms: fixtureUniforms(),
     result: {
       pageIds: asked,
-      priorities: asked.map(() => 1),
+      requests: {
+        pages: asked,
+        counts: asked.map(() => 1),
+        priorities: asked.map(() => 1),
+      },
       drawablePageIds: drawn,
       frustumRejected: 0,
       lodLevel: 0,

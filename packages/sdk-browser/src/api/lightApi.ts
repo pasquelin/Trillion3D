@@ -29,6 +29,50 @@ function lightingOf(engine: Engine): LightingCapabilities {
   return reason ? { shadows, reason } : { shadows }
 }
 
+/** The reads of lights, the sky and what the engine does with them: detached copies, each call
+ *  reading the store again. */
+function lightReads(inputs: Inputs, required: () => SceneLightStore) {
+  const { check, imported, engine } = inputs
+  return {
+    /**
+     * Contract lights, in add order. Each one is a detached copy, arrays included: writing into
+     * it changes nothing in the engine, and the next call reads the store again. The copy is
+     * paid per call, by the host that calls; no frame reads this function.
+     */
+    lights(): SceneLight[] {
+      check()
+      const lights = required()
+      return lights.ids.map((id) => cloneSceneLight(lights.light(id)!))
+    },
+    /**
+     * Lights the scene file carried, declared at open, as the same detached copies. The host
+     * reads them to set (`setLight`) or remove (`removeLight`) them; those it has already
+     * removed are no longer there. A scene with no imported light yields an empty list, and
+     * nothing has changed for it.
+     */
+    importedLights(): SceneLight[] {
+      check()
+      const lights = required()
+      return imported.flatMap((id) => {
+        const light = lights.light(id)
+        return light ? [cloneSceneLight(light)] : []
+      })
+    },
+    /** The atmosphere's sky as the engine captured it, for the sky lights (`Engine.skyCapture`);
+     *  none before the first capture lands. */
+    skyCapture() {
+      check()
+      return engine.skyCapture()
+    },
+    /** What the engine actually does with lights: a call accepted by the store is not proof of
+     *  lighting, and its shadows and their limits are the engine's to declare. */
+    lightingCapabilities() {
+      check()
+      return lightingOf(engine)
+    },
+  }
+}
+
 /** The writes of lights, view, environment and node poses: each one the engine takes at the
  *  next frame. */
 function lightWrites(inputs: Inputs, required: () => SceneLightStore) {
@@ -84,7 +128,7 @@ function lightWrites(inputs: Inputs, required: () => SceneLightStore) {
  * screen never keeps a stale pose. `setTransforms` does the same for many nodes at once.
  */
 export function createExplorerLightApi(inputs: Inputs) {
-  const { check, store, imported, engine } = inputs
+  const { store } = inputs
   const required = () => {
     if (!store)
       throw new EngineError('SCENE_LIGHTS_UNAVAILABLE', 'session without a light store', {})
@@ -95,30 +139,7 @@ export function createExplorerLightApi(inputs: Inputs) {
     lightSettings: LIGHT_SETTINGS,
     /** Published bounds of bounced light: proxy threshold, grid, ray budget. */
     bounceSettings: BOUNCE_SETTINGS,
-    /**
-     * Contract lights, in add order. Each one is a detached copy, arrays included: writing into
-     * it changes nothing in the engine, and the next call reads the store again. The copy is
-     * paid per call, by the host that calls; no frame reads this function.
-     */
-    lights(): SceneLight[] {
-      check()
-      const lights = required()
-      return lights.ids.map((id) => cloneSceneLight(lights.light(id)!))
-    },
-    /**
-     * Lights the scene file carried, declared at open, as the same detached copies. The host
-     * reads them to set (`setLight`) or remove (`removeLight`) them; those it has already
-     * removed are no longer there. A scene with no imported light yields an empty list, and
-     * nothing has changed for it.
-     */
-    importedLights(): SceneLight[] {
-      check()
-      const lights = required()
-      return imported.flatMap((id) => {
-        const light = lights.light(id)
-        return light ? [cloneSceneLight(light)] : []
-      })
-    },
+    ...lightReads(inputs, required),
     get environment(): SceneEnvironment | undefined {
       return store?.environment ? { ...store.environment } : undefined
     },
@@ -131,12 +152,6 @@ export function createExplorerLightApi(inputs: Inputs) {
      */
     get lightingView(): SceneLightingView {
       return store?.lightingView ?? 'auto'
-    },
-    /** What the engine actually does with lights: a call accepted by the store is not proof of
-     *  lighting, and its shadows and their limits are the engine's to declare. */
-    lightingCapabilities() {
-      check()
-      return lightingOf(engine)
     },
     ...lightWrites(inputs, required),
   }

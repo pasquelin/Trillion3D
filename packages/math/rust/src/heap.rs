@@ -22,6 +22,7 @@
 //! A pop fills the top with the last entry and sinks it; a removal fills the slot with the last
 //! entry and sinks it when the key removed comes strictly first, else raises it. A sift moves the
 //! entry through a hole instead of swapping at each step: the same comparisons, so the same heap.
+use crate::scalar::not_below;
 use std::marker::PhantomData;
 
 /// The slot of an id the heap does not hold.
@@ -66,7 +67,7 @@ impl Order for LeastRightUnlessLeftLess {
     }
     fn sink(key: f32, left: f32, right: Option<f32>) -> Option<usize> {
         let (child, least) = match right {
-            Some(right) if !(left < right) => (1, right),
+            Some(right) if not_below(left, right) => (1, right),
             _ => (0, left),
         };
         (least < key).then_some(child)
@@ -90,7 +91,7 @@ impl Order for Greatest {
 pub struct LeastRisingOnTie;
 impl Order for LeastRisingOnTie {
     fn before(a: f32, b: f32) -> bool {
-        !(b < a)
+        not_below(b, a)
     }
     fn sink(key: f32, left: f32, right: Option<f32>) -> Option<usize> {
         least_sink(key, left, right)

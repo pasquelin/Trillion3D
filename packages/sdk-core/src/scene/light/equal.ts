@@ -2,6 +2,8 @@ import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 import type { SceneEnvironment } from '../core/environment.ts'
 import type { SceneLight } from './contracts.ts'
 import { sameSceneFog } from '../core/fog.ts'
+import { sameSceneAtmosphere } from '../core/atmosphere.ts'
+import { sameSceneSky } from '../core/environmentSky.ts'
 
 /** Two optional contract vectors: both absent, or identical component by component. */
 const sameVector = (a: readonly number[] | undefined, b: readonly number[] | undefined) =>
@@ -26,6 +28,7 @@ export function sameSceneLight(a: SceneLight, b: SceneLight) {
     a.coneAngle === b.coneAngle &&
     a.penumbra === b.penumbra &&
     a.angularRadius === b.angularRadius &&
+    a.atmosphereSun === b.atmosphereSun &&
     a.emitterRadius === b.emitterRadius &&
     sameVector(a.color, b.color) &&
     sameVector(a.position, b.position) &&
@@ -41,7 +44,10 @@ export function sameSceneEnvironment(a: SceneEnvironment, b: SceneEnvironment) {
     a.exposure === b.exposure &&
     a.toneMapping === b.toneMapping &&
     a.sharpness === b.sharpness &&
+    a.vignette === b.vignette &&
     sameVector(a.irradiance, b.irradiance) &&
-    sameSceneFog(a.fog, b.fog)
+    sameSceneFog(a.fog, b.fog) &&
+    sameSceneAtmosphere(a.atmosphere, b.atmosphere) &&
+    sameSceneSky(a.sky, b.sky)
   )
 }

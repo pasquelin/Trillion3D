@@ -15,6 +15,7 @@ use super::super::tree::{
     Coord, Leaf, Lower, Slot, Tree, LEAF_SIDE, LEAF_SIZE, LOWER_SPAN, UPPER_SPAN,
 };
 use rayon::prelude::*;
+use trillion3d_math::scalar::not_below;
 
 /// `tree`'s inactive voxels and tiles set to `|outside|` or `−|inside|` by the signs of its active
 /// voxels, its background to `|outside|`.
@@ -113,8 +114,8 @@ fn walk(signs: &[Option<bool>], side: usize, start: bool, mut fill: impl FnMut(u
                 line = sign;
             }
             let mut carried = line;
-            for xyz in xy0..xy0 + side {
-                match signs[xyz] {
+            for (xyz, &state) in signs.iter().enumerate().skip(xy0).take(side) {
+                match state {
                     Some(sign) => carried = sign,
                     None => fill(xyz, carried),
                 }
@@ -139,7 +140,7 @@ fn fill_root(tree: &mut Tree<f32>, inside: f32) {
         if a[0] != b[0] || a[1] != b[1] || b[2] - a[2] == UPPER_SPAN {
             continue;
         }
-        if !(a_last < 0.0) || !(b_first < 0.0) {
+        if not_below(a_last, 0.0) || not_below(b_first, 0.0) {
             continue;
         }
         let mut z = a[2] + UPPER_SPAN;

@@ -28,26 +28,35 @@ pub(crate) struct DagResult {
     /// The groups its far field may draw as voxels (`voxel`).
     pub voxel_seed: crate::voxel::VoxelSeed,
 }
-/// `precision` is what its mesh's build names of its pages' grid (`meshBuild`'s position, normal
-/// and tangent precisions), the grid itself following its finest clusters unless named
-/// (`geometry_page::quant::page_grid`). `scale` is the largest world scale its mesh is placed at,
-/// which brings its bundles' bands to metres (`lay_bundles`). A blended primitive's source cover merges
-/// into the world's HLOD as any (`SourceCover::of`), with the LODs `taken` names when a merged layer
-/// takes it (`Lods::of`). `shaping` is how its mesh keeps
-/// its shape as its DAG is built, and what its finest level keeps (`dag::MeshShaping`); its first
-/// `root_pages` streaming pages at least are its root pages (`root_page_count`).
-#[allow(clippy::too_many_arguments)]
+/// What a primitive's DAG is built under.
+pub(crate) struct DagInputs {
+    /// What its resident proxy's coarse cut must fit (`proxy::cut::cut_demand`).
+    pub proxy_demand: crate::proxy::cut::CutDemand,
+    /// What the merged layers take of its source, none when none does: a blended primitive's
+    /// source cover merges into the world's HLOD as any (`SourceCover::of`), with the LODs it
+    /// names (`Lods::of`).
+    pub taken: Option<crate::hlod::flatten::merge::Taken>,
+    /// How its mesh keeps its shape as its DAG is built, and what its finest level keeps
+    /// (`dag::MeshShaping`).
+    pub shaping: crate::dag::MeshShaping,
+    /// Its first streaming pages at least are its root pages (`root_page_count`).
+    pub root_pages: usize,
+    /// What its mesh's build names of its pages' grid (`meshBuild`'s position, normal and tangent
+    /// precisions), the grid itself following its finest clusters unless named
+    /// (`geometry_page::quant::page_grid`).
+    pub precision: trillion3d_page_codec::bits::grid::Precision,
+    /// The largest world scale its mesh is placed at, which brings its bundles' bands to metres
+    /// (`lay_bundles`).
+    pub scale: Option<f64>,
+}
+/// The DAG of the primitive `pos`, `carried` and `index_values` describe, its pages and what the
+/// later stages read of it, built under `inputs`.
 pub(crate) fn build_dag_primitive(
     o: &Options,
     pos: &[f32],
     carried: &[&encode::Attribute],
     index_values: &[u32],
-    (proxy_demand, taken): (
-        crate::proxy::cut::CutDemand,
-        Option<crate::hlod::flatten::merge::Taken>,
-    ),
-    (shaping, root_pages): (crate::dag::MeshShaping, usize),
-    (precision, scale): (trillion3d_page_codec::bits::grid::Precision, Option<f64>),
+    inputs: DagInputs,
     encode_packed: &(impl Fn(
         &[u32],
         &[f32],
@@ -57,6 +66,14 @@ pub(crate) fn build_dag_primitive(
     ) -> Result<crate::compiler::pages::record::EncodedPage>
           + Sync),
 ) -> Result<DagResult> {
+    let DagInputs {
+        proxy_demand,
+        taken,
+        shaping,
+        root_pages,
+        precision,
+        scale,
+    } = inputs;
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
     let settings = crate::dag::DagSettings {
         strategy,
@@ -90,7 +107,7 @@ pub(crate) fn build_dag_primitive(
     let untangled: Vec<&encode::Attribute> = (attributes.carried.iter().copied())
         .filter(|a| a.flag != trillion3d_page_codec::FLAG_TANGENT)
         .collect();
-    let source_cover = SourceCover::of(strategy, (&dag, &groups), (pos, &untangled[..]), merged)?;
+    let source_cover = SourceCover::of((&dag, &groups), (pos, &untangled[..]), merged)?;
     // The grid follows every cluster the build made, the finest detail the trim cuts away included.
     let extents = crate::dag::cut_finest(shaping.trim, (&mut dag, &mut groups), pos, &indices);
     let voxel_seed = crate::voxel::VoxelSeed::of(
@@ -120,8 +137,10 @@ pub(crate) fn build_dag_primitive(
     // and the hierarchy's leaves their group parts (`compiler/hierarchy.rs`). Metres per object
     // unit, by the one rule a proxy follows, band them.
     let metres = 1.0 / trillion3d_page_codec::proxy::object_units(1.0, scale);
-    // Every slot the pinned cover's. Made where it is read — here and on the pages' thread —, so
-    // no thread is handed another's closures.
+    // No slot of a primitive is held by a cell: every one is the pinned cover's, and the root pages
+    // are its mesh's (`Laying`; only the world's HLOD holds slots, `hlod/chain/bundles.rs`). The
+    // closures are made where they are read — here and on the pages' thread —, so no thread is
+    // handed another's.
     let (held, root_pages_of) = (
         |_: usize| -> Option<usize> { None },
         |_: Option<usize>| root_pages,

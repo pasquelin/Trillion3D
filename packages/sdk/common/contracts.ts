@@ -14,6 +14,10 @@ export type {
 } from '../../sdk-core/src/scene/core/environment.ts'
 export type { AlphaMode, LinearRgb, Material, Side } from '../../sdk-core/src/contracts/material.ts'
 export { assertSceneProxy, decodeSceneProxy } from '../../sdk-core/src/scene/core/proxy.ts'
+export type {
+  BounceFrameMetrics,
+  ShadowFrameMetrics,
+} from '../../sdk-core/src/contracts/shadowMetrics.ts'
 export { createSafetyPolicy } from '../../sdk-core/src/runtime/safety/safety.ts'
 export type {
   CapabilityTier,
@@ -70,6 +74,11 @@ export type {
 export type { GpuMemoryFrameMetrics } from '../../sdk-core/src/contracts/gpuMemory.ts'
 export { LOD_QUALITY, lodQuality } from '../../sdk-core/src/lod/policy.ts'
 export type { LodQualityId } from '../../sdk-core/src/lod/policy.ts'
+export type {
+  ResolvedAtmosphere,
+  SceneAtmosphere,
+  SceneOzoneLayer,
+} from '../../sdk-core/src/scene/core/atmosphere.ts'
 export { SCENE_MODEL_VERSION } from '../../sdk-core/src/scene/core/nodeContracts.ts'
 export type { SceneNodeOptions, SceneState } from '../../sdk-core/src/scene/core/nodeContracts.ts'
 export type {
@@ -77,8 +86,13 @@ export type {
   SceneFog,
   SceneLinearFog,
 } from '../../sdk-core/src/scene/core/fog.ts'
+export type { SceneExposure } from '../../sdk-core/src/contracts/exposureOptions.ts'
+export type {
+  SceneFogDirectional,
+  SceneHeightFog,
+} from '../../sdk-core/src/scene/core/fogHeight.ts'
 export { SceneNode } from '../../sdk-core/src/scene/core/node.ts'
-export type { ShadowFrameMetrics } from '../../sdk-core/src/contracts/shadowMetrics.ts'
+export type { SceneSky } from '../../sdk-core/src/scene/core/environmentSky.ts'
 export type { SoftBodyType } from '../../sdk-core/src/physics/soft/soft.ts'
 export {
   TABLE_FILTERS,

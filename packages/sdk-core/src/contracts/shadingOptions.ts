@@ -1,18 +1,9 @@
 import { choiceSetting as choice, rulesOf, type SettingOptions } from './settingRules.ts'
 
 /**
- * The run-time settings of the material pass's shading (`packages/sdk-browser/src/visibility/shader/shadeBinsWgsl.ts`):
- * how the shading bins hold each material class's pixels. They are the engine's own, read again at
- * each frame: no compiler job names them, so no manifest carries them and no cache key holds them.
- * None has quality levels: the scalability groups of the reference leave each at its default, so a
- * quality preset writes none (`../runtime/qualityLevels.ts`). Each is a world option
- * (`WorldOptions`), a session option (`MeasuredWorldOptions`), a render setting of the view
- * distance's group (`packages/sdk-browser/src/session/world/settings.ts`), and the LLM schemas name
- * it by its field and say what it means (`../llm/settingProperties.ts`). Each is read by the one
- * resolver of the rules (`resolveSetting`, `./settingRules.ts`) wherever it is taken — the world, a
- * session at its opening, the session's setter, the frame —: a value it takes as itself,
- * `undefined` or `null` its default, anything else refused with a `TypeError` naming the field and
- * the values it takes.
+ * The run-time settings of the material pass's shading
+ * (`packages/sdk-browser/src/visibility/shader/shadeBinsWgsl.ts`): how the shading bins hold each
+ * material class's pixels. Run-time settings, as `./settingRules.ts` says.
  */
 
 /** The binning modes of `shadeBinningMode`, the reference's default first: `auto` as the class's

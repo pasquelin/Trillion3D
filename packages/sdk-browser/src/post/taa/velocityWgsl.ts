@@ -136,45 +136,12 @@ export const SHARE_CODE_SHIFT = 4
 export const SHARE_CODE_MASK = HISTORY_SHARE_MASK << SHARE_CODE_SHIFT
 export const VECTOR_FORMAT: GPUTextureFormat = 'r32uint'
 
-/**
- * The nearest velocity, once per render texel, before the history is reprojected:
- * - the 3×3's depths, and the closest of the two horizontal and the two vertical neighbours that
- *   stand out of the texel — their mean nearer than the texel by more than a quarter of their own
- *   difference and than the texel's pixel depth error (`pixelDeviceZError`) —: on a flat surface the
- *   texel keeps its own velocity, on a depth edge it takes the foreground's. The depth and its
- *   offset are packed in one word, the offset in the low four bits, so one maximum picks both;
- * - the parallax depth error: the depth steps to the four neighbours, each weighed by how far it
- *   continues the surface (`depthBilateralError`);
- * - the texel's own velocity and the closest surface's, each the motion of a surface point: a point that
- *   moved by itself — a placement whose motion is not the identity, a deformed geometry
- *   (`drawsMotion`) — at its own texel, any other at this texel's centre and the closest depth,
- *   so the camera's motion is the closest surface's; the reprojection edge, `1.1 − 1.1 · |Δv|₁` of the
- *   two in render pixels;
- * - how far the texel moves for the flicker measure (`isMoving`): its surface point's world motion
- *   past a pixel's diameter at its depth, and the camera's parallax at the texel past half the
- *   limit (`view.rates.x`); a pixel animation (`pageOf`) moves it in full;
- * - the closest occluder scattered where it stood in the last image (`scatterOccluder`): on the
- *   2×2 a bilinear read there weighs, each word keeping the greatest — the closest depth in its
- *   high bits, its hole-filling velocity in its low ones; under an orthographic projection the
- *   depth on 23 bits in both of two words, each carrying half of the velocity.
- * 9 depth loads, one identifier load — two where the texel takes a neighbour's velocity — and two
- * reprojections per render texel.
- */
-export const velocityShader = () =>
-  wgslProgram(
-    `@group(0) @binding(${VELOCITY_BINDINGS.view}) var<uniform> view:TaaView;
-@group(0) @binding(${VELOCITY_BINDINGS.depth}) var depth:texture_depth_2d;
-@group(0) @binding(${VELOCITY_BINDINGS.ids}) var ids:texture_2d<u32>;
-@group(0) @binding(${VELOCITY_BINDINGS.pages}) var<storage,read> pages:array<PageInfo>;
-@group(0) @binding(${VELOCITY_BINDINGS.motion}) var<storage,read> motion:array<mat4x4f>;
-@group(0) @binding(${VELOCITY_BINDINGS.indices}) var<storage,read> indices:array<u32>;
-@group(0) @binding(${VELOCITY_BINDINGS.positions}) var<storage,read> positions:array<f32>;
-@group(0) @binding(${VELOCITY_BINDINGS.uvs}) var<storage,read> uvs:array<f32>;
-@group(0) @binding(${VELOCITY_BINDINGS.closest}) var closestOut:texture_storage_2d<${CLOSEST_FORMAT},write>;
-@group(0) @binding(${VELOCITY_BINDINGS.marks}) var marksOut:texture_storage_2d<${MARKS_FORMAT},write>;
-@group(0) @binding(${VELOCITY_BINDINGS.vectors}) var vectorOut:texture_storage_2d<${VECTOR_FORMAT},write>;
-@group(0) @binding(${VELOCITY_BINDINGS.occluders}) var<storage,read_write> occluders:array<atomic<u32>>;
-fn packDepthOffset(o:vec2i,z:f32)->u32{return ((bitcast<u32>(z)<<2u)&~0xfu)|u32(1+o.x)|(u32(1+o.y)<<2u);}
+/** The texel helpers of the nearest velocity: the packed closest depth, the depth error, the motion
+ *  of a surface point, whether it moves, and the scatter of the occluders. */
+const VELOCITY_HELPERS_WGSL = wgslBlock(
+  'VELOCITY_HELPERS_WGSL',
+  [],
+  `fn packDepthOffset(o:vec2i,z:f32)->u32{return ((bitcast<u32>(z)<<2u)&~0xfu)|u32(1+o.x)|(u32(1+o.y)<<2u);}
 fn depthBilateralError(n:array<f32,9>)->f32{
  var t=n;
  let c=t[4];let e=t[5];let w=t[3];let s=t[7];let nn=t[1];
@@ -247,7 +214,48 @@ fn scatterOccluder(screen:vec2f,v:vec2f,prevZ:f32){
   let before=atomicMax(&occluders[index],word);
   if(ortho&&before<word){atomicMax(&occluders[count+index],low);}
  }
-}
+}`,
+)
+
+/**
+ * The nearest velocity, once per render texel, before the history is reprojected:
+ * - the 3×3's depths, and the closest of the two horizontal and the two vertical neighbours that
+ *   stand out of the texel — their mean nearer than the texel by more than a quarter of their own
+ *   difference and than the texel's pixel depth error (`pixelDeviceZError`) —: on a flat surface the
+ *   texel keeps its own velocity, on a depth edge it takes the foreground's. The depth and its
+ *   offset are packed in one word, the offset in the low four bits, so one maximum picks both;
+ * - the parallax depth error: the depth steps to the four neighbours, each weighed by how far it
+ *   continues the surface (`depthBilateralError`);
+ * - the closest surface's velocity, and where the texel took a neighbour's its own too, each the
+ *   motion of a surface point: a point that
+ *   moved by itself — a placement whose motion is not the identity, a deformed geometry
+ *   (`drawsMotion`) — at its own texel, any other at this texel's centre and the closest depth,
+ *   so the camera's motion is the closest surface's; the reprojection edge, `1.1 − 1.1 · |Δv|₁` of the
+ *   two in render pixels, one where the texel took none;
+ * - how far the texel moves for the flicker measure (`isMoving`): its surface point's world motion
+ *   past a pixel's diameter at its depth, and the camera's parallax at the texel past half the
+ *   limit (`view.rates.x`); a pixel animation (`pageOf`) moves it in full;
+ * - the closest occluder scattered where it stood in the last image (`scatterOccluder`): on the
+ *   2×2 a bilinear read there weighs, each word keeping the greatest — the closest depth in its
+ *   high bits, its hole-filling velocity in its low ones; under an orthographic projection the
+ *   depth on 23 bits in both of two words, each carrying half of the velocity.
+ * 9 depth loads, one identifier load — two where the texel takes a neighbour's velocity — and one
+ * reprojection per render texel, two where it does.
+ */
+export const velocityShader = () =>
+  wgslProgram(
+    `@group(0) @binding(${VELOCITY_BINDINGS.view}) var<uniform> view:TaaView;
+@group(0) @binding(${VELOCITY_BINDINGS.depth}) var depth:texture_depth_2d;
+@group(0) @binding(${VELOCITY_BINDINGS.ids}) var ids:texture_2d<u32>;
+@group(0) @binding(${VELOCITY_BINDINGS.pages}) var<storage,read> pages:array<PageInfo>;
+@group(0) @binding(${VELOCITY_BINDINGS.motion}) var<storage,read> motion:array<mat4x4f>;
+@group(0) @binding(${VELOCITY_BINDINGS.indices}) var<storage,read> indices:array<u32>;
+@group(0) @binding(${VELOCITY_BINDINGS.positions}) var<storage,read> positions:array<f32>;
+@group(0) @binding(${VELOCITY_BINDINGS.uvs}) var<storage,read> uvs:array<f32>;
+@group(0) @binding(${VELOCITY_BINDINGS.closest}) var closestOut:texture_storage_2d<${CLOSEST_FORMAT},write>;
+@group(0) @binding(${VELOCITY_BINDINGS.marks}) var marksOut:texture_storage_2d<${MARKS_FORMAT},write>;
+@group(0) @binding(${VELOCITY_BINDINGS.vectors}) var vectorOut:texture_storage_2d<${VECTOR_FORMAT},write>;
+@group(0) @binding(${VELOCITY_BINDINGS.occluders}) var<storage,read_write> occluders:array<atomic<u32>>;
 @compute @workgroup_size(${TEXEL_TILE},${TEXEL_TILE})
 fn nearestVelocity(@builtin(global_invocation_id) gid:vec3u){
  let p=vec2i(gid.xy);
@@ -268,14 +276,19 @@ fn nearestVelocity(@builtin(global_invocation_id) gid:vec3u){
  let closestZ=bitcast<f32>((packed&~0xfu)>>2u);
  let offset=vec2i(i32(packed&3u),i32((packed>>2u)&3u))-vec2i(1);
  let id=textureLoad(ids,p,0).r;
- let own=texelMotion(p,p,zc,id);
  // The closest neighbour's identifier, a second load only where the texel took a neighbour's.
  let q=clampTexel(p+offset);
  var nearId=id;
  if(any(q!=p)){nearId=textureLoad(ids,q,0).r;}
  let nearest=texelMotion(p,q,closestZ,nearId);
- let delta=abs(pixelVelocity(nearest.velocity.xy-own.velocity.xy));
- let edge=saturate(1.1-dot(delta,vec2f(1.1)));
+ // The edge is read only where the texel took a neighbour's velocity (the offset bit): there, how
+ // far that velocity lies from the texel's own; elsewhere none, and its own is not computed.
+ var edge=1.0;
+ if(any(offset!=vec2i(0))){
+  let own=texelMotion(p,p,zc,id);
+  let delta=abs(pixelVelocity(nearest.velocity.xy-own.velocity.xy));
+  edge=saturate(1.1-dot(delta,vec2f(1.1)));
+ }
  let prevClosestZ=closestZ-nearest.velocity.z;
  let page=pageOf(id);
  let animated=page.animated>0.0;
@@ -303,5 +316,6 @@ fn nearestVelocity(@builtin(global_invocation_id) gid:vec3u){
       ndcToPixel,
       perspectiveDivide,
       transformHomogeneousPoint,
+      VELOCITY_HELPERS_WGSL,
     ],
   )

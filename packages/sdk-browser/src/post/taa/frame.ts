@@ -1,5 +1,6 @@
 import { jitterViewProjection, taaJitter, upscalePhases } from './jitter.ts'
 import { taaExposure, writeTaaView } from './view.ts'
+import { appliedExposureOf } from '../exposure/applied.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { sameMatrixBits } from '../../../../math/src/matrix/matrixElements.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
@@ -9,11 +10,37 @@ import type { AsIsShare } from '../../lighting/deferred/asIsShare.ts'
 import { writtenFilter } from '../../blend/display/displayFilter.ts'
 import { drawFrameAt, scalesTargets, taaRuns } from '../../frame/backend/state/renderScale.ts'
 import { dropTaaHistory } from './landing.ts'
+import type { TaaFrameState } from './frameState.ts'
 import { encodeComposedMotion } from '../../placement/compose/composedMotionPass.ts'
 import { taaViewCode } from '../../visibility/shader/shadeMode.ts'
 import { FULL_ANALYSIS, taaKnobs } from './levels.ts'
+import { contextReader } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import { FIRST_ANALYSIS_VIEW } from './rejectionWgsl.ts'
 import { writesGivenUp } from '../../frame/prepare/asIsShareTarget.ts'
+
+/** The temporal pass's setting `field` the session holds (`temporalOptions.ts`), by its one
+ *  resolver, read at each image. */
+const temporalSetting = contextReader(TEMPORAL_RULES)
+
+/** The analysis the level runs: the flicker measure where it rejects by it or a view shows it, the
+ *  thin geometry detection where the setting asks for it or a view shows it. A history the measure
+ *  left unwritten describes no image: it starts again, with the history it is told against. */
+function analysisFor(
+  rt: WebgpuPagesRuntime,
+  state: TaaFrameState,
+  knobs: ReturnType<typeof taaKnobs>,
+  viewCode: number,
+) {
+  const thinOn = temporalSetting(rt, 'temporalThinGeometry')
+  const work =
+    viewCode >= FIRST_ANALYSIS_VIEW ? FULL_ANALYSIS : thinOn ? knobs.thinWork : knobs.work
+  if (work.flicker && !state.flickerRan) dropTaaHistory(state)
+  state.flickerRan = work.flicker
+  if (work.thin && !state.thinRan) dropTaaHistory(state)
+  state.thinRan = work.thin
+  return work
+}
 
 /**
  * Image entry of the pass, called once per image drawn, where the image's motion is known. A
@@ -118,16 +145,11 @@ export function encodeTaaPass(
   const { targetSize, displaySize } = gpu
   const { inputs, filterHistory } = temporal
   inputs.filter = writtenFilter(gpu.displayFilter) // `displayFilter.ts`
-  const exposure = taaExposure(rt.lights.store?.environment)
+  const exposure = taaExposure(appliedExposureOf(rt))
   const knobs = taaKnobs(gpu.temporalLevel),
     viewCode = taaViewCode(run.diagnostic),
     moved = temporal.motion.moved || !!rt.compose?.moving
-  // The analysis the level runs: the flicker measure where it rejects by it or a view shows it.
-  const work = viewCode >= FIRST_ANALYSIS_VIEW ? FULL_ANALYSIS : knobs.work
-  // A flicker history the measure left unwritten describes no image: it starts again, with the
-  // history it is told against.
-  if (work.flicker && !state.flickerRan) dropTaaHistory(state)
-  state.flickerRan = work.flicker
+  const work = analysisFor(rt, state, knobs, viewCode)
   // A still image adds to the count its convergence is told by; any motion starts it again.
   const still =
     state.hasHistory &&
@@ -152,6 +174,7 @@ export function encodeTaaPass(
     rt.views.main.scale.frameIntervalMs,
     viewCode,
     knobs,
+    work,
   )
   inputs.current = current
   inputs.depth = gpu.depthView

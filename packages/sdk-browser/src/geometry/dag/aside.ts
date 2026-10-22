@@ -5,7 +5,7 @@ import { writeDagUniforms } from './uniforms.ts'
 import { encodeDagKernels, encodeDagPost } from './encode.ts'
 import { twoPassOf } from './shader/occlusionWgsl.ts'
 import type { CutPyramid } from './occlusion.ts'
-import { listWords, priorityWord } from './readoutWords.ts'
+import { countWord, listWords, priorityWord } from './readoutWords.ts'
 import type { DagRuntimeState } from './runtime/runtimeState.ts'
 import type { DagResources } from './resources.ts'
 import {
@@ -49,8 +49,8 @@ const noop = () => {}
  * A VIEW DRAWN BESIDE THE MAIN ONE — a capture, a persistent view (#1097) — CUT ON THE GPU (#1483).
  * The kernels and their tables are the main cut's: the view's camera is written to the uniforms
  * and the cut runs in the view's command buffer, which draws from the mask it leaves. Its requests
- * with their priorities and its drawn pages are copied into a readback ring of its own
- * (`asideSlots.ts`) — no difference: the host publishes them by hashed difference
+ * with their page counts and priorities and its drawn pages are copied into a readback ring of its
+ * own (`asideSlots.ts`) — no difference: the host publishes them by hashed difference
  * (`../cut/adoption/publication.ts`). Its occlusion runs in two passes as the main view's does,
  * against its own last pyramid (`../../frame/render/cutPyramid.ts`): the main pass in the dispatch,
  * the post pass and the lists' copy behind the image's first raster pass (`encodePost`). Its first
@@ -191,10 +191,12 @@ function copyLists(
   const target = slots.ring.take(copy, asideCopyBytes(ranks))
   if (!target) return undefined
   // The requests, then the drawn list right behind them, each its header and `ranks` ranks, then
-  // the requests' priorities, `ranks` of them.
+  // the requests' priorities and their page counts, `ranks` of each.
   shared.copyBufferToBuffer(output, 0, target, 0, bytes)
   shared.copyBufferToBuffer(output, listWords(listCap) * 4, target, bytes, bytes)
   shared.copyBufferToBuffer(output, priorityWord(listCap) * 4, target, 2 * bytes, ranks * 4)
+  const counts = 2 * bytes + ranks * 4
+  shared.copyBufferToBuffer(output, countWord(listCap) * 4, target, counts, ranks * 4)
   slots.inFlight = serial
   const read = () => {
     copy.withdrawn = state.withdrawnRevision

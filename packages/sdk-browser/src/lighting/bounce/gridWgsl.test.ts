@@ -3,6 +3,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
+import { BOUNCE_MARK_SHADER, marksWgsl } from './markWgsl.ts'
+import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
+import { createBounceCascades } from '../../../../sdk-core/src/bounce/cascades.ts'
+import { createProbePool } from '../../../../sdk-core/src/bounce/probePool.ts'
+import { applyMarks, markWords } from '../../../../sdk-core/src/bounce/probeMarks.ts'
 import { functionBody } from '../../materials/texture/shaderRule.fixture.ts'
 import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
 import { BOUNCE_APPLY_WGSL } from './applyWgsl.ts'
@@ -15,6 +20,13 @@ import {
 } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { unit } from '../../../../math/src/vector/vectorTuple.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
+import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
+import { SKY_SLOT, SKY_SLOTS } from '../../../../sdk-core/src/scene/core/environmentSky.ts'
+import {
+  addUniformIrradiance,
+  emptyIrradiance,
+} from '../../../../sdk-core/src/scene/core/environment.ts'
 
 const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
@@ -96,4 +108,192 @@ test('a bounce probe is read in the band order the environment uses', () => {
       assert.ok(Math.abs(read - expected) < 1e-5, `${expected} vs ${read}`)
     }
   }
+})
+
+test('the probes carry the sky where they answer; the sky light’s own irradiance stands for the rest', () => {
+  // A uniform sky of irradiance (0.5, 0.25, 0.125), as the light buffer's block holds it, a sky light shining.
+  const sh = emptyIrradiance()
+  addUniformIrradiance(sh, [0.5, 0.25, 0.125])
+  const sky = Array.from({ length: SKY_SLOTS }, () => [0, 0, 0, 0])
+  for (let k = 0; k < 9; k++)
+    sky[SKY_SLOT.irradiance + k] = [sh[k * 3], sh[k * 3 + 1], sh[k * 3 + 2], 0]
+  sky[SKY_SLOT.upper] = [1, 1, 1, 1]
+  const { indirectGathered, environmentSky, skyIrradiance } = shaderRun<{
+    indirectGathered: (gathered: number[], N: number[]) => number[]
+    environmentSky: (N: number[]) => number[]
+    skyIrradiance: (N: number[]) => number[]
+  }>(wgslModule(BOUNCE_APPLY_WGSL), ['indirectGathered', 'environmentSky', 'skyIrradiance'], {
+    directLights: { sky },
+  })
+  const N = [0, 1, 0],
+    probes = [0.1, 0.2, 0.3]
+  assert.deepEqual(indirectGathered([...probes, 1], N), probes, 'answered whole: the probes alone')
+  const none = indirectGathered([0, 0, 0, 0], N)
+  assert.ok(
+    none.every((c, i) => Math.abs(c - [0.5, 0.25, 0.125][i]) < 1e-9),
+    'none: the sky light',
+  )
+  const part = indirectGathered([...probes, 0.25], N)
+  part.forEach((c, i) =>
+    assert.ok(Math.abs(c - (0.75 * [0.5, 0.25, 0.125][i] + 0.25 * probes[i])) < 1e-9),
+  )
+  // A coefficient below zero is never a light below zero.
+  sky[SKY_SLOT.irradiance] = [-1, 0, 0, 0]
+  assert.deepEqual(skyIrradiance([0, 1, 0]), [0, 0, 0])
+  // The environment adds none of it beside them: a program that reads the probes never counts it twice.
+  assert.deepEqual(environmentSky(N), [0, 0, 0])
+})
+
+test('a scene with no sky light is no darker for a partial read: the probes that answer stand for the rest', () => {
+  // No sky light shines: the block holds none, and the pixel's environment (ambient, hemisphere) is its own
+  // term beside the probes, so the share the probes leave has no unoccluded light of its own to take.
+  const sky = Array.from({ length: SKY_SLOTS }, () => [0, 0, 0, 0])
+  const { indirectGathered } = shaderRun<{
+    indirectGathered: (gathered: number[], N: number[]) => number[]
+  }>(wgslModule(BOUNCE_APPLY_WGSL), ['indirectGathered'], { directLights: { sky } })
+  const N = [0, 1, 0],
+    probes = [0.1, 0.2, 0.3]
+  assert.deepEqual(indirectGathered([...probes, 1], N), probes, 'answered whole')
+  assert.deepEqual(indirectGathered([...probes, 0.25], N), probes, 'a quarter answered: their mean')
+  assert.deepEqual(indirectGathered([0, 0, 0, 0], N), [0, 0, 0], 'none: nothing, as with no probes')
+})
+
+test('the sky light is the environment’s where no probe is read, the probes’ where they are', () => {
+  const direct = contractLightingShader(false),
+    probed = contractLightingShader(true)
+  // The program with no probes adds the sky light beside the environment, the sky nothing hides...
+  assert.match(direct, /fn environmentSky\(N:vec3f\)->vec3f\{return skyIrradiance\(N\);\}/)
+  assert.ok(!direct.includes('indirectGathered'))
+  // ...the one that reads them takes it from them, and adds none beside them.
+  assert.match(probed, /fn environmentSky\(N:vec3f\)->vec3f\{return vec3f\(0\.0\);\}/)
+  assert.ok(probed.includes('fn indirectGathered('))
+})
+
+test('a surface a probe ray or a reflection hits is lit by what the probes hold there, never by the sky light', () => {
+  // A bright sky light: the pixel's fallback where no probe answers (`indirectGathered`), never a hit's.
+  const sh = emptyIrradiance()
+  addUniformIrradiance(sh, [0.5, 0.25, 0.125])
+  const sky = Array.from({ length: SKY_SLOTS }, () => [0, 0, 0, 0])
+  for (let k = 0; k < 9; k++)
+    sky[SKY_SLOT.irradiance + k] = [sh[k * 3], sh[k * 3 + 1], sh[k * 3 + 2], 0]
+  sky[SKY_SLOT.upper] = [1, 1, 1, 1]
+  let gathered = [0, 0, 0, 0]
+  const { surfaceSeen, surfaceLit } = shaderRun<{
+    surfaceSeen: (albedo: number[], P: number[], N: number[]) => number[]
+    surfaceLit: (albedo: number[], P: number[], N: number[], reach: number) => number[]
+  }>(wgslModule(SURFACE_RAY_WGSL), ['surfaceSeen', 'surfaceLit'], {
+    directLights: { sky },
+    sampleBounceGathered: () => gathered,
+    // The lights add a unit of irradiance: only the indirect share is under test.
+    lightsIrradiance: () => [1, 1, 1],
+  })
+  const albedo = [0.8, 0.4, 0.2],
+    P = [0, 0, 0],
+    N = [0, 1, 0]
+  const lit = (irradiance: number[]) => albedo.map((c, i) => (c * irradiance[i]) / Math.PI)
+  const near = (read: number[], want: number[]) =>
+    read.forEach((c, i) => assert.ok(Math.abs(c - want[i]) < 1e-6, `${read} vs ${want}`))
+  // No probe holds light yet: the surface holds none either, it fills as they do — the lights alone light it.
+  near(surfaceSeen(albedo, P, N), lit([0, 0, 0]))
+  near(surfaceLit(albedo, P, N, 10), lit([1, 1, 1]))
+  // A share answered: the probes' light for that share, nothing for the rest.
+  gathered = [0.1, 0.2, 0.3, 0.5]
+  near(surfaceSeen(albedo, P, N), lit([0.05, 0.1, 0.15]))
+  near(surfaceLit(albedo, P, N, 10), lit([1.05, 1.1, 1.15]))
+  gathered = [0.1, 0.2, 0.3, 1]
+  near(surfaceSeen(albedo, P, N), lit([0.1, 0.2, 0.3]))
+})
+
+/**
+ * The mark pass (`BOUNCE_MARK_SHADER`) run as the shipped text over an image of 64 × 64 pixels, each
+ * tile — 16 pixels a side — reading one surface point `P` of normal up: its bitmap decoded by the
+ * pool's own reader (`applyMarks`), the cells it names are the eight probes the lit passes read for the point.
+ */
+function marked(
+  P: number[],
+  { depth = 0.5, normal = [0, 1, 0, 0.5] }: { depth?: number; normal?: number[] } = {},
+) {
+  const cascades = createBounceCascades([-2000, -10, -2000, 2000, 100, 2000])
+  cascades.follow([0, 1.7, 0])
+  const bits = new Uint32Array(markWords(cascades))
+  const run = shaderRun<{ markCells: (tile: number[]) => void }>(
+    BOUNCE_MARK_SHADER,
+    ['markCells'],
+    {
+      bounce: {
+        counts: [cascades.size, cascades.levels.length, cascades.cells, cascades.probes],
+        frame: [1, 0, 5, 0],
+        levels: cascades.levels.map(({ base, spacing }) => ({ base, spacing })),
+      },
+      view: { viewport: [64, 64, 0, 0] },
+      sceneDepth: { load: () => depth },
+      sceneNormals: { load: () => normal },
+      worldAt: () => P,
+      marks: bits,
+    },
+  )
+  for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) run.markCells([x, y, 0])
+  const pool = createProbePool({ ...cascades, probes: 4096 })
+  const cells: { level: number; cell: number[] }[] = []
+  const bases = cascades.levels.flatMap((level) => level.base)
+  applyMarks(bits, bases, cascades, pool, 1)
+  pool.probes(2, [0, 1.7, 0], 4096, 4096, (_slot, level, x, y, z) =>
+    cells.push({ level, cell: [x, y, z] }),
+  )
+  return { cells, cascades }
+}
+
+test('the mark pass names the eight probes around each surface the image shows, at the finest level that holds it', () => {
+  const P = [10.2, 0.3, -4.7]
+  const { cells, cascades } = marked(P)
+  const spacing = cascades.levels[0].spacing
+  // The point the lit passes read: a step of the normal bias off the surface, the corner a half cell back.
+  const corner = [P[0], P[1] + BOUNCE_SETTINGS.normalBias * spacing, P[2]].map((v) =>
+    Math.floor(v / spacing - 0.5),
+  )
+  const expected = Array.from({ length: 8 }, (_, k) => [
+    corner[0] + (k & 1),
+    corner[1] + ((k >> 1) & 1),
+    corner[2] + ((k >> 2) & 1),
+  ])
+  assert.deepEqual(
+    cells.map((entry) => entry.level),
+    new Array(8).fill(0),
+  )
+  assert.deepEqual(
+    cells.map((entry) => entry.cell.join()).sort(),
+    expected.map((c) => c.join()).sort(),
+  )
+  // Past the first level's 25 m the second answers, with its own cells; then the third, and the fourth.
+  const far = marked([40, 0.3, 0])
+  assert.ok(far.cells.length === 8 && far.cells.every((entry) => entry.level === 1))
+  assert.ok(marked([80, 0.3, 0]).cells.every((entry) => entry.level === 2))
+  assert.ok(marked([150, 0.3, 0]).cells.every((entry) => entry.level === 3))
+  // Past every level, or at sky, or where the image holds no normal, nothing is read: the sky light answers.
+  assert.deepEqual(marked([900, 0.3, 0]).cells, [])
+  assert.deepEqual(marked(P, { depth: 0 }).cells, [], 'reverse depth: zero is the background')
+  assert.deepEqual(marked(P, { normal: [0, 0, 0, 0] }).cells, [])
+})
+
+test('a point a level holds marks its eight probes and says so, one no level reaches marks nothing and says so', () => {
+  const cascades = createBounceCascades([-2000, -10, -2000, 2000, 100, 2000])
+  cascades.follow([0, 1.7, 0])
+  const bits = new Uint32Array(markWords(cascades))
+  const { markPoint } = shaderRun<{ markPoint: (P: number[], N: number[]) => boolean }>(
+    wgslModule(marksWgsl(5)),
+    ['markPoint'],
+    {
+      bounce: {
+        counts: [cascades.size, cascades.levels.length, cascades.cells, cascades.probes],
+        frame: [1, 0, 5, 0],
+        levels: cascades.levels.map(({ base, spacing }) => ({ base, spacing })),
+      },
+      marks: bits,
+    },
+  )
+  const count = () => bits.reduce((sum, word) => sum + word.toString(2).replace(/0/g, '').length, 0)
+  assert.equal(markPoint([10.2, 0.3, -4.7], [0, 1, 0]), true)
+  assert.equal(count(), 8, 'the eight probes round the point, in the finest level that holds it')
+  assert.equal(markPoint([900, 0.3, 0], [0, 1, 0]), false)
+  assert.equal(count(), 8, 'a point past every level marks nothing: the sky light answers there')
 })

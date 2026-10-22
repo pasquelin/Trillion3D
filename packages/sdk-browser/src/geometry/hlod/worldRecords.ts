@@ -1,17 +1,16 @@
 /**
  * THE WORLD DAG AS THE CUT'S PAGE RECORDS.
  *
- * The world DAG (`worldHlod.ts`) is the world's HLOD 1 to 3: per HLOD cell, one actor built
- * into its own DAG. Packed as the cut's last roots — one per placement of its model —, its pages
- * are records like a primitive's (`../selection/collectRecords.ts`), so the one cut chooses
- * them, the one pool holds them and the one raster draws them: each a geometry page in world space
+ * The world DAG (`worldHlod.ts`) is the world's HLOD 1 to 3: per HLOD cell, one actor built into
+ * its own DAG. Packed as the cut's last roots — one per placement of its model —, its pages are
+ * records like a primitive's (`../selection/collectRecords.ts`), so the one cut chooses them, the
+ * one pool holds them and the one raster draws them: each a geometry page in world space
  * (`world-roots.bin`, named by `worldRootPages.ts`, read through `worldRuns.ts`), worn in the
  * flattened material of its actor (`material`): the scene's own surface built from the material
- * table (`../../scene/host/prepared/materials.ts`), its atlas textures streamed as any texture, at the
- * texture coordinates the cook unwrapped (`compiler_world_roots/flatten`). Each record names its
- * HLOD layer, which the HLOD view paints (`../selection/diagnostic.ts`). No mesh of the scene
- * draws an actor: its records name no draw source, and none of its pages follows a node's
- * visibility.
+ * table (`../../scene/host/prepared/materials.ts`), its atlas textures streamed as any texture, at
+ * the texture coordinates the cook unwrapped (`hlod/flatten`). Each record names its HLOD layer,
+ * which the HLOD view paints (`../selection/diagnostic.ts`). No mesh of the scene draws an actor:
+ * its records name no draw source, and none of its pages follows a node's visibility.
  */
 import type { PageRec, ClusterRoot } from '../selection/types.ts'
 import type { PageSurface } from '../pages/surface.ts'

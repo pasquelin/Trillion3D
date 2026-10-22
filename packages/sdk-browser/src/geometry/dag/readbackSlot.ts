@@ -5,11 +5,12 @@ import type { ListFeedback } from './lists/listFeedback.ts'
 import type { CutListCaps } from './lists/cutListCaps.ts'
 
 /** Where a readback's lists lie and what they are read into: the bytes copied, the drawn list's
- *  first word, the requests' priorities' first word, and the read's arrays. */
+ *  first word, the requests' priorities' first word, their page counts', and the read's arrays. */
 export type SlotRead = {
   bytes: number
   drawnWordOffset: number
   priorityWordOffset: number
+  countWordOffset: number
   scratch: DagOutputScratch
 }
 
@@ -29,7 +30,11 @@ export function readDagSlot(
   land?: (words: ArrayBuffer, parsed: SelectionResult | null) => void,
 ) {
   const demand = listDemand(range, read.drawnWordOffset)
-  const at = { drawn: read.drawnWordOffset, priorities: read.priorityWordOffset }
+  const at = {
+    drawn: read.drawnWordOffset,
+    priorities: read.priorityWordOffset,
+    counts: read.countWordOffset,
+  }
   const parsed = parseDagOutput(range, 0, read.bytes, at, read.scratch)
   if (parsed?.peaks) lists.feedback(parsed.peaks, lists.caps)
   land?.(range, parsed)

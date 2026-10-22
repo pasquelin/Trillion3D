@@ -9,6 +9,7 @@ import type { Bloom } from '../../../../sdk-core/src/world/effect/bloom.ts'
 import { createWebgpuEffects } from './webgpuEffects.ts'
 import { WEBGPU_KINDS } from './webgpuKinds.ts'
 import { EFFECT_KIND_BYTES } from './kindBytes.ts'
+import type { PostFrame } from '../finish/finish.ts'
 
 /** A kind that records what it is asked: sizes, and each pass with its rank. */
 function spy() {
@@ -41,10 +42,11 @@ test('the renderer hands each pass to its kind, with its rank among that kind', 
   const { device } = fakeDevice()
   const effects = createWebgpuEffects(device, (error) => assert.fail(String(error)))
   const encoder = device.createCommandEncoder(),
-    input = {} as GPUTextureView
-  effects.encode(encoder, chain, input, 8, 4)
+    input = {} as GPUTextureView,
+    post = {} as PostFrame
+  effects.encode(encoder, chain, input, 8, 4, post)
   await effects.settled()
-  effects.encode(encoder, chain, input, 8, 4)
+  effects.encode(encoder, chain, input, 8, 4, post)
   assert.deepEqual(kind.drawn, [
     [chain[0], 0],
     [chain[1], 1],

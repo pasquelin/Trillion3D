@@ -14,38 +14,41 @@
  * visible or not, and its rows placed — the objects standing as themselves in it (`hlodRows.ts`) —:
  * a loaded HLOD actor stays hidden while its source cell is visible, ready for the switch.
  *
- * A cell above HLOD 0 wished whose children's actors are not all held and landed waits its turn to
+ * A cell above HLOD 0 wished whose children's actors are not all held and read waits its turn to
  * load (`waiting`), as does the unit of the actors always loaded of a level (`hlodTops.ts`): in the
- * partition's one load order, so many loading at once at most (`../partition/loadSlots.ts`). The
- * holds are asked by the priority of their unit's turn, the cell files' too (`hlodHolds.ts`).
+ * partition's one load order (`../partition/loadOrder.ts`), so many loading at once at most
+ * (`../partition/loadSlots.ts`). The
+ * slot is held while the reads are not done, no longer: an actor whose rows wait for room in the
+ * pool is loaded, and stays undrawn (`CELL_TOLD.rows`). The holds are asked by the priority of
+ * their unit's turn, the cell files' too (`hlodHolds.ts`).
  *
- * A frame does only what moved: each grid's cells are found around the eye in buckets of their
- * own, one bucket a grid's reach wide (`createGridBuckets`, `hlodBuckets.ts`), the cells entering
- * or leaving its range alone told again; a cell whose word, whose turn or whose parent's
- * visibility moved has its children's loads weighed again, and nothing else. Each frame the cut
- * is told what each cell that moved is (`WorldCells.show`) and switches its visibility
- * (`../dag/worlds/worldFollow.ts`).
+ * A frame does only what moved: the cells wished are found around the eye (`hlodWishes.ts`), the
+ * cells entering or leaving a grid's range alone told again; a cell whose word, whose turn or
+ * whose parent's visibility moved has its children's loads weighed again, and nothing else. Each
+ * frame the cut is told what each cell that moved is (`WorldCells.show`) and switches its
+ * visibility (`../dag/worlds/worldFollow.ts`).
  *
  * Cost, for C cells of the chain, G grids and n cells within a grid's range: O(C) once at
- * creation, then per eye move O(G · n), per moved cell O(its children), per frame O(cells
- * wished); nothing more while nothing moved.
+ * creation, then per eye move O(G · n), per moved cell O(its children), per hold landed O(1), per
+ * frame O(cells wished) reading the flags the moves kept; nothing more while nothing moved.
  */
 import type { WorldRootsHold } from './worldRoots.ts'
 import type { WorldCells } from '../dag/worlds/worldCells.ts'
-import { createGridBuckets } from './hlodBuckets.ts'
 import { createHoldOrder } from './hlodHolds.ts'
 import { createTops } from './hlodTops.ts'
+import { createWishes } from './hlodWishes.ts'
 import type { HlodPulls } from './hlodPulls.ts'
 import type { ActorRows } from './hlodRows.ts'
 import type { createCellHolds } from '../partition/cellHolds.ts'
-import type { LeafWish } from '../partition/plan.ts'
-import type { LoadingCell, LoadSlots } from '../partition/loadSlots.ts'
+import type { LeafWish, Ranker } from '../partition/plan.ts'
+import type { LoadingCell } from '../partition/loadOrder.ts'
+import type { LoadSlots } from '../partition/loadSlots.ts'
 import type { StreamingSource } from '../partition/source.ts'
+import { cellUnit } from '../partition/unitKeys.ts'
 import type { PartitionGrid } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
 import { CELL_TOLD } from '../dag/worlds/worldFollow.ts'
 import { cellChildren } from '../dag/worlds/worldLinks.ts'
 import { CHAIN_ACTOR } from '../../../../sdk-core/src/manifest/worldRoots.ts'
-import { keepNumbers } from '../../../../math/src/vector/vector.ts'
 
 /** The chain of HLOD cells of a partition, their roots held in `holds` on `world`'s table and
  *  their actors' rows placed by `actorRows`, the partition's `grids` (`TablePartition.hlod.grids`)
@@ -62,47 +65,48 @@ export function createHlodCells(
   const chain = world?.table?.chain
   const count = chain?.parent.length ?? 0
   /** Per cell: wished, every cell file of an HLOD 0 cell placed, one of them refused for good, its
-   *  actor's roots held, its turn to load come while it stays wished, and the word it was last
-   *  told (`CELL_TOLD`). */
+   *  actor's roots held, its turn to load come while it stays wished, its actor's reads done, and
+   *  the word it was last told (`CELL_TOLD`). */
   const wished = new Uint8Array(count),
     placed = new Uint8Array(count),
     lost = new Uint8Array(count),
     loadedNow = new Uint8Array(count),
     started = new Uint8Array(count),
+    landedNow = new Uint8Array(count),
     toldWords = new Uint8Array(count)
   /** Each cell's children: the cells whose actors lie in it. */
   const below = chain ? cellChildren(chain.parent) : []
-  let buckets = chain && createGridBuckets(chain, grids, source)
-  /** Per grid, the cells above HLOD 0 wished now and the list the next measure fills, swapped;
-   *  the HLOD 0 cells wished or placed now. */
-  const wishedOf = new Map<number, [number[], number[]]>(),
-    leavesOn = new Set<number>()
+  /** Whether `cell` has an actor built: what the table says (`CHAIN_ACTOR`), the cut's own word. */
+  const hasActor = (cell: number) => (chain!.actor[cell] & CHAIN_ACTOR.built) !== 0
+  /** Per cell, how many of its children with an actor built are not landed: none, it is whole. */
+  const unlanded = new Uint32Array(count)
+  const countUnlanded = () => {
+    unlanded.fill(0)
+    for (let cell = 0; cell < count; cell++)
+      if (chain!.parent[cell] >= 0 && hasActor(cell)) unlanded[chain!.parent[cell]]++
+  }
+  countUnlanded()
+  /** The HLOD 0 cells wished or placed now. */
+  const leavesOn = new Set<number>()
   /** The cells whose actors are loaded. */
   const loadedCells = new Set<number>()
-  /** The cells whose word may have moved, and those whose load may have. */
+  /** The cells whose word may have moved, those whose load may have, and those whose landing may
+   *  have. */
   const toldDue: number[] = [],
-    loadDue: number[] = []
-  /** Whether `cell`'s actor is held and landed, its rows placed; a failed one waits for nothing. */
-  const landed = (cell: number) =>
-    !!loadedNow[cell] && !holds.stillReads(cell) && !actorRows?.pending(cell)
+    loadDue: number[] = [],
+    landDue: number[] = []
   /** The units of the actors always loaded (`hlodTops.ts`), and the cells' ranks and holds
    *  (`hlodHolds.ts`). */
-  const tops = createTops(chain, slots, landed, (cell) => void loadDue.push(cell))
-  const order = chain && createHoldOrder(chain, grids, source, slots, tops, holds, actorRows)
-  /** What the cells were last followed under: the eye, the cut and the instance of the world DAG,
-   *  and the holds. */
-  const seenEye = new Float64Array(3).fill(NaN)
+  const tops = createTops(chain, slots, (cell) => void loadDue.push(cell))
+  const order = chain && createHoldOrder(chain, grids, slots, tops, holds, actorRows)
+  /** What the cells were last followed under: the cut and the instance of the world DAG, and the
+   *  holds. */
   let toldTo: WorldCells | undefined,
     instance = 0,
     seenHolds = -1,
-    /** The revision of the view's shape the cells were last measured under
-     *  (`StreamingSource.revision`): a setting it reads moved. */
-    seenShape = -1,
     /** Whether every cell was weighed since the last cut, instance or close. */
     weighed = false
   const visible = (cell: number) => !!toldTo?.visible(instance, cell)
-  /** Whether `cell` has an actor built: what the table says (`CHAIN_ACTOR`), the cut's own word. */
-  const hasActor = (cell: number) => (chain!.actor[cell] & CHAIN_ACTOR.built) !== 0
   /** Whether `cell`'s actor is loaded: none not built; one always loaded once its unit's turn has
    *  come (`hlodTops.ts`), else while its parent loads or has loaded — its turn come, while it
    *  stays wished — or is still visible. */
@@ -117,57 +121,18 @@ export function createHlodCells(
   const weighChildren = (cell: number) => {
     for (const child of below[cell]) loadDue.push(child)
   }
-  /** Whether every child of `cell` with an actor built has it held and landed, its rows placed. */
-  const settled = (child: number) => !hasActor(child) || landed(child)
-  const whole = (cell: number) => below[cell].every(settled)
-  /** Each upper cell's wish from `eye`, the cells entering or leaving their range told again; one
-   *  wished no more loses its turn, its children's loads weighed again. A reach that moved files
-   *  the cells again, and measures again from an eye that stood, as a shape that turns with the
-   *  view does at each frame (`StreamingSource.turns`) and as one whose settings moved does
-   *  (`StreamingSource.revision`). */
-  const measure = (eye: ArrayLike<number>) => {
-    if (buckets!.stale()) {
-      buckets = createGridBuckets(chain!, grids, source)
-      seenEye.fill(NaN)
-    }
-    const eyeStood = keepNumbers(seenEye, eye),
-      shapeStood = source.revision === seenShape
-    seenShape = source.revision
-    if (eyeStood && shapeStood && !source.turns()) return
-    for (const grid of buckets!.grids()) {
-      let lists = wishedOf.get(grid)
-      if (!lists) wishedOf.set(grid, (lists = [[], []]))
-      const [before, now] = lists
-      now.length = 0
-      meeting = now
-      buckets!.near(grid, eye[0], eye[2], meet)
-      // Wished too: those the wished cells of a grid that asks it pull in (`hlodPulls.ts`).
-      for (const cell of pulls?.on(grid) ?? [])
-        if (chain!.level[cell] && pulls!.pulled(cell)) meet(cell)
-      // Wished before and not met now: leaving.
-      for (const cell of before) {
-        if (wished[cell] !== 1) continue
-        wished[cell] = 0
-        if (started[cell]) {
-          started[cell] = 0
-          weighChildren(cell)
-        }
-        tell(cell)
-      }
-      for (const cell of now) wished[cell] = 1
-      lists[0] = now
-      lists[1] = before
-    }
-  }
-  /** The list a measure fills, and each cell met into it: kept (2) or entering (3), told again. */
-  let meeting: number[] = []
-  const meet = (cell: number) => {
-    meeting.push(cell)
-    if (wished[cell]) wished[cell] = 2
-    else {
-      wished[cell] = 3
-      tell(cell)
-    }
+  /** The cells above HLOD 0 the view wishes (`hlodWishes.ts`). */
+  const wishes =
+    chain && createWishes(chain, grids, source, pulls, { wished, started, tell, weighChildren })
+  /** `cell`'s actor held and its reads done, or no longer: its parent's count, or its unit's, told.
+   *  A failed read waits for nothing; rows waiting for room in the pool wait for nothing either. */
+  const lands = (cell: number) => {
+    const now = loadedNow[cell] === 1 && !holds.stillReads(cell)
+    if (now === (landedNow[cell] === 1)) return
+    landedNow[cell] = Number(now)
+    const up = chain!.parent[cell]
+    if (up < 0) tops.landing(cell, now)
+    else unlanded[up] += now ? -1 : 1
   }
   /** `cell`'s actor loaded or let go as it now is, one loaded held by `settle`. */
   const load = (cell: number) => {
@@ -182,6 +147,7 @@ export function createHlodCells(
       holds.release(cell)
       actorRows?.release(cell)
     }
+    landDue.push(cell)
     // Its hold's failure, or its end, moves its word.
     tell(cell)
   }
@@ -197,13 +163,16 @@ export function createHlodCells(
     toldTo?.show(instance, cell, word)
   }
   /** Every cell due, settled — what a word told moves is read by the cut at once, never left for a
-   *  camera move that may not come —, the loads in the order they fell due. */
+   *  camera move that may not come —, the loads in the order they fell due, a cell loaded held
+   *  before its landing is weighed. */
   const settle = () => {
     while (toldDue.length || loadDue.length) {
       for (let cell = toldDue.pop(); cell !== undefined; cell = toldDue.pop()) told(cell)
       for (let at = 0; at < loadDue.length; at++) load(loadDue[at])
       loadDue.length = 0
       order?.flush((cell) => loadedNow[cell] === 1)
+      for (const cell of landDue) lands(cell)
+      landDue.length = 0
     }
   }
   return {
@@ -228,15 +197,15 @@ export function createHlodCells(
           loadDue.push(cell)
         }
       }
-      measure(eye)
+      wishes!.measure(eye)
       for (const [cell, leaf] of leaves) {
         const wish = Number(leaf.wished),
-          whole = Number(leaf.placed),
+          placedNow = Number(leaf.placed),
           gone = Number(leaf.lost)
-        if (wish || whole || gone) leavesOn.add(cell)
-        if (wished[cell] === wish && placed[cell] === whole && lost[cell] === gone) continue
+        if (wish || placedNow || gone) leavesOn.add(cell)
+        if (wished[cell] === wish && placed[cell] === placedNow && lost[cell] === gone) continue
         wished[cell] = wish
-        placed[cell] = whole
+        placed[cell] = placedNow
         lost[cell] = gone
         tell(cell)
       }
@@ -248,6 +217,8 @@ export function createHlodCells(
       }
       // A cell whose visibility moved moves its children's loads.
       cells?.moved(at, weighChildren)
+      // A hold landed or failed ends its cell's reads.
+      holds.arrived(lands)
       // A hold failed or ended moves its cell's word; so do its actor's rows placed while the cut
       // follows the world, or parked, those read since placed.
       if (holds.revision !== seenHolds) for (const cell of loadedCells) tell(cell)
@@ -256,22 +227,22 @@ export function createHlodCells(
       settle()
       seenHolds = holds.revision
     },
-    /** The cells above HLOD 0 wished whose children's actors are not all held and landed, ranked
-     *  in the load order (`LoadingCell`), and the units of the actors always loaded not whole, onto
-     *  `out`. */
-    waiting(out: LoadingCell[]) {
+    /** The cells above HLOD 0 wished whose children's actors are not all held and read, ranked on
+     *  `ranker`'s records in the load order (`LoadingCell`), and the units of the actors always
+     *  loaded not whole, onto `out`. */
+    waiting(out: LoadingCell[], ranker: Ranker) {
       if (!chain) return
-      for (const [, [now]] of wishedOf)
-        for (const cell of now) if (!whole(cell)) out.push(order!.ranked(cell))
+      for (const [, [now]] of wishes!.lists)
+        for (const cell of now) if (unlanded[cell] > 0) out.push(order!.ranked(cell, ranker))
       tops.waiting(out)
     },
     /** The cells above HLOD 0 whose turn to load `slots` gives now start, their children's actors
      *  held from now on, while they stay wished; so do the units of the actors always loaded. */
     start() {
       if (!chain) return
-      for (const [, [now]] of wishedOf)
+      for (const [, [now]] of wishes!.lists)
         for (const cell of now) {
-          if (started[cell] || !slots.loads(cell)) continue
+          if (started[cell] || !slots.loads(cellUnit(cell))) continue
           started[cell] = 1
           weighChildren(cell)
         }
@@ -285,14 +256,15 @@ export function createHlodCells(
       for (const cell of holds.cells()) holds.release(cell)
       for (const cell of loadedCells) actorRows?.release(cell)
       for (let cell = 0; cell < count; cell++) if (toldWords[cell]) cells?.show(at, cell, 0)
-      for (const state of [wished, placed, lost, loadedNow, started, toldWords]) state.fill(0)
+      for (const state of [wished, placed, lost, loadedNow, started, landedNow, toldWords])
+        state.fill(0)
+      countUnlanded()
       loadedCells.clear()
       leavesOn.clear()
-      wishedOf.clear()
-      toldDue.length = loadDue.length = 0
+      wishes?.clear()
+      toldDue.length = loadDue.length = landDue.length = 0
       order?.clear()
       tops.clear()
-      seenEye.fill(NaN)
       toldTo = undefined
       weighed = false
     },

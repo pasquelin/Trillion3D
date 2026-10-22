@@ -1,8 +1,16 @@
 // A count is a whole number from its least up, refused in those words; a non-negative number is a
-// finite one of at least zero: the two a family's rules write through one constructor each.
+// finite one of at least zero: the two a family's rules write through one constructor each; two
+// readings of a family differ where one of its settings does.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { countSetting, nonNegativeSetting, resolveSetting } from './settingRules.ts'
+import {
+  countSetting,
+  nonNegativeSetting,
+  resolveSetting,
+  resolveSettings,
+  rulesOf,
+  settingsDiffer,
+} from './settingRules.ts'
 
 test('a count takes whole numbers from its least up and refuses the rest in words', () => {
   const frames = countSetting('frames', 5, 0),
@@ -20,4 +28,12 @@ test('a non-negative setting takes any finite number of at least zero', () => {
   assert.equal(resolveSetting(scale, 2.5), 2.5)
   assert.throws(() => resolveSetting(scale, -0.1), /a finite number of at least 0/)
   assert.throws(() => resolveSetting(scale, Infinity), /a finite number of at least 0/)
+})
+
+test('two readings of a family differ where one of its settings does', () => {
+  const rules = rulesOf([countSetting('frames', 5, 0), nonNegativeSetting('scale', 1)] as const)
+  const used = resolveSettings(rules, { scale: 2 })
+  assert.equal(settingsDiffer(rules, used, resolveSettings(rules, { scale: 2 })), false)
+  assert.equal(settingsDiffer(rules, used, resolveSettings(rules, { scale: 3 })), true)
+  assert.equal(settingsDiffer(rules, used, resolveSettings(rules, { scale: 2, frames: 6 })), true)
 })

@@ -84,6 +84,8 @@ export function sessionStandIn() {
       void (written.lights = written.lights.filter((record) => record.id !== id)),
     /** The background, written before the first frame (`./background.ts`). */
     setClearColor() {},
+    /** No atmosphere, so no sky captured. */
+    skyCapture: () => undefined,
     render: () => ({}),
     /** No optional family on its way: every frame draws (`../familyUse.ts`). */
     familiesPending: (): Promise<void> | undefined => undefined,

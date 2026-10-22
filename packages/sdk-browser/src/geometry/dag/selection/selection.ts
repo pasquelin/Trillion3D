@@ -21,36 +21,43 @@ import { cutHeldSlots } from '../lists/listCap.ts'
 import type { CutAdmission } from '../cut/cutBuffers.ts'
 import type { DagResources, ListNote, RowCutPass } from '../resources.ts'
 import type { CutListCaps } from '../lists/cutListCaps.ts'
+import { requestBounds, type RequestBounds } from '../lists/requestSize.ts'
+
+/** What a session gives the cut it asks for (`createGpuDagSelection`). */
+type GpuDagSelectionOptions = {
+  diagnosticGpuVariant?: DiagnosticGpuVariant
+  /** Told why a scene that has a cut gets no GPU cut: the host refuses the scene by name. */
+  onRefused?: (reason: string, details?: Record<string, unknown>) => void
+  /** What the session writes of its roots on the GPU before every cut, the tree's leaves among
+   *  them (`RootsOnGpu`): the stretch's one writer — a cut without it projects every cluster to
+   *  nothing —, so never optional. */
+  roots: RootsOnGpu
+  /** The rows the session's row cache holds: the open counts placements hold follow them. */
+  rows?: number
+  /** The most its tables may hold (`../../../session/memory/cutTableBytes.ts`): past it, refused. */
+  share?: number
+  /** The session's budget, asked before each buffer of its tables is made (`CutAdmission`). */
+  admit?: CutAdmission
+  /** Told each sub-step of the making as it begins (`../cut/cutSteps.ts`). */
+  progress?: CutProgress
+  /** Told what each sub-step took once the making is over, made or refused. */
+  timed?: (steps: ReturnType<CutSteps['end']>) => void
+  /** The row cache's pass on the cut, made over its resources (`RowCutPass`). */
+  rowPass?: (cut: DagResources) => RowCutPass
+  /** The caps its lists are laid out for, the session's settings (`../lists/cutListCaps.ts`);
+   *  the reference's defaults when absent. */
+  lists?: CutListCaps
+  /** The least and the most ranks its readout holds, the session's settings
+   *  (`../lists/requestSize.ts`); the reference's defaults when absent. */
+  requests?: RequestBounds
+  /** Where the cut says its lists' warnings — an overflow past a cap, caps the device refused. */
+  onListNote?: ListNote
+}
 
 export async function createGpuDagSelection(
   device: GPUDevice,
   packed: PackedDag,
-  options: {
-    diagnosticGpuVariant?: DiagnosticGpuVariant
-    /** Told why a scene that has a cut gets no GPU cut: the host refuses the scene by name. */
-    onRefused?: (reason: string, details?: Record<string, unknown>) => void
-    /** What the session writes of its roots on the GPU before every cut, the tree's leaves among
-     *  them (`RootsOnGpu`): the stretch's one writer — a cut without it projects every cluster to
-     *  nothing —, so never optional. */
-    roots: RootsOnGpu
-    /** The rows the session's row cache holds: the open counts placements hold follow them. */
-    rows?: number
-    /** The most its tables may hold (`../../../session/memory/cutTableBytes.ts`): past it, refused. */
-    share?: number
-    /** The session's budget, asked before each buffer of its tables is made (`CutAdmission`). */
-    admit?: CutAdmission
-    /** Told each sub-step of the making as it begins (`../cut/cutSteps.ts`). */
-    progress?: CutProgress
-    /** Told what each sub-step took once the making is over, made or refused. */
-    timed?: (steps: ReturnType<CutSteps['end']>) => void
-    /** The row cache's pass on the cut, made over its resources (`RowCutPass`). */
-    rowPass?: (cut: DagResources) => RowCutPass
-    /** The caps its lists are laid out for, the session's settings (`../lists/cutListCaps.ts`);
-     *  the reference's defaults when absent. */
-    lists?: CutListCaps
-    /** Where the cut says its lists' warnings — an overflow past a cap, caps the device refused. */
-    onListNote?: ListNote
-  },
+  options: GpuDagSelectionOptions,
 ): Promise<GpuSelection | undefined> {
   if (packed.pageCount < 1) return undefined
   const refusal = dagDeviceRefusal(device.limits, packed)
@@ -59,7 +66,8 @@ export async function createGpuDagSelection(
     return undefined
   }
   let why = ''
-  const steps = cutSteps(options.progress)
+  const steps = cutSteps(options.progress),
+    requests = options.requests ?? requestBounds()
   const resources = await createDagResources(
     device,
     packed,
@@ -68,11 +76,17 @@ export async function createGpuDagSelection(
     (reason) => (why = reason),
     options.rows === undefined
       ? undefined
-      : cutHeldSlots(device.limits, packed.live?.pages ?? packed.pageCount, options.rows),
+      : cutHeldSlots(
+          device.limits,
+          packed.live?.pages ?? packed.pageCount,
+          options.rows,
+          requests.min,
+        ),
     options.share,
     options.admit,
     steps,
     options.lists,
+    requests,
   )
   options.timed?.(steps.end())
   if (!resources) {

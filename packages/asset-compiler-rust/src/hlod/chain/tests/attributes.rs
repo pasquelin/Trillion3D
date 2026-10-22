@@ -3,7 +3,7 @@
 //! On generated plates.
 use super::decoded::decoded;
 use super::{cooked, plate};
-use crate::dag::{build_dag, DagAttributes, Grown, DAG_CLUSTER_TRIANGLES};
+use crate::dag::{build_dag, DagAttributes, DagStrategy, Grown, DAG_CLUSTER_TRIANGLES};
 use crate::hlod::chain::*;
 use trillion3d_math::matrix::{multiply_matrix4_from_zero, scaling, translation};
 use trillion3d_math::vector::vec3::cross;
@@ -54,7 +54,7 @@ fn textured(n: usize, size: f32) -> SourceCover {
     let built = build_dag(&positions, attributes, &indices, strategy, &|| Ok(())).expect("dag");
     let (dag, grown) = ((&built.clusters[..], &built.groups[..]), built.grown);
     let (pos, carried) = Grown::arrays(&grown, &positions, attributes);
-    SourceCover::of(strategy, dag, (pos, &carried), None).expect("cover")
+    SourceCover::of(dag, (pos, &carried), None).expect("cover")
 }
 
 /// `side` × `side` plates 40 m apart in one cell, every other one mirrored on x.

@@ -21,6 +21,7 @@ import {
 } from '../../../packages/sdk-browser/src/geometry/dag/layout.fixture.ts'
 import { simulateScatterGroups } from './fakeDrawCompact.ts'
 import {
+  countWord,
   listWords,
   PEAK_CANDIDATES,
   PEAK_NODES,
@@ -128,13 +129,15 @@ export function simulateComputeDispatch(
   ints[1] = result.frustumRejected
   ints[2] = result.lodLevel
   writeTriangleTotals(ints, result)
-  // The camera's requests, in the order the oracle asks them (`requestPage`): each page at its rank
-  // of the first list, its priority at the same rank of the priority list (`priorityWord`).
-  const { pageIds, priorities } = result,
-    at = priorityWord(listCap)
-  ints[0] = pageIds.length
+  // The camera's requests, in the order the oracle asks them (`requestPage`): each leaf's first
+  // page at its rank of the first list, its page count and its priority at the same rank of their
+  // lists (`countWord`, `priorityWord`).
+  const { pages, counts, priorities } = result.requests,
+    at = priorityWord(listCap),
+    countAt = countWord(listCap)
+  ints[0] = pages.length
   // Past the cap a request is dropped and the sample says it is truncated (`requestPage`).
-  ints[3] = pageIds.length > listCap ? 1 : 0
+  ints[3] = pages.length > listCap ? 1 : 0
   // What the cut asked of its lists, in the drawn list's header (`dagCommitMask`): the double's
   // cut is whole, every node of its levels opened in one pass.
   const peaks = listWords(listCap),
@@ -142,8 +145,9 @@ export function simulateComputeDispatch(
   ints[peaks + PEAK_NODES] = levels.reduce((sum, level) => sum + level, 0)
   ints[peaks + PEAK_CANDIDATES] = candidates
   ints[peaks + PEAK_VISIBLE] = live
-  for (let s = 0; s < Math.min(listCap, pageIds.length); s++) {
-    ints[SELECTION_HEADER_WORDS + s] = pageIds[s]
+  for (let s = 0; s < Math.min(listCap, pages.length); s++) {
+    ints[SELECTION_HEADER_WORDS + s] = pages[s]
+    ints[countAt + s] = counts[s]
     ints[at + s] = priorities[s]
   }
 }

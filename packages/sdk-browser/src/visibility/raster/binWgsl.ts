@@ -110,7 +110,7 @@ fn rasteredInSoftware(page:PageInfo,b:RowBounds,moving:bool)->bool{
   let clip=m*vec4f(corner,1.0);
   nearest=min(nearest,clip.w-clip.z);deepest=min(deepest,clip.z);
  }
- if(nearest<=0.0||deepest<0.0){return false;}
+ if(nearest<=0.0||deepest<=0.0){return false;}
  let world=worldMatrix3(page.world);
  let scale=sqrt(max(dot(world[0],world[0]),max(dot(world[1],world[1]),dot(world[2],world[2]))));
  var sphere=page.lodSphere;

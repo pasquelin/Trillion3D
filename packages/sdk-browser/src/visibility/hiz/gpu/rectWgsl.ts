@@ -26,7 +26,7 @@ export const HIZ_MIP_WGSL = wgslFn(
  * `hizLevels` (`HIZ_LEVELS_STRUCT_WGSL`): the one mip table. A rectangle no mip covers is never
  * rejected.
  */
-export const HIZ_LEVEL_WGSL = wgslBlock(
+const HIZ_LEVEL_WGSL = wgslBlock(
   'HIZ_LEVEL_WGSL',
   [floorLog2Decl, HIZ_LEVELS_STRUCT_WGSL, HIZ_MIP_WGSL],
   `
@@ -87,7 +87,7 @@ fn hizRectPick(rect:vec4i)->HizRectPick{
  * They read the pyramid's farthest layer through `hizCullFarthest`, the sampled read
  * (`HIZ_READ_WGSL`), over the host's `hizPyramid` binding.
  */
-export const HIZ_HIDES_WGSL = wgslBlock(
+const HIZ_HIDES_WGSL = wgslBlock(
   'HIZ_HIDES_WGSL',
   [HIZ_READ_WGSL],
   `

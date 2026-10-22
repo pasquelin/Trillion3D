@@ -18,6 +18,10 @@ export const SRGB_SCALE = 1.055
 export const SRGB_OFFSET = 0.055
 export const SRGB_GAMMA = 2.4
 
+/** The luminance of a linear colour: the weights of its channels, the Y row of the sRGB (Rec. 709
+ *  primaries, D65) to XYZ matrix, the working space's own, which the WGSL twin reads. */
+export const SRGB_LUMINANCE = [0.2126390059, 0.7151686788, 0.0721923154] as const
+
 /** Encoded sRGB value in `[0, 1]` to its linear value. */
 export function srgbToLinear(c: number) {
   return c <= SRGB_DECODE_THRESHOLD

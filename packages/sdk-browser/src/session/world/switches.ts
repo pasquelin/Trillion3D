@@ -1,12 +1,12 @@
 import type { MeasuredWorld } from '../explorer.ts'
 import type { MeasuredWorldOptions } from '../options.ts'
 import type { WorldOptions } from './options.ts'
-import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
+import { createWorldEffects } from '../../../../sdk-core/src/world/effect/defaultChain.ts'
 import { createGuideSet, type Guides } from '../../guides/guideSet.ts'
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
 import type { RenderScale } from '../../frame/scale/renderScaleOption.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
-import { createWorldSettings } from './settings.ts'
+import { createWorldSettings, type WorldSettings } from './settings.ts'
 import { createWorldQuality, renderScaleOf } from './quality.ts'
 import type { TemporalAntialiasingLevel } from '../../../../sdk-core/src/contracts/compilerAbi.ts'
 import {
@@ -20,6 +20,8 @@ import type {
 import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
+import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
+import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import { worldFamilies } from './ruledSwitches.ts'
 
 /** What of the world's runtime the switches reach: its open session and a frame. */
@@ -28,18 +30,87 @@ interface SwitchedRuntime {
   invalidate(): void
 }
 
+/** What the world holds for the sessions it opens: the registry's resolved values, read where a
+ *  session opens; the render scale and the frame cap as asked; the effect chain and the guides, one
+ *  for the world's life; the particle pools attached. */
+function heldSwitches(options: WorldOptions, settings: WorldSettings, invalidate: () => void) {
+  const asked = options.quality?.resolution
+  return {
+    // The registry's resolved values, read where a session opens.
+    get bounce() {
+      return settings.get('bounce')
+    },
+    get temporalAntialiasing() {
+      return settings.get('antialiasing')
+    },
+    get pixelError() {
+      return settings.get('pixelError')
+    },
+    renderScale: options.renderScale ?? (asked ? renderScaleOf(asked) : ('auto' as RenderScale)),
+    maxFrameRate: options.maxFrameRate ?? Infinity,
+    // One chain for the world's life: every session draws it, a change asks for a frame. It starts
+    // with the bloom a view draws by default.
+    effects: createWorldEffects(invalidate),
+    guides: createGuideSet(invalidate),
+    // The particle pools the measurement entry attaches (`attachParticles`); none by default.
+    particles: [] as ParticlePool[],
+  }
+}
+
+/** The held switches (`heldSwitches`). */
+type Held = ReturnType<typeof heldSwitches>
+
+/** The three settings of the registry with a switch of their own, written into the open session
+ *  in place when their resolved value changes. */
+function watchSettings(
+  settings: WorldSettings,
+  runtime: () => SwitchedRuntime,
+  invalidate: () => void,
+) {
+  settings.watch('bounce', (on) => {
+    runtime().explorer?.setBounce(on)
+    invalidate()
+  })
+  settings.watch('antialiasing', (level) => {
+    runtime().explorer?.setTemporalAntialiasing(level)
+    invalidate()
+  })
+  settings.watch('pixelError', (value) => {
+    runtime().explorer?.setPixelError(value)
+    invalidate()
+  })
+}
+
+/** Writes into the session just `opened` each switch the page changed since it was `given` its
+ *  options. */
+function applyHeld(
+  held: Held,
+  families: ReturnType<typeof worldFamilies>,
+  opened: MeasuredWorld,
+  given: MeasuredWorldOptions,
+) {
+  if (held.bounce !== given.bounce) opened.setBounce(held.bounce)
+  if (held.temporalAntialiasing !== given.temporalAntialiasing)
+    opened.setTemporalAntialiasing(held.temporalAntialiasing)
+  if (held.pixelError !== given.pixelError) opened.setPixelError(held.pixelError)
+  for (const family of Object.values(families)) family.apply(opened, given)
+  if (held.renderScale !== given.renderScale) opened.setRenderScale(held.renderScale)
+  if (held.maxFrameRate !== given.maxFrameRate) opened.setMaxFrameRate(held.maxFrameRate)
+}
+
 /**
  * The world's render switches — bounced light, temporal antialiasing, the cut's screen error, the
- * software raster and its hardware edge (`rasterOptions.ts`), the geometry streaming's five
+ * software raster and its hardware edge (`rasterOptions.ts`), the geometry streaming's eight
  * settings (`streamingOptions.ts`), the partition's streaming and the HLOD warm-up
  * (`worldStreamingOptions.ts`), the cut's occlusion, culls and level-of-detail bias
  * (`cutOptions.ts`), the animation's rest-pose screen size and how its banks play their tracks
- * (`animationOptions.ts`), the shading bins' mode (`shadingOptions.ts`) — each of those six
- * families by rule (`ruledSwitches`) —, the render scale, the effect chain — and its guides: held
- * by the world, given to every session it opens (`held` and the families), the switches written
- * into the open one in place, the streaming's read at its next update. All but the last two are
- * settings of the world's registry (`settings`): the page
- * writes them at its priority, a quality preset (`quality`) below it, the first loaded scene whose
+ * (`animationOptions.ts`), the shading bins' mode (`shadingOptions.ts`), the exposure's twelve
+ * automatic and ten local settings (`exposureOptions.ts`), the temporal pass's thin geometry
+ * detection (`temporalOptions.ts`) — each of those eight families by rule (`ruledSwitches`) —, the
+ * render scale, the effect chain — and its guides: held by the world, given to every session it
+ * opens (`held` and the families), the switches written into the open one in place, the
+ * streaming's read at its next update. All but the last two are settings of the world's registry
+ * (`settings`): the page writes them at its priority, a quality preset (`quality`) below it, the first loaded scene whose
  * manifest names a temporal anti-aliasing level below that (`scene`), and each is applied once its
  * resolved value changes.
  * The frame cap is held as asked and written into the open session's loop.
@@ -69,38 +140,8 @@ export function worldSwitches(
     drawn: () => frames.last,
   }
   const quality = createWorldQuality(settings, scale, options.quality)
-  const asked = options.quality?.resolution
-  const held = {
-    // The registry's resolved values, read where a session opens.
-    get bounce() {
-      return settings.get('bounce')
-    },
-    get temporalAntialiasing() {
-      return settings.get('antialiasing')
-    },
-    get pixelError() {
-      return settings.get('pixelError')
-    },
-    renderScale: options.renderScale ?? (asked ? renderScaleOf(asked) : ('auto' as RenderScale)),
-    maxFrameRate: options.maxFrameRate ?? Infinity,
-    // One chain for the world's life: every session draws it, a change asks for a frame.
-    effects: new EffectChain(invalidate),
-    guides: createGuideSet(invalidate),
-    // The particle pools the measurement entry attaches (`attachParticles`); none by default.
-    particles: [] as ParticlePool[],
-  }
-  settings.watch('bounce', (on) => {
-    runtime().explorer?.setBounce(on)
-    invalidate()
-  })
-  settings.watch('antialiasing', (level) => {
-    runtime().explorer?.setTemporalAntialiasing(level)
-    invalidate()
-  })
-  settings.watch('pixelError', (value) => {
-    runtime().explorer?.setPixelError(value)
-    invalidate()
-  })
+  const held = heldSwitches(options, settings, invalidate)
+  watchSettings(settings, runtime, invalidate)
   for (const family of Object.values(families)) family.watch(() => runtime().explorer, invalidate)
   const switches = {
     held,
@@ -109,13 +150,7 @@ export function worldSwitches(
     /** Writes into the session just opened each switch the page changed since it was `given` its
      *  options. */
     apply(opened: MeasuredWorld, given: MeasuredWorldOptions) {
-      if (held.bounce !== given.bounce) opened.setBounce(held.bounce)
-      if (held.temporalAntialiasing !== given.temporalAntialiasing)
-        opened.setTemporalAntialiasing(held.temporalAntialiasing)
-      if (held.pixelError !== given.pixelError) opened.setPixelError(held.pixelError)
-      for (const family of Object.values(families)) family.apply(opened, given)
-      if (held.renderScale !== given.renderScale) opened.setRenderScale(held.renderScale)
-      if (held.maxFrameRate !== given.maxFrameRate) opened.setMaxFrameRate(held.maxFrameRate)
+      applyHeld(held, families, opened, given)
     },
     /** The page's guides: one set for the world's life, drawn by every session it opens. */
     guides: held.guides as Guides,
@@ -194,6 +229,18 @@ export function worldSwitches(
     },
     set shading(options: ShadingOptions) {
       families.shading.set(options)
+    },
+    get exposureSettings() {
+      return families.exposure.values()
+    },
+    set exposureSettings(options: ExposureOptions) {
+      families.exposure.set(options)
+    },
+    get temporal() {
+      return families.temporal.values()
+    },
+    set temporal(options: TemporalOptions) {
+      families.temporal.set(options)
     },
     /** The scale of the image the open session drew last, 1 before one opens. */
     get renderScale(): number {

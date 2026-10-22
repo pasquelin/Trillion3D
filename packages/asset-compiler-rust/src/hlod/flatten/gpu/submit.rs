@@ -1,19 +1,27 @@
 //! The device's submissions: each pass dispatched in chunks timed to stay well within any GPU's
-//! watchdog, each job waiting for its own submissions only, in steps that let a cancelled compile
-//! stop — no job waits for another's, whose submissions the device runs in between; read-backs
-//! asked for at once and read once their copy is done, so a job sends its next batch first; and
-//! the error scopes a batch's work runs inside, so a refusal of the device fails the step.
+//! watchdog, each job waiting for its own submissions only — learning each one's end from the
+//! device's callback, the device polled between short naps (`HOLD`) that let a cancelled compile
+//! stop, no wait holding the device — and no job waiting for another's, whose submissions the
+//! device runs in between; read-backs asked for at once and read once their copy is done, so a job
+//! sends its next batch first; and the error scopes a batch's work runs inside, so a refusal of
+//! the device fails the step.
 use super::layout::{BATCH, WORKGROUP};
 use super::{failed, Device};
 use crate::plugins::scene::cancel;
 use std::sync::atomic::AtomicBool;
-use std::sync::mpsc::{Receiver, RecvTimeoutError};
+use std::sync::mpsc::{Receiver, TryRecvError};
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 
 /// What one submission should take: a fraction of the shortest watchdog (two seconds).
 const TARGET: Duration = Duration::from_millis(200);
-/// The step a wait takes before it looks at the cancel token again.
-const STEP: Duration = Duration::from_millis(250);
+/// The nap a wait starts with between two looks at the device: short, so a small submission is
+/// seen done at once.
+const FIRST_NAP: Duration = Duration::from_micros(50);
+/// The longest nap between two looks at the device and at the cancel token: each nap doubles up to
+/// it. A look is a poll that takes no time; no wait holds the device across a nap, so a buffer's
+/// destruction and every other job's submission and poll go on while one waits.
+const HOLD: Duration = Duration::from_millis(2);
 /// How long a submission may run before the device is taken as hung.
 const HUNG: Duration = Duration::from_secs(60);
 
@@ -30,45 +38,85 @@ impl Pace {
     }
 }
 
-/// A read-back asked for (`Device::ask_read`): the copy's submission, the mapping's outcome once
-/// its callback ran, and the bytes copied.
+/// The end of a submission (`Device::launch`): the moment the device's callback ran, in the poll —
+/// this job's or another's — that found the submission done; empty until then.
+type Done = Arc<OnceLock<Instant>>;
+
+/// A read-back asked for (`Device::ask_read`): the end of the copy's submission, the mapping's
+/// outcome once its callback ran, and the bytes copied.
 pub(crate) struct Reading {
-    index: wgpu::SubmissionIndex,
+    done: Done,
     mapped: Receiver<Result<(), wgpu::BufferAsyncError>>,
     bytes: u64,
 }
 
 impl Device {
-    /// Waits for submission `index`, a step at a time, stopping when `cancelled` is raised or the
-    /// submission runs past `HUNG`. Other jobs submit and wait meanwhile: the device runs their
+    /// `run` — one submission or one poll — with the device's turn held (`Device::turn`): a poisoned
+    /// turn guards nothing but the order, so it is taken all the same.
+    fn turned<T>(&self, run: impl FnOnce() -> T) -> T {
+        let _turn = self
+            .turn
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        run()
+    }
+
+    /// `encoder` submitted, the moment its turn was taken and the end it will raise: the callback
+    /// is asked for in the same turn, so the submission it follows is this one.
+    fn launch(&self, encoder: wgpu::CommandEncoder) -> (Instant, Done) {
+        let done = Done::default();
+        let raised = done.clone();
+        let started = self.turned(|| {
+            let started = Instant::now();
+            self.queue.submit([encoder.finish()]);
+            self.queue.on_submitted_work_done(move || {
+                let _ = raised.set(Instant::now());
+            });
+            started
+        });
+        (started, done)
+    }
+
+    /// The device polled, a nap between two polls, until `ready` has an answer, stopping when
+    /// `cancelled` is raised or the answer takes past `HUNG`. A poll runs the callbacks of every
+    /// submission the device finds done, this job's or another's, and holds the turn for no time:
+    /// other jobs submit, destroy their buffers and poll meanwhile, the device running their
     /// submissions between this job's.
-    fn wait(&self, index: wgpu::SubmissionIndex, cancelled: &AtomicBool) -> crate::Result<()> {
+    fn until<T>(
+        &self,
+        cancelled: &AtomicBool,
+        mut ready: impl FnMut() -> crate::Result<Option<T>>,
+    ) -> crate::Result<T> {
         let started = Instant::now();
+        let mut nap = FIRST_NAP;
         loop {
-            let wait = wgpu::PollType::Wait {
-                submission_index: Some(index.clone()),
-                timeout: Some(STEP),
-            };
-            match self.device.poll(wait) {
-                Ok(_) => return Ok(()),
-                Err(wgpu::PollError::Timeout) if started.elapsed() < HUNG => {
-                    cancel::check(cancelled)?
-                }
-                Err(error) => return Err(failed(error)),
+            let polled = self.turned(|| self.device.poll(wgpu::PollType::Poll));
+            if let Some(answer) = ready()? {
+                return Ok(answer);
             }
+            polled.map_err(failed)?;
+            cancel::check(cancelled)?;
+            if started.elapsed() >= HUNG {
+                return Err(failed("the device never finished a submission"));
+            }
+            std::thread::sleep(nap);
+            nap = (nap * 2).min(HOLD);
         }
     }
 
-    /// `encoder` submitted and waited for; how long it took.
+    /// The moment the device reported `done`, waited for (`until`).
+    fn wait(&self, done: &Done, cancelled: &AtomicBool) -> crate::Result<Instant> {
+        self.until(cancelled, || Ok(done.get().copied()))
+    }
+
+    /// `encoder` submitted and waited for; how long it took, from its turn to the device's report.
     pub(crate) fn submit(
         &self,
         encoder: wgpu::CommandEncoder,
         cancelled: &AtomicBool,
     ) -> crate::Result<Duration> {
-        let started = Instant::now();
-        let index = self.queue.submit([encoder.finish()]);
-        self.wait(index, cancelled)?;
-        Ok(started.elapsed())
+        let (started, done) = self.launch(encoder);
+        Ok(self.wait(&done, cancelled)?.duration_since(started))
     }
 
     /// The first `bytes` of `from` copied into `to` and mapped for reading, submitted and not
@@ -77,12 +125,12 @@ impl Device {
         let mut encoder = self.device.create_command_encoder(&Default::default());
         encoder.copy_buffer_to_buffer(from, 0, to, 0, bytes);
         let (sender, mapped) = std::sync::mpsc::channel();
-        let index = self.queue.submit([encoder.finish()]);
+        let (_, done) = self.launch(encoder);
         to.map_async(wgpu::MapMode::Read, ..bytes, move |outcome| {
             let _ = sender.send(outcome);
         });
         Reading {
-            index,
+            done,
             mapped,
             bytes,
         }
@@ -91,8 +139,8 @@ impl Device {
     /// The bytes `reading` copied into `to`, seen by `read` once the copy is done and mapped; when
     /// the copy was seen done, the end of the work submitted before it and the moment the device
     /// could start the next submission. The mapping's callback runs in whichever job's poll finds
-    /// the copy done first — this one's, or another's an instant later —: it is awaited a step at
-    /// a time, the device polled between.
+    /// the copy done first — this one's, or another's an instant later —: it is awaited the same
+    /// way, the device polled between naps.
     pub(crate) fn read(
         &self,
         reading: Reading,
@@ -101,22 +149,16 @@ impl Device {
         read: &mut dyn FnMut(&[u8]),
     ) -> crate::Result<Instant> {
         let Reading {
-            index,
+            done,
             mapped,
             bytes,
         } = reading;
-        self.wait(index, cancelled)?;
-        let copied = Instant::now();
-        let outcome = loop {
-            match mapped.recv_timeout(STEP) {
-                Ok(outcome) => break outcome,
-                Err(RecvTimeoutError::Timeout) if copied.elapsed() < HUNG => {
-                    cancel::check(cancelled)?;
-                    let _ = self.device.poll(wgpu::PollType::Poll);
-                }
-                Err(_) => return Err(failed("a read-back never mapped")),
-            }
-        };
+        let copied = self.wait(&done, cancelled)?;
+        let outcome = self.until(cancelled, || match mapped.try_recv() {
+            Ok(outcome) => Ok(Some(outcome)),
+            Err(TryRecvError::Empty) => Ok(None),
+            Err(TryRecvError::Disconnected) => Err(failed("a read-back never mapped")),
+        })?;
         outcome.map_err(failed)?;
         read(&to.get_mapped_range(..bytes).map_err(failed)?);
         to.unmap();
@@ -130,7 +172,7 @@ impl Device {
             return;
         }
         buffers.iter().for_each(wgpu::Buffer::destroy);
-        let _ = self.device.poll(wgpu::PollType::Poll);
+        let _ = self.turned(|| self.device.poll(wgpu::PollType::Poll));
     }
 
     /// The encoder of `pass` over the invocations `first..first + chunk`, its uniform written:
@@ -192,7 +234,7 @@ impl Device {
             cancel::check(cancelled)?;
             let chunk = (count - first).min(pace.0);
             let encoder = self.chunk((pass, group, params), first, chunk);
-            self.queue.submit([encoder.finish()]);
+            self.turned(|| self.queue.submit([encoder.finish()]));
             first += chunk;
         }
         Ok(())

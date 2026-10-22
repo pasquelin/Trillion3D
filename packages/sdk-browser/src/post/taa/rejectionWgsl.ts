@@ -14,7 +14,7 @@ import {
 import { REPROJECT_BITS, REPROJECTED_WORD_WGSL, SHADING_HISTORY_FORMAT } from './reprojectWgsl.ts'
 import { SHARE_CODE_MASK } from './velocityWgsl.ts'
 import { FILTERING_WEIGHT } from './flickerWgsl.ts'
-import { THIN_COVERAGE_BITS, THIN_MASK_BITS } from './thinGeometryWgsl.ts'
+import { THIN_COVERAGE_BITS, THIN_MASK_BITS, THIN_RUNS } from './thinGeometryWgsl.ts'
 import { SAFE_RCP_WGSL } from './historyWgsl.ts'
 import {
   ANTI_ALIAS_BIT,
@@ -270,6 +270,31 @@ ${tileStage(
   )
 }
 
+/** The rejection's input of a texel, and the history relaxation weight the thin geometry detection
+ *  gives it. */
+const REJECTION_INPUT_WGSL = wgslBlock(
+  'REJECTION_INPUT_WGSL',
+  [],
+  `/** The rejection's input of colour \`colour\` and reprojection word \`word\` at texel \`c\`: where
+ *  a pixel animation may lie in its 3×3 (\`blurred\`), the 3×3 blur of the animated colours over
+ *  its own, read again from the textures. */
+fn rejectionInput(c:vec2i,colour:vec3f,word:u32,blurred:bool)->vec3f{
+ if(!blurred){return min(colour,vec3f(inputMost()));}
+ var blur=vec4f(0.0);
+ for(var n=0;n<9;n++){
+  let at=clampTexel(c+vec2i(n%3-1,n/3-1));
+  blur+=blurInput(textureLoad(current,at,0).rgb,isAnimated(reprojectedWord(at)))*blurWeight(n);
+ }
+ return min(select(colour,vec3f(0.0),isAnimated(word))*blur.a+blur.rgb,vec3f(inputMost()));
+}
+/** The history relaxation weight the thin geometry detection gives texel \`c\`, none up to one
+ *  127th. */
+fn relaxationOf(c:vec2i)->f32{
+ let mask=textureLoad(thin,c,0).g>>${THIN_MASK_BITS.shift}u;
+ return select(0.0,f32(mask)/${THIN_MASK_BITS.most}.0,mask>1u);
+}`,
+)
+
 /**
  * The shading rejection, per render texel, after the flicker measure (`flickerWgsl.ts`) and the
  * held measure (`heldMeasureShader`): how far the history disagrees with the image in shading,
@@ -297,7 +322,9 @@ ${tileStage(
  * Loads per span texel: the filtered input and history and the reprojection word; the thin
  * geometry mask, the held measure's three words and the flicker error at the texels the middle
  * stages read, the shading history's edge at the second last; the written texels the colour, the
- * shading history, the reprojection word and the filtered input again.
+ * shading history, the reprojection word and the filtered input again. Where the thin geometry
+ * detection does not run (`view.quality.w`), its mask reads none: the relaxation's stage is left
+ * out and the box is the input's alone.
  */
 export const rejectionShader = () => {
   const plan = REJECTION_PLAN
@@ -331,24 +358,6 @@ export const rejectionShader = () => {
 @group(0) @binding(${REJECTION_BINDINGS.filteredError}) var filteredError:texture_2d<f32>;
 ${tileWords(deltas.end, 4)}
 var<workgroup> anyAnimated:atomic<u32>;
-/** The rejection's input of colour \`colour\` and reprojection word \`word\` at texel \`c\`: where
- *  a pixel animation may lie in its 3×3 (\`blurred\`), the 3×3 blur of the animated colours over
- *  its own, read again from the textures. */
-fn rejectionInput(c:vec2i,colour:vec3f,word:u32,blurred:bool)->vec3f{
- if(!blurred){return min(colour,vec3f(inputMost()));}
- var blur=vec4f(0.0);
- for(var n=0;n<9;n++){
-  let at=clampTexel(c+vec2i(n%3-1,n/3-1));
-  blur+=blurInput(textureLoad(current,at,0).rgb,isAnimated(reprojectedWord(at)))*blurWeight(n);
- }
- return min(select(colour,vec3f(0.0),isAnimated(word))*blur.a+blur.rgb,vec3f(inputMost()));
-}
-/** The history relaxation weight the thin geometry detection gives texel \`c\`, none up to one
- *  127th. */
-fn relaxationOf(c:vec2i)->f32{
- let mask=textureLoad(thin,c,0).g>>${THIN_MASK_BITS.shift}u;
- return select(0.0,f32(mask)/${THIN_MASK_BITS.most}.0,mask>1u);
-}
 /** The words of analysis view \`mode\` (\`FIRST_ANALYSIS_VIEW\`) of texel \`c\`, its reprojection
  *  word \`word\`, edge \`edge\` and spread rejection \`rejected\`; \`ke\`, \`kd\` its energy and
  *  delta words. */
@@ -388,6 +397,8 @@ ${tileStage(
    let held=clamp(history[4],lo,hi);
    let kr=${relaxed.index};
    putPair(kr,held.r,held.g);putPair(kr+${relaxed.stride}u,held.b,weight);`,
+  false,
+  THIN_RUNS,
 )}
 ${tileStage(
   plan,
@@ -492,6 +503,7 @@ ${tileStage(
       NINE_OPERATORS_WGSL,
       TILE_WORDS_WGSL,
       TILE_CLAMP_WGSL,
+      REJECTION_INPUT_WGSL,
     ],
   )
 }

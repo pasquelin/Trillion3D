@@ -16,6 +16,8 @@ export function probeLayout(device: GPUDevice) {
       atlasEntry(B.snapshot),
       atlasEntry(B.probes, true),
       computeBufferEntry(B.lists, 'read-only-storage'),
+      computeBufferEntry(B.census, 'storage'),
+      computeBufferEntry(B.hits, 'storage'),
       ...sceneLayoutEntries(PROBE_PROXY),
     ],
   })
@@ -27,6 +29,8 @@ type ProbeHeld = {
   queue: GPUBuffer
   snapshot: GPUTextureView
   probes: GPUTextureView
+  census: GPUBuffer
+  hits: GPUBuffer
 }
 
 /**
@@ -55,6 +59,8 @@ export function probeBinder(device: GPUDevice, layout: GPUBindGroupLayout, held:
             snapshot: held.snapshot,
             probes: held.probes,
             lists: { buffer: lists },
+            census: { buffer: held.census },
+            hits: { buffer: held.hits },
           }),
           ...sceneBindEntries(PROBE_PROXY, proxy),
         ],

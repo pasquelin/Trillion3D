@@ -14,6 +14,8 @@ import type {
 import type { CutOptions } from '../../../sdk-core/src/contracts/cutOptions.ts'
 import type { AnimationOptions } from '../../../sdk-core/src/contracts/animationOptions.ts'
 import type { ShadingOptions } from '../../../sdk-core/src/contracts/shadingOptions.ts'
+import type { ExposureOptions } from '../../../sdk-core/src/contracts/exposureOptions.ts'
+import type { TemporalOptions } from '../../../sdk-core/src/contracts/temporalOptions.ts'
 import type { RasterOptions } from '../../../sdk-core/src/contracts/rasterOptions.ts'
 import type { StreamingOptions } from '../../../sdk-core/src/contracts/streamingOptions.ts'
 
@@ -34,21 +36,31 @@ export type PointOfInterest = {
  *  session by `explorer.setCut`, the animation's (`animation…`,
  *  `../../../sdk-core/src/contracts/animationOptions.ts`), set by `explorer.setAnimation`, and the
  *  shading's (`shadeBinningMode`, `../../../sdk-core/src/contracts/shadingOptions.ts`), set by
- *  `explorer.setShading`. The software raster (`softwareRaster`, on by default: a cluster whose
+ *  `explorer.setShading`, and the exposure's (`exposure…` and `localExposure…`,
+ *  `../../../sdk-core/src/contracts/exposureOptions.ts`: bias, range, histogram, shares, speeds,
+ *  transition, black bucket, luminance, then the local exposure's contrasts, detail, blur,
+ *  middle grey and thresholds), set by `explorer.setExposure`, and the temporal pass's
+ *  (`temporalThinGeometry`, `../../../sdk-core/src/contracts/temporalOptions.ts`), set by
+ *  `explorer.setTemporal`. The software raster (`softwareRaster`, on by default: a cluster whose
  *  longest edge projects under `hardwareRasterEdgePixels` and that crosses neither clip plane is
  *  rastered in compute, every other one by the hardware rasterizer; `false` draws every cluster
  *  with the hardware) and the edge it goes to the hardware at (`hardwareRasterEdgePixels`, 32 by
  *  default, a finite number above zero), `../../../sdk-core/src/contracts/rasterOptions.ts`, set by
  *  `explorer.setSoftwareRaster` and `explorer.setHardwareRasterEdgePixels`. The geometry
- *  streaming's five settings (`streaming…`,
+ *  streaming's eight settings (`streaming…`,
  *  `../../../sdk-core/src/contracts/streamingOptions.ts`): the pages kept started at once
  *  (`streamingMaxPendingPages`, 128), those a frame installs at most
  *  (`streamingMaxInstallsPerFrame`, 128, never more than may be pending), the pool's load in
  *  percent of its pages under which the quality rises again and over which it falls
  *  (`streamingQualityMinPoolPercent` 70, `streamingQualityMaxPoolPercent` 85, read no lower than
- *  the low mark, from 10 to 100) and the lowest scale of the screen error it falls to
- *  (`streamingQualityMinScale`, 0.3, from 0.1 to 1); set by `explorer.setStreaming`, from the
- *  streaming's next update. Each is refused at the opening when out of its range. */
+ *  the low mark, from 10 to 100), the lowest scale of the screen error it falls to
+ *  (`streamingQualityMinScale`, 0.3, from 0.1 to 1), the times a failed read of a page is tried
+ *  again before its page is given up (`streamingNumRetries`, 3, a negative value without end) and
+ *  the least and the most requests the camera cut's readout holds (`streamingMinRequests`,
+ *  65 536, `streamingMaxRequests`, 1 048 576, from 4 096 to 1 048 576, the most read no lower than
+ *  the least: it starts at the least and follows what the cut asks of it); set by
+ *  `explorer.setStreaming`, from the streaming's next update. Each is refused at the opening when
+ *  out of its range. */
 export interface MeasuredWorldOptions
   extends
     WorldStreamingOptions,
@@ -56,6 +68,8 @@ export interface MeasuredWorldOptions
     CutOptions,
     AnimationOptions,
     ShadingOptions,
+    ExposureOptions,
+    TemporalOptions,
     RasterOptions,
     StreamingOptions {
   /** Own controls, CSS/DPR sizing and demand-driven rendering. Off by default. */
@@ -159,11 +173,11 @@ export interface MeasuredWorldOptions
   guides?: import('../guides/guideSet.ts').GuideSet
   /** Particle pools, held by the world (`attachParticles`). */
   particles?: readonly import('../../../sdk-core/src/fluids/particles.ts').ParticlePool[]
-  /** Bounced light. Off by default; `true` turns it on for the whole session. */
+  /** Bounced light. On by default; `false` turns it off for the whole session. */
   bounce?: boolean
-  /** Target GPU duration per frame of every proxy ray — reflections first, bounce probes the rest —,
-   *  in milliseconds. 2 ms by default. */
-  bounceBudgetMs?: number
+  /** Probes the bounce traces a frame, those never traced first: a whole count from 1 to 768,
+   *  100 by default; a slow device lowers it. */
+  bounceProbesPerFrame?: number
   /** Time every step of the frame and publish `explorer.stageProfile()`. Off by default. */
   stageProfile?: boolean
   /** Opt-in same-session GPU feedback-target A/B diagnostic; never enabled by production. */

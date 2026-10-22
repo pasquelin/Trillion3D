@@ -7,11 +7,11 @@
  * makes the shader's struct.
  */
 import {
-  DEFAULT_EXPOSURE,
   DEFAULT_SHARPNESS,
   DEFAULT_TONE_MAPPING,
   TONE_MAPPING_RANK,
 } from '../../../../sdk-core/src/scene/core/environment.ts'
+import { UNIT_EXPOSURE } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { viewJitterWords } from './jitterWords.ts'
 import { VIEW_LAYOUT } from './worldAtWgsl.ts'
 
@@ -20,13 +20,13 @@ const AT = VIEW_LAYOUT.at
 /** The background, as `clearValueOf` reads a packed colour. */
 export type ClearColor = { r: number; g: number; b: number; a: number }
 
-/** With no declared light: zero lights, zero tiles, the default exposure and curve, the eye
+/** With no declared light: zero lights, zero tiles, an exposure of 1, the default curve, the eye
  *  unread, the default sharpening. */
 export const ZERO_DIRECT = [
   0,
   0,
   0,
-  DEFAULT_EXPOSURE,
+  UNIT_EXPOSURE,
   TONE_MAPPING_RANK[DEFAULT_TONE_MAPPING],
   0,
   0,
@@ -60,7 +60,8 @@ export function createDeferredView(device: GPUDevice) {
   const buffer = device.createBuffer({
     label: 'Trillion3D deferred view v1',
     size: VIEW_LAYOUT.words * 4,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    // The exposure the meter copies in is copied out again, into the finishing's uniform.
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
   })
   const packed = new Float32Array(VIEW_LAYOUT.words)
   const setJitter = (jitter: ArrayLike<number> | null, phase = 0) =>

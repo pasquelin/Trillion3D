@@ -1,3 +1,5 @@
+import { BOUNCE_PROBE_QUEUE } from '../../../../sdk-core/src/bounce/contracts.ts'
+
 /** The approximations the reference switches off, by name (`referenceMode.ts`). */
 export const REFERENCE_APPROXIMATIONS = [
   'renderScale',
@@ -7,6 +9,6 @@ export const REFERENCE_APPROXIMATIONS = [
   'supersampling',
 ] as const
 
-/** The bounce target of the reference mode, in milliseconds: far past any frame, so the budget never
- *  lowers the probes traced below their per-frame ceiling (`createProxyBudget`). */
-export const REFERENCE_BOUNCE_BUDGET_MS = 1000
+/** The probes the reference mode traces a frame: the whole queue, the most a frame can, so the field
+ *  converges in the fewest images (`BOUNCE_PROBE_QUEUE`). */
+export const REFERENCE_BOUNCE_PROBES = BOUNCE_PROBE_QUEUE

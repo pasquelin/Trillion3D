@@ -16,7 +16,9 @@ import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { resolveTargetUsage, taaPass } from './resolve.ts'
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
+import { GUARANTEED_WORKGROUP_BYTES, workgroupStorageBytes } from '../../gpu/core/textureLimits.ts'
 import type { TaaInputs } from './inputs.ts'
+import type { TilePlan } from './tileWgsl.ts'
 import {
   CLOSEST_FORMAT,
   VELOCITY_BINDINGS,
@@ -36,6 +38,7 @@ import {
   FLICKER_BINDINGS,
   FLICKER_ERROR_FORMAT,
   FLICKER_PLAN,
+  flickerPlanFor,
   flickerShader,
 } from './flickerWgsl.ts'
 import {
@@ -113,18 +116,50 @@ const ANALYSIS_INPUTS = [
   'reactive',
 ] as const
 
+/** The flicker measure built over the tile the device's workgroup memory allows, with the plan it
+ *  was built over; a pipeline whose compile refuses it anyway — a compiled kernel caps its threads
+ *  by what it uses, which no limit names — is built over the narrow plan, the one every device
+ *  holds. `stage` compiles one program of the analysis. */
+async function flickerStage(
+  device: GPUDevice,
+  stage: (
+    layout: GPUBindGroupLayout,
+    module: Promise<GPUShaderModule>,
+    entryPoint: string,
+  ) => ReturnType<typeof buildComputeStage>,
+  layout: GPUBindGroupLayout,
+) {
+  const bytes = workgroupStorageBytes(device.limits)
+  const built = async (plan: TilePlan, workgroupBytes: number) => ({
+    plan,
+    pipeline: await stage(
+      layout,
+      createCheckedShaderModule(device, flickerShader(plan, workgroupBytes), 'TAA_FLICKER'),
+      'flickerMeasure',
+    ),
+  })
+  const wanted = flickerPlanFor(bytes)
+  return built(wanted, bytes).catch((error) => {
+    if (wanted === FLICKER_PLAN) throw error
+    return built(FLICKER_PLAN, GUARANTEED_WORKGROUP_BYTES)
+  })
+}
+
 /** The render texels a workgroup of each dispatch covers, across and down, in their order: the
  *  nearest velocity and the reprojection, a texel a lane, the thin geometry detection, the flicker
- *  measure, the held measure and the rejection, a tile each. */
-const TILES = [
-  [TEXEL_TILE, TEXEL_TILE],
-  [TEXEL_TILE, TEXEL_TILE],
-  [THIN_GEOMETRY_PLAN.width, THIN_GEOMETRY_PLAN.height],
-  [FLICKER_PLAN.width, FLICKER_PLAN.height],
-  [HELD_MEASURE_PLAN.width, HELD_MEASURE_PLAN.height],
-  [REJECTION_PLAN.width, REJECTION_PLAN.height],
-] as const
-/** The flicker measure's place among them. */
+ *  measure (of the `flicker` plan the device's workgroup memory allows), the held measure and the
+ *  rejection, a tile each. */
+const tilesOf = (flicker: TilePlan) =>
+  [
+    [TEXEL_TILE, TEXEL_TILE],
+    [TEXEL_TILE, TEXEL_TILE],
+    [THIN_GEOMETRY_PLAN.width, THIN_GEOMETRY_PLAN.height],
+    [flicker.width, flicker.height],
+    [HELD_MEASURE_PLAN.width, HELD_MEASURE_PLAN.height],
+    [REJECTION_PLAN.width, REJECTION_PLAN.height],
+  ] as const
+/** The thin geometry detection's and the flicker measure's places among them. */
+const THIN_DISPATCH = 2
 const FLICKER_DISPATCH = 3
 /** The compute pass they share. */
 const COMPUTE_PASS: GPUComputePassDescriptor = { label: TAA_PASS }
@@ -137,7 +172,7 @@ const COMPUTE_PASS: GPUComputePassDescriptor = { label: TAA_PASS }
  * 2. the history reprojection (`reprojectWgsl.ts`), which reads the render-resolution histories the
  *    last image wrote into this image's targets, and the occluder words;
  * 3. the thin geometry detection (`thinGeometryWgsl.ts`), which writes the thin geometry history
- *    and this image's mask;
+ *    and this image's mask, where the level runs it (`AnalysisWork`);
  * 4. the flicker measure (`flickerWgsl.ts`), which writes the flicker history, where the level
  *    runs it (`AnalysisWork`);
  * 5. the held measure (`rejectionWgsl.ts`), the filtered input and history the rejection clamps,
@@ -255,7 +290,7 @@ export async function createTaaAnalysis(
     velocityPipeline,
     reprojectPipeline,
     thinPipeline,
-    flickerPipeline,
+    flickerBuilt,
     heldPipeline,
     rejectionPipeline,
     aaPipeline,
@@ -275,11 +310,7 @@ export async function createTaaAnalysis(
       createCheckedShaderModule(device, thinGeometryShader(), 'TAA_THIN_GEOMETRY'),
       'detectThinGeometry',
     ),
-    stage(
-      flickerLayout,
-      createCheckedShaderModule(device, flickerShader(), 'TAA_FLICKER'),
-      'flickerMeasure',
-    ),
+    flickerStage(device, stage, flickerLayout),
     stage(
       heldLayout,
       createCheckedShaderModule(device, heldMeasureShader(), 'TAA_HELD_MEASURE'),
@@ -297,18 +328,19 @@ export async function createTaaAnalysis(
         ]),
     ),
   ])
-  /** The dispatches' pipelines, in the order of `TILES`. */
+  const tiles = tilesOf(flickerBuilt.plan)
+  /** The dispatches' pipelines, in the order of `tiles`. */
   const pipelines = [
     velocityPipeline,
     reprojectPipeline,
     thinPipeline,
-    flickerPipeline,
+    flickerBuilt.pipeline,
     heldPipeline,
     rejectionPipeline,
   ]
   const textures: GPUTexture[] = []
   const identity = createWebgpuBindIdentity(2),
-    /** Per identity slot: each dispatch's group, in the order of `TILES` — the reprojection's, which
+    /** Per identity slot: each dispatch's group, in the order of `tiles` — the reprojection's, which
      *  names no input, the targets' own. */
     held: (GPUBindGroup[] | undefined)[] = []
   type Targets = Record<keyof typeof TRANSIENT_FORMATS, GPUTextureView> &
@@ -561,9 +593,11 @@ export async function createTaaAnalysis(
      *  `orthographic` projection or not: the dispatches in one compute pass, then the anti-aliaser's
      *  draw — the `work` the level runs (`AnalysisWork`). Without the flicker measure, its
      *  dispatch is left out: the rejection reads no flicker error (`view.quality.x`), its history
-     *  waits unwritten — an image running it again drops the history (`encodeTaaPass`). The held
-     *  measure, which runs at every level, empties the occluder words. Without the anti-aliaser,
-     *  its target is cleared to its neutral word once, no draw, until it draws again. */
+     *  waits unwritten — an image running it again drops the history (`encodeTaaPass`); likewise
+     *  the thin geometry detection, which the passes that read its mask then read none of
+     *  (`view.quality.w`). The held measure, which runs at every level, empties the occluder
+     *  words. Without the anti-aliaser, its target is cleared to its neutral word once, no draw,
+     *  until it draws again. */
     encode(
       encoder: GPUCommandEncoder,
       inputs: TaaInputs,
@@ -578,11 +612,12 @@ export async function createTaaAnalysis(
       const w = render[0],
         h = render[1]
       const dispatches = encoder.beginComputePass(COMPUTE_PASS)
-      for (let s = 0; s < TILES.length; s++) {
+      for (let s = 0; s < tiles.length; s++) {
+        if (s === THIN_DISPATCH && !work.thin) continue
         if (s === FLICKER_DISPATCH && !work.flicker) continue
         dispatches.setPipeline(pipelines[s])
         dispatches.setBindGroup(0, groups[s])
-        dispatches.dispatchWorkgroups(ceilDiv(w, TILES[s][0]), ceilDiv(h, TILES[s][1]))
+        dispatches.dispatchWorkgroups(ceilDiv(w, tiles[s][0]), ceilDiv(h, tiles[s][1]))
       }
       dispatches.end()
       // Without the anti-aliaser, its target is cleared to its neutral word once, until it draws.

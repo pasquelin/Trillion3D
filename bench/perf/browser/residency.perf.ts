@@ -44,18 +44,20 @@ const worlds = new Float32Array(64 * 16)
 for (let i = 0; i < worlds.length; i++) worlds[i] = i % 17 === 0 ? 1 + alea() : alea() * 0.01
 
 // A readout as a cut leaves it (`readoutWords.ts`): 12 000 requests behind the header, the 20 000
-// drawn pages' list behind them, then each request's priority word.
+// drawn pages' list behind them, then each request's priority word and its page count (one page each).
 const REQUESTS = 12000,
   DRAWN = 20000,
   drawnAt = listWords(REQUESTS),
-  prioritiesAt = drawnAt + listWords(DRAWN)
-const sortieGpu = new Uint32Array(prioritiesAt + REQUESTS)
+  prioritiesAt = drawnAt + listWords(DRAWN),
+  countsAt = prioritiesAt + REQUESTS
+const sortieGpu = new Uint32Array(countsAt + REQUESTS)
 sortieGpu[0] = REQUESTS
 sortieGpu[1] = 431
 sortieGpu[2] = 5
 for (let i = 0; i < REQUESTS; i++) {
   sortieGpu[SELECTION_HEADER_WORDS + i] = i * 3
   sortieGpu[prioritiesAt + i] = REQUESTS - i
+  sortieGpu[countsAt + i] = 1
 }
 sortieGpu[drawnAt] = DRAWN
 for (let i = 0; i < DRAWN; i++) sortieGpu[drawnAt + SELECTION_HEADER_WORDS + i] = i
@@ -84,10 +86,14 @@ const resParseDag = await measure({
   cas: [
     {
       name: 'cut read, 12 000 requests, 20 000 drawn',
-      input: { drawn: drawnAt, priorities: prioritiesAt },
+      input: { drawn: drawnAt, priorities: prioritiesAt, counts: countsAt },
       size: REQUESTS,
     },
-    { name: 'no drawn list', input: { drawn: 0, priorities: prioritiesAt }, size: REQUESTS },
+    {
+      name: 'no drawn list',
+      input: { drawn: 0, priorities: prioritiesAt, counts: countsAt },
+      size: REQUESTS,
+    },
   ],
   calculation: (at) => parseDagOutput(sortieGpu.buffer, 0, sortieGpu.byteLength, at),
   // The oracle takes a per-page flag mask; the engine receives already-compacted lists and their

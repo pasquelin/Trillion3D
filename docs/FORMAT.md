@@ -53,12 +53,10 @@ same bytes.
 - Version: `MANIFEST_BINARY_VERSION` 18, 27 columns in `COLUMN_NAMES` order, with the
   `texturePreviewBc7`, `texturePreviewAstc` and `texturePreviewEtc2` block columns
   (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`). 18 drops the page normal-cone
-  column, the last, which the runtime read none of: a 17 reader would expect 28 columns. A
-  position a simplification leaves on a source vertex's comes back from the build's frame bit for
-  bit, so the coarse pages of a simplified cook differ from a 17 cook's. 17 keeps every column:
-  the pages are the `WGP3` format 9 ([Pages](#pages)), and the culling boxes bound the positions
-  the pages decode to, so the pages, the box columns and the page sizes differ from a 16 cook's; no
-  record carries a quantization error any more. 16 lays the clusters in the order
+  column, the last, which the runtime read none of: a 17 reader would expect 28 columns. 17 keeps
+  every column: the pages are the `WGP3` format 9 ([Pages](#pages)), and the culling boxes bound the
+  positions the pages decode to, so the pages, the box columns and the page sizes differ from a 16
+  cook's; no record carries a quantization error any more. 16 lays the clusters in the order
   their streaming pages are filled in, and the `cullingNodes` column holds `CULLING_STRIDE` (16)
   numbers a node, the least own error beside the ceiling, the tree's leaves the group parts
   ([Cluster DAG](#cluster-dag)): a 15 reader would read the nodes off their stride. 15 keeps every column: the
@@ -111,6 +109,11 @@ surface; the three coarsest levels' roots and a tree of the others hang under th
 node holds its children's box, the ball of their balls, the least own error and the largest ceiling
 below it; its children lie side by side after it (`rust/compiler/hierarchy.rs`,
 `codec/culling/tree.rs`).
+
+A position a simplification leaves on a source vertex's comes back from the build's frame bit for
+bit (`rust/simplify/region.rs`): the coarse pages of a simplified cook, in the content-addressed
+`objects/*.bin` (any version change allows them), in `world-roots.dag` (`WORLD_ROOTS_VERSION`) and in
+the cuts `proxy.bin` holds (`SCENE_PROXY_VERSION`), differ from an earlier cook's for the same source.
 
 - Types: `core/contracts/geometry.ts` (`Page`, `ClusterStructure`, `StreamCatalogue`); the cut,
   `browser/geometry/cut/rule.ts:drawsCluster`.

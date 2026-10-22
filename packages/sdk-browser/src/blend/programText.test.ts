@@ -17,8 +17,18 @@ import type { ContractKey } from '../lighting/deferred/contractCuts.ts'
 const VERTEX = '4527231df79be64432298d76dcf283c314a39b64fa2f846f9f6ed30dd9a64ead'
 // Retaken when the blend module took that vertex, the per-material history share it writes for
 // the temporal pass where its material gives the history up, and the stored tangents' frame in a
-// module of its own (`tangentFrameWgsl.ts`) for the normal map and the lobes both.
-const BLEND = 'f5c3218b6eba5c5b02663e38ae98cee3625ebc3632c69384400f68fc2ea31c0e'
+// module of its own (`tangentFrameWgsl.ts`) for the normal map and the lobes both, and then the
+// sky: the probes carry the sky light's diffuse light (`indirectGathered`, `environmentSky`), the
+// reflections' environment reads the sky by direction (`reflectionEnvironment`), and then the fog
+// took the height law's fields: its block grew to six `vec4`, its text to the law's steps, and then
+// a probe that holds no light yet leaves its share of a point unanswered (`probeFieldWgsl`), the
+// indirect light of a point is one fragment (`indirectWgsl.ts`), and then that share goes to the sky
+// light only where one shines, a scene with none keeping the probes' mean (`indirectGathered`), and
+// then the probes came to be held by a pool, named by a table of the atlas (`tableEntry`,
+// `poolProbe`) with the level each carries, over levels that follow the eye (`bounceRead`), and
+// then a probe's distance along a direction came to be read from its two distance vectors
+// (`distanceAlong`), the one rule its neighbours' filter reads them by too.
+const BLEND = '87b4e9908b8b71dc37f02e2b089635f6448b74c9a21108adff76c3aa7cc0ca3d'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */

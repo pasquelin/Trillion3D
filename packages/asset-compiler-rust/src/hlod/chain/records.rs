@@ -95,6 +95,14 @@ pub(super) struct Page {
     pub lod_error: f64,
 }
 
+/// What the table records of each HLOD cell beside its chain node: the bundles holding its roots,
+/// the chain's nodes, and its actor's rows bundle (none for no rows) and their count.
+type HlodCells<'a> = (
+    &'a [BTreeSet<usize>],
+    &'a [HlodNode],
+    &'a [(Option<usize>, usize)],
+);
+
 /// `world-roots.table` of the world's `bundles`, `pages` and HLOD cells over `payload`: a 64-byte
 /// header (magic, version, the three counts, the pool's length, the binary's length as two words,
 /// then the binary's 32-byte digest), then 56-byte bundles, 24-byte pages (bundle, offset, level
@@ -109,11 +117,7 @@ pub(super) struct Page {
 /// one of its bundles, of no page, `ROW_BYTES` a row (`builds::lay_rows`) —, and their count; then
 /// as `f64` the bounds it streams by and the union of what it holds) and the pool.
 pub(super) fn encode_table(
-    (bundles, pages, (hlod, tree, rows)): (
-        &[Bundle],
-        &[Page],
-        (&[BTreeSet<usize>], &[HlodNode], &[(Option<usize>, usize)]),
-    ),
+    (bundles, pages, (hlod, tree, rows)): (&[Bundle], &[Page], HlodCells<'_>),
     payload: &[u8],
 ) -> Result<Vec<u8>> {
     let mut r = Records::default();

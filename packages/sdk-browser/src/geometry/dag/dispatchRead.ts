@@ -5,7 +5,8 @@ import { readDagSlot } from './readbackSlot.ts'
 import { unlessRefused } from '../../gpu/core/readbackRing.ts'
 import { behind } from '../../gpu/core/behind.ts'
 import type { MainCut } from './dispatch.ts'
-import { priorityWord } from './readoutWords.ts'
+import { countWord, priorityWord } from './readoutWords.ts'
+import { askListCap } from './queueGrowth.ts'
 
 // The readback side of the main view's dispatch (`dispatch.ts`): a buffer of its ring taken, the
 // copy read behind the reads in flight, landed in the chain and adopted when it may be.
@@ -65,12 +66,13 @@ export function landMain(range: ArrayBuffer, _staging: GPUBuffer, read: MainCopy
   const { cut } = read,
     { resources, state, chain, scratch } = cut
   const { outputBytes, readbackBytes: copied, listCap, listFeedback, listCaps } = resources
-  const { parsed } = readDagSlot(
+  const { parsed, demand } = readDagSlot(
     range,
     {
       bytes: copied,
       drawnWordOffset: outputBytes / 4,
       priorityWordOffset: priorityWord(listCap),
+      countWordOffset: countWord(listCap),
       scratch: scratch[cut.reads++ % scratch.length],
     },
     { feedback: listFeedback, caps: listCaps },
@@ -82,11 +84,13 @@ export function landMain(range: ArrayBuffer, _staging: GPUBuffer, read: MainCopy
       chain.land(
         new Uint32Array(words, 0, copied >>> 2),
         listCap,
-        parsed.pageIds.length,
+        parsed.requests.pages.length,
         parsed.drawablePageIds.length,
         read.withdrawn === state.withdrawnRevision,
       ),
   )
+  // What the cut asked of its lists moves the readout's ranks, made again before the next cut.
+  if (!state.disposed) askListCap(resources, state, demand)
   // The rows' queue the cut ranked, while the range is mapped: a cut past a list's cap stamped
   // the rows of what it drew, its image's.
   resources.rowPass?.landed(parsed ? range : undefined, listCap, read.captured.frame ?? -1)

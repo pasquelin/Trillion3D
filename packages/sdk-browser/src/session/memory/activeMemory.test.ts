@@ -10,6 +10,7 @@ import { laneCounts, poolEncoding } from '../../materials/texture/blockFormats.t
 import { TILES_PER_LAYER } from '../../materials/texture/tiles.ts'
 import { texturePoolFor } from '../../geometry/residency/memoryBudgets.ts'
 import { defaultGpuBudget, splitMemoryBudget } from './memoryBudget.ts'
+import { effectChainBytesAt } from '../../post/effects/targets.ts'
 import type { ActiveGpuMemory } from './activeMemory.ts'
 import { worldRootsFixture } from '../../geometry/hlod/worldRootsPages.fixture.ts'
 import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from './shadowBudgetBytes.ts'
@@ -43,7 +44,9 @@ const full: ActiveGpuMemory = {
   shadowPool: SHADOW_POOL_BYTES,
   shadowReserve: 0,
   bounceProbes: BOUNCE_PROBE_BYTES,
-  effectTargets: 22112160,
+  // What a chain holds at most on a 4K canvas (`effectChainBytesAt`): the passes' targets, the
+  // bloom's images and the display finishing's.
+  effectTargets: effectChainBytesAt(3840, 2160),
   geometryMinimum,
   textureMinimum,
 }
@@ -76,8 +79,8 @@ test('the asymmetric real tail floor is admitted exactly or refused, never silen
   )
 })
 
-// The default effect reserve holds no extra scene target (#1483, `effectChainBytesAt`): the
-// 4K reservations now fall short with or without the frame's history, by the bytes named.
+// The effect reserve holds no extra scene target (#1483, `effectChainBytesAt`): the 4K
+// reservations fall short with or without the frame's history, by the bytes named.
 test('full 4K reservations expose the concrete tail-fixture shortfall instead of overcommitting', () => {
   const required = geometryMinimum + textureMinimum
   for (const frameTargets of [full.frameTargets, full.frameTargets - 265420800]) {

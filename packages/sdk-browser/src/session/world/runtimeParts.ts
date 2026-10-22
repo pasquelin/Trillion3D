@@ -112,6 +112,22 @@ export function worldOpening(parts: WorldRuntimeParts) {
   }
 }
 
+/** The sky lights' take of the atmosphere's captures, by session: a new session starts again. The
+ *  call takes the capture of `session` that landed since as what the sky lights give, from now, and
+ *  says whether it did. */
+function skyTaker(lights: WorldRuntimeParts['lights']) {
+  let taken: object | null = null,
+    revision = 0
+  return (session: MeasuredWorld) => {
+    const sky = session.skyCapture()
+    if (!sky || (session === taken && sky.revision === revision)) return false
+    taken = session
+    revision = sky.revision
+    lights.skyCaptured(sky.coefficients)
+    return true
+  }
+}
+
 /** The change list, applied once before a frame: rows seated, poses written, lights stored. */
 export function worldApply(parts: WorldRuntimeParts, reopens: WorldReopens) {
   const { inputs, state, contents, lights, background } = parts
@@ -125,6 +141,7 @@ export function worldApply(parts: WorldRuntimeParts, reopens: WorldReopens) {
         'the engine cannot write them in place: they are not drawn',
       ),
   )
+  const takeSky = skyTaker(lights)
   return () => {
     const session = state.explorer
     if (state.seatWanted) {
@@ -158,8 +175,14 @@ export function worldApply(parts: WorldRuntimeParts, reopens: WorldReopens) {
             session.composePlacements(parent, world, links, whole),
         },
       )
+    // A capture of the atmosphere's sky that landed since is what the sky lights give, from now.
+    if (takeSky(session)) state.lightsChanged = true
     if (state.lightsChanged)
-      session.setEnvironment({ ...inputs.display(), irradiance: lights.sync(session) })
+      session.setEnvironment({
+        ...inputs.display(),
+        irradiance: lights.sync(session),
+        sky: lights.sky(),
+      })
     state.lightsChanged = false
     background.write(session)
   }

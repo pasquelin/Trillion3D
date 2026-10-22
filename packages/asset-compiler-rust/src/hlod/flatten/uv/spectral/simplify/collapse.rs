@@ -23,12 +23,12 @@ impl<'s> Simplifier<'s> {
         let edge_count = self.edges.len();
         let mut heap = Ranked::<f64>::new(edge_count);
         let mut weights = vec![0f64; edge_count];
-        for e in 0..edge_count {
+        for (e, slot) in weights.iter_mut().enumerate() {
             let mut weight = -self.edges[e].cost;
             if weight > -(ZERO as f64) {
                 weight = -(ZERO as f64);
             }
-            weights[e] = weight;
+            *slot = weight;
             heap.insert(e as u32, weight);
         }
         let mut examined = 0;

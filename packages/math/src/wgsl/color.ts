@@ -5,6 +5,7 @@ import {
   SRGB_DECODE_THRESHOLD,
   SRGB_ENCODE_THRESHOLD,
   SRGB_GAMMA,
+  SRGB_LUMINANCE,
   SRGB_OFFSET,
   SRGB_SCALE,
   SRGB_SLOPE,
@@ -62,5 +63,5 @@ export const srgbToLinear = wgslFn(
 export const luminance = wgslFn(
   'luminance',
   [],
-  'fn luminance(c:vec3f)->f32{return dot(c,vec3f(0.2126390059,0.7151686788,0.0721923154));}',
+  `fn luminance(c:vec3f)->f32{return dot(c,vec3f(${SRGB_LUMINANCE.join(',')}));}`,
 )

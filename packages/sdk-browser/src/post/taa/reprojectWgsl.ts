@@ -76,7 +76,7 @@ fn reprojectionEdge(word:u32)->f32{return f32((word>>8u)&0xffu)/255.0;}`,
  * - the reprojection edge over the 3×3's reprojection vectors: for each of the four pairs of opposite
  *   neighbours, one less the share of a render pixel each one's vector differs from the texel's
  *   along its own offset, the least of them, times 1.1; the velocity pass's own edge where it exceeds
- *   0.9, and none (one) where the texel took no neighbour's velocity;
+ *   0.9, and none (one) where the texel took no neighbour's velocity, whose vectors are not read;
  * - the shading history read at the reprojected point with the five-tap Catmull-Rom (`catmullRomTaps`), its
  *   exposure corrected (`view.exposure.y`), dithered to its eight bits; the flicker measure read at
  *   the nearest texel to the point moved by up to half a texel at random. Off the last screen or on
@@ -89,8 +89,8 @@ fn reprojectionEdge(word:u32)->f32{return f32((word>>8u)&0xffu)/255.0;}`,
  *   as its reprojection, when it is one, so the history update reads the surface the occluder left;
  * - the thin geometry coverage history at the texel the reprojected point falls in, kept in the word
  *   for the thin geometry detection (`thinGeometryWgsl.ts`).
- * 9 vector loads, 5 bilinear shading history taps, a flicker history load, a coverage history load
- * and 4 occluder words per render texel.
+ * A vector load, and 9 where the texel took a neighbour's velocity, 5 bilinear shading history
+ * taps, a flicker history load, a coverage history load and 4 occluder words per render texel.
  */
 export const reprojectShader = () =>
   wgslProgram(
@@ -177,9 +177,8 @@ fn reprojectHistories(@builtin(global_invocation_id) gid:vec3u){
  let prevZ=abs(bitcast<f32>(closestWord));
  let animated=(closestWord&0x80000000u)!=0u;
  let zError=decodeDepthError(prevZ,mark.g);
- var edge=neighbourEdge(p);
- edge=select(edge,preliminary,preliminary>0.9);
- edge=select(1.0,edge,hasOffset);
+ var edge=1.0;
+ if(hasOffset){edge=select(neighbourEdge(p),preliminary,preliminary>0.9);}
  let v=decodeVector(textureLoad(vectors,p,0).r);
  let screen=screenOfTexel(p);
  let prevScreen=screen-v;

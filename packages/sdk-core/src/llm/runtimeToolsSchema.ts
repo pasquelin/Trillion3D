@@ -9,6 +9,8 @@ import { WORLD_STREAMING_RULES } from '../contracts/worldStreamingOptions.ts'
 import { CUT_RULES } from '../contracts/cutOptions.ts'
 import { ANIMATION_RULES } from '../contracts/animationOptions.ts'
 import { SHADING_RULES } from '../contracts/shadingOptions.ts'
+import { EXPOSURE_RULES } from '../contracts/exposureOptions.ts'
+import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
 
 /** A tool that writes the run-time settings of the rules by field `rules`, each as the explorer's
  *  options describe it (`EXPLORER_OPTIONS_SCHEMA`). Each call is marked pure, so a bundle that
@@ -134,6 +136,16 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
     'trillion3d_set_shading',
     "Changes from the next frame how the material pass bins each material's pixels before shading them: by pixel or by 2 × 2 quad, or as each material's shading asks. The image is the same in each mode.",
     SHADING_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_exposure',
+    "Changes from the next frame how the automatic exposure follows the image: the bias in stops, the range of the mean luminance in EV100, the histogram's span, the shares of the pixels left out, the speeds in stops a second, the transition distance, the weight of the black bucket and how a pixel's luminance is read. They apply where the exposure is 'auto', the default.",
+    EXPOSURE_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_temporal',
+    "Changes from the next frame how the temporal anti-aliasing, whose level trillion3d_set_temporal_antialiasing sets, treats geometry thinner than a pixel: whether it looks for a wire or a rail and relaxes its history there, off by default. It applies at any level but 'off'.",
+    TEMPORAL_RULES,
   ),
   {
     name: 'trillion3d_add_light',

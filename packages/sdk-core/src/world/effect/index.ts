@@ -1,7 +1,13 @@
 import { Bloom, type BloomOptions } from './bloom.ts'
 import { Outline, type OutlineOptions } from './outline.ts'
 
-export { Bloom, type BloomOptions } from './bloom.ts'
+export {
+  Bloom,
+  type BloomLevelOptions,
+  type BloomOptions,
+  type BloomTint,
+  type ResolvedBloomLevel,
+} from './bloom.ts'
 export { Outline, type OutlineOptions } from './outline.ts'
 export { EffectChain, EffectPass, type EffectKind, type EffectStage } from './chain.ts'
 
@@ -9,7 +15,7 @@ export { EffectChain, EffectPass, type EffectKind, type EffectStage } from './ch
 export const effect = {
   /**
    * A glow around what is bright, on the linear image before tone mapping.
-   * @param options - `intensity` and `radius`; the defaults when absent.
+   * @param options - `intensity`, `threshold`, `sizeScale` and `levels`; the defaults when absent.
    */
   bloom: (options?: BloomOptions) => new Bloom(options),
   /**

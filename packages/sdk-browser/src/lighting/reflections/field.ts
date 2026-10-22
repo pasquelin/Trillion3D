@@ -5,6 +5,7 @@ import { REFLECTION_VIEW_WGSL } from './viewLayout.ts'
 import { SQRT2 } from '../../../../math/src/wgsl/constants.ts'
 import { vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
+import { SKY_READ_WGSL } from '../atmosphere/skyReadWgsl.ts'
 
 /**
  * The round GGX lobe of width `alpha`, its zonal moments for an order-2 radiance field: with z =
@@ -99,15 +100,20 @@ fn reflectionLobeOf(R:vec3f,alpha:f32,lobe:vec4f)->ReflectionLobe{
 fn reflectionReadTangent(lobe:ReflectionLobe)->f32{return max(lobe.tangents.x,lobe.tangents.y/REFLECTION_TAPS);}`,
 )
 
-/** The radiance around the scene (`reflectionEnvironment`), one rule: a ray that leaves the scene
- *  reaches what the screen draws in its direction, the background — the declared colour or the
- *  default one, drawn behind every image (the canvas is opaque) —, as the radiance the view's
- *  exposure and curve turn into it: the uniform radiance of the view's `surroundings`, which
- *  every lobe keeps whole. The environment's coefficients light the diffuse term alone. */
+/** The radiance around the scene (`reflectionEnvironment`), one rule: a ray along `R` that leaves
+ *  the scene reaches what the scene's sky gives it in that direction (`skyRadiance`: the atmosphere's
+ *  sky, a sky light's colour, its ground below the horizon), where the scene shows one; else what the
+ *  screen draws in its direction, the background — the declared colour or the default one, drawn
+ *  behind every image (the canvas is opaque) —, as the radiance the view's exposure and curve turn
+ *  into it: the uniform radiance of the view's `surroundings`, which every lobe keeps whole. The
+ *  environment's coefficients light the diffuse term alone. */
 export const REFLECTION_ENVIRONMENT_WGSL = wgslBlock(
   'REFLECTION_ENVIRONMENT_WGSL',
-  [REFLECTION_VIEW_WGSL],
-  `fn reflectionEnvironment()->vec3f{return reflectionView.surroundings.rgb;}`,
+  [REFLECTION_VIEW_WGSL, SKY_READ_WGSL],
+  `fn reflectionEnvironment(R:vec3f)->vec3f{
+ if(skyShown()){return skyRadiance(R);}
+ return reflectionView.surroundings.rgb;
+}`,
 )
 
 /** A probe's radiance through the lobe named `lobe`, never negative. */

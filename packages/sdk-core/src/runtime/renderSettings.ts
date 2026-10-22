@@ -21,7 +21,7 @@ export type QualityGroup = (typeof QUALITY_GROUPS)[number]
 
 /** What every setting says beside its value: who writes it. How a change reaches the image, and
  *  what it throws away, is the hook's that applies it (`watch`), never a word of the table. */
-export interface EntryBase {
+interface EntryBase {
   /** The quality group whose levels write it. */
   group: QualityGroup
   /** Set by the editor alone: neither a preset nor a page writes it. */

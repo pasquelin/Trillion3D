@@ -17,17 +17,8 @@ import {
  * blocks on slow streaming and whether the HLOD actors load (`WORLD_STREAMING_SETTINGS`,
  * `packages/sdk-browser/src/geometry/partition/source.ts`, `slowStreaming.ts` beside it), and the
  * warm-up a switch that draws an HLOD actor waits on (`HLOD_WARMUP_SETTINGS`,
- * `packages/sdk-browser/src/frame/prepare/hlodWarm.ts`). They are the engine's own, read again at
- * each frame: no compiler job names them, so no manifest carries them and no cache key holds them.
- * None has quality levels: the scalability groups of the reference leave every one at its
- * default, so a quality preset writes none (`../runtime/qualityLevels.ts`). Each is a world option
- * (`WorldOptions`), a session option (`MeasuredWorldOptions`), a render setting of the view
- * distance's group (`packages/sdk-browser/src/session/world/settings.ts`), and the LLM schemas
- * name it by its field and say what it means (`../llm/settingProperties.ts`). Each is read by the
- * one resolver of the rules (`resolveSetting`, `./settingRules.ts`) wherever it is taken — the
- * world, a session at its opening, the session's setter —: a value it takes as itself,
- * `undefined` or `null` its default, anything else refused with a `TypeError` naming the field
- * and the values it takes.
+ * `packages/sdk-browser/src/frame/prepare/hlodWarm.ts`). Run-time settings, as `./settingRules.ts`
+ * says.
  */
 
 /** How many cells may load at once: a whole number a 32-bit counter holds; 0 or less lifts the

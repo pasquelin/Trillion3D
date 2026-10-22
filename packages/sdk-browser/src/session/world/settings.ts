@@ -1,7 +1,7 @@
 /**
  * The engine's render settings (`../../../../sdk-core/src/runtime/renderSettings.ts`): each default
  * is the constant the engine reads today, referenced, never copied. A switch with no constant of
- * its own defaults to what the engine does without it: the pass drawn, the bounce off.
+ * its own defaults to what the engine does without it: the pass drawn, the bounce on.
  */
 import { DEFAULT_PIXEL_ERROR } from '../../../../sdk-core/src/lod/policy.ts'
 import {
@@ -15,6 +15,8 @@ import type { SettingRule } from '../../../../sdk-core/src/contracts/settingRule
 import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import { ANIMATION_RULES } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
+import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
+import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import {
   createRenderSettings,
   type ChoiceSettingEntry,
@@ -37,7 +39,7 @@ type RuleEntry<V> = V extends boolean
   ? FlagSettingEntry
   : V extends number
     ? NumberSettingEntry
-    : ChoiceSettingEntry & { default: V; choices: readonly V[] }
+    : Omit<ChoiceSettingEntry, 'default' | 'choices'> & { default: V; choices: readonly V[] }
 /** The entry of one setting of a contract's rules (`SettingRule`), of the view distance's group:
  *  its kind, default and range or names the rule's. A number `above` its range's start lies from
  *  the smallest number past it. */
@@ -57,7 +59,7 @@ const ruleEntries = <R extends Readonly<Record<string, SettingRule>>>(rules: R) 
 
 /** Every render setting of the engine, by name. The settings declared by rule — the cluster
  *  raster's, the geometry streaming's, the partition's streaming and the HLOD warm-up's, the cut's,
- *  the animation's, the shading's — are read at each frame, or at each update of the streaming,
+ *  the animation's, the shading's, the exposure's, the temporal pass's — are read at each frame, or at each update of the streaming,
  *  from the session's context; no level of the view distance's writes them, as the reference's
  *  scalability groups leave every one at its default. */
 const WORLD_SETTINGS = {
@@ -76,13 +78,15 @@ const WORLD_SETTINGS = {
     choices: TEMPORAL_AA_LEVELS,
     ...base('edgeSmoothing'),
   },
-  bounce: flag(false, 'indirectLight'),
+  bounce: flag(true, 'indirectLight'),
   ...ruleEntries(RASTER_RULES),
   ...ruleEntries(STREAMING_RULES),
   ...ruleEntries(WORLD_STREAMING_RULES),
   ...ruleEntries(CUT_RULES),
   ...ruleEntries(ANIMATION_RULES),
   ...ruleEntries(SHADING_RULES),
+  ...ruleEntries(EXPOSURE_RULES),
+  ...ruleEntries(TEMPORAL_RULES),
 } as const satisfies Readonly<Record<string, RenderSettingEntry>>
 
 /** The fields of every setting declared by rule: no quality level writes one unless its table
@@ -95,6 +99,8 @@ export const RULE_FIELDS: ReadonlySet<string> = new Set(
     CUT_RULES,
     ANIMATION_RULES,
     SHADING_RULES,
+    EXPOSURE_RULES,
+    TEMPORAL_RULES,
   ].flatMap((rules) => Object.keys(rules)),
 )
 

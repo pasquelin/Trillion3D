@@ -28,7 +28,7 @@ import { cofactor3 } from './matrix.ts'
 export const InvT3 = wgslStruct('InvT3', [], 'struct InvT3{adj:mat3x3f,scale:f32,regular:bool,}')
 
 /** The sum of the absolute values of the nine entries: the scale a 3×3 is divided by. */
-export const absoluteSum3 = wgslFn(
+const absoluteSum3 = wgslFn(
   'absoluteSum3',
   [],
   `fn absoluteSum3(m:mat3x3f)->f32{
@@ -39,7 +39,7 @@ export const absoluteSum3 = wgslFn(
 
 /** Whether `t`, an `absoluteSum3`, can divide: above zero and neither infinite nor NaN, read at the
  *  bit. */
-export const isFiniteScale = wgslFn(
+const isFiniteScale = wgslFn(
   'isFiniteScale',
   [isFiniteWord],
   'fn isFiniteScale(t:f32)->bool{return (t>0.0)&&isFiniteWord(bitcast<u32>(t));}',

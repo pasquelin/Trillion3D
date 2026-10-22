@@ -33,12 +33,12 @@ pub(crate) fn place(
         return (Vec::new(), Vec::new());
     }
     let sampler = count("samplers");
-    let mut material_rank = count("materials");
+    let first_material = count("materials");
     let mut added = (Vec::new(), Vec::new(), Vec::new());
     let mut ranks = Vec::new();
     let mut previews = Vec::new();
     let mut used = [false; EXTENSIONS.len()];
-    for material in materials.iter_mut() {
+    for (material_rank, material) in (first_material..).zip(materials.iter_mut()) {
         // Each role's texture rank, by `Role as usize`, the emission map's strength and what the
         // base image's alpha is.
         let mut slot = [None::<usize>; 6];
@@ -80,7 +80,6 @@ pub(crate) fn place(
         }
         added.2.push(made);
         ranks.push(material_rank);
-        material_rank += 1;
     }
     let declared = |name: &str| {
         (scene.get("extensionsUsed").and_then(Value::as_array))

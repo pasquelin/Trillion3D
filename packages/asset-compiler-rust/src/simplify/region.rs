@@ -9,10 +9,11 @@
 //! size, held within single precision's range. The attribute weights are written for that frame
 //! (`dag::attributes`), whatever the model's size; a power of two keeps the scaling exact both
 //! ways, but the hundred-fold does not: dividing by it again moves a position by one unit in the
-//! last place. So a position a solve leaves where a source vertex lies in the frame (a collapse
-//! onto a locked vertex, an unmoved one whose attributes changed) is that vertex's metres as they
-//! were, bit for bit, as the welds by position read them; only a position the solve created, and
-//! the error, come back from the frame by dividing (`Region::metres`).
+//! last place. So an unmoved vertex whose attributes changed keeps its metres, and a position a
+//! solve leaves where a source vertex lies in the frame (a collapse onto a locked vertex) is that
+//! vertex's metres as they were, bit for bit, as the welds by position read them; only a position
+//! the solve created, or one that two different source positions share in the frame, and the
+//! error, come back from the frame by dividing (`Region::metres`).
 //!
 //! **The surface limit.** A region simplified for a cluster level holds each wedge's error to its
 //! area and each collapse's to the area it touches (`region/collapse.rs`): a small piece goes as
@@ -32,9 +33,15 @@ use crate::simplify::region::collapse::run::Stop;
 use crate::simplify::{compact_attributes, compact_region, Attribute, Corrected, Role, SolveRules};
 use crate::simplify::{CENTIMETRES, NEAR_POINTS};
 use crate::{invalid, Result};
+use std::cell::OnceCell;
+use std::collections::hash_map::Entry;
 use trillion3d_math::vector::vec3::{cross, point_checked_f32};
 use trillion3d_math::vector::vecn::{length, sub};
 use trillion3d_page_codec::hash::{word_map, WordMap};
+
+/// In `Region::frame_at`, the mark of a position of the frame that two different source positions
+/// share.
+const SHARED: u32 = u32::MAX;
 
 /// A region prepared once, in its own compact vertex space and frame, simplified towards a target.
 pub struct Region {
@@ -53,8 +60,9 @@ pub struct Region {
     pub(crate) locked: Vec<bool>,
     /// The source positions in the frame.
     frame: Vec<f32>,
-    /// Per position of the frame, by its bits, the first compact vertex that lies there.
-    frame_at: WordMap<[u32; 3], u32>,
+    /// Per position of the frame, by its bits, the first compact vertex that lies there (`SHARED`
+    /// when two different source positions do); built by the first `Region::metres`.
+    frame_at: OnceCell<WordMap<[u32; 3], u32>>,
     /// Per triangle, its material and the mirror bits of its texture sets: two triangles of
     /// different words share no edge (`prepare::mirrored`).
     materials: Vec<u32>,
@@ -153,14 +161,10 @@ impl Region {
         }
         let stride = weights.len();
         let frame: Vec<f32> = source.iter().map(|&x| to_frame(x, scale)).collect();
-        let mut frame_at = word_map(remap.len());
-        for (v, p) in frame.as_chunks::<3>().0.iter().enumerate() {
-            frame_at.entry(p.map(f32::to_bits)).or_insert(v as u32);
-        }
         Ok(Self {
             locked: remap.iter().map(|&v| locked(v)).collect(),
             frame,
-            frame_at,
+            frame_at: OnceCell::new(),
             materials: crate::simplify::region::prepare::mirrored(
                 &compact,
                 &source_values,
@@ -179,15 +183,41 @@ impl Region {
     }
 
     /// The position `p` of the frame in metres: the source position of the first vertex that lies
-    /// at `p` in the frame, exactly as it was given, else `p` brought back from the frame.
+    /// at `p` in the frame, exactly as it was given — unless a different source position lies
+    /// there too —, else `p` brought back from the frame.
     fn metres(&self, p: [f32; 3]) -> [f32; 3] {
-        match self.frame_at.get(&p.map(f32::to_bits)) {
-            Some(&v) => {
+        let at = self.frame_at.get_or_init(|| self.frame_index());
+        match at.get(&p.map(f32::to_bits)) {
+            Some(&v) if v != SHARED => {
                 let s = &self.source[v as usize * 3..][..3];
                 [s[0], s[1], s[2]]
             }
-            None => p.map(|x| from_frame(x, self.scale)),
+            _ => p.map(|x| from_frame(x, self.scale)),
         }
+    }
+
+    /// Per position of the frame, by its bits, the first compact vertex that lies there, `SHARED`
+    /// where another one with a different source position does.
+    fn frame_index(&self) -> WordMap<[u32; 3], u32> {
+        let source = |v: u32| {
+            let s = &self.source[v as usize * 3..][..3];
+            [s[0].to_bits(), s[1].to_bits(), s[2].to_bits()]
+        };
+        let mut at = word_map(self.remap.len());
+        for (v, p) in self.frame.as_chunks::<3>().0.iter().enumerate() {
+            match at.entry(p.map(f32::to_bits)) {
+                Entry::Vacant(e) => {
+                    e.insert(v as u32);
+                }
+                Entry::Occupied(mut e) => {
+                    let first = *e.get();
+                    if first != SHARED && source(first) != source(v as u32) {
+                        e.insert(SHARED);
+                    }
+                }
+            }
+        }
+        at
     }
 
     /// Simplifies the region towards `target_triangles` and returns what remains, its border pushed

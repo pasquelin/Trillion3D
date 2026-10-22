@@ -14,8 +14,10 @@ use crate::compiler::budget::admission::{alone, run_admitted, Done, Room};
 use crate::compiler::tables::partition::HlodNode;
 use crate::hlod::flatten::Recipe;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use trillion3d_page_codec::encode::Attribute;
-use trillion3d_page_codec::{FLAG_NORMAL, FLAG_UV};
+
+/// What `world_dag` makes: the world DAG, its actors, each cell's rows, the cells whose actor could
+/// not be made, and what the making measured.
+type WorldBuild = (WorldDag, Vec<Actor>, ActorRows, Vec<Failure>, Measures);
 
 /// The world DAG of `instances` over the chain `tree` (`HlodNode`, leaves first), its actors, each
 /// cell's rows and the cells whose actor could not be made: per cell whose actor a job layer builds
@@ -29,7 +31,7 @@ pub(crate) fn world_dag(
     instances: &[Instance],
     tree: &[HlodNode],
     builder: &Builder,
-) -> Result<(WorldDag, Vec<Actor>, ActorRows, Vec<Failure>, Measures)> {
+) -> Result<WorldBuild> {
     let started = std::time::Instant::now();
     let cpu = crate::support::perf::rss::cpu_ms();
     let layers = &builder.hlod.layers;
@@ -75,7 +77,7 @@ pub(crate) fn world_dag(
         match jobs[job].1 {
             Recipe::Voxel => voxels::working_bytes(instances, members),
             Recipe::Shell => working_bytes(instances, (hlod, families), members),
-            Recipe::Merge => merged_bytes(instances, (hlod, families), members),
+            Recipe::Merge => merged_bytes(instances, (hlod, families, builder.library), members),
             Recipe::Simplified => simplified_bytes(instances, (hlod, families), members),
         }
     };

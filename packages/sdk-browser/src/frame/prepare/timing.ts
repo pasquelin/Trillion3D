@@ -1,5 +1,5 @@
 import { createGpuTiming } from '../../gpu/timing/timing.ts'
-import { addGpuPasses, bounceGpuMs, reflectionSceneGpuMs } from '../../diagnostic/stage/mapping.ts'
+import { addGpuPasses, bounceGpuMs } from '../../diagnostic/stage/mapping.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { createGpuLog } from './gpuLog.ts'
 import type { GpuTimingSample } from '../../gpu/timing/types.ts'
@@ -58,12 +58,9 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
         sample.renderScale as number,
         sample.scaleSteered !== false,
       )
-      // The proxy rays' budget is a duration: it reads here the reflection scene's pass and the
-      // bounce stage, the per-pass profile's, and corrects the next images' units and batch.
-      rt.bounce.budget.observe(
-        reflectionSceneGpuMs(main.lastGpuPassMs),
-        bounceGpuMs(main.lastGpuPassMs),
-      )
+      // The bounce stage's duration, the per-pass profile's: a measure the metrics publish, never a control.
+      const bounceMs = bounceGpuMs(main.lastGpuPassMs)
+      if (bounceMs !== null && bounceMs > 0) rt.bounce.passMs = bounceMs
       // The sample describes an image already past: it is filed by stage without ever blocking this one.
       // The image envelope is published separately: on a device that overlaps passes, the sum of stages
       // exceeds the image, and it is the envelope that tells the truth about its duration.

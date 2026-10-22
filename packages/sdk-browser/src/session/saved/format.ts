@@ -1,4 +1,5 @@
 import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts'
+import type { ResolvedAtmosphere } from '../../../../sdk-core/src/scene/core/atmosphere.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { PhysicsOption } from '../../../../sdk-core/src/physics/options.ts'
 
@@ -73,6 +74,8 @@ export interface SavedNode {
     values: Record<string, number>
     target: [number, number, number]
     sh: number[] | null
+    /** A directional light left out of the atmosphere's candidates; absent, it is one. */
+    atmosphereSun?: false
   }
   /** A compiled model, by the manifest address it was loaded from: never inlined. */
   model?: { url: string }
@@ -104,6 +107,8 @@ export interface SavedScene {
   background: [number, number, number] | null
   /** The fog, its colour in linear components, or `null`. */
   fog: SceneFog | null
+  /** The atmosphere, every field set; absent, none. */
+  atmosphere?: ResolvedAtmosphere
   /** The camera saved with the scene, or `null`. */
   camera: SavedCamera | null
   /** Every shape, once, however many meshes wear it. */

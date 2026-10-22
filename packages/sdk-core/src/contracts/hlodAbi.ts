@@ -25,10 +25,7 @@ export const HLOD_BUILDERS = ['instanced', 'approximate', 'merge', 'voxel', 'sim
 /** One of `HLOD_BUILDERS`. */
 export type HlodBuilder = (typeof HLOD_BUILDERS)[number]
 /** Which LOD of each source a `merge` layer takes: `calculate`, the one it shows when its bounding
- *  sphere spans the layer's `lodScreenSize` of the view; `lowest`, its fallback: the source
- *  simplified to an error of a hundredth of the source's size, the square root of the smaller of
- *  twice its level-0 area and a quarter of its box's surface, stopping at 256 triangles at the
- *  latest (a source of 256 or fewer stays as it is). */
+ *  sphere spans the layer's `lodScreenSize` of the view; `lowest`, its fallback mesh. */
 export const HLOD_LOD_SELECTIONS = ['calculate', 'lowest'] as const
 /** One of `HLOD_LOD_SELECTIONS`. */
 export type HlodLodSelection = (typeof HLOD_LOD_SELECTIONS)[number]

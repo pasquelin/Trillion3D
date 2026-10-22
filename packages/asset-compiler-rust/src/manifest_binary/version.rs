@@ -54,10 +54,7 @@
 /// pages decode to: the pages, the box columns and the page sizes differ from a
 /// version-16 cook's for the same source, and no record carries a quantization error any more.
 /// Version 18 drops the page normal-cone column, the last, which the runtime read none of: a
-/// sidecar holds 27 columns, and a version-17 reader would expect 28, so it refuses. A position a
-/// simplification leaves on a source vertex's now comes back from the build's frame bit for bit
-/// (`simplify/region.rs`): the coarse pages of a simplified cook differ from a version-17 cook's
-/// for the same source.
+/// sidecar holds 27 columns, and a version-17 reader would expect 28, so it refuses.
 pub const MANIFEST_BINARY_VERSION: u32 = 18;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;

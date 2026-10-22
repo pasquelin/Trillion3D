@@ -55,7 +55,7 @@ of the band: a site moved from one to the other carries the proof that no 8-bit 
 site moved from the plain root keeps its bits inside the band and, declared, gains the true
 length outside it where the plain root gave 0 or Infinity: under `packages/sdk-browser/src/`, the
 bounding-sphere radius of `host/prepared/geometry.ts`, the lateral distance of
-`geometry/selection/projection.ts`, a light's far distance in `session/world/lights.ts`, and the
+`geometry/selection/projection.fixture.ts`, a light's far distance in `session/world/lights.ts`, and the
 light's horizontal axis in `vsmWorldToLightRotation` (`vsm/clipmap.ts`), which for a direction
 within about 1e-146 of vertical follows the direction where the 0 snapped it to world Y
 (`lightRotation.test.ts`).

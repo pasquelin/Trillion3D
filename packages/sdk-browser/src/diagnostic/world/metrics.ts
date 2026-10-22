@@ -77,6 +77,7 @@ export const UNMEASURED: FrameMetrics = {
   gpuLightListsMs: null,
   gpuShadowsMs: null,
   gpuLightingMs: null,
+  bounce: null,
   texturePoolBytes: null,
   texturePoolFormat: null,
   textureResidentBytes: null,

@@ -123,10 +123,11 @@ const x = geometry.attributes.position.getX(0)
 Every model file read over HTTP — manifest, tables, binary, images, lights, pages, cooked physics,
 the WebAssembly modules — goes through one loader. A failure that may pass (the network, 408, 429,
 5xx) is asked again once after its `Retry-After` wait (ten seconds at most), or by the reader's own
-retry (a physics tile's next update). The page streamer, the baked texture levels and the HTTP page
-source ask a page or a level again for as long as the failure may pass, one request per step,
-after a wait of 0.5 s · 2^k (8 s at most, never less than the server's `Retry-After`), never
-before; only a 4xx refusal fails for good. What
+retry (a physics tile's next update). The page streamer and the HTTP page source ask a page again
+`streamingNumRetries` times (3 by default, a negative value without end), the baked texture levels
+for as long as the failure may pass, one request per step, after a wait of 0.5 s · 2^k (8 s at most,
+never less than the server's `Retry-After`), never before; a 4xx refusal fails for good, and so does
+a page past its last try, its object invalid: no page of it is asked for again. What
 still fails is `RESOURCE_HTTP_ERROR` (`details.url`, `details.status`, `null`
 for the network). `lights.json` and `physics.json` are absent, not failed, on a 404 or a hiding
 store's 403. An unreadable `kernels.wasm` leaves the batch kernels to their JavaScript twins.
@@ -314,6 +315,16 @@ display cadence.
 `world.temporalAntialiasing` (option of `createWorld` too, `true` by default) jitters each image by
 a sub-pixel offset and accumulates; `false` draws pixel centres with no history, as a pixel-exact
 capture needs. A write applies next frame, no session reopened; a read says what the image carries.
+`world.temporal` holds the pass's settings beside its level, each an option of `createWorld` too:
+`temporalThinGeometry` (`false`) looks for geometry thinner than a pixel — a wire, a rail, which the
+pixels it crosses see on some images and not on others — and relaxes the history there, at any level
+but `'off'`, for the cost of the finding in every image. A write names the settings it changes,
+`null` one's default; a value of another kind is refused by name.
+
+```js
+const world = createWorld('viewer', { temporalThinGeometry: true })
+world.temporal = { temporalThinGeometry: false } // back to the default, from the next frame
+```
 
 `world.softwareRaster` (option of `createWorld` too, `true` by default) rasters in compute each
 cluster whose longest edge projects under `world.hardwareRasterEdgePixels` (option of `createWorld`
@@ -354,6 +365,28 @@ const world = createWorld('viewer', { shadeBinningMode: 'pixel' })
 world.shading = { shadeBinningMode: 'quad' } // every material binned by quad, next frame
 ```
 
+`world.exposureSettings` holds the automatic exposure's settings, each an option of `createWorld`
+too: `exposureBias` (`1`, stops added to the target: the mean lands at 0.18 · 2^bias before the
+curve), `exposureMinBrightness` (`-10`) and `exposureMaxBrightness` (`20`), the range of the mean in
+EV100 (the same value for both fixes the exposure), `exposureHistogramLogMin` (`-10`) and
+`exposureHistogramLogMax` (`20`), the stops of luminance the histogram spans, `exposureLowPercent`
+(`10`) and `exposureHighPercent` (`90`), from 1 to 99, the shares of the pixels, darkest first, left
+out of the mean, `exposureSpeedUp` (`3`) and `exposureSpeedDown` (`1`) in stops a second (0 holds),
+`exposureTransitionDistance` (`1.5` stops, past which the exposure moves linearly),
+`exposureBlackBucketWeight` (`0`, from 0 to 1: how much the pixels of no light count) and
+`exposureLuminanceMethod` (`'uniform'`, the mean of the channels; `'ntsc'`; `'workingSpace'`). They
+apply where `world.exposure` is `'auto'`, from the next frame. The same object holds the local
+exposure's settings, `localExposure…`, which apply to a lit view whatever its exposure (the effect
+chain, below). A write names the settings it changes, `null` one's default; a value a setting does
+not take is refused by name.
+
+```js
+const world = createWorld('viewer', { exposureBias: 0.5 })
+world.exposure = 'auto' // the default: measured each frame
+world.exposureSettings = { exposureSpeedUp: 8, exposureSpeedDown: 4 } // adapts faster, next frame
+world.exposure = 1.5 // the manual multiplier, whatever the image holds
+```
+
 `world.renderScale` (option of `createWorld` too, `'auto'` by default) is the per-axis fraction of
 the display drawn before temporal antialiasing rebuilds the image: `'auto'` is a dynamic
 resolution, choosing between 0.5 and 1 from the GPU frame time against the frame time budget (the
@@ -370,9 +403,28 @@ the `'auto'` render scale fits each image to the time the cap gives it. A write 
 the next frame; a page of several worlds caps those out of focus.
 
 `world.effects` is the ordered chain of passes after temporal antialiasing, before the canvas.
-`effect.bloom({ intensity, radius })` is an energy-conserving glow on the linear
-image before tone mapping: `intensity` (0 to 1, `0.04` by default) the share of the image it
-replaces, `radius` (`1` by default) the spread per level, in that level's texels.
+A world starts with a bloom in its chain, `effect.bloom()` at its defaults: six Gaussian blurs of
+the linear image at six scales, added to it before the exposure and the curve, in a view lit by
+declared lamps — about 9 percent of the light at the default `intensity` of `0.675`. Remove it
+(`world.effects.clear()`) or set its `intensity` to 0 for an image without. `effect.bloom({ intensity,
+threshold, sizeScale, levels })`: `threshold` (`-1` by default, every pixel glows) the exposed
+luminance past which a pixel glows; `sizeScale` (`4`) the multiplier of every level's width;
+`levels` the six levels' `{ size, tint }`, finest first — `size` a percent of the level's width (`0.3`,
+`1`, `2`, `10`, `30`, `64`; 0 leaves the level out), `tint` a number or `[r, g, b]` (`0.3465`,
+`0.138`, `0.1176`, `0.066`, `0.066`, `0.061`). `world.vignette` (`0.4`; 0 none) darkens the
+lit image toward its corners, and the local exposure — `localExposureHighlightContrast` and
+`localExposureShadowContrast` (`0.8`), `localExposureDetailStrength` (`1`), `localExposureBlurBlend`
+(`0.6`), `localExposureBlurSize` (`50`), `localExposureMiddleGreyBias` (`0`), the two thresholds
+(`0`) and their strengths (`1`), in `world.exposureSettings` — brings each pixel's light nearer to
+middle grey by how far the light around it is from it; contrasts and detail at `1` turn it off.
+
+```js
+const [bloom] = world.effects.passes // the bloom the world started with
+bloom.intensity = 0.3 // a fainter glow; 0 turns it off, `world.effects.clear()` removes it
+world.vignette = 0.2 // a lighter vignette; 0 none
+world.exposureSettings = { localExposureHighlightContrast: 1, localExposureShadowContrast: 1 } // no local exposure
+```
+
 `effect.outline({ objects, color, thickness })` lines the visible silhouette of `objects`, each
 with its subtree — a runtime mesh or a loaded model's node, at whatever detail is drawn —, over the
 display image after tone mapping, so `color` (`#ff9f1c` by default) shows as written; `thickness`
@@ -743,7 +795,12 @@ never reused.
 
 Only a light the host declared lights an opaque surface: no fixed ambient, constant sky or authored
 scene lighting; a windowless corridor stays black at noon. Emission is always added.
-`world.exposure` is the camera exposure on linear radiance before tone mapping. `meshNormal` and
+`world.exposure` is the camera exposure on linear radiance before tone mapping: `'auto'` (the
+default, also `true`) measures each image on the GPU and brings its mean brightness to middle grey,
+so a view lit by the sun and one in shade land on the same average whatever the lamps' power; a
+number above zero is the manual multiplier, used as it is (`false` is 1). A view lit by no declared
+lamp shows its albedo as it is, with no exposure and no curve. `world.toneMapping` is `'filmic'` by
+default ([ENGINE.md](ENGINE.md#exposure-and-the-display-curve)). `meshNormal` and
 `meshDepth` surfaces are output as stored. A map a family never reads (a `meshToon` `gradientMap`,
 a `meshMatcap` `map`, a `meshMatcap` or `meshNormal` `normalMap`) is refused by name;
 `meshMatcap`, `meshNormal` and `meshDepth` ignore an `aoMap`. Transparent surfaces follow another
@@ -764,15 +821,70 @@ import { Color } from 'trillion3d'
 const color = new Color().setRGB(0.35, 0.45, 0.6)
 world.scene.fog = { color, near: 10, far: 100 } // Linear: clear before 10, all fog after 100.
 world.scene.fog = { color, density: 0.02 } // Exponential: uniform medium.
-world.scene.fog = { color, density: 0.02, heightFalloff: 0.15, baseHeight: 0 } // Height fog.
+world.scene.fog = { color, density: 0.02, heightFalloff: 0.15, baseHeight: 0 } // Height fog, extinction form.
+world.scene.fog = {} // Height fog, every field at its default (the reference's, below).
+world.scene.fog = { baseDensity: 0.004, falloff: 0.03, maxOpacity: 0.8, startDistance: 20 } // Height fog.
 world.scene.fog = null // No fog.
 ```
 
+The height fog's own fields are the reference's numbers in metres, each with its default; the law
+is [ENGINE.md](ENGINE.md#fog). A reference number in centimetres converts exactly: a density or
+falloff is divided by 10 (they are per 1000 centimetres), a distance by 100.
+
+| Field | Default | Meaning (the reference's number → ours) |
+| --- | --- | --- |
+| `color` | black | The light the fog scatters by itself, linear RGB. With an atmosphere the sky's light is added to it. |
+| `baseDensity` | `0.002` | Density at `baseHeight`, per metre, ≥ 0 (its `0.02` ÷ 10). |
+| `falloff` | `0.02` | Per metre, ≥ 0: the density halves every `1 / falloff` metres up, 50 m (its `0.2` ÷ 10). |
+| `baseHeight` | `0` | The height the density is `baseDensity` at, metres. |
+| `maxOpacity` | `1` | The most of a surface's light the fog may hide, in [0, 1]. |
+| `startDistance` | `0` | Metres from the eye where the fog starts, ≥ 0. |
+| `cutoffDistance` | `0` | Metres from the eye past which there is no fog, ≥ 0; 0 none. |
+| `directional` | `{ exponent: 4, startDistance: 100, color: [0, 0, 0] }` | The sun's lobe: sharpness `exponent` > 0, metres before the sun's light is scattered (its `10 000` ÷ 100), the luminance scattered toward the sun times the sun's own. |
+| `skyContribution` | `[1, 1, 1]` | The factor of the atmosphere's sky radiance the fog takes on, per channel, ≥ 0. |
+
+With `scene.atmosphere` on, the default fog is coloured by the sky and scatters the sun's light: a
+fog of `{}` over `atmosphere = true` and a `light.directional` is the reference's default fog.
+Without one, the fog is its declared `color` and, if the lobe's colour is not black, the first
+directional light's. The extinction form `{ color, density, heightFalloff?, baseHeight? }` stays: a
+medium of `density` per metre (`T = exp(−density · d)` where nothing falls off) divided by e every
+`1 / heightFalloff` metres up; it is mapped exactly to the height law (`baseDensity = density /
+(ln 2)²`, `falloff = heightFalloff / ln 2`) and shows the image it always showed.
+
 `near` and `far` are finite with `0 ≤ near < far`; `density`, `heightFalloff` and the colour
-components finite and nonnegative; `baseHeight` finite; otherwise `INVALID_SCENE_ENVIRONMENT`. After
+components finite and nonnegative; `baseHeight` finite; the height fog's numbers in the ranges
+above; otherwise `INVALID_SCENE_ENVIRONMENT`. After
 writing a field directly, assign `scene.fog` again (a `Color` method applies by itself). A
 `fog: false` material stays unfogged. `SceneEnvironment.fog` and `SavedScene.fog` carry the same
 fields. The law: [fog lighting law](ENGINE.md#fog).
+
+### Scene atmosphere
+
+`world.scene.atmosphere` fills the sky, hazes the distance and tints the sun's light through the
+air of a planet whose ground is the scene's plane `y = 0`; `null` (the default) none, at no cost.
+`true` is an Earth-like atmosphere, an object sets any field over those defaults — planet radius
+and air thickness in kilometres, scattering and absorption coefficients per kilometre, the ground's
+height in scene metres:
+
+```js
+world.scene.atmosphere = true
+world.scene.atmosphere = { planetRadius: 6360, height: 60, mieAnisotropy: 0.8, groundHeight: 0 }
+world.scene.add(light.directional({ intensity: 10, position: [-50, 70, 0] })) // the sun
+world.scene.add(light.sky()) // the sky's light on the scene, captured from the atmosphere
+world.scene.atmosphere = null // No atmosphere.
+```
+
+The sun is the brightest directional light, its colour times its intensity weighed by the eye's
+sensitivity to each channel, the first added of equals; `atmosphereSun: false` leaves one out. Where it is on,
+`background` is not shown, and `light.sky()` lights the scene from the sky (without an atmosphere,
+from the background colour; `groundColor`, black, from below). The bounce is on by default
+(`world.bounce`, `false` turns it off): the sky light then reaches a surface only where the scene
+lets it — the street lit from above, the arcade dark — and a reflection that leaves the scene
+shows the sky; with the bounce off, the sky light lights every surface with the sky nothing hides.
+A field out of range is refused
+(`INVALID_SCENE_ENVIRONMENT`); after writing a field directly, assign `scene.atmosphere` again.
+`SceneEnvironment.atmosphere` and `SavedScene.atmosphere` carry the same fields. The model:
+[atmosphere and sky light](ENGINE.md#atmosphere-and-sky-light).
 
 ### Declared lights
 

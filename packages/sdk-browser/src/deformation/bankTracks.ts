@@ -39,7 +39,7 @@ import { RECORD_HEAD } from './layout.ts'
  *  the float pool —, its bake's joints and frames, where the bake's inverse binds and keys start
  *  among the banks' floats (`pool`): the words its join writes; then the second it draws this frame
  *  and the one it drew the frame before (two floats, `write`), and a word of padding. */
-export const BANK_TRACK = {
+const BANK_TRACK = {
   palette: 0,
   joints: 1,
   frames: 2,
@@ -63,7 +63,7 @@ const OWN = -2,
   REST = -1
 
 /** A root that can play a bank's track, and what it reads this frame. */
-export type BankedRoot = {
+type BankedRoot = {
   /** Its rank in the cut. */
   readonly rank: number
   readonly root: ClusterRoot<PageRec>
@@ -258,5 +258,3 @@ export function createBankTracks(frame: DeformationFrame) {
     },
   }
 }
-
-export type BankTracks = ReturnType<typeof createBankTracks>

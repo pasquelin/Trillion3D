@@ -98,7 +98,7 @@ export const checkBudget = (bytes: number, name: string) => {
 export const checkTexturePoolBudget = (bytes: number) =>
   checkBudget(bytes, 'INVALID_TEXTURE_POOL_BUDGET')
 /** A geometry budget refused by name before any pool is drawn from it. */
-export const checkGeometryPoolBudget = (bytes: number) =>
+const checkGeometryPoolBudget = (bytes: number) =>
   checkBudget(bytes, 'INVALID_GEOMETRY_POOL_BUDGET')
 
 /**

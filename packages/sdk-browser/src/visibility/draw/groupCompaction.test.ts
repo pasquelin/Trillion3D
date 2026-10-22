@@ -22,7 +22,7 @@ type Frame = {
   bins: number[]
   layers: number[]
   pages: number[]
-  rest: number[]
+  post: number[]
   mask?: number[]
   count: number
   slotCap: number
@@ -31,7 +31,7 @@ type Frame = {
 }
 
 const slotOf = (f: Frame, i: number) =>
-  f.rest[i] * HALF_SLOTS +
+  f.post[i] * HALF_SLOTS +
   f.bins[i] +
   BASE_SLOTS * Math.min(f.layers[i], Math.max(1, f.layerSlots) - 1)
 const selected = (f: Frame, i: number) => !f.mask || f.mask[i] !== 0
@@ -110,7 +110,7 @@ function frame(rand: () => number): Frame {
     bins: pick(HALF_SLOTS),
     layers: pick(layerSlots + 1),
     pages: pick(1 << 20),
-    rest: pick(2),
+    post: pick(2),
     mask: rand() < 0.5 ? pick(2) : undefined,
     count: n,
     // A cap below the count is the overflow the kernels must turn into empty draws.

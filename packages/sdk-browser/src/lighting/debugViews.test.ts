@@ -50,9 +50,11 @@ function composition(shader: string) {
     shader,
     /(let share=.*?;let curved=.*?;let untouched=.*?;\n let color=.*?;)\n/,
   )
-  const run = runLines<(asIs: number, coord: number, value: object) => number>(
+  // The pixel as-is is the source's; the value the chain exposes is the source finished, which a
+  // plain composition leaves as it is.
+  const run = runLines<(asIs: number, coord: number, value: object, source: object) => number>(
     lines,
-    'asIs:u32,coord:vec2i,value:vec4f',
+    'asIs:u32,coord:vec2i,value:vec4f,source:vec4f',
     'color',
     {
       textureLoad,
@@ -61,7 +63,7 @@ function composition(shader: string) {
       view: { lightParams: [0, 0, 0, EXPOSURE], display: [0, 0, 0, 0] },
     },
   )
-  return (rgb: number, binding: number) => run(binding, 0, { rgb, a: 1 })
+  return (rgb: number, binding: number) => run(binding, 0, { rgb, a: 1 }, { rgb, a: 1 })
 }
 const still = composition(CONTRACT_COMPOSITIONS.plain.still)
 const accumulated = composition(CONTRACT_COMPOSITIONS.plain.accumulated)

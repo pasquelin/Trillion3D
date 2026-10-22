@@ -13,6 +13,7 @@
 use super::super::tree::{local, shift, Leaf, Tree, LEAF_SIDE};
 use super::{BOUNDARY, MARGIN, NEIGHBOURS};
 use rayon::prelude::*;
+use trillion3d_math::scalar::not_above;
 
 /// The crossing voxels with no negative neighbour pushed past the surface.
 pub(super) fn settle(distance: &mut Tree<f32>) {
@@ -31,7 +32,7 @@ pub(super) fn settle(distance: &mut Tree<f32>) {
 /// and in `closest`.
 pub(super) fn drop_lonely(distance: &mut Tree<f32>, closest: &mut Tree<i32>) {
     let lonely = picked(distance, |tree, leaf, pos| {
-        leaf.values[pos] > BOUNDARY && !neighbour(tree, leaf, pos, |v| !(v > BOUNDARY))
+        leaf.values[pos] > BOUNDARY && !neighbour(tree, leaf, pos, |v| not_above(v, BOUNDARY))
     });
     for (leaf, lonely) in distance.leaves_mut().into_iter().zip(lonely) {
         let mut indices = closest.leaf_mut(leaf.origin);

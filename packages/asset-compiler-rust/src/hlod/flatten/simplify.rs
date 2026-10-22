@@ -80,13 +80,16 @@ const TRANSFER_TEXEL_BYTES: usize = 192;
 /// The bytes a simplified actor holds while it is made from `triangles` source triangles into an
 /// atlas of `side` texels cooked for `families` block families: its sources, placed, flattened and
 /// read by the method (`flatten::SOURCE_TRIANGLE_BYTES`), the transfer's grid at least 64 texels a
-/// side (`TRANSFER_TEXEL_BYTES`) and the atlas's three images cooked side by side.
+/// side (`TRANSFER_TEXEL_BYTES`), the atlas's three images cooked side by side, and what the bake
+/// of a flattened entry holds on the device where the footprint counts it
+/// (`bake::gpu::tiled_device_bytes`).
 pub(crate) fn working_bytes(triangles: usize, side: usize, families: usize) -> usize {
     let grid = side.max(LEAST_GRID);
     let cooked = crate::texture::admission::cook_bytes(side as u32, families);
     (triangles.saturating_mul(super::SOURCE_TRIANGLE_BYTES))
         .saturating_add((grid * grid).saturating_mul(TRANSFER_TEXEL_BYTES))
         .saturating_add(cooked.saturating_mul(3))
+        .saturating_add(super::bake::gpu::tiled_device_bytes(triangles, side * side))
 }
 
 /// Simplified layer `layer`'s actor of the cell whose original objects are `members` of

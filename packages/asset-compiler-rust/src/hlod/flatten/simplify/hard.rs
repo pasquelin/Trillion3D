@@ -55,7 +55,7 @@ impl Adjacency {
     fn of(indices: &[u32], vertices: usize) -> Self {
         let mut corners: Vec<(usize, usize)> = Vec::with_capacity(indices.len());
         let mut sides: Vec<([u32; 2], usize)> = Vec::with_capacity(indices.len());
-        for (f, t) in indices.chunks_exact(3).enumerate() {
+        for (f, t) in indices.as_chunks::<3>().0.iter().enumerate() {
             for v in 0..3 {
                 corners.push((t[v] as usize, f));
                 let (a, b) = (t[v], t[(v + 1) % 3]);

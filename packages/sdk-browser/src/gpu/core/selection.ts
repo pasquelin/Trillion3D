@@ -9,7 +9,7 @@
 import { FRUSTUM_PLANE_VALUES } from '../../../../math/src/geometry/frustum/frustum.ts'
 import { pixelScale } from '../../../../math/src/projection/camera.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
-import { writeSelectionProjection } from './selectionProjection.ts'
+import { writeSelectionPlanes, writeSelectionProjection } from './selectionProjection.ts'
 import type { AsideCut } from './aside.ts'
 import type { CutPyramid } from '../../geometry/dag/occlusion.ts'
 import type { DagRoot } from '../../geometry/dag/types.ts'
@@ -21,7 +21,8 @@ import type { CutListCaps } from '../../geometry/dag/lists/cutListCaps.ts'
 
 /**
  * `perspective` is the projection's clip-w weight (`EngineCamera.perspective`), 1 when absent.
- * `view` and `planes` are those of the render frame, and `cameraWorld` — the eye's world position,
+ * `view` and `planes` are those of the render frame — the planes of the render matrix the image
+ * draws with, its jitter included (`viewProj`) —, and `cameraWorld` — the eye's world position,
  * ancestors resolved — is its ORIGIN: the camera is at zero in the frame the kernel works in, and
  * this triplet only names that frame for a sample or an oracle. `pixelError` is the threshold the
  * cut reads: the host's pixels per edge, divided by the view's level-of-detail factor and the
@@ -58,21 +59,25 @@ export type SelectionUniforms = {
   frame?: number
 }
 /**
- * A resident cut's two lists — the camera's requests, the drawn pages — as the ranks the readback
- * in hand claims for them in the GPU list the host adopted last (`../../geometry/dag/differenceChain.ts`): for
- * rank `s`, the rank its page holds there, `NO_INDEX` for a page one of the snapshots since
- * did not hold. Claims, checked against the list held before they are believed.
+ * A resident cut's two lists — the camera's requested pages, the drawn pages — as the ranks the
+ * readback in hand claims for them in the list the host adopted last
+ * (`../../geometry/dag/differenceChain.ts`): for rank `s`, the rank its page holds there,
+ * `NO_INDEX` for a page one of the snapshots since did not hold. Claims, checked against the list
+ * held before they are believed.
  */
 export type CutClaims = { asked: Uint32Array; drawn: Uint32Array }
 /** Each packed page's residency flag as the host's row cache sets it, what the cut reads: at the
  *  pages a change names, every page at a rebuild (`../../geometry/rows/page/pageState.ts`). */
 export type PageResidency = { readonly length: number; flag(page: number): number }
+/** The cut's requests, one per leaf it keeps and sees, in the order its threads asked them: the
+ *  leaf's first packed page, how many pages it names from there — one group's, which may lie in
+ *  more than one streaming page —, and its priority, the larger the more urgent (`../../geometry/dag/request/request.ts`). A leaf
+ *  several placements share is asked once by each. */
+type CutRequests = { pages: number[]; counts: number[]; priorities: number[] }
 export type SelectionResult = {
-  /** The cut's requests, a packed page each, in the order its threads asked them: a page several
-   *  placements share is asked once by each (`../../geometry/dag/request/request.ts`). */
+  requests: CutRequests
+  /** The packed pages the requests name, request after request: what the host's lists follow. */
   pageIds: number[]
-  /** Each request's priority, at its rank of `pageIds`: the larger, the more urgent. */
-  priorities: number[]
   frustumRejected: number
   lodLevel: number
   drawablePageIds?: number[]
@@ -289,8 +294,8 @@ export function cameraSelectionUniforms(
 ): SelectionUniforms {
   // View and planes are those of the RENDER FRAME (`../../camera/renderOrigin.ts`): the kernel composes
   // `view · world` in single precision on world matrices brought back to `cameraWorld`; the absolute
-  // view would mix two frames. Single precision only rounds here, all above is in double.
-  into.planes.set(cam.planesRelative)
+  // view would mix two frames. Single precision only rounds here, all above is in double. The
+  // planes are the render matrix's own, its jitter included (`writeSelectionPlanes`).
   into.view.set(cam.viewRelative)
   pixelScale(into.pixelScale, cam.projection, viewport?.[0], viewport?.[1])
   for (let axis = 0; axis < 3; axis++) into.cameraWorld[axis] = cam.eye[axis]
@@ -298,5 +303,6 @@ export function cameraSelectionUniforms(
   into.near = cam.near
   into.perspective = cam.perspective
   writeSelectionProjection(into, cam, renderMatrix, viewport ?? [1, 1])
+  writeSelectionPlanes(into, cam, renderMatrix)
   return into
 }

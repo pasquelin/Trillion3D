@@ -30,6 +30,7 @@ import {
   selectionListCap,
 } from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
+import { DEFAULT_STREAMING_MIN_REQUESTS } from '../../../packages/sdk-core/src/contracts/streamingOptions.ts'
 import { pageResidency } from '../../../packages/sdk-browser/src/geometry/dag/readiness.fixture.ts'
 import { writeHostStretches } from '../../../packages/sdk-browser/src/geometry/dag/hostStretches.fixture.ts'
 
@@ -85,7 +86,7 @@ function caseBuffers({ packed, uniforms, resident, heldSlots = HELD_SLOTS }: Sel
   // Before the frame words are read: readiness keeps the open counts each placement holds.
   const all = new Uint8Array(packed.pageCount).fill(1)
   const cold = withResidency(packed, resident ?? all, heldSlots)
-  const listCap = selectionListCap(packed.pageCount)
+  const listCap = selectionListCap(packed.pageCount, DEFAULT_STREAMING_MIN_REQUESTS)
   const views = new Float32Array(DAG_UNIFORM_BYTES / 4)
   // The open counts behind the readout's lists, as the engine lays them (`listCap.ts`).
   const held = { listCap, heldSlots, swap: { regions: 0 } }

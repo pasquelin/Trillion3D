@@ -11,7 +11,6 @@ import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/options
 import { createBounceCascades } from '../../../../sdk-core/src/bounce/cascades.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import { atlasBytes, probeAtlasExtent } from '../../lighting/bounce/atlas.ts'
-import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import { vsmLayout } from '../../lighting/shadows/vsm/layout.ts'
 import { poolWindowSizes } from '../../lighting/shadows/vsm/layoutBytes.ts'
 import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from '../memory/shadowBudgetBytes.ts'
@@ -128,14 +127,14 @@ test('the shadow maps fit their share on any device, and totals below 512 MiB ne
 })
 
 test('the GPU total counts the bounce probes as their atlas holds them, before the pools', () => {
-  // Both copies of the atlas, a layer for every declared level whatever the scene: a city's and a
+  // Both copies of the atlas — the pool's layer and the table's —, whatever the scene: a city's and a
   // room's weigh the same.
   for (const bounds of [
     [0, 0, 0, 8000, 300, 8000],
     [0, 0, 0, 6, 3, 6],
   ]) {
-    const { size } = createBounceCascades(bounds)
-    const extent = probeAtlasExtent(size, BOUNCE_SETTINGS.cascadeLevels)
+    const { probes, levels, cells } = createBounceCascades(bounds)
+    const extent = probeAtlasExtent(probes, levels.length * cells)
     assert.equal(2 * atlasBytes(extent), BOUNCE_PROBE_BYTES)
   }
   for (const total of [DEFAULT_GPU_BUDGET, FIXED + 8 * MIB]) {

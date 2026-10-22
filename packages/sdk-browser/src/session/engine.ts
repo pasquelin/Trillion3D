@@ -5,6 +5,8 @@ import { STREAMING_RULES } from '../../../sdk-core/src/contracts/streamingOption
 import { WORLD_STREAMING_RULES } from '../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import { CUT_RULES } from '../../../sdk-core/src/contracts/cutOptions.ts'
 import { ANIMATION_RULES } from '../../../sdk-core/src/contracts/animationOptions.ts'
+import { EXPOSURE_RULES } from '../../../sdk-core/src/contracts/exposureOptions.ts'
+import { TEMPORAL_RULES } from '../../../sdk-core/src/contracts/temporalOptions.ts'
 import { SHADING_RULES } from '../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { WorldRootsHold } from '../geometry/hlod/worldRoots.ts'
 import { isCancelled, pixelRatioOf } from './engine/common.ts'
@@ -87,6 +89,8 @@ function optionContext(session: ExplorerSession) {
     ...resolveSettings(CUT_RULES, options),
     ...resolveSettings(ANIMATION_RULES, options),
     ...resolveSettings(SHADING_RULES, options),
+    ...resolveSettings(EXPOSURE_RULES, options),
+    ...resolveSettings(TEMPORAL_RULES, options),
     admitGpuMemory: options.admitGpuMemory,
     texturePoolBytes: options.texturePoolBytes,
     textureCompression: options.textureCompression,
@@ -102,7 +106,7 @@ function optionContext(session: ExplorerSession) {
     particles: options.particles,
     // Bounced light stays off unless asked: its step holds 1.1 to 1.3 ms on Emerald, above 1 ms.
     bounce: options.bounce,
-    bounceBudgetMs: options.bounceBudgetMs,
+    bounceProbesPerFrame: options.bounceProbesPerFrame,
   }
 }
 

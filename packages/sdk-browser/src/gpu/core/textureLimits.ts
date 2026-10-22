@@ -9,6 +9,11 @@ export const PORTABLE_TEXTURE_LAYERS = 256
  *  device holds: a kernel's workgroup arrays are planned within it. */
 export const GUARANTEED_WORKGROUP_BYTES = 16384
 
+/** The bytes of workgroup memory a device of `limits` holds, WebGPU's guaranteed ones for any it
+ *  does not name: what a kernel with a plan for a roomier device reads it by. */
+export const workgroupStorageBytes = (limits?: { maxComputeWorkgroupStorageSize?: number }) =>
+  limits?.maxComputeWorkgroupStorageSize ?? GUARANTEED_WORKGROUP_BYTES
+
 /** The texture limits a device of `limits` grants — the widest side and the most array layers —,
  *  WebGPU's guaranteed ones for any it does not name: the one reader of the device's texture
  *  limits, so every atlas and pool is bounded alike. */

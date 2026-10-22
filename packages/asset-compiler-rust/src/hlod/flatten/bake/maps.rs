@@ -96,10 +96,18 @@ impl Maps {
         self.occlusion || self.anisotropic()
     }
 
-    /// Whether a merged atlas bakes a map beside those every texel's first pass reads: the
-    /// emission, the occlusion or the anisotropy (`merge/tile.rs`).
-    pub(crate) fn has_more(self) -> bool {
-        self.emissive || self.reads_extra_textures()
+    /// How many images an atlas holds: the base colour and each map baked beside it — the normal,
+    /// the metal-roughness, the emission, the occlusion and the anisotropy —, which a merged atlas
+    /// holds while it is made (`merge/tile.rs`) and cooks (`publish::images`).
+    pub(crate) fn images(self) -> usize {
+        let baked = [
+            self.normal,
+            self.metal_rough(),
+            self.emissive,
+            self.occlusion,
+            self.anisotropic(),
+        ];
+        1 + baked.into_iter().filter(|&baked| baked).count()
     }
 
     /// Whether a translucent source is baked as it is seen through (`seen`).

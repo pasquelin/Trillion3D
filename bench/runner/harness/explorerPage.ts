@@ -42,7 +42,7 @@ export function explorerOptions(
       ? { diagnosticGpuVariant: options.variant as MeasuredWorldOptions['diagnosticGpuVariant'] }
       : {}),
     // The EXPERIENCE screen-error metric: absent, the explorer keeps ours.
-    // Same for bounce lighting: the engine turns it off by default, the bench can turn it on.
+    // Same for bounce lighting: the engine turns it on by default, the bench turns it on only where it asks.
     bounce: options.bounce === true,
     // Lights the source file carried: the engine declares them alone, the bench can silence them.
     importedLights: options.importedLights !== false,

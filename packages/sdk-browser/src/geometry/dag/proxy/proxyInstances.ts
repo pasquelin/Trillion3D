@@ -46,7 +46,7 @@ export function createProxyInstances(resources: ProxySource) {
       return arena.buffer
     },
     /** The world box of each placement that wears a proxy, and which of them are new or moved
-     *  since the last call: what the probes' occupancy map keeps (`lighting/bounce/probes/probes.ts`). */
+     *  since the last call, and their extent: what the probes follow (`lighting/bounce/probes/probeSync.ts`). */
     worldBoxes: boxes.worldBoxes,
     /** The deformed placements' copies posed, in `encoder`, before the first program of the image
      *  that traces them (`proxyPosed.ts`). */

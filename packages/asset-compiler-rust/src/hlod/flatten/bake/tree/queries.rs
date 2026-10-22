@@ -1,14 +1,9 @@
-//! The tree's queries: whether a ray escapes, the first triangle a ray stops at, the nearest point.
+//! The tree's queries: whether a ray escapes, the nearest point.
 use super::{box_distance2, corner, crosses, Tree};
-use std::cell::Cell;
 use trillion3d_math::geometry::ray_box::inverse;
 use trillion3d_math::geometry::triangle::{closest_point, ray_triangle};
 use trillion3d_math::vector::vecn::distance2;
 use trillion3d_page_codec::proxy::bvh::Node;
-
-/// Where a ray stops (`Tree::first`): the leaf slot, the distance along the ray and the hit's
-/// barycentric `(u, v)` on the slot's triangle.
-pub(crate) type Stop = (usize, f64, [f64; 2]);
 
 impl<T: AsRef<[f32]>> Tree<T> {
     /// The three corners of leaf slot `slot`.
@@ -60,30 +55,6 @@ impl<T: AsRef<[f32]>> Tree<T> {
             found
         });
         found
-    }
-
-    /// The nearest triangle `origin + t·ray` meets for `past < t < limit` that `stops` accepts —
-    /// given its leaf slot and the hit's barycentric `(u, v)` —, where the ray meets it: every box
-    /// the ray crosses before the nearest stop so far walked, two stops at one distance the first
-    /// the walk meets.
-    pub fn first(
-        &self,
-        (origin, ray): ([f64; 3], [f64; 3]),
-        (past, limit): (f64, f64),
-        stops: &dyn Fn(usize, [f64; 2]) -> bool,
-    ) -> Option<Stop> {
-        let line = (origin, ray, inverse(ray));
-        let best: Cell<Option<Stop>> = Cell::new(None);
-        let reach = || best.get().map_or(limit, |(_, distance, _)| distance);
-        let mut enter = |node: &Node| crosses(node, line, (past, reach()));
-        self.walk(&mut enter, |slot| {
-            let hit = ray_triangle(origin, ray, self.corners(slot), (past, reach()));
-            if let Some((distance, at)) = hit.filter(|&(_, at)| stops(slot, at)) {
-                best.set(Some((slot, distance, at)));
-            }
-            false
-        });
-        best.get()
     }
 
     /// The point of the triangles nearest `point` — where a vertex is projected back onto them —,

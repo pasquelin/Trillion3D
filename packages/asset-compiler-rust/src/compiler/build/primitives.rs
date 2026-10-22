@@ -4,27 +4,37 @@ use super::*;
 use crate::compiler::budget::admission::{alone, run_admitted, Room};
 use crate::compiler::source::node_transform::Mat4;
 
-/// Every node's world transform, each mesh's world scale, every primitive of `jobs` compiled on
-/// `pool`, as many at once as their `working` sets fit `room` together, and the primitives the
-/// room made wait.
-pub(super) fn compile_primitives(
-    (o, g, bin, pool): (&Options, &Value, &[u8], &rayon::ThreadPool),
-    (jobs, working, room): (&[(usize, usize)], &[usize], usize),
-    (chosen, mesh_map, unique_triangles, accessors): Selected<'_>,
-    progress: &(impl Fn(Value) + Sync),
-) -> Result<(
+/// What `compile_primitives` returns: every node's world transform, each mesh's world scale, the
+/// primitives compiled, and how many of them waited for room.
+type Compiled = (
     Vec<Mat4>,
     BTreeMap<usize, f64>,
     Vec<CompiledPrimitive>,
     usize,
-)> {
+);
+
+/// Every node's world transform, each mesh's world scale, every primitive of `jobs` compiled on
+/// `pool`, as many at once as their `working` sets fit `room` together, and the primitives the
+/// room made wait. `assignments` is each node's HLOD layer (`Hlod::assignments`).
+pub(super) fn compile_primitives(
+    (o, g, bin, pool): (&Options, &Value, &[u8], &rayon::ThreadPool),
+    (jobs, working, room): (&[(usize, usize)], &[usize], usize),
+    (chosen, mesh_map, unique_triangles, accessors): Selected<'_>,
+    assignments: &[Assigned],
+    progress: &(impl Fn(Value) + Sync),
+) -> Result<Compiled> {
     // Compact per-page index storage is bounded independently from source size. Metadata is retained.
     // Every node's world transform, walked once for every stage that places (`Placement`), and
     // each mesh's world scale, read before the loop: the proxy threshold is in metres.
     let world = crate::compiler::source::node_transform::world_matrices(g)?;
     let mesh_scales = proxy::placement::mesh_scales(g, chosen, &world)?;
-    let voxelized = o.voxelize()?.meshes(g, o.hlod()?)?;
-    let merged = o.hlod()?.merged_meshes(g, chosen)?;
+    let hlod = o.hlod()?;
+    let voxelized = o.voxelize()?.meshes(g, hlod, assignments)?;
+    // What the merged layers take, and of which meshes: once, for every primitive.
+    let merged = match crate::hlod::chain::merged_lods(o) {
+        Some(taken) => Some((hlod.merged_meshes(g, chosen, assignments)?, taken)),
+        None => None,
+    };
     let mesh_builds = o.mesh_build()?.meshes(g)?;
     let primitive_inputs = PrimitiveInputs {
         o,
@@ -33,7 +43,7 @@ pub(super) fn compile_primitives(
         mesh_values: values(g, "meshes")?,
         mesh_map,
         voxelized: &voxelized,
-        merged: &merged,
+        merged: merged.as_ref(),
         mesh_builds: &mesh_builds,
         mesh_scales: &mesh_scales,
         scene_triangles: unique_triangles,

@@ -1,11 +1,11 @@
 //! The fallback of a source: the mesh a merged layer takes of it at its coarsest LOD
 //! (`LodSelection::Lowest`) — the source simplified once, over its whole surface, to an error of
-//! a hundredth of its size.
+//! `RELATIVE_ERROR` percent of its size.
 //!
-//! 1. The size is the square root of the smaller of twice the area of the DAG's level 0 — its
-//!    clusters' areas summed — and a quarter of the surface of the box holding every cluster of
-//!    every level (`dag::relative_size`); the error asked is `RELATIVE_ERROR` percent of it, the
-//!    triangles every one of the source's (`TRIANGLES`), at least `AT_LEAST`.
+//! 1. The size (`dag::relative_size`) is read from the area of the DAG's level 0 — its clusters'
+//!    areas summed — and the box holding every cluster of every level; the error asked is
+//!    `RELATIVE_ERROR` percent of it, the triangles every one of the source's (`TRIANGLES`), at
+//!    least `AT_LEAST`.
 //! 2. The DAG is cut from its roots at that error and those triangles, the cut going on past them
 //!    by `OVERSHOOT` triangles (`dag::find_cut`), and the cut's clusters are merged: their
 //!    vertices equal in every float are one vertex, their triangles one region, their areas

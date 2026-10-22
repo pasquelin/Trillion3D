@@ -1,6 +1,6 @@
 import { copyMatrix4, multiplyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { screenErrorBound } from '../../../../../sdk-core/src/lod/screenErrorBound.ts'
-import { viewDepthOf, viewLateralOf } from '../../selection/projection.ts'
+import { viewDepthOf, viewLateralOf } from '../../selection/projection.fixture.ts'
 import { OPEN_PLANES, openMark } from '../../cut/openRoot.fixture.ts'
 import type { PackedDag } from '../types.ts'
 import { worldStretch } from '../../selection/rootWorld.ts'

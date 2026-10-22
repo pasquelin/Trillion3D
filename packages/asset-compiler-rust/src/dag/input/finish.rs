@@ -39,7 +39,7 @@ fn within_or(x: f32, (low, high): (f32, f32), default: f32) -> f32 {
 
 /// Whether every float of `v` lies within ±`MOST_VALUE`; not a number does not.
 fn within(v: &[f32]) -> bool {
-    v.iter().all(|&x| x >= -MOST_VALUE && x <= MOST_VALUE)
+    v.iter().all(|x| (-MOST_VALUE..=MOST_VALUE).contains(x))
 }
 
 /// The arrays the build reads: the `built` vertices, which the welded triangles `indices` read,
@@ -71,7 +71,7 @@ pub(in crate::dag) fn finished(
     let unchanged = same(&kept, positions)
         && carried.len() == attributes.carried.len()
         && (carried.iter().zip(attributes.carried)).all(|(a, b)| same(&a.values, &b.values));
-    (!unchanged).then(|| Grown {
+    (!unchanged).then_some(Grown {
         positions: kept,
         carried,
         origin,

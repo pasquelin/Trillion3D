@@ -37,6 +37,9 @@ export interface TaaFrameState {
   /** Whether the last accumulated image ran the flicker measure: one that runs it after an image
    *  that did not drops the history, its flicker history unwritten meanwhile (`encodeTaaPass`). */
   flickerRan: boolean
+  /** Whether the last accumulated image ran the thin geometry detection: one that runs it after
+   *  an image that did not drops the history, its coverage history unwritten meanwhile. */
+  thinRan: boolean
   /** Explicit discontinuity revision of this view, independent of ordinary camera motion. */
   viewSeen: number
   /** Scene revision of the last accumulated image: another one causes poses to be compared. */
@@ -61,6 +64,7 @@ export function createTaaFrameState(): TaaFrameState {
     accumulated: 0,
     resourcesSeen: -1,
     flickerRan: false,
+    thinRan: false,
     sceneSeen: -1,
     viewSeen: -1,
     active: false,

@@ -1,4 +1,5 @@
 import { fogOf, type Fog } from '../world/sceneFog.ts'
+import type { SceneAtmosphere } from '../../../../sdk-core/src/scene/core/atmosphere.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { RECIPES } from '../../../../sdk-core/src/world/geometry/recipes.ts'
@@ -22,6 +23,7 @@ import {
 type Target = Object3D & {
   background: unknown
   fog: Fog | null
+  atmosphere: SceneAtmosphere | true | null
   load(url: string): Promise<Object3D>
 }
 
@@ -53,6 +55,33 @@ function readGeometry(saved: SavedGeometry): Geometry {
   if (saved.index) g.setIndex(saved.index)
   for (const group of saved.groups ?? []) g.addGroup(group.start, group.count, group.materialIndex)
   return g
+}
+
+/** A light built again from what was saved of it. */
+function readLight(saved: NonNullable<SavedNode['light']>) {
+  const { kind, color, groundColor, values, target, sh, atmosphereSun } = saved
+  return new Light(kind, {
+    ...values,
+    color,
+    groundColor,
+    target,
+    sh: sh ?? undefined,
+    atmosphereSun,
+  })
+}
+
+/** Gives `o` what every saved node holds: its name, pose, visibility, shadows, render order and
+ *  user data. */
+function wear(o: Object3D, saved: SavedNode) {
+  o.name = saved.name
+  o.position.fromArray(saved.position)
+  o.quaternion.fromArray(saved.quaternion)
+  o.scale.fromArray(saved.scale)
+  o.visible = saved.visible
+  o.castShadow = saved.castShadow
+  o.receiveShadow = saved.receiveShadow
+  o.renderOrder = saved.renderOrder
+  o.userData = saved.userData
 }
 
 /** Puts a camera back where it was saved; a camera of another projection keeps its own. */
@@ -91,22 +120,13 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
       } else o = new Mesh(geometries[geometry], matter, primitive as Primitive)
       if (saved.physics) (o as Mesh).physics = saved.physics
     } else if (saved.light) {
-      const { kind, color, groundColor, values, target, sh } = saved.light
-      o = new Light(kind, { ...values, color, groundColor, target, sh: sh ?? undefined })
+      o = readLight(saved.light)
     } else if (saved.model) {
       const load = scene.load(saved.model.url)
       loads.push(load)
       o = await load
     } else o = saved.kind === 'group' ? new Group() : new Object3D()
-    o.name = saved.name
-    o.position.fromArray(saved.position)
-    o.quaternion.fromArray(saved.quaternion)
-    o.scale.fromArray(saved.scale)
-    o.visible = saved.visible
-    o.castShadow = saved.castShadow
-    o.receiveShadow = saved.receiveShadow
-    o.renderOrder = saved.renderOrder
-    o.userData = saved.userData
+    wear(o, saved)
     const children = await Promise.all(saved.children.map(node))
     if (children.length) o.add(...children)
     return o
@@ -131,5 +151,6 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
   if (children.length) scene.add(...children)
   scene.background = json.background && new Color().setRGB(...json.background)
   scene.fog = fogOf(json.fog)
+  scene.atmosphere = json.atmosphere ?? null
   if (camera && json.camera) readCamera(json.camera, camera)
 }

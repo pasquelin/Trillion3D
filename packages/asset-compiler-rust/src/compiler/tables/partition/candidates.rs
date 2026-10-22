@@ -158,7 +158,7 @@ pub(super) fn gather(
             None
         }
     };
-    let roots = batch_roots(parent, &object);
+    let roots = batch_roots(parent, object);
     let mut bank_warnings = banks.refused.clone();
     // The input scene's hierarchy, read by the first plain skinned object that needs it.
     let mut source_parents = None;

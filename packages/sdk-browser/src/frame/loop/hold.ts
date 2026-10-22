@@ -126,7 +126,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
  *  the hold redisplays to the bit; a revision or a motion breaks the hold (`quiet`), and the pass
  *  resumes on the history it holds. A session opened with `drawConverged` keeps drawing it: the
  *  frame a cost measurement reads. */
-export function taaConverging(rt: WebgpuPagesRuntime) {
+function taaConverging(rt: WebgpuPagesRuntime) {
   const frame = rt.gpu.temporal?.frame
   if (!taaRuns(rt) || !frame) return false
   if (rt.context.drawConverged === true) return true

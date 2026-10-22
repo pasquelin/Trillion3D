@@ -223,7 +223,7 @@ export function createPartitionCells(
       cells?.blockingLoad(instance, waits)
       // The cells wished and not loaded take their turn: so many load at once at most, none held
       // back during the initial load; while a load blocks, those loading go on and none starts.
-      if (hlodOn) hlod.waiting(planned.waiting)
+      if (hlodOn) hlod.waiting(planned.waiting, planned.ranker)
       const turns = waits.size ? planned.waiting.filter(({ key }) => slots.loads(key)) : null
       slots.admit(turns ?? planned.waiting, !!io.initialLoad)
       if (hlodOn) hlod.start()

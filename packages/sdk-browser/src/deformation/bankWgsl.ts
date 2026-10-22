@@ -33,9 +33,9 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts
 import { computeBufferEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
 
 /** The pass's bindings, named once: the text and the layout print them. `positions` is the float
- *  pool the tracks' records lie in; `banks` every banks' floats end to end (`BankTracks.pool`);
+ *  pool the tracks' records lie in; `banks` every banks' floats end to end (the tracks' `pool`);
  *  `tracks` the table; `record` the pass's own record. */
-export const ANIMATION_BANK_BINDING = {
+const ANIMATION_BANK_BINDING = {
   positions: 0,
   banks: 1,
   tracks: 2,

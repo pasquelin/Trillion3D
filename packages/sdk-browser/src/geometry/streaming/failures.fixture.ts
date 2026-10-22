@@ -11,8 +11,15 @@ export const idle = (streamer: PageStreaming) =>
   eventually(() => streamer.stats().loading === 0 && streamer.stats().queued === 0)
 
 /** A streamer of the pages `urls` the server answers with `status`, the clock and its timers in
- *  the test's hands: the requests sent, when, and the failures said. */
-export function refusing(t: TestContext, status: number, urls = ['a.bin'], headers?: HeadersInit) {
+ *  the test's hands: the requests sent, when, and the failures said. It tries a failed read again
+ *  `retries` times — without end by default, the waits' policy alone under test. */
+export function refusing(
+  t: TestContext,
+  status: number,
+  urls = ['a.bin'],
+  headers?: HeadersInit,
+  retries = -1,
+) {
   const clock = { now: 0 }
   t.mock.method(performance, 'now', () => clock.now)
   t.mock.timers.enable({ apis: ['setTimeout'] })
@@ -26,6 +33,7 @@ export function refusing(t: TestContext, status: number, urls = ['a.bin'], heade
   const streamer = createPageStreamer(pages, 'http://cache/', {
     cache: createPageCache(),
     onStalled: ({ key }) => void said.push(key),
+    numRetries: () => retries,
   })
   t.after(() => streamer.dispose())
   /** Its reads settled: landed, failed, or waiting their turn. */

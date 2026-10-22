@@ -11,6 +11,9 @@ import { askRootPasses } from '../../placement/roots/rootPasses.ts'
 import { askEntryCorners } from '../../blend/transparent/entryCorners.ts'
 import { wantsEmissiveAo } from '../prepare/emissiveAoLayer.ts'
 import { askLobedPrograms } from '../prepare/contractLight.ts'
+import { askAtmosphere } from '../render/encodeAtmosphere.ts'
+import { askExposure } from '../../post/exposure/frame.ts'
+import { askFinish } from '../../post/finish/frame.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 /** The class set each census last asked its classes of. */
@@ -51,7 +54,10 @@ function askShadeClasses(rt: WebgpuPagesRuntime) {
  * entries' pass once a transparent table is made, the kernels
  * composing placements once a parent links rows, the roots' boxes and the tree's leaves — these
  * four once the session's cut is adopted, never queued ahead of its compiles —, the
- * lobe code of a lobed surface (`askLobedPrograms`), the visibility raster once the targets it
+ * lobe code of a lobed surface (`askLobedPrograms`), the atmosphere's passes once the scene
+ * declares one (`askAtmosphere`), the automatic exposure's measure once an image
+ * lit by declared lamps asks it (`askExposure`), the local exposure's passes once its settings
+ * ask them (`askFinish`), the visibility raster once the targets it
  * spans are made —,
  * each compiled off the thread (`PreparedPipeline.ask`): the frame is held while one compiles
  * (`deviceAnswering`), showing the previous image, never compiling one itself. Prepare asks them
@@ -73,5 +79,8 @@ export function askFramePipelines(rt: WebgpuPagesRuntime) {
     askRootPasses(rt, device)
   }
   askLobedPrograms(rt, device)
+  askAtmosphere(rt, device)
+  askExposure(rt, device)
+  askFinish(rt, device)
   if (rt.gpu.depthView) ensureGpuRaster(rt, device)
 }

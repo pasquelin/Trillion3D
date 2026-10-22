@@ -58,7 +58,7 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 765 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 779 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
@@ -75,14 +75,16 @@ test('generated inventory and explicit facade files are current', async () => {
   // two (boxTransformBatch, multiplyMatrix4Batch, boxTransformUnionBatch) stands beside them; nor a
   // second page source beside the streaming (httpPageSource): `page.httpSource` reads through a
   // streamer. The run-time proxy a placement
-  // wears carries its deformation (CutDeformation, CORNER_INFLUENCES), and the bounce occupancy names
-  // the rows it is told moved (MovedRows). A mesh wears the one surface record its material declared
+  // wears carries its deformation (CutDeformation, CORNER_INFLUENCES). The bounce publishes its
+  // frame metrics (BounceFrameMetrics) and its count of probes traced an image (resolveProbesPerFrame,
+  // BOUNCE_PROBE_QUEUE) and the stamp its pool keeps a probe-ray hit's cell by (KEPT); no time servo (createProxyBudget) nor world-sized cascades
+  // (createBounceCascades) stand beside it. A mesh wears the one surface record its material declared
   // (PageSurface, its SurfaceFamily, its three parts VisMaterial, SurfaceFacts and Releasable, and declareSurface with its SurfaceDeclaration to make one), which holds the core's texture record: the host surface and
   // texture copies (GraphSurface, GraphTexture, HostMaterial, HostTexture), the host's side word
   // (materialSide) and the texture's own colour-space word (TextureColorSpace, now the world's
   // ColorSpace, public in the common entry too) are gone; the compiler's filter words (TableFilter)
   // the table texture carries are named, beside the one table of their engine filters
-  // (TABLE_FILTERS); the bounce budget is the proxy's (ProxyBudget). The material kinds' default
+  // (TABLE_FILTERS). The material kinds' default
   // exponent and index of refraction are engine values, never public. No standalone CPU `raycast`
   // stands beside `world.raycast`, which the GPU ray query answers; its `Intersection` stays public.
   // No CPU batch loop the engine never runs (invertMatrix4Batch, normalMatrix3Batch,
@@ -120,8 +122,11 @@ test('generated inventory and explicit facade files are current', async () => {
   // left the code with their mechanisms, and so the API: the HLOD's simple form has no quality any
   // more (HLOD_QUALITIES, HlodQuality), and the partition audit, the occlusion and world frame
   // metrics, the primitives' quantization and the adaptive pixel error are gone (PartitionAudit,
-  // OcclusionFrameMetrics, WorldFrameMetrics, PrimitiveQuantization, adaptivePixelError).
-  assert.equal(inventory.exports.length, 765)
+  // OcclusionFrameMetrics, WorldFrameMetrics, PrimitiveQuantization, adaptivePixelError). The
+  // scene's sky, height fog and exposure carry their own names (SceneAtmosphere, ResolvedAtmosphere,
+  // SceneOzoneLayer, SceneSky, SceneHeightFog, SceneFogDirectional, SceneExposure), and the bloom its
+  // levels (BloomLevelOptions, BloomTint, ResolvedBloomLevel).
+  assert.equal(inventory.exports.length, 779)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

@@ -7,6 +7,7 @@ import { noVehicle } from './controls/controlTargets.ts'
 import { worldParts } from './worldParts.ts'
 import { worldView, worldViewMethods } from './worldView.ts'
 import { worldSettings } from './worldSettings.ts'
+import { worldImageSettings, worldSceneSettings } from './worldFamilySettings.ts'
 import { worldMethods } from './worldMethods.ts'
 
 /** Creates a world: the scene, camera, engine and loop of one view, on its own WebGPU device.
@@ -21,6 +22,8 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   const world = joined(
     worldView(parts),
     worldSettings(parts),
+    worldSceneSettings(parts),
+    worldImageSettings(parts),
     worldMethods(parts),
     worldViewMethods(parts),
   )

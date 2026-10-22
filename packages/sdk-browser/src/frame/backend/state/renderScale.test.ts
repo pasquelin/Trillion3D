@@ -7,11 +7,8 @@ import {
   renderPixelRatio,
   type FrameSize,
 } from './renderScale.ts'
-import {
-  displayResolutionFraction,
-  renderExtent,
-  type RenderScale,
-} from '../../scale/renderScaleOption.ts'
+import { displayResolutionFraction } from '../../scale/displayResolutionFraction.ts'
+import { renderExtent, type RenderScale } from '../../scale/renderScaleOption.ts'
 // The controller's instant drop sets the scale drawn; the rules tested hold under either.
 import { createScaleControl } from '../../scale/scaleControl.ts'
 import { lowered } from '../../scale/scaleFit.fixture.ts'

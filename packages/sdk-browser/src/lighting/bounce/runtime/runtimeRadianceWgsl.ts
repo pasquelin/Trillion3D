@@ -8,6 +8,7 @@ import { worldMatrix3 } from '../../../../../math/src/wgsl/matrix.ts'
 import { markReachWgsl } from '../../../deformation/halfFloat.ts'
 import { runtimeSceneWgsl } from './runtimeSceneWgsl.ts'
 import { sceneKey, type SceneBindings } from '../sceneBindings.ts'
+import { SKY_READ_WGSL } from '../../atmosphere/skyReadWgsl.ts'
 import {
   RAY_ERROR_FLOOR,
   RAY_LAYERS,
@@ -26,29 +27,11 @@ export const RADIANCE_ANSWER = wgslStruct(
   'struct RadianceAnswer{color:vec3f,confidence:f32,distance:f32,}',
 )
 
-/**
- * THE RADIANCE OF A RAY: what a ray of the proxy (`runtimeSceneWgsl.ts`) brings back. `rtRadiance` is the
- * radiance through up to `RAY_LAYERS` surfaces — a blended one lets the rest of the light through (its opacity
- * weighs its own radiance, the transmittance goes on) —, and the confidence of the answer: what it holds, the
- * rest left to the next stage, and the distance to the first surface it met. The radiance of a surface is
- * its emission and its diffuse tint under the irradiance the cascades hold (`surfaceSeen`): read, its cost
- * the same whatever the lights. A mesh whose placement deforms is traced at its rest shape, its confidence
- * cut by the placement's reach against the footprint. `rtProbeRay` is the probes' ray on the same walk
- * (`rtLayers`), its first surface lit by the lights — shadows traced against the proxy (`rtBlocked`) — and
- * the bounce (`surfaceLit`), what the cascades are made of, and the distance to it.
- */
-export const runtimeRadianceWgsl = (scene: SceneBindings) =>
+/** A hit's surface: its words read (`rtSurfaceOf`), and the normal of its face that looks at the ray (`rtFacing`). */
+const rtSurfaceWgsl = (scene: SceneBindings) =>
   wgslBlock(
-    `runtimeRadianceWgsl(${sceneKey(scene)})`,
-    [
-      RADIANCE_ANSWER,
-      runtimeSceneWgsl(scene),
-      SURFACE_RAY_WGSL,
-      NORMAL_TRANSFORM_WGSL,
-      faceNormal,
-      worldMatrix3,
-      markReachWgsl,
-    ],
+    `rtSurfaceWgsl(${sceneKey(scene)})`,
+    [runtimeSceneWgsl(scene), NORMAL_TRANSFORM_WGSL, faceNormal],
     `
 ${wgslConsts({
   RT_LAYERS: RAY_LAYERS,
@@ -78,26 +61,37 @@ fn rtFacing(hit:RtHit,direction:vec3f,world:mat3x3f)->vec3f{
  let N=linearNormal(world,n);
  return select(N,-N,dot(N,direction)>0.0);
 }
+`,
+  )
+
 /**
- * The run-time proxy's one walk of a ray of length \`reach\` from \`origin\`: its first surface, and
+ * The run-time proxy's one walk of a ray of length `reach` from `origin`: its first surface, and
  * the ones behind it while the surfaces met let light through (a blended one's opacity), up to
- * \`RT_LAYERS\`. The answer is the radiance of the light they hold and \`confidence\` the share of the ray
- * they answer; the rest goes on to the next stage, \`distance\` the first surface's, \`reach\` where
- * none, beside the share the surfaces physically stop (\`RtWalk.stopped\`) and the share that went
- * on through them to the end of \`reach\` (\`RtWalk.open\`: none where the walk stopped on its layers). A deformed placement is traced at
- * its rest shape, whose reach (\`marked\`) its footprint may not cover: \`tangent\`, the width the ray's
- * lobe covers at a metre, against that reach takes CONFIDENCE from the hit (\`known\`), never opacity —
+ * `RT_LAYERS`. The answer is the radiance of the light they hold and `confidence` the share of the ray
+ * they answer; the rest goes on to the next stage, `distance` the first surface's, `reach` where
+ * none, beside the share the surfaces physically stop (`RtWalk.stopped`) and the share that went
+ * on through them to the end of `reach` (`RtWalk.open`: none where the walk stopped on its layers). A deformed placement is traced at
+ * its rest shape, whose reach (`marked`) its footprint may not cover: `tangent`, the width the ray's
+ * lobe covers at a metre, against that reach takes CONFIDENCE from the hit (`known`), never opacity —
  * an opaque mesh stops the ray whatever its deformation. A hit's radiance: on the first surface of a
- * \`lit\` (probe) ray, lit by the lights and the bounce (\`surfaceLit\`), its emission not bounced — the
- * lamp lights the room directly —, one light loop a ray; on every other, read: its tint under the
- * irradiance the cascades already hold (\`surfaceSeen\`), plus a reflection's emission, no light
- * evaluated and no shadow ray cast. Exhausted — its \`budget\` of units spent, \`RT_WORK\` at most — is
- * no answer at all, confidence zero (\`runtimeLayout.ts\`).
+ * `lit` (probe) ray, lit by the lights and the bounce (`surfaceLit`), its emission not bounced — the
+ * lamp lights the room directly —, one light loop a ray, and the place it was hit left for the probe to
+ * mark (`rtHitAt`, `rtHitNormal`); on every other, read: its tint under the
+ * irradiance the cascades already hold (`surfaceSeen`), plus a reflection's emission, no light
+ * evaluated and no shadow ray cast. Exhausted — its `budget` of units spent, `RT_WORK` at most — is
+ * no answer at all, confidence zero (`runtimeLayout.ts`).
  */
+const rtLayersWgsl = (scene: SceneBindings) =>
+  wgslBlock(
+    `rtLayersWgsl(${sceneKey(scene)})`,
+    [RADIANCE_ANSWER, rtSurfaceWgsl(scene), SURFACE_RAY_WGSL, worldMatrix3, markReachWgsl],
+    `
+/** The run-time proxy's one walk of a ray (\`rtLayers\`), the layers it crosses. */
 struct RtWalk{answer:RadianceAnswer,stopped:f32,open:f32,}
-fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,lit:bool)->RtWalk{
+fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,tests:u32,lit:bool)->RtWalk{
  rtBegin();
- rtBudget=min(budget,RT_WORK);
+ rtBudget=budget;
+ rtTestBudget=tests;
  var first=reach;
  var color=vec3f(0.0);
  var answered=0.0;
@@ -107,7 +101,7 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,lit:bo
  var left=reach;
  for(var layer=0u;layer<RT_LAYERS;layer++){
   let hit=rtScene(start,direction,left);
-  if(rtSpent()){return RtWalk(RadianceAnswer(vec3f(0.0),0.0,first),0.0,0.0);}
+  if(rtSpent()){rtCause=rtWhy();return RtWalk(RadianceAnswer(vec3f(0.0),0.0,first),0.0,0.0);}
   if(!hit.found){open=through;break;}
   if(layer==0u){first=hit.distance;}
   let instance=rtWorldsInstance(hit.placement,0u);
@@ -119,7 +113,7 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,lit:bo
   let opacity=select(1.0,surface.opacity,surface.blended);
   let at=start+direction*hit.distance;let N=rtFacing(hit,direction,world);
   var radiance:vec3f;
-  if(lit&&layer==0u){radiance=surfaceLit(surface.tint,at,N,reach);}
+  if(lit&&layer==0u){rtHitAt=at;rtHitNormal=N;rtHitFound=true;radiance=surfaceLit(surface.tint,at,N,reach);}
   else{radiance=surfaceSeen(surface.tint,at,N)+select(surface.emission,vec3f(0.0),lit);}
   let share=through*opacity;
   color+=share*known*radiance;
@@ -133,19 +127,45 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,lit:bo
  }
  return RtWalk(RadianceAnswer(select(vec3f(0.0),color/answered,answered>0.0),answered,first),1.0-through,open);
 }
+`,
+  )
+
+/**
+ * THE RADIANCE OF A RAY: what a ray of the proxy (`runtimeSceneWgsl.ts`) brings back. `rtRadiance` is the
+ * radiance through up to `RAY_LAYERS` surfaces — a blended one lets the rest of the light through (its opacity
+ * weighs its own radiance, the transmittance goes on) —, and the confidence of the answer: what it holds, the
+ * rest left to the next stage, and the distance to the first surface it met. The radiance of a surface is
+ * its emission and its diffuse tint under the irradiance the cascades hold (`surfaceSeen`): read, its cost
+ * the same whatever the lights. A mesh whose placement deforms is traced at its rest shape, its confidence
+ * cut by the placement's reach against the footprint. `rtProbeRay` is the probes' ray on the same walk
+ * (`rtLayers`), its first surface lit by the lights — shadows traced against the proxy (`rtBlocked`) — and
+ * the bounce (`surfaceLit`), what the cascades are made of, the sky for the share of the ray that leaves
+ * the scene (`skyProbeRadiance`: the cascades hold the sky the scene lets through), and the distance to
+ * the first surface. The place it hit is left to the probe that cast it (`rtHitAt`, `rtHitNormal`), which marks
+ * the cells round it.
+ */
+export const runtimeRadianceWgsl = (scene: SceneBindings) =>
+  wgslBlock(
+    `runtimeRadianceWgsl(${sceneKey(scene)})`,
+    [rtLayersWgsl(scene), SKY_READ_WGSL],
+    `
 /** A reflection's ray (\`rtLayers\`, read). */
 fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32)->RadianceAnswer{
- return rtLayers(origin,direction,reach,tangent,budget,false).answer;
+ return rtLayers(origin,direction,reach,tangent,min(budget,RT_WORK),RT_TRIANGLES,false).answer;
 }
 /** The light a probe's ray brings back (\`rtLayers\`, lit): from \`origin\` along \`direction\`, \`reach\`
  *  far, its first surface lit and those a blended one lets it reach read behind it, weighed by what
- *  they stop, and the distance to the first, \`reach\` where it meets nothing. An
- *  exhausted ray, or one whose shadow rays spent its budget, carries zero weight
- *  (\`runtimeLayout.ts\`): its distance is then negative, and the probe leaves it out of its estimate. */
+ *  they stop, the sky for the share that leaves the scene (\`RtWalk.open\`), and the distance to the
+ *  first, \`reach\` where it meets nothing. An exhausted ray, or one whose shadow rays spent its
+ *  budget, carries zero weight (\`runtimeLayout.ts\`): its distance is then negative — minus what
+ *  spent it, one to four for the ray itself (\`RT_CAUSE_*\`), five to eight for its shadow ray —, and
+ *  the probe leaves it out of its estimate. */
 fn rtProbeRay(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
- let walk=rtLayers(origin,direction,reach,0.0,RT_WORK,true);
- if(rtSpent()||rtLost){return vec4f(0.0,0.0,0.0,-1.0);}
- return vec4f(walk.answer.color*walk.stopped,walk.answer.distance);
+ let walk=rtLayers(origin,direction,reach,0.0,RT_PROBE_WORK,RT_PROBE_TRIANGLES,true);
+ if(rtSpent()||rtLost){return vec4f(0.0,0.0,0.0,-f32(rtWhy()+select(0u,4u,rtLost)));}
+ var seen=walk.answer.color*walk.stopped;
+ if(walk.open>0.0){seen+=walk.open*skyProbeRadiance(direction);}
+ return vec4f(seen,walk.answer.distance);
 }
 `,
   )

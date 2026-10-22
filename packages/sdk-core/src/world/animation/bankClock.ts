@@ -17,6 +17,7 @@
 import { ANIMATION_BANK_SAMPLE_RATE } from '../../contracts/compilerAbi.ts'
 import type { DecodedBanks } from '../../scene/core/animationBanks.ts'
 import type { Object3D } from '../object/object3d.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 
 /** The clock of one scene's banks (`createBankClock`). */
 export type BankClock = {
@@ -44,7 +45,7 @@ const clocks = new Set<Held>()
 /** `position` brought into a track of length `length`: wrapped when it loops — into `[0, length)`,
  *  0 for a track of no length —, held at its ends otherwise. */
 function wrapped(position: number, length: number, looping: boolean) {
-  if (!looping) return Math.min(Math.max(position, 0), length)
+  if (!looping) return clamp(position, 0, length)
   if (length === 0) return 0
   const into = position % length
   return into < 0 ? into + length : into

@@ -1,6 +1,6 @@
 import type { JsonSchemaObject } from './types.ts'
 import { ASSET_SCOPES, DEFAULT_SCOPE } from '../contracts/base.ts'
-import { BOUNCE_SETTINGS } from '../bounce/contracts.ts'
+import { BOUNCE_PROBE_QUEUE, BOUNCE_SETTINGS } from '../bounce/contracts.ts'
 import { explorerSwitchDefault } from '../runtime/explorerSwitches.ts'
 import { DEFAULT_PIXEL_ERROR } from '../lod/policy.ts'
 import { DEFAULT_TEMPORAL_AA_LEVEL, TEMPORAL_AA_LEVELS } from '../contracts/compilerAbi.ts'
@@ -87,14 +87,14 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = /* @__PURE__ */ (() => 
       type: 'boolean',
       default: explorerSwitchDefault('bounce'),
       description:
-        'Dynamic global illumination (GI) via radiance probe bounce. Incompatible with very tight GPU time budgets.',
+        'Dynamic global illumination (GI) via radiance probe bounce, which also carries the sky light the scene lets through. On by default; false turns it off. Incompatible with very tight GPU time budgets.',
     },
-    bounceBudgetMs: {
-      type: 'number',
-      default: BOUNCE_SETTINGS.budgetMs,
-      minimum: 0.1,
-      maximum: 8.0,
-      description: `Target GPU budget in milliseconds for every proxy ray of a frame: reflections first, bounce probes the rest. Default ${BOUNCE_SETTINGS.budgetMs} ms.`,
+    bounceProbesPerFrame: {
+      type: 'integer',
+      default: BOUNCE_SETTINGS.probesPerFrame,
+      minimum: 1,
+      maximum: BOUNCE_PROBE_QUEUE,
+      description: `Probes the bounce traces a frame, those never traced first (such a probe is never held back, up to the queue). A count, not a duration: lower it on a slow device, raise it for a field that converges sooner. Default ${BOUNCE_SETTINGS.probesPerFrame}, at most ${BOUNCE_PROBE_QUEUE}.`,
     },
     importedLights: {
       type: 'boolean',

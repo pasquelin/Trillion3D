@@ -48,6 +48,21 @@ function settleFrameSelection(timing: WebgpuPagesCore['timing'], submitted: bool
   settle?.(submitted)
 }
 
+/** What the image copied for the CPU maps only once the image that copied it is submitted: the
+ *  counts of a sampled image, the transparents' verdict counts (`verdictRead.ts`), the texture
+ *  feedback where it was published, the light tiles, the cells its bounce pass marked, the sky's
+ *  harmonics, the exposure it left (`../../post/exposure/meter.ts`) and the shadow pages. */
+function submittedReadbacks(rt: WebgpuPagesCore, published: boolean) {
+  rt.vis.voxelSteps?.submitted()
+  rt.blendState.expand?.submitted()
+  if (published) rt.vis.textures?.feedback.submitted()
+  rt.lights.tiles?.submitted()
+  rt.bounce.probes?.submitted()
+  rt.gpu.atmosphere?.submitted()
+  rt.gpu.exposure?.submitted()
+  vsmSubmitted(rt)
+}
+
 export function submitColorCopy(
   rt: WebgpuPagesCore,
   device: GPUDevice,
@@ -94,13 +109,7 @@ export function submitColorCopy(
   }
   // What the image replaced as it was encoded goes, its last command submitted (`frameRetire.ts`).
   destroyRetired(device)
-  // Counts of a sampled image are mapped only once the image that copied them is submitted.
-  rt.vis.voxelSteps?.submitted()
-  // The transparents' verdict counts of the image map once it left (`verdictRead.ts`).
-  rt.blendState.expand?.submitted()
-  if (published) rt.vis.textures?.feedback.submitted()
-  rt.lights.tiles?.submitted()
-  vsmSubmitted(rt)
+  submittedReadbacks(rt, published)
   // An inspection asked reads the main view's image now, before a view aside overwrites what the
   // views share (`../../diagnostic/inspection/read.ts`).
   if (rt.views.active === rt.views.main && !capture.capturing) run.inspect?.()

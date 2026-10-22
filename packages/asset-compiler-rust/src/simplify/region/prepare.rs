@@ -37,27 +37,33 @@ impl Region {
     }
 
     /// What `simplifier` left of the region at `error`: its triangles over the compact vertices,
-    /// the positions — in metres (`Region::metres`) — and attributes it rewrote, and its error in
-    /// object space.
+    /// the positions — in metres (`Region::metres`) where the solve moved them — and attributes it
+    /// rewrote, and its error in object space.
     pub(crate) fn assembled(&self, simplifier: &Simplifier, error: f32) -> SolvedRegion<'_> {
         let (n, stride) = (self.remap.len(), self.weights.len());
         let mut positions = self.source.clone();
         let mut values = self.source_values.clone();
-        let mut moved = vec![false; n];
+        let (mut moved, mut seen) = (vec![false; n], vec![false; n]);
         let indices = simplifier.remaining();
         let same = |a: &[f32], b: &[f32]| a.iter().zip(b).all(|(x, y)| x.to_bits() == y.to_bits());
         for &v in &indices {
             let v = v as usize;
+            if std::mem::replace(&mut seen[v], true) {
+                continue;
+            }
             let (p, attributes) = simplifier.vertex(v);
             let built = (
                 &self.frame[v * 3..v * 3 + 3],
                 &self.source_values[v * stride..][..stride],
             );
-            if moved[v] || (same(&p, built.0) && same(attributes, built.1)) {
+            let stays = same(&p, built.0);
+            if stays && same(attributes, built.1) {
                 continue;
             }
             moved[v] = true;
-            positions[v * 3..v * 3 + 3].copy_from_slice(&self.metres(p));
+            if !stays {
+                positions[v * 3..v * 3 + 3].copy_from_slice(&self.metres(p));
+            }
             values[v * stride..(v + 1) * stride].copy_from_slice(attributes);
         }
         SolvedRegion {

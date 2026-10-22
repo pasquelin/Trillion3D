@@ -48,14 +48,14 @@ impl<'a> Chart<'a> {
             let (stretch, map) = l2_lower_bound(mt, self.source.areas[root_face], FACE_MAX_SCALE);
             self.stretch_l2 = stretch;
             let canonical = self.source.canonical_uvs[first.root as usize];
-            for k in 0..3 {
-                self.verts[first.verts[k] as usize].uv = transform(canonical[k], &map);
+            for (k, &corner) in canonical.iter().enumerate() {
+                self.verts[first.verts[k] as usize].uv = transform(corner, &map);
             }
         } else {
             let p = first.verts.map(|v| self.point(v));
             let (uvs, _) = canonical_frame(p);
-            for k in 0..3 {
-                self.verts[first.verts[k] as usize].uv = uvs[k];
+            for (k, &uv) in uvs.iter().enumerate() {
+                self.verts[first.verts[k] as usize].uv = uv;
             }
             self.stretch_l2 = self.source.areas[root_face];
         }

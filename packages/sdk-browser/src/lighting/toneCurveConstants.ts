@@ -8,7 +8,7 @@ import { wgslF32, wgslMatrix3 } from '../../../math/src/wgsl/number.ts'
 import { normalMatrix3 } from '../../../math/src/matrix/matrix3.ts'
 
 /** The inverse of a column-major 3×3 matrix: the transpose of its normal matrix. */
-function inverse3(m: readonly number[]) {
+export function inverse3(m: readonly number[]) {
   const n = normalMatrix3(new Array<number>(9), [
     m[0],
     m[1],
@@ -26,7 +26,7 @@ function inverse3(m: readonly number[]) {
   return [n[0], n[3], n[6], n[1], n[4], n[7], n[2], n[5], n[8]]
 }
 /** `a · b`, column-major 3×3. */
-const multiply3 = (a: readonly number[], b: readonly number[]) =>
+export const multiply3 = (a: readonly number[], b: readonly number[]) =>
   Array.from({ length: 9 }, (_, i) => {
     const col = Math.floor(i / 3),
       row = i % 3

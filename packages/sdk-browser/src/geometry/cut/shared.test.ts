@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { clusterErrorPixels } from '../../../../sdk-core/src/lod/screenErrorBound.ts'
-import { projectedClusterError } from '../selection/math.ts'
+import { projectedClusterError } from '../selection/clusterError.fixture.ts'
 import { clusterPixels } from '../selection/frame.fixture.ts'
 
 const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200)

@@ -38,13 +38,13 @@ pub(super) fn cut_below(
     origin: [f64; 3],
     fill: bool,
 ) -> (Vec<f32>, Vec<u32>) {
-    let points: Vec<[f64; 3]> = (positions.chunks_exact(3))
-        .map(|p| to_reference([p[0], p[1], p[2]].map(f64::from)))
+    let points: Vec<[f64; 3]> = (positions.as_chunks::<3>().0.iter())
+        .map(|&p| to_reference(p.map(f64::from)))
         .collect();
     let mut mesh = Mesh::with_vertices(points.len());
-    for tri in indices.chunks_exact(3) {
+    for &tri in indices.as_chunks::<3>().0 {
         // A triangle the mesh refuses is left out.
-        let _ = mesh.append([tri[0], tri[1], tri[2]].map(|v| v as usize));
+        let _ = mesh.append(tri.map(|v| v as usize));
     }
     let mut shape = Shape { mesh, points };
     let origin = to_reference(origin);

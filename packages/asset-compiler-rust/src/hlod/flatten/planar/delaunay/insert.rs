@@ -16,6 +16,7 @@
 //!    when the point lies in its circle — for a ghost triangle, strictly left of its solid edge
 //!    or on that edge itself (`in_circumcircle`) — and the edges of the triangles kept bound a
 //!    cavity the point is fanned to, edge by edge in the order they were met.
+use super::constrain::at;
 use super::mesh::{EdgeMesh, ABSENT, GHOST};
 use super::order::insertion_order;
 use crate::hlod::flatten::planar::predicates::{in_circle, orient};
@@ -64,11 +65,6 @@ pub(super) fn insert_points(mesh: &mut EdgeMesh, points: &[[f64; 2]]) -> bool {
         start = fan_in(mesh, points, found, vertex);
     }
     true
-}
-
-/// The position of `vertex`.
-fn at(points: &[[f64; 2]], vertex: i32) -> [f64; 2] {
-    points[vertex as usize]
 }
 
 /// The edge of `triangle` the walk to `vertex` leaves it by, `None` when `vertex` lies in it; the

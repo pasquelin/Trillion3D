@@ -1,4 +1,4 @@
-import { collectPendingUrls } from '../../geometry/selection/requests.ts'
+import { pageRequestUrl } from '../../geometry/selection/requests.ts'
 import { acceptPage } from './pageApi.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
@@ -8,6 +8,7 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
  * such a page, and nothing drawn again moves it; they are asked of the host's reader (`readPage`,
  * as the root cover's missing pages are, `../loop/bootstrap.ts`) and handed to the engine as the
  * host hands them (`acceptPage`), all at once, the streaming having bounded how many are started.
+ * Only the pages listed are asked, once each: what a page depends on is read by the streaming.
  * @returns How many pages stay without their bytes: all of them when no reader was named.
  */
 export async function fetchHostPages(rt: WebgpuPagesRuntime) {
@@ -16,7 +17,7 @@ export async function fetchHostPages(rt: WebgpuPagesRuntime) {
   const { readPage, signal } = rt.context
   if (!readPage) return pages.length
   await Promise.all(
-    collectPendingUrls(pages, []).map(async (url) => {
+    [...new Set(pages.map(pageRequestUrl))].map(async (url) => {
       const bytes = await readPage(url)
       signal?.throwIfAborted()
       if (rt.run.lost) throw new Error('WEBGPU_LOST')

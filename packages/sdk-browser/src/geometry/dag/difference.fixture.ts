@@ -24,11 +24,11 @@ function listsOf(out: Uint32Array, listCap: number) {
   return [
     {
       now: span(SELECTION_HEADER_WORDS, Math.min(out[OUT_COUNT], listCap)),
-      kept: span(kept, out[header]),
+      kept: span(kept, Math.min(out[header], listCap)),
     },
     {
       now: span(drawnAt + SELECTION_HEADER_WORDS, Math.min(out[drawnAt], listCap)),
-      kept: span(kept + listCap, out[header + 1]),
+      kept: span(kept + listCap, Math.min(out[header + 1], listCap)),
     },
   ]
 }

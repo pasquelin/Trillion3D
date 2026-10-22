@@ -8,8 +8,8 @@ import { REFLECTION_PROXY_BINDINGS } from './trace/traceBindings.ts'
 /**
  * The proxy's answer to a reflection (`reflectionProxied`), where the screen did not give one: the engine's
  * one coarse geometry of the scene (`../bounce/runtime/runtimeSceneWgsl.ts`), compiled meshes and the cuts the world
- * made at run time alike, the radiance of its surfaces lit where the ray lands (`rtRadiance`). One ray a
- * call, cast this image, kept nowhere, by the trace's scene stage alone (`trace/trace.ts`), for a pixel in the
+ * made at run time alike, the radiance of its surfaces lit where the ray lands (`rtRadiance`), by the light the
+ * probes hold there and no more (`indirectHeld`). One ray a call, cast this image, kept nowhere, by the trace's scene stage alone (`trace/trace.ts`), for a pixel in the
  * near field (`reflectionNearField`, `reach.ts`: the scene tier of the reflections' levels of
  * precision), over its own group's proxy (`REFLECTION_PROXY_BINDINGS`). The ray leaves the surface the proxy's certified error off its normal
  * (its header's `error`), so that it never meets the proxy's own copy of the surface it leaves, goes no
@@ -39,7 +39,7 @@ fn reflectionProxied(P:vec3f,N:vec3f,lobe:ReflectionLobe,bound:f32)->ReflectionP
  // Never past the surface the screen met, its slab and the proxy's error on either side of it.
  let far=min(edge,bound+2.0*lift);
  if(far<=lift){return none;}
- var walk=rtLayers(P+N*lift,lobe.R,far-lift,reflectionReadTangent(lobe),REFLECTION_PROXY_WORK,false);
+ var walk=rtLayers(P+N*lift,lobe.R,far-lift,reflectionReadTangent(lobe),REFLECTION_PROXY_WORK,RT_TRIANGLES,false);
  walk.answer.distance+=lift;
  return ReflectionProxied(walk.answer,select(0.0,walk.open,far>=edge));
 }`,

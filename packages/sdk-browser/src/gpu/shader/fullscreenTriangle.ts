@@ -5,6 +5,6 @@
  * a position, a depth of its own, a coordinate it derives. Expressions, not declarations: a
  * program writes them in its own text.
  */
-export const FULLSCREEN_X = 'f32(i32(i&1u)*4-1)'
-export const FULLSCREEN_Y = 'f32(i32(i>>1u)*4-1)'
+const FULLSCREEN_X = 'f32(i32(i&1u)*4-1)'
+const FULLSCREEN_Y = 'f32(i32(i>>1u)*4-1)'
 export const FULLSCREEN_XY = `${FULLSCREEN_X},${FULLSCREEN_Y}`

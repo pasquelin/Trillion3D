@@ -1,6 +1,10 @@
 // A bounce atlas (`atlas.ts`) simulated for the shaders run as JavaScript (`shaderRun`): its texels,
 // layer by layer, and the `textureLoad` and `textureStore` the kernels call on it.
 import assert from 'node:assert/strict'
+import { ATLAS_WIDTH, PROBE_TEXELS } from './atlas.ts'
+
+/** Probes along a row of the pool's layer, as the atlas lays them (`ATLAS_WIDTH` texels of `PROBE_TEXELS`). */
+export const POOL_ROW_PROBES = ATLAS_WIDTH / PROBE_TEXELS
 
 /** A simulated atlas: its extent and its texels, row by row, layer by layer. */
 type SimulatedAtlas = { width: number; height: number; layers: number; texels: number[][] }

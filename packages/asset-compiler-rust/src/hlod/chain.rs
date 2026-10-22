@@ -15,7 +15,6 @@
 //! An instance, its merge screen size and its cooking live in `cook`.
 use crate::compiler::source::node_transform::Mat4;
 use crate::compiler::tables::partition::CellMembers;
-use crate::dag::DagStrategy;
 use crate::proxy::placement::Placement;
 use crate::*;
 
@@ -60,9 +59,9 @@ pub(crate) struct Staged {
 /// and its image root, whose materials the actors the layers build flatten. Written as
 /// `world-roots.bin`, `world-roots.table` and `world-roots.dag`, an atlas image a PNG only where
 /// its chain is not whole (`flatten::publish`); the report goes to the manifest, its measures to
-/// the job's metrics. Exact clusters are never simplified, so no HLOD is built of them. The
-/// builds run on the job's `pool`: its threads, its phase counters, in the job's RAM allowance
-/// less the `reserved` bytes the geometry holds, each actor's job told to `progress` as it ends.
+/// the job's metrics. The builds run on the job's `pool`: its threads, its phase counters, in the
+/// job's RAM allowance less the `reserved` bytes the geometry holds, each actor's job told to
+/// `progress` as it ends.
 pub(crate) fn stage_world_roots(
     (o, pool, reserved, progress): (&Options, &rayon::ThreadPool, usize, &(dyn Fn(Value) + Sync)),
     (published, directory): (&Value, &Path),
@@ -77,9 +76,8 @@ pub(crate) fn stage_world_roots(
         previews: Vec::new(),
     };
     let hlod = o.hlod()?;
-    // A job naming no HLOD builds no actor; neither does a job of exact clusters.
-    if DagStrategy::named(&o.simplification) == DagStrategy::ExactClusters || hlod.layers.is_empty()
-    {
+    // A job naming no HLOD builds no actor.
+    if hlod.layers.is_empty() {
         return Ok(nothing());
     }
     let nodes = values(published, "nodes")?;
@@ -161,6 +159,10 @@ fn assignment_warnings(cells: &CellMembers, hlod: &crate::Hlod, nodes: &[Value])
     overruled.chain(unplaced).chain(banks).collect()
 }
 
+/// The published scene with its flattened materials added and each actor's glTF material rank in
+/// it, beside the textures' previews.
+type PublishedMaterials = ((Value, Vec<usize>), Vec<crate::texture::TexturePreview>);
+
 /// The scene `published` with the flattened materials of `actors` added, and each actor's glTF
 /// material rank in it, with the textures' chains: an actor wearing its own flattened material has
 /// it published (`products` gaining each image whose chain lacks a level: a whole chain stands in
@@ -170,7 +172,7 @@ fn published_materials(
     actors: Vec<builds::Actor>,
     (cells, published, directory): (&CellMembers, &Value, &Path),
     products: &mut Vec<Product>,
-) -> Result<((Value, Vec<usize>), Vec<crate::texture::TexturePreview>)> {
+) -> Result<PublishedMaterials> {
     use crate::hlod::flatten::bake::publish::{self, Image, Published};
     // Per actor, `None` for its own material, else the scene's it wears — its glTF rank, `None`
     // for glTF's default.

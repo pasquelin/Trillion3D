@@ -11,7 +11,7 @@ import { blend, close, display, written, type Rgba } from '../blendModel.fixture
 import { ADD_EQUATIONS, TINT_EQUATIONS } from '../equations.ts'
 import { ACES, displayRoute } from './displayRun.fixture.ts'
 import { BLENDS } from '../../particles/drawWords.ts'
-import { overTargets } from '../transmission/pipelines.ts'
+import { overTargets } from '../blendTargets.ts'
 import { blendTargets } from '../blendTargets.ts'
 import { particleTargets } from '../../particles/particleTargets.ts'
 

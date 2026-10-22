@@ -59,19 +59,19 @@ fn corner_angle(p: V, q: V, r: V) -> f32 {
 /// corner as `method` says (module doc).
 pub(super) fn vertex_normals(points: &[V], indices: &[u32], method: HlodNormalMethod) -> Vec<V> {
     let mut sums = vec![[0.0f32; 3]; points.len()];
-    for t in indices.chunks_exact(3) {
-        let [i0, i1, i2] = [t[0], t[1], t[2]].map(|v| v as usize);
+    for &t in indices.as_chunks::<3>().0 {
+        let [i0, i1, i2] = t.map(|v| v as usize);
         let [p0, p1, p2] = [points[i0], points[i1], points[i2]];
         let (u, v) = (sub(p1, p0), sub(p2, p0));
         let face = unit(cross(u, v));
         let weights = match method {
-            HlodNormalMethod::EqualWeighted => [1.0; 3],
-            HlodNormalMethod::AngleWeighted => [
+            HlodNormalMethod::Equal => [1.0; 3],
+            HlodNormalMethod::Angle => [
                 corner_angle(p0, p1, p2),
                 corner_angle(p1, p2, p0),
                 corner_angle(p2, p0, p1),
             ],
-            HlodNormalMethod::AreaWeighted => {
+            HlodNormalMethod::Area => {
                 let span = |p: V, q: V, r: V| {
                     let c = cross(sub(q, p), sub(r, p));
                     dot(c, c).sqrt()
@@ -82,8 +82,8 @@ pub(super) fn vertex_normals(points: &[V], indices: &[u32], method: HlodNormalMe
         for (vertex, weight) in [i0, i1, i2].into_iter().zip(weights) {
             let sum = &mut sums[vertex];
             match method {
-                HlodNormalMethod::EqualWeighted => (0..3).for_each(|k| sum[k] += face[k]),
-                _ => (0..3).for_each(|k| sum[k] = face[k] * weight + sum[k]),
+                HlodNormalMethod::Equal => (0..3).for_each(|k| sum[k] += face[k]),
+                _ => (0..3).for_each(|k| sum[k] += face[k] * weight),
             }
         }
     }

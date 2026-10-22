@@ -69,10 +69,11 @@ pub(super) fn reads_mesh(part: &Part, library: &Library, maps: Maps) -> bool {
     outside || part.carried(FLAG_COLOR).is_some() || second_set
 }
 
-/// Whether `part`'s look in its material is what lies behind it seen through it: its material is
-/// translucent (`seen::translucent`) and `maps` sees such a source through (`Maps::seen_through`).
-pub(in crate::hlod) fn seen_through(part: &Part, library: &Library, maps: Maps) -> bool {
-    maps.seen_through() && translucent(&library.surface(part.material))
+/// Whether the look of a part wearing `material` is what lies behind it seen through it: the
+/// material is translucent (`seen::translucent`) and `maps` sees such a source through
+/// (`Maps::seen_through`).
+pub(in crate::hlod) fn seen_through(material: Option<u64>, library: &Library, maps: Maps) -> bool {
+    maps.seen_through() && translucent(&library.surface(material))
 }
 
 /// A triangle's corners in the order a part takes them: turned back — its second and third swapped

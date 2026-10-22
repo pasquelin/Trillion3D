@@ -1,8 +1,4 @@
 import {
-  environmentExposure,
-  type SceneEnvironment,
-} from '../../../../sdk-core/src/scene/core/environment.ts'
-import {
   matrixAtRenderOrigin,
   inverseAtRenderOrigin,
 } from '../../../../math/src/projection/renderOrigin.ts'
@@ -13,16 +9,15 @@ import { MAX_HISTORY_SAMPLES } from './historyWgsl.ts'
 import { THIN_GEOMETRY_PERIODS, flickerCountRate, flickerParallaxInverse } from './flickerWgsl.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { stochasticSlot, type TaaFrameState } from './frameState.ts'
-import { TAA_LEVEL_KNOBS, type TaaLevelKnobs } from './levels.ts'
+import { TAA_LEVEL_KNOBS, type AnalysisWork, type TaaLevelKnobs } from './levels.ts'
 
 const T = TAA_VIEW.at,
   anchored = new Float64Array(16),
   packed = new Float32Array(TAA_VIEW_BYTES / 4)
 
-/** The exposure every measured colour of the pass is exposed by: `environment`'s, kept above zero
- *  so its ratio to the last image's stays finite. */
-export const taaExposure = (environment: SceneEnvironment | undefined) =>
-  Math.max(environmentExposure(environment), 1e-6)
+/** The exposure every measured colour of the pass is exposed by: the view's pre-exposure
+ *  (`../exposure/applied.ts`), kept above zero so its ratio to the last image's stays finite. */
+export const taaExposure = (exposure: number) => Math.max(exposure, 1e-6)
 
 /** Writes `(width, height, 1/width, 1/height)` of `grid` at `at`. */
 function writeGrid(into: Float32Array, at: number, grid: ArrayLike<number>) {
@@ -86,7 +81,8 @@ function writeDepthTerms(
  * of the accumulated colour (`output`, `taaViewCode`); the camera's parallax since the last image; the blend factor a whole shading history takes the image at (`MAX_HISTORY_SAMPLES`); the
  * projection's depth terms;
  * the last image's render grid and the render-resolution histories' allocated size (`analysisGrid`);
- * the level's `knobs`, the finest level's by default.
+ * the level's `knobs`, the finest level's by default, and the `work` the image runs, the level's
+ * by default (`AnalysisWork`).
  */
 export function writeTaaView(
   device: GPUDevice,
@@ -99,10 +95,11 @@ export function writeTaaView(
   moved: boolean,
   layers = false,
   deformed = false,
-  exposure = taaExposure(undefined),
+  exposure = taaExposure(1),
   frameIntervalMs: number | null = null,
   output = 0,
   knobs: TaaLevelKnobs = TAA_LEVEL_KNOBS.max,
+  work: AnalysisWork = knobs.work,
 ) {
   // Inverse of the view-projection WITHOUT jitter: the reprojected pixel is its unshifted centre,
   // with the depth read at the shifted sample. At a fixed camera, history is thus re-read exactly
@@ -137,14 +134,13 @@ export function writeTaaView(
   packed[T.rates] = flickerParallaxInverse(render[0], frameIntervalMs)
   // The blend factor of a render pixel's history holding the image's samples, at this render scale.
   packed[T.rates + 1] = 1 / (1 + MAX_HISTORY_SAMPLES / (render[0] / display[0]) ** 2)
-  packed[T.rates + 2] = 0
-  packed[T.rates + 3] = 0
+  packed.fill(0, T.rates + 2, T.rates + 4)
   writeDepthTerms(packed, cam.projection, cam.perspective !== 0, render[0])
   writeGrid(packed, T.prevRender, state.previousRender[0] > 0 ? state.previousRender : render)
   writeGrid(packed, T.analysisGrid, analysisGrid)
   packed[T.quality] = knobs.flicker ? 1 : 0
   packed[T.quality + 1] = knobs.antiAliasIterations
   packed[T.quality + 2] = knobs.movesFar ? 1 : 0
-  packed[T.quality + 3] = 0
+  packed[T.quality + 3] = Number(work.thin)
   device.queue.writeBuffer(uniform, 0, packed)
 }

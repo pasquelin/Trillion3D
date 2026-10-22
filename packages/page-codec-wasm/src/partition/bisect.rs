@@ -106,8 +106,8 @@ impl Balance {
     /// the cut is balanced.
     fn excess(&self, sides: [i64; 2]) -> f32 {
         let mut worst = -1.0f32;
-        for s in 0..2 {
-            let over = sides[s] as f32 * self.multipliers[s] - self.tolerance;
+        for (&side, &multiplier) in sides.iter().zip(&self.multipliers) {
+            let over = side as f32 * multiplier - self.tolerance;
             if over > worst {
                 worst = over;
             }

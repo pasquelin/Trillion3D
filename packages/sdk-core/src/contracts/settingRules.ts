@@ -5,20 +5,32 @@ import { refusal } from './nameMatch.ts'
  * the geometry streaming (`./streamingOptions.ts`), the cluster raster (`./rasterOptions.ts`), the
  * partition's streaming and the HLOD warm-up (`./worldStreamingOptions.ts`), the cut
  * (`./cutOptions.ts`), the animation (`./animationOptions.ts`), the material shading
- * (`./shadingOptions.ts`). Each setting is a rule (`SettingRule`) — its kind, its field, its
- * default, the reference's, and, a number, its range, a choice, the names it takes — built by
- * `flagSetting`, `numberSetting`, `integerSetting`, `positiveSetting`, `nonNegativeSetting`,
- * `countSetting` or `choiceSetting`, so its default's type is its value's: a switch a boolean, a number a number, a
- * choice one of its names. The compiler's mesh build (`./meshBuildAbi.ts`) declares its settings
- * the same way, its refusals naming what a rule takes (`settingFits`, `settingTakes`).
- * A family's rules by field (`rulesOf`) type every surface that holds its settings: a host's
- * options (`SettingOptions`), the values resolved (`SettingValues`), the session's context, which
- * extends those options. A setting is read (`readSetting`, or by a runtime's context
- * `contextReader`) and written (`writeSetting`) by its field through them, its value's type
- * following the field, whatever else the holder holds; a group of them all at once
- * (`resolveSettings`, `resolveSettingsInto`). `resolveSetting` is the one reading of a value: one
- * the rule takes as itself, `undefined` or `null` its default, anything else refused with a
- * `TypeError` naming the field and the values it takes.
+ * (`./shadingOptions.ts`), the automatic and the local exposure (`./exposureOptions.ts`), the
+ * temporal pass (`./temporalOptions.ts`). Each setting is a rule (`SettingRule`) — its kind, its
+ * field, its default, the reference's, and, a number, its range, a choice, the names it takes —
+ * built by `flagSetting`, `numberSetting`, `integerSetting`, `positiveSetting`, `nonNegativeSetting`,
+ * `countSetting` or `choiceSetting`, so its default's type is its value's: a switch a boolean, a
+ * number a number, a choice one of its names. The compiler's mesh build (`./meshBuildAbi.ts`)
+ * declares its settings the same way, its refusals naming what a rule takes (`settingFits`,
+ * `settingTakes`). A family's rules by field (`rulesOf`) type every surface that holds its
+ * settings: a host's options (`SettingOptions`), the values resolved (`SettingValues`), the
+ * session's context, which extends those options. A setting is read (`readSetting`, or by a
+ * runtime's context `contextReader`) and written (`writeSetting`) by its field through them, its
+ * value's type following the field, whatever else the holder holds; a group of them all at once
+ * (`resolveSettings`, `resolveSettingsInto`), two readings of them compared (`settingsDiffer`).
+ * `resolveSetting` is the one reading of a value: one the rule takes as itself, `undefined` or
+ * `null` its default, anything else refused with a `TypeError` naming the field and the values it
+ * takes.
+ *
+ * RUN-TIME SETTINGS. The eight families listed first are the engine's own, read again at each frame,
+ * or at each update of the streaming: no compiler job names them, so no manifest carries them and
+ * no cache key holds them. None has quality levels: the scalability groups of the reference leave
+ * every one at its default, so a quality preset writes none (`../runtime/qualityLevels.ts`). Each
+ * is a world option (`WorldOptions`), a session option (`MeasuredWorldOptions`), a render setting
+ * of the view distance's group (`packages/sdk-browser/src/session/world/settings.ts`), and the LLM
+ * schemas name it by its field and say what it means (`../llm/settingProperties.ts`). Each is read
+ * by `resolveSetting` wherever it is taken — the world, a session at its opening, the session's
+ * setter, the frame or the streaming's update.
  */
 
 /** The range a number setting takes, both ends included. */
@@ -71,34 +83,33 @@ export const numberSetting = <F extends string>(field: F, value: number, range: 
 /** A whole number of field `field`, default `value`, within `range`. */
 export const integerSetting = <F extends string>(field: F, value: number, range: SettingRange) =>
   ({ kind: 'int', field, default: value, range }) as const
+/** The range of a finite number of at least zero (`Number.MAX_VALUE`, as `ANY_NUMBER`'s). */
+const FROM_ZERO: SettingRange = [0, 1.7976931348623157e308]
+/** A number of field `field` and default `value`, whole when `kind` is `int`, within `range` —
+ *  its start excluded when `above` —, `takes` its words: the one builder of the settings below. */
+const bounded = <F extends string, K extends 'int' | 'float'>(
+  kind: K,
+  field: F,
+  value: number,
+  range: SettingRange,
+  takes: string,
+  above = false,
+) => ({ kind, field, default: value, range, takes, ...(above && { above: true as const }) })
 /** A finite number above zero of field `field` and default `value`, `takes` its words. */
 export const positiveSetting = <F extends string>(field: F, value: number, takes: string) =>
-  ({
-    kind: 'float',
-    field,
-    default: value,
-    range: [0, Number.MAX_VALUE],
-    above: true,
-    takes,
-  }) as const
+  bounded('float', field, value, FROM_ZERO, takes, true)
 /** A finite number of at least zero of field `field` and default `value`. */
 export const nonNegativeSetting = <F extends string>(field: F, value: number) =>
-  ({
-    kind: 'float',
-    field,
-    default: value,
-    range: [0, Number.MAX_VALUE],
-    takes: 'a finite number of at least 0',
-  }) as const
+  bounded('float', field, value, FROM_ZERO, 'a finite number of at least 0')
 /** A whole number of at least `least` of field `field` and default `value`: a count. */
 export const countSetting = <F extends string>(field: F, value: number, least: 0 | 1) =>
-  ({
-    kind: 'int',
+  bounded(
+    'int',
     field,
-    default: value,
-    range: [least, Number.MAX_SAFE_INTEGER],
-    takes: `a whole number of at least ${least}`,
-  }) as const
+    value,
+    [least, Number.MAX_SAFE_INTEGER],
+    `a whole number of at least ${least}`,
+  )
 /** A choice of field `field`, default `value`, among the names `choices`. */
 export const choiceSetting = <F extends string, const C extends readonly string[]>(
   field: F,
@@ -176,7 +187,7 @@ export const contextReader =
  * names (`resolveSetting`): its default for `undefined` or `null`.
  * @throws TypeError naming the field and the values it takes when it is none of them.
  */
-export function writeSetting<R extends SettingRules, F extends keyof R>(
+function writeSetting<R extends SettingRules, F extends keyof R>(
   rules: R,
   options: SettingOptions<R>,
   field: F,
@@ -196,6 +207,11 @@ export const settingWriter =
 
 /** Each group's rules in their order, read once: a frame's reading allocates no list. */
 const entries = new WeakMap<SettingRules, readonly (readonly [string, SettingRule])[]>()
+const namedRules = (rules: SettingRules) => {
+  let named = entries.get(rules)
+  if (!named) entries.set(rules, (named = Object.entries(rules)))
+  return named
+}
 
 /** Every setting of `rules` read from `options` by its field (`resolveSetting`), each its default
  *  when they hold none, by the name `rules` give it — its field for rules by field —, written in
@@ -205,12 +221,24 @@ export function resolveSettingsInto<T extends SettingRules>(
   options: FieldOptions<T>,
   into: SettingValues<T>,
 ) {
-  let named = entries.get(rules)
-  if (!named) entries.set(rules, (named = Object.entries(rules)))
   const held = options as Readonly<Record<string, boolean | number | string | null | undefined>>
   const out = into as Record<string, boolean | number | string>
-  for (const [name, rule] of named) out[name] = resolveSetting(rule, held[rule.field])
+  for (const [name, rule] of namedRules(rules)) out[name] = resolveSetting(rule, held[rule.field])
   return into
+}
+
+/** Whether any setting of `rules` differs between two readings of them (`resolveSettingsInto`),
+ *  `used` the one a pass was drawn with and `settings` the one now: what a view that rests asks to
+ *  know whether it is drawn again. Nothing is allocated. */
+export function settingsDiffer<T extends SettingRules>(
+  rules: T,
+  used: SettingValues<T>,
+  settings: SettingValues<T>,
+) {
+  const before = used as Record<string, boolean | number | string>
+  const now = settings as Record<string, boolean | number | string>
+  for (const [name] of namedRules(rules)) if (before[name] !== now[name]) return true
+  return false
 }
 
 /** Every setting of `rules` read from `options`, in a new object (`resolveSettingsInto`). */

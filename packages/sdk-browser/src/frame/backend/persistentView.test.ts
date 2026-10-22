@@ -89,6 +89,12 @@ test('a persistent view accumulates its own history, the main view’s left as i
 test('a persistent view is no capture: it draws the effect chain, with its own targets', async () => {
   const effects = new EffectChain().add(effect.bloom())
   const { rt } = await drawnQuad({ effects })
+  // The chain is the lit image's: a view that shows the albedo draws none.
+  rt.lights.store.setView('lit')
+  for (let i = 0; i < 4; i++) {
+    renderWebgpuPages(rt, camera())
+    await flushWebgpuPages(rt)
+  }
   const chain = rt.gpu.effects
   assert.ok(chain, 'the main view draws the chain')
   const { view: side } = await addWebgpuView(rt, { rect: RECT })

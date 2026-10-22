@@ -45,10 +45,6 @@ export function perspectiveDiagonalSlope(fov: number, aspect: number, zoom = 1) 
  *  cotangent its first two diagonal entries hold. */
 export const focalScale = (half: number) => 1 / Math.tan(half)
 
-/** The half field, radians, of a projection scale `s` of either sign: `Math.atan(1 / |s|)`, the
- *  inverse of `focalScale` on `(0, π/2)`. */
-export const halfAngleOfFocalScale = (s: number) => Math.atan(1 / Math.abs(s))
-
 /**
  * Pixels per unit of view-space extent at unit depth under projection `p`, at a viewport `w × h`
  * pixels: `[(w·|p[0]|) / 2, (h·|p[5]|) / 2]` into `out`, the half viewport times the projection's
@@ -62,7 +58,7 @@ export function pixelScale<T extends NumberSink>(out: T, p: ArrayLike<number>, w
 
 /** Pixels per unit on one axis of `size` pixels whose projection scale is `scale`:
  *  `(size·|scale|) / 2`, `pixelScale`'s term. */
-export const axisPixels = (size: number, scale: number) => (size * Math.abs(scale)) / 2
+const axisPixels = (size: number, scale: number) => (size * Math.abs(scale)) / 2
 
 /** The larger of `pixelScale`'s two (`axisPixels`): the focal length in pixels a screen-space
  *  error is measured with. */

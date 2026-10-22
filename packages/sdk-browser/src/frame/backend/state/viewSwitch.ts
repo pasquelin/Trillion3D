@@ -69,8 +69,10 @@ export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   view.hiz?.destroy()
   view.hiz = undefined
   view.gpu.temporal?.dispose()
+  view.gpu.exposure?.dispose()
+  view.gpu.finish?.dispose()
   view.gpu.effects?.dispose()
-  view.gpu.temporal = view.gpu.effects = undefined
+  view.gpu.temporal = view.gpu.exposure = view.gpu.finish = view.gpu.effects = undefined
   // A canvas of its own is withdrawn; the main view's, which a view placed on it presents into,
   // stays.
   if (view.gpu.presenter !== viewGpu(rt, rt.views.main).presenter) view.gpu.presenter?.dispose()

@@ -81,18 +81,3 @@ test('prepare and compileFullCache write the same arguments for one job', { skip
     rmSync(directory, { recursive: true, force: true })
   }
 })
-
-// Behaviour: a full cache asked for an HLOD without simplification is refused naming both options,
-// since exact clusters build no HLOD and the compiler would ignore the flag.
-test('compileFullCache refuses an HLOD of exact clusters, naming both options', () => {
-  assert.throws(
-    () =>
-      compileFullCache({
-        cwd: tmpdir(),
-        source: 'models/city',
-        executable: '/nowhere/compiler',
-        hlod: { levels: 2 },
-      }),
-    /`hlod`.*`simplification: 'qem-endpoints'`/,
-  )
-})

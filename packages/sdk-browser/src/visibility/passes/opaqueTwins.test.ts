@@ -13,7 +13,7 @@ import { surfaceOf } from '../../geometry/pages/surface.ts'
 import { BASE_SLOTS, BIN_KIND, CULL_BINS, HALF_SLOTS } from '../draw/contract.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { createWebgpuVisibilityRasterPipelines, twinOf } from './pipelines.ts'
-import { drawVis } from './drawer.ts'
+import { drawVis } from './drawVis.ts'
 import { createWebgpuVisState } from '../../frame/backend/state/vis.ts'
 import { replayBundles } from '../../../../../tests/kit/fakeDevice/fakeBundles.ts'
 

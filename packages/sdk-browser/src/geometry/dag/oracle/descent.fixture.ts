@@ -1,6 +1,6 @@
 import { DAG_NODE_FLOATS } from '../types.ts'
 import { dagNodeFloor, dagNodeVerdict, dagTreeVerdict } from './nodeVerdict.fixture.ts'
-import { NODE_FIRST_CHILD, NODE_KIND, NODE_PAGE_COUNT } from '../nodeLayout.ts'
+import { NODE_FIRST_CHILD, NODE_KIND } from '../nodeLayout.ts'
 import { drawnAlways, TREE_GROUP, type PlacementTree } from '../placement/placementTree.ts'
 import type { DagViewFrames } from './math.fixture.ts'
 
@@ -136,10 +136,9 @@ export function dagOracleDescent(
   const top = tree?.levels[0]
   for (let c = 0; c < (top?.count ?? 0); c++) frontier.push(tree!.cellBase + top!.base + c, 0, 0)
   // The entries each level's queue holds, as the kernel counts them: queue 0 a slot a root (a
-  // placement's without a tree, the top nodes and the world DAG's with one); and the candidates.
+  // placement's without a tree, the top nodes and the world DAG's with one).
   const work = {
     levels: [tree ? (top?.count ?? 0) + always.length : packed.worldCount],
-    candidates: 0,
   }
   while (frontier.length) {
     const level = frontier.pop() as number
@@ -165,7 +164,6 @@ export function dagOracleDescent(
     // A group of the tree with no member yet opens nothing: it is no leaf.
     if (treeNode(packed, n) >= 0) continue
     nodeFlags.set(w, n, 0)
-    work.candidates += nodeInts[n * DAG_NODE_FLOATS + NODE_PAGE_COUNT]
   }
   return Object.assign(nodeFlags, { work })
 }

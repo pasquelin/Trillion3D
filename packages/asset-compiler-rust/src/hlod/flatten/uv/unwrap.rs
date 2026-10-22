@@ -67,13 +67,16 @@ pub(crate) struct Unwrapped {
     pub(crate) held: Vec<bool>,
 }
 
+/// An island's triangles' corners and the coordinates of its vertices.
+type IslandMap = (Vec<[usize; 3]>, Vec<[f32; 2]>);
+
 /// `topology` unwrapped at `settings` (module doc).
 pub(crate) fn unwrap(topology: &Topology, settings: &HlodPatches) -> Unwrapped {
     let base = Base::of(topology);
     let faces = Faces::of(&base);
     let patches = initial_patches(&base, &faces, settings);
     let islands = islands(&base, &faces.across, patches, settings);
-    let mapped: Vec<(Vec<[usize; 3]>, Vec<[f32; 2]>)> = islands
+    let mapped: Vec<IslandMap> = islands
         .par_iter()
         .map(|island| {
             let map = expmap(&base, island, Seeding::LongestLoop);

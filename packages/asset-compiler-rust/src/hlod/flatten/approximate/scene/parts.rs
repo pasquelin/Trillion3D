@@ -121,7 +121,7 @@ pub(super) fn mesh_parts(
                 continue;
             }
             let own_thickness = if *closed { depth.min(desired) } else { 0.0 };
-            let shell = (own_thickness < desired).then(|| 0.5 * (desired - own_thickness));
+            let shell = (own_thickness < desired).then_some(0.5 * (desired - own_thickness));
             let placements = members.iter().map(|&j| unscaled[j].1).collect();
             wraps.push(Wrap::new(copy, shell, placements));
         }

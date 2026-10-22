@@ -4,7 +4,8 @@ import { pixelToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection
 
 /** View uniform, shared by both programs and by the distortion: `viewport` carries the
  *  size, the raw-output flag of diagnostic views and the composition's sharpening strength; `lightParams` the contract light count, tiles in X and Y, and
- *  exposure, applied before the display curve; `display.x` the rank of that curve
+ *  exposure, applied before the display curve — the scene's number, or the one an automatic
+ *  exposure measured and copied there on the GPU (`../../post/exposure/frame.ts`); `display.x` the rank of that curve
  *  (`../toneMappingWgsl.ts`), `display.yzw` the eye the fog is measured from; `jitter` the TAA's
  *  (`viewJitterWords`, `jitterWords.ts`); `source` the composition's image: its pixels per display
  *  pixel on each axis (`xy`), and its last pixel (`zw`) (`view.ts`, `writeSource`); `views` the

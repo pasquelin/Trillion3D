@@ -5,8 +5,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
 import { RAY_SPREAD_FLOOR, SURFACE_BLENDED } from './runtimeLayout.ts'
-import { along, ahead, origin, runOver } from './runtimeRun.fixture.ts'
+import { NO_SKY, along, ahead, origin, runOver } from './runtimeRun.fixture.ts'
 import { world } from './runtimeScene.fixture.ts'
+import { SKY_SLOT } from '../../../../../sdk-core/src/scene/core/environmentSky.ts'
 
 test('a ray returns the emission and the lit tint of the first opaque surface it meets', () => {
   // One surface: tint (0.5, 0.25, 0), emission (3, 2, 1), opaque.
@@ -82,4 +83,57 @@ test('a ray that spends its budget answers nothing, never a miss that darkens', 
   const seen = runOver(w).rtRadiance(origin, ahead, 1000, 0.01)
   assert.equal(seen.confidence, 0)
   assert.deepEqual(seen.color, [0, 0, 0])
+})
+
+/** A light buffer whose sky light gives the probes the flat sky `upper`, black below the horizon. */
+const skyLit = (upper: number[]) => {
+  const sky = NO_SKY.sky.map((slot) => [...slot])
+  sky[SKY_SLOT.upper] = [...upper, 1]
+  sky[SKY_SLOT.lower] = [0, 0, 0, 1]
+  return { ...NO_SKY, sky }
+}
+
+test('a probe ray that leaves the scene reaches the sky its sky light gives, none without one', () => {
+  const w = world(2, 1, { places: along(2, 4) })
+  const up: [number, number, number] = [0, 1, 0]
+  // Nothing in the way: the sky above, the ground's black below, the reach where it meets nothing.
+  const lit = runOver(w, skyLit([0.2, 0.4, 0.8]))
+  assert.deepEqual(lit.rtProbeRay(origin, up, 1000), [0.2, 0.4, 0.8, 1000])
+  assert.deepEqual(lit.rtProbeRay(origin, [0, -1, 0], 1000), [0, 0, 0, 1000])
+  // The atmosphere shows its sky to the reflections only: a probe ray reaches none of it.
+  const sky = skyLit([0.2, 0.4, 0.8])
+  sky.sky[SKY_SLOT.upper][3] = 0
+  assert.deepEqual(runOver(w, sky).rtProbeRay(origin, up, 1000), [0, 0, 0, 1000])
+})
+
+test('a probe ray reaches the sky for the share of it the scene lets through, no more', () => {
+  const sky = [0.2, 0.4, 0.8]
+  // An opaque surface in the way: its lit tint, none of the sky behind it.
+  const opaque = world(2, 1, { places: along(2, 4), surfaces: [[0.5, 0.25, 0, 1, 0, 0, 0, 0]] })
+  const hit = runOver(opaque, skyLit(sky)).rtProbeRay(origin, ahead, 1000)
+  assert.deepEqual(hit, [0.5, 0.25, 0, 3.5])
+  // A blended solid stops three quarters of the ray, its two faces half each: the sky has the rest.
+  const glass = world(1, 1, {
+    places: along(1, 4),
+    surfaces: [[0.8, 0.4, 0.2, 0.5, 0, 0, 0, SURFACE_BLENDED]],
+  })
+  const seen = runOver(glass, skyLit(sky)).rtProbeRay(origin, ahead, 1000)
+  const want = [0.8, 0.4, 0.2].map((tint, i) => 0.75 * tint + 0.25 * sky[i])
+  seen.slice(0, 3).forEach((c, i) => assert.ok(Math.abs(c - want[i]) < 1e-6, `${seen}`))
+  assert.equal(seen[3], 3.5, 'the distance is the first surface’s')
+})
+
+test('a probe ray leaves the surface it hit, where and which way it faces, for the probe to mark; a read ray and a miss leave none', () => {
+  const opaque = world(2, 1, { places: along(2, 4), surfaces: [[0.5, 0.25, 0, 1, 0, 0, 0, 0]] })
+  const run = runOver(opaque, skyLit([0.2, 0.4, 0.8]))
+  // The front face of the first cube, 3.5 metres out, looks back at the origin.
+  run.rtProbeRay(origin, ahead, 1000)
+  assert.deepEqual(run.testHit(), [3.5, 0, 0, 1])
+  assert.deepEqual(run.testHitNormal(), [-1, 0, 0])
+  // Each ray begins with nothing hit: a ray that finds nothing, a reflection's (read) ray, leave none.
+  run.rtProbeRay(origin, [-1, 0, 0], 1000)
+  assert.deepEqual(run.testHit(), [0, 0, 0, 0], 'a miss')
+  run.rtProbeRay(origin, ahead, 1000)
+  run.rtRadiance(origin, ahead, 1000, 0.01)
+  assert.deepEqual(run.testHit(), [0, 0, 0, 0], 'a read ray marks nothing')
 })
