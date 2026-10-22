@@ -3,6 +3,21 @@ import { resolveTargetUsage } from '../../../post/taa/resolve.ts'
 import type { Size } from '../clouds/reconstructLayout.ts'
 import { LIGHT_SHAFT_FORMAT, type LightShaftSizes } from './layout.ts'
 
+/** History image `index` at `size`. */
+const historyImage = (device: GPUDevice, size: Size, index: number) =>
+  device.createTexture({
+    label: `Trillion3D light shaft history ${index}`,
+    size,
+    format: LIGHT_SHAFT_FORMAT,
+    usage: resolveTargetUsage(),
+  })
+
+/** The held image's texture in the scene's pixels: the shafts' texture size times the factor. */
+const sceneBuffer = ({ shaft, factor }: LightShaftSizes): Size => ({
+  width: shaft.texture.width * factor,
+  height: shaft.texture.height * factor,
+})
+
 /**
  * THE HISTORY OF A LIGHT SHAFT CHAIN, a pair of images at the shafts' texture size the temporal
  * filter alternates between: it reads `held`, the last image it drew, and draws `next`; `commit`
@@ -37,12 +52,7 @@ export function createLightShaftHistory(device: GPUDevice) {
     allocate(texture: Size) {
       history.drop()
       for (let i = 0; i < 2; i++) {
-        const image = device.createTexture({
-          label: `Trillion3D light shaft history ${i}`,
-          size: texture,
-          format: LIGHT_SHAFT_FORMAT,
-          usage: resolveTargetUsage(),
-        })
+        const image = historyImage(device, texture, i)
         textures.push(image)
         views.push(image.createView())
       }
@@ -60,14 +70,10 @@ export function createLightShaftHistory(device: GPUDevice) {
     /** After the draw: the image drawn becomes the held one, for the scene and the reduction
      *  `sizes` it was drawn at. */
     commit(sizes: LightShaftSizes) {
-      const { factor } = sizes
       held = 1 - held
       history.valid = true
       history.viewport = sizes.scene.view
-      history.buffer = {
-        width: sizes.shaft.texture.width * factor,
-        height: sizes.shaft.texture.height * factor,
-      }
+      history.buffer = sceneBuffer(sizes)
     },
     /** Drops the images (this image's commands may still name them: retired), and the history. */
     drop() {

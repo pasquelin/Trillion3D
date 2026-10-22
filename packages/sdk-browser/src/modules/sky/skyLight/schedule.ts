@@ -88,25 +88,39 @@ const topMip = (faceFirst: number): CaptureStep => ({
   faceCount: 2,
 })
 
-/**
- * The state after one more frame, mutated in place, and what that frame does. Called once a frame.
- */
-export function advanceCapture(state: CaptureState, options: ScheduleOptions): CaptureStep {
-  const { timeSlice, facesPerFrame, mips } = options
-  if (timeSlice) {
-    if (state.first === 0) {
-      state.first = 1
-      state.complete = false
-    } else if (state.first === 1) state.first = 2
-  } else state.first = 0
-  if (!timeSlice || state.first < 2 || !state.complete) {
-    state.complete = true
-    state.ready = 0
-    state.step = -1
-    state.subStep = 0
-    return { kind: 'whole' }
-  }
-  const perFrame = clamp(facesPerFrame, 1, CUBE_FACES)
+/** What each step of a sliced capture does, from its faces and the cube's last mip; the step after
+ *  the last of these sums the harmonics. */
+const SLICE_STEPS: readonly ((
+  faceFirst: number,
+  faceEnd: number,
+  lastMip: number,
+) => CaptureStep)[] = [
+  (faceFirst, faceEnd) => ({ kind: 'sky', faceFirst, faceEnd }),
+  (faceFirst, faceEnd) => ({ kind: 'clouds', faceFirst, faceEnd }),
+  () => ({ kind: 'mips' }),
+  () => topMip(0),
+  () => topMip(2),
+  () => topMip(4),
+  (_a, _b, lastMip) => filterMips(1, 1, lastMip),
+  (_a, _b, lastMip) => filterMips(2, 2, lastMip),
+  (_a, _b, lastMip) => filterMips(3, 3, lastMip),
+  (_a, _b, lastMip) => filterMips(4, 5, lastMip),
+  (_a, _b, lastMip) => filterMips(6, lastMip, lastMip),
+]
+
+/** The slicing's first two frames are whole captures: `first` counts them, and a sliced capture
+ *  starts incomplete. */
+function startSlicing(state: CaptureState, timeSlice: boolean) {
+  if (!timeSlice) state.first = 0
+  else if (state.first === 0) {
+    state.first = 1
+    state.complete = false
+  } else if (state.first === 1) state.first = 2
+}
+
+/** The step after this one: the faces of the sky and clouds steps take `perFrame` at a time, and the
+ *  steps after the last start the other filtered cube. */
+function moveStep(state: CaptureState, perFrame: number) {
   const lastEnd = clamp(state.subStep + perFrame, 0, CUBE_FACES)
   let done = true
   if (state.step === 0 || state.step === 1) {
@@ -118,35 +132,26 @@ export function advanceCapture(state: CaptureState, options: ScheduleOptions): C
     state.step = 0
     state.subStep = 0
   }
+}
+
+/**
+ * The state after one more frame, mutated in place, and what that frame does. Called once a frame.
+ */
+export function advanceCapture(state: CaptureState, options: ScheduleOptions): CaptureStep {
+  const { timeSlice, facesPerFrame, mips } = options
+  startSlicing(state, timeSlice)
+  if (!timeSlice || state.first < 2 || !state.complete) {
+    state.complete = true
+    state.ready = 0
+    state.step = -1
+    state.subStep = 0
+    return { kind: 'whole' }
+  }
+  const perFrame = clamp(facesPerFrame, 1, CUBE_FACES)
+  moveStep(state, perFrame)
   const faceFirst = clamp(state.subStep, 0, CUBE_FACES - 1)
   const faceEnd = clamp(state.subStep + perFrame, 0, CUBE_FACES)
-  const lastMip = mips - 1
-  switch (state.step) {
-    case 0:
-      return { kind: 'sky', faceFirst, faceEnd }
-    case 1:
-      return { kind: 'clouds', faceFirst, faceEnd }
-    case 2:
-      return { kind: 'mips' }
-    case 3:
-      return topMip(0)
-    case 4:
-      return topMip(2)
-    case 5:
-      return topMip(4)
-    case 6:
-      return filterMips(1, 1, lastMip)
-    case 7:
-      return filterMips(2, 2, lastMip)
-    case 8:
-      return filterMips(3, 3, lastMip)
-    case 9:
-      return filterMips(4, 5, lastMip)
-    case 10:
-      return filterMips(6, lastMip, lastMip)
-    default:
-      return { kind: 'harmonics' }
-  }
+  return SLICE_STEPS[state.step]?.(faceFirst, faceEnd, mips - 1) ?? { kind: 'harmonics' }
 }
 
 /** The filtered cube the capture writes this frame: the one that is not ready. */

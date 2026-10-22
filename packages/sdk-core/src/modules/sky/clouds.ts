@@ -14,7 +14,7 @@ import {
   vectorSetting as vector,
 } from '../../contracts/settingRules.ts'
 import { CLOUD_MATERIAL_RULES, type CloudMaterial } from './cloudMaterial.ts'
-import { SKY_QUALITY_RULES, type SkyQualityValues } from './quality.ts'
+import { CM_PER_KM, SKY_QUALITY_RULES, type SkyQualityValues } from './quality.ts'
 
 /**
  * The clouds part of the sky module: one layer of clouds, a shell round the planet ray marched
@@ -81,8 +81,6 @@ export const CLOUD_RULES = /* @__PURE__ */ (() =>
 export type CloudOptions = SettingOptions<typeof CLOUD_RULES> &
   SettingOptions<typeof CLOUD_MATERIAL_RULES>
 
-/** Centimetres in a kilometre: the marcher traces in centimetres. */
-const CM_PER_KM = 100000
 /** The samples of a view ray and of a shadow ray at a scale of 1. */
 const VIEW_SAMPLES = 96
 const SHADOW_SAMPLES = 10

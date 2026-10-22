@@ -85,6 +85,8 @@ const HANDED_IN = new Set([
   'gpu/core/shaderModule.ts',
   'gpu/sort/sortKit.ts',
   'gpu/core/computeStages.ts',
+  'modules/sky/clouds/generation.ts',
+  'modules/sky/skyLight/pipelines.ts',
   'visibility/raster/resolve.ts',
   'materials/texture/coverageMips.ts',
   'lighting/deferred/program.ts',

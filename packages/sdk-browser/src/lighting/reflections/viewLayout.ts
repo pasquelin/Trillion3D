@@ -12,9 +12,11 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../deferred/worldAtWgsl.ts'
  *    radiance pyramid's image was drawn with;
  *  - `radiance`, the radiance image's drawn size and its top level (`z`);
  *  - `slab`, the geometry of a surface's thickness (`screenBack`): the world size of a pixel at
- *    a unit clip `w` (`x`), the depth at an infinite distance (`y`), the depth a pixel's thickness
- *    spans under an orthographic projection (`z`), and whether the projection is a perspective
- *    (`w`);
+ *    a unit clip `w` (`x`), the depth at an infinite distance under a perspective, the eye's plane
+ *    under an orthographic projection (`y`), its numerator over the distance, the depth a pixel's
+ *    thickness spans (`z`), and whether the projection is a perspective (`w`);
+ *  - `thickness`, the share of a surface's depth the reference walk takes for its thickness:
+ *    `hizRelativeDepthThickness` times the projection's scale, `screenRelativeThickness`;
  *  - `traced`, whether the screen is traced this image (`x`: the depth pyramid holds this image's
  *    depth and the radiance pyramid an earlier image of this view);
  *  - `front`, whether this image's trace answers the transparents' front surface (`x`, one or zero,
@@ -31,6 +33,7 @@ const LAYOUT = fieldLayout('ReflectionView', [
   ['radianceViewProj', 'mat4x4f'],
   ['radiance', 'vec4f'],
   ['slab', 'vec4f'],
+  ['thickness', 'f32'],
   ['traced', 'vec4u'],
   ['front', 'vec4u'],
   ['temporal', 'vec4u'],

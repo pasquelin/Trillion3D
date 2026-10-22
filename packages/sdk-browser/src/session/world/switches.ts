@@ -99,6 +99,160 @@ function applyHeld(
   if (held.maxFrameRate !== given.maxFrameRate) opened.setMaxFrameRate(held.maxFrameRate)
 }
 
+/** `base` with the accessors of `parts` defined on it, as written: a getter stays a getter, so
+ *  the object reads and writes its sources at every call, never a copy. */
+function composed<
+  T extends object,
+  A extends object,
+  B extends object,
+  C extends object,
+  D extends object,
+>(base: T, ...parts: [A, B, C, D]) {
+  for (const part of parts) Object.defineProperties(base, Object.getOwnPropertyDescriptors(part))
+  return base as T & A & B & C & D
+}
+
+/** The switches with a setting of the registry of their own: bounced light, temporal antialiasing
+ *  (and the scene's level) and the cut's screen error, written at the page's priority. */
+function pageAccessors(held: Held, settings: WorldSettings) {
+  return {
+    get bounce() {
+      return held.bounce
+    },
+    set bounce(on: boolean) {
+      settings.set('bounce', on, 'page')
+    },
+    /** The level asked, resolved over the page, the preset and the scene; whether the image
+     *  carries it is the `'temporal antialiasing'` capability. */
+    get temporalAntialiasing(): TemporalAntialiasingLevel {
+      return held.temporalAntialiasing
+    },
+    /** The page's level; `undefined` or `null` gives the setting back to the preset and the scene. */
+    set temporalAntialiasing(option: TemporalAntialiasingOption | null | undefined) {
+      if (option == null) settings.clear('antialiasing', 'page')
+      else settings.set('antialiasing', temporalAntialiasingLevel(option), 'page')
+    },
+    /** A loaded scene's level (`TEMPORAL_AA_FIELD` of its manifest): the `scene` setting, the
+     *  first scene naming one deciding for the world's life. */
+    sceneTemporalAntialiasing(level: TemporalAntialiasingLevel) {
+      if (!settings.holds('antialiasing', 'scene')) settings.set('antialiasing', level, 'scene')
+    },
+    get pixelError() {
+      return held.pixelError
+    },
+    set pixelError(value: number) {
+      settings.set('pixelError', value, 'page')
+    },
+  }
+}
+
+/** The software raster's two settings and the rasterizer's and geometry streaming's families by
+ *  rule: read, their settings resolved over the page and the preset, by field — what a session
+ *  opens with — (`ruledSwitches`). */
+function rasterAccessors(families: ReturnType<typeof worldFamilies>) {
+  return {
+    /** The software raster, resolved over the page and the preset. */
+    get softwareRaster(): boolean {
+      return families.raster.get('softwareRaster')
+    },
+    /** The page's software raster; `undefined` or `null` gives the setting back to the preset. */
+    set softwareRaster(option: boolean | null | undefined) {
+      families.raster.set({ softwareRaster: option })
+    },
+    /** The hardware raster edge in pixels, resolved over the page and the preset. */
+    get hardwareRasterEdgePixels(): number {
+      return families.raster.get('hardwareRasterEdgePixels')
+    },
+    /** The page's hardware raster edge; `undefined` or `null` gives the setting back to the
+     *  preset. */
+    set hardwareRasterEdgePixels(option: number | null | undefined) {
+      families.raster.set({ hardwareRasterEdgePixels: option })
+    },
+    // Each family by rule: read, its settings resolved over the page and the preset, by field —
+    // what a session opens with —; written, the page's settings the options name (`ruledSwitches`).
+    get raster() {
+      return families.raster.values()
+    },
+    get streaming() {
+      return families.streaming.values()
+    },
+  }
+}
+
+/** The other families by rule: read, their settings resolved over the page and the preset, by
+ *  field; written, the page's settings the options name (`ruledSwitches`). */
+function ruledAccessors(families: ReturnType<typeof worldFamilies>) {
+  return {
+    get worldStreaming() {
+      return families.worldStreaming.values()
+    },
+    set worldStreaming(options: WorldStreamingOptions & HlodWarmupOptions) {
+      families.worldStreaming.set(options)
+    },
+    get cut() {
+      return families.cut.values()
+    },
+    set cut(options: CutOptions) {
+      families.cut.set(options)
+    },
+    get animation() {
+      return families.animation.values()
+    },
+    set animation(options: AnimationOptions) {
+      families.animation.set(options)
+    },
+    get shading() {
+      return families.shading.values()
+    },
+    set shading(options: ShadingOptions) {
+      families.shading.set(options)
+    },
+    get exposureSettings() {
+      return families.exposure.values()
+    },
+    set exposureSettings(options: ExposureOptions) {
+      families.exposure.set(options)
+    },
+    get temporal() {
+      return families.temporal.values()
+    },
+    set temporal(options: TemporalOptions) {
+      families.temporal.set(options)
+    },
+    get hiz() {
+      return families.hiz.values()
+    },
+    set hiz(options: HizOptions) {
+      families.hiz.set(options)
+    },
+  }
+}
+
+/** The switches the open session answers: the render scale and the frame cap. */
+function sessionAccessors(held: Held, runtime: () => SwitchedRuntime, invalidate: () => void) {
+  return {
+    /** The scale of the image the open session drew last, 1 before one opens. */
+    get renderScale(): number {
+      return runtime().explorer?.renderScale() ?? 1
+    },
+    set renderScale(scale: RenderScale) {
+      if (scale === held.renderScale) return
+      held.renderScale = scale
+      runtime().explorer?.setRenderScale(scale)
+      invalidate()
+    },
+    /** The world's frame cap, frames a second (`WorldOptions.maxFrameRate`). */
+    get maxFrameRate() {
+      return held.maxFrameRate
+    },
+    set maxFrameRate(rate: number) {
+      if (rate === held.maxFrameRate) return
+      held.maxFrameRate = rate
+      runtime().explorer?.setMaxFrameRate(rate)
+    },
+  }
+}
+
 /**
  * The world's render switches — bounced light, temporal antialiasing, the cut's screen error, the
  * software raster and its hardware edge (`rasterOptions.ts`), the geometry streaming's eight
@@ -144,130 +298,23 @@ export function worldSwitches(
   const held = heldSwitches(options, settings, invalidate)
   watchSettings(settings, runtime, invalidate)
   for (const family of Object.values(families)) family.watch(() => runtime().explorer, invalidate)
-  const switches = {
-    held,
-    settings,
-    quality,
-    /** Writes into the session just opened each switch the page changed since it was `given` its
-     *  options. */
-    apply(opened: MeasuredWorld, given: MeasuredWorldOptions) {
-      applyHeld(held, families, opened, given)
+  const switches = composed(
+    {
+      held,
+      settings,
+      quality,
+      /** Writes into the session just opened each switch the page changed since it was `given` its
+       *  options. */
+      apply(opened: MeasuredWorld, given: MeasuredWorldOptions) {
+        applyHeld(held, families, opened, given)
+      },
+      /** The page's guides: one set for the world's life, drawn by every session it opens. */
+      guides: held.guides as Guides,
     },
-    /** The page's guides: one set for the world's life, drawn by every session it opens. */
-    guides: held.guides as Guides,
-    get bounce() {
-      return held.bounce
-    },
-    set bounce(on: boolean) {
-      settings.set('bounce', on, 'page')
-    },
-    /** The level asked, resolved over the page, the preset and the scene; whether the image
-     *  carries it is the `'temporal antialiasing'` capability. */
-    get temporalAntialiasing(): TemporalAntialiasingLevel {
-      return held.temporalAntialiasing
-    },
-    /** The page's level; `undefined` or `null` gives the setting back to the preset and the scene. */
-    set temporalAntialiasing(option: TemporalAntialiasingOption | null | undefined) {
-      if (option == null) settings.clear('antialiasing', 'page')
-      else settings.set('antialiasing', temporalAntialiasingLevel(option), 'page')
-    },
-    /** A loaded scene's level (`TEMPORAL_AA_FIELD` of its manifest): the `scene` setting, the
-     *  first scene naming one deciding for the world's life. */
-    sceneTemporalAntialiasing(level: TemporalAntialiasingLevel) {
-      if (!settings.holds('antialiasing', 'scene')) settings.set('antialiasing', level, 'scene')
-    },
-    get pixelError() {
-      return held.pixelError
-    },
-    set pixelError(value: number) {
-      settings.set('pixelError', value, 'page')
-    },
-    /** The software raster, resolved over the page and the preset. */
-    get softwareRaster(): boolean {
-      return families.raster.get('softwareRaster')
-    },
-    /** The page's software raster; `undefined` or `null` gives the setting back to the preset. */
-    set softwareRaster(option: boolean | null | undefined) {
-      families.raster.set({ softwareRaster: option })
-    },
-    /** The hardware raster edge in pixels, resolved over the page and the preset. */
-    get hardwareRasterEdgePixels(): number {
-      return families.raster.get('hardwareRasterEdgePixels')
-    },
-    /** The page's hardware raster edge; `undefined` or `null` gives the setting back to the
-     *  preset. */
-    set hardwareRasterEdgePixels(option: number | null | undefined) {
-      families.raster.set({ hardwareRasterEdgePixels: option })
-    },
-    // Each family by rule: read, its settings resolved over the page and the preset, by field —
-    // what a session opens with —; written, the page's settings the options name (`ruledSwitches`).
-    get raster() {
-      return families.raster.values()
-    },
-    get streaming() {
-      return families.streaming.values()
-    },
-    get worldStreaming() {
-      return families.worldStreaming.values()
-    },
-    set worldStreaming(options: WorldStreamingOptions & HlodWarmupOptions) {
-      families.worldStreaming.set(options)
-    },
-    get cut() {
-      return families.cut.values()
-    },
-    set cut(options: CutOptions) {
-      families.cut.set(options)
-    },
-    get animation() {
-      return families.animation.values()
-    },
-    set animation(options: AnimationOptions) {
-      families.animation.set(options)
-    },
-    get shading() {
-      return families.shading.values()
-    },
-    set shading(options: ShadingOptions) {
-      families.shading.set(options)
-    },
-    get exposureSettings() {
-      return families.exposure.values()
-    },
-    set exposureSettings(options: ExposureOptions) {
-      families.exposure.set(options)
-    },
-    get temporal() {
-      return families.temporal.values()
-    },
-    set temporal(options: TemporalOptions) {
-      families.temporal.set(options)
-    },
-    get hiz() {
-      return families.hiz.values()
-    },
-    set hiz(options: HizOptions) {
-      families.hiz.set(options)
-    },
-    /** The scale of the image the open session drew last, 1 before one opens. */
-    get renderScale(): number {
-      return runtime().explorer?.renderScale() ?? 1
-    },
-    set renderScale(scale: RenderScale) {
-      if (scale === held.renderScale) return
-      held.renderScale = scale
-      runtime().explorer?.setRenderScale(scale)
-      invalidate()
-    },
-    /** The world's frame cap, frames a second (`WorldOptions.maxFrameRate`). */
-    get maxFrameRate() {
-      return held.maxFrameRate
-    },
-    set maxFrameRate(rate: number) {
-      if (rate === held.maxFrameRate) return
-      held.maxFrameRate = rate
-      runtime().explorer?.setMaxFrameRate(rate)
-    },
-  }
+    pageAccessors(held, settings),
+    rasterAccessors(families),
+    ruledAccessors(families),
+    sessionAccessors(held, runtime, invalidate),
+  )
   return switches
 }

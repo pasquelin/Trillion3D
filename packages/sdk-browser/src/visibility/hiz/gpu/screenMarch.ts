@@ -18,14 +18,17 @@ import { SCREEN_MARCH_REFERENCE_WGSL } from './screenMarchReference.ts'
  * Two walks read the pyramid, by the setting `hizTrace` (`hizOptions.ts`), which the host sends in
  * the levels uniform with the pyramid built for it (`GpuHiz.planes`): the reference's, the default
  * (`screenMarchReference`), over the closest depth of each texel's centre; the engine's own
- * (`screenMarchPlanes`), over the planes of the pixels.
+ * (`screenMarchPlanes`), over the planes of the pixels. The reference's walk goes down to the
+ * full-resolution depth. The surface's thickness is two values, the march picking its own: `pixels`
+ * for the planes' march, in pixels of footprint, and `relative` for the reference's walk, a share
+ * of the surface's depth (`hizRelativeDepthThickness`, `screenRelativeThickness`).
  */
 export const SCREEN_MARCH_WGSL = (group: number, binding: number) =>
   wgslBlock(
     `SCREEN_MARCH_WGSL(${group}, ${binding})`,
     [SCREEN_MARCH_PLANES_WGSL(group, binding), SCREEN_MARCH_REFERENCE_WGSL(group, binding)],
-    `fn screenMarch(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->ScreenHit{
- if(hizTracePlanes()){return screenMarchPlanes(o,d,end,thickness,slab,cap);}
- return screenMarchReference(o,d,end,thickness,slab,cap);
+    `fn screenMarch(o:vec3f,d:vec3f,end:f32,pixels:f32,relative:f32,slab:vec4f,cap:u32)->ScreenHit{
+ if(hizTracePlanes()){return screenMarchPlanes(o,d,end,pixels,slab,cap);}
+ return screenMarchReference(o,d,end,relative,slab,cap);
 }`,
   )

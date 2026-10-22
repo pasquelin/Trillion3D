@@ -32,9 +32,14 @@ const OFFERED = [
 test('the device asks exactly the optional features the adapter offers, and publishes them', async () => {
   const { adapter, asked } = adapterOffering(OFFERED)
   const device = await requestExplorerDevice(adapter, [])
-  // `float32-filterable` is offered but used by no kernel: it is not asked for.
   assert.deepEqual(asked, [
-    ['subgroups', 'shader-f16', 'depth-clip-control', 'texture-compression-bc'],
+    [
+      'subgroups',
+      'shader-f16',
+      'depth-clip-control',
+      'float32-filterable',
+      'texture-compression-bc',
+    ],
   ])
   assert.deepEqual(grantedGpuFeatures(device), asked[0])
 })
@@ -43,8 +48,9 @@ test('a feature the URL forces off is neither asked for nor published', async ()
   const { adapter, asked } = adapterOffering(OFFERED)
   // `?trillion3dGpuFeaturesOff=subgroups,%20shader-f16`, as written: a name keeps its spaces.
   const device = await requestExplorerDevice(adapter, ['subgroups', ' shader-f16'])
-  assert.deepEqual(asked, [['depth-clip-control', 'texture-compression-bc']])
-  assert.deepEqual(grantedGpuFeatures(device), ['depth-clip-control', 'texture-compression-bc'])
+  const kept = ['depth-clip-control', 'float32-filterable', 'texture-compression-bc']
+  assert.deepEqual(asked, [kept])
+  assert.deepEqual(grantedGpuFeatures(device), kept)
 })
 
 // The device carries the adapter's own colour bytes, whatever the engine's widest pass.

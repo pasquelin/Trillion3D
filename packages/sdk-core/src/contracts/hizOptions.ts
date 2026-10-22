@@ -1,6 +1,7 @@
 import {
   choiceSetting as choice,
   flagSetting as flag,
+  nonNegativeSetting as nonNegative,
   rulesOf,
   type SettingOptions,
 } from './settingRules.ts'
@@ -11,6 +12,9 @@ import {
  * transparent clusters are tested against it. Run-time settings, as `./settingRules.ts` says. The
  * cut's own occlusion (`cutTwoPassOcclusion`, `./cutOptions.ts`) reads the culling layer, which no
  * setting here changes: it is the opaque depth, farthest, in every mode.
+ *
+ * `hizRelativeDepthThickness` belongs to the `'reference'` walk of `hizTrace`, read by the
+ * reflections' trace.
  */
 
 /** How a screen trace reads the pyramid: `'reference'`, the closest depth of the opaque image at
@@ -25,12 +29,15 @@ const HIZ_TRANSPARENT_TESTS = ['finer', 'reference'] as const
 /** The pyramid's settings by field: `hizTrace`, `'reference'` — how the reflections' trace reads
  *  the pyramid —; `hizFoldTransparents`, off — whether the trace layers hold the nearest
  *  transparent surface of each pixel beside the opaque depth —; `hizTransparentTest`, `'finer'` —
- *  how the transparent clusters are tested. */
+ *  how the transparent clusters are tested —; `hizRelativeDepthThickness`, 0.005 — the thickness
+ *  the reflections' `'reference'` walk gives a surface, a share of the surface's depth, times the
+ *  projection's scale (1 under a perspective); the `'planes'` walk keeps its pixels' thickness. */
 export const HIZ_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     choice('hizTrace', 'reference', HIZ_TRACES),
     flag('hizFoldTransparents', false),
     choice('hizTransparentTest', 'finer', HIZ_TRANSPARENT_TESTS),
+    nonNegative('hizRelativeDepthThickness', 0.005),
   ] as const))()
 /** The field of one setting of the pyramid. */
 export type HizField = keyof typeof HIZ_RULES

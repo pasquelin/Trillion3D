@@ -40,15 +40,17 @@ import { readTexture } from '../../kit/device/computeReadback.ts'
 import { halves, type RigFrame } from './rigFrame.ts'
 import { SURFACE_FORMATS } from '../../../packages/sdk-browser/src/materials/surface/surfaceBuffer.ts'
 import { PHYSICAL_LOBES_FORMAT } from '../../../packages/sdk-browser/src/materials/surface/physicalLobes.ts'
+import { HIZ_RULES } from '../../../packages/sdk-core/src/contracts/hizOptions.ts'
 import { texelBytesOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 
 /**
  * The frame laid in the device, the engine's kernels built on it. `image` encodes one image; its
  * reflection target (`target`) is read back by `read`, its raw half-float words. `fill` writes
  * every word of the target first — the proofs that ask whether every pixel is written put a NaN
- * there.
+ * there. `planes` is the trace the pyramid is built for (`hizTrace`): the planes the proofs pin, or,
+ * false, the reference's walk of the closest depth of each texel's centre.
  */
-export async function openRig(device: GPUDevice, frame: RigFrame) {
+export async function openRig(device: GPUDevice, frame: RigFrame, planes = true) {
   const [width, height] = frame.size
   const pipelines = await createReflectionPipelines(device)
   if (!pipelines) throw new Error('the reflection kernels do not build')
@@ -104,8 +106,10 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
   // What each image tells its view: the frame's, no transparent; the lights' epoch moves with `light`.
   const told: ReflectionFrame = {
     viewProjection: frame.viewProjection,
+    eye: frame.eye,
     size: frame.size,
     depthDrawn: true,
+    relativeThickness: HIZ_RULES.hizRelativeDepthThickness.default,
     front: false,
     surroundings,
   }
@@ -137,6 +141,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
       // The visibility's builds once the depth is drawn: its culling layer, then its nearest and
       // the finished depth's farthest.
       hiz.encodePyramid({ pass })
+      hiz.planes(planes)
       hiz.encodeNearest({ pass })
       pass.end()
       const group = reflectionGroup(reflection, depth, over.lightView)

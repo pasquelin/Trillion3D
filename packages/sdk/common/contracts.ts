@@ -33,6 +33,8 @@ export {
 export type { ColorSpace } from '../../sdk-core/src/world/constants/index.ts'
 export { createJob } from '../../sdk-core/src/runtime/jobs/jobs.ts'
 export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/runtime/jobs/jobs.ts'
+export { createModuleManager } from '../../sdk-core/src/modules/manager.ts'
+export type { ModuleHooks, ModuleManager } from '../../sdk-core/src/modules/manager.ts'
 export { createSceneRoot, SceneRoot } from '../../sdk-core/src/scene/core/root.ts'
 export {
   CUTOUT_SHEET_FILE,
@@ -60,6 +62,20 @@ export type {
   PrimitiveDagWarning,
 } from '../../sdk-core/src/contracts/dag.ts'
 export { dagWarningsDiagnostic } from '../../sdk-core/src/contracts/dagWarnings.ts'
+export {
+  defineModule,
+  mergeModuleParts,
+  resolveModuleOption,
+} from '../../sdk-core/src/modules/descriptor.ts'
+export type {
+  ModuleDecision,
+  ModuleDescriptor,
+  ModuleOption,
+  ModulePartFields,
+  ModuleParts,
+  ModuleReason,
+  ModuleState,
+} from '../../sdk-core/src/modules/descriptor.ts'
 export {
   DEPTH_LAYER_BIAS_UNITS,
   depthLayerUnits,

@@ -9,12 +9,12 @@ import { CLOUD_EMPTY_SPACE_SIDE } from './traceOptions.ts'
 import {
   CLOUD_TRACE_EXTRA_BINDING as B,
   CLOUD_TRACE_EXTRA_GROUP as G,
-  type CloudTracePermutation,
+  type CloudTraceKey,
 } from './traceExtraLayout.ts'
 
 /**
  * THE VIEW TRACING'S OPTIONAL PARTS, each a function the march calls whatever the variation
- * (`CloudTracePermutation`), answering as no such part would where the frame did not ask for it.
+ * (`CloudTraceKey`), answering as no such part would where the frame did not ask for it.
  * The program that includes them declares the trace block (\`cloudTrace\`), the air's frame
  * (\`frame\`) and the material (\`cloudMaterialBindings\`).
  *
@@ -114,7 +114,7 @@ fn cloudLocalLights(rel:vec3f,o:CloudOctaves)->array<vec3f,3>{
 }`
 
 /** The optional parts of the variation \`p\`: the functions the march calls, and what they read. */
-export const cloudTraceExtraWgsl = (p: CloudTracePermutation) => {
+export const cloudTraceExtraWgsl = (p: CloudTraceKey) => {
   const uses: WgslDecl[] = [CLOUD_POINT_WGSL]
   if (p.opaqueShadow) {
     const vsm = B.vsm

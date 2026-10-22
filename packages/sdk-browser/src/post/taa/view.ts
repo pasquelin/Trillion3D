@@ -74,9 +74,24 @@ function writeDepthTerms(
 /** The device depth of a point on the view axis at distance `s`, `(a·s + b) / (c·s + d)`, for the
  *  perspective `projection` (column-major): the terms `(a, b, c, d)`, with `s` the distance ahead
  *  of the eye whichever way the projection looks (`a` and `c` carry the sign that puts it so). */
-export function depthTermsAhead(projection: ArrayLike<number>) {
+export function depthTermsAhead(
+  projection: ArrayLike<number>,
+): readonly [number, number, number, number]
+/** The same terms written in place at `out[offset..offset + 4]`, with no array made. */
+export function depthTermsAhead(
+  projection: ArrayLike<number>,
+  out: Float32Array,
+  offset: number,
+): void
+export function depthTermsAhead(projection: ArrayLike<number>, out?: Float32Array, offset = 0) {
   const ahead = Math.sign(projection[11]) || 1
-  return [projection[10] * ahead, projection[14], projection[11] * ahead, projection[15]] as const
+  const a = projection[10] * ahead
+  const c = projection[11] * ahead
+  if (!out) return [a, projection[14], c, projection[15]] as const
+  out[offset] = a
+  out[offset + 1] = projection[14]
+  out[offset + 2] = c
+  out[offset + 3] = projection[15]
 }
 
 /**

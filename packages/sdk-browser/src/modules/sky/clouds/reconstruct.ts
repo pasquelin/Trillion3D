@@ -8,6 +8,7 @@ import {
   computeTextureEntry,
   computeUniformEntry,
 } from '../../../gpu/core/computeBindings.ts'
+import { depthTermsAhead } from '../../../post/taa/view.ts'
 import {
   DEFAULT_CLOUD_SETUP,
   cloudLayoutKey,
@@ -169,15 +170,7 @@ export function writeReconstructView(out: Float32Array, input: ReconstructInput,
   put4(out, at.offset, plan.offset[0], plan.offset[1], 0, 0)
   writeTracingJitter(out, at.offset + 2, plan.offset, view, setupOfPlan(plan).mode)
   // The device depth of a point on the view axis at distance `s`: (a·s + b) / (c·s + d).
-  const ahead = Math.sign(projection[11]) || 1
-  put4(
-    out,
-    at.depthTerms,
-    projection[10] * ahead,
-    projection[14],
-    projection[11] * ahead,
-    projection[15],
-  )
+  depthTermsAhead(projection, out, at.depthTerms)
   const { cloudReprojectionMinDistanceKm, cloudDisocclusionMaxDistanceKm } = part.quality
   put4(out, at.distances, cloudReprojectionMinDistanceKm, cloudDisocclusionMaxDistanceKm, 0, 0)
   writeSafeBounds(out, at.traced, plan.sizes.traced)

@@ -20,7 +20,7 @@ import { CLOUD_TRACE_AIR } from './traceWgsl.ts'
  * 0 is the air's, as the view tracing's; group 1 holds the material's seven bindings, the trace's
  * block (`writeCloudTrace`, the very block the tracing reads) and the table, written
  * (`CLOUD_EMPTY_SPACE_FORMAT`, `CLOUD_EMPTY_SPACE_SIDE` texels across and down). The pass runs for a
- * frame that asked for the table (`cloudTracePermutation`), never in a reflection, before the
+ * frame that asked for the table (`cloudTraceKey`), never in a reflection, before the
  * tracing; the tracing reads the table it wrote.
  */
 export function cloudEmptySpaceLayoutEntries(): GPUBindGroupLayoutEntry[] {

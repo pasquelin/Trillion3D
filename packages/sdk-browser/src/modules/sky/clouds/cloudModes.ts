@@ -6,6 +6,7 @@ import {
   SKY_QUALITY_RULES,
   type SkyQualityValues,
 } from '../../../../../sdk-core/src/modules/sky/quality.ts'
+import type { CloudTraceKey } from './traceExtraLayout.ts'
 
 /**
  * THE FOUR WAYS THE CLOUDS ARE TRACED AT A REDUCED SIZE (`cloudTraceSize`), each described once,
@@ -181,14 +182,29 @@ export function cloudSetupOf(settings: CloudSetupSettings, computeTracing = true
   }
 }
 
+const DEFAULT_QUALITY = /* @__PURE__ */ resolveSettings(SKY_QUALITY_RULES, {})
+
 /** The setup the settings' defaults make: mode 0 with two surfaces. */
-export const DEFAULT_CLOUD_SETUP: CloudSetup = /* @__PURE__ */ cloudSetupOf(
-  resolveSettings(SKY_QUALITY_RULES, {}),
-)
+export const DEFAULT_CLOUD_SETUP: CloudSetup = /* @__PURE__ */ cloudSetupOf(DEFAULT_QUALITY)
+
+/** The setup the sky light's capture traces with, whatever the view's settings: a reflection has no
+ *  history and no scene depth range, so the mode 0 geometry with one surface. The capture's
+ *  pipeline and its block are both made from it. */
+export const CAPTURE_CLOUD_SETUP: CloudSetup = /* @__PURE__ */ cloudSetupOf(DEFAULT_QUALITY, false)
+
+/** The program the capture traces with: the capture setup's depth source, and none of the options
+ *  (no empty-space table, no sun shadow, no lamps), as the reference capture has them off. */
+export const CAPTURE_CLOUD_KEY: CloudTraceKey = {
+  depth: CAPTURE_CLOUD_SETUP.depth,
+  minMaxDepth: CAPTURE_CLOUD_SETUP.minMaxDepth,
+  emptySpace: false,
+  opaqueShadow: false,
+  localLights: false,
+}
 
 /** What a setup's images are, as a key: a change of it makes every image again. */
 export const cloudLayoutKey = (setup: CloudSetup) =>
-  `${setup.mode.index}${setup.minMaxDepth ? 'm' : 's'}`
+  [setup.mode.index, setup.minMaxDepth ? 'm' : 's'].join('|')
 
 /** The nearest whole number, halves up. */
 const roundHalfUp = (x: number) => Math.floor(x + 0.5)

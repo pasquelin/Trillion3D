@@ -14,6 +14,20 @@ import { SHADE_BINS_SHADER } from '../../visibility/shader/shadeBinKernelsWgsl.t
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
 import { RESOLVE, rasterSource } from '../../visibility/raster/shader.ts'
 import { binSource } from '../../visibility/raster/binWgsl.ts'
+import { emptySpaceProgram } from '../../modules/sky/clouds/emptySpaceWgsl.ts'
+import { LIGHTNING_CODE } from '../../modules/sky/clouds/lightningWgsl.ts'
+import { MASK_CODE } from '../../modules/sky/clouds/maskWgsl.ts'
+import { NOISE_VOLUME_CODE } from '../../modules/sky/clouds/noiseVolumeWgsl.ts'
+import { PATTERN_CODE } from '../../modules/sky/clouds/patternWgsl.ts'
+import { PROFILE_CODE } from '../../modules/sky/clouds/profileWgsl.ts'
+import { COPY_CODE, LUMINANCE_CODE } from '../../modules/sky/skyLight/copyWgsl.ts'
+import {
+  COMPOSE_FACE_CODE,
+  FOG_FACE_PROGRAM,
+  SKY_FACE_PROGRAM,
+} from '../../modules/sky/skyLight/faceWgsl.ts'
+import { FILTER_CODE } from '../../modules/sky/skyLight/filterWgsl.ts'
+import { IRRADIANCE_CODE } from '../../modules/sky/skyLight/irradianceWgsl.ts'
 import { COMPOSE_SHADERS } from './engineShaders.compose.fixture.ts'
 import {
   BOUNCE_PROBE_SHADER,
@@ -200,6 +214,21 @@ export const ENGINE_SHADERS: Record<string, string> = {
   PARTICLES_SUBGROUPS: particlesWgsl(true),
   PARTICLE_DRAW_WGSL,
   ...vsmVariants(),
+  // The sky module's texts: the cloud textures' generators, the empty-space march, the sky light's
+  // faces, copies and filters.
+  CLOUD_EMPTY_SPACE_CODE: emptySpaceProgram().code,
+  LIGHTNING_CODE,
+  MASK_CODE,
+  NOISE_VOLUME_CODE,
+  PATTERN_CODE,
+  PROFILE_CODE,
+  SKY_LIGHT_COPY_CODE: COPY_CODE,
+  SKY_LIGHT_LUMINANCE_CODE: LUMINANCE_CODE,
+  SKY_LIGHT_SKY_FACE_CODE: SKY_FACE_PROGRAM.code,
+  SKY_LIGHT_FOG_FACE_CODE: FOG_FACE_PROGRAM.code,
+  COMPOSE_FACE_CODE,
+  FILTER_CODE,
+  IRRADIANCE_CODE,
   // The atmosphere's tables, haze, sky and sums (`../../lighting/atmosphere/`).
   ...Object.fromEntries(
     Object.entries(AIR_SHADERS).map(([name, code]) => [`AIR_${name.toUpperCase()}`, code]),

@@ -7,8 +7,9 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { depthField, depthLoads, HIZ_DEPTH_READERS, type DepthField } from './depthField.fixture.ts'
 import { reflectionStagesWgsl } from './wgsl.ts'
 import { reflectionLightViewWgsl, REFLECTION_GROUP, REFLECTION_VIEW_AT } from './viewLayout.ts'
-import { screenSlab } from '../../visibility/hiz/gpu/screenSlab.ts'
+import { screenRelativeThickness, screenSlab } from '../../visibility/hiz/gpu/screenSlab.ts'
 import { REFLECTION_CONSTANTS } from './constants.ts'
+import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import { rasterize, type Box, type Camera } from './boxes.fixture.ts'
 import { HIZ_DEPTH_LAYERS } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { radianceLevels } from '../../scene/targetFormats.ts'
@@ -21,7 +22,11 @@ type Cone = { short: number; long: number; level: number }
 /** The reflection's view uniform, its fields the layout's (`REFLECTION_VIEW_AT`): its matrices
  *  as the run reads them, every other field four numbers. */
 type ReflectionView = {
-  [F in keyof typeof REFLECTION_VIEW_AT]: F extends 'viewProj' | 'radianceViewProj' ? Mat : number[]
+  [F in keyof typeof REFLECTION_VIEW_AT]: F extends 'viewProj' | 'radianceViewProj'
+    ? Mat
+    : F extends 'thickness'
+      ? number
+      : number[]
 }
 /** The views of a still view: the reflection's own (`ReflectionView`, its radiance image the
  *  depth's own) and the deferred lighting's (the pixel's world point, the eye, the drawn size). */
@@ -37,7 +42,8 @@ export function viewOf(
       viewProj: new Mat([...m]),
       radianceViewProj: new Mat([...m]),
       radiance: [size[0], size[1], radianceLevels(size[0], size[1]) - 1, 0],
-      slab: screenSlab([...m], size[1]),
+      slab: screenSlab([...m], size[1], eye),
+      thickness: screenRelativeThickness([...m], HIZ_RULES.hizRelativeDepthThickness.default),
       traced: [1, 0, 0, 0],
       front: [0, 0, 0, 0],
       temporal: [0, 0, 0, 0],
@@ -80,7 +86,8 @@ export function reflectionRunner(
       o: number[],
       d: number[],
       end: number,
-      thickness: number,
+      pixels: number,
+      relative: number,
       slab: number[],
       cap: number,
     ) => { t: number; plane: number[]; pixel: number[]; front: boolean }
@@ -152,6 +159,7 @@ export function reflectionRunner(
     levels: depth.levels.count[0],
     slab: reflectionView.slab,
     thickness: REFLECTION_CONSTANTS.REFLECTION_THICKNESS,
+    relativeThickness: reflectionView.thickness,
   }
 }
 

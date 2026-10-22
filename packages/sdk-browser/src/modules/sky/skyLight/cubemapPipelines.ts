@@ -5,8 +5,6 @@ import {
   computeTextureEntry,
   computeUniformEntry,
 } from '../../../gpu/core/computeBindings.ts'
-import { preparedComputeStage } from '../../../gpu/core/computeStages.ts'
-import { fullscreenDescriptor, preparedPipeline } from '../../../lighting/deferred/fullscreen.ts'
 import {
   COPY_CODE,
   COPY_ENTRY,
@@ -15,20 +13,15 @@ import {
   LUMINANCE_ENTRIES,
   LUMINANCE_FORMAT,
 } from './copyWgsl.ts'
+import { askedPipelines } from './askedPipelines.ts'
 import { SKY_LIGHT_CUBE_FORMAT } from './layout.ts'
 
 const FRAGMENT = 2
 
-/**
- * THE LAYOUTS AND PIPELINES OF A SPECIFIED CUBEMAP, made when the first one is captured, not before:
- * the copy of the host's cube into the faces of the captured cube (`copyFaceMain`, written into a
- * 16-bit cube, and into a 32-bit float one for the brightest value) and the two programs that find
- * that value (`maxDownsampleMain`, `maxGatherMain`). Nothing of them is compiled by a light that
- * captures its sky in real time.
- */
-export function createCubemapPipelines(device: GPUDevice, failed: (error: unknown) => void) {
+/** The bind group layouts of the cubemap's passes. */
+function cubemapLayouts(device: GPUDevice) {
   const layout = (entries: GPUBindGroupLayoutEntry[]) => device.createBindGroupLayout({ entries })
-  const layouts = {
+  return {
     /** The host's cube, read bilinearly. */
     source: layout([
       computeTextureEntry(0, 'float', 'cube', FRAGMENT),
@@ -57,50 +50,39 @@ export function createCubemapPipelines(device: GPUDevice, failed: (error: unknow
       computeBufferEntry(4, 'storage'),
     ]),
   }
+}
+
+/**
+ * THE LAYOUTS AND PIPELINES OF A SPECIFIED CUBEMAP, made when the first one is captured, not before:
+ * the copy of the host's cube into the faces of the captured cube (`copyFaceMain`, written into a
+ * 16-bit cube, and into a 32-bit float one for the brightest value) and the two programs that find
+ * that value (`maxDownsampleMain`, `maxGatherMain`). Nothing of them is compiled by a light that
+ * captures its sky in real time.
+ */
+export function createCubemapPipelines(device: GPUDevice, failed: (error: unknown) => void) {
+  const layouts = cubemapLayouts(device)
+  const { draw, compute } = askedPipelines(device, failed)
   const copyModule = device.createShaderModule({
     label: 'Trillion3D sky light cubemap copy',
     code: COPY_CODE,
   })
-  const copy = (format: GPUTextureFormat, label: string) => {
-    const pipeline = preparedPipeline(
-      device,
-      fullscreenDescriptor(
-        device,
-        copyModule,
-        [layouts.source, layouts.block],
-        COPY_ENTRY,
-        [{ format }],
-        label,
-      ),
-    ).ask()
-    pipeline.prepare().catch(failed)
-    return pipeline
-  }
   const luminanceModule = device.createShaderModule({
     label: 'Trillion3D sky light cubemap brightness',
     code: LUMINANCE_CODE,
   })
-  const compute = (group: GPUBindGroupLayout, entry: string, label: string) => {
-    const pipeline = preparedComputeStage(
-      device,
-      device.createPipelineLayout({ bindGroupLayouts: [group] }),
-      luminanceModule,
-      entry,
-      undefined,
-      label,
-    ).ask()
-    pipeline.prepare().catch(failed)
-    return pipeline
-  }
+  const copy = (format: GPUTextureFormat, label: string) =>
+    draw(copyModule, [layouts.source, layouts.block], COPY_ENTRY, { format }, label)
   const pipelines = {
     copy: copy(SKY_LIGHT_CUBE_FORMAT, 'Trillion3D sky light cubemap copy'),
     copyWide: copy(LUMINANCE_FORMAT, 'Trillion3D sky light cubemap copy, 32-bit'),
     downsample: compute(
+      luminanceModule,
       layouts.downsample,
       LUMINANCE_ENTRIES.downsample,
       'Trillion3D sky light cubemap brightness mips',
     ),
     gather: compute(
+      luminanceModule,
       layouts.gather,
       LUMINANCE_ENTRIES.gather,
       'Trillion3D sky light cubemap brightness',

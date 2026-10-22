@@ -1,5 +1,5 @@
 import { fullscreenDescriptor, preparedPipeline } from '../deferred/fullscreen.ts'
-import { preparedComputeStage } from '../../gpu/core/computeStages.ts'
+import { askedComputeStage } from '../../gpu/core/computeStages.ts'
 import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import { createReadbackRing } from '../../gpu/core/readbackRing.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
@@ -83,16 +83,7 @@ function createAirPasses(device: GPUDevice, failed: (error: unknown) => void) {
     const layout = device.createBindGroupLayout({
       entries: airLayoutEntries(AIR_PROGRAMS[name].bindings, GPUShaderStage.COMPUTE),
     })
-    const module = device.createShaderModule({ label, code: AIR_SHADERS[name] })
-    const pipeline = preparedComputeStage(
-      device,
-      device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      module,
-      entry,
-      undefined,
-      label,
-    ).ask()
-    pipeline.prepare().catch(failed)
+    const pipeline = askedComputeStage(device, [layout], AIR_SHADERS[name], entry, label, failed)
     return { layout, pipeline }
   }
   const passes = {

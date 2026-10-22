@@ -1,6 +1,6 @@
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { writeChanged } from '../../gpu/core/writeChanged.ts'
-import { screenSlab } from '../../visibility/hiz/gpu/screenSlab.ts'
+import { screenRelativeThickness, screenSlab } from '../../visibility/hiz/gpu/screenSlab.ts'
 import type { HeldImage } from './radiance/radiance.ts'
 import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 import { gridSide } from './grids.ts'
@@ -9,6 +9,11 @@ import { gridSide } from './grids.ts'
 export type ReflectionFrame = {
   /** The render view-projection the depth was drawn with, jitter included. */
   viewProjection: ArrayLike<number>
+  /** The thickness the reference walk gives a surface, a share of its depth
+   *  (`hizRelativeDepthThickness`). */
+  relativeThickness: number
+  /** The eye, in the world the view-projection takes (`screenSlab`). */
+  eye: ArrayLike<number>
   /** The drawn size. */
   size: readonly [number, number]
   /** Whether the depth pyramid holds this image's whole depth. */
@@ -46,7 +51,8 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     staged[REFLECTION_VIEW_AT.radiance] = held.size[0]
     staged[REFLECTION_VIEW_AT.radiance + 1] = held.size[1]
     staged[REFLECTION_VIEW_AT.radiance + 2] = levels - 1
-    staged.set(screenSlab(m, height), REFLECTION_VIEW_AT.slab)
+    staged.set(screenSlab(m, height, frame.eye), REFLECTION_VIEW_AT.slab)
+    staged[REFLECTION_VIEW_AT.thickness] = screenRelativeThickness(m, frame.relativeThickness)
     traced[0] = frame.depthDrawn && held.valid ? 1 : 0
     front[0] = frame.front ? 1 : 0
     temporal[0] = frame.turn ?? 0

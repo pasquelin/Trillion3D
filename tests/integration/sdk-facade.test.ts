@@ -125,8 +125,11 @@ test('generated inventory and explicit facade files are current', async () => {
   // OcclusionFrameMetrics, WorldFrameMetrics, PrimitiveQuantization, adaptivePixelError). The
   // scene's sky, height fog and exposure carry their own names (SceneAtmosphere, ResolvedAtmosphere,
   // SceneOzoneLayer, SceneSky, SceneHeightFog, SceneFogDirectional, SceneExposure), and the bloom its
-  // levels (BloomLevelOptions, BloomTint, ResolvedBloomLevel).
-  assert.equal(inventory.exports.length, 780)
+  // levels (BloomLevelOptions, BloomTint, ResolvedBloomLevel). The module manager and descriptor
+  // are public (createModuleManager, ModuleHooks, ModuleManager, defineModule, mergeModuleParts,
+  // resolveModuleOption, ModuleDecision, ModuleDescriptor, ModuleOption, ModulePartFields,
+  // ModuleParts, ModuleReason, ModuleState).
+  assert.equal(inventory.exports.length, 793)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

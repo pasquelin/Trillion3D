@@ -10,6 +10,8 @@ import {
   type SettingOptions,
   type SettingValues,
 } from '../../contracts/settingRules.ts'
+import { IMAGE_EFFECTS_RULES, INDIRECT_LIGHT_RULES } from './qualityLight.ts'
+import { INT32, INT32_FROM_ZERO, TABLE_SIDE } from './qualityRanges.ts'
 
 /**
  * The quality settings of the sky module: the switches of the renderer for the atmosphere, the
@@ -41,15 +43,102 @@ export const CLOUD_UPSAMPLINGS = [
   'bilateral',
 ] as const
 
-/** The range of a 32-bit whole number, the type a count of the reference is held in. */
-const INT32: readonly [number, number] = [-2147483648, 2147483647]
-/** The range of a 32-bit whole number of at least zero. */
-const INT32_FROM_ZERO: readonly [number, number] = [0, INT32[1]]
-/** The range of a table side or a slice count: a whole number of at least 4, the fewest the
- *  reference reads. */
-const TABLE_SIDE: readonly [number, number] = [4, INT32[1]]
 /** The centimetres in a kilometre. */
 export const CM_PER_KM = 100000
+
+/** The air: its switches, samples and tables. */
+const AIR_RULES = /* @__PURE__ */ (() =>
+  rulesOf([
+    flag('atmosphereOn', true),
+    flag('cloudsOn', true),
+    flag('skyTableFast', true),
+    flag('aerialFastOnOpaque', true),
+    number('atmosphereSamplesMin', 4, atLeast(1)),
+    number('atmosphereSamplesMax', 128, atLeast(1)),
+    number('atmosphereDistanceToMaxSamplesKm', 150, atLeast(1e-4)),
+    flag('atmosphereSampleLightShadowMap', true),
+    number('skyTableSamplesMin', 4, atLeast(1)),
+    number('skyTableSamplesMax', 128, atLeast(1)),
+    number('skyTableDistanceToMaxSamplesKm', 150, atLeast(1e-4)),
+    number('aerialSamplesPerSlice', 4, atLeast(1)),
+    integer('aerialDepthSlices', 16, TABLE_SIDE),
+    number('aerialDepthKm', 96, atLeast(1)),
+    integer('aerialWidth', 32, TABLE_SIDE),
+    flag('aerialDepthTest', true),
+    number('transmittanceSamples', 10, atLeast(1)),
+    number('multiScatterSamples', 15, atLeast(1)),
+    flag('transmittanceSmallFormat', false),
+    flag('transmittanceTable', true),
+    flag('distantSkyLightTable', true),
+    flag('multiScatterHighQuality', false),
+    number('distantSkyLightAltitudeKm', 6, ANY_NUMBER),
+    flag('skyTablesFullPrecision', false),
+    integer('transmittanceWidth', 256, TABLE_SIDE),
+    integer('transmittanceHeight', 64, TABLE_SIDE),
+    integer('multiScatterWidth', 32, TABLE_SIDE),
+    integer('multiScatterHeight', 32, TABLE_SIDE),
+    integer('skyTableWidth', 192, TABLE_SIDE),
+    integer('skyTableHeight', 104, TABLE_SIDE),
+  ] as const))()
+
+/** The clouds: the samples, the light they gather and the lamps. */
+const CLOUD_SAMPLING_RULES = /* @__PURE__ */ (() =>
+  rulesOf([
+    number('cloudViewSamplesMax', 768, ANY_NUMBER),
+    number('cloudReflectionSamplesMax', 80, ANY_NUMBER),
+    number('cloudShadowSamplesMax', 80, ANY_NUMBER),
+    number('cloudReflectionShadowSamplesMax', 24, ANY_NUMBER),
+    integer('cloudSamplesMin', 2, INT32_FROM_ZERO),
+    integer('cloudSamplesClamp', INT32[1], INT32_FROM_ZERO),
+    number('cloudDistanceToMaxSamplesKm', 15, atLeast(1 / CM_PER_KM)),
+    integer('cloudStepOnEmpty', 1, [1, INT32[1]]),
+    flag('cloudSampleLightShadowMap', true),
+    flag('cloudAerialPerspective', true),
+    flag('cloudAtmosphericLights', true),
+    flag('cloudDistantSkyLight', true),
+    flag('cloudHighQualityAerial', false),
+    flag('cloudFogOnAllPixels', false),
+    flag('cloudLocalLights', false),
+    number('cloudLocalLightShadowSamples', 12, [0, 128]),
+  ] as const))()
+
+/** The clouds: the shadow map and the sky occlusion. */
+const CLOUD_SHADOW_RULES = /* @__PURE__ */ (() =>
+  rulesOf([
+    flag('cloudShadowMap', true),
+    integer('cloudShadowMapResolutionMax', 2048, INT32),
+    number('cloudShadowMapSamplesMax', 128, ANY_NUMBER),
+    number('cloudShadowMapHorizonMultiplier', 2, atLeast(1)),
+    integer('cloudShadowMapSpatialFiltering', 1, [0, 4]),
+    number('cloudShadowMapNewFrameWeight', 1, [0, 1]),
+    number('cloudShadowMapLightRotationCutDegrees', 10, ANY_NUMBER),
+    number('cloudShadowMapSnapKm', 20, ANY_NUMBER),
+    flag('cloudShadowMapSnapToPixelGrid', true),
+    number('cloudShadowMapLightDistanceOverrideKm', 0, ANY_NUMBER),
+    flag('cloudSkyAO', true),
+    integer('cloudSkyAOResolutionMax', 2048, INT32),
+    integer('cloudSkyAOTraceSamples', 10, INT32),
+    flag('cloudSkyAOFiltering', true),
+    number('cloudSkyAOSnapKm', 20, ANY_NUMBER),
+  ] as const))()
+
+/** The clouds: the empty-space table, the traced size, the reprojection and the late fog. */
+const CLOUD_TARGET_RULES = /* @__PURE__ */ (() =>
+  rulesOf([
+    flag('cloudEmptySpaceSkipping', false),
+    number('cloudEmptySpaceSkippingDepthKm', 40, atLeast(1)),
+    number('cloudEmptySpaceSkippingSliceBias', 0, ANY_NUMBER),
+    flag('cloudEmptySpaceSkippingCorners', true),
+    choice('cloudTraceSize', 'quarterToHalf', CLOUD_TRACE_SIZES),
+    flag('cloudRenderTarget', true),
+    choice('cloudUpsampling', 'bilateral', CLOUD_UPSAMPLINGS),
+    number('cloudRenderTargetScale', 1, [0.1, 1]),
+    flag('cloudReprojectionBoxConstraint', false),
+    nonNegative('cloudReprojectionMinDistanceKm', 0),
+    nonNegative('cloudDisocclusionMaxDistanceKm', 5),
+    flag('cloudFogLate', true),
+    flag('cloudFogLateOnTranslucent', false),
+  ] as const))()
 
 /**
  * The atmosphere's and the clouds' settings by field, each with the default of the reference's
@@ -123,8 +212,7 @@ export const CM_PER_KM = 100000
  * - `cloudTraceSize` (`'quarterToHalf'`, `CLOUD_TRACE_SIZES`): the size the clouds are traced at;
  *   `cloudRenderTarget` (on): the clouds are traced into their own target at that size, not into
  *   the scene; `cloudUpsampling` (`'bilateral'`, `CLOUD_UPSAMPLINGS`): the way they are laid over
- *   the scene; `cloudUpsampleAcceptance` (20), from 0: how little a noisy sample may differ to be
- *   blended, the jitter ways; `cloudRenderTargetScale` (1), from 0.1 to 1: the target's size, of
+ *   the scene; `cloudRenderTargetScale` (1), from 0.1 to 1: the target's size, of
  *   the quarter-to-full trace only; `cloudReprojectionBoxConstraint` (off): the reprojected image
  *   is held to its new neighbourhood; `cloudReprojectionMinDistanceKm` (0), from 0: the distance,
  *   in kilometres, a cloud surface must be at for the last image to be reprojected;
@@ -135,141 +223,20 @@ export const CM_PER_KM = 100000
  *   `cloudFogLateOnTranslucent` (off): that late pass also gives the clouds with their fog, for
  *   the translucent surfaces behind them.
  */
-const EFFECTS_RULES = /* @__PURE__ */ (() =>
-  rulesOf([
-    flag('atmosphereOn', true),
-    flag('cloudsOn', true),
-    flag('skyTableFast', true),
-    flag('aerialFastOnOpaque', true),
-    number('atmosphereSamplesMin', 4, atLeast(1)),
-    number('atmosphereSamplesMax', 128, atLeast(1)),
-    number('atmosphereDistanceToMaxSamplesKm', 150, atLeast(1e-4)),
-    flag('atmosphereSampleLightShadowMap', true),
-    number('skyTableSamplesMin', 4, atLeast(1)),
-    number('skyTableSamplesMax', 128, atLeast(1)),
-    number('skyTableDistanceToMaxSamplesKm', 150, atLeast(1e-4)),
-    number('aerialSamplesPerSlice', 4, atLeast(1)),
-    integer('aerialDepthSlices', 16, TABLE_SIDE),
-    number('aerialDepthKm', 96, atLeast(1)),
-    integer('aerialWidth', 32, TABLE_SIDE),
-    flag('aerialDepthTest', true),
-    number('transmittanceSamples', 10, atLeast(1)),
-    number('multiScatterSamples', 15, atLeast(1)),
-    flag('transmittanceSmallFormat', false),
-    flag('transmittanceTable', true),
-    flag('distantSkyLightTable', true),
-    flag('multiScatterHighQuality', false),
-    number('distantSkyLightAltitudeKm', 6, ANY_NUMBER),
-    flag('skyTablesFullPrecision', false),
-    integer('transmittanceWidth', 256, TABLE_SIDE),
-    integer('transmittanceHeight', 64, TABLE_SIDE),
-    integer('multiScatterWidth', 32, TABLE_SIDE),
-    integer('multiScatterHeight', 32, TABLE_SIDE),
-    integer('skyTableWidth', 192, TABLE_SIDE),
-    integer('skyTableHeight', 104, TABLE_SIDE),
-    number('cloudViewSamplesMax', 768, ANY_NUMBER),
-    number('cloudReflectionSamplesMax', 80, ANY_NUMBER),
-    number('cloudShadowSamplesMax', 80, ANY_NUMBER),
-    number('cloudReflectionShadowSamplesMax', 24, ANY_NUMBER),
-    integer('cloudSamplesMin', 2, INT32_FROM_ZERO),
-    integer('cloudSamplesClamp', INT32[1], INT32_FROM_ZERO),
-    number('cloudDistanceToMaxSamplesKm', 15, atLeast(1 / CM_PER_KM)),
-    integer('cloudStepOnEmpty', 1, [1, INT32[1]]),
-    flag('cloudSampleLightShadowMap', true),
-    flag('cloudAerialPerspective', true),
-    flag('cloudAtmosphericLights', true),
-    flag('cloudDistantSkyLight', true),
-    flag('cloudHighQualityAerial', false),
-    flag('cloudFogOnAllPixels', false),
-    flag('cloudLocalLights', false),
-    number('cloudLocalLightShadowSamples', 12, [0, 128]),
-    flag('cloudShadowMap', true),
-    integer('cloudShadowMapResolutionMax', 2048, INT32),
-    number('cloudShadowMapSamplesMax', 128, ANY_NUMBER),
-    number('cloudShadowMapHorizonMultiplier', 2, atLeast(1)),
-    integer('cloudShadowMapSpatialFiltering', 1, [0, 4]),
-    number('cloudShadowMapNewFrameWeight', 1, [0, 1]),
-    number('cloudShadowMapLightRotationCutDegrees', 10, ANY_NUMBER),
-    number('cloudShadowMapSnapKm', 20, ANY_NUMBER),
-    flag('cloudShadowMapSnapToPixelGrid', true),
-    number('cloudShadowMapLightDistanceOverrideKm', 0, ANY_NUMBER),
-    flag('cloudSkyAO', true),
-    integer('cloudSkyAOResolutionMax', 2048, INT32),
-    integer('cloudSkyAOTraceSamples', 10, INT32),
-    flag('cloudSkyAOFiltering', true),
-    number('cloudSkyAOSnapKm', 20, ANY_NUMBER),
-    flag('cloudEmptySpaceSkipping', false),
-    number('cloudEmptySpaceSkippingDepthKm', 40, atLeast(1)),
-    number('cloudEmptySpaceSkippingSliceBias', 0, ANY_NUMBER),
-    flag('cloudEmptySpaceSkippingCorners', true),
-    choice('cloudTraceSize', 'quarterToHalf', CLOUD_TRACE_SIZES),
-    flag('cloudRenderTarget', true),
-    choice('cloudUpsampling', 'bilateral', CLOUD_UPSAMPLINGS),
-    nonNegative('cloudUpsampleAcceptance', 20),
-    number('cloudRenderTargetScale', 1, [0.1, 1]),
-    flag('cloudReprojectionBoxConstraint', false),
-    nonNegative('cloudReprojectionMinDistanceKm', 0),
-    nonNegative('cloudDisocclusionMaxDistanceKm', 5),
-    flag('cloudFogLate', true),
-    flag('cloudFogLateOnTranslucent', false),
-  ] as const))()
-
-/** The light shafts' settings by field: `lightShafts` (on), whether the sun and the lamps that ask
- *  for them draw shafts through the air and the clouds' edges, and `lightShaftDownsample` (2), from
- *  1 to 8: the factor the shafts are computed at under the view's size;
- *  `lightShaftTemporalFilter` (on): the shafts are filtered over the images; `lightShaftAfterDof`
- *  (off): they are drawn in the separate translucency, after the depth of field;
- *  `lightShaftBlurPasses` (3), a whole number from 0: the radial blur passes;
- *  `lightShaftFirstPassDistance` (0.1): the fraction of the distance to the light the first pass
- *  blurs over; `lightShaftTemporalFilterSize` (1, from 0.0001) and `lightShaftTemporalCatmullRom`
- *  (off): the size of the kernel the temporal filter's weights are made of (1 smoother, a smaller
- *  one sharper but aliased; the floor is ours, the kernel divides by it) and whether it is a
- *  Catmull-Rom one, sharper than the Gaussian. */
-const IMAGE_EFFECTS_RULES = /* @__PURE__ */ (() =>
-  rulesOf([
-    flag('lightShafts', true),
-    integer('lightShaftDownsample', 2, [1, 8]),
-    flag('lightShaftTemporalFilter', true),
-    flag('lightShaftAfterDof', false),
-    integer('lightShaftBlurPasses', 3, INT32_FROM_ZERO),
-    number('lightShaftFirstPassDistance', 0.1, ANY_NUMBER),
-    number('lightShaftTemporalFilterSize', 1, atLeast(1e-4)),
-    flag('lightShaftTemporalCatmullRom', false),
-  ] as const))()
-
-/** The sky light's settings by field: `skyLightRealTimeCapture` (on), whether the platform allows
- *  the sky light's real-time capture at all; `skyLightTimeSlicing` (on), whether the sky light's capture
- *  and its convolutions are spread over several images; `skyLightFacesPerFrame` (2), from 1 to 6:
- *  the cube faces the clouds are drawn in per image when it is, more being a lag fewer;
- *  `skyLightCloudDivider` (2), from 1 to 8: the factor the clouds' size is divided by in that capture;
- *  `skyLightIntensityScale` (1): the factor on the sky light's intensity, to keep the
- *  contrast of a level that draws less occlusion; `skyLightShadowFromOpaque` (off): opaque meshes
- *  shadow the sky and the clouds from the sun in the capture; `skyLightDepthBuffer` (on): the
- *  capture has a depth buffer, so that meshes cover each other and the height fog follows it;
- *  `skyLightAlwaysClear` (off): the capture's colour is cleared to black before the sky is drawn;
- *  `skyLightResolutionOverride` (0): a side, in texels, of at least 16, that replaces the sky
- *  light's own, a lower value leaving it; `skyLightCubemapMaxResolution` (-1): above 0, the largest
- *  side the sky light's cube may have. */
-const INDIRECT_LIGHT_RULES = /* @__PURE__ */ (() =>
-  rulesOf([
-    flag('skyLightRealTimeCapture', true),
-    flag('skyLightTimeSlicing', true),
-    integer('skyLightFacesPerFrame', 2, [1, 6]),
-    integer('skyLightCloudDivider', 2, [1, 8]),
-    number('skyLightIntensityScale', 1, ANY_NUMBER),
-    flag('skyLightShadowFromOpaque', false),
-    flag('skyLightDepthBuffer', true),
-    flag('skyLightAlwaysClear', false),
-    integer('skyLightResolutionOverride', 0, INT32),
-    integer('skyLightCubemapMaxResolution', -1, INT32),
-  ] as const))()
+const EFFECTS_RULES = /* @__PURE__ */ (() => ({
+  ...AIR_RULES,
+  ...CLOUD_SAMPLING_RULES,
+  ...CLOUD_SHADOW_RULES,
+  ...CLOUD_TARGET_RULES,
+}))()
 
 /** The rules by the quality group whose levels write them. */
-export const SKY_QUALITY_RULES_BY_GROUP = {
-  effects: EFFECTS_RULES,
-  imageEffects: IMAGE_EFFECTS_RULES,
-  indirectLight: INDIRECT_LIGHT_RULES,
-} as const
+export const SKY_QUALITY_RULES_BY_GROUP = /* @__PURE__ */ (() =>
+  ({
+    effects: EFFECTS_RULES,
+    imageEffects: IMAGE_EFFECTS_RULES,
+    indirectLight: INDIRECT_LIGHT_RULES,
+  }) as const)()
 
 /** Every quality setting of the sky, by field. */
 export const SKY_QUALITY_RULES = /* @__PURE__ */ (() => ({

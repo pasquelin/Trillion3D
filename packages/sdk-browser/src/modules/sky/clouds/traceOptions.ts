@@ -1,5 +1,8 @@
 import type { CloudPart } from '../../../../../sdk-core/src/modules/sky/clouds.ts'
-import type { SkyQualityValues } from '../../../../../sdk-core/src/modules/sky/quality.ts'
+import {
+  CM_PER_KM,
+  type SkyQualityValues,
+} from '../../../../../sdk-core/src/modules/sky/quality.ts'
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import type { CloudSetup } from './cloudModes.ts'
 import { put4 } from './reconstructLayout.ts'
@@ -14,8 +17,6 @@ export const CLOUD_EMPTY_SPACE_SIDE = 32
 type CloudTraceLayoutAt = (typeof CLOUD_TRACE_LAYOUT)['at']
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-/** Centimetres in a kilometre. */
-const CM_PER_KM = 100000
 
 /** Whether the haze on the clouds is traced per pixel in a second pass, not by the trace: asked for,
  *  with the haze on the clouds and an air to scatter it (never in a capture, which marks its own

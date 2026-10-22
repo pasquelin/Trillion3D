@@ -80,7 +80,7 @@ const reflectionSeenWgsl = (group: number) =>
  var seen=RadianceAnswer(vec3f(0.0),0.0,0.0);
  let size=view.viewport.xy;
  let ray=reflectionRay(P,N,lobe,surfacePixel);
- let marched=screenMarch(ray.o,ray.d,ray.end,REFLECTION_THICKNESS,reflectionView.slab,REFLECTION_MARCH_STEPS);
+ let marched=screenMarch(ray.o,ray.d,ray.end,REFLECTION_THICKNESS,reflectionView.thickness,reflectionView.slab,REFLECTION_MARCH_STEPS);
  if(marched.t<0.0||marched.plane.x<=0.0){return seen;}
  let H=ray.o+ray.d*marched.t;
  let depth=marched.plane.x+dot(H.xy-marched.pixel,marched.plane.yz);
@@ -143,41 +143,11 @@ const REFLECTION_FIELD_PAIR_WGSL = wgslBlock(
 }`,
 )
 
-/**
- * THE CHAIN IN TWO STAGES, each its own kernel (`trace/trace.ts`): the screen first, the cheap answer for
- * every ray, and the scene after for the rays the screen left, so the costly walk runs on few threads. A ray's chain (`ReflectionChain`) carries what its
- * stages answered so far — the radiance, the share still unanswered (`rest`), the farthest the proxy
- * may walk (`bound`: the surface the screen met) and the distance of what answered the larger share
- * (`hit`, `REFLECTION_FAR` where none did yet: what the resolve reaches by,
- * `reflectionReuseReach`, `resolveWgsl.ts`). `reflectionTake` adds one answer to it.
- *
- * - `reflectionScreenStage`: the screen's answer along the lobe ray `lobe` (`sampleWgsl.ts`) of a
- *   surface at `P`, of normal `N`, seen from `V`; for a pixel past the near field (`far`), the field
- *   answers there all the screen left too, read in the one gather that reads the whole lobe's;
- * - `reflectionSceneStage`: what the screen left of a ray of a pixel in the near field
- *   (`reflectionNearField`, `reach.ts`), the proxy's answer (`reflectionProxied`), then, so the ray is
- *   whole, the environment's for the share the proxy's walk saw leave the scene (`open`), the field's
- *   for the rest (`reflectionFieldRest`): a pixel past the near field takes the field for all the screen
- *   left, in the screen stage.
- *
- * A lobe answers by its ray the share its roughness gives it (`reflectionTraceShare`), the field the
- * rest, read through the whole lobe, in the screen stage: never a coin toss between the two, which
- * leaves the denoiser a field of dots to average; a lobe too rough to trace casts no ray at all.
- */
-export const reflectionStagesWgsl = (group: number) =>
-  wgslBlock(
-    `reflectionStagesWgsl(${group})`,
-    [
-      reflectionSeenWgsl(group),
-      REFLECTION_CONSTANTS_WGSL,
-      REFLECTION_FIELD_STAGE_WGSL,
-      REFLECTION_FIELD_PAIR_WGSL,
-      REFLECTION_REACH_WGSL,
-      REFLECTION_LOBE_RAY_WGSL,
-      LOBE_AXIS_WGSL,
-      REFLECTION_PROXY_WGSL,
-    ],
-    `struct ReflectionChain{radiance:vec3f,rest:f32,bound:f32,hit:f32,}
+/** The chain a lobe's ray answers into and its ray lobe (`reflectionStagesWgsl`). */
+const REFLECTION_CHAIN_WGSL = wgslBlock(
+  'REFLECTION_CHAIN_WGSL',
+  [REFLECTION_CONSTANTS_WGSL, LOBE_AXIS_WGSL, REFLECTION_LOBE_RAY_WGSL],
+  `struct ReflectionChain{radiance:vec3f,rest:f32,bound:f32,hit:f32,}
 fn reflectionChainStart()->ReflectionChain{return ReflectionChain(vec3f(0.0),1.0,REFLECTION_FAR,REFLECTION_FAR);}
 fn reflectionTake(ray:ptr<function,ReflectionChain>,answer:RadianceAnswer){
  (*ray).radiance+=(*ray).rest*answer.confidence*answer.color;
@@ -185,8 +155,20 @@ fn reflectionTake(ray:ptr<function,ReflectionChain>,answer:RadianceAnswer){
  (*ray).rest*=1.0-answer.confidence;
 }
 /** The lobe a ray is read through: its direction and the thin lobe it carries. */
-fn reflectionRayLobe(lobe:ReflectionLobeRay)->ReflectionLobe{return reflectionLobeOf(lobe.R,lobe.axis.w,lobe.axis);}
-fn reflectionScreenStage(P:vec3f,N:vec3f,V:vec3f,lobe:ReflectionLobeRay,far:bool)->ReflectionChain{
+fn reflectionRayLobe(lobe:ReflectionLobeRay)->ReflectionLobe{return reflectionLobeOf(lobe.R,lobe.axis.w,lobe.axis);}`,
+)
+
+/** The screen stage of `reflectionStagesWgsl`. */
+const reflectionScreenStageWgsl = (group: number) =>
+  wgslBlock(
+    `reflectionScreenStageWgsl(${group})`,
+    [
+      reflectionSeenWgsl(group),
+      REFLECTION_CHAIN_WGSL,
+      REFLECTION_FIELD_STAGE_WGSL,
+      REFLECTION_FIELD_PAIR_WGSL,
+    ],
+    `fn reflectionScreenStage(P:vec3f,N:vec3f,V:vec3f,lobe:ReflectionLobeRay,far:bool)->ReflectionChain{
  var ray=reflectionChainStart();
  // The share a ray answers (\`reflectionTraceShare\`); the field answers the rest, read through the
  // whole lobe: a lobe too rough to trace is the field's whole, and casts no ray.
@@ -216,8 +198,41 @@ fn reflectionScreenStage(P:vec3f,N:vec3f,V:vec3f,lobe:ReflectionLobeRay,far:bool
  }
  if(far){ray.rest=0.0;}
  return ray;
-}
-fn reflectionFieldRest(P:vec3f,N:vec3f,lobe:ReflectionLobeRay,before:ReflectionChain)->ReflectionChain{
+}`,
+  )
+
+/**
+ * THE CHAIN IN TWO STAGES, each its own kernel (`trace/trace.ts`): the screen first, the cheap answer for
+ * every ray, and the scene after for the rays the screen left, so the costly walk runs on few threads. A ray's chain (`ReflectionChain`) carries what its
+ * stages answered so far — the radiance, the share still unanswered (`rest`), the farthest the proxy
+ * may walk (`bound`: the surface the screen met) and the distance of what answered the larger share
+ * (`hit`, `REFLECTION_FAR` where none did yet: what the resolve reaches by,
+ * `reflectionReuseReach`, `resolveWgsl.ts`). `reflectionTake` adds one answer to it.
+ *
+ * - `reflectionScreenStage`: the screen's answer along the lobe ray `lobe` (`sampleWgsl.ts`) of a
+ *   surface at `P`, of normal `N`, seen from `V`; for a pixel past the near field (`far`), the field
+ *   answers there all the screen left too, read in the one gather that reads the whole lobe's;
+ * - `reflectionSceneStage`: what the screen left of a ray of a pixel in the near field
+ *   (`reflectionNearField`, `reach.ts`), the proxy's answer (`reflectionProxied`), then, so the ray is
+ *   whole, the environment's for the share the proxy's walk saw leave the scene (`open`), the field's
+ *   for the rest (`reflectionFieldRest`): a pixel past the near field takes the field for all the screen
+ *   left, in the screen stage.
+ *
+ * A lobe answers by its ray the share its roughness gives it (`reflectionTraceShare`), the field the
+ * rest, read through the whole lobe, in the screen stage: never a coin toss between the two, which
+ * leaves the denoiser a field of dots to average; a lobe too rough to trace casts no ray at all.
+ */
+export const reflectionStagesWgsl = (group: number) =>
+  wgslBlock(
+    `reflectionStagesWgsl(${group})`,
+    [
+      reflectionScreenStageWgsl(group),
+      REFLECTION_CHAIN_WGSL,
+      REFLECTION_FIELD_STAGE_WGSL,
+      REFLECTION_REACH_WGSL,
+      REFLECTION_PROXY_WGSL,
+    ],
+    `fn reflectionFieldRest(P:vec3f,N:vec3f,lobe:ReflectionLobeRay,before:ReflectionChain)->ReflectionChain{
  var ray=before;
  if(ray.rest>REFLECTION_EPSILON){ray.radiance+=ray.rest*reflectionField(P,N,reflectionRayLobe(lobe));}
  ray.rest=0.0;

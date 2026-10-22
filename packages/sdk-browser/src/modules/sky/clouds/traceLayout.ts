@@ -87,7 +87,7 @@ export const CLOUD_MATERIAL_OUTPUTS_OCCLUSION = true
 
 /** What the cloud material gives besides its extinction: the default material gives an occlusion
  *  of its own and no empty-space output, so that table is not built and not read
- *  (`cloudTracePermutation`). */
+ *  (`cloudTraceKey`). */
 export const CLOUD_MATERIAL_OUTPUTS_EMPTY_SPACE = false
 
 /** What the image tells the tracing. */

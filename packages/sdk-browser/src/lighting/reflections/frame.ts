@@ -17,6 +17,8 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced
     { frame } = reflection
   frame.size = gpu.targetSize
   frame.depthDrawn = run.depthDrawn
+  frame.eye = run.gate.cam.eye
+  frame.relativeThickness = hizSetting(rt, 'hizRelativeDepthThickness')
   const { environment } = rt.lights.store
   frame.surroundings = reflection.surroundings(
     run.clearColor,

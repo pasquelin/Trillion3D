@@ -4,6 +4,7 @@ import {
   computeTextureEntry,
   computeUniformEntry,
 } from '../../../gpu/core/computeBindings.ts'
+import type { CloudSetup } from './cloudModes.ts'
 import { CLOUD_MATERIAL_OUTPUTS_EMPTY_SPACE } from './traceLayout.ts'
 
 /**
@@ -25,21 +26,16 @@ export const CLOUD_TRACE_EXTRA_BINDING = {
   tileLights: 6,
 } as const
 
-/** The variations of the program. */
-export interface CloudTracePermutation {
+/** What makes one program of the view tracing: the scene's depth it reads and whether it traces two
+ *  surfaces (the setup's), and the variations of its options. One program, one layout and one
+ *  pipeline are made for each key. */
+export interface CloudTraceKey extends Pick<CloudSetup, 'depth' | 'minMaxDepth'> {
   /** The march starts where the table says the cloud does. */
   readonly emptySpace: boolean
   /** The sun's shadow in the opaque scene's maps lights the cloud. */
   readonly opaqueShadow: boolean
   /** The lamps of the light grid light the cloud. */
   readonly localLights: boolean
-}
-
-/** The program with none of them. */
-export const CLOUD_TRACE_PLAIN: CloudTracePermutation = {
-  emptySpace: false,
-  opaqueShadow: false,
-  localLights: false,
 }
 
 /** What the frame says of the image it traces: a reflection or a capture (no table), the sky
@@ -50,29 +46,37 @@ export interface CloudTraceFrame {
   readonly sunShadowsOnClouds: boolean
 }
 
-/** The variations a frame traces with, from the quality settings: the table when the option is on,
+/** The key a frame traces with, from the quality settings and the setup (its depth source and its
+ *  two surfaces): the table when the option is on,
  *  the material gives the output and the image is not a reflection; the sun's shadow when the
  *  option is on and the sun casts shadows on the clouds; the lamps when the option is on and the
  *  image is not the sky light's capture. */
-export const cloudTracePermutation = (
+export const cloudTraceKey = (
   quality: Pick<
     SkyQualityValues,
     'cloudEmptySpaceSkipping' | 'cloudSampleLightShadowMap' | 'cloudLocalLights'
   >,
   frame: CloudTraceFrame,
-): CloudTracePermutation => ({
+  setup: CloudSetup,
+): CloudTraceKey => ({
+  depth: setup.depth,
+  minMaxDepth: setup.minMaxDepth,
   emptySpace:
     quality.cloudEmptySpaceSkipping && CLOUD_MATERIAL_OUTPUTS_EMPTY_SPACE && !frame.reflection,
   opaqueShadow: quality.cloudSampleLightShadowMap && frame.sunShadowsOnClouds,
   localLights: quality.cloudLocalLights && !frame.skyCapture,
 })
 
+/** The key as text, to keep what is made for it. */
+export const cloudTraceKeyText = (k: CloudTraceKey) =>
+  [k.depth, k.minMaxDepth, k.emptySpace, k.opaqueShadow, k.localLights].join('|')
+
 /** Whether the program binds group 2. */
-export const cloudTraceHasExtra = (p: CloudTracePermutation) =>
+export const cloudTraceHasExtra = (p: CloudTraceKey) =>
   p.emptySpace || p.opaqueShadow || p.localLights
 
 /** The layout entries of group 2 for the variations `p`. */
-export function cloudTraceExtraLayoutEntries(p: CloudTracePermutation): GPUBindGroupLayoutEntry[] {
+export function cloudTraceExtraLayoutEntries(p: CloudTraceKey): GPUBindGroupLayoutEntry[] {
   const b = CLOUD_TRACE_EXTRA_BINDING
   return [
     ...(p.emptySpace ? [computeTextureEntry(b.startDistance, 'unfilterable-float')] : []),

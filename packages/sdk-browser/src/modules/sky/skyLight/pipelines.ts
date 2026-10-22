@@ -5,9 +5,8 @@ import {
   computeTextureEntry,
   computeUniformEntry,
 } from '../../../gpu/core/computeBindings.ts'
-import { preparedComputeStage } from '../../../gpu/core/computeStages.ts'
-import { fullscreenDescriptor, preparedPipeline } from '../../../lighting/deferred/fullscreen.ts'
 import { airLayoutEntries } from '../../../lighting/atmosphere/programs.ts'
+import { CAPTURE_CLOUD_KEY } from '../clouds/cloudModes.ts'
 import { createCloudTracePass } from '../clouds/trace.ts'
 import {
   COMPOSE_FACE_CODE,
@@ -20,6 +19,7 @@ import {
 } from './faceWgsl.ts'
 import { FILTER_ENTRIES, FILTER_CODE } from './filterWgsl.ts'
 import { IRRADIANCE_ENTRY, IRRADIANCE_CODE } from './irradianceWgsl.ts'
+import { askedPipelines } from './askedPipelines.ts'
 import { SKY_LIGHT_CUBE_FORMAT } from './layout.ts'
 
 /** `GPUShaderStage`'s flags and `GPUColorWrite`'s, written in the clear. */
@@ -45,15 +45,12 @@ const OVER: GPUColorTargetState = {
   },
 }
 
-/**
- * THE CAPTURE'S LAYOUTS AND PIPELINES, asked at once, off the frame (`PreparedPipeline.ask`): the
- * three face draws, the clouds' tracing (the clouds part's own, `createCloudTracePass`), the mips'
- * downsample and the filter, and the harmonics' sum. The cube is read by a sampler that takes
- * the nearest texel and the nearest level, which the face composition's cloud read does not use.
- */
-export function createSkyLightPipelines(device: GPUDevice, failed: (error: unknown) => void) {
+type Asked = ReturnType<typeof askedPipelines>
+
+/** The bind group layouts of the capture's passes. */
+function skyLightLayouts(device: GPUDevice) {
   const layout = (entries: GPUBindGroupLayoutEntry[]) => device.createBindGroupLayout({ entries })
-  const layouts = {
+  return {
     skyAir: layout(airLayoutEntries(SKY_FACE_AIR, FRAGMENT)),
     fogAir: layout(airLayoutEntries(FOG_FACE_AIR, FRAGMENT)),
     face: layout([
@@ -80,38 +77,40 @@ export function createSkyLightPipelines(device: GPUDevice, failed: (error: unkno
       computeBufferEntry(3, 'storage', COMPUTE),
     ]),
   }
-  const draw = (
-    code: string,
-    groups: GPUBindGroupLayout[],
-    entry: string,
-    target: GPUColorTargetState,
-    label: string,
-  ) => {
-    const module = device.createShaderModule({ label, code })
-    const pipeline = preparedPipeline(
-      device,
-      fullscreenDescriptor(device, module, groups, entry, [target], label),
-    ).ask()
-    pipeline.prepare().catch(failed)
-    return pipeline
+}
+
+type SkyLightLayouts = ReturnType<typeof skyLightLayouts>
+
+/** The three face draws: the sky, the fog over it and the clouds' composition. */
+function faceDraws(device: GPUDevice, draw: Asked['draw'], layouts: SkyLightLayouts) {
+  const module = (label: string, code: string) => device.createShaderModule({ label, code })
+  return {
+    sky: draw(
+      module('Trillion3D sky light sky', SKY_FACE_PROGRAM.code),
+      [layouts.skyAir, layouts.face],
+      FACE_ENTRIES.sky,
+      REPLACE,
+      'Trillion3D sky light sky',
+    ),
+    fog: draw(
+      module('Trillion3D sky light fog', FOG_FACE_PROGRAM.code),
+      [layouts.fogAir, layouts.face],
+      FACE_ENTRIES.fog,
+      OVER,
+      'Trillion3D sky light fog',
+    ),
+    compose: draw(
+      module('Trillion3D sky light compose', COMPOSE_FACE_CODE),
+      [layouts.clouds, layouts.face],
+      FACE_ENTRIES.compose,
+      OVER,
+      'Trillion3D sky light compose',
+    ),
   }
-  const compute = (
-    module: GPUShaderModule,
-    group: GPUBindGroupLayout,
-    entry: string,
-    label: string,
-  ) => {
-    const pipeline = preparedComputeStage(
-      device,
-      device.createPipelineLayout({ bindGroupLayouts: [group] }),
-      module,
-      entry,
-      undefined,
-      label,
-    ).ask()
-    pipeline.prepare().catch(failed)
-    return pipeline
-  }
+}
+
+/** The mips' downsample, the roughness filter and the harmonics' sum. */
+function filterStages(device: GPUDevice, compute: Asked['compute'], layouts: SkyLightLayouts) {
   const filterModule = device.createShaderModule({
     label: 'Trillion3D sky light filter',
     code: FILTER_CODE,
@@ -120,28 +119,7 @@ export function createSkyLightPipelines(device: GPUDevice, failed: (error: unkno
     label: 'Trillion3D sky light harmonics',
     code: IRRADIANCE_CODE,
   })
-  const pipelines = {
-    sky: draw(
-      SKY_FACE_PROGRAM.code,
-      [layouts.skyAir, layouts.face],
-      FACE_ENTRIES.sky,
-      REPLACE,
-      'Trillion3D sky light sky',
-    ),
-    fog: draw(
-      FOG_FACE_PROGRAM.code,
-      [layouts.fogAir, layouts.face],
-      FACE_ENTRIES.fog,
-      OVER,
-      'Trillion3D sky light fog',
-    ),
-    compose: draw(
-      COMPOSE_FACE_CODE,
-      [layouts.clouds, layouts.face],
-      FACE_ENTRIES.compose,
-      OVER,
-      'Trillion3D sky light compose',
-    ),
+  return {
     downsample: compute(
       filterModule,
       layouts.filter,
@@ -161,7 +139,22 @@ export function createSkyLightPipelines(device: GPUDevice, failed: (error: unkno
       'Trillion3D sky light harmonics',
     ),
   }
-  return { layouts, pipelines, cloudTrace: createCloudTracePass(device, failed) }
+}
+
+/**
+ * THE CAPTURE'S LAYOUTS AND PIPELINES, asked at once, off the frame (`PreparedPipeline.ask`): the
+ * three face draws, the clouds' tracing (the clouds part's own, `createCloudTracePass`), the mips'
+ * downsample and the filter, and the harmonics' sum. The cube is read by a sampler that takes
+ * the nearest texel and the nearest level, which the face composition's cloud read does not use.
+ */
+export function createSkyLightPipelines(device: GPUDevice, failed: (error: unknown) => void) {
+  const layouts = skyLightLayouts(device)
+  const { draw, compute } = askedPipelines(device, failed)
+  return {
+    layouts,
+    pipelines: { ...faceDraws(device, draw, layouts), ...filterStages(device, compute, layouts) },
+    cloudTrace: createCloudTracePass(device, failed, CAPTURE_CLOUD_KEY),
+  }
 }
 
 /** What `createSkyLightPipelines` made. */

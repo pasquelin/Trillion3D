@@ -24,6 +24,7 @@ import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
+import { SKY_QUALITY_RULES } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import { createWorldSettings } from './settings.ts'
 
 const WORLD_SETTINGS = createWorldSettings().table
@@ -58,6 +59,8 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(TEMPORAL_RULES, {}),
   // The depth pyramid's trace, transparent fold and transparent test: each its contract's default.
   ...resolveSettings(HIZ_RULES, {}),
+  // The sky's quality settings: each its rule's default.
+  ...resolveSettings(SKY_QUALITY_RULES, {}),
 }
 
 test('every default is the constant the engine reads today, and a fresh registry resolves it', () => {

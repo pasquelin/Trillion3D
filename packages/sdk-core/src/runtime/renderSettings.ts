@@ -81,22 +81,15 @@ function check(name: string, entry: RenderSettingEntry, value: unknown, source: 
   if (!fits) throw new Error(`RENDER_SETTING_VALUE: ${name} does not take ${String(value)}`)
 }
 
-/**
- * A registry over `table`: every value resolved from its layers by priority, and the hooks that
- * apply a setting called once each time its resolved value changes — never for a write a stronger
- * source hides.
- */
-export function createRenderSettings<T extends Readonly<Record<string, RenderSettingEntry>>>(
-  table: T,
-) {
-  type Name = keyof T & string
+/** The layers of a registry over `table` and the two reads of them: an entry by name, refused when
+ *  unknown, and the value a name resolves to, the strongest layer's else the entry's default. */
+function layeredValues(table: Readonly<Record<string, RenderSettingEntry>>) {
   const layers: Record<RenderSettingSource, Map<string, RenderSettingValue>> = {
     scene: new Map(),
     quality: new Map(),
     page: new Map(),
     editor: new Map(),
   }
-  const hooks = new Map<string, Set<(value: never) => void>>()
   const entryOf = (name: string) => {
     const entry = table[name]
     if (!entry) throw new Error(`RENDER_SETTING_UNKNOWN: ${name}`)
@@ -109,13 +102,33 @@ export function createRenderSettings<T extends Readonly<Record<string, RenderSet
     }
     return entryOf(name).default
   }
-  /** Runs `change` on a layer, then the hooks of `name` if its resolved value moved. */
+  return { layers, entryOf, resolve }
+}
+
+/** The hooks of a registry and its write: `write(name, change)` runs `change` on a layer, then the
+ *  hooks of `name` if its resolved value moved. */
+function hookedWrites(resolve: (name: string) => RenderSettingValue) {
+  const hooks = new Map<string, Set<(value: never) => void>>()
   const write = (name: string, change: () => void) => {
     const before = resolve(name)
     change()
     const after = resolve(name)
     if (after !== before) for (const hook of hooks.get(name) ?? []) hook(after as never)
   }
+  return { hooks, write }
+}
+
+/**
+ * A registry over `table`: every value resolved from its layers by priority, and the hooks that
+ * apply a setting called once each time its resolved value changes — never for a write a stronger
+ * source hides.
+ */
+export function createRenderSettings<T extends Readonly<Record<string, RenderSettingEntry>>>(
+  table: T,
+) {
+  type Name = keyof T & string
+  const { layers, entryOf, resolve } = layeredValues(table)
+  const { hooks, write } = hookedWrites(resolve)
   return {
     /** The table the registry resolves. */
     table,

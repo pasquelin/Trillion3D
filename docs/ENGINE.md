@@ -344,6 +344,40 @@ world.cut = { cutTwoPassOcclusion: null } // back to the preset's, here the defa
 | `cutMaxCandidateClusters`  | Most candidate clusters one cut lists, a whole number from 1 to 2³¹ − 1      | `16777216` |
 | `cutMaxVisibleClusters`    | Most clusters one cut draws, a whole number from 1 to 2³¹ − 1                | `4194304`  |
 
+**Depth pyramid settings.** The depth pyramid keeps its culling layer (the opaque depth, f32, the
+farthest of each 2 × 2, edges clamped) whatever the settings. Its trace layers are what the
+reflections' screen march reads. By default (`hizTrace` `'reference'`) the nearest layer is the
+closest opaque depth of each texel's centre and the march is the reference's walk
+(`visibility/hiz/gpu/screenMarchReference.ts`): its level 1 is the half-resolution mip 0 and the walk
+goes down to the full-resolution depth image, as the reflections' reference does, a hit the tile's
+depth, flat. In that walk a ray hits a surface it lies less far behind than
+`hizRelativeDepthThickness` (0.005) of the surface's depth (at least 10⁻⁷ m), times the projection's
+depth scale (1 under a perspective; `screenRelativeThickness` derives it under an orthographic one,
+from its depth range in centimetres, the depth measured from the eye's plane); `'planes'` keeps its
+thickness in pixels. With `'planes'` the nearest layer
+holds each pixel's plane corner, a finished-depth farthest layer is built beside it, and the march is
+the engine's own (`screenMarchPlanes.ts`), which a grazing surface cannot slip through. The
+transparent front depth is folded into the trace layers only by `hizFoldTransparents` (off). A
+transparent cluster is tested against the culling layer at a finer level by default (`'finer'`,
+`visibility/hiz/gpu/rectWgsl.ts`) or, by `hizTransparentTest` `'reference'`, over four texels a
+side of the lowest level that holds it (`visibility/hiz/gpu/footprintWgsl.ts`, the cut's own test).
+The settings are world options by their field, changed by `world.hiz` from the next frame
+(`packages/sdk-core/src/contracts/hizOptions.ts`):
+
+```ts
+const world = createWorld(canvas, { hizTransparentTest: 'reference' })
+world.hiz = { hizTrace: 'planes', hizFoldTransparents: true }
+world.hiz = { hizTrace: null } // back to the default, the reference's walk
+world.hiz = { hizRelativeDepthThickness: 0.01 } // thicker reflection hits
+```
+
+| Field                       | Meaning                                                                      | Default       |
+| --------------------------- | ---------------------------------------------------------------------------- | ------------- |
+| `hizTrace`                  | How the reflections' trace reads the pyramid: `'reference'`, or `'planes'`   | `'reference'` |
+| `hizFoldTransparents`       | The trace layers hold the nearest transparent surface beside the opaque one  | `false`       |
+| `hizTransparentTest`        | How a transparent cluster is tested: `'finer'` (16 texels), or `'reference'` | `'finer'`     |
+| `hizRelativeDepthThickness` | Reflections, `'reference'` walk: a surface's thickness, a share of its depth | `0.005`       |
+
 Two rasterizers write the one visibility buffer, chosen cluster by cluster (`visibility/raster/`).
 A binning kernel, one workgroup a drawable row (`visibility/raster/binWgsl.ts`), reads each row's
 longest edge, vertex box and level-of-detail sphere: a row whose box crosses the near or the far

@@ -32,8 +32,9 @@ const VERTEX = '4527231df79be64432298d76dcf283c314a39b64fa2f846f9f6ed30dd9a64ead
 // leaves the scene (`fogBeyond`), and then the fog read whether an atmosphere shows by one text, and
 // gained the test of a background no sky is drawn on (`fogsBackground`), and then the reflections'
 // screen march came to be two walks of the depth pyramid, picked by its levels uniform
-// (`screenMarch`, `hizTrace`).
-const BLEND = 'd7a86b75ec8846fe1ca03eeeaa2e2a2115b3c8590537f3fe165df8b209dd559e'
+// (`screenMarch`, `hizTrace`), and then the reflection view's block gained the share of a surface's
+// depth the reference walk takes for its thickness (`thickness`).
+const BLEND = 'f639a90c098bdda06c2d056c444e61ad0d93b7e0864531756b45d2c1aee3dfd4'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */

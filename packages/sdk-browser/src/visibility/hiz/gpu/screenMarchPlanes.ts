@@ -54,11 +54,51 @@ const SCREEN_MARCH_NUDGE = 2 ** -8
  * fewer iterations (`cap`): the floor rises over the last of them, so the ray's precision falls
  * gradually where the budget runs short, never its answer at once.
  *
+ * The nearest first: a ray in front of every surface of a cell never reads its farthest. A ray in
+ * front of every surface of the cell until it reaches the nearest depth moves there. A cell no finer
+ * than the floor level is met where the ray lies inside the slab of the pixel under it — at or
+ * behind its surface, not past its back, level 0's slab, so a thin surface stays thin —, and crossed
+ * elsewhere: what it holds beside that pixel is within the budget's reach; the hit is where the ray
+ * crossed that plane, within the cell: as sharp as level 0's.
  */
+const SCREEN_MARCH_PIXELS_WGSL = (group: number, binding: number) =>
+  wgslBlock(
+    `SCREEN_MARCH_PIXELS_WGSL(${group}, ${binding})`,
+    [SCREEN_MARCH_BASE_WGSL(group, binding)],
+    `fn screenPlanesPixel(o:vec3f,d:vec3f,t:f32,across:f32,cell:vec2f,thickness:f32,slab:vec4f,k:u32)->ScreenHit{
+ let miss=ScreenHit(-1.0,vec3f(0.0),vec2f(0.0),false,0u);
+ let plane=hizPlane(vec2i(cell));
+ let centre=cell+vec2f(0.5);
+ let s0=plane.x+dot(o.xy+d.xy*t-centre,plane.yz);
+ let s1=plane.x+dot(o.xy+d.xy*across-centre,plane.yz);
+ let h0=o.z+d.z*t-s0;
+ let h1=o.z+d.z*across-s1;
+ if(h0>=0.0){
+  if(h1<0.0){return ScreenHit(mix(t,across,h0/(h0-h1)),plane,centre,hizFrontOver(vec2i(cell)),k);}
+ }else if(s0>0.0){
+  let back=screenBack(s0,thickness,slab);
+  if(o.z+d.z*t>=back){return ScreenHit(t,plane,centre,hizFrontOver(vec2i(cell)),k);}
+ }
+ return miss;
+}
+fn screenPlanesFloor(o:vec3f,d:vec3f,t:f32,start:f32,thickness:f32,slab:vec4f,k:u32)->ScreenHit{
+ let z=o.z+d.z*t;
+ let under=floor(o.xy+d.xy*t);
+ let plane=hizPlane(vec2i(under));
+ let s=plane.x+dot(o.xy+d.xy*t-under-vec2f(0.5),plane.yz);
+ if(s>0.0&&z<=s&&z>=screenBack(s,thickness,slab)){
+  let dh=d.z-dot(d.xy,plane.yz);
+  let at=select(t,max(start,t-(z-s)/dh),dh<0.0);
+  return ScreenHit(at,plane,under+vec2f(0.5),hizFrontOver(vec2i(under)),k);
+ }
+ return ScreenHit(-1.0,vec3f(0.0),vec2f(0.0),false,0u);
+}`,
+  )
+
 export const SCREEN_MARCH_PLANES_WGSL = (group: number, binding: number) =>
   wgslBlock(
     `SCREEN_MARCH_PLANES_WGSL(${group}, ${binding})`,
-    [SCREEN_MARCH_BASE_WGSL(group, binding)],
+    [SCREEN_MARCH_PIXELS_WGSL(group, binding)],
     `const SCREEN_MARCH_NUDGE:f32=${wgslF32(SCREEN_MARCH_NUDGE)};
 fn screenMarchPlanes(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->ScreenHit{
  let tiny=vec2f(1e-6);
@@ -66,50 +106,35 @@ fn screenMarchPlanes(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->
  let inv=1.0/select(d.xy,select(-tiny,tiny,ahead),abs(d.xy)<tiny);
  let side=select(vec2f(0.0),vec2f(1.0),ahead);
  let nudge=select(vec2f(-SCREEN_MARCH_NUDGE),vec2f(SCREEN_MARCH_NUDGE),ahead);
- let levels=hizLevelCount();
- let top=levels-1;
+ let top=hizLevelCount()-1;
  let first=(floor(o.xy)+side+nudge-o.xy)*inv;
- let steps=min(screenMarchBudget(d,end,levels),cap);
+ let steps=min(screenMarchBudget(d,end,top+1),cap);
  var t=min(first.x,first.y);
  var level=0;
  for(var k=0u;k<steps;k++){
   if(t>=end){break;}
   let start=t;
-  // The widest level a cell may be met at: none but the pixel's, until the budget's last levels' worth
-  // of iterations, one more each, so that a ray always crosses the screen.
   let floorLevel=min(max(0,i32(k)+top+1-i32(steps)),top);
   let size=exp2(f32(level));
   let p=o.xy+d.xy*t;
   let cell=floor(p/size);
   let exits=((cell+side)*size+nudge-o.xy)*inv;
   let across=min(min(exits.x,exits.y),end);
-  let z0=o.z+d.z*t;
-  let z1=o.z+d.z*across;
   if(level==0){
-   let plane=hizPlane(vec2i(cell));
-   let centre=cell+vec2f(0.5);
-   let s0=plane.x+dot(p-centre,plane.yz);
-   let s1=plane.x+dot(o.xy+d.xy*across-centre,plane.yz);
-   let h0=z0-s0;
-   let h1=z1-s1;
-   if(h0>=0.0){
-    if(h1<0.0){return ScreenHit(mix(t,across,h0/(h0-h1)),plane,centre,hizFrontOver(vec2i(cell)),k);}
-   }else if(s0>0.0){
-    let back=screenBack(s0,thickness,slab);
-    if(z0>=back){return ScreenHit(t,plane,centre,hizFrontOver(vec2i(cell)),k);}
-   }
+   let met=screenPlanesPixel(o,d,t,across,cell,thickness,slab,k);
+   if(met.t>=0.0){return met;}
    t=across;
    level=min(1,top);
    continue;
   }
-  // The nearest first: a ray in front of every surface of the cell never reads its farthest.
+  let z0=o.z+d.z*t;
+  let z1=o.z+d.z*across;
   let nearest=hizCellNearest(vec2i(cell),level);
   if(min(z0,z1)>nearest){
    t=across;
    level=min(level+1,top);
    continue;
   }
-  // In front of every surface of the cell until it reaches the nearest depth: it moves there.
   let entry=select(t,mix(t,across,(z0-nearest)/(z0-z1)),z0>nearest);
   let z=o.z+d.z*entry;
   if(max(z,z1)<screenBack(hizCellFarthest(vec2i(cell),level),thickness,slab)){
@@ -118,19 +143,9 @@ fn screenMarchPlanes(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->
    continue;
   }
   t=entry;
-  // A cell no finer than the floor is met where the ray lies inside the slab of the pixel under it — at
-  // or behind its surface, not past its back, level 0's slab, so a thin surface stays thin —, and
-  // crossed elsewhere: what it holds beside that pixel is within the budget's reach.
   if(level<=floorLevel){
-   let under=floor(o.xy+d.xy*t);
-   let plane=hizPlane(vec2i(under));
-   let s=plane.x+dot(o.xy+d.xy*t-under-vec2f(0.5),plane.yz);
-   if(s>0.0&&z<=s&&z>=screenBack(s,thickness,slab)){
-    // Where the ray crossed that plane, within the cell: the hit as sharp as level 0's.
-    let dh=d.z-dot(d.xy,plane.yz);
-    let at=select(t,max(start,t-(z-s)/dh),dh<0.0);
-    return ScreenHit(at,plane,under+vec2f(0.5),hizFrontOver(vec2i(under)),k);
-   }
+   let met=screenPlanesFloor(o,d,t,start,thickness,slab,k);
+   if(met.t>=0.0){return met;}
    t=across;
    level=min(level+1,top);
    continue;

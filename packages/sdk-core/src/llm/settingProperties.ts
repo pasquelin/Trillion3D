@@ -151,6 +151,8 @@ const HIZ_MEANINGS: Readonly<Record<HizField, string>> = {
     "Whether the trace layers of the pyramid hold, beside the opaque depth, the nearest transparent surface of each pixel, so that a ray stops at glass; off by default, the traces read the opaque depth alone. The cut's occlusion never reads it.",
   hizTransparentTest:
     "How a transparent cluster is tested against the opaque depth already drawn: 'finer' reads up to sixteen texels a side of a level fine enough to hold its rectangle and rejects the clusters wholly behind it; 'reference' reads four texels a side of the lowest level that holds it. Neither rejects a visible cluster; 'finer' rejects more.",
+  hizRelativeDepthThickness:
+    "The thickness the reflections' 'reference' screen trace gives a surface, as a share of the surface's depth (a ray no further behind it than that share of its depth hits it); 0.005 by default, scaled by the projection's depth scale (1 under a perspective). The 'planes' trace keeps its pixel thickness.",
 }
 
 /** What each setting of the exposure means (`../contracts/exposureOptions.ts`); the first twelve
@@ -312,8 +314,6 @@ const SKY_QUALITY_MEANINGS: Readonly<Record<SkyQualityField, string>> = {
     'Whether the clouds are traced into a target of their own, at the size cloudTraceSize says, and laid over the scene.',
   cloudUpsampling:
     "The way the traced clouds are laid over the scene: 'bilinear'; 'bilinearJitter'; 'nearestDepth', the nearest with a depth test; 'bilinearJitterClosest', with a jitter keeping the closest; 'bilateral'. A cloudTraceSize of 'quarterToFull' or 'full' reads 'nearestDepth' whatever is asked.",
-  cloudUpsampleAcceptance:
-    'How little a noisy cloud sample may differ from its neighbours to be blended, from 0: more accepts fewer; read by the jitter ways of cloudUpsampling.',
   cloudRenderTargetScale:
     "Size of the clouds' target, from 0.1 to 1; read only with a cloudTraceSize of 'quarterToFull'.",
   cloudReprojectionBoxConstraint:

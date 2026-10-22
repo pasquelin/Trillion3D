@@ -354,6 +354,26 @@ const world = createWorld('viewer', { cutTwoPassOcclusion: true })
 world.cut = { cutLodBiasFollowsUpscale: false } // the screen error ignores the upscale, next frame
 ```
 
+`world.hiz` holds the depth pyramid's settings, each an option of `createWorld` too: `hizTrace`
+(`'reference'`: the reflections' trace walks the closest opaque depth of each half-resolution texel,
+mip by mip, down to the full-resolution depth, as the reference's does; `'planes'`: it reads each pixel as a plane, which keeps a hit on
+a grazing surface that the centre alone passes over), `hizFoldTransparents` (`false`: the trace
+layers hold the opaque depth alone; `true`, the nearest transparent surface of each pixel too, so a
+ray stops at glass) and `hizTransparentTest` (`'finer'`: a transparent cluster is tested over up to
+sixteen texels a side of a fine level; `'reference'`: over four texels a side of the lowest level
+that holds it; the image is the same, `'finer'` rejects more clusters), `hizRelativeDepthThickness`
+(`0.005`: in the `'reference'` walk, the reflections hit a surface a ray lies no further behind than
+that share of the surface's depth, times the projection's depth scale; `'planes'` keeps its
+thickness in pixels). The cut's occlusion reads
+the culling layer, which no setting changes. A write names the settings it changes, `null` one's
+default; a value of another kind is refused by name.
+
+```js
+const world = createWorld('viewer', { hizTrace: 'planes' })
+world.hiz = { hizTrace: null, hizFoldTransparents: true } // the default trace, glass in the pyramid
+world.hiz = { hizRelativeDepthThickness: 0.01 } // thicker reflection hits
+```
+
 `world.shading` holds the material pass's settings, each an option of `createWorld` too:
 `shadeBinningMode` (`'auto'`: each material's pixels binned as its shading asks — one by one for
 every material of the engine —, `'pixel'` one by one, `'quad'` by 2 × 2 quad). The image is the same

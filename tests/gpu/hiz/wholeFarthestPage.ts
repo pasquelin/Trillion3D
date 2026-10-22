@@ -105,6 +105,8 @@ export async function testWholeFarthest(cases: WholeFarthestCase[]) {
       device.queue.submit([encoder.finish()])
     }
     draw(occluders, (open) => hiz.encodePyramid(open))
+    // The finished depth's farthest layer is the planes' build's (`hizTrace` `'planes'`).
+    hiz.planes(true)
     draw(finished, (open) => hiz.encodeNearest(open))
     const size = pyramidBytes(width, height),
       { texels } = size
