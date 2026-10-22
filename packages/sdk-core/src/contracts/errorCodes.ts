@@ -49,6 +49,7 @@ const ENGINE_ERROR_CODES: readonly (readonly string[])[] = [
   ['NO_VEHICLE'],
   ['GUIDE_CEILING'],
   ['REFERENCE_SHADOWS_REDUCED', 'REFERENCE_INTERACTIVE'],
+  ['INVALID_MODULE_OPTION', 'MODULE_MISSING'],
 ]
 
 const documented: ReadonlySet<string> = new Set(ENGINE_ERROR_CODES.flat())

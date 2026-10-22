@@ -3,6 +3,7 @@
 // readings of a family differ where one of its settings does.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { defineModule, mergeModuleParts, resolveModuleOption } from '../modules/descriptor.ts'
 import {
   countSetting,
   nonNegativeSetting,
@@ -36,4 +37,23 @@ test('two readings of a family differ where one of its settings does', () => {
   assert.equal(settingsDiffer(rules, used, resolveSettings(rules, { scale: 2 })), false)
   assert.equal(settingsDiffer(rules, used, resolveSettings(rules, { scale: 3 })), true)
   assert.equal(settingsDiffer(rules, used, resolveSettings(rules, { scale: 2, frames: 6 })), true)
+})
+
+// A module's option is read by one resolver, and the sources' parts merge field by field.
+test('a module option is true, false, silent or an object of its parts, and nothing else', () => {
+  const sky = defineModule({
+    name: 'sky',
+    enabledByDefault: false,
+    requires: [],
+    parts: ['clouds'],
+  })
+  assert.deepEqual(resolveModuleOption(sky, true), { parts: {} })
+  assert.equal(resolveModuleOption(sky, false), false)
+  assert.equal(resolveModuleOption(sky, null), undefined)
+  assert.throws(() => resolveModuleOption(sky, { fog: true }), /unknown part "fog"/)
+  assert.throws(() => resolveModuleOption(sky, { clouds: 3 as never }), /neither a boolean/)
+  const stronger = { parts: { clouds: { a: 1 } } },
+    weaker = { parts: { clouds: { a: 2, b: 3 } } }
+  assert.deepEqual(mergeModuleParts(sky, [stronger, weaker]), { clouds: { a: 1, b: 3 } })
+  assert.deepEqual(mergeModuleParts(sky, [{ parts: { clouds: false } }, weaker]), { clouds: false })
 })

@@ -1,6 +1,8 @@
 export * from './contracts/index.ts'
 export * from './bounce/contracts.ts'
 export * from './contracts/proxy.ts'
+export * from './modules/descriptor.ts'
+export * from './modules/manager.ts'
 export * from './bounce/cascades.ts'
 export * from './bounce/probePool.ts'
 export { assertSceneProxy, decodeSceneProxy } from './scene/core/proxy.ts'

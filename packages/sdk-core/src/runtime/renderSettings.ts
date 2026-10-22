@@ -58,7 +58,12 @@ type ValueOf<E extends RenderSettingEntry> = E extends { kind: 'flag' }
  *  page, the editor. */
 export type RenderSettingSource = 'scene' | 'quality' | 'page' | 'editor'
 /** The written sources, strongest first: the first that holds a value gives it. */
-const STRONGEST_FIRST: readonly RenderSettingSource[] = ['editor', 'page', 'quality', 'scene']
+export const STRONGEST_FIRST: readonly RenderSettingSource[] = [
+  'editor',
+  'page',
+  'quality',
+  'scene',
+]
 
 /** Throws unless `value` is one `entry` takes from `source`. */
 function check(name: string, entry: RenderSettingEntry, value: unknown, source: string) {
