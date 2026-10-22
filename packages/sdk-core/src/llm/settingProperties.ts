@@ -7,6 +7,7 @@
  * reads the schema drops them.
  */
 import type { JsonSchemaProperty } from './types.ts'
+import { ruleSchema } from './schemaParts.ts'
 import {
   WORLD_STREAMING_RULES,
   type WorldStreamingField,
@@ -210,6 +211,10 @@ function ruleProperties<F extends string>(
     }
     if (rule.kind === 'flag') {
       properties[field] = { type: 'boolean', default: rule.default, description }
+      continue
+    }
+    if (rule.kind === 'vector') {
+      properties[field] = ruleSchema(rule, description)
       continue
     }
     // What the runtime accepts (`settingFits`): a range's start included, excluded for an `above`

@@ -25,6 +25,9 @@ export interface JsonSchemaProperty {
   maximum?: number
   /** The shape of each item. */
   items?: JsonSchemaProperty
+  /** Fewest and most items of an array. */
+  minItems?: number
+  maxItems?: number
   /** The shape of each field. */
   properties?: Record<string, JsonSchemaProperty>
   /** Fields that must be given. */

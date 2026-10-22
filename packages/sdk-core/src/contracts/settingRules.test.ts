@@ -11,6 +11,7 @@ import {
   resolveSettings,
   rulesOf,
   settingsDiffer,
+  vectorSetting,
 } from './settingRules.ts'
 
 test('a count takes whole numbers from its least up and refuses the rest in words', () => {
@@ -56,4 +57,16 @@ test('a module option is true, false, silent or an object of its parts, and noth
     weaker = { parts: { clouds: { a: 2, b: 3 } } }
   assert.deepEqual(mergeModuleParts(sky, [stronger, weaker]), { clouds: { a: 1, b: 3 } })
   assert.deepEqual(mergeModuleParts(sky, [{ parts: { clouds: false } }, weaker]), { clouds: false })
+})
+
+test('a vector takes finite numbers of its default length, and two readings compare by parts', () => {
+  const colour = vectorSetting('colour', [0.1, 0.2, 0.3])
+  assert.deepEqual(resolveSetting(colour, null), [0.1, 0.2, 0.3])
+  assert.deepEqual(resolveSetting(colour, [1, 0, 0]), [1, 0, 0])
+  assert.throws(() => resolveSetting(colour, [1, 0]), /an array of 3 finite numbers, got 1,0/)
+  assert.throws(() => resolveSetting(colour, [1, 0, Infinity]), /an array of 3 finite numbers/)
+  const rules = rulesOf([colour] as const)
+  const used = resolveSettings(rules, { colour: [1, 0, 0] })
+  assert.equal(settingsDiffer(rules, used, resolveSettings(rules, { colour: [1, 0, 0] })), false)
+  assert.equal(settingsDiffer(rules, used, resolveSettings(rules, { colour: [1, 0, 1] })), true)
 })

@@ -11,7 +11,7 @@ import {
 import { RASTER_RULES } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
 import { STREAMING_RULES } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
 import { WORLD_STREAMING_RULES } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
-import type { SettingRule } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import type { RegistryRule } from './ruledSwitches.ts'
 import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import { ANIMATION_RULES } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
@@ -40,10 +40,10 @@ type RuleEntry<V> = V extends boolean
   : V extends number
     ? NumberSettingEntry
     : Omit<ChoiceSettingEntry, 'default' | 'choices'> & { default: V; choices: readonly V[] }
-/** The entry of one setting of a contract's rules (`SettingRule`), of the view distance's group:
+/** The entry of one setting of a contract's rules (`RegistryRule`), of the view distance's group:
  *  its kind, default and range or names the rule's. A number `above` its range's start lies from
  *  the smallest number past it. */
-function ruleEntry(rule: SettingRule) {
+function ruleEntry(rule: RegistryRule) {
   const group = base('viewDistance')
   if (rule.kind === 'flag') return { kind: rule.kind, default: rule.default, ...group }
   if (rule.kind === 'choice')
@@ -52,7 +52,7 @@ function ruleEntry(rule: SettingRule) {
   return { kind: rule.kind, default: rule.default, range, ...group }
 }
 /** The entries of the settings of a contract's rules by field, each setting by its field. */
-const ruleEntries = <R extends Readonly<Record<string, SettingRule>>>(rules: R) =>
+const ruleEntries = <R extends Readonly<Record<string, RegistryRule>>>(rules: R) =>
   Object.fromEntries(
     Object.entries(rules).map(([field, rule]) => [field, ruleEntry(rule)]),
   ) as unknown as { [F in keyof R]: RuleEntry<R[F]['default']> }

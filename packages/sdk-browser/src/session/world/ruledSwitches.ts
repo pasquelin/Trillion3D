@@ -14,8 +14,10 @@ import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 
+/** The rules the world's registry holds: every kind but a vector, which no registry entry types. */
+export type RegistryRule = Exclude<SettingRule, { readonly kind: 'vector' }>
 /** A family's rules, by field. */
-type Rules = Readonly<Record<string, SettingRule>>
+type Rules = Readonly<Record<string, RegistryRule>>
 /** The values of the family of rules `R`, by field. */
 type Values<R extends Rules> = { -readonly [F in keyof R]: R[F]['default'] }
 /** A field of the family of rules `R`. */
