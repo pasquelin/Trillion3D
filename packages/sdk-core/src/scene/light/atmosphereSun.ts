@@ -31,13 +31,14 @@ function brightestLighting(
   ids: readonly string[],
   records: ReadonlyMap<string, SceneLight>,
   rankOf: (id: string) => number,
+  except?: string,
 ) {
   let best: string | undefined,
     luminance = -1,
     rank = Infinity
   for (const id of ids) {
     const light = records.get(id)!
-    if (!mayLightAir(light)) continue
+    if (id === except || !mayLightAir(light)) continue
     const bright = lightLuminance(light),
       at = rankOf(id)
     if (bright > luminance || (bright === luminance && at < rank)) {
@@ -60,16 +61,27 @@ export function createSunHold(
   rankOf: (id: string) => number,
 ) {
   let sun: string | undefined, first: string | undefined
-  /** The lights that may light the air, as last added or changed. */
-  const lighting = new Set<string>()
-  const brightest = () => brightestLighting(ids, records, rankOf)
+  /** The directional lights, and those that may light the air, as last added or changed. */
+  const directional = new Set<string>(),
+    lighting = new Set<string>()
   /** A light was added, its record held: it takes the sun's place only if strictly brighter. */
   const added = (light: SceneLight) => {
-    if (light.kind === 'directional') first ??= light.id
+    if (light.kind === 'directional') {
+      directional.add(light.id)
+      first ??= light.id
+    }
     if (!mayLightAir(light)) return
     lighting.add(light.id)
     if (sun === undefined || lightLuminance(light) > lightLuminance(records.get(sun)!))
       sun = light.id
+  }
+  /** A light was removed (`except`: a light changed, still among `ids`, that is being added
+   *  again): the brightest of the others takes the sun's place if it was the sun. */
+  const removed = (id: string, except?: string) => {
+    directional.delete(id)
+    lighting.delete(id)
+    if (first === id) first = undefined
+    if (sun === id) sun = brightestLighting(ids, records, rankOf, except)
   }
   return {
     /** The id of the atmosphere's sun, or none. */
@@ -81,22 +93,16 @@ export function createSunHold(
       return sun ?? first
     },
     added,
-    /** A light was removed, no longer among `ids`: the brightest of the others takes the sun's
-     *  place if it was the sun. */
-    removed(id: string) {
-      lighting.delete(id)
-      if (first === id) first = undefined
-      if (sun === id) sun = brightest()
-    },
-    /** A light was changed, its record held: the sun stays where it is, unless the light became
-     *  able or unable to light the air — then it is removed or added again. */
+    removed,
+    /** A light was changed, its record held: the sun stays where it is, unless the light became or
+     *  stopped being directional or able to light the air — then it is removed and added again. */
     changed(light: SceneLight) {
-      if (light.kind !== 'directional' && first === light.id) first = undefined
-      if (mayLightAir(light) === lighting.has(light.id)) return
-      if (lighting.has(light.id)) {
-        lighting.delete(light.id)
-        if (sun === light.id) sun = brightest()
-      } else added(light)
+      const same =
+        directional.has(light.id) === (light.kind === 'directional') &&
+        lighting.has(light.id) === mayLightAir(light)
+      if (same) return
+      removed(light.id, light.id)
+      added(light)
     },
   }
 }

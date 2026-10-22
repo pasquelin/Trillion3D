@@ -227,6 +227,13 @@ test('the sun is held whatever the air: put out and on again, it is not forgotte
   store.setEnvironment({ exposure: 1 })
   store.setEnvironment({ exposure: 1, atmosphere: validateSceneAtmosphere(true) })
   near(air(), [1, 0, 0], 'the air put out and on again: a still')
+  // The first directional light removed, the fog's fallback is empty until a directional light is
+  // added again — as one that stops lighting the air is: removed and added again.
+  store.setEnvironment({ exposure: 1, fog: {} })
+  store.remove('a')
+  near(fog(), [0, 0, 1], 'c, the sun now')
+  store.set('c', { atmosphereSun: false })
+  near(fog(), [0, 0, 1], 'c no longer lights the air: added again, the fog falls back on it')
 })
 
 test('a fog changed stales the frame; the same fog set again does not', () => {
