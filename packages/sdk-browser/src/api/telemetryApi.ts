@@ -28,5 +28,8 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, engine: Eng
      * forgotten. `null` with none yet.
      */
     cpuSteps: () => engine.cpuSteps(),
+    /** A CPU step window of the caller's own (`cpuSteps`'s bounds), which no other reader moves; the
+     *  caller must `close()` it when done, or it keeps filing. */
+    openCpuSteps: () => engine.openCpuSteps(),
   }
 }

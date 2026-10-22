@@ -229,6 +229,9 @@ export function backendTiming(rt: WebgpuPagesRuntime) {
     cpuSteps() {
       return rt.timing.hostSteps.read()
     },
+    openCpuSteps() {
+      return rt.timing.profiler.openWindow(true)
+    },
     cpuStep(step, ms) {
       hostCpuStep(rt, step, ms)
     },

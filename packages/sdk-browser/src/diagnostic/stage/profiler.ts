@@ -57,11 +57,15 @@ export type CpuStepSummary = {
   worst: Array<Record<string, number>>
 }
 
+/** What a reader of a window holds: `read` and `close`. */
+export type CpuStepReader = Pick<CpuStepWindow, 'read' | 'close'>
+
 /** A window over the filed images, opened by `openWindow`: `read` summarises the images filed
- *  since it opened and opens it again, `reset` opens it again unread. */
+ *  since it opened and opens it again, `reset` opens it again unread, `close` stops it filing. */
 export type CpuStepWindow = {
   read(): CpuStepSummary | null
   reset(): void
+  close(): void
 }
 
 /**
@@ -107,10 +111,19 @@ export function createStageProfiler(options: {
     })
 
   const row = new Float64Array(width),
-    filedRows = new Float64Array(stepCapacity * width),
     column = new Float64Array(stepCapacity)
-  const worstTables: Array<ReturnType<typeof createWorst>> = []
-  let filed = 0
+  // Two rings of the filed rows: every row (what a reader's window reads) and the rows filed while
+  // profiled (what the others read). A row filed for the readers alone never enters the second, so
+  // it cannot push a profiled row out of a window that does not read it.
+  const ring = () => ({ rows: new Float64Array(stepCapacity * width), filed: 0 })
+  const profiledRows = ring()
+  // The first ring is made by the first reader and kept: with no reader open nothing is copied into
+  // it, and the last reader's close only resets its fill counter.
+  let allRows: ReturnType<typeof ring> | null = null
+  const file = (filing: ReturnType<typeof ring>) =>
+    filing.rows.set(row, (filing.filed++ % stepCapacity) * width)
+  const worstTables: Array<{ worst: ReturnType<typeof createWorst>; reader: boolean }> = []
+  let readers = 0
 
   return {
     /** The current image's CPU bounds, in `steps.names` order, filled before `record`. */
@@ -118,36 +131,53 @@ export function createStageProfiler(options: {
     /** The per-stage deposits, present only when the host mounted the stage profile. */
     stages,
     /** Files the filled row under `frame`, ranked by `total` in each window's slowest images, and
-     *  deposits its bounds onto their stages when the stage profile is mounted. */
-    record(frame: number, total: number) {
-      filedRows.set(row, (filed % stepCapacity) * width)
-      filed++
-      for (const worst of worstTables) worst.file(row, frame, total)
+     *  deposits its bounds onto their stages when the stage profile is mounted. With `readersOnly`
+     *  (the row is filed for the readers alone) only the reader windows' tables rank it and only
+     *  reader windows read it back. */
+    record(frame: number, total: number, readersOnly = false) {
+      if (readers > 0 && allRows) file(allRows)
+      if (!readersOnly) file(profiledRows)
+      for (const table of worstTables)
+        if (table.reader || !readersOnly) table.worst.file(row, frame, total)
       stages?.fileRow(row)
     },
+    /** The windows opened for a reader of their own (`openWindow(true)`) and not closed: while any
+     *  is, the engine files every image's row, debug mode or not. */
+    get readers() {
+      return readers
+    },
     /** Opens a window over the images filed from now on, with slowest images of its own: one per
-     *  reader, opened once. */
-    openWindow(): CpuStepWindow {
+     *  reader, opened once. A `reader`'s window asks for the rows to be filed until it closes. */
+    openWindow(reader = false): CpuStepWindow {
       const worst = createWorst(width, worstCount)
-      worstTables.push(worst)
-      let opened = filed
+      const table = { worst, reader }
+      worstTables.push(table)
+      if (reader && readers++ === 0) allRows ??= ring()
+      // A reader's window reads every filed row, any other the rows filed while profiled.
+      const source = reader ? allRows! : profiledRows
+      let opened = source.filed,
+        closed = false
       const reset = () => {
-        opened = filed
+        opened = source.filed
         worst.clear()
       }
       return {
         // Percentiles of each bound over the window's images, and its slowest images. A bound an
         // image did not file (`NaN`) is left out of its quantiles; a bound no image filed reads
-        // `NaN`, never zero. `null` when the window filed no image.
+        // `NaN`, never zero. `null` when the window filed no image it reads, or is closed.
         read() {
-          const frames = Math.min(stepCapacity, filed - opened)
-          if (!frames) return null
-          const first = filed - frames
+          if (closed) return null
+          const frames = Math.min(stepCapacity, source.filed - opened)
+          const first = source.filed - frames
+          if (!frames) {
+            reset()
+            return null
+          }
           const steps: CpuStepSummary['steps'] = {}
           for (let c = 0; c < width; c++) {
             let length = 0
             for (let i = 0; i < frames; i++) {
-              const ms = filedRows[((first + i) % stepCapacity) * width + c]
+              const ms = source.rows[((first + i) % stepCapacity) * width + c]
               if (Number.isFinite(ms)) column[length++] = ms
             }
             // One sort for the quantiles and the maximum (`summaryOf`).
@@ -161,6 +191,14 @@ export function createStageProfiler(options: {
           return summary
         },
         reset,
+        // A closed window's slowest images are no longer kept: nothing of it runs per image.
+        close() {
+          if (closed) return
+          closed = true
+          if (reader && --readers === 0 && allRows) allRows.filed = 0
+          const at = worstTables.indexOf(table)
+          if (at >= 0) worstTables.splice(at, 1)
+        },
       }
     },
     /** The per-stage profile, or a disabled one when the host did not mount it. */
