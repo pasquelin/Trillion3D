@@ -57,8 +57,9 @@ export function appendDagRoots(
     batch.push(live.worlds - 1)
   }
   packed.rootCount = p.rootClusters
-  // The distances' column, when a placement appended is the first to name one.
+  // The distances' and the parents' columns, when a placement appended is the first to name one.
   packed.drawDistance = p.drawDistance
+  packed.rootParent = p.rootParent
   const recordsTo = shared.records!.count
   shared.records!.finish(packed.clusters, packed.coldWords, coldBase(packed.pageCount), blocks)
   // Members of the tree from now on, in new groups (`joinPlacementTree`): their order words sent

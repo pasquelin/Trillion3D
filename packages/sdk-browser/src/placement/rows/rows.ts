@@ -17,10 +17,11 @@
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type { AnimationBanks } from '../../../../sdk-core/src/scene/core/animationBanks.ts'
 import type { MatrixElements } from '../../session/host/matrixElements.ts'
-import type { DrawDistance } from '../../geometry/selection/types.ts'
+import type { DrawDistance, RootParent } from '../../geometry/selection/types.ts'
 import type { ChangedRuns } from '../../geometry/residency/ranges.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
+import { ROOT_PARENT_WORDS, writeRootParent } from '../../geometry/dag/frameTable.ts'
 
 /** The placement rows of mirrored meshes, one row per placed copy. */
 export type PlacementRows = {
@@ -78,6 +79,11 @@ export type PlacementRows = {
   /** Per row, 1 when a view's primed depth draws it (`CellNode.farField`): a column of its own,
    *  absent until a cell places an object that sets it; kept by a growth. */
   farField?: Uint8Array
+  /** Per row, five floats — the error and the ball of the group that replaces its root, when its
+   *  node is an instance of an assembly (`CellNode.rootParents`, the entry of this row's primitive),
+   *  the radius 0 for none: a column of its own, absent until a cell places an instance; kept by a
+   *  growth, cleared where a row is parked. */
+  rootParent?: Float32Array
 }
 
 export function createPlacementRows(capacity: number): PlacementRows {
@@ -117,6 +123,10 @@ export function growPlacementRows(before: PlacementRows | null, needed: number) 
       rows.farField = new Uint8Array(rows.capacity)
       rows.farField.set(before.farField)
     }
+    if (before.rootParent) {
+      rows.rootParent = new Float32Array(ROOT_PARENT_WORDS * rows.capacity)
+      rows.rootParent.set(before.rootParent)
+    }
   }
   return rows
 }
@@ -155,6 +165,29 @@ export const rowCasting = (placement: PlacementOf) => placement.rows.casting[pla
 export function rowDrawDistance({ rows, index }: PlacementOf): DrawDistance | undefined {
   const far = rows.drawDistance?.[2 * index + 1] ?? 0
   return far > 0 ? { min: rows.drawDistance![2 * index], max: far } : undefined
+}
+
+/** The group that replaces the root of `placement`'s row, none for a row whose node is no instance
+ *  of an assembly: a group's ball has a radius above 0 (an exact group has an error of 0 and is
+ *  one), so a column's zero radius names none. */
+export function rowRootParent({ rows, index }: PlacementOf): RootParent | undefined {
+  const column = rows.rootParent,
+    at = ROOT_PARENT_WORDS * index
+  if (!column || !(column[at + 4] > 0)) return undefined
+  const sphere = [column[at + 1], column[at + 2], column[at + 3], column[at + 4]] as const
+  return { error: column[at], sphere }
+}
+
+/** Whether two parents are one: the same error and the same ball, or neither. */
+export const sameRootParent = (a: RootParent | undefined, b: RootParent | undefined) =>
+  a === b ||
+  (!!a && !!b && a.error === b.error && a.sphere.every((value, axis) => value === b.sphere[axis]))
+
+/** Row `row` of `rows` is an instance of an assembly whose root's group is `parent` from now on,
+ *  none for any other row; the column is made by the first row that names one. */
+export function seatRootParent(rows: PlacementRows, row: number, parent: RootParent | undefined) {
+  if (parent) rows.rootParent ??= new Float32Array(ROOT_PARENT_WORDS * rows.capacity)
+  if (rows.rootParent) writeRootParent(rows.rootParent, row, parent)
 }
 
 /** How many times a row's far-field flag changed: what the primed draw's set is read again by

@@ -1,6 +1,6 @@
 use super::*;
-use crate::tests::fixtures::options;
-use std::path::PathBuf;
+
+mod gate;
 
 /// A scene of `placements` nodes placing the mesh "Facade" — a triangle of its own and `assembly`
 /// — whose part, the mesh "Window", is a triangle too, over two materials.
@@ -32,10 +32,13 @@ fn windows(count: usize) -> Value {
     json!({"parts": [{"mesh": 0}], "nodes": nodes})
 }
 
-/// The assemblies of `g`, laid out, within a budget that holds them.
+/// The assemblies of `g`, laid out, within a budget that holds them, the nodes of one with no
+/// primitive of its own left with none.
 fn lay_out(g: &mut Value) -> Result<()> {
     let meshes = assembly_meshes(g);
-    expand::expand(g, &meshes, usize::MAX)
+    expand::expand(g, &meshes, usize::MAX)?;
+    expand::strip_bare(g);
+    Ok(())
 }
 
 fn children(g: &Value, node: usize) -> Vec<usize> {
@@ -258,80 +261,4 @@ fn an_assembly_that_does_not_read_is_refused_by_name() {
         .err()
         .expect("over the budget");
     assert_eq!(refusal.code, "RAM_ADMISSION_BUDGET_EXCEEDED");
-}
-
-/// The source of `g` as a loaded one, compiled by `options`.
-fn loaded(g: Value) -> RuntimeSource {
-    RuntimeSource {
-        manifest: json!({}),
-        g,
-        g_bytes_len: 0,
-        binary: Binary::Owned(Vec::new()),
-        bin_hash: String::new(),
-        bent: Vec::new(),
-    }
-}
-
-fn job(build: Value) -> Options {
-    let mesh_build = crate::MeshBuildOptions::read(Some(&build));
-    Options {
-        mesh_build,
-        ..options(PathBuf::new(), PathBuf::new())
-    }
-}
-
-// Behaviour: with `allowAssemblies` off — the default — nothing is read of an `assembly` extra and no
-// job fails on one, whatever it holds: a name another tool wrote, an object of its own; the meshes
-// that name an object are counted in the import report, and the document is as it came.
-#[test]
-fn an_assembly_extra_is_never_read_where_assemblies_are_not_allowed() {
-    for extra in [json!("chassis"), json!(null), json!(7), json!([1, 2])] {
-        let mut source = loaded(scene(extra, 1));
-        let before = source.g.clone();
-        expand_assemblies(&job(json!({})), &mut source).expect("no job fails on it");
-        assert_eq!((&source.g, &source.manifest), (&before, &json!({})));
-    }
-    // An object, not even an assembly's fields: not read either, but told.
-    let mut source = loaded(scene(json!({"anything": 1}), 1));
-    let before = source.g.clone();
-    expand_assemblies(&job(json!({})), &mut source).expect("not read");
-    assert_eq!(source.g, before);
-    assert_eq!(source.manifest["unsupported"][NOT_BUILT], 1);
-}
-
-// Behaviour: the setting is a mesh's own build setting: the scene's, a rule's by object or the
-// mesh's `extras` allow its assembly, the default does not.
-#[test]
-fn an_assembly_is_laid_out_where_its_mesh_allows_it() {
-    let built = |build: Value| {
-        let mut source = loaded(scene(windows(2), 1));
-        expand_assemblies(&job(build), &mut source).expect("lays out");
-        source.g["nodes"].as_array().map(Vec::len)
-    };
-    assert_eq!(built(json!({})), Some(1));
-    assert_eq!(built(json!({"allowAssemblies": true})), Some(3));
-    let ruled = json!({"objects": [{"match": "Facade0", "allowAssemblies": true}]});
-    assert_eq!(built(ruled), Some(3));
-    let other = json!({"objects": [{"match": "Roof", "allowAssemblies": true}]});
-    assert_eq!(built(other), Some(1));
-    let mut source = loaded(scene(windows(2), 1));
-    source.g["meshes"][1]["extras"]["allowAssemblies"] = json!(true);
-    expand_assemblies(&job(json!({})), &mut source).expect("lays out");
-    assert_eq!(source.g["nodes"].as_array().map(Vec::len), Some(3));
-}
-
-// Behaviour: a mesh a spline bent that names an assembly is refused where the job builds the
-// assembly — the curve bends its own triangles, not its parts — and laid out as its triangles alone
-// where the job does not.
-#[test]
-fn a_bent_assembly_is_refused_only_where_the_job_builds_it() {
-    let mut source = loaded(scene(windows(2), 1));
-    source.bent = vec![1];
-    let refusal = expand_assemblies(&job(json!({"allowAssemblies": true})), &mut source).err();
-    let refusal = refusal.expect("a bent assembly the job builds");
-    assert_eq!(refusal.code, "INVALID_SPLINE_MESH");
-    let mut source = loaded(scene(windows(2), 1));
-    source.bent = vec![1];
-    expand_assemblies(&job(json!({})), &mut source).expect("not built: its own triangles");
-    assert_eq!(source.g["nodes"].as_array().map(Vec::len), Some(1));
 }

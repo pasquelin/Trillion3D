@@ -1,5 +1,6 @@
 import { HIZ_BUILD_SIDE, HIZ_PASS_LEVELS, HIZ_UNI } from './uniforms.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
+import { wgslFn, type WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { surfaceSlopeOf } from '../../../../../math/src/wgsl/sampling.ts'
 import {
   HIZ_CULL_FARTHEST,
@@ -70,9 +71,13 @@ const HIZ_DEPTH_TILE = 2 * HIZ_BUILD_SIDE + 2 * HIZ_PLANE_REACH
  * texel into the pyramid — the tests and the next image's cull read level 0 there —, the nearest
  * build writes each pixel's slopes, and both reduce level 1 from the texels they just read, never
  * rereading the copy.
+ *
+ * The level-0 depth is read through `hizLevel0`, declared by `level0`: the image's own build reads it as
+ * the image wrote it (`HIZ_LEVEL0_WGSL`), the primed pyramid's pushes it away (`primedWgsl.ts`).
  */
-export const HIZ_SHADER = wgslProgram(
-  `override ${HIZ_NEAREST_BUILD}:bool=false;
+export const hizBuildShader = (level0: WgslDecl) =>
+  wgslProgram(
+    `override ${HIZ_NEAREST_BUILD}:bool=false;
 ${HIZ_UNI.wgsl}
 @group(0) @binding(0) var hizPyramid:texture_storage_2d_array<${HIZ_FORMAT},read_write>;
 @group(0) @binding(1) var level0:texture_2d_array<f32>;
@@ -153,7 +158,7 @@ fn hizSource(at:u32,x:u32,y:u32)->vec2f{
   if(hizKeepsPlanes()){return hizPlaneCorners(i,q,hizDepthAt(q));}
   return vec2f(hizFrontAt(q));
  }
- let depth=textureLoad(level0,q,${HIZ_OPAQUE_LAYER},0).r;
+ let depth=hizLevel0(textureLoad(level0,q,${HIZ_OPAQUE_LAYER},0).r);
  hizPut(i,${HIZ_CULL_FARTHEST}u,bitcast<u32>(depth));
  return vec2f(depth);
 }
@@ -212,5 +217,11 @@ fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:ve
  }
 }
 `,
-  [HIZ_TEXEL_WGSL, HIZ_FOLD_WGSL, surfaceSlopeOf],
-)
+    [HIZ_TEXEL_WGSL, HIZ_FOLD_WGSL, surfaceSlopeOf, level0],
+  )
+
+/** The image's own level-0 depth, as the image wrote it. */
+export const HIZ_LEVEL0_WGSL = wgslFn('hizLevel0', [], 'fn hizLevel0(z:f32)->f32{return z;}')
+
+/** The build of the image's own pyramid, which no setting changes. */
+export const HIZ_SHADER = /* @__PURE__ */ hizBuildShader(HIZ_LEVEL0_WGSL)

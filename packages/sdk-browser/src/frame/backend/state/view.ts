@@ -81,6 +81,14 @@ export const VIEW_GPU_KEYS = [
   'finish',
   'effects',
   'effectsRevision',
+  // The reading of the effect kinds' settings, one per view (`createKindSettings`): what moved since
+  // the image before is the view's own.
+  'kindSettings',
+  // The velocity stage, the screen probes and the ambient occlusion, whose histories follow the
+  // camera of the view that drew them.
+  'velocity',
+  'screenProbes',
+  'ambientOcclusion',
   // The fog's volume and its history, which follow the camera of the view that built them.
   'fogVolume',
   // The light shafts' histories, which follow the camera of the view that drew them.

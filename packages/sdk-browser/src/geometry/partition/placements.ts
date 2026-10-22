@@ -17,8 +17,9 @@ import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import type { CellRows } from './cellDecode.ts'
-import { seatFarField } from '../../placement/rows/rows.ts'
+import { rootParentsByNode, type CellRows } from './cellDecode.ts'
+import { seatFarField, seatRootParent } from '../../placement/rows/rows.ts'
+import type { RootParent } from '../selection/types.ts'
 import { createPlacementWrites, type CellFrame, type Placement } from './follow.ts'
 import {
   createTouchedRows,
@@ -32,9 +33,11 @@ import { rowCell, setRowCell, type RowCell } from './rowCells.ts'
 
 /** Row `row` of every link of `mesh` plays `track` of the scene's animation banks (-1: none), is
  *  drawn from `drawn` — a streamed core node's host meshes, by primitive —, from none when unset,
- *  is drawn from `near` to `far` (0 and 0: at every distance), and is a far-field row or not. The track column is made at the
- *  rows' capacity, every row -1, by the first row that plays one; the distances' by the first row
- *  that names a farthest one. */
+ *  is drawn from `near` to `far` (0 and 0: at every distance), is a far-field row or not, and
+ *  places an instance of an assembly whose root's group above each primitive is `parents` names, by
+ *  primitive. The track column is made at the rows' capacity, every row -1, by the first row that
+ *  plays one; the distances' by the first row that names a farthest one, the parents' by the first
+ *  that names one. */
 function seatRow(
   mesh: PlacedMesh,
   row: number,
@@ -43,6 +46,7 @@ function seatRow(
   near = 0,
   far = 0,
   farField = false,
+  parents?: ReadonlyMap<number, RootParent>,
 ) {
   mesh.links.forEach((link, at) => {
     const rows = link.placements!
@@ -51,6 +55,7 @@ function seatRow(
     if (far > 0) rows.drawDistance ??= new Float32Array(2 * rows.capacity)
     if (rows.drawDistance) rows.drawDistance.set([near, far], 2 * row)
     seatFarField(rows, row, farField)
+    seatRootParent(rows, row, parents?.get(link.primitives ?? at))
     const column = mesh.sources?.[at]
     if (column) column[row] = drawn?.[at] ?? null
   })
@@ -112,6 +117,7 @@ export function createCellPlacements(
   ) => {
     const { nodes, ranks, locals, drawDistances, farFields } = decoded
     if (!rowsFree(meshes, ranks, url)) return false
+    const instances = rootParentsByNode(decoded)
     const placements: Placement[] = []
     for (let node = 0; node < nodes; node++) {
       const parent = ranks[2 * node] < 0 ? root : parents[ranks[2 * node]]
@@ -123,7 +129,7 @@ export function createCellPlacements(
       const row = placements[node].row
       const near = drawDistances[2 * node],
         far = drawDistances[2 * node + 1]
-      seatRow(mesh, row, track, drawn, near, far, farFields?.[node] === 1)
+      seatRow(mesh, row, track, drawn, near, far, farFields?.[node] === 1, instances.get(node))
       for (const link of mesh.links) setRowCell(link.placements!, placements[node].row, at(node))
       write(placements[node])
     }

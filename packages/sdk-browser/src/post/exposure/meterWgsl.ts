@@ -88,7 +88,6 @@ ${METER_PARAMS.wgsl}
 @group(0) @binding(0) var<uniform> meter:MeterParams;
 @group(0) @binding(1) var<storage,read> histogram:array<u32,${HISTOGRAM_WORDS}>;
 @group(0) @binding(2) var<storage,read_write> exposure:array<vec4f,2>;
-${curveWgsl(3)}
 fn weightOf(i:u32)->f32{
  return f32(histogram[i*2u+1u])*${CARRY}+f32(histogram[i*2u])*${wgslF32(1 / WEIGHT_ONE)};
 }
@@ -154,5 +153,5 @@ fn adapt(){
  let localMean=select(1.0,averageLocal(next,bias),meter.local.w!=0.0);
  exposure[1]=vec4f(next*meter.image.x,localMean,0.0,0.0);
 }`,
-  [LOCAL_LOG_WGSL],
+  [LOCAL_LOG_WGSL, curveWgsl(3)],
 )

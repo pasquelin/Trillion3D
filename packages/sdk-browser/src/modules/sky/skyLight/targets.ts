@@ -156,7 +156,6 @@ function createGroups(device: GPUDevice, pipelines: SkyLightPipelines, over: Gro
               size: IRRADIANCE_VECTORS * 16,
             },
           },
-          { binding: 4, resource: wholeCube(captured) },
         ],
       }),
     ),

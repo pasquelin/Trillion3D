@@ -28,7 +28,7 @@ import { placedMeshes } from './placed.ts'
 import { bindBanks, bindSkins, clipsOf, movedNodes, streamedMeshes } from './motion.ts'
 import type { RowLink } from '../../../geometry/partition/rows.ts'
 import type { AnimationBanks } from '../../../../../sdk-core/src/scene/core/animationBanks.ts'
-import { holdDrawDistance } from '../../../geometry/selection/drawSource.ts'
+import { holdDrawDistance, holdRootParents } from '../../../geometry/selection/drawSource.ts'
 
 /** What the engine knows a drawn mesh by: its mesh and primitive ranks, and the rows placing it
  *  when a partition's cells do. */
@@ -153,6 +153,11 @@ function assembler(
       const { drawDistance } = declared
       if (drawDistance)
         mesh.traverse((part) => isDrawnNode(part) && holdDrawDistance(part, drawDistance))
+      // An instance of an assembly: the group above each primitive's root, which the part picks by
+      // its primitive's rank (`DrawSource.rootParent`).
+      const { rootParents } = declared
+      if (rootParents)
+        mesh.traverse((part) => isDrawnNode(part) && holdRootParents(part, rootParents))
       // Drawn by a view's primed depth, as its drawn parts say (`Object3D.farField`).
       if (declared.farField) mesh.traverse((part) => isDrawnNode(part) && (part.farField = true))
       carried.push(mesh)

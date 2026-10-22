@@ -5,7 +5,7 @@ import type { WebgpuTileStreamer } from '../../materials/virtual/streamer/stream
 import type { TessellationInput } from './input.ts'
 import { recordRoom, type TessellationCapacity } from './uniform.ts'
 import { warmDisplacements } from './warm.ts'
-import { cutPyramid, previousPyramid } from '../../frame/render/cutPyramid.ts'
+import { cutPyramid, previousPyramid } from '../../frame/render/pyramidSources.ts'
 
 /** The tessellation's setting `field` the session holds (`tessellationOptions.ts`), read at each
  *  image. */

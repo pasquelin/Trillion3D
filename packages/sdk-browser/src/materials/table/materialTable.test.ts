@@ -18,6 +18,8 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { TESS_READ_PLAIN_WGSL } from '../../visibility/tessellation/queueWgsl.ts'
 import { MATERIAL_RANK_MASK } from '../../visibility/types.ts'
+import { material } from '../../../../sdk-core/src/world/material/index.ts'
+import { Texture as WorldTexture } from '../../../../sdk-core/src/world/texture/texture.ts'
 
 /** The collector, called on demand: what the open world's churn waits for. */
 function gcOf() {
@@ -295,4 +297,57 @@ test('the distances a displacement moves a point by hold zero, ordered whichever
     ]),
     2,
   )
+})
+
+test('a surface that wears a graph has its values written beside its record, in places it owns', () => {
+  const tex = new WorldTexture()
+  const graph = material.graph('surface')
+  const tint = graph.channel(graph.vectorParameter('tint', [0.25, 0.5, 1, 1]), 'rgb')
+  graph.output('baseColor', graph.multiply(graph.channel(graph.textureSample(tex), 'rgb'), tint))
+  const sent = (slot: number | undefined, written?: () => void) => {
+    const { device, textureWrites } = fakeDevice()
+    const table = createMaterialTable()
+    const l = layers()
+    if (slot) l.mapLayer.set(tex as unknown as Texture, slot)
+    const surface = { ...lit(), graph }
+    const record = table.surface(surface, l).rank
+    written?.()
+    table.viewFor(device)
+    const words = sentWords(textureWrites)
+    const first = words[record * MATERIAL_RECORD_WORDS + F.graph] - 1
+    const texel = (k: number) => words.slice((first + k) * 4, (first + k) * 4 + 4)
+    return { record, first, texel, floats: new Float32Array(words.buffer) }
+  }
+  const held = sent(undefined)
+  assert.equal(held.record, 0)
+  // The block takes the place after the record, ten texels to a place: its header is texel 10.
+  assert.equal(held.first, MATERIAL_RECORD_TEXELS)
+  assert.ok(held.texel(0)[0] > 0, 'the header names its graph’s program')
+  const tintAt = (held.first + 1) * 4
+  assert.deepEqual([...held.floats.slice(tintAt, tintAt + 3)], [0.25, 0.5, 1])
+  assert.equal(held.texel(2)[0], 0, 'a texture the atlas lacks reads the fill texel')
+  assert.equal(sent(7).texel(2)[0], 7, 'the slot of its texture in the colour atlas')
+})
+
+test('a surface that loses its graph gives its block back, which the next graph takes', () => {
+  const { device, textureWrites } = fakeDevice()
+  const table = createMaterialTable()
+  const l = layers()
+  const graph = material.graph('surface')
+  graph.output('baseColor', graph.vectorParameter('tint', [1, 1, 1, 1]) as never)
+  const surface = { ...lit(), graph, version: 1 } as ReturnType<typeof lit> & {
+    graph?: typeof graph
+  }
+  table.surface(surface, l)
+  table.viewFor(device)
+  const worn = sentWords(textureWrites)[0 * MATERIAL_RECORD_WORDS + F.graph]
+  assert.ok(worn > 0)
+  surface.graph = undefined
+  surface.version = 2
+  table.surface(surface, l)
+  const other = { ...lit(), graph, version: 1 }
+  const next = table.surface(other, l)
+  table.viewFor(device)
+  const words = sentWords(textureWrites)
+  assert.equal(words[next.rank * MATERIAL_RECORD_WORDS + F.graph], worn, 'the freed block again')
 })

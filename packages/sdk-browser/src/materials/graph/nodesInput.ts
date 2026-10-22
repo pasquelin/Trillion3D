@@ -11,18 +11,21 @@ type Handler = (s: State, node: GraphNode) => Value
 /** The smallest difference of two tilings the coordinate treats as different. */
 const SMALL_NUMBER = 1e-8
 
-const coordinate = (index: number): Value => ({ type: 'f2', code: `ctx.uvs[${index}]` })
+/** The texture coordinate set `index` of the point `s` reads. */
+export const coordinate = (s: State, index: number): Value => {
+  s.uses.sets |= 1 << index
+  return { type: 'f2', code: `${s.context}.uvs[${index}]` }
+}
 const flex = (x: number) => constantOf('flex', [x])
 const gameTime = (s: State): Value => {
   s.uses.time = true
-  return { type: 'flex', code: 'ctx.time' }
+  return { type: 'flex', code: `${s.context}.time` }
 }
 
 /** The texture coordinate set `index` times the tiling: a product only where the tiling is not 1. */
 function texCoord(s: State, n: GraphNode) {
-  s.uses.coordinates = true
   const { index, uTiling, vTiling } = n.props as Record<string, number>
-  const base = coordinate(index)
+  const base = coordinate(s, index)
   if (Math.abs(uTiling - vTiling) > SMALL_NUMBER)
     return arithmetic(s.e, '*', base, constantOf('f2', [uTiling, vTiling]))
   if (Math.abs(1 - uTiling) > SMALL_NUMBER) return arithmetic(s.e, '*', base, flex(uTiling))
@@ -32,7 +35,7 @@ function texCoord(s: State, n: GraphNode) {
 function time(s: State, n: GraphNode): Value {
   const { ignorePause, overridePeriod, period } = n.props as Record<string, number | boolean>
   s.uses.time = true
-  const clock = ignorePause ? 'ctx.realTime' : 'ctx.time'
+  const clock = `${s.context}.${ignorePause ? 'realTime' : 'time'}`
   if (!overridePeriod) return { type: 'flex', code: clock }
   if (period === 0) return flex(0)
   return s.e.local('flex', `(${clock}%${constantOf('flex', [period as number]).code})`)
@@ -48,7 +51,7 @@ function panner(s: State, n: GraphNode) {
     const moved = arithmetic(s.e, '*', t, v)
     return n.props.fractionalPart ? componentwise(s.e, COMPONENT_FUNCTIONS.frac, moved) : moved
   }
-  const at = s.input(n, 'coordinate') ?? coordinate(n.props.constCoordinate as number)
+  const at = s.input(n, 'coordinate') ?? coordinate(s, n.props.constCoordinate as number)
   return arithmetic(s.e, '+', append(s.e, slide(x), slide(y)), at)
 }
 
@@ -61,7 +64,7 @@ function rotator(s: State, n: GraphNode) {
   const rowX = append(s.e, cos, arithmetic(s.e, '*', flex(-1), sin))
   const rowY = append(s.e, sin, cos)
   const origin = constantOf('f2', [n.props.centerX as number, n.props.centerY as number])
-  const base = s.input(n, 'coordinate') ?? coordinate(n.props.constCoordinate as number)
+  const base = s.input(n, 'coordinate') ?? coordinate(s, n.props.constCoordinate as number)
   const flat = arithmetic(s.e, '-', mask(s.e, base, 'rg'), origin)
   const turned = append(s.e, dot(s.e, rowX, flat), dot(s.e, rowY, flat))
   if (base.type === 'f3')
@@ -95,8 +98,8 @@ const world =
       throw graphError('Invalid node pixelNormal used for the normal output.', { node: n.id })
     s.uses[normal ? 'normal' : 'position'] = true
     return n.props.cameraRelative
-      ? s.e.local('f3', `(ctx.${field}-ctx.eye)`)
-      : { type: 'f3', code: `ctx.${field}` }
+      ? s.e.local('f3', `(${s.context}.${field}-${s.context}.eye)`)
+      : { type: 'f3', code: `${s.context}.${field}` }
   }
 
 /** The nodes that bring a value in, by kind. */

@@ -12,18 +12,22 @@ import { cloudViewProgramsOf } from '../../modules/sky/clouds/viewPrograms.ts'
 import { cloudProgramsReady, encodeCloudView } from '../../modules/sky/clouds/viewResolve.ts'
 import { createCloudViewGpu, disposeCloudView } from '../../modules/sky/clouds/viewTargets.ts'
 import { cloudShadowStandIn } from '../../lighting/atmosphere/cloudShadowStandIn.ts'
+import { skyLightReadOf } from './skyLightState.ts'
 import {
   vsmConsumerResources,
   vsmOrStandIns,
 } from '../../lighting/shadows/vsm/frame/vsmConsumers.ts'
 import { preExposureOf } from '../../post/exposure/pre.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { litImageShown } from '../prepare/contractLight.ts'
 import { viewProj } from '../backend/helpers.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
-import { airRequests, encodeOpaqueHaze, encodeSky } from './encodeAtmosphere.ts'
+import { airRequests, airShapeOfRuntime, atmosphereDeclared } from './airState.ts'
+import { writeAirlessFrame } from './airlessFrame.ts'
+import { encodeOpaqueHaze, encodeSky } from './encodeAtmosphere.ts'
 import { cloudShadowOf } from './encodeCloudShadow.ts'
 import { directTiles } from './encodeLights.ts'
-import { followSkyModule, skyStateOf } from './encodeCloudsSky.ts'
+import { followSkyModule, skyStateOf, sunChannelOf } from './encodeCloudsSky.ts'
 import { requestSkyAir as askSkyLightAir } from './encodeSkyLight.ts'
 import { cloudTraceFrameOf } from './skyModuleGate.ts'
 
@@ -33,8 +37,10 @@ import { cloudTraceFrameOf } from './skyModuleGate.ts'
  * reconstruction from the last image and the composition over the lit image
  * (`../../modules/sky/clouds/viewResolve.ts`), in the order of the reference's volumetric clouds
  * and their render target. Each view keeps its own images and history (`WebgpuGpuState.clouds`).
- * A view whose sky has no clouds part, that keeps them out of the main view (`inMainView`), or that
- * has no atmosphere draws none, makes none and releases what it made.
+ * A view whose sky has no clouds part, that keeps them out of the main view (`inMainView`), whose
+ * image shows no lit scene, or whose atmosphere is not drawn yet, draws none, makes none and
+ * releases what it made. The clouds stand on the atmosphere's tables where there is one, else on
+ * the stand-in air of a scene with none (`cloudAirOf`): the light's own illuminance, no haze.
  */
 
 /** The images after a cut a still camera needs before its clouds hold: the longest cycle of the
@@ -73,17 +79,22 @@ export function cloudsMoved(rt: WebgpuPagesRuntime) {
   return drifts || stormAmount !== 0 || view.last.images < SETTLE_IMAGES
 }
 
-/** The channel of the air's first light in the shadow maps, none unless it casts a shadow that is
- *  projected this image. */
-function sunChannelOf(rt: WebgpuPagesRuntime, shadowed: boolean) {
-  const { store } = rt.lights
-  const slot = store.fogSunSlot
-  const slice = slot >= 0 ? store.sliceOf(slot) : -1
-  return shadowed && slice >= 0 ? slice & 63 : NO_INDEX
+/** What the clouds of this image stand on: `air`, the atmosphere's tables built this image (`air`
+ *  true); `airless`, the stand-in air of a scene with no atmosphere (or one the quality settings turn
+ *  off); none where an atmosphere is on and not drawn yet, or the image shows no lit scene. */
+function cloudAirOf(rt: WebgpuPagesRuntime, air: boolean) {
+  if (air) return 'air' as const
+  return atmosphereDeclared(rt) || !litImageShown(rt) ? undefined : ('airless' as const)
 }
 
 /** The image's values the trace block is written from. */
-function imageOf(rt: WebgpuPagesRuntime, cam: EngineCamera, time: number, channel: number) {
+function imageOf(
+  rt: WebgpuPagesRuntime,
+  cam: EngineCamera,
+  time: number,
+  channel: number,
+  airless: boolean,
+) {
   const { gpu, lights } = rt
   const scales = [0, 1].map((index) => {
     const light = lights.store.atmosphereLight(index)
@@ -95,7 +106,7 @@ function imageOf(rt: WebgpuPagesRuntime, cam: EngineCamera, time: number, channe
     view: { width: gpu.targetSize[0], height: gpu.targetSize[1] },
     frameIndex: rt.run.frame,
     time,
-    airPresent: true,
+    airPresent: !airless,
     lightScales: [scales[0], scales[1]],
     viewProjection: viewProj,
     lightGridCells: [tiles[1], tiles[2]],
@@ -132,6 +143,7 @@ function programsOf(
   device: GPUDevice,
   part: CloudPart,
   perspective: boolean,
+  airless: boolean,
 ) {
   const { gpu, lights } = rt,
     deferred = gpu.deferred!
@@ -139,14 +151,15 @@ function programsOf(
   const maps = vsmOrStandIns(vsmConsumerResources(rt), deferred.placeholders)
   const first = lights.store.atmosphereLight(0)
   const channel = sunChannelOf(rt, !!vsmConsumerResources(rt) && !!first?.castsShadow)
-  const frame = cloudTraceFrameOf(first, channel !== NO_INDEX, false, false)
+  const frame = cloudTraceFrameOf(first, channel !== NO_INDEX, false, false, airless)
   const tiles = lights.tiles && directTiles()[0] > 0 ? lights.tiles : undefined
   const asked = cloudTraceKey(part.quality, frame, setup)
   const key = { ...asked, localLights: asked.localLights && !!tiles }
-  const programs = cloudViewProgramsOf(device, gpu.atmosphere!.shape, (error) =>
+  const shape = airless ? airShapeOfRuntime(rt) : gpu.atmosphere!.shape
+  const programs = cloudViewProgramsOf(device, shape, (error) =>
     rt.diag.diagnosticFailure('cloud-program-failed', error),
   )
-  const hazed = cloudHazeInSecondPass(part.quality, true)
+  const hazed = cloudHazeInSecondPass(part.quality, !airless)
   if (!cloudProgramsReady(programs, setup, key, hazed)) return undefined
   return { setup, maps, channel, key, programs, tiles }
 }
@@ -167,6 +180,24 @@ export function encodeSkyAndClouds(
   encodeClouds(rt, device, encoder, cam, air)
 }
 
+/** The air an image of the clouds reads, over `stands` (`cloudAirOf`): the atmosphere's tables and
+ *  frame, or the stand-in air of a scene with none, its frame written for this image; none while
+ *  the atmosphere's programs are not compiled. */
+function airOf(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  cam: EngineCamera,
+  part: CloudPart,
+  stands: 'air' | 'airless',
+) {
+  const { atmosphere } = rt.gpu
+  if (stands === 'air')
+    return atmosphere?.ready
+      ? { frame: atmosphere.frameBuffer, ...atmosphere.tables, volumes: atmosphere.volumes }
+      : undefined
+  return writeAirlessFrame(rt, device, cam, part.settings.planetRadiusKm)
+}
+
 /** What an image of `part` is made from, none where the view cannot draw the clouds yet: the
  *  material's textures not generated, the air's or the lit image's passes not ready, a program not
  *  compiled. The view's history moves on only for an image that draws. */
@@ -176,15 +207,18 @@ function frameOf(
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
   part: CloudPart,
+  stands: 'air' | 'airless',
 ): CloudViewFrame | undefined {
   const { gpu, lights, run } = rt,
     state = skyStateOf(rt)
   const entries = state?.material?.entries
-  const { atmosphere, hdrView, depthView, deferred } = gpu
-  if (!entries || !atmosphere?.ready || !hdrView || !depthView || !deferred || !lights.buffer)
-    return undefined
+  const { hdrView, depthView, deferred } = gpu
+  if (!entries || !hdrView || !depthView || !deferred || !lights.buffer) return undefined
   if (!run.depthDrawn) return undefined
-  const made = programsOf(rt, device, part, cam.perspective !== 0)
+  const air = airOf(rt, device, cam, part, stands)
+  if (!air) return undefined
+  const airless = stands === 'airless'
+  const made = programsOf(rt, device, part, cam.perspective !== 0, airless)
   if (!made) return undefined
   const view = viewOf(rt, device)
   const allocated = { width: gpu.allocatedSize[0], height: gpu.allocatedSize[1] }
@@ -200,7 +234,7 @@ function frameOf(
     setup: made.setup,
     key: made.key,
     plan: advanceCloudView(view.state, allocated, size, cut, made.setup),
-    image: imageOf(rt, cam, state!.clock(), made.channel),
+    image: imageOf(rt, cam, state!.clock(), made.channel, airless),
     camera: cam,
     allocated,
     view: size,
@@ -209,23 +243,25 @@ function frameOf(
     hdr: hdrView,
     air: {
       lights: lights.buffer,
-      frame: atmosphere.frameBuffer,
-      ...atmosphere.tables,
-      volumes: atmosphere.volumes,
+      ...air,
       fog: gpu.fogVolume?.read ?? deferred.placeholders.fog,
     },
     material: entries,
     noise: made.maps.noise,
-    extra: { maps: made.key.opaqueShadow ? made.maps : undefined, tileLights: made.tiles?.buffer },
+    extra: {
+      maps: made.key.opaqueShadow ? made.maps : undefined,
+      tileLights: made.tiles?.buffer,
+      skyLight: made.key.skyLight ? skyLightReadOf(rt) : undefined,
+    },
     hazeMaps: { maps: made.maps, cloudShadow: cloudShadowOf(rt) ?? cloudShadowStandIn(device) },
   }
 }
 
 /**
  * The clouds of the image over `rt`'s lit image, on `encoder`: after the sky and before the
- * transparents. Nothing is made, encoded or kept where the view draws no cloud or shows no air. The
- * image waits (no cloud, the history untouched) for the programs it needs to be compiled and for the
- * material's textures to be generated.
+ * transparents. Nothing is made, encoded or kept where the view draws no cloud or its atmosphere is
+ * not drawn yet. The image waits (no cloud, the history untouched) for the programs it needs to be
+ * compiled and for the material's textures to be generated.
  */
 function encodeClouds(
   rt: WebgpuPagesRuntime,
@@ -235,8 +271,9 @@ function encodeClouds(
   air: boolean,
 ) {
   const part = drawnPart(rt)
-  if (!part || !air) return disposeCloudView(rt.gpu)
-  const frame = frameOf(rt, device, encoder, cam, part)
+  const stands = cloudAirOf(rt, air)
+  if (!part || !stands) return disposeCloudView(rt.gpu)
+  const frame = frameOf(rt, device, encoder, cam, part, stands)
   if (frame) encodeCloudView(frame)
   const view = rt.gpu.clouds
   if (!view) return

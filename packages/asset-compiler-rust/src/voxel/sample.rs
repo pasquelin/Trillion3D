@@ -9,7 +9,8 @@
 //! over carries its share of them (`solid.rs`), and a solid voxel shows what its faces open on
 //! empty space see: base colour and ORM weighed by the face's coverage, and over every hit its
 //! normal, turned to the face — the side the surface is seen from — and the normals' products — the
-//! distribution whose projected area weighs a neighbour.
+//! distribution whose projected area weighs a neighbour and a solid voxel's normal is fitted from
+//! (`ndf.rs`).
 use super::raster::Cell;
 use super::rays::{lone_ray, Ray, RayBank, RaySet};
 use super::VoxelSettings;

@@ -105,14 +105,15 @@ fn levelStep(src:u32,s:u32){
  if(tests){testRoot(dst,w);}else{openNode(dst,index,w);}
 }
 /** Placement \`w\`'s root, tested as its instance: the view's filter (\`filteredOut\`), its draw
- *  distance (\`outsideDrawDistance\`), the view's clip plane (\`outsideClipPlane\`), its box in the
- *  frustum, then under the pyramid. Kept, it is accepted (\`acceptNode\`): no error of its
+ *  distance (\`outsideDrawDistance\`), the group above its root (\`outsideRootParent\`), the view's
+ *  clip plane (\`outsideClipPlane\`), its box in the frustum, then under the pyramid. Kept, it is accepted (\`acceptNode\`): no error of its
  *  own is compared, the root's children are. The previous pyramid alone hiding it, the instance is
  *  held whole for the post pass. */
 fn testRoot(dst:u32,w:u32){
  if(filteredOut(w)){return;}
  let root=rootOf(w);let node=nodeAt(root);let mark=markOf(w);deformReach=markReach(mark);
  if(outsideDrawDistance(w,mark,node)){return;}
+ if(outsideRootParent(w,mark)){return;}
  if(outsideClipPlane(w,node.minimum,node.maximum)){return;}
  if(outsideFrustum(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
  let sight=sightOf(node,w);

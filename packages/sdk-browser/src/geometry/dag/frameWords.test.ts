@@ -23,6 +23,8 @@ import {
   FRAME_TABLE,
   MARK_WORD,
   RECORD_SHIFT_WORD,
+  ROOT_PARENT_MARK,
+  ROOT_PARENT_WORD,
   ROOT_WORD,
 } from './frameTable.ts'
 import { recordWordAt } from '../../gpu/core/recordTexture.fixture.ts'
@@ -111,5 +113,34 @@ test('a draw distance set on a running placement reaches its frame words, its ma
   assert.deepEqual(
     [last[DRAW_NEAR_WORD], last[DRAW_FAR_WORD], last[MARK_WORD]],
     [0, 0, SHADOWLESS_ROOT],
+  )
+})
+
+test('the group above the root of an instance set on a running placement reaches its frame words and its mark', async () => {
+  installGpuGlobals()
+  const packed = packDagSelection(placementField(4, 6))
+  const { device, rows } = mockDagDevice(packed)
+  const selection = (await createGpuDagSelection(device, packed, { roots: hostStretches(packed) }))!
+  const earlier = rows().length
+  const parent = { error: 6.5, sphere: [1.25, -2, 3, 40] as const }
+  selection.rootParentWorld!(4, parent)
+  selection.rootParentWorld!(4, parent)
+  selection.dispatch(createSelectionUniforms())
+  const words = rows()
+    .slice(earlier)
+    .map(([first, row]) => [
+      first / FRAME_ROW_WORDS,
+      Array.from({ length: 5 }, (_, k) => fromF32Bits(row[ROOT_PARENT_WORD + k])),
+      row[MARK_WORD] & ROOT_PARENT_MARK,
+    ])
+  assert.deepEqual(words, [[4, [6.5, 1.25, -2, 3, 40], ROOT_PARENT_MARK]], 'one write')
+  // A mark written beside it keeps the bit; the parent taken back clears it with the words.
+  selection.markWorld(4, SHADOWLESS_ROOT)
+  selection.rootParentWorld!(4, undefined)
+  selection.dispatch(createSelectionUniforms())
+  const last = rows().at(-1)![1]
+  assert.deepEqual(
+    [...Array.from({ length: 5 }, (_, k) => last[ROOT_PARENT_WORD + k]), last[MARK_WORD]],
+    [0, 0, 0, 0, 0, SHADOWLESS_ROOT],
   )
 })

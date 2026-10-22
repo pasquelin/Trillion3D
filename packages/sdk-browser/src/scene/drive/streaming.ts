@@ -15,7 +15,7 @@ type Inputs = {
   budget: FrameClock
 }
 
-/** A page read failed for good, or waits the longest: `degraded` while the coarse cover the engine
+/** A page read failed, at its first failure or given up: `degraded` while the coarse cover the engine
  *  already holds is whole — the view stays drawn on it —, `fatal` otherwise (no engine yet, or no
  *  cover resident); said once per failure by its caller, `failedPages` the reads failing now. */
 export function streamFailed(

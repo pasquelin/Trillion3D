@@ -101,7 +101,7 @@ export function createShadowPrograms(
   raster1: GPUBindGroupLayout,
 ) {
   const masked = vsmMaskedPatches(device)
-  const rasterProgram = masked ? 'shadowRasterMasked' : 'shadowRaster'
+  const rasterProgram: TessProgram = masked ? 'shadowRasterMasked' : 'shadowRaster'
   const layouts = shadowLayouts(device, layout, rasterProgram)
   const rows = groupWidthConstants(groupWidth(device.limits))
   const module = (name: string, code: string) =>

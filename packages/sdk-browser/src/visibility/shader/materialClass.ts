@@ -14,8 +14,13 @@ import { CLASS_FEATURE } from './classWords.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { visPageIndex, visRowIn } from '../visWords.ts'
 export type MaterialClassFeature = keyof typeof CLASS_FEATURE
-/** Keys addressable: one more bit than the highest feature. */
-export const MATERIAL_CLASS_KEYS = 32768
+/** Keys the features address: one more bit than the highest feature. */
+export const FEATURE_CLASS_KEYS = 32768
+/** Keys of the classes of the surfaces that wear a graph, past the features': a class of them is a
+ *  graph's program over a set of features (`../../materials/graph/surfaceClasses.ts`). */
+export const GRAPH_CLASS_KEYS = 256
+/** Keys addressable: the features', then the graphs'. */
+export const MATERIAL_CLASS_KEYS = FEATURE_CLASS_KEYS + GRAPH_CLASS_KEYS
 
 /** Map slots of a row, as `../../geometry/rows/page/pageRowWriter.ts` resolves them: zero is the absence of a texture. */
 type MaterialClassMaps = {
@@ -54,14 +59,17 @@ export function materialClassKey(flags: number, maps: MaterialClassMaps, secondU
 }
 
 /**
- * Pipeline overrides of the resolve: the class key and one boolean per feature, each an override
- * expression the backend compiler folds. Without a class — the module compiled alone — every
- * feature is off.
+ * Pipeline overrides of the resolve: the class key — the features the class holds — and one boolean
+ * per feature, each an override expression the backend compiler folds. Without a class — the module
+ * compiled alone — every feature is off.
  */
 export const MATERIAL_CLASS_WGSL = wgslBlock(
   'MATERIAL_CLASS_WGSL',
   [],
   `override CLASS_KEY:u32=0u;
+/** The key of the class's bin: its own key, but for a class of a graph's program, whose features
+ *  \`CLASS_KEY\` holds. */
+override CLASS_BIN:u32=CLASS_KEY;
 ${Object.entries(CLASS_FEATURE)
   .map(([name, bit]) => `override ${name}:bool=(CLASS_KEY&${bit}u)!=0u;`)
   .join('\n')}`,

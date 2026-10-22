@@ -19,8 +19,8 @@ import type { WorldRootsHold } from '../geometry/hlod/worldRoots.ts'
 
 type Progress = (phase: string, completed: number, total: number, message: string) => void
 
-/** Hears a page read of the session that failed for good or first waits the longest: its detail
- *  and how many reads fail now (`streamFailed`). */
+/** Hears a page read of the session that failed, at its first failure and when it is given up: its
+ *  detail and how many reads fail now (`streamFailed`). */
 type Stalled = (detail: string, failedPages: number) => void
 
 /** The index pages a session preloads whole (`preload: 'all'`), by url: read by its queue's batch
@@ -49,8 +49,8 @@ async function preloaded(
 
 /** The session's page sources: its queue at once (`streamer`), which its scene loads through, and
  *  the rest once the pages it preloads have landed (`sources`), among them the page cache the queue
- *  reads through (`pageCache`) and the index pages preloaded (`indices`). A read that fails for
- *  good or first waits the longest is told to `stalled`. */
+ *  reads through (`pageCache`) and the index pages preloaded (`indices`). A read that fails is told
+ *  to `stalled` at its first failure and when it is given up. */
 export function openExplorerPageSources(
   metadata: ClusterManifest,
   options: MeasuredWorldOptions,

@@ -23,7 +23,7 @@ import {
 } from '../../lighting/lightFunction/frame.ts'
 import { encodeDistanceFields } from '../../lighting/distanceField/frame.ts'
 import { heldSkyLight } from './skyLightHeld.ts'
-import { skyLightPending, skyLightReadOf } from './encodeSkyLight.ts'
+import { skyLightPending, skyLightReadOf } from './skyLightState.ts'
 import { cloudShadowOf } from './encodeCloudShadow.ts'
 import { cloudShadowStandIn } from '../../lighting/atmosphere/cloudShadowStandIn.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'

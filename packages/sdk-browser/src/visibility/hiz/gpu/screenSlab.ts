@@ -33,7 +33,7 @@ export function screenSlab(m: ArrayLike<number>, height: number, eye: ArrayLike<
 
 /**
  * The thickness the reference walk (`screenMarchReference`) gives a surface under the view-projection
- * `m`: `relative` (`hizRelativeDepthThickness`) times the projection's depth scale. Under a
+ * `m`: `relative` (`reflectionRelativeDepthThickness`, `screenProbeRelativeDepthThickness`) times the projection's depth scale. Under a
  * perspective the scale is 1. Under an orthographic projection depth does not shrink with distance,
  * so the scale falls with the depth range, a power of ten: ten to the minus whole digits of the
  * range's size past one, up to nine — a range of 1 or less keeps 1, one of 1000 gives 0.001. The

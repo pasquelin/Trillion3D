@@ -14,7 +14,12 @@ import { hierarchyLevelSizes, pageDepths } from '../hierarchy.ts'
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import type { DagCapacity } from './packCapacity.ts'
 import { WORLD_ROOT_MARK } from '../worlds/worldLinks.ts'
-import { DRAW_DISTANCE_MARK } from '../frameTable.ts'
+import {
+  DRAW_DISTANCE_MARK,
+  ROOT_PARENT_MARK,
+  ROOT_PARENT_WORDS,
+  writeRootParent,
+} from '../frameTable.ts'
 
 /** A ROOT PLACED IN A PACKING (`pack.ts`): its primitive's nodes, shared by its placements, its
  *  world, mark, draw distance and links, and the shift that leads its pages to their records. */
@@ -35,7 +40,14 @@ export const emptyShared = (): PackShared => ({
 /** The tables a packing writes a root into, and its live counts (`placeRoot`). */
 export type Packing = Pick<
   PackedDag,
-  'nodes' | 'worlds' | 'rootNodes' | 'rootBases' | 'mark' | 'drawDistance' | 'recordShift'
+  | 'nodes'
+  | 'worlds'
+  | 'rootNodes'
+  | 'rootBases'
+  | 'mark'
+  | 'drawDistance'
+  | 'rootParent'
+  | 'recordShift'
 > & {
   nodeInts: Uint32Array
   pageIndex: PlacementIndex
@@ -105,15 +117,24 @@ export function placeRoot(
   p.rootBases[w] = nodeBase
   p.rootNodes[w] = root.parked ? NO_INDEX : nodeBase
   // A placement of the world DAG is marked so, whatever its root's own bits (`WORLD_ROOT_MARK`),
-  // and one that names a farthest distance (`DRAW_DISTANCE_MARK`).
-  const distance = root.drawDistance
+  // one that names a farthest distance (`DRAW_DISTANCE_MARK`), and one that is an instance of an
+  // assembly (`ROOT_PARENT_MARK`).
+  const distance = root.drawDistance,
+    parent = root.rootParent
   p.mark[w] =
-    (root.mark ?? 0) | (root.hlod ? WORLD_ROOT_MARK : 0) | (distance ? DRAW_DISTANCE_MARK : 0)
-  // The distances' column is made by the first placement that names some.
+    (root.mark ?? 0) |
+    (root.hlod ? WORLD_ROOT_MARK : 0) |
+    (distance ? DRAW_DISTANCE_MARK : 0) |
+    (parent ? ROOT_PARENT_MARK : 0)
+  // The distances' column is made by the first placement that names some, the parents' likewise.
   if (distance || p.drawDistance) {
     p.drawDistance ??= new Float32Array(2 * p.mark.length)
     p.drawDistance[2 * w] = distance?.min ?? 0
     p.drawDistance[2 * w + 1] = distance?.max ?? 0
+  }
+  if (parent || p.rootParent) {
+    p.rootParent ??= new Float32Array(ROOT_PARENT_WORDS * p.mark.length)
+    writeRootParent(p.rootParent, w, parent)
   }
   const links = linksFor(culling, count)
   const { structure } = root

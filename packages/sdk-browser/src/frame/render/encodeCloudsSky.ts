@@ -1,3 +1,4 @@
+import { NO_INDEX } from '../../../../math/src/constants.ts'
 import type { CloudPart } from '../../../../sdk-core/src/modules/sky/clouds.ts'
 import type { ResolvedSky } from '../../../../sdk-core/src/modules/sky/descriptor.ts'
 import { cloudShadowOfLight } from '../../../../sdk-core/src/scene/light/lightCloudShadow.ts'
@@ -10,10 +11,13 @@ import {
   vsmConsumerResources,
   vsmOrStandIns,
 } from '../../lighting/shadows/vsm/frame/vsmConsumers.ts'
+import type { SceneCaptureHost } from '../../modules/sky/skyLight/captureScene.ts'
+import type { SkyLightReadSet } from '../../modules/sky/skyLight/read.ts'
 import type { SkyHost } from '../../session/engine/types.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { atmosphereDeclared } from './airState.ts'
 import { applySkyModule } from './skyModuleGate.ts'
-import type { SkyLightSource } from './encodeSkyLight.ts'
+import { skyLightReadOf, type SkyLightSource } from './skyLightState.ts'
 
 /**
  * THE SKY MODULE IN THE BACKEND: the word the world gives the engine of its sky (`applySky`), kept
@@ -26,18 +30,26 @@ import type { SkyLightSource } from './encodeSkyLight.ts'
  */
 
 /** What the capture of the sky light is told of the clouds, refilled each frame: the time, the blue
- *  noise and the air; the part and the material are the sky's. */
+ *  noise, the air, the channel of the sun in the shadow maps and the sky light's read set; the part
+ *  and the material are the sky's. */
 type CaptureClouds = {
   part: CloudPart
   material: readonly GPUBindGroupEntry[]
   blueNoise: GPUTextureView
   time: number
-  air: { airPresent: boolean; lightScales: [ArrayLike<number>, ArrayLike<number>] }
+  air: {
+    airPresent: boolean
+    lightScales: [ArrayLike<number>, ArrayLike<number>]
+    sunShadowChannel?: number
+  }
+  skyLight: SkyLightReadSet
 }
 
 interface SkyState {
   sky?: ResolvedSky
   host: SkyHost
+  /** What draws the scene aside for the sky light's captured scene: the engine. */
+  scene: SceneCaptureHost
   /** The time in seconds the clouds drift by: from the first word given. */
   readonly clock: () => number
   material?: CloudMaterialGpu
@@ -74,19 +86,21 @@ export function disposeSkyModule(rt: WebgpuPagesRuntime) {
 
 /**
  * The world's sky for the engine (`Engine.applySky`): the module's resolved parts, none when the
- * module is off, and what the host holds that the module does not. Takes effect at the next frame.
+ * module is off, what the host holds that the module does not, and the engine `scene` that draws
+ * the scene aside for a captured sky light. Takes effect at the next frame.
  */
 export function applySkyToRuntime(
   rt: WebgpuPagesRuntime,
   sky: ResolvedSky | undefined,
   host: SkyHost,
+  scene: SceneCaptureHost,
 ) {
   let state = states.get(rt)
   if (!state) {
     // Never given a sky, and given none: nothing to hold, nothing to release.
     if (!sky) return
     const startMs = cpuNow()
-    states.set(rt, (state = { host, clock: () => (cpuNow() - startMs) / 1000, dirty: true }))
+    states.set(rt, (state = { host, scene, clock: () => (cpuNow() - startMs) / 1000, dirty: true }))
   }
   state.sky = sky
   state.host = host
@@ -97,17 +111,33 @@ export function applySkyToRuntime(
   }
 }
 
-/** The refilled part of the capture's clouds: the time, the air and the blue noise. */
+/** The channel of the air's first light in the shadow maps, none unless it casts a shadow that is
+ *  projected this image (`shadowed`). */
+export function sunChannelOf(rt: WebgpuPagesRuntime, shadowed: boolean) {
+  const { store } = rt.lights
+  const slot = store.fogSunSlot
+  const slice = slot >= 0 ? store.sliceOf(slot) : -1
+  return shadowed && slice >= 0 ? slice & 63 : NO_INDEX
+}
+
+/** The refilled part of the capture's clouds: the time, the air, the sun's channel in the shadow
+ *  maps, the sky light and the blue noise. */
 function refillCapture(rt: WebgpuPagesRuntime, state: SkyState, capture: CaptureClouds) {
   const { store } = rt.lights
   capture.time = state.clock()
-  capture.air.airPresent = !!store.environment?.atmosphere
+  capture.air.airPresent = atmosphereDeclared(rt)
   for (const index of [0, 1] as const) {
     const light = store.atmosphereLight(index)
     capture.air.lightScales[index] = light
       ? cloudShadowOfLight(light).cloudScatteredLuminanceScale
       : WHITE
   }
+  const channel = sunChannelOf(
+    rt,
+    !!vsmConsumerResources(rt) && !!store.atmosphereLight(0)?.castsShadow,
+  )
+  capture.air.sunShadowChannel = channel === NO_INDEX ? undefined : channel
+  capture.skyLight = skyLightReadOf(rt)
   const { placeholders } = rt.gpu.deferred!
   capture.blueNoise = vsmOrStandIns(vsmConsumerResources(rt), placeholders).noise
 }
@@ -135,6 +165,7 @@ function followClouds(
       blueNoise: undefined as unknown as GPUTextureView,
       time: 0,
       air: { airPresent: false, lightScales: [WHITE, WHITE] },
+      skyLight: undefined as unknown as SkyLightReadSet,
     }
   if (state.capture) refillCapture(rt, state, state.capture)
 }
@@ -158,6 +189,7 @@ export function followSkyModule(rt: WebgpuPagesRuntime, device: GPUDevice) {
     position: ORIGIN,
     cubemap: state.host.cubemap,
     captureClouds: state.capture as SkyLightSource['clouds'],
+    scene: state.scene,
     material: entries,
     time: state.clock,
   })

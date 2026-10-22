@@ -39,6 +39,8 @@ const NOT_MESSAGES = new Set([
   'RAM_MB',
   'TEXCOORD_0',
   'TEXCOORD_1',
+  'TEXCOORD_2',
+  'TEXCOORD_3',
   'TRILLION3D_CACHE_LOCK_WAIT_MS',
   'WEIGHTS_0',
   'alembic-ogawa-1-gltf-3',

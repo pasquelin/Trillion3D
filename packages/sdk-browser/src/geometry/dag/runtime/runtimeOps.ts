@@ -17,11 +17,15 @@ import {
   DRAW_FAR_WORD,
   DRAW_NEAR_WORD,
   MARK_WORD,
+  ROOT_PARENT_MARK,
+  ROOT_PARENT_WORD,
+  ROOT_PARENT_WORDS,
   ROOT_WORD,
+  writeRootParent,
 } from '../frameTable.ts'
 import { markWithdraws } from '../placement/placementTree.ts'
 import { f32Bits } from '../../../../../math/src/float/bits.ts'
-import type { DrawDistance } from '../../selection/types.ts'
+import type { DrawDistance, RootParent } from '../../selection/types.ts'
 
 /** What a camera cut's methods share (`runtime.ts`): its tables, its state, the difference chain,
  *  the residency upload, the tree's and the world cells' followers, and the main view's dispatch. */
@@ -125,6 +129,30 @@ export function writeDrawDistance(run: DagRun, w: number, distance: DrawDistance
   const mark = packed.mark[w]
   writeMark(run, w, far > 0 ? mark | DRAW_DISTANCE_MARK : mark & ~DRAW_DISTANCE_MARK)
   tree?.touch(w)
+  voidCuts(state, true)
+}
+
+/**
+ * Placement `w` an instance of an assembly whose root's group is `parent` from now on, none for a
+ * placement that is no instance (`DagRoot.rootParent`): its five frame words, the mark bit that
+ * says it names a parent, and the parents' column (made by the first placement that names one). A
+ * cut in hand chose pages under the old parent: void. Nothing when it is the parent it has.
+ */
+export function writeRootParentWords(run: DagRun, w: number, parent: RootParent | undefined) {
+  const { resources, state } = run,
+    { packed, frames } = resources
+  if (!packed.rootParent && !parent) return
+  const held = (packed.rootParent ??= new Float32Array(
+    ROOT_PARENT_WORDS * Math.max(1, packed.worldCount),
+  ))
+  const next = new Float32Array(ROOT_PARENT_WORDS)
+  writeRootParent(next, 0, parent)
+  const at = ROOT_PARENT_WORDS * w
+  if (next.every((word, k) => word === held[at + k])) return
+  held.set(next, at)
+  next.forEach((word, k) => frames.writeWord(w, ROOT_PARENT_WORD + k, f32Bits(word)))
+  const mark = packed.mark[w]
+  writeMark(run, w, parent ? mark | ROOT_PARENT_MARK : mark & ~ROOT_PARENT_MARK)
   voidCuts(state, true)
 }
 

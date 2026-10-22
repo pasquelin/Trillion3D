@@ -4,7 +4,8 @@ import type { VisibilityRasterStages } from '../../frame/render/encodeVisSetup.t
 import { HIZ_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts'
 import { prepared } from '../../frame/backend/state/prepared.ts'
-import { cutPyramid, notePyramidBuilt } from '../../frame/render/cutPyramid.ts'
+import { notePyramidBuilt } from '../../frame/render/cutPyramid.ts'
+import { cutPyramid } from '../../frame/render/pyramidSources.ts'
 import { cutOf } from '../../frame/render/gpuCutStream.ts'
 
 /** The occlusion step's compute pass, opened by the first of its kernels that dispatches. */

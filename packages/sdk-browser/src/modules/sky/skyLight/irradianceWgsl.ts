@@ -15,9 +15,9 @@ import { SKY_CUBE_WGSL, SKY_SAMPLING_WGSL } from './cubeWgsl.ts'
  * The result is written, packed so that the light of a normal costs the fewest operations
  * (`skyHarmonicsIrradiance`, `read.ts`): the cosine lobe's weights are in the coefficients.
  * `irradiance` is `IRRADIANCE_VECTORS` vec4s: three that hold the first band and the quadratic
- * term's constant of each channel (red, green, blue), three the quadratic terms of each, one the
- * last term of the three channels and 1, and one the mean brightness of the captured cube before it is filtered — the six faces' one-texel
- * mips averaged, the three channels' mean — in its four lanes.
+ * term's constant of each channel (red, green, blue), three the quadratic terms of each, and one
+ * the last term of the three channels and 1. No mean brightness of the cube is kept: only a
+ * surface lit by baked light weighs its reflections by it, and no surface here is.
  * The sums are added in the order above whatever the device's scheduling.
  */
 const IRRADIANCE_OWN = `struct IrradianceBlock{mip:u32,}
@@ -25,25 +25,12 @@ const IRRADIANCE_OWN = `struct IrradianceBlock{mip:u32,}
 @group(0) @binding(1) var source:texture_cube<f32>;
 @group(0) @binding(2) var nearest:sampler;
 @group(0) @binding(3) var<storage,read_write> irradiance:array<vec4f,${IRRADIANCE_VECTORS}>;
-@group(0) @binding(4) var captured:texture_cube<f32>;
 const SIDE:u32=${IRRADIANCE_SIDE}u;
 const THREADS:u32=${IRRADIANCE_SIDE * IRRADIANCE_SIDE}u;
 /** The nine harmonics of one thread: a coefficient a vector of the three channels. */
 var<workgroup> sums:array<array<vec3f,9>,${IRRADIANCE_SIDE * IRRADIANCE_SIDE}>;
 fn addSums(sink:u32,part:u32){
  for(var k=0u;k<9u;k++){sums[sink][k]+=sums[part][k];}
-}
-/** The mean brightness of the captured cube before it is filtered: its six faces' last mips, one
- *  texel each, averaged, the three channels' mean. */
-fn averageBrightness()->f32{
- let last=f32(textureNumLevels(captured))-1.0;
- var sum=textureSampleLevel(captured,nearest,vec3f(1.0,0.0,0.0),last).rgb;
- sum+=textureSampleLevel(captured,nearest,vec3f(-1.0,0.0,0.0),last).rgb;
- sum+=textureSampleLevel(captured,nearest,vec3f(0.0,1.0,0.0),last).rgb;
- sum+=textureSampleLevel(captured,nearest,vec3f(0.0,-1.0,0.0),last).rgb;
- sum+=textureSampleLevel(captured,nearest,vec3f(0.0,0.0,1.0),last).rgb;
- sum+=textureSampleLevel(captured,nearest,vec3f(0.0,0.0,-1.0),last).rgb;
- return dot(sum/6.0,vec3f(0.3333));
 }
 @compute @workgroup_size(${IRRADIANCE_SIDE},${IRRADIANCE_SIDE},1)
 fn irradianceMain(@builtin(local_invocation_id) id:vec3u){
@@ -71,7 +58,6 @@ fn irradianceMain(@builtin(local_invocation_id) id:vec3u){
    irradiance[3u+c]=vec4f(c2*s[4][c],-c2*s[5][c],3.0*c3*s[6][c],-c2*s[7][c]);
   }
   irradiance[6]=vec4f(c4*s[8],1.0);
-  irradiance[7]=vec4f(averageBrightness());
  }
 }`
 

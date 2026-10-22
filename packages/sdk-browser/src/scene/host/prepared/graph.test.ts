@@ -78,6 +78,26 @@ test('the distances a node names are those every primitive of its mesh is drawn 
   }
 })
 
+test('the group above each primitive’s root an instance of an assembly names is read by the primitive’s rank', async () => {
+  const geometryOf = () => {
+    const geometry = new Geometry()
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
+    return geometry
+  }
+  const materialOf = () => Promise.resolve(standardSurface())
+  const { tables, meshes } = oneNode('instance', null)
+  tables.nodes[0].rootParents = [[6.5, 1.25, -2, 3, 40], null]
+  const { scene } = await preparedGraph({ tables, meshes, geometryOf, materialOf })
+  const read: unknown[] = []
+  scene.traverse((part) => {
+    if (!(part instanceof Mesh)) return
+    const source = drawSourceOf(part as HostMesh)
+    source.ranks = { meshes: 0, primitives: read.length }
+    read.push(source.rootParent)
+  })
+  assert.deepEqual(read, [{ error: 6.5, sphere: [1.25, -2, 3, 40] }, undefined])
+})
+
 // #347: a compiled glTF primitive with `COLOR_0` wears the vertex-coloured variant of its
 // surface, which the engine record reads and a WebGPU row multiplies by (`pageRow.test.ts`).
 test('a primitive that carries COLOR_0 asks for the vertex-coloured variant of its surface', async () => {

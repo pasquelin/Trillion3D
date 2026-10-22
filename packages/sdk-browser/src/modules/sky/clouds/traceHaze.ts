@@ -1,4 +1,3 @@
-import { pixelToNdc, unprojectPoint } from '../../../../../math/src/wgsl/projection.ts'
 import { workgroupCount } from '../../../../../math/src/scalar/integers.ts'
 import {
   COMPUTE,
@@ -63,7 +62,6 @@ ${CLOUD_TRACE_LAYOUT.wgsl}
 @group(1) @binding(${B.colour}) var cloudIn:texture_2d<f32>;
 @group(1) @binding(${B.depth}) var depthIn:texture_2d<f32>;
 @group(1) @binding(${B.out}) var cloudOut:texture_storage_2d<${CLOUD_FORMAT},write>;
-${CLOUD_RAY_WGSL}
 @compute @workgroup_size(${CLOUD_TRACE_GROUP_SIZE},${CLOUD_TRACE_GROUP_SIZE},1)
 fn ${CLOUD_HAZE_ENTRY}(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=cloudTrace.traced.x||id.y>=cloudTrace.traced.y){return;}
@@ -81,7 +79,7 @@ export const cloudHazeProgram = (shape: AirShape) =>
   airProgram(
     cloudHazeAir(shape),
     hazeOwn(),
-    [CLOUD_HAZE_WGSL, pixelToNdc, unprojectPoint, preExposedWgsl('cloudTrace.sky.w')],
+    [CLOUD_HAZE_WGSL, CLOUD_RAY_WGSL, preExposedWgsl('cloudTrace.sky.w')],
     shape,
   )
 

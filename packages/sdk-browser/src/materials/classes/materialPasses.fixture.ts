@@ -1,5 +1,5 @@
 import { ROW_WORDS } from '../../visibility/types.ts'
-import { createPresentClasses } from './materialPasses.ts'
+import { createPresentClasses } from '../../gpu/core/presentClasses.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import {

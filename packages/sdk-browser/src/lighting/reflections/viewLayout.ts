@@ -19,7 +19,7 @@ import { skyLightReadWgsl } from '../../modules/sky/skyLight/read.ts'
  *    under an orthographic projection (`y`), its numerator over the distance, the depth a pixel's
  *    thickness spans (`z`), and whether the projection is a perspective (`w`);
  *  - `thickness`, the share of a surface's depth the reference walk takes for its thickness:
- *    `hizRelativeDepthThickness` times the projection's scale, `screenRelativeThickness`;
+ *    `reflectionRelativeDepthThickness` times the projection's scale, `screenRelativeThickness`;
  *  - `traced`, whether the screen is traced this image (`x`: the depth pyramid holds this image's
  *    depth and the radiance pyramid an earlier image of this view);
  *  - `front`, whether this image's trace answers the transparents' front surface (`x`, one or zero,

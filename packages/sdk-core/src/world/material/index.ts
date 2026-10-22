@@ -59,7 +59,8 @@ export const material = {
    * The colour it gives is its emission: `emissive` times `emissiveIntensity`, times `emissiveMap`
    * read at that coordinate (the map's own wrap, filters, repeat, offset and rotation apply), white
    * by default; a `graph` wired to its `emissive` output gives it instead. It has no world position
-   * and no depth, so it is drawn once into an atlas slot. A mesh refuses it (`INVALID_MATERIAL`).
+   * and no depth, so it is drawn once into an atlas slot. A mesh that wears it is drawn with the
+   * default material, as the material a domain cannot draw falls back to.
    */
   lightFunction: kind('lightFunction', { emissive: 0xffffff }),
   /**

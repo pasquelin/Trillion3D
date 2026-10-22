@@ -9,6 +9,8 @@ import {
 } from '../../visibility/materialType.ts'
 import { channelsOf } from '../../materials/table/materialRecord.ts'
 import { hasPhysicalLobes } from '../../materials/surface/physicalLobes.ts'
+import { graphClassKey } from '../../materials/graph/surfaceClasses.ts'
+import { isProgram, programOf, type SurfaceProgram } from '../../materials/graph/surfaceProgram.ts'
 import { MODEL_SHIFT } from '../../materials/surface/surfaceModel.ts'
 import {
   layerSlot,
@@ -62,6 +64,9 @@ export type SurfaceRow = {
   /** A map of the surface reads a UV set past the first (`channelsOf`, glTF's `texCoord`). */
   readsExtraUv: boolean
   vertexColors: boolean
+  /** The program of the graph the surface wears, where it compiles: the surface then reads none of
+   *  the maps above, which are zero, nor the lobes, nor its geometry's colours (`wearGraph`). */
+  graph: SurfaceProgram | undefined
   bits: number
 }
 
@@ -78,8 +83,20 @@ export const emptySurfaceRow = (): SurfaceRow => ({
   physical: false,
   readsExtraUv: false,
   vertexColors: false,
+  graph: undefined,
   bits: 0,
 })
+
+/** The row of a surface that wears the graph `row.graph`: the graph computes what its maps, its lobes
+ *  and its geometry's colours gave, so none is read; it reads the texture sets it names. */
+function wearGraph(row: SurfaceRow) {
+  const { sets } = row.graph!.compiled.uses
+  Object.assign(row, {
+    ...{ map: 0, rough: 0, metal: 0, normal: 0, ao: 0, emissive: 0, subsurface: 0 },
+    ...{ physical: false, readsExtraUv: sets > 1, vertexColors: false },
+  })
+  row.lobeMaps.fill(0)
+}
 
 /** What `mat` brings to its rows (`SurfaceRow`), into `into`. */
 export function surfaceRow(
@@ -99,6 +116,9 @@ export function surfaceRow(
     into.lobeMaps[i] = into.physical ? layerSlot(dataLayer, mat[PHYSICAL_MAP_FIELDS[i]]) : 0
   into.readsExtraUv = channelsOf(mat, SURFACE_MAP_FIELDS) !== 0
   into.vertexColors = !!mat.vertexColors
+  const program = programOf(mat)
+  into.graph = isProgram(program) ? program : undefined
+  if (into.graph) wearGraph(into)
   let bits = 0
   if (mat.lit) bits |= FLAG_LIT
   if (mat.fog === false) bits |= FLAG_FOG_FREE
@@ -144,7 +164,9 @@ export function rowFlags(
   // The anisotropy and coat maps read through the data atlas as the others do (`physicalWgsl.ts`).
   const lobe = s.lobeMaps
   if (s.physical) flags |= sampledFlag(textures, 0, 0, lobe[0], lobe[1], lobe[2], lobe[3])
-  const classKey = materialClassKey(flags, s, s.readsExtraUv && !!geo?.hasExtraUv)
+  const features = materialClassKey(flags, s, s.readsExtraUv && !!geo?.hasExtraUv)
+  // A graph's program is its own class, over the features its rows are worn on.
+  const classKey = (s.graph?.kind === 'resolve' && graphClassKey(s.graph, features)) || features
   // Where the row reads its geometry is not a material feature: it never splits a resolve class.
   if (geo?.quantized) flags |= FLAG_CLUSTER_PAGE
   if (geo?.dynamic) flags |= FLAG_DYNAMIC

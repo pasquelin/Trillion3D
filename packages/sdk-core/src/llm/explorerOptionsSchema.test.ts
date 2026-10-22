@@ -33,6 +33,8 @@ import { RASTER_RULES } from '../contracts/rasterOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
 import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
 import { DEPTH_OF_FIELD_RULES } from '../contracts/depthOfFieldRules.ts'
+import { EXPOSURE_RULES } from '../contracts/exposureOptions.ts'
+import { SKY_QUALITY_RULES } from '../modules/sky/quality.ts'
 
 const validate = new Ajv().compile(EXPLORER_OPTIONS_SCHEMA)
 const explorer = { manifestUrl: '/assets/model/manifest.json' }
@@ -110,9 +112,8 @@ test('an explorer request naming only its manifest is completed with the engine 
 })
 
 test('a switch the host leaves out is set in the engine as the schema advertises it', () => {
-  // The raster's settings, the world streaming's, the cut's, the animation's, the temporal pass's
-  // the sun's shadows' and the motion blur's are read by their contract's one resolver; every other
-  // switch is the explorer's.
+  // Each setting family (the raster's, the world streaming's, the cut's, … the exposure's and the
+  // sky's quality) is read by its contract's one resolver; every other switch is the explorer's.
   const rules: Readonly<Record<string, SettingRule>> = {
     ...RASTER_RULES,
     ...WORLD_STREAMING_RULES,
@@ -136,6 +137,8 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...AMBIENT_OCCLUSION_RULES,
     ...TESSELLATION_RULES,
     ...DEPTH_OF_FIELD_RULES,
+    ...EXPOSURE_RULES,
+    ...SKY_QUALITY_RULES,
   }
   const advertised = Object.entries(EXPLORER_OPTIONS_SCHEMA.properties).filter(
     ([, property]) => property.type === 'boolean' && property.default !== undefined,

@@ -6,6 +6,8 @@ import { FOG_FREE_MODEL_BIT, MODEL_SHIFT, modelFlag } from '../../materials/surf
 import { fogBlockOf } from '../../lighting/fog/readWgsl.ts'
 import { BLEND_FOG_BINDINGS } from '../../gpu/bind/bindLayout.ts'
 import { BLEND_TO_EYE_WGSL, blendSurfaceWgsl } from '../shaderSurface.ts'
+import { blendGraphs } from '../graphWgsl.ts'
+import type { SurfaceProgram } from '../../materials/graph/surfaceProgram.ts'
 import { BLEND_PRE_EXPOSED_WGSL } from '../viewLayout.ts'
 import { FACING_MATERIAL_MASK } from '../facing.ts'
 import {
@@ -229,11 +231,18 @@ const TRANSMIT_DUAL_WGSL = wgslBlock(
  * `KHR_materials_transmission`, `KHR_materials_ior` — and the scene's declared sources, with the
  * engine's only lighting formula. No light of its own, no constant tuned to a scene.
  */
-export const transmitWgsl = (key: Partial<ContractKey>, dual: boolean) =>
+export const transmitWgsl = (
+  key: Partial<ContractKey>,
+  dual: boolean,
+  graphs?: readonly SurfaceProgram[],
+) =>
   wgslBlock(
-    `transmitWgsl(${variantLabel(key)},${dual})`,
+    `transmitWgsl(${variantLabel(key)},${dual}${graphs?.length ? ', graphs' : ''})`,
     [
-      blendSurfaceWgsl(!key.lobeless),
+      blendSurfaceWgsl(
+        !key.lobeless,
+        graphs?.length ? blendGraphs(graphs, !key.lobeless) : undefined,
+      ),
       declaredLightingSplitWgsl(key),
       DISPLAY_ROUTE_WGSL,
       displayMaskWgsl(DISPLAY_MASK_GROUP),

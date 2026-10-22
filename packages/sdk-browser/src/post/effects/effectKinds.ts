@@ -25,7 +25,7 @@ export function createKinds(device: GPUDevice, fail: (error: unknown) => void) {
     pending = new Map<EffectKind, Promise<void>>()
   let failed = false,
     disposed = false
-  const load = (kind: EffectKind) => {
+  const load = <K extends EffectKind>(kind: K) => {
     if (failed || pending.has(kind)) return
     const loaded = WEBGPU_KINDS[kind].create(device, fail).then(
       (implementation) => {

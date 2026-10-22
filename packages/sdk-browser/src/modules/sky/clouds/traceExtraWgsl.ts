@@ -5,11 +5,14 @@ import { VOLUME_LAMP_WGSL } from '../../../lighting/direct/lampSeenWgsl.ts'
 import { TILE_SLICE_WGSL } from '../../../lighting/direct/lightingWgsl.ts'
 import { vsmFragmentSampleWgsl } from '../../../lighting/direct/shadowTraceWgsl.ts'
 import { VSM_TRACE_KINDS_SUN } from '../../../lighting/shadows/vsm/trace/traceWgsl.ts'
+import { VIEW_SLOT } from '../../../lighting/atmosphere/layout.ts'
+import { skyLightDiffuseWgsl } from '../skyLight/read.ts'
 import { CLOUD_POINT_WGSL } from './traceLightWgsl.ts'
 import { CLOUD_EMPTY_SPACE_SIDE } from './traceOptions.ts'
 import {
   CLOUD_TRACE_EXTRA_BINDING as B,
   CLOUD_TRACE_EXTRA_GROUP as G,
+  CLOUD_TRACE_SKY_LIGHT,
   type CloudTraceKey,
 } from './traceExtraLayout.ts'
 
@@ -29,6 +32,9 @@ import {
  *   a medium sees of it (\`volumeLamp\`: a lamp's range, inverse square and cone, a rectangle's form
  *   factor), times its \`fogScattering\` — a light of none gives nothing —, a cloud shadow ray
  *   toward it and the uniform phase, in each order of multiple scattering.
+ * - The distant sky light: the mean radiance of the sky the air keeps for the haze; where the scene
+ *   has no air, the sky light's own diffuse light of no direction (the harmonics' first terms, the
+ *   light's colour not applied), bound in group 2.
  */
 const EMPTY_SPACE = `
 @group(${G}) @binding(${B.startDistance}) var cloudStartDistance:texture_2d<f32>;
@@ -105,6 +111,10 @@ fn cloudLocalLights(rel:vec3f,o:CloudOctaves)->array<vec3f,3>{
  }
  return sum;
 }`
+const AIR_SKY = `fn cloudDistantSky()->vec3f{return directLights.atmosphereView[${VIEW_SLOT.haze}].xyz;}`
+const SKY_LIGHT_SKY = `fn cloudDistantSky()->vec3f{
+ return max(vec3f(0.0),vec3f(skyHarmonic(0u).w,skyHarmonic(1u).w,skyHarmonic(2u).w));
+}`
 const NO_LAMPS = `
 fn cloudLampsStart(traced:vec2u,scale:f32){}
 fn cloudLocalLights(rel:vec3f,o:CloudOctaves)->array<vec3f,3>{
@@ -122,11 +132,13 @@ export const cloudTraceExtraWgsl = (p: CloudTraceKey) => {
     )
   }
   if (p.localLights) uses.push(directLightWgsl(), TILE_SLICE_WGSL, VOLUME_LAMP_WGSL)
+  if (p.skyLight) uses.push(skyLightDiffuseWgsl(CLOUD_TRACE_SKY_LIGHT))
   return wgslBlock(
-    `cloudTraceExtraWgsl(${p.emptySpace}, ${p.opaqueShadow}, ${p.localLights})`,
+    `cloudTraceExtraWgsl(${p.emptySpace}, ${p.opaqueShadow}, ${p.localLights}, ${p.skyLight})`,
     uses,
     `${p.emptySpace ? EMPTY_SPACE : NO_EMPTY_SPACE}
 ${p.opaqueShadow ? OPAQUE_SHADOW : NO_OPAQUE_SHADOW}
-${p.localLights ? LAMPS : NO_LAMPS}`,
+${p.localLights ? LAMPS : NO_LAMPS}
+${p.skyLight ? SKY_LIGHT_SKY : AIR_SKY}`,
   )
 }

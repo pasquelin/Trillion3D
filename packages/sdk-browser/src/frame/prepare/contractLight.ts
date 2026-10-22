@@ -11,7 +11,7 @@ import {
   type LitPass,
 } from '../../lighting/deferred/contractCuts.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
-import { skyLightReadOf } from '../render/encodeSkyLight.ts'
+import { skyLightReadOf } from '../render/skyLightState.ts'
 import { cloudShadowOf } from '../render/encodeCloudShadow.ts'
 import {
   vsmConsumerResources,

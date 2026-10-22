@@ -145,3 +145,50 @@ fn the_spline_pass_is_admitted_by_the_jobs_memory_budget() {
     assert_eq!(untouched.bytes(), bin.as_slice());
     assert_eq!(g["nodes"][0]["mesh"], 0);
 }
+
+// Behaviour: nodes that name one mesh with curves of their own each take a bent copy under their
+// own curve — the mesh they share is decoded once, never bent twice alike — and the budget counts
+// the arrays kept decoded while the last of them waits.
+#[test]
+fn nodes_bending_one_mesh_each_take_a_copy_bent_under_their_own_curve() {
+    let (mut g, bin) = document(json!({}));
+    let stretched = json!({"startScale": [2.0, 1.0], "endScale": [2.0, 1.0]});
+    g["nodes"].as_array_mut().expect("nodes").push(json!({
+        "mesh": 0, "extras": {"splineMesh": stretched}
+    }));
+    let bent = run(&mut g, bin.clone(), usize::MAX).expect("bends");
+    assert_eq!(
+        (g["nodes"][0]["mesh"].clone(), g["nodes"][1]["mesh"].clone()),
+        (json!(1), json!(2))
+    );
+    let position = |mesh: usize| {
+        let id = g["meshes"][mesh]["primitives"][0]["attributes"]["POSITION"].as_u64();
+        let reader = accessor(
+            &g,
+            bent.bytes(),
+            id.expect("a bent accessor") as usize,
+            None,
+        );
+        reader.expect("reads").collect_f32().expect("floats")
+    };
+    assert!(near(
+        &position(1),
+        &[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0]
+    ));
+    assert!(near(
+        &position(2),
+        &[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 2.0, 0.0]
+    ));
+    // The bent copies and the one decoded mesh kept for the second node, over the binary.
+    let (mut g, bin) = document(json!({}));
+    g["nodes"].as_array_mut().expect("nodes").push(json!({
+        "mesh": 0, "extras": {"splineMesh": {}}
+    }));
+    let appended = 2 * (12 * 3 + 12 * 3 + 16 * 3 + 16);
+    let kept = 12 * 3 + 12 * 3 + 16 * 3 + 4 * 3;
+    run(&mut g.clone(), bin.clone(), bin.len() + appended + kept).expect("holds both");
+    let refusal = run(&mut g, bin.clone(), bin.len() + appended + kept - 1)
+        .err()
+        .expect("one byte short");
+    assert_eq!(refusal.code, "RAM_ADMISSION_BUDGET_EXCEEDED");
+}

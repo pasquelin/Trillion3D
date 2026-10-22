@@ -1,5 +1,5 @@
 import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts'
-import { resolveSettings } from '../../../sdk-core/src/contracts/settingRules.ts'
+import { readSetting, resolveSettings } from '../../../sdk-core/src/contracts/settingRules.ts'
 import { RASTER_RULES } from '../../../sdk-core/src/contracts/rasterOptions.ts'
 import { STREAMING_RULES } from '../../../sdk-core/src/contracts/streamingOptions.ts'
 import { WORLD_STREAMING_RULES } from '../../../sdk-core/src/contracts/worldStreamingOptions.ts'
@@ -173,9 +173,11 @@ function engineContext(
   const worldRoots = inputs.worldRoots.find((hold) => hold.dag)
   // The caches the scene's textures come from, their levels held among the pages the streamer
   // reads, in their page cache.
-  const textureCaches = createTextureCaches(pageCache, signal)
+  const textureCaches = createTextureCaches(pageCache, signal, () =>
+    readSetting(STREAMING_RULES, context, 'streamingNumRetries'),
+  )
   textureCaches.add(...inputs.textureCaches)
-  return {
+  const context: EngineContext = {
     ...optionContext(session),
     source: inputs.source,
     metadata,
@@ -203,6 +205,7 @@ function engineContext(
     volumetricLightmapData,
     frameBudget: inputs.frameBudget,
   }
+  return context
 }
 
 /** Prepares `engine`; a failure is diagnosed and thrown, the engine released — awaited when the

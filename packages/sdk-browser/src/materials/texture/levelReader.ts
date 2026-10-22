@@ -41,6 +41,9 @@ export type TextureLevelReader = ((request: TextureLevelRequest) => Promise<Text
   readonly store: TextureLevelStore
   /** The cook the reader was made for: its levels are held in `store` under it. */
   readonly key: string
+  /** How many times a read that failed is tried again before it is given up, read at each failure
+   *  (`streamingNumRetries`); negative, without end; absent, none is given up. */
+  readonly retries?: () => number
 }
 
 /** A tile's bytes once read: its blocks, or four bytes a texel of its whole blocks decoded. */
@@ -64,8 +67,9 @@ const HEADS_KEPT = 1024
  * the file's head of record ends first — once per file, kept among the last `HEADS_KEPT` read —, then the
  * record, inflated by the browser; for the lossless lane, decoded to RGBA8 off the main thread. A
  * read fails once, never asked again here: `heldLevels.ts` checks each record and holds back what
- * failed — a head that failed is asked again with the next tile. A cache whose levels are of
- * another version is refused before any read (`assertCacheIdentity`).
+ * failed — a head that failed is asked again with the next tile — as many times as `retries`
+ * allows. A cache whose levels are of another version is refused before any read
+ * (`assertCacheIdentity`).
  *
  * Levels are held in `cache` under the cook's `key`, which hashes the source, its images, the
  * compiler and every option that decides the product: under one key a level names one file.
@@ -75,6 +79,7 @@ export function createTextureLevelReader(
   base: string,
   cache: Pick<PageCache, 'readRange'> & TextureLevelStore,
   signal?: AbortSignal,
+  retries?: () => number,
 ): TextureLevelReader | undefined {
   if (!textures) return undefined
   const options = { attempts: ONE_REQUEST, signal }
@@ -119,5 +124,5 @@ export function createTextureLevelReader(
     const range = recordRange(await headOf(url, record.count), record.count, record.index)
     return land(await cache.readRange(url, range.offset, range.bytes, options), record, request)
   }
-  return Object.assign(read, { store: cache, key })
+  return Object.assign(read, { store: cache, key, retries })
 }

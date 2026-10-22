@@ -102,7 +102,7 @@ export type PointOfInterest = {
  *  ambient occlusion's (`ambientOcclusion`, true; `ambientOcclusionIntensity`, 0.5; `ambientOcclusionRadius`, 2 m;
  *  `ambientOcclusionQuality`, 50; and the others of `../../../sdk-core/src/contracts/ambientOcclusionOptions.ts`),
  *  set by `explorer.setAmbientOcclusion`. The depth pyramid's (`hizTrace`, `hizFoldTransparents`,
- *  `hizTransparentTest`, `hizRelativeDepthThickness`, `hizFullResDepth`, `lightGridHizCull`,
+ *  `hizTransparentTest`, `hizFullResDepth`, `lightGridHizCull`,
  *  and the five of the primed pyramid, `hizPrime` (`'off'`), `hizPrimeSizeBias`, `hizPrimeDepthBias`,
  *  `hizPrimeErrorScale` and `hizPrimeFarFieldOnly`,
  *  `../../../sdk-core/src/contracts/hizOptions.ts`),

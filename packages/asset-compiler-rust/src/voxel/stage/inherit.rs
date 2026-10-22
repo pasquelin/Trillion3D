@@ -104,3 +104,86 @@ pub(super) fn candidates(
     }
     out
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::super::sample::{Moments, FACES};
+    use super::super::super::solid::Voxel;
+    use super::*;
+
+    /// A group of voxels at `cells` of side 1, each in a brick of its own at the brick holding it,
+    /// remembering `remembered`.
+    fn drawn(cells: &[Cell], remembered: Vec<Cell>) -> Voxelized {
+        let voxel = |cell: Cell| Voxel {
+            cell,
+            coverage: 1.0,
+            faces: [Moments::default(); FACES],
+            shown: Moments::default(),
+            joint: None,
+        };
+        let brick = |i: usize| Brick {
+            at: cells[i].map(|c| c.div_euclid(4)),
+            mask: 1,
+            voxels: vec![i],
+            joint: None,
+        };
+        Voxelized {
+            primitive: Some(0),
+            group: 3,
+            level: 1,
+            triangle_error: 1.0,
+            forced: false,
+            side: 1.0,
+            voxels: cells.iter().map(|&c| voxel(c)).collect(),
+            bricks: (0..cells.len()).map(brick).collect(),
+            brick_parents: Vec::new(),
+            remembered,
+        }
+    }
+
+    // Behaviour: a group takes the voxels of the bricks replaced with the outputs it holds — the
+    // nearest output of the child's group, by its centre — and the cells the child remembered when
+    // its first output is the group's: two groups above one child share its voxels, and the
+    // remembered cells go to the first output's alone.
+    #[test]
+    fn a_group_takes_the_voxels_of_the_bricks_its_outputs_replace() {
+        let child = drawn(&[[0, 0, 0], [40, 0, 0]], vec![[7, 7, 7]]);
+        // Two outputs, each a child of a group: bricks at 2 and 42 sides along x.
+        let parents = [([2.0, 2.0, 2.0], 7), ([42.0, 2.0, 2.0], 8)];
+        let (first, second) = (
+            Boxes::of(&child, &parents, 7),
+            Boxes::of(&child, &parents, 8),
+        );
+        assert_eq!(
+            (first.voxels, first.remembered),
+            (vec![[0, 0, 0]], vec![[7, 7, 7]])
+        );
+        assert_eq!(
+            (second.voxels, second.remembered),
+            (vec![[40, 0, 0]], Vec::new())
+        );
+    }
+
+    // Behaviour: a voxel of side 1 stands for the cells of side 1/2 its box overlaps or touches —
+    // a box from 0 to 1 reaches the cells 0 to 2 —, x the fastest, a voxel's cells before the
+    // next's and the remembered cells' last.
+    #[test]
+    fn a_voxel_box_reaches_the_cells_it_overlaps_and_touches() {
+        let boxes = Boxes {
+            side: 1.0,
+            voxels: vec![[0, 0, 0]],
+            remembered: vec![[5, 0, 0]],
+        };
+        let mut found = Vec::new();
+        boxes.cells(0.5, |cell| found.push(cell));
+        assert_eq!(found.len(), 54);
+        assert_eq!(found[..3], [[0, 0, 0], [1, 0, 0], [2, 0, 0]]);
+        assert_eq!(found[3], [0, 1, 0]);
+        assert_eq!(found[26], [2, 2, 2]);
+        assert_eq!(found[27], [10, 0, 0]);
+        // Wider cells of side 2: the first box lies in one, the remembered cell's reaches two.
+        let mut wide = Vec::new();
+        boxes.cells(2.0, |cell| wide.push(cell));
+        assert_eq!(wide, [[0, 0, 0], [2, 0, 0], [3, 0, 0]]);
+    }
+}

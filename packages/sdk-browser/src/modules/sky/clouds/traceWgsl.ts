@@ -1,5 +1,4 @@
 import { HALF_MAX } from '../../../../../math/src/wgsl/constants.ts'
-import { pixelToNdc, unprojectPoint } from '../../../../../math/src/wgsl/projection.ts'
 import { HAZE_READ_WGSL } from '../../../lighting/atmosphere/hazeReadWgsl.ts'
 import { SEPARATED_READ_WGSL } from '../../../lighting/atmosphere/separatedWgsl.ts'
 import { airProgram, type AirBindings } from '../../../lighting/atmosphere/programs.ts'
@@ -136,7 +135,6 @@ fn cloudTraceMain(@builtin(global_invocation_id) id:vec3u){
 const traceOwn = (key: CloudTraceKey) =>
   [
     traceBindings(key),
-    CLOUD_RAY_WGSL,
     CLOUD_SHELL_WGSL,
     cloudSceneDepthFn(key.depth),
     CLOUD_MARCH_WGSL,
@@ -165,8 +163,7 @@ export function cloudTraceProgram(key: CloudTraceKey, shape: AirShape = DEFAULT_
         HALF_MAX,
         DEVICE_DEPTH_FLOOR,
         preExposedWgsl('cloudTrace.sky.w'),
-        pixelToNdc,
-        unprojectPoint,
+        CLOUD_RAY_WGSL,
         HAZE_READ_WGSL,
         SEPARATED_READ_WGSL,
         blueNoiseWgsl(G, B.blueNoise),

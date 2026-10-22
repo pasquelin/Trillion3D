@@ -1,7 +1,8 @@
 import type { GraphNode } from '../../../../sdk-core/src/world/material/graph/graph.ts'
 import type { NodeKind } from '../../../../sdk-core/src/world/material/graph/nodeSpecs.ts'
 import { graphError } from '../../../../sdk-core/src/world/material/graph/valueType.ts'
-import type { State } from './state.ts'
+import { coordinate } from './nodesInput.ts'
+import { NEIGHBOURS, type State } from './state.ts'
 import { coerce, constantOf, type Value } from './value.ts'
 
 /** The code that reads the colour atlas slot held in the texture word `at` of the values. */
@@ -30,32 +31,71 @@ function sampled(s: State, n: GraphNode): Value {
   return textureValue(s, n)
 }
 
-/** The footprint of the read: from the screen's derivatives of `uv` or the host's, scaled by
- *  `scale` (a level bias) when given. */
-function footprint(s: State, uv: Value, scale?: string) {
-  const [dx, dy] =
-    s.derivatives === 'screen' ? [`dpdx(${uv.code})`, `dpdy(${uv.code})`] : ['ctx.ddx', 'ctx.ddy']
-  return scale ? [`${dx}*exp2(${scale})`, `${dy}*exp2(${scale})`] : [dx, dy]
+/** The coordinate a sample reads at the point `s` stands at: the one wired to it, else its own set's. */
+function coordinateOf(s: State, n: GraphNode): Value {
+  const wired = s.input(n, 'uv')
+  return wired ? coerce(wired, 'f2') : coordinate(s, n.props.constCoordinate as number)
+}
+
+/** The level a sample reads: the one wired to it, else its own. */
+const levelOf = (s: State, n: GraphNode) =>
+  coerce(s.input(n, 'mip') ?? constantOf('flex', [n.props.constMip as number]), 'flex')
+
+/** The footprint of one pixel on the coordinate `uv` of the sample `n`: the screen's derivatives
+ *  of it, or its difference to the coordinate a pixel to the right and a pixel below
+ *  (`NEIGHBOURS`), each read in the context the host fills there. */
+function footprint(s: State, n: GraphNode, uv: Value): [string, string] {
+  if (s.derivatives === 'screen') return [`dpdx(${uv.code})`, `dpdy(${uv.code})`]
+  const [right, below] = NEIGHBOURS.map((context) => coordinateOf(s.at(context), n))
+  return [`(${right.code}-${uv.code})`, `(${below.code}-${uv.code})`]
+}
+
+/** The footprint a sample reads at, scaled by `exp2(bias)` in a `bias` read. */
+function readFootprint(s: State, n: GraphNode, uv: Value, level: Value) {
+  const [dx, dy] = footprint(s, n, uv)
+  return n.props.mipMode === 'bias'
+    ? [`${dx}*exp2(${level.code})`, `${dy}*exp2(${level.code})`]
+    : [dx, dy]
+}
+
+/** Notes that the sample `n` is read, once, as a tile request is made from the reads. */
+function noteSample(s: State, n: GraphNode) {
+  if (!s.samples.some((read) => read.node.id === n.id))
+    s.samples.push({ node: n, output: s.output })
 }
 
 /** A read of the colour atlas at `uv`: the computed level, an absolute level, or a bias on the
  *  computed one. Its value is the four components of the colour. */
 function textureSample(s: State, n: GraphNode): Value {
   s.uses.textures = true
+  noteSample(s, n)
   const slot = sampled(s, n)
-  const index = n.props.constCoordinate as number
-  const uv = s.input(n, 'uv')
-    ? coerce(s.input(n, 'uv')!, 'f2')
-    : { type: 'f2' as const, code: `ctx.uvs[${index}]` }
-  const mode = n.props.mipMode
-  const level = coerce(
-    s.input(n, 'mip') ?? constantOf('flex', [n.props.constMip as number]),
-    'flex',
-  )
-  const asked = mode === 'level' ? level.code : undefined
-  if (asked) return s.e.local('f4', `mgSampleLevel(${slot.code},${uv.code},${asked})`)
-  const [dx, dy] = footprint(s, uv, mode === 'bias' ? level.code : undefined)
+  const uv = coordinateOf(s, n)
+  const level = levelOf(s, n)
+  if (n.props.mipMode === 'level')
+    return s.e.local('f4', `mgSampleLevel(${slot.code},${uv.code},${level.code})`)
+  const [dx, dy] = readFootprint(s, n, uv, level)
   return s.e.local('f4', `colorSample(${slot.code},${uv.code},${dx},${dy},true)`)
+}
+
+/**
+ * The expression of the tile the pixel's pick `p` asks of the read of the sample `n` (`missing`
+ * says that only a tile the table does not hold is named): the request of the very texel the
+ * sample reads, at the coordinate and the footprint it reads at, its lines in `s`. A read of an
+ * absolute level asks the footprint of one texel of that level.
+ */
+export function sampleRequest(s: State, n: GraphNode): string {
+  const slot = sampled(s, n)
+  const uv = coordinateOf(s, n)
+  const level = levelOf(s, n)
+  const [dx, dy] =
+    n.props.mipMode === 'level'
+      ? [
+          `vec2f(exp2(${level.code})/colorSlot(${slot.code}).size.x,0.0)`,
+          `vec2f(0.0,exp2(${level.code})/colorSlot(${slot.code}).size.y)`,
+        ]
+      : readFootprint(s, n, uv, level)
+  return `colorRequestIndex(${slot.code},${uv.code},${dx},${dy},p.next,p.along,true,true,missing)`
 }
 
 /** The nodes that hold or read a texture, by kind. */

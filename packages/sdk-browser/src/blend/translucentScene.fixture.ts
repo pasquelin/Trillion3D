@@ -21,6 +21,7 @@ import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { reflectionFront } from '../lighting/reflections/frontDepth.fixture.ts'
 import { VERDICT_WORDS } from './verdict/verdictLayout.ts'
 import { planItem } from './plan/plan.ts'
+import { NO_OVERRIDES } from '../frame/backend/state/viewOverrides.ts'
 
 const buffer = () => ({ size: 0 }) as unknown as GPUBuffer
 
@@ -147,6 +148,8 @@ export const writesOf = (pass: FakePass) => pass.colors.map((color) => color?.vi
  */
 export function replay(blendState: ReturnType<typeof prepared>['blendState'], gpu: WebgpuGpuState) {
   const { device: own, passes, textureCopies } = fakeDevice()
+  // The sky light's stand-in is made on the device the frame encodes on (`skyLightReadOf`).
+  Object.assign(gpu, { device: own })
   const encoder = own.createCommandEncoder()
   const drawn = (pass: FakePass) =>
     commandArgs(pass.commands, 'drawIndirect').length
@@ -159,6 +162,8 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
     capture: { capturing: false },
     lights: { buffer: {}, store: { count: 0, epoch: 0, unlit: false } },
     bounce: { probes: undefined },
+    views: { active: { overrides: NO_OVERRIDES } },
+    context: {},
     // `lit` view with no light: the contract lights, so the pass binds its resources by default.
     blendState,
     run: {

@@ -41,22 +41,17 @@ test('a core camera is drawn from: a draw reads the engine projection, kept curr
 test('a core scene and camera hold no field the engine needs beyond a page one', async () => {
   const base = new Set(Object.keys(new Object3D()))
   const own = (node: object) => Object.keys(node).filter((key) => !base.has(key))
-  assert.deepEqual(own(new Scene()), [
-    '_background',
-    'recoloured',
-    'environment',
-    '_fog',
-    'refogged',
-    '_atmosphere',
-    '_air',
-  ])
+  // The fog, the air and the sky light are the sky module's one part (`scene.sky`).
+  assert.deepEqual(own(new Scene()), ['_background', 'recoloured', 'environment', '_sky'])
   const camera = new Camera('perspective')
-  assert.deepEqual(own(camera), ['isCamera', '_optics', '_fitAspect', 'projection'])
+  // The view's set — its clip plane, its hidden and shown objects — is the camera's own (`_set`).
+  assert.deepEqual(own(camera), ['isCamera', '_optics', '_fitAspect', '_set', 'projection'])
   void camera.projectionMatrix
   assert.deepEqual(own(camera), [
     'isCamera',
     '_optics',
     '_fitAspect',
+    '_set',
     'projection',
     '_projectionMatrix',
   ])

@@ -108,10 +108,10 @@ const LAYOUTS = {
  * that carries the distance of its vertex to the plane (`vsOutWgsl`); by pixel, `blendClipped` tells
  * a fragment stage the pixel behind it (`../gpu/core/clipDistances.ts`).
  */
-export const blendVertexWgsl = (lobes: boolean, clipping?: Clipping) => {
+export const blendVertexWgsl = (lobes: boolean, clipping?: Clipping, graphs = false) => {
   const layout = LAYOUTS[lobes ? 'lobed' : 'lobeless']
   return wgslBlock(
-    `blendVertexWgsl(${lobes}${clipping ? `, ${clipping}` : ''})`,
+    `blendVertexWgsl(${lobes}${clipping ? `, ${clipping}` : ''}${graphs ? ', graphs' : ''})`,
     [
       PAGE_GEOMETRY_WGSL,
       NORMAL_TRANSFORM_WGSL,
@@ -128,7 +128,7 @@ export const blendVertexWgsl = (lobes: boolean, clipping?: Clipping) => {
       cornerBarycentric,
       ...(clipping ? [planeDistance] : []),
     ],
-    `${blendVertexStage(layout, clipping)}${clipping === 'pixel' ? BLEND_CLIPPED : ''}`,
+    `${blendVertexStage(layout, clipping, graphs)}${clipping === 'pixel' ? BLEND_CLIPPED : ''}`,
   )
 }
 
@@ -145,6 +145,15 @@ const VERTEX_PAGE = ` let span=clusterSpans[slot.y];
   if(cull!=0u){facing=vertexFacing(cull,it.world,page,h,corners);}
  }
  out.material=(it.material&${FACING_MATERIAL_MASK}u)|(facing<<${FACING_SHIFT}u);`
+
+/** What the vertex stage hands the fragments of an item whose surface wears a graph: the factors and the
+ *  maps of its record neutral — one, no map — so that its fragments read what its graph gives
+ *  (`graphWgsl.ts`), which the factors multiply. */
+const GRAPH_NEUTRAL = ` if(m.graph!=0u){
+  out.color=vec4f(1.0);out.ids.x=0u;out.ids.z=0u;out.maps=vec4u(0u);
+  out.alphaAo.y=1.0;out.pbr=vec4f(1.0);out.emissive=vec4f(1.0,1.0,1.0,0.0);
+ }
+`
 
 /** The corner's colour, position, diagnostics and frame. */
 const VERTEX_CORNER = ` let v=corners[local%3u];
@@ -194,6 +203,7 @@ const VERTEX_CORNER = ` let v=corners[local%3u];
 const blendVertexStage = (
   { ids, word, page, write }: (typeof LAYOUTS)['lobed'],
   clipping?: Clipping,
+  graphs = false,
 ) => `@vertex fn vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instance:u32)->${clipReturnType('VSOut', clipping)}{
  var out:VSOut;
  let slot=planInstances[(vertexIndex>>uni.vertexShift)+instance];
@@ -218,7 +228,7 @@ ${VERTEX_PAGE}
  out.pbr=vec4f(m.roughness,m.metalness,m.normalScale,select(m.normalScaleY,m.tangentNormalScaleY,(it.flags&${itemFlags.FLAG_HAS_TANGENT}u)!=0u));
  out.emissive=vec4f(m.emissive,f32(m.subsurfaceMap));
  out.normal.w=m.subsurface.x;out.tangent.w=m.subsurface.y;out.bitangent.w=m.subsurface.z;
-${VERTEX_CORNER}
+${graphs ? GRAPH_NEUTRAL : ''}${VERTEX_CORNER}
  ${write}
  return ${clipReturn('VSOut', clipping, 'out', 'planeDistance(uni.clipPlane,out.view)')};
 }`

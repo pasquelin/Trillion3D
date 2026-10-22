@@ -168,7 +168,8 @@ function batchOf(state: BatchState, cut: Cut, entry: MaterialEntry, mesh: Mesh) 
         wear(surface: PageSurface) {
           this.surface = surface
         },
-        castShadow: true,
+        // Casts as a shadow caster casts by default; each row's owner writes its own (`rows.casting`).
+        casting: 0,
         frustumCulled: true,
         get mesh() {
           return state.ranks.cut(cut)

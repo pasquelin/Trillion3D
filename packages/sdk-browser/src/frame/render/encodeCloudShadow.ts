@@ -10,6 +10,8 @@ import {
 } from '../../modules/sky/clouds/shadowRun.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { writeAirlessFrame } from './airlessFrame.ts'
+import { atmosphereDeclared } from './airState.ts'
 
 /**
  * THE CLOUDS' SHADOW MAPS IN THE FRAME: what the clouds tell the frame of the maps
@@ -80,8 +82,28 @@ export function setCloudShadowSource(
 /** The shade the clouds cast this image, none while no map is built. */
 export const cloudShadowOf = (rt: WebgpuPagesRuntime) => states.get(rt)?.set
 
+/** What the maps are traced over: the atmosphere's planet and frame; with no atmosphere, the planet
+ *  of the clouds part and the frame of the stand-in air (`writeAirlessFrame`). None while an
+ *  atmosphere is on and its programs are not compiled yet. */
+function overWhat(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera, part: CloudPart) {
+  const { gpu, lights } = rt
+  if (!atmosphereDeclared(rt))
+    return {
+      radiusKm: part.settings.planetRadiusKm,
+      groundHeight: 0,
+      frame: writeAirlessFrame(rt, device, cam, part.settings.planetRadiusKm).frame,
+    }
+  const air = lights.store.environment?.atmosphere
+  if (!air || !gpu.atmosphere?.ready) return undefined
+  return {
+    radiusKm: air.planetRadius,
+    groundHeight: air.groundHeight,
+    frame: gpu.atmosphere.frameBuffer,
+  }
+}
+
 /** The maps of this image, built on `encoder` ahead of the air, the fog and the surfaces that read
- *  them. None where the clouds give none, the scene has no air or its programs are not compiled. */
+ *  them. None where the clouds give none or the atmosphere's programs are not compiled. */
 export function encodeCloudShadow(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -90,10 +112,11 @@ export function encodeCloudShadow(
 ) {
   const state = stateOf(rt),
     { source } = state,
-    { gpu, lights } = rt
-  const air = lights.store.environment?.atmosphere
+    { lights } = rt
   state.set = undefined
-  if (!source || !air || !lights.buffer || !gpu.atmosphere?.ready) return
+  if (!source || !lights.buffer) return
+  const over = overWhat(rt, device, cam, source.part)
+  if (!over) return
   const asked = cloudShadowLightsOf(lights.store)
   // No light asks for a map: none is made, and what an earlier image made is released.
   if (!asked.some((input) => cloudShadowWanted(source.part.quality, input?.light))) {
@@ -112,14 +135,14 @@ export function encodeCloudShadow(
     eye,
     eyeFromPlanetKm: [
       eye[0] / 1000,
-      (eye[1] - air.groundHeight) / 1000 + air.planetRadius,
+      (eye[1] - over.groundHeight) / 1000 + over.radiusKm,
       eye[2] / 1000,
     ],
-    planetRadiusKm: air.planetRadius,
+    planetRadiusKm: over.radiusKm,
     time: source.time(),
     frameIndex: rt.run.frame,
     material: source.material,
-    air: { buffer: lights.buffer, frame: gpu.atmosphere.frameBuffer },
+    air: { buffer: lights.buffer, frame: over.frame },
     keepsState: rt.views.active === rt.views.main,
   })
 }

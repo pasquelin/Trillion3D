@@ -130,7 +130,8 @@ export interface CompilerEvent {
    *  computeWeightedNormals, skinnedWeldPosition, skinnedWeldNormal, skinnedWeldTexture,
    *  voxelRays, voxelLevel, voxelBackUp, voxelSeparable, voxelNdf, voxelOpacity, allowAssemblies,
    *  distanceField, distanceFieldScale, distanceFieldTwoSided, distanceFieldDensity,
-   *  distanceFieldMaxResolution, positionPrecision, normalPrecision, tangentPrecision, objects }`
+   *  distanceFieldMaxResolution, displacementMaps, displacementUvChannel, displacementEdgeSplit,
+   *  positionPrecision, normalPrecision, tangentPrecision, objects }`
    *  — whether its pages store the build's tangents (default `false`), the share of its triangles
    *  (default 1) and the error in percent of its size (default 0) its finest level is cut to,
    *  whether a triangle two of whose corners lie within 200 nanometres is dropped (default
@@ -146,7 +147,11 @@ export interface CompilerEvent {
    *  a voxel keeps its normals' spread (default `true`) and its coverage as opacity (default
    *  `false`), whether the assembly its glTF `extras.assembly` names — parts and nodes — is built,
    *  each node a node of the scene carrying its part's mesh, whose pages are written once (default
-   *  `false`: its own triangles alone), the position grid of its pages (cells
+   *  `false`: its own triangles alone), the height maps baked into the triangles of a mesh of one
+   *  triangle primitive that names a `trimmedError` — `[{ texture: { index }, magnitude, center }]`,
+   *  the first the one read, default none: nothing baked —, the set of texture coordinates they are
+   *  read at (0 to 3, default 0) and how the tessellation shares the vertex it adds on an edge
+   *  (`seams`, the default, or `always-duplicate`), the position grid of its pages (cells
    *  of 2^-n centimetre, a whole number from -20 to 43; default none: the mesh's density sets it),
    *  the bits an axis of its normals (1 to 15, default 8) and of its stored tangents' angle (0 to
    *  12, default 7), `objects`

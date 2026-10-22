@@ -2,6 +2,7 @@
 pub mod coplanar;
 pub mod cutout;
 mod dag;
+pub(crate) mod displace;
 pub(crate) mod distance_field;
 mod manifest_binary;
 #[cfg(any(test, feature = "oracle"))]

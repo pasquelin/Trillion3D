@@ -7,7 +7,8 @@
 //! by area and angle, and the tolerances of its skinned weld, and the precisions of its pages' grid
 //! (`Precision`): the cells of its positions, the bits of its normals and of its tangents' angle,
 //! how its voxels are sampled when it is drawn as voxels far away (`voxels.rs`), how its distance
-//! field is built (`distance_field.rs`), and whether
+//! field is built (`distance_field.rs`), the displacement baked into its triangles
+//! (`displacement.rs`), and whether
 //! the assembly its `extras` name is built (`ALLOW_ASSEMBLIES_SETTING`, `source/assembly.rs`).
 //! For each setting of a mesh, the first that names it:
 //! 1. the first rule of `meshBuild.objects` whose match names one of its objects — a node of the
@@ -23,8 +24,10 @@
 use super::name_match::{present, read_rules, NameMatch, NodeNames};
 use super::reader::Reader;
 use super::*;
+mod displacement;
 mod distance_field;
 mod voxels;
+use displacement::NamedDisplacement;
 use distance_field::NamedDistanceField;
 use trillion3d_page_codec::bits::grid::Precision;
 use trillion3d_page_codec::{
@@ -33,7 +36,7 @@ use trillion3d_page_codec::{
 use voxels::NamedVoxels;
 
 /// One mesh's build settings, every one resolved (`MeshBuildOptions::meshes`).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct MeshBuild {
     /// Whether its pages store the tangents its source carries (`STORED_TANGENTS_SETTING`).
     pub stored_tangents: bool,
@@ -60,12 +63,15 @@ pub(crate) struct MeshBuild {
     /// `distanceFieldScale`, `distanceFieldTwoSided`, `distanceFieldDensity`,
     /// `distanceFieldMaxResolution`).
     pub distance_field: crate::distance_field::DistanceFieldSettings,
+    /// The displacement baked into its triangles (`displace::DisplacementSettings`:
+    /// `displacementMaps`, `displacementUvChannel`, `displacementEdgeSplit`), none by default.
+    pub displacement: crate::displace::DisplacementSettings,
     /// Whether the assembly its `extras` name is built (`ALLOW_ASSEMBLIES_SETTING`).
     pub allow_assemblies: bool,
 }
 
 /// The settings one source names, each none where it names none.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 struct Named {
     stored_tangents: Option<bool>,
     kept_triangles: Option<f64>,
@@ -84,6 +90,7 @@ struct Named {
     tangent_precision: Option<i32>,
     voxels: NamedVoxels,
     distance_field: NamedDistanceField,
+    displacement: NamedDisplacement,
     allow_assemblies: Option<bool>,
 }
 impl Named {
@@ -130,6 +137,7 @@ impl Named {
             )?,
             voxels: NamedVoxels::of(&read)?,
             distance_field: NamedDistanceField::of(&read)?,
+            displacement: NamedDisplacement::of(&read)?,
             allow_assemblies: read.boolean(ALLOW_ASSEMBLIES_SETTING)?,
         })
     }
@@ -154,6 +162,7 @@ impl Named {
             tangent_precision: self.tangent_precision.or(lower.tangent_precision),
             voxels: self.voxels.or(lower.voxels),
             distance_field: self.distance_field.or(lower.distance_field),
+            displacement: self.displacement.or(lower.displacement),
             allow_assemblies: self.allow_assemblies.or(lower.allow_assemblies),
         }
     }
@@ -194,6 +203,7 @@ impl Named {
             },
             voxels: self.voxels.resolved(),
             distance_field: self.distance_field.resolved(),
+            displacement: self.displacement.resolved(),
             allow_assemblies: self.allow_assemblies.unwrap_or(DEFAULT_ALLOW_ASSEMBLIES),
         }
     }
@@ -264,14 +274,14 @@ impl MeshBuildOptions {
                 };
                 let ruled = (self.objects.iter())
                     .filter(|(matcher, _)| names.iter().any(|n| matcher.matches(n)))
-                    .fold(Named::default(), |named, (_, rule)| named.or(*rule));
+                    .fold(Named::default(), |named, (_, rule)| named.or(rule.clone()));
                 let own = match mesh.get("extras").and_then(Value::as_object) {
                     Some(extras) if !extras.is_empty() => {
                         Named::of(extras, &format!("meshes[{rank}].extras."))?
                     }
                     _ => Named::default(),
                 };
-                Ok(ruled.or(self.scene).or(own).resolved())
+                Ok(ruled.or(self.scene.clone()).or(own).resolved())
             })
             .collect()
     }

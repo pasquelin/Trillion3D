@@ -29,7 +29,7 @@
 //! far group, its roots drawn at every distance.
 //! A mesh's voxelization lives in `mesh`, the surface sampling in `surface`, what a group takes of
 //! its voxel children in `inherit`, the encoding and report in `encode`. How a mesh's voxels are sampled — its rays, the level from which every group is
-//! voxels, the spread of its normals, its opacity — is its build's (`VoxelSettings`), one per
+//! voxels, the fit of its normals, its opacity — is its build's (`VoxelSettings`), one per
 //! source mesh (`VoxelInputs::settings`).
 use super::bricks::Brick;
 use super::raster::Cell;

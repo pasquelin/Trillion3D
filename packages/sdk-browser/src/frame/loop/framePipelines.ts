@@ -26,6 +26,7 @@ import { askFinish } from '../../post/finish/frame.ts'
 import { askEffectPrograms } from '../../post/effects/stagePlan.ts'
 import { askVelocity } from '../../post/taa/velocityFrame.ts'
 import { askDisplacedClasses, displacedKeys } from '../../visibility/tessellation/prismFrame.ts'
+import { takeGraphRefusals } from '../../materials/graph/surfaceProgram.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 /** The class set each census last asked its classes of. */
@@ -90,6 +91,8 @@ function askBlueNoise(rt: WebgpuPagesRuntime, device: GPUDevice) {
 export function askFramePipelines(rt: WebgpuPagesRuntime) {
   const device = rt.gpu.device
   if (!device || rt.run.lost) return
+  for (const reason of takeGraphRefusals())
+    rt.diag.engineDiagnostic('material-graph-refused', 'A material graph was refused', { reason })
   askShadeClasses(rt)
   askDisplacedClasses(rt)
   askGuidePass(rt, device)

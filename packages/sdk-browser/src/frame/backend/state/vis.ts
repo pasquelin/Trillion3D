@@ -16,7 +16,7 @@ import {
   type WebgpuBindIdentity,
 } from '../../../gpu/bind/bindIdentity.ts'
 import { RenderBundles } from '../../../gpu/core/renderBundles.ts'
-import { createPresentClasses } from '../../../materials/classes/materialPasses.ts'
+import { createPresentClasses } from '../../../gpu/core/presentClasses.ts'
 import type { GeometryBlock } from '../../../geometry/rows/page/pageRowMaterial.ts'
 import type { VertexPool } from '../../../geometry/pages/pool/geometryPool.ts'
 import type { prepareWebgpuGeometry } from '../../../geometry/pages/pool/geometryPrepare.ts'
@@ -52,6 +52,9 @@ export interface WebgpuVisState {
   shadeCensus: ShadeCensus | undefined
   /** Classes the image being encoded has rows of (`../../../materials/classes/materialPasses.ts`). */
   presentClasses: PresentClasses
+  /** Whether a class the last image drew runs a graph that reads the time: the image is never held
+   *  (`../../../materials/graph/surfaceClasses.ts`, `readsTime`). */
+  graphsAnimated: boolean
   /** The image's pixels sorted by class, each class's bin (`../../../materials/classes/shadeBins.ts`). */
   shadeBins: ShadeBins | undefined
   /** What the frame composes once for the resolve (`../../../visibility/passes/shadeCache.ts`). */
@@ -135,6 +138,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     shadeClasses: undefined,
     shadeCensus: undefined,
     presentClasses: createPresentClasses(),
+    graphsAnimated: false,
     shadeBins: undefined,
     shadeCache: undefined,
     voxelSteps: undefined,

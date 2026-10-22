@@ -55,7 +55,7 @@ export async function runPageTask(
     if (request.op === 'cells') {
       const { decodeCellFile } = await import('../partition/cellDecode.ts')
       const cells = decodeCellFile(request.source, request.name)
-      const { ranks, locals, tracks, sources, drawDistances, farFields } = cells
+      const { ranks, locals, tracks, sources, drawDistances, farFields, rootParents } = cells
       return done(request, started, { cells }, [
         ranks,
         locals,
@@ -63,6 +63,7 @@ export async function runPageTask(
         sources,
         drawDistances,
         farFields,
+        rootParents,
       ])
     }
     if (request.op === 'blocks') {

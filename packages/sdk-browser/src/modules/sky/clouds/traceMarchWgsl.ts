@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { pixelToNdc, unprojectPoint } from '../../../../../math/src/wgsl/projection.ts'
 import { ATMOSPHERE_SLOT } from '../../../../../sdk-core/src/scene/core/atmospherePack.ts'
 
 /**
@@ -7,14 +9,18 @@ import { ATMOSPHERE_SLOT } from '../../../../../sdk-core/src/scene/core/atmosphe
 
 /** The traced texel's ray: its centre in normalised device coordinates, shifted by the jitter, and
  *  the point at a device depth on it. */
-export const CLOUD_RAY_WGSL = `/** The traced texel's ray, shifted to pass through the centre of the pixel it traces. */
+export const CLOUD_RAY_WGSL = wgslBlock(
+  'CLOUD_RAY_WGSL',
+  [pixelToNdc, unprojectPoint],
+  `/** The traced texel's ray, shifted to pass through the centre of the pixel it traces. */
 fn cloudNdc(p:vec2u)->vec2f{
  return pixelToNdc(vec2f(p)+0.5,vec2f(cloudTrace.traced.xy))-cloudTrace.jitter.xy;
 }
 /** The point at device depth \`z\` on the ray of \`ndc\`. */
 fn cloudUnproject(ndc:vec2f,z:f32)->vec3f{
  return unprojectPoint(cloudTrace.inverseView,vec3f(ndc,z));
-}`
+}`,
+)
 
 /** The ray's shell: its entry and exit of the layer. */
 export const CLOUD_SHELL_WGSL = `

@@ -9,7 +9,7 @@ export const SCREEN_PROBE_LEVELS = ['off', 'low', 'high', 'ultra', 'cinematic'] 
 /** A level of the screen probes. */
 export type ScreenProbeLevel = (typeof SCREEN_PROBE_LEVELS)[number]
 /** The level of a view that names none. */
-export const DEFAULT_SCREEN_PROBE_LEVEL: ScreenProbeLevel = 'ultra'
+export const DEFAULT_SCREEN_PROBE_LEVEL: CastingLevel = 'ultra'
 
 /** The levels that cast screen probes: `'off'` lights nothing, `'low'` reads the world's probes with the short-range occlusion. */
 export type CastingLevel = Exclude<ScreenProbeLevel, 'off' | 'low'>

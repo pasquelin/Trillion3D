@@ -13,6 +13,7 @@ import { assertCellNodes, type CellNode } from '../../../../sdk-core/src/scene/c
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { pose } from '../../scene/host/prepared/nodes.ts'
 import { composeMatrix4 } from '../../../../math/src/matrix/matrix4Compose.ts'
+import type { RootParent } from '../selection/types.ts'
 
 const scratch = new Object3D()
 
@@ -39,7 +40,8 @@ export function decodeCellFile(source: ArrayBuffer, url = 'a scene cell'): CellP
     tracks = new Int32Array(nodes.length),
     sources = new Uint8Array(nodes.length),
     drawDistances = new Float32Array(2 * nodes.length),
-    farFields = new Uint8Array(nodes.length)
+    farFields = new Uint8Array(nodes.length),
+    rootParents: number[] = []
   nodes.forEach((node, at) => {
     ranks[2 * at] = node.parent ?? -1
     ranks[2 * at + 1] = node.mesh
@@ -49,6 +51,9 @@ export function decodeCellFile(source: ArrayBuffer, url = 'a scene cell'): CellP
     drawDistances[2 * at] = node.drawDistance?.min ?? 0
     drawDistances[2 * at + 1] = node.drawDistance?.max ?? 0
     farFields[at] = node.farField ? 1 : 0
+    node.rootParents?.forEach((parent, primitive) => {
+      if (parent) rootParents.push(at, primitive, ...parent)
+    })
   })
   return {
     nodes: nodes.length,
@@ -58,6 +63,7 @@ export function decodeCellFile(source: ArrayBuffer, url = 'a scene cell'): CellP
     sources: sources.buffer,
     drawDistances: drawDistances.buffer,
     farFields: farFields.buffer,
+    rootParents: Float32Array.from(rootParents).buffer,
   }
 }
 
@@ -78,6 +84,29 @@ export type CellRows = {
   drawDistances: Float32Array
   /** Per node, 1 when a view's primed depth draws it (`CellNode.farField`); absent for none. */
   farFields?: Uint8Array
+  /** The groups that replace the roots of the instances of assemblies the cell holds
+   *  (`CellNode.rootParents`): seven floats an entry — the node, the primitive of its mesh, the
+   *  error, the ball's centre and radius —; absent for none. */
+  rootParents?: Float32Array
+}
+
+/** Floats of an entry of `CellRows.rootParents`. */
+const ROOT_PARENT_ENTRY = 7
+
+/** The groups the instances of assemblies of `rows` have above their roots, by node, then by
+ *  primitive of its mesh. */
+export function rootParentsByNode({ rootParents }: CellRows) {
+  const byNode = new Map<number, Map<number, RootParent>>()
+  for (let at = 0; rootParents && at < rootParents.length; at += ROOT_PARENT_ENTRY) {
+    const [node, primitive, error, x, y, z, radius] = rootParents.subarray(
+      at,
+      at + ROOT_PARENT_ENTRY,
+    )
+    const own = byNode.get(node) ?? new Map<number, RootParent>()
+    own.set(primitive, { error, sphere: [x, y, z, radius] })
+    byNode.set(node, own)
+  }
+  return byNode
 }
 
 /** The rows of a decoded cell. */
@@ -89,6 +118,7 @@ export const cellRows = ({
   sources,
   drawDistances,
   farFields,
+  rootParents,
 }: CellPayload): CellRows => ({
   nodes,
   ranks: new Int32Array(ranks),
@@ -97,4 +127,5 @@ export const cellRows = ({
   sources: new Uint8Array(sources),
   drawDistances: new Float32Array(drawDistances),
   farFields: new Uint8Array(farFields),
+  rootParents: new Float32Array(rootParents),
 })

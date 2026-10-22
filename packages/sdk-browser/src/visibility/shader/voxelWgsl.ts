@@ -3,6 +3,8 @@ import { octBytesDecode } from '../../../../math/src/wgsl/octahedral.ts'
 import { srgbToLinear, unorm8 } from '../../../../math/src/wgsl/color.ts'
 import { rayBoxSpan, rayInverseDirection } from '../../../../math/src/wgsl/geometry.ts'
 import { bitIsSet, highHalf, lowHalf } from '../../../../math/src/wgsl/integer.ts'
+import { frameAround, intoFrame, outOfFrame } from '../../../../math/src/wgsl/basis.ts'
+import { rand3dPcg16, sampleSphereEven } from '../../../../math/src/wgsl/sampling.ts'
 import {
   VOXEL_BRICK_CORNERS,
   VOXEL_BRICK_INDICES,
@@ -164,11 +166,22 @@ fn voxelCellTrace(o:vec3f,dir:vec3f,mask:vec2u,box:VoxelBox)->VoxelHit{
 
 /**
  * A VOXEL'S RECORD, past its page's bricks: what the resolve reads of the voxel a pixel shows — its
- * rank among the page's voxels, its mean normal and its prefiltered surface.
+ * rank among the page's voxels, its normal, its prefiltered surface and the shading normal its
+ * fitted distribution of normals gives the pixel.
  */
 export const VOXEL_SURFACE_WGSL = wgslBlock(
   'VOXEL_SURFACE_WGSL',
-  [VOXEL_WGSL, octBytesDecode, unorm8, srgbToLinear],
+  [
+    VOXEL_WGSL,
+    octBytesDecode,
+    unorm8,
+    srgbToLinear,
+    frameAround,
+    intoFrame,
+    outOfFrame,
+    rand3dPcg16,
+    sampleSphereEven,
+  ],
   `/** The rank in the page of brick \`brick\`'s voxel at bit \`bit\`: its brick's first voxel's, which
  *  the record holds, and the mask's bits below its own. */
 fn voxelRank(base:u32,brick:u32,bit:u32)->u32{
@@ -181,14 +194,33 @@ fn voxelRank(base:u32,brick:u32,bit:u32)->u32{
 fn voxelWord(base:u32,voxel:u32,k:u32)->u32{
  return indices[base+${VOXEL_PAGE_HEAD_WORDS}u+voxelCounts(base).y*${VOXEL_BRICK_WORDS}u+voxel*${VOXEL_WORDS}u+k];
 }
-/** The mean normal of voxel \`voxel\`, object space. */
+/** The normal of voxel \`voxel\`, object space: the axis of its fitted distribution of normals, else
+ *  the direction of their mean. */
 fn voxelNormal(base:u32,voxel:u32)->vec3f{return octBytesDecode(voxelWord(base,voxel,2u),0u);}
+/** The ratio of the two widths of voxel \`voxel\`'s fitted distribution of normals (its record's byte
+ *  10): 0 a mirror about its axis, one half a sphere of normals; 0 where the build fits none. */
+fn voxelRatio(base:u32,voxel:u32)->f32{return unorm8(voxelWord(base,voxel,2u),2u);}
+/** A voxel pixel's shading normal: a normal of the voxel's fitted distribution about the unit
+ *  \`axis\` that the eye, along the unit \`V\`, sees, drawn with the noise of pixel \`pixel\` and image
+ *  \`frame\`. The ratio sets the widths: over one half the lobe narrows along the axis, under it
+ *  across; at 0 it is the axis itself. The view is stretched by the widths to the sphere's, a
+ *  direction taken about it by the cosine, then stretched back. */
+fn voxelSampledNormal(axis:vec3f,ratio:f32,V:vec3f,pixel:vec2i,frame:u32)->vec3f{
+ if(ratio<=0.0){return axis;}
+ var a=vec3f(1.0);
+ if(ratio>0.5){a.z=2.0-2.0*ratio;}else{a.x=2.0*ratio;a.y=a.x;}
+ let e=vec2f(rand3dPcg16(vec3i(pixel,i32(frame))).xy)/65535.0;
+ let f=frameAround(axis);
+ let sv=normalize(intoFrame(f,V)*a);
+ let sm=normalize(sv+sampleSphereEven(e));
+ return outOfFrame(normalize(sm*a),f);
+}
 /** A voxel's prefiltered surface: its base colour, linear; its occlusion, roughness and
- *  metalness; and the length of its mean normal, the spread of the normals it averages. */
-struct VoxelSurface{rgb:vec3f,ao:f32,rough:f32,metal:f32,spread:f32,}
+ *  metalness. */
+struct VoxelSurface{rgb:vec3f,ao:f32,rough:f32,metal:f32,}
 fn voxelSurface(base:u32,voxel:u32)->VoxelSurface{
  let colour=voxelWord(base,voxel,0u);let orm=voxelWord(base,voxel,1u);
  let rgb=srgbToLinear(vec3f(unorm8(colour,0u),unorm8(colour,1u),unorm8(colour,2u)));
- return VoxelSurface(rgb,unorm8(orm,0u),unorm8(orm,1u),unorm8(orm,2u),unorm8(colour,3u));
+ return VoxelSurface(rgb,unorm8(orm,0u),unorm8(orm,1u),unorm8(orm,2u));
 }`,
 )

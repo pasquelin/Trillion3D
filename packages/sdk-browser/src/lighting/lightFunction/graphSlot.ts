@@ -82,8 +82,8 @@ export function lightFunctionTextures(material: Material): Texture[] {
 /**
  * The program that draws one slot of the atlas from a graph: the graph's emission (`mgEmissive`,
  * black where the graph wires none) at each texel of the slot of `slot` texels a side, its
- * coordinate from 0 at the slot's first to 1 at its last in every texture coordinate set, the
- * footprint of a texel in `ddx` and `ddy`. The result is kept as `lightFunctionRenderWgsl` keeps it.
+ * coordinate from 0 at the slot's first to 1 at its last in every texture coordinate set. The
+ * result is kept as `lightFunctionRenderWgsl` keeps it.
  */
 export function graphSlotWgsl(slot: number, format: AtlasFormat, g: GraphSlot) {
   const emission = g.compiled.functions.emissive
@@ -96,13 +96,10 @@ ${g.textured ? `${tileDeclarations(MAP_BINDINGS, 'color')}\n@group(0) @binding($
  let size=${wgslF32(slot)};
  let corner=floor(at.xy/size)*size;
  let uv=(at.xy-corner-vec2f(0.5))/(size-1.0);
- let texelStep=1.0/(size-1.0);
  var ctx:MgContext;
  ctx.uvs=array<vec2f,8>(uv,uv,uv,uv,uv,uv,uv,uv);
  ctx.time=given.head.x;
  ctx.realTime=given.head.y;
- ctx.ddx=vec2f(texelStep,0.0);
- ctx.ddy=vec2f(0.0,texelStep);
  let graph_colour=${colour};
  ${packSlotColour(format, 'graph_colour')}
 }`

@@ -7,8 +7,11 @@
 //! placements of the assembly: its pages are written once and every child shares them. The only
 //! copy of a mesh made is a part's that the assembly draws with other materials or settings than
 //! its own (`part_meshes`), once for each assembly that does.
+use super::plan::{BUILT_EXTRA, INSTANCE_EXTRA};
 use super::spec::{self, Node, Spec};
-use crate::compiler::source::nodes::check_references;
+use crate::compiler::source::nodes::{
+    append_children, check_references, child_name, moves_by_itself,
+};
 use crate::*;
 use std::collections::BTreeMap;
 
@@ -114,12 +117,17 @@ fn part_meshes(g: &mut Value, assembly: usize, spec: &Spec) -> Result<Vec<usize>
     Ok(drawn)
 }
 
-/// The child node of the node named `name`, for node `at` of an assembly: the part's mesh at the
-/// node's transform.
-fn child(name: &str, at: usize, node: &Node, mesh: usize) -> Value {
+/// The child node of the node named `name`, for node `at` of assembly `assembly`: the part's mesh
+/// `mesh` at the node's transform, marked as an instance of the assembly (`INSTANCE_EXTRA`) so
+/// that the compile finds what its levels above carry for it (`plan.rs`).
+fn child(name: &str, at: usize, node: &Node, (assembly, mesh): (usize, usize)) -> Value {
     let mut child = serde_json::Map::new();
-    child.insert("name".into(), json!(format!("{name}#{at}")));
+    child.insert("name".into(), json!(child_name(name, at)));
     child.insert("mesh".into(), json!(mesh));
+    child.insert(
+        "extras".into(),
+        json!({ (INSTANCE_EXTRA): {"of": assembly, "at": at} }),
+    );
     child.extend(node.transform.clone());
     Value::Object(child)
 }
@@ -137,7 +145,7 @@ fn placing(g: &Value, specs: &[(usize, Spec)]) -> Result<Vec<(usize, usize)>> {
         let Some(&rank) = rank else {
             continue;
         };
-        if node.get("skin").is_some() || node.get("weights").is_some() {
+        if moves_by_itself(node) {
             let what = format!("nodes[{id}]");
             let why = "it places an assembly, which is static: no skin and no morph weights";
             return Err(spec::ASSEMBLY.bad(format!("{what}: {why}")));
@@ -150,7 +158,7 @@ fn placing(g: &Value, specs: &[(usize, Spec)]) -> Result<Vec<(usize, usize)>> {
 /// Lays out the assemblies of the meshes `allowed`, within `limit` bytes of memory. Each is read
 /// and checked before any is laid out, so that no verdict depends on the order of the meshes; an
 /// assembly no node places is left as it is. A mesh with no primitive of its own leaves its nodes
-/// with none: they only hold what stands under them.
+/// with none once every level is laid out (`strip_bare`): they only hold what stands under them.
 pub(super) fn expand(g: &mut Value, allowed: &[usize], limit: usize) -> Result<()> {
     let mut specs = Vec::new();
     for &mesh in allowed {
@@ -186,6 +194,8 @@ pub(super) fn expand(g: &mut Value, allowed: &[usize], limit: usize) -> Result<(
     let nodes = values(g, "nodes")?;
     check_references(g, nodes)?;
     let mut drawn: Vec<Option<Vec<usize>>> = vec![None; specs.len()];
+    // The first child of the first node that places each assembly: where its instances stand.
+    let mut firsts: Vec<Option<usize>> = vec![None; specs.len()];
     for &(id, rank) in &placing {
         if drawn[rank].is_none() {
             drawn[rank] = Some(part_meshes(g, specs[rank].0, &specs[rank].1)?);
@@ -194,40 +204,49 @@ pub(super) fn expand(g: &mut Value, allowed: &[usize], limit: usize) -> Result<(
         let nodes = g["nodes"].as_array_mut().expect("nodes checked above");
         let name = nodes[id]["name"].as_str().unwrap_or("assembly").to_string();
         let first = nodes.len();
+        firsts[rank].get_or_insert(first);
         let made = (specs[rank].1.nodes.iter().enumerate())
-            .map(|(at, node)| child(&name, at, node, parts[node.part]));
+            .map(|(at, node)| child(&name, at, node, (specs[rank].0, parts[node.part])));
         let made: Vec<Value> = made.collect();
         let range = first..first + made.len();
         nodes.extend(made);
-        nodes[id]
-            .as_object_mut()
-            .expect("a placing node is an object")
-            .entry("children")
-            .or_insert_with(|| json!([]))
-            .as_array_mut()
-            .ok_or_else(|| invalid("node.children is not an array"))?
-            .extend(range.map(|child| json!(child)));
+        append_children(&mut nodes[id], range)?;
     }
-    settle(g, &specs, &placing);
+    settle(g, &specs, (&placing, &firsts));
     Ok(())
 }
 
 /// What the assemblies that were laid out leave of their meshes: the assembly itself is gone from
-/// the `extras`, and the nodes that place a mesh with no primitive have no mesh. An assembly no node
-/// places is left as it is.
-fn settle(g: &mut Value, specs: &[(usize, Spec)], placing: &[(usize, usize)]) {
-    let mut bare = vec![false; specs.len()];
+/// the `extras`, which tell instead where its instances stand (`BUILT_EXTRA`: the first of the
+/// `count` nodes that carry them, under the first node that places it, `firsts`). An assembly no
+/// node places is left as it is.
+fn settle(g: &mut Value, specs: &[(usize, Spec)], (placing, firsts): Placed<'_>) {
     for &(_, rank) in placing {
         let mesh = &mut g["meshes"][specs[rank].0];
         if let Some(extras) = mesh["extras"].as_object_mut() {
             extras.remove("assembly");
         }
-        let primitives = mesh.get("primitives").and_then(Value::as_array);
-        bare[rank] = primitives.is_none_or(Vec::is_empty);
+        let count = specs[rank].1.nodes.len();
+        mesh["extras"][BUILT_EXTRA] = json!({"first": firsts[rank], "count": count});
     }
-    for &(id, _) in placing.iter().filter(|(_, rank)| bare[*rank]) {
-        if let Some(node) = g["nodes"][id].as_object_mut() {
-            node.remove("mesh");
+}
+
+/// The nodes that place assemblies, each with its assembly's rank, and each assembly's first child.
+type Placed<'a> = (&'a [(usize, usize)], &'a [Option<usize>]);
+
+/// The nodes that place an assembly built from no primitive of its own, once its levels are laid
+/// out (`carriers.rs`), place nothing of their own: they only hold what stands under them.
+pub(super) fn strip_bare(g: &mut Value) {
+    let bare: Vec<bool> = (g["meshes"].as_array().into_iter().flatten())
+        .map(|mesh| {
+            let primitives = mesh.get("primitives").and_then(Value::as_array);
+            mesh["extras"].get(BUILT_EXTRA).is_some() && primitives.is_none_or(Vec::is_empty)
+        })
+        .collect();
+    for node in g["nodes"].as_array_mut().into_iter().flatten() {
+        let mesh = node.get("mesh").and_then(Value::as_u64);
+        if mesh.is_some_and(|mesh| bare.get(mesh as usize).copied().unwrap_or(false)) {
+            node.as_object_mut().map(|fields| fields.remove("mesh"));
         }
     }
 }

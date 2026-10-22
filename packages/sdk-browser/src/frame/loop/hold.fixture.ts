@@ -9,6 +9,7 @@ import type { WebgpuEffects } from '../../post/effects/webgpuEffects.ts'
 import { createKindSettings } from '../../post/effects/kindSettings.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
+import { NO_OVERRIDES } from '../backend/state/viewOverrides.ts'
 
 /**
  * An `rt` reduced to the strict necessary read by `frameSettled`/`holdWebgpuFrame`/`keepWebgpuFrame`:
@@ -53,7 +54,7 @@ export function settledRt() {
   }
   // The main view alone, drawn, its scale the world's controller.
   const scale = createScaleControl(undefined),
-    main = { scale }
+    main = { scale, overrides: NO_OVERRIDES }
   const rt = {
     run,
     views: { main, active: main, persistent: [] },

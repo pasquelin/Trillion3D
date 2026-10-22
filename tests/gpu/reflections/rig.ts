@@ -40,7 +40,7 @@ import { readTexture } from '../../kit/device/computeReadback.ts'
 import { halves, type RigFrame } from './rigFrame.ts'
 import { SURFACE_FORMATS } from '../../../packages/sdk-browser/src/materials/surface/surfaceBuffer.ts'
 import { PHYSICAL_LOBES_FORMAT } from '../../../packages/sdk-browser/src/materials/surface/physicalLobes.ts'
-import { HIZ_RULES } from '../../../packages/sdk-core/src/contracts/hizOptions.ts'
+import { REFLECTION_RULES } from '../../../packages/sdk-core/src/contracts/reflectionOptions.ts'
 import { texelBytesOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 
 /**
@@ -109,7 +109,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
     eye: frame.eye,
     size: frame.size,
     depthDrawn: true,
-    relativeThickness: HIZ_RULES.hizRelativeDepthThickness.default,
+    relativeThickness: REFLECTION_RULES.reflectionRelativeDepthThickness.default,
     front: false,
     surroundings,
   }

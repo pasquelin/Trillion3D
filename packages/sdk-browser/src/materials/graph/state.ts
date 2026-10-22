@@ -8,18 +8,40 @@ import type { Slots } from './layout.ts'
 import { mask } from './vector.ts'
 import { constantOf, type Value } from './value.ts'
 
-/** How a texture read finds the size of its footprint: from the screen, by the derivatives of the
- *  coordinate (`dpdx`, for a program whose pixels are neighbours), or from the footprint the host
- *  gives in the context (`ddx`, `ddy`). */
-export type Derivatives = 'screen' | 'context'
+/** How a texture read finds the size of its footprint: from the screen's derivatives of the
+ *  coordinate (`dpdx`, for a fragment program, whose pixels are neighbours), or by evaluating the
+ *  coordinate again at the point a pixel to the right and a pixel below (`NEIGHBOURS`), for a
+ *  program that has no derivative: their difference is what the hardware's derivative is. */
+export type Derivatives = 'screen' | 'neighbours'
 
-/** What the nodes reached read from the world: set while a graph is compiled. */
+/** The contexts a footprint's two neighbours are read in, which the host fills before it calls an
+ *  output: the point a pixel to the right, then a pixel below. */
+export const NEIGHBOURS = ['mgNeighbour[0]', 'mgNeighbour[1]'] as const
+
+/** What the nodes reached read from the world: set while a graph is compiled. `sets` is the mask of
+ *  the texture coordinate sets read, bit `i` the set `i`. */
 export interface Uses {
   time: boolean
   position: boolean
   normal: boolean
   textures: boolean
-  coordinates: boolean
+  sets: number
+}
+
+/** A `Uses` with nothing read. */
+export const noUses = (): Uses => ({
+  time: false,
+  position: false,
+  normal: false,
+  textures: false,
+  sets: 0,
+})
+
+/** A texture read of the graph: its sample node and the output it was reached from, which a request
+ *  for the tile it takes is made from. */
+export interface SampleRead {
+  readonly node: GraphNode
+  readonly output: GraphOutput
 }
 
 /** What a compilation of one output is given. */
@@ -30,18 +52,20 @@ export interface StateInit {
   readonly slots: Slots
   readonly derivatives: Derivatives
   readonly translate: (state: State, node: GraphNode) => Value
+  /** The WGSL name of the context read (`ctx`); another is the point a footprint is taken at. */
+  readonly context?: string
+  /** What a state of the same compile at another context shares with it (`State.at`). */
+  readonly shared?: Pick<State, 'e' | 'uses' | 'samples'>
 }
 
 /** The compilation of one output: the graph, the lines being written, the slots, what is used. */
 export class State {
-  readonly e = new Emitter()
-  readonly uses: Uses = {
-    time: false,
-    position: false,
-    normal: false,
-    textures: false,
-    coordinates: false,
-  }
+  readonly e: Emitter
+  readonly uses: Uses
+  /** The texture reads met, each once, in the order the nodes were reached. */
+  readonly samples: SampleRead[]
+  /** The WGSL name of the context the nodes read the point from. */
+  readonly context: string
   readonly graph: MaterialGraph
   readonly domain: MaterialDomain
   readonly output: GraphOutput
@@ -51,12 +75,31 @@ export class State {
   private readonly translate: StateInit['translate']
 
   constructor(init: StateInit) {
+    this.e = init.shared?.e ?? new Emitter()
+    this.uses = init.shared?.uses ?? noUses()
+    this.samples = init.shared?.samples ?? []
+    this.context = init.context ?? 'ctx'
     this.graph = init.graph
     this.domain = init.domain
     this.output = init.output
     this.slots = init.slots
     this.derivatives = init.derivatives
     this.translate = init.translate
+  }
+
+  /** A state of the same compile reading the point from `context`: its lines, what it uses and
+   *  its samples are this one's; its values are its own. */
+  at(context: string) {
+    return new State({
+      graph: this.graph,
+      domain: this.domain,
+      output: this.output,
+      slots: this.slots,
+      derivatives: this.derivatives,
+      translate: this.translate,
+      context,
+      shared: this,
+    })
   }
 
   /** The value of the output of the node `pin` names, its component mask applied. */

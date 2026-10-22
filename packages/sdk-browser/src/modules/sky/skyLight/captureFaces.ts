@@ -6,9 +6,10 @@ import {
   writeCloudTrace,
 } from '../clouds/traceLayout.ts'
 import type { CloudFramePlan } from '../clouds/reconstruct.ts'
-import { CAPTURE_CLOUD_SETUP, cloudsInView } from '../clouds/cloudModes.ts'
+import { CAPTURE_CLOUD_SETUP } from '../clouds/cloudModes.ts'
 import { cloudSizes } from '../clouds/reconstructLayout.ts'
 import { CLOUD_TRACE_GROUP_SIZE } from '../clouds/traceWgsl.ts'
+import { capturedClouds, type CapturedClouds } from './captureClouds.ts'
 import { groupsFor, type FaceHolds } from './captureGroups.ts'
 import { writeBlock, type SkyLightInputs } from './captureInputs.ts'
 import { FACE_LAYOUT } from './faceWgsl.ts'
@@ -33,7 +34,6 @@ const frameFloats = new Float32Array(FRAME_FLOATS)
 const traceFloats = new Float32Array(CLOUD_TRACE_LAYOUT.words)
 const traceWords = new Uint32Array(traceFloats.buffer)
 
-type Air = NonNullable<SkyLightInputs['air']>
 type Clouds = NonNullable<SkyLightInputs['clouds']>
 
 /** Face `face`'s block: its number, whether the lower hemisphere is replaced and whether the
@@ -94,7 +94,7 @@ function writeFaceTrace(
   const { gpu } = clouds.part
   traceFloats.fill(0, at.jitter, at.jitter + 4)
   // The capture is a reflection with no late fog and no scene depth (`markCloudTraceCapture`).
-  markCloudTraceCapture(traceWords, clouds.part)
+  markCloudTraceCapture(traceWords, clouds.part, clouds.air.airPresent)
   traceFloats[at.samples] = gpu.reflectionSamplesMost
   traceFloats[at.samples + 1] = gpu.reflectionShadowSamplesMost
   writeBlock(device, t.blocks.trace, face * BLOCK_STRIDE, traceFloats)
@@ -109,8 +109,7 @@ function traceFace(
   t: SkyLightTargets,
   face: number,
   input: SkyLightInputs,
-  air: Air,
-  clouds: Clouds,
+  { air, clouds, key }: CapturedClouds,
 ) {
   const camera = faceCamera(face, input.position)
   const side = t.cloudSide
@@ -126,9 +125,11 @@ function traceFace(
   writeBlock(device, t.blocks.frame, face * BLOCK_STRIDE, frameFloats)
   writeFaceTrace(device, t, face, input, clouds, camera.inverseViewProj)
   const pass = encoder.beginComputePass({ label: 'Trillion3D sky light clouds' })
-  pass.setPipeline(made.cloudTrace.pipeline.get())
+  const traced = made.cloudTrace(key)
+  pass.setPipeline(traced.pipeline.get())
   pass.setBindGroup(0, holds.traceGroups[face].air)
   pass.setBindGroup(1, holds.traceGroups[face].cloud)
+  if (traced.extra) pass.setBindGroup(2, holds.extraGroup!)
   const groups = workgroupCount(side, CLOUD_TRACE_GROUP_SIZE)
   pass.dispatchWorkgroups(groups, groups, 1)
   pass.end()
@@ -216,16 +217,10 @@ function drawFaces(
   const work = faceWork(withSky, withClouds, input)
   if (!work.atmosphereDrawn && !work.composing && !work.clearing) return
   groupsFor(device, made, holds, t, input)
-  const { air, clouds } = input
+  const traced = withClouds ? capturedClouds(input) : undefined
   for (let face = first; face < end; face++) {
-    const traced =
-      withClouds &&
-      air !== undefined &&
-      clouds !== undefined &&
-      cloudsInView(clouds.part.settings, true) &&
-      input.fog !== undefined
-    writeFace(device, t, face, input, traced)
-    if (traced) traceFace(device, made, holds, encoder, t, face, input, air, clouds)
+    writeFace(device, t, face, input, !!traced)
+    if (traced) traceFace(device, made, holds, encoder, t, face, input, traced)
     facePass(made, holds, encoder, t, face, work, input)
   }
 }

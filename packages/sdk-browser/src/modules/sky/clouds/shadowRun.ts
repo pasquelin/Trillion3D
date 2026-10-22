@@ -162,7 +162,7 @@ export function createCloudShadowRun(device: GPUDevice, failed: (error: unknown)
     const slot = slotFor(k, cloudShadowSizes(side, spatial, temporal), temporal.filtered)
     writeCloudShadowTrace(
       trace,
-      { frame, side, temporal, time: input.time },
+      { frame, side, temporal, time: input.time, planetRadiusKm: input.planetRadiusKm },
       light.light,
       input.part,
     )

@@ -21,7 +21,9 @@ pub(crate) struct VoxelSettings {
     pub back_up: f64,
     /// Whether the rays run along the voxel's axes alone (`voxelSeparable`).
     pub separable: bool,
-    /// Whether a voxel keeps the spread of the normals its rays hit (`voxelNdf`).
+    /// Whether a voxel's normal is the axis of the distribution fitted to the normals its rays
+    /// hit, its record keeping the fit's ratio, or the direction of their mean alone (`voxelNdf`,
+    /// `ndf.rs`).
     pub ndf: bool,
     /// Whether a voxel's record carries its coverage as its opacity (`voxelOpacity`).
     pub opacity: bool,

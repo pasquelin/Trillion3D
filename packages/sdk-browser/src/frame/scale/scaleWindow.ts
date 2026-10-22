@@ -11,10 +11,9 @@ import { createDynamicResolution, resetDynamicResolution } from './dynamicResolu
  * the scale follows (`dynamicResolution.ts`), which fits the cut's edge scale beside it: `edge`
  * its fraction, 1 while `edgeBudgetMs` is not above 0, `edgeMin` the lowest; `rules` the settings
  * the heuristic reads, written in place by the frame (`../prepare/timing.ts`), `cpuMs` the CPU
- * time of the engine's last image; `at` the refresh
- * the history was learnt on; the images drawn and the one the last GPU time came at; the display
- * frames the loop held to measure the refresh on, and whether the last one was; whether the GPU
- * timer answers.
+ * time of the engine's last image; `at` the refresh the history was learnt on; the images drawn
+ * and the one the last GPU time came at; the display frames the loop held to measure the refresh
+ * on, and whether the last one was; whether the GPU timer answers.
  */
 export function createScaleWindow(bounds: RenderScaleBounds) {
   return {

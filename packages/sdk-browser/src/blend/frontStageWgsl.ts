@@ -12,6 +12,8 @@ import { blendVertexWgsl, cutBlendByPixel } from './vertexWgsl.ts'
 import { clipDirective, type Clipping } from '../gpu/core/clipDistances.ts'
 import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
 import { blendLit, blendSurfaceWgsl } from './shaderSurface.ts'
+import { blendGraphs } from './graphWgsl.ts'
+import type { SurfaceProgram } from '../materials/graph/surfaceProgram.ts'
 import { BLEND_LOBELESS_WGSL, BLEND_PHYSICAL_RECORD_WGSL } from './physicalWgsl.ts'
 
 /** How far behind its surface a covering fragment writes its depth into the Hi-Z front layer: a ray leaving
@@ -35,14 +37,14 @@ export const blendReflects = (mat: Pick<VisMaterial, 'lit' | 'model'>) => {
  * and clear-coat lobes under `PHYSICAL_SURFACE_FLAG` (`blendLobedTexel`). A fragment that does neither
  * discards; of the others, the pass's depth test keeps the nearest. No colour, no feedback.
  */
-const frontStageWgsl = (outputs: FrontOutputs) => {
+const frontStageWgsl = (outputs: FrontOutputs, graphs: readonly SurfaceProgram[]) => {
   const lobes = outputs === 2,
     reflects = outputs > 0,
     written = FRONT_OUTPUTS[outputs]
   return wgslBlock(
-    `frontStageWgsl(${outputs})`,
+    `frontStageWgsl(${outputs}${graphs.length ? ', graphs' : ''})`,
     [
-      blendSurfaceWgsl(lobes),
+      blendSurfaceWgsl(lobes, graphs.length ? blendGraphs(graphs, lobes) : undefined),
       blendLit,
       surfaceModel.modelFlag,
       surfaceModel.surfaceReflects,
@@ -78,12 +80,17 @@ ${
   )
 }
 
-/** The front stage's module (`fsFront`) of `outputs`: the blend's vertex stage, its maps, and the stage. */
-export const blendFrontShader = (outputs: FrontOutputs, clipping?: Clipping) => {
+/** The front stage's module (`fsFront`) of `outputs`: the blend's vertex stage, its maps, and the stage;
+ *  with `graphs`, the programs of the graphs its items wear. */
+export const blendFrontShader = (
+  outputs: FrontOutputs,
+  clipping?: Clipping,
+  graphs: readonly SurfaceProgram[] = [],
+) => {
   const code = wgslModule(
-    blendVertexWgsl(outputs === 2, clipping),
+    blendVertexWgsl(outputs === 2, clipping, graphs.length > 0),
     BLEND_MAPS_WGSL,
-    frontStageWgsl(outputs),
+    frontStageWgsl(outputs, graphs),
     ...clipDirective(clipping),
   )
   return cutBlendByPixel(code, clipping)

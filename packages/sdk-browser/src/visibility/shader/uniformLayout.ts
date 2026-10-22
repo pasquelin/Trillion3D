@@ -40,8 +40,11 @@ export const VIS_UNIFORM = fieldLayout('Uniforms', [
 
 /** The surface resolve's uniform (`ShadeUni`): its camera, viewport and page count, the cut's pixel
  *  threshold the screen-error view measures against (`diagnosticScreenError`), then the depth
- *  material's ramp (`writeDepthRamp`, `../../camera/depthConvention.ts`) at `depthRamp`, and
- *  whether the frame counts the voxel trace's steps (`voxelStepsWgsl.ts`). */
+ *  material's ramp (`writeDepthRamp`, `../../camera/depthConvention.ts`) at `depthRamp`,
+ *  whether the frame counts the voxel trace's steps (`voxelStepsWgsl.ts`), then what a graph reads
+ *  of the view (`../../materials/graph/resolveWgsl.ts`): the camera's place in the world the rows
+ *  are placed in and the time in seconds —, and the image's index the voxels' shading normals are
+ *  drawn with (`voxelSampledNormal`). */
 export const SHADE_UNIFORM = fieldLayout('ShadeUni', [
   ['viewProj', 'mat4x4f'],
   ['viewport', 'vec2f'],
@@ -53,4 +56,7 @@ export const SHADE_UNIFORM = fieldLayout('ShadeUni', [
   ['pixelError', 'f32'],
   ['depthRamp', 'vec4f'],
   ['voxelCounting', 'u32'],
+  ['eye', 'vec3f'],
+  ['time', 'f32'],
+  ['frameIndex', 'u32'],
 ] as const)

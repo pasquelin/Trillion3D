@@ -13,7 +13,7 @@ import { writeSelectionPlanes, writeSelectionProjection } from './selectionProje
 import type { AsideCut } from './aside.ts'
 import type { CutPyramid } from '../../geometry/dag/occlusion.ts'
 import type { DagRoot } from '../../geometry/dag/types.ts'
-import type { DrawDistance } from '../../geometry/selection/types.ts'
+import type { DrawDistance, RootParent } from '../../geometry/selection/types.ts'
 import type { CellLink, WorldCells } from '../../geometry/dag/worlds/worldCells.ts'
 import type { PoseHost } from '../../geometry/dag/proxy/proxyInstances.ts'
 import type { ProxyBoxes } from '../../lighting/bounce/probes/probeSync.ts'
@@ -185,6 +185,9 @@ export type GpuSelection = {
   /** Placement `world` is drawn at `distance` from now on, at every distance when none
    *  (`ClusterRoot.drawDistance`). */
   drawDistanceWorld(world: number, distance: DrawDistance | undefined): void
+  /** Placement `world` is an instance of an assembly whose root's group is `parent` from now on,
+   *  none when it is no instance (`ClusterRoot.rootParent`). */
+  rootParentWorld?(world: number, parent: RootParent | undefined): void
   /** Whether a placement the cut holds names a farthest draw distance: the casters and the rays
    *  take the draw distances only then. */
   readonly drawDistances: boolean

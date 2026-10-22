@@ -15,6 +15,7 @@ import { kernelUniforms } from '../selection/selectionHelpers.fixture.ts'
 import { frontCamera } from '../../selection/dag.fixture.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
 import { hostStretches } from '../hostStretches.fixture.ts'
+import { ROOT_PARENT_MARK } from '../frameTable.ts'
 
 test('roots appended into the room read as a packing of every root at that capacity', () => {
   const { roots, counts, capacity } = scene()
@@ -60,6 +61,28 @@ test('the distances a root names are packed with its placement, appended in plac
   const named = Float32Array.of(0, 0, 5, 40, 0, 0, 0, 250.5, 0, 0, 0, 0, 0, 0, 0, 0)
   assert.deepEqual(whole.drawDistance, named)
   assert.deepEqual(grown.drawDistance, named)
+})
+
+test('the group above the root of an instance of an assembly is packed with its placement, appended in place as packed whole', () => {
+  const { roots, capacity } = scene()
+  roots[1].rootParent = { error: 6.5, sphere: [1.25, -2, 3, 40] }
+  roots[3].rootParent = { error: 0.5, sphere: [0, 0, 0, 9] }
+  const whole = packDagSelection(roots, capacity),
+    grown = packDagSelection(roots.slice(0, 2), capacity)
+  appendDagRoots(grown, roots.slice(2))
+  // Five floats a placement — the error, then the ball —, zeros for none, a slot of the room included,
+  // and the mark bit that says the placement names one.
+  const named = new Float32Array(5 * capacity.worlds)
+  named.set([6.5, 1.25, -2, 3, 40], 5)
+  named.set([0.5, 0, 0, 0, 9], 15)
+  assert.deepEqual(whole.rootParent, named)
+  assert.deepEqual(grown.rootParent, named)
+  for (const packed of [whole, grown])
+    assert.deepEqual(
+      Array.from(packed.mark.subarray(0, 5), (mark) => (mark & ROOT_PARENT_MARK) !== 0),
+      [false, true, false, true, false],
+    )
+  assert.equal(packDagSelection(scene().roots, capacity).rootParent, undefined, 'none names one')
 })
 
 test('roots past the room, or of a primitive the packing does not hold, are not appended', () => {

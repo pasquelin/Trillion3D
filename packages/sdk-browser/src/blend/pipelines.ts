@@ -36,9 +36,21 @@ import { preparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import { createFrontStages, prepareFrontStage } from './frontStage.ts'
 import { createForwardVariants, type ForwardLit } from '../lighting/deferred/forwardVariants.ts'
 import { FULL_CONTRACT, variantLabel, type ContractKey } from '../lighting/deferred/contractCuts.ts'
+import { isProgram, programOf, type SurfaceProgram } from '../materials/graph/surfaceProgram.ts'
 
 /** What the pass reads of an item to be drawn: its surface, and whether it transmits. */
 export type BlendedSurface = Pick<BlendGpuItem, 'surface' | 'transmissive'>
+
+/** The distinct programs of the graphs the surfaces of `items` wear for the transparent pass, by id:
+ *  what the modules hold the functions of (`blendGraphs`). */
+export function graphProgramsOf(items: readonly Pick<BlendedSurface, 'surface'>[]) {
+  const found = new Map<number, SurfaceProgram>()
+  for (const { surface } of items) {
+    const program = programOf(surface)
+    if (isProgram(program) && program.kind === 'blend') found.set(program.id, program)
+  }
+  return [...found.values()].sort((a, b) => a.id - b.id)
+}
 
 /** A blend program: its module, and the pipelines drawn with it. */
 type BlendProgram = { module: GPUShaderModule; pipelines: BlendModePipelines }
@@ -65,6 +77,8 @@ type BlendProgramSetup = {
   /** How the programs' modules cut at a view's plane (`../gpu/core/clipDistances.ts`): none, they
    *  hold none of that code. */
   clipping?: Clipping
+  /** The programs of the graphs the items wear, whose functions the modules hold. */
+  graphs: readonly SurfaceProgram[]
 }
 type ForwardVariants<P> = Awaited<ReturnType<typeof createForwardVariants<P>>>
 
@@ -101,6 +115,7 @@ export async function createWebgpuBlendPipelines(
   // transmissive item draws on it under a diagnostic), every mode an item declares, the share set
   // drawn now, the display layers when a mode filters. A change compiles its own, off the frame.
   // No item, no blend program (#1362).
+  const graphs = graphProgramsOf(items)
   const declared = declaredBlendModes(items)
   const reach = createReach({
     modes: declared,
@@ -116,7 +131,8 @@ export async function createWebgpuBlendPipelines(
     share,
     reach,
     programs: () => programs,
-    front: createFrontStages(device, blendBindGroupLayout, clipping),
+    graphs,
+    front: createFrontStages(device, blendBindGroupLayout, clipping, graphs),
     transmitted: [],
     clipping,
   }
@@ -131,11 +147,12 @@ function blendModuleCode(setup: BlendProgramSetup, key: ContractKey) {
   const { transmissionCode, variant, device } = setup
   const dual = !!transmissionCode && dualSource(device)
   return blendShader(key, {
-    stage: transmissionCode?.transmitWgsl(key, dual),
+    stage: transmissionCode?.transmitWgsl(key, dual, setup.graphs),
     diagnostic: variant ? DIAGNOSTIC_BLEND_WGSL : undefined,
     dual,
     subgroups: hasSubgroups(device),
     clipping: setup.clipping,
+    graphs: setup.graphs,
   })
 }
 
@@ -198,6 +215,7 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
   await catchUp()
   const pipelines: BlendModePipelines = {
     mask: maskSet.mask,
+    graphs: setup.graphs.map((program) => program.id),
     transmission,
     dualPasses,
     front: setup.front,

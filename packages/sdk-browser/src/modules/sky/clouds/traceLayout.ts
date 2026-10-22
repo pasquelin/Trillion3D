@@ -29,7 +29,8 @@ export const CLOUD_TRACE_BINDING = {
 /** The block's fields:
  *  - `inverseView`: the inverse of the view-projection without the temporal jitter;
  *  - `traced`: the traced image's size and the pixel of its block this image traces;
- *  - `sizes`: the frame index modulo 8, 1 when the sun's colour is taken at each sample, and the
+ *  - `sizes`: the frame index modulo 8, 1 when the sun's colour is taken at each sample (an air to
+ *    tint it), and the
  *    last coordinate of the scene's depth image, the view's size less one over the traced
  *    texel's size in reconstructed pixels;
  *  - `mapping`: the texels of the scene's depth image a traced texel stands for, per axis, and the
@@ -51,8 +52,8 @@ export const CLOUD_TRACE_BINDING = {
  *  - `lightScale0`, `lightScale1`: the factor on the illuminance of each of the air's two lights;
  *  - `viewProjection`: the scene to clip matrix the light grid's slices count depth with, read only
  *    when the lamps light the cloud;
- *  - `options`: 1 when the haze is laid in the trace (not by the second pass of the high-quality
- *    haze), 1 in a reflection or a capture (`markCloudTraceCapture`), 1 when the scene's depth cuts the
+ *  - `options`: 1 when the haze is laid in the trace (an air to scatter it, and not by the second
+ *    pass of the high-quality haze), 1 in a reflection or a capture (`markCloudTraceCapture`), 1 when the scene's depth cuts the
  *    ray (0 in the sky capture, which has none), and the sun's channel in the shadow maps
  *    (`NO_INDEX` when the sun's opaque shadow is not read);
  *  - `view`: the view's size in pixels and the light grid's cells across and down;
@@ -105,7 +106,9 @@ export interface CloudTraceImage {
   /** The index of the frame, and the time in seconds. */
   frameIndex: number
   time: number
-  /** Whether the air is present: the layer's planet is then the air's. */
+  /** Whether the air is present: the layer's planet is then the air's, and the air scatters the
+   *  haze on the clouds and tints the sun per sample; with none, the part's planet, no haze and the
+   *  light's own illuminance. */
   airPresent: boolean
   /** The `cloudScatteredLuminanceScale` of the air's first and second light (red, green, blue). */
   lightScales: readonly [ArrayLike<number>, ArrayLike<number>]
@@ -149,7 +152,7 @@ function writeCloudTraceRay(
     words,
     at.sizes,
     image.frameIndex % 8,
-    settings.sunTintPerSample ? 1 : 0,
+    settings.sunTintPerSample && image.airPresent ? 1 : 0,
     Math.floor((image.view.width - 1) / mode.traceDownsample),
     Math.floor((image.view.height - 1) / mode.traceDownsample),
   )
@@ -259,10 +262,17 @@ export function writeCloudTrace(
 }
 
 /** The capture of the sky light is a reflection (the step jitter is fixed, the ray has no scene
- *  depth to meet) and lays its haze and fog in the trace: marked in the block `words` that
- *  `writeCloudTrace` wrote. */
-export function markCloudTraceCapture(words: Uint32Array, part: CloudPart) {
+ *  depth to meet) and lays its haze, where there is an air to scatter it, and its fog in the trace:
+ *  marked in the block `words` that `writeCloudTrace` wrote. */
+export function markCloudTraceCapture(words: Uint32Array, part: CloudPart, airPresent: boolean) {
   const { at } = CLOUD_TRACE_LAYOUT
   words[at.switches] = 1
-  put4(words, at.options, part.quality.cloudAerialPerspective ? 1 : 0, 1, 0, words[at.options + 3])
+  put4(
+    words,
+    at.options,
+    part.quality.cloudAerialPerspective && airPresent ? 1 : 0,
+    1,
+    0,
+    words[at.options + 3],
+  )
 }

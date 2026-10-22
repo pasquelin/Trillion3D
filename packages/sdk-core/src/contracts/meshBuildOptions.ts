@@ -40,8 +40,9 @@
  *   `voxelSeparable`;
  * - `voxelSeparable`: the rays of a voxel run along its axes alone, a hit counting within the
  *   voxel's depth (`true`), or in every direction (`false`, the default);
- * - `voxelNdf`: a voxel keeps the spread of the normals its rays hit (`true`, the default), or the
- *   direction of their mean alone (`false`);
+ * - `voxelNdf`: a voxel's normal is the axis of the distribution fitted to the normals its rays hit
+ *   and its record keeps the fit's ratio (`true`, the default), or it is the direction of their
+ *   mean alone (`false`);
  * - `voxelOpacity`: a voxel's record carries its coverage as its opacity and no coverage is handed
  *   over to its neighbours (`true`), or the coverage is handed over (`false`, the default) — the
  *   engine draws no voxel by its opacity, as the reference gives it a material alone;
@@ -54,6 +55,11 @@
  *   is built: each node of the assembly is a node of the scene under every node that places the
  *   mesh, carrying its part's mesh, whose pages are written once (`true`), or the mesh is its own
  *   triangles alone and the import report counts it (`false`, the default);
+ * - `displacementMaps`, `displacementUvChannel`, `displacementEdgeSplit`: the height maps baked
+ *   into the mesh's triangles before its clusters are built — `[]`, none, by default —, the set
+ *   of texture coordinates they are read at (0) and how the tessellation shares the vertices it
+ *   adds (`seams`), for a mesh of one triangle primitive that names a `trimmedError` too
+ *   (`displacementBakeAbi.ts`);
  * - `positionPrecision`: the position grid of the mesh's pages, cells of `2^-n` centimetre, a whole
  *   number from `MIN_POSITION_PRECISION` to `MAX_POSITION_PRECISION` — left out, it follows the
  *   density of the mesh (`POSITION_PRECISION_SETTING`);
@@ -67,6 +73,12 @@
  * mesh's own glTF `extras` under the setting's name, the default. A job naming none compiles as
  * before, its cache key kept. A value left out or `null` names nothing, as the compiler reads it.
  */
+import {
+  DISPLACEMENT_MAPS_SETTING,
+  displacementMapsRefusal,
+  type DisplacementMapWire,
+  type DisplacementEdgeSplit,
+} from './displacementBakeAbi.ts'
 import {
   MESH_BUILD_FIELD,
   MESH_BUILD_OBJECTS,
@@ -142,8 +154,8 @@ export type MeshBuildSettings = {
   /** Whether the rays of a voxel run along its axes alone, a hit counting within the voxel's
    *  depth. @defaultValue false */
   voxelSeparable?: boolean
-  /** Whether a voxel keeps the spread of the normals its rays hit, or the direction of their mean
-   *  alone. @defaultValue true */
+  /** Whether a voxel's normal is the axis of the distribution fitted to the normals its rays hit,
+   *  its record keeping the fit's ratio, or the direction of their mean alone. @defaultValue true */
   voxelNdf?: boolean
   /** Whether a voxel's record carries its coverage as its opacity, no coverage handed over to its
    *  neighbours; no voxel is drawn by it. @defaultValue false */
@@ -165,6 +177,17 @@ export type MeshBuildSettings = {
   /** The most voxels along one axis a field holds, at least 1; a mesh of scale 1 or less holds
    *  half. @defaultValue 256 */
   distanceFieldMaxResolution?: number
+  /** The height maps baked into the mesh's triangles — `{ texture: { index }, magnitude, center }`,
+   *  the first the one read — when the mesh has one triangle primitive and a `trimmedError`.
+   *  @defaultValue [] */
+  displacementMaps?: readonly DisplacementMapWire[]
+  /** The set of texture coordinates the maps are read at, a whole number from 0 to 3.
+   *  @defaultValue 0 */
+  displacementUvChannel?: number
+  /** How the tessellation shares the vertex it adds on an edge: one for both sides unless a
+   *  material or a texture coordinate differs across it (`seams`), or one a side
+   *  (`always-duplicate`). @defaultValue 'seams' */
+  displacementEdgeSplit?: DisplacementEdgeSplit
   /** The position grid of the pages, cells of `2^-n` centimetre, a whole number from
    *  `MIN_POSITION_PRECISION` to `MAX_POSITION_PRECISION`. @defaultValue the mesh's density */
   positionPrecision?: number
@@ -190,7 +213,10 @@ const precision = (field: string, low: number, high: number): SettingRule =>
   integerSetting(field, low, [low, high])
 
 /** What each setting takes: `MESH_BUILD_RULES`, then the page format's bounds of the precisions. */
-const TAKES: Record<(typeof MESH_BUILD_SETTINGS)[number], SettingRule> = {
+const TAKES: Record<
+  Exclude<(typeof MESH_BUILD_SETTINGS)[number], typeof DISPLACEMENT_MAPS_SETTING>,
+  SettingRule
+> = {
   ...MESH_BUILD_RULES,
   [POSITION_PRECISION_SETTING]: precision(
     POSITION_PRECISION_SETTING,
@@ -207,6 +233,12 @@ function settingsOf(named: Record<string, unknown>, what: string, refuse: Refuse
   for (const name of MESH_BUILD_SETTINGS) {
     const value = named[name]
     if (value === undefined || value === null) continue
+    if (name === DISPLACEMENT_MAPS_SETTING) {
+      const refusal = displacementMapsRefusal(value)
+      if (refusal !== undefined) refuse(`${what}${refusal}`)
+      wire[name] = value
+      continue
+    }
     const rule = TAKES[name]
     if (!settingFits(rule, value))
       refuse(`${what}${name} must be ${settingTakes(rule)}, got ${JSON.stringify(value)}`)

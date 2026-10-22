@@ -2335,6 +2335,30 @@
       "message": "A `simplify` HLOD layer's mesh could not be cut into UV charts.",
       "cause": "The spectral partition that charts a simplified mesh for its atlas refused it: an argument out of its range, a mesh that is not a manifold or whose false edges cut it apart, or a step that gave up (too few charts allowed, a closed surface left uncut); the message names which.",
       "action": "Report it as a compiler bug, with the model and its HLOD option if you can share them."
+    },
+    {
+      "id": "T3D-E098",
+      "code": "INVALID_ASSEMBLY",
+      "level": "error",
+      "message": "A mesh's assembly could not be read or built.",
+      "cause": "An `assembly` extra whose parts, nodes, transforms, material remap or inherited settings are malformed, a nested assembly placed as a part, an assembly bent along a spline, or parts whose attributes cannot be joined; the message names which.",
+      "action": "Fix the assembly in the source (the mesh's `extras.assembly`) as the message says."
+    },
+    {
+      "id": "T3D-E099",
+      "code": "INVALID_SPLINE_MESH",
+      "level": "error",
+      "message": "A mesh's spline could not be read.",
+      "cause": "A `spline` extra whose points, tangents, roll, scale, forward axis or range are malformed; the message names the field.",
+      "action": "Fix the spline in the source (the mesh's `extras.spline`) as the message says."
+    },
+    {
+      "id": "T3D-E100",
+      "code": "INVALID_LIGHTMAP",
+      "level": "error",
+      "message": "The volumetric lightmap could not be encoded.",
+      "cause": "The baked bricks do not fit the lightmap's layout: an atlas that is not whole padded bricks, an empty volume or a layout past a byte, bounds that are not a box; the message names which.",
+      "action": "Report it as a compiler bug, with the model if you can share it."
     }
   ]
 }

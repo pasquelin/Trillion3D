@@ -49,7 +49,8 @@ export const webgpuPagesEngine = ((context) => {
     refreshFogVolumes() {
       refreshFogVolumes(rt)
     },
-    applySky: (sky, host) => applySkyToRuntime(rt, sky, host),
+    // The engine draws the scene aside for a captured sky light (`captureHdrViews`).
+    applySky: (sky, host) => applySkyToRuntime(rt, sky, host, backend),
     /** The only engine that carries the contract's shadow atlas: everything else is read in its methods. */
     lighting: { shadows: true },
     ...backendSetters(rt),

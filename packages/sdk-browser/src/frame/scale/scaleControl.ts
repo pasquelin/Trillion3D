@@ -1,10 +1,11 @@
-import { createFrameCap, resetFrameCap, skipsDisplayFrame } from '../cadence.ts'
+import { createFrameCap, skipsDisplayFrame } from '../cadence.ts'
 import { createRefreshClock } from '../refreshClock.ts'
-import { renderScaleBounds, type RenderScale, type RenderScaleBounds } from './renderScaleOption.ts'
-import { createTargetCap, displayMoved, FALLBACK_REFRESH_MS, PERIOD } from './scaleTargets.ts'
+import { renderScaleBounds, type RenderScale } from './renderScaleOption.ts'
+import { createTargetCap, currentDisplay, FALLBACK_REFRESH_MS, PERIOD } from './scaleTargets.ts'
 import { createScaleMemory } from './scaleMemory.ts'
+import { createScaleFollow } from './scaleFollow.ts'
 import { observeFrame, tickScale } from './scaleTick.ts'
-import { createScaleWindow, edgeOf, forgetHistory, holdFrame } from './scaleWindow.ts'
+import { createScaleWindow, edgeOf, holdFrame } from './scaleWindow.ts'
 import { NO_TIMING } from './dynamicResolution.ts'
 
 /**
@@ -15,8 +16,9 @@ import { NO_TIMING } from './dynamicResolution.ts'
  *   `display`): the interactive loop's first `PERIOD` display frames are held, drawing nothing,
  *   so a page heavy from its first frame is measured on intervals no work stretched
  *   (`measuring`, `hold`).
- * - The frame cap on vsync (`../cadence.ts`, `skips`), whose frame interval is the frame time
- *   budget.
+ * - The frame cap on vsync (`../cadence.ts`, `skips(now)`: whether the loop leaves out the display
+ *   frame that began at `now` — it draws nothing and counts no frame), whose frame interval is the
+ *   frame time budget.
  * - Each drawn image's GPU busy time, as the timer gives it, with the scale it was drawn at: one
  *   frame of the history, then the fraction refreshed (`observe`).
  *   Without GPU times the dynamic resolution records nothing and the image is drawn at the bounds'
@@ -46,23 +48,14 @@ import { NO_TIMING } from './dynamicResolution.ts'
  * of the engine's image just drawn.
  */
 export function createScaleControl(option: RenderScale | undefined, maxFrameRate?: number) {
-  const display = { width: 0, height: 0, ratio: 0 }
-  displayMoved(display)
-  const refresh = createRefreshClock(FALLBACK_REFRESH_MS),
+  const display = currentDisplay(),
+    refresh = createRefreshClock(FALLBACK_REFRESH_MS),
     w = createScaleWindow(renderScaleBounds(option, 0)),
     targets = createTargetCap(w.bounds.max),
     memory = createScaleMemory(w, targets),
     cap = createFrameCap(maxFrameRate),
+    follow = createScaleFollow(w, targets, cap, refresh, option),
     parts = { w, refresh, display, memory, cap }
-  let asked = option,
-    pixels = 0
-  /** Other bounds: the targets at their maximum, uncapped, the history forgotten. */
-  const rebound = (next: RenderScaleBounds) => {
-    w.bounds = next
-    targets.reset(next.max)
-    w.max = next.max
-    forgetHistory(w)
-  }
   const control = {
     get bounds() {
       return w.bounds
@@ -80,32 +73,15 @@ export function createScaleControl(option: RenderScale | undefined, maxFrameRate
     },
     hold: () => holdFrame(w),
     get frameIntervalMs() {
-      const gap = refresh.gap
-      return gap > 0 ? gap : null
+      return refresh.gap > 0 ? refresh.gap : null
     },
-    set(next: RenderScale | undefined) {
-      asked = next
-      rebound(renderScaleBounds(asked, pixels))
-    },
-    /** The view is `width` × `height` drawing-buffer pixels: the default fraction of it
-     *  bounds the scale (`displayResolutionFraction`), read before the frame's targets are sized. */
-    fit(width: number, height: number) {
-      if (width * height === pixels) return
-      pixels = width * height
-      const next = renderScaleBounds(asked, pixels),
-        { bounds } = w
-      if (next.auto !== bounds.auto || next.min !== bounds.min || next.max !== bounds.max)
-        rebound(next)
-    },
-    /** The page's frame cap, frames a second, infinite for none (`WorldOptions.maxFrameRate`). */
+    set: follow.set,
+    fit: follow.fit,
     get maxFrameRate() {
       return cap.maxFrameRate
     },
-    /** Another frame cap: another frame time budget, the history forgotten. */
     set maxFrameRate(rate: number) {
-      cap.maxFrameRate = rate
-      resetFrameCap(cap, refresh.display)
-      forgetHistory(w)
+      follow.capFrames(rate)
     },
     wanted: () => (w.bounds.auto ? Math.min(w.s, w.max) : w.bounds.max),
     edge: edgeOf(w),
@@ -125,8 +101,6 @@ export function createScaleControl(option: RenderScale | undefined, maxFrameRate
       w.images++
     },
     tick: (now: number, timed = false) => tickScale(parts, now, timed),
-    /** Whether the interactive loop leaves out the display frame that begins at `now`, ms, its rAF
-     *  timestamp, under the frame cap: it draws nothing and counts no frame. */
     skips: (now: number) => skipsDisplayFrame(cap, refresh, now),
     observe: (gpuMs: number | null, scale: number, steered = true, edgeMs = NO_TIMING) =>
       observeFrame(parts, gpuMs, scale, steered, edgeMs),

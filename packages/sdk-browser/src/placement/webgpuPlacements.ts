@@ -6,19 +6,26 @@ import { takeCellsMoved } from '../geometry/partition/rowCells.ts'
 import type { PlacementRows } from './rows/rows.ts'
 import { linkWorldCell, waitWorldRow } from '../frame/prepare/worldRoot.ts'
 import { rootMark } from '../deformation/halfFloat.ts'
-import type { DrawDistance } from '../geometry/selection/types.ts'
+import type { DrawDistance, RootParent } from '../geometry/selection/types.ts'
 
 /** Hands a root that was parked or taken, or began or stopped casting, or is drawn at other
- *  distances, to the GPU cut. */
+ *  distances, or has another group above its root, to the GPU cut. */
 export const flipWorld =
   (rt: WebgpuPagesRuntime) =>
   (
     rank: number,
-    root: { parked?: boolean; mark?: number; reach?: number; drawDistance?: DrawDistance },
+    root: {
+      parked?: boolean
+      mark?: number
+      reach?: number
+      drawDistance?: DrawDistance
+      rootParent?: RootParent
+    },
   ) => {
     rt.run.gpuSelection?.parkWorld(rank, !!root.parked)
     rt.run.gpuSelection?.markWorld(rank, rootMark(root))
     rt.run.gpuSelection?.drawDistanceWorld(rank, root.drawDistance)
+    rt.run.gpuSelection?.rootParentWorld?.(rank, root.rootParent)
     // Its rows' words say whether it casts (`MOBILITY_SHADOWLESS`): the caster passes skip them,
     // and its rows, derived again, stale the pages it left or entered (`rows/rowCastWgsl.ts`).
     rt.lights.mobility.touch(rank)

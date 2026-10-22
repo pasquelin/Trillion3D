@@ -373,10 +373,7 @@ a grazing surface that the centre alone passes over), `hizFoldTransparents` (`fa
 layers hold the opaque depth alone; `true`, the nearest transparent surface of each pixel too, so a
 ray stops at glass) and `hizTransparentTest` (`'finer'`: a transparent cluster is tested over up to
 sixteen texels a side of a fine level; `'reference'`: over four texels a side of the lowest level
-that holds it; the image is the same, `'finer'` rejects more clusters), `hizRelativeDepthThickness`
-(`0.005`: in the `'reference'` walk, the reflections hit a surface a ray lies no further behind than
-that share of the surface's depth, times the projection's depth scale; `'planes'` keeps its
-thickness in pixels), `hizFullResDepth` (`true`: the screen probes' `'reference'` walk goes down to
+that holds it; the image is the same, `'finer'` rejects more clusters), `hizFullResDepth` (`true`: the screen probes' `'reference'` walk goes down to
 the full-resolution depth; `false` stops at the half-resolution level, a little less exact and
 cheaper; the reflections' walk always goes down) and `lightGridHizCull` (`true`: the light grid
 leaves empty the cells behind the farthest depth of their column of the image, read from the pyramid
@@ -387,7 +384,6 @@ default; a value of another kind is refused by name.
 ```js
 const world = createWorld('viewer', { hizTrace: 'planes' })
 world.hiz = { hizTrace: null, hizFoldTransparents: true } // the default trace, glass in the pyramid
-world.hiz = { hizRelativeDepthThickness: 0.01 } // thicker reflection hits
 world.hiz = { hizFullResDepth: false, lightGridHizCull: false } // half-resolution probe walk, no cull
 ```
 

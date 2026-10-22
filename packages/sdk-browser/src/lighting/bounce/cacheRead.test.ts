@@ -12,7 +12,6 @@ import { SCREEN_PROBE_CONSTANTS } from '../../../../sdk-core/src/bounce/screenPr
 import { SCREEN_PROBE_FLAGS } from './screen/screenProbeLayout.ts'
 import { packLight } from '../../gpu/core/smallFloatWgsl.ts'
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
-import { SKY_SLOT, SKY_SLOTS } from '../../../../sdk-core/src/scene/core/environmentSky.ts'
 import { spCommon } from './screen/commonWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
@@ -56,8 +55,6 @@ function cacheScene(valid: boolean[], mips: number, sky = 0) {
   }
   const rawMap = { load: () => [0, words.cacheDepthWord(20, true, sky), 0, 0] }
   const skyMap = { load: () => [sky, 0, 0, 0] }
-  const lights = Array.from({ length: SKY_SLOTS }, () => [0, 0, 0, 0])
-  lights[SKY_SLOT.upper] = [2, 3, 4, 1]
   const run = (flags: number, size: number) => {
     const scope = {
       bounce: oneLevel(cache.side),
@@ -67,7 +64,10 @@ function cacheScene(valid: boolean[], mips: number, sky = 0) {
       cacheRaw: rawMap,
       cacheSky: skyMap,
       cacheTags: tags,
-      directLights: { sky: lights, atmosphere: Array.from({ length: 4 }, () => [0, 0, 0, 0]) },
+      // A sky light shines: a ray that leaves the scene reaches its cube, `(2, 3, 4)` every way.
+      skyLightApplied: () => true,
+      skyLightRay: () => [2, 3, 4],
+      directLights: { atmosphere: Array.from({ length: 4 }, () => [0, 0, 0, 0]) },
       cacheCorner: Array<number>(8).fill(0),
       cachePlace: Array.from({ length: 8 }, () => [0, 0, 0]),
       cacheAlpha: [0, 0, 0],

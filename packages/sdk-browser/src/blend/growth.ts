@@ -32,6 +32,7 @@ import { createTransparentCompaction } from './transparent/compact.ts'
 import { updateTransparentSpan } from './transparent/spans.ts'
 import { buildBlendPipelines } from '../frame/prepare/visibilitySteps.ts'
 import { prepareWebgpuBlend } from './prepare.ts'
+import { graphProgramsOf } from './pipelines.ts'
 import { composeItems } from '../placement/compose/gpuCompose.ts'
 import { mountBlendResources, prepareBlendKernels } from './resources.ts'
 
@@ -70,6 +71,34 @@ async function grantTransmission(
   if (!built?.blendPipelines.transmission) return false
   // Granted meanwhile by another source: those stages stay.
   if (vis.blendPipelines?.transmission) return true
+  vis.blendPipelines = built.blendPipelines
+  return true
+}
+
+/**
+ * The blend programs of a session that holds none of the graphs the copies wear, made again with
+ * theirs in their modules (`graphProgramsOf`), as the transmissive stages are granted: the programs
+ * a graph's functions are in are compiled for the graphs of the items the session was opened with.
+ * False when the device refuses the programs.
+ */
+async function grantGraphs(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  copies: readonly BlendCopy[],
+) {
+  const { vis, blendState } = rt,
+    items = [
+      ...blendState.blendGpu,
+      ...copies.map((copy) => ({ surface: copy.surface, transmissive: transmits(copy) })),
+    ],
+    held = new Set(vis.blendPipelines?.graphs)
+  if (graphProgramsOf(items).every((program) => held.has(program.id))) return true
+  let built: Awaited<ReturnType<typeof buildBlendPipelines>>, feedback: boolean
+  do {
+    feedback = vis.writesFeedback
+    built = await buildBlendPipelines(rt, device, items, vis.blendBindGroupLayout)
+  } while (built && feedback !== vis.writesFeedback)
+  if (!built) return false
   vis.blendPipelines = built.blendPipelines
   return true
 }
@@ -125,6 +154,7 @@ export async function prepareBlendGrowth(
     !(await grantTransmission(rt, device, copies))
   )
     return false
+  if (copies.length && !(await grantGraphs(rt, device, copies))) return false
   if (!copies.length || rt.blendState.compaction?.encode) return true
   return mountTransparent(rt, device)
 }

@@ -2,8 +2,10 @@ import type { ResolvedAtmosphere } from '../../../../../sdk-core/src/scene/core/
 import type { SkyLightPart } from '../../../../../sdk-core/src/modules/sky/skyLight.ts'
 import type { CloudPart } from '../../../../../sdk-core/src/modules/sky/clouds.ts'
 import type { AirShadowMaps } from '../../../lighting/atmosphere/bindings.ts'
+import type { AirlessPlanet } from '../../../lighting/atmosphere/frame.ts'
 import type { FogRead } from '../../../lighting/fog/read.ts'
 import type { CloudTraceImage } from '../clouds/traceLayout.ts'
+import type { SkyLightReadSet } from './read.ts'
 
 /** What a frame tells the capture. */
 export interface SkyLightInputs {
@@ -14,10 +16,11 @@ export interface SkyLightInputs {
   readonly frame: number
   /** Where the sky light stands, in the scene, metres. */
   readonly position: readonly [number, number, number]
-  /** The air: its light buffer and tables, the resolved atmosphere the frame reads; none where
-   *  neither an atmosphere nor clouds are shown. */
+  /** The air: its light buffer and tables, the resolved atmosphere the frame reads — or, where the
+   *  scene has none and the clouds are shown, the stand-in air and the planet the clouds stand on
+   *  (`airlessPlanet`); none where neither an atmosphere nor clouds are shown. */
   readonly air?: {
-    readonly resolved: ResolvedAtmosphere
+    readonly resolved: ResolvedAtmosphere | AirlessPlanet
     readonly buffer: GPUBuffer
     readonly transmittance: GPUTextureView
     readonly multiScatter: GPUTextureView
@@ -39,7 +42,7 @@ export interface SkyLightInputs {
    *  source mixed with the destination by `fraction`, a destination whole where it is 1. Only for a
    *  specified cubemap. */
   readonly blend?: { readonly destination: GPUTexture; readonly fraction: number }
-  /** Whether the scene has an atmosphere, drawn into the faces. */
+  /** Whether the scene has an atmosphere, drawn into the faces (not so over the stand-in air). */
   readonly atmosphere: boolean
   /** The fog's resources, bound by the programs that read the fog (the distant fog and the clouds'
    *  tracing): its cubemap and sampler, and the stand-ins that answer no volume and no frame
@@ -54,8 +57,12 @@ export interface SkyLightInputs {
     readonly material: readonly GPUBindGroupEntry[]
     readonly blueNoise: GPUTextureView
     readonly time: number
-    /** What the tracing is told of the air, as for the view (`CloudTraceImage`). */
-    readonly air: Pick<CloudTraceImage, 'airPresent' | 'lightScales'>
+    /** What the tracing is told of the air, as for the view (`CloudTraceImage`), and the channel of the
+     *  sun's shadow maps where it has one. */
+    readonly air: Pick<CloudTraceImage, 'airPresent' | 'lightScales' | 'sunShadowChannel'>
+    /** What the sky light is read with where the scene has no air (`skyLightReadOf`): the cube it
+     *  last captured, whose harmonics give the clouds' distant sky light. */
+    readonly skyLight: SkyLightReadSet
   }
 }
 

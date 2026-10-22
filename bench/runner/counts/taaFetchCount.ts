@@ -68,12 +68,15 @@ const rejectionStages = (thin: boolean) => [
  */
 export const TAA_PASS_FETCHES = {
   // 9 depths, its identifier; a second identifier where it takes a neighbour's velocity, none on a
-  // flat surface.
-  velocity: { perTexel: 10, sites: 3 },
-  // The marks, the closest word, its own vector, the shading history's five Catmull-Rom taps, the
-  // flicker history, the thin geometry coverage; the 3×3 vectors of the reprojection edge only
-  // where the texel's velocity is offset (none on a flat surface).
-  reproject: { perTexel: 1 + 1 + 1 + 5 + 1 + 1, sites: 7 },
+  // flat surface; the displacement atlas's normals of a displaced pixel's flat point (`normalAt`),
+  // none on an undisplaced surface.
+  velocity: { perTexel: 10, sites: 4 },
+  // The marks, the closest word, its dilated vector (`dilatedVector`: its offset's code in the marks
+  // and the vector it names; the closest surface's depth only where that vector is the camera's
+  // alone), the shading history's five Catmull-Rom taps (`bicubicRead`'s site besides), the flicker
+  // history, the thin geometry coverage; the 3×3 dilated vectors of the reprojection edge only where
+  // the texel's velocity is offset (none on a flat surface).
+  reproject: { perTexel: 1 + 1 + 2 + 5 + 1 + 1, sites: 9 },
   // Where the detection runs. Its span: the depth, the reprojection word, the marks and the colour
   // (the identifiers only on a texel that took a neighbour's velocity); the reprojection word
   // again two texels out and on the tile, the transparents' share on the tile.

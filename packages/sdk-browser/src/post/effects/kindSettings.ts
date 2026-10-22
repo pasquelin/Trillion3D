@@ -55,7 +55,7 @@ export function createKindSettings() {
      *  next read — the kind's defaults where there is no `context` —; none for a kind with no rules. */
     of<K extends EffectKind>(kind: K, context: object | undefined): ValuesOf<K> {
       if (!context || !KIND_RULES[kind].settings) return peek(kind, context)
-      return watchOf(kind).read(context as never) as ValuesOf<K>
+      return watchOf(kind).read(context as never) as unknown as ValuesOf<K>
     },
     peek,
     /**

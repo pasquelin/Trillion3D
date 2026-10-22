@@ -191,8 +191,6 @@ const HIZ_MEANINGS: Readonly<Record<Exclude<HizField, HizPrimeField>, string>> =
     "Whether the trace layers of the pyramid hold, beside the opaque depth, the nearest transparent surface of each pixel, so that a ray stops at glass; off by default, the traces read the opaque depth alone. The cut's occlusion never reads it.",
   hizTransparentTest:
     "How a transparent cluster is tested against the opaque depth already drawn: 'finer' reads up to sixteen texels a side of a level fine enough to hold its rectangle and rejects the clusters wholly behind it; 'reference' reads four texels a side of the lowest level that holds it. Neither rejects a visible cluster; 'finer' rejects more.",
-  hizRelativeDepthThickness:
-    "The thickness the reflections' 'reference' screen trace gives a surface, as a share of the surface's depth (a ray no further behind it than that share of its depth hits it); 0.005 by default, scaled by the projection's depth scale (1 under a perspective). The 'planes' trace keeps its pixel thickness.",
   hizFullResDepth:
     "Whether the screen probes' 'reference' screen trace goes down to the full-resolution depth, which is more accurate and adds incoherency to the inner loop (true, the default), or stops at the half-resolution level of the pyramid, a texel there taking the closest depth of its 2 × 2 pixels, a little farther at the start of the ray. The reflections' trace always goes down to the full-resolution depth.",
   lightGridHizCull:

@@ -15,6 +15,7 @@ import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { commandArgs } from '../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 import { reflectionFront } from '../lighting/reflections/frontDepth.fixture.ts'
 import type { Side } from '../../../sdk-core/src/contracts/material.ts'
+import { NO_OVERRIDES } from '../frame/backend/state/viewOverrides.ts'
 
 const FRONT = 'front' as unknown as GPURenderPipeline,
   BACK = 'back' as unknown as GPURenderPipeline,
@@ -66,6 +67,7 @@ function joue(items: ReturnType<typeof item>[]) {
       materialTable: { view: {}, viewFor: () => ({}) },
     },
     gpu: {
+      device: gpu.device,
       // The transparents' front layer and the proxy's store, a texel each.
       reflection: reflectionFront(),
       hdrView: {},
@@ -89,6 +91,8 @@ function joue(items: ReturnType<typeof item>[]) {
     },
     lights: { buffer: {}, shadows: undefined, store: { count: 0, epoch: 0, unlit: false } },
     bounce: { probes: undefined },
+    views: { active: { overrides: NO_OVERRIDES } },
+    context: {},
     // `lit` view with no light: the contract lights, so the pass binds its default resources.
     blendState,
     run: {

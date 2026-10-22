@@ -8,12 +8,13 @@
 // walks. Pure.
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
-import {
-  VSM_TRACE_RAYS,
-  VSM_TRACE_STEPS,
-} from '../../../packages/sdk-browser/src/lighting/shadows/vsm/constants.ts'
+import { SHADOW_RULES } from '../../../packages/sdk-core/src/contracts/shadowOptions.ts'
 import * as K from './passConstants.ts'
 import { REFLECTION_PASSES } from './reflectionPasses.ts'
+
+/** The rays a pixel of a sun traces and the samples each takes past its first, at their defaults. */
+const TRACE_RAYS = SHADOW_RULES.shadowRayCountDirectional.default
+const TRACE_STEPS = SHADOW_RULES.shadowSamplesPerRayDirectional.default
 
 /** Bytes of a placement's frame words (`FRAME_ROW_WORDS`). */
 const ROW_BYTES = FRAME_ROW_WORDS * 4
@@ -94,10 +95,10 @@ export const PASSES: K.PassModel[] = [
   },
   {
     label: 'vsm.projection',
-    formula: `P·cover·(${K.PROJECTION_BYTES} B + ${K.SCREEN_RAY} fetches) + P·cover·reach·L·(1 ray of ${VSM_TRACE_STEPS + 1} samples × ${K.SAMPLE_FETCHES} fetches) at least; up to ${VSM_TRACE_RAYS} rays; 4 B a pixel a layer of ${K.LIGHTS_A_LAYER} lights`,
+    formula: `P·cover·(${K.PROJECTION_BYTES} B + ${K.SCREEN_RAY} fetches) + P·cover·reach·L·(1 ray of ${TRACE_STEPS + 1} samples × ${K.SAMPLE_FETCHES} fetches) at least; up to ${TRACE_RAYS} rays; 4 B a pixel a layer of ${K.LIGHTS_A_LAYER} lights`,
     work: (f) => {
       const lit = f.P * f.cover
-      const samples = lit * f.reach * f.L * (VSM_TRACE_STEPS + 1) * K.SAMPLE_FETCHES
+      const samples = lit * f.reach * f.L * (TRACE_STEPS + 1) * K.SAMPLE_FETCHES
       return {
         texels: lit * K.SCREEN_RAY + samples,
         bytes: lit * K.PROJECTION_BYTES + 4 * f.P * ceilDiv(f.L, K.LIGHTS_A_LAYER),
@@ -105,8 +106,7 @@ export const PASSES: K.PassModel[] = [
       }
     },
     sources: [
-      K.engine('lighting/shadows/vsm/constants.ts', 'VSM_TRACE_STEPS'),
-      K.engine('lighting/shadows/vsm/constants.ts', 'VSM_TRACE_RAYS'),
+      K.core('contracts/shadowMapOptions.ts', 'SHADOW_MAP_RULES'),
       K.engine('lighting/shadows/vsm/projection/projectionWgsl.ts', 'vsmProjectionTiles'),
     ],
   },

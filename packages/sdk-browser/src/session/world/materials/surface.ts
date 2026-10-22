@@ -8,10 +8,8 @@
  * lighting model on the WebGPU path (`surfaceModel.ts`), where the bench witness draws each as it
  * is. Lines, points and sprites are unlit: they wear a basic surface.
  */
-import {
-  MATERIAL_COLOURS,
-  type Material,
-} from '../../../../../sdk-core/src/world/material/material.ts'
+import { MATERIAL_COLOURS, Material } from '../../../../../sdk-core/src/world/material/material.ts'
+import { isLightFunctionMaterial } from '../../../../../sdk-core/src/world/material/lightFunctionMaterial.ts'
 import type { Texture } from '../../../../../sdk-core/src/world/texture/texture.ts'
 import { composesWithBackground } from '../../../materials/surface/materialBlending.ts'
 import { physicalDeclaration } from './physicalSurface.ts'
@@ -117,13 +115,18 @@ function readingFields(material: Material, reading: SurfaceReading) {
  *  double-sided surface does. */
 export type SurfaceReading = 'faces' | 'lines' | 'sprite' | 'sheet'
 
+/** What a mesh draws with a material of a domain that has no surface — a light function's —: the
+ *  default material, white and unlit, which a mesh made with no material wears. */
+const DEFAULT_MATERIAL = new Material('meshBasic')
+
 /** What a world material declares, with its maps and raster state, for what the mesh wearing it
- *  draws. */
+ *  draws: a material of the light function domain is drawn as the default material. */
 function worldDeclaration(
-  material: Material,
+  worn: Material,
   vertexColors: boolean,
   reading: SurfaceReading,
 ): SurfaceDeclaration {
+  const material = isLightFunctionMaterial(worn) ? DEFAULT_MATERIAL : worn
   const family = FAMILY[material.kind]
   const declared: Record<string, unknown> = family
     ? familyDeclaration(family, material, vertexColors)
@@ -134,6 +137,7 @@ function worldDeclaration(
   }
   return Object.assign(declared, {
     flatShading: material.flatShading === true,
+    graph: material.domain === 'surface' ? material.graph : undefined,
     depthWrite: material.depthWrite,
     depthTest: material.depthTest,
     transparentShadow: material.transparentShadow === true,

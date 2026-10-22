@@ -28,6 +28,8 @@ import { forwardIndirectWgsl } from '../lighting/reflections/forward.ts'
 import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
 import { BLEND_PRE_EXPOSED_WGSL } from './viewLayout.ts'
 import { clipDirective, type Clipping } from '../gpu/core/clipDistances.ts'
+import type { SurfaceProgram } from '../materials/graph/surfaceProgram.ts'
+import { blendGraphs } from './graphWgsl.ts'
 
 /** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
  *  (`declaredLightingWgsl`), the program of a scene that holds none (`pipelines.ts`). Without
@@ -35,8 +37,14 @@ import { clipDirective, type Clipping } from '../gpu/core/clipDistances.ts'
  *  them (`physicalWgsl.ts`), its lights, environment, bounce and reflection go through them, a
  *  fragment
  *  without them summing the very same terms (`../lighting/direct/lobesWgsl.ts`). */
-const blendProgram = (key: Partial<ContractKey>, subgroups: boolean, clipping?: Clipping) => {
+const blendProgram = (
+  key: Partial<ContractKey>,
+  subgroups: boolean,
+  clipping?: Clipping,
+  programs: readonly SurfaceProgram[] = [],
+) => {
   const lobes = !key.lobeless
+  const graphs = programs.length ? blendGraphs(programs, lobes) : undefined
   const bindings = {
     transmittance: BLEND_BINDINGS.shadowTransmittance,
     vsm: BLEND_VSM_BINDINGS,
@@ -45,13 +53,13 @@ const blendProgram = (key: Partial<ContractKey>, subgroups: boolean, clipping?: 
     lightFunction: BLEND_LIGHT_FUNCTION_BINDINGS,
   }
   return wgslBlock(
-    `blendProgram(${variantLabel(key)}, ${subgroups}${clipping ? `, ${clipping}` : ''})`,
+    `blendProgram(${variantLabel(key)}, ${subgroups}${clipping ? `, ${clipping}` : ''}${graphs ? `, ${graphs.key}` : ''})`,
     [
-      blendVertexWgsl(lobes, clipping),
+      blendVertexWgsl(lobes, clipping, !!graphs),
       STANDARD_LIGHTING_WGSL,
       declaredLightingWgsl(bindings, key),
       bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes),
-      blendSurfaceWgsl(lobes),
+      blendSurfaceWgsl(lobes, graphs),
       forwardIndirectWgsl(REFLECTION_GROUP, lobes, BLEND_BINDINGS.frontTraced),
       reflectionLightViewWgsl(REFLECTION_GROUP),
       f0Of,
@@ -77,7 +85,7 @@ const DUAL_SOURCE_WGSL = wgslBlock('DUAL_SOURCE_WGSL', [], 'enable dual_source_b
  *  the subgroup where the device grants subgroups (`subgroups`); made to cut at the view's plane
  *  (`clipping`: by the vertex stage's clip distance, or by each fragment stage's pixel, the module
  *  the project switch makes, `../gpu/core/clipDistances.ts`), the plain module holding none of that
- *  code. */
+ *  code; with `graphs`, holding the programs of the graphs its items wear (`graphWgsl.ts`). */
 export const blendShader = (
   key: Partial<ContractKey> = {},
   {
@@ -86,16 +94,18 @@ export const blendShader = (
     dual = false,
     subgroups = false,
     clipping,
+    graphs,
   }: {
     stage?: WgslDecl
     diagnostic?: WgslDecl
     dual?: boolean
     subgroups?: boolean
     clipping?: Clipping
+    graphs?: readonly SurfaceProgram[]
   } = {},
 ) => {
   const code = wgslModule(
-    blendProgram(key, subgroups, clipping),
+    blendProgram(key, subgroups, clipping, graphs),
     ...(dual ? [DUAL_SOURCE_WGSL] : []),
     ...clipDirective(clipping),
     ...(stage ? [stage] : []),

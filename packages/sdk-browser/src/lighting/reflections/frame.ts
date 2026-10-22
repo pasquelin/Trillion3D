@@ -1,4 +1,4 @@
-import { skyLightReadOf } from '../../frame/render/encodeSkyLight.ts'
+import { skyLightReadOf } from '../../frame/render/skyLightState.ts'
 import { directLightResources, wantsContractLighting } from '../../frame/prepare/contractLight.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { frontStamp } from './frontLayer.ts'

@@ -4,6 +4,7 @@
 //! not read with the job's refusal (`INVALID_OPTIONS`), naming the setting and what it admits.
 use super::*;
 use crate::compiler::args::name_match::present;
+use crate::compiler::args::reader::Reader;
 use crate::compiler::validate::{Fields, OPTIONS};
 use crate::hlod::flatten::bake::Maps;
 
@@ -19,6 +20,12 @@ pub(super) const MAP_FIELDS: [&str; 7] = [
     "opacityMask",
 ];
 
+/// The reader of `map` that names a setting `what.key` (`compiler::args::reader::Reader`: the one
+/// reader of a number, a whole number and a switch the job's maps are read with).
+fn reader<'a>(map: &'a Map<String, Value>, prefix: &'a str) -> Reader<'a> {
+    Reader { map, what: prefix }
+}
+
 /// A number of `map` at `key`, its default when absent, refused outside `[low, high]`.
 pub(super) fn ranged(
     map: &Map<String, Value>,
@@ -26,11 +33,8 @@ pub(super) fn ranged(
     what: &str,
     (low, high): (f64, f64),
 ) -> Result<Option<f64>> {
-    let value = OPTIONS.optional(map.get(key), &format!("{what}.{key}"), Fields::number)?;
-    if value.is_some_and(|v| !(low..=high).contains(&v)) {
-        return Err(OPTIONS.bad(format!("{what}.{key} must be from {low} to {high}")));
-    }
-    Ok(value)
+    let takes = format!("a number from {low} to {high}");
+    reader(map, &format!("{what}.")).number(key, (low, high), &takes)
 }
 
 /// A whole number of `map` at `key`, refused outside `[low, high]`.
@@ -40,16 +44,18 @@ pub(super) fn counted(
     what: &str,
     (low, high): (usize, usize),
 ) -> Result<Option<usize>> {
-    let value = OPTIONS.optional(map.get(key), &format!("{what}.{key}"), Fields::index)?;
-    if value.is_some_and(|v| !(low..=high).contains(&v)) {
-        return Err(OPTIONS.bad(format!("{what}.{key} must be from {low} to {high}")));
-    }
-    Ok(value)
+    let takes = format!("a whole number from {low} to {high}");
+    let bounds = (
+        i64::try_from(low).unwrap_or(i64::MAX),
+        i64::try_from(high).unwrap_or(i64::MAX),
+    );
+    let named = reader(map, &format!("{what}.")).whole(key, bounds, &takes)?;
+    Ok(named.map(|n| n as usize))
 }
 
 /// A switch of `map` at `key`.
 pub(super) fn switch(map: &Map<String, Value>, key: &str, what: &str) -> Result<Option<bool>> {
-    OPTIONS.optional(map.get(key), &format!("{what}.{key}"), Fields::boolean)
+    reader(map, &format!("{what}.")).boolean(key)
 }
 
 /// Whether `map` names `key`: it holds it, and not as `null`.

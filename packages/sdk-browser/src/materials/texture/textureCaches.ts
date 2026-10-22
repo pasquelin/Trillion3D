@@ -46,6 +46,7 @@ function previewsByAtlas(previews: readonly TexturePreview[]) {
 export function createTextureCaches(
   cache: Pick<PageCache, 'readRange'> & TextureLevelStore,
   signal?: AbortSignal,
+  retries?: () => number,
 ) {
   const cooks: {
     ranks: TextureCache['ranks']
@@ -65,7 +66,7 @@ export function createTextureCaches(
         cooks.push({
           ranks: added.ranks,
           chainAt: previewsByAtlas(entries),
-          read: createTextureLevelReader(added.metadata, added.base, cache, signal),
+          read: createTextureLevelReader(added.metadata, added.base, cache, signal, retries),
         })
       }
     },

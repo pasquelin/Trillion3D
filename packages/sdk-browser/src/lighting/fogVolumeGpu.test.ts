@@ -14,10 +14,11 @@ import { createFogStandIns } from './fog/read.ts'
 import { createFogCubemap } from './fog/cubemapGpu.ts'
 import { CAM, image } from './fogVolumeRun.fixture.ts'
 import { fakeHizDepth } from './shadows/vsm/hizDepth.fixture.ts'
+import { createLightFunctionStandIns } from './lightFunction/standIns.ts'
 
 /** What an image gives the volume's passes on the kit's device: the image of the test camera at
  *  the settings `settings` names, a depth texture, the pyramid where `hiz`, the light buffer, its
- *  lists and the shadow maps. */
+ *  lists, the shadow maps and the empty light function atlas. */
 function volumeInput(
   gpu: ReturnType<typeof fakeDevice>,
   settings: Parameters<typeof image>[2] = {},
@@ -46,6 +47,7 @@ function volumeInput(
     tiles: buffer(),
     cloudShadow: cloudShadowStandIn(gpu.device),
     sky: skyLightStandIn(gpu.device),
+    lightFunction: createLightFunctionStandIns(gpu.device).read,
     vsm: {
       pageTable: buffer(),
       projectionData: buffer(),

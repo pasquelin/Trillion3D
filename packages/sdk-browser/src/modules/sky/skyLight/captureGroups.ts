@@ -5,16 +5,19 @@ import {
 } from '../../../lighting/atmosphere/programs.ts'
 import { FRAME_FLOATS } from '../../../lighting/atmosphere/frame.ts'
 import { fogReadBindEntries } from '../../../lighting/fog/read.ts'
+import {
+  cloudTraceExtraEntries,
+  cloudTraceExtraHeld,
+  cloudTraceKeyText,
+} from '../clouds/traceExtraLayout.ts'
 import { CLOUD_TRACE_BINDING as B, CLOUD_TRACE_LAYOUT } from '../clouds/traceLayout.ts'
 import { CLOUD_TRACE_AIR } from '../clouds/traceWgsl.ts'
+import { capturedClouds, type CapturedClouds } from './captureClouds.ts'
 import { sameHeld, type Held, type SkyLightInputs } from './captureInputs.ts'
 import { FACE_LAYOUT, SKY_FACE_AIR, SKY_FACE_AIR_SHADOWED } from './faceWgsl.ts'
 import { BLOCK_STRIDE, CUBE_FACES } from './layout.ts'
 import type { SkyLightPipelines } from './pipelines.ts'
 import type { SkyLightTargets } from './targets.ts'
-
-type Air = NonNullable<SkyLightInputs['air']>
-type Clouds = NonNullable<SkyLightInputs['clouds']>
 
 /** What the face passes keep from frame to frame: the groups, made again when the identities they
  *  were made of change. */
@@ -28,6 +31,9 @@ export interface FaceHolds {
   fogGroup?: GPUBindGroup
   traceHeld?: Held
   traceGroups: { air: GPUBindGroup; cloud: GPUBindGroup }[]
+  /** The clouds' tracing's group 2, where its key has one (`CloudTraceKey`): the sun's shadow maps
+   *  and the sky light's harmonics. */
+  extraGroup?: GPUBindGroup
 }
 
 /** The groups over the sky's air and the distant fog, made again when their resources change. */
@@ -91,11 +97,10 @@ function traceGroupsOf(
   device: GPUDevice,
   made: SkyLightPipelines,
   t: SkyLightTargets,
-  air: Air,
+  { air, clouds, key }: CapturedClouds,
   fog: NonNullable<SkyLightInputs['fog']>,
-  clouds: Clouds,
 ) {
-  const { cloudTrace } = made
+  const cloudTrace = made.cloudTrace(key)
   return Array.from({ length: CUBE_FACES }, (_, face) => ({
     air: device.createBindGroup({
       layout: cloudTrace.air,
@@ -148,21 +153,20 @@ export function groupsFor(
       }),
     }
   skyAndFogGroups(device, made, holds, input)
-  const { air, fog, clouds } = input
-  const traceKey = air &&
-    fog &&
-    clouds && [
-      t,
-      air.buffer,
-      air.transmittance,
-      air.sampler,
-      air.volumes,
-      fog,
-      clouds.material,
-      clouds.blueNoise,
-    ]
-  if (traceKey && !sameHeld(holds.traceHeld, traceKey)) {
-    holds.traceHeld = traceKey
-    holds.traceGroups = traceGroupsOf(device, made, t, air, fog, clouds)
-  }
+  const traced = capturedClouds(input)
+  if (!traced || !input.fog) return
+  const { air, clouds, key } = traced
+  const extra = { maps: air.maps, skyLight: clouds.skyLight }
+  const traceKey = [
+    ...[t, cloudTraceKeyText(key), air.buffer, air.transmittance, air.sampler, air.volumes],
+    ...[input.fog, clouds.material, clouds.blueNoise],
+    ...cloudTraceExtraHeld(extra),
+  ]
+  if (sameHeld(holds.traceHeld, traceKey)) return
+  holds.traceHeld = traceKey
+  holds.traceGroups = traceGroupsOf(device, made, t, traced, input.fog)
+  const { extra: layout } = made.cloudTrace(key)
+  holds.extraGroup = layout
+    ? device.createBindGroup({ layout, entries: cloudTraceExtraEntries(key, extra) })
+    : undefined
 }

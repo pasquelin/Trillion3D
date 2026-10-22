@@ -62,7 +62,7 @@ test('skipping the infinite far plane keeps every box verdict, in any primitive 
   }
 })
 
-test('the descent tests a view’s filter first, its plane before its frustum, at every level that tests a frustum', () => {
+test('the descent tests a view’s filter first, a placement’s group above its root before its plane, its plane before its frustum, at every level that tests a frustum', () => {
   const before = (first: string, second: string) => {
     assert.ok(DAG_SELECTION_SHADER.includes(first), first)
     assert.ok(DAG_SELECTION_SHADER.includes(second), second)
@@ -70,7 +70,8 @@ test('the descent tests a view’s filter first, its plane before its frustum, a
   }
   // A placement's root: the filter before anything is read of it, the plane after the distance.
   before('fn testRoot(dst:u32,w:u32){\n if(filteredOut(w)){return;}', 'let root=rootOf(w);')
-  before('if(outsideDrawDistance(w,mark,node)){return;}', 'if(outsideClipPlane(w,node.minimum')
+  before('if(outsideDrawDistance(w,mark,node)){return;}', 'if(outsideRootParent(w,mark)){return;}')
+  before('if(outsideRootParent(w,mark)){return;}', 'if(outsideClipPlane(w,node.minimum')
   before(
     'if(outsideClipPlane(w,node.minimum,node.maximum)){return;}',
     'if(outsideFrustum(w,node.minimum',
@@ -89,7 +90,10 @@ test('the descent tests a view’s filter first, its plane before its frustum, a
   // The post pass tests neither again: what it holds passed them in the main pass.
   const post = DAG_SELECTION_SHADER.slice(DAG_SELECTION_SHADER.indexOf('fn dagPostPrepare'))
   const posted = post.slice(0, post.indexOf('fn dagPostClusters'))
-  assert.doesNotMatch(posted, /filteredOut|outsideClipPlane|outsideGroupClipPlane/)
+  assert.doesNotMatch(
+    posted,
+    /filteredOut|outsideClipPlane|outsideGroupClipPlane|outsideRootParent/,
+  )
 })
 
 /** A box `[lo, hi]` in a placement's space, its pose `pose` (column-major, at the eye), the view's

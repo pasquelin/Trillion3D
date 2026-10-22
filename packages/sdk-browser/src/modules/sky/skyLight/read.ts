@@ -138,7 +138,7 @@ fn skyLightRay(d:vec3f)->vec3f{return skyLightReflection(d,0.0);}
 
 /** The layout entries of a program that reads the diffuse light as `b` binds it, seen by
  *  `visibility`. */
-const skyLightDiffuseLayoutEntries = (
+export const skyLightDiffuseLayoutEntries = (
   b: SkyLightDiffuseBindings,
   visibility: GPUShaderStageFlags,
 ): GPUBindGroupLayoutEntry[] => [
@@ -158,7 +158,7 @@ export const skyLightReadLayoutEntries = (
 ]
 
 /** The group entries of `set` for the diffuse read of `b`. */
-const skyLightDiffuseBindEntries = (
+export const skyLightDiffuseBindEntries = (
   b: SkyLightDiffuseBindings,
   set: SkyLightReadSet,
 ): GPUBindGroupEntry[] => [

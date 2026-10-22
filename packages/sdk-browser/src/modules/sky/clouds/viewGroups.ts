@@ -15,7 +15,12 @@ import type { Size } from './reconstructLayout.ts'
 import { cloudHazeAir } from './traceHaze.ts'
 import type { CloudTraceImage } from './traceLayout.ts'
 import { CLOUD_TRACE_AIR } from './traceWgsl.ts'
-import { CLOUD_TRACE_EXTRA_BINDING as X, type CloudTraceKey } from './traceExtraLayout.ts'
+import {
+  cloudTraceExtraEntries,
+  cloudTraceExtraHeld,
+  type CloudTraceInputs,
+  type CloudTraceKey,
+} from './traceExtraLayout.ts'
 import type { CloudViewPrograms } from './viewPrograms.ts'
 import type { CloudViewGpu } from './viewTargets.ts'
 
@@ -29,14 +34,6 @@ export interface CloudAir {
   readonly sampler: GPUSampler
   readonly volumes: GPUBuffer
   readonly fog: FogRead
-}
-
-/** What the options of the tracing read beyond the air: the virtual shadow maps' tables, bound
- *  where the sun's opaque shadow is read, and the light grid's lists, where the lamps light the
- *  cloud. */
-export interface CloudTraceInputs {
-  readonly maps?: AirShadowMaps
-  readonly tileLights?: GPUBuffer
 }
 
 /** The shadow maps with the blue noise their consumers jitter by (`vsmOrStandIns`). */
@@ -104,25 +101,12 @@ export function traceAirGroup(f: CloudViewFrame, layout: GPUBindGroupLayout) {
   )
 }
 
-/** Group 2 of the tracing, where its options bind inputs: the sun's shadow maps and the lamps'
- *  lists. */
+/** Group 2 of the tracing, where its options bind inputs: the sun's shadow maps, the lamps' lists
+ *  and the sky light's harmonics. */
 export function traceExtraGroup(f: CloudViewFrame, layout: GPUBindGroupLayout) {
-  const { maps, tileLights } = f.extra
-  const names = [maps?.pageTable, maps?.projectionData, maps?.uniforms, maps?.pool, maps?.view]
-  return f.gpu.group('trace extra', layout, [...names, tileLights], () => [
-    ...(f.key.opaqueShadow && maps
-      ? [
-          { binding: X.vsm.pageTable, resource: { buffer: maps.pageTable } },
-          { binding: X.vsm.projectionData, resource: { buffer: maps.projectionData } },
-          { binding: X.vsm.uniforms, resource: { buffer: maps.uniforms } },
-          { binding: X.vsm.pool, resource: { buffer: maps.pool } },
-          { binding: X.vsmView, resource: { buffer: maps.view } },
-        ]
-      : []),
-    ...(f.key.localLights && tileLights
-      ? [{ binding: X.tileLights, resource: { buffer: tileLights } }]
-      : []),
-  ])
+  return f.gpu.group('trace extra', layout, cloudTraceExtraHeld(f.extra), () =>
+    cloudTraceExtraEntries(f.key, f.extra),
+  )
 }
 
 /** Group 0 of the haze pass: the air's tables, the blue noise, the shadow maps and the clouds'

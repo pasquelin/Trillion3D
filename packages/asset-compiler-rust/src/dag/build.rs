@@ -72,8 +72,23 @@ pub fn build_dag(
     settings: impl Into<DagSettings>,
     checkpoint: &(dyn Fn() -> Result<()> + Sync),
 ) -> Result<DagBuild> {
+    let mut build = build_levels(positions, attributes, indices, settings.into(), checkpoint)?;
+    finish(&mut build, positions);
+    Ok(build)
+}
+
+/// The DAG of `build_dag` before the encoder's steps: the source read, level 0 cut and every level
+/// above it built, the clusters as the reductions made them (`finish` lays them). An assembly
+/// reads its own level 0 so and builds the levels above its instances' roots over it
+/// (`assembly.rs`).
+pub(super) fn build_levels(
+    positions: &[f32],
+    attributes: DagAttributes,
+    indices: &[u32],
+    settings: DagSettings,
+    checkpoint: &(dyn Fn() -> Result<()> + Sync),
+) -> Result<DagBuild> {
     checkpoint()?;
-    let settings = settings.into();
     // The seam weld's key holds the texture sets a page can carry, no more.
     if attributes.uv_sets().len() > trillion3d_page_codec::MAX_UV_SETS {
         return Err(invalid("a page carries at most four texture sets"));
@@ -136,7 +151,7 @@ pub fn build_dag(
             });
         dag.push(DagCluster::leaf(cluster, 0.0, sphere, source_rank));
     }
-    let mut build = if settings.strategy == DagStrategy::ExactClusters || dag.len() < 2 {
+    let build = if settings.strategy == DagStrategy::ExactClusters || dag.len() < 2 {
         DagBuild {
             clusters: dag,
             groups: Vec::new(),
@@ -151,12 +166,48 @@ pub fn build_dag(
         let level0 = (dag, identities, outer);
         super::levels::coarsen(source, (welds, grown), level0, settings, checkpoint)?
     };
-    // The encoder's steps, once every level is built: the triangles with two equal corners go, then
-    // the strips and the vertex cap, which the partition never read.
+    Ok(build)
+}
+
+/// The encoder's steps, once every level is built: the triangles with two equal corners go, then
+/// the strips and the vertex cap, which the partition never read, and the vertices the pages read
+/// are held within range. `positions` are the source's, which a build that placed nothing draws.
+pub(super) fn finish(build: &mut DagBuild, positions: &[f32]) {
     remove_degenerate(&mut build.clusters);
     let drawn = build.grown.as_ref().map_or(positions, |g| &g.positions[..]);
     constrain_wide(drawn, &mut build.clusters, &mut build.groups);
     // What the pages read, the vertices the solves placed with the source's, within range.
     input::held(&mut build.grown);
-    Ok(build)
+}
+
+/// A mesh without bones as the build's input lays it (`laid_source`): its positions, its
+/// attributes and the corners of its triangles, each at the vertex it is welded to.
+pub(crate) struct Laid {
+    pub positions: Vec<f32>,
+    pub attributes: Vec<trillion3d_page_codec::encode::Attribute>,
+    pub indices: Vec<u32>,
+}
+
+/// The first steps of `build_dag` for a mesh without bones, and no more: the source read as a mesh
+/// build reads it (`input.rs`) by `rules` — each vertex built, a triangle two of whose corners meet
+/// dropped (`drop_near_collapsed`), every corner welded to the first vertex at its position that
+/// matches it, every value held within its range and corrected — and returned, the vertices a
+/// weld left alone among them. The mesh a displacement is baked into is this one
+/// (`displace::bake`), its build then reading the result as made (`InputRules::as_made`).
+pub(crate) fn laid_source(
+    positions: &[f32],
+    attributes: DagAttributes,
+    indices: &[u32],
+    (rules, drop_near_collapsed): (&InputRules, bool),
+) -> Laid {
+    let built = input::built(positions, attributes, indices, rules);
+    let (kept, _) = input::kept_triangles(&built.positions, &built.indices, drop_near_collapsed);
+    let welded = input::welded(&built, &kept);
+    let grown = input::finished(built, &welded, (positions, attributes));
+    let (laid, carried) = Grown::level(&grown, positions, attributes);
+    Laid {
+        positions: laid.to_vec(),
+        attributes: carried.into_iter().cloned().collect(),
+        indices: welded,
+    }
 }

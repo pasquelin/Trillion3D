@@ -145,5 +145,9 @@ export function writeWebgpuVisibilityUniforms(
   shadeUniPacked[SHADE.pixelError] = run.diagnosticPixelError
   // The voxel classes count their trace's steps on a sampled frame (`voxelSteps.ts`).
   shadeInts[SHADE.voxelCounting] = vis.voxelSteps?.due(run.frame) ? 1 : 0
+  // What a material graph reads of the view: the camera in the world, the time in seconds.
+  shadeUniPacked.set(cam.eye, SHADE.eye)
+  shadeUniPacked[SHADE.time] = performance.now() / 1000
+  shadeInts[SHADE.frameIndex] = run.frame
   device.queue.writeBuffer(shadeUniform, 0, shadeUniPacked)
 }

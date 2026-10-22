@@ -5,7 +5,7 @@ import { pose } from '../../scene/host/prepared/nodes.ts'
 import { configurePageWorkers, patientTask, releasePageWorkers } from '../work/host.ts'
 import { NodeWorker } from '../../../../../bench/kit/worker.ts'
 import { withNodeWorkerShim } from '../../../../../bench/oracles/browser/pageWorkNodeWorker.ts'
-import { cellRows, decodeCellFile } from './cellDecode.ts'
+import { cellRows, decodeCellFile, rootParentsByNode } from './cellDecode.ts'
 
 const nodes = [
   { parent: null, mesh: 7, matrix: null, translation: [1, 2, 3], rotation: null, scale: [2, 2, 2] },
@@ -37,6 +37,32 @@ test('a node that names the distances it is drawn at carries them, 0 for none', 
     decodeCellFile(new TextEncoder().encode(JSON.stringify({ version: 3, nodes: named })).buffer),
   )
   assert.deepEqual([...rows.drawDistances], [5, 300, 0, 0, 0, 40])
+})
+
+test('a node that is an instance of an assembly carries the group above the root of each primitive', () => {
+  const named = [
+    nodes[0],
+    // Its part has three primitives: the first and the third have a group above their root.
+    { ...nodes[1], rootParents: [[6.5, 1.25, -2, 3, 40], null, [0.5, 0, 0, 0, 9]] },
+  ]
+  const rows = cellRows(
+    decodeCellFile(new TextEncoder().encode(JSON.stringify({ version: 3, nodes: named })).buffer),
+  )
+  assert.deepEqual(
+    [...rows.rootParents!],
+    [1, 0, 6.5, 1.25, -2, 3, 40, 1, 2, 0.5, 0, 0, 0, 9],
+    'the node, the primitive, the error and the ball',
+  )
+  const byNode = rootParentsByNode(rows)
+  assert.equal(byNode.get(0), undefined)
+  assert.deepEqual(byNode.get(1)?.get(0), { error: 6.5, sphere: [1.25, -2, 3, 40] })
+  assert.equal(byNode.get(1)?.get(1), undefined, 'no group replaces the second primitive')
+  assert.deepEqual(byNode.get(1)?.get(2), { error: 0.5, sphere: [0, 0, 0, 9] })
+  // A cell with none carries no float of it.
+  assert.equal(
+    cellRows(decodeCellFile(new TextEncoder().encode(text).buffer)).rootParents!.length,
+    0,
+  )
 })
 
 test('a cell file is parsed in a worker of the page worker pool, never on the main thread', () =>

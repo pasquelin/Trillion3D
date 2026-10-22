@@ -151,12 +151,12 @@ function buildVolume(
   const { resources, none, maxDimension, context } = parts
   const knobs = volumetricFogKnobs(input.settings.volumetricFogQuality)
   const { camera } = input
-  if (!knobs) return void (history.known = history.frames = 0)
+  if (!knobs) return void ((history.known = false), (history.frames = 0))
   gridsOf(history, camera, input.allocated, knobs, maxDimension)
   const voxels = parts.voxel.write(input.volumes, camera, input.settings, input.medium)
   const staticBuilt = !!input.lightmap && staticTermWanted(input.staticLight)
   const textures = resources.texturesOf(history.resource.grid, voxels > 0, staticBuilt)
-  if (!textures) return void (history.known = history.frames = 0)
+  if (!textures) return void ((history.known = false), (history.frames = 0))
   if (resources.generation !== history.made) {
     history.made = resources.generation
     history.known = false

@@ -151,8 +151,7 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  pyramid's likewise (`../../../../sdk-core/src/contracts/hizOptions.ts`): `hizTrace`
  *  (`'reference'`, or `'planes'`) — how the reflections' trace reads it —, `hizFoldTransparents`
  *  (false) — whether its trace layers hold the transparent surfaces —, `hizTransparentTest`
- *  (`'finer'`, or `'reference'`) — how the transparent clusters are tested against it — and
- *  `hizRelativeDepthThickness` — the thickness of a surface the reference walk takes —,
+ *  (`'finer'`, or `'reference'`) — how the transparent clusters are tested against it —,
  *  `hizFullResDepth` (true) — whether the screen probes' walk goes down to the full-resolution
  *  depth — and `lightGridHizCull` (true) — whether the light grid leaves empty the cells behind
  *  their column's farthest depth —, then `hizPrime` (`'off'`, `'whenMissing'` or `'always'`) — when

@@ -26,6 +26,7 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { visGroupFor } from '../../visibility/passes/visGroup.ts'
 import { reflectionFront } from '../../lighting/reflections/frontDepth.fixture.ts'
+import { NO_OVERRIDES } from '../../frame/backend/state/viewOverrides.ts'
 
 type Recorded = { layout: { entries: unknown[] }; entries: unknown[] }
 
@@ -121,6 +122,8 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
     },
     lights: { buffer: {}, store: { count: 0, epoch: 0, unlit: false } },
     bounce: { probes: undefined },
+    views: { active: { overrides: NO_OVERRIDES } },
+    context: {},
     // `lit` view with no light: the contract lights, so the pass binds its default resources.
     blendState,
     run: { gpuDrawCalls: 0, blendDrawCalls: 0, blendSubmittedTriangles: 0 },

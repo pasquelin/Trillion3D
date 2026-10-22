@@ -28,26 +28,9 @@ pub(crate) fn cells_within(
     mut visit: impl FnMut(Cell),
 ) {
     let t = corners.map(|c| scale(c, 1.0 / side));
-    // A corner not finite overlaps no voxel.
-    if !t.iter().flatten().all(|x| x.is_finite()) {
+    let Some((low, high)) = reached(t, count) else {
         return;
-    }
-    // Floored in floats, then clamped, so a far corner never wraps an `i32`.
-    let (floor_low, floor_high) = match count {
-        Some(n) => ([0.0; 3], n.map(|n| f64::from(n) - 1.0)),
-        None => ([f64::from(i32::MIN); 3], [f64::from(i32::MAX); 3]),
     };
-    let low: Cell = std::array::from_fn(|k| {
-        let x = (t[0][k].min(t[1][k]).min(t[2][k]) - SLACK).floor();
-        x.max(floor_low[k]) as i32
-    });
-    let high: Cell = std::array::from_fn(|k| {
-        let x = (t[0][k].max(t[1][k]).max(t[2][k]) + SLACK).floor();
-        x.min(floor_high[k]) as i32
-    });
-    if (0..3).any(|k| low[k] > high[k]) {
-        return;
-    }
     let n = cross(sub(t[1], t[0]), sub(t[2], t[0]));
     let d = dominant_axis(n);
     let (u, v) = ((d + 1) % 3, (d + 2) % 3);
@@ -83,6 +66,29 @@ pub(crate) fn cells_within(
             }
         }
     }
+}
+
+/// The voxels from `low` to `high`, on each axis, that the box of the triangle `t`, in voxels,
+/// reaches — within `[0, count)` when `count` is given —; none when a corner is not finite (it
+/// overlaps no voxel) or the box lies off the grid.
+fn reached(t: [[f64; 3]; 3], count: Option<Cell>) -> Option<(Cell, Cell)> {
+    if !t.iter().flatten().all(|x| x.is_finite()) {
+        return None;
+    }
+    // Floored in floats, then clamped, so a far corner never wraps an `i32`.
+    let (floor_low, floor_high) = match count {
+        Some(n) => ([0.0; 3], n.map(|n| f64::from(n) - 1.0)),
+        None => ([f64::from(i32::MIN); 3], [f64::from(i32::MAX); 3]),
+    };
+    let low: Cell = std::array::from_fn(|k| {
+        let x = (t[0][k].min(t[1][k]).min(t[2][k]) - SLACK).floor();
+        x.max(floor_low[k]) as i32
+    });
+    let high: Cell = std::array::from_fn(|k| {
+        let x = (t[0][k].max(t[1][k]).max(t[2][k]) + SLACK).floor();
+        x.min(floor_high[k]) as i32
+    });
+    (0..3).all(|k| low[k] <= high[k]).then_some((low, high))
 }
 
 /// Whether the triangle `t`, in voxels, overlaps voxel `cell`, touching counted: no axis among the

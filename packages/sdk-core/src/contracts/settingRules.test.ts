@@ -5,6 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CUT_RULES } from './cutOptions.ts'
+import { DYNAMIC_RESOLUTION_RULES } from './dynamicResolutionOptions.ts'
 import { STREAMING_RULES } from './streamingOptions.ts'
 import {
   SUN_TEMPERATURE_RULES,
@@ -138,6 +139,35 @@ test('the cut’s GPU time budget is off, its lowest scale 30 % from 1 to 100, t
   for (const bad of [0.5, 101, Infinity])
     assert.throws(() => resolveSetting(lowest, bad), /a number from 1 to 100/)
   assert.throws(() => resolveSetting(bandwidth, '1' as never), /a number from/)
+})
+
+test('the dynamic resolution’s eleven settings default to the reference’s and refuse what they do not take', () => {
+  const rules = DYNAMIC_RESOLUTION_RULES
+  assert.deepEqual(
+    Object.values(rules).map((rule) => resolveSetting(rule)),
+    [0, 0, 10, 0, 16, 0.9, 8, 0.9, 2, 2, false],
+  )
+  assert.equal(resolveSetting(rules.dynamicResolutionHistorySize, 4), 4)
+  assert.throws(() => resolveSetting(rules.dynamicResolutionHistorySize, 0), /whole number/)
+  assert.throws(() => resolveSetting(rules.dynamicResolutionHeadroomPercent, 100), /from 0 to 99/)
+  assert.throws(
+    () => resolveSetting(rules.dynamicResolutionIncreaseAmortization, 1.5),
+    /from 0 to 1/,
+  )
+  assert.throws(() => resolveSetting(rules.dynamicResolutionFrameTimeBudgetMs, -1), /at least 0/)
+  assert.throws(() => resolveSetting(rules.dynamicResolutionUseCpuTimeLogic, 1), /true or false/)
+})
+
+test('the cut’s secondary view distance scale is off and 1, a non-negative number', () => {
+  const { cutViewDistanceApplySecondaryScale: apply, cutViewDistanceSecondaryScale: scale } =
+    CUT_RULES
+  assert.deepEqual(
+    [apply, scale].map((rule) => resolveSetting(rule)),
+    [false, 1],
+  )
+  assert.equal(resolveSetting(scale, 0.25), 0.25)
+  assert.throws(() => resolveSetting(scale, -1), /at least 0/)
+  assert.throws(() => resolveSetting(apply, 1), /true or false/)
 })
 
 test('a level rule — a choice whose first name is off — also takes true for its default and false for off', () => {

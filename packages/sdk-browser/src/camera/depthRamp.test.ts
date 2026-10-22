@@ -82,15 +82,20 @@ test('The weights land at the offset they are given, nothing around them', () =>
   assert.equal(words[4], 0, 'no clip-z weight under a perspective projection')
 })
 
-test('The resolve uniform: the ramp a 16-byte aligned vec4f, the voxel word after it', () => {
+test('The resolve uniform: the ramp a 16-byte aligned vec4f, the voxel word, the eye, the time and the image index after it', () => {
   assert.match(
     wgslModule(SHADE_DECL_WGSL),
-    /feedback:u32,pixelError:f32,depthRamp:vec4f,voxelCounting:u32,\}/,
+    /feedback:u32,pixelError:f32,depthRamp:vec4f,voxelCounting:u32,eye:vec3f,time:f32,frameIndex:u32,\}/,
   )
   // viewProj 16 words, viewport 2 and six scalars: the ramp starts at word 24.
   assert.equal(SHADE_UNIFORM.at.depthRamp, 16 + 4 + 4)
   assert.equal(SHADE_UNIFORM.at.depthRamp % 4, 0)
-  // The voxel trace's counting word, then the struct rounded to its vec4f alignment.
+  // The voxel trace's counting word, the camera on the next 16 bytes with the time in its last
+  // word (what a material graph reads), the image's index the voxels' normals are drawn with, then
+  // the struct rounded to its vec4f alignment.
   assert.equal(SHADE_UNIFORM.at.voxelCounting, SHADE_UNIFORM.at.depthRamp + 4)
-  assert.equal(SHADE_UNIFORM.words, SHADE_UNIFORM.at.depthRamp + 8)
+  assert.equal(SHADE_UNIFORM.at.eye, SHADE_UNIFORM.at.depthRamp + 8)
+  assert.equal(SHADE_UNIFORM.at.time, SHADE_UNIFORM.at.eye + 3)
+  assert.equal(SHADE_UNIFORM.at.frameIndex, SHADE_UNIFORM.at.time + 1)
+  assert.equal(SHADE_UNIFORM.words, SHADE_UNIFORM.at.depthRamp + 16)
 })

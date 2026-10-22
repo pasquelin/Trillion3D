@@ -280,3 +280,29 @@ test('a light’s kind word carries its rank and its flags, and lane 14 the shar
   assert.throws(() => store.add({ ...LIGHT, id: 'bad', fogScattering: -1 }), /fogScattering/)
   assert.throws(() => store.add({ ...LIGHT, id: 'bad', shadowsFog: 1 as never }), /shadowsFog/)
 })
+
+test('with no atmosphere the block holds the lights of the air as the clouds light a medium by them', () => {
+  const store = createSceneLightStore()
+  const slot = store.add({
+    id: 'sun',
+    kind: 'directional',
+    direction: [0, -1, 0],
+    color: [1, 0.5, 0.25],
+    intensity: 4,
+    castsShadow: false,
+  })
+  const block = (at: number) => Array.from(store.atmospherePacked.subarray(at * 4, at * 4 + 4))
+  assert.equal(block(ATMOSPHERE_SLOT.planet)[0], 0, 'no air')
+  near(block(ATMOSPHERE_SLOT.sunDirection), [0, 1, 0, 1], 'toward the light, with no disk')
+  near(block(ATMOSPHERE_SLOT.sunIlluminance), [4, 2, 1, 0], 'its illuminance, whole')
+  near(block(ATMOSPHERE_SLOT.sunDisk), [0, 0, 0, 1], 'no luminance of a disk, and a light')
+  near(block(ATMOSPHERE_SLOT.sunTransmittance), [1, 1, 1, 0], 'no air toward it, none for the fog')
+  near(block(ATMOSPHERE_SLOT.secondDisk), [0, 0, 0, 0], 'no second light')
+  near(block(ATMOSPHERE_SLOT.lightSlots), [slot, -1, 0, 0], 'its place in the light buffer')
+  near(block(ATMOSPHERE_SLOT.lightFlags), [0, 0, 0, 0], 'it shades no air')
+  store.set('sun', { intensity: 2 })
+  near(block(ATMOSPHERE_SLOT.sunIlluminance), [2, 1, 0.5, 0], 'it follows the light')
+  store.remove('sun')
+  near(block(ATMOSPHERE_SLOT.lightSlots), [-1, -1, 0, 0], 'removed: no slot, never the first')
+  near(block(ATMOSPHERE_SLOT.sunIlluminance), [0, 0, 0, 0], 'and no illuminance')
+})

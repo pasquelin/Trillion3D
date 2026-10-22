@@ -6,7 +6,7 @@ import {
   computeUniformEntry,
 } from '../../../gpu/core/computeBindings.ts'
 import { airLayoutEntries } from '../../../lighting/atmosphere/programs.ts'
-import { CAPTURE_CLOUD_KEY } from '../clouds/cloudModes.ts'
+import { cloudTraceKeyText, type CloudTraceKey } from '../clouds/traceExtraLayout.ts'
 import type { AirShape } from '../../../lighting/atmosphere/shape.ts'
 import { createCloudTracePass } from '../clouds/trace.ts'
 import {
@@ -78,7 +78,6 @@ function skyLightLayouts(device: GPUDevice, shape: AirShape) {
       computeTextureEntry(1, 'float', 'cube'),
       computeSamplerEntry(2, 'non-filtering'),
       computeBufferEntry(3, 'storage', COMPUTE),
-      computeTextureEntry(4, 'float', 'cube'),
     ]),
   }
 }
@@ -158,9 +157,11 @@ function filterStages(device: GPUDevice, compute: Asked['compute'], layouts: Sky
 
 /**
  * THE CAPTURE'S LAYOUTS AND PIPELINES, asked at once, off the frame (`PreparedPipeline.ask`): the
- * three face draws, the clouds' tracing (the clouds part's own, `createCloudTracePass`), the mips'
- * downsample and the filter, and the harmonics' sum, the air's programs written for `shape`. The cube is read by a sampler that takes
- * the nearest texel and the nearest level, which the face composition's cloud read does not use.
+ * three face draws, the mips' downsample and the filter, and the harmonics' sum, the air's programs
+ * written for `shape`; the clouds' tracing (the clouds part's own, `createCloudTracePass`) is asked
+ * when first wanted, one for each key the capture traces with (`cloudTrace`). The cube is read by a
+ * sampler that takes the nearest texel and the nearest level, which the face composition's cloud
+ * read does not use.
  */
 export function createSkyLightPipelines(
   device: GPUDevice,
@@ -170,6 +171,7 @@ export function createSkyLightPipelines(
   const layouts = skyLightLayouts(device, shape)
   const { draw, compute } = askedPipelines(device, failed)
   const module = (label: string, code: string) => device.createShaderModule({ label, code })
+  const traces = new Map<string, ReturnType<typeof createCloudTracePass>>()
   return {
     layouts,
     shape,
@@ -188,7 +190,14 @@ export function createSkyLightPipelines(
       ...faceDraws(device, draw, layouts, shape),
       ...filterStages(device, compute, layouts),
     },
-    cloudTrace: createCloudTracePass(device, failed, CAPTURE_CLOUD_KEY, shape),
+    /** The clouds' tracing of the key `key`, asked when first wanted: the faces draw no cloud until
+     *  it is compiled. */
+    cloudTrace(key: CloudTraceKey) {
+      const text = cloudTraceKeyText(key)
+      let pass = traces.get(text)
+      if (!pass) traces.set(text, (pass = createCloudTracePass(device, failed, key, shape)))
+      return pass
+    },
   }
 }
 

@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { boxTransform } from '../../../math/src/geometry/box.ts'
 import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import { createShadowMobility } from '../lighting/shadows/casters/mobility.ts'
-import { createPlacementRows, placementWorld } from './rows/rows.ts'
+import { createPlacementRows, placementWorld, seatRootParent } from './rows/rows.ts'
 import { followPlacementRows } from './update.ts'
 import { FAR_SHADOW_ROOT, SHADOWLESS_ROOT } from '../visibility/shader/castingMark.ts'
 
@@ -120,4 +120,28 @@ test('a row that names other draw distances hands its root the distances it name
   assert.equal(write([], flip), true, 'the distance taken back')
   assert.deepEqual(seen, [[1, undefined]])
   assert.equal(mobility.moves(1), false, 'no distance makes a root move')
+})
+
+test('a row that names the group above its root hands its root the parent it names now', () => {
+  // Rows are seated before their cells stream in: an instance of an assembly comes with its cell,
+  // and reaches the cut through the flip (`GpuSelection.rootParentWorld`).
+  const { rows, write, mobility } = placed(),
+    seen: [number, unknown][] = []
+  const flip = (rank: number, root: { rootParent?: unknown }) => seen.push([rank, root.rootParent])
+  const parent = { error: 6.5, sphere: [1.25, -2, 3, 40] as const }
+  seatRootParent(rows, 1, parent)
+  assert.equal(write([], flip), true, 'a parent named: the root is flipped')
+  assert.deepEqual(seen, [[1, parent]])
+  seen.length = 0
+  assert.equal(write([], flip), false, 'written again unchanged: nothing')
+  seatRootParent(rows, 1, undefined)
+  assert.equal(write([], flip), true, 'the parent taken back')
+  assert.deepEqual(seen, [[1, undefined]])
+  assert.equal(mobility.moves(1), false, 'no parent makes a root move')
+  // An exact group has an error of 0 and is a parent all the same: its ball names it.
+  const exact = { error: 0, sphere: [0, 0, 0, 5] as const }
+  seatRootParent(rows, 1, exact)
+  seen.length = 0
+  assert.equal(write([], flip), true)
+  assert.deepEqual(seen, [[1, exact]])
 })

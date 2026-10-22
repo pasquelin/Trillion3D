@@ -77,7 +77,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     // Guides and effects may still require drawing this quiet source; a temporal pass runs on every
     // image until its history is whole (`taaConverging`): a still view converges, then is held on
     // its converged image; the frame-difference view compares each image with the one before, so
-    // it draws every one.
+    // it draws every one; so does a surface whose graph reads the time.
     if (
       swapped ||
       !quiet ||
@@ -87,6 +87,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
       effectsMoved(rt) ||
       particlesMoved(rt) ||
       lightFunctionsWaiting(rt) ||
+      rt.vis.graphsAnimated ||
       cloudsMoved(rt)
     ) {
       if (rt.diag.traceEnabled) traceDrawnFrame(rt, unsettled, swapped)

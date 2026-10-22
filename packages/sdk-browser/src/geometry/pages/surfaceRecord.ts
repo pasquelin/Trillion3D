@@ -61,6 +61,11 @@ function reading(d: SurfaceDeclaration) {
 }
 type Reading = ReturnType<typeof reading>
 
+/** The thin transmission of a cloth's faces (`sheet`): its colour, white where its graph wires the
+ *  colour (the graph gives its value per pixel), black where it has none. */
+const thinColour = (d: SurfaceDeclaration, sheet: boolean): Rgb =>
+  sheet && d.graph?.outputs.subsurfaceColor ? [1, 1, 1] : colourIf(sheet, d.subsurfaceColor, 0)
+
 /** Its colours, its glow scaled by its intensity, its metal and roughness — a Phong surface's
  *  read off its exponent —, its side and alpha. */
 function factors(d: SurfaceDeclaration, { lit, side, standard, sheet }: Reading) {
@@ -80,7 +85,7 @@ function factors(d: SurfaceDeclaration, { lit, side, standard, sheet }: Reading)
     side,
     alphaTest: d.alphaTest ?? 0,
     emissive: emissive ? (rgb(emissive).map((c) => c * glow) as Rgb) : ([0, 0, 0] as Rgb),
-    subsurfaceColor: colourIf(sheet, d.subsurfaceColor, 0),
+    subsurfaceColor: thinColour(d, sheet),
     vertexColors: d.vertexColors === true,
   }
 }
@@ -174,6 +179,22 @@ const raster = (d: SurfaceDeclaration) => ({
   specular: d.family === 'phong' ? rgb(d.specular ?? PHONG_SPECULAR) : undefined,
 })
 
+/** The families that draw the material's colour, and so can wear a graph: a normal, depth, matcap or
+ *  shadow surface shows something other than what a graph computes. */
+const GRAPH_FAMILIES = new Set<SurfaceFamily>([
+  'basic',
+  'standard',
+  'physical',
+  'lambert',
+  'phong',
+  'toon',
+])
+
+/** Its graph, on a family that draws the material's colour. */
+const graphOf = (d: SurfaceDeclaration) => ({
+  graph: GRAPH_FAMILIES.has(d.family) ? d.graph : undefined,
+})
+
 /** Fills `into` from `d`; a map its model never reads is refused by name. */
 function fill(into: PageSurface, d: SurfaceDeclaration) {
   const unread = unreadMapRefusal(d)
@@ -187,6 +208,7 @@ function fill(into: PageSurface, d: SurfaceDeclaration) {
     lobes(d, read),
     displaced(d),
     { model: read.model },
+    graphOf(d),
     shape(d),
     raster(d),
   )

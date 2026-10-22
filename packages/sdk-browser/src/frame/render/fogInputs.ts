@@ -15,7 +15,7 @@ import { viewProj } from '../backend/helpers.ts'
 import { preExposureOf } from '../../post/exposure/pre.ts'
 import { directLightResources } from '../prepare/contractLight.ts'
 import { cloudShadowOf } from './encodeCloudShadow.ts'
-import { skyLightReadOf } from './encodeSkyLight.ts'
+import { skyLightReadOf } from './skyLightState.ts'
 import { fogSkyField } from './encodeSkyOcclusion.ts'
 
 /** The matrices and vectors of the image's camera the volume reads: the inverse view-projection and

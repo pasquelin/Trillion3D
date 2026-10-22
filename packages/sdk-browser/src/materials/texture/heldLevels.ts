@@ -12,8 +12,9 @@
  * in-flight read is never doubled.
  *
  * A read that fails is reported to the asker that launched it, and the record it read is held back
- * by the one failure policy (`geometry/streaming/failures.ts`), which says when it is asked again, if ever;
- * a record answered short or foreign is refused for good. Its tile stays served by its coarse level
+ * by the one failure policy (`geometry/streaming/failures.ts`): asked again at once, as many times
+ * as the reader's `retries` allows (`streamingNumRetries`), then refused; a record answered short
+ * or foreign is refused for good. Its tile stays served by its coarse level
  * meanwhile. The failures live with the reader, one per record asked at most.
  *
  * The reads in flight and the room they hold are the store's, every reader's (`flightOf`): a
@@ -69,6 +70,7 @@ function createHeldLevels(read: TextureLevelReader) {
     { pending } = flight,
     failures = createReadFailures({
       retriable: (error) => !(error instanceof LevelBytesError) && retriableError(error),
+      retries: read.retries,
     })
   let fetched = 0
   /** Each level's key under this reader's cook (`levelKey`), by its address: made once a level

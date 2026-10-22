@@ -103,15 +103,22 @@ fn an_assembly_extra_of_another_tool_changes_nothing_where_assemblies_are_not_al
     fs::remove_dir_all(root).expect("cleanup");
 }
 
-// Behaviour: a part is cooked once however many nodes of the assembly name it: the assembly's own
-// triangle and the part make two primitives whether the part is placed 1, 10 or 100 times, their
-// pages the same bytes, and the nodes are the scene's own, written under the nodes that place the
-// assembly.
+// Behaviour: a part is cooked once however many nodes of the assembly name it, and the levels above
+// its instances grow with their number alone: the assembly's own triangle and the part make the
+// same two primitives, the same pages, whether the part is placed 1, 10 or 100 times; from two
+// instances on, the levels above their roots are the pages of a third primitive of the assembly's
+// mesh (no triangle of its own), each instance carrying the error and the ball of its group in the
+// node tables (`rootParents`); the nodes are the scene's own, written under the nodes that place the
+// assembly. The bytes and the time of each count are printed (`--nocapture`).
 #[test]
 fn a_part_is_cooked_once_however_many_nodes_place_it() {
     let cooked = |count: usize| {
         let (root, mut options) = fixture();
         options.mesh_build = MeshBuildOptions::read(Some(&json!({"allowAssemblies": true})));
+        // The levels above the instances exist where the build makes coarse levels, and the node
+        // tables carry each instance's parent where the scene is published whole.
+        options.simplification = "qem-endpoints".into();
+        options.scope = "full".into();
         let mut gltf = read_gltf(&options);
         gltf["materials"] = json!([{}]);
         let window = gltf["meshes"][0].clone();
@@ -123,24 +130,77 @@ fn a_part_is_cooked_once_however_many_nodes_place_it() {
             "parts": [{"mesh": 1, "materialRemap": [0]}], "nodes": nodes,
         }});
         write_gltf(&options, &gltf, None);
+        let started = std::time::Instant::now();
         let result = compile(&options, |_| {}).expect("compile");
+        let millis = started.elapsed().as_secs_f64() * 1e3;
         let key = result["key"].as_str().expect("key").to_string();
         let source = written_gltf(&options, &key);
+        // Each primitive's pages: their bytes and the triangles they draw.
+        let sizes: Vec<(usize, usize)> = (result["primitives"].as_array().into_iter().flatten())
+            .map(|primitive| {
+                let pages = primitive["pages"].as_array().into_iter().flatten();
+                pages.fold((0, 0), |(bytes, triangles), page| {
+                    let raw = geometry_page(&options.cache, &result, primitive, page);
+                    let decoded = trillion3d_page_codec::decode(&raw, 1 << 20).expect("decode");
+                    (bytes + raw.len(), triangles + decoded.indices().len() / 3)
+                })
+            })
+            .collect();
+        println!("a part placed {count} times: {millis:.1} ms, (page bytes, triangles) {sizes:?}");
+        let directory = options.key_directory(&key);
+        let tables = read_json(&directory.join("scene-tables.json"));
+        let mut rows: Vec<Value> = tables["nodes"].as_array().cloned().unwrap_or_default();
+        for entry in fs::read_dir(&directory).expect("directory").flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with("scene-cell-") {
+                let cell = read_json(&entry.path());
+                rows.extend(cell["nodes"].as_array().cloned().unwrap_or_default());
+            }
+        }
+        let parented = rows
+            .iter()
+            .filter(|row| row.get("rootParents").is_some())
+            .count();
         fs::remove_dir_all(root).expect("cleanup");
+        let (carriers, others): (Vec<_>, Vec<_>) = (result["primitives"].as_array().expect("list"))
+            .iter()
+            .zip(&sizes)
+            .partition(|(primitive, _)| primitive["triangles"] == 0);
+        let others: Vec<Value> = others.iter().map(|(p, size)| json!([p, size])).collect();
+        let levels = carriers.first().map(|(_, (_, triangles))| *triangles);
         (
-            result["primitives"].clone(),
+            others,
+            levels,
             source["nodes"].as_array().map(Vec::len),
+            parented,
         )
     };
-    let (one, one_nodes) = cooked(1);
+    let (one, one_levels, one_nodes, one_parented) = cooked(1);
+    assert_eq!(
+        (one.len(), one_levels, one_parented),
+        (2, None, 0),
+        "a lone instance climbs nowhere"
+    );
+    assert_eq!(one_nodes, Some(2 + 2));
+    let mut last = 0;
     for count in [10, 100] {
-        let (many, many_nodes) = cooked(count);
-        assert_eq!(many.as_array().map(Vec::len), Some(2), "{count}");
+        let (others, levels, nodes, parented) = cooked(count);
         assert_eq!(
-            many, one,
+            others, one,
             "the same two primitives, the same pages, {count}"
         );
-        assert_eq!(many_nodes, Some(2 + 2 * count));
+        let levels = levels.expect("the levels above the instances are pages of their own");
+        assert!(
+            levels >= count && levels > last,
+            "{count}: {levels} triangles above them"
+        );
+        last = levels;
+        assert_eq!(nodes, Some(2 + 2 * count));
+        // Two nodes place the assembly, each with its `count` instances.
+        assert_eq!(
+            parented,
+            2 * count,
+            "every instance carries its group's error and ball"
+        );
     }
-    assert_eq!(one_nodes, Some(2 + 2));
 }

@@ -15,6 +15,11 @@ import { FLOAT32_MAX } from '../../../../math/src/constants.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { dofTemporalShader } from '../../post/effects/depthOfField/dofTemporalWgsl.ts'
+import { material } from '../../../../sdk-core/src/world/material/index.ts'
+import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
+import { compileGraph, type CompileOptions } from '../../materials/graph/compile.ts'
+import { COLOR_SAMPLE_WGSL } from '../../materials/virtual/wgsl.ts'
+import { TILE_REQUEST_WGSL } from '../../materials/virtual/requestWgsl.ts'
 
 test('every WGSL text the engine and its proofs compile declares every name it uses', () => {
   const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER }
@@ -99,6 +104,7 @@ const HANDED_IN = new Set([
   'lighting/ao/pipelines.ts',
   'lighting/atmosphere/opaqueHaze.ts',
   'lighting/atmosphere/resources.ts',
+  'lighting/distanceField/globalPipelines.ts',
   'lighting/shadows/vsm/invalidation/castStale.ts',
   'lighting/shadows/vsm/chunks/chunkKernels.ts',
   'lighting/shadows/vsm/markingPass.ts',
@@ -304,4 +310,75 @@ test('the accumulation filters the setup by the window of its jittered place, as
   const taps: number[][] = []
   accumulated({ up: 2, rect: 8, taps })
   assert.ok(taps.length > 0 && taps.every(([u, v]) => u <= 0.4375 && v <= 0.4375), `${taps}`)
+})
+
+/** A graph that reads a texture at a tiled coordinate, and a time-driven emission. */
+function tiledGraph() {
+  const g = material.graph('surface')
+  g.output(
+    'baseColor',
+    g.channel(g.textureSample(new Texture(), { uv: g.texCoord(1, 4, 4) }), 'rgb'),
+  )
+  g.output('emissive', g.sine(g.time(), 2))
+  return g
+}
+const compileFor = (g: ReturnType<typeof tiledGraph>, options: Partial<CompileOptions> = {}) =>
+  compileGraph(g, { sample: COLOR_SAMPLE_WGSL, derivatives: 'neighbours', ...options })
+
+test('a graph read by a pass with no derivative finds its footprints at the pixels beside', () => {
+  const g = tiledGraph()
+  const text = compileFor(g).wgsl.text
+  // The coordinate is evaluated again a pixel to the right and a pixel below, tiling and all: the
+  // difference is the derivative the hardware takes of the tiled coordinate.
+  assert.match(text, /mgNeighbour\[0\]\.uvs\[1\] \* vec2f\(4\./)
+  assert.match(text, /colorSample\(g\.t\[0\]\.x,v0,\(v1-v0\),\(v2-v0\),true\)/)
+  assert.doesNotMatch(text, /dpdx/)
+  // A fragment program has them: the same graph reads the screen's.
+  assert.match(compileFor(g, { derivatives: 'screen' }).wgsl.text, /dpdx\(v0\),dpdy\(v0\)/)
+  assert.deepEqual(
+    [compileFor(g).uses.sets, compileFor(g).uses.textures, compileFor(g).uses.time],
+    [0b10, true, true],
+    'the texture sets it reads, as a mask',
+  )
+})
+
+test('a graph asks the tile of each texture it reads, the very texel it reads', () => {
+  const g = tiledGraph()
+  const compiled = compileFor(g, { request: TILE_REQUEST_WGSL })
+  assert.equal(compiled.reads, 1)
+  assert.equal(compiled.ask, 'mgAsk')
+  assert.match(
+    compiled.wgsl.text,
+    /fn mgAsk\(ctx:MgContext,g:MgValues,p:RequestPick,missing:bool\)->u32\{\n if\(p\.sel==0u\)\{[^]*return colorRequestIndex\(g\.t\[0\]\.x,v0,\(v1-v0\),\(v2-v0\),p\.next,p\.along,true,true,missing\);/,
+  )
+  assert.equal(compileFor(g).ask, undefined, 'a pass that asks nothing is given nothing')
+})
+
+test('the declarations of two graphs of one program are named apart by their suffix', () => {
+  const first = compileFor(tiledGraph(), { suffix: '0' }),
+    second = compileFor(tiledGraph(), { suffix: '1' })
+  const code = wgslModule(first.wgsl, second.wgsl)
+  const names = topLevelNames(code).filter((name) => /^[Mm]g/.test(name))
+  assert.deepEqual(names.sort(), [
+    ...['MgContext', 'MgValues0', 'MgValues1', 'mgBaseColor0', 'mgBaseColor1'],
+    ...['mgEmissive0', 'mgEmissive1', 'mgNeighbour', 'mgSampleLevel'],
+  ])
+  assert.equal(second.functions.baseColor, 'mgBaseColor1')
+  assert.equal(second.values, 'MgValues1')
+})
+
+test('a cosine and a sine of a period that is zero or less read the raw angle, a period above 0 turns', () => {
+  // The reference multiplies the angle of its cosine, for a period that is not above 0, by an
+  // integer 0 its compiler takes for the index of the material's first value: a product with
+  // whatever that is, never the angle. Ours reads the angle, as its sine does.
+  const body = (kind: 'sine' | 'cosine', period: number) => {
+    const g = material.graph('surface')
+    g.output('roughness', g[kind](g.scalarParameter('x', 1), period))
+    return compileFor(g).wgsl.text
+  }
+  for (const period of [0, -1, -0.5]) {
+    assert.match(body('cosine', period), /let v0:f32=cos\(g\.v\[0\]\.x\);/)
+    assert.match(body('sine', period), /let v0:f32=sin\(g\.v\[0\]\.x\);/)
+  }
+  assert.match(body('cosine', 2), /\(g\.v\[0\]\.x \* 3\.14159274\);\n let v1:f32=cos\(v0\)/)
 })

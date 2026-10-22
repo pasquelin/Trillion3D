@@ -70,6 +70,7 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     pageUrlOf: pageUrlReader(worldSources, p.cutLinks, p.pageIndex),
     cutLinks: p.cutLinks,
     live: p.live,
+    ...(p.rootParent && { rootParent: p.rootParent }),
     ...(room && { shared }),
     ...(tree && { placementTree: tree }),
     ...(worldRoots.length && {

@@ -133,7 +133,7 @@ export const shadeBinReadWgsl = (binding: number) =>
       FLAT_INDEX_WGSL,
     ],
     `fn binnedPixel(group:vec3u,n:vec3u,lane:u32)->vec3u{
- let word=binOfClass(CLASS_KEY);
+ let word=binOfClass(CLASS_BIN);
  let quad=(word&SHADE_BIN_QUAD)!=0u;
  let range=binRange(word&~SHADE_BIN_QUAD);
  let index=flatIndex(group,n,1u)*SHADE_BIN_GROUP+lane;

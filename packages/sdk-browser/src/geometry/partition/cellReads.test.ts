@@ -1,8 +1,8 @@
 // A generated world of 100 × 100 cells, every one within reach of its first camera: the world
 // bundles its cells hold are read through the session's one queue, a few at a time, each hold by
 // the priority of its unit's turn, in the cells' lane ahead of the view's pages (`hlodHolds.ts`),
-// those end to end in the binary merged; a reader that refuses them is asked again ever more
-// seldom, never once a frame, the holds waiting meanwhile. The holds of the actors that come loaded
+// those end to end in the binary merged; a reader that refuses them is asked again at once, at the
+// next turn of the loop, the holds waiting meanwhile. The holds of the actors that come loaded
 // together are asked each by the priority of the unit it belongs to.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -163,7 +163,7 @@ test('the actors always loaded open at the first frame of the initial load, what
   assert.equal(world.cells.stats().held, 0)
 })
 
-test('a reader refusing past N pending is asked again after 0.5 s · 2^k up to 8 s, never in the frame it refused', async (t) => {
+test('a reader refusing past N pending is asked again at the next turn, with no wait, each failure after the first unsaid', async (t) => {
   let clock = 0,
     flying = 0,
     refused = 0
@@ -197,16 +197,16 @@ test('a reader refusing past N pending is asked again after 0.5 s · 2^k up to 8
       await frame(world)
     }
   }
-  /** The waits between a cell's reads, one request a wait. */
+  /** The time between a cell's reads: one request a turn of the loop, the frames' step here. */
   const gaps = (times: number[]) => times.slice(1).map((at, i) => at - times[i])
   await opened(world.cells, world.bytes, false)
-  await frames(16_000)
+  await frames(1_000)
   const waits = [...asked.values()].map((times) => gaps(times).join())
-  assert.deepEqual(new Set(waits), new Set(['500,1000,2000,4000,8000']), 'each cell, doubling')
+  assert.deepEqual(new Set(waits), new Set(['250,250,250,250']), 'each cell, at once, no back-off')
   assert.deepEqual(
     [said.length, new Set(said).size],
     [2 * CELLS, 2 * CELLS],
-    'each said once, at 8 s',
+    'each said once, at its first failure',
   )
   ;[pending, refused] = [K, 0]
   await frames(32_000, () => heldBy(world.roots).length === 2 * CELLS)

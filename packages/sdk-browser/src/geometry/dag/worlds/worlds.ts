@@ -10,6 +10,8 @@ import {
   PAGE_BASE_WORD,
   PAGE_COUNT_WORD,
   RECORD_SHIFT_WORD,
+  ROOT_PARENT_WORD,
+  ROOT_PARENT_WORDS,
   ROOT_WORD,
   STRUCTURE_WORD,
 } from '../frameTable.ts'
@@ -44,12 +46,18 @@ export function changedWorlds(
  * Per-primitive frame words (`../frameTable.ts`): the root the
  * descent starts from, the record shift that leads its pages to their shared records (`../layout.ts`),
  * the primitive's root mark (`PackedDag.mark`), the words its pages and structure are found by and
- * the distances it is drawn at (`PackedDag.drawDistance`). Its stretch is no host word: the root
+ * the distances it is drawn at (`PackedDag.drawDistance`) and its parent, when it is an instance of
+ * an assembly (`PackedDag.rootParent`). Its stretch is no host word: the root
  * boxes pass writes it (`../../../placement/roots/rootBoxes.ts`).
  */
 export function primitiveFrameWords(
   packed: Pick<PackedDag, 'worldCount' | 'worldSources' | 'rootNodes' | 'recordShift'> &
-    Partial<Pick<PackedDag, 'mark' | 'drawDistance' | 'cutLinks' | 'heldOpen' | 'structures'>>,
+    Partial<
+      Pick<
+        PackedDag,
+        'mark' | 'drawDistance' | 'rootParent' | 'cutLinks' | 'heldOpen' | 'structures'
+      >
+    >,
 ) {
   const worldCount = Math.max(1, packed.worldCount)
   const frameData = new Float32Array(worldCount * FRAME_ROW_WORDS)
@@ -61,7 +69,12 @@ export function primitiveFrameWords(
 export function writePrimitiveWords(
   frameData: Float32Array,
   packed: Pick<PackedDag, 'worldSources' | 'rootNodes' | 'recordShift'> &
-    Partial<Pick<PackedDag, 'mark' | 'drawDistance' | 'cutLinks' | 'heldOpen' | 'structures'>>,
+    Partial<
+      Pick<
+        PackedDag,
+        'mark' | 'drawDistance' | 'rootParent' | 'cutLinks' | 'heldOpen' | 'structures'
+      >
+    >,
   w: number,
 ) {
   const at = primitiveWordAt(w),
@@ -77,4 +90,7 @@ export function writePrimitiveWords(
   // Floats, written as such: the nearest distance and the farthest, 0 for none.
   frameData[at + DRAW_NEAR_WORD] = packed.drawDistance?.[2 * w] ?? 0
   frameData[at + DRAW_FAR_WORD] = packed.drawDistance?.[2 * w + 1] ?? 0
+  // The five floats of its parent, an instance of an assembly's alone.
+  for (let k = 0; k < ROOT_PARENT_WORDS; k++)
+    frameData[at + ROOT_PARENT_WORD + k] = packed.rootParent?.[ROOT_PARENT_WORDS * w + k] ?? 0
 }

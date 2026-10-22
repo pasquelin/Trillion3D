@@ -1,5 +1,6 @@
 import type { skyLightSource } from '../../../../../sdk-core/src/modules/sky/skyLight.ts'
 import type { AirShape } from '../../../lighting/atmosphere/shape.ts'
+import { cloudsCompiled } from './captureClouds.ts'
 import { createCubemapCapture } from './captureCubemap.ts'
 import { createFaceDrawer } from './captureFaces.ts'
 import { createFollower } from './captureFollow.ts'
@@ -74,14 +75,14 @@ export function createSkyLightCapture(
   shape: AirShape,
 ) {
   const made = createSkyLightPipelines(device, failed, shape)
-  const { pipelines, cloudTrace } = made
+  const { pipelines } = made
   const faces = createFaceDrawer(device, made)
   const stage = createFilterStage(device, pipelines)
   const cubemap = createCubemapCapture(device, failed, stage)
   let state = newCaptureState()
   const followed = createFollower(device, made, restart)
   const scene = createSceneCapture(device, failed, stage, cubemap.pipelines, () => followed.targets)
-  const ready = () => Object.values(pipelines).every((p) => p.ready) && cloudTrace.pipeline.ready
+  const ready = () => Object.values(pipelines).every((p) => p.ready)
 
   /** The capture starts again: the slices, the specified cubemap's capture and the scene's. */
   function restart() {
@@ -102,7 +103,8 @@ export function createSkyLightCapture(
       // The scene drawn into the cube once (`'capturedScene'`) is drawn between two frames
       // (`captureScene`), not in this one.
       if (now === 'specifiedCubemap') return cubemap.encode(encoder, t, input)
-      if (now === 'realTime') encodeRealTime(stage, faces, state, encoder, t, input)
+      if (now === 'realTime' && cloudsCompiled(made, input))
+        encodeRealTime(stage, faces, state, encoder, t, input)
     },
     /** Whether a scene capture is due now: the light captures a scene, it was asked one, none is
      *  drawing, and the programs are compiled. Looks at the light, once a frame. */

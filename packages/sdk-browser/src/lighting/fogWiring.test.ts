@@ -66,13 +66,14 @@ test('blended and transmissive surfaces, lit or unlit, are fogged from the eye o
   )
   // The eye is the view's third-last vec4: 160 bytes of fields before it, 16 of its own; the pixel
   // ratio a line's width is scaled by (#348), the texture level offset (#816) and the display
-  // layers' exposure and curve (#558) follow it, in the struct's 16-byte alignment.
+  // layers' exposure, the image's pre-exposure and the curve (#558) follow it, in the struct's
+  // 16-byte alignment.
   assert.match(
     wgslSource(BLEND_VIEW_WGSL),
-    /pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,pixelError:f32,clipPlane:vec4f,\}/,
+    /pixelRatio:f32,mipBias:f32,exposure:f32,preExposure:f32,toneCurve:u32,pixelError:f32,clipPlane:vec4f,\}/,
   )
-  // The clip plane of the view's, a vec4 behind them (`clipPlane`): 208 bytes.
-  assert.equal(BLEND_VIEW_SIZE, 208)
+  // The clip plane of the view's, a vec4 behind them at the next 16 bytes (`clipPlane`): 224 bytes.
+  assert.equal(BLEND_VIEW_SIZE, 224)
 })
 
 /** The kind of resource a layout holds at each of `bindings`: a sampler, a texture by its dimension,

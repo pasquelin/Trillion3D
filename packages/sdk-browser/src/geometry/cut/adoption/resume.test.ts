@@ -13,6 +13,7 @@ import { CULL_CLIP_PLANE_OFF, CULL_DRAW_DISTANCE_OFF } from '../../dag/shader/vi
 import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { NO_CLIP_PLANE } from '../../../../../sdk-core/src/contracts/viewOptions.ts'
 import { renderGpuCut } from '../../../frame/render/gpuCut.ts'
+import { createScaleControl } from '../../../frame/scale/scaleControl.ts'
 
 test('a pending image requests, syncs and dispatches: resume has what it needs to happen', () => {
   const b = banc()
@@ -73,6 +74,18 @@ test('each image tells the rays’ scene the main eye and the scale of the draw 
   b.image()
   assert.equal(b.proxied[2][1], undefined)
   assert.equal(view.cullOff & CULL_DRAW_DISTANCE_OFF, CULL_DRAW_DISTANCE_OFF)
+})
+
+test('the scale of the draw distances is times the secondary scale only where the host turned that on', () => {
+  const b = banc(),
+    { selectionUniforms: view } = b.rt.run
+  Object.assign(b.rt.context, { cutViewDistanceScale: 0.5, cutViewDistanceSecondaryScale: 0.5 })
+  b.image()
+  assert.equal(view.viewDistanceScale, 0.5, 'off by default: the secondary scale is not read')
+  Object.assign(b.rt.context, { cutViewDistanceApplySecondaryScale: true })
+  b.image()
+  assert.equal(view.viewDistanceScale, 0.25, 'on: the two scales multiply')
+  assert.equal(b.proxied[1][1], 0.25, 'and the rays’ scene is told the same')
 })
 
 test('a view’s clip plane reaches its cut in the render frame where the project switch is on, its cull on unless turned off', () => {
@@ -152,7 +165,7 @@ test('a GPU time budget coarsens the cut’s threshold by the lesser of the edge
     scale.tick((now += 8), true)
     scale.drew(scale.wanted(), true)
     renderGpuCut(rt, b.camera, 2, 0)
-    scale.observe(1, scale.wanted(), true, 20, scale.edge.now)
+    scale.observe(1, scale.wanted(), true, 20)
     return view.pixelError
   }
   scale.set('auto')
@@ -166,6 +179,13 @@ test('a GPU time budget coarsens the cut’s threshold by the lesser of the edge
   residency.qualityScale = fraction / 2
   assert.equal(image(), 2 / (fraction / 2), 'the streaming scale, the lesser')
   residency.qualityScale = 1
+  const { main } = rt.views
+  rt.views.active = { scale: createScaleControl(undefined) } as typeof main
+  // The aside view's own cut is this bench's selection again.
+  Object.assign(rt.run, { asideCut: rt.run.gpuSelection })
+  assert.equal(image(), 2, 'a view drawn beside the main one: its cut is not coarsened')
+  rt.views.active = main
+  assert.equal(image(), 2 / fraction, 'the main view again')
   Object.assign(rt.context, { cutEdgeScaleBudgetMs: 0 })
   assert.equal(image(), 2, 'a budget of 0 turns it off, what it learnt kept')
   scale.set(1)

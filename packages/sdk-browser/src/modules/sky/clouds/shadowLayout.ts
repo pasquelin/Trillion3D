@@ -43,7 +43,8 @@ export const CLOUD_SHADOW_FORMAT: GPUTextureFormat = 'rgba16float'
  *  - `pixel`: the scale and the offset from a traced pixel to the whole map's pixel it stands for
  *    (1, 1, 0, 0 unless the temporal filter traces a half-size map);
  *  - `ray`: the direction of the light's rays, then the depth of the far plane in kilometres;
- *  - `layer`: the layer's base altitude and thickness in kilometres, the time in seconds;
+ *  - `layer`: the layer's base altitude and thickness in kilometres, the time in seconds, and the
+ *    planet's radius in kilometres (the air's, or the clouds part's where there is no air);
  *  - `output`: the light's strength, the depth bias in kilometres, the samples of a ray. */
 export const CLOUD_SHADOW_LAYOUT = fieldLayout('CloudShadowBlock', [
   ['cameraFromClip', 'mat4x4f'],
@@ -72,12 +73,13 @@ export function cloudShadowSizes(
 }
 
 /** What a light's trace is told besides the part and the light: the map's frame, its side, the
- *  temporal filter's plan, the time in seconds. */
+ *  temporal filter's plan, the time in seconds and the planet's radius in kilometres. */
 export interface CloudShadowImage {
   readonly frame: CloudShadowFrame
   readonly side: number
   readonly temporal: CloudShadowTemporal
   readonly time: number
+  readonly planetRadiusKm: number
 }
 
 /** The block of a light's trace into `out` (`CLOUD_SHADOW_LAYOUT.words` floats). */
@@ -93,7 +95,10 @@ export function writeCloudShadowTrace(
   out.set([temporal.tracedSide, temporal.tracedSide, 1 / side, 1 / side], at.texel)
   out.set(temporal.pixel, at.pixel)
   out.set([...frame.rayDirection, frame.farDepthKm], at.ray)
-  out.set([part.settings.baseAltitudeKm, part.settings.thicknessKm, image.time, 0], at.layer)
+  out.set(
+    [part.settings.baseAltitudeKm, part.settings.thicknessKm, image.time, image.planetRadiusKm],
+    at.layer,
+  )
   out.set([light.cloudShadowStrength, light.cloudShadowDepthBiasKm, frame.samples, 0], at.output)
   return out
 }

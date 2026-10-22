@@ -15,8 +15,7 @@ import {
  * cut's own occlusion (`cutTwoPassOcclusion`, `./cutOptions.ts`) reads the culling layer, which no
  * setting here changes: it is the opaque depth, farthest, in every mode.
  *
- * `hizRelativeDepthThickness` belongs to the `'reference'` walk of `hizTrace`, read by the
- * reflections' trace; `hizFullResDepth` is read by the screen probes' trace alone; and
+ * `hizFullResDepth` is read by the screen probes' trace alone; and
  * `lightGridHizCull` is read by the light grid's pass (`packages/sdk-browser/src/lighting/tiles/`),
  * which reads the culling layer too. The five `hizPrime…` settings belong to the primed pyramid
  * (`packages/sdk-browser/src/frame/render/primeHiz.ts`): a pyramid built before the cut's main
@@ -40,10 +39,7 @@ const HIZ_PRIMES = ['whenMissing', 'always', 'off'] as const
 /** The pyramid's settings by field: `hizTrace`, `'reference'` — how the reflections' trace reads
  *  the pyramid —; `hizFoldTransparents`, off — whether the trace layers hold the nearest
  *  transparent surface of each pixel beside the opaque depth —; `hizTransparentTest`, `'finer'` —
- *  how the transparent clusters are tested —; `hizRelativeDepthThickness`, 0.005 — the thickness
- *  the reflections' `'reference'` walk gives a surface, a share of the surface's depth, times the
- *  projection's scale (1 under a perspective); the `'planes'` walk keeps its pixels' thickness —;
- *  `hizFullResDepth`, on — whether the screen probes' `'reference'` walk goes down to the
+ *  how the transparent clusters are tested —; `hizFullResDepth`, on — whether the screen probes' `'reference'` walk goes down to the
  *  full-resolution depth, else it stops at the half-resolution level, the reflections' always going
  *  down —; `lightGridHizCull`, on — whether the light grid leaves empty the cells behind the
  *  farthest depth of their column of the image; `hizPrime`, `'off'` — when the primed pyramid is built
@@ -56,7 +52,6 @@ export const HIZ_RULES = /* @__PURE__ */ (() =>
     choice('hizTrace', 'reference', HIZ_TRACES),
     flag('hizFoldTransparents', false),
     choice('hizTransparentTest', 'finer', HIZ_TRANSPARENT_TESTS),
-    nonNegative('hizRelativeDepthThickness', 0.005),
     flag('hizFullResDepth', true),
     flag('lightGridHizCull', true),
     choice('hizPrime', 'off', HIZ_PRIMES),

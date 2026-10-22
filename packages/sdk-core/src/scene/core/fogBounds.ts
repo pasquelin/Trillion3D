@@ -22,6 +22,9 @@ export const FOG_BOUNDS = {
 export function clampSecondLayer(second: SceneSecondLayer): SceneSecondLayer {
   const out = { ...second }
   for (const key of ['baseDensity', 'falloff'] as const)
-    if (second[key] !== undefined) out[key] = clamp(second[key], ...FOG_BOUNDS[key])
+    if (second[key] !== undefined) {
+      const [lowest, highest] = FOG_BOUNDS[key]
+      out[key] = clamp(second[key], lowest, highest)
+    }
   return out
 }

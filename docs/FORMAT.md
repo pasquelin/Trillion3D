@@ -197,10 +197,12 @@ and brick counts —, a 48-byte record per group (its primitive, `u32::MAX` for 
 its DAG group or compiled mesh; first brick and count; first voxel and count; its error, the error
 it is replaced at and its voxels' side as `f32`; its first brick's corner, `f32` × 3), 16-byte bricks
 (mask `u64`, bit `x + 4y + 16z`; corner in bricks from the group's first, `u16` × 3; joint `u16`,
-`0xFFFF` none), 12-byte voxels in each brick's mask order (sRGB base colour and normals' spread, 255
-when the build drops it (`voxelNdf`); occlusion, roughness, metalness and a zero, or the voxel's
-coverage as its opacity when the build keeps it (`voxelOpacity`), which no pass of the engine reads;
-mean normal, octahedral; two zeros): what the runtime reads of a voxel, no more. Version 4: a voxel's coverage and material stay in the compiler, and a
+`0xFFFF` none), 12-byte voxels in each brick's mask order (sRGB base colour and a zero; occlusion,
+roughness, metalness and a zero, or the voxel's coverage as its opacity when the build keeps it
+(`voxelOpacity`), which no pass of the engine reads; normal, octahedral: the axis of the fitted
+distribution of the normals (`voxelNdf`), else the direction of their mean; the ratio of the fitted
+distribution's two widths, from which the resolve draws each pixel's shading normal, else zero; a
+zero): what the runtime reads of a voxel, no more. Version 4: a voxel's coverage and material stay in the compiler, and a
 page's brick holds the rank of its first voxel. The runtime joins a group's bricks to its DAG as
 pages.
 
@@ -309,7 +311,7 @@ level of its cell there, and its main grid when that is not the first (`rust/hlo
   `· (2 << i)` the main one's. Version 8: every grid is a square grid over the world, its cells of
   one side per level, centred on its origin; a cell record's `bounds` is its grid cell's square on
   the plane, its content's up axis kept, and its `hlod` is `[HLOD 0 cell, the square that cell
-  streams by on its grid, that grid's rank]`, `null` for objects in no layer, which stream with
+streams by on its grid, that grid's rank]`, `null` for objects in no layer, which stream with
   their cell alone; the root's `hlod` is `grids` — per grid, the main one first, its finest cell
   side and its loading range as `f64` bits in sixteen hexadecimal digits each, then its load
   priority in eight (the main grid's the job's, 0 by default; an HLOD grid's 100 plus its level)

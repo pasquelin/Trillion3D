@@ -38,6 +38,7 @@ function flushState(adopts?: () => boolean, armed = true) {
     gpuSelection: adopts ? { flush: async () => {}, failed: () => false } : undefined,
     lastCamera: undefined,
   }
+  const main = {}
   const rt = {
     run,
     gpu: {
@@ -62,6 +63,10 @@ function flushState(adopts?: () => boolean, armed = true) {
     blendState: { blendGpu: [], visibleBlend: [], blendIndex: { revision: 0 } },
     // An unlit scene: the frame entry asks no lit program of the device (`askLobedPrograms`).
     lights: { changes: { deferred: () => false }, store: { unlit: true, count: 0 } },
+    // No bounce asked: the frame entry asks no screen probes' program (`screenProbesCast`).
+    bounce: { wanted: false },
+    // One view, the main one: the primed pyramid is off by default (`askPrimeHiz`).
+    views: { active: main, main },
   } as unknown as WebgpuPagesRuntime
   return { rt, gate, frameHold, revisions }
 }

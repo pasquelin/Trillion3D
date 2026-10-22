@@ -1,7 +1,10 @@
+use super::climb;
 use crate::compiler::hierarchy::{dag_hierarchy, ranks_of};
 use crate::compiler::pages::bundles::{assign_pages, Laying};
+use crate::dag::assembly::{Parent, RootCover};
 use crate::hlod::chain::SourceCover;
 use crate::*;
+use climb::{level0_collision, Assembly};
 use trillion3d_page_codec::culling::{CULLING_MEASURES, CULLING_STRIDE};
 pub(crate) struct DagResult {
     pub pages: Vec<Value>,
@@ -27,6 +30,11 @@ pub(crate) struct DagResult {
     pub source_cover: SourceCover,
     /// The groups its far field may draw as voxels (`voxel`).
     pub voxel_seed: crate::voxel::VoxelSeed,
+    /// The roots of its DAG, when an assembly climbs over them (`Assembly::cover`).
+    pub cover: Option<RootCover>,
+    /// The group that replaces each instance's root, when it carries an assembly's levels
+    /// (`Assembly::instances`), in the order of the instances.
+    pub parents: Vec<Option<Parent>>,
 }
 /// What a primitive's DAG is built under.
 pub(crate) struct DagInputs {
@@ -50,13 +58,15 @@ pub(crate) struct DagInputs {
     pub scale: Option<f64>,
 }
 /// The DAG of the primitive `pos`, `carried` and `index_values` describe, its pages and what the
-/// later stages read of it, built under `inputs`.
+/// later stages read of it, built under `inputs` and under what an assembly asks (`Assembly`): a
+/// primitive that carries the levels above instances is built over them, cut by no trim and
+/// voxelized by no seed — its groups list no child of theirs that an instance was —, and its merged
+/// layers take none of it.
 pub(crate) fn build_dag_primitive(
     o: &Options,
-    pos: &[f32],
-    carried: &[&encode::Attribute],
-    index_values: &[u32],
+    (pos, carried, index_values): (&[f32], &[&encode::Attribute], &[u32]),
     inputs: DagInputs,
+    assembly: Assembly<'_>,
     encode_packed: &(impl Fn(
         &[u32],
         &[f32],
@@ -86,6 +96,24 @@ pub(crate) fn build_dag_primitive(
     // `indices`: the source's triangles as the DAG read them, every corner at its exact weld's
     // first vertex — what level 0 partitions, the collider cooks and the voxels seed from —, and
     // `triangle_source` each one's rank among the source's, which the voxels sample by.
+    let climbs = !assembly.instances.is_empty();
+    let (built, parents) = match climbs {
+        false => {
+            let built =
+                crate::dag::build_dag(pos, attributes, index_values, settings, &|| check(o))?;
+            (built, Vec::new())
+        }
+        true => {
+            let arrays = (pos, attributes, index_values);
+            let climbed = crate::dag::assembly::build_with_instances(
+                arrays,
+                assembly.instances,
+                settings,
+                &|| check(o),
+            )?;
+            (climbed.build, climbed.parents)
+        }
+    };
     let crate::dag::DagBuild {
         clusters: mut dag,
         mut groups,
@@ -94,28 +122,40 @@ pub(crate) fn build_dag_primitive(
         grown,
         indices,
         triangle_source,
-    } = crate::dag::build_dag(pos, attributes, index_values, settings, &|| check(o))?;
+    } = built;
     laps.lap("dagMs");
     let (pos, carried) = crate::dag::Grown::arrays(&grown, pos, attributes);
     let attributes = crate::dag::DagAttributes { carried: &carried };
     checks::check_dag(&dag, &indices)?;
+    let cover = if assembly.cover {
+        RootCover::of(&dag, pos, &carried)
+    } else {
+        None
+    };
     // The report and the world's HLOD read the DAG as built, before its finest detail is cut away:
     // the report its levels and stalls, the HLOD its level 0 — without the stored tangents, which
     // its placed copies would not turn.
     let (dag_report, warnings) = stalls::dag_report(strategy, &dag, &tallies, &stalls);
-    let merged = taken.map(|taken| (taken, shaping.rules()));
+    let merged = taken
+        .filter(|_| !climbs)
+        .map(|taken| (taken, shaping.rules()));
     let untangled: Vec<&encode::Attribute> = (attributes.carried.iter().copied())
         .filter(|a| a.flag != trillion3d_page_codec::FLAG_TANGENT)
         .collect();
     let source_cover = SourceCover::of((&dag, &groups), (pos, &untangled[..]), merged)?;
     // The grid follows every cluster the build made, the finest detail the trim cuts away included.
-    let extents = crate::dag::cut_finest(shaping.trim, (&mut dag, &mut groups), pos, &indices);
-    let voxel_seed = crate::voxel::VoxelSeed::of(
-        &dag,
-        &groups,
-        (pos, &indices, &triangle_source),
-        shaping.shape,
-    );
+    let trim = if climbs {
+        Default::default()
+    } else {
+        shaping.trim
+    };
+    let extents = crate::dag::cut_finest(trim, (&mut dag, &mut groups), pos, &indices);
+    let shape = match climbs {
+        true => crate::voxel::ShapePreservation::None,
+        false => shaping.shape,
+    };
+    let voxel_seed =
+        crate::voxel::VoxelSeed::of(&dag, &groups, (pos, &indices, &triangle_source), shape);
     // The proxy coarse cut is read here, where the DAG and the positions are both
     // at hand; further on, clusters exist only as cache objects.
     let (proxy_threshold, proxy_cut) = crate::proxy::cut::coarse_cut(&dag, pos, proxy_demand);
@@ -163,8 +203,9 @@ pub(crate) fn build_dag_primitive(
     // run side by side on the compiler's pool, each result kept in its own place, so every byte is
     // the serial cook's, and the cook's error still comes first.
     let (collision, paged) = laps.join(
-        ("physicsMs", || {
-            crate::physics_cook::cook_primitive(o, &dag, &order, &culling, pos, &indices)
+        ("physicsMs", || match climbs {
+            true => level0_collision(o, &dag, (pos, &indices), grid),
+            false => crate::physics_cook::cook_primitive(o, &dag, &order, &culling, pos, &indices),
         }),
         ("pagesMs", || {
             dag_pages(
@@ -225,5 +266,7 @@ pub(crate) fn build_dag_primitive(
         collision,
         source_cover,
         voxel_seed,
+        cover,
+        parents,
     })
 }

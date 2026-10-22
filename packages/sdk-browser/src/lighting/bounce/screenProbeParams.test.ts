@@ -143,7 +143,6 @@ test('the screen probes parameters are the words of the settings and the image, 
     [2, 0, 0, 0].map(Math.fround),
     'foliage hits skipped: no certainty steps',
   )
-  assert.deepEqual(floats(at.tuning), [4, 0.4, 0.005, 0.02].map(Math.fround))
   assert.deepEqual(floats(at.previous + 4), [0, 2, 0, 0], 'the second column of the last inverse')
   const first = sent
   write(geometry, settings, image(11))

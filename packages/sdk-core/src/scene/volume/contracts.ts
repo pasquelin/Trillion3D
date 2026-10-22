@@ -1,4 +1,5 @@
 import { EngineError } from '../../contracts/cache.ts'
+import type { MaterialGraph } from '../../world/material/graph/api.ts'
 import {
   resolveVolumeMaterial,
   type VolumeMaterial,
@@ -39,6 +40,10 @@ export interface SceneFogVolume {
   boundsMax?: Vec3
   /** What it adds to the medium. */
   material?: VolumeMaterialOptions
+  /** A graph of the volume domain (`material.graph('volume')`) that computes, at the centre of each
+   *  cell the object covers, its albedo (`baseColor`), its extinction (`subsurfaceColor`, the red
+   *  channel) and its emissive light (`emissive`) in place of `material`'s. */
+  graph?: MaterialGraph
 }
 
 /** An object with every field set and held to its range. */
@@ -49,6 +54,10 @@ export interface ResolvedFogVolume {
   boundsMin: Vec3
   boundsMax: Vec3
   material: VolumeMaterial
+  /** Its graph, and the graph's version when it was resolved: a write to the graph changes the
+   *  record, which tells the frame to read it again (`sameFogVolume`). */
+  graph?: MaterialGraph
+  graphVersion?: number
 }
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] as const
@@ -85,5 +94,22 @@ export function resolveFogVolume(volume: SceneFogVolume): ResolvedFogVolume {
     boundsMin: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.min(a[2], b[2])],
     boundsMax: [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(a[2], b[2])],
     material: resolveVolumeMaterial(volume.material),
+    ...(volume.graph && {
+      graph: volumeGraph(id, volume.graph),
+      graphVersion: volume.graph.version,
+    }),
   }
 }
+
+/** The graph an object wears, which must be one of the volume domain. */
+function volumeGraph(id: string, graph: MaterialGraph) {
+  if (!graph?.isMaterialGraph || graph.domain !== 'volume')
+    refuse(id, 'graph expects a graph of the volume domain (material.graph)')
+  return graph
+}
+
+/** Whether two resolved objects are the same: their numbers, and the very graph at the version it
+ *  was read (the graph is no text a comparison can read). */
+export const sameFogVolume = (a: ResolvedFogVolume, b: ResolvedFogVolume) =>
+  a.graph === b.graph &&
+  JSON.stringify({ ...a, graph: undefined }) === JSON.stringify({ ...b, graph: undefined })

@@ -4,6 +4,7 @@ import { rowFlags } from '../geometry/rows/surfaceRow.ts'
 import { materialWord, type MaterialTable } from '../materials/table/materialTable.ts'
 import { hasPhysicalLobes } from '../materials/surface/physicalLobes.ts'
 import { channelsOf } from '../materials/table/materialRecord.ts'
+import { isProgram, programOf } from '../materials/graph/surfaceProgram.ts'
 import { SURFACE_MAP_FIELDS } from '../visibility/materialType.ts'
 import { HISTORY_SHARE_MASK, HISTORY_SHARE_SHIFT } from '../visibility/types.ts'
 import type { HostAttributes } from '../session/host/resources.ts'
@@ -84,6 +85,12 @@ const floatSecondUv = (item: BlendGpuItem, blocks?: ReadonlyMap<HostAttributes, 
  *  history given up — its surface's history share code is not 0 (`blendShareTargets`). */
 export const ITEM_NEEDS = { lobed: 1, givesUp: 2 } as const
 
+/** Whether the graph a surface wears reads a texture set past the first. */
+const readsExtraUv = (mat: BlendGpuItem['surface']) => {
+  const program = programOf(mat)
+  return isProgram(program) && program.compiled.uses.sets > 1
+}
+
 /** Writes an item's record at its rank. `floats` and `ints` are two views of the same buffer.
  *  Returns what it needs (`ITEM_NEEDS` bits). */
 export function writeBlendItemRecord(
@@ -96,9 +103,9 @@ export function writeBlendItemRecord(
   const base = index * BLEND_ITEM_WORDS,
     // Read as its owner wrote it last: a surface rewritten in place is read here (#335).
     mat = item.surface,
-    // The lobed programs carry a UV set past the first (`vertexWgsl.ts`): a lobe's maps, and every
-    // map that reads one (glTF's `texCoord`), are read there.
-    lobed = hasPhysicalLobes(mat) || channelsOf(mat, SURFACE_MAP_FIELDS) !== 0
+    // The lobed programs carry a UV set past the first (`vertexWgsl.ts`): a lobe's maps, every
+    // map that reads one (glTF's `texCoord`) and a graph that reads one are read there.
+    lobed = hasPhysicalLobes(mat) || channelsOf(mat, SURFACE_MAP_FIELDS) !== 0 || readsExtraUv(mat)
   floats.set(item.matrix.elements, base + ITEM.world)
   // Where the instance reads what it draws, it takes it from the expanded list; the record
   // carries only what belongs to the item — its first vertex, flags.

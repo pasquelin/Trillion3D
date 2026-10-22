@@ -6,6 +6,9 @@ import * as G from '../scene/host/graph/graph.fixture.ts'
 import { surfaceOf } from '../geometry/pages/surface.ts'
 import { BLEND_MODES } from '../materials/surface/materialBlending.ts'
 import { declaredBlendModes, pipelinesByMode } from './stagePipelines.ts'
+import { graphProgramsOf } from './pipelines.ts'
+import { material } from '../../../sdk-core/src/world/material/index.ts'
+import type { MaterialGraph } from '../../../sdk-core/src/world/material/graph/api.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { Blending } from '../../../sdk-core/src/world/constants/index.ts'
 
@@ -50,4 +53,34 @@ test('a precompiled mode is drawn without a compile; a mode a draw compiled firs
   assert.equal(built.length, 3, 'no draw compiles a precompiled mode')
   await set.precompile(['additive'])
   assert.equal(built.length, 3, 'a compiled mode is never compiled again')
+})
+
+test('the blend modules hold the programs of the graphs the translucent items wear, once each', () => {
+  const wearing = (graph: MaterialGraph, transparent: boolean) => {
+    const surface = G.basicSurface()
+    Object.assign(surface, { transparent, graph })
+    return { surface: surfaceOf(surface) }
+  }
+  const tinted = (r: number) => {
+    const graph = material.graph('surface')
+    graph.output('baseColor', graph.constant(r, 0, 0))
+    return graph
+  }
+  const shared = tinted(1)
+  // Two surfaces whose graphs compile alike are one program; a graph an opaque surface wears is
+  // the resolve's, never the transparent pass's.
+  const found = graphProgramsOf([
+    wearing(shared, true),
+    wearing(tinted(1), true),
+    wearing(tinted(0.5), true),
+    wearing(tinted(0.25), false),
+    { surface: surfaceOf(G.basicSurface()) },
+  ])
+  assert.equal(found.length, 2)
+  assert.ok(found.every((program) => program.kind === 'blend'))
+  assert.deepEqual(
+    found.map((program) => program.id),
+    [...new Set(found.map((program) => program.id))].sort((a, b) => a - b),
+  )
+  assert.deepEqual(graphProgramsOf(items(['normal'])), [], 'a scene with no graph holds none')
 })

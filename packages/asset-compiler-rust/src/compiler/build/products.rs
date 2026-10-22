@@ -4,6 +4,7 @@
 use super::*;
 use crate::compiler::pages::manifest::MeshPages;
 use crate::compiler::primitive::compiled::DepthLayerScene;
+use crate::compiler::source::assembly::plan::AssemblyParents;
 use crate::distance_field::{stage_distance_fields, DistanceFieldInputs};
 use crate::hlod::chain::SourceCover;
 use crate::texture::TexturePreview;
@@ -56,11 +57,12 @@ pub(super) fn stage_products(
         &[Value],
     ),
     (proxy_cuts, proxy_thresholds, texture_previews): (&[Vec<f32>], &[f64], &[TexturePreview]),
-    (scene_nodes, hidden, source, assignments): (
+    (scene_nodes, hidden, source, assignments, parents): (
         &BTreeSet<usize>,
         &BTreeSet<usize>,
         &Value,
         &[Assigned],
+        &AssemblyParents,
     ),
     (source_bin, source_gltf): (Product, Product),
     progress: &(impl Fn(Value) + Sync),
@@ -163,7 +165,7 @@ pub(super) fn stage_products(
             ),
             o.materials()?,
         ),
-        (source, &placement.world, mesh_map),
+        (source, &placement.world, mesh_map, parents),
         &paged,
         (directory, pool),
         progress,

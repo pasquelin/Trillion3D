@@ -31,6 +31,13 @@ export function displayMoved(into: { width: number; height: number; ratio: numbe
   return true
 }
 
+/** The display the page is on now. */
+export function currentDisplay() {
+  const display = { width: 0, height: 0, ratio: 0 }
+  displayMoved(display)
+  return display
+}
+
 /**
  * The scale the render targets are made at, under the render-scale controller
  * (`scaleControl.ts`): the bounds' maximum, whatever the scale drawn in their top-left corner —

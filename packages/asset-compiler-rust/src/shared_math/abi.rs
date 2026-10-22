@@ -218,7 +218,7 @@ pub const ALLOW_ASSEMBLIES_SETTING: &str = "allowAssemblies";
 pub const POSITION_PRECISION_SETTING: &str = "positionPrecision";
 pub const NORMAL_PRECISION_SETTING: &str = "normalPrecision";
 pub const TANGENT_PRECISION_SETTING: &str = "tangentPrecision";
-pub const MESH_BUILD_SETTINGS: [&str; 27] = [
+pub const MESH_BUILD_SETTINGS: [&str; 30] = [
     "storedTangents",
     "keptTriangles",
     "trimmedError",
@@ -243,6 +243,9 @@ pub const MESH_BUILD_SETTINGS: [&str; 27] = [
     "distanceFieldTwoSided",
     "distanceFieldDensity",
     "distanceFieldMaxResolution",
+    "displacementMaps",
+    "displacementUvChannel",
+    "displacementEdgeSplit",
     "positionPrecision",
     "normalPrecision",
     "tangentPrecision",

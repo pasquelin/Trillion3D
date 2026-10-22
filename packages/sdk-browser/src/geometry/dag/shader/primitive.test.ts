@@ -28,33 +28,35 @@ import { TREE_DRAW_FAR, TREE_DRAW_NEAR } from '../nodeLayout.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { Mat } from '../../../materials/texture/shaderRunMatrix.fixture.ts'
 import { f32Bits } from '../../../../../math/src/float/bits.ts'
+import { DAG_ROOT_PARENT_WGSL } from './rootParentWgsl.ts'
 import {
   fitDrawDistances,
   outsideDrawDistance,
   outsideGroupDrawDistance,
+  outsideRootParent,
 } from '../oracle/nodeVerdict.fixture.ts'
 
-test('a placement holds 152 bytes at most, whatever the placements, past one row of the records', async () => {
+test('a placement holds 172 bytes at most, whatever the placements, past one row of the records', async () => {
   const [root] = packed(dagFixture()).roots
   // A row of the records holds 1024 placements of 112 bytes — world, exact translation, the proxy's
-  // instance (`../worlds/worldTable.ts`) —, a row of the frame words 512 of 40 (`../frameTable.ts`): a
+  // instance (`../worlds/worldTable.ts`) —, a row of the frame words 512 of 60 (`../frameTable.ts`): a
   // world of fewer pays those rows whole, once.
-  const row = 1024 * 112 + 512 * 40
+  const row = 1024 * 112 + 512 * 60
   for (const count of [1, 100, 5000]) {
     const dag = packDagSelection(Array.from({ length: count }, () => root))
     const resources = (await createDagResources(fakeDevice().device, dag))!
     const { rows, worlds } = resources.frames
     const bytes = rows.bytes + worlds.bytes
     assert.ok(
-      bytes <= 152 * dag.worldCount + row,
+      bytes <= 172 * dag.worldCount + row,
       `${count} placements: ${bytes / dag.worldCount} B each`,
     )
   }
   const words = Object.values(FRAME_TABLE.fields).reduce((sum, texels) => sum + texels, 0)
   assert.equal(
     words,
-    10,
-    'its row, the two draw distances it names and its stretch, ten words: no block derived beside them',
+    15,
+    'its row, the two draw distances and the five floats of the parent it names, and its stretch, fifteen words: no block derived beside them',
   )
 })
 
@@ -126,6 +128,36 @@ test('a placement is out of the distances it names nearer than its nearest or pa
   assert.equal(outsideDrawDistance(10, 100, at(150), 2), false, 'its farthest is 200 there')
   assert.equal(outsideDrawDistance(10, 100, at(60), 0.5), true, 'its farthest is 50 there')
   assert.equal(outsideDrawDistance(10, 100, at(1), 0), true, 'a scale of 0 draws only the eye')
+})
+
+test('an instance of an assembly opens only while the error of the group above its root shows at its ball', () => {
+  // The view at the origin looking down -z, a pixel scale of 1000 and a threshold of one pixel.
+  const view = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+  const frames = {
+    views: [view],
+    stretches: [1],
+    focal: 1000,
+    near: 0.1,
+    perspective: 1,
+    pixelError: 1,
+  }
+  const at = (z: number) => [0, 0, -z, 2]
+  assert.equal(outsideRootParent(frames, 0, 1, at(100)), false, 'ten pixels: too coarse to draw')
+  assert.equal(outsideRootParent(frames, 0, 1, at(900)), false, 'just over a pixel')
+  assert.equal(
+    outsideRootParent(frames, 0, 1, at(5000)),
+    true,
+    'a fifth of a pixel: its group draws',
+  )
+  // An exact group shows nowhere, and a placement scaled up shows it from farther.
+  assert.equal(outsideRootParent(frames, 0, 0, at(1)), true)
+  assert.equal(outsideRootParent(frames, 0, 1, at(3000)), true)
+  assert.equal(outsideRootParent({ ...frames, stretches: [4] }, 0, 1, at(3000)), false)
+  // The kernel runs the same comparison, on the ball the placement's words hold, behind its mark's bit.
+  const text = wgslSource(DAG_ROOT_PARENT_WGSL)
+  assert.match(text, /fn outsideRootParent\(w:u32,mark:u32\)->bool/)
+  assert.match(text, /\(mark&256u\)==0u/)
+  assert.match(text, /!errorShows\(sphereEdges\(sphere,viewWorld\(w\)\)\.x,/)
 })
 
 test('a group is out only where no placement can be drawn: its distances are its placements’', () => {

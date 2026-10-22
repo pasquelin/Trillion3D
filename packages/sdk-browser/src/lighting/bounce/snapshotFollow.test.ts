@@ -160,7 +160,7 @@ test('the radiance cache of the probes queued is updated once the pass is over, 
     return log
   }
   const { gpu, probes, encoder } = await floorProbes(true)
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE), true)
+  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE), true)
   assert.equal(probes.cache.pending, true, 'the pass left the update to be made')
   assert.ok(probes.cache.views, 'the maps are made for a level that casts')
   const passes = gpu.computePasses.length
@@ -169,7 +169,7 @@ test('the radiance cache of the probes queued is updated once the pass is over, 
   assert.deepEqual(entries(gpu, passes), ['generateTiles', 'traceTiles (listed)', 'filterMaps'])
   assert.equal(probes.cache.pending, false, 'made once')
   // The screen probes give their importance in: the functions cleared, the scatter, then the tiles.
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE), true)
+  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE), true)
   const scattered: string[] = []
   const pass = encoder.beginComputePass({ label: 'screen' })
   assert.equal(
@@ -186,7 +186,7 @@ test('the radiance cache of the probes queued is updated once the pass is over, 
   // A level that casts no probe reads no cache: none is kept.
   const low = screenProbeSettings({ screenProbes: 'low' })
   const bare = await floorProbes(true, true, () => low)
-  assert.equal(bare.probes.encode(bare.encoder, 1, FLOOR_EYE), true)
+  assert.equal(bare.probes.encode(bare.encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE), true)
   assert.equal(bare.probes.cache.pending, false)
   assert.equal(bare.probes.cache.views, undefined)
   assert.equal(bare.probes.cache.bytes, 0)

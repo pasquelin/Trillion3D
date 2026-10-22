@@ -1,6 +1,7 @@
 import { PI } from '../../../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { frameAround, outOfFrame } from '../../../../../math/src/wgsl/basis.ts'
+import { sampleSphereEven } from '../../../../../math/src/wgsl/sampling.ts'
 import { GGX_DISTRIBUTION_WGSL } from '../../../lighting/standardLighting.ts'
 import { MIP_ROUGHNESS_SLOPE, ROUGHEST_LEVEL } from './layout.ts'
 
@@ -57,7 +58,7 @@ fn roughnessMip(roughness:f32,lastMip:f32)->f32{
  */
 export const SKY_SAMPLING_WGSL = wgslBlock(
   'SKY_SAMPLING_WGSL',
-  [PI, GGX_DISTRIBUTION_WGSL, frameAround, outOfFrame],
+  [PI, GGX_DISTRIBUTION_WGSL, frameAround, outOfFrame, sampleSphereEven],
   `
 /** Point \`index\` of \`count\`: the index over the count, then the index's bits reversed. */
 fn lowDiscrepancy(index:u32,count:u32)->vec2f{
@@ -73,12 +74,6 @@ fn sampleCosineLobe(e:vec2f)->vec3f{
 fn sampleGgxHalf(e:vec2f,alpha2:f32)->vec3f{
  let phi=2.0*PI*e.x;
  let cosTheta=sqrt((1.0-e.y)/(1.0+(alpha2-1.0)*e.y));
- let sinTheta=sqrt(1.0-cosTheta*cosTheta);
- return vec3f(sinTheta*cos(phi),sinTheta*sin(phi),cosTheta);
-}
-fn sampleSphereEven(e:vec2f)->vec3f{
- let phi=2.0*PI*e.x;
- let cosTheta=1.0-2.0*e.y;
  let sinTheta=sqrt(1.0-cosTheta*cosTheta);
  return vec3f(sinTheta*cos(phi),sinTheta*sin(phi),cosTheta);
 }

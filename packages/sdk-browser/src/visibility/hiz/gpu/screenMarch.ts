@@ -24,7 +24,7 @@ import { SCREEN_MARCH_REFERENCE_WGSL } from './screenMarchReference.ts'
  * full-resolution depth, or, `full` false, stops at the half-resolution level (`hizFullResDepth`,
  * read by the screen probes' trace; the reflections' goes down). The surface's thickness is two values, the march picking its own: `pixels`
  * for the planes' march, in pixels of footprint, and `relative` for the reference's walk, a share
- * of the surface's depth (`hizRelativeDepthThickness`, `screenRelativeThickness`).
+ * of the surface's depth (`reflectionRelativeDepthThickness` or `screenProbeRelativeDepthThickness`, `screenRelativeThickness`).
  */
 export const SCREEN_MARCH_WGSL = (group: number, binding: number) =>
   wgslBlock(

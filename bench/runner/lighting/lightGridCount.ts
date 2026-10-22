@@ -45,13 +45,14 @@ export const LIGHTING_RATES = {
  * The resolve's G-buffer accesses per covered pixel of a surface that neither emits nor has an
  * occlusion map — sponza's 25 materials, the atrium —, each target's bytes (`surfaceBuffer.ts`):
  * develop read the flags, the base colour, the depth, the normal and the emission-and-occlusion
- * texel and wrote the colour; that texel is now read only under its flag bit (`surfaceEmission.ts`).
+ * texel and wrote the colour; that texel is now read only under its flag bit (`surfaceEmission.ts`),
+ * and the flags are a 32-bit word of the words' layers (`SURFACE_WORDS_FORMAT`).
  * The normal keeps its three half floats, which no octahedral code gives back bit for bit; roughness
  * and metalness already ride in the alphas.
  */
 export const RESOLVE_GBUFFER = {
   before: { flags: 1, baseMetal: 8, depth: 4, normalRough: 8, emissiveAo: 8, colour: 8 },
-  after: { flags: 1, baseMetal: 8, depth: 4, normalRough: 8, colour: 8 },
+  after: { flags: 4, baseMetal: 8, depth: 4, normalRough: 8, colour: 8 },
 }
 /** Texels and bytes of a side of `RESOLVE_GBUFFER`. */
 export const gbufferAccesses = (side: Record<string, number>) => ({

@@ -2,7 +2,12 @@ import type { PlacementOf } from '../../placement/rows/rows.ts'
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/page/contracts.ts'
 import type { MatrixElements } from '../../session/host/matrixElements.ts'
 import type { PageSurface } from '../pages/surface.ts'
-import type { ClusterStructureIndex, DrawDistance, RootProxy } from '../selection/types.ts'
+import type {
+  ClusterStructureIndex,
+  DrawDistance,
+  RootParent,
+  RootProxy,
+} from '../selection/types.ts'
 import type { CullingLinks } from '../cut/links.ts'
 import type { PlacementTree } from './placement/placementTree.ts'
 import type { PackedWorld } from './worlds/worldLinks.ts'
@@ -32,7 +37,7 @@ export const CULL_MIN = 0,
   CULL_PAGE_COUNT = 15
 /** Words of a placement's row of `frames`, the host's words (`frameTable.ts`): nothing is derived
  *  into it (`shader/primitiveWgsl.ts`). */
-export const FRAME_ROW_WORDS = 9
+export const FRAME_ROW_WORDS = 14
 type DagCluster = {
   url: string
   /** Its quantized page: with `url`, the content key the pool holds it under
@@ -64,6 +69,9 @@ export type DagRoot = {
   mark?: number
   /** The distances it is drawn at (`ClusterRoot.drawDistance`): none when absent. */
   drawDistance?: DrawDistance
+  /** The group that replaces its root, when it is an instance of an assembly
+   *  (`ClusterRoot.rootParent`): none when absent. */
+  rootParent?: RootParent
   /** Its primitive's culling hierarchy, with its upward links when the host derived them, shared
    *  by every placement of the primitive (`../cut/links.ts`). */
   culling?: { nodes: Float64Array; stride: number; links?: CullingLinks }
@@ -137,6 +145,10 @@ export type PackedDag = {
    *  nearest, then the farthest, 0 for none (`writePrimitiveWords`). Made by the first placement
    *  that names a farthest one: absent, none does and the cut tests no distance. */
   drawDistance?: Float32Array
+  /** Per placement, five floats — the error and the ball of the group that replaces its root
+   *  (`DagRoot.rootParent`): made by the first placement that names one, absent while none does
+   *  (`writePrimitiveWords`). */
+  rootParent?: Float32Array
   /** Nodes of each stage, all primitives together: the upper bound of each pass's queue. Its
    *  LENGTH is the depth of the deepest hierarchy, hence the number of descent passes; a second
    *  field to restate it would only be state to keep in agreement. */

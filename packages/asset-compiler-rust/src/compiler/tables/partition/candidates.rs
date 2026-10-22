@@ -75,7 +75,8 @@ pub(super) struct Candidate {
 impl Candidate {
     /// The core node its row hangs under — `parent` giving each node's parent in `table`, `rank`
     /// each node's rank in the core —, and the row its cell writes: a pose only where the node
-    /// declares one, the distances it is drawn at only where its settings name them.
+    /// declares one, the distances it is drawn at only where its settings name them, the parents of
+    /// its part's roots only for an instance of an assembly (`rootParents`).
     pub(super) fn entry(
         &self,
         table: &[Value],
@@ -110,6 +111,10 @@ impl Candidate {
         }
         if self.far_field {
             entry["farField"] = json!(true);
+        }
+        // An instance of an assembly: what replaces the roots of its part's primitives.
+        if let Some(roots) = table[id].get("rootParents") {
+            entry["rootParents"] = roots.clone();
         }
         (core_parent, entry)
     }

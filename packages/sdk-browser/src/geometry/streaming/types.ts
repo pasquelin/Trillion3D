@@ -93,8 +93,8 @@ export interface PageStreamerOptions {
   maxTransferBytes?: number
   /** Hears each step of every read. */
   onDiagnostic?: (diagnostic: EngineDiagnostic) => void
-  /** Hears, once, a read that fails for good or first waits the longest, by its page's url: again
-   *  only after it landed. */
+  /** Hears a read that fails, by its page's url: at its first failure in a row and when it is given
+   *  up; a read that landed is heard again at its next failure. */
   onStalled?: (failure: { key: string; cause: unknown }) => void
   /** How many times a read that failed is tried again before its page is given up, read at each
    *  failure (`streamingNumRetries`); negative, without end. `DEFAULT_STREAMING_NUM_RETRIES` by

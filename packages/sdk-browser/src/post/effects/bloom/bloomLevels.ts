@@ -17,7 +17,7 @@ export type Levels = {
  *  blur is sized (`blur`). */
 export interface BlurLook {
   first: number
-  cross: readonly number[]
+  cross: number[]
   blur: GaussianBlurValues
 }
 

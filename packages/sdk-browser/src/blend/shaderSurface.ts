@@ -22,6 +22,7 @@ import { materialTableWgsl } from '../materials/table/materialWgsl.ts'
 import { BLEND_BINDINGS } from '../gpu/bind/bindLayout.ts'
 import { WRAP_MAP } from '../visibility/wrapModes.ts'
 import { SUBSURFACE_MAP_BIT } from '../visibility/materialType.ts'
+import { GRAPH_FLAG, type BlendGraphs } from './graphWgsl.ts'
 
 /** Whether a blend of item flags `flags` is lit by a lit view: its material lit, the view neither
  *  unlit nor a diagnostic. The one rule of the blend fragment's lighting and of the front stage's
@@ -68,6 +69,18 @@ fn blendGeometricNormal(in:VSOut,front:bool,q0:vec3f,q1:vec3f)->vec3f{
 }`,
 )
 
+/** The normal a graph wires, in tangent space, bends the normal of a fragment as a normal map does, in
+ *  the frame the maps' own is (`blendSurface`); its change across the pixel is the vertex normal's. */
+const GRAPH_NORMAL = ` if((g.graph.flags&${GRAPH_FLAG.normal}u)!=0u){
+  let c=blendUv(in,g,${WRAP_MAP.base}u);
+  let frame=cotangentFrame(N,g.q0,g.q1,c.ddx,c.ddy);
+  var T=-frame.T;var B=-frame.B;
+  if((flags&${FLAG_HAS_TANGENT}u)!=0u){let stored=blendTangentFrame(in);T=stored.T;B=stored.B;}
+  let flip=select(1.0,face,(flags&${FLAG_DOUBLE | FLAG_HAS_NORMAL}u)==${FLAG_DOUBLE | FLAG_HAS_NORMAL}u);
+  N=bendNormal(N,T,B,flip,g.graph.normal);Nx=bendNormal(Nx,T,B,flip,g.graph.normal);Ny=bendNormal(Ny,T,B,flip,g.graph.normal);
+ }
+`
+
 /**
  * What a transparent fragment reads on its material, before any lighting: base colour and
  * opacity, the normal — from the vertex attribute, from screen derivatives, then bent by the
@@ -93,11 +106,11 @@ fn blendGeometricNormal(in:VSOut,front:bool,q0:vec3f,q1:vec3f)->vec3f{
  * read at it (`blendUv`, the `channels` word, glTF's `texCoord`); a lobeless program carries the
  * first alone. `geometric` is the normal before the map, which the coat bends its own map from.
  */
-export const blendSurfaceWgsl = (lobes: boolean) => {
+export const blendSurfaceWgsl = (lobes: boolean, graphs?: BlendGraphs) => {
   // The first UV set: the whole of a lobeless program's \`uv\`, a lobed one's first two lanes.
   const uv = 'in.uv.xy'
   return wgslBlock(
-    `blendSurfaceWgsl(${lobes})`,
+    `blendSurfaceWgsl(${lobes}${graphs ? `, ${graphs.key}` : ''})`,
     [
       unitOrZero,
       unitToSigned3,
@@ -110,11 +123,12 @@ export const blendSurfaceWgsl = (lobes: boolean) => {
       FACING_WGSL,
       blendRequestWgsl(lobes),
       bitIsSet,
-      ...(lobes ? [materialTableWgsl(BLEND_BINDINGS.material)] : []),
+      ...(lobes || graphs ? [materialTableWgsl(BLEND_BINDINGS.material)] : []),
+      ...(graphs ? [graphs.decl] : []),
     ],
     `
-struct BlendGrads{gradX:vec2f,gradY:vec2f,q0:vec3f,q1:vec3f,nX:vec3f,nY:vec3f,${lobes ? 'uv1X:vec2f,uv1Y:vec2f,channels:u32,' : ''}}
-fn blendGrads(in:VSOut)->BlendGrads{return BlendGrads(dpdx(${uv}),dpdy(${uv}),dpdx(in.view),dpdy(in.view),dpdx(in.normal.xyz),dpdy(in.normal.xyz)${lobes ? `,dpdx(in.uv.zw),dpdy(in.uv.zw),extractBits(in.tri,${TRI_CHANNELS_SHIFT}u,${TRI_GIVEN_UP_SHIFT - TRI_CHANNELS_SHIFT}u)` : ''});}
+struct BlendGrads{gradX:vec2f,gradY:vec2f,q0:vec3f,q1:vec3f,nX:vec3f,nY:vec3f,${lobes ? 'uv1X:vec2f,uv1Y:vec2f,channels:u32,' : ''}${graphs ? 'graph:BlendGraph,' : ''}}
+fn blendGrads(in:VSOut)->BlendGrads{return BlendGrads(dpdx(${uv}),dpdy(${uv}),dpdx(in.view),dpdy(in.view),dpdx(in.normal.xyz),dpdy(in.normal.xyz)${lobes ? `,dpdx(in.uv.zw),dpdy(in.uv.zw),extractBits(in.tri,${TRI_CHANNELS_SHIFT}u,${TRI_GIVEN_UP_SHIFT - TRI_CHANNELS_SHIFT}u)` : ''}${graphs ? ',blendGraphEval(in)' : ''});}
 fn blendSampled(in:VSOut)->bool{return (in.ids.y&${FLAG_SAMPLED}u)!=0u;}
 /** The coordinate and screen derivatives map \`i\` (\`SURFACE_MAP_FIELDS\` order) is read at: the
  *  set past the first where the record's \`channels\` word says it reads one, in a program that
@@ -125,17 +139,17 @@ fn blendUv(in:VSOut,g:BlendGrads,i:u32)->BlendUv{
  return BlendUv(${uv},g.gradX,g.gradY);
 }
 /** The base map's sample: the colour, and the alpha the coverage test reads. */
-fn blendBase(in:VSOut,g:BlendGrads)->vec4f{let c=blendUv(in,g,${WRAP_MAP.base}u);return colorSample(in.ids.x,c.uv,c.ddx,c.ddy,blendSampled(in));}
+fn blendBase(in:VSOut,g:BlendGrads)->vec4f{${graphs ? 'if(g.graph.id!=0u){return vec4f(g.graph.rgb,g.graph.opacity);}' : ''}let c=blendUv(in,g,${WRAP_MAP.base}u);return colorSample(in.ids.x,c.uv,c.ddx,c.ddy,blendSampled(in));}
 /** The fragment's opacity: what the alpha test compares and the stage writes. */
 fn blendAlpha(in:VSOut,base:vec4f)->f32{return base.w*in.color.w;}
 fn blendKeeps(in:VSOut,base:vec4f,front:bool)->bool{
  return !(blendAlpha(in,base)<in.alphaAo.x||facingDiscarded(in.material>>${FACING_SHIFT}u,front));
 }
-struct BlendSurface{rgb:vec3f,alpha:f32,N:vec3f,rough:f32,metal:f32,ao:f32,emissive:vec3f,request:u32,subsurface:vec3f,geometric:vec3f,}
+${graphs ? "/** The tile the fragment asks: its graph's where the item wears one, else its maps'. */\nfn blendRequestOf(in:VSOut,g:BlendGrads)->u32{if(g.graph.id!=0u){return g.graph.request;}return blendRequest(in,g);}\n" : ''}struct BlendSurface{rgb:vec3f,alpha:f32,N:vec3f,rough:f32,metal:f32,ao:f32,emissive:vec3f,request:u32,subsurface:vec3f,geometric:vec3f,}
 fn blendSurface(in:VSOut,front:bool,g:BlendGrads,base:vec4f)->BlendSurface{
  let flags=in.ids.y;
  let sampled=blendSampled(in);
- let request=blendRequest(in,g);
+ let request=${graphs ? 'blendRequestOf' : 'blendRequest'}(in,g);
  let geometric=blendGeometricNormal(in,front,g.q0,g.q1);
  var N=geometric;
  let face=select(-1.0,1.0,front);
@@ -152,7 +166,7 @@ fn blendSurface(in:VSOut,front:bool,g:BlendGrads,base:vec4f)->BlendSurface{
  if(in.maps.x!=0u){let c=blendUv(in,g,${WRAP_MAP.rough}u);roughTexel=dataSample(in.maps.x,c.uv,c.ddx,c.ddy,sampled).g;}
  if(in.maps.y!=0u){let c=blendUv(in,g,${WRAP_MAP.metal}u);metalTexel=dataSample(in.maps.y,c.uv,c.ddx,c.ddy,sampled).b;}
  if(in.maps.w!=0u){let c=blendUv(in,g,${WRAP_MAP.ao}u);aoTexel=dataSample(in.maps.w,c.uv,c.ddx,c.ddy,sampled).r;}
- var rough=ormRoughness(in.pbr.x,roughTexel);let metal=ormMetalness(in.pbr.y,metalTexel);let ao=ormOcclusion(in.alphaAo.y,aoTexel);
+${graphs ? ' if(g.graph.id!=0u){roughTexel=g.graph.rough;metalTexel=g.graph.metal;aoTexel=g.graph.ao;}\n' : ''} var rough=ormRoughness(in.pbr.x,roughTexel);let metal=ormMetalness(in.pbr.y,metalTexel);let ao=ormOcclusion(in.alphaAo.y,aoTexel);
  if(in.maps.z!=0u){
   let c=blendUv(in,g,${WRAP_MAP.normal}u);
   let scale=vec3f(in.pbr.z,in.pbr.w,1.0);
@@ -170,12 +184,12 @@ fn blendSurface(in:VSOut,front:bool,g:BlendGrads,base:vec4f)->BlendSurface{
   Nx=bendNormal(Nx,T,B,flip,mapNx);
   Ny=bendNormal(Ny,T,B,flip,mapNy);
  }
- rough=ormRoughness(1.0,roughnessWidened(rough,normalFootprintVariance(Nx-N,Ny-N)));
+${graphs ? GRAPH_NORMAL : ''} rough=ormRoughness(1.0,roughnessWidened(rough,normalFootprintVariance(Nx-N,Ny-N)));
  var emissive=in.emissive.xyz;
  if(in.ids.z!=0u){let c=blendUv(in,g,${WRAP_MAP.emissive}u);emissive*=colorSample(in.ids.z,c.uv,c.ddx,c.ddy,sampled).rgb;}
- var thin=clamp(vec3f(in.normal.w,in.tangent.w,in.bitangent.w),vec3f(0.0),vec3f(1.0));
+${graphs ? ' if(g.graph.id!=0u){emissive=g.graph.emissive;}\n' : ''} var thin=clamp(vec3f(in.normal.w,in.tangent.w,in.bitangent.w),vec3f(0.0),vec3f(1.0));
  if(in.emissive.w!=0.0){let c=blendUv(in,g,${SUBSURFACE_MAP_BIT}u);thin*=colorSample(u32(in.emissive.w),c.uv,c.ddx,c.ddy,sampled).rgb;}
- return BlendSurface(rgb,alpha,N,rough,metal,ao,emissive,request,thin,geometric);
+${graphs ? ` if((g.graph.flags&${GRAPH_FLAG.thin}u)!=0u){thin=g.graph.thin;}\n` : ''} return BlendSurface(rgb,alpha,N,rough,metal,ao,emissive,request,thin,geometric);
 }
 `,
   )

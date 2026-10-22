@@ -7,8 +7,14 @@ import {
   type ResolvedBloom,
   type ResolvedBloomLevel,
 } from '../../contracts/bloomOptions.ts'
-import type { BloomConvolutionOptions } from '../../contracts/bloomConvolutionOptions.ts'
-import type { BloomDirtMaskOptions } from '../../contracts/bloomDirtOptions.ts'
+import type {
+  BloomConvolutionOptions,
+  ResolvedBloomConvolution,
+} from '../../contracts/bloomConvolutionOptions.ts'
+import type {
+  BloomDirtMaskOptions,
+  ResolvedBloomDirtMask,
+} from '../../contracts/bloomDirtOptions.ts'
 
 export type {
   BloomLevelOptions,
@@ -95,7 +101,7 @@ export class Bloom extends EffectPass {
   /** The convolution's settings, its kernel among them; a write takes the fields it names and leaves
    *  the others as they are. The method `'convolution'` needs a kernel, so a page gives one before
    *  it writes the method, or in the one call. */
-  get convolution() {
+  get convolution(): ResolvedBloomConvolution {
     return this.held.convolution
   }
   set convolution(value: BloomConvolutionOptions) {
@@ -103,7 +109,7 @@ export class Bloom extends EffectPass {
   }
   /** The dirt mask's settings; a write takes the fields it names and leaves the others as they
    *  are. */
-  get dirtMask() {
+  get dirtMask(): ResolvedBloomDirtMask {
     return this.held.dirtMask
   }
   set dirtMask(value: BloomDirtMaskOptions) {

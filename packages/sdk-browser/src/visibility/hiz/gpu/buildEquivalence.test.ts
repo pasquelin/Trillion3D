@@ -133,10 +133,12 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
   )
   // The culling layer is the opaque depth alone: a transparent surface in front must never hide
   // what lies behind it from the occlusion test, the partition's cull or the transparent test.
+  // The image's own build reads it as the image wrote it (`hizLevel0`).
   assert.match(
     build,
-    /let depth=textureLoad\(level0,q,0,0\)\.r;\s*hizPut\(i,\d+u,bitcast<u32>\(depth\)\);/,
+    /let depth=hizLevel0\(textureLoad\(level0,q,0,0\)\.r\);\s*hizPut\(i,\d+u,bitcast<u32>\(depth\)\);/,
   )
+  assert.match(HIZ_SHADER, /fn hizLevel0\(z:f32\)->f32\{return z;\}/)
   assert.equal(
     HIZ_SHADER.match(/hizFrontAt\(/g)?.length,
     3,

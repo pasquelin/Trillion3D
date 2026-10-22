@@ -12,7 +12,7 @@ import { hostWorldPlacements } from '../../scene/host/world/placements.ts'
 import type { PageRec, ClusterRoot } from './types.ts'
 import { placementsOf, type Placed } from '../../placement/roots/roots.ts'
 import type { DrawSource } from './drawSource.ts'
-import { rowCasting, rowDrawDistance } from '../../placement/rows/rows.ts'
+import { rowCasting, rowDrawDistance, rowRootParent } from '../../placement/rows/rows.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { blendOf, noteCollected, pagesBlend, wears } from './collectBlend.ts'
 /** One primitive drawn by pages: its source mesh, the surface it wears, its records and shape —
@@ -34,6 +34,8 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
   for (const { world, parked, placement } of placed) {
     // A row says its own distances; a node placed at its own world, its mesh's.
     const drawDistance = placement ? rowDrawDistance(placement) : source.drawDistance
+    // An instance of an assembly: the group above its root, from its row or its node.
+    const rootParent = placement ? rowRootParent(placement) : source.rootParent
     const root: ClusterRoot<PageRec> = {
       world,
       mesh: primitive.mesh,
@@ -52,6 +54,7 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
       // How far its GPU deformation can move a vertex, measured by the compiler (#357).
       ...(primitive.deformation ? { deformation: primitive.deformation } : {}),
       ...(drawDistance ? { drawDistance } : {}),
+      ...(rootParent ? { rootParent } : {}),
       // A row says how its placement casts; a node placed at its own world, its mesh.
       mark:
         withCasting(spriteMark(surface), placement ? rowCasting(placement) : source.casting) ||

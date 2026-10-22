@@ -74,3 +74,40 @@ test('the distances a node names are seated on its rows, grown with them and cle
   placements.leave(9)
   for (const row of rows) assert.deepEqual(distances(row), [0, 0])
 })
+
+test('the group above the root of an instance is seated on the rows of its primitive, grown and cleared with them', () => {
+  const links: RowLink[] = [
+    { meshes: 4, primitives: 0 },
+    { meshes: 4, primitives: 1 },
+  ]
+  const meshes = new Map([[4, placedMesh(links)]])
+  sizeRows(meshes, new Map([[4, 4]]))
+  const placements = createCellPlacements(G.mesh(), [], meshes, {}, () => 0)
+  const cell = (rootParents?: Float32Array) => ({
+    nodes: 2,
+    ranks: Int32Array.of(-1, 4, -1, 4),
+    locals: new Float64Array(32),
+    tracks: Int32Array.of(-1, -1),
+    sources: new Uint8Array(2),
+    drawDistances: new Float32Array(4),
+    ...(rootParents && { rootParents }),
+  })
+  const parent = (row: number, link = 0) =>
+    Array.from(links[link].placements!.rootParent?.subarray(5 * row, 5 * row + 5) ?? [])
+  // No node is an instance: no column is made.
+  assert.ok(placements.place(8, cell(), 'scene-cell-8.json', 3))
+  assert.equal(links[0].placements!.rootParent, undefined, 'a scene without assemblies pays none')
+  // The second node names a group above the root of its second primitive alone.
+  const entry = [1, 1, 6.5, 1.25, -2, 3, 40]
+  assert.ok(placements.place(9, cell(Float32Array.from(entry)), 'scene-cell-9.json', 3))
+  const held = placements.held.get(9)!
+  assert.deepEqual(parent(held[1].row, 1), [6.5, 1.25, -2, 3, 40])
+  assert.deepEqual(parent(held[1].row, 0), [], 'the first primitive pays no column')
+  assert.deepEqual(parent(held[0].row, 1), [0, 0, 0, 0, 0])
+  // Grown in place, the rows keep it; left, they name none.
+  sizeRows(meshes, new Map([[4, 8]]))
+  assert.deepEqual(parent(held[1].row, 1), [6.5, 1.25, -2, 3, 40])
+  const rows = [...held].map(({ row }) => row)
+  placements.leave(9)
+  for (const row of rows) assert.deepEqual(parent(row, 1), [0, 0, 0, 0, 0])
+})

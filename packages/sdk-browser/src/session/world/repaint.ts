@@ -8,6 +8,7 @@ import {
   type Material,
 } from '../../../../sdk-core/src/world/material/material.ts'
 import { Color } from '../../../../sdk-core/src/world/math/color.ts'
+import type { MaterialGraph } from '../../../../sdk-core/src/world/material/graph/api.ts'
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts'
 import { alphaMoves, type AlphaChange } from '../../placement/engineSceneUpdates.ts'
@@ -24,10 +25,12 @@ import type {
  *  `kind` its family, `transparent`, `blending` and `transmission` its pass, `side`, `depthTest`
  *  and `depthWrite` its pipeline, `vertexColors` which surface its wearers take, `transparentShadow`
  *  its shadow pass, `sizeAttenuation` a sprite's root mark (`spriteMark`), and `wireframe`,
- *  `flatShading` and `size` the triangles its wearers draw (`cuts.ts`). Every other field
- *  but a texture is a VALUE — a colour, a factor, a physical extension, a cutoff —, which a
- *  page-table row or a host surface reads again at the next frame (#335, #572); a texture's
- *  pictures, sampling and placement move on their own (#362). */
+ *  `flatShading` and `size` the triangles its wearers draw (`cuts.ts`), and `graph`, whose nodes
+ *  and textures the shaders and the atlases are laid out for (the values written to its
+ *  parameters are written in place, `writeGraphValues`). Every other field but a texture is a
+ *  VALUE — a colour, a factor, a physical extension, a cutoff —, which a page-table row or a host
+ *  surface reads again at the next frame (#335, #572); a texture's pictures, sampling and
+ *  placement move on their own (#362). */
 const LAYOUT = new Set([
   'kind',
   'transparent',
@@ -42,6 +45,7 @@ const LAYOUT = new Set([
   'wireframe',
   'flatShading',
   'size',
+  'graph',
 ])
 
 /** Whether `material`'s field `name` is a value, written in place: neither bookkeeping, nor
@@ -52,11 +56,15 @@ const isValue = (material: Material, name: string) =>
   !(material[name] as { isTexture?: boolean } | null)?.isTexture
 
 /** One parameter value as a key: a texture by identity and its three counters — its picture's
- *  `version` left out when `pictures` is false —, a colour or a vector by its numbers, anything
- *  else by its own value. */
-function valueKey(value: unknown, pictures = true): string {
+ *  `version` left out when `pictures` is false —, a graph by its program (two materials with the
+ *  same graph are one entry) and, where `values` holds, the values written to its parameters, a
+ *  colour or a vector by its numbers, anything else by its own value. */
+function valueKey(value: unknown, pictures = true, values = true): string {
   if (value === null || typeof value !== 'object') return String(value)
   const shaped = value as Partial<Texture> & { isTexture?: boolean }
+  const graph = value as Partial<MaterialGraph>
+  if (graph.isMaterialGraph)
+    return `graph:${graph.signature!()}${values ? `|${graph.valuesSignature!()}` : ''}`
   if (shaped.isTexture) {
     const version = pictures ? shaped.version : ''
     return `texture:${shaped.id}@${version}.${shaped.sampling}.${shaped.placement}`
@@ -73,7 +81,7 @@ export function materialKey(material: Material, values = true, pictures = true) 
   const fields = Object.keys(material)
     .filter((name) => !MATERIAL_BOOKKEEPING.has(name) && (values || !isValue(material, name)))
     .sort()
-    .map((name) => `${name}=${valueKey(material[name], pictures)}`)
+    .map((name) => `${name}=${valueKey(material[name], pictures, values)}`)
   return fields.join(';')
 }
 
@@ -93,7 +101,17 @@ function repaintValues({ sources }: MaterialsState, material: Material, entry: M
     if (value instanceof Color && into instanceof Color) into.copy(value)
     else entry.material[field] = value instanceof Color ? value.clone() : value
   }
+  writeGraphValues(entry.material, material)
   return true
+}
+
+/** The values written to the parameters of `from`'s graph, written to the graph `into` holds: its
+ *  program is the same (`materialKey`), its numbers may not be. */
+function writeGraphValues(into: Material, from: Material) {
+  const target = into.graph
+  if (!target) return
+  for (const [name, value] of from.graph?.values ?? [])
+    if (target.values.get(name) !== value) target.set(name, value)
 }
 
 /** Keeps `material` on its entry under its new key, when only values changed, or only the

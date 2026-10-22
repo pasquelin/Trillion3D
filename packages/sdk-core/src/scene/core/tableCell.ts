@@ -15,6 +15,12 @@ const CELL_VERSION = 3
  *  than `max`, which is above 0 — an object that names no farthest distance carries none. */
 export type TableDrawDistance = Required<DrawDistanceSettings>
 
+/** The error and the LOD ball of the group that replaces the root of a primitive of an assembly's
+ *  part, in the space of that primitive: `[error, x, y, z, radius]`. The cut opens an instance of
+ *  the assembly only while that error shows at the ball's distance; far away the group's own
+ *  clusters, in the assembly's primitive, draw in its stead. */
+export type TableRootParent = readonly [number, number, number, number, number]
+
 /** One node a cell places: the core node it hangs under (`null`, the scene), its mesh, and its
  *  LOCAL pose exactly as declared — a matrix, or translation, rotation and scale, each `null` or
  *  left out when silent — which the runtime composes the way it composes every other pose. An
@@ -43,6 +49,10 @@ export interface CellNode {
   drawDistance?: TableDrawDistance
   /** The row is drawn by a view's primed depth (`farField` of the job's object settings). */
   farField?: true
+  /** An instance of an assembly (`rootParents` of the node table): per primitive of its mesh, the
+   *  group that replaces its root, `null` for a primitive none replaces; left out for any other
+   *  node, so a cell with none is the bytes it was. */
+  rootParents?: readonly (TableRootParent | null)[]
 }
 
 /** The nodes of a cell file, read from `url`, or a named refusal. */

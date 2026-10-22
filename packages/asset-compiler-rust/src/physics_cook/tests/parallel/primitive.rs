@@ -2,6 +2,7 @@
 //! and pages, computed on one thread and on many, on an empty primitive, one triangle, a random
 //! surface and a mesh of many tiles.
 use super::{on, surface};
+use crate::compiler::primitive::climb::Assembly;
 use crate::compiler::primitive::dag::{build_dag_primitive, DagInputs, DagResult};
 use crate::tests::fixtures::files;
 use crate::tests::random::Xorshift;
@@ -26,9 +27,7 @@ fn primitive(
     let built = on(parallel, || {
         build_dag_primitive(
             &o,
-            pos,
-            &[],
-            triangles,
+            (pos, &[], triangles),
             DagInputs {
                 proxy_demand: demand,
                 taken: None,
@@ -37,6 +36,7 @@ fn primitive(
                 precision: Default::default(),
                 scale: None,
             },
+            Assembly::default(),
             &encode,
         )
     });

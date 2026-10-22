@@ -212,7 +212,10 @@ fn physicalLobes(pixel:vec2f,N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace
  *  `shadeSurface` where the triangle and the first UV set are known: the pixel's four UV sets —
  *  those past the first decoded, in the `HAS_PHYSICAL` classes alone, where a map of the surface
  *  (`m.channels`, `mapCoord`) or of its lobes reads them — and the lobe record. */
-export const PHYSICAL_UV_READ = `physicalCoords[0]=PhysicalCoord(uv,ddx,ddy,t.uvb-t.uva,t.uvc-t.uva);
+export const physicalUvRead = (
+  /** More texture sets to decode, as ` | mask` a graph reads (`shadeGraphWgsl.ts`). */
+  sets = '',
+) => `physicalCoords[0]=PhysicalCoord(uv,ddx,ddy,t.uvb-t.uva,t.uvc-t.uva);
  physicalCoords[1]=physicalCoords[0];physicalCoords[2]=physicalCoords[0];physicalCoords[3]=physicalCoords[0];
  var lobes=0u;
  if(HAS_PHYSICAL){lobes=materialLobesOf(page.material);}
@@ -221,10 +224,13 @@ export const PHYSICAL_UV_READ = `physicalCoords[0]=PhysicalCoord(uv,ddx,ddy,t.uv
   physicalRecord=physicalAt(lobes);
  }
  if(HAS_PHYSICAL){
-  var used=channelSets(m.channels);
+  var used=channelSets(m.channels)${sets};
   if(lobes!=0u){used|=channelSets(physicalRecord.channels);}
   physicalOtherUvs(page,tri,s0.xy,s1.xy,s2.xy,p,bary,t.iw,used);
  }`
+
+/** `physicalUvRead` with no graph's sets. */
+export const PHYSICAL_UV_READ = physicalUvRead()
 
 /** The lobes of a lit pixel, once its normal and its flag are final: in the stored tangents'
  *  frame the normal map bent in (`tangents`, `shadeWgsl.ts`) where the page stores them. */

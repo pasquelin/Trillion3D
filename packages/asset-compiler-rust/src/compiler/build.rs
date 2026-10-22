@@ -1,3 +1,4 @@
+use crate::compiler::source::assembly::plan::AssemblyParents;
 use crate::hlod::options::Assigned;
 use crate::*;
 mod finish;
@@ -118,12 +119,14 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     // Each node's HLOD layer, read once for every stage that needs it (`Hlod::assignments`).
     let assignments = o.hlod()?.assignments(g)?;
     let (world, mesh_scales, compiled, waited) = compile_primitives(
-        (o, g, bin, &pool),
+        (o, g, bin, &image_root, &pool),
         (&jobs, &working, room),
         (&chosen, &mesh_map, unique_triangles, &accessors),
         &assignments,
         &progress,
     )?;
+    // What the levels above each assembly's instances gave them, which the node tables carry.
+    let parents = AssemblyParents::of(compiled.iter().flat_map(|c| c.parents.iter().copied()));
     let super::primitive::compiled::SplitCompiled {
         mut primitives,
         cluster_planes,
@@ -195,7 +198,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         (&voxel_seeds, &mesh_scales),
         (&primitives, &geometry_files, covers, &collisions),
         (&proxy_cuts, &proxy_thresholds, &texture_previews),
-        (&scene_nodes, &hidden, &source, &assignments),
+        (&scene_nodes, &hidden, &source, &assignments, &parents),
         (source_bin, source_gltf),
         &progress,
     )?;

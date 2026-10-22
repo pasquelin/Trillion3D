@@ -1,7 +1,7 @@
 // What a held-level read fetched and failed is asked again by the one failure policy
 // (`geometry/streaming/failures.ts`): at once, by the next frame that wants the tile, or after the
-// wait its server asked, however many frames want it; one another request would meet again is never
-// asked again. A block level's records fail apart: one good tile never clears another's wait.
+// wait its server asked, however many frames want it, as many times as the reader's retries allow;
+// one another request would meet again is never asked again. A block level's records fail apart: one good tile never clears another's wait.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
@@ -28,6 +28,7 @@ function serving(
     throw refusal(status, retryAfter)
   },
   retryAfter?: number,
+  retries?: () => number,
 ) {
   const clock = { now: 0 }
   t.mock.method(performance, 'now', () => clock.now)
@@ -38,7 +39,11 @@ function serving(
     sent.push(clock.now)
     return answer(request)
   }
-  const reader = Object.assign(read, { store: createPageCache(), key: 'k1' }) as TextureLevelReader
+  const reader = Object.assign(read, {
+    store: createPageCache(),
+    key: 'k1',
+    retries,
+  }) as TextureLevelReader
   const levels = heldLevelsOf(reader)
   /** A frame every 100 ms for `ms`, each asking the tiles `tiles`, their reads settled. */
   const frames = async (ms: number, tiles: [number, number][] = [[0, 0]]) => {
@@ -58,6 +63,13 @@ test('a failed level is asked again by the next frame that wants it, with no wai
   await frames(500)
   assert.deepEqual(sent.slice(0, 3), [0, 100, 200], 'at once, one request a frame at most')
   assert.equal(failed.length, sent.length, 'each failure reported')
+})
+
+test('a level is given up once the reader’s retries are spent, each failure reported', async (t) => {
+  const { sent, failed, frames } = serving(t, 503, undefined, undefined, () => 2)
+  await frames(1_000)
+  assert.deepEqual(sent, [0, 100, 200], 'the read and two tries again, then none')
+  assert.equal(failed.length, 3)
 })
 
 test('a level whose server asks a wait (Retry-After) is not asked before it', async (t) => {

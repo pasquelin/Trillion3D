@@ -146,6 +146,9 @@ export interface BlendModePipelines extends RankedPipelines {
   /** The colour and companion passes under the dual blend, where the transmissive items blend dual
    *  (`createDualPasses`). */
   readonly dualPasses?: DualPasses
+  /** The ids of the graph programs its modules hold the functions of (`programOf`, `blendGraphs`): a
+   *  surface whose graph is none of them is drawn by a program built again (`grantGraphs`). */
+  readonly graphs?: readonly number[]
   /** The pipelines of the program a frame of the lights' key `key` is lit with, its items `lobed`
    *  or not (`createForwardVariants`). */
   lit(key: Partial<ContractKey>, lobed: boolean): BlendModePipelines

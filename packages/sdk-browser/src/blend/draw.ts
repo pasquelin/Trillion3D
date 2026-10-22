@@ -1,4 +1,4 @@
-import { skyLightReadOf } from '../frame/render/encodeSkyLight.ts'
+import { skyLightReadOf } from '../frame/render/skyLightState.ts'
 import { bindForwardReflection } from '../lighting/reflections/group.ts'
 import { feedbackAttachment } from '../frame/prepare/attachments.ts'
 import { blendEntries } from './identity.ts'

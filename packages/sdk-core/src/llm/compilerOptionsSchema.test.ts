@@ -108,6 +108,39 @@ test('meshBuild names whether a mesh builds its assembly, off by default, schema
   }
 })
 
+test('meshBuild names the displacement baked into a mesh, none by default, schema and resolver alike', () => {
+  const rules = MESH_BUILD_RULES
+  assert.deepEqual(
+    [rules.displacementUvChannel.default, rules.displacementEdgeSplit.default],
+    [0, 'seams'],
+  )
+  const meshBuild = {
+    trimmedError: 1,
+    displacementMaps: [{ texture: { index: 3 }, magnitude: 0.05, center: 0.5 }],
+    displacementUvChannel: 1,
+    objects: [{ match: 'Rock', displacementEdgeSplit: 'always-duplicate' }],
+  }
+  assert.equal(validate({ ...job, meshBuild }), true)
+  const resolved = resolveMeshBuild(meshBuild)
+  assert.deepEqual(resolved?.displacementMaps, meshBuild.displacementMaps)
+  assert.equal(resolved?.objects?.[0]?.displacementEdgeSplit, 'always-duplicate')
+  // A setting left out is written nowhere: a job naming none keeps its cache key.
+  assert.equal(resolveMeshBuild({ keptTriangles: 1 })?.displacementMaps, undefined)
+  // The resolver, not the schema, refuses a field a height map has not.
+  const unknown = { displacementMaps: [{ texture: { index: 0 }, scale: 1 }] }
+  assert.throws(() => resolveMeshBuild(unknown), /no field scale/)
+  for (const [patch, words] of [
+    [{ displacementMaps: {} }, /displacementMaps must be a list of height maps/],
+    [{ displacementMaps: [{ texture: { index: -1 } }] }, /texture must be a texture info/],
+    [{ displacementUvChannel: 4 }, /displacementUvChannel must be/],
+    [{ displacementEdgeSplit: 'none' }, /displacementEdgeSplit must be/],
+  ] as const) {
+    const named = JSON.stringify(patch)
+    assert.equal(validate({ ...job, meshBuild: patch }), false, named)
+    assert.throws(() => resolveMeshBuild(patch as never), words, named)
+  }
+})
+
 test('objectSettings names the distances an object is drawn at, for the scene and by object, schema and resolver alike', () => {
   assert.deepEqual([DEFAULT_DRAW_DISTANCE_MIN, DEFAULT_DRAW_DISTANCE_MAX], [0, 0])
   const objectSettings = {

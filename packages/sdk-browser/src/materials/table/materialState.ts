@@ -5,6 +5,7 @@ import type { MaterialSurface } from './materialRecord.ts'
 import { MATERIAL_RECORD_WORDS } from './materialLayout.ts'
 import { emptySurfaceRow } from '../../geometry/rows/surfaceRow.ts'
 import { createDisplacementRecords } from './displacementRecord.ts'
+import type { GraphBlock } from './graphRecord.ts'
 
 /**
  * A record's place in the table: its rank, its lobe extension's index (−1: none), the atlas epoch
@@ -14,6 +15,8 @@ import { createDisplacementRecords } from './displacementRecord.ts'
 export type MaterialEntry = {
   rank: number
   lobes: number
+  /** The record places holding the values of its graph, none without one (`graphRecord.ts`). */
+  graph: GraphBlock | undefined
   epoch: number
   source: WeakRef<MaterialSurface> | undefined
 }
@@ -51,6 +54,9 @@ export function createMaterialRecords(release: (entry: MaterialEntry) => void) {
      *  out again before a new one. */
     freed: [] as number[],
     lobesFreed: [] as number[],
+    /** The blocks of record places a graph's values filled, given back, taken again by the first
+     *  graph that fits (`graphRecord.ts`). */
+    graphFree: [] as GraphBlock[],
     /** The record places that hold the lobe extensions, three each, and the extensions handed
      *  out. */
     lobeSlots: [] as number[],

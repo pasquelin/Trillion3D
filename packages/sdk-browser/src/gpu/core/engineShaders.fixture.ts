@@ -111,6 +111,7 @@ import { SKY_QUALITY_RULES } from '../../../../sdk-core/src/modules/sky/quality.
 import { FOG_PROGRAMS } from '../../lighting/fog/programs.ts'
 import { lightFunctionRenderWgsl } from '../../lighting/lightFunction/renderWgsl.ts'
 import { graphSlotWgsl, graphSlotOf } from '../../lighting/lightFunction/graphSlot.ts'
+import { isProgram, programOf } from '../../materials/graph/surfaceProgram.ts'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { aoShaders } from '../../lighting/ao/shaders.fixture.ts'
@@ -118,6 +119,16 @@ import { AO_SETUP_WGSL } from '../../lighting/ao/setupWgsl.ts'
 import { lightShaftProgram } from '../../modules/sky/lightShafts/wgsl.ts'
 import { lightShaftTemporalProgram } from '../../modules/sky/lightShafts/temporalWgsl.ts'
 import { DFAO_SHADERS } from '../../lighting/distanceField/ao/shaders.ts'
+import { ALLOCATE_SHADER, LISTS_SHADER } from '../../lighting/distanceField/allocateWgsl.ts'
+import { COMPOSE_SHADER } from '../../lighting/distanceField/composeWgsl.ts'
+import {
+  CULL_CLIPMAP_SHADER,
+  CULL_GRID_SHADER,
+  GRID_TILES_SHADER,
+} from '../../lighting/distanceField/cullWgsl.ts'
+import { FILL_SHADER, MIP_SHADER } from '../../lighting/distanceField/mipWgsl.ts'
+import { STREAMING_SHADER } from '../../lighting/distanceField/streamingWgsl.ts'
+import { HIZ_PRIMED_SHADER } from '../../visibility/hiz/gpu/primedWgsl.ts'
 
 /**
  * Every WGSL text the engine hands to `createShaderModule`, by its module's name, each variant a
@@ -143,6 +154,37 @@ function graphSlotShader(textured: boolean) {
   const slot = graphSlotOf(material.lightFunction({ graph: g }))
   if (!slot || !('compiled' in slot)) throw new Error('the graph slot fixture does not compile')
   return graphSlotWgsl(128, 'colour', slot)
+}
+/** The program of a surface graph that reads two textures, wires a normal and reads the time: what
+ *  the resolve of its class (`shadeShader`'s `graph`) is made of. */
+function surfaceGraphProgram() {
+  const g = material.graph('surface')
+  const uv = g.panner({ speed: [0.05, 0], coordinate: g.texCoord(0, 4, 4) })
+  const read = g.textureSample(new Texture(), { uv })
+  g.output('baseColor', g.channel(read, 'rgb'))
+  g.output(
+    'roughness',
+    g.channel(g.textureSample(new Texture(), { mipMode: 'level', mip: 1 }), 'r'),
+  )
+  g.output('normal', g.constant(0, 0, 1))
+  g.output('emissive', g.multiply(g.constant(1, 0.5, 0.25), g.sine(g.time(), 2)))
+  const program = programOf({ graph: g })
+  if (!isProgram(program)) throw new Error('the surface graph fixture does not compile')
+  return program.compiled
+}
+/** The program of a translucent surface's graph for the transparent pass: a tinted, panned texture
+ *  at a set past the first, its opacity from the time, a normal and a thin transmission wired. */
+function blendGraphPrograms() {
+  const g = material.graph('surface')
+  const uv = g.panner({ speed: [0.05, 0], coordinate: g.texCoord(2, 2, 2) })
+  const read = g.textureSample(new Texture(), { uv })
+  g.output('baseColor', g.channel(read, 'rgb'))
+  g.output('opacity', g.multiply(g.channel(read, 'a'), g.sine(g.time(), 2)))
+  g.output('normal', g.constant(0, 0, 1))
+  g.output('subsurfaceColor', g.constant(0.5, 0.5, 0.5))
+  const program = programOf({ graph: g, transparent: true, alphaTest: 0 })
+  if (!isProgram(program)) throw new Error('the blend graph fixture does not compile')
+  return [program]
 }
 /** The settings of the shapes of the air that are listed besides the defaults'. */
 const AIR_SHAPES = {
@@ -175,7 +217,7 @@ function cloudViewTexts() {
   const quality = resolveSettings(SKY_QUALITY_RULES, {})
   const target = cloudSetupOf(quality)
   const direct = cloudSetupOf({ ...quality, cloudRenderTarget: false })
-  const options = { emptySpace: false, opaqueShadow: true, localLights: true }
+  const options = { emptySpace: false, opaqueShadow: true, localLights: true, skyLight: false }
   return {
     CLOUD_DEPTH_RANGE_DEPTH: depthRangeProgram('depth'),
     CLOUD_DEPTH_RANGE_RANGE: depthRangeProgram('range'),
@@ -187,6 +229,16 @@ function cloudViewTexts() {
       emptySpace: false,
       opaqueShadow: false,
       localLights: false,
+      skyLight: false,
+    }),
+    // A scene with no air: the distant sky light read from the sky light's harmonics.
+    CLOUD_TRACE_AIRLESS: cloudTraceProgram({
+      depth: 'scene',
+      minMaxDepth: false,
+      emptySpace: false,
+      opaqueShadow: false,
+      localLights: false,
+      skyLight: true,
     }),
     CLOUD_HAZE: cloudHazeProgram(DEFAULT_AIR_SHAPE).code,
     CLOUD_RECONSTRUCT_FIRST: reconstructProgram(target, false),
@@ -287,10 +339,20 @@ export const ENGINE_SHADERS: Record<string, string> = {
   SHADE_SHADER,
   SHADE_DIAGNOSTIC: shadeShader({ diagnostic: DIAGNOSTIC_SHADE_WGSL }),
   SHADE_DISPLACED: shadeShader({ displaced: true }),
+  SHADE_GRAPH: shadeShader({ graph: surfaceGraphProgram() }),
+  SHADE_GRAPH_DISPLACED: shadeShader({ graph: surfaceGraphProgram(), displaced: true }),
   BLEND_SHADER,
   DISPLAY_FILTER_SHADER,
   // The transmissive stages (`../../blend/transmission/transmitWgsl.ts`), the dual blend where
   // the device grants it.
+  BLEND_GRAPH: blendShader({}, { graphs: blendGraphPrograms() }),
+  BLEND_GRAPH_LOBELESS: blendShader({ lobeless: true }, { graphs: blendGraphPrograms() }),
+  BLEND_GRAPH_TRANSMIT: blendShader(
+    {},
+    { stage: transmitWgsl({}, false, blendGraphPrograms()), graphs: blendGraphPrograms() },
+  ),
+  FRONT_STAGE_GRAPH: blendFrontShader(2, undefined, blendGraphPrograms()),
+  FRONT_STAGE_GRAPH_DEPTH: blendFrontShader(0, undefined, blendGraphPrograms()),
   BLEND_TRANSMIT: blendShader({}, { stage: transmitWgsl({}, false) }),
   BLEND_TRANSMIT_DUAL: blendShader({}, { stage: transmitWgsl({}, true), dual: true }),
   BLEND_TRANSMIT_LOBELESS: blendShader(
@@ -373,6 +435,19 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...Object.fromEntries(
     Object.entries(DFAO_SHADERS).map(([name, code]) => [`DFAO_${name.toUpperCase()}`, code]),
   ),
+  // The global distance field's passes (`../../lighting/distanceField/globalPipelines.ts`) and the
+  // meshes' fields' streaming (`streaming.ts`).
+  GDF_CULL_CLIPMAP: CULL_CLIPMAP_SHADER,
+  GDF_GRID_TILES: GRID_TILES_SHADER,
+  GDF_CULL_GRID: CULL_GRID_SHADER,
+  GDF_ALLOCATE: ALLOCATE_SHADER,
+  GDF_LISTS: LISTS_SHADER,
+  GDF_COMPOSE: COMPOSE_SHADER,
+  GDF_MIP: MIP_SHADER,
+  GDF_FILL: FILL_SHADER,
+  STREAMING_SHADER,
+  // The primed depth pyramid's kernel (`../../visibility/hiz/gpu/pipelines.ts`).
+  HIZ_PRIMED_SHADER,
   // The modules the project switch makes (`../clipDistances.ts`): the plane's distance, or the pixel's test.
   VIS_CLIP: visShader({ clipping: 'distance' }),
   VIS_CLIP_PIXEL: visShader({ clipping: 'pixel' }),

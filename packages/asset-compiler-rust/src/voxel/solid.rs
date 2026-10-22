@@ -189,3 +189,67 @@ fn projected_area(ndf: &[[f64; 3]; 3], d: [f64; 3]) -> f64 {
     let length2 = squared_length(d);
     (along.max(0.0) / length2).sqrt()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A voxel of `coverage` at `cell` whose first face saw the normals `face`.
+    fn voxel(cell: Cell, coverage: f64, face: Moments) -> Voxel {
+        let mut faces = [Moments::default(); FACES];
+        faces[0] = face;
+        Voxel {
+            cell,
+            coverage,
+            faces,
+            shown: Moments::default(),
+            joint: None,
+        }
+    }
+
+    fn cells(solid: &Solid) -> Vec<Cell> {
+        solid.voxels.iter().map(|v| v.cell).collect()
+    }
+
+    // Behaviour: the voxel the hand-over drops is remembered — its cell is extra, whatever the
+    // rays cast: the least covered gives its coverage to its neighbours along its normals, the
+    // next least covered is dropped in its turn, and the one voxel left is the one kept.
+    #[test]
+    fn the_voxels_the_hand_over_drops_are_remembered() {
+        let along_x = Moments {
+            ndf: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            hits: 1.0,
+            ..Moments::default()
+        };
+        let voxels = vec![
+            voxel([0, 0, 0], 0.5, Moments::default()),
+            voxel([1, 0, 0], 0.2, along_x),
+            voxel([2, 0, 0], 0.5, Moments::default()),
+        ];
+        let kept = solid(voxels, &VoxelSettings::default());
+        assert_eq!(cells(&kept), [[2, 0, 0]]);
+        assert_eq!(kept.extra, [[1, 0, 0], [0, 0, 0]]);
+    }
+
+    // Behaviour: a cell no ray hit is remembered only where too few rays were cast to tell it from
+    // an empty one — under 32 —, and the voxels kept are the same; with the coverage kept as
+    // opacity nothing is handed over.
+    #[test]
+    fn a_cell_no_ray_hit_is_remembered_under_32_rays() {
+        let voxels = || {
+            vec![
+                voxel([9, 0, 0], 0.0, Moments::default()),
+                voxel([2, 0, 0], 0.5, Moments::default()),
+            ]
+        };
+        let rays = |asked_rays| VoxelSettings {
+            asked_rays,
+            opacity: true,
+            ..VoxelSettings::default()
+        };
+        let few = solid(voxels(), &rays(16));
+        assert_eq!((cells(&few), few.extra), (vec![[2, 0, 0]], vec![[9, 0, 0]]));
+        let many = solid(voxels(), &rays(64));
+        assert_eq!((cells(&many), many.extra), (vec![[2, 0, 0]], Vec::new()));
+    }
+}

@@ -450,7 +450,7 @@ closest opaque depth of each texel's centre and the march is the reference's wal
 (`visibility/hiz/gpu/screenMarchReference.ts`): its level 1 is the half-resolution mip 0 and the walk
 goes down to the full-resolution depth image, as the reflections' reference does, a hit the tile's
 depth, flat. In that walk a ray hits a surface it lies less far behind than
-`hizRelativeDepthThickness` (0.005) of the surface's depth (at least 10⁻⁷ m), times the projection's
+`reflectionRelativeDepthThickness` (0.005, a reflection setting) of the surface's depth (at least 10⁻⁷ m), times the projection's
 depth scale (1 under a perspective; `screenRelativeThickness` derives it under an orthographic one,
 from its depth range in centimetres, the depth measured from the eye's plane); `'planes'` keeps its
 thickness in pixels. With `'planes'` the nearest layer
@@ -490,24 +490,22 @@ cut. The settings are world options by their field, changed by `world.hiz` from 
 const world = createWorld(canvas, { hizTransparentTest: 'reference' })
 world.hiz = { hizTrace: 'planes', hizFoldTransparents: true }
 world.hiz = { hizTrace: null } // back to the default, the reference's walk
-world.hiz = { hizRelativeDepthThickness: 0.01 } // thicker reflection hits
 world.hiz = { hizFullResDepth: false } // the probes' walk stops at the half-resolution level
 world.hiz = { lightGridHizCull: false } // every cell the lights reach is listed
 ```
 
-| Field                       | Meaning                                                                      | Default       |
-| --------------------------- | ---------------------------------------------------------------------------- | ------------- |
-| `hizTrace`                  | How the reflections' trace reads the pyramid: `'reference'`, or `'planes'`   | `'reference'` |
-| `hizFoldTransparents`       | The trace layers hold the nearest transparent surface beside the opaque one  | `false`       |
-| `hizTransparentTest`        | How a transparent cluster is tested: `'finer'` (16 texels), or `'reference'` | `'finer'`     |
-| `hizRelativeDepthThickness` | Reflections, `'reference'` walk: a surface's thickness, a share of its depth | `0.005`       |
-| `hizFullResDepth`           | The screen probes' walk goes down to the full-resolution depth               | `true`        |
-| `lightGridHizCull`          | The light grid leaves empty the cells behind their column's farthest depth   | `true`        |
-| `hizPrime`                  | When a primed pyramid is built: `'off'`, `'whenMissing'` or `'always'`       | `'off'`       |
-| `hizPrimeSizeBias`          | The primed draw is the image shifted right by `1 + this`, from 0 to 8        | `2`           |
-| `hizPrimeDepthBias`         | Metres the primed depth is pushed away from the eye by                       | `1.5`         |
-| `hizPrimeErrorScale`        | Factor on the cut's pixel error for the primed draw                          | `32`          |
-| `hizPrimeFarFieldOnly`      | The primed draw holds the objects that set `farField` alone                  | `true`        |
+| Field                  | Meaning                                                                      | Default       |
+| ---------------------- | ---------------------------------------------------------------------------- | ------------- |
+| `hizTrace`             | How the reflections' trace reads the pyramid: `'reference'`, or `'planes'`   | `'reference'` |
+| `hizFoldTransparents`  | The trace layers hold the nearest transparent surface beside the opaque one  | `false`       |
+| `hizTransparentTest`   | How a transparent cluster is tested: `'finer'` (16 texels), or `'reference'` | `'finer'`     |
+| `hizFullResDepth`      | The screen probes' walk goes down to the full-resolution depth               | `true`        |
+| `lightGridHizCull`     | The light grid leaves empty the cells behind their column's farthest depth   | `true`        |
+| `hizPrime`             | When a primed pyramid is built: `'off'`, `'whenMissing'` or `'always'`       | `'off'`       |
+| `hizPrimeSizeBias`     | The primed draw is the image shifted right by `1 + this`, from 0 to 8        | `2`           |
+| `hizPrimeDepthBias`    | Metres the primed depth is pushed away from the eye by                       | `1.5`         |
+| `hizPrimeErrorScale`   | Factor on the cut's pixel error for the primed draw                          | `32`          |
+| `hizPrimeFarFieldOnly` | The primed draw holds the objects that set `farField` alone                  | `true`        |
 
 **The primed pyramid** (`frame/render/primeHiz.ts`). The cut's main pass tests a box against the
 pyramid of the image before; a view with none (its first image, a resize, a cut of the camera) tests

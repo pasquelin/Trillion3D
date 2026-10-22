@@ -15,7 +15,7 @@ export const REFLECTION_CONSTANTS = {
    *  pixel's surface by more passes behind it and goes on (a pole, a fence), by less is inside it
    *  and hits. The same thickness at every depth and under every projection (`screenBack`). The
    *  planes' march (`hizTrace` `'planes'`) and the proxy's bound read it; the reference's walk takes
-   *  a share of the surface's depth instead (`hizRelativeDepthThickness`). */
+   *  a share of the surface's depth instead (`reflectionRelativeDepthThickness`). */
   REFLECTION_THICKNESS: 4,
   /** The weight under which a stage of the chain is not evaluated: 2⁻¹¹, under half a step of an
    *  8-bit channel of a radiance of one. */

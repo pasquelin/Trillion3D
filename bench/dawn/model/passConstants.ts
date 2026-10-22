@@ -10,9 +10,13 @@ import {
 } from '../../runner/counts/frameBudgetRates.ts'
 import {
   REFLECTION_CONSTANTS,
-  REFLECTION_COUNTS,
   REFLECTION_SIDE,
 } from '../../../packages/sdk-browser/src/lighting/reflections/constants.ts'
+import {
+  DEFAULT_REFLECTION_LEVEL,
+  REFLECTION_LEVEL_KNOBS,
+} from '../../../packages/sdk-core/src/contracts/reflectionLevels.ts'
+import { REFLECTION_RULES } from '../../../packages/sdk-core/src/contracts/reflectionOptions.ts'
 import type { Work } from './floor.ts'
 
 export type Frame = {
@@ -44,6 +48,11 @@ export type PassModel = {
 /** A source under `packages/sdk-browser/src/`. */
 export const engine = (path: string, symbol: string): Source => ({
   path: `packages/sdk-browser/src/${path}`,
+  symbol,
+})
+/** A source of the core package's tree, `packages/sdk-core/src/`. */
+export const core = (path: string, symbol: string): Source => ({
+  path: `packages/sdk-core/src/${path}`,
   symbol,
 })
 
@@ -116,20 +125,21 @@ export const MARCH_ITERATIONS = 16,
  *  stage (`traceScene`), its 16-byte entry, its partial texel, its pixel's flags, depth, normal and
  *  lobes, and writes its fresh texel; its walk of the proxy is the scene's, unmodelled here. The
  *  spatial reuse reads the fresh texel and the pixel's depth and normal, and each neighbour's texel,
- *  depth, normal and direction (`REFLECTION_REUSE_TAPS`); the temporal accumulation the scratch
+ *  depth, normal and direction (the default level's `reconstructionSamples`, `REFLECTION_LEVEL_KNOBS`;
+ *  the widening reads `reflectionBilateralSamples`); the temporal accumulation the scratch
  *  texel, depth and normal, four history texels and 21 fresh ones; the last pass the pixel's flags,
  *  depth, normal, lobes and base colour and its neighbours' history texels where its history is short;
  *  each writes 16 bytes, the last 8 (`HDR_FORMAT`). */
-export const TRACE_SHARE = REFLECTION_COUNTS.REFLECTION_TRACE_BLOCK ** 2,
+export const TRACE_SHARE = REFLECTION_LEVEL_KNOBS[DEFAULT_REFLECTION_LEVEL].downsample ** 2,
   TRACE_LOADS = 4,
   HIT_LOADS = 2 + 2,
   HIT_TAPS = REFLECTION_CONSTANTS.REFLECTION_TAPS,
   SCENE_LOADS = 2 + 4,
   GRID_BYTES = 16,
   RAY_BYTES = 4,
-  SPATIAL_LOADS = 3 + REFLECTION_COUNTS.REFLECTION_REUSE_TAPS * 4,
+  SPATIAL_LOADS = 3 + REFLECTION_LEVEL_KNOBS[DEFAULT_REFLECTION_LEVEL].reconstructionSamples * 4,
   TEMPORAL_LOADS = 3 + 4 + 21,
-  BILATERAL_LOADS = 5 + REFLECTION_COUNTS.REFLECTION_REUSE_TAPS,
+  BILATERAL_LOADS = 5 + REFLECTION_RULES.reflectionBilateralSamples.default,
   TARGET_BYTES = 8
 /** The radiance pyramid (`RADIANCE_SHADER`): the lit image's 8 bytes a pixel read once and written
  *  as level 0, the coarser levels written beside; the odd levels filled by four bilinear taps a

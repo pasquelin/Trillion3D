@@ -8,10 +8,10 @@
 //!
 //! | bytes | content |
 //! |---|---|
-//! | 0–3 | base colour, sRGB; normal length (the spread Toksvig's filter reads: 255 when every normal agrees, always when the build drops the spread, `voxelNdf`) |
+//! | 0–3 | base colour, sRGB; zero |
 //! | 4–7 | occlusion, roughness, metallic; the voxel's coverage as its opacity when the build keeps it (`voxelOpacity`: no pass of the engine reads it), else zero |
 //! | 8–9 | normal, octahedral (`oct_encode`): the axis of the fitted normal distribution (`voxelNdf`, `ndf.rs`), else the direction of the mean normal |
-//! | 10 | the ratio of the fitted distribution's two widths (`voxelNdf`: no pass of the engine reads it yet), else zero |
+//! | 10 | the ratio of the fitted distribution's two widths (`voxelNdf`), from which the resolve draws each pixel's shading normal, else zero |
 //! | 11 | zero |
 use super::ndf::fitted;
 use super::raster::Cell;
@@ -21,7 +21,7 @@ use crate::texture::linear_to_srgb;
 use trillion3d_math::scalar::unit_to_byte;
 use trillion3d_math::vector::octahedral::oct_encode;
 use trillion3d_math::vector::vec3::normalized_or;
-use trillion3d_math::vector::vecn::{length, scale};
+use trillion3d_math::vector::vecn::scale;
 
 /// Bytes of a brick and of a voxel.
 pub(crate) const BRICK_BYTES: usize = 16;
@@ -103,12 +103,6 @@ pub(super) fn voxel_record(voxel: &Voxel, settings: &VoxelSettings) -> [u8; VOXE
     let oct = |n: [f64; 3]| (oct_encode(n.map(|c| c as f32)) as u16).to_le_bytes();
     let mut out = [0; VOXEL_BYTES];
     out[..3].copy_from_slice(&colour);
-    let spread = if settings.ndf {
-        length(mean).min(1.0)
-    } else {
-        1.0
-    };
-    out[3] = unit_to_byte(spread);
     out[4..7].copy_from_slice(&orm);
     if settings.opacity {
         out[7] = unit_to_byte(voxel.coverage);
@@ -116,4 +110,54 @@ pub(super) fn voxel_record(voxel: &Voxel, settings: &VoxelSettings) -> [u8; VOXE
     out[8..10].copy_from_slice(&oct(normal));
     out[10] = unit_to_byte(ratio);
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::sample::{Moments, FACES};
+    use super::*;
+
+    /// A voxel whose normals' products sum to `ndf` over `hits` hits, their sum `normal`.
+    fn voxel(ndf: [f64; 6], normal: [f64; 3], hits: f64) -> Voxel {
+        let shown = Moments {
+            covered: 1.0,
+            normal,
+            ndf,
+            hits,
+            ..Moments::default()
+        };
+        Voxel {
+            cell: [0; 3],
+            coverage: 1.0,
+            faces: [Moments::default(); FACES],
+            shown,
+            joint: None,
+        }
+    }
+
+    fn oct(n: [f64; 3]) -> [u8; 2] {
+        (oct_encode(n.map(|c| c as f32)) as u16).to_le_bytes()
+    }
+
+    // Behaviour: a wall facing y, its normals fitted, is a normal along y — either way, the
+    // distribution having no side — and a ratio of 0, a mirror; its record without the fit keeps
+    // the mean's direction and no ratio; a sphere of normals fitted has the ratio of one half.
+    // Neither carries a spread of the normals: byte 3 is zero.
+    #[test]
+    fn a_voxel_record_keeps_the_fitted_normal_and_its_ratio() {
+        let wall = voxel([0.0, 2.0, 0.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0], 2.0);
+        let axis = voxel_record(&wall, &VoxelSettings::default());
+        assert!([oct([0.0, 1.0, 0.0]), oct([0.0, -1.0, 0.0])].contains(&[axis[8], axis[9]]));
+        assert_eq!((axis[3], axis[10]), (0, 0));
+        let plain = VoxelSettings {
+            ndf: false,
+            ..VoxelSettings::default()
+        };
+        let mean = voxel_record(&wall, &plain);
+        assert_eq!([mean[8], mean[9]], oct([0.0, 1.0, 0.0]));
+        assert_eq!((mean[3], mean[10]), (0, 0));
+        let sphere = voxel([1.0, 1.0, 1.0, 0.0, 0.0, 0.0], [0.0; 3], 3.0);
+        let round = voxel_record(&sphere, &VoxelSettings::default());
+        assert_eq!(round[10], unit_to_byte(0.5));
+    }
 }

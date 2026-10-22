@@ -7,6 +7,7 @@ import { hasPhysicalLobes } from '../materials/surface/physicalLobes.ts'
 import { cullOf } from './plan/planCull.ts'
 import type { PageSurface } from '../geometry/pages/surface.ts'
 import type { Clipping } from '../gpu/core/clipDistances.ts'
+import type { SurfaceProgram } from '../materials/graph/surfaceProgram.ts'
 
 /** What a front pass of the transparents `items` writes (`FrontOutputs`): nothing past the covering
  *  depth and flags unless one reflects, the lobes too where one carries a lobe. The one decision of
@@ -25,12 +26,14 @@ export function frontStageOf(items: readonly { surface: PageSurface }[]): FrontO
  * before its first ask: prepare's, for what the scene's transparents reach (`prepare`), or a frame's that
  * reaches another (`ask`), off the frame, the frames held until it lands. A scene without a transparent
  * never asks one. A rank of any blending mode draws its cull's. `clipping`, how their modules cut
- * at a view's plane (`../gpu/core/clipDistances.ts`).
+ * at a view's plane (`../gpu/core/clipDistances.ts`); `graphs`, the programs of the graphs its items
+ * wear (`graphWgsl.ts`).
  */
 export function createFrontStages(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   clipping?: Clipping,
+  graphs: readonly SurfaceProgram[] = [],
 ) {
   const sets: FrontStagePipelines[] = []
   const setOf = (outputs: FrontOutputs): FrontStagePipelines => {
@@ -39,7 +42,7 @@ export function createFrontStages(
       if (culls) return culls
       const module = device.createShaderModule({
         label: 'Trillion3D front stage',
-        code: blendFrontShader(outputs, clipping),
+        code: blendFrontShader(outputs, clipping, graphs),
       })
       const fragment = {
         module,

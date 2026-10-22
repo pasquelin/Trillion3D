@@ -4,7 +4,8 @@
 //! node takes the bent copy; the cluster DAG, the pages, the proxy and the collider are then built
 //! of the bent mesh, so every error they hold is measured on the shape that is drawn. Each node
 //! that names a spline gets a mesh of its own: a rail of five hundred segments is five hundred
-//! meshes, their pages and their builds, where the reference keeps one and bends it as it draws.
+//! meshes, their pages and their builds, where the reference keeps one and bends it as it draws;
+//! the source mesh they share is decoded once (`arrays.rs`), kept until the last of them bent it.
 //!
 //! `extras.splineMesh` holds, each left out at the default of the reference's spline mesh
 //! component (lengths in metres, its centimetres over a hundred):
@@ -25,15 +26,14 @@
 //! `refuse_bent_assembly`); an assembly not built is its own triangles, bent as any mesh.
 use crate::compiler::primitive::triangles;
 use crate::compiler::source::load::compressed::Budget;
-use crate::compiler::source::synth::{
-    attribute, float_accessor, index_accessor, position_accessor, seal,
-};
+use crate::compiler::source::nodes::moves_by_itself;
+use crate::compiler::source::synth::seal;
 use crate::*;
-use bend::{Bend, Fit};
+use arrays::{bent_copy, Decoded};
+use bend::Bend;
 use read::{read_bend, SPLINE};
-use trillion3d_math::geometry::aabb::aabb_of_f32;
-use trillion3d_math::vector::vec3::point_f32;
 
+mod arrays;
 mod bend;
 mod read;
 #[cfg(test)]
@@ -69,34 +69,55 @@ fn marked_nodes(g: &Value) -> Result<Vec<(usize, usize, Bend)>> {
     Ok(marked)
 }
 
+/// The count accessor `id` declares, 0 for an absent or unreadable one.
+fn declared(g: &Value, id: Option<&Value>) -> usize {
+    let at = id
+        .and_then(Value::as_u64)
+        .and_then(|id| usize::try_from(id).ok());
+    let accessor = at.and_then(|at| g.get("accessors")?.get(at));
+    let count = accessor.and_then(|a| a.get("count")?.as_u64());
+    count.and_then(|n| usize::try_from(n).ok()).unwrap_or(0)
+}
+
+/// The triangle primitives of mesh `mesh`, each with the counts its accessors declare: its
+/// vertices, its normals, its tangents and its corners.
+fn triangle_counts(g: &Value, mesh: usize) -> Vec<[usize; 4]> {
+    let primitives = g.get("meshes").and_then(|meshes| meshes.get(mesh));
+    let primitives = primitives.and_then(|m| m.get("primitives")?.as_array());
+    let triangles = primitives
+        .into_iter()
+        .flatten()
+        .filter(|p| triangles::is_triangle_list(p));
+    triangles
+        .map(|p| {
+            let of =
+                |semantic: &str| declared(g, p.get("attributes").and_then(|a| a.get(semantic)));
+            let vertices = of("POSITION");
+            let corners = declared(g, p.get("indices")).max(vertices);
+            [vertices, of("NORMAL"), of("TANGENT"), corners]
+        })
+        .collect()
+}
+
 /// About how many bytes bending `mesh` appends to the binary: the arrays of each triangle primitive
 /// it bends, from the counts its accessors declare, each array four-aligned.
 fn bent_bytes(g: &Value, mesh: usize, bend: &Bend) -> usize {
-    let count = |id: Option<&Value>| -> usize {
-        let at = id
-            .and_then(Value::as_u64)
-            .and_then(|id| usize::try_from(id).ok());
-        let accessor = at.and_then(|at| g.get("accessors")?.get(at));
-        let count = accessor.and_then(|a| a.get("count")?.as_u64());
-        count.and_then(|n| usize::try_from(n).ok()).unwrap_or(0)
-    };
-    let primitives = g.get("meshes").and_then(|meshes| meshes.get(mesh));
-    let primitives = primitives.and_then(|m| m.get("primitives")?.as_array());
     let mut bytes = 0usize;
-    for p in primitives.into_iter().flatten() {
-        if !triangles::is_triangle_list(p) {
-            continue;
-        }
-        let of = |semantic: &str| count(p.get("attributes").and_then(|a| a.get(semantic)));
-        let vertices = of("POSITION");
-        let corners = if bend.mirrors() {
-            count(p.get("indices")).max(vertices)
-        } else {
-            0
-        };
-        bytes += 12 * vertices + 12 * of("NORMAL") + 16 * of("TANGENT") + 4 * corners + 16;
+    for [vertices, normals, tangents, corners] in triangle_counts(g, mesh) {
+        let turned = if bend.mirrors() { corners } else { 0 };
+        bytes += 12 * vertices + 12 * normals + 16 * tangents + 4 * turned + 16;
     }
     bytes
+}
+
+/// About how many bytes the decoded arrays of `mesh` hold (`Decoded`): its positions, normals,
+/// tangents and corners.
+fn decoded_bytes(g: &Value, mesh: usize) -> usize {
+    (triangle_counts(g, mesh).into_iter())
+        .map(|[vertices, normals, tangents, corners]| {
+            12 * vertices + 12 * normals + 16 * tangents + 4 * corners
+        })
+        .fold(0, usize::saturating_add)
 }
 
 /// The refusal of the bent copy `mesh` that names an assembly the job builds: the curve would bend
@@ -119,17 +140,29 @@ pub(crate) fn bend_spline_meshes(
     if marked.is_empty() {
         return Ok((binary, Vec::new()));
     }
+    // A mesh several nodes bend is decoded once, kept until the last of them has bent it.
+    let mut remaining: BTreeMap<usize, usize> = BTreeMap::new();
+    for (_, mesh, _) in &marked {
+        *remaining.entry(*mesh).or_default() += 1;
+    }
     let extra: usize = (marked.iter())
         .map(|(_, mesh, bend)| bent_bytes(g, *mesh, bend))
         .fold(0, usize::saturating_add);
-    budget.admit(binary.bytes().len().saturating_add(extra))?;
+    let kept: usize = (remaining.iter())
+        .filter(|(_, nodes)| **nodes > 1)
+        .map(|(mesh, _)| decoded_bytes(g, *mesh))
+        .fold(0, usize::saturating_add);
+    let held = binary.bytes().len().saturating_add(extra);
+    budget.admit(held.saturating_add(kept))?;
     let mut out = binary.into_owned(extra)?;
     let mut bent_meshes = Vec::with_capacity(marked.len());
+    let mut cache: BTreeMap<usize, Decoded> = BTreeMap::new();
     for (node, mesh, bend) in marked {
-        let bent = bend_mesh(g, &mut out, mesh, &bend).map_err(|e| {
-            let what = format!("nodes[{node}].extras.{SPLINE_EXTRA}");
-            CompilerError::new(e.code, format!("{what}: {}", e.message))
-        })?;
+        let bent =
+            bent_copy(g, &mut out, (mesh, &mut cache, &mut remaining), &bend).map_err(|e| {
+                let what = format!("nodes[{node}].extras.{SPLINE_EXTRA}");
+                CompilerError::new(e.code, format!("{what}: {}", e.message))
+            })?;
         let meshes = g["meshes"]
             .as_array_mut()
             .ok_or_else(|| invalid("meshes array is required"))?;
@@ -143,133 +176,4 @@ pub(crate) fn bend_spline_meshes(
     }
     seal(g, &out);
     Ok((Binary::Owned(out), bent_meshes))
-}
-
-/// One triangle primitive's arrays, as the bend reads them: its positions, its triangles' corners
-/// and the normals and tangents it carries.
-struct Arrays {
-    positions: Vec<f32>,
-    indices: Vec<u32>,
-    normals: Option<Vec<f32>>,
-    tangents: Option<Vec<f32>>,
-}
-
-impl Arrays {
-    /// The arrays of triangle primitive `p`; refused when it has bones or morph targets.
-    fn read(g: &Value, bin: &[u8], p: &Value) -> Result<Self> {
-        if !triangles::is_rigid(p) {
-            return Err(SPLINE.bad("a skinned or morphed mesh cannot be bent"));
-        }
-        let (positions, indices, _) = triangles::read(g, bin, p, None)?;
-        let positions = positions.collect_f32()?;
-        let count = positions.len() / 3;
-        Ok(Self {
-            normals: attribute(g, bin, p, ("NORMAL", 3), count)?,
-            tangents: attribute(g, bin, p, ("TANGENT", 4), count)?,
-            positions,
-            indices,
-        })
-    }
-
-    /// Every vertex bent by `bend` under `fit`: its position, and the normal and tangent it may
-    /// carry, and, when the bend mirrors the mesh, its triangles turned over and the tangents' sign
-    /// — the frame's handedness — reversed. A vertex the bend sends to a point that is not a
-    /// number is refused.
-    fn bend(&self, (bend, fit): (&Bend, Fit)) -> Result<Self> {
-        let count = self.positions.len() / 3;
-        let mirror = if bend.mirrors() { -1.0 } else { 1.0 };
-        let turned_over = |triangle: &[u32]| [triangle[0], triangle[2], triangle[1]];
-        let mut done = Self {
-            positions: Vec::with_capacity(self.positions.len()),
-            indices: match bend.mirrors() {
-                true => self.indices.chunks_exact(3).flat_map(turned_over).collect(),
-                false => Vec::new(),
-            },
-            normals: self.normals.as_ref().map(|_| Vec::with_capacity(count * 3)),
-            tangents: self
-                .tangents
-                .as_ref()
-                .map(|_| Vec::with_capacity(count * 4)),
-        };
-        let tangents = self.tangents.as_deref().map(|t| t.as_chunks::<4>().0);
-        for v in 0..count {
-            let carried = tangents.map(|t| t[v]);
-            let normal = self.normals.as_deref().map(|n| point_f32(n, v));
-            let at = point_f32(&self.positions, v);
-            let tangent = carried.map(|t| [t[0], t[1], t[2]]);
-            let bent = bend.vertex(fit, at, normal, tangent);
-            let laid = [Some(bent.pos), bent.normal, bent.tangent];
-            if laid.iter().flatten().flatten().any(|c| !c.is_finite()) {
-                return Err(SPLINE.bad("the bend sends a vertex to a point that is not a number"));
-            }
-            done.positions.extend(bent.pos);
-            done.normals
-                .iter_mut()
-                .zip(bent.normal)
-                .for_each(|(into, n)| into.extend(n));
-            let signed = (done.tangents.as_mut(), bent.tangent, carried);
-            if let (Some(into), Some(turned), Some(source)) = signed {
-                into.extend(turned);
-                into.push(source[3] * mirror);
-            }
-        }
-        Ok(done)
-    }
-}
-
-/// Mesh `mesh` bent by `bend`, as a new mesh whose arrays are appended to `out`: each triangle
-/// primitive read once, the box of them all the bend's extent, then each bent in turn.
-fn bend_mesh(g: &mut Value, out: &mut Vec<u8>, mesh: usize, bend: &Bend) -> Result<Value> {
-    let mut bent = item(values(g, "meshes")?, mesh, "mesh")?.clone();
-    let primitives = values(&bent, "primitives")?.clone();
-    let mut read = Vec::with_capacity(primitives.len());
-    for p in &primitives {
-        read.push(match triangles::is_triangle_list(p) {
-            true => Some(Arrays::read(g, out, p)?),
-            false => None,
-        });
-    }
-    let points = read
-        .iter()
-        .flatten()
-        .flat_map(|a| a.positions.as_chunks::<3>().0.iter().copied());
-    let (low, high) = aabb_of_f32(points);
-    if low[0] > high[0] {
-        return Err(SPLINE.bad("the mesh has no triangle to bend"));
-    }
-    let fit = bend.fit((low, high));
-    let mut done = Vec::with_capacity(primitives.len());
-    for (p, arrays) in primitives.iter().zip(read) {
-        done.push(match arrays {
-            Some(arrays) => bend_primitive(g, out, p, arrays.bend((bend, fit))?, bend)?,
-            None => p.clone(),
-        });
-    }
-    bent["primitives"] = Value::Array(done);
-    Ok(bent)
-}
-
-/// Primitive `p` with the `bent` arrays in place of its own: new accessors for its positions,
-/// normals and tangents, and for its corners when the bend mirrors (turned over, so the surface
-/// still faces out).
-fn bend_primitive(
-    g: &mut Value,
-    out: &mut Vec<u8>,
-    p: &Value,
-    bent: Arrays,
-    bend: &Bend,
-) -> Result<Value> {
-    let mut primitive = p.clone();
-    let arrays = &mut primitive["attributes"];
-    arrays["POSITION"] = json!(position_accessor(g, out, &bent.positions)?);
-    if let Some(normals) = &bent.normals {
-        arrays["NORMAL"] = json!(float_accessor(g, out, normals, ("VEC3", 3))?);
-    }
-    if let Some(tangents) = &bent.tangents {
-        arrays["TANGENT"] = json!(float_accessor(g, out, tangents, ("VEC4", 4))?);
-    }
-    if bend.mirrors() {
-        primitive["indices"] = json!(index_accessor(g, out, &bent.indices)?);
-    }
-    Ok(primitive)
 }

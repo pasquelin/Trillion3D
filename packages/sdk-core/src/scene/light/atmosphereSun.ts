@@ -168,7 +168,9 @@ const packedSun = (sun: SceneLight, transmittance: Rgb, lightSlot: number | unde
 }
 
 /** The atmosphere's block in the form a store keeps: written again when the air or its lights
- *  changed, its two versions told apart — the air's alone is what the lookup tables hang on. */
+ *  changed, its two versions told apart — the air's alone is what the lookup tables hang on. With
+ *  no air the block still holds the lights of the air, as the clouds light a medium by them
+ *  (`packAtmosphere`). */
 export function createAtmosphereBlock() {
   const packed = new Float32Array(ATMOSPHERE_FLOATS)
   let atmosphere: ResolvedAtmosphere | undefined,
@@ -204,7 +206,7 @@ export function createAtmosphereBlock() {
       slots: readonly (number | undefined)[] = [],
     ) {
       const airChanged = !sameSceneAtmosphere(atmosphere, next)
-      const values = next ? suns.flatMap((sun, index) => sunValues(sun, slots[index])) : []
+      const values = suns.flatMap((sun, index) => sunValues(sun, slots[index]))
       if (!airChanged && sameValues(values, held)) return false
       if (airChanged) version++
       epoch++
@@ -217,9 +219,7 @@ export function createAtmosphereBlock() {
       tints = toward.map((t, index) => (suns[index]?.transmittancePerPixel ? NO_AIR : t))
       packAtmosphere(
         next,
-        suns.map((sun, index) =>
-          next && sun ? packedSun(sun, toward[index], slots[index]) : undefined,
-        ),
+        suns.map((sun, index) => (sun ? packedSun(sun, toward[index], slots[index]) : undefined)),
         packed,
       )
       return true

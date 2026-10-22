@@ -6,9 +6,10 @@ import assert from 'node:assert/strict'
 import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
 import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { directLightResources, readsAsIs, wantsContractLighting } from './contractLight.ts'
-import { setSkyLightSource, skyLightPending } from '../render/encodeSkyLight.ts'
+import { setSkyLightSource, skyLightPending } from '../render/skyLightState.ts'
 import { resolveSkyLight } from '../../../../sdk-core/src/modules/sky/skyLight.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { NO_OVERRIDES } from '../backend/state/viewOverrides.ts'
 
 const LAMP: SceneLight = {
   id: 'l0',
@@ -22,8 +23,13 @@ const LAMP: SceneLight = {
 
 function harness() {
   const store = createSceneLightStore()
-  // No cut selection yet: no proxy for the forward passes to trace.
-  return { store, rt: { lights: { store }, run: {} } as unknown as WebgpuPagesRuntime }
+  // No cut selection yet: no proxy for the forward passes to trace. One view, the session's
+  // settings at their defaults.
+  const views = { active: { overrides: NO_OVERRIDES } }
+  return {
+    store,
+    rt: { lights: { store }, run: {}, views, context: {} } as unknown as WebgpuPagesRuntime,
+  }
 }
 
 test('`lit` view with no light: the contract still lights, the image comes out black', () => {

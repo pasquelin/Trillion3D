@@ -12,6 +12,8 @@ import {
 } from '../../diagnostic/gpuGeometry.ts'
 import { CLASS_FEATURE } from '../shader/classWords.ts'
 import { shadeShader } from '../shader/shadeWgsl.ts'
+import type { CompiledGraph } from '../../materials/graph/compile.ts'
+import { graphClassOf, type GraphClass } from '../../materials/graph/surfaceClasses.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { feedbackConstants } from '../../materials/virtual/requestWgsl.ts'
 import { displacedShadeLayout } from '../tessellation/prismFrame.ts'
@@ -35,8 +37,9 @@ export type ShadeClasses = {
 
 /** The modules a class's resolve is made over, each made the first time one is asked, so that a scene
  *  without the kind compiles what it did before: the shared one (`shadeModule`); a voxel class's
- *  own (`shadeShader`'s voxel text); and a displaced class's, with the layout of its own group 0 —
- *  the resolve's, plus the depth and the view's numbers. */
+ *  own (`shadeShader`'s voxel text); a displaced class's, with the layout of its own group 0 —
+ *  the resolve's, plus the depth and the view's numbers —; and the module of each program of a
+ *  graph, plain or displaced (`graphModule`), which every class of that program shares. */
 function classModules(
   device: GPUDevice,
   shadeModule: GPUShaderModule,
@@ -45,20 +48,37 @@ function classModules(
   const diagnostic = () => (variesShade(variant) ? { diagnostic: DIAGNOSTIC_SHADE_WGSL } : {})
   let voxelModule: GPUShaderModule | undefined
   let displacedModule: GPUShaderModule | undefined, displacedLayout: GPUPipelineLayout | undefined
+  const graphModules = new Map<string, GPUShaderModule>()
+  const graphModule = (graph: CompiledGraph, displaced: boolean) => {
+    const id = `${graph.hash}|${displaced}`
+    let module = graphModules.get(id)
+    if (!module)
+      graphModules.set(
+        id,
+        (module = device.createShaderModule({
+          code: shadeShader({ graph, displaced, ...diagnostic() }),
+        })),
+      )
+    return module
+  }
   return {
-    moduleOf: (key: number) =>
-      (key & CLASS_FEATURE.VOXEL) === 0
-        ? shadeModule
-        : (voxelModule ??= device.createShaderModule({
-            code: shadeShader({ voxel: true, ...diagnostic() }),
-          })),
-    displacedParts: () => ({
+    moduleOf: (key: number, graph?: GraphClass) =>
+      graph
+        ? graphModule(graph.program.compiled, false)
+        : (key & CLASS_FEATURE.VOXEL) === 0
+          ? shadeModule
+          : (voxelModule ??= device.createShaderModule({
+              code: shadeShader({ voxel: true, ...diagnostic() }),
+            })),
+    displacedParts: (graph?: GraphClass) => ({
       layout: (displacedLayout ??= device.createPipelineLayout({
         bindGroupLayouts: [displacedShadeLayout(device), shadeOutputLayout(device)],
       })),
-      module: (displacedModule ??= device.createShaderModule({
-        code: shadeShader({ displaced: true, ...diagnostic() }),
-      })),
+      module: graph
+        ? graphModule(graph.program.compiled, true)
+        : (displacedModule ??= device.createShaderModule({
+            code: shadeShader({ displaced: true, ...diagnostic() }),
+          })),
     }),
   }
 }
@@ -92,11 +112,15 @@ export function createWebgpuShadePipelines(
     layer: boolean,
     displaced = false,
   ): GPUComputePipelineDescriptor => {
-    const constants: Record<string, number> = { CLASS_KEY: key, ...fed }
+    // A class of a graph's program holds the features its rows are worn on (`CLASS_KEY`) and is
+    // binned under its own key (`CLASS_BIN`).
+    const graph = graphClassOf(key)
+    const constants: Record<string, number> = { CLASS_KEY: graph?.features ?? key, ...fed }
+    if (graph) constants.CLASS_BIN = key
     if (!layer) constants.EMISSIVE_AO = 0
     const { layout: used, module } = displaced
-      ? displacedParts()
-      : { layout, module: moduleOf(key) }
+      ? displacedParts(graph)
+      : { layout, module: moduleOf(key, graph) }
     return { layout: used, compute: { module, entryPoint, constants } }
   }
   const classSet = (layer: boolean): ShadeClasses => {

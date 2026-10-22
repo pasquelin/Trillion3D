@@ -6,6 +6,7 @@ import type { MaterialSurface } from './materialRecord.ts'
 import { uploadMaterials } from './materialUpload.ts'
 import { takeRank, writeEntry } from './materialWrite.ts'
 import { summarize } from './materialSummary.ts'
+import { freeGraphBlock } from './graphRecord.ts'
 import {
   createMaterialRecords,
   surfaceSeen,
@@ -93,7 +94,7 @@ function recordOf(p: MaterialRecords, mat: MaterialSurface, layers: MaterialLaye
   const plain = variantPlain(mat)
   let entry = p.entries.get(plain)
   if (!entry) {
-    entry = { rank: takeRank(p), lobes: -1, epoch: -1, source: undefined }
+    entry = { rank: takeRank(p), lobes: -1, graph: undefined, epoch: -1, source: undefined }
     p.entries.set(plain, entry)
     p.surfaces[entry.rank] = new WeakRef(plain)
     p.reclaim.register(plain, entry)
@@ -153,5 +154,6 @@ function follow(p: MaterialRecords, layers: MaterialLayers) {
 function release(p: MaterialRecords, entry: MaterialEntry) {
   p.freed.push(entry.rank)
   if (entry.lobes >= 0) p.lobesFreed.push(entry.lobes)
+  freeGraphBlock(p, entry)
   p.surfaces[entry.rank] = undefined
 }

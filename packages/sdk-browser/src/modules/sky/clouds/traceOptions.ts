@@ -59,7 +59,7 @@ export function writeCloudTraceOptions(
   put4(
     words,
     at.options,
-    quality.cloudAerialPerspective && !hazeInSecondPass ? 1 : 0,
+    quality.cloudAerialPerspective && image.airPresent && !hazeInSecondPass ? 1 : 0,
     0,
     setup.mode.cutsAtScene ? 1 : 0,
     image.sunShadowChannel ?? NO_INDEX,

@@ -17,6 +17,7 @@ import {
   VOXELIZE_FIELD,
 } from '../../../packages/sdk-core/src/contracts/compilerAbi.ts'
 import { PARTITION_SCHEME_FIELD } from '../../../packages/sdk-core/src/contracts/partitionOptions.ts'
+import { LIGHTMAP_BAKE_FIELD } from '../../../packages/sdk-core/src/contracts/lightmapBakeAbi.ts'
 import { COMPILER_OPTIONS_SCHEMA } from '../../../packages/sdk-core/src/llm/compilerOptionsSchema.ts'
 import { REPOSITORY_ROOT } from '../../git/repository-files.ts'
 
@@ -49,6 +50,7 @@ test('the compiler reads the job fields, scopes and simplifications the schema n
       PARTITION_GRIDS_FIELD,
       MESH_BUILD_FIELD,
       OBJECT_SETTINGS_FIELD,
+      LIGHTMAP_BAKE_FIELD,
     ].sort(),
   )
   assert.deepEqual(words(rust, 'pub const SCOPES'), [...ASSET_SCOPES])

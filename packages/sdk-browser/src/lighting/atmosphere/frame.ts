@@ -99,13 +99,29 @@ function putAxes(
   put(out, at.left, sx, sy, sz, 0)
 }
 
+/** The planet of a scene with no atmosphere, for the clouds: a sphere of radius `planetRadius`
+ *  kilometres under the plane `y = 0`. The eye is not held anywhere over it, the clouds are marched
+ *  from where the eye stands. */
+export interface AirlessPlanet {
+  readonly planetRadius: number
+  readonly groundHeight: 0
+  readonly airless: true
+}
+
+/** The planet a scene with no atmosphere is given, of radius `planetRadius` kilometres. */
+export const airlessPlanet = (planetRadius: number): AirlessPlanet => ({
+  planetRadius,
+  groundHeight: 0,
+  airless: true,
+})
+
 /** The place the sky is captured from: `capture.position`, scene metres, at the altitude it stands
  *  over the planet's ground, no lower than the eye is held; the height `SKY_CAPTURE` names, over
  *  the origin, where no place is given. */
 function writeCapture(
   out: Float32Array,
   at: number,
-  air: ResolvedAtmosphere,
+  air: Pick<ResolvedAtmosphere, 'groundHeight'>,
   capture: { position: ArrayLike<number> } | undefined,
 ) {
   if (!capture) return put(out, at, 0, 0, 0, SKY_CAPTURE.altitudeKm)
@@ -119,12 +135,13 @@ function writeCapture(
  * allocated. `camera.world` is the camera's world matrix, column-major: it looks down its own −z.
  * The table's axes are the camera's look made to lie across the planet's up at the eye
  * (`forward`, `left` its cross with the up), or, looking straight along the up, any orthonormal
- * pair around it.
+ * pair around it. Over an atmosphere the eye is held between the ground and the top of the air;
+ * over the planet of a scene with none (`airlessPlanet`) it is where it stands.
  */
 export function writeAirFrame(
   out: Float32Array,
   camera: { eye: ArrayLike<number>; world: ArrayLike<number>; perspective: number },
-  air: ResolvedAtmosphere,
+  air: ResolvedAtmosphere | AirlessPlanet,
   viewProj: ArrayLike<number>,
   inverseViewProj: ArrayLike<number>,
   width: number,
@@ -136,13 +153,15 @@ export function writeAirFrame(
   } = {},
 ) {
   const at = FRAME_LAYOUT.at
-  const radius = air.planetRadius,
-    top = topRadiusOf(air)
+  const radius = air.planetRadius
   const px = camera.eye[0] / 1000,
     py = (camera.eye[1] - air.groundHeight) / 1000 + radius,
     pz = camera.eye[2] / 1000
   const distance = length3(px, py, pz) || 1
-  const held = clamp(distance, radius + EYE_FLOOR, top - EYE_CEILING)
+  const held =
+    'airless' in air
+      ? distance
+      : clamp(distance, radius + EYE_FLOOR, topRadiusOf(air) - EYE_CEILING)
   const ux = px / distance,
     uy = py / distance,
     uz = pz / distance

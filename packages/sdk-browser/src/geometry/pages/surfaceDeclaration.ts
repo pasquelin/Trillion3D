@@ -9,6 +9,7 @@ import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts
 import type { SurfaceFamily } from './surface.ts'
 import type { HostColour } from '../../session/host/resources.ts'
 import type { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
+import type { MaterialGraph } from '../../../../sdk-core/src/world/material/graph/api.ts'
 /** A map slot: the texture record the material names there, or nothing. */
 export type Slot = Texture | null | undefined
 
@@ -87,4 +88,7 @@ export type SurfaceDeclaration = {
   readonly depthTest?: boolean
   readonly depthWrite?: boolean
   readonly flatShading?: boolean
+  /** The graph that computes the outputs in place of the parameters and maps; read by the families
+   *  that draw the material's colour (`GRAPH_FAMILIES`, `surfaceRecord.ts`). */
+  readonly graph?: MaterialGraph
 }

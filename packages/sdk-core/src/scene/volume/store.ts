@@ -1,5 +1,6 @@
 import { EngineError } from '../../contracts/cache.ts'
-import { resolveFogVolume, type ResolvedFogVolume, type SceneFogVolume } from './contracts.ts'
+import { resolveFogVolume, sameFogVolume, type SceneFogVolume } from './contracts.ts'
+import type { ResolvedFogVolume } from './contracts.ts'
 
 /** The volume objects of a scene (`createSceneFogVolumeStore`). */
 export type SceneFogVolumeStore = ReturnType<typeof createSceneFogVolumeStore>
@@ -12,8 +13,6 @@ export type SceneFogVolumeStore = ReturnType<typeof createSceneFogVolumeStore>
 export function createSceneFogVolumeStore() {
   const records = new Map<string, ResolvedFogVolume>()
   let revision = 0
-  const sameRecord = (a: ResolvedFogVolume, b: ResolvedFogVolume) =>
-    JSON.stringify(a) === JSON.stringify(b)
   return {
     /** Bumped when an object is added, changed or removed. */
     get revision() {
@@ -45,7 +44,7 @@ export function createSceneFogVolumeStore() {
       if (!current)
         throw new EngineError('UNKNOWN_SCENE_FOG_VOLUME', `unknown fog volume ${id}`, { id })
       const merged = resolveFogVolume({ ...current, ...patch, id })
-      if (sameRecord(current, merged)) return
+      if (sameFogVolume(current, merged)) return
       records.set(id, merged)
       revision++
     },

@@ -1,5 +1,6 @@
 import { ROW_WORDS } from '../../visibility/types.ts'
-import { rowsMoved, type RowsReading } from '../../geometry/rows/dirty.ts'
+import { rowsMoved, rowsUnread, type RowsReading } from '../../geometry/rows/dirty.ts'
+import { MATERIAL_CLASS_KEYS } from '../../visibility/shader/materialClass.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /** Which classes an image draws: a stamp per class key, the keys stamped by the last walk, and
@@ -10,6 +11,14 @@ export type PresentClasses = {
   stamp: number
   read: RowsReading
 }
+
+/** No class stamped yet, no row read. */
+export const createPresentClasses = (): PresentClasses => ({
+  stamps: new Uint32Array(MATERIAL_CLASS_KEYS),
+  keys: [],
+  stamp: 0,
+  read: rowsUnread(),
+})
 
 /**
  * Classes of the packed rows: one word read per row, on the same table the GPU draws from, each

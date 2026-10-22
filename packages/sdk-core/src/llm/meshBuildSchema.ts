@@ -8,6 +8,11 @@ import {
   VOXEL_RAY_PACKET,
 } from '../contracts/compilerAbi.ts'
 import {
+  DISPLACEMENT_BAKE_RULES as bake,
+  DISPLACEMENT_MAP_KEYS,
+  MAX_DISPLACEMENT_MAP_SIZE,
+} from '../contracts/displacementBakeAbi.ts'
+import {
   DEFAULT_NORMAL_PRECISION,
   DEFAULT_TANGENT_PRECISION,
   MAX_NORMAL_PRECISION,
@@ -89,7 +94,7 @@ const meshBuildSettings: Record<keyof MeshBuildSettingsWire, JsonSchemaProperty>
     ),
     voxelNdf: ruleSchema(
       rules.voxelNdf,
-      `Whether a voxel keeps the spread of the normals its rays hit — its normal their mean, the shading roughening with the spread —; false keeps the direction of their mean alone (default ${rules.voxelNdf.default}).`,
+      `Whether a voxel fits an isotropic distribution to the normals its rays hit — its normal the fit's axis, its record keeping the ratio of the fit's two widths, the shading roughening with the length of their mean —; false keeps the direction of their mean alone and no ratio (default ${rules.voxelNdf.default}).`,
     ),
     voxelOpacity: ruleSchema(
       rules.voxelOpacity,
@@ -118,6 +123,35 @@ const meshBuildSettings: Record<keyof MeshBuildSettingsWire, JsonSchemaProperty>
     distanceFieldMaxResolution: ruleSchema(
       rules.distanceFieldMaxResolution,
       `The most voxels along one axis a mesh's distance field holds; a mesh of scale 1 or less holds half of it (default ${rules.distanceFieldMaxResolution.default}).`,
+    ),
+    displacementMaps: {
+      type: 'array',
+      description: `The height maps baked into the mesh's triangles before its clusters are built: the mesh is tessellated, each vertex moved along its normal by the height of the first map, the triangles split where the displacement strays from what their corners' interpolate, to the error trimmedError holds the build to. Nothing is baked unless the mesh names a map AND a trimmedError above 0 and has one triangle primitive; a mesh that deforms is left as it is. [] bakes nothing (default []).`,
+      items: {
+        type: 'object',
+        description: `One height map: ${DISPLACEMENT_MAP_KEYS.join(', ')}.`,
+        properties: {
+          texture: {
+            type: 'object',
+            description: `A glTF textureInfo, {"index": n}, of an image whose first channel holds the height: 8 bits or floats, at most ${MAX_DISPLACEMENT_MAP_SIZE} texels a side (a larger map displaces nothing), wrapped or clamped by its sampler.`,
+            properties: { index: int('The index of the glTF texture.', 0) },
+            required: ['index'],
+          },
+          magnitude: num(
+            'How far the height 1 lies from the height center along the normal, in the units of the scene; 0 displaces nothing (default 0).',
+          ),
+          center: num('The height that stays on the surface (default 0).'),
+        },
+        required: ['texture'],
+      },
+    },
+    displacementUvChannel: ruleSchema(
+      bake.displacementUvChannel,
+      `The set of texture coordinates the height maps are read at; a mesh without that set reads (0, 0) everywhere (default ${bake.displacementUvChannel.default}).`,
+    ),
+    displacementEdgeSplit: ruleSchema(
+      bake.displacementEdgeSplit,
+      `How the tessellation shares the vertex it adds on an edge: seams, one for the triangles on both sides unless a material or a texture coordinate differs across the edge, where each side has its own; always-duplicate, one a side whatever the edge (default ${bake.displacementEdgeSplit.default}).`,
     ),
     positionPrecision: int(
       `The position grid of the mesh's pages: every position sits on cells of 2^-n centimetre. Left out, the precision follows the mesh's density — seven less the mean base-2 logarithm of the half-diagonal, in centimetres, of its finest clusters' boxes, never finer than a sixteenth of a centimetre — and falls as far as the widest cluster needs to fit 2^21 cells an axis.`,

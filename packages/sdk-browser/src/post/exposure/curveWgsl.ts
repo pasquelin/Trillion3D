@@ -1,3 +1,4 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import {
   EXPOSURE_CURVE_MAX_EV,
@@ -20,8 +21,11 @@ const LAST = EXPOSURE_CURVE_SAMPLES - 1
  * there; WGSL leaves that log indeterminate, so the index is selected instead). The mean is the
  * frame's own, before the range holds it; `adapt` multiplies `meter.response.z` by the factor.
  */
-export const curveWgsl = (binding: number) => `
-@group(0) @binding(${binding}) var<uniform> curve:array<vec4f,${EXPOSURE_CURVE_VECTORS}>;
+export const curveWgsl = (binding: number) =>
+  wgslBlock(
+    `EXPOSURE_CURVE_${binding}`,
+    [],
+    `@group(0) @binding(${binding}) var<uniform> curve:array<vec4f,${EXPOSURE_CURVE_VECTORS}>;
 fn curveSample(i:u32)->f32{return curve[i/4u][i%4u];}
 fn curveFactor(mean:f32)->f32{
  let ev=log2(mean/${wgslF32(EXPOSURE_MIDDLE_GREY)});
@@ -29,4 +33,5 @@ fn curveFactor(mean:f32)->f32{
  let below=u32(floor(at));
  let above=min(below+1u,${LAST}u);
  return mix(curveSample(below),curveSample(above),at-floor(at));
-}`
+}`,
+  )

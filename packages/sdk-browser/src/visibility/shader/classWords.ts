@@ -29,6 +29,6 @@ export const CLASS_FEATURE = {
    *  decodes that set (`physicalWgsl.ts`). */
   HAS_PHYSICAL: 8192,
   /** A voxel brick's row (`FLAG_VOXEL`): its colour, roughness, metalness and occlusion are its
-   *  voxel's, the roughness widened by the spread of its normals (`toksvigVariance`, `roughnessWidened`). */
+   *  voxel's, its shading normal drawn from its fitted distribution of normals (`voxelSampledNormal`). */
   VOXEL: 16384,
 } as const

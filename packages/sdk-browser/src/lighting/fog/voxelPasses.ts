@@ -10,7 +10,7 @@ import type { VoxelBuffers } from './voxelGpu.ts'
 export interface VoxelPassContext {
   device: GPUDevice
   resources: {
-    frameBuffer: GPUBuffer
+    frame: { buffer: GPUBuffer }
     programs: Record<
       Exclude<FogProgramName, 'scatterSky'>,
       { layout: GPUBindGroupLayout; pipeline: { get(): GPUComputePipeline } }
@@ -33,7 +33,7 @@ export type VoxelTextures = readonly [
  *  spans written. */
 function prepareEntries({ resources, voxel }: VoxelPassContext) {
   return namedEntries(FOG_BINDING, {
-    frame: { buffer: resources.frameBuffer },
+    frame: { buffer: resources.frame.buffer },
     voxelFrame: { buffer: voxel.frame },
     voxelObjects: { buffer: voxel.objects },
     voxelSpans: { buffer: voxel.spans },
@@ -43,7 +43,7 @@ function prepareEntries({ resources, voxel }: VoxelPassContext) {
 /** The entries of the second pass's group: the same, the spans read, and the two volumes written. */
 function voxelizeEntries({ resources, voxel }: VoxelPassContext, voxels: VoxelTextures) {
   return namedEntries(FOG_BINDING, {
-    frame: { buffer: resources.frameBuffer },
+    frame: { buffer: resources.frame.buffer },
     voxelFrame: { buffer: voxel.frame },
     voxelObjects: { buffer: voxel.objects },
     voxelSpansRead: { buffer: voxel.spans },

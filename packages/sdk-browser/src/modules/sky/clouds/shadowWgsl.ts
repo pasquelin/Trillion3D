@@ -82,7 +82,7 @@ fn shadowRay(p:vec2u)->ShadowRay{
  r.near=h.xyz/h.w;
  r.status=SHADOW_RAY_HITS;
  let dir=cloudShadow.ray.xyz;
- let bottomKm=bottomRadius()+cloudShadow.layer.x;
+ let bottomKm=cloudShadow.layer.w+cloudShadow.layer.x;
  let topKm=bottomKm+cloudShadow.layer.y;
  let originKm=(cloudPlanetEye+r.near)*CLOUD_CM_TO_KM;
  let tTop=raySphere(originKm,dir,topKm);
@@ -165,7 +165,7 @@ fn shadowTrace(p:vec2u)->vec3f{
 @compute @workgroup_size(${CLOUD_SHADOW_GROUP_SIZE},${CLOUD_SHADOW_GROUP_SIZE},1)
 fn cloudShadowMain(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=u32(cloudShadow.texel.x)||id.y>=u32(cloudShadow.texel.y)){return;}
- cloudPointStart(cloudShadow.layer.xyz,bottomRadius());
+ cloudPointStart(cloudShadow.layer.xyz,cloudShadow.layer.w);
  textureStore(shadowOut,id.xy,cloudShadowStore(shadowTrace(id.xy)));
 }`
 

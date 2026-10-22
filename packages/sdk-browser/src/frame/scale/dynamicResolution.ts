@@ -32,8 +32,10 @@ const MIN_OVER_BUDGET = 2
  * (`DynamicResolutionValues`); the cut's edge scale the second (`EDGE_HEADROOM`, `EDGE_THRESHOLD`,
  * `EDGE_AMORTIZATION`).
  *
- * Each GPU time arrives with the fraction its image was drawn at, for the render scale, and the
- * fraction in force for the edge scale (`recordFrame`): a ring of `dynamicResolutionHistorySize`
+ * Each GPU time arrives with the fraction its image was drawn at, for the render scale — a time
+ * read back a few images late, paired with the fraction in force when it is read, is a time of
+ * another scale, and with two images of lag the scale no longer settles (`scaleFit.test.ts`) —,
+ * and the fraction in force for the edge scale (`recordFrame`): a ring of `dynamicResolutionHistorySize`
  * frames, each with the CPU time of the engine's last image. After each one (`refreshFraction`,
  * called per GPU frame time read back) the heuristic browses them from the newest, each
  * suggesting `fraction · ratio`, the ratio `target / gpuMs` — its square root for the render
@@ -64,8 +66,7 @@ export function createDynamicResolution(capacity = 16) {
     size: 0,
     sizes: new Int32Array(BUDGETS),
     framesSinceChange: 0,
-    /** GPU times still ignored after a reset: the next one may
-     *  describe an image of before it. */
+    /** GPU times still ignored after a reset: the next one may describe an image of before it. */
     ignore: 1,
     /** The render scale's budget, ms: written by the controller, read in place. */
     budgetMs: Number.NaN,

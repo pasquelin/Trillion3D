@@ -1,6 +1,5 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { ATMOSPHERE_SLOT } from '../../../../../sdk-core/src/scene/core/atmospherePack.ts'
-import { VIEW_SLOT } from '../../../lighting/atmosphere/layout.ts'
 import { CLOUD_MATERIAL_WGSL } from './materialWgsl.ts'
 
 /**
@@ -59,10 +58,12 @@ fn cloudPointAt(rel:vec3f)->CloudPoint{
  * - A light is lit by the air's block: its illuminance outside the air, times the air's
  *   transmittance toward it at the ground, or, with the tint taken at each sample, outside the air
  *   and the air's transmittance toward it at the point; times the light's scattered luminance
- *   scale, nothing where the air's lights do not light the cloud.
+ *   scale, nothing where the air's lights do not light the cloud. With no air the block holds the
+ *   light's own illuminance and a transmittance of one.
  * - The sky light, where the distant sky light lights the cloud, is the mean radiance of the sky
- *   the air keeps for the haze, times the material's occlusion, or, where the material gives none,
- *   the gradient of the cloud's underside (`undersideSkyLoss`).
+ *   the air keeps for the haze (with no air, the sky light's own diffuse light: `cloudDistantSky`,
+ *   `traceExtraWgsl.ts`), times the material's occlusion, or, where the material gives none, the
+ *   gradient of the cloud's underside (`undersideSkyLoss`).
  * - Multiple scattering takes `count` orders; the order after another has its scattering, its
  *   extinction and its phase's share of the lobe each squared once more than the one before.
  * - The shadow toward a light is marched through the material from the point, its samples spread
@@ -131,7 +132,7 @@ fn cloudLights(dir:vec3f)->CloudLights{
   l.list[k].illuminance=l.list[k].raw*scale;
   l.list[k].phase=cloudPhase(dot(suns.list[k].toward,dir));
  }
- l.sky=directLights.atmosphereView[${VIEW_SLOT.haze}].xyz*f32(cloudTrace.switches.z);
+ l.sky=cloudDistantSky()*f32(cloudTrace.switches.z);
  return l;
 }
 /** What the cloud lets through toward a light from the point \`rel\`, for each order: the extinction

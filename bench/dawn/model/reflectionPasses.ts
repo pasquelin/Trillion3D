@@ -1,6 +1,6 @@
 // The reflections' passes of the frame model (`passes.ts`): the depth pyramids, the screen trace,
 // the scene trace, the denoise and the radiance pyramid, each a formula in what the frame holds — its
-// `reflecting` share the pixels a lobe of which traces, at the finer blocks (`REFLECTION_TRACE_BLOCK`),
+// `reflecting` share the pixels a lobe of which traces, at the default level's blocks (`REFLECTION_LEVEL_KNOBS`),
 // a lower bound of a frame whose rough pixels read the field alone in the last pass. Pure.
 import {
   REFLECTION_PASS,

@@ -182,10 +182,9 @@ export function hostPages(s: QueueState): PageRec[] {
  *  bytes are in, at most the frame's installs and each after the bytes the simulated link gives
  *  it — one whose read failed for good (`missed`), or whose object went invalid meanwhile
  *  (`skipped`), is counted as one of them, then dropped, not installed —; ends once none is
- *  started nor loading. A page whose
- *  bytes the host has not given yet ends it too: that page and those after it stay started, in
- *  their order, and the next update (`pumpOn`) looks again — nothing waits on the host, no loop
- *  spins on it. */
+ *  started nor loading. A page whose bytes the host has not given yet ends it too: that page and
+ *  those after it stay started, in their order, and the next update (`pumpOn`) looks again —
+ *  nothing waits on the host, no loop spins on it. */
 async function run(s: QueueState) {
   try {
     for (;;) {

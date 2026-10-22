@@ -5,6 +5,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { material } from '../../../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../../../sdk-core/src/world/texture/texture.ts'
+import { Mesh } from '../../../../../sdk-core/src/world/object/mesh.ts'
+import { Geometry } from '../../../../../sdk-core/src/world/geometry/geometry.ts'
 import { hostSurface, repaintHostSurface } from './surface.ts'
 import { surfaceVariant } from '../../../geometry/pages/surfaceVariant.ts'
 
@@ -50,4 +52,17 @@ test('a repaint declares a surface again as its reading, a tinted variant keepin
     ],
   )
   assert.equal(tinted.side, 'double', 'still a line quad, both sides once')
+})
+
+test('a mesh may wear a material of the light function domain, and is drawn as the default material', () => {
+  const lamp = material.lightFunction({ color: 0xff0000, emissive: 0x00ff00 })
+  const mesh = new Mesh(new Geometry(), lamp)
+  assert.equal(mesh.material, lamp, 'the mesh keeps what it was given')
+  const surface = hostSurface(lamp)
+  // The default material: white and unlit, whatever the domain's own parameters say.
+  assert.deepEqual(surface.baseColor, [1, 1, 1])
+  assert.deepEqual([surface.family, surface.lit], ['basic', false])
+  lamp.color.set(0x0000ff)
+  repaintHostSurface(surface, lamp, 'faces')
+  assert.deepEqual(surface.baseColor, [1, 1, 1], 'a repaint falls back too')
 })

@@ -8,7 +8,8 @@ import {
   CULL_MIN_LOD_OFF,
 } from '../../geometry/dag/shader/viewsWgsl.ts'
 import { taaRenderMatrix } from '../../post/taa/frame.ts'
-import { pyramidStands, writeCutOcclusion } from './cutPyramid.ts'
+import { writeCutOcclusion } from './cutPyramid.ts'
+import { pyramidStands } from './pyramidSources.ts'
 import { primeHizFrame } from './primeHiz.ts'
 import { writeCutViewSet } from './cutViewSet.ts'
 import { readCutSetting as cutSetting } from '../../../../sdk-core/src/contracts/cutOptions.ts'

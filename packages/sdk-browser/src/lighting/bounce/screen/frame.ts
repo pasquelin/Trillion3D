@@ -1,4 +1,4 @@
-import { skyLightReadOf } from '../../../frame/render/encodeSkyLight.ts'
+import { skyLightReadOf } from '../../../frame/render/skyLightState.ts'
 import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
 import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'

@@ -126,7 +126,31 @@ function putSun(out: Float32Array, at: SunSlots, sun: AtmosphereSun) {
 }
 
 /**
- * Writes the block: all zero, the atmosphere off, without one. `suns` holds the lights of the air
+ * The lights of the air where there is no air, for the programs that light a medium by them (the
+ * clouds): each light holds its slots as it would, but its illuminance reaches the medium whole —
+ * the transmittance toward it is one and the fog's share of the air is zero, the air's planet block
+ * stays all zero (the atmosphere is off) — and it has no disk (a cosine of one, a luminance of zero;
+ * the last lane still says there is a light). Its place in the light buffer is kept, so that the
+ * clouds' shade finds the light it shades; no light shades the air, none reads its transmittance
+ * per point.
+ */
+function packAirlessSuns(suns: readonly (AtmosphereSun | undefined)[], out: Float32Array) {
+  const slots = [-1, -1, 0, 0]
+  suns.forEach((sun, index) => {
+    if (!sun) return
+    const at = SUN_SLOTS[index]
+    putSlot(out, at.direction, ...sun.direction.map((c) => -c), 1)
+    putSlot(out, at.illuminance, ...sun.illuminance)
+    putSlot(out, at.disk, 0, 0, 0, 1)
+    putSlot(out, at.transmittance, 1, 1, 1, 0)
+    slots[index] = sun.lightSlot ?? -1
+  })
+  putSlot(out, ATMOSPHERE_SLOT.lightSlots, ...slots)
+}
+
+/**
+ * Writes the block: the atmosphere off (the planet's slot zero) without one, and every slot of the
+ * air zero, but the lights of the air (`packAirlessSuns`). `suns` holds the lights of the air
  * by index, none where there is none: a light writes its slots (`SUN_SLOTS`), and the programs
  * read nothing of a light whose disk slot says there is none. Without a light the block holds the
  * air alone and the sky is dark; the transmittance toward the sun is one.
@@ -137,7 +161,10 @@ export function packAtmosphere(
   out: Float32Array,
 ) {
   out.fill(0, 0, ATMOSPHERE_FLOATS)
-  if (!atmosphere) return out
+  if (!atmosphere) {
+    packAirlessSuns(suns, out)
+    return out
+  }
   const k = coefficientsOf(atmosphere)
   const put = (slot: number, ...values: number[]) => putSlot(out, slot, ...values)
   put(ATMOSPHERE_SLOT.planet, 1, k.bottomRadius, k.topRadius, atmosphere.groundHeight)

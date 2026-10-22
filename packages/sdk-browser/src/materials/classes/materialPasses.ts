@@ -1,9 +1,8 @@
 import { shadeColorAttachments } from '../../frame/prepare/attachments.ts'
 import { followEmissiveAo } from '../../frame/prepare/emissiveAoLayer.ts'
-import { MATERIAL_CLASS_KEYS } from '../../visibility/shader/materialClass.ts'
-import { rowsUnread } from '../../geometry/rows/dirty.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
-import { type PresentClasses, markPresentClasses } from '../../gpu/core/presentClasses.ts'
+import { markPresentClasses } from '../../gpu/core/presentClasses.ts'
+import { readsTime } from '../graph/surfaceClasses.ts'
 import { MATERIAL_COMPUTE_PASS, MATERIAL_SURFACES_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts'
 import { contextReader } from '../../../../sdk-core/src/contracts/settingRules.ts'
@@ -17,13 +16,6 @@ const shadingSetting = contextReader(SHADING_RULES)
 
 /** The material pass's compute pass: the frame's cache, the shading bins and the classes' shading. */
 const materialPass = new LazyComputePass(MATERIAL_COMPUTE_PASS)
-
-export const createPresentClasses = (): PresentClasses => ({
-  stamps: new Uint32Array(MATERIAL_CLASS_KEYS),
-  keys: [],
-  stamp: 0,
-  read: rowsUnread(),
-})
 
 /** One indirect dispatch a class of the image over its bin, in `shading`. The classes that draw a
  *  displaced pixel read their own group 0 and pipeline (`prismFrame.ts`), the others the resolve's. */
@@ -71,6 +63,7 @@ export function encodeMaterialPasses(rt: WebgpuPagesRuntime, encoder: GPUCommand
     vis.presentClasses,
     rows.rowWrites,
   )
+  vis.graphsAnimated = readsTime(keys)
   // Its rows are written: one that came to emit or occlude brings the layer before this resolve.
   followEmissiveAo(rt)
   // Read after the layer was followed: a surface that came to emit switched the classes

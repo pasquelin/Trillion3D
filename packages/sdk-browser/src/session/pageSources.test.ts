@@ -43,7 +43,7 @@ test("a scene read catalogues its partitions' pages and binds its world roots", 
   )
 })
 
-test('a page read that keeps failing reaches the host once, as it first waits the longest', async (t) => {
+test('a page read that keeps failing reaches the host at its first failure and when it is given up, never once a try', async (t) => {
   const clock = { now: 0 }
   t.mock.method(performance, 'now', () => clock.now)
   t.mock.timers.enable({ apis: ['setTimeout'] })
@@ -66,13 +66,15 @@ test('a page read that keeps failing reaches the host once, as it first waits th
   void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
   // Each step's read settled before the clock moves on: failed and waiting, however slow the machine.
   const idle = () => streamer.stats().loading === 0 && streamer.stats().queued === 0
-  for (await eventually(idle); clock.now <= 16_000; clock.now += 250) {
+  for (await eventually(idle); clock.now <= 2_000; clock.now += 250) {
     t.mock.timers.tick(250)
     await eventually(idle)
   }
-  assert.equal(told.length, 1, 'said once, never once a wait')
-  assert.match(told[0][0], /a\.bin: .*HTTP 503/)
-  assert.equal(told[0][1], 1)
+  assert.equal(told.length, 2, 'said at the first failure and when given up, not once a try')
+  for (const [detail, failed] of told) {
+    assert.match(detail, /a\.bin: .*HTTP 503/)
+    assert.equal(failed, 1)
+  }
 })
 
 test('a page read that fails is fatal while no cover is resident, degraded while one is', () => {

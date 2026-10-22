@@ -18,6 +18,8 @@ import type { RecordLayout } from '../../gpu/core/recordLayout.ts'
  * - The maps' atlas slots, zero for none; `channels`, two bits a map: the texture set map `i` of
  *   `SURFACE_MAP_FIELDS` reads, at bit `2i` (glTF's `texCoord`, `channelsOf`); `lobes`, the
  *   first texel of the surface's lobe extension plus one (`writeLobeRecord`), zero without a lobe.
+ * - `graph`, the first texel of the values of the graph the surface wears plus one (`graphRecord.ts`),
+ *   zero without a graph: the values are the texels from there, at ten to a record's place.
  * - The volume: `invIor` the refraction ratio, `attenuation`
  *   the law's constant `k` (`volumeAttenuation`), each computed here once in f64.
  */
@@ -49,6 +51,7 @@ export const MATERIAL_RECORD = fieldLayout('Material', [
   ['transmission', 'f32'],
   ['invIor', 'f32'],
   ['thickness', 'f32'],
+  ['graph', 'u32'],
   ['attenuation', 'vec3f'],
   ['channels', 'u32'],
 ] as const)

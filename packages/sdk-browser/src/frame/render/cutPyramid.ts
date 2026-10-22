@@ -2,15 +2,15 @@ import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { SelectionUniforms } from '../../gpu/core/selection.ts'
 import { writeClipDepth } from '../../gpu/core/selectionProjection.ts'
 import type { CutPyramid } from '../../geometry/dag/occlusion.ts'
-import { OCCLUSION_TWO_PASS, twoPassOf } from '../../geometry/dag/shader/occlusionWgsl.ts'
+import { OCCLUSION_TWO_PASS } from '../../geometry/dag/shader/occlusionWgsl.ts'
 import { HIZ_LEVELS } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
 import { taaRenderMatrix } from '../../post/taa/frame.ts'
-import { prepared } from '../backend/state/prepared.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { builtPrime } from './primeHiz.ts'
 import type { PrimeBuilt } from './primeState.ts'
+import { cutPyramid, pyramidSources, standingSource } from './pyramidSources.ts'
 
 /**
  * THE PYRAMID THE CUT'S OCCLUSION READS (`../../geometry/dag/shader/occlusionWgsl.ts`), and what it
@@ -29,29 +29,8 @@ import type { PrimeBuilt } from './primeState.ts'
  * `cutOcclusionCulling`), the view's cut — the main one, or a view's aside — runs its two passes;
  * otherwise one, no pyramid hiding anything: a view's first image, a capture's only one.
  */
-type PyramidSource = {
-  /** The image's render matrix, its jitter included, from the world to clip space, in doubles. */
-  viewProj: Float64Array
-  depthMap: [number, number]
-  size: [number, number]
-  /** The pyramid's texture view it was built in. */
-  view: GPUTextureView
-  /** The levels uniform it was built with (`hizLevelWords`), this source's own. */
-  levels: GPUBuffer
-}
-
-/** Each view's last built pyramid's source, by its record (`rt.views.active`). */
-const sources = new WeakMap<object, PyramidSource>()
 /** Bytes of a levels uniform. */
 const LEVELS_BYTES = HIZ_LEVELS.words * 4
-
-/** The frame's pyramid as the cut binds it: its texture's view and its levels uniform; none once
- *  the Hi-Z is released. */
-export function cutPyramid(rt: WebgpuPagesRuntime): CutPyramid | undefined {
-  const gpuHiz = prepared(rt.vis, 'gpuHiz'),
-    view = gpuHiz.pyramidView()
-  return view && { view, levels: gpuHiz.levelTable }
-}
 
 /** The drawn view's pyramid was built from its image, drawn under `cam`, into `encoder`: what the
  *  view's next main pass tests against when it holds the image's `whole` depth, nothing otherwise.
@@ -66,10 +45,10 @@ export function notePyramidBuilt(
   const pyramid = cutPyramid(rt),
     view = rt.views.active,
     device = rt.gpu.device!
-  let source = sources.get(view)
+  let source = pyramidSources.get(view)
   if (source && (!pyramid || !whole || source.view !== pyramid.view)) {
     retire(device, source.levels)
-    sources.delete(view)
+    pyramidSources.delete(view)
     source = undefined
   }
   if (!pyramid || !whole) return
@@ -89,19 +68,7 @@ export function notePyramidBuilt(
   source.size[0] = rt.gpu.targetSize[0]
   source.size[1] = rt.gpu.targetSize[1]
   encoder.copyBufferToBuffer(pyramid.levels, 0, source.levels, 0, LEVELS_BYTES)
-  sources.set(view, source)
-}
-
-/** The pyramid the drawn view's main pass tests against, as `writeCutOcclusion` bound it to the cut:
- *  the previous image's, its texture through the levels it was built with; none for a cut in one
- *  pass, which tests no box and no patch (`../../visibility/tessellation/`). */
-export function previousPyramid(rt: WebgpuPagesRuntime): CutPyramid | undefined {
-  if (!twoPassOf(rt.run.selectionUniforms)) return undefined
-  const source = sources.get(rt.views.active),
-    pyramid = cutPyramid(rt)
-  return source && pyramid && source.view === pyramid.view
-    ? { view: pyramid.view, levels: source.levels }
-    : undefined
+  pyramidSources.set(view, source)
 }
 
 /**
@@ -118,11 +85,9 @@ export function writeCutOcclusion(
 ): CutPyramid | undefined {
   const primed = asked ? builtPrime(rt) : undefined
   if (primed) return primedOcclusion(uniforms, primed)
-  const source = sources.get(rt.views.active),
-    pyramid = cutPyramid(rt)
-  const stands = asked && !!source && !!pyramid && source.view === pyramid.view
-  uniforms.occlusion = stands ? OCCLUSION_TWO_PASS : 0
-  if (!stands) return undefined
+  const source = asked ? standingSource(rt) : undefined
+  uniforms.occlusion = source ? OCCLUSION_TWO_PASS : 0
+  if (!source) return undefined
   const prevViewProj = (uniforms.prevViewProj ??= new Float32Array(16))
   matrixAtRenderOrigin(prevViewProj, source.viewProj, cam.eye)
   const depthMap = (uniforms.prevDepthMap ??= [0, 0]),
@@ -131,15 +96,7 @@ export function writeCutOcclusion(
   depthMap[1] = source.depthMap[1]
   size[0] = source.size[0]
   size[1] = source.size[1]
-  return { view: pyramid.view, levels: source.levels }
-}
-
-/** Whether the drawn view's last pyramid stands for this image's cut (`writeCutOcclusion`): what
- *  the primed pyramid's `'whenMissing'` waits on. */
-export function pyramidStands(rt: WebgpuPagesRuntime) {
-  const source = sources.get(rt.views.active),
-    pyramid = cutPyramid(rt)
-  return !!source && !!pyramid && source.view === pyramid.view
+  return { view: source.view, levels: source.levels }
 }
 
 /**

@@ -23,6 +23,9 @@ const scratch = new Float32Array(MATERIAL_RECORD_WORDS)
 const scratchInts = new Uint32Array(scratch.buffer)
 const k = [0, 0, 0]
 
+/** The values of a surface with no graph (`writeGraphRecord`). */
+const NO_GRAPH = { word: 0, channels: 0 }
+
 /** The cutout threshold of `mat` (`MATERIAL_RECORD.cut`). */
 const cutOf = (mat: MaterialSurface) =>
   mat.alphaTest > 0 ? mat.alphaTest : mat.dashSize !== undefined ? 0 : 1
@@ -63,8 +66,9 @@ function writeVolumeTerms(out: Float32Array, mat: MaterialSurface) {
 
 /**
  * Writes the record of `mat` at word `at` of `ints`: its factors, its maps' slots in the two
- * atlases (`layers`), `lobes` its lobe extension's word, and its volume. Returns whether a word
- * changed: a surface written again with what it held sends nothing up.
+ * atlases (`layers`), `lobes` its lobe extension's word, `graph` the word of its graph's values
+ * (`graphRecord.ts`: its word and the channels word it reads in place of its maps'), and its volume. Returns whether a word changed: a surface written again
+ * with what it held sends nothing up.
  */
 export function writeMaterialRecord(
   ints: Uint32Array,
@@ -72,6 +76,7 @@ export function writeMaterialRecord(
   mat: MaterialSurface,
   { mapLayer, dataLayer }: MaterialLayers,
   lobes: number,
+  graph: { word: number; channels: number } = NO_GRAPH,
 ) {
   factors(mat)
   scratchInts[F.mapIndex] = layerSlot(mapLayer, mat.map)
@@ -82,8 +87,9 @@ export function writeMaterialRecord(
   scratchInts[F.aoIndex] = layerSlot(dataLayer, mat.aoMap)
   scratchInts[F.subsurfaceMap] = layerSlot(mapLayer, mat.subsurfaceMap)
   scratchInts[F.lobes] = lobes
+  scratchInts[F.graph] = graph.word
   writeVolumeTerms(scratch, mat)
-  scratchInts[F.channels] = channelsOf(mat, SURFACE_MAP_FIELDS)
+  scratchInts[F.channels] = graph.word ? graph.channels : channelsOf(mat, SURFACE_MAP_FIELDS)
   return copyChanged(ints, at, scratchInts)
 }
 

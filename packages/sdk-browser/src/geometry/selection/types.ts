@@ -124,6 +124,15 @@ export type RootProxy = { primitive: { runtimeProxy?: RuntimeCutProxy }; surface
  *  units: not drawn nearer than `min`, nor farther than `max`, which is above 0 — a root that names
  *  no farthest distance carries none. */
 export type DrawDistance = Readonly<Required<DrawDistanceSettings>>
+/** The group that replaces the root of a placement that is an instance of an assembly — the levels
+ *  above the instances' roots (`../dag/shader/rootParentWgsl.ts`) —: its error and the ball it is
+ *  projected through, centre then radius, in the space of the placement's primitive. The cut opens
+ *  the placement only while that error shows at the ball's distance: far away the group's own
+ *  clusters draw in its stead. */
+export type RootParent = Readonly<{
+  error: number
+  sphere: readonly [number, number, number, number]
+}>
 export type ClusterRoot<T> = {
   world: MatrixElements
   pages: T[]
@@ -178,6 +187,9 @@ export type ClusterRoot<T> = {
   /** The distances it is drawn at, absent when it names none: the cut culls it outside them
    *  (`cutDrawDistanceCulling`, `../dag/shader/drawDistanceWgsl.ts`). */
   drawDistance?: DrawDistance
+  /** The group that replaces its root, when it is an instance of an assembly, absent otherwise
+   *  (`RootParent`). */
+  rootParent?: RootParent
   /** The instance-buffer row this root reads its world from, when it was collected from one. */
   placement?: PlacementOf
   /** The results of each of its pages, by the page's rank in `pages`, where its deformation writes

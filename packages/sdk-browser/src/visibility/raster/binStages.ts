@@ -26,7 +26,7 @@ export function lazyTessellatedBin(
   layout: GPUBindGroupLayout,
   stages: ReturnType<typeof stagesOf>,
 ) {
-  let made: ReturnType<ReturnType<typeof stagesOf>>[] | undefined
+  let made: ReturnType<ReturnType<ReturnType<typeof stagesOf>>>[] | undefined
   return () => {
     if (!made) {
       const module = device.createShaderModule({ code: binSource(capacity, true, clipping) })

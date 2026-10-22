@@ -12,6 +12,9 @@ import { blendShader } from './shader.ts'
 import type { ContractKey } from '../lighting/deferred/contractCuts.ts'
 import { transmitWgsl } from './transmission/transmitWgsl.ts'
 import { blendFrontShader } from './frontStageWgsl.ts'
+import { material } from '../../../sdk-core/src/world/material/index.ts'
+import { Texture as WorldTexture } from '../../../sdk-core/src/world/texture/texture.ts'
+import { isProgram, programOf } from '../materials/graph/surfaceProgram.ts'
 
 // Retaken when the vertex came to pass the item's history share code above the triangle's rank
 // (`TRI_GIVEN_UP_SHIFT`), the page reads drew a voxel row's bricks as boxes (`voxelWgsl.ts`), and
@@ -164,4 +167,53 @@ test('a device that has clip distances cuts at the view’s plane in the vertex 
       fragmentEntries(code).length >= 1 && fragmentEntries(code).every(([, guarded]) => !guarded),
     )
   }
+})
+
+/** The program a translucent surface's graph compiles to for the transparent pass. */
+function translucentProgram() {
+  const graph = material.graph('surface')
+  const read = graph.textureSample(new WorldTexture(), { uv: graph.texCoord(1) })
+  graph.output('baseColor', graph.channel(read, 'rgb'))
+  graph.output('opacity', graph.channel(read, 'a'))
+  graph.output('normal', graph.constant(0, 0, 1))
+  const program = programOf({ graph, transparent: true, alphaTest: 0 })
+  assert.ok(isProgram(program), 'the graph compiles')
+  return program
+}
+
+test('a blend module holds the code of a graph only where an item wears one', () => {
+  const plain = blendShader({})
+  assert.doesNotMatch(plain, /BlendGraph|blendGraphEval|derivative_uniformity/)
+  assert.doesNotMatch(wgslModule(blendVertexWgsl(true)), /m\.graph/)
+  const program = translucentProgram()
+  const text = blendShader({}, { graphs: [program] })
+  // The program's own functions, the switch that picks them by the id its values carry, and the
+  // derivatives it takes among the quad's, hoisted above the declarations.
+  assert.match(text, /^diagnostic\(off,derivative_uniformity\);/)
+  assert.match(text, new RegExp(`case ${program.id}u:\\{return blendGraph_\\w+\\(in,first\\);\\}`))
+  // Evaluated once, with the fragment's screen derivatives, before any of its tests.
+  assert.match(
+    text,
+    /fn blendGrads\(in:VSOut\)->BlendGrads\{return BlendGrads\(dpdx\(in\.uv\.xy\)[^]*,blendGraphEval\(in\)\);\}/,
+  )
+  assert.match(
+    text,
+    /fn blendBase\(in:VSOut,g:BlendGrads\)->vec4f\{if\(g\.graph\.id!=0u\)\{return vec4f\(g\.graph\.rgb,g\.graph\.opacity\);\}/,
+  )
+  // Its textures' footprints come from the contexts beside, which the screen derivatives give.
+  assert.match(text, /mgNeighbour\[0\]\.uvs=array<vec2f,8>\(in\.uv\.xy\+dpdx\(in\.uv\.xy\)/)
+  // The item's factors and maps neutral in the vertex stage, so that the fragment's read is the graph's.
+  const vertex = wgslModule(blendVertexWgsl(true, undefined, true))
+  assert.match(vertex, /if\(m\.graph!=0u\)\{\s*out\.color=vec4f\(1\.0\);out\.ids\.x=0u;/)
+})
+
+test('the stages of one module list one blend surface, with the graphs or without', () => {
+  const programs = [translucentProgram()]
+  // A conflict between the stages' own copies of the surface would be refused by the assembler.
+  const code = blendShader({}, { stage: transmitWgsl({}, false, programs), graphs: programs })
+  assert.equal(code.match(/fn blendGrads\(/g)?.length, 1)
+  assert.equal(code.match(/struct BlendGraph\{/g)?.length, 1)
+  const front = blendFrontShader(1, undefined, programs)
+  assert.equal(front.match(/fn blendGraphEval\(/g)?.length, 1)
+  assert.doesNotMatch(blendFrontShader(1), /blendGraphEval/)
 })

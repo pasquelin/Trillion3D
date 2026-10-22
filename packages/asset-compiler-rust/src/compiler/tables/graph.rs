@@ -56,9 +56,13 @@ pub(super) fn node_parents(nodes: &[Value]) -> Result<Vec<Option<usize>>> {
 /// One entry per node of the document: its name, its children, the mesh, camera and skin it carries,
 /// its local pose as declared, whether it declares itself visible (`KHR_node_visibility`), and,
 /// for a node that draws a mesh, the distances its settings say it is drawn at (`"drawDistance"`,
-/// `objects`, `DrawDistance`), and whether a view's primed depth draws it (`"farField"`), each
-/// left out when it names none.
-pub(super) fn node_table(g: &Value, objects: &crate::ObjectSettings) -> Result<Vec<Value>> {
+/// `objects`, `DrawDistance`), whether a view's primed depth draws it (`"farField"`), and, for a node
+/// that is an instance of an assembly, the error and the LOD ball of the group that replaces each
+/// primitive's root of its part (`"rootParents"`, `parents`), each left out when it names none.
+pub(super) fn node_table(
+    g: &Value,
+    (objects, parents): (&crate::ObjectSettings, &AssemblyParents),
+) -> Result<Vec<Value>> {
     let nodes = values(g, "nodes")?;
     let meshes = g
         .get("meshes")
@@ -114,6 +118,9 @@ pub(super) fn node_table(g: &Value, objects: &crate::ObjectSettings) -> Result<V
             }
             if setting.far_field {
                 entry["farField"] = json!(true);
+            }
+            if let Some(roots) = parents.of_node(node) {
+                entry["rootParents"] = roots;
             }
         }
         table.push(entry);

@@ -12,6 +12,7 @@
 //! No lamp is written here: `lights.json` (`lights.rs`) is the one reading of a light —
 //! its type, colour, intensity, range, cone and world transform — and the one policy on a light it
 //! cannot read (counted in `rejected`, never a failed compile).
+use crate::compiler::source::assembly::plan::AssemblyParents;
 use crate::hlod::options::Assigned;
 use crate::*;
 use serde_json::Map;
@@ -155,10 +156,11 @@ pub(crate) fn stage_scene_tables(
         PartitionInputs<'_>,
         &crate::MaterialOptions,
     ),
-    (published, world, mesh_map): (
+    (published, world, mesh_map, parents): (
         &Value,
         &[crate::compiler::source::node_transform::Mat4],
         &BTreeMap<usize, usize>,
+        &AssemblyParents,
     ),
     mesh_pages: &crate::compiler::pages::manifest::MeshPages,
     (directory, pool): (&Path, &rayon::ThreadPool),
@@ -166,7 +168,7 @@ pub(crate) fn stage_scene_tables(
     world_roots: impl FnOnce(&partition::CellMembers) -> Result<WorldMaterials>,
 ) -> Result<StagedTables> {
     let started = Instant::now();
-    let mut table = node_table(published, objects)?;
+    let mut table = node_table(published, (objects, parents))?;
     let mut roots =
         crate::compiler::source::nodes::scene_roots(published, values(published, "nodes")?)?;
     // The input scene's meshes' boxes, by its own ranks: what the banks' and the plain skinned

@@ -9,7 +9,9 @@
 //! primitive's share of its mesh's far group, voxel levels that keep coarsening past a voxel root
 //! (`stage.rs`). Each level-0 cluster belongs to one
 //! group of each level above it: a group's outputs share its clusters, each to the output nearest
-//! it, so siblings stand for disjoint triangles.
+//! it, so siblings stand for disjoint triangles. A group's triangles are kept child by child
+//! (`SeedGroup::child_triangles`): the stage takes a voxel child's cells from its voxels, not from
+//! the triangles it stands for (`stage/inherit.rs`).
 use super::ERROR_PER_SIZE;
 use crate::dag::{DagCluster, DagGroup, DAG_CLUSTER_TRIANGLES};
 use trillion3d_math::geometry::triangle::triangle_area;

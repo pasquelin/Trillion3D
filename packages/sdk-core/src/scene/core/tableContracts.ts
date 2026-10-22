@@ -12,7 +12,7 @@ import { EngineError } from '../../contracts/cache.ts'
 import type { TableDocument } from './tableDocuments.ts'
 import type { TableMaterial, TableTexture } from './tableSurfaces.ts'
 import type { TableAnimation, TableSkin } from './tableMotion.ts'
-import type { TableDrawDistance } from './tableCell.ts'
+import type { TableDrawDistance, TableRootParent } from './tableCell.ts'
 import {
   assertTablePartition,
   type TablePartition,
@@ -82,6 +82,9 @@ export interface TableNode {
   /** Its mesh is drawn by a view's primed depth (`farField` of the job's object settings); left
    *  out otherwise. */
   farField?: true
+  /** An instance of an assembly: per primitive of its mesh, the group that replaces its root,
+   *  `null` for a primitive none replaces (`CellNode.rootParents`); left out otherwise. */
+  rootParents?: readonly (TableRootParent | null)[]
 }
 /** A camera as the glTF file declares it, each silent field `null`. */
 export interface TableCamera {

@@ -131,6 +131,8 @@ function writeViewFrame(rt: WebgpuPagesRuntime, tiles: ReturnType<typeof directT
   ints[VIEW.toneCurve] = tiles[4]
   // The cut's threshold the screen-error view measures against (`diagnosticScreenError`).
   packed[VIEW.pixelError] = run.diagnosticPixelError
+  // What a material graph reads of the clock, the opaque resolve's (`../visibility/passes/uniforms.ts`).
+  packed[VIEW.time] = performance.now() / 1000
   // The view's clip plane: every vertex stage cuts its primitives by it (`../gpu/core/clipDistances.ts`).
   writeViewClipPlane(rt, run.gate.cam, packed, VIEW.clipPlane)
 }

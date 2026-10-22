@@ -15,6 +15,7 @@ import { DAG_WANTED_WGSL } from './wantedWgsl.ts'
 import { DAG_LIVE_WGSL } from './liveWgsl.ts'
 import { DAG_LEVEL_WGSL } from './levelWgsl.ts'
 import { DAG_DRAW_DISTANCE_WGSL } from './drawDistanceWgsl.ts'
+import { DAG_ROOT_PARENT_WGSL } from './rootParentWgsl.ts'
 import { DAG_CLIP_PLANE_WGSL, DAG_NO_CLIP_PLANE_WGSL } from './clipPlaneWgsl.ts'
 import { DAG_VIEW_FILTER_WGSL } from './viewFilterWgsl.ts'
 import { DAG_LISTS_WGSL } from './listsWgsl.ts'
@@ -133,6 +134,7 @@ const DAG_SELECTION_PARTS = [
   DAG_LIVE_WGSL,
   DAG_LEVEL_WGSL,
   DAG_DRAW_DISTANCE_WGSL,
+  DAG_ROOT_PARENT_WGSL,
   DAG_VIEW_FILTER_WGSL,
   DAG_LISTS_WGSL,
   DAG_POST_PASS_WGSL,

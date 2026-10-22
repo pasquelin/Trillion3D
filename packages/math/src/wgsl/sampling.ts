@@ -1,5 +1,5 @@
 import { wgslFn } from './decl.ts'
-import { PLASTIC_STEP, QUARTER_PI } from './constants.ts'
+import { PI, PLASTIC_STEP, QUARTER_PI } from './constants.ts'
 
 /**
  * Where a shader samples: a seed folded into [0, 1), the interleaved gradient of a pixel, a texel
@@ -159,5 +159,18 @@ export const surfaceSlopeOf = wgslFn(
  let bend=abs(into-beyond);let continues=bend<abs(beyond);
  if(continues.x&&(!continues.y||bend.x<=bend.y)){return into.x;}
  return select(0.0,into.y,continues.y);
+}`,
+)
+
+/** A direction of the unit sphere, evenly over its area: `e.x` turns it about the third axis, `e.y`
+ *  runs its cosine from 1 down to -1. */
+export const sampleSphereEven = wgslFn(
+  'sampleSphereEven',
+  [PI],
+  `fn sampleSphereEven(e:vec2f)->vec3f{
+ let phi=2.0*PI*e.x;
+ let cosTheta=1.0-2.0*e.y;
+ let sinTheta=sqrt(1.0-cosTheta*cosTheta);
+ return vec3f(sinTheta*cos(phi),sinTheta*sin(phi),cosTheta);
 }`,
 )

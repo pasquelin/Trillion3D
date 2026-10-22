@@ -42,15 +42,18 @@ const bitsSet = (x: number) => x !== 0 || Object.is(x, -0)
 
 /**
  * Whether a surface can write a texel other than `(0, 0, 0, 1)`, the one `emissiveAoFlag` leaves
- * unmarked: an emission or occlusion map, an emission factor of any bit set, or an occlusion
- * intensity whose product with zero is no zero (`1 + intensity × 0`, an infinite or a NaN). An
+ * unmarked: an emission or occlusion map, a graph that wires an emission or an occlusion, an emission
+ * factor of any bit set, or an occlusion intensity whose product with zero is no zero
+ * (`1 + intensity × 0`, an infinite or a NaN). An
  * image none of whose opaque surfaces can has no use for the layer: nothing marks a texel of it.
  */
 export function surfaceEmitsOrOccludes(
-  mat: Pick<VisMaterial, 'emissive' | 'emissiveMap' | 'aoMap' | 'aoIntensity'>,
+  mat: Pick<VisMaterial, 'emissive' | 'emissiveMap' | 'aoMap' | 'aoIntensity' | 'graph'>,
 ) {
   const [r, g, b] = mat.emissive
   return (
+    !!mat.graph?.outputs.emissive ||
+    !!mat.graph?.outputs.ambientOcclusion ||
     !!mat.emissiveMap ||
     !!mat.aoMap ||
     bitsSet(r) ||

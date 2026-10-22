@@ -24,7 +24,7 @@ import { vsmLayout } from '../../../packages/sdk-browser/src/lighting/shadows/vs
 import { vsmProjectionWgsl } from '../../../packages/sdk-browser/src/lighting/shadows/vsm/projection/projectionWgsl.ts'
 import { functionsOf } from '../../../packages/sdk-browser/src/materials/texture/shaderRule.fixture.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
-import { HIZ_RULES } from '../../../packages/sdk-core/src/contracts/hizOptions.ts'
+import { REFLECTION_RULES } from '../../../packages/sdk-core/src/contracts/reflectionOptions.ts'
 import { wgslF32 } from '../../../packages/math/src/wgsl/number.ts'
 import { clipToFramebuffer } from '../../../packages/math/src/wgsl/projection.ts'
 import { bufferHolding } from '../../kit/device/computeReadback.ts'
@@ -73,7 +73,7 @@ ${castText()}
  let towardLight=vec3f(1.0,0.0,0.5);
  let rayLength=1.4;
  let pixels=6.0;
- let relative=${wgslF32(HIZ_RULES.hizRelativeDepthThickness.default)};
+ let relative=${wgslF32(REFLECTION_RULES.reflectionRelativeDepthThickness.default)};
  out[0]=vsmScreenRayCast(origin,towardLight,rayLength,0.5);
  let size=vsmView.viewPixels.xy;
  let start=clipToFramebuffer(vsmView.shiftedToClip*vec4f(origin,1.0),size);

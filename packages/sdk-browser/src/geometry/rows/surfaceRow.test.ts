@@ -12,7 +12,11 @@ import { surfaceWritten } from '../pages/surfaceWrites.ts'
 import { FLAG_DISPLACED, FLAG_HAS_MAP, ROW_WORDS } from '../../visibility/types.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
-import { surfaceRow } from './surfaceRow.ts'
+import { rowFlags, surfaceRow } from './surfaceRow.ts'
+import { material } from '../../../../sdk-core/src/world/material/index.ts'
+import { Texture as WorldTexture } from '../../../../sdk-core/src/world/texture/texture.ts'
+import { FEATURE_CLASS_KEYS } from '../../visibility/shader/materialClass.ts'
+import { takeGraphRefusals } from '../../materials/graph/surfaceProgram.ts'
 
 const ROWS = 100
 
@@ -98,4 +102,39 @@ test('a surface displaced by a height map the atlas holds marks its rows displac
   assert.equal(marked({ ...displaced, displacement: undefined }, 3), false, 'no numbers: flat')
   assert.equal(marked({ ...displaced, displacementMap: undefined }, 3), false, 'no map: flat')
   assert.equal(marked(surfaceOf(G.standardSurface()) as typeof displaced, 3), false)
+})
+
+/** A surface wearing a graph that colours it from a parameter, and reads a texture where asked. */
+function graphSurface(reads = false, map?: Texture) {
+  const graph = material.graph('surface')
+  const tint = graph.channel(graph.vectorParameter('tint', [1, 0.5, 0.25, 1]), 'rgb')
+  const read = graph.channel(graph.textureSample(new WorldTexture()), 'rgb')
+  graph.output('baseColor', reads ? graph.multiply(read, tint) : tint)
+  return { ...surfaceOf(G.standardSurface()), map, graph }
+}
+
+test('a surface that wears a graph reads none of its maps, and its rows take the class of the graph', () => {
+  const map = { channel: 0 } as Texture
+  const layers = { mapLayer: new Map([[map, 4]]), dataLayer: new Map<Texture, number>() }
+  const plain = { ...surfaceOf(G.standardSurface()), map }
+  const worn = graphSurface(false, map)
+  assert.equal(surfaceRow(plain, layers).map, 4, 'a surface with no graph reads its map')
+  const row = surfaceRow(worn, layers)
+  assert.equal(row.map, 0, 'the graph computes what the map gave')
+  assert.equal(row.bits & FLAG_HAS_MAP, 0)
+  assert.ok(row.graph, 'its program is kept with its row')
+  const key = (surface: typeof worn) => rowFlags(surfaceRow(surface, layers), undefined, undefined)
+  assert.ok(key(worn).classKey >= FEATURE_CLASS_KEYS, 'the class is one of the graphs')
+  assert.equal(key(graphSurface(false, map)).classKey, key(worn).classKey, 'one program, one class')
+  assert.notEqual(key(graphSurface(true, map)).classKey, key(worn).classKey, 'another program')
+  assert.ok(key(plain).classKey < FEATURE_CLASS_KEYS, 'no graph, a class of the features')
+})
+
+test('a surface whose graph does not compile is drawn from its parameters', () => {
+  const layers = { mapLayer: new Map<Texture, number>(), dataLayer: new Map<Texture, number>() }
+  const graph = material.graph('surface')
+  graph.output('baseColor', graph.add(graph.constant(1, 2), graph.constant(1, 2, 3)))
+  const row = surfaceRow({ ...surfaceOf(G.standardSurface()), graph }, layers)
+  assert.equal(row.graph, undefined, 'a width the compile refuses')
+  assert.match(takeGraphRefusals()[0], /float2 and float3/)
 })

@@ -80,8 +80,8 @@ function createTints(
  * THE BLOCKS THE SUNS DECIDE: the atmosphere's block and the colour of each of the air's lights
  * through the air (`atmosphereSun.ts`), and the fog's sun in the environment's block
  * (`fogSun.ts`). The lights are held as lights are added, changed and removed, air or none; both
- * blocks are written again where a directional light or the environment changed, so a scene with
- * no atmosphere and no fog pays nothing.
+ * blocks are written again where a directional light or the environment changed — the atmosphere's
+ * holds the lights of the air even with no air (`packAtmosphere`), the clouds read them there.
  */
 export function createSunBlocks(sources: SunSources) {
   const { records, environmentPacked } = sources
@@ -94,7 +94,7 @@ export function createSunBlocks(sources: SunSources) {
   }
   /** The sun may have changed: the blocks follow. */
   const settle = () => {
-    if (sources.atmosphere()) tints.apply()
+    tints.apply()
     applyFogSun()
   }
   return {
@@ -126,7 +126,7 @@ export function createSunBlocks(sources: SunSources) {
     /** The environment was set: the atmosphere follows where it is or was the sun's, the fog's sun
      *  always. */
     environmentChanged() {
-      if (sources.atmosphere() || tints.any) tints.apply()
+      tints.apply()
       applyFogSun()
     },
   }

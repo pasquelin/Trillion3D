@@ -1,5 +1,6 @@
 import type { Side } from '../../../sdk-core/src/contracts/material.ts'
 import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
+import type { MaterialGraph } from '../../../sdk-core/src/world/material/graph/api.ts'
 
 /** The anisotropy and clear-coat maps, in the order their lobe extension names them
  *  (`../materials/table/lobeRecord.ts`). */
@@ -93,6 +94,9 @@ export type VisMaterial = {
   attenuationColor: [number, number, number]
   /** The material multiplies its base colour by the geometry's `color` attribute, when it has one. */
   vertexColors?: boolean
+  /** The graph that computes the surface's outputs in place of its parameters and maps
+   *  (`../materials/graph/surfaceProgram.ts`); absent on a surface drawn from its parameters. */
+  graph?: MaterialGraph
   /** The surface model a non-physical family maps onto (`../materials/surface/surfaceModel.ts`); physical if absent. */
   model?: number
   /** Width in CSS pixels the rasters widen a line quad to (`shader/lineWgsl.ts`); absent or

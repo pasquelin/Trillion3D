@@ -14,7 +14,8 @@ import type { PageSurface } from '../pages/surface.ts'
 import { meshes } from '../../scene/meshes.ts'
 import { nodeCasting } from '../../visibility/shader/castingMark.ts'
 import type { PlacementRows } from '../../placement/rows/rows.ts'
-import type { DrawDistance } from './types.ts'
+import type { DrawDistance, RootParent } from './types.ts'
+import type { TableRootParent } from '../../../../sdk-core/src/scene/core/tableCell.ts'
 
 /** The association a manifest gave a source: its mesh and primitive ranks, the rows that place it. */
 export type DrawRanks = {
@@ -50,6 +51,10 @@ export type DrawSource = {
   /** The distances a node placed at its own world is drawn at (`holdDrawDistance`); a row says
    *  its own (`PlacementRows.drawDistance`). Absent: at every distance. */
   readonly drawDistance?: DrawDistance
+  /** The group that replaces its root, for a node placed at its own world that is an instance of an
+   *  assembly (`holdRootParents`); a row says its own (`PlacementRows.rootParent`). Absent
+   *  otherwise. */
+  readonly rootParent?: RootParent
   /** Whether the host lets it be skipped outside the view. */
   readonly frustumCulled: boolean
   /** The source wears `surface` from now on, in place of its declaration. */
@@ -91,6 +96,9 @@ class MeshSource implements DrawSource {
   get drawDistance() {
     return drawDistances.get(this.node)
   }
+  get rootParent() {
+    return rootParents.get(this.node)?.[this.primitives ?? 0] ?? undefined
+  }
   get frustumCulled() {
     return this.node.frustumCulled
   }
@@ -113,6 +121,18 @@ const sources = new WeakMap<HostMesh, MeshSource>()
 /** The distances each drawn mesh of a prepared scene's core is drawn at, from its node table
  *  (`../../scene/host/prepared/graph.ts`): engine data no host object carries. */
 const drawDistances = new WeakMap<HostMesh, DrawDistance>()
+
+/** The group that replaces the root of each primitive of each drawn mesh of a prepared scene's core
+ *  that is an instance of an assembly, by the primitive's rank in its mesh (`graph.ts`). */
+const rootParents = new WeakMap<HostMesh, readonly (RootParent | null)[]>()
+
+/** Mesh `mesh` is an instance of an assembly: the group above the root of each primitive of its
+ *  part, `null` for one none replaces (`TableNode.rootParents`). */
+export const holdRootParents = (mesh: HostMesh, parents: readonly (TableRootParent | null)[]) =>
+  void rootParents.set(
+    mesh,
+    parents.map((p) => p && { error: p[0], sphere: [p[1], p[2], p[3], p[4]] as const }),
+  )
 
 /** Mesh `mesh` is drawn at `distance` from now on. */
 export const holdDrawDistance = (mesh: HostMesh, distance: DrawDistance) =>

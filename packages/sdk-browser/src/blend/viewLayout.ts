@@ -11,7 +11,7 @@ import { preExposedWgsl } from '../post/exposure/preWgsl.ts'
  * and the display height; `clipW` the render matrix's last row, a point's
  * clip `w` its dot with the point; `eye` the
  * point the fog is measured from, `pixelError` the cut's threshold the screen-error view measures
- * against (`diagnosticScreenError`); `clipPlane` the view's clip plane in the world, `dot(xyz, p) + w`
+ * against (`diagnosticScreenError`), `time` the seconds a material graph reads; `clipPlane` the view's clip plane in the world, `dot(xyz, p) + w`
  * at least 0 drawn, all zero for a view that clips nothing (`../frame/render/viewClip.ts`).
  */
 const BLEND_VIEW_FIELDS = [
@@ -32,6 +32,7 @@ const BLEND_VIEW_FIELDS = [
   ['preExposure', 'f32'],
   ['toneCurve', 'u32'],
   ['pixelError', 'f32'],
+  ['time', 'f32'],
   ['clipPlane', 'vec4f'],
 ] as const
 const LAYOUT = fieldLayout('BlendView', BLEND_VIEW_FIELDS)

@@ -8,6 +8,8 @@
  */
 import { DISTANCE_FIELD_RULES, DISTANCE_FIELD_SETTINGS } from './distanceFieldAbi.ts'
 import type { MeshDistanceFieldSettingsWire } from './distanceFieldAbi.ts'
+import { DISPLACEMENT_BAKE_RULES, DISPLACEMENT_BAKE_SETTINGS } from './displacementBakeAbi.ts'
+import type { MeshDisplacementBakeSettingsWire } from './displacementBakeAbi.ts'
 import type { HlodWireMatch } from './hlodAbi.ts'
 import { VOXELIZE_EXTRA } from './materialAbi.ts'
 import {
@@ -100,9 +102,12 @@ export const VOXEL_REMEMBER_BELOW_RAYS = 32
  *    through one face, a hit counting only within the voxel's depth, and the voxel covered whole
  *    where every ray along an axis hits and a ray through its centre does; or in every direction
  *    (`false`, the default).
- *  - `voxelNdf`: whether a voxel keeps the spread of the normals its rays hit (`true`, the
- *    default): its normal is their mean and the shading roughens with its spread; or the
- *    direction of their mean alone, the spread dropped (`false`).
+ *  - `voxelNdf`: whether a voxel fits an isotropic distribution to the normals its rays hit
+ *    (`true`, the default): its normal is the fit's axis — the eigenvector of the covariance of
+ *    the normals whose other two scales are the most alike — and its record keeps the ratio of
+ *    the fit's two widths, a mirror 0 and a sphere of normals one half; the shading still
+ *    roughens with the length of their mean. Or its normal is the direction of their mean alone,
+ *    the spread dropped and no ratio kept (`false`).
  *  - `voxelOpacity`: whether a voxel's record carries its coverage as its opacity (`true`), no
  *    coverage handed over to its neighbours, every voxel a ray hit kept; or none, the coverage
  *    handed over until no more voxels are left than it sums to (`false`, the default). The
@@ -110,6 +115,9 @@ export const VOXEL_REMEMBER_BELOW_RAYS = 32
  *    it; the engine does not either.
  *  - the distance field's settings (`distanceFieldAbi.ts`): `distanceField`, `distanceFieldScale`,
  *    `distanceFieldTwoSided`, `distanceFieldDensity`, `distanceFieldMaxResolution`.
+ *  - the baked displacement's settings (`displacementBakeAbi.ts`): `displacementMaps`,
+ *    `displacementUvChannel`, `displacementEdgeSplit`, which bake a height map into a mesh that
+ *    names a `trimmedError` too.
  *  - `allowAssemblies`: whether the assembly a mesh's glTF `extras.assembly` names — parts, the
  *    meshes drawn once for each node that names them, and nodes, a part and a transform each — is
  *    built: each node of the assembly is then a node of the scene under every node that places the
@@ -139,6 +147,7 @@ export const MESH_BUILD_RULES = /* @__PURE__ */ (() =>
     flagSetting('voxelOpacity', false),
     flagSetting('allowAssemblies', false),
     ...Object.values(DISTANCE_FIELD_RULES),
+    ...Object.values(DISPLACEMENT_BAKE_RULES),
   ]))()
 /** The precision of a mesh's position grid, a whole number from `MIN_POSITION_PRECISION` to
  *  `MAX_POSITION_PRECISION` (`page/format.ts`): its pages place every position on cells of
@@ -177,6 +186,7 @@ export const MESH_BUILD_SETTINGS = [
   'voxelOpacity',
   'allowAssemblies',
   ...DISTANCE_FIELD_SETTINGS,
+  ...DISPLACEMENT_BAKE_SETTINGS,
   POSITION_PRECISION_SETTING,
   NORMAL_PRECISION_SETTING,
   TANGENT_PRECISION_SETTING,
@@ -212,7 +222,8 @@ export type MeshAssemblySettingsWire = {
 export type MeshBuildSettingsWire = MeshInputSettingsWire &
   MeshVoxelSettingsWire &
   MeshAssemblySettingsWire &
-  MeshDistanceFieldSettingsWire & {
+  MeshDistanceFieldSettingsWire &
+  MeshDisplacementBakeSettingsWire & {
     storedTangents?: boolean
     keptTriangles?: number
     trimmedError?: number
@@ -272,6 +283,7 @@ export type HlodBuiltMeshWire = Omit<
   | keyof MeshInputSettingsWire
   | keyof MeshVoxelSettingsWire
   | keyof MeshAssemblySettingsWire
+  | keyof MeshDisplacementBakeSettingsWire
 > & {
   shapePreservation?: HlodShapePreservation
   edgeLengthBound?: number

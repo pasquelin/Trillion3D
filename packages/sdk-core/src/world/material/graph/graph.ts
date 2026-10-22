@@ -35,6 +35,9 @@ export interface GraphData {
   readonly values?: Record<string, number | readonly number[]>
 }
 
+/** The graphs made so far: each one's identity, which what keys a material by its graph reads. */
+let made = 0
+
 /** A value a parameter takes: a scalar, a colour or vector, or a texture. */
 export type ParameterValue = number | readonly number[] | Texture
 
@@ -50,6 +53,8 @@ const sameKind = (given: NodeProp, start: NodeProp) =>
  */
 export class GraphStore {
   readonly isMaterialGraph = true as const
+  /** Tells this graph from every other: a copy has its own. */
+  readonly id = ++made
   readonly domain: MaterialDomain
   readonly nodes: GraphNode[] = []
   readonly outputs: Partial<Record<GraphOutput, Pin>> = {}
@@ -59,6 +64,11 @@ export class GraphStore {
   readonly values = new Map<string, ParameterValue>()
   /** Bumped by every write. */
   version = 0
+  /** Bumped by every write that changes the program the graph compiles to — a node, an output —,
+   *  not by one that only gives a parameter a value: what the compiled programs are kept by. */
+  shape = 0
+  private signed: { shape: number; text: string } | undefined
+  private valued: { version: number; text: string } | undefined
   readonly _listeners = createListeners()
 
   constructor(domain: MaterialDomain) {
@@ -93,6 +103,7 @@ export class GraphStore {
     const id = this.nodes.length
     this.nodes.push({ id, kind, props: { ...spec.props, ...props }, inputs: { ...inputs } })
     if (texture) this.holdTexture(id, texture)
+    this.shape++
     this.changed()
     return { node: id, output: 0 }
   }
@@ -114,11 +125,45 @@ export class GraphStore {
     texture._listeners?.subscribe(() => this.changed())
   }
 
+  /** The program of the graph as text: its nodes, their wires, its outputs and the textures of its
+   *  nodes by identity. Two graphs with the same text compile alike; kept while no node or output is
+   *  written. */
+  signature() {
+    if (this.signed?.shape === this.shape) return this.signed.text
+    const nodes = this.nodes.map(({ kind, props, inputs }) => [kind, props, inputs])
+    const held = [...this.textures].map(([node, texture]) => `${node}:${texture.id}`)
+    const text = JSON.stringify([this.domain, nodes, this.outputs, held])
+    this.signed = { shape: this.shape, text }
+    return text
+  }
+
+  /** The values written to parameters as text, a texture by identity: what a repaint in place
+   *  compares; kept while nothing is written. */
+  valuesSignature() {
+    if (this.valued?.version === this.version) return this.valued.text
+    const written = [...this.values].map(([name, value]) => [
+      name,
+      (value as Texture).isTexture ? `texture:${(value as Texture).id}` : value,
+    ])
+    const text = JSON.stringify(written)
+    this.valued = { version: this.version, text }
+    return text
+  }
+
+  /** The textures the graph reads: those of its nodes, and those written to its texture parameters. */
+  readTextures(): Texture[] {
+    const written = [...this.values.values()].filter((value): value is Texture =>
+      Boolean((value as Texture).isTexture),
+    )
+    return [...new Set([...this.textures.values(), ...written])]
+  }
+
   /** Wires `pin` into the output `name` of the graph; the domain must read it. */
   output(name: string, pin: Pin) {
     assertDomainOutput(this.domain, name)
     this.assertPin(pin)
     this.outputs[name] = pin
+    this.shape++
     this.changed()
   }
 

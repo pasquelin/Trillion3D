@@ -161,6 +161,35 @@ export function outsideDrawDistance(
 }
 
 /**
+ * The kernel's verdict on the group above the root of an instance of an assembly
+ * (`outsideRootParent`, `../shader/rootParentWgsl.ts`): whether `error`, projected through the ball
+ * `sphere` — centre then radius, in the placement's space — read by placement `w`, is under the
+ * threshold: nothing of the instance is visited, the group's own clusters draw. The comparison of
+ * `dagNodeVerdict`'s ceiling, an error that shows being one the cut still needs finer.
+ */
+export function outsideRootParent(
+  f: Pick<DagViewFrames, 'views' | 'stretches' | 'focal' | 'near' | 'perspective' | 'pixelError'>,
+  w: number,
+  error: number,
+  sphere: ArrayLike<number>,
+) {
+  const [x, y, z, radius] = [0, 1, 2, 3].map((k) => sphere[k])
+  const projected = projectedError(
+    error,
+    x,
+    y,
+    z,
+    radius,
+    f.views[w],
+    f.stretches[w],
+    f.focal,
+    f.near,
+    f.perspective,
+  )
+  return projected <= f.pixelError
+}
+
+/**
  * The kernel's verdict on a group's draw distances (`outsideGroupDrawDistance`): whether no point
  * of the box `low`–`high`, from the eye, can lie within `near` and `far` — the box's centre's
  * distance, nearer or farther by the half diagonal. A `far` of 0 or less names none, and so do

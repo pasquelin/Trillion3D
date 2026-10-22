@@ -33,7 +33,7 @@ export function encodeStatic(
     heldGroup(groups.static) ??
       keptGroup(device, programs.static.layout, groups.static, [
         ...namedEntries(FOG_BINDING, {
-          frame: { buffer: resources.frameBuffer },
+          frame: { buffer: resources.frame.buffer },
           lights: { buffer: input.lights },
           depth: input.depth,
           furthest: textures.furthest[ping].view,

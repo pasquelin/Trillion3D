@@ -1,4 +1,3 @@
-import { EngineError } from '../../contracts/cache.ts'
 import type { Material } from './material.ts'
 
 /** The kind name of a material of the light function domain (`material.lightFunction`). */
@@ -44,15 +43,3 @@ export function forgetLightFunctionMaterial(material: Material) {
 
 /** The live light function material of `id`, if any. */
 export const lightFunctionMaterialOf = (id: string) => ALIVE.get(id)
-
-/** Refuses a mesh a light function material to wear (`INVALID_MATERIAL`): the domain draws into
- *  the light function atlas alone, and a surface has nothing of it to show. Anything that is not
- *  a material, and a material of another domain, passes. */
-export function assertMeshMaterial(material: unknown) {
-  for (const worn of Array.isArray(material) ? material : [material])
-    if ((worn as Material | null)?.kind === LIGHT_FUNCTION_MATERIAL_KIND)
-      throw new EngineError(
-        'INVALID_MATERIAL',
-        'A light function material cannot be worn by a mesh: set it on a light (light.lightFunction)',
-      )
-}

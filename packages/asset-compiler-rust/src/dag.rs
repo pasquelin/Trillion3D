@@ -177,6 +177,7 @@ pub(crate) fn clusters_area<'a>(
     })
 }
 
+pub(crate) mod assembly;
 pub(crate) mod attributes;
 mod border;
 pub(crate) mod bounds;
@@ -200,6 +201,7 @@ mod trim;
 mod welds;
 
 pub use attributes::DagAttributes;
+pub(crate) use build::laid_source;
 pub use build::{build_dag, DagBuild};
 use clusters::*;
 use groups::*;

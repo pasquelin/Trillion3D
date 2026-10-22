@@ -3,14 +3,16 @@
 //! part, each placed by its node's transform.
 //!
 //! The reference builds each part once, shares its clusters between every node that names it, and
-//! reduces the instances' roots together with the mesh's own clusters into the levels above. Our
-//! pages and our hierarchy hold no transform and one parent error for a cluster, so the part is
-//! shared as the engine shares every mesh placed more than once: each node of the assembly becomes
-//! a node of the scene, under each node that places the assembly's mesh, carrying the part's mesh
-//! (`expand.rs`, as `instancing.rs` expands a GPU-instanced mesh). A part's pages are written once
-//! however many nodes name it and however many times the assembly is placed. What this form does not
-//! build is the reference's levels above the instances' roots, which merge the copies into one
-//! coarser surface far away: an HLOD layer that merges the placed objects does that here.
+//! reduces the instances' roots together with the mesh's own clusters into the levels above, each
+//! instance keeping the error and the ball of the group that replaces its root. Here each node of
+//! the assembly becomes a node of the scene, under each node that places the assembly's mesh,
+//! carrying the part's mesh (`expand.rs`, as `instancing.rs` expands a GPU-instanced mesh): a part's
+//! pages are written once however many nodes name it and however many times the assembly is
+//! placed. The levels above are built in the primitives of the assembly's mesh that carry them
+//! (`carriers.rs`, `plan.rs`; `dag::assembly`): the mesh's own triangles are their level 0, the
+//! roots of the parts' primitives climb beside them, and each instance carries, in the scene's
+//! tables, the error and the ball of its group (`rootParents`), which the cut tests before it
+//! opens the instance: far away the group's clusters draw, near the instance does.
 //!
 //! The reference builds an assembly only where the project allows it (a read-only project switch,
 //! off by default): here a mesh's `allowAssemblies` setting (`meshBuild`, false by default). A mesh
@@ -19,7 +21,9 @@
 //! logs a warning for an assembly it does not build.
 use crate::*;
 
+mod carriers;
 mod expand;
+pub(crate) mod plan;
 mod spec;
 
 pub(crate) use spec::names_assembly;
@@ -49,7 +53,8 @@ fn tell_not_built(manifest: &mut Value, count: usize) {
 }
 
 /// Lays out the assembly of every mesh that names one and allows it, before the plan: its nodes
-/// become children of the nodes that place its mesh (`expand.rs`). A source naming none, or whose
+/// become children of the nodes that place its mesh (`expand.rs`), the primitives that carry the
+/// levels above them are told or added (`carriers.rs`). A source naming none, or whose
 /// job allows none, is left as it is, the meshes that name one and do not allow it counted in the
 /// import report.
 pub(crate) fn expand_assemblies(o: &Options, loaded: &mut RuntimeSource) -> Result<()> {
@@ -66,7 +71,17 @@ pub(crate) fn expand_assemblies(o: &Options, loaded: &mut RuntimeSource) -> Resu
     if !left.is_empty() {
         tell_not_built(&mut loaded.manifest, left.len());
     }
-    expand::expand(&mut loaded.g, &allowed, o.ram_budget_bytes())
+    expand::expand(&mut loaded.g, &allowed, o.ram_budget_bytes())?;
+    if allowed.is_empty() {
+        return Ok(());
+    }
+    // The levels above the instances exist where the build makes coarse levels at all.
+    if crate::dag::DagStrategy::named(&o.simplification) != crate::dag::DagStrategy::ExactClusters {
+        let binary = std::mem::replace(&mut loaded.binary, Binary::Owned(Vec::new()));
+        loaded.binary = carriers::lay(&mut loaded.g, binary, o.ram_budget_bytes())?;
+    }
+    expand::strip_bare(&mut loaded.g);
+    Ok(())
 }
 
 #[cfg(test)]

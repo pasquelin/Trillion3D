@@ -35,6 +35,8 @@ export function collectWebgpuMaterialTextures(
     addColor(mat.map)
     addColor(mat.emissiveMap)
     addColor(mat.subsurfaceMap)
+    // The textures a graph reads, through the colour atlas (`../graph/nodesTexture.ts`).
+    for (const texture of mat.graph?.readTextures() ?? []) addColor(texture)
     addData(mat.roughnessMap)
     addData(mat.metalnessMap)
     addData(mat.normalMap)

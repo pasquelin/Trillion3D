@@ -40,8 +40,8 @@ export const CLOUD_FACE_USAGE = TEXTURE_BINDING | STORAGE_BINDING
 
 /** The states of the sliced capture (`schedule.ts`). */
 export const TIME_SLICE_COUNT = 12
-/** `vec4`s of the harmonics' buffer: seven of the light's, one of the mean irradiance. */
-export const IRRADIANCE_VECTORS = 8
+/** `vec4`s of the harmonics' buffer: the light's seven. */
+export const IRRADIANCE_VECTORS = 7
 /** The harmonics' buffer holds a set for each filtered cube (the cubes the real-time capture takes turns
  *  in, or a specified cubemap and the cube it blends to), each at a multiple of the 256 bytes a storage
  *  binding's offset is a multiple of: `HARMONICS_SET_VECTORS` vec4s apart. */

@@ -250,13 +250,13 @@ test('a closed series finds work again when a level that casts is chosen: the ra
   )
   for (let frames = 0; probes.working; frames++) {
     assert.ok(frames < 100_000, 'the series closes')
-    probes.encode(encoder, 1, FLOOR_EYE)
+    probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE)
   }
   assert.equal(probes.cache.views, undefined, 'a level that casts none keeps no maps')
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE), false, 'closed')
+  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE), false, 'closed')
   level = 'ultra'
   assert.equal(
-    probes.encode(encoder, 1, FLOOR_EYE),
+    probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE),
     true,
     'the maps are made: every probe is traced anew',
   )
@@ -264,10 +264,10 @@ test('a closed series finds work again when a level that casts is chosen: the ra
   assert.equal(probes.cache.pending, true)
   for (let frames = 0; probes.working; frames++) {
     assert.ok(frames < 100_000, 'the series closes again')
-    probes.encode(encoder, 1, FLOOR_EYE)
+    probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE)
   }
   level = 'low'
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE), false)
+  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE), false)
   assert.equal(probes.cache.views, undefined, 'given back')
   probes.dispose()
 })
