@@ -4,13 +4,14 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createTemporalAntialiasing } from './temporalAntialiasing.ts'
+import { createVelocity } from './velocity.ts'
 import { TAA_PASS } from '../../diagnostic/stage/passLabels.ts'
 
 /** The passes two frames begin — the second resolving display layers, once its
  *  twin has compiled —, the three resolves drawn at preparation, and whether each target stores. */
 async function resolvePasses() {
   const { device, renderPipelines, textures, passes, computePasses } = fakeDevice()
-  const temporal = await createTemporalAntialiasing(device, [])
+  const temporal = await createTemporalAntialiasing(device, createVelocity(device, []))
   const drawn = renderPipelines.map(({ fragment }) => fragment!.module.label).slice(0, 3)
   temporal.resize(8, 4, 8, 4)
   const encoder = device.createCommandEncoder()

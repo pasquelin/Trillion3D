@@ -1,6 +1,7 @@
-//! One voxel sampled: 64 rays across it against the level-0 triangles that overlap it, each a
+//! One voxel sampled: its rays across it — 64 by default, the mesh's build names their count and
+//! how they run (`VoxelSampling`) — against the level-0 triangles that overlap it, each a
 //! direction uniform on the sphere along a line through the cube, every line through it as likely
-//! as any other (`ray_sets`), through the alpha-aware hit filter — a cut texel lets the ray
+//! as any other (`rays.rs`), through the alpha-aware hit filter — a cut texel lets the ray
 //! through, so a leaf card's cut-out thins the voxel as it thins the pixel. A ray is counted on
 //! the face its direction leans on most: the side its surface is seen from.
 //!
@@ -10,20 +11,21 @@
 //! normal, turned to the face — the side the surface is seen from — and the normals' products — the
 //! distribution whose projected area weighs a neighbour.
 use super::raster::Cell;
+use super::rays::{lone_ray, Ray, RaySet, Sampler};
+use super::VoxelSampling;
+use crate::trace::surface::mesh::Sample;
 use crate::trace::surface::Traceable;
 use crate::trace::tracer::Among;
-use std::f64::consts::TAU;
-use std::sync::OnceLock;
-use trillion3d_math::sequence::random::splitmix_draw;
-use trillion3d_math::vector::vec3::{cross, dominant_axis, frame_across};
 use trillion3d_math::vector::vecn::{add, scale, weighted_sum};
 
 /// The surface a voxel is sampled against: the mesh, a zero `near` per triangle (a voxel's rays
-/// test every triangle in it), and its tie.
+/// test every triangle in it), its tie, how it is sampled and the rays it casts.
 pub(super) struct Probe<'a> {
     pub mesh: &'a Traceable,
     pub near: &'a [f64],
     pub tie: f64,
+    pub sampling: VoxelSampling,
+    pub sampler: &'a Sampler,
 }
 
 /// Weighted sums of what a voxel sees; each part's mean is its sum over its weight.
@@ -56,6 +58,18 @@ impl Moments {
         }
     }
 
+    /// `self · k`.
+    fn scaled(&self, k: f64) -> Self {
+        Self {
+            colour: scale(self.colour, k),
+            orm: scale(self.orm, k),
+            covered: self.covered * k,
+            normal: scale(self.normal, k),
+            ndf: self.ndf.map(|sum| sum * k),
+            hits: self.hits * k,
+        }
+    }
+
     /// The hit's normal, at `weight`.
     fn hit(&mut self, normal: [f64; 3], weight: f64) {
         let [x, y, z] = normal;
@@ -75,91 +89,101 @@ pub(super) fn symmetric(sums: [f64; 6], weight: f64) -> [[f64; 3]; 3] {
 /// A voxel's six faces, by the direction its rays cross the voxel in: `+x −x +y −y +z −z`.
 pub(super) const FACES: usize = 6;
 
-/// Rays a voxel casts, as the reference's builder casts by default: enough that a voxel's coverage
-/// steps by under 2 %, few enough that a forest's cells sample in minutes.
-const RAYS: usize = 64;
-
-/// Sets of rays the voxels take in turn, by their cell: neighbours sample with other rays, so a
-/// pattern of the set never repeats across a wall.
-const VARIATIONS: usize = 16;
-
-/// One ray of a set, in voxel sides from the voxel's centre: its direction, where it enters the
-/// cube, how far it runs inside, the face it is counted on — its direction's main axis, face `2a`
-/// for a ray along `+a` —, the weight of its hit — one over the rays its set counts on that face —
-/// and the footprint its texture is filtered over, an eighth of a side each way: all of it once a
-/// set, never once a voxel.
-struct Ray {
-    direction: [f64; 3],
-    enter: [f64; 3],
-    length: f64,
-    face: usize,
-    weight: f64,
-    footprint: [[f64; 3]; 2],
+/// What one ray found of the voxel: nothing, a hit, or a hit outside the stretch that counts, so
+/// the ray is left out of the voxel's count.
+pub(super) enum Cast {
+    Miss,
+    Hit(Sample),
+    Left,
 }
 
-/// The sets of rays: each a direction uniform on the sphere and a line through a disk across it,
-/// as wide as the cube's diagonal, kept when it crosses the cube — every line through the cube as
-/// likely as any other —, from a fixed seed so a rebuild samples the same bytes.
-fn ray_sets() -> &'static [Vec<Ray>; VARIATIONS] {
-    static SETS: OnceLock<[Vec<Ray>; VARIATIONS]> = OnceLock::new();
-    SETS.get_or_init(|| {
-        std::array::from_fn(|set| {
-            let mut state = 0x7672_6179_u64 ^ (set as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15);
-            let mut rays = Vec::with_capacity(RAYS);
-            while rays.len() < RAYS {
-                let mut draw = || splitmix_draw(&mut state);
-                let (z, turn) = (1.0 - 2.0 * draw(), TAU * draw());
-                let ring = (1.0 - z * z).max(0.0).sqrt();
-                let direction = [ring * turn.cos(), ring * turn.sin(), z];
-                let (radius, angle) = (draw().sqrt() * 0.5 * 3f64.sqrt(), TAU * draw());
-                let across = frame_across(direction);
-                let other = cross(direction, across);
-                let origin = add(
-                    scale(across, radius * angle.cos()),
-                    scale(other, radius * angle.sin()),
-                );
-                let (mut entry, mut exit) = (f64::NEG_INFINITY, f64::INFINITY);
-                for (k, d) in direction.iter().enumerate() {
-                    let (near, far) = match d.abs() < 1e-12 {
-                        true if origin[k].abs() > 0.5 => (f64::INFINITY, f64::NEG_INFINITY),
-                        true => (f64::NEG_INFINITY, f64::INFINITY),
-                        false => {
-                            let (a, b) = ((-0.5 - origin[k]) / d, (0.5 - origin[k]) / d);
-                            (a.min(b), a.max(b))
-                        }
-                    };
-                    entry = entry.max(near);
-                    exit = exit.min(far);
-                }
-                if entry < exit {
-                    let axis = dominant_axis(direction);
-                    let edge = scale(frame_across(direction), 1.0 / 8.0);
-                    rays.push(Ray {
-                        direction,
-                        enter: add(origin, scale(direction, entry)),
-                        length: exit - entry,
-                        face: 2 * axis + usize::from(direction[axis] < 0.0),
-                        weight: 0.0,
-                        footprint: [edge, cross(direction, edge)],
-                    });
-                }
+/// A voxel's rays: the mesh they cross, the triangles that overlap the voxel, its centre and side.
+pub(super) struct Caster<'a> {
+    pub(super) probe: &'a Probe<'a>,
+    pub(super) among: Among<'a>,
+    pub(super) centre: [f64; 3],
+    pub(super) side: f64,
+}
+
+impl Caster<'_> {
+    /// `ray` cast, a hit within `window` — its distance from the ray's start in voxel sides, both
+    /// ends included — kept, one outside it left out.
+    pub(super) fn cast(&self, ray: &Ray, window: (f64, f64)) -> Cast {
+        let side = self.side;
+        let origin = add(self.centre, scale(ray.enter, side));
+        let footprint = ray.footprint.map(|edge| scale(edge, side));
+        let limit = ray.length * side;
+        let found = (self.probe.mesh).hit(origin, ray.direction, limit, self.among, footprint);
+        match found {
+            None => Cast::Miss,
+            Some(hit) if hit.distance < window.0 * side || hit.distance > window.1 * side => {
+                Cast::Left
             }
-            let mut per_face = [0usize; FACES];
-            for ray in &rays {
-                per_face[ray.face] += 1;
+            Some(hit) => Cast::Hit(hit),
+        }
+    }
+}
+
+/// What a voxel's rays found: each face's sums, and how many rays hit and were left out, in all
+/// and per face.
+#[derive(Default)]
+struct Tally {
+    faces: [Moments; FACES],
+    hits: usize,
+    hit_on: [usize; FACES],
+    left_on: [usize; FACES],
+}
+
+impl Tally {
+    fn add(&mut self, ray: &Ray, found: Cast) {
+        match found {
+            Cast::Miss => {}
+            Cast::Left => self.left_on[ray.face] += 1,
+            Cast::Hit(sample) => {
+                self.hits += 1;
+                self.hit_on[ray.face] += 1;
+                let face = &mut self.faces[ray.face];
+                face.colour = add(face.colour, scale(sample.colour, ray.weight));
+                face.orm = add(face.orm, scale(sample.orm, ray.weight));
+                face.covered += ray.weight;
+                face.hit(sample.normal, ray.weight);
             }
-            for ray in &mut rays {
-                ray.weight = 1.0 / per_face[ray.face] as f64;
-            }
-            rays
+        }
+    }
+
+    /// Whether, along some axis, every ray of `set` not left out hit and some are not left out.
+    fn hit_along_an_axis(&self, set: &RaySet) -> bool {
+        (0..3).any(|a| {
+            let rays = set.per_face[2 * a] + set.per_face[2 * a + 1];
+            let (left, hit) = (
+                self.left_on[2 * a] + self.left_on[2 * a + 1],
+                self.hit_on[2 * a] + self.hit_on[2 * a + 1],
+            );
+            rays > left && rays - left == hit
         })
-    })
+    }
+
+    /// The faces, each's hits weighing one over the rays `set` counts on it bar those left out.
+    fn weighed(mut self, set: &RaySet) -> [Moments; FACES] {
+        for (f, face) in self.faces.iter_mut().enumerate() {
+            let kept = set.per_face[f] - self.left_on[f];
+            if self.left_on[f] > 0 && kept > 0 {
+                *face = face.scaled(set.per_face[f] as f64 / kept as f64);
+            }
+        }
+        self.faces
+    }
 }
+
+/// The part of a ray's run where a hit counts when none is left out: all of it.
+const OPEN: (f64, f64) = (f64::NEG_INFINITY, f64::INFINITY);
 
 /// The voxel `cell` of side `side`, whose overlapping triangles are `ranks`: its coverage — the
 /// share of its rays that hit inside it — and the sums of each face's rays — a hit `1 / rays` of
 /// its face, its normal turned to the side the ray comes from. A ray's texture is filtered over its
-/// share of the voxel's cross-section, an eighth of the side each way. Nothing is allocated.
+/// share of the voxel's cross-section, an eighth of the side each way. A ray the build leaves out
+/// of the count (`VoxelSampling::window`) is no hit and no miss: the voxel's rays are the rest.
+/// Nothing is allocated.
 pub(super) fn sample(
     probe: &Probe<'_>,
     cell: Cell,
@@ -172,28 +196,60 @@ pub(super) fn sample(
         from: 0.0,
         tie: probe.tie,
     };
-    let set = (cell[0] as u32 ^ (cell[1] as u32).wrapping_mul(3) ^ (cell[2] as u32).wrapping_mul(5))
-        as usize
-        % VARIATIONS;
     let centre = cell.map(|c| (f64::from(c) + 0.5) * side);
-    let mut faces = [Moments::default(); FACES];
-    let mut hits = 0usize;
-    for ray in &ray_sets()[set] {
-        let origin = add(centre, scale(ray.enter, side));
-        let footprint = ray.footprint.map(|edge| scale(edge, side));
-        let limit = ray.length * side;
-        let Some(sample) = probe
-            .mesh
-            .hit(origin, ray.direction, limit, among, footprint)
-        else {
-            continue;
-        };
-        hits += 1;
-        let face = &mut faces[ray.face];
-        face.colour = add(face.colour, scale(sample.colour, ray.weight));
-        face.orm = add(face.orm, scale(sample.orm, ray.weight));
-        face.covered += ray.weight;
-        face.hit(sample.normal, ray.weight);
+    let caster = Caster {
+        probe,
+        among,
+        centre,
+        side,
+    };
+    match probe.sampling.single() {
+        true => alone(&caster, cell),
+        false => among_rays(&caster, cell),
     }
-    (hits as f64 / RAYS as f64, faces)
+}
+
+/// A voxel casting one ray: covered whole or not at all, by its cell's ray, or — a separable
+/// voxel's — by the first ray of the crosshair that hits.
+fn alone(caster: &Caster<'_>, cell: Cell) -> (f64, [Moments; FACES]) {
+    let mut tally = Tally::default();
+    if caster.probe.sampling.separable {
+        for ray in &caster.probe.sampler.crosshair {
+            let found = caster.cast(ray, OPEN);
+            if matches!(found, Cast::Hit(_)) {
+                tally.add(ray, found);
+                break;
+            }
+        }
+    } else {
+        let ray = lone_ray(cell);
+        tally.add(&ray, caster.cast(&ray, OPEN));
+    }
+    (tally.hits as f64, tally.faces)
+}
+
+/// A voxel casting a set of rays: its coverage is the share of the rays counted that hit. A
+/// separable voxel — one whose rays along some axis all hit — is covered whole where a ray of the
+/// crosshair through its centre hits too.
+fn among_rays(caster: &Caster<'_>, cell: Cell) -> (f64, [Moments; FACES]) {
+    let Probe {
+        sampling, sampler, ..
+    } = caster.probe;
+    let (set, window) = (sampler.set(cell), sampling.window());
+    let mut tally = Tally::default();
+    for ray in &set.rays {
+        tally.add(ray, caster.cast(ray, window));
+    }
+    let mut counted = set.rays.len() - tally.left_on.iter().sum::<usize>();
+    if sampling.separable && tally.hit_along_an_axis(set) {
+        let hit = |ray: &Ray| matches!(caster.cast(ray, OPEN), Cast::Hit(_));
+        if sampler.crosshair.iter().any(hit) {
+            counted = tally.hits;
+        }
+    }
+    let coverage = match counted {
+        0 => 0.0,
+        counted => tally.hits as f64 / counted as f64,
+    };
+    (coverage, tally.weighed(set))
 }

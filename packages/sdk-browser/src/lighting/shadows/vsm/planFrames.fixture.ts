@@ -131,6 +131,7 @@ export function planFrames() {
         pageLayout,
         pageGroup,
         rowSpheres: emptyRowSpheres(),
+        multipassViews: true,
         camera: { eye, view, focalPixels: 600, near: 0.1, perspective: true, threshold: 1 },
       },
     )

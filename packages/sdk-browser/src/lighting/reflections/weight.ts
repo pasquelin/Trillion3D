@@ -7,6 +7,7 @@ import {
   ndotvClamped,
 } from '../../../../math/src/wgsl/lighting.ts'
 import { BOUNCE_APPLY_WGSL } from '../bounce/applyWgsl.ts'
+import { SCREEN_INDIRECT_WGSL } from '../bounce/screen/indirectWgsl.ts'
 import { REFLECTION_LOBE_WGSL, REFLECTION_PROBES_SHARE_WGSL, SURFACE_PROBES_WGSL } from './field.ts'
 import { LOBE_AXIS_WGSL, reflectionLobeWgsl } from '../lobeAxisWgsl.ts'
 import { LTC_WGSL } from '../direct/rectLightWgsl.ts'
@@ -17,6 +18,7 @@ import { REFLECTION_FIELD_OVER_WGSL, REFLECTION_FIELD_STAGE_WGSL } from './wgsl.
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { REFLECTION_SAMPLE_WGSL } from './sampleWgsl.ts'
 import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
+import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
 import { reflectionFrontWgsl } from './viewLayout.ts'
 
 /** What a surface's lobes reflect: the base lobe's radiance and the clear coat's. */
@@ -158,7 +160,7 @@ const forwardReflectionWgsl = (group: number, lobes: boolean, traced: number) =>
       surfaceReflects,
       FRONT_PACK_WGSL,
     ],
-    `@group(0) @binding(${traced}) var frontTraced:texture_2d<u32>;
+    `${loadOnlyTarget(traced, FRONT_TRACED_FORMAT, 'frontTraced').wgsl}
 const FRONT_DEPTH_THRESHOLD:u32=${FRONT_DEPTH_THRESHOLD}u;
 /** Whether the depth \`z\` at pixel \`at\` is the front pass's there: the bit patterns of two depths of
  *  the view, never negative, within \`FRONT_DEPTH_THRESHOLD\` units. */
@@ -173,7 +175,7 @@ fn forwardFront(position:vec4f,front:bool)->bool{
  return front&&reflectionFrontTraced()&&frontDepthMatches(vec2i(position.xy),position.z);
 }
 fn forwardFrontTraced(position:vec4f)->Reflected{
- let t=textureLoad(frontTraced,vec2i(position.xy),0);
+ let t=textureLoad(frontTraced,vec2i(position.xy));
  return Reflected(frontUnpack(t.x),frontUnpack(t.y));
 }
 /** What a fragment at framebuffer \`position\` reflects of \`P\`, of normal \`N\` and roughness \`rough\`, seen from
@@ -237,6 +239,7 @@ export const RESOLVED_INDIRECT_WGSL = wgslBlock(
     resolvedReflectionWgsl,
     REFLECTION_PROBES_LEFT_WGSL,
     BOUNCE_APPLY_WGSL,
+    SCREEN_INDIRECT_WGSL,
     SURFACE_PROBES_WGSL,
     REFLECTION_PROBES_SHARE_WGSL,
     REFLECTION_BASE_LOBE_WGSL,
@@ -246,11 +249,18 @@ export const RESOLVED_INDIRECT_WGSL = wgslBlock(
   ],
   `fn resolvedIndirect(coord:vec2i,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->mat2x3f{
  let traced=resolvedReflectionTexel(coord);
- if(traced.a!=REFLECTION_PROBES_LEFT){return mat2x3f(bounceLighting(rgb,metal,N,P,ao),traced.rgb);}
+ // The pixel the screen probes read takes their light, the world's probes' gather skipped; where they left none, the world's.
+ let seen=screenIndirectAt(coord);
+ let screened=seen.a>0.0;
+ if(traced.a!=REFLECTION_PROBES_LEFT){
+  if(screened){return mat2x3f(screenDiffuse(rgb,metal,seen,ao),traced.rgb);}
+  return mat2x3f(bounceLighting(rgb,metal,N,P,ao),traced.rgb);
+ }
  let probes=surfaceProbesGathered(P,N,reflectionBaseLobe(N,V,rough));
  // The surroundings the trace left in the pixel give way to the probes where these hold the sky.
  let under=select(vec3f(0.0),min(probes[1].w,1.0)*skyRadiance(reflect(-V,N)),skyLit());
- return mat2x3f(lambertDiffuse(rgb,metal,indirectGathered(probes[0],N),ao),traced.rgb+(reflectionProbesShare(probes[1])-under)*reflectionWeight(f0Of(rgb,metal),rough,N,V)*lobeThrough());
+ let diffuse=select(lambertDiffuse(rgb,metal,indirectGathered(probes[0],N),ao),screenDiffuse(rgb,metal,seen,ao),screened);
+ return mat2x3f(diffuse,traced.rgb+(reflectionProbesShare(probes[1])-under)*reflectionWeight(f0Of(rgb,metal),rough,N,V)*lobeThrough());
 }`,
 )
 

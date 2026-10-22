@@ -12,13 +12,14 @@ import { REFLECTION_SIDE } from './constants.ts'
  * ended: past the near field (`far`, the field answers all the screen left there), answered whole
  * with nothing left (`whole`), or left to the scene stage (`left`), which add up to the rays cast;
  * and, across them, those the screen answered in part or whole (`screen`: the march met a surface it
- * trusts). The scene stage counts each ray it takes once, by how its walk of the proxy ended
- * (`fates`, `REFLECTION_FATES`): no proxy at all, the four ways a walk is spent (its units, its
- * triangle tests, its tree steps, a mesh's walk — the causes a probe's ray reports, named by
- * `reflectionSpentFate`), a surface hit, the ray leaving the scene to the environment, a miss that
- * went nowhere (the field answers it), or no walk at all because the screen's surface was closer than
- * the proxy can tell; and, for the rays that walked, the units the walk spent (`work`: under 8, 16,
- * 32, 64, 128, 256, 512, more).
+ * trusts). The scene stage counts each ray it takes once, by how its walk of the proxy ended, its
+ * rings together (`fates`, `REFLECTION_FATES`, `proxy.ts`): no proxy at all, a surface hit, the ray
+ * leaving the scene to the environment, a miss that went nowhere (the field answers it), no walk at
+ * all because the screen's surface was closer than the proxy can tell, or, for a ray that hit
+ * nothing and had a ring spent, the four ways a ring is spent (its units, its triangle tests, its tree
+ * steps, a mesh's walk — the causes a probe's ray reports, named by `reflectionSpentFate`), that of the
+ * first ring that was; and, for the rays that walked, the units the rings spent together (`work`:
+ * under 8, 16, 32, 64, 128, 256, 512, 1 024, 2 048, 4 096, 8 192, more).
  *
  * A workgroup counts in its own memory and adds its words to the buffer once (`workgroupTallyWgsl`).
  */
@@ -35,7 +36,7 @@ export const REFLECTION_FATES = [
 ] as const
 export type ReflectionFate = (typeof REFLECTION_FATES)[number]
 /** Buckets of the walk's units: under 8, doubling, the last open. */
-export const REFLECTION_WORK_BUCKETS = 8
+export const REFLECTION_WORK_BUCKETS = 12
 export const REFLECTION_CENSUS = {
   far: 0,
   screen: 1,

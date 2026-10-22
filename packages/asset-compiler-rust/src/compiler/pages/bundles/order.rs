@@ -6,7 +6,7 @@
 use crate::dag::bounds::points_ball;
 use crate::dag::DagCluster;
 use rayon::prelude::*;
-use trillion3d_page_codec::partition::spread;
+use trillion3d_page_codec::partition::morton3;
 
 /// The cells of the Morton grid along each axis, and the largest cell.
 const MORTON_CELLS: f32 = 1023.0;
@@ -47,7 +47,7 @@ pub(super) fn walk_order(groups: &[Walked]) -> Vec<usize> {
             let scaled = (c[axis] - low[axis]) * scale + 0.5;
             (scaled as i32).clamp(0, MORTON_LAST) as u32
         };
-        let morton = spread(cell(2)) << 2 | spread(cell(1)) << 1 | spread(cell(0));
+        let morton = morton3([cell(0), cell(1), cell(2)]);
         if group.level & 1 != 0 {
             !morton
         } else {

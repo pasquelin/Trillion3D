@@ -1,6 +1,11 @@
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { surfaceColorAttachments } from '../prepare/attachments.ts'
 import { createGpuRaster } from '../../visibility/raster/raster.ts'
+import {
+  tessellationAsked,
+  tessellationInput,
+  tessellationWanted,
+} from '../../visibility/tessellation/wanted.ts'
 import { ensureWebgpuVisibilityBindings } from '../../visibility/passes/bindings.ts'
 import { encodeHardwareRaster } from '../../visibility/passes/drawer.ts'
 import { ensureWebgpuShadeBindings } from '../../gpu/bind/shadeBindings.ts'
@@ -64,10 +69,18 @@ export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt
   const [width, height] = rt.gpu.allocatedSize,
     capacity = rt.layout.rasterCapacity
-  const held = vis.gpuRaster
-  if (held && held.width === width && held.height === height && held.capacity === capacity) return
-  held?.dispose()
-  vis.gpuRaster = createGpuRaster(device, width, height, capacity)
+  let raster = vis.gpuRaster
+  if (
+    !raster ||
+    raster.width !== width ||
+    raster.height !== height ||
+    raster.capacity !== capacity
+  ) {
+    raster?.dispose()
+    raster = vis.gpuRaster = createGpuRaster(device, width, height, capacity)
+  }
+  // The displaced surfaces' tessellation, held only while the image draws one (`tessellationWanted`).
+  raster.followTessellation(device, tessellationWanted(rt) ? tessellationAsked(rt) : undefined)
 }
 
 /** Writes the image's uniforms and rebuilds the shade and raster bind groups a resource change voided. */
@@ -146,6 +159,7 @@ export function visibilityRasterStages(
   input.depthView = gpu.depthView
   input.hizView = gpuHiz.level0View
   input.selection = run.gpuSelection
+  input.tessellation = tessellationInput(rt, run.gate.cam, gpu.targetSize[1]!)
   run.gpuComputeDispatches += raster.encodeBinning(encoder, input, RASTER_PASS_MAIN)
   const size = gpu.targetSize
   // Full-screen resolve triangles are draw calls like the others: the pyramid's level zero after

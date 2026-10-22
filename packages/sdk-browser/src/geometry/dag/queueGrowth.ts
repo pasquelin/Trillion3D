@@ -32,7 +32,12 @@ export const cutTablesAt = (resources: {
   heldSlots: number
   swap: { regions: number }
   flagShape: FlagShape
-}): CutTablesAt => ({ ...heldOpenAt(resources), shape: resources.flagShape })
+  workLayout: { filter: number }
+}): CutTablesAt => ({
+  ...heldOpenAt(resources),
+  shape: resources.flagShape,
+  filter: resources.workLayout.filter,
+})
 
 /** The lists' caps the session asks of the cut from its next cut on (`GpuSelection.holdLists`):
  *  caps that lay the flags out as they are hold from now; others are laid out before the next cut

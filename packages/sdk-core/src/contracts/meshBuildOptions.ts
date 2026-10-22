@@ -30,6 +30,29 @@
  *   corners may differ — in metres on every axis, on every axis of their unit vectors, on each
  *   texture coordinate — and be welded into one vertex, numbers of at least 0 — 2e-7, 2e-5 and a
  *   1024th by default;
+ * - `voxelRays`: how many rays are cast across each voxel of a voxelized mesh to sample its surface,
+ *   a whole number of at least 0 — 64 by default; at most `MAX_VOXEL_RAYS` are cast, a count past 1
+ *   rounded up to a multiple of `VOXEL_RAY_PACKET`, and 0 or 1 casts one;
+ * - `voxelLevel`: the level of the mesh's DAG from which every group is voxels, a whole number —
+ *   0 by default, a group voxels only where they are finer than its triangles;
+ * - `voxelBackUp`: how far back, in voxel sides, each ray starts before its voxel, a ray whose
+ *   nearest hit lies in that stretch left out of the count — 0 by default, not read with
+ *   `voxelSeparable`;
+ * - `voxelSeparable`: the rays of a voxel run along its axes alone, a hit counting within the
+ *   voxel's depth (`true`), or in every direction (`false`, the default);
+ * - `voxelNdf`: a voxel keeps the spread of the normals its rays hit (`true`, the default), or the
+ *   direction of their mean alone (`false`);
+ * - `voxelOpacity`: a voxel's record carries its coverage as its opacity and no coverage is handed
+ *   over to its neighbours (`true`), or the coverage is handed over (`false`, the default) — the
+ *   engine draws no voxel by its opacity, as the reference gives it a material alone;
+ *   the six `voxel…` settings are read only for a mesh drawn as voxels far away — one a `voxelize`
+ *   match or its own glTF `extras` names — and, from an HLOD `voxel` layer's own `meshBuild`, for
+ *   the voxels of its cells (`voxelLevel` changes nothing there: every level of a cell is voxels);
+ * - `allowAssemblies`: the assembly a mesh's glTF `extras.assembly` names — `parts`, meshes by
+ *   their rank, each with an optional `materialRemap` (a glTF material for each of its primitives),
+ *   and `nodes`, each a `part` and a glTF node's `matrix` or `translation`, `rotation` and `scale` —
+ *   is built: the mesh is its own triangles and every node's part, carried by its transform
+ *   (`true`), or its own triangles alone (`false`, the default);
  * - `positionPrecision`: the position grid of the mesh's pages, cells of `2^-n` centimetre, a whole
  *   number from `MIN_POSITION_PRECISION` to `MAX_POSITION_PRECISION` — left out, it follows the
  *   density of the mesh (`POSITION_PRECISION_SETTING`);
@@ -104,6 +127,30 @@ export type MeshBuildSettings = {
   /** How far a skinned mesh's texture coordinates may differ and be welded.
    *  @defaultValue 1/1024 */
   skinnedWeldTexture?: number
+  /** How many rays are cast across each voxel of a voxelized mesh, a whole number of at least 0:
+   *  at most `MAX_VOXEL_RAYS`, a count past 1 rounded up to a multiple of `VOXEL_RAY_PACKET`, 0 or
+   *  1 one ray. @defaultValue 64 */
+  voxelRays?: number
+  /** The level of the DAG from which every group of a voxelized mesh is voxels, a whole number:
+   *  0, a group is voxels only where they are finer than its triangles. @defaultValue 0 */
+  voxelLevel?: number
+  /** How far back, in voxel sides, each ray of a voxel starts before it: a ray whose nearest hit
+   *  lies in that stretch is left out of the count. Not read with `voxelSeparable`.
+   *  @defaultValue 0 */
+  voxelBackUp?: number
+  /** Whether the rays of a voxel run along its axes alone, a hit counting within the voxel's
+   *  depth. @defaultValue false */
+  voxelSeparable?: boolean
+  /** Whether a voxel keeps the spread of the normals its rays hit, or the direction of their mean
+   *  alone. @defaultValue true */
+  voxelNdf?: boolean
+  /** Whether a voxel's record carries its coverage as its opacity, no coverage handed over to its
+   *  neighbours; no voxel is drawn by it. @defaultValue false */
+  voxelOpacity?: boolean
+  /** Whether the assembly the mesh's glTF `extras.assembly` names is built, the mesh then its own
+   *  triangles and every node's part carried by its transform; false draws its own triangles
+   *  alone. @defaultValue false */
+  allowAssemblies?: boolean
   /** The position grid of the pages, cells of `2^-n` centimetre, a whole number from
    *  `MIN_POSITION_PRECISION` to `MAX_POSITION_PRECISION`. @defaultValue the mesh's density */
   positionPrecision?: number

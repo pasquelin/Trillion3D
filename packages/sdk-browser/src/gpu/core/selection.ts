@@ -13,6 +13,7 @@ import { writeSelectionPlanes, writeSelectionProjection } from './selectionProje
 import type { AsideCut } from './aside.ts'
 import type { CutPyramid } from '../../geometry/dag/occlusion.ts'
 import type { DagRoot } from '../../geometry/dag/types.ts'
+import type { DrawDistance } from '../../geometry/selection/types.ts'
 import type { CellLink, WorldCells } from '../../geometry/dag/worlds/worldCells.ts'
 import type { PoseHost } from '../../geometry/dag/proxy/proxyInstances.ts'
 import type { ProxyBoxes } from '../../lighting/bounce/probes/probeSync.ts'
@@ -46,8 +47,18 @@ export type SelectionUniforms = {
   /** What the occlusion runs (`OCCLUSION_TWO_PASS`); none when absent. */
   occlusion?: number
   /** The culls the host turned off (`CULL_FRUSTUM_OFF`, `CULL_MIN_LOD_OFF`,
-   *  `../../geometry/dag/shader/viewsWgsl.ts`); none when absent. */
+   *  `CULL_DRAW_DISTANCE_OFF`, `../../geometry/dag/shader/viewsWgsl.ts`); none when absent. */
   cullOff?: number
+  /** The scale every placement's draw distance is multiplied by (`cutViewDistanceScale`,
+   *  `../../geometry/dag/shader/drawDistanceWgsl.ts`); 1 when absent. */
+  viewDistanceScale?: number
+  /** The view's clip plane in the render frame, `dot(xyz, p) + w` at least 0 drawn
+   *  (`../../geometry/dag/shader/clipPlaneWgsl.ts`); none when absent or all zero. */
+  clipPlane?: [number, number, number, number]
+  /** The bits of the view's filter, a bit a placement, set when the view does not draw it
+   *  (`../../geometry/selection/viewFilter.ts`): the array's identity is the filter's revision;
+   *  none when absent. */
+  filter?: Uint32Array
   /** The previous image's render matrix composed at this image's eye, its depth map and its size:
    *  what the main pass tests the previous pyramid with. Read only under `OCCLUSION_TWO_PASS`. */
   prevViewProj?: Float32Array
@@ -217,6 +228,20 @@ export type GpuSelection = {
   parkWorld(world: number, parked: boolean): void
   /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `rootMark`). */
   markWorld(world: number, mark: number): void
+  /** Placement `world` is drawn at `distance` from now on, at every distance when none
+   *  (`ClusterRoot.drawDistance`). */
+  drawDistanceWorld(world: number, distance: DrawDistance | undefined): void
+  /** Whether a placement the cut holds names a farthest draw distance: the casters and the rays
+   *  take the draw distances only then. */
+  readonly drawDistances: boolean
+  /** The rays' scene holds no placement out of its draw distances from `eye`, the main view's,
+   *  scaled by `scale` (`cutViewDistanceScale`), whose draw distance the cull turns off when
+   *  `undefined` (`../../geometry/dag/proxy/proxyInstances.ts`, `distance`). */
+  proxyDistance(eye: ArrayLike<number>, scale: number | undefined): void
+  /** The bits of a view's filter (`SelectionUniforms.filter`) held in the cut's `work`, where its
+   *  kernels and the sun's casters read them: the buffer and the word they start at, or none for
+   *  a view that filters none (`../../geometry/dag/viewFilterRegion.ts`). */
+  holdFilter(bits: Uint32Array | undefined): { buffer: GPUBuffer; base: number } | undefined
   /** Placement `world` lies where `link` says now (`CellLink`): it draws while its file shows as
    *  its main cell or its cell draws its placements — a row of a cell's actor, while its cell draws
    *  that actor (`../../geometry/dag/worlds/worldFollow.ts`) —; nothing without a world. */

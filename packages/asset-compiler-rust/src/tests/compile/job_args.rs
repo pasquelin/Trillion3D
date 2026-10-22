@@ -1,5 +1,6 @@
 //! Reading one compile job from the command line or a batch file (`compiler/args.rs`).
 use super::*;
+use crate::voxel::VoxelSampling;
 
 /// The command line's job read from `line`, under a fresh cancellation flag.
 fn parse(line: &[&str]) -> std::result::Result<Options, String> {
@@ -158,4 +159,125 @@ fn one_refusal_names_each_missing_value_and_every_choice() {
     }
     let families = BlockFormat::ALL.map(BlockFormat::name).join("|");
     assert!(usage.contains(&format!("all|{families}")), "{usage}");
+}
+
+// Behaviour: a mesh's voxel settings are its build's (`meshBuild`): for each, the first rule
+// matching one of its objects, the scene's, the mesh's own `extras`, the reference's default.
+#[test]
+fn a_meshs_voxel_settings_follow_the_job_then_its_extras_then_the_defaults() {
+    let g = json!({
+        "nodes": [{"name": "Tower", "mesh": 0}, {"name": "Bush", "mesh": 1}],
+        "meshes": [{}, {"extras": {"voxelRays": 20, "voxelNdf": false}}]
+    });
+    let meshes = |job: Option<&Value>| MeshBuildOptions::read(job).expect("read").meshes(&g);
+    let none = meshes(None).expect("meshes");
+    assert_eq!(none[0].voxels, VoxelSampling::default());
+    assert_eq!(none[0].voxels.rays(), 64);
+    assert_eq!((none[1].voxels.asked_rays, none[1].voxels.ndf), (20, false));
+    let job = json!({"voxelRays": 128, "voxelOpacity": true, "objects": [
+        {"match": "Tower", "voxelRays": 0, "voxelLevel": 2, "voxelBackUp": 0.5, "voxelSeparable": true}
+    ]});
+    let named = meshes(Some(&job)).expect("meshes");
+    let (tower, bush) = (named[0].voxels, named[1].voxels);
+    assert_eq!((tower.asked_rays, tower.level, tower.back_up), (0, 2, 0.5));
+    assert_eq!(
+        (tower.separable, tower.ndf, tower.opacity),
+        (true, true, true)
+    );
+    // The scene's rays beat the mesh's own; what the scene leaves out the extras name.
+    assert_eq!(
+        (bush.asked_rays, bush.ndf, bush.opacity),
+        (128, false, true)
+    );
+}
+
+// Behaviour: a voxel casts the rays asked for, at most 1 024 and past 1 a whole number of packets
+// of 16; 0 or 1 casts one, and with one, or an opacity to keep the coverage in, none is handed
+// over; a voxel no ray hit is sampled again a level up only below 32 rays cast; from the build's
+// voxel level up every group is voxels, a level below 0 acting as the first.
+#[test]
+fn the_voxel_settings_read_as_the_rays_and_levels_they_mean() {
+    let rays = |asked_rays| VoxelSampling {
+        asked_rays,
+        ..Default::default()
+    };
+    let cast = [0, 1, 2, 16, 17, 64, 1000, 1024, 5000].map(|n| rays(n).rays());
+    assert_eq!(cast, [0, 1, 16, 16, 32, 64, 1008, 1024, 1024]);
+    assert!(rays(1).single() && !rays(2).single());
+    assert!(!rays(1).redistributes() && rays(64).redistributes());
+    assert!(!VoxelSampling {
+        opacity: true,
+        ..rays(64)
+    }
+    .redistributes());
+    assert!(rays(16).remembers_empty() && !rays(17).remembers_empty());
+    let from = |level| VoxelSampling {
+        level,
+        ..Default::default()
+    };
+    assert!(![1, 2, 9].iter().any(|&l| from(0).forces(l)));
+    assert_eq!(
+        [1, 2, 3, 4].map(|l| from(3).forces(l)),
+        [false, false, true, true]
+    );
+    assert!(from(-2).forces(1));
+}
+
+// Behaviour: a voxel setting of the wrong kind is the job's refusal, naming the setting, from the
+// job's `meshBuild` as from a mesh's own `extras`.
+#[test]
+fn a_voxel_setting_of_the_wrong_kind_is_refused_by_name() {
+    for (job, name) in [
+        (json!({"voxelRays": -1}), "voxelRays"),
+        (json!({"voxelRays": 1.5}), "voxelRays"),
+        (json!({"voxelLevel": 2147483648u64}), "voxelLevel"),
+        (json!({"voxelBackUp": "far"}), "voxelBackUp"),
+        (json!({"voxelSeparable": 1}), "voxelSeparable"),
+        (
+            json!({"objects": [{"match": "Tower", "voxelNdf": "yes"}]}),
+            "voxelNdf",
+        ),
+    ] {
+        let refusal = MeshBuildOptions::read(Some(&job)).expect_err(name);
+        assert!(refusal.contains(name), "{refusal}");
+    }
+    let g = json!({"meshes": [{"extras": {"voxelOpacity": 0}}]});
+    let refused = MeshBuildOptions::read(None).expect("read").meshes(&g);
+    assert!(refused
+        .err()
+        .expect("extras")
+        .message
+        .contains("voxelOpacity"));
+}
+
+// Behaviour: a mesh builds its assembly only where its build allows it: not by default, then by
+// the job's rule for its objects, the scene's setting, or its own `extras`, in that order.
+#[test]
+fn a_mesh_builds_its_assembly_only_where_its_build_allows_it() {
+    let g = json!({
+        "nodes": [
+            {"name": "Facade", "mesh": 0},
+            {"name": "Wall", "mesh": 1},
+            {"name": "Roof", "mesh": 2},
+        ],
+        "meshes": [{}, {}, {"extras": {"allowAssemblies": true}}]
+    });
+    let allowed = |job: Option<&Value>| -> Vec<bool> {
+        let built = MeshBuildOptions::read(job).expect("read").meshes(&g);
+        built
+            .expect("meshes")
+            .iter()
+            .map(|m| m.allow_assemblies)
+            .collect()
+    };
+    assert_eq!(allowed(None), [false, false, true]);
+    let ruled = json!({"objects": [{"match": "Facade", "allowAssemblies": true}]});
+    assert_eq!(allowed(Some(&ruled)), [true, false, true]);
+    // The scene's setting beats the mesh's own extras.
+    assert_eq!(
+        allowed(Some(&json!({"allowAssemblies": false}))),
+        [false; 3]
+    );
+    let refusal = MeshBuildOptions::read(Some(&json!({"allowAssemblies": 1})));
+    assert!(refusal.expect_err("a number").contains("allowAssemblies"));
 }

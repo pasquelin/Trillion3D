@@ -42,6 +42,13 @@ export const INVERSE_TWO_PI = wgslConst(
   `const INVERSE_TWO_PI:f32=${wgslF32(1 / TAU)};`,
 )
 
+/** The uniform phase function's normalisation, 1/(4π): the light of a sphere's one steradian. */
+export const INVERSE_FOUR_PI = wgslConst(
+  'INVERSE_FOUR_PI',
+  [],
+  `const INVERSE_FOUR_PI:f32=${wgslF32(1 / (2 * TAU))};`,
+)
+
 /** The greatest finite `f32`: an empty range's low bound, a miss's distance. */
 export const FLOAT32_MAX = wgslConst(
   'FLOAT32_MAX',

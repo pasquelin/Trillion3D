@@ -60,6 +60,18 @@ export const readGeometryAhead =
   }
 
 /**
+ * Whether the read of a cluster's geometry page is refused for good, through the host's check
+ * (`EngineContext.geometryPageFailed`): the page itself was given up, or another page of its
+ * object was. Never for a cluster without a geometry page, served from memory.
+ */
+export const geometryFailedAhead =
+  (geometryUrls: ReadonlyMap<string, string>, failed: (url: string) => boolean) =>
+  (rec: PageRec) => {
+    const url = geometryUrls.get(pageAddress(rec))
+    return url !== undefined && failed(url)
+  }
+
+/**
  * What the geometry pool holds for the scene, walked once from the catalogue, then from the
  * records of each source added to the session (`held`, the census so far).
  *

@@ -30,10 +30,12 @@ import { VSM_RENDER_OVERLAP_WGSL } from './renderOverlapWgsl.ts'
  *   `MOBILITY_SHADOWLESS`) — and rows the camera's cut does not select — its level of detail, and
  *   its world switch: an HLOD cell's actor or placements it does not draw (`worldDraws`) —, and
  *   appends the rest with their world sphere (split double), corner count, cache-as-dynamic bit
- *   (engine mobility, `lighting/shadows/casters/mobility.ts`) and deforming bit
- *   (`vsmRenderCandidateFlags`).
+ *   (engine mobility, `lighting/shadows/casters/mobility.ts`), deforming bit
+ *   (`vsmRenderCandidateFlags`), and far-shadow flags and depth (`vsmRenderFarFlags`,
+ *   `vsmRenderFarDepth`), leaving out a caster no map view takes (`farDrop`).
  * - `vsmRenderCull` (per candidate × map view): the per-page draw commands:
- *   distance cull, static-layer test, frustum (the box frustum test with
+ *   far-shadow test of a sun's views (`vsmFarShadowSkipped`), distance cull, static-layer test,
+ *   frustum (the box frustum test with
  *   the dynamic depth cull range), then per mip: screen rect, fine caster, stale rect
  *   clip, overlap with any valid page (page-mark pyramid + receiver cover), and one command (row,
  *   mip view, static, page rect, flag mask, dirty flags).
@@ -98,6 +100,9 @@ fn vsmRenderSwapped(m:mat4x4f,ortho:bool,flags:u32)->bool{
  let h=vsmHandleFromId(view.x);
  let pd=vsmProjectionOf(h);
  let directional=(view.z&VSM_RENDER_VIEW_DIRECTIONAL)!=0u;
+ // A caster past a sun's far-shadow distance, along the main view, that does not cast far shadows,
+ // is left out of every level of the sun's clipmap.
+ if(directional&&vsmFarShadowSkipped(cand.flags,cand.farDepth,pd.farShadowDistance)){return;}
  // Local views enable distance cull and near clip.
  let nearClip=!directional;
  let distanceCull=!directional;

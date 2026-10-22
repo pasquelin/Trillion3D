@@ -1,8 +1,9 @@
 /**
  * The view uniform of deferred resolve and composition (`VIEW_WGSL`): the inverse view-projection,
  * the camera, the viewport — size, raw-output flag, sharpening strength —, the background, the
- * contract's light parameters, the TAA jitter, the composition's source (`writeSource`) and the
- * lighting term a view shows (`writeLightView`). One
+ * contract's light parameters, the TAA jitter, the composition's source (`writeSource`), the
+ * lighting term a view shows (`writeLightView`) and how the ambient occlusion is applied
+ * (`writeAmbientOcclusion`). One
  * buffer, one packed array, written once per image; its words are those of `VIEW_LAYOUT`, which
  * makes the shader's struct.
  */
@@ -110,6 +111,16 @@ export function createDeferredView(device: GPUDevice) {
       if (packed[AT.views] === code) return
       packed[AT.views] = code
       device.queue.writeBuffer(buffer, AT.views * 4, packed, AT.views, 1)
+    },
+    /** How the resolve applies the ambient occlusion this image drew (`../ao/frame.ts`): the mode's code — 0 none, 1 to the
+     *  scene's emission and sky light, 2 to the screen probes' light — and the share it applies at. Its two words
+     *  alone are written, when they change. */
+    writeAmbientOcclusion(mode: number, amount: number) {
+      const at = AT.views + 1
+      if (packed[at] === mode && packed[at + 1] === amount) return
+      packed[at] = mode
+      packed[at + 1] = amount
+      device.queue.writeBuffer(buffer, at * 4, packed, at, 2)
     },
     dispose() {
       buffer.destroy()

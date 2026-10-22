@@ -13,6 +13,10 @@ import {
   VSM_MAP_COVERAGE,
 } from './constants.ts'
 import { createVsmClipmap, type VsmClipmap } from './clipmap.ts'
+import { casterDrawDistance, farDropOf, sunFarShadowDistance } from './frame/vsmFarShadow.ts'
+import type { VsmBoundLight } from './rows/rowPageBound.ts'
+import type { SceneLight } from '../../../../../sdk-core/src/scene/light/contracts.ts'
+import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { transformAffinePoint } from '../../../../../math/src/vector/vector.ts'
 import { VsmMapCache, VsmCacheManager, VsmLightCache } from './cacheManager.ts'
 import {
@@ -157,4 +161,88 @@ test('the cache rule alone: a radius change or a light never rendered keeps noth
   level.updateLevel(light, [96, 64], 128, 1000, 256000)
   assert.equal(level.nextMaps.flags, 0, 'another depth range')
   assert.equal(level.clipmap.depthRadius, 256000)
+})
+
+test("a sun's far-shadow distance is in its maps' records, and another distance restages no page", () => {
+  const cache = new VsmCacheManager()
+  const sun = (farShadowDistance?: number) =>
+    createVsmClipmap(
+      cache,
+      { ...SUN, farShadowDistance },
+      { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] },
+      { width: 1024, height: 1024 },
+    )
+  for (let n = 0; n < 2; n++) {
+    cache.frameStamp = n
+    sun(400).cacheEntry.markRendered(n)
+  }
+  cache.frameStamp = 2
+  const held = sun(400).cacheEntry.mapCaches.map(({ projectionData: d }) => [
+    d.farShadowDistance,
+    d.lightRange,
+    d.flags,
+  ])
+  for (const [distance, range, flags] of held)
+    assert.deepEqual([distance, range, flags & VSM_MAP_UNCACHED], [400, 0, 0], 'cached, distance')
+  const moved = sun(250).cacheEntry.mapCaches.map(({ projectionData: d }) => [
+    d.farShadowDistance,
+    d.flags,
+  ])
+  for (const [distance, flags] of moved)
+    assert.deepEqual([distance, flags & VSM_MAP_UNCACHED], [250, 0], 'still cached: no restage')
+  const none = frame(new VsmCacheManager(), [0, 0, 0]).cacheEntry.mapCaches
+  assert.equal(none[0].projectionData.farShadowDistance, 0, 'a light that names none has no limit')
+})
+
+test("a sun's far-shadow distance is the edge of its shadow distance, its settings and the view's scale, none when the culling is off", () => {
+  const sun: SceneLight = {
+    id: 'sun',
+    kind: 'directional',
+    direction: [0, -1, 0],
+    color: [1, 1, 1],
+    intensity: 1,
+    castsShadow: true,
+  }
+  const session = (context: object) => ({ context }) as unknown as WebgpuPagesRuntime
+  const edge = (context: object, light: SceneLight) =>
+    sunFarShadowDistance(session(context), light, 0)
+  // The edge of the last near level, its overlap into the next included: D + 0.0675 D at no near.
+  assert.ok(Math.abs(edge({}, sun) - 427) < 1e-9, 'the defaults: 400 metres, scale 1: 427')
+  assert.ok(Math.abs(edge({}, { ...sun, shadowDistance: 90 }) - 96.075) < 1e-9)
+  assert.ok(Math.abs(edge({ shadowDistanceScale: 0.6 }, sun) - 256.2) < 1e-9)
+  assert.equal(edge({ shadowFarField: false }, sun), 400, 'no far field follows: the distance')
+  assert.equal(edge({ shadowNearLevels: 0 }, sun), 0, 'no near level: none')
+  assert.equal(edge({ shadowDistanceScale: 1.5 }, sun), 600, 'past 512 metres: the distance itself')
+  assert.equal(edge({ shadowDistanceScale: 0 }, sun), 0, 'a scale of 0: none')
+  assert.equal(edge({ farShadowCulling: false }, sun), 0, 'culling off: none')
+  assert.equal(edge({}, { ...sun, shadowDistance: 0 }), 0, 'a light of none')
+  const lamp: SceneLight = { ...sun, kind: 'point', position: [0, 3, 0], range: 8 }
+  assert.equal(edge({}, lamp), 0, 'a local light has no far-shadow distance')
+})
+
+test('a frame drops the casters past its greatest far-shadow distance only when every light is a sun that has one', () => {
+  const light = (kind: 'directional' | 'point', distance?: number) =>
+    ({ kind, clipmap: { light: { farShadowDistance: distance } } }) as unknown as VsmBoundLight
+  assert.equal(farDropOf([light('directional', 300), light('directional', 427)]), 427)
+  assert.equal(farDropOf([light('directional', 300), light('point')]), 0, 'a lamp takes them all')
+  assert.equal(farDropOf([light('directional', 300), light('directional', 0)]), 0, 'a sun of none')
+  assert.equal(farDropOf([light('directional')]), 0, 'a sun that names none')
+  assert.equal(farDropOf([]), 0, 'no light')
+})
+
+test('the casters take the draw distances when the cut holds one and the host did not turn the cull off, at the view’s scale', () => {
+  const session = (context: object) => ({ context }) as unknown as WebgpuPagesRuntime
+  const holds = { drawDistances: true },
+    none = { drawDistances: false }
+  assert.deepEqual(casterDrawDistance(session({}), holds), { scale: 1 })
+  assert.deepEqual(casterDrawDistance(session({ cutViewDistanceScale: 2.5 }), holds), {
+    scale: 2.5,
+  })
+  assert.equal(casterDrawDistance(session({}), none), undefined, 'no placement names one')
+  assert.equal(casterDrawDistance(session({}), null), undefined, 'no cut')
+  assert.equal(
+    casterDrawDistance(session({ cutDrawDistanceCulling: false }), holds),
+    undefined,
+    'the host turned the cull off',
+  )
 })

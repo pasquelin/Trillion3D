@@ -7,6 +7,9 @@ import { written } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 export function gpuHarness() {
   const gpu = fakeDevice()
   const view = () => ({}) as GPUTextureView
+  /** The view uniform: the buffer the lighting names so (`createDeferredView`). */
+  const viewBuffer = () =>
+    gpu.buffers.find((buffer) => buffer.label === 'Trillion3D deferred view v1')
   const surfaceViews = [view(), view(), view(), view()],
     surface = { views: () => surfaceViews } as unknown as SurfaceBuffer
   return {
@@ -16,11 +19,14 @@ export function gpuHarness() {
     surface,
     /** Each view uniform write, as the floats it sent. */
     get viewWrites() {
-      return gpu.writes.map((write) => written(write) as Float32Array)
+      const view = viewBuffer()
+      return gpu.writes
+        .filter((write) => 'buffer' in write && write.buffer === view)
+        .map((write) => written(write) as Float32Array)
     },
-    /** Whether the view uniform, the first buffer made, was destroyed. */
+    /** Whether the view uniform was destroyed. */
     get viewDestroyed() {
-      return gpu.destroyed.includes(gpu.buffers[0]!)
+      return gpu.destroyed.includes(viewBuffer()!)
     },
   }
 }

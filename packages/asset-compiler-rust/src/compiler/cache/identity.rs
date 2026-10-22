@@ -97,14 +97,17 @@ pub(crate) fn cache_key(
     if let Some(named) = o.voxelize.as_ref().ok().and_then(VoxelizeOptions::identity) {
         material["voxelize"] = named.clone();
     }
-    // The partition's scheme and main grid, each only when the job names it: a job naming neither
-    // keeps its key.
+    // The partition's scheme and main grid or grids, each only when the job names it: a job naming
+    // none keeps its key.
     if let Ok(partition) = o.partition_grid.as_ref() {
         if let Some(named) = partition.scheme_identity() {
             material[PARTITION_SCHEME_FIELD] = named.clone();
         }
         if let Some(named) = partition.identity() {
             material[PARTITION_GRID_FIELD] = named.clone();
+        }
+        if let Some(named) = partition.grids_identity() {
+            material[PARTITION_GRIDS_FIELD] = named.clone();
         }
     }
     // The mesh build settings, only when the job names some: a job naming none keeps its key.

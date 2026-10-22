@@ -7,7 +7,8 @@
 //! does, `a + b − ab`, and its sums the share's, each side weighed by the half of the other it does
 //! not hide. A solid voxel then shows what its faces open on a voxel left empty see — a building's
 //! walls from the street, not its core from inside —, all of them where none that opens sees
-//! anything.
+//! anything. A mesh whose build casts one ray per voxel, or keeps the coverage as opacity
+//! (`VoxelSampling::redistributes`), hands none over: every voxel a ray hit stays.
 use super::raster::Cell;
 use super::sample::{sample, symmetric, Moments, Probe, FACES};
 use std::cmp::Reverse;
@@ -47,13 +48,23 @@ impl Voxel {
     }
 }
 
-/// The solid voxels of `voxels`, in their order.
-pub(super) fn solid(voxels: Vec<Voxel>) -> Vec<Voxel> {
+/// The solid voxels of `voxels`, in their order: those a ray hit, no more than their coverage
+/// sums to when it is handed over (`redistribute`).
+pub(super) fn solid(voxels: Vec<Voxel>, redistribute: bool) -> Vec<Voxel> {
     let mut voxels: Vec<Voxel> = voxels.into_iter().filter(|v| v.coverage > 0.0).collect();
     let at: WordMap<Cell, usize> = (voxels.iter().enumerate())
         .map(|(i, v)| (v.cell, i))
         .collect();
     let mut alive = vec![true; voxels.len()];
+    if redistribute {
+        hand_over(&mut voxels, &at, &mut alive);
+    }
+    show(voxels, &at, &alive)
+}
+
+/// The least covered voxel dropped and its coverage handed to its neighbours, until no more
+/// voxels are `alive` than the coverage sums to; `at` ranks the voxels by their cell.
+fn hand_over(voxels: &mut [Voxel], at: &WordMap<Cell, usize>, alive: &mut [bool]) {
     let (mut left, covered) = (voxels.len(), voxels.iter().map(|v| v.coverage).sum::<f64>());
     // Least covered first, ties by order; a voxel's entry is current while its coverage is.
     let mut heap: BinaryHeap<Reverse<(u64, usize)>> = (voxels.iter().enumerate())
@@ -98,8 +109,14 @@ pub(super) fn solid(voxels: Vec<Voxel>) -> Vec<Voxel> {
             heap.push(Reverse((neighbour.coverage.to_bits(), j)));
         }
     }
+}
+
+/// The voxels `alive`, each showing what its faces open on a voxel left empty see — a building's
+/// walls from the street, not its core from inside —, all of them where none that opens sees
+/// anything.
+fn show(voxels: Vec<Voxel>, at: &WordMap<Cell, usize>, alive: &[bool]) -> Vec<Voxel> {
     let solid = |c: Cell| at.get(&c).is_some_and(|&j| alive[j]);
-    (voxels.into_iter().zip(&alive))
+    (voxels.into_iter().zip(alive))
         .filter(|(_, &alive)| alive)
         .map(|(mut v, _)| {
             // Face `2a` takes rays along `+a`, from the voxel before it on axis `a`.

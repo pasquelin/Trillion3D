@@ -25,6 +25,12 @@ export { CANCEL_GRACE_MS } from '../sdk-node/src/compiler/process.mts'
 export { COMPILER_LINE_LIMIT } from '../sdk-node/src/compiler/lines.mts'
 export { createBatchProgress, createTerminalProgress } from '../sdk-node/src/cli/progress.mts'
 export { createCompilationJob, prepare, prepareMany } from '../sdk-node/src/index.mts'
+export type {
+  DrawDistanceWire,
+  ObjectSettingsJobWire,
+  ObjectSettingsWire,
+  SkinnedInstanceWire,
+} from '../sdk-core/src/contracts/objectAbi.ts'
 export { getSdkProvenance } from '../sdk-node/src/compiler/provenance.mts'
 export type {
   HlodApproximation,
@@ -51,6 +57,7 @@ export type {
   MeshBuildSettingsWire,
   MeshBuildWire,
   MeshInputSettingsWire,
+  MeshVoxelSettingsWire,
 } from '../sdk-core/src/contracts/meshBuildAbi.ts'
 export {
   resolveMaterials,
@@ -84,22 +91,22 @@ export type {
   SkinnedInstanceOption,
   SkinnedInstanceSettings,
 } from '../sdk-core/src/contracts/objectOptions.ts'
-export type {
-  ObjectSettingsJobWire,
-  ObjectSettingsWire,
-  SkinnedInstanceWire,
-} from '../sdk-core/src/contracts/objectAbi.ts'
 export {
   resolvePartitionGrid,
-  resolvePartitionScheme,
-} from '../sdk-core/src/contracts/partitionOptions.ts'
+  resolvePartitionGrids,
+} from '../sdk-core/src/contracts/partitionGridOptions.ts'
 export type {
+  PartitionGridEntry,
   PartitionGridOption,
   PartitionGridSettings,
+  PartitionGridSettingsWire,
+  PartitionGridsOption,
+  PartitionGridsWire,
   PartitionGridWire,
   PartitionHlodGrid,
-  PartitionSchemeOption,
-} from '../sdk-core/src/contracts/partitionOptions.ts'
+} from '../sdk-core/src/contracts/partitionGridOptions.ts'
+export { resolvePartitionScheme } from '../sdk-core/src/contracts/partitionOptions.ts'
+export type { PartitionSchemeOption } from '../sdk-core/src/contracts/partitionOptions.ts'
 export { resolveCompilerExecutable } from '../sdk-node/src/compiler/executable.mts'
 export { resolveVoxelize } from '../sdk-core/src/contracts/voxelizeOptions.ts'
 export type { VoxelizeOption } from '../sdk-core/src/contracts/voxelizeOptions.ts'

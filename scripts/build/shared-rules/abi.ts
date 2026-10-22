@@ -36,6 +36,7 @@ export function compilerAbiRust() {
       'packages/sdk-core/src/contracts/meshBuildAbi.ts',
       'packages/sdk-core/src/contracts/objectAbi.ts',
       'packages/sdk-core/src/contracts/partitionAbi.ts',
+      'packages/sdk-core/src/contracts/partitionGridOptions.ts',
       'packages/sdk-core/src/contracts/partitionOptions.ts',
       'packages/sdk-core/src/lod/policy.ts',
     ],
@@ -143,6 +144,16 @@ pub const MATERIAL_SETTINGS: ${strings(compiler.MATERIAL_SETTINGS)};
 pub const VOXELIZE_FIELD: &str = ${JSON.stringify(compiler.VOXELIZE_FIELD)};
 pub const VOXELIZE_OPTION: &str = ${JSON.stringify(compiler.VOXELIZE_OPTION)};
 pub const VOXELIZE_EXTRA: &str = ${JSON.stringify(compiler.VOXELIZE_EXTRA)};
+/// The key of a glTF material's \`extras\` naming its displacement, the keys it may hold and the
+/// keys of its fade range, and the defaults, the reference's: the magnitude, the centre and the
+/// fade range's two ends.
+pub const DISPLACEMENT_EXTRA: &str = ${JSON.stringify(compiler.DISPLACEMENT_EXTRA)};
+pub const DISPLACEMENT_KEYS: ${strings(compiler.DISPLACEMENT_KEYS)};
+pub const DISPLACEMENT_FADE_KEYS: ${strings(compiler.DISPLACEMENT_FADE_KEYS)};
+pub const DEFAULT_DISPLACEMENT_MAGNITUDE: f64 = ${compiler.DEFAULT_DISPLACEMENT_MAGNITUDE.toFixed(1)};
+pub const DEFAULT_DISPLACEMENT_CENTER: f64 = ${compiler.DEFAULT_DISPLACEMENT_CENTER.toFixed(1)};
+pub const DEFAULT_DISPLACEMENT_FADE_START: f64 = ${compiler.DEFAULT_DISPLACEMENT_FADE_START.toFixed(1)};
+pub const DEFAULT_DISPLACEMENT_FADE_END: f64 = ${compiler.DEFAULT_DISPLACEMENT_FADE_END.toFixed(1)};
 /// The job field setting the partition's main grid, the command line's flag holding it as JSON,
 /// the settings it may name, their defaults — the reference's main grid's — and the most a grid's
 /// priority may be.
@@ -154,6 +165,14 @@ pub const DEFAULT_PARTITION_LOADING_RANGE: f64 = ${compiler.DEFAULT_PARTITION_LO
 pub const DEFAULT_PARTITION_PRIORITY: u32 = ${compiler.DEFAULT_PARTITION_PRIORITY};
 pub const MAX_PARTITION_PRIORITY: u32 = ${compiler.MAX_PARTITION_PRIORITY};
 pub const DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING: bool = ${partition.DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING};
+/// The job field naming several streaming grids, the command line's flag holding it as JSON, the
+/// key of a grid's name in it, the characters it may not hold and the first grid's name when it
+/// names none, the reference's.
+pub const PARTITION_GRIDS_FIELD: &str = ${JSON.stringify(compiler.PARTITION_GRIDS_FIELD)};
+pub const PARTITION_GRIDS_OPTION: &str = ${JSON.stringify(compiler.PARTITION_GRIDS_OPTION)};
+pub const PARTITION_GRID_NAME_KEY: &str = ${JSON.stringify(compiler.PARTITION_GRID_NAME_KEY)};
+pub const PARTITION_GRID_NAME_FORBIDDEN: &str = ${JSON.stringify(compiler.PARTITION_GRID_NAME_FORBIDDEN)};
+pub const DEFAULT_PARTITION_GRID_NAME: &str = ${JSON.stringify(compiler.DEFAULT_PARTITION_GRID_NAME)};
 /// The job field naming the world partition's scheme, the command line's flag holding it, a bare
 /// name, the schemes and the default one, the reference's.
 pub const PARTITION_SCHEME_FIELD: &str = ${JSON.stringify(partition.PARTITION_SCHEME_FIELD)};
@@ -189,6 +208,13 @@ pub const WEIGHTED_NORMALS_SETTING: &str = ${JSON.stringify(mesh.computeWeighted
 pub const SKINNED_WELD_POSITION_SETTING: &str = ${JSON.stringify(mesh.skinnedWeldPosition.field)};
 pub const SKINNED_WELD_NORMAL_SETTING: &str = ${JSON.stringify(mesh.skinnedWeldNormal.field)};
 pub const SKINNED_WELD_TEXTURE_SETTING: &str = ${JSON.stringify(mesh.skinnedWeldTexture.field)};
+pub const VOXEL_RAYS_SETTING: &str = ${JSON.stringify(mesh.voxelRays.field)};
+pub const VOXEL_LEVEL_SETTING: &str = ${JSON.stringify(mesh.voxelLevel.field)};
+pub const VOXEL_BACK_UP_SETTING: &str = ${JSON.stringify(mesh.voxelBackUp.field)};
+pub const VOXEL_SEPARABLE_SETTING: &str = ${JSON.stringify(mesh.voxelSeparable.field)};
+pub const VOXEL_NDF_SETTING: &str = ${JSON.stringify(mesh.voxelNdf.field)};
+pub const VOXEL_OPACITY_SETTING: &str = ${JSON.stringify(mesh.voxelOpacity.field)};
+pub const ALLOW_ASSEMBLIES_SETTING: &str = ${JSON.stringify(mesh.allowAssemblies.field)};
 pub const POSITION_PRECISION_SETTING: &str = ${JSON.stringify(compiler.POSITION_PRECISION_SETTING)};
 pub const NORMAL_PRECISION_SETTING: &str = ${JSON.stringify(compiler.NORMAL_PRECISION_SETTING)};
 pub const TANGENT_PRECISION_SETTING: &str = ${JSON.stringify(compiler.TANGENT_PRECISION_SETTING)};
@@ -206,6 +232,19 @@ pub const DEFAULT_WEIGHTED_NORMALS: bool = ${mesh.computeWeightedNormals.default
 pub const DEFAULT_SKINNED_WELD_POSITION: f64 = ${mesh.skinnedWeldPosition.default};
 pub const DEFAULT_SKINNED_WELD_NORMAL: f64 = ${mesh.skinnedWeldNormal.default};
 pub const DEFAULT_SKINNED_WELD_TEXTURE: f64 = ${mesh.skinnedWeldTexture.default};
+/// How a voxelized mesh's voxels are sampled: the defaults, the reference's, and the rays a voxel
+/// casts at most, the packet they are cast in, and the count below which a voxel no ray hit is
+/// sampled again a level up.
+pub const DEFAULT_VOXEL_RAYS: u32 = ${mesh.voxelRays.default};
+pub const DEFAULT_VOXEL_LEVEL: i32 = ${mesh.voxelLevel.default};
+pub const DEFAULT_VOXEL_BACK_UP: f64 = ${mesh.voxelBackUp.default.toFixed(1)};
+pub const DEFAULT_VOXEL_SEPARABLE: bool = ${mesh.voxelSeparable.default};
+pub const DEFAULT_VOXEL_NDF: bool = ${mesh.voxelNdf.default};
+pub const DEFAULT_VOXEL_OPACITY: bool = ${mesh.voxelOpacity.default};
+pub const DEFAULT_ALLOW_ASSEMBLIES: bool = ${mesh.allowAssemblies.default};
+pub const MAX_VOXEL_RAYS: u32 = ${compiler.MAX_VOXEL_RAYS};
+pub const VOXEL_RAY_PACKET: u32 = ${compiler.VOXEL_RAY_PACKET};
+pub const VOXEL_REMEMBER_BELOW_RAYS: u32 = ${compiler.VOXEL_REMEMBER_BELOW_RAYS};
 /// How a mesh keeps its shape as its DAG is built — the keys of a glTF mesh's \`extras\` bounding
 /// its edges and holding its texture coordinates, and their defaults, the reference's —, and the
 /// settings a merged HLOD layer's \`meshBuild\` names for its actors' meshes, with the shapes it
@@ -226,6 +265,11 @@ pub const OBJECT_SETTINGS_OPTION: &str = ${JSON.stringify(compiler.OBJECT_SETTIN
 pub const OBJECT_SETTINGS_OBJECTS: &str = ${JSON.stringify(compiler.OBJECT_SETTINGS_OBJECTS)};
 pub const SPATIALLY_LOADED_SETTING: &str = ${JSON.stringify(compiler.SPATIALLY_LOADED_SETTING)};
 pub const SKINNED_INSTANCE_SETTING: &str = ${JSON.stringify(compiler.SKINNED_INSTANCE_SETTING)};
+pub const RUNTIME_GRID_SETTING: &str = ${JSON.stringify(compiler.RUNTIME_GRID_SETTING)};
+pub const DRAW_DISTANCE_SETTING: &str = ${JSON.stringify(compiler.DRAW_DISTANCE_SETTING)};
+pub const DRAW_DISTANCE_SETTINGS: ${strings(compiler.DRAW_DISTANCE_SETTINGS)};
+pub const DEFAULT_DRAW_DISTANCE_MIN: f64 = ${compiler.DEFAULT_DRAW_DISTANCE_MIN.toFixed(1)};
+pub const DEFAULT_DRAW_DISTANCE_MAX: f64 = ${compiler.DEFAULT_DRAW_DISTANCE_MAX.toFixed(1)};
 pub const OBJECT_SETTINGS: ${strings(compiler.OBJECT_SETTINGS)};
 pub const SKINNED_INSTANCE_SETTINGS: ${strings(compiler.SKINNED_INSTANCE_SETTINGS)};
 pub const OBJECT_MOBILITIES: ${strings(compiler.OBJECT_MOBILITIES)};

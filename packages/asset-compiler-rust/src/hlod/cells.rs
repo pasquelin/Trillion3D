@@ -1,4 +1,4 @@
-//! The HLOD chain over the main grid's cells. At level 0, each main
+//! The HLOD chain over the main grids' cells, each main grid's own. At level 0, each main
 //! cell's objects of one layer make one HLOD actor of that layer, bounded by its objects' bounds
 //! and placed on its layer's grid: an `instanced` layer's, the source meshes themselves — their
 //! own cell rows, loaded within that grid's range —; any other layer's, built of them by its
@@ -36,11 +36,12 @@ use std::ops::Bound::{Excluded, Unbounded};
 /// first, then each level's.
 ///
 /// An HLOD 0 cell holds a main cell's objects: of a layer not instanced, one cell per main cell
-/// and layer, on the main grid and streamed as that main cell is, its actor the layer's HLOD 0
-/// actor, built of those objects and first drawn from the main grid's range; of an instanced
-/// layer, the objects of every main cell its HLOD 0 actor — those objects themselves, their cell
-/// rows — lies in a cell of the layer's grid, the cell of that grid, its actor its parent's. A
-/// cell above holds actors: level 1 at least, the HLOD level of the actors in it otherwise.
+/// and layer, on the main grid of that cell and streamed as that main cell is, its actor the
+/// layer's HLOD 0 actor, built of those objects and first drawn from the main grid's range; of an
+/// instanced layer, the objects of every main cell its HLOD 0 actor — those objects themselves,
+/// their cell rows — lies in a cell of the layer's grid, the cell of that grid, its actor its
+/// parent's. A cell above holds actors: level 1 at least, the HLOD level of the actors in it
+/// otherwise.
 #[derive(Clone, Debug)]
 pub(crate) struct HlodNode {
     pub parent: Option<usize>,
@@ -59,15 +60,55 @@ pub(crate) struct HlodNode {
 /// builds its actor — ordered so, a cell comes after every cell whose actor lies in it.
 type Key = (usize, usize, Coord, Option<usize>);
 
-/// The rank of the main grid in `Grids::list`, its first: the grid an HLOD 0 cell of a layer not
-/// instanced lies on.
-const MAIN_GRID: usize = 0;
+/// Whether the objects of layer `layer` in a cell of main grid `main` stream in that cell, `actor`
+/// the bounds of their HLOD 0 actor there: always, but an instanced layer's while that actor —
+/// the objects themselves — lies in no cell of its grid, always loaded: they stay in the core, the
+/// same image.
+pub(crate) fn streams_in_cell(
+    hlod: &Hlod,
+    grids: &Grids,
+    main: usize,
+    (layer, actor): (usize, &Box6),
+) -> bool {
+    hlod.layers[layer].builder != HlodBuilder::Instanced
+        || grids.place(main, layer, actor).is_some()
+}
 
-/// Whether the objects of layer `layer` in a main cell stream in that cell, `actor` the bounds of
-/// their HLOD 0 actor there: always, but an instanced layer's while that actor — the objects
-/// themselves — lies in no cell of its grid, always loaded: they stay in the core, the same image.
-pub(crate) fn streams_in_cell(hlod: &Hlod, grids: &Grids, (layer, actor): (usize, &Box6)) -> bool {
-    hlod.layers[layer].builder != HlodBuilder::Instanced || grids.place(layer, actor).is_some()
+/// The HLOD 0 cell each layer of the objects of main cell `main` lies in, by layer: for an
+/// instanced layer the cell of its grid its actor lies in, for any other one of the main cell's
+/// own, whose bounds — the main cell's — go to `streamed`; the bounds of each actor grown into
+/// its cell's in `contents`.
+fn leaves_of(
+    main: &MainCell,
+    (hlod, grids): (&Hlod, &Grids),
+    (contents, streamed): (&mut BTreeMap<Key, Box6>, &mut BTreeMap<Key, Box6>),
+) -> BTreeMap<usize, Key> {
+    let (mut actors, mut whole) = (BTreeMap::<usize, Box6>::new(), EMPTY_FLAT);
+    for node in &main.nodes {
+        grow_flat(&mut whole, &node.bounds);
+        if let Some(layer) = node.layer {
+            grown(&mut actors, layer, &node.bounds);
+        }
+    }
+    (actors.into_iter())
+        .map(|(layer, bounds)| {
+            let key = match hlod.layers[layer].builder {
+                HlodBuilder::Instanced => {
+                    let (grid, coord) = (grids.place(main.grid, layer, &bounds))
+                        .expect("an instanced layer's placed objects' actor streams");
+                    (0, grid, coord, hlod.layers[layer].parent)
+                }
+                _ => {
+                    let key = (0, main.grid, main.coord, Some(layer));
+                    let cell = grids.main(main.grid).grid.streamed(main.coord, &whole);
+                    streamed.insert(key, cell);
+                    key
+                }
+            };
+            grown(contents, key, &bounds);
+            (layer, key)
+        })
+        .collect()
 }
 
 /// Per main cell of `mains`, the HLOD 0 cell each of its layers' objects lie in, and the chain's
@@ -88,10 +129,10 @@ pub(crate) fn hlod_cells(
     let mut contents: BTreeMap<Key, Box6> = BTreeMap::new();
     // The bounds an HLOD 0 cell of a layer not instanced streams by: its main cell's.
     let mut streamed: BTreeMap<Key, Box6> = BTreeMap::new();
-    // The cell of actors an actor of `layer` bounded by `bounds` lies in, built further by its
-    // parent.
-    let keyed = |layer: usize, bounds: &Box6| {
-        let (grid, coord) = grids.place(layer, bounds)?;
+    // The cell of actors an actor of `layer` in the chain of main grid `main`, bounded by
+    // `bounds`, lies in, built further by its parent.
+    let keyed = |main: usize, layer: usize, bounds: &Box6| {
+        let (grid, coord) = grids.place(main, layer, bounds)?;
         Some((
             grids.list[grid].level.max(1),
             grid,
@@ -100,33 +141,7 @@ pub(crate) fn hlod_cells(
         ))
     };
     let leaf_keys: Vec<BTreeMap<usize, Key>> = (mains.iter())
-        .map(|main| {
-            let (mut actors, mut whole) = (BTreeMap::<usize, Box6>::new(), EMPTY_FLAT);
-            for node in &main.nodes {
-                grow_flat(&mut whole, &node.bounds);
-                if let Some(layer) = node.layer {
-                    grown(&mut actors, layer, &node.bounds);
-                }
-            }
-            (actors.into_iter())
-                .map(|(layer, bounds)| {
-                    let key = match hlod.layers[layer].builder {
-                        HlodBuilder::Instanced => {
-                            let (grid, coord) = (grids.place(layer, &bounds))
-                                .expect("an instanced layer's placed objects' actor streams");
-                            (0, grid, coord, hlod.layers[layer].parent)
-                        }
-                        _ => {
-                            let key = (0, MAIN_GRID, main.coord, Some(layer));
-                            streamed.insert(key, grids.main().grid.streamed(main.coord, &whole));
-                            key
-                        }
-                    };
-                    grown(&mut contents, key, &bounds);
-                    (layer, key)
-                })
-                .collect()
-        })
+        .map(|main| leaves_of(main, (hlod, grids), (&mut contents, &mut streamed)))
         .collect();
     // Each cell's actor, made of what it holds, in the cell of its layer's grid it lies in —
     // `None`: always loaded, nothing built of it.
@@ -134,7 +149,9 @@ pub(crate) fn hlod_cells(
     let mut next = contents.keys().next().copied();
     while let Some(key) = next {
         let content = contents[&key];
-        let up = key.3.and_then(|layer| keyed(layer, &content));
+        // A shared square grid has no owner: every main grid's chain reaches the same grids.
+        let owner = grids.list[key.1].main.unwrap_or(0);
+        let up = key.3.and_then(|layer| keyed(owner, layer, &content));
         if let Some(up) = up {
             grown(&mut contents, up, &content);
         }
@@ -148,14 +165,19 @@ pub(crate) fn hlod_cells(
         .map(|(key, content)| {
             let &(level, grid, coord, actor) = key;
             let spec = &grids.list[grid];
+            // A main cell's actor is HLOD 0; one built of a cell of a grid, the next level.
+            let actor_level = if grid < grids.mains {
+                0
+            } else {
+                spec.level + 1
+            };
             HlodNode {
                 parent: parents[key].map(|up| rank[&up]),
                 level,
                 grid,
                 rung: coord.0,
                 actor,
-                // A main cell's actor is HLOD 0; one built of a cell of a grid, the next level.
-                actor_level: if grid == MAIN_GRID { 0 } else { spec.level + 1 },
+                actor_level,
                 warmup: actor.is_some_and(|l| hlod.layers[l].builder != HlodBuilder::Instanced),
                 shown: (streamed.get(key).copied())
                     .unwrap_or_else(|| spec.grid.streamed(coord, content)),

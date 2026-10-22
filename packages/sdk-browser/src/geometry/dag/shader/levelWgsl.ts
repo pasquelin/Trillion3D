@@ -104,11 +104,16 @@ fn levelStep(src:u32,s:u32){
  }
  if(tests){testRoot(dst,w);}else{openNode(dst,index,w);}
 }
-/** Placement \`w\`'s root, tested as its instance: its box in the frustum, then under the pyramid.
- *  Kept, it is accepted (\`acceptNode\`): no error of its own is compared, the root's children are.
- *  The previous pyramid alone hiding it, the instance is held whole for the post pass. */
+/** Placement \`w\`'s root, tested as its instance: the view's filter (\`filteredOut\`), its draw
+ *  distance (\`outsideDrawDistance\`), the view's clip plane (\`outsideClipPlane\`), its box in the
+ *  frustum, then under the pyramid. Kept, it is accepted (\`acceptNode\`): no error of its
+ *  own is compared, the root's children are. The previous pyramid alone hiding it, the instance is
+ *  held whole for the post pass. */
 fn testRoot(dst:u32,w:u32){
- let root=rootOf(w);let node=nodeAt(root);deformReach=reachOf(w);
+ if(filteredOut(w)){return;}
+ let root=rootOf(w);let node=nodeAt(root);let mark=markOf(w);deformReach=markReach(mark);
+ if(outsideDrawDistance(w,mark,node)){return;}
+ if(outsideClipPlane(w,node.minimum,node.maximum)){return;}
  if(outsideFrustum(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
  let sight=sightOf(node,w);
  if(sight==BOX_SEEN){acceptNode(dst,root,node,w);}
@@ -129,15 +134,16 @@ fn openNode(dst:u32,index:u32,w:u32){
   }
  }
 }
-/** Node \`c\` of placement \`w\`: not a world actor's its cell does not draw (\`worldNodeHides\`), in
- *  the frustum, its subtree needed — the error it replaces seen at the threshold
- *  (\`subtreeNeeded\`) —, a leaf not too coarse — its floor within the threshold, unless it is open
+/** Node \`c\` of placement \`w\`: not a world actor's its cell does not draw (\`worldNodeHides\`), not
+ *  behind the view's clip plane (\`outsideClipPlane\`), in the frustum, its subtree needed — the
+ *  error it replaces seen at the threshold (\`subtreeNeeded\`) —, a leaf not too coarse — its floor within the threshold, unless it is open
  *  (\`floorPrunes\`) —, then under the pyramid: seen, it is accepted. Whether the previous pyramid
  *  alone hides it and it waits for the post pass (\`heldBack\`). The trunk-reject count moves for the
  *  frustum and the ceiling, never for the floor nor an actor not drawn. */
 fn testNode(dst:u32,c:u32,w:u32)->bool{
  if(worldNodeHides(c,w)){return false;}
  let node=nodeAt(c);
+ if(outsideClipPlane(w,node.minimum,node.maximum)){return false;}
  if(outsideFrustum(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return false;}
  let e=viewWorld(w);
  if(!subtreeNeeded(node,sphereEdges(node.sphere,e).x)){atomicAdd(&out.frustumRejected,1u);return false;}

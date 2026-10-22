@@ -8,12 +8,13 @@
 //!
 //! | bytes | content |
 //! |---|---|
-//! | 0–3 | base colour, sRGB; normal length (the spread Toksvig's filter reads: 255 when every normal agrees) |
-//! | 4–7 | occlusion, roughness, metallic; zero |
+//! | 0–3 | base colour, sRGB; normal length (the spread Toksvig's filter reads: 255 when every normal agrees, always when the build drops the spread, `voxelNdf`) |
+//! | 4–7 | occlusion, roughness, metallic; the voxel's coverage as its opacity when the build keeps it (`voxelOpacity`: no pass of the engine reads it), else zero |
 //! | 8–9 | mean normal, octahedral (`oct_encode`) |
 //! | 10–11 | zero |
 use super::raster::Cell;
 use super::solid::Voxel;
+use super::VoxelSampling;
 use crate::texture::linear_to_srgb;
 use trillion3d_math::scalar::unit_to_byte;
 use trillion3d_math::vector::octahedral::oct_encode;
@@ -86,8 +87,9 @@ pub(super) fn brick_record(brick: &Brick, first: Cell) -> [u8; BRICK_BYTES] {
     out
 }
 
-/// The bytes of a voxel.
-pub(super) fn voxel_record(voxel: &Voxel) -> [u8; VOXEL_BYTES] {
+/// The bytes of a voxel sampled as `sampling` says: its normals' spread kept or dropped, its
+/// coverage carried as its opacity or not.
+pub(super) fn voxel_record(voxel: &Voxel, sampling: &VoxelSampling) -> [u8; VOXEL_BYTES] {
     let m = &voxel.shown;
     let colour = m.colour.map(|c| linear_to_srgb((c / m.covered) as f32));
     let orm = m.orm.map(|c| unit_to_byte(c / m.covered));
@@ -96,8 +98,16 @@ pub(super) fn voxel_record(voxel: &Voxel) -> [u8; VOXEL_BYTES] {
     let oct = |n: [f64; 3]| (oct_encode(n.map(|c| c as f32)) as u16).to_le_bytes();
     let mut out = [0; VOXEL_BYTES];
     out[..3].copy_from_slice(&colour);
-    out[3] = unit_to_byte(length(mean).min(1.0));
+    let spread = if sampling.ndf {
+        length(mean).min(1.0)
+    } else {
+        1.0
+    };
+    out[3] = unit_to_byte(spread);
     out[4..7].copy_from_slice(&orm);
+    if sampling.opacity {
+        out[7] = unit_to_byte(voxel.coverage);
+    }
     out[8..10].copy_from_slice(&oct(normal));
     out
 }

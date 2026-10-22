@@ -26,7 +26,9 @@
  * No switch waits on one during the initial load — till the first image is shown
  * (`firstImageShown`) —, nor while a load blocks on slow streaming (`blockingLoad`), when no cell
  * turns visible, nor any cell file but those the load waits for. The HLOD actors off
- * (`hlodEnabled`), no cell draws its actor nor its HLOD 0 actor.
+ * (`hlodEnabled`), no cell draws its actor nor its HLOD 0 actor; the cells not activated
+ * (`activated`), nothing the partition places draws — each cell and file stays loaded, wished and
+ * counted as it is, its word zero.
  *
  * What draws is then: a cell's actor as above; a visible HLOD 0 cell's placements — its HLOD 0
  * actor, the source meshes instanced —; and the placements of a cell file shown as its main cell,
@@ -155,9 +157,10 @@ export function createLinkFollower(resources: { packed: PackedDag; cold: RangeTa
     if (was && !wished && warmedOut(base, cell)) visible[at] = 0
     else if (!was && wished && !warmth.blocking && loaded(base, cell) && warmedIn(base, cell))
       visible[at] = 1
-    // The HLOD actors off, no cell draws its actor, nor its placements as its HLOD 0 actor.
+    // The HLOD actors off, or the world hidden, no cell draws its actor, nor its placements as its
+    // HLOD 0 actor.
     const within = up < 0 || visible[base + up] === 1,
-      on = warmth.hlodOn
+      on = warmth.hlodOn && !files.hidden
     const stands = on && !visible[at] && within ? CELL_DRAW.hlod : 0
     const own = on && layer[cell] === 0 && visible[at] ? CELL_DRAW.placements : 0
     if (states[at] !== (stands | own)) {
@@ -234,6 +237,11 @@ export function createLinkFollower(resources: { packed: PackedDag; cold: RangeTa
     /** The HLOD actors on or off (`hlodEnabled`): every cell's word written again. */
     hlodEnabled(on: boolean) {
       if (warmth.hlodEnabled(on)) markAll()
+    },
+    /** The cells and files the partition places are drawn, or placed and hidden (`activated`
+     *  false: a cell loaded and not activated): every cell's and file's word written again. */
+    activated(on: boolean) {
+      if (files.hide(!on)) markAll()
     },
     /** The cell files of instance `instance` a load blocking on slow streaming waits for, read as
      *  they stand at each sync, none once it blocks no more: the cells it kept hidden then switch

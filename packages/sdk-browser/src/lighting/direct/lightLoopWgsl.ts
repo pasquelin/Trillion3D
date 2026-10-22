@@ -3,6 +3,7 @@ import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { INCIDENCE, REACH, irradianceTerm } from './lightTermsWgsl.ts'
+import { LAMP_WGSL } from './lampSeenWgsl.ts'
 
 /**
  * A shadow catcher's term (`catcherAlpha`, `../../materials/surface/surfaceModel.ts`): of a light that holds a
@@ -13,7 +14,7 @@ import { INCIDENCE, REACH, irradianceTerm } from './lightTermsWgsl.ts'
  */
 const CATCHER_SHADOWED = (out: Out) => `
  if(surfaceModel==${MODEL_FLAG.shadow}u){
-  let weight=select(0.0,light.colorIntensity.w*incidence.w,i32(light.params.y)>=0);
+  let weight=select(0.0,light.colorIntensity.w*lamp.falloff,i32(light.params.y)>=0);
   return ${out('vec3f(weight*shade*dot(shadowTransmission,vec3f(1.0/3.0)),weight,0.0)')};
  }`
 const CATCHER_NONE = (out: Out) => `
@@ -70,7 +71,7 @@ export const declaredLightWgsl = (
   if (term === 'irradiance')
     return wgslBlock(
       `declaredLightWgsl(${variantLabel(key)}, ${term})`,
-      [],
+      [LAMP_WGSL],
       `fn declaredIrradiance(rank:u32,P:vec3f,N:vec3f,reach:f32)->vec3f{${REACH('vec3f(0.0)')}${irradianceTerm(key.rectless)}
 }`,
     )
@@ -79,14 +80,15 @@ export const declaredLightWgsl = (
   const zero = out(ZERO)
   return wgslBlock(
     `declaredLightWgsl(${variantLabel(key)}, ${term})`,
-    [lambertDiffuse],
-    `${split ? SPLIT_HEAD : WHOLE_HEAD}${REACH(zero)}${key.rectless ? '' : rectBranch(split)}${INCIDENCE(zero)}${shadowed ? shadeStatement(out) : CATCHER_NONE(out)}
- let energy=light.colorIntensity.w*incidence.w${shadowed ? '*shade' : ''};
+    [lambertDiffuse, LAMP_WGSL],
+    `${split ? SPLIT_HEAD : WHOLE_HEAD}${REACH(zero)}${key.rectless ? '' : rectBranch(split)}${INCIDENCE(zero)}
+ let lamp=lampSeen(light,P,N,incidence,LAMP_BIAS);${shadowed ? shadeStatement(out) : CATCHER_NONE(out)}
+ let energy=light.colorIntensity.w*lamp.falloff${shadowed ? '*shade' : ''};
  let color=light.colorIntensity.rgb${shadowed ? '*shadowTransmission' : ''};
  // A surface with no thin transmission adds an exact zero: 0·x is ±0, and ±0 added to a term leaves
  // the light's sum as it is (\`exactZeros.test.ts\`). Its back takes the light's cosine from behind.
  var transmitted=vec3f(0.0);
- if(thinSurface()){transmitted=lambertDiffuse(thinSubsurface,0.0,vec3f(max(-dot(N,incidence.xyz),0.0)*energy),1.0);}
+ if(thinSurface()){transmitted=lambertDiffuse(thinSubsurface,0.0,vec3f(max(-lamp.side,0.0)*energy),1.0);}
 ${split ? SPLIT_TAIL : WHOLE_TAIL}
 }`,
   )
@@ -94,19 +96,19 @@ ${split ? SPLIT_TAIL : WHOLE_TAIL}
 
 const WHOLE_HEAD =
   'fn declaredLight(rank:u32,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface)->vec3f{'
-const WHOLE_TAIL = ` if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return (modelLight(rgb,metal,N,incidence.xyz,energy,ao)+transmitted)*color;}
- return (surfaceLight(shading,N,V,vec4f(incidence.xyz,energy))+transmitted)*color;`
+const WHOLE_TAIL = ` if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return (modelLight(rgb,metal,N,lamp.toward,energy,ao)+transmitted)*color;}
+ return (lampLight(shading,N,V,light,P,lamp,energy)+transmitted)*color;`
 /** The split term (\`declaredLightSplit\`, a translucent layer's forward lighting): the whole
  *  term's two shares, from one shadow read — its diffuse layer, and the rest: the lobe's specular
  *  (\`specularShading\`, the pixel's surface with no diffuse albedo), the thin back's
  *  transmission, a catcher's term. */
 const SPLIT_HEAD = `struct LightSplit{diffuse:vec3f,specular:vec3f,}
 fn declaredLightSplit(rank:u32,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface,specularShading:LobeSurface)->LightSplit{`
-const SPLIT_TAIL = ` if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return LightSplit(modelLight(rgb,metal,N,incidence.xyz,energy,ao)*color,transmitted*color);}
- // The base lobe's diffuse share (\`lobeSum\`) under what the coat lets through, as \`surfaceLight\`
+const SPLIT_TAIL = ` if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return LightSplit(modelLight(rgb,metal,N,lamp.toward,energy,ao)*color,transmitted*color);}
+ // The base lobe's diffuse share (\`lobeSum\`) under what the coat lets through, as \`lampLight\`
  // weighs it.
- let diffuse=shading.diffuse*(energy*max(dot(N,incidence.xyz),0.0))*lobeThrough();
- return LightSplit(diffuse*color,(surfaceLight(specularShading,N,V,vec4f(incidence.xyz,energy))+transmitted)*color);`
+ let diffuse=shading.diffuse*(energy*lamp.cosine)*lobeThrough();
+ return LightSplit(diffuse*color,(lampLight(specularShading,N,V,light,P,lamp,energy)+transmitted)*color);`
 
 /** What a light gives (`declaredLightWgsl`): a pixel's radiance through the maps, the same split
  *  into its diffuse and specular shares, or a point's irradiance through the proxy. */
@@ -135,10 +137,10 @@ const rectBranch = (split: boolean) => `
 const shadeStatement = (out: Out) => `
  // A surface facing away from the light gets its exact zero whatever the shadow: the shadow's
  // trace is skipped (\`shadowFactor\`). Toon bands light it, a shadow catcher reads the shadow
- // whatever its side. The direction is unit as it comes.
- let cosine=dot(N,incidence.xyz);
- let back=thinSurface()&&cosine<0.0;
- let facing=back||surfaceModel==${MODEL_FLAG.toon}u||surfaceModel==${MODEL_FLAG.shadow}u||cosine>0.0;
+ // whatever its side; a lamp of size lights a surface a little past its horizon (\`lampSeen\`). The
+ // direction is unit as it comes.
+ let back=thinSurface()&&lamp.side<0.0;
+ let facing=back||surfaceModel==${MODEL_FLAG.toon}u||surfaceModel==${MODEL_FLAG.shadow}u||lamp.side>0.0||lamp.cosine>0.0;
  let shade=shadowFactor(i32(light.params.y),light,P+shadowReceiverOffset,vsmBiasNormal(select(N,-N,back),shadowReceiverPlane),facing);${CATCHER_SHADOWED(out)}
  if(shade<=0.0){return ${out(ZERO)};}`
 

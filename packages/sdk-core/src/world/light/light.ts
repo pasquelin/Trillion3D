@@ -1,4 +1,6 @@
-import { LIGHT_SETTINGS } from '../../scene/light/contracts.ts'
+import { LIGHT_SETTINGS, type AtmosphereSunIndex } from '../../scene/light/contracts.ts'
+import { validateAtmosphereSunIndex } from '../../scene/light/validate.ts'
+import { shadowDistanceOf, type ShadowDistanceOption } from '../../contracts/shadowOptions.ts'
 import { Object3D } from '../object/object3d.ts'
 import { Color, type ColorInput } from '../math/color.ts'
 import { Vector3, readVec3, type Vec3Input } from '../math/vector3.ts'
@@ -32,13 +34,31 @@ export interface LightParameters {
   width?: number
   /** Height of a rectangle light. */
   height?: number
-  /** Radius of the emitting sphere of a point or spot light: its soft shadow's size. */
+  /** Radius of the emitting sphere of a point or spot light: its soft shadow's size, and how the
+   *  lamp lights a surface — the horizon wraps a sphere, a highlight spreads. */
   radius?: number
+  /** Length of the tube a point or spot light is, in metres, along the light's own up (its local
+   *  y); 0, the default, a sphere or a point. With a `radius` the lamp is a capsule. */
+  tubeLength?: number
+  /** Soft radius of a point or spot light, in metres: it widens the highlight the lamp leaves
+   *  without lighting more of the surface; 0 by default. */
+  softRadius?: number
   /** Directional source angular radius, in radians. */
   angularRadius?: number
+  /** How far from the eye, in metres, a directional light's shadows are asked to reach, scaled by
+   *  the view's `shadowDistanceScale`: `true` or nothing 400, `false` none. The far-shadow test's
+   *  edge lies a little past it (427.0 at the defaults, the last near level's overlap into the next):
+   *  a caster whose depth along the view, less its radius, is past the edge, and whose object does
+   *  not set `castFarShadow`, is left out of the light's shadows. By default the test reaches the
+   *  world's merged far-field shells alone; the view's `farShadowCullsAllMeshes` makes it reach
+   *  every caster. */
+  shadowDistance?: ShadowDistanceOption
   /** Whether a directional light may be the sun of the scene's atmosphere (`scene.atmosphere`):
    *  of the lights that may, the brightest is; `true` by default. */
   atmosphereSun?: boolean
+  /** Which of the atmosphere's two lights a directional light may be, 0 or 1 (a sun and a moon, or
+   *  two suns): the brightest of those that may be is held for each; 0 by default. */
+  atmosphereSunIndex?: AtmosphereSunIndex
   /** A probe's irradiance: 27 numbers, nine RGB spherical-harmonic coefficients of the radiance
    *  in the band order constant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`, scaled by
    *  `intensity`; built by `emptyIrradiance` and the `add…Irradiance` helpers. Absent, the probe is
@@ -56,7 +76,10 @@ const NUMBERS = [
   'width',
   'height',
   'radius',
+  'tubeLength',
+  'softRadius',
   'angularRadius',
+  'shadowDistance',
 ] as const
 type LightNumber = (typeof NUMBERS)[number]
 /** The kinds placed by a direction: a sky's is its position seen from the origin. */
@@ -65,6 +88,9 @@ const point = new Vector3()
 /** The lights a page left out of the atmosphere's candidates: few, so a set and not a field each
  *  light would carry (`Light.atmosphereSun`). */
 const NOT_SUN = new WeakSet<Light>()
+/** The lights a page set to the atmosphere's second light (`Light.atmosphereSunIndex`): few, as the
+ *  lights left out of the candidates. */
+const SUN_INDEX = new WeakMap<Light, AtmosphereSunIndex>()
 
 /**
  * A light placed in the scene. Its numbers are accessors: a write reaches the world's light
@@ -102,9 +128,17 @@ export class Light extends Object3D {
   declare height: number
   /** Radius of the emitting sphere; `emitterRadius` in the engine's store. */
   declare radius: number
+  /** Length of the tube along the light's local y, in metres; `emitterLength` in the store. */
+  declare tubeLength: number
+  /** Soft radius of the source, in metres; `emitterSoftRadius` in the store. */
+  declare softRadius: number
   /** Angular radius of a directional light's disk, in radians: its soft shadow's size; 0 gives hard
    *  shadows. A sun defaults to the solar disk (`LIGHT_SETTINGS.sunAngularRadius`). */
   declare angularRadius: number
+  /** How far from the eye, in metres, a directional light's shadows take every caster
+   *  (`LightParameters.shadowDistance`): 400 for a directional light, 0 for any other kind. A
+   *  write reaches the world at once. */
+  declare shadowDistance: number
 
   /** Which kind of light this is: `'point'`, `'spot'`, `'directional'`… */
   readonly kind: string
@@ -130,10 +164,14 @@ export class Light extends Object3D {
       width: p.width ?? 10,
       height: p.height ?? 10,
       radius: p.radius ?? 0,
+      tubeLength: p.tubeLength ?? 0,
+      softRadius: p.softRadius ?? 0,
       angularRadius:
         p.angularRadius ?? (kind === 'directional' ? LIGHT_SETTINGS.sunAngularRadius : 0),
+      shadowDistance: kind === 'directional' ? shadowDistanceOf(p.shadowDistance) : 0,
     }
     if (p.atmosphereSun === false) NOT_SUN.add(this)
+    if (p.atmosphereSunIndex !== undefined) this.setSunIndex(p.atmosphereSunIndex)
     if (p.position) this.position.set(...readVec3(p.position))
     else if (AIMED.has(kind)) this.position.set(0, 1, 0)
     if (p.sh) this.sh = Array.from(p.sh)
@@ -150,6 +188,22 @@ export class Light extends Object3D {
     else NOT_SUN.add(this)
     noteNodeWrite(this)
     this._link?.content(this)
+  }
+  /** Which of the atmosphere's two lights this directional light may be, 0 or 1 (a sun and a moon,
+   *  or two suns): of the lights that may be one, the brightest is held for each index; 0 by
+   *  default. Any other value is refused (`INVALID_SCENE_LIGHT`). A write reaches the world at
+   *  once. */
+  get atmosphereSunIndex(): AtmosphereSunIndex {
+    return SUN_INDEX.get(this) ?? 0
+  }
+  set atmosphereSunIndex(value: AtmosphereSunIndex) {
+    this.setSunIndex(value)
+    noteNodeWrite(this)
+    this._link?.content(this)
+  }
+  private setSunIndex(value: AtmosphereSunIndex) {
+    if (validateAtmosphereSunIndex(value, this.name || 'light') === 0) SUN_INDEX.delete(this)
+    else SUN_INDEX.set(this, value)
   }
   /** Only a light in a world hears its colours and its target's place: out of one, they hold no
    *  reference to it, and a write reaches nothing. */
@@ -173,6 +227,7 @@ export class Light extends Object3D {
     ;(this as { _values: Light['_values'] })._values = { ...source._values }
     if (source.atmosphereSun) NOT_SUN.delete(this)
     else NOT_SUN.add(this)
+    this.setSunIndex(source.atmosphereSunIndex)
     this.color.copy(source.color)
     this.groundColor.copy(source.groundColor)
     this.sh = source.sh && [...source.sh]

@@ -3,6 +3,7 @@ import type { SceneProxy } from '../../../../../sdk-core/src/contracts/proxy.ts'
 import type { BounceFrameMetrics } from '../../../../../sdk-core/src/contracts/shadowMetrics.ts'
 import type { BounceCensus } from '../../../lighting/bounce/census.ts'
 import type { GpuBounceProbes } from '../../../lighting/bounce/probes/probes.ts'
+import type { ScreenProbeStore } from '../../../lighting/bounce/screen/store.ts'
 
 /**
  * State of bouncing light: the probe grid, what the host asked of it, and what the last image
@@ -10,6 +11,9 @@ import type { GpuBounceProbes } from '../../../lighting/bounce/probes/probes.ts'
  */
 export interface WebgpuBounceState {
   probes: GpuBounceProbes | undefined
+  /** The screen probes of the views, made at the first image that casts them
+   *  (`lighting/bounce/screen/frame.ts`). */
+  screen?: ScreenProbeStore
   /** The scene's proxy as the cache object carried it, once read: its sizes are published. */
   proxy: SceneProxy | undefined
   /** In-flight load of the resident proxy; it is launched only once, at the first light. */
@@ -92,7 +96,11 @@ function censusState(counted: BounceCensus | undefined) {
 /** Bounce state, as the image diagnostics, the frame's metrics and the per-stage profile publish it:
  *  the CPU's counts of the image just drawn, and the last census of the field the GPU counted. */
 export function bounceState(bounce: WebgpuBounceState): BounceFrameMetrics {
-  return { ...rigState(bounce), ...censusState(bounce.probes?.counted()) }
+  return {
+    ...rigState(bounce),
+    ...censusState(bounce.probes?.counted()),
+    screen: bounce.screen?.metrics,
+  }
 }
 
 export function createWebgpuBounceState(

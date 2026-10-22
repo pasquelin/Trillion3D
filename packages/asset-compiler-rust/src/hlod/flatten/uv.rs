@@ -1,8 +1,10 @@
 //! The flattened actor's texture space: unique coordinates cut into charts grown by cost
-//! (`charts`) or unwrapped by patches (`unwrap`), the islands packed into the atlas (`pack`), the
-//! atlas's texel occupancy (`raster`).
+//! (`charts`), unwrapped by patches or by spectral charts (`unwrap`) or laid out again from the
+//! mesh's own first set (`legacy`), the islands packed into the atlas (`pack`), the atlas's texel
+//! occupancy (`raster`).
 pub(crate) mod charts;
 pub(crate) mod extremes;
+pub(crate) mod legacy;
 pub(crate) mod pack;
 pub(crate) mod raster;
 pub(crate) mod spectral;

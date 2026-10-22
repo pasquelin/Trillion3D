@@ -145,6 +145,7 @@ export type {
 export { userNotice } from './runtime/events.ts'
 export type { RuntimeEvent, UserNotice } from './runtime/events.ts'
 export {
+  ATMOSPHERE_SUN_INDICES,
   LIGHT_SETTINGS,
   MAX_SHADOW_SLICES,
   POINT_FACES,
@@ -176,8 +177,15 @@ export type {
   SceneOzoneLayer,
 } from './scene/core/atmosphere.ts'
 export type { SceneExposure } from './contracts/exposureOptions.ts'
+/** The distances an object is drawn at: a draw source holds them, an object's settings name them. */
+export type { DrawDistanceSettings } from './contracts/objectOptions.ts'
 export type { SceneSky } from './scene/core/environmentSky.ts'
-export type { SceneLight, SceneLightingView, ShadowViewpoint } from './scene/light/contracts.ts'
+export type {
+  AtmosphereSunIndex,
+  SceneLight,
+  SceneLightingView,
+  ShadowViewpoint,
+} from './scene/light/contracts.ts'
 export type { LightingCapabilities } from './scene/light/capabilities.ts'
 export { validateSceneLight } from './scene/light/validate.ts'
 export { validateSceneEnvironment } from './scene/core/environment.ts'

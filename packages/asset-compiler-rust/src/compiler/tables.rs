@@ -16,6 +16,7 @@ use crate::hlod::options::Assigned;
 use crate::*;
 use serde_json::Map;
 
+pub(crate) mod displacement;
 mod documents;
 mod graph;
 pub(crate) mod materials;
@@ -92,6 +93,10 @@ impl Materials {
         {
             entry[TEMPORAL_AA_EXTRA] = json!(share);
         }
+        // A displaced material says so in its entry, and no other has the field.
+        if let Some(displaced) = displacement::displacement(&source)? {
+            entry[DISPLACEMENT_EXTRA] = displaced;
+        }
         self.table.push(entry);
         self.interned.insert(key, self.table.len() - 1);
         Ok(self.table.len() - 1)
@@ -154,7 +159,7 @@ pub(crate) fn stage_scene_tables(
     world_roots: impl FnOnce(&partition::CellMembers) -> Result<WorldMaterials>,
 ) -> Result<StagedTables> {
     let started = Instant::now();
-    let mut table = node_table(published)?;
+    let mut table = node_table(published, objects)?;
     let mut roots =
         crate::compiler::source::nodes::scene_roots(published, values(published, "nodes")?)?;
     // The input scene's meshes' boxes, by its own ranks: what the banks' and the plain skinned

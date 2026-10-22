@@ -4,6 +4,7 @@ import type { MaterialLayers } from '../../geometry/rows/page/pageRowMaterial.ts
 import { writeMaterialRecord, type MaterialSurface } from './materialRecord.ts'
 import { MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
 import { LOBE_RECORD_TEXELS, writeLobeRecord } from './lobeRecord.ts'
+import { writeDisplacementRecord } from './displacementRecord.ts'
 import type { MaterialEntry, MaterialRecords } from './materialState.ts'
 
 /** Lobe extensions one record's place holds: three of three texels in its ten. */
@@ -25,7 +26,8 @@ function lobeTexel(p: MaterialRecords, index: number) {
 }
 
 /** The record of `mat` written now, and its lobe extension where it carries a lobe — a surface that
- *  lost its lobes gives its extension back. Returns whether a word of either changed. */
+ *  lost its lobes gives its extension back —, and its displacement where it is displaced. Returns
+ *  whether a word of any changed. */
 export function writeEntry(
   p: MaterialRecords,
   mat: MaterialSurface,
@@ -52,5 +54,6 @@ export function writeEntry(
     p.written.mark(entry.rank)
     changed = true
   }
+  if (writeDisplacementRecord(p.displaced, entry.rank, mat, layers)) changed = true
   return changed
 }

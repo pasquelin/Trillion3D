@@ -36,6 +36,8 @@ export function runtime(option: RenderScale = { min: 0.5, max: 1 }, display = DI
       gate: { temporalRevision: 0, revisions, resourcesChanged: () => void revisions.resources++ },
     },
     capture: { capturing: false },
+    context: {},
+    bounce: { wanted: false },
     lights: {},
   } as unknown as WebgpuPagesRuntime
   return { rt, moving: scale.wanted() }

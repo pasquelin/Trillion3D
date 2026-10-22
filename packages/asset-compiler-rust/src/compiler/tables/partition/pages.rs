@@ -36,6 +36,12 @@ pub(crate) const CELL_PAGES: Kind = Kind {
     version: PARTITION_VERSION,
     records: "cells",
 };
+/// The pages of the cell records of a job with several main grids: of the next version, which a
+/// runtime that reads one grid refuses by name.
+pub(crate) const GRIDS_CELL_PAGES: Kind = Kind {
+    version: PARTITION_VERSION + 1,
+    ..CELL_PAGES
+};
 
 /// The region page over a range of records, its version aside: measured, given `None`; given the
 /// page measured, the page written, as is or finished by the files it writes beside it — only

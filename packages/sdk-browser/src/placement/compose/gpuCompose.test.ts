@@ -93,8 +93,8 @@ test("the linked roots' motion is decided before the image's motion pass reads i
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   const held = new Float64Array(turn(0.25))
-  ;(rt.gpu as { temporal?: unknown }).temporal = {
-    frame: { active: true },
+  ;(rt.gpu as { velocity?: unknown }).velocity = {
+    active: true,
     motion: { buffer: motionBuffer, poseOf: () => held },
   }
   const local = turn(0.4)
@@ -134,7 +134,7 @@ test("the linked roots' motion is decided before the image's motion pass reads i
     "the motion, in the image's command buffer",
   )
   // A motion buffer the roots pass did not bind is never decided nor written.
-  ;(rt.gpu as { temporal: { motion: { buffer: unknown } } }).temporal.motion.buffer = {}
+  ;(rt.gpu as { velocity: { motion: { buffer: unknown } } }).velocity.motion.buffer = {}
   encodeComposedMotion(rt, device, image, [1, 2, 3], true, true)
   assert.equal(modes().length, 1)
   assert.equal(encoded.length, 2)

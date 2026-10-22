@@ -10,6 +10,8 @@
  * - the view's block, written by the GPU each image (`hazeWgsl.ts`, `captureWgsl.ts`): the
  *   view-projection the haze volume is addressed by, then the sky's mean radiance and whether the
  *   volume is valid;
+ * - the fog volume's view block (`../fog/viewSlots.ts`), written by the CPU each image the scene's
+ *   fog builds a volume: where a surface finds its cell in it;
  * - the haze volume itself: for each cell of a grid over the screen and the distance, the light
  *   the air scatters toward the eye and the transmittance along that ray, two half floats each —
  *   built every image, read by every surface (`aerialPerspective`);
@@ -24,6 +26,7 @@ import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/en
 import { SKY_SLOTS } from '../../../../sdk-core/src/scene/core/environmentSky.ts'
 import { FOG_SLOTS } from '../../../../sdk-core/src/scene/core/fog.ts'
 import { SCENE_LIGHT_HEADER_FLOATS } from '../../../../sdk-core/src/scene/light/contracts.ts'
+import { FOG_VIEW_SLOTS } from '../fog/viewSlots.ts'
 
 /** The haze volume: cells across and down the screen, slices along the distance, the distance the
  *  slices reach, kilometres — past it the last slice is read —, and the samples marched per slice
@@ -65,16 +68,19 @@ export const VIEW_SLOT = {
 /** Bytes of the three regions the atmosphere adds to the light buffer, in order. */
 const ATMOSPHERE_BYTES = ATMOSPHERE_SLOTS * 16
 const ATMOSPHERE_VIEW_BYTES = ATMOSPHERE_VIEW_SLOTS * 16
+const FOG_VIEW_BYTES = FOG_VIEW_SLOTS * 16
+/** Where the fog volume's view block starts, in bytes from the atmosphere's block. */
+export const FOG_VIEW_REGION_AT = ATMOSPHERE_BYTES + ATMOSPHERE_VIEW_BYTES
 const AERIAL_BYTES = AERIAL_TEXELS * AERIAL_TEXEL_BYTES
 /** A texel of the sky table: the radiance in three half floats and a spare. */
 const SKY_RAYS_BYTES = SKY_RAYS_TEXELS * 8
 /** What the atmosphere adds to the light buffer, behind the sky's block. */
 export const ATMOSPHERE_REGION_BYTES =
-  ATMOSPHERE_BYTES + ATMOSPHERE_VIEW_BYTES + AERIAL_BYTES + SKY_RAYS_BYTES
+  ATMOSPHERE_BYTES + ATMOSPHERE_VIEW_BYTES + FOG_VIEW_BYTES + AERIAL_BYTES + SKY_RAYS_BYTES
 
-/** The members of the light buffer from the fog to the sky by direction, which `DirectLights`
+/** The members of the light buffer from the fog to the sky by direction (the fog volume's view block among them), which `DirectLights`
  *  (`../direct/lightWgsl.ts`) and the atmosphere's own programs' `AirBuffer` declare by one text. */
-export const LIGHT_AIR_MEMBERS = `fog:array<vec4f,${FOG_SLOTS}>,sky:array<vec4f,${SKY_SLOTS}>,atmosphere:array<vec4f,${ATMOSPHERE_SLOTS}>,atmosphereView:array<vec4f,${ATMOSPHERE_VIEW_SLOTS}>,aerial:array<vec2u,${AERIAL_TEXELS}>,skyRays:array<vec2u,${SKY_RAYS_TEXELS}>,`
+export const LIGHT_AIR_MEMBERS = `fog:array<vec4f,${FOG_SLOTS}>,sky:array<vec4f,${SKY_SLOTS}>,atmosphere:array<vec4f,${ATMOSPHERE_SLOTS}>,atmosphereView:array<vec4f,${ATMOSPHERE_VIEW_SLOTS}>,fogView:array<vec4f,${FOG_VIEW_SLOTS}>,aerial:array<vec2u,${AERIAL_TEXELS}>,skyRays:array<vec2u,${SKY_RAYS_TEXELS}>,`
 
 /** The light buffer's front as the atmosphere's own programs declare it: the same bytes as
  *  `DirectLights` up to the sky by direction, nothing of the lights themselves, and the same names

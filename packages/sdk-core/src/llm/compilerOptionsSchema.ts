@@ -9,6 +9,7 @@ import {
   MIN_RAM_BUDGET_MB,
   OBJECT_SETTINGS_FIELD,
   PARTITION_GRID_FIELD,
+  PARTITION_GRIDS_FIELD,
   RESPONSIVE_FIELD,
   SIMPLIFICATIONS,
   TEMPORAL_AA_FIELD,
@@ -20,7 +21,7 @@ import { hlod } from './hlodSchema.ts'
 import { materials, responsive, temporalAntialiasing, voxelize } from './materialSchema.ts'
 import { meshBuild } from './meshBuildSchema.ts'
 import { objectSettings } from './objectSchema.ts'
-import { partitionGrid, partitionScheme } from './partitionSchema.ts'
+import { partitionGrid, partitionGrids, partitionScheme } from './partitionSchema.ts'
 import type { JsonSchemaObject, JsonSchemaProperty } from './types.ts'
 
 /** One property for each compile job field (`JOB_FIELDS`), no more and no fewer. */
@@ -94,6 +95,7 @@ export const COMPILER_OPTIONS_SCHEMA: JsonSchemaObject = /* @__PURE__ */ (() => 
     [VOXELIZE_FIELD]: voxelize,
     [PARTITION_SCHEME_FIELD]: partitionScheme,
     [PARTITION_GRID_FIELD]: partitionGrid,
+    [PARTITION_GRIDS_FIELD]: partitionGrids,
     [MESH_BUILD_FIELD]: meshBuild,
     [OBJECT_SETTINGS_FIELD]: objectSettings,
   },

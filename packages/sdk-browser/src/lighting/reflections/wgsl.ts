@@ -80,7 +80,7 @@ const reflectionSeenWgsl = (group: number) =>
  var seen=RadianceAnswer(vec3f(0.0),0.0,0.0);
  let size=view.viewport.xy;
  let ray=reflectionRay(P,N,lobe,surfacePixel);
- let marched=screenMarch(ray.o,ray.d,ray.end,REFLECTION_THICKNESS,reflectionView.thickness,reflectionView.slab,REFLECTION_MARCH_STEPS);
+ let marched=screenMarch(ray.o,ray.d,ray.end,REFLECTION_THICKNESS,reflectionView.thickness,reflectionView.slab,reflectionView.scene.x);
  if(marched.t<0.0||marched.plane.x<=0.0){return seen;}
  let H=ray.o+ray.d*marched.t;
  let depth=marched.plane.x+dot(H.xy-marched.pixel,marched.plane.yz);

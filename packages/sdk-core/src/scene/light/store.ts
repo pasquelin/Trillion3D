@@ -119,6 +119,11 @@ export function createSceneLightStore() {
     get environment() {
       return environment.current
     },
+    /** The slot (its rank in `packed`) of the directional light the fog scatters, the one the fog's
+     *  block holds (`fogSun.ts`); −1 without one. */
+    get fogSunSlot() {
+      return suns.fogSunSlot
+    },
     /** View requested by the host, as-is: `auto` as long as it has asked for nothing. */
     get lightingView(): SceneLightingView {
       return view

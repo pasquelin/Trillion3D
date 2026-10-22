@@ -9,9 +9,10 @@ import { pageRecFixture } from '../../../../../bench/perf/browser/support/pageRe
 import { createPageRowWriter } from './page/pageRowWriter.ts'
 import { createMaterialTable } from '../../materials/table/materialTable.ts'
 import { surfaceWritten } from '../pages/surfaceWrites.ts'
-import { FLAG_HAS_MAP, ROW_WORDS } from '../../visibility/types.ts'
+import { FLAG_DISPLACED, FLAG_HAS_MAP, ROW_WORDS } from '../../visibility/types.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
+import { surfaceRow } from './surfaceRow.ts'
 
 const ROWS = 100
 
@@ -77,4 +78,24 @@ test("a row write reads its surface's slots once a version and a census, not onc
   assert.ok(written > census)
   assert.equal(ints[(ROWS - 1) * ROW_WORDS + PAGE_INFO.at.flags] & FLAG_HAS_MAP, FLAG_HAS_MAP)
   assert.equal(rowsWritten(), written, 'then held again')
+})
+
+test('a surface displaced by a height map the atlas holds marks its rows displaced, and no other does', () => {
+  const height = { channel: 0 } as Texture
+  const layers = (slot?: number) => ({
+    mapLayer: new Map<Texture, number>(),
+    dataLayer: new Map<Texture, number>(slot ? [[height, slot]] : []),
+  })
+  const displaced = {
+    ...surfaceOf(G.standardSurface()),
+    displacementMap: height,
+    displacement: { magnitude: 4, center: 0.5, fade: null },
+  }
+  const marked = (surface: typeof displaced, slot?: number) =>
+    (surfaceRow(surface, layers(slot)).bits & FLAG_DISPLACED) !== 0
+  assert.equal(marked(displaced, 3), true)
+  assert.equal(marked(displaced), false, 'a height map the atlas lacks: drawn flat')
+  assert.equal(marked({ ...displaced, displacement: undefined }, 3), false, 'no numbers: flat')
+  assert.equal(marked({ ...displaced, displacementMap: undefined }, 3), false, 'no map: flat')
+  assert.equal(marked(surfaceOf(G.standardSurface()) as typeof displaced, 3), false)
 })

@@ -39,7 +39,14 @@ function cellRowsOf(bytes: Uint8Array, nodes: number): CellRows {
     ranks[2 * node] = -1
     ranks[2 * node + 1] = mesh[node]
   }
-  return { nodes, ranks, locals: matrix, tracks: track, sources: new Uint8Array(nodes) }
+  return {
+    nodes,
+    ranks,
+    locals: matrix,
+    tracks: track,
+    sources: new Uint8Array(nodes),
+    drawDistances: new Float32Array(2 * nodes),
+  }
 }
 
 /** The rows of `world`'s actors, read through it and placed and parked by `placer`. */

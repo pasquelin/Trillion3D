@@ -3,7 +3,8 @@
  *
  * Before each frame (`frame`), the view is the partition's streaming source (`source.ts`): the
  * plan (`plan.ts`) reads the grids' loading ranges around it — the pages of the cell index within
- * them, the HLOD 0 cells and the cells of no layer wished —, the chain of HLOD cells its own
+ * them, the HLOD 0 cells and the cells of no layer wished —, made again once the view moved or
+ * turned enough, or while work is left (`streamingUpdate.ts`), the chain of HLOD cells its own
  * (`../hlod/hlodCells.ts`), and the cells wished and not loaded take their turn in one load order,
  * so many loading at once at most, none held back during the initial load (`LoadSlots`). The cell
  * files of each cell loading are asked of the session's page streamer by the priority of its turn,
@@ -50,6 +51,7 @@ import { createCoarserPulls } from './coarser.ts'
 import { createHlodPulls } from '../hlod/hlodPulls.ts'
 import { createLoadSlots } from './loadSlots.ts'
 import { createStreamingSource } from './source.ts'
+import { createStreamingUpdate } from './streamingUpdate.ts'
 import { resolveWorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import { capacityOf, type PlacedMesh, type StreamedMeshes } from './rows.ts'
 import { createRowSizing, heldSide, rungOf } from './sizing.ts'
@@ -106,18 +108,22 @@ export function createPartitionCells(
   const actors = createActorRows(world, rows)
   const hlod = createHlodCells(world, holds, grids, source, slots, pulled, actors)
   const plan = createCellPlan(index, source, pulls, pulled)
+  const update = createStreamingUpdate(streaming, partition.scheme)
   /** The priority a cell file reads by: its unit's, else — a blocking load's — after every cell
    *  loading (`LoadSlots.priorityOf`). */
   const readBy = (cell: number) => plan.priority(cell) ?? slots.priorityOf()
   /** Whether a load blocks on slow streaming (`slowStreaming.ts`): a file shows as its main cell —
    *  placed, without a world DAG — or is refused for good. */
-  const slow = createSlowStreaming(streaming, partition.scheme, grids[0], source, {
+  const slow = createSlowStreaming(streaming, partition.scheme, grids, source, {
     shown: (cell) =>
       failed(cellUrl(cell)) || (cells ? cells.fileShown(instance, cell) : held.has(cell)),
+    mainOf: (cell) => index.cell(cell).main,
   })
-  /** The cut's world cells the last frame told, and whether the HLOD actors were on. */
+  /** The cut's world cells the last frame told, whether the HLOD actors were on, and the eye the
+   *  last plan was made from. */
   let cells: WorldCells | undefined,
-    hlodOn = true
+    hlodOn = true,
+    stood: ArrayLike<number> = [0, 0, 0]
   /** Cells waiting for rows. */
   let waiting = 0
   /** Where the camera at `eye` stands in the cells' frame, and the rung its view asks. */
@@ -129,10 +135,11 @@ export function createPartitionCells(
     return outer ? multiplyMatrix4(framed, outer, world) : world
   }
   const view = (eye: ArrayLike<number>, axis?: ArrayLike<number>) => {
-    const local = inCellFrame(rootWorld(), eye, placedReach(grids, source, pulls), axis)
+    const world = rootWorld()
+    const local = inCellFrame(world, eye, placedReach(grids, source, pulls), axis)
     boxes.refresh()
     const rung = rungOf(heldSide(local.reach, partition.cube, boxes.stretch), partition.cube)
-    return { ...local, rung }
+    return { ...local, rung, world }
   }
   /** The rows this placement asks of the meshes, its view's and its actors' (`sizing.ts`). */
   const sizing = createRowSizing(partition, meshes, [share, self], actors)
@@ -206,20 +213,25 @@ export function createPartitionCells(
       sizing.frame(local.rung, io)
       // The ranges are read in the cells' frame, the world DAG's at this placement's pose.
       cells = io.world
-      source.set(local.eye, local.axis)
+      // The wishes are planned again once the view moved or turned enough, in the camera's world.
+      const again = update.due(eye, axis, local.world, !!io.initialLoad, boxes.stretch)
+      if (again) source.set((stood = local.eye), local.axis)
       pulled.update()
       // The HLOD actors off, no HLOD cell is held nor told, every file streams on the main grid.
       if (hlodOn && !streaming.hlod) hlod.close(cells, instance)
       hlodOn = streaming.hlod
       cells?.hlodEnabled(hlodOn)
+      cells?.activated(streaming.targetState === 'activated')
       const leaves = hlodOn && cells ? hlod : undefined
-      const planned = plan.plan(local.eye, grids, held, failed, leaves, hlodOn)
+      const planned = again ? plan.plan(stood, grids, held, failed, leaves, hlodOn) : plan.replay()
       for (const cell of planned.leave) rows.leave(cell)
       // A placed cell whose main grid cell is wished draws its source meshes, one past it its HLOD
       // 0 actor: the same rows, told apart in the HLOD view (`proxy`).
-      for (const cell of held.keys()) rows.proxy(cell, !planned.main.has(cell))
-      if (hlodOn) hlod.follow(planned.leaves, local.eye, cells, instance)
-      const waits = slow.weigh(local.eye, planned.main, !!io.initialLoad)
+      if (again) for (const cell of held.keys()) rows.proxy(cell, !planned.main.has(cell))
+      if (hlodOn) hlod.follow(planned.leaves, stood, cells, instance)
+      // A cell loaded and not activated holds no image back.
+      const main = streaming.targetState === 'loaded' ? new Map() : planned.main
+      const waits = slow.weigh(stood, main, !!io.initialLoad)
       cells?.blockingLoad(instance, waits)
       // The cells wished and not loaded take their turn: so many load at once at most, none held
       // back during the initial load; while a load blocks, those loading go on and none starts.
@@ -238,6 +250,7 @@ export function createPartitionCells(
       later = takeDecoded(files, at, decodes, cellUrl, decode, place, readBy) || later
       // A cell wished and left without a slot loads at a later frame, a still view's too.
       later ||= slots.queued()
+      update.end(later || planned.waiting.length > 0 || planned.holding > 0 || waits.size > 0)
       // What the plan no longer lists is dropped; its reads were let go by the one asker.
       pageDecodes.end()
       decodes.end()
@@ -259,6 +272,7 @@ export function createPartitionCells(
      *  written. The cells place again at the next `frame`, were it followed anew. */
     close(io: { update(rows: PlacementRows, from: number, to: number): void }) {
       hlod.close(cells, instance)
+      update.reset()
       slow.clear()
       cells?.blockingLoad(instance, slow.waits)
       slots.clear()

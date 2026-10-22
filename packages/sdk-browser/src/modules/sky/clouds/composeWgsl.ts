@@ -5,7 +5,7 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { rand3dPcg16 } from '../../../../../math/src/wgsl/sampling.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
 import { FULLSCREEN_VERTEX } from '../../../lighting/deferred/shaders.ts'
-import { fogBlockOf } from '../../../lighting/fog/read.ts'
+import { fogBlockOf } from '../../../lighting/fog/readWgsl.ts'
 import {
   AIR_FOG_BINDINGS,
   airProgram,

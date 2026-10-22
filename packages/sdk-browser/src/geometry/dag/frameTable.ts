@@ -14,28 +14,37 @@ import { FRAME_ROW_WORDS } from './types.ts'
  * (`../../placement/roots/rootWorlds.ts`). The host never writes it. Every reader reads it in place — the
  * cut's kernels (`shader/levelWgsl.ts`) —; copied by none.
  *
- * A record is eight words: a row holds 1024 placements, 8192 words, the widest a guaranteed device
- * addresses; a layer 8192 rows, 2²³ placements; 256 layers 2³¹.
+ * A record is ten words: a row holds 512 placements, 5120 words, within the widest a guaranteed
+ * device addresses; a layer 8192 rows, 2²² placements; 256 layers 2³⁰.
  */
 export const FRAME_TABLE: RecordLayout = {
   label: 'Trillion3D DAG frames',
   format: 'r32uint',
   fields: { Row: FRAME_ROW_WORDS, Stretch: 1 },
-  rowShift: 10,
+  rowShift: 9,
   layerShift: 13,
 }
 
 /** The words of a placement's `Row`, as `primitiveFrameWords` lays them: the root the descent starts
  *  from, the record shift that leads its pages to their shared records, the never-culled mark, its
  *  first page — what its shared nodes' pages are counted from —, the open counts it holds of its
- *  own (`heldOpen.ts`), its page count and its group structure's base (`structureTable.ts`). */
+ *  own (`heldOpen.ts`), its page count and its group structure's base (`structureTable.ts`), then
+ *  the distances it is drawn at (`DagRoot.drawDistance`): the bits of two floats, the nearest and
+ *  the farthest, the farthest 0 for none. */
 export const ROOT_WORD = 0,
   RECORD_SHIFT_WORD = 1,
   MARK_WORD = 2,
   PAGE_BASE_WORD = 3,
   HELD_BY_WORD = 4,
   PAGE_COUNT_WORD = 5,
-  STRUCTURE_WORD = 6
+  STRUCTURE_WORD = 6,
+  DRAW_NEAR_WORD = 7,
+  DRAW_FAR_WORD = 8
+
+/** The mark word's bit on a placement that names a farthest draw distance, set where the packing
+ *  places it (`pack/packRoots.ts`) and when a row's distances change (`runtime/runtimeOps.ts`): the
+ *  cut reads the two distance words only where it is set (`shader/drawDistanceWgsl.ts`). */
+export const DRAW_DISTANCE_MARK = 8
 
 /** The frame words as a program binds them, named `name`: `<name>Word(w,k)`, word `k` of
  *  placement `w`'s row, and `<name>StretchBits(w)`, its stretch, where it reads them;

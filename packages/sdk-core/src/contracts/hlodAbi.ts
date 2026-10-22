@@ -32,9 +32,17 @@ export type HlodLodSelection = (typeof HLOD_LOD_SELECTIONS)[number]
 /** How a `merge` layer's `uvMethod` generates the unique texture coordinates of a mesh baked on
  *  its own triangles that has none to reuse: `default`, the generator's own, the patch builder;
  *  `xAtlas`, charts grown by cost and flattened conformally; `patchBuilder`, patches grown by
- *  normal-weighed distance and merged into islands. The generator also offers `legacy` and
- *  `uvAtlas`, which the compiler refuses: it holds neither. */
-export const HLOD_MERGE_UV_METHODS = ['default', 'xAtlas', 'patchBuilder'] as const
+ *  normal-weighed distance and merged into islands; `legacy`, the old chart layout of the mesh's
+ *  own first texture set (the patch builder where it finds no layout); `uvAtlas`, charts cut by
+ *  spectral analysis of the surface (a mesh they fail on keeps its own first set). The order is
+ *  the compiler's: it reads a method by its rank. */
+export const HLOD_MERGE_UV_METHODS = [
+  'default',
+  'xAtlas',
+  'patchBuilder',
+  'legacy',
+  'uvAtlas',
+] as const
 /** One of `HLOD_MERGE_UV_METHODS`. */
 export type HlodMergeUvMethod = (typeof HLOD_MERGE_UV_METHODS)[number]
 /** How an `approximate` layer's atlas, or a `merge` layer's merging its materials, bakes a
@@ -115,9 +123,9 @@ export const DEFAULT_HLOD_DEVIATION = 0.1
 export const DEFAULT_HLOD_CELL_SIZE = 256
 /** See `DEFAULT_HLOD_CELL_SIZE`. */
 export const DEFAULT_HLOD_LOADING_RANGE = 512
-/** The fewest levels the simple form's main chain may have, HLOD 0 included: its first merged
- *  layer takes the props' cells. */
-export const MIN_HLOD_LEVELS = 2
+/** The fewest levels the simple form's main chain may have, HLOD 0 included: a chain of one level
+ *  is the objects themselves, instanced and always loaded. */
+export const MIN_HLOD_LEVELS = 1
 /** The most levels a chain may have, HLOD 0 included: the world table writes a level in 8 bits. */
 export const MAX_HLOD_LEVELS = 256
 /** The default chain's levels: the objects themselves, then one merged level. */

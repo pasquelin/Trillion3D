@@ -3,11 +3,10 @@
 //! mesh's tolerances (`SkinnedWeld`).
 //!
 //! **Neighbours.** Every corner is ranked by `0.30 x + 0.33 z + 0.37 y` of its position, ties by
-//! corner. Each corner, in that order, meets the corners after it until one ranks more than the
-//! position tolerance past it, and joins each whose position lies within the tolerance of its own
-//! on every axis (`Neighbours::join`): the first of a pair already in a list adds the second to
-//! it, which belongs to that list from then on; else the two start a list. A corner's neighbours
-//! are the list it belongs to, in corner order.
+//! corner. The corners are swept in that order (`Neighbours::sweep`): each meets the corners after
+//! it until one ranks more than the position tolerance past it, and joins each whose position lies
+//! within the tolerance of its own on every axis. A corner's neighbours are the list it belongs to,
+//! in corner order.
 //!
 //! **Weld.** Every corner, in triangle order, points at the vertex the first of its neighbours
 //! before it laid, when that one lies within the position tolerance of its position on every axis
@@ -17,44 +16,11 @@
 //! corners then point at one vertex is dropped.
 use super::weld::matches;
 use super::{Built, SkinnedWeld};
+use crate::support::neighbours::Neighbours;
 use trillion3d_math::vector::vec3::point_f32;
 
-/// No list, no vertex.
+/// No vertex.
 const NONE: u32 = u32::MAX;
-
-/// The lists of neighbouring corners (the module's rule).
-struct Neighbours {
-    belongs: Vec<u32>,
-    lists: Vec<Vec<u32>>,
-}
-
-impl Neighbours {
-    /// Joins `second` to the list of `first` (the module's rule).
-    fn join(&mut self, first: u32, second: u32) {
-        match self.belongs[first as usize] {
-            NONE => {
-                self.belongs[first as usize] = self.lists.len() as u32;
-                self.belongs[second as usize] = self.lists.len() as u32;
-                self.lists.push(vec![first, second]);
-            }
-            list => {
-                self.belongs[second as usize] = list;
-                let corners = &mut self.lists[list as usize];
-                if !corners.contains(&second) {
-                    corners.push(second);
-                }
-            }
-        }
-    }
-
-    /// The neighbours of `corner`, in corner order once every list is sorted.
-    fn of(&self, corner: usize) -> &[u32] {
-        match self.belongs[corner] {
-            NONE => &[],
-            list => &self.lists[list as usize],
-        }
-    }
-}
 
 /// The corners of the `built` triangles as read, welded within `weld` as a skinned build welds
 /// them (the module's rule), the triangles two of whose corners point at one vertex dropped; a
@@ -74,24 +40,9 @@ pub(in crate::dag) fn welded_skinned(built: &mut Built, weld: SkinnedWeld) -> (V
         let rank = a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal);
         rank.then(a.1.cmp(&b.1))
     });
-    let mut neighbours = Neighbours {
-        belongs: vec![NONE; corners.len()],
-        lists: Vec::new(),
-    };
-    for (i, &(rank, first)) in ranked.iter().enumerate() {
-        for &(other, second) in &ranked[i + 1..] {
-            if (other - rank).abs() > weld.position {
-                break;
-            }
-            if near(point(built, first as usize), point(built, second as usize)) {
-                neighbours.join(first, second);
-            }
-        }
-    }
-    neighbours
-        .lists
-        .iter_mut()
-        .for_each(|list| list.sort_unstable());
+    let neighbours = Neighbours::sweep(corners.len(), &ranked, weld.position, |first, second| {
+        near(point(built, first as usize), point(built, second as usize))
+    });
     // Per corner that laid a vertex, the vertex it laid; per vertex, whether a corner laid it.
     let mut laid = vec![NONE; corners.len()];
     let mut taken = vec![false; built.positions.len() / 3];

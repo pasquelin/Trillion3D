@@ -100,7 +100,8 @@ fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
     let records: Vec<Value> = (0..12_000).map(record).collect();
     let bounds = vec![[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]; records.len()];
     let meshes = MeshSlots::from([(0, vec!["a".repeat(SLOT_WIDTH)])]);
-    let root = write_pages(&halving(0..12_000), &records, &bounds, &meshes, &directory);
+    let tree = halving(0..12_000);
+    let root = write_pages(&CELL_PAGES, &tree, &records, &bounds, &meshes, &directory);
     let root = root.expect("pages");
     // The root names every page by its fingerprint: the cell index's pages, each naming its
     // mesh pages, byte for byte.

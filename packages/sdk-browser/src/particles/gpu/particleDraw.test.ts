@@ -6,6 +6,7 @@ import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { ParticlePool, type ParticlePoolSpec } from '../../../../sdk-core/src/fluids/particles.ts'
 import { DRAW_FLOATS, writeDrawWords } from '../drawWords.ts'
 import { createWebgpuParticleDraw } from './webgpuParticleDraw.ts'
+import { PARTICLE_DRAW_WGSL, particleDrawShader } from './particlesWgsl.ts'
 import { createWebgpuParticles } from './webgpuParticles.ts'
 import { askParticles, encodeParticles } from './webgpuParticleFrame.ts'
 import { pipelinesCompiling } from '../../lighting/deferred/compileLedger.ts'
@@ -37,6 +38,38 @@ test('a pool 10 km out is drawn from its origin: the words hold to the millimetr
   // Origin to eye and back, eye from the origin, size, colour, softness: each to the millimetre.
   const got = [12, 13, 15, 28, 32, 35, 36, 37, 38, 39, 40].map((i) => words[i])
   assert.deepEqual(got, [-0.001, 0, 1, 0.001, 0.001, 0.5, 1, 0.8, 0.5, 1, 0.5].map(Math.fround))
+})
+
+test('a pool takes the view’s clip plane from its origin, none for a view without', () => {
+  const pool = new ParticlePool({ capacity: 8, origin: [3, 4, -20] }),
+    words = new Float32Array(DRAW_FLOATS),
+    eye = [0, 0, 0]
+  // The world plane z = -5 keeps what lies above it: a particle at local z, at z - 20 in the world.
+  writeDrawWords(words, pool, IDENTITY, eye, [0, 0, 1, 5])
+  assert.deepEqual(Array.from(words.slice(48, 52)), [0, 0, 1, -15])
+  // Slanted: the offset moves by the normal's dot with the origin.
+  writeDrawWords(words, pool, IDENTITY, eye, [0.6, 0, 0.8, 2])
+  assert.ok(Math.abs(words[51] - (2 + 0.6 * 3 + 0.8 * -20)) < 1e-6)
+  writeDrawWords(words, pool, IDENTITY, eye)
+  assert.deepEqual(Array.from(words.slice(48, 52)), [0, 0, 0, 0])
+})
+
+test('a device with clip distances cuts the disc in its vertex stage, one without tests each fragment entry', () => {
+  const native = particleDrawShader(true)
+  assert.ok(native.includes('enable clip_distances;'))
+  assert.ok(native.includes('@builtin(clip_distances) clipDistances:array<f32,1>'))
+  assert.ok(native.includes('-> OutClipped {') && native.includes('OutWithClip(o, 1)'))
+  assert.ok(native.includes('OutWithClip(o, dot(draw.clipPlane.xyz, o.local) + draw.clipPlane.w)'))
+  assert.ok(!native.includes('particleClipped'))
+  assert.equal(particleDrawShader(false), PARTICLE_DRAW_WGSL)
+  assert.ok(!PARTICLE_DRAW_WGSL.includes('clip_distances'))
+  for (const entry of ['fs(in: Out) -> Lit', 'fsRouted(in: Out) -> Routed'])
+    assert.ok(
+      PARTICLE_DRAW_WGSL.includes(
+        `@fragment fn ${entry} {\n if (particleClipped(in)) { discard; }`,
+      ),
+      entry,
+    )
 })
 
 /** One of the kit's encoders, and what its render passes took: each pass's label, then each

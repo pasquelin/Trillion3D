@@ -12,6 +12,9 @@ import { treeNodeCount, TREE_SPAN } from '../placement/placementTree.ts'
 import { leafBoxes, refitTree, treeChange } from './treeRefitRun.fixture.ts'
 import { SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { DAG_NODE_FLOATS } from '../types.ts'
+import { TREE_DRAW_FAR, TREE_DRAW_NEAR } from '../nodeLayout.ts'
+import { fitDrawDistances, type DrawDistances } from '../oracle/nodeVerdict.fixture.ts'
+import { NO_INDEX } from '../../../../../math/src/constants.ts'
 
 test('the groups a change touched, and the nodes above them, are fitted as a fit of every group does', () => {
   const roots = placementField(100, 5),
@@ -66,4 +69,44 @@ test('a fitted tree holds every member, grown past the single-precision rounding
       assert.ok(box[a] <= leaf[a] && box[4 + a] >= leaf[3 + a], `member ${w}, axis ${a}`)
     }
   }
+})
+
+test('a fitted group holds the draw distances of its placements: those they name, none where one is drawn at every distance', () => {
+  const roots = placementField(80, 6)
+  // Every placement names distances but the second group's first; the third group and the
+  // seventy-first are parked whole, each a group with none to hold.
+  roots.forEach((root, w) => (root.drawDistance = { min: 5 + (w % 11), max: 60 + (w % 17) * 9 }))
+  const dag = packDagSelection(roots),
+    tree = dag.placementTree!
+  const groups = tree.levels.at(-1)!,
+    member = (g: number, k: number) => tree.order[g * TREE_SPAN + k]
+  assert.equal(tree.levels.length, 3, 'a tree of three levels')
+  dag.drawDistance![2 * member(1, 0) + 1] = 0
+  for (let k = 0; k < TREE_SPAN; k++)
+    for (const g of [2, 70]) dag.rootNodes[member(g, k)] = NO_INDEX
+  refitTree(dag)
+  const stored = (n: number): DrawDistances => ({
+    near: tree.nodes[n * DAG_NODE_FLOATS + TREE_DRAW_NEAR],
+    far: tree.nodes[n * DAG_NODE_FLOATS + TREE_DRAW_FAR],
+  })
+  const namedBy = (w: number) => ({
+    near: dag.drawDistance![2 * w],
+    far: dag.drawDistance![2 * w + 1],
+  })
+  // A group over its placements still in the world.
+  for (let g = 0; g < groups.count; g++) {
+    const live = Array.from({ length: TREE_SPAN }, (_, k) => member(g, k)).filter(
+      (w) => w !== NO_INDEX && dag.rootNodes[w] !== NO_INDEX,
+    )
+    assert.deepEqual(stored(groups.base + g), fitDrawDistances(live.map(namedBy)), `group ${g}`)
+  }
+  const none = { near: 0, far: 0 }
+  assert.deepEqual(stored(groups.base + 1), none, 'one drawn at every distance')
+  assert.deepEqual(stored(groups.base + 2), none, 'a group holding nothing')
+  assert.deepEqual(stored(groups.base + 70), none)
+  assert.ok(stored(groups.base).far > 0 && stored(groups.base + 3).far > 0, 'groups that name some')
+  // A cell holds none, whatever its groups name.
+  for (const level of [0, 1])
+    for (let c = 0; c < tree.levels[level].count; c++)
+      assert.deepEqual(stored(tree.levels[level].base + c), none, `cell ${c} of level ${level}`)
 })

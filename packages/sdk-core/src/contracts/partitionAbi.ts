@@ -26,3 +26,23 @@ export const DEFAULT_PARTITION_LOADING_RANGE = 256
 export const DEFAULT_PARTITION_PRIORITY = 0
 /** The most a grid's priority may be: a 32-bit word of the partition's root. */
 export const MAX_PARTITION_PRIORITY = 0xffffffff
+/** The job field naming several streaming grids, one per entry (`resolvePartitionGrids`): each the
+ *  settings `partitionGrid` takes under a `name` — the first the default grid, which every object
+ *  naming no grid, or one this list does not hold, streams on —, each grid with its own cells,
+ *  loading range and chain of HLOD grids, an object choosing its grid by the `runtimeGrid` of its
+ *  settings (`objectAbi.ts`). A job names `partitionGrid` or `partitionGrids`, not both. The
+ *  command line's `--partition-grids=` flag holds it as JSON. A job leaving it out keeps its cache
+ *  key. */
+export const PARTITION_GRIDS_FIELD = 'partitionGrids'
+/** The command line's flag naming the streaming grids, their JSON after the `=`. */
+export const PARTITION_GRIDS_OPTION = '--partition-grids='
+/** The key of an entry of `partitionGrids` holding the grid's name, beside the settings
+ *  `partitionGrid` takes. A name is not empty, holds neither `:` nor `.`, and is told from
+ *  another's without regard to case. */
+export const PARTITION_GRID_NAME_KEY = 'name'
+/** The characters a grid's name may not hold, which a grid name splits into parts by: a name
+ *  holding one can never be matched. Read by the grids' names and by `runtimeGrid`. */
+export const PARTITION_GRID_NAME_FORBIDDEN = ':.'
+/** The name of the first grid when its entry names none, and of the only grid of a job naming no
+ *  `partitionGrids`: the reference's first partition's. */
+export const DEFAULT_PARTITION_GRID_NAME = 'MainPartition'

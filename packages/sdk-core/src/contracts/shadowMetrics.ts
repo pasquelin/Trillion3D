@@ -1,4 +1,39 @@
+import type { ScreenProbeLevel } from '../bounce/screenProbeLevels.ts'
 import type { ReflectionFrameMetrics } from './reflectionMetrics.ts'
+
+/**
+ * The screen probes of the last image (`BounceFrameMetrics.screen`), the CPU's: the level they ran at, the
+ * tile a probe stands for, the probes the atlas holds, the rays an image casts, the history they read and
+ * what they weigh. The adaptive probes placed this image are a count the GPU makes: the capacity is the most
+ * it may.
+ */
+export interface ScreenProbeFrameMetrics {
+  /** The level the probes ran at (`'off'` casts none). */
+  level: ScreenProbeLevel
+  /** Pixels along a probe's tile. */
+  tile: number
+  /** The uniform probes of the image, and the most adaptive ones its atlas holds. */
+  uniformProbes: number
+  adaptiveCapacity: number
+  /** Rays a side of a probe's octahedron, and the most rays the image casts through the screen stage: the uniform
+   *  probes' and the adaptive ones' at most (the adaptive probes placed are a count the GPU makes). */
+  tracingResolution: number
+  raysPerImage: number
+  /** Rows and columns of probes of the atlas. */
+  atlas: [number, number]
+  /** Whether the image's pixels read a history, whether its probes traced the screen, whether their rays were
+   *  traced against the scene (and its detail), and whether the surfaces' vectors of the last image moved
+   *  the history. */
+  history: boolean
+  screenTraces: boolean
+  sceneTraces: boolean
+  meshTraces: boolean
+  velocity: boolean
+  /** Bytes the view's screen probes hold. */
+  bytes: number
+  /** Why the screen probes did not run this image, when they did not. */
+  unavailable: string | null
+}
 
 /**
  * The state of the bouncing light's probes, as the frame leaves them (`ShadowFrameMetrics.bounce`):
@@ -74,6 +109,9 @@ export interface BounceFrameMetrics {
    *  wear, one count each. */
   proxyPlacements: number | null
   proxyTriangles: number | null
+  /** The screen probes of the last image: the pixels' indirect light (`screenProbeOptions.ts`); none while
+   *  none ran. */
+  screen?: ScreenProbeFrameMetrics
 }
 
 /**

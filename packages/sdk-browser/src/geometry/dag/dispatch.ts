@@ -12,6 +12,7 @@ import type { CutPyramid } from './occlusion.ts'
 import { encodeDagDifference } from './encodeDifference.ts'
 import { DAG_READBACK_SLOTS } from './layout.ts'
 import { cutTablesAt, tablesHeld } from './queueGrowth.ts'
+import { writeViewFilter } from './viewFilterRegion.ts'
 import type { createDifferenceChain } from './differenceChain.ts'
 import {
   MAIN_VIEW,
@@ -168,6 +169,7 @@ function cutMain(
     cutTablesAt(resources),
   )
   resources.device.queue.writeBuffer(resources.uniforms, 0, uniformData)
+  writeViewFilter(resources, snap.filter)
   encodeDagKernels(encoder, resources, { differ: copy, post, pyramid })
   noteCut(swap, MAIN_VIEW, {
     uniforms: snap,

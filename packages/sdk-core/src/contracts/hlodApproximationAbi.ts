@@ -49,9 +49,11 @@ export interface HlodApproximation {
   hardNormals?: boolean
   /** The crease angle, degrees, from 0 to 90. @defaultValue 60 */
   hardNormalAngle?: number
-  /** How the shell is unwrapped: charts grown by cost and flattened conformally, or patches merged
-   *  into islands. @defaultValue 'charts' */
-  uvMethod?: 'charts' | 'patches'
+  /** How the shell is unwrapped: charts grown by cost and flattened conformally, patches merged
+   *  into islands, or charts cut by spectral analysis of the surface. @defaultValue 'charts' */
+  uvMethod?: 'charts' | 'patches' | 'uvAtlas'
+  /** The most stretch the `uvAtlas` charts may reach, from 0 (none) to 1 (any). @defaultValue 0.1 */
+  uvAtlasStretch?: number
   /** The `patches` unwrap's initial patch count, from 1 to 99999999. @defaultValue 250 */
   initialPatches?: number
   /** The `patches` unwrap's weight of the normal's turn, from 0.01 to 100. @defaultValue 1 */

@@ -3,6 +3,8 @@ import { FRAME_ROW_WORDS } from '../types.ts'
 import { sameLinearPart } from '../../../../../math/src/matrix/matrixElements.ts'
 import { structuresOf } from '../structureTable.ts'
 import {
+  DRAW_FAR_WORD,
+  DRAW_NEAR_WORD,
   HELD_BY_WORD,
   MARK_WORD,
   PAGE_BASE_WORD,
@@ -41,12 +43,13 @@ export function changedWorlds(
 /**
  * Per-primitive frame words (`../frameTable.ts`): the root the
  * descent starts from, the record shift that leads its pages to their shared records (`../layout.ts`),
- * the primitive's root mark (`PackedDag.mark`) and the words its pages and structure are found by.
- * Its stretch is no host word: the root boxes pass writes it (`../../../placement/roots/rootBoxes.ts`).
+ * the primitive's root mark (`PackedDag.mark`), the words its pages and structure are found by and
+ * the distances it is drawn at (`PackedDag.drawDistance`). Its stretch is no host word: the root
+ * boxes pass writes it (`../../../placement/roots/rootBoxes.ts`).
  */
 export function primitiveFrameWords(
   packed: Pick<PackedDag, 'worldCount' | 'worldSources' | 'rootNodes' | 'recordShift'> &
-    Partial<Pick<PackedDag, 'mark' | 'cutLinks' | 'heldOpen' | 'structures'>>,
+    Partial<Pick<PackedDag, 'mark' | 'drawDistance' | 'cutLinks' | 'heldOpen' | 'structures'>>,
 ) {
   const worldCount = Math.max(1, packed.worldCount)
   const frameData = new Float32Array(worldCount * FRAME_ROW_WORDS)
@@ -58,7 +61,7 @@ export function primitiveFrameWords(
 export function writePrimitiveWords(
   frameData: Float32Array,
   packed: Pick<PackedDag, 'worldSources' | 'rootNodes' | 'recordShift'> &
-    Partial<Pick<PackedDag, 'mark' | 'cutLinks' | 'heldOpen' | 'structures'>>,
+    Partial<Pick<PackedDag, 'mark' | 'drawDistance' | 'cutLinks' | 'heldOpen' | 'structures'>>,
   w: number,
 ) {
   const at = primitiveWordAt(w),
@@ -71,4 +74,7 @@ export function writePrimitiveWords(
   frameInts[at + PAGE_COUNT_WORD] = packed.cutLinks?.[w]?.pageCount ?? 0
   // The structure is placed at its primitive's first placement, in placement order.
   frameInts[at + STRUCTURE_WORD] = structuresOf(packed).baseOf(packed.cutLinks?.[w]?.structure)
+  // Floats, written as such: the nearest distance and the farthest, 0 for none.
+  frameData[at + DRAW_NEAR_WORD] = packed.drawDistance?.[2 * w] ?? 0
+  frameData[at + DRAW_FAR_WORD] = packed.drawDistance?.[2 * w + 1] ?? 0
 }

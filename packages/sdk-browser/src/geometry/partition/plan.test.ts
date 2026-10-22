@@ -11,6 +11,8 @@ import { loadsBefore, type LoadingCell } from './loadOrder.ts'
 import { createLoadSlots } from './loadSlots.ts'
 import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
 import { createStreamingSource } from './source.ts'
+import { createSlowStreaming } from './slowStreaming.ts'
+import { fileUnit } from './unitKeys.ts'
 import { resolveWorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 
 const cell = (x: number) => ({ bounds: [x, 0, 0, x + 1, 1, 1] })
@@ -44,7 +46,8 @@ function planBoxes(
   const slots = createLoadSlots(streaming, partition.scheme)
   waiting.push(...extra)
   slots.admit(waiting, false)
-  return { leave: [...leave], visible: [...plan.files(slots, placed)], plan, slots }
+  const grids = partition.hlod.grids
+  return { leave: [...leave], visible: [...plan.files(slots, placed)], plan, slots, grids, placed }
 }
 test('a sheared root reads every cell the world reach holds, by its least singular value', () => {
   // `(x, y, z) → (x + y, y, z)`: every column is at least 1 long, yet it shrinks the direction
@@ -89,6 +92,24 @@ test('cells are read nearest first within their range, and leave further', () =>
   const wide = { ...cell(0), bounds: [0, 0, 0, 1000, 1, 1] }
   assert.deepEqual(planBoxes([wide], [1000 + range + 1, 0.5, 0.5], range, new Set([0])).leave, [0])
   assert.deepEqual(planBoxes([wide], [1000 + range - 1, 0.5, 0.5], range, new Set([0])).leave, [])
+})
+
+test('a placed file kept only while its HLOD 0 cell is visible is counted, a replay empties the lists', () => {
+  // The far cell, past the range, is no longer wished: it leaves, unless the world DAG says its
+  // HLOD 0 cell is still visible; then it stays and the plan counts it.
+  const eye = [0, 0.5, 0.5]
+  const { plan, grids, placed } = planBoxes([cell(3), cell(200)], eye, 20, new Set([0, 1]))
+  const seen = plan.plan(eye, grids, placed, undefined, { visible: () => true })
+  assert.deepEqual([[...seen.leave], seen.holding], [[], 1])
+  const gone = plan.plan(eye, grids, placed, undefined, { visible: () => false })
+  assert.deepEqual([[...gone.leave], gone.holding], [[1], 0])
+  // A frame that makes no plan goes on with the last one, what leaves and what waits emptied.
+  gone.waiting.push({ key: 5, extent: 1, level: 0, priority: 0, distance: 0, raw: 0 })
+  const same = plan.replay()
+  assert.equal(same, gone)
+  assert.deepEqual([same.leave.length, same.waiting.length, same.holding], [0, 0, 0])
+  assert.deepEqual([...plan.plan(eye, grids, placed, undefined, { visible: () => true }).leave], [])
+  assert.equal(plan.replay().holding, 1, 'what the last plan held, it holds')
 })
 
 test('the cells load coarse first, then by priority, then nearest, a tie by the lower key', () => {
@@ -143,4 +164,85 @@ test('the files and the holds of the cells loading read in one order, by the tur
   )
   assert.equal(plan.priority(999), undefined, 'a file no unit loading names has none')
   assert.ok(slots.priorityOf() > priorities.at(-1)!, 'a read of no unit comes after them')
+})
+
+test('a cell file streams within the loading range of the main grid its record names', () => {
+  const boxes = createCellBoxes([], new Object3D(), [])
+  boxes.refresh()
+  // Three files of no HLOD layer, 5 and 50 m from the eye: on the first main grid, loading within
+  // 10 m, on a second, within 100 m (`main` 1), and on the first again.
+  const file = (x: number, main?: number) => ({
+    ...{ url: `${x}-${main}.json`, sha256: '', bytes: 1, meshes: [[0, 1] as const], meshPages: [] },
+    ...{ parents: [[null, [x, 0, 0, x + 1, 1, 1]] as const], hlod: null, main },
+  })
+  const records = [file(50), file(50, 1), file(5)]
+  const { partition, files } = paged(records, 1, undefined, undefined, [10, 100, 1000])
+  const index = createCellIndex(partition.pages, 'https://cache.test/', boxes)
+  openAll(index, files)
+  const source = createStreamingSource(resolveWorldStreaming({}), partition)
+  const eye = [0, 0.5, 0.5]
+  source.set(eye, [0, 0, 0])
+  const plan = createCellPlan(index, source)
+  const { alone, main, waiting } = plan.plan(eye, partition.hlod.grids, new Map())
+  assert.deepEqual([...main.keys()].sort(), [1, 2], 'each cell wished within its own grid')
+  assert.deepEqual([...alone.keys()].sort(), [1, 2])
+  assert.deepEqual(waiting.map(({ key }) => key).sort(), [1, 2].map(fileUnit))
+})
+
+test('a cell is wished from above or in space as its own grid lies flat or not', () => {
+  const grids = [
+    { range: 100, flat: true },
+    { range: 100, flat: false },
+  ]
+  const source = createStreamingSource(resolveWorldStreaming({}), {
+    scheme: 'hashSet',
+    hlod: { grids },
+  })
+  source.set([0, 0, 0], [0, 0, -1])
+  // 200 m above the eye and on it on the ground, within 100 m: its footprint meets a flat grid's
+  // circle, a grid cut in space does not reach it.
+  const above = [0, 200, 0, 10, 210, 10]
+  assert.deepEqual(
+    grids.map((grid) => source.meets(above, 0, grid)),
+    [true, false],
+  )
+})
+
+test('a cell file is weighed against the blocking flag and the range of its own main grid', () => {
+  const grid = (range: number, blocks: boolean) => ({
+    ...{ cell: 128, range, priority: 0, level: 0, blocks },
+    ...{ files: true, main: true, flat: true },
+  })
+  // Grid 0 blocks within 100 m; grid 1 never; grid 2 blocks within 400 m.
+  const grids = [grid(100, true), grid(400, false), grid(400, true)]
+  const source = createStreamingSource(resolveWorldStreaming({}), {
+    scheme: 'hashSet',
+    hlod: { grids },
+  })
+  const mains = new Map([
+    [7, 1],
+    [8, 2],
+    [9, 0],
+  ])
+  const slow = createSlowStreaming(resolveWorldStreaming({}), 'hashSet', grids, source, {
+    shown: () => false,
+    mainOf: (cell) => mains.get(cell)!,
+  })
+  // Each 50 m from the eye: ratios 50/400 on grid 2 (under 0.25: blocks), 50/100 on grid 0 (not),
+  // and none on grid 1, which does not block.
+  const wished = new Map([7, 8, 9].map((cell) => [cell, [50, 0, 0, 60, 10, 10]]))
+  const waits = slow.weigh([0, 0, 0], wished, false)
+  assert.deepEqual([...waits], [8])
+  // Every grid that blocks is a main one; none blocks, nothing is weighed.
+  const quiet = createSlowStreaming(
+    resolveWorldStreaming({}),
+    'hashSet',
+    [grid(100, false)],
+    source,
+    {
+      shown: () => false,
+      mainOf: () => 0,
+    },
+  )
+  assert.equal(quiet.weigh([0, 0, 0], wished, false).size, 0)
 })

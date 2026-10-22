@@ -1,5 +1,9 @@
 import { DEG2RAD } from '../../../../math/src/constants.ts'
 import { SHADOW_PAGE } from './shadow/sunEntries.ts'
+/** The indices of the air's lights: two are held, a sun and a moon, or two suns. */
+export const ATMOSPHERE_SUN_INDICES = [0, 1] as const
+/** The index of one of the air's lights. */
+export type AtmosphereSunIndex = (typeof ATMOSPHERE_SUN_INDICES)[number]
 /**
  * A scene light, version 2. Units are radiometric and linear (P1): `color` is a linear colour and
  * `intensity` a strictly positive radiometric intensity — a radiance for a `rect`. Four kinds,
@@ -35,19 +39,40 @@ export interface SceneLight {
    * A real light is always housed in something — lantern glass, reflector, shade
    * — and that envelope is geometry like any other: without this field, it enters its own
    * light's shadow map and turns it off. Fragments within this sphere do not cast a shadow;
-   * the map's near plane continues to depend on range. On a point light this radius also
-   * sets the source size of the contact-hardening shadow filter. It is a
+   * the map's near plane continues to depend on range. This radius is also the source's: it sets
+   * the source size of the contact-hardening shadow filter, and the lamp lights a surface as a
+   * sphere of that radius (`emitterLength` for a tube): the horizon wraps the light, a highlight
+   * spreads. It is a
    * property of the light, never an object name or a material type: the engine only knows
    * surfaces. Strictly positive and strictly less than the range; if absent, nothing changes.
    */
   emitterRadius?: number
+  /** Point and spot only: the length, in metres, of the tube the source is (a capsule with its
+   *  `emitterRadius`), centred on the light, along `emitterAxis`; absent, a sphere or a point.
+   *  Strictly positive. */
+  emitterLength?: number
+  /** Point and spot only: the soft radius, in metres, that widens the highlight a source leaves
+   *  without lighting more of the surface; strictly positive and strictly less than the range;
+   *  absent, none. */
+  emitterSoftRadius?: number
+  /** Point and spot only, with an `emitterLength`: the unit direction the tube lies along (a
+   *  light's own up, `[0, 1, 0]` unless given); refused without a length. */
+  emitterAxis?: [number, number, number]
   /** Directional only: source disk angular radius in radians; absent is an ideal point source. */
   angularRadius?: number
+  /** Directional only: how far from the eye, in metres, its shadow maps take every caster; past it
+   *  a caster that does not cast far shadows is left out (`shadowOptions.ts`); 0 none; absent, 400. */
+  shadowDistance?: number
   /** Directional only: whether the light is a candidate to light the atmosphere (`SceneAtmosphere`);
    *  absent, it is. Of the candidates the brightest is the atmosphere's sun: its light reaches
    *  surfaces through the air, and the sky is drawn from it; the fog scatters it as well, with an
    *  atmosphere or none. */
   atmosphereSun?: boolean
+  /** Directional only: which of the air's two suns the light is a candidate for, 0 or 1 (a sun and
+   *  a moon, or two suns); absent, 0. One light is held for each index, the brightest of the
+   *  candidates of that index; the sky, the haze and the sky light take both, the fog scatters the
+   *  one of index 0. */
+  atmosphereSunIndex?: AtmosphereSunIndex
   /** Rect only: the unit axis its width runs along, perpendicular to `direction`. */
   right?: [number, number, number]
   /** Rect only: its width and height, in metres. */
@@ -100,6 +125,9 @@ export const LIGHT_SETTINGS = {
   shadowRequestCap: 4096,
   /** Width of the softened edge of a spot cone, in cosine units: against staircasing. */
   spotEdgeSoftness: 0.02,
+  /** The squared distance, in square metres, added to a lamp's squared distance in its inverse
+   *  square: 1 square centimetre, so that the light stays finite at the lamp. */
+  lampDistanceBias: 1e-4,
   /**
    * Clipmap levels of a directional light. Level `L` has texels of `2^L` metres, and a pixel
    * reads the level whose texel is at most its own footprint: sixteen levels cover a far/near
@@ -144,8 +172,8 @@ export const MAX_SHADOW_SLICES = 64
 
 /** Faces of a point light's slice: six. */
 export const POINT_FACES = 6
-/** Floats of a light in the GPU buffer: five `vec4f`. */
-export const SCENE_LIGHT_FLOATS = 20
+/** Floats of a light in the GPU buffer: six `vec4f`. */
+export const SCENE_LIGHT_FLOATS = 24
 /** Light-buffer header: count, then three reserved words. */
 export const SCENE_LIGHT_HEADER_FLOATS = 4
 /** Rank of a light kind in the GPU buffer: the shader refers to it by this number, not by name.

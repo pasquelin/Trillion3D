@@ -27,6 +27,8 @@ import { unorm8 } from '../../../../../math/src/color/color.ts'
  * rank maps in script low.
  */
 
+/** The format of the blue noise: four bytes a texel. */
+export const VSM_BLUE_NOISE_FORMAT: GPUTextureFormat = 'rgba8unorm'
 const VSM_BLUE_NOISE_SIZE = 64
 const VSM_BLUE_NOISE_SLICES = 64
 
@@ -191,15 +193,18 @@ function vsmBlueNoiseTexels(): Uint8Array {
 export const VSM_BLUE_NOISE_BYTES =
   VSM_BLUE_NOISE_SIZE * VSM_BLUE_NOISE_SIZE * VSM_BLUE_NOISE_SLICES * 4
 
-/** A blue-noise texture, uploaded: the projection's of one set (`projection/projectionPass.ts`). */
+/** A blue-noise texture, uploaded: the projection's of one set (`projection/projectionPass.ts`),
+ *  also bound as a read-only storage texture where a blended surface's trace reads it by load
+ *  (`vsmBlueNoiseWgsl`'s `loadOnly`). */
 export function createVsmBlueNoiseTexture(device: GPUDevice): GPUTexture {
   const n = VSM_BLUE_NOISE_SIZE,
     h = n * VSM_BLUE_NOISE_SLICES
   const t = device.createTexture({
     label: 'vsm.blueNoise',
     size: [n, h],
-    format: 'rgba8unorm',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    format: VSM_BLUE_NOISE_FORMAT,
+    usage:
+      GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_DST,
   })
   device.queue.writeTexture(
     { texture: t },
@@ -219,18 +224,20 @@ export const VSM_NOISE_TILE = wgslConst(
 
 /**
  * The noise value read over
- * `vsmBlueNoise` declared at (`group`, `binding`).
+ * `vsmBlueNoise` declared at (`group`, `binding`): a sampled texture, or with `loadOnly` a read-only
+ * storage texture, which spends none of the sixteen sampled textures of the stage that reads it
+ * (`loadOnlyTarget`).
  */
-export const vsmBlueNoiseWgsl = (group: number, binding: number) =>
+export const vsmBlueNoiseWgsl = (group: number, binding: number, loadOnly = false) =>
   wgslBlock(
-    `vsmBlueNoiseWgsl(${group}, ${binding})`,
+    `vsmBlueNoiseWgsl(${group}, ${binding}, ${loadOnly})`,
     [VSM_NOISE_TILE],
     `
-@group(${group}) @binding(${binding}) var vsmBlueNoise:texture_2d<f32>;
+@group(${group}) @binding(${binding}) var vsmBlueNoise:${loadOnly ? `texture_storage_2d<${VSM_BLUE_NOISE_FORMAT},read>` : 'texture_2d<f32>'};
 const VSM_NOISE_WRAP=vec3u(${VSM_BLUE_NOISE_SIZE - 1}u,${VSM_BLUE_NOISE_SIZE - 1}u,${VSM_BLUE_NOISE_SLICES - 1}u);
 fn vsmNoiseTexel(pixelAt:vec2u,frameIndex:u32)->vec4f{
  let w=vec3u(pixelAt,frameIndex)&VSM_NOISE_WRAP;
- return textureLoad(vsmBlueNoise,vec2u(w.x,w.z*VSM_NOISE_TILE.y+w.y),0);
+ return textureLoad(vsmBlueNoise,vec2u(w.x,w.z*VSM_NOISE_TILE.y+w.y)${loadOnly ? '' : ',0'});
 }
 fn vsmNoiseOne(pixelAt:vec2u,frameIndex:u32)->f32{return vsmNoiseTexel(pixelAt,frameIndex).r;}
 `,
@@ -238,9 +245,9 @@ fn vsmNoiseOne(pixelAt:vec2u,frameIndex:u32)->f32{return vsmNoiseTexel(pixelAt,f
 
 /** The rays' random pair at a pixel and frame (`vsmNoiseTwo`, the traces' noise provider), over
  *  the same texture. */
-export const vsmBlueNoiseTwo = (group: number, binding: number) =>
+export const vsmBlueNoiseTwo = (group: number, binding: number, loadOnly = false) =>
   wgslFn(
     'vsmNoiseTwo',
-    [vsmBlueNoiseWgsl(group, binding)],
+    [vsmBlueNoiseWgsl(group, binding, loadOnly)],
     'fn vsmNoiseTwo(pixelAt:vec2u,frameIndex:u32)->vec2f{return vsmNoiseTexel(pixelAt,frameIndex).gb;}',
   )

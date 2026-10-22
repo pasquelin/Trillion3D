@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { SceneLight } from './contracts.ts'
 import { validateSceneLight } from './validate.ts'
+import { sameSceneLight } from './equal.ts'
 import { halton } from '../../../../math/src/sequence/halton.ts'
 
 const panel = (direction: number[], right: number[]): SceneLight =>
@@ -54,4 +55,63 @@ test('a direction keeps its unit length however long it is given', () => {
   assert.deepEqual(validateSceneLight(panel([0, 0, -1e200], [3e180, 0, 0])).right, [1, 0, 0])
   assert.throws(() => validateSceneLight(panel([0, 1e-7, 0], [1, 0, 0])), /zero-length/)
   assert.throws(() => validateSceneLight(panel([0, 1, 0], [0, 2, 0])), /zero-length/)
+})
+
+test('the air index of a directional light is 0 or 1, and no other light has one', () => {
+  const sun = {
+    id: 's',
+    kind: 'directional',
+    direction: [0, -1, 0],
+    color: [1, 1, 1],
+    intensity: 1,
+    castsShadow: false,
+  } as SceneLight
+  assert.equal(validateSceneLight({ ...sun, atmosphereSunIndex: 1 }).atmosphereSunIndex, 1)
+  assert.equal(validateSceneLight(sun).atmosphereSunIndex, undefined, 'absent stays absent: 0')
+  for (const index of [2, -1, 0.5, '1', null])
+    assert.throws(
+      () => validateSceneLight({ ...sun, atmosphereSunIndex: index as 0 }),
+      /atmosphereSunIndex expects 0 or 1/,
+    )
+  const point = {
+    ...sun,
+    kind: 'point',
+    position: [0, 0, 0],
+    range: 5,
+    direction: undefined,
+  } as SceneLight
+  assert.throws(
+    () => validateSceneLight({ ...point, atmosphereSunIndex: 1 }),
+    /exists only for a directional/,
+  )
+})
+
+test('the shadow distance of a directional light is a finite number of metres, and no other light has one', () => {
+  const sun = {
+    id: 's',
+    kind: 'directional',
+    direction: [0, -1, 0],
+    color: [1, 1, 1],
+    intensity: 1,
+    castsShadow: true,
+  } as SceneLight
+  assert.equal(validateSceneLight({ ...sun, shadowDistance: 250 }).shadowDistance, 250)
+  assert.equal(validateSceneLight({ ...sun, shadowDistance: 0 }).shadowDistance, 0, 'none')
+  assert.equal(validateSceneLight(sun).shadowDistance, undefined, 'absent stays absent: 400')
+  for (const distance of [-1, NaN, Infinity, '400', null])
+    assert.throws(
+      () => validateSceneLight({ ...sun, shadowDistance: distance as number }),
+      /shadowDistance expects a finite number of metres of at least 0/,
+    )
+  const lamp = { ...sun, kind: 'point', position: [0, 0, 0], range: 5, direction: undefined }
+  assert.throws(
+    () => validateSceneLight({ ...lamp, shadowDistance: 100 } as SceneLight),
+    /shadowDistance exists only for a directional/,
+  )
+  // A light that changes its distance is another light: its shadow pages restart.
+  assert.equal(sameSceneLight(sun, { ...sun, shadowDistance: 250 }), false)
+  assert.equal(
+    sameSceneLight({ ...sun, shadowDistance: 250 }, { ...sun, shadowDistance: 250 }),
+    true,
+  )
 })

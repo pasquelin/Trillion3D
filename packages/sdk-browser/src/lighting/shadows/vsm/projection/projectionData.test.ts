@@ -51,6 +51,7 @@ const PINNED_OFFSETS: readonly (readonly [string, number])[] = [
   ['cornerSteps', 272],
   ['lightRange', 280],
   ['tableOrigin', 284],
+  ['farShadowDistance', 288],
 ]
 
 /** Throws unless the struct of `text` has the offsets the lighting shader reads, as numbers: no
@@ -63,14 +64,14 @@ function assertPinnedOffsets(text: string) {
     'the struct has the pinned fields',
   )
   for (const [field, offset] of PINNED_OFFSETS) assert.equal(offsets[field], offset, field)
-  assert.equal(size, 288)
+  assert.equal(size, 304)
 }
 
 test('the offsets the lighting shader reads are pinned, as numbers, not derived from the record size', () => {
   // A field moved in the struct, with the size constant and the writer moving with it, must still
   // fail here: the lighting shader reads the record by these offsets.
   assertPinnedOffsets(VSM_PROJECTION_DATA_WGSL.text)
-  assert.equal(VSM_PROJECTION_RECORD_BYTES, 288)
+  assert.equal(VSM_PROJECTION_RECORD_BYTES, 304)
 })
 
 test('the pin fails when a field is added, removed or moved', () => {
@@ -117,6 +118,7 @@ test('the writer puts every field of a map at its id, at the struct offset, and 
     ditherTexels: 2,
     finestMip: 3,
     tableOrigin: 7 | (9 << 16),
+    farShadowDistance: 427,
   })
   const at = 2 * R,
     view = new DataView(buffer, at, R),
@@ -146,8 +148,9 @@ test('the writer puts every field of a map at its id, at the struct offset, and 
   assert.deepEqual([i(o.mapLevel), u(o.flags)], [-2, FLAGS])
   assert.deepEqual([f(o.ditherTexels), u(o.finestMip)], [2, 3])
   assert.equal(i(o.levelsLeft), -1)
-  // The last field fills the record's 16-byte end: the page table's origin, two halves.
+  // The page table's origin, two halves, and a sun's far-shadow distance, which close the record.
   assert.equal(u(o.tableOrigin), 7 | (9 << 16))
+  assert.equal(f(o.farShadowDistance), 427)
   const bytes = new Uint8Array(buffer)
   assert.ok(
     bytes.subarray(0, at).every((b) => b === 0xab),

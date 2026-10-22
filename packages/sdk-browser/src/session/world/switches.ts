@@ -22,6 +22,16 @@ import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animat
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import type { ShadowOptions } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
+import type { ScreenProbeOptions } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import type { ReflectionOptions } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
+import type { VolumetricFogOptions } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
+import type { TessellationOptions } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
+import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
+import type { DepthOfFieldSettings } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
+import type { BloomSettings } from '../../../../sdk-core/src/contracts/bloomRules.ts'
+import type { FilmSettings } from '../../../../sdk-core/src/contracts/filmOptions.ts'
+import type { AmbientOcclusionOptions } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import { worldFamilies } from './ruledSwitches.ts'
 
@@ -107,9 +117,10 @@ function composed<
   B extends object,
   C extends object,
   D extends object,
->(base: T, ...parts: [A, B, C, D]) {
+  E extends object,
+>(base: T, ...parts: [A, B, C, D, E]) {
   for (const part of parts) Object.defineProperties(base, Object.getOwnPropertyDescriptors(part))
-  return base as T & A & B & C & D
+  return base as T & A & B & C & D & E
 }
 
 /** The switches with a setting of the registry of their own: bounced light, temporal antialiasing
@@ -228,6 +239,86 @@ function ruledAccessors(families: ReturnType<typeof worldFamilies>) {
   }
 }
 
+/** The families by rule of the drawing: the sun's shadows, the screen probes, the reflections' trace,
+ *  the volumetric fog, the tessellation, the image effects (motion blur, depth of field, bloom,
+ *  film) and the screen-space ambient occlusion — read as `ruledAccessors` does. */
+function drawingAccessors(families: ReturnType<typeof worldFamilies>) {
+  return {
+    /** The sun's shadow settings (`shadowOptions.ts`), resolved over the page and the preset. */
+    get shadows() {
+      return families.shadows.values()
+    },
+    set shadows(options: ShadowOptions) {
+      families.shadows.set(options)
+    },
+    /** The screen probes' settings (`screenProbeOptions.ts`), resolved over the page and the preset. */
+    get indirectLight() {
+      return families.indirectLight.values()
+    },
+    set indirectLight(options: ScreenProbeOptions) {
+      families.indirectLight.set(options)
+    },
+    /** The reflections' trace settings (`reflectionOptions.ts`), resolved over the page and the preset. */
+    get reflections() {
+      return families.reflections.values()
+    },
+    set reflections(options: ReflectionOptions) {
+      families.reflections.set(options)
+    },
+    /** The volumetric fog's settings (`volumetricFogOptions.ts`), resolved over the page and the
+     *  preset. */
+    get volumetricFog() {
+      return families.volumetricFog.values()
+    },
+    set volumetricFog(options: VolumetricFogOptions) {
+      families.volumetricFog.set(options)
+    },
+    /** The tessellation's settings (`tessellationOptions.ts`), resolved over the page and the preset. */
+    get tessellation() {
+      return families.tessellation.values()
+    },
+    set tessellation(options: TessellationOptions) {
+      families.tessellation.set(options)
+    },
+    /** How the motion blur is drawn (`motionBlurOptions.ts`), over the page and the preset. */
+    get motionBlur() {
+      return families.motionBlur.values()
+    },
+    set motionBlur(options: MotionBlurSettings) {
+      families.motionBlur.set(options)
+    },
+    /** How the depth of field is drawn (`depthOfFieldRules.ts`), over the page and the preset. */
+    get depthOfField() {
+      return families.depthOfField.values()
+    },
+    set depthOfField(options: DepthOfFieldSettings) {
+      families.depthOfField.set(options)
+    },
+    /** How the bloom is drawn (`bloomRules.ts`), over the page and the preset. */
+    get bloom() {
+      return families.bloom.values()
+    },
+    set bloom(options: BloomSettings) {
+      families.bloom.set(options)
+    },
+    /** The film effects' settings (`filmOptions.ts`), resolved over the page and the preset. */
+    get film() {
+      return families.film.values()
+    },
+    set film(options: FilmSettings) {
+      families.film.set(options)
+    },
+    /** The screen-space ambient occlusion's settings (`ambientOcclusionOptions.ts`), over the page and the
+     *  preset. */
+    get ambientOcclusion() {
+      return families.ambientOcclusion.values()
+    },
+    set ambientOcclusion(options: AmbientOcclusionOptions) {
+      families.ambientOcclusion.set(options)
+    },
+  }
+}
+
 /** The switches the open session answers: the render scale and the frame cap. */
 function sessionAccessors(held: Held, runtime: () => SwitchedRuntime, invalidate: () => void) {
   return {
@@ -261,13 +352,16 @@ function sessionAccessors(held: Held, runtime: () => SwitchedRuntime, invalidate
  * (`cutOptions.ts`), the animation's rest-pose screen size and how its banks play their tracks
  * (`animationOptions.ts`), the shading bins' mode (`shadingOptions.ts`), the exposure's twelve
  * automatic and ten local settings (`exposureOptions.ts`), the temporal pass's thin geometry
- * detection (`temporalOptions.ts`) — each of those eight families by rule (`ruledSwitches`) —, the
- * render scale, the effect chain — and its guides: held by the world, given to every session it
- * opens (`held` and the families), the switches written into the open one in place, the
- * streaming's read at its next update. All but the last two are settings of the world's registry
- * (`settings`): the page writes them at its priority, a quality preset (`quality`) below it, the first loaded scene whose
- * manifest names a temporal anti-aliasing level below that (`scene`), and each is applied once its
- * resolved value changes.
+ * detection (`temporalOptions.ts`), the sun's shadow distance scale and far-shadow culling
+ * (`shadowOptions.ts`), how the motion blur is drawn (`motionBlurOptions.ts`), how the bloom is drawn
+ * (`bloomRules.ts`), the film effects
+ * (`filmOptions.ts`) — each of those families by rule (`ruledSwitches`) —, the render scale, the
+ * effect chain — and its guides: held
+ * by the world, given to every session it opens (`held` and the families), the switches written
+ * into the open one in place, the streaming's read at its next update. All but the last two are
+ * settings of the world's registry (`settings`): the page writes them at its priority, a quality
+ * preset (`quality`) below it, the first loaded scene whose manifest names a temporal
+ * anti-aliasing level below that (`scene`), and each is applied once its resolved value changes.
  * The frame cap is held as asked and written into the open session's loop.
  * Temporal antialiasing reads the level resolved, as a view's does; the render scale reads back
  * what the open session draws, 1 before one opens. The chain is shared by
@@ -314,6 +408,7 @@ export function worldSwitches(
     pageAccessors(held, settings),
     rasterAccessors(families),
     ruledAccessors(families),
+    drawingAccessors(families),
     sessionAccessors(held, runtime, invalidate),
   )
   return switches

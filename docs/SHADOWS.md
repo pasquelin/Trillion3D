@@ -59,7 +59,8 @@ lighting pass (`lighting/shadows/vsm/frame/engineVsm.ts`, `vsmEncode.ts`), in th
 6. The shadow raster on the camera cut's resident rows (`render/renderPass.ts`,
    `render/renderCullWgsl.ts`, `render/renderRasterWgsl.ts`) — those its level of detail selects and
    its HLOD switch draws (`geometry/dag/shader/worldGateWgsl.ts`, `worldDraws`): an HLOD actor the
-   view does not draw, or a cell's objects it does not draw, casts nothing —, its chunks sized
+   view does not draw, or a cell's objects it does not draw, casts nothing —, a sun's far casters left
+   out ([Far casters](#far-casters)), its chunks sized
    from histograms of the rows' spheres the GPU bins after it and reads back a few frames late
    (`rows/rowBinsWgsl.ts`, `rows/rowPageBound.ts`).
 7. Post render (`vsm/pageManagementPass.ts:encodeVsmAfterRaster`), the blended casters' atlas
@@ -74,6 +75,37 @@ keeping its static depth, and a static caster that moves redraws only the pages 
 into the dynamic slice (`VSM_STILL_FRAMES`); a cell that switches between its objects and its HLOD
 actor redraws, in the same image, the pages the rows of both cover
 (`frame/prepare/lightResources.ts:shadowsFollowCells`).
+
+## Far casters
+
+A sun's shadow maps follow the eye, and a caster far past the distance they are asked to reach would
+cost a raster pass for a shadow nobody reads, so the caster list leaves it out
+([SDK.md](SDK.md#a-suns-shadow-distance-and-its-far-casters) tells the settings). The caster kernel
+(`vsmRenderCandidates`, `vsm/render/renderCandidatesWgsl.ts`) gives each candidate the depth along
+the main view of the nearest point of its object's sphere (`farDepth`: the sphere the rows pass
+derives for every row from its object's box — the placement's root box or, for a page of the world
+DAG, its actor's (`casters/objectSphere.ts`) — as four singles in two of the row's input doubles,
+the offset of its centre from the row's own and its radius, turned by the root's world and scaled by
+its stretch into the row's `object` words) and two flags: the test reaches its row (a placement of
+the world DAG, or any row under `farShadowCullsAllMeshes`) and its object casts far shadows
+(`MOBILITY_FAR_SHADOW`, a bit of the row's mobility word; a flip of the flag stales the row's pages,
+its cast state holding the bit). When every map view of the frame is a sun that has a distance, the
+candidate pass itself leaves out a caster past the greatest of them (`farDrop`, a parameter of the
+frame, `lighting/shadows/vsm/frame/vsmFarShadow.ts`); the cull (`vsmRenderCull`) drops a candidate
+from every level of one sun's clipmap when its row is tested, does not cast far, and its `farDepth`
+is past that sun's far-shadow distance, which each map's projection record carries
+(`farShadowDistance`, 0 for none; a local light's is 0). The distance is no part of the clipmap's
+cache key: a new distance reaches the next frame's test, and the cached pages are kept.
+
+The edge's layout (four near levels at most, growth 3, overlap 0.1 times the scale, a far field
+under 512 m) shapes nothing but this edge: the engine draws neither cascades nor distance-field
+shadows. The count of near levels, the scale on the overlap and the far field are settings
+(`shadowNearLevels`, `shadowOverlapScale`, `shadowFarField`), the growth, the tenth and the 512 m
+constants of `farShadowDistance` (`packages/sdk-core/src/contracts/shadowOptions.ts`).
+
+A caster whose object names draw distances it lies outside of (`drawDistance`,
+[ENGINE.md](ENGINE.md#webgpu-page-raster)) is left out by the same kernel, before the far test, from
+the main view's eye in every pass of the light.
 
 ## Reading the shadow
 

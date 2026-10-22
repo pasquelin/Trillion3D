@@ -36,6 +36,9 @@ export function blendEntries(rt: WebgpuPagesRuntime) {
       probes: () => rt.blendState.lighting?.probes,
       tileLights: () => rt.blendState.lighting?.tileLights,
       frontTraced: () => rt.blendState.lighting?.frontTraced,
+      fogCubemap: () => rt.blendState.lighting?.fogCubemap,
+      fogVolume: () => rt.blendState.lighting?.fogVolume,
+      fogSampler: () => rt.blendState.lighting?.fogSampler,
       material: () => rt.vis.materialTable.view,
     }),
   )

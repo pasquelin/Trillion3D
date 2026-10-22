@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { camera } from './index.ts'
 import { near } from '../../../../math/src/float/near.fixture.ts'
 import { Vector3 } from '../math/vector3.ts'
+import { Object3D } from '../object/object3d.ts'
+import { NO_VIEW_SET } from './viewSet.ts'
 
 // The cube map face table a WebGPU cube texture is sampled by: per major axis, the axes texture s
 // and t run along. A face drawn into a y-up image has s to its right and t up.
@@ -82,4 +84,66 @@ test('stereo eyes look the same way from points their separation apart, held by 
   near(l.direction.toArray(), r.direction.toArray(), 'parallel', 1e-10)
   assert.equal(left.parent, eyes)
   assert.equal(right.parent, eyes)
+})
+
+test('a view carries no plane and no list until its camera is given them', () => {
+  const eye = camera.perspective()
+  assert.equal(eye.clipPlane, null)
+  assert.deepEqual(eye.hidden, [])
+  assert.equal(eye.showOnly, null)
+  assert.equal(eye._viewSet, NO_VIEW_SET, 'every camera that has none shares one set')
+})
+
+test('a clip plane is the point it passes through and the unit normal of the side drawn', () => {
+  const eye = camera.perspective()
+  eye.clipPlane = { base: [0, 3, 0], normal: [0, 5, 0] }
+  assert.deepEqual(eye._viewSet.clipPlane, [0, 1, 0, 3], 'n · p - w >= 0 is drawn, w = n · base')
+  assert.deepEqual(eye.clipPlane, { base: [0, 3, 0], normal: [0, 1, 0] })
+  // Each part left out is at its default: the origin, up.
+  eye.clipPlane = {}
+  assert.deepEqual(eye._viewSet.clipPlane, [0, 0, 1, 0])
+  eye.clipPlane = { base: { x: 1, y: 2, z: 4 }, normal: { x: 0, y: 0, z: -2 } }
+  assert.deepEqual(eye._viewSet.clipPlane, [0, 0, -1, -4])
+  // A zero normal, null and false name none.
+  for (const none of [{ normal: [0, 0, 0] as const }, null, false as unknown as null]) {
+    eye.clipPlane = none
+    assert.equal(eye.clipPlane, null)
+    assert.deepEqual(eye._viewSet.clipPlane, [0, 0, 0, 0])
+  }
+  for (const bad of [true, 3, { base: [0, 0] }, { normal: [0, 0, NaN] }, { base: 'a' }])
+    assert.throws(() => (eye.clipPlane = bad as never), /clipPlane: /)
+})
+
+test('the lists are copies, hidden empty and showOnly null by default, an empty showOnly drawing nothing', () => {
+  const a = new Object3D(),
+    b = new Object3D(),
+    eye = camera.perspective()
+  const mine = [a]
+  eye.hidden = mine
+  mine.push(b)
+  assert.deepEqual(eye.hidden, [a], 'the page’s own array is not held')
+  assert.ok(Object.isFrozen(eye.hidden))
+  eye.showOnly = new Set([b])
+  assert.deepEqual(eye.showOnly, [b])
+  eye.showOnly = []
+  assert.deepEqual(eye.showOnly, [], 'a list, though empty: no object is drawn')
+  eye.showOnly = null
+  assert.equal(eye.showOnly, null)
+  for (const bad of [5, { a }, [a, 3], [null]])
+    assert.throws(() => (eye.hidden = bad as never), /hidden: /)
+})
+
+test('each write is a new set, so a view that was drawn can tell it was written; a clone keeps them', () => {
+  const eye = camera.perspective(),
+    node = new Object3D()
+  const before = eye._viewSet
+  eye.hidden = [node]
+  const hidden = eye._viewSet
+  assert.notEqual(hidden, before)
+  eye.clipPlane = { normal: [1, 0, 0] }
+  assert.notEqual(eye._viewSet, hidden)
+  assert.deepEqual(eye._viewSet.hidden, [node], 'one field written, the others kept')
+  const copy = eye.clone()
+  assert.deepEqual(copy.clipPlane, eye.clipPlane)
+  assert.deepEqual(copy.hidden, [node])
 })

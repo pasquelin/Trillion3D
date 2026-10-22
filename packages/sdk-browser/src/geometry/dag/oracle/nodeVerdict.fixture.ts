@@ -12,6 +12,7 @@ import {
   NODE_SPHERE,
 } from '../nodeLayout.ts'
 import { projectedError, type DagViewFrames } from './math.fixture.ts'
+import { outsideDrawDistances } from '../drawDistance.ts'
 import { REQUEST_CATEGORY, REQUEST_PRIORITY_MAX, REQUEST_PRIORITY_MIN } from '../request/request.ts'
 import { f32Bits } from '../../../../../math/src/float/bits.ts'
 import { clamp } from '../../../../../math/src/scalar/reals.ts'
@@ -142,4 +143,64 @@ export function dagTreeVerdict(
   )
     return -1
   return ints[base + NODE_CHILD_COUNT]
+}
+
+/**
+ * The kernel's verdict on a placement's draw distance (`outsideDrawDistance`,
+ * `../shader/drawDistanceWgsl.ts`): whether the centre of its root's bounds, `centre` from the eye,
+ * lies nearer than `near` or farther than `far`, both multiplied by `scale`. A `far` of 0 names
+ * none: never out, whatever `near`.
+ */
+export function outsideDrawDistance(
+  near: number,
+  far: number,
+  centre: ArrayLike<number>,
+  scale = 1,
+) {
+  return outsideDrawDistances(centre[0] ** 2 + centre[1] ** 2 + centre[2] ** 2, near, far, scale)
+}
+
+/**
+ * The kernel's verdict on a group's draw distances (`outsideGroupDrawDistance`): whether no point
+ * of the box `low`–`high`, from the eye, can lie within `near` and `far` — the box's centre's
+ * distance, nearer or farther by the half diagonal. A `far` of 0 or less names none, and so do
+ * squares that leave nothing between them. A cut in one pass (`twoPass` false) tests none.
+ */
+export function outsideGroupDrawDistance(
+  near: number,
+  far: number,
+  low: ArrayLike<number>,
+  high: ArrayLike<number>,
+  scale = 1,
+  twoPass = true,
+) {
+  if (!(far > 0) || !twoPass) return false
+  const nearSquared = (near * scale) ** 2,
+    farSquared = (far * scale) ** 2
+  if (nearSquared >= farSquared) return false
+  const centre = [0, 1, 2].map((a) => 0.5 * (low[a] + high[a])),
+    radius = Math.hypot(...[0, 1, 2].map((a) => 0.5 * (high[a] - low[a])))
+  const reach = Math.hypot(...centre)
+  const nearest = Math.max(0, reach - radius),
+    farthest = reach + radius
+  return farthest * farthest < nearSquared || nearest * nearest > farSquared
+}
+
+/** The distances a placement is drawn at, or a group's, as the words that hold them name them
+ *  (`DRAW_NEAR_WORD`, `TREE_DRAW_NEAR`; an object's `min` and `max`): the nearest and the farthest,
+ *  the farthest 0 for none. */
+export type DrawDistances = { near: number; far: number }
+
+/**
+ * The refit's draw distances of a group over its placements' (`fitGroup`,
+ * `../tree/treeRefitWgsl.ts`): the nearest of their nearest and the farthest of their farthest;
+ * both 0 as soon as one placement names none — it is drawn at every distance — or when there is
+ * none.
+ */
+export function fitDrawDistances(members: readonly DrawDistances[]): DrawDistances {
+  if (!members.length || members.some((member) => !(member.far > 0))) return { near: 0, far: 0 }
+  return {
+    near: Math.min(...members.map((member) => member.near)),
+    far: Math.max(...members.map((member) => member.far)),
+  }
 }

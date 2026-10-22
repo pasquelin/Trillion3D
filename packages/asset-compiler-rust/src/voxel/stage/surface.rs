@@ -16,8 +16,9 @@ use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 
-/// Triangles as the voxels sample them: their ranks in the mesh's tracer, their boxes and, for a
-/// skinned mesh, each one's joint (`u16::MAX` for none).
+/// Triangles as the voxels sample them: the ranks in the mesh's tracer of those voxelized, and of
+/// every triangle of the mesh their boxes and, for a skinned mesh, each one's joint (`u16::MAX`
+/// for none).
 pub(super) struct Surface<'a> {
     pub(super) probe: &'a Probe<'a>,
     pub(super) range: Range<usize>,
@@ -26,13 +27,12 @@ pub(super) struct Surface<'a> {
 }
 
 impl<'a> Surface<'a> {
-    /// The triangles of `range` alone, a range of this surface's.
+    /// The triangles of `range` alone voxelized, a range of the mesh's.
     pub(super) fn within(&self, range: Range<usize>) -> Surface<'a> {
-        let local = range.start - self.range.start..range.end - self.range.start;
         Surface {
             probe: self.probe,
-            boxes: &self.boxes[local.clone()],
-            joints: self.joints.map(|j| &j[local]),
+            boxes: self.boxes,
+            joints: self.joints,
             range,
         }
     }
@@ -72,7 +72,8 @@ pub(super) fn voxelize(
         }
         candidates.sort_unstable_by_key(|c| (c[2], c[1], c[0]));
         candidates.dedup();
-        let voxels = solid(sampled(surface, &candidates, side));
+        let redistribute = surface.probe.sampling.redistributes();
+        let voxels = solid(sampled(surface, &candidates, side), redistribute);
         let packed = bricks(&voxels);
         // No voxel left draws nothing in the triangles' place: a larger side is tried.
         if !voxels.is_empty() && voxels.len() <= budget.0 && packed.len() <= budget.1 {
@@ -93,22 +94,32 @@ pub(super) fn voxelize(
     None
 }
 
-/// Each of `candidates` sampled against the primitive's triangles that overlap it.
+/// Each of `candidates` sampled against the primitive's triangles that overlap it — or, where the
+/// rays reach beyond the voxel (`VoxelSampling::reach`), the mesh's triangles within their reach,
+/// as every cluster of the scene is the rays' (a back-up before the voxel, a separable ray's
+/// lateral point and run).
 fn sampled(surface: &Surface<'_>, candidates: &[Cell], side: f64) -> Vec<Voxel> {
+    let reach = surface.probe.sampling.reach();
     let bound = |k: usize, pick: fn(i32, i32) -> i32, end: i32| {
         let c = candidates.iter().map(|c| c[k]).reduce(pick).unwrap_or(0);
         f64::from(c + end) * side
     };
-    let low: [f64; 3] = std::array::from_fn(|k| bound(k, i32::min, 0));
-    let high: [f64; 3] = std::array::from_fn(|k| bound(k, i32::max, 1));
-    let near = (surface.range.clone().zip(surface.boxes))
-        .filter(|(_, (from, to))| (0..3).all(|k| from[k] <= high[k] && to[k] >= low[k]))
-        .map(|(t, _)| t);
-    let bins = binned(&surface.probe.mesh.world, (candidates, side), near);
+    let margin = f64::from(reach) * side;
+    let low: [f64; 3] = std::array::from_fn(|k| bound(k, i32::min, 0) - margin);
+    let high: [f64; 3] = std::array::from_fn(|k| bound(k, i32::max, 1) + margin);
+    let traced = match reach {
+        0 => surface.range.clone(),
+        _ => 0..surface.boxes.len(),
+    };
+    let near = traced.filter(|&t| {
+        let (from, to) = &surface.boxes[t];
+        (0..3).all(|k| from[k] <= high[k] && to[k] >= low[k])
+    });
+    let bins = binned(&surface.probe.mesh.world, (candidates, side), reach, near);
     (candidates.par_iter().zip(&bins))
         .map(|(&cell, ranks)| {
             let joint = surface.joints.and_then(|j| {
-                let of = ranks.iter().map(|&r| j[r as usize - surface.range.start]);
+                let of = ranks.iter().map(|&r| j[r as usize]);
                 most(of.filter(|&j| j != u16::MAX))
             });
             Voxel::sampled(surface.probe, (cell, side), ranks, joint)

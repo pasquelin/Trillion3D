@@ -4,6 +4,7 @@ import type { PageSurface } from '../../geometry/pages/surface.ts'
 import type { MaterialSurface } from './materialRecord.ts'
 import { MATERIAL_RECORD_WORDS } from './materialLayout.ts'
 import { emptySurfaceRow } from '../../geometry/rows/surfaceRow.ts'
+import { createDisplacementRecords } from './displacementRecord.ts'
 
 /**
  * A record's place in the table: its rank, its lobe extension's index (−1: none), the atlas epoch
@@ -63,6 +64,8 @@ export function createMaterialRecords(release: (entry: MaterialEntry) => void) {
     held: 0,
     epoch: 0,
     written: createChangedRuns(),
+    /** The displaced surfaces' records, by rank, beside the table's own (`displacementRecord.ts`). */
+    displaced: createDisplacementRecords(),
     /** The table's record texture, made at the first upload. */
     records: undefined as RecordTexture | undefined,
     /** A surface rewritten since the last `follow` changed what its rows or items read beside its

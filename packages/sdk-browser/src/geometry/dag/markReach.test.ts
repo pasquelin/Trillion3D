@@ -12,7 +12,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.t
 import { kernelUniforms, packed } from './selection/selectionHelpers.fixture.ts'
 import { primitiveFrameWords, primitiveWordAt } from './worlds/worlds.ts'
 import { rootMark } from '../../deformation/halfFloat.ts'
-import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
+import { SHADOWLESS_ROOT } from '../../visibility/shader/castingMark.ts'
 import { hostStretches } from './hostStretches.fixture.ts'
 import { MARK_WORD } from './frameTable.ts'
 

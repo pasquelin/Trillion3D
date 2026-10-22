@@ -44,6 +44,7 @@ struct VsmProjectionRecord{
  cornerSteps:vec2i,
  lightRange:f32,
  tableOrigin:u32,
+ farShadowDistance:f32,
 }
 struct VsmProjectionData{
  lightKind:u32,
@@ -64,6 +65,7 @@ struct VsmProjectionData{
  cornerSteps:vec2i,
  lightRange:f32,
  tableOrigin:u32,
+ farShadowDistance:f32,
  handle:VsmHandle,
  uncached:bool,
  lightUnseen:bool,
@@ -93,6 +95,7 @@ fn vsmUnpackProjection(raw:VsmProjectionRecord,h:VsmHandle)->VsmProjectionData{
  r.cornerSteps=raw.cornerSteps;
  r.lightRange=raw.lightRange;
  r.tableOrigin=raw.tableOrigin;
+ r.farShadowDistance=raw.farShadowDistance;
  r.uncached=(r.flags&VSM_MAP_UNCACHED)!=0u;
  r.lightUnseen=(r.flags&VSM_MAP_UNSEEN)!=0u;
  r.coarseLevel=(r.flags&VSM_MAP_COARSE)!=0u;

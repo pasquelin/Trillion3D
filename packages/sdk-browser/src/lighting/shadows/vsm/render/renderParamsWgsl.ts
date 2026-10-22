@@ -44,7 +44,7 @@ const VSM_RENDER_TIER_PAIRS = 1
 const VSM_RENDER_TIER_CMDS = VSM_RENDER_TIER_PAIRS + VSM_RENDER_TIERS
 const VSM_RENDER_TIER_CURSOR = VSM_RENDER_TIER_CMDS + VSM_RENDER_TIERS
 export const VSM_RENDER_CHUNK_COUNTS = VSM_RENDER_TIER_CURSOR + VSM_RENDER_TIERS
-const VSM_RENDER_COUNT_VIEWS = 1
+export const VSM_RENDER_COUNT_VIEWS = 1
 /** Map view flag: directional (clipmap level, 1 mip, clamp to near plane — the near-plane clamp). */
 const VSM_RENDER_VIEW_DIRECTIONAL = 1
 
@@ -54,7 +54,18 @@ const VSM_RENDER_VIEW_DIRECTIONAL = 1
  * (`vsmWriteChunkParams`, `../chunks/chunkParams.ts`). The camera is the main view whose level of detail the casters take: eye (split
  * double), world-to-view rotation rows (engine convention, −Z forward), focal in pixels, near,
  * perspective 0/1, the cut's threshold; `worldLinks`, the cold word its cut's world links start
- * at, zero for a cut that follows no world, whose switch the casters obey (`VsmRenderScene.world`).
+ * at, zero for a cut that follows no world, whose switch the casters obey (`VsmRenderScene.world`);
+ * `farMeshes`, 1 when a sun's far-shadow test reaches every caster, 0 when it reaches the world's
+ * merged shells alone (`farShadowCullsAllMeshes`, `vsmFarShadowSkipped`); `drawDistances`, 1 when
+ * the casters take the draw distances their objects name, from the main view's eye and scaled by
+ * `viewDistanceScale` (`vsmRenderOutsideDrawDistance`), 0 when none does; `farDrop`, the greatest
+ * far-shadow distance of the frame's lights when every one is a sun that has one, else 0: the
+ * candidates leave out a caster that no map view takes (`vsmFarShadowSkipped`); `filterBase`, the
+ * word of the bits the main view's filter holds (`vsmRenderFilteredOut`) its candidates read in
+ * their group 1, zero for a view that filters none. A slot belongs to
+ * one view pass (`renderViewPasses.ts`): `viewFirst` and `viewCount` are the ids of its maps, `chunk`
+ * its index among the chunks of every pass, `chunkCount` the chunks of its pass and `chunkFirst`
+ * the first candidate of its rows.
  */
 export const VSM_RENDER_PARAMS = fieldLayout('VsmRenderParams', [
   ['eyeHigh', 'vec3f'],
@@ -75,6 +86,12 @@ export const VSM_RENDER_PARAMS = fieldLayout('VsmRenderParams', [
   ['cmdCapacity', 'u32'],
   ['pairCapacity', 'u32'],
   ['worldLinks', 'u32'],
+  ['farMeshes', 'u32'],
+  ['drawDistances', 'u32'],
+  ['viewDistanceScale', 'f32'],
+  ['farDrop', 'f32'],
+  ['viewFirst', 'u32'],
+  ['filterBase', 'u32'],
 ] as const)
 const VSM_RENDER_PARAMS_STRUCT_WGSL = wgslBlock(
   'VSM_RENDER_PARAMS_STRUCT_WGSL',
@@ -86,13 +103,25 @@ export const VSM_RENDER_PARAMS_WGSL = wgslBlock(
   [VSM_RENDER_PARAMS_STRUCT_WGSL],
   `
 /** A caster row the camera's cut selects: world sphere (centre high + radius, centre low), its row,
- *  corners and flags (bit 0 cache as dynamic, bit 1 deforming: it invalidates the pages it draws). */
-struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,corners:u32,flags:u32,}
+ *  corners and flags (bit 0 cache as dynamic, bit 1 deforming: it invalidates the pages it draws),
+ *  and its far depth: the depth along the main view of the nearest point of the sphere of the whole
+ *  object it belongs to, which a sun's far-shadow test reads (\`vsmFarShadowSkipped\`). */
+struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,corners:u32,flags:u32,farDepth:f32,}
 const VSM_RENDER_CAND_DYNAMIC:u32=1u;
 const VSM_RENDER_CAND_DEFORMING:u32=2u;
 /** Bit 2: the row's triangles face the light clockwise in world space — a mirroring placement
  *  or a back-side row (\`FLAG_BACK\`), not both (\`vsmRenderAppendCandidate\`). */
 const VSM_RENDER_CAND_FLIPPED:u32=4u;
+/** Bit 3: a sun's far-shadow test reaches the row (\`vsmRenderFarFlags\`); bit 4: its object casts
+ *  far shadows, which the test never leaves out. */
+const VSM_RENDER_CAND_FAR_TESTED:u32=8u;
+const VSM_RENDER_CAND_FAR_CAST:u32=16u;
+/** Whether a sun whose far-shadow distance is \`distance\` (a map's \`farShadowDistance\`, 0 for none)
+ *  leaves the candidate out: its row is tested, does not cast far shadows, and its object's nearest
+ *  point (\`farDepth\`) lies past \`distance\` along the main view. */
+fn vsmFarShadowSkipped(flags:u32,farDepth:f32,distance:f32)->bool{
+ return distance>0.0&&(flags&VSM_RENDER_CAND_FAR_TESTED)!=0u&&(flags&VSM_RENDER_CAND_FAR_CAST)==0u&&farDepth>distance;
+}
 ${wgslConsts({
   VSM_RENDER_VIEW_DIRECTIONAL,
   VSM_RENDER_COUNTS_HEAD,
@@ -132,13 +161,14 @@ export const VSM_RENDER_ARGS_WGSL = wgslProgram(
 @group(0) @binding(1) var<storage,read_write> counts:array<atomic<u32>>;
 @group(0) @binding(2) var<storage,read_write> args:array<u32>;
 fn vsmRenderArgsAt(chunk:u32,word:u32)->u32{return chunk*${VSM_RENDER_ARGS_STRIDE_WORDS}u+word;}
-/** Cull dispatch of every chunk, once the candidates are known. */
+/** Cull dispatch of every chunk of the view pass whose first slot is bound (\`chunk\`, then
+ *  \`chunkCount\` chunks), once the candidates and the pass's views are known. */
 @compute @workgroup_size(1) fn vsmRenderArgsCull(){
  let total=atomicLoad(&counts[0]);
  for(var c=0u;c<params.chunkCount;c++){
   let first=c*params.chunkRows;
   let n=select(0u,min(total-first,params.chunkRows),total>first);
-  let at=vsmRenderArgsAt(c,${VSM_RENDER_ARGS_CULL}u);
+  let at=vsmRenderArgsAt(params.chunk+c,${VSM_RENDER_ARGS_CULL}u);
   args[at]=ceilDiv(n,WORKGROUP_THREADS);
   args[at+1u]=select(0u,min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.viewCount),n>0u);
   args[at+2u]=1u;

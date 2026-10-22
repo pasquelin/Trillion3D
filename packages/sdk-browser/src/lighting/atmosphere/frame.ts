@@ -1,7 +1,8 @@
-import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
+import { fieldLayout, putVec4 as put } from '../../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
+import { cameraForward } from '../../camera/forward.ts'
 import type { ResolvedAtmosphere } from '../../../../sdk-core/src/scene/core/atmosphere.ts'
 import { topRadiusOf } from '../../../../sdk-core/src/scene/core/atmosphereOptics.ts'
 
@@ -34,18 +35,12 @@ export const FRAME_WGSL = wgslBlock('FRAME_WGSL', [], FRAME_LAYOUT.wgsl)
 
 /** How far above the ground the eye is held, kilometres: the sky is seen from the surface, never
  *  from inside the planet. */
+/** The unit forward of the camera the frame is written for, rewritten each image. */
+const look = new Float64Array(3)
 const EYE_FLOOR = 0.005
 /** How far under the top of the air the eye is held, kilometres: the tables describe a view from
  *  inside the air. */
 const EYE_CEILING = 0.001
-
-/** Four floats of `out` from `at`. */
-function put(out: Float32Array, at: number, x: number, y: number, z: number, w: number) {
-  out[at] = x
-  out[at + 1] = y
-  out[at + 2] = z
-  out[at + 3] = w
-}
 
 /**
  * The table's axes into `out`, `forward` and `left` at the places `at` names, for the planet's up
@@ -124,10 +119,7 @@ export function writeAirFrame(
     uy = py / distance,
     uz = pz / distance
   const world = camera.world
-  const lookLength = length3(world[8], world[9], world[10]) || 1
-  const lx = -world[8] / lookLength,
-    ly = -world[9] / lookLength,
-    lz = -world[10] / lookLength
+  const [lx, ly, lz] = cameraForward(look, world)
   putAxes(out, at, ux, uy, uz, lx, ly, lz)
   out.set(inverseViewProj, at.inverseViewProj)
   out.set(viewProj, at.viewProj)

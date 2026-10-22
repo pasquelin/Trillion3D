@@ -8,7 +8,7 @@ import { SCREEN_MARCH_WGSL } from '../../visibility/hiz/gpu/screenMarch.ts'
 /**
  * The screen ray of a reflection (`reflectionRay`): its origin, its direction to the far end of its
  * reach, and how far along it the march goes (`end`: the image's edge, `screenMarchEnd`: the march's
- * hierarchy crosses empty screen in a few iterations, and `REFLECTION_MARCH_STEPS` bounds it). It leaves the surface one pixel off along its
+ * hierarchy crosses empty screen in a few iterations, and `reflectionScreenSteps` bounds it, `ReflectionView.scene`). It leaves the surface one pixel off along its
  * normal — `pixel`, the world size of a pixel at `P` (`reflectionPixelAt`) —: a ray never starts
  * inside the depth it leaves.
  * `reflectionReach`: the world distance along a reflected ray, from its origin `A` (clip) along

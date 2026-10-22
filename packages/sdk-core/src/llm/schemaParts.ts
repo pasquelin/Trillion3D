@@ -30,12 +30,28 @@ export const num = (description: string, minimum?: number, maximum?: number) =>
 export const int = (description: string, minimum?: number, maximum?: number) =>
   bounded('integer', description, minimum, maximum)
 
+/** The choice `rule` as a property: its names, and for a level rule — its first name `'off'` — a switch too,
+ *  `true` its default level, `false` off (`resolveSetting`), as the temporal anti-aliasing's level takes them. */
+export const choiceSchema = (
+  rule: Extract<SettingRule, { kind: 'choice' }>,
+  description: string,
+): JsonSchemaProperty =>
+  rule.choices[0] === 'off'
+    ? {
+        anyOf: [
+          { type: 'string', enum: [...rule.choices], description: 'A level.' },
+          { type: 'boolean', description: `true ${rule.default}, false off.` },
+        ],
+        description,
+      }
+    : { type: 'string', enum: [...rule.choices], description }
+
 /** The setting `rule` (`SettingRule`, one without `above`) as a property: its kind, its range —
  *  the upper end left out where the rule has none —, `description` saying what it means. No
  *  `default` key: the description names it. */
 export const ruleSchema = (rule: SettingRule, description: string): JsonSchemaProperty => {
   if (rule.kind === 'flag') return flag(description)
-  if (rule.kind === 'choice') return { type: 'string', enum: [...rule.choices], description }
+  if (rule.kind === 'choice') return choiceSchema(rule, description)
   if (rule.kind === 'vector')
     return {
       type: 'array',

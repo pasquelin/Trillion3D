@@ -1,4 +1,5 @@
 import { PI } from '../../../../math/src/wgsl/constants.ts'
+import { hgPhase } from '../../../../math/src/wgsl/lighting.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { ATMOSPHERE_SLOT } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
 import { SKY_VIEW_LUT } from './layout.ts'
@@ -15,15 +16,47 @@ import { SKY_VIEW_LUT } from './layout.ts'
  */
 export const OPTICS_WGSL = wgslBlock(
   'OPTICS_WGSL',
-  [PI],
+  [PI, hgPhase],
   `
 /** Lifts a point off the ground by a metre, against the float error of a sphere test. */
 const PLANET_OFFSET:f32=0.001;
 const SKY_VIEW_SIZE:vec2f=vec2f(${SKY_VIEW_LUT.width}.0,${SKY_VIEW_LUT.height}.0);
 fn bottomRadius()->f32{return atmo(${ATMOSPHERE_SLOT.planet}u).y;}
 fn topRadius()->f32{return atmo(${ATMOSPHERE_SLOT.planet}u).z;}
-/** The unit direction toward the sun, and the cosine of its disk's radius. */
-fn sunDirection()->vec3f{return atmo(${ATMOSPHERE_SLOT.sunDirection}u).xyz;}
+/** A light of the air: the unit direction toward it and its illuminance outside the air, times the
+ *  scattered factor; the cosine of its disk's radius and the luminance of its disk (\`w\`: 1 where
+ *  there is a light) are the sky draw's. */
+struct Sun{toward:vec3f,illuminance:vec3f,cosRadius:f32,disk:vec4f,}
+/** The lights of the air, the first \`count\` of \`list\`: the sun, then the second light, a moon or
+ *  a second sun, only where there is one. Where there is none the marches read nothing of it. */
+struct Suns{list:array<Sun,2>,count:u32,}
+fn airSun(direction:vec4f,illuminance:vec4f,disk:vec4f,factor:vec3f)->Sun{
+ var s:Sun;
+ s.toward=direction.xyz;
+ s.illuminance=illuminance.xyz*factor;
+ s.cosRadius=direction.w;
+ s.disk=disk;
+ return s;
+}
+/** The lights of the air as the block holds them, in the scene's axes. */
+fn airSuns()->Suns{
+ let factor=atmo(${ATMOSPHERE_SLOT.scatteredFactor}u).xyz;
+ var s:Suns;
+ s.list[0]=airSun(atmo(${ATMOSPHERE_SLOT.sunDirection}u),atmo(${ATMOSPHERE_SLOT.sunIlluminance}u),atmo(${ATMOSPHERE_SLOT.sunDisk}u),factor);
+ s.list[1]=airSun(atmo(${ATMOSPHERE_SLOT.secondDirection}u),atmo(${ATMOSPHERE_SLOT.secondIlluminance}u),atmo(${ATMOSPHERE_SLOT.secondDisk}u),factor);
+ s.count=select(1u,2u,s.list[1].disk.w!=0.0);
+ return s;
+}
+/** One light alone, \`toward\` it and its \`illuminance\`: a table that is a transfer. */
+fn singleSun(toward:vec3f,illuminance:vec3f)->Suns{
+ var one:Sun;
+ one.toward=toward;
+ one.illuminance=illuminance;
+ var s:Suns;
+ s.list[0]=one;
+ s.count=1u;
+ return s;
+}
 /** Where a ray from \`origin\` meets the sphere of \`radius\` at the origin: both distances, or
  *  \`(-1, -1)\` when it never does; a negative one is behind. */
 fn raySphere(origin:vec3f,dir:vec3f,radius:f32)->vec2f{
@@ -41,12 +74,6 @@ fn raySphereNearest(origin:vec3f,dir:vec3f,center:vec3f,radius:f32)->f32{
  if(s.x<0.0){return max(0.0,s.y);}
  if(s.y<0.0){return max(0.0,s.x);}
  return max(0.0,min(s.x,s.y));
-}
-/** The haze's phase for a light and a ray that make \`cosTheta\`: forward-leaning by \`g\`. */
-fn hgPhase(g:f32,cosTheta:f32)->f32{
- let numer=1.0-g*g;
- let denom=1.0+g*g+2.0*g*cosTheta;
- return numer/(4.0*PI*denom*sqrt(denom));
 }
 fn rayleighPhase(cosTheta:f32)->f32{return 3.0/(16.0*PI)*(1.0+cosTheta*cosTheta);}
 /** What the air holds at a point: what it scatters, what it takes out of a ray, and the share of

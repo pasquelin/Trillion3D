@@ -1,5 +1,5 @@
 import { wgslConst, wgslFn } from './decl.ts'
-import { INVERSE_PI } from './constants.ts'
+import { INVERSE_PI, PI } from './constants.ts'
 
 /**
  * The standard material's terms, as the lights, the mirror and the area lights compute them: one
@@ -9,6 +9,20 @@ import { INVERSE_PI } from './constants.ts'
  * there (`1 − α²`, `α² − 1`, `1 + α²`), a sum the compiler may fuse with it, and a call returning
  * α² would round it apart.
  */
+
+/** Henyey and Greenstein's phase function of the cosine `cosTheta` between the direction toward the
+ *  light and the one toward the eye, `g` the medium's distribution: 0 equally every way, toward 1
+ *  forward, toward −1 back. It sums to 1 over the sphere, so a light of illuminance `E` scatters a
+ *  radiance `E · phase`: the air's haze and the fog's volume read it. */
+export const hgPhase = wgslFn(
+  'hgPhase',
+  [PI],
+  `fn hgPhase(g:f32,cosTheta:f32)->f32{
+ let numer=1.0-g*g;
+ let denom=1.0+g*g+2.0*g*cosTheta;
+ return numer/(4.0*PI*denom*sqrt(denom));
+}`,
+)
 
 export const DIELECTRIC_F0 = wgslConst('DIELECTRIC_F0', [], 'const DIELECTRIC_F0=vec3f(0.04);')
 

@@ -15,6 +15,7 @@ import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/s
 import { RESOLVE, rasterSource } from '../../visibility/raster/shader.ts'
 import { binSource } from '../../visibility/raster/binWgsl.ts'
 import { emptySpaceProgram } from '../../modules/sky/clouds/emptySpaceWgsl.ts'
+import { CLOUD_MATERIAL_EMPTY_SPACE_WGSL } from '../../modules/sky/clouds/materialWgsl.ts'
 import { LIGHTNING_CODE } from '../../modules/sky/clouds/lightningWgsl.ts'
 import { MASK_CODE } from '../../modules/sky/clouds/maskWgsl.ts'
 import { NOISE_VOLUME_CODE } from '../../modules/sky/clouds/noiseVolumeWgsl.ts'
@@ -28,6 +29,10 @@ import {
 } from '../../modules/sky/skyLight/faceWgsl.ts'
 import { FILTER_CODE } from '../../modules/sky/skyLight/filterWgsl.ts'
 import { IRRADIANCE_CODE } from '../../modules/sky/skyLight/irradianceWgsl.ts'
+import { diceSource } from '../../visibility/tessellation/diceWgsl.ts'
+import { planSource } from '../../visibility/tessellation/planWgsl.ts'
+import { seedSource } from '../../visibility/tessellation/seedWgsl.ts'
+import { splitSource } from '../../visibility/tessellation/splitWgsl.ts'
 import { COMPOSE_SHADERS } from './engineShaders.compose.fixture.ts'
 import {
   BOUNCE_PROBE_SHADER,
@@ -40,6 +45,27 @@ import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts'
 import { DIAGNOSTIC_SHADE_WGSL, DIAGNOSTIC_VIS_WGSL } from '../../diagnostic/gpuGeometry.ts'
 import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts'
 import { BLOOM_COMPOSITE_WGSL, BLOOM_SETUP_WGSL } from '../../post/effects/bloom/bloomWgsl.ts'
+import { fftShader } from '../../post/effects/bloom/convolution/fftWgsl.ts'
+import { KERNEL_WGSL } from '../../post/effects/bloom/convolution/kernelWgsl.ts'
+import { CONVOLUTION_INPUT_WGSL } from '../../post/effects/bloom/convolution/inputWgsl.ts'
+import { GLOW_FINISH_WGSL } from '../../post/effects/bloom/glowFinishWgsl.ts'
+import { flattenShader } from '../../post/effects/motionBlur/flattenWgsl.ts'
+import { gatherShader, scatterShader } from '../../post/effects/motionBlur/dilateWgsl.ts'
+import { classifyShader } from '../../post/effects/motionBlur/classifyWgsl.ts'
+import { filterShader } from '../../post/effects/motionBlur/filterWgsl.ts'
+import {
+  setupFullShader,
+  setupHalfShader,
+  cocDownsampleShader,
+} from '../../post/effects/depthOfField/dofSetupWgsl.ts'
+import { dilateShader, cocFlattenShader } from '../../post/effects/depthOfField/dofTilesWgsl.ts'
+import { dofReduceShader } from '../../post/effects/depthOfField/dofReduceWgsl.ts'
+import { bokehLutShader } from '../../post/effects/depthOfField/dofLutWgsl.ts'
+import { dofGatherShader } from '../../post/effects/depthOfField/dofGatherWgsl.ts'
+import { dofPostfilterShader } from '../../post/effects/depthOfField/dofPostfilterWgsl.ts'
+import { packShader, spriteShader } from '../../post/effects/depthOfField/dofScatterWgsl.ts'
+import { dofRecombineShader } from '../../post/effects/depthOfField/dofRecombineMainWgsl.ts'
+import { filterTwoShader } from '../../post/effects/motionBlur/weighTwoWgsl.ts'
 import { DOWNSAMPLE_WGSL } from '../../post/filters/downsampleWgsl.ts'
 import { GAUSSIAN_WGSL } from '../../post/filters/gaussianWgsl.ts'
 import { GRID_WGSL, LOG_LIGHT_WGSL } from '../../post/finish/localWgsl.ts'
@@ -51,7 +77,8 @@ import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from '../../lighting/deferr
 import { lightTilesShader } from '../../lighting/tiles/shader.ts'
 import { taaResolveShader } from '../../post/taa/resolveWgsl.ts'
 import { spatialAntiAliasingShader } from '../../post/taa/spatialAntiAliasingWgsl.ts'
-import { velocityShader } from '../../post/taa/velocityWgsl.ts'
+import { velocityShader } from '../../post/taa/nearestVelocityWgsl.ts'
+import { SURFACE_VELOCITY_WGSL } from '../../post/taa/surfaceVelocityWgsl.ts'
 import { reprojectShader } from '../../post/taa/reprojectWgsl.ts'
 import { flickerPlanFor, flickerShader } from '../../post/taa/flickerWgsl.ts'
 import { thinGeometryShader } from '../../post/taa/thinGeometryWgsl.ts'
@@ -73,7 +100,11 @@ import { TILE_SORT_WGSL } from '../../materials/virtual/evictSortWgsl.ts'
 import { ROW_SORT_WGSL } from '../../geometry/rows/rowEvictSortWgsl.ts'
 import { TRANSPARENT_COMPACT_SHADER } from '../../blend/transparent/shader.ts'
 import { transmitWgsl } from '../../blend/transmission/transmitWgsl.ts'
-import { particlesWgsl, PARTICLE_DRAW_WGSL } from '../../particles/gpu/particlesWgsl.ts'
+import {
+  particleDrawShader,
+  particlesWgsl,
+  PARTICLE_DRAW_WGSL,
+} from '../../particles/gpu/particlesWgsl.ts'
 import { blendShader } from '../../blend/shader.ts'
 import {
   BLEND_SHADER,
@@ -85,6 +116,9 @@ import {
 } from './shaderTexts.fixture.ts'
 import { vsmVariants } from './engineShaders.vsm.fixture.ts'
 import { AIR_SHADERS } from '../../lighting/atmosphere/shaders.ts'
+import { FOG_PROGRAMS } from '../../lighting/fog/programs.ts'
+import { AO_SHADERS } from '../../lighting/ao/occlusionWgsl.ts'
+import { AO_SETUP_WGSL } from '../../lighting/ao/setupWgsl.ts'
 
 /**
  * Every WGSL text the engine hands to `createShaderModule`, by its module's name, each variant a
@@ -119,6 +153,11 @@ export const ENGINE_SHADERS: Record<string, string> = {
   SHADE_TRIS_SHADER,
   RASTER: rasterSource(4096),
   RASTER_BIN: binSource(4096),
+  RASTER_BIN_TESSELLATED: binSource(4096, true),
+  TESSELLATION_SEED: seedSource(),
+  TESSELLATION_PLAN: planSource(),
+  TESSELLATION_SPLIT: splitSource(),
+  TESSELLATION_DICE: diceSource(),
   RESOLVE,
   ...COMPOSE_SHADERS,
   BOUNCE_PROBE_SHADER,
@@ -127,8 +166,38 @@ export const ENGINE_SHADERS: Record<string, string> = {
   BOUNCE_MARK_SHADER,
   BOUNCE_CENSUS_SHADER,
   AS_IS_SHARE_SHADER,
+  MOTION_BLUR_FLATTEN: flattenShader(),
+  MOTION_BLUR_GATHER: gatherShader(),
+  MOTION_BLUR_SCATTER: scatterShader(),
+  MOTION_BLUR_CLASSIFY: classifyShader(),
+  MOTION_BLUR_FILTER: filterShader(),
+  MOTION_BLUR_FLATTEN_TWO: flattenShader(2),
+  MOTION_BLUR_GATHER_TWO: gatherShader(2),
+  MOTION_BLUR_GATHER_TWO_DRAWN: gatherShader(2, true),
+  MOTION_BLUR_CLASSIFY_TWO: classifyShader(2),
+  MOTION_BLUR_FILTER_TWO: filterTwoShader(),
+  // The depth of field's passes (`../../post/effects/depthOfField/`), each at its pipeline constants' defaults.
+  DOF_SETUP_HALF: setupHalfShader(),
+  DOF_SETUP_FULL: setupFullShader(),
+  DOF_COC_FLATTEN: cocFlattenShader(),
+  DOF_COC_DILATE: dilateShader(),
+  DOF_DOWNSAMPLE: cocDownsampleShader(),
+  DOF_REDUCE: dofReduceShader(),
+  DOF_PACK: packShader(),
+  DOF_LUT: bokehLutShader(),
+  DOF_GATHER: dofGatherShader(),
+  DOF_POSTFILTER: dofPostfilterShader(),
+  DOF_SPRITES: spriteShader(),
+  DOF_RECOMBINE: dofRecombineShader(),
   BLOOM_SETUP_WGSL,
   BLOOM_COMPOSITE_WGSL,
+  // The convolution bloom's transform (a line of the device's workgroup memory: 2048 or 4096 values),
+  // the kernel's preparation, the image the transform reads and the glow's finishing.
+  BLOOM_FFT_2048: fftShader(2048),
+  BLOOM_FFT_4096: fftShader(4096),
+  BLOOM_KERNEL_WGSL: KERNEL_WGSL,
+  BLOOM_CONVOLUTION_INPUT_WGSL: CONVOLUTION_INPUT_WGSL,
+  BLOOM_GLOW_FINISH_WGSL: GLOW_FINISH_WGSL,
   DOWNSAMPLE_WGSL,
   GAUSSIAN_WGSL,
   GRID_WGSL,
@@ -168,6 +237,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   TAA_RESOLVE_FILTERED_FLAGLESS: taaResolveShader(false, false, true),
   TAA_RESOLVE_FILTERED_BLENDED: taaResolveShader(true, true, true),
   TAA_VELOCITY: velocityShader(),
+  SURFACE_VELOCITY_WGSL,
   TAA_REPROJECT: reprojectShader(),
   TAA_THIN_GEOMETRY: thinGeometryShader(),
   TAA_FLICKER: flickerShader(),
@@ -216,7 +286,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...vsmVariants(),
   // The sky module's texts: the cloud textures' generators, the empty-space march, the sky light's
   // faces, copies and filters.
-  CLOUD_EMPTY_SPACE_CODE: emptySpaceProgram().code,
+  // Only for a material that gives the output: the default one gives none, so no program is made.
+  ...(CLOUD_MATERIAL_EMPTY_SPACE_WGSL ? { CLOUD_EMPTY_SPACE_CODE: emptySpaceProgram().code } : {}),
   LIGHTNING_CODE,
   MASK_CODE,
   NOISE_VOLUME_CODE,
@@ -233,4 +304,19 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...Object.fromEntries(
     Object.entries(AIR_SHADERS).map(([name, code]) => [`AIR_${name.toUpperCase()}`, code]),
   ),
+  // The fog volume's passes (`../../lighting/fog/`).
+  ...Object.fromEntries(
+    Object.entries(FOG_PROGRAMS).map(([name, code]) => [`FOG_${name.toUpperCase()}`, code]),
+  ),
+  // The screen-space ambient occlusion's setup and every shape of its search (`../../lighting/ao/`).
+  AO_SETUP_WGSL,
+  ...Object.fromEntries(Object.entries(AO_SHADERS).map(([name, code]) => [`AO_${name}`, code])),
+  // What a device with `clip-distances` compiles: the vertex stages that return the clip distance
+  // of the view's plane (`../clipDistances.ts`).
+  VIS_CLIP: visShader({ clipDistances: true }),
+  VIS_XRAY_CLIP: visXrayShader(true),
+  BLEND_CLIP: blendShader({}, { clip: true }),
+  BLEND_TRANSMIT_CLIP: blendShader({}, { stage: transmitWgsl({}, false), clip: true }),
+  FRONT_STAGE_CLIP: blendFrontShader(2, true),
+  PARTICLE_DRAW_CLIP: particleDrawShader(true),
 }

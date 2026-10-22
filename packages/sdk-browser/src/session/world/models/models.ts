@@ -1,6 +1,7 @@
 import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { multiplyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { rootedUnder } from '../../../scene/host/world/rooted.ts'
+import { nodeCasting } from '../../../visibility/shader/castingMark.ts'
 import { updateTransformTree } from '../../../../../sdk-core/src/world/transform/pass.ts'
 import type { Geometry } from '../../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { PageSurface } from '../../../geometry/pages/surface.ts'
@@ -36,8 +37,8 @@ import type { WorldRanks } from '../ranks.ts'
 const composed = new Float64Array(MATRIX_VALUES)
 
 /**
- * One drawn mesh of a loaded model, drawn at one row per placement of the model (`placeModel`):
- * the mechanism the cells' placed meshes use (`geometry/partition/rows.ts`). Row `k` is placement `k`'s
+ * One drawn mesh of a loaded model, drawn at one row per placement of the model (`placeModel`): the
+ * mechanism the cells' placed meshes use (`geometry/partition/rows.ts`). Row `k` is placement `k`'s
  * world times the mesh's world inside its graph, which stands in its own frame: the graph hangs
  * from no node of the world (`PlacementRows.local`); the mesh itself stays every row's animation
  * source (`rows.sources`), so its skeleton — whose bones stand in that frame too —, morph weights
@@ -70,8 +71,8 @@ class ModelMeshSource implements DrawSource {
   get declaration() {
     return this.drawn.material
   }
-  get castShadow() {
-    return this.drawn.castShadow
+  get casting() {
+    return nodeCasting(this.drawn)
   }
   get frustumCulled() {
     return this.drawn.frustumCulled
@@ -91,7 +92,7 @@ class ModelMeshSource implements DrawSource {
   }
   /** Writes row `row` from the mesh as its graph holds it: its placement's `world` times its own
    *  — unless the session composes it (`matrices` false) —, whether the placement is `shown` and
-   *  the mesh and every node above it, whether it casts. */
+   *  the mesh and every node above it, whether it casts, and far. */
   write(row: number, world: Float64Array, shown: boolean, matrices = true) {
     const { rows, drawn } = this
     if (matrices)
@@ -99,7 +100,7 @@ class ModelMeshSource implements DrawSource {
         multiplyMatrix4(composed, world, drawn.matrixWorld.elements),
         row * MATRIX_VALUES,
       )
-    writePlacementRow(rows, row, null, shown && rootedUnder(drawn, null, true), drawn.castShadow)
+    writePlacementRow(rows, row, null, shown && rootedUnder(drawn, null, true), nodeCasting(drawn))
   }
 }
 
@@ -122,7 +123,7 @@ class WorldPoseRows implements WorldPose {
     return growPlacementRows(this.rows, capacity)
   }
   write(row: number, world: Float64Array, shown: boolean, matrices = true) {
-    writePlacementRow(this.rows, row, matrices ? world : null, shown, true)
+    writePlacementRow(this.rows, row, matrices ? world : null, shown, 0)
   }
 }
 

@@ -61,7 +61,7 @@ pub(crate) enum Normals {
 
 /// The three vectors the components of a normal weigh under `matrix`, as `rule` takes them: an axis
 /// or a row of no length left as it is.
-fn normal_rows(matrix: &Mat4, rule: Normals) -> [[f64; 3]; 3] {
+pub(crate) fn normal_rows(matrix: &Mat4, rule: Normals) -> [[f64; 3]; 3] {
     let axes = linear_columns(matrix);
     match rule {
         Normals::Axes => axes.map(unit_or_itself),

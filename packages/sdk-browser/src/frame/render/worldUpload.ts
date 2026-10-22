@@ -74,7 +74,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
     rt.timing.worldCounts.rootsUploaded = named.length
     const moved = selection && named.length ? selection.updateWorlds(worldUpdates, named) : named
     composeHostWrites(rt, moved)
-    rt.gpu?.temporal?.motion.noteMoved(moved)
+    rt.gpu?.velocity?.motion.noteMoved(moved)
     return true
   }
   rt.timing.worldCounts.rootsUploaded = selectionRoots.length
@@ -93,7 +93,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
     rootWorlds(worldUpdates, selectionRoots)
   }
   composeHostWrites(rt, moved)
-  rt.gpu?.temporal?.motion.noteMoved(moved)
+  rt.gpu?.velocity?.motion.noteMoved(moved)
   // A scene that changed shape names no root: every row's world matrix, the only shared input to
   // a row the scene can still change after `prepare()`, is written again.
   if (moved.length) {

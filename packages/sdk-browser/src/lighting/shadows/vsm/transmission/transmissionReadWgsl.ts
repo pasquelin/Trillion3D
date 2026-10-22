@@ -4,7 +4,11 @@ import { highHalf, lowHalf } from '../../../../../../math/src/wgsl/integer.ts'
 import { bilinear3 } from '../../../../../../math/src/wgsl/sampling.ts'
 import { VSM_PAGE_TEXELS } from '../constants.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL } from '../projection/projectionDataWgsl.ts'
-import { VSM_TRANSMISSION_BLOCK_TEXELS, VSM_TRANSMISSION_WIDTH } from './transmissionLayout.ts'
+import {
+  VSM_TRANSMISSION_BLOCK_TEXELS,
+  VSM_TRANSMISSION_FORMAT,
+  VSM_TRANSMISSION_WIDTH,
+} from './transmissionLayout.ts'
 import { VSM_TRANSMISSION_EDGE_WGSL } from './transmissionGeometryWgsl.ts'
 import {
   BLOCK_SHIFT,
@@ -43,11 +47,18 @@ import {
  * Lists `vsmProjectionOf` and the maths library's `bilinear3`; reads its host's `vsm` uniform.
  * `gated`: the host's pipeline alone says whether the frame holds translucent casters, by an
  * override (`VSM_TRANSMISSION`), which folds every read away where it does not (the projection's,
- * whose host binds the real memory exactly with the variant that reads it).
+ * whose host binds the real memory exactly with the variant that reads it). `loadOnly`: the memory
+ * is a read-only storage texture, which spends none of the sixteen sampled textures of the stage
+ * that reads it (`loadOnlyTarget`).
  */
-export const vsmTransmissionReadWgsl = (binding: number, group = 0, gated = false) =>
+export const vsmTransmissionReadWgsl = (
+  binding: number,
+  group = 0,
+  gated = false,
+  loadOnly = false,
+) =>
   wgslBlock(
-    `vsmTransmissionReadWgsl(${binding}, ${group}, ${gated})`,
+    `vsmTransmissionReadWgsl(${binding}, ${group}, ${gated}, ${loadOnly})`,
     [
       VSM_TRANSMISSION_EDGE_WGSL,
       VSM_T_BLOCK_AT_WGSL,
@@ -57,7 +68,7 @@ export const vsmTransmissionReadWgsl = (binding: number, group = 0, gated = fals
       highHalf,
     ],
     `
-@group(${group}) @binding(${binding}) var vsmTransmissionMemory:texture_2d_array<u32>;
+@group(${group}) @binding(${binding}) var vsmTransmissionMemory:${loadOnly ? `texture_storage_2d_array<${VSM_TRANSMISSION_FORMAT},read>` : 'texture_2d_array<u32>'};
 ${
   gated
     ? `/** Whether the frame holds translucent casters' transmission: the pipeline the host chose for it. */
@@ -66,7 +77,7 @@ fn vsmTranslucentCasters()->bool{return VSM_TRANSMISSION;}`
     : `/** Whether the frame holds translucent casters' transmission: a one-texel stand-in otherwise. */
 fn vsmTranslucentCasters()->bool{return textureDimensions(vsmTransmissionMemory).x>1u;}`
 }
-fn vsmTLoad(t:vec2u)->vec4u{return textureLoad(vsmTransmissionMemory,t,0,0);}
+fn vsmTLoad(t:vec2u)->vec4u{return textureLoad(vsmTransmissionMemory,t,0${loadOnly ? '' : ',0'});}
 /** The block of slice texel \`v\` from its first block \`b0\`, the chain read from the first block. */
 fn vsmTBlock(b0:u32,v:u32)->u32{
  let j=v>>${BLOCK_SHIFT}u;

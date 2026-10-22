@@ -1,7 +1,8 @@
 /**
  * The job's per-object settings — whether an object streams on the main grid, whether a skinned
- * object is an instanced one playing a baked clip —, their field, flag, keys and defaults, printed
- * into the compiler's Rust like the rest of `compilerAbi.ts` (`objectOptions.ts` reads them).
+ * object is an instanced one playing a baked clip, the distances an object is drawn at —, their
+ * field, flag, keys and defaults, printed into the compiler's Rust like the rest of
+ * `compilerAbi.ts` (`objectOptions.ts` reads them).
  */
 import type { HlodWireMatch } from './hlodAbi.ts'
 
@@ -27,8 +28,32 @@ export const SPATIALLY_LOADED_SETTING = 'spatiallyLoaded'
  *  default) a skinned object its host's clips move, or the settings naming its clip and how it
  *  plays (`SKINNED_INSTANCE_SETTINGS`). */
 export const SKINNED_INSTANCE_SETTING = 'skinnedInstance'
+/** The distances an object is drawn at, from the eye to the centre of its bounds, in the scene's
+ *  units (`DRAW_DISTANCE_SETTINGS`): `false` (the default) none, it is drawn at every distance, or
+ *  its `min` and `max`. The cut culls an object outside them (`cutDrawDistanceCulling`,
+ *  `cutOptions.ts`). */
+export const DRAW_DISTANCE_SETTING = 'drawDistance'
+/** The streaming grid an object streams on, by its name (`partitionGrids`, `partitionAbi.ts`): the
+ *  first grid when it names none — the reference's default — or a grid the job does not hold. An
+ *  object attached under another streams on the grid of the topmost object above it, as the
+ *  reference's attached actors do. */
+export const RUNTIME_GRID_SETTING = 'runtimeGrid'
 /** The settings an object may name, `objectSettings` and each of its rules. */
-export const OBJECT_SETTINGS = [SPATIALLY_LOADED_SETTING, SKINNED_INSTANCE_SETTING] as const
+export const OBJECT_SETTINGS = [
+  SPATIALLY_LOADED_SETTING,
+  SKINNED_INSTANCE_SETTING,
+  DRAW_DISTANCE_SETTING,
+  RUNTIME_GRID_SETTING,
+] as const
+/** The keys of a draw distance: `min`, the distance under which the object is not drawn, and
+ *  `max`, the distance past which it is not drawn — 0, the default, no farthest distance: the
+ *  object is drawn at every distance, whatever its `min`. */
+export const DRAW_DISTANCE_SETTINGS = ['min', 'max'] as const
+/** An object with a draw distance is drawn from the eye on unless its `min` says otherwise: the
+ *  reference's default. */
+export const DEFAULT_DRAW_DISTANCE_MIN = 0
+/** An object has no farthest draw distance unless its `max` names one: the reference's default. */
+export const DEFAULT_DRAW_DISTANCE_MAX = 0
 /** The settings of an instanced skinned object: `clip`, the animation it plays — its rank in the
  *  document or its name —; `looping`, whether its track wraps or holds its last pose; `playRate`,
  *  the seconds of the clip a second plays; `position`, the second it starts from; `boundsScale`,
@@ -83,10 +108,14 @@ export type SkinnedInstanceWire = {
   animationMinScreenSize?: number
   mobility?: ObjectMobility
 }
+/** An object's draw distance as the compiler reads it, each key left out when not named. */
+export type DrawDistanceWire = { min?: number; max?: number }
 /** One source's object settings as the compiler reads them, each left out when not named. */
 export type ObjectSettingsWire = {
   spatiallyLoaded?: boolean
   skinnedInstance?: boolean | SkinnedInstanceWire
+  drawDistance?: false | DrawDistanceWire
+  runtimeGrid?: string
 }
 /** The object settings as the compiler reads them (`resolveObjectSettings` writes them). */
 export type ObjectSettingsJobWire = ObjectSettingsWire & {

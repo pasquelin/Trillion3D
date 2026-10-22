@@ -46,6 +46,7 @@ const record = ({ centre, radius, spot }: Lamp, rank: number) => ({
   directionCone: [0, -1, 0, spot ? 0.7 : -1],
   params: [spot ? K.KIND_SPOT : 0, -1, 0, spot ? 0.9 : 0],
   shape: [0, 0, 0, 0],
+  capsule: [0, 0, 0, 0],
 })
 
 /** The four programs' sums at pixel (`px`, `py`) of depth `z`: over its cell's list, and over every lamp. */

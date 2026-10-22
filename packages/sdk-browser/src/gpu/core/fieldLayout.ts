@@ -50,6 +50,22 @@ export function fieldLayout<T extends FieldTable>(name: string, table: T, tail =
   return { name, at: at as Readonly<typeof at>, words: alignUp(end, align), align, wgsl }
 }
 
+/** `count` `vec4f` of an array member: four words each, aligned to four. */
+export const vec4Array = (count: number): FieldType => ({
+  wgsl: `array<vec4f,${count}>`,
+  words: 4 * count,
+  align: 4,
+})
+
+/** Writes the four numbers `x, y, z, w` into `out` from its word `at`: the one way a frame's
+ *  `vec4f` is written. */
+export function putVec4(out: Float32Array, at: number, x: number, y = 0, z = 0, w = 0) {
+  out[at] = x
+  out[at + 1] = y
+  out[at + 2] = z
+  out[at + 3] = w
+}
+
 /** `count` words of a word array, as a flat record (a frame, a key record) lays them: no WGSL
  *  struct reads it, the layout alone does. */
 export const u32Words = (count: number): FieldType => ({

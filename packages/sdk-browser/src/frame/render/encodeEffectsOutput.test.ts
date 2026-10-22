@@ -1,37 +1,57 @@
 // What the effect chain on the WebGPU path hands on: a view the finishing leaves as it is — a
 // diagnostic view, a capture, one lit by no declared lamp — and an empty chain show the engine's
 // image without it; a composition gets the last bloom's glow; an outline draws over the display
-// only with objects.
+// only with objects. The finishing's group is made for every lit image and carries the film.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
-import { encodeEffects, encodeOverlayEffects } from './encodeEffects.ts'
+import {
+  effectsMoved,
+  encodeEffects,
+  encodeOverlayEffects,
+  encodeResolvedEffects,
+} from './encodeEffects.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { computePasses, drawing, encoder, framed, input, passes } from './encodeEffects.fixture.ts'
 import { askLocalPrograms, localProgramsReady } from '../../post/finish/local.ts'
+import { finishedGroup, finishMoving } from '../../post/finish/frame.ts'
+import { FINISH } from '../../post/finish/finishLayout.ts'
+import { halton } from '../../../../math/src/sequence/halton.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
+import { grainNoise, grainTexels } from '../../post/finish/grain.ts'
 import { commandArgs } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 import type { PostFrame } from '../../post/finish/finish.ts'
+import { beginTaaFrame } from '../../post/taa/frame.ts'
+import { encodeVelocity } from '../../post/taa/velocityFrame.ts'
+import { TAA_VIEW } from '../../post/taa/bindingsWgsl.ts'
+import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
+import { dispatchedEntries } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { wordsOf } from '../../post/effects/webgpuEffects.fixture.ts'
 
 test('a view left as it is and an empty chain make nothing and hand the input on', () => {
   const { device, textures } = fakeDevice()
   const chain = new EffectChain()
   const rt = drawing(chain)
-  assert.equal(encodeEffects(rt, device, encoder, input, {} as PostFrame), input)
+  assert.equal(
+    encodeEffects(rt, device, encoder, input, {} as PostFrame, rt.gpu.displaySize),
+    input,
+  )
   assert.equal(rt.gpu.effects, undefined, 'an empty chain has no targets and no programs')
   chain.add(effect.bloom())
   Object.assign(rt.run, { diagnostic: 'normals' })
   assert.equal(framed(rt, device), undefined, 'a diagnostic view is not finished')
-  assert.equal(encodeEffects(rt, device, encoder, input, undefined), input)
+  assert.equal(encodeEffects(rt, device, encoder, input, undefined, rt.gpu.displaySize), input)
   Object.assign(rt.run, { diagnostic: 'beauty' })
   rt.capture.capturing = true
   assert.equal(framed(rt, device), undefined, 'nor a capture')
-  assert.equal(encodeEffects(rt, device, encoder, input, undefined), input)
+  assert.equal(encodeEffects(rt, device, encoder, input, undefined, rt.gpu.displaySize), input)
   rt.capture.capturing = false
   Object.assign(rt.lights.store, { unlit: true })
   assert.equal(framed(rt, device), undefined, 'nor a view that shows the albedo')
-  assert.equal(encodeEffects(rt, device, encoder, input, undefined), input)
+  assert.equal(encodeEffects(rt, device, encoder, input, undefined, rt.gpu.displaySize), input)
   assert.deepEqual([rt.gpu.effects, textures.length], [undefined, 0])
   assert.equal(rt.gpu.effectsRevision, chain.revision, 'the revision drawn is kept all the same')
 })
@@ -47,12 +67,19 @@ test('a composition that adds the last bloom gets its glow, and reads the image 
       composesFinish: (sink: unknown) => (asked.push(sink), composes),
     },
   })
-  encodeEffects(rt, device, encoder, input, framed(rt, device))
+  encodeEffects(rt, device, encoder, input, framed(rt, device), rt.gpu.displaySize)
   await rt.gpu.effects!.settled()
-  const compiling = encodeEffects(rt, device, encoder, input, framed(rt, device))
+  const compiling = encodeEffects(
+    rt,
+    device,
+    encoder,
+    input,
+    framed(rt, device),
+    rt.gpu.displaySize,
+  )
   assert.equal(compiling?.glow, undefined, 'still compiling')
   composes = true
-  const composed = encodeEffects(rt, device, encoder, input, framed(rt, device))
+  const composed = encodeEffects(rt, device, encoder, input, framed(rt, device), rt.gpu.displaySize)
   assert.deepEqual([composed?.color, composed?.share], [input.color, input.share])
   assert.ok(composed?.glow, 'the glow the composition adds')
   assert.ok(asked.length > 0)
@@ -63,7 +90,7 @@ test('the local exposure draws its layers before the chain, and the bloom sets u
   const rt = drawing(new EffectChain().add(effect.bloom()))
   askLocalPrograms(device)
   while (!localProgramsReady(device)) await new Promise((resolve) => setTimeout(resolve))
-  encodeEffects(rt, device, encoder, input, framed(rt, device))
+  encodeEffects(rt, device, encoder, input, framed(rt, device), rt.gpu.displaySize)
   await rt.gpu.effects!.settled()
   passes.length = computePasses.length = 0
   const post = framed(rt, device)
@@ -72,13 +99,65 @@ test('the local exposure draws its layers before the chain, and the bloom sets u
   // reads — the half-size image and four more —, the log luminance and its two blur passes.
   assert.equal(computePasses.length, 1)
   assert.equal(passes.length, 5 + 1 + 2)
-  encodeEffects(rt, device, encoder, input, post)
+  encodeEffects(rt, device, encoder, input, post, rt.gpu.displaySize)
   // The bloom's setup, which applies the layers, the five levels under it, the six blurs.
   assert.equal(passes.length, 5 + 1 + 2 + 1 + 5 + 12)
   const setup = passes[5 + 1 + 2]
   const groups = commandArgs(setup.commands, 'setBindGroup')
   assert.equal(groups[1][1], post?.layers, 'the finishing’s group, with the layers, at 1')
   assert.notEqual(post?.layers, post?.bare)
+})
+
+test('the finishing’s group is made for every lit image, with the grain’s texture only where the grain is drawn', () => {
+  const { device, buffers, textures } = fakeDevice()
+  const rt = drawing(new EffectChain())
+  const post = framed(rt, device)
+  const uniform = () => {
+    const { data } = buffers.find(({ label }) => label === 'Trillion3D display finish')!
+    return new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4)
+  }
+  const grains = () => textures.filter(({ label }) => label?.endsWith('finish grain')).length
+  const plain = finishedGroup(rt, post, undefined)
+  assert.ok(plain && grains() === 0, 'the dither is drawn on every image: a group, and no grain')
+  assert.equal(uniform()[FINISH.at.dither], Math.fround(1 / 255), 'the step of an 8-bit target')
+  assert.equal(uniform()[FINISH.at.grainLevels + 3], 0)
+  rt.run.frame = 3
+  finishedGroup(rt, post, undefined)
+  assert.deepEqual(
+    [uniform()[FINISH.at.dither + 1], uniform()[FINISH.at.dither + 2]],
+    [halton(3, 2), halton(3, 3)].map(Math.fround),
+    'the dither’s offset follows the image’s number',
+  )
+  rt.context.filmGrainIntensity = 0.5
+  const grained = finishedGroup(rt, post, undefined)
+  assert.notEqual(grained, plain, 'a group with the grain’s texture')
+  assert.equal(grains(), 1)
+  assert.equal(uniform()[FINISH.at.grainLevels + 3], 1)
+  assert.equal(finishedGroup(rt, post, undefined), grained, 'kept while its images hold')
+  assert.equal(grains(), 1, 'the texture is made once')
+  rt.context.filmGrainIntensity = 0
+  assert.equal(finishedGroup(rt, post, undefined), plain, 'the grain off, the first group again')
+  assert.equal(grains(), 1, 'its texture is kept for the grain to come back')
+  assert.equal(finishMoving(rt), false, 'the settings are those the image was drawn with')
+  rt.context.vignetteSoftness = 3
+  assert.equal(finishMoving(rt), true, 'a film setting moved: the view is drawn again')
+  framed(rt, device)
+  assert.equal(finishMoving(rt), false)
+})
+
+test('the grain’s texture is generated from the reference’s triangular noise and decodes to a mean of 1 a channel', () => {
+  const { bytes, decode } = grainTexels()
+  assert.equal(bytes.length, 128 * 128 * 4)
+  for (let channel = 0; channel < 3; channel++) {
+    let sum = 0
+    for (let at = channel; at < bytes.length; at += 4) sum += bytes[at] / 255
+    near((sum * decode[channel]) / (128 * 128), 1, `channel ${channel}`, 1e-9)
+  }
+  // The noise is triangular on [−1, 1]: the share of it within x of 0 is 2x − x², 0.75 at a half.
+  const noise = Array.from({ length: 20000 }, (_, at) => grainNoise(at + 1))
+  assert.ok(noise.every((v) => Math.abs(v) <= 1))
+  near(noise.filter((v) => Math.abs(v) < 0.5).length / noise.length, 0.75, 'triangular', 0.02)
+  near(noise.reduce((sum, v) => sum + v, 0) / noise.length, 0, 'centred', 0.02)
 })
 
 test('an outline draws over the display only with objects, in the beauty view, outside a capture', async () => {
@@ -115,4 +194,88 @@ test('an outline draws over the display only with objects, in the beauty view, o
   chain.remove(outline)
   assert.equal(over(), 0)
   assert.equal(rt.gpu.effects!.bytes, 0, 'a chain without it holds nothing for it')
+})
+
+/** A view drawn with the temporal pass off and the lit image `lit`, on a kit device: what the
+ *  velocity stage measures from, and the camera it is seen through. */
+function untemporal(chain: EffectChain) {
+  const kit = fakeDevice(),
+    { device } = kit
+  const rt = drawing(chain)
+  const lit = device
+    .createTexture({ size: [8, 4], format: 'rgba16float', usage: 0x14 })
+    .createView()
+  const storage = () => device.createBuffer({ size: 64, usage: 0x80 })
+  Object.assign(rt.gpu, {
+    device,
+    temporalLevel: 'off',
+    hdrView: lit,
+    depthView: device
+      .createTexture({ size: [8, 4], format: 'depth32float', usage: 0x14 })
+      .createView(),
+    cache: { buffer: storage() },
+  })
+  const ids = device.createTexture({ size: [8, 4], format: 'r32uint', usage: 0x14 }).createView()
+  Object.assign(rt.vis, {
+    visView: ids,
+    pageTable: storage(),
+    concatPos: storage(),
+    concatUv: storage(),
+  })
+  const cam = {
+    viewProjection: Float64Array.from(IDENTITY_MATRIX4),
+    projection: Float64Array.from(IDENTITY_MATRIX4),
+    eye: [0, 0, 0],
+    perspective: 1,
+  } as unknown as EngineCamera
+  /** One image: its entry, the velocity stage, then the passes on the resolved image; what they
+   *  leave. */
+  const image = () => {
+    beginTaaFrame(rt, cam)
+    rt.run.frame++
+    rt.gpu.effectsRevision = rt.context.effects!.revision // the chain, as `encodeEffects` keeps it
+    const encoder = device.createCommandEncoder()
+    encodeVelocity(rt, device, encoder, cam)
+    return encodeResolvedEffects(rt, device, encoder, undefined, cam)
+  }
+  return { rt, cam, lit, image, dispatched: () => dispatchedEntries(kit.dispatches) }
+}
+
+test('with the temporal pass off, the motion blur has its motion measured by the velocity stage, and blurs the lit image', async () => {
+  const { rt, cam, lit, image, dispatched } = untemporal(new EffectChain().add(effect.motionBlur()))
+  assert.equal(image(), undefined, 'drawn unblurred while the blur compiles')
+  assert.ok(dispatched().includes('surfaceVelocity'), 'the stage measured the image all the same')
+  await rt.gpu.effects!.settled()
+  const velocity = rt.gpu.velocity!
+  const view = () => wordsOf(velocity.uniform)
+  assert.equal(image(), undefined, 'a still image is left as it is: no streak, no pass')
+  cam.viewProjection[12] = 0.25
+  assert.equal(effectsMoved(rt), false, 'the image drawn is the one the camera shows')
+  const seen = dispatched().length
+  const moving = image()
+  assert.ok(moving && moving.color !== lit, 'the lit image blurred, none of the temporal pass’s')
+  assert.deepEqual(dispatched().slice(seen, seen + 2), ['surfaceVelocity', 'flattenMotion'])
+  // The last image's view is the one the motion is told against.
+  const { invViewProj, prevViewProj } = TAA_VIEW.at
+  assert.deepEqual([view()[prevViewProj + 12], view()[invViewProj + 12]], [0, -0.25])
+  assert.equal(effectsMoved(rt), true, 'a quiet view is drawn once more, its motion nil')
+  assert.equal(image(), undefined, 'which has no motion to blur')
+  assert.equal(effectsMoved(rt), false)
+})
+
+test('the velocity stage is made for a blur that draws, and its target given back when none does', async () => {
+  const chain = new EffectChain().add(effect.bloom())
+  const { rt, cam, image, dispatched } = untemporal(chain)
+  image()
+  assert.deepEqual([rt.gpu.velocity, dispatched().includes('surfaceVelocity')], [undefined, false])
+  chain.add(effect.motionBlur())
+  image()
+  await rt.gpu.effects!.settled()
+  cam.viewProjection[12] = 0.25
+  assert.ok(image() && rt.gpu.velocity!.bytes > 0, 'asked by the blur alone')
+  rt.context.motionBlurQuality = 'off'
+  assert.equal(effectsMoved(rt), true, 'a setting changed breaks the hold')
+  assert.equal(image(), undefined, 'the quality off blurs nothing')
+  assert.deepEqual([rt.gpu.velocity!.bytes, rt.gpu.effects?.bytes], [0, 0], 'and holds nothing')
+  assert.equal(effectsMoved(rt), false, 'drawn with it')
 })

@@ -23,9 +23,12 @@ export interface VsmTraceBindings {
   /** The device grants subgroups: a local light's rays vote over the fragment's subgroup
    *  (`vsmLoneVoteWgsl`). */
   subgroups?: boolean
+  /** The blue noise and the translucent casters' memory are read-only storage textures, read by
+   *  load, not sampled textures (`vsmBlueNoiseWgsl`, `vsmTransmissionReadWgsl`). */
+  loadOnly?: boolean
 }
 export const vsmTraceBindingsLabel = (t: VsmTraceBindings) =>
-  `${t.view} ${t.noise} ${!!t.subgroups}`
+  `${t.view} ${t.noise} ${!!t.subgroups} ${!!t.loadOnly}`
 
 /** The pool's first slice at `binding` of group `group`, read as the VSM passes read it
  *  (`vsmPoolLoadOf`): the same windows and words, compiled for the largest pool the engine grants

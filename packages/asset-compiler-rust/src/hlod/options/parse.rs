@@ -119,7 +119,7 @@ pub(super) fn layer(entry: &Value, what: &str) -> Result<(HlodLayer, Option<Stri
         size_filter,
         simplifying,
         cluster_dag,
-        mesh_build: super::meshes::mesh_build(map, &what)?,
+        mesh_build: super::meshes::mesh_build(map, &what, builder)?,
         spatially_loaded,
         cell_size: positive(map, "cellSize", &what)?.unwrap_or(DEFAULT_HLOD_CELL_SIZE),
         loading_range: positive(map, "loadingRange", &what)?.unwrap_or(DEFAULT_HLOD_LOADING_RANGE),

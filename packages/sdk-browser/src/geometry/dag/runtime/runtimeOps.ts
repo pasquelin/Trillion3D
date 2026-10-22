@@ -12,8 +12,16 @@ import type { ProxyInstances } from '../proxy/proxyInstances.ts'
 import type { LinkFollower } from '../worlds/worldFollow.ts'
 import type { PageResidency } from '../../../gpu/core/selection.ts'
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
-import { MARK_WORD, ROOT_WORD } from '../frameTable.ts'
+import {
+  DRAW_DISTANCE_MARK,
+  DRAW_FAR_WORD,
+  DRAW_NEAR_WORD,
+  MARK_WORD,
+  ROOT_WORD,
+} from '../frameTable.ts'
 import { markWithdraws } from '../placement/placementTree.ts'
+import { f32Bits } from '../../../../../math/src/float/bits.ts'
+import type { DrawDistance } from '../../selection/types.ts'
 
 /** What a camera cut's methods share (`runtime.ts`): its tables, its state, the difference chain,
  *  the residency upload, the tree's and the world cells' followers, and the main view's dispatch. */
@@ -93,6 +101,31 @@ export function writeMark({ resources, state, tree, proxies }: DagRun, w: number
   // their values.
   if (markWithdraws(before, mark)) voidCuts(state, true)
   else if (mark >>> 16 > before >>> 16) voidCuts(state, false)
+}
+
+/**
+ * Placement `w` drawn at `distance` from now on, none for every distance (`DagRoot.drawDistance`):
+ * its two frame words, the mark bit that says it names one, the distances' column (made by the
+ * first placement that names one), and the tree's group refit again, which holds their nearest and
+ * farthest. A cut in hand chose pages under the old distances: void. Nothing when it is the
+ * distance it has.
+ */
+export function writeDrawDistance(run: DagRun, w: number, distance: DrawDistance | undefined) {
+  const { resources, state, tree } = run,
+    { packed, frames } = resources
+  const near = distance?.min ?? 0,
+    far = distance?.max ?? 0
+  if (!packed.drawDistance && far <= 0) return
+  const held = (packed.drawDistance ??= new Float32Array(2 * Math.max(1, packed.worldCount)))
+  if (held[2 * w] === near && held[2 * w + 1] === far) return
+  held[2 * w] = near
+  held[2 * w + 1] = far
+  frames.writeWord(w, DRAW_NEAR_WORD, f32Bits(near))
+  frames.writeWord(w, DRAW_FAR_WORD, f32Bits(far))
+  const mark = packed.mark[w]
+  writeMark(run, w, far > 0 ? mark | DRAW_DISTANCE_MARK : mark & ~DRAW_DISTANCE_MARK)
+  tree?.touch(w)
+  voidCuts(state, true)
 }
 
 /** `GpuSelection.flush`: the reads in flight drained, the lists laid out again for caps the session

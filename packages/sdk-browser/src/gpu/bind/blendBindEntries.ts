@@ -1,6 +1,8 @@
 import { bufferEntry, resourceEntry } from './liveEntries.ts'
 import { BLEND_BINDINGS, atlasLayoutEntries } from './bindLayout.ts'
-import { bufferLayout, textureLayout } from '../core/computeBindings.ts'
+import { bufferLayout, storageTextureLayout, textureLayout } from '../core/computeBindings.ts'
+import { VSM_BLUE_NOISE_FORMAT } from '../../lighting/shadows/vsm/blueNoise.ts'
+import { VSM_TRANSMISSION_FORMAT } from '../../lighting/shadows/vsm/transmission/transmissionLayout.ts'
 import { atlasEntries, type AtlasResources } from './bindEntries.ts'
 import { FRONT_TRACED_LAYOUT } from '../../lighting/reflections/frontLayer.ts'
 
@@ -28,6 +30,11 @@ export type BlendLighting = {
   /** The transparents' front radiance the reflection trace wrote (`../../lighting/reflections/frontLayer.ts`),
    *  or its stand-in: what a fragment of the front surface reflects. */
   frontTraced: GPUTextureView
+  /** What the fog reads past the light buffer (`BLEND_FOG_BINDINGS`, `FogRead`): the cubemap, the
+   *  volume and the sampler, or their stand-ins. */
+  fogCubemap: GPUTextureView
+  fogVolume: GPUTextureView
+  fogSampler: GPUSampler
 }
 
 /** Resources of a transparent-mesh group: the mesh itself and the scene. */
@@ -89,16 +96,24 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   shadowData: ['fragment', STORAGE],
   shadowAtlas: ['fragment', STORAGE],
   shadowSampler: ['fragment', UNIFORM],
-  shadowTransmittance: ['fragment', textureLayout('uint', '2d-array')],
+  // The casters' memory, the blue noise and the front's radiance are read by load alone: read-only
+  // storage textures, which spend none of the sixteen sampled textures of the fragment stage
+  // (`loadOnlyTarget`, `BLEND_TRACE_BINDINGS`).
+  shadowTransmittance: ['fragment', storageTextureLayout(VSM_TRANSMISSION_FORMAT, '2d-array')],
   shadowPool: ['fragment', STORAGE],
   shadowView: ['fragment', UNIFORM],
-  shadowNoise: ['fragment', textureLayout('unfilterable-float')],
+  shadowNoise: ['fragment', storageTextureLayout(VSM_BLUE_NOISE_FORMAT)],
   bounceGrid: ['fragment', UNIFORM],
   probes: ['fragment', FLOAT_ARRAY],
   tileLights: ['fragment', STORAGE],
-  // The front's traced radiance, a texture read by load: nothing the fragment stage could write, which
-  // would cost the pass its early depth reject (4232 hidden fragment draws).
+  // The front's traced radiance, read by load: nothing the fragment stage could write, which would
+  // cost the pass its early depth reject (4232 hidden fragment draws).
   frontTraced: ['fragment', FRONT_TRACED_LAYOUT],
+  // The fog's cubemap and volume, and the sampler they are read through: the entries
+  // `fogReadLayoutEntries` makes for a program that binds them.
+  fogCubemap: ['fragment', textureLayout('float', 'cube')],
+  fogVolume: ['fragment', textureLayout('float', '3d')],
+  fogSampler: ['fragment', { sampler: { type: 'filtering' } }],
   // The surfaces' records (`../../materials/table/materialTable.ts`), which the vertex stage reads an item's
   // factors and maps from and a lobed fragment its lobes: a texture, the fragment stage holding
   // the eight storage buffers WebGPU guarantees.

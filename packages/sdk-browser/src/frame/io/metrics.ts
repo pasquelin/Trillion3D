@@ -17,6 +17,7 @@ import { transparentCounts } from '../backend/state/transparentCounts.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { bounceState } from '../backend/state/bounce.ts'
 import { viewTargetBytes } from '../backend/state/gpu.ts'
+import { disposeFogVolume } from '../render/encodeFogVolume.ts'
 
 /** Geometry bytes beside the page pool: the float pool's three lists. */
 export function vertexBytesOf(
@@ -116,18 +117,24 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
 }
 
 /** The passes that make the image after the lighting resolve, released: the deferred resolve, the
- *  temporal pass, the exposure, the finishing, the effects, the guides, the particles, the frame
- *  difference and the atmosphere. */
+ *  temporal pass, the velocity stage, the exposure, the finishing, the effects, the guides, the
+ *  particles, the frame difference and the atmosphere. */
 function disposeImagePasses(gpu: WebgpuPagesRuntime['gpu']) {
   gpu.deferred?.dispose()
   gpu.temporal?.dispose()
   gpu.temporal = undefined
+  gpu.velocity?.dispose()
+  gpu.velocity = undefined
   gpu.exposure?.dispose()
   gpu.exposure = undefined
   gpu.finish?.dispose()
   gpu.finish = undefined
   gpu.effects?.dispose()
   gpu.effects = undefined
+  gpu.screenProbes?.dispose()
+  gpu.screenProbes = undefined
+  gpu.ambientOcclusion?.dispose()
+  gpu.ambientOcclusion = undefined
   gpu.guides?.dispose()
   gpu.guides = undefined
   gpu.particles?.dispose()
@@ -136,6 +143,7 @@ function disposeImagePasses(gpu: WebgpuPagesRuntime['gpu']) {
   gpu.frameDifference = undefined
   gpu.atmosphere?.dispose()
   gpu.atmosphere = undefined
+  disposeFogVolume(gpu)
 }
 
 /** Releases every GPU resource and the scene; the trace queue is drained before the promise settles. */
@@ -185,6 +193,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.lights.mobilityRows = rt.lights.rowLods = undefined
   rt.bounce.probes?.dispose()
   rt.bounce.probes = undefined
+  rt.bounce.screen?.dispose()
+  rt.bounce.screen = undefined
   rt.lights.spheres?.buffer.destroy()
   rt.lights.casts?.buffer.destroy()
   rt.lights.casts = undefined

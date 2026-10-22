@@ -1,4 +1,4 @@
-import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
+import { DEFERRED_BINDINGS, DEFERRED_FOG_BINDINGS } from '../deferred/bindings.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { vsmTraceKindsOf } from '../shadows/vsm/trace/traceWgsl.ts'
 import { directLightWgsl } from './lightWgsl.ts'
@@ -16,7 +16,8 @@ import {
 import { directShadowWgsl } from './shadowWgsl.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
-import { FOG_WGSL } from '../fogShader.ts'
+import { fogBlockOf } from '../fog/readWgsl.ts'
+import { fogBindingsLabel, type FogResourceBindings } from '../fog/readWgsl.ts'
 import { reflectionLobeWgsl } from '../lobeAxisWgsl.ts'
 import {
   LOBELESS_LIGHTING_WGSL,
@@ -79,6 +80,8 @@ export type LightingBindings = {
   vsm?: VsmConsumerBindings
   resolveTransmission?: number
   trace?: VsmTraceBindings
+  /** Where the fog's cubemap, volume and frame are bound (`fogBlockOf`). */
+  fog: FogResourceBindings
 }
 
 /** The bindings as a block name reads them, in their declared order, the defaults resolved. */
@@ -87,8 +90,9 @@ export const bindingsLabel = ({
   vsm,
   resolveTransmission,
   trace,
+  fog,
 }: LightingBindings) =>
-  `${transmittance}, ${vsm ? vsmBindingsLabel(vsm) : null}, ${resolveTransmission ?? null}, ${trace ? vsmTraceBindingsLabel(trace) : null}`
+  `${transmittance}, ${vsm ? vsmBindingsLabel(vsm) : null}, ${resolveTransmission ?? null}, ${trace ? vsmTraceBindingsLabel(trace) : null}, ${fogBindingsLabel(fog)}`
 
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
@@ -117,7 +121,7 @@ export const lightingBase = (
           ? { vsm: bindings.vsm, trace: bindings.trace, kinds: vsmTraceKindsOf(key) }
           : { pass: 'mask', resolveTransmission: bindings.resolveTransmission },
       ),
-      FOG_WGSL,
+      fogBlockOf(bindings.fog),
       declaredLightWgsl(key),
       TILE_SLICE_WGSL,
       sliceLightingWgsl(),
@@ -158,6 +162,7 @@ fn litSurface(lights:vec3f,bounce:vec3f,environment:vec3f,reflection:vec3f,emiss
 const DIRECT_BINDINGS: LightingBindings = {
   transmittance: CONTRACT_SHADOW_BINDINGS.transmittance,
   resolveTransmission: DEFERRED_BINDINGS.transmissionResolve,
+  fog: DEFERRED_FOG_BINDINGS,
 }
 
 /**

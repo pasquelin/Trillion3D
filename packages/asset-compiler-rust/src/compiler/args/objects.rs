@@ -1,7 +1,9 @@
 //! A job's object settings as the compiler reads them (`objectOptions.ts` writes them): for each
 //! node of the scene, the settings of `OBJECT_SETTINGS` (`ObjectSetting`) — whether it streams on
-//! the partition's main grid, and whether a skinned one is an instanced skinned object playing a
-//! clip baked into the scene's animation banks (`SkinnedInstance`, `../tables/motion/bank.rs`).
+//! the partition's main grid, whether a skinned one is an instanced skinned object playing a
+//! clip baked into the scene's animation banks (`SkinnedInstance`, `../tables/motion/bank.rs`),
+//! the distances it is drawn at (`DrawDistance`, `draw_distance.rs`), and the name of the
+//! streaming grid it streams on (`RUNTIME_GRID_SETTING`, `PartitionGrid`).
 //! For each setting of a node, the first that names it:
 //! 1. the first rule of `objectSettings.objects` whose match names the node, as `meshBuild` names
 //!    its objects;
@@ -10,15 +12,21 @@
 //! 4. the default, the reference's.
 //!
 //! `skinnedInstance` is one value, the source naming it gives it whole: `true` every default,
-//! `false` no instance, an object its settings (`SKINNED_INSTANCE_SETTINGS`) over the defaults.
+//! `false` no instance, an object its settings (`SKINNED_INSTANCE_SETTINGS`) over the defaults;
+//! so is `drawDistance`: `false` none, an object its keys (`DRAW_DISTANCE_SETTINGS`) over the
+//! defaults.
 //!
 //! A job naming no `objectSettings` compiles as before, its cache key unchanged. Read and checked
 //! here once; what does not read is the job's refusal (`INVALID_OPTIONS`,
 //! `validate_compile_options`), never the batch's — a node's `extras` setting that does not read
 //! included, when the node is resolved.
 use super::name_match::{present, read_rules, NameMatch, NodeNames};
+use super::partition::is_grid_name;
 use super::*;
 use crate::compiler::validate::OPTIONS;
+pub(crate) use draw_distance::DrawDistance;
+
+mod draw_distance;
 
 /// The animation an instanced skinned object plays: its rank in the document, or its name. None
 /// names the first animation of the document that moves a joint of the object's skin.
@@ -151,12 +159,15 @@ impl SkinnedInstance {
 }
 
 /// One node's settings, every one resolved (`ObjectSettings::node`): whether it streams on the
-/// partition's main grid (`SPATIALLY_LOADED_SETTING`), and the instance it is when a skinned one
-/// is instanced (`SKINNED_INSTANCE_SETTING`), none when it is not.
+/// partition's main grid (`SPATIALLY_LOADED_SETTING`), the instance it is when a skinned one
+/// is instanced (`SKINNED_INSTANCE_SETTING`), none when it is not, and the name of the streaming
+/// grid it streams on (`RUNTIME_GRID_SETTING`), none for the first grid.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ObjectSetting {
     pub spatially_loaded: bool,
     pub skinned: Option<SkinnedInstance>,
+    pub draw_distance: Option<DrawDistance>,
+    pub runtime_grid: Option<String>,
 }
 
 /// The settings one source names, each none where it names none; `skinned` names its instance,
@@ -165,6 +176,8 @@ pub(crate) struct ObjectSetting {
 struct Named {
     spatially_loaded: Option<bool>,
     skinned: Option<Option<SkinnedInstance>>,
+    draw_distance: Option<Option<DrawDistance>>,
+    runtime_grid: Option<String>,
 }
 
 impl Named {
@@ -177,9 +190,23 @@ impl Named {
         let skinned = present(map.get(SKINNED_INSTANCE_SETTING))
             .map(|v| SkinnedInstance::read(v, &format!("{what}{SKINNED_INSTANCE_SETTING}")))
             .transpose()?;
+        let draw_distance = present(map.get(DRAW_DISTANCE_SETTING))
+            .map(|v| DrawDistance::read(v, &format!("{what}{DRAW_DISTANCE_SETTING}")))
+            .transpose()?;
+        let runtime_grid = present(map.get(RUNTIME_GRID_SETTING))
+            .map(|v| match v.as_str() {
+                Some(name) if is_grid_name(name) => Ok(name.to_string()),
+                _ => Err(OPTIONS.bad(format!(
+                    "{what}{RUNTIME_GRID_SETTING} must be the name of a streaming grid, a text \
+                     with none of {PARTITION_GRID_NAME_FORBIDDEN}, got {v}"
+                ))),
+            })
+            .transpose()?;
         Ok(Self {
             spatially_loaded,
             skinned,
+            draw_distance,
+            runtime_grid,
         })
     }
 
@@ -188,6 +215,8 @@ impl Named {
         Self {
             spatially_loaded: self.spatially_loaded.or(lower.spatially_loaded),
             skinned: self.skinned.or_else(|| lower.skinned.clone()),
+            draw_distance: self.draw_distance.or(lower.draw_distance),
+            runtime_grid: self.runtime_grid.or_else(|| lower.runtime_grid.clone()),
         }
     }
 
@@ -196,6 +225,8 @@ impl Named {
         ObjectSetting {
             spatially_loaded: self.spatially_loaded.unwrap_or(DEFAULT_SPATIALLY_LOADED),
             skinned: self.skinned.flatten(),
+            draw_distance: self.draw_distance.flatten(),
+            runtime_grid: self.runtime_grid,
         }
     }
 }

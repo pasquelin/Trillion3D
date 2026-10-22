@@ -64,3 +64,69 @@ test('a point radius reaches its packed shape lane and updates without changing 
   assert.equal(store.packed[lane], 0.25)
   assert.deepEqual(store.packed.slice(baseOf(1), baseOf(2)), neighbour)
 })
+
+test('a lamp’s tube and soft radius pass validation, and reach their lanes: zero for any light without', () => {
+  const tube = validateSceneLight({
+    ...lanterne(0.2),
+    emitterLength: 2,
+    emitterSoftRadius: 0.1,
+    emitterAxis: [0, 3, 0],
+  })
+  assert.deepEqual(
+    [tube.emitterLength, tube.emitterSoftRadius, tube.emitterAxis],
+    [2, 0.1, [0, 1, 0]],
+  )
+  assert.equal(validateSceneLight({ ...lanterne(), emitterLength: 1 }).emitterAxis, undefined)
+  for (const bad of [{ emitterLength: 0 }, { emitterLength: -1 }, { emitterLength: Number.NaN }])
+    assert.throws(() => validateSceneLight({ ...lanterne(), ...bad }), /emitter length/)
+  for (const soft of [0, -1, 30, Number.NaN])
+    assert.throws(
+      () => validateSceneLight({ ...lanterne(), emitterSoftRadius: soft }),
+      /soft radius/,
+    )
+  assert.throws(
+    () => validateSceneLight({ ...lanterne(), emitterAxis: [0, 1, 0] }),
+    /only with an emitterLength/,
+  )
+  assert.throws(
+    () => validateSceneLight({ ...lanterne(), emitterLength: 1, emitterAxis: [0, 0, 0] }),
+    /zero-length/,
+  )
+  const sun = {
+    ...lanterne(),
+    kind: 'directional',
+    direction: [0, -1, 0],
+    position: undefined,
+    range: undefined,
+  } as SceneLight
+  for (const field of [
+    { emitterLength: 1 },
+    { emitterSoftRadius: 0.1 },
+    { emitterAxis: [0, 1, 0] },
+  ])
+    assert.throws(
+      () => validateSceneLight({ ...sun, ...field } as SceneLight),
+      /does not exist for a directional/,
+    )
+  // The lanes: the axis times half the length, then the soft radius; a light without either, or
+  // another in the slot, leaves them zero.
+  const store = createSceneLightStore()
+  store.add(validateSceneLight({ ...lanterne(), emitterLength: 4, emitterSoftRadius: 0.5 }))
+  const at = baseOf(0)
+  assert.deepEqual(
+    [...store.packed.slice(at + LIGHT_FIELD.halfAxis, at + LIGHT_FIELD.halfAxis + 3)],
+    [0, 2, 0],
+    'up, by default',
+  )
+  assert.equal(store.packed[at + LIGHT_FIELD.softRadius], 0.5)
+  store.set('lanterne', { emitterLength: undefined, emitterSoftRadius: undefined })
+  assert.deepEqual(
+    [...store.packed.slice(at + LIGHT_FIELD.halfAxis, at + LIGHT_FIELD.softRadius + 1)],
+    [0, 0, 0, 0],
+  )
+  store.set('lanterne', { emitterLength: 1, emitterAxis: [1, 0, 0] })
+  assert.deepEqual(
+    [...store.packed.slice(at + LIGHT_FIELD.halfAxis, at + LIGHT_FIELD.halfAxis + 3)],
+    [0.5, 0, 0],
+  )
+})

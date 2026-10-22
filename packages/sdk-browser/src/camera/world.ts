@@ -9,6 +9,7 @@ import {
 } from './engineCamera.ts'
 import type { ControlVector } from './controls/types.ts'
 import type { HostRotation } from '../scene/host/scan/graphNodes.ts'
+import { NO_VIEW_SET, type ViewSet } from '../../../sdk-core/src/world/camera/viewSet.ts'
 
 /**
  * THE CAMERA-POSE CONTRACT. Unique home of a camera's world pose in `sdk-browser`;
@@ -97,6 +98,9 @@ export type HostCamera = {
   /** Turns it toward a point. */ lookAt(target: ControlVector): void
   /** A view of its own the host keeps — the pose a measurement comes back to. */
   clone(): HostCamera
+  /** The clip plane and the lists of objects the view draws by, when the host's camera has any
+   *  (`ViewSet`). */
+  _viewSet?: ViewSet
 }
 /** What resolving a world pose asks of a host object, and nothing more: a camera, a rig, a node. */
 export type HostResolvable = { updateWorldMatrix(ancestors: boolean, descendants: boolean): void }
@@ -135,6 +139,7 @@ export function readCameraWorld(
   optics.zoom = camera.zoom
   optics.orthographic = camera.orthographic
   optics.viewTile = (camera as { viewTile?: CameraOptics['viewTile'] }).viewTile ?? null
+  into.viewSet = camera._viewSet ?? NO_VIEW_SET
   return writeEngineCamera(into, optics)
 }
 

@@ -1,7 +1,8 @@
 /**
  * THE RASTER'S CHUNKS ENCODED (`renderPass.ts`): its groups — over the scene's rows and the lists,
  * made again when one of them moved, and over the VSM tables once a frame set —, then the
- * candidates and, for each chunk, its cull and expand pass and its raster pass.
+ * candidates and, for each view pass (`renderViewPasses.ts`), its views and, for each chunk, its
+ * cull and expand pass and its raster pass.
  */
 import { sequentialEntries } from '../../../../gpu/core/computeBindings.ts'
 import { VSM_RENDER_CULL_SPECS } from './renderCullWgsl.ts'
@@ -11,6 +12,7 @@ import {
   VSM_RENDER_ARGS_STRIDE_WORDS,
   VSM_RENDER_ARGS_TIER_EXPAND,
   VSM_RENDER_CORNER_TIERS,
+  VSM_RENDER_COUNT_VIEWS,
   VSM_RENDER_TIERS,
 } from './renderParamsWgsl.ts'
 import type { PreparedPipeline } from '../../../deferred/fullscreen.ts'
@@ -26,11 +28,14 @@ import { vsmBufferGroup } from '../passKit.ts'
 import {
   encodeVsmCandidates,
   encodeVsmChunkCommands,
+  encodeVsmViews,
   vsmChunkListGroups,
   vsmSceneRowsMoved,
   type VsmChunkGroups,
 } from '../chunks/chunkGroups.ts'
 import type { VsmRenderContext, VsmRenderScene } from './renderPass.ts'
+import type { VsmViewPass } from './renderViewPasses.ts'
+import { vsmChunkSlot } from '../chunks/chunkParams.ts'
 
 /** Chunk `c`'s commands (`encodeVsmChunkCommands`), their bin by corner tier, then the expand of
  *  each of the first `tiers` tiers over its commands, lowest first (marking jobs and the raster's
@@ -110,10 +115,13 @@ function tiersDrawn(ctx: VsmRenderContext, voxels: boolean) {
 
 /**
  * The candidates' kernel over `rowCount` rows, the camera cut's world switch bound by `world`
- * (`vsmWorldGroup`), then, for each of `chunks` — one at least, the rows being some
- * (`encodeVsmRender`) —, its compute pass (the cull and the expand) and its raster pass. The
- * candidates open chunk 0's pass: its dispatches read what theirs wrote, as a following pass
- * would, and no command of the encoder lies between them.
+ * (`vsmWorldGroup`), then, for each of `passes` — one at least, the maps being some
+ * (`encodeVsmRender`) —, its views and, for each of `chunks` — one at least, the rows being some —,
+ * its compute pass (the cull and the expand) and its raster pass. The candidates and the first
+ * pass's views open its chunk 0's pass: their dispatches read what theirs wrote, as a following
+ * pass would, and no command of the encoder lies between them. A later pass lists its own views
+ * (`encodeVsmViews`) once the count of the one before is cleared, and takes its chunks' slots after
+ * the pass before's; the candidates are the frame's, the rows being one list for every view.
  */
 export function vsmEncodeChunks(
   encoder: GPUCommandEncoder,
@@ -124,38 +132,39 @@ export function vsmEncodeChunks(
   args: GPUBuffer,
   rowCount: number,
   chunks: number,
-  mapCount: number,
+  passes: readonly Pick<VsmViewPass, 'maps'>[],
   voxels = false,
 ) {
-  const tiers = tiersDrawn(ctx, voxels)
-  const opening = ctx.passes.chunk(0),
-    first = encoder.beginComputePass(opening.cullPass)
-  encodeVsmCandidates(
-    first,
-    ctx.candidates.pipeline,
-    groups.cand,
-    world,
-    ctx,
-    groups.chunk,
-    rowCount,
-    mapCount,
-  )
-  for (let c = 0; c < chunks; c++) {
-    const each = ctx.passes.chunk(c)
-    const pass = c ? encoder.beginComputePass(each.cullPass) : first
-    encodeVsmChunkCull(pass, ctx, groups.chunk, args, c, each.offset, tiers)
-    pass.end()
-    // The non-cluster raster: one page viewport, atomicMax into the pool.
-    encodeVsmChunkRaster(
-      encoder,
-      each.raster,
-      [ctx.raster.tiers, tiers],
-      ctx.target,
-      pageGroup,
-      groups.raster1,
-      args,
-      c,
-    )
+  const tiers = tiersDrawn(ctx, voxels),
+    target = [ctx.raster.tiers, tiers] as const
+  for (let p = 0; p < passes.length; p++) {
+    if (p) encoder.clearBuffer(ctx.buffers.counts!, VSM_RENDER_COUNT_VIEWS * 4, 4)
+    for (let c = 0; c < chunks; c++) {
+      const slot = vsmChunkSlot(chunks, p, c),
+        each = ctx.passes.chunk(slot),
+        pass = encoder.beginComputePass(each.cullPass)
+      // A pass opens with its views, the frame's first with the candidates before them.
+      if (!c) {
+        if (!p) {
+          const candidates = ctx.candidates.pipeline
+          encodeVsmCandidates(pass, candidates, groups.cand, world, rowCount)
+        }
+        encodeVsmViews(pass, ctx, groups.chunk, each.offset, passes[p].maps)
+      }
+      encodeVsmChunkCull(pass, ctx, groups.chunk, args, slot, each.offset, tiers)
+      pass.end()
+      // The non-cluster raster: one page viewport, atomicMax into the pool.
+      encodeVsmChunkRaster(
+        encoder,
+        each.raster,
+        target,
+        ctx.target,
+        pageGroup,
+        groups.raster1,
+        args,
+        slot,
+      )
+    }
   }
 }
 

@@ -60,6 +60,14 @@ fn setupTriangle(row:u32,page:PageInfo,h:ClusterHeader,triangle:u32,vp:mat4x4f,d
  let s0=subpixelOf(vp*vec4f(pagePosition(page,h,t.corners.x),1.0));
  let s1=subpixelOf(vp*vec4f(pagePosition(page,h,t.corners.y),1.0));
  let s2=subpixelOf(vp*vec4f(pagePosition(page,h,t.corners.z),1.0));
+ return setupSubpixel(t,page,det,s0,s1,s2);
+}
+/** Triangle \`start\` — its row and triangle named, its corners where it has them — of \`page\`,
+ *  set up from its three corners already on the subpixel grid (\`subpixelOf\`), \`det\` the
+ *  determinant of its world's linear part: the rest of the setup, which the tessellation's
+ *  micro-triangles take as the page's own do. */
+fn setupSubpixel(start:Tri,page:PageInfo,det:f32,s0:vec4f,s1:vec4f,s2:vec4f)->Tri{
+ var t=start;
  var e01=s0.xy-s1.xy;var e12=s1.xy-s2.xy;var e20=s2.xy-s0.xy;
  let area=e01.y*e20.x-e01.x*e20.y;
  // Flat on the grid, it covers no sample under the fill rule.

@@ -1,4 +1,4 @@
-import { DEFERRED_BINDINGS } from './bindings.ts'
+import { DEFERRED_BINDINGS, DEFERRED_FOG_BINDINGS } from './bindings.ts'
 import { SUBSURFACE_FLAG } from '../../materials/surface/subsurface.ts'
 import {
   AS_IS_FLAG,
@@ -12,8 +12,9 @@ import { PHYSICAL_SURFACE_FLAG } from '../../materials/surface/physicalLobes.ts'
 import { readLobesStatement } from '../direct/lobesWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { RESOLVED_INDIRECT_WGSL } from '../reflections/weight.ts'
-import { FOG_WGSL } from '../fogShader.ts'
+import { fogBlockOf } from '../fog/readWgsl.ts'
 import { WORLD_AT_WGSL } from './worldAtWgsl.ts'
+import { AMBIENT_OCCLUSION_READ_WGSL, AMBIENT_OCCLUSION_STATEMENT } from './ambientOcclusionWgsl.ts'
 
 /** The lighting's entry and its camera fog. */
 export const LIGHT_SURFACE_ENTRY =
@@ -30,7 +31,7 @@ const CAMERA_FOG = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(r
  */
 const BACKGROUND_FOG_WGSL = wgslBlock(
   'BACKGROUND_FOG_WGSL',
-  [WORLD_AT_WGSL, FOG_WGSL],
+  [WORLD_AT_WGSL, fogBlockOf(DEFERRED_FOG_BINDINGS)],
   `fn backgroundFog(pixel:vec2f)->vec4f{
  if(view.viewport.z!=0.0||view.camera.w==0.0||!fogsBackground()){return vec4f(0.0);}
  let eye=view.display.yzw;
@@ -59,7 +60,7 @@ const SHADOW_SETUP_WGSL = wgslBlock(
  *  wrote it. */
 const SURFACE_TERMS = {
   bounce: {
-    indirect: 'resolvedIndirect(coord,albedo,base.a,normal.a,N,V,P,emissive.a)',
+    indirect: 'resolvedIndirect(coord,albedo,base.a,normal.a,N,V,P,occlusion.sky)',
     diagnostic: 'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
     blocks: [RESOLVED_INDIRECT_WGSL],
   },
@@ -83,13 +84,14 @@ const LIGHT_VIEW_STATEMENTS = {
   return vec4f(vec3f(select(1.0,seen.x/seen.y,seen.y>0.0)),1.0);
  }`,
   terms: `if(lightView==1u){return vec4f(indirect[1],1.0);}
- if(lightView==3u){return vec4f(litSurface(lit,indirect[0],environmentLighting(albedo,base.a,N,emissive.a),indirect[1],vec3f(0.0),N,P,emissive.a),1.0);}`,
+ if(lightView==3u){return vec4f(litSurface(lit,indirect[0]*occlusion.bounce,environmentLighting(albedo,base.a,N,occlusion.sky),indirect[1],vec3f(0.0),N,P,occlusion.sky),1.0);}`,
 }
 
 /** The surface of the contract programs, with `bounce` the bounce program's: it reads its lobes
  *  where its flag says so, and the environment and the reflection (`SURFACE_TERMS`, its
  *  program's) go under their coat (`../direct/lobesWgsl.ts`), a view of the lit image showing one
- *  term of them (`LIGHT_VIEW_STATEMENTS`) —
+ *  term of them (`LIGHT_VIEW_STATEMENTS`); the ambient occlusion applies to the emission, the sky light and the
+ *  probes' light as the view says (`ambientOcclusionApplied`) —
  *  in a lobeless program, or on a pixel without lobes, a call that reads nothing and a
  *  multiplication by one, which changes no bit. */
 export const contractSurfaceBody = (bounce: boolean) => {
@@ -101,6 +103,7 @@ export const contractSurfaceBody = (bounce: boolean) => {
       BACKGROUND_FOG_WGSL,
       SURFACE_EMISSIVE_AO_WGSL,
       SHADOW_SETUP_WGSL,
+      AMBIENT_OCCLUSION_READ_WGSL,
       ...blocks,
     ],
     `${LIGHT_SURFACE_ENTRY}
@@ -124,9 +127,10 @@ export const contractSurfaceBody = (bounce: boolean) => {
  ${diagnostic}
  ${LIGHT_VIEW_STATEMENTS.head}
  let lit=contractLighting(albedo,base.a,normal.a,N,V,P,emissive.a,cell);
+ ${AMBIENT_OCCLUSION_STATEMENT}
  let indirect=${indirect};
  ${LIGHT_VIEW_STATEMENTS.terms}
- var rgb=litSurface(lit,indirect[0],environmentLighting(albedo,base.a,N,emissive.a),indirect[1],emissive.rgb,N,P,emissive.a);${CAMERA_FOG}
+ var rgb=litSurface(lit,indirect[0]*occlusion.bounce,environmentLighting(albedo,base.a,N,occlusion.sky),indirect[1],emissive.rgb*occlusion.emission,N,P,occlusion.sky);${CAMERA_FOG}
  return vec4f(rgb,1.0);
 }`,
   )

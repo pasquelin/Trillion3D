@@ -271,3 +271,29 @@ test('the sun is held whatever the air: put out and on again, it is not forgotte
   store.set('c', { atmosphereSun: false })
   near(fog(), [0, 0, 1], 'c no longer lights the air: added again, the fog falls back on it')
 })
+
+test('the air holds a light for each index, the brightest of its candidates; a light moved is removed and added again', () => {
+  const store = createSceneLightStore()
+  const base: Omit<SceneLight, 'id' | 'intensity'> = {
+    kind: 'directional',
+    color: [1, 1, 1],
+    castsShadow: false,
+  }
+  const sun = (id: string, intensity: number, index: 0 | 1, direction: [number, number, number]) =>
+    store.add({ ...base, id, intensity, direction, atmosphereSunIndex: index })
+  const air = (slot: number) => Array.from(store.atmospherePacked.subarray(slot * 4, slot * 4 + 3))
+  const color = (id: string) => store.packed[baseOf(store.slotOf(id)) + LIGHT_FIELD.color]
+  const [first, second] = [ATMOSPHERE_SLOT.sunDirection, ATMOSPHERE_SLOT.secondDirection]
+  store.setEnvironment({ exposure: 1, atmosphere: validateSceneAtmosphere(true) })
+  sun('sun', 5, 0, [-1, 0, 0])
+  sun('moon', 1, 1, [0, 0, -1])
+  sun('moon2', 2, 1, [0, -1, 0])
+  near(air(second), [0, 1, 0], 'the brighter of index 1')
+  store.remove('moon2')
+  near(air(second), [0, 0, 1], 'removed: the moon again')
+  assert.ok(color('moon') < 1 && color('sun') < 1, 'each tinted by the air toward it')
+  store.set('sun', { atmosphereSunIndex: 1 })
+  near(air(first), [0, 0, 0], 'index 0 has none: no remapping')
+  near(air(second), [1, 0, 0], 'the sun, brighter, holds index 1')
+  assert.equal(color('moon'), 1, 'the moon it displaced is as declared again')
+})

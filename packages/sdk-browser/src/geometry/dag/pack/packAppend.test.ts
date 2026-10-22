@@ -49,6 +49,19 @@ test('roots appended into the room read as a packing of every root at that capac
   assert.equal(grown.pageUrlOf(counts.pages), undefined, 'the room names no page')
 })
 
+test('the distances a root names are packed with its placement, appended in place as packed whole', () => {
+  const { roots, capacity } = scene()
+  roots[1].drawDistance = { min: 5, max: 40 }
+  roots[3].drawDistance = { min: 0, max: 250.5 }
+  const whole = packDagSelection(roots, capacity),
+    grown = packDagSelection(roots.slice(0, 2), capacity)
+  appendDagRoots(grown, roots.slice(2))
+  // Two floats a placement, the nearest then the farthest, 0 for none, a slot of the room included.
+  const named = Float32Array.of(0, 0, 5, 40, 0, 0, 0, 250.5, 0, 0, 0, 0, 0, 0, 0, 0)
+  assert.deepEqual(whole.drawDistance, named)
+  assert.deepEqual(grown.drawDistance, named)
+})
+
 test('roots past the room, or of a primitive the packing does not hold, are not appended', () => {
   const { roots, capacity } = scene()
   const tight = packDagSelection(roots.slice(0, 2), { ...capacity, worlds: 3 })

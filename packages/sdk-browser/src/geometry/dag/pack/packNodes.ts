@@ -44,7 +44,10 @@ import {
  * page, which a placement's entry adds its base to), and returns, per cluster, the leaf node that
  * owns it. `owner` is filled in place; a cluster no leaf stores stays at
  * `NO_INDEX`, as in the oracle (`oracle/*.fixture.ts`), and is never selected. `open`, the
- * DAG's open count of each node with nothing resident; zero without a structure.
+ * DAG's open count of each node with nothing resident; zero without a structure. `grow`, the
+ * distance a displaced surface of the primitive can move a point (`pagesDisplacementReach`), is
+ * added to every side of each node's box and to no ball: what the cut tests the node's presence by
+ * holds the displaced points, the error it projects is the surface's own.
  */
 export function packCullingNodes(
   nodes: Float32Array,
@@ -53,6 +56,7 @@ export function packCullingNodes(
   place: { nodeBase: number; pageBase: number },
   owner: Uint32Array,
   open?: Int32Array,
+  grow = 0,
 ) {
   if (culling.stride < CULL_STRIDE) throw new Error('GPU_DAG_CULLING_STRIDE')
   const { nodeBase, pageBase } = place
@@ -61,8 +65,8 @@ export function packCullingNodes(
     const src = n * culling.stride,
       dst = (nodeBase + n) * DAG_NODE_FLOATS
     for (let a = 0; a < 3; a++) {
-      nodes[dst + NODE_MIN + a] = culling.nodes[src + CULL_MIN + a]
-      nodes[dst + NODE_MAX + a] = culling.nodes[src + CULL_MAX + a]
+      nodes[dst + NODE_MIN + a] = culling.nodes[src + CULL_MIN + a] - grow
+      nodes[dst + NODE_MAX + a] = culling.nodes[src + CULL_MAX + a] + grow
     }
     for (let a = 0; a < 4; a++) nodes[dst + NODE_SPHERE + a] = culling.nodes[src + CULL_SPHERE + a]
     nodes[dst + NODE_CEIL] = culling.nodes[src + CULL_CEIL]

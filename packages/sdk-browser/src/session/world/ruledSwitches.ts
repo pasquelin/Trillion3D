@@ -14,6 +14,16 @@ import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
+import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
+import { SCREEN_PROBE_RULES } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import { REFLECTION_RULES } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
+import { VOLUMETRIC_FOG_RULES } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
+import { TESSELLATION_RULES } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
+import { MOTION_BLUR_RULES } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
+import { DEPTH_OF_FIELD_RULES } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
+import { AMBIENT_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import { BLOOM_RULES } from '../../../../sdk-core/src/contracts/bloomRules.ts'
+import { FILM_RULES } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 
 /** The rules the world's registry holds: every kind but a vector, which no registry entry types. */
 export type RegistryRule = Exclude<SettingRule, { readonly kind: 'vector' }>
@@ -53,8 +63,8 @@ function ruledSwitches<R extends Rules>(
     clear(name: string, source: 'page'): void
     watch(name: string, hook: (value: R[Field<R>]['default']) => void): void
   }
-  /** The page's `option` of `field`, as its one resolver reads it. */
-  const pageSet = (field: Field<R>, option: R[Field<R>]['default']) =>
+  /** The page's `option` of `field`, as its one resolver reads it (a level also takes a switch). */
+  const pageSet = (field: Field<R>, option: SettingOptions<R>[Field<R>]) =>
     registry.set(field, resolveSetting(rules[field], option as never), 'page')
   return {
     page(options: SettingOptions<R>) {
@@ -89,7 +99,8 @@ function ruledSwitches<R extends Rules>(
 /** The world's families by rule over its registry `settings`, each read by its rules' one
  *  resolver and written into a session by its own setter: the cluster raster's split, the geometry
  *  streaming, the partition's streaming and the HLOD warm-up, the cut, the animation, the
- *  shading, the automatic exposure, the temporal pass, the depth pyramid. */
+ *  shading, the automatic exposure, the temporal pass, the depth pyramid, the sun's shadows, the
+ *  motion blur, the film effects, the reflections' trace, the screen-space ambient occlusion. */
 export const worldFamilies = (settings: WorldSettings) => ({
   raster: ruledSwitches(settings, RASTER_RULES, (session, field, value) =>
     field === 'softwareRaster'
@@ -116,4 +127,34 @@ export const worldFamilies = (settings: WorldSettings) => ({
     session.setTemporal(field, value),
   ),
   hiz: ruledSwitches(settings, HIZ_RULES, (session, field, value) => session.setHiz(field, value)),
+  shadows: ruledSwitches(settings, SHADOW_RULES, (session, field, value) =>
+    session.setShadows(field, value),
+  ),
+  indirectLight: ruledSwitches(settings, SCREEN_PROBE_RULES, (session, field, value) =>
+    session.setIndirectLight(field, value),
+  ),
+  reflections: ruledSwitches(settings, REFLECTION_RULES, (session, field, value) =>
+    session.setReflections(field, value),
+  ),
+  volumetricFog: ruledSwitches(settings, VOLUMETRIC_FOG_RULES, (session, field, value) =>
+    session.setVolumetricFog(field, value),
+  ),
+  tessellation: ruledSwitches(settings, TESSELLATION_RULES, (session, field, value) =>
+    session.setTessellation(field, value),
+  ),
+  motionBlur: ruledSwitches(settings, MOTION_BLUR_RULES, (session, field, value) =>
+    session.setMotionBlur(field, value),
+  ),
+  depthOfField: ruledSwitches(settings, DEPTH_OF_FIELD_RULES, (session, field, value) =>
+    session.setDepthOfField(field, value),
+  ),
+  bloom: ruledSwitches(settings, BLOOM_RULES, (session, field, value) =>
+    session.setBloom(field, value),
+  ),
+  film: ruledSwitches(settings, FILM_RULES, (session, field, value) =>
+    session.setFilm(field, value),
+  ),
+  ambientOcclusion: ruledSwitches(settings, AMBIENT_OCCLUSION_RULES, (session, field, value) =>
+    session.setAmbientOcclusion(field, value),
+  ),
 })

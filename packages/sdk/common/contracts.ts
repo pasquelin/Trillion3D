@@ -16,6 +16,7 @@ export type { AlphaMode, LinearRgb, Material, Side } from '../../sdk-core/src/co
 export { assertSceneProxy, decodeSceneProxy } from '../../sdk-core/src/scene/core/proxy.ts'
 export type {
   BounceFrameMetrics,
+  ScreenProbeFrameMetrics,
   ShadowFrameMetrics,
 } from '../../sdk-core/src/contracts/shadowMetrics.ts'
 export { createSafetyPolicy } from '../../sdk-core/src/runtime/safety/safety.ts'
@@ -82,6 +83,7 @@ export {
   MAX_DEPTH_LAYER,
   TRANSPARENT_DEPTH_LAYER,
 } from '../../sdk-core/src/lod/depthLayer.ts'
+export type { DrawDistanceSettings } from '../../sdk-core/src/contracts/objectOptions.ts'
 export { geometryPageAddress, streamBundleAddress } from '../../sdk-core/src/page/contracts.ts'
 export type {
   GeometryPageDescriptor,
@@ -122,6 +124,7 @@ export {
   TABLE_TRIPLETS,
 } from '../../sdk-core/src/scene/core/tableSurfaces.ts'
 export type {
+  TableDisplacement,
   TableFilter,
   TableMaterial,
   TableTexture,

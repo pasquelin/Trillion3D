@@ -11,13 +11,12 @@
  * Cost: O(c) per wished cell, c the coordinates it pulls in; each coordinate is told once per
  * `seen`.
  */
+import { appendTo } from '../../../../math/src/sequence/counts.ts'
 import type {
   CoarserGrid,
   PartitionGrid,
 } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
 
-/** The main grid's rank among the partition's grids, its first. */
-export const MAIN_GRID = 0
 /** No cell. */
 export const NO_CELLS: readonly number[] = []
 
@@ -96,3 +95,56 @@ export const createCoarserPulls = ({
   coarser: readonly (CoarserGrid | null)[]
 }): readonly (CoarserPull | null)[] =>
   coarser.map((grid, at) => grid && createCoarserPull(grid, grids[at].cell))
+
+/** What a main grid that pulls keeps of a frame: the cells met at each key, the keys of those
+ *  wished, and the one function that tells the cells a key pulls in. */
+type MainPull = {
+  pull: CoarserPull
+  at: Map<number, number[]>
+  seeds: number[]
+  tell: (key: number) => void
+}
+
+/**
+ * The cells of the main grids whose wished cells pull in the coarser ones (`pulls`), a frame at a
+ * time: `restart` it, `meet` each cell the walk finds on such a grid, then `pull` tells which of
+ * them the wished ones pull in. Made once, a frame allocates nothing but the lists of its keys.
+ */
+export function createMainPulls(pulls: readonly (CoarserPull | null)[]) {
+  const seen = new Set<number>()
+  /** The frame's `visit`, which every grid's `tell` reads. */
+  let visit: (main: number, cell: number) => void = () => {}
+  const entries = pulls.map((pull, main): MainPull | null => {
+    if (!pull) return null
+    const at = new Map<number, number[]>()
+    const tell = (key: number) => {
+      const cells = at.get(key) ?? NO_CELLS
+      for (let i = 0; i < cells.length; i++) visit(main, cells[i])
+    }
+    return { pull, at, seeds: [], tell }
+  })
+  const active = entries.filter((entry): entry is MainPull => entry !== null)
+  return {
+    restart() {
+      for (let i = 0; i < active.length; i++) {
+        active[i].at.clear()
+        active[i].seeds.length = 0
+      }
+    },
+    /** Main grid `main`, which pulls, meets `cell` at `key`, `wished` or not. */
+    meet(main: number, key: number, cell: number, wished: boolean) {
+      const entry = entries[main]!
+      appendTo(entry.at, key, cell)
+      if (wished) entry.seeds.push(key)
+    },
+    /** Tells `told` each cell a wished one pulls in, with its main grid, once. */
+    pull(told: (main: number, cell: number) => void) {
+      visit = told
+      for (let i = 0; i < active.length; i++) {
+        const { pull, seeds, tell } = active[i]
+        seen.clear()
+        for (let seed = 0; seed < seeds.length; seed++) pull.pull(seeds[seed], seen, tell)
+      }
+    },
+  }
+}

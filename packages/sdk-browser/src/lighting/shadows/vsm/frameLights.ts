@@ -62,11 +62,11 @@ function setupDirectionalLights(
   camera: VsmCameraInput,
   viewport: VsmViewport,
 ) {
-  for (const { light } of casting) {
+  for (const { light, farShadowDistance } of casting) {
     if (light.kind !== 'directional' || !light.direction) continue
     const clipmap = createVsmClipmap(
       state.cache,
-      { id: light.id, direction: light.direction },
+      { id: light.id, direction: light.direction, farShadowDistance },
       camera,
       viewport,
     )

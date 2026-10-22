@@ -1,5 +1,6 @@
 import { tradeCamera, tradeView } from '../../view/viewTrade.ts'
 import { releaseTargets } from '../../prepare/targets.ts'
+import { disposeFogVolume } from '../../render/encodeFogVolume.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import {
   VIEW_GPU_KEYS,
@@ -69,10 +70,17 @@ export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   view.hiz?.destroy()
   view.hiz = undefined
   view.gpu.temporal?.dispose()
+  view.gpu.velocity?.dispose()
   view.gpu.exposure?.dispose()
   view.gpu.finish?.dispose()
   view.gpu.effects?.dispose()
-  view.gpu.temporal = view.gpu.exposure = view.gpu.finish = view.gpu.effects = undefined
+  view.gpu.screenProbes?.dispose()
+  view.gpu.screenProbes = undefined
+  view.gpu.ambientOcclusion?.dispose()
+  view.gpu.ambientOcclusion = undefined
+  disposeFogVolume(view.gpu)
+  view.gpu.temporal = view.gpu.velocity = view.gpu.exposure = undefined
+  view.gpu.finish = view.gpu.effects = undefined
   // A canvas of its own is withdrawn; the main view's, which a view placed on it presents into,
   // stays.
   if (view.gpu.presenter !== viewGpu(rt, rt.views.main).presenter) view.gpu.presenter?.dispose()

@@ -3,7 +3,8 @@ import { FLAG_DIAGNOSTIC_VIEW, FLAG_UNLIT_VIEW } from '../../visibility/types.ts
 import { declaredLightingSplitWgsl } from '../../lighting/direct/declaredLightingWgsl.ts'
 import { type ContractKey, variantLabel } from '../../lighting/deferred/contractCuts.ts'
 import { FOG_FREE_MODEL_BIT, MODEL_SHIFT, modelFlag } from '../../materials/surface/surfaceModel.ts'
-import { FOG_WGSL } from '../../lighting/fogShader.ts'
+import { fogBlockOf } from '../../lighting/fog/readWgsl.ts'
+import { BLEND_FOG_BINDINGS } from '../../gpu/bind/bindLayout.ts'
 import { BLEND_TO_EYE_WGSL, blendSurfaceWgsl } from '../shaderSurface.ts'
 import { FACING_MATERIAL_MASK } from '../facing.ts'
 import {
@@ -23,7 +24,13 @@ import { f0Of, fresnelSchlickOccludedF90 } from '../../../../math/src/wgsl/light
  */
 const THIN_LAYER_WGSL = wgslBlock(
   'THIN_LAYER_WGSL',
-  [f0Of, fresnelSchlickOccludedF90, LOBE_AXIS_WGSL, FOG_WGSL, BLEND_TO_EYE_WGSL],
+  [
+    f0Of,
+    fresnelSchlickOccludedF90,
+    LOBE_AXIS_WGSL,
+    fogBlockOf(BLEND_FOG_BINDINGS),
+    BLEND_TO_EYE_WGSL,
+  ],
   `struct Thin{N:vec3f,V:vec3f,rough:f32,metal:f32,top:f32,specularColor:vec3f,transmittance:vec3f,fog:vec4f,alpha:f32,unlit:bool,}
 fn thinLayer(in:VSOut,s:BlendSurface)->Thin{
  let flags=in.ids.y;

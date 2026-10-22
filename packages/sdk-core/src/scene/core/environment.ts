@@ -108,9 +108,9 @@ export interface SceneEnvironment {
 /** Coefficients of the irradiance, and the floats they take in a GPU buffer: one `vec4` each.
  *  Written as literals, like the factors below, so a bundle that reads none of them keeps none. */
 export const ENVIRONMENT_COEFFICIENTS = 9
-/** Floats of the environment in the GPU buffer: the coefficients, 9 × 4, then the fog's block, 6
+/** Floats of the environment in the GPU buffer: the coefficients, 9 × 4, then the fog's block, 10
  *  `vec4` (`FOG_SLOTS`, `fog.ts`). */
-export const SCENE_ENVIRONMENT_FLOATS = 60
+export const SCENE_ENVIRONMENT_FLOATS = 76
 
 /**
  * The factors of the cosine-lobe convolution per band: the irradiance at a normal is the

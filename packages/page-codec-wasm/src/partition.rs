@@ -20,8 +20,8 @@ use std::ops::Range;
 use trillion3d_math::join::{GreatestRoot, Join};
 use trillion3d_math::vector::vecn::distance2;
 mod recurse;
-pub use recurse::spread;
 use recurse::{morton, recurse};
+pub use recurse::{morton3, spread};
 
 /// Who runs the two halves of a bisection: one after the other (`Serial`), or side by side on a
 /// pool (the compiler's). Each half writes only its own ranks, so the result is the same.

@@ -103,7 +103,12 @@ export function fundFrameTargets(
   const shadowHeld = shadowHeldBytes(rt)
   const shadowPool = shadowHeld + vsmAskedBytes(rt, size.renderWidth, size.renderHeight)
   const bounceProbes = bounce.probes ? 2 * bounce.probes.probeBytes : 0
-  const effectTargets = heldBytes(gpu.effects) + heldBytes(gpu.finish)
+  const effectTargets =
+    heldBytes(gpu.effects) +
+    heldBytes(gpu.finish) +
+    heldBytes(gpu.velocity) +
+    heldBytes(gpu.screenProbes) +
+    heldBytes(gpu.ambientOcclusion)
   const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot()
   if (ledger?.unknownFormats) throw new Error('GPU_BUDGET_UNKNOWN_FORMAT')
   // Auxiliary buffers, other views/captures and proxy resources are already live.

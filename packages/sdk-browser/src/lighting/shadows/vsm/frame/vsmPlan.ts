@@ -10,6 +10,7 @@ import { FRUSTUM_PLANE_VALUES } from '../../../../../../math/src/geometry/frustu
 import type { VsmProjectionLight } from '../projection/projectionPass.ts'
 import { vsmCastBoxes } from '../invalidation/castBoxes.ts'
 import { assignChannels, followCasters, heldVsm } from './vsmPlanSteps.ts'
+import { sunFarShadowDistance } from './vsmFarShadow.ts'
 import { unshadowLights, vsmCountersOn } from './engineVsm.ts'
 import { wholeTableRows } from './vsmLightMaps.ts'
 import { vsmCastMaps } from '../invalidation/castInvalidation.ts'
@@ -47,6 +48,8 @@ export function frameLights(
     const entry = (lights[count++] ??= { light, visible: true })
     entry.light = light
     entry.visible = planes ? vsmLightSeen(light, planes) : light.kind === 'directional'
+    // The reserve sizes the set only: it takes no far-shadow distance.
+    if (which === 'plan') entry.farShadowDistance = sunFarShadowDistance(rt, light, cam?.near ?? 0)
   }
   lights.length = count
   return lights

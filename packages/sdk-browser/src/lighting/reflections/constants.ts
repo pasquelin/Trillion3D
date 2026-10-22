@@ -91,6 +91,9 @@ export const REFLECTION_CONSTANTS = {
 
 /**
  * The integer constants of the reflection's shaders, one table, printed as `u32` (`REFLECTION_COUNTS_WGSL`).
+ * What a ray may spend — the screen march's iterations, the steps of its walk of each ring of the scene — is
+ * not here: those are settings with the reference's defaults (`reflectionOptions.ts`), read from the view
+ * (`ReflectionView.scene`).
  */
 export const REFLECTION_COUNTS = {
   /** The images a pixel's history averages at most (`temporalWgsl.ts`), on every image, whatever moves
@@ -116,23 +119,6 @@ export const REFLECTION_COUNTS = {
    *  around it (`resolveWgsl.ts`). A still view traces every traced pixel within four
    *  images, within its history's twelve. */
   REFLECTION_TRACE_BLOCK: 2,
-  /** The iterations a reflection's screen march takes at most (`screenMarch`'s `cap`), whatever the
-   *  screen distance: a ray in front of the surfaces climbs a level an iteration, so a dozen cross a
-   *  4K image; a descent moves the ray to the cell's nearest depth first, so it always gains ground;
-   *  every ray, a glossy lobe's too, is marched exactly, as a mirror's is. A mirror ray of floors and
-   *  waves seen from 0.5° to 89° took 16 on average and 35 at the 99th percentile before the descent
-   *  gained ground (`budget.test.ts`). A ray that passes behind thin surfaces — poles, fences, a pane's
-   *  edge — descends and climbs again at each, a few levels apiece: over the budget's last levels'
-   *  worth of iterations the march descends one level less each (`screenMarch`'s floor), so a ray
-   *  always crosses the screen, its precision falling gradually, never its answer at once. 50 is the
-   *  whole cost bound of a ray's screen march, a 32-thread wave's included. */
-  REFLECTION_MARCH_STEPS: 50,
-  /** The units a reflection's proxy ray walks at most, on every image (`proxy.ts`): an eighth of a
-   *  ray's budget (`RAY_WORK`), the placement tree walked nearest first (`treeWalkWgsl.ts`), so the
-   *  first bodies along the ray are met within it. A ray that spends it is no answer, its share the
-   *  field's. Measured on the wet street at 3200 × 2000, M2 Max, render scale fixed: the scene stage
-   *  takes about 35 ms at 64 units against 5 ms at 8 — the walk's units are its cost. */
-  REFLECTION_PROXY_WORK: 64,
 } as const
 
 /** The period of the per-image sample sequence (`sampleWgsl.ts`, `viewWrite.ts`): the turn wraps

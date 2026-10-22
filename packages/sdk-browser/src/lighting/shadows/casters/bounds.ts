@@ -8,6 +8,8 @@ import { BIN_KIND } from '../../../visibility/draw/contract.ts'
 import { mobilityRows } from './rowBuffers.ts'
 import type { RowRunVisitor } from '../../../geometry/rows/dirty.ts'
 import { CASTS_NO_SHADOW } from '../../../visibility/shader/spriteWgsl.ts'
+import { FAR_SHADOW_ROOT } from '../../../visibility/shader/castingMark.ts'
+import { MOBILITY_FAR_SHADOW, MOBILITY_SHADOWLESS } from '../mobilityBits.ts'
 import { growClusterBox } from './spheres.ts'
 import {
   rootOfPacked,
@@ -32,7 +34,7 @@ export type MobilitySource = {
   push: (first: number, count: number) => void
   corners: (row: number) => number
   cutout: (row: number) => boolean
-  shadowless: (rank: number) => boolean
+  castFlags: (rank: number) => number
 }
 
 function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
@@ -61,9 +63,13 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
     corners: (row) =>
       rows.pageTableInts?.[row * ROW_WORDS + PAGE_INFO.at.indexCount] ?? rt.setup.maxCorners,
     cutout: (row) => !!rows.pageTableInts && rowKind(rows.pageTableInts, row) === BIN_KIND.CUTOUT,
-    shadowless: (rank) => {
-      const root = selectionRoots[rank]
-      return !root || !!root.parked || ((root.mark ?? 0) & CASTS_NO_SHADOW) !== 0
+    castFlags: (rank) => {
+      const root = selectionRoots[rank],
+        mark = root?.mark ?? 0
+      return (
+        (!root || root.parked || mark & CASTS_NO_SHADOW ? MOBILITY_SHADOWLESS : 0) |
+        (mark & FAR_SHADOW_ROOT ? MOBILITY_FAR_SHADOW : 0)
+      )
     },
   }
   lights.mobilitySource = source
@@ -82,14 +88,14 @@ const mobilityRun: RowRunVisitor<MobilitySource> = (source, from, to) => {
     source.corners,
     rows.blendFirst,
     source.cutout,
-    source.shadowless,
+    source.castFlags,
   )
 }
 
 /**
  * Mobility word of rows `[from, to]` — whether its placement moves, whether it is a cutout,
- * whether it casts no shadow (`castShadow = false`, hidden or parked), the corners its row draws
- * — pushed on the same
+ * whether it casts no shadow (`castShadow = false`, hidden or parked), whether it casts far
+ * shadows (`castFarShadow`), the corners its row draws — pushed on the same
  * dirty interval as the spheres and the page table's flags — a row whose cut readiness moved is
  * marked too (`gpuCutStream.ts`) —, and the rows of each placement that turned moving or static,
  * or started or stopped casting (`mobility.touch`): what the

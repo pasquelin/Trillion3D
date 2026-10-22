@@ -22,6 +22,16 @@ import {
 } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
+import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
+import { MOTION_BLUR_RULES } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
+import { DEPTH_OF_FIELD_RULES } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
+import { BLOOM_RULES } from '../../../../sdk-core/src/contracts/bloomRules.ts'
+import { FILM_RULES } from '../../../../sdk-core/src/contracts/filmOptions.ts'
+import { VOLUMETRIC_FOG_RULES } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
+import { TESSELLATION_RULES } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
+import { SCREEN_PROBE_RULES } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import { AMBIENT_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import { REFLECTION_RULES } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import {
   createRenderSettings,
   type ChoiceSettingEntry,
@@ -67,9 +77,10 @@ const ruleEntries = <R extends Readonly<Record<string, RegistryRule>>>(
 
 /** The rules of the settings declared by rule that belong to the view distance's group, by field:
  *  the cluster raster's, the geometry streaming's, the partition's streaming and the HLOD warm-up's,
- *  the cut's, the animation's, the shading's, the exposure's, the temporal pass's, the depth pyramid's. The sky's quality
- *  settings (`SKY_QUALITY_RULES_BY_GROUP`) are in the groups the reference writes them in. Both the
- *  table below and `RULE_FIELDS` read these, so no table is listed twice. */
+ *  the cut's, the animation's, the shading's, the exposure's, the temporal pass's, the depth
+ *  pyramid's and the tessellation's. The sky's quality settings (`SKY_QUALITY_RULES_BY_GROUP`) and
+ *  the families written below with their group are in the groups the reference writes them in.
+ *  Both the table below and `RULE_FIELDS` read these, so no table is listed twice. */
 const RULES = {
   ...RASTER_RULES,
   ...STREAMING_RULES,
@@ -80,11 +91,13 @@ const RULES = {
   ...EXPOSURE_RULES,
   ...TEMPORAL_RULES,
   ...HIZ_RULES,
+  ...TESSELLATION_RULES,
 }
 
 /** Every render setting of the engine, by name. The settings declared by rule (`RULES`) are read at
- *  each frame, or at each update of the streaming, from the session's context; no level of the view
- *  distance's writes them, as the reference's scalability groups leave every one at its default. */
+ *  each frame, or at each update of the streaming, from the session's context; the view distance's
+ *  levels write one of them, the scale of the objects' draw distances (`cutViewDistanceScale`), as
+ *  the reference's scalability groups do, and no level writes the others. */
 const WORLD_SETTINGS = {
   // Wired: the world applies them (`switches.ts`).
   pixelError: {
@@ -106,6 +119,33 @@ const WORLD_SETTINGS = {
   ...ruleEntries(SKY_QUALITY_RULES_BY_GROUP.effects, 'effects'),
   ...ruleEntries(SKY_QUALITY_RULES_BY_GROUP.imageEffects, 'imageEffects'),
   ...ruleEntries(SKY_QUALITY_RULES_BY_GROUP.indirectLight, 'indirectLight'),
+  // The sun's shadow distance, its far-shadow culling: the shadows' group, whose levels write the
+  // distance's scale (`quality.ts`).
+  ...ruleEntries(SHADOW_RULES, 'shadows'),
+  // The motion blur's quality, its gathers and passes: the image effects' group, whose levels
+  // write the quality and the half-resolution gather (`quality.ts`).
+  ...ruleEntries(MOTION_BLUR_RULES, 'imageEffects'),
+  // The depth of field's quality, gather, scatter and recombine settings: the image effects' group too,
+  // whose levels write the ones the reference's levels write (`quality.ts`).
+  ...ruleEntries(DEPTH_OF_FIELD_RULES, 'imageEffects'),
+  // The bloom's quality, cross, convolution resolution and two switches: the image effects' group
+  // too, whose levels write the quality and the resolution (`quality.ts`).
+  ...ruleEntries(BLOOM_RULES, 'imageEffects'),
+  // The film effects' settings: the image effects' group too, whose levels write the tonemapper's
+  // quality and the colour fringe's (`quality.ts`).
+  ...ruleEntries(FILM_RULES, 'imageEffects'),
+  // The volumetric fog's quality level and its eleven other settings: the shadows' group too,
+  // whose levels write the quality (`quality.ts`).
+  ...ruleEntries(VOLUMETRIC_FOG_RULES, 'shadows'),
+  // The screen probes' level and settings: the indirect light's group, whose levels write the
+  // probes' level (`quality.ts`).
+  ...ruleEntries(SCREEN_PROBE_RULES, 'indirectLight'),
+  // The screen-space ambient occlusion's settings: the image effects' group too, whose levels
+  // write its resolutions, ceiling, depth-pyramid climb and radius scale (`quality.ts`).
+  ...ruleEntries(AMBIENT_OCCLUSION_RULES, 'imageEffects'),
+  // The reflections' trace: the indirect light's group too; the reference's scalability rows write
+  // none of its settings, so no level does (`quality.ts`).
+  ...ruleEntries(REFLECTION_RULES, 'indirectLight'),
 } as const satisfies Readonly<Record<string, RenderSettingEntry>>
 
 /** The fields of every setting declared by rule: no quality level writes one unless its table
@@ -113,6 +153,15 @@ const WORLD_SETTINGS = {
 export const RULE_FIELDS: ReadonlySet<string> = new Set([
   ...Object.keys(RULES),
   ...Object.keys(SKY_QUALITY_RULES),
+  ...Object.keys(SHADOW_RULES),
+  ...Object.keys(VOLUMETRIC_FOG_RULES),
+  ...Object.keys(MOTION_BLUR_RULES),
+  ...Object.keys(DEPTH_OF_FIELD_RULES),
+  ...Object.keys(BLOOM_RULES),
+  ...Object.keys(FILM_RULES),
+  ...Object.keys(SCREEN_PROBE_RULES),
+  ...Object.keys(AMBIENT_OCCLUSION_RULES),
+  ...Object.keys(REFLECTION_RULES),
 ])
 
 /** A world's registry over the engine's settings. */

@@ -46,6 +46,18 @@ impl Fields {
             .filter(|&n| n.is_finite() && (low..=high).contains(&n))
             .ok_or_else(|| self.bad(format!("{what} must be {takes}, got {value}")))
     }
+    /// `value` as a whole number from `low` to `high`, `takes` saying so in the refusal.
+    pub(crate) fn whole(
+        &self,
+        value: &Value,
+        what: &str,
+        (low, high): (i64, i64),
+        takes: &str,
+    ) -> Result<i64> {
+        (value.as_i64())
+            .filter(|n| (low..=high).contains(n))
+            .ok_or_else(|| self.bad(format!("{what} must be {takes}, got {value}")))
+    }
     /// `N` finite numbers, exactly.
     pub(crate) fn numbers<const N: usize>(
         &self,

@@ -1,5 +1,6 @@
 // What the lighting and the other shadow reads take from this frame's shadow maps, or nothing.
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
+import type { DeferredPlaceholders } from '../../../deferred/setup.ts'
 import { vsmProjectionShared } from '../projection/projectionStore.ts'
 
 const consumer = {} as {
@@ -31,6 +32,24 @@ export function vsmConsumerResources(rt: WebgpuPagesRuntime) {
   consumer.view = shared.view
   consumer.noise = shared.noise
   return consumer
+}
+
+const standIns = {} as typeof consumer
+
+/** What a pass that reads the maps whether or not this frame projects some binds: the resources
+ *  `vsm` holds (`vsmConsumerResources`), each its stand-in where there are none. One object,
+ *  rewritten at each call. */
+export function vsmOrStandIns(
+  vsm: ReturnType<typeof vsmConsumerResources>,
+  placeholders: DeferredPlaceholders,
+) {
+  standIns.pageTable = vsm?.pageTable ?? placeholders.vsmPageTable
+  standIns.projectionData = vsm?.projectionData ?? placeholders.vsmProjectionData
+  standIns.uniforms = vsm?.uniforms ?? placeholders.vsmUniforms
+  standIns.pool = vsm?.pool ?? placeholders.vsmPool
+  standIns.view = vsm?.view ?? placeholders.vsmProjectionView
+  standIns.noise = vsm?.noise ?? placeholders.vsmBlueNoise
+  return standIns
 }
 
 /** The transmission atlas the shadow reads multiply by, or none. */

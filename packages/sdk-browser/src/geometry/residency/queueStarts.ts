@@ -75,6 +75,7 @@ function started(
     onFree,
     onGrain,
     cover,
+    root: grain,
     cache,
     read: undefined,
     ready: false,

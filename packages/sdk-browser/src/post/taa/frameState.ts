@@ -46,6 +46,10 @@ export interface TaaFrameState {
   sceneSeen: number
   /** True when the current image accumulates: rendered with jitter, resolved by the pass. */
   active: boolean
+  /** The smallest object, in percent of the screen, whose own motion this image measures
+   *  (`perObjectSize`), which the velocity stage decides once for every pass that measures it
+   *  (`encodeVelocity`); 0 leaves none out. */
+  objectSize: number
 }
 
 export function createTaaFrameState(): TaaFrameState {
@@ -68,6 +72,7 @@ export function createTaaFrameState(): TaaFrameState {
     sceneSeen: -1,
     viewSeen: -1,
     active: false,
+    objectSize: 0,
   }
 }
 

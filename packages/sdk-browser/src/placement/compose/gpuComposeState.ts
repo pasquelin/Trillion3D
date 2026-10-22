@@ -136,7 +136,7 @@ export function composeHostWrites(
  *  `../../post/taa/motion.ts` would compare its next world with —, its world without one. */
 export function seedMotion(rt: WebgpuPagesRuntime, state: ComposeState, rank: number) {
   const world =
-    rt.gpu.temporal?.motion.poseOf(rank) ?? rt.layout.selectionRoots[rank].world.elements
+    rt.gpu.velocity?.motion.poseOf(rank) ?? rt.layout.selectionRoots[rank].world.elements
   state.seeds.set(rank, Float32Array.from(world))
 }
 

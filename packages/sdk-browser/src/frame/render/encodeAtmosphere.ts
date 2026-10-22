@@ -1,8 +1,7 @@
 import { createAtmosphereGpu } from '../../lighting/atmosphere/gpu.ts'
 import type { AirInputs } from '../../lighting/atmosphere/encode.ts'
 import { FRAME_FLOATS, writeAirFrame } from '../../lighting/atmosphere/frame.ts'
-import { showsRaw } from '../../visibility/shader/shadeMode.ts'
-import { wantsContractLighting } from '../prepare/contractLight.ts'
+import { litImageShown } from '../prepare/contractLight.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
@@ -19,9 +18,7 @@ const inputs: AirInputs = {
  *  and the views that paint raw values show none. */
 function atmosphereShown(rt: WebgpuPagesRuntime) {
   const { store } = rt.lights
-  return wantsContractLighting(rt) && !showsRaw(rt.run.diagnostic)
-    ? store.environment?.atmosphere
-    : undefined
+  return litImageShown(rt) ? store.environment?.atmosphere : undefined
 }
 
 /** Whether the bounce probes must wait for the sky: the scene has a sky light and an atmosphere this
@@ -74,11 +71,12 @@ export function encodeAtmosphere(
 }
 
 /** The sky over the lit image where the resolve drew no surface: after the lighting, before the
- *  transparents. */
+ *  transparents, the fog over it read from what this image's fog volume built (`encodeFogVolume`). */
 export function encodeSky(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu } = rt,
     flags = gpu.surfaces?.views()[3]
-  if (!gpu.atmosphere || !gpu.hdrView || !flags) return
+  if (!gpu.atmosphere || !gpu.hdrView || !flags || !gpu.deferred) return
   const [width, height] = gpu.targetSize
-  gpu.atmosphere.drawSky(encoder, gpu.hdrView, flags, width, height)
+  const fog = gpu.fogVolume?.read ?? gpu.deferred.placeholders.fog
+  gpu.atmosphere.drawSky(encoder, gpu.hdrView, flags, width, height, fog)
 }

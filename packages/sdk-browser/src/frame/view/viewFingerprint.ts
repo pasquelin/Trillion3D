@@ -4,8 +4,9 @@ import type { EngineCamera } from '../../camera/engineCamera.ts'
 
 /**
  * Fingerprint of an image view: the sixteen numbers of the view, the sixteen of the projection
- * (unjittered: the antialiasing jitter lives on its own render matrix), the near plane and the
- * viewport, compared exactly and copied with two `Float64Array(16)` for the view revision
+ * (unjittered: the antialiasing jitter lives on its own render matrix), the near plane, the
+ * viewport and the view's clip plane and lists (`EngineCamera.viewSet`, by identity), compared
+ * exactly and copied with two `Float64Array(16)` for the view revision
  * (`viewRevision.ts`), whose motion the occluder history also takes; what belongs to that hold
  * alone, far-plane range and quality threshold, stays with it.
  *
@@ -18,12 +19,14 @@ export function createViewFingerprint() {
   // Nothing is held yet: `NaN` does not equal itself, so the first image differs.
   let near = NaN,
     width = -1,
-    height = -1
+    height = -1,
+    viewSet: EngineCamera['viewSet'] | undefined
   return {
     /** True when the view, the projection, the near plane and the viewport are those already held. */
     same(cam: EngineCamera, viewportWidth: number, viewportHeight: number) {
       return (
         near === cam.near &&
+        viewSet === cam.viewSet &&
         width === viewportWidth &&
         height === viewportHeight &&
         sameElements(view, cam.view) &&
@@ -35,6 +38,7 @@ export function createViewFingerprint() {
       copyMatrix4(view, cam.view)
       copyMatrix4(projection, cam.projection)
       near = cam.near
+      viewSet = cam.viewSet
       width = viewportWidth
       height = viewportHeight
     },

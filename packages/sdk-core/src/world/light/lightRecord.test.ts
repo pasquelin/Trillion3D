@@ -80,6 +80,95 @@ test('a directional lamp aims from its place at its target, straight down when t
   near(lampRecord(flat, 's', () => 9)!.direction, [0, -1, 0], 'degenerate aim')
 })
 
+test('a directional lamp is the air’s sun or its second light: the index reaches its record and its clone', () => {
+  const sun = new Light('directional')
+  assert.equal(sun.atmosphereSunIndex, 0)
+  assert.equal(
+    'atmosphereSunIndex' in lampRecord(sun, 's', () => 9)!,
+    false,
+    'the default stays out',
+  )
+  const moon = new Light('directional', { atmosphereSunIndex: 1 })
+  assert.equal(lampRecord(moon, 'm', () => 9)!.atmosphereSunIndex, 1)
+  assert.equal(moon.clone().atmosphereSunIndex, 1, 'a clone keeps it')
+  moon.atmosphereSunIndex = 0
+  assert.equal(
+    'atmosphereSunIndex' in lampRecord(moon, 'm', () => 9)!,
+    false,
+    'back to the default',
+  )
+  assert.throws(() => (moon.atmosphereSunIndex = 2 as 0), /atmosphereSunIndex expects 0 or 1/)
+  assert.throws(() => new Light('directional', { atmosphereSunIndex: -1 as 0 }), /expects 0 or 1/)
+})
+
+test('a directional lamp’s shadow distance reaches its record unless it is the default, and its clone', () => {
+  const sun = new Light('directional')
+  assert.equal(sun.shadowDistance, 400, 'the reference’s 400 metres')
+  assert.equal(
+    'shadowDistance' in lampRecord(sun, 's', () => 9)!,
+    false,
+    'the default stays out of the record',
+  )
+  const near600 = new Light('directional', { shadowDistance: 600 })
+  assert.equal(lampRecord(near600, 'n', () => 9)!.shadowDistance, 600)
+  assert.equal(near600.clone().shadowDistance, 600, 'a clone keeps it')
+  const none = new Light('directional', { shadowDistance: false })
+  assert.equal(lampRecord(none, 'n', () => 9)!.shadowDistance, 0, 'false is none: 0')
+  assert.equal(new Light('directional', { shadowDistance: true }).shadowDistance, 400)
+  none.shadowDistance = 400
+  assert.equal('shadowDistance' in lampRecord(none, 'n', () => 9)!, false, 'back to the default')
+  // A lamp that is not a sun holds none, and records none.
+  for (const kind of ['point', 'spot'] as const) {
+    const lamp = new Light(kind, { position: [0, 2, 0], shadowDistance: 50 })
+    assert.equal('shadowDistance' in lampRecord(lamp, 'l', () => 9)!, false, kind)
+  }
+  const stored = lightFromRecord({
+    id: 'd',
+    kind: 'directional',
+    color: [1, 1, 1],
+    intensity: 1,
+    castsShadow: true,
+    direction: [0, -1, 0],
+    shadowDistance: 250,
+  })
+  assert.equal(stored.shadowDistance, 250)
+  assert.equal(lampRecord(stored, 'd', () => 9)!.shadowDistance, 250, 'recorded back')
+})
+
+test('a lamp’s source — radius, soft radius, a tube along its own up — reaches its record and comes back', () => {
+  const lamp = new Light('point', {
+    position: [1, 2, 3],
+    radius: 0.2,
+    softRadius: 0.1,
+    tubeLength: 2,
+  })
+  const upright = lampRecord(lamp, 'p', () => 9)!
+  assert.deepEqual(
+    [upright.emitterRadius, upright.emitterSoftRadius, upright.emitterLength],
+    [0.2, 0.1, 2],
+  )
+  near(upright.emitterAxis, [0, 1, 0], 'up by default')
+  // Turned a quarter about z, the lamp's own up lies along −x: the tube follows its node.
+  lamp.rotation.z = HALF_PI
+  const turned = lampRecord(lamp, 'p', () => 9)!
+  near(turned.emitterAxis, [-1, 0, 0], 'turned with the node')
+  const again = lampRecord(lightFromRecord(turned), 'p', () => 9)!
+  assert.deepEqual(
+    [again.emitterRadius, again.emitterSoftRadius, again.emitterLength],
+    [0.2, 0.1, 2],
+  )
+  near(again.emitterAxis, [-1, 0, 0], 'and comes back')
+  // No tube, no axis; a radius past the range is left out, as the envelope's is.
+  const sphere = lampRecord(new Light('point', { radius: 0.2 }), 'p', () => 9)!
+  assert.deepEqual([sphere.emitterLength, sphere.emitterAxis], [undefined, undefined])
+  assert.equal(
+    lampRecord(new Light('point', { softRadius: 12 }), 'p', () => 9)!.emitterSoftRadius,
+    undefined,
+  )
+  const spot = lampRecord(new Light('spot', { tubeLength: 1 }), 's', () => 9)!
+  assert.equal(spot.emitterLength, 1, 'a spot too')
+})
+
 test('a spot’s cone is held open below a right angle, its penumbra in [0, 1]', () => {
   const spot = new Light('spot', { position: [0, 2, 0], angle: 0.5 })
   const record = lampRecord(spot, 'c', () => 9)!
@@ -163,14 +252,15 @@ test('a stored lamp becomes a light that records back to it', () => {
       record.kind,
     )
   }
-  const sun = lightFromRecord({
+  const sunRecord: SceneLight = {
     id: 'd',
     kind: 'directional',
     color: [1, 1, 1],
     intensity: 1,
     castsShadow: false,
     direction: [0, 0, -1],
-  })
+  }
+  const sun = lightFromRecord(sunRecord)
   assert.deepEqual([...sun.position.toArray()], [-0, -0, 1], 'placed one unit back along its aim')
   near(lampRecord(sun, 'd', () => 9)!.direction, [0, 0, -1], 'aim')
   const down = lightFromRecord({
@@ -182,6 +272,8 @@ test('a stored lamp becomes a light that records back to it', () => {
   })
   near(lampRecord(down, 'x', () => 9)!.direction, [0, -1, 0], 'no direction: straight down')
   near(down.position.toArray(), [0, 1, 0], 'from one unit above')
+  const moon = lightFromRecord({ ...sunRecord, atmosphereSun: false, atmosphereSunIndex: 1 })
+  assert.deepEqual([moon.atmosphereSun, moon.atmosphereSunIndex], [false, 1], 'what lights the air')
   const aimed = lightFromRecord({ ...records[1], direction: [0.6, -0.8, 0] })
   near(aimed.target.position.toArray(), [0.6, 3.2, 0], 'the target one unit along')
 })

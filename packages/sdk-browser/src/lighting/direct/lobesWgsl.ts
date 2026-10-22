@@ -3,6 +3,7 @@ import { LOBE_PACK_WGSL, PHYSICAL_LOBES_TARGET } from '../../materials/surface/p
 import { LOBE_AXIS_WGSL } from '../lobeAxisWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { SURFACE_LIGHT_WGSL } from '../standardLighting.ts'
+import { LAMP_SURFACE_LIGHT_WGSL } from './lampLobeWgsl.ts'
 import { RECT_SURFACE_LIGHT_WGSL } from './rectLightWgsl.ts'
 import { DIELECTRIC_F0, fresnelScalar, fresnelSchlick } from '../../../../math/src/wgsl/lighting.ts'
 
@@ -29,7 +30,7 @@ import { DIELECTRIC_F0, fresnelScalar, fresnelSchlick } from '../../../../math/s
  */
 export const LOBES_LIGHTING_WGSL = wgslBlock(
   'LOBES_LIGHTING_WGSL',
-  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick, SURFACE_LIGHT_WGSL],
+  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick, SURFACE_LIGHT_WGSL, LAMP_SURFACE_LIGHT_WGSL],
   `
 struct Lobes{on:bool,skewed:bool,T:vec3f,B:vec3f,coat:f32,coatRough:f32,coatN:vec3f,through:f32,at:f32,ab:f32,invAt:f32,invAb:f32,dScale:f32,view:vec2f,viewLength:f32,coatSurface:LobeSurface,}
 var<private> lobes:Lobes;
@@ -82,6 +83,21 @@ fn baseLobe(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,H:vec3f,NdotL:f32,energy:f32)-
 fn coatLobe(V:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{
  if(NdotL>0.0){return lobes.coat*standardLobe(lobes.coatSurface,lobes.coatN,V,H,NdotL,energy);}
  return vec3f(0.0);
+}
+/** The same hooks for a lamp of size (\`lampLight\`, \`lampLobeWgsl.ts\`): the base lobe — a skewed one
+ *  keeps its anisotropic distribution at the lamp's cosine and its highlight's direction, none of
+ *  the sphere's widening —, and the coat's, its own normal wrapping the horizon as the base's
+ *  does. */
+fn baseLampLobe(s:LobeSurface,N:vec3f,V:vec3f,look:Look,lamp:Lamp,energy:f32)->vec3f{
+ if(lamp.cosine<=0.0){return vec3f(0.0);}
+ if(lobes.on&&lobes.skewed){return anisotropicLobe(s,N,V,look.toward,normalize(look.toward+V),lamp.cosine,energy);}
+ return lampLobe(s,N,V,look,lamp.cosine,lamp.lineCos,energy);
+}
+fn coatLampLobe(V:vec3f,look:Look,lamp:Lamp,energy:f32)->vec3f{
+ if(!(lobes.on&&lobes.coat>0.0)){return vec3f(0.0);}
+ let cosine=saturate(horizonWrap(dot(lobes.coatN,lamp.toward),lamp.wrap));
+ if(cosine<=0.0){return vec3f(0.0);}
+ return lobes.coat*lampLobe(lobes.coatSurface,lobes.coatN,V,look,cosine,lamp.lineCos,energy);
 }`,
 )
 
@@ -119,12 +135,17 @@ fn rectCoat(r:RectView,V:vec3f,energy:f32)->vec3f{
  *  a lobe lists: it brings \`surfaceLight\` (\`SURFACE_LIGHT_WGSL\`). */
 export const LOBELESS_LIGHTING_WGSL = wgslBlock(
   'LOBELESS_LIGHTING_WGSL',
-  [SURFACE_LIGHT_WGSL],
+  [SURFACE_LIGHT_WGSL, LAMP_SURFACE_LIGHT_WGSL],
   `fn lobeThrough()->f32{return 1.0;}
 fn lobeView(s:LobeSurface){}
 fn coatCosine(L:vec3f)->f32{return 0.0;}
 fn baseLobe(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{return standardLobe(s,N,V,H,NdotL,energy);}
-fn coatLobe(V:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{return vec3f(0.0);}`,
+fn coatLobe(V:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{return vec3f(0.0);}
+fn baseLampLobe(s:LobeSurface,N:vec3f,V:vec3f,look:Look,lamp:Lamp,energy:f32)->vec3f{
+ if(lamp.cosine<=0.0){return vec3f(0.0);}
+ return lampLobe(s,N,V,look,lamp.cosine,lamp.lineCos,energy);
+}
+fn coatLampLobe(V:vec3f,look:Look,lamp:Lamp,energy:f32)->vec3f{return vec3f(0.0);}`,
 )
 
 /** The same of the one \`rectLight\` (\`rectLightWgsl.ts\`): the plain fitted lobe and no coat. */

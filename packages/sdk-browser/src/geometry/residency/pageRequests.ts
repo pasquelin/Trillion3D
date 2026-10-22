@@ -5,7 +5,7 @@ import { createSparseInts } from '../cut/sparseInts.ts'
 import { createPageCatalogue, type PageList } from '../selection/catalogue.ts'
 import { hasPage } from '../rows/page/pageSlots.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
-import { REQUEST_PRIORITY_MAX, REQUEST_PRIORITY_MIN } from '../dag/request/request.ts'
+import { REQUEST_PRIORITY_MAX } from '../dag/request/request.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import type { PageUnits } from './pageUnits.ts'
 
@@ -16,9 +16,12 @@ const PRIORITY_MAX = 0xffffffff
  *  never keeps one for good. */
 const PREFETCH_UPDATES_MAX = 30
 
-/** A priority an asker names, brought into the range of the GPU's own requests. */
-const requestPriority = (priority: number) =>
-  clamp(Math.trunc(priority) || REQUEST_PRIORITY_MIN, REQUEST_PRIORITY_MIN, REQUEST_PRIORITY_MAX)
+/** A priority an asker names, kept as it is up to the highest the GPU's own requests take; 0 is
+ *  no request — and so is any value under one, or none. */
+const requestPriority = (priority: number) => {
+  const whole = Math.trunc(priority)
+  return whole > 0 ? Math.min(whole, REQUEST_PRIORITY_MAX) : 0
+}
 
 /** A prefetch: packed pages, the updates it still asks them for, the priority its asker fixed, if
  *  it did, and their priority this update beside each, for the walk of what they depend on. */
@@ -212,14 +215,15 @@ export function createPageRequests(options: {
     },
     /** Asks packed pages `pages` for the next `updates` updates — at least one, at most
      *  `PREFETCH_UPDATES_MAX` —, the asker drawing them after. Each update the pages are asked at
-     *  `priority` when the asker gives one — a whole number from `REQUEST_PRIORITY_MIN` to
-     *  `REQUEST_PRIORITY_MAX`, the range of the GPU's own requests, a value past it brought back
-     *  to it: a request of the asker's own rank beside the views' —; else at one under
-     *  `REQUEST_PRIORITY_MAX` less the updates left, ahead of the views' requests, the nearer the
-     *  deadline the higher. */
+     *  `priority` when the asker gives one — a whole number kept as it is up to
+     *  `REQUEST_PRIORITY_MAX`, the highest of the GPU's own requests, a value past it brought back
+     *  to it: a request of the asker's own rank beside the views' —, and a priority of 0 asks for
+     *  nothing; else at `REQUEST_PRIORITY_MAX` less the updates left, ahead of the views'
+     *  requests, the nearer the deadline the higher. */
     prefetch(pages: readonly number[], updates: number, priority?: number) {
       const left = clamp(updates, 1, PREFETCH_UPDATES_MAX),
         fixed = priority === undefined ? undefined : requestPriority(priority)
+      if (fixed === 0) return
       prefetches.push({ pages, left, fixed, ranks: new Uint32Array(pages.length) })
     },
     /** The streaming pages requested, in the order above: read up to `count`. */

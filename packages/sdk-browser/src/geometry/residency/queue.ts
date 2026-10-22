@@ -7,7 +7,7 @@ import {
   type ViewReadbacks,
 } from './queueState.ts'
 import { followDepartures, loadCover, start, victims } from './queueStarts.ts'
-import { hostPages, pumpOn } from './queueInstalls.ts'
+import { hostPages, paceFrame, pumpOn } from './queueInstalls.ts'
 
 /**
  * THE STREAMING OF THE GEOMETRY POOL, once per update — an update a frame, the views' readbacks
@@ -33,7 +33,9 @@ import { hostPages, pumpOn } from './queueInstalls.ts'
  *    update starts no more (`start`).
  * 5. Installs (`run`, `./queueInstalls.ts`): the started streaming pages, in the order started,
  *    each once its pages' bytes are in — none passes one still waiting —, at most
- *    `maxInstallsPerFrame` a frame, and no clock: a page costs a frame what it costs.
+ *    `maxInstallsPerFrame` a frame, and no clock but the simulated bandwidth's
+ *    (`streamingBandwidthLimit`): a page costs a frame what it costs. One whose
+ *    object went invalid while its bytes came — another page of it failed for good — is dropped.
  * A streaming page whose bytes fail for good is never started again; one the pool had no slot for
  * after all is asked by a later update. A loss withdraws the device and ends the loop.
  */
@@ -53,8 +55,8 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
     },
     /** Packed pages `pages` asked for the next `updates` updates that read a readback — ahead of
      *  the views' requests, the nearer the deadline the higher: an HLOD actor about to draw —, or
-     *  at the `priority` the asker gives, a whole number from 1 to 0xffffffe0 like the GPU's
-     *  requests (`./pageRequests.ts`, `prefetch`). */
+     *  at the `priority` the asker gives, a whole number kept up to 0xffffffe0 like the GPU's
+     *  requests, none at 0 (`./pageRequests.ts`, `prefetch`). */
     prefetch: (pages: readonly number[], updates: number, priority?: number) =>
       s.requests.prefetch(pages, updates, priority),
     /** Settles when the pump stops: every page started is installed or failed, the root cover's
@@ -89,6 +91,7 @@ function update(s: QueueState, readbacks: ViewReadbacks) {
   if (cache !== s.cache) reset(s, cache)
   followDepartures(s, cache)
   s.limits = limitsOf(o.settings)
+  paceFrame(s)
   const cuts = freshCuts(s, readbacks)
   if (cuts) {
     const { requests } = s,
@@ -132,7 +135,7 @@ function reset(s: QueueState, cache: GpuPageCache) {
   s.onFree = 0
   s.onGrain = 0
   s.rootsShort = 0
-  s.installFrame = -1
+  s.pacing.installFrame = -1
   s.more = false
   s.readFirst = null
   s.readCuts = []

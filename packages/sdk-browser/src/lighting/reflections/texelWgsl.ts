@@ -3,7 +3,12 @@ import { HALF_MAX } from '../../../../math/src/wgsl/constants.ts'
 import { lowHalf } from '../../../../math/src/wgsl/integer.ts'
 import { octDecode, octEncode } from '../../../../math/src/wgsl/octahedral.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
-import { REFLECTION_GROUP, reflectionBindingsWgsl, reflectionLightViewWgsl } from './viewLayout.ts'
+import {
+  REFLECTION_GROUP,
+  REFLECTION_LINEAR_DEPTH_WGSL,
+  reflectionBindingsWgsl,
+  reflectionLightViewWgsl,
+} from './viewLayout.ts'
 import { slabPerspective } from '../../../../math/src/wgsl/projection.ts'
 import { luminance } from '../../../../math/src/wgsl/color.ts'
 
@@ -55,6 +60,7 @@ export const REFLECTION_TEXEL_WGSL = wgslBlock(
     octDecode,
     luminance,
     REFLECTION_CONSTANTS_WGSL,
+    REFLECTION_LINEAR_DEPTH_WGSL,
     reflectionBindingsWgsl(REFLECTION_GROUP),
     reflectionLightViewWgsl(REFLECTION_GROUP),
   ],
@@ -92,8 +98,6 @@ fn historyValid(t:vec4u)->bool{return (t.y>>16u)!=0u;}
 fn historyDepth(t:vec4u)->f32{return unpack2x16float(t.y>>16u).x;}
 fn historyMoment(t:vec4u)->f32{return bitcast<f32>(t.z);}
 fn historyCount(t:vec4u)->f32{return bitcast<f32>(t.w);}
-fn reflectionLinearDepth(clip:vec4f)->f32{return select(clip.z,clip.w,slabPerspective(reflectionView.slab));}
-fn surfaceLinearDepth(P:vec3f)->f32{return reflectionLinearDepth(reflectionView.viewProj*vec4f(P,1.0));}
 fn reflectionDepthPixel(depth:f32)->f32{
  return select(reflectionView.slab.z,depth*reflectionView.slab.x,slabPerspective(reflectionView.slab));
 }

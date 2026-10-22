@@ -9,13 +9,15 @@ import {
 } from '../types.ts'
 import { baseOpen, linksFor } from '../../cut/links.ts'
 import { packCullingNodes } from './packNodes.ts'
+import { pagesDisplacementReach } from '../../../visibility/tessellation/numbers.ts'
 import { hierarchyLevelSizes, pageDepths } from '../hierarchy.ts'
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import type { DagCapacity } from './packCapacity.ts'
 import { WORLD_ROOT_MARK } from '../worlds/worldLinks.ts'
+import { DRAW_DISTANCE_MARK } from '../frameTable.ts'
 
 /** A ROOT PLACED IN A PACKING (`pack.ts`): its primitive's nodes, shared by its placements, its
- *  world, mark and links, and the shift that leads its pages to their records. */
+ *  world, mark, draw distance and links, and the shift that leads its pages to their records. */
 
 /** The first page of a placement the room holds and no root filled: past every page. */
 const ROOM_BASE = 0x7fffffff
@@ -33,7 +35,7 @@ export const emptyShared = (): PackShared => ({
 /** The tables a packing writes a root into, and its live counts (`placeRoot`). */
 export type Packing = Pick<
   PackedDag,
-  'nodes' | 'worlds' | 'rootNodes' | 'rootBases' | 'mark' | 'recordShift'
+  'nodes' | 'worlds' | 'rootNodes' | 'rootBases' | 'mark' | 'drawDistance' | 'recordShift'
 > & {
   nodeInts: Uint32Array
   pageIndex: PlacementIndex
@@ -76,7 +78,8 @@ function nodeBlockOf(p: Packing, root: DagRoot, culling: Culling) {
     owner = new Uint32Array(count).fill(NO_INDEX)
   const open = root.structure && baseOpen(linksFor(culling, count), root.structure)
   const place = { nodeBase, pageBase: 0 }
-  const nodeCount = packCullingNodes(p.nodes, p.nodeInts, culling, place, owner, open)
+  const grow = pagesDisplacementReach(root.pages)
+  const nodeCount = packCullingNodes(p.nodes, p.nodeInts, culling, place, owner, open, grow)
   const block = { nodeBase, nodeCount, owner }
   p.shared.nodeBlocks.set(culling.nodes, block)
   p.live.nodes += nodeCount
@@ -101,8 +104,17 @@ export function placeRoot(
   p.worlds.set(root.world.elements, w * 16)
   p.rootBases[w] = nodeBase
   p.rootNodes[w] = root.parked ? NO_INDEX : nodeBase
-  // A placement of the world DAG is marked so, whatever its root's own bits (`WORLD_ROOT_MARK`).
-  p.mark[w] = (root.mark ?? 0) | (root.hlod ? WORLD_ROOT_MARK : 0)
+  // A placement of the world DAG is marked so, whatever its root's own bits (`WORLD_ROOT_MARK`),
+  // and one that names a farthest distance (`DRAW_DISTANCE_MARK`).
+  const distance = root.drawDistance
+  p.mark[w] =
+    (root.mark ?? 0) | (root.hlod ? WORLD_ROOT_MARK : 0) | (distance ? DRAW_DISTANCE_MARK : 0)
+  // The distances' column is made by the first placement that names some.
+  if (distance || p.drawDistance) {
+    p.drawDistance ??= new Float32Array(2 * p.mark.length)
+    p.drawDistance[2 * w] = distance?.min ?? 0
+    p.drawDistance[2 * w + 1] = distance?.max ?? 0
+  }
   const links = linksFor(culling, count)
   const { structure } = root
   // The levels its pages need reached once resident: walked once per page array.

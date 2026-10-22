@@ -1,104 +1,32 @@
 // The fog law (#345): a CPU oracle — the linear ramp, and the transmittance of a medium whose
 // density falls off with height, integrated numerically along the view ray — against the shipped
-// shader text, `FOG_WGSL` run as shipped (`shaderRun`), so a shader edit is what the test sees.
+// shader text, the fog over no resources run as shipped (`shaderRun`), so a shader edit is what the test sees.
 // The extinction form is the old law, mapped to the height law the shader reads; the height fog's
 // own fields — opacity, start and cutoff distance, the sun's lobe, the atmosphere's sky and sun —
 // are read against the same oracle. With no fog the shader hands the lit colour back untouched.
+// The oracle and the run are the fixture's (`fogShaderRun.fixture.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { FOG_WGSL } from './fogShader.ts'
 import { DIRECT_LIGHT_WGSL } from './direct/lightWgsl.ts'
-import { AIR_BUFFER_STRUCT, VIEW_SLOT } from './atmosphere/layout.ts'
+import { distanceVector3 } from '../../../math/src/vector/vector.ts'
+import { AIR_BUFFER_STRUCT } from './atmosphere/layout.ts'
 import { LIGHT_BUFFER_AT } from '../frame/backend/state/lightBufferLayout.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
-import {
-  packEnvironment,
-  SCENE_ENVIRONMENT_FLOATS,
-} from '../../../sdk-core/src/scene/core/environment.ts'
-import {
-  ATMOSPHERE_SLOT,
-  ATMOSPHERE_SLOTS,
-} from '../../../sdk-core/src/scene/core/atmospherePack.ts'
-import {
-  FOG_SLOT,
-  FOG_SLOTS,
-  packFog,
-  type SceneExponentialFog,
-  type SceneFog,
-  type SceneLinearFog,
-} from '../../../sdk-core/src/scene/core/fog.ts'
+import { FOG_SLOTS, packFog } from '../../../sdk-core/src/scene/core/fog.ts'
 import type { ResolvedHeightFog } from '../../../sdk-core/src/scene/core/fogHeight.ts'
-import { lerp, saturate } from '../../../math/src/scalar/reals.ts'
-import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
-import { near } from '../../../math/src/float/near.fixture.ts'
-import { distanceVector3 } from '../../../math/src/vector/vector.ts'
-
-type V3 = [number, number, number]
-type OldFog = SceneLinearFog | SceneExponentialFog
-/** Points from flat coordinates, three each. */
-const points = (flat: number[]) =>
-  Array.from({ length: flat.length / 3 }, (_, i) => flat.slice(3 * i, 3 * i + 3) as V3)
-
-/** The oracle: the fog law at `P` seen from `eye`, the optical depth summed over 20 000 steps. */
-function oracle(fog: OldFog, eye: V3, P: V3) {
-  const d = distanceVector3(P, eye)
-  if ('near' in fog) return saturate((fog.far - d) / (fog.far - fog.near))
-  const { density, heightFalloff = 0, baseHeight = 0 } = fog
-  let tau = 0
-  for (let i = 0, n = 20000; i < n; i++) {
-    const y = eye[1] + ((i + 0.5) / n) * (P[1] - eye[1])
-    tau += density * Math.exp(-heightFalloff * (y - baseHeight)) * (d / n)
-  }
-  return Math.exp(-tau)
-}
-
-/** What the scene gives the fog beside its own block: the sun the light store writes into it, and
- *  an atmosphere's sky radiance and the sun's illuminance on the ground (the contribution 1). */
-interface Scene {
-  sun?: { toward: V3; luminance: number }
-  air?: { sky: V3; ground: V3 }
-}
-/** The WGSL `fogged` on the contract buffer's fog block, as `packEnvironment` writes it: the
- *  shipped text run by the shared WGSL run; without an `air` the atmosphere's blocks are all zero. */
-function wgslFogged(fog: SceneFog | undefined, rgb: V3, P: V3, eye: V3, scene: Scene = {}) {
-  const packed = packEnvironment({ exposure: 1, fog }, new Float32Array(SCENE_ENVIRONMENT_FLOATS))
-  const at = SCENE_ENVIRONMENT_FLOATS - FOG_SLOTS * 4
-  const block = Array.from({ length: FOG_SLOTS }, (_, k) =>
-    Array.from(packed.subarray(at + 4 * k, at + 4 * k + 4)),
-  )
-  const { sun, air } = scene
-  if (sun) block[FOG_SLOT.sun] = [...sun.toward, sun.luminance]
-  const atmosphere = Array.from({ length: ATMOSPHERE_SLOTS }, () => [0, 0, 0, 0])
-  // The view's block as the light buffer declares it.
-  const viewSlots = Number(/atmosphereView:array<vec4f,(\d+)>/.exec(AIR_BUFFER_STRUCT)![1])
-  const view = Array.from({ length: viewSlots }, () => [0, 0, 0, 0])
-  if (air) {
-    atmosphere[ATMOSPHERE_SLOT.planet] = [1, 6360, 6420, 0]
-    atmosphere[ATMOSPHERE_SLOT.sunIlluminance] = [...air.ground, 1]
-    atmosphere[ATMOSPHERE_SLOT.sunTransmittance] = [1, 1, 1, 1]
-    view[VIEW_SLOT.haze] = [...air.sky, 0]
-  }
-  const { fogged } = shaderRun<{ fogged: (rgb: V3, P: V3, eye: V3) => number[] }>(
-    FOG_WGSL,
-    ['fogged'],
-    { directLights: { fog: block, atmosphere, atmosphereView: view } },
-  )
-  return fogged(rgb, P, eye)
-}
-
-const RGB: V3 = [0.8, 0.3, 0.1]
-const COLOR: V3 = [0.5, 0.6, 0.7]
-const expected = (fog: OldFog, P: V3, eye: V3) => {
-  const t = oracle(fog, eye, P)
-  return RGB.map((value, i) => lerp(COLOR[i], value, t))
-}
-/** The shader at every point against the oracle. */
-function lawHolds(fog: OldFog, eye: V3, flat: number[]) {
-  for (const P of points(flat)) {
-    const want = expected(fog, P, eye)
-    near(wgslFogged(fog, RGB, P, eye), want, `WGSL ${JSON.stringify({ fog, P })}`, 2e-5)
-  }
-}
+import {
+  COLOR,
+  HEIGHT,
+  RGB,
+  SUN,
+  expected,
+  heightLaw,
+  lawHolds,
+  near,
+  points,
+  wgslFogged,
+  type V3,
+} from './fogShaderRun.fixture.ts'
 
 test('linear fog: untouched before near, half-way between, the fog colour alone past far', () => {
   const fog = { color: COLOR, near: 10, far: 110 }
@@ -123,10 +51,26 @@ test('height fog: the integrated density, looking level, up and down, from above
   lawHolds(fog, [0, -4, 0], some)
   // A long ray that barely rises: the mean of the two densities, where the closed form would round.
   lawHolds({ ...fog, density: 0.005 }, [0, 2, 0], [400, 2.0028, 0])
-  // High above a steep falloff, the densities underflow and stay finite.
-  lawHolds({ ...fog, heightFalloff: 1 }, [0, 400, 0], [0, 0, 10, 300, 1, 0])
   // Deep inside a steep fog, far below its base: the densities pass the cap, the fog stays total.
   lawHolds({ ...fog, heightFalloff: 1 }, [0, -100, 0], [5, -99, 3, 5, -100, 3, 5, -101, 3])
+})
+
+test('a ray that falls steeply from far above: the density and the falloff are held at their floors, the fog stays finite', () => {
+  // 400 m above a falloff of one per metre, the density at the eye underflows and is held to
+  // 2⁻¹²⁵ of its base, and the line integral holds its falloff at −127: the fog these floors give
+  // — about a fifth of the light kept — is a fog all the same, finite and in range.
+  const fog = { color: COLOR, density: 0.08, heightFalloff: 1, baseHeight: 1 }
+  const eye: V3 = [0, 400, 0]
+  const shared = (0.08 / Math.LN2 ** 2) * 2 ** -125 * ((2 ** 127 - 1) / 127)
+  for (const P of [
+    [0, 0, 10],
+    [300, 1, 0],
+  ] as V3[]) {
+    const kept = 2 ** -(shared * distanceVector3(P, eye))
+    const want = RGB.map((v, i) => COLOR[i] + (v - COLOR[i]) * kept)
+    near(wgslFogged(fog, RGB, P, eye), want, `the floors at ${P}`, 2e-5)
+    assert.ok(kept > 0.1 && kept < 0.25, `${kept}`)
+  }
 })
 
 test('the extinction form and its height-law spelling read the same pixels', () => {
@@ -142,50 +86,6 @@ test('the extinction form and its height-law spelling read the same pixels', () 
       1e-6,
     )
 })
-
-/** A height fog with every field set, away from the defaults, and the sun it scatters. */
-const HEIGHT: ResolvedHeightFog = {
-  color: [0.1, 0.2, 0.3],
-  baseDensity: 0.01,
-  falloff: 0.05,
-  baseHeight: 3,
-  maxOpacity: 0.9,
-  startDistance: 20,
-  cutoffDistance: 500,
-  directional: { exponent: 3, startDistance: 60, color: [0.4, 0.2, 0.1] },
-  skyContribution: [1, 0.5, 0.25],
-}
-const SUN = { toward: [0.6, 0.8, 0] as V3, luminance: 5 }
-
-/** The shader's `fogged` of `RGB` through a height fog by numerical integration, step by step: `(ln
- *  2)²` times the density summed from the start distance to the point is the optical depth, `T =
- *  exp(−depth)` held to `1 − maxOpacity`; the sun's lobe crosses the mean density of that stretch
- *  from its own start distance on; there is none past the cutoff. The fog adds `color · (1 − T)`
- *  and the lobe; `sky` is what an atmosphere adds to the colour, `ground` to the lobe's. */
-function heightLaw(fog: ResolvedHeightFog, eye: V3, P: V3, sky = [0, 0, 0], ground = [0, 0, 0]) {
-  const d = distanceVector3(P, eye)
-  if (fog.cutoffDistance > 0 && d > fog.cutoffDistance) return RGB
-  const reach = Math.max(d - fog.startDistance, 0)
-  let sum = 0
-  for (let i = 0, n = 20000; i < n; i++) {
-    const y = eye[1] + ((fog.startDistance + ((i + 0.5) / n) * reach) / d) * (P[1] - eye[1])
-    sum += fog.baseDensity * 2 ** (-fog.falloff * (y - fog.baseHeight)) * (reach / n)
-  }
-  const depth = Math.LN2 ** 2 * sum
-  const kept = Math.max(Math.exp(-depth), 1 - fog.maxOpacity)
-  const lobeDepth = (depth * Math.max(reach - fog.directional.startDistance, 0)) / (reach || 1)
-  const cosine = Math.max(
-    0,
-    [0, 1, 2].reduce((a, i) => a + ((P[i] - eye[i]) / d) * SUN.toward[i], 0),
-  )
-  const lobe = (cosine ** fog.directional.exponent * (1 - Math.exp(-lobeDepth))) / (4 * Math.PI)
-  return RGB.map((v, c) => {
-    const colour = fog.color[c] + sky[c] * fog.skyContribution[c]
-    return (
-      v * kept + colour * (1 - kept) + (fog.directional.color[c] * SUN.luminance + ground[c]) * lobe
-    )
-  })
-}
 
 test('height fog: every field of the law, against the integrated density', () => {
   const eye: V3 = [0, 4, 0]
@@ -235,7 +135,7 @@ test('height fog: an atmosphere adds the sky’s radiance and the sun’s ground
 })
 
 test('the default height fog: the declared defaults, converted, against the integral', () => {
-  // The reference's 0.02 and 0.2, per 1000 centimetres, are 0.002 and 0.02 per metre.
+  // The defaults of 0.02 and 0.2 per 1000 centimetres are 0.002 and 0.02 per metre.
   const defaults: ResolvedHeightFog = {
     color: [0, 0, 0],
     baseDensity: 0.02 / 10,
@@ -246,6 +146,8 @@ test('the default height fog: the declared defaults, converted, against the inte
     cutoffDistance: 0,
     directional: { exponent: 4, startDistance: 10000 / 100, color: [0, 0, 0] },
     skyContribution: [1, 1, 1],
+    second: { baseDensity: 0, falloff: 0.02, heightShift: 0 },
+    horizontalLimit: 0,
   }
   const eye: V3 = [0, 2, 0]
   for (const P of points([500, 2, 0, 2000, 30, 100, 0, 300, 40]))
@@ -286,6 +188,7 @@ test('the light buffer’s regions sit where the lighting, the air’s programs 
   const air = offsetsOf(AIR_BUFFER_STRUCT, 'AirBuffer')
   assert.equal(lights.sky, LIGHT_BUFFER_AT.sky)
   assert.equal(lights.atmosphere, LIGHT_BUFFER_AT.atmosphere)
+  assert.equal(lights.fogView, LIGHT_BUFFER_AT.fogView)
   assert.equal(lights.ltc, LIGHT_BUFFER_AT.ltc)
   assert.equal(lights.items, LIGHT_BUFFER_AT.items)
   // The air's programs read the front of the same bytes, by the same names — the fog and the sky's
@@ -295,6 +198,7 @@ test('the light buffer’s regions sit where the lighting, the air’s programs 
   assert.equal(air.sky, lights.sky)
   assert.equal(air.atmosphere, lights.atmosphere)
   assert.equal(air.atmosphereView, lights.atmosphereView)
+  assert.equal(air.fogView, lights.fogView)
   assert.equal(air.aerial, lights.aerial)
   assert.equal(air.skyRays, lights.skyRays)
 })

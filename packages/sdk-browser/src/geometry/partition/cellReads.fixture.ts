@@ -54,6 +54,7 @@ const gridCell = (side: number, cell: number): TableCell => {
     meshPages: [],
     parents: [[null, box]],
     grid: [0, 0, 0],
+    main: 0,
     bounds: box,
     hlod: [cell, box, 1, 0],
   }

@@ -1,6 +1,7 @@
 import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
 import { beginTaaFrame, encodeTaaPass, taaRenderMatrix } from './frame.ts'
 import { createTaaFrameState } from './frameState.ts'
+import { encodeVelocity } from './velocityFrame.ts'
 import { createScaleControl, type ScaleControl } from '../../frame/scale/scaleControl.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
@@ -16,8 +17,16 @@ export function runtime() {
   const encoded: unknown[] = []
   const output = { color: {}, share: {} }
   const flags = { flags: true } as unknown as GPUTextureView
-  const temporal = {
+  // The view's velocity stage, whose motion and last image the pass reads: its target is not made.
+  const velocity = {
     uniform: {} as GPUBuffer,
+    active: false,
+    measured: false,
+    still: false,
+    scan: false,
+    moved: false,
+    size: [64, 32],
+    vectors: {} as GPUTextureView,
     motion: {
       buffer: {} as GPUBuffer,
       moved: false,
@@ -31,6 +40,14 @@ export function runtime() {
       },
     },
     frame: createTaaFrameState(),
+    boxes: () => ({}) as GPUBuffer,
+    ensure() {},
+    encode() {},
+    release() {},
+  }
+  const temporal = {
+    uniform: {} as GPUBuffer,
+    frame: velocity.frame,
     inputs: {} as TaaInputs,
     analysisSize: [64, 32],
     encode(_encoder: unknown, inputs: unknown) {
@@ -45,6 +62,7 @@ export function runtime() {
   const rt = {
     gpu: {
       temporal,
+      velocity,
       temporalLevel: 'max',
       depthView: {},
       hdrView: {},
@@ -53,6 +71,7 @@ export function runtime() {
     vis: { visView: { ids: true }, pageTable: { pages: true }, concatPos: {}, concatUv: {} },
     run: { diagnostic: 'beauty', gpuDrawCalls: 0, frame: 0, gate },
     capture: { capturing: false },
+    bounce: { wanted: false },
     // No diagnostic GPU variant: the view's own targets, whichever diagnostic view is drawn.
     context: { diagnosticGpuVariant: undefined },
     lights: { vsm: { settle: { renderedTotal: 0 } } },
@@ -75,8 +94,10 @@ export function runtime() {
     beginTaaFrame(rt, cam)
     taaRenderMatrix(rt, cam)
     const before = writes.length
-    encodeTaaPass(rt, device, device.createCommandEncoder(), cam, rt.gpu.hdrView!, asIs)
+    const encoder = device.createCommandEncoder()
+    encodeVelocity(rt, device, encoder, cam)
+    encodeTaaPass(rt, device, encoder, cam, rt.gpu.hdrView!, asIs)
     return writes.length > before ? (writes[writes.length - 1].data as Float32Array) : null
   }
-  return { rt, cam, temporal, encoded, frame, flags }
+  return { rt, cam, temporal, velocity, encoded, frame, flags }
 }

@@ -33,6 +33,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         o
     };
     let mut loaded = load_runtime(o, &routed.scene)?;
+    // The assemblies the job allows are laid out before anything reads the meshes.
+    super::source::assembly::expand_assemblies(o, &mut loaded)?;
     let bin = loaded.binary.bytes();
     let manifest = &loaded.manifest;
     let shared_nodes = super::source::mesh_share::share_identical_meshes(&mut loaded.g, bin);

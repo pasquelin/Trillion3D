@@ -6,7 +6,7 @@ import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { functionsOf } from '../../materials/texture/shaderRule.fixture.ts'
 import { FLAG_DYNAMIC } from '../../visibility/types.ts'
 import { PAGE_OF_WGSL } from './pageIdWgsl.ts'
-import { velocityShader } from './velocityWgsl.ts'
+import { velocityShader } from './nearestVelocityWgsl.ts'
 import { taaBuiltins } from './taaBuiltins.fixture.ts'
 
 type Page = { placement: number; flags: number; deformOutput: number }

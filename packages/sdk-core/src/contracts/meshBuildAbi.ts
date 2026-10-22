@@ -9,8 +9,11 @@
 import type { HlodWireMatch } from './hlodAbi.ts'
 import { VOXELIZE_EXTRA } from './materialAbi.ts'
 import {
+  ANY_NUMBER,
   choiceSetting,
+  countSetting,
   flagSetting,
+  INT32_RANGE,
   integerSetting,
   nonNegativeSetting,
   numberSetting,
@@ -31,6 +34,13 @@ export const MESH_BUILD_OPTION = '--mesh-build='
 export const MESH_BUILD_OBJECTS = 'objects'
 /** The most KiB a mesh's always-resident size may name: a 32-bit word's. */
 export const MAX_ALWAYS_RESIDENT_KIB = 0xffffffff
+/** The most rays a voxel casts (`voxelRays`): a larger count casts this many. */
+export const MAX_VOXEL_RAYS = 1024
+/** Rays are cast in packets of this many: a count past 1 is rounded up to a whole packet. */
+export const VOXEL_RAY_PACKET = 16
+/** A voxel no ray hit is sampled again a level up only when fewer rays than this were cast: with
+ *  more, none hitting means the volume is empty. */
+export const VOXEL_REMEMBER_BELOW_RAYS = 32
 
 /** The settings of a mesh's build that have a default — the reference's —, by field, in the order
  *  `MESH_BUILD_SETTINGS` lists them:
@@ -71,7 +81,36 @@ export const MAX_ALWAYS_RESIDENT_KIB = 0xffffffff
  *    skinned mesh may differ and its build weld their corners into one vertex, a number of at
  *    least 0: 2e-5.
  *  - `skinnedWeldTexture`: how far two texture coordinates of a skinned mesh may differ and its
- *    build weld their corners into one vertex, a number of at least 0: a 1024th. */
+ *    build weld their corners into one vertex, a number of at least 0: a 1024th.
+ *  - `voxelRays`: how many rays are cast across each voxel of a voxelized mesh (`voxelize`) to
+ *    sample its surface, a whole number of at least 0: 64. A count is cast as at most
+ *    `MAX_VOXEL_RAYS`, and past 1 rounded up to a multiple of `VOXEL_RAY_PACKET`. 0 or 1 casts one
+ *    ray: a voxel is then covered whole or not at all, and no coverage is handed over to its
+ *    neighbours.
+ *  - `voxelLevel`: the level of a voxelized mesh's DAG from which every group is voxels, a whole
+ *    number a signed 32-bit word holds: 0, a group is voxels only where they are finer than its
+ *    triangles. From 1, every group of that level or above is voxels whatever its triangles' error
+ *    — 1 is the first level; a level below 0 acts as 1.
+ *  - `voxelBackUp`: how far back, in voxel sides, each ray of a voxel starts before the voxel, a
+ *    number: 0. A ray whose nearest hit lies in that stretch counts neither as a hit nor as a
+ *    miss. Not read with `voxelSeparable`.
+ *  - `voxelSeparable`: whether the rays of a voxel run along its three axes alone (`true`), each
+ *    through one face, a hit counting only within the voxel's depth, and the voxel covered whole
+ *    where every ray along an axis hits and a ray through its centre does; or in every direction
+ *    (`false`, the default).
+ *  - `voxelNdf`: whether a voxel keeps the spread of the normals its rays hit (`true`, the
+ *    default): its normal is their mean and the shading roughens with its spread; or the
+ *    direction of their mean alone, the spread dropped (`false`).
+ *  - `voxelOpacity`: whether a voxel's record carries its coverage as its opacity (`true`), no
+ *    coverage handed over to its neighbours, every voxel a ray hit kept; or none, the coverage
+ *    handed over until no more voxels are left than it sums to (`false`, the default). The
+ *    reference only gives that opacity to a material as the vertex colour and draws no voxel by
+ *    it; the engine does not either.
+ *  - `allowAssemblies`: whether the assembly a mesh's glTF `extras.assembly` names — parts, the
+ *    meshes drawn once for each node that names them, and nodes, a part and a transform each — is
+ *    built: the mesh is then its own triangles and every node's part, carried by its transform
+ *    (`false`, the default: the mesh is its own triangles alone, as the reference draws a mesh
+ *    whose assembly it does not build, where its project switch is off). */
 export const MESH_BUILD_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flagSetting('storedTangents', false),
@@ -86,6 +125,13 @@ export const MESH_BUILD_RULES = /* @__PURE__ */ (() =>
     nonNegativeSetting('skinnedWeldPosition', 2e-7),
     nonNegativeSetting('skinnedWeldNormal', 0.00002),
     nonNegativeSetting('skinnedWeldTexture', 1 / 1024),
+    countSetting('voxelRays', 64, 0),
+    integerSetting('voxelLevel', 0, INT32_RANGE),
+    numberSetting('voxelBackUp', 0, ANY_NUMBER),
+    flagSetting('voxelSeparable', false),
+    flagSetting('voxelNdf', true),
+    flagSetting('voxelOpacity', false),
+    flagSetting('allowAssemblies', false),
   ]))()
 /** The precision of a mesh's position grid, a whole number from `MIN_POSITION_PRECISION` to
  *  `MAX_POSITION_PRECISION` (`page/format.ts`): its pages place every position on cells of
@@ -116,6 +162,13 @@ export const MESH_BUILD_SETTINGS = [
   'skinnedWeldPosition',
   'skinnedWeldNormal',
   'skinnedWeldTexture',
+  'voxelRays',
+  'voxelLevel',
+  'voxelBackUp',
+  'voxelSeparable',
+  'voxelNdf',
+  'voxelOpacity',
+  'allowAssemblies',
   POSITION_PRECISION_SETTING,
   NORMAL_PRECISION_SETTING,
   TANGENT_PRECISION_SETTING,
@@ -132,17 +185,34 @@ export type MeshInputSettingsWire = {
   skinnedWeldNormal?: number
   skinnedWeldTexture?: number
 }
-/** One source's mesh build settings as the compiler reads them, each left out when not named. */
-export type MeshBuildSettingsWire = MeshInputSettingsWire & {
-  storedTangents?: boolean
-  keptTriangles?: number
-  trimmedError?: number
-  dropNearCollapsed?: boolean
-  alwaysResidentKib?: number
-  positionPrecision?: number
-  normalPrecision?: number
-  tangentPrecision?: number
+/** How a voxelized mesh's voxels are sampled as the compiler reads it, each left out when not named:
+ *  a `voxel` layer's `meshBuild` names these alone, a `merge` or `simplify` layer's none. */
+export type MeshVoxelSettingsWire = {
+  voxelRays?: number
+  voxelLevel?: number
+  voxelBackUp?: number
+  voxelSeparable?: boolean
+  voxelNdf?: boolean
+  voxelOpacity?: boolean
 }
+/** Whether a mesh's assembly is built, as the compiler reads it, left out when not named: never an
+ *  HLOD layer's, whose actors' meshes have none. */
+export type MeshAssemblySettingsWire = {
+  allowAssemblies?: boolean
+}
+/** One source's mesh build settings as the compiler reads them, each left out when not named. */
+export type MeshBuildSettingsWire = MeshInputSettingsWire &
+  MeshVoxelSettingsWire &
+  MeshAssemblySettingsWire & {
+    storedTangents?: boolean
+    keptTriangles?: number
+    trimmedError?: number
+    dropNearCollapsed?: boolean
+    alwaysResidentKib?: number
+    positionPrecision?: number
+    normalPrecision?: number
+    tangentPrecision?: number
+  }
 /** The mesh build settings as the compiler reads them (`resolveMeshBuild` writes them). */
 export type MeshBuildWire = MeshBuildSettingsWire & {
   objects?: (MeshBuildSettingsWire & { match: HlodWireMatch })[]
@@ -184,14 +254,21 @@ export const HLOD_MESH_BUILD_SETTINGS = [
   VOXELIZE_EXTRA,
   'edgeLengthBound',
   'holdTextureCoordinates',
-] as const satisfies readonly (keyof HlodMeshBuildWire)[]
+] as const satisfies readonly (keyof HlodBuiltMeshWire)[]
 /** A `merge` or `simplify` layer's `meshBuild` as the compiler reads it
  *  (`HLOD_MESH_BUILD_SETTINGS`), each setting left out when not named. */
-export type HlodMeshBuildWire = Omit<
+export type HlodBuiltMeshWire = Omit<
   MeshBuildSettingsWire,
-  'storedTangents' | keyof MeshInputSettingsWire
+  | 'storedTangents'
+  | keyof MeshInputSettingsWire
+  | keyof MeshVoxelSettingsWire
+  | keyof MeshAssemblySettingsWire
 > & {
   shapePreservation?: HlodShapePreservation
   edgeLengthBound?: number
   holdTextureCoordinates?: boolean
 }
+/** A layer's `meshBuild` as the compiler reads it: a `merge` or `simplify` layer's, naming how the
+ *  mesh of each actor it builds is built, or a `voxel` layer's, naming how its cells' voxels are
+ *  sampled (`MeshVoxelSettingsWire`) and nothing else; each setting left out when not named. */
+export type HlodMeshBuildWire = HlodBuiltMeshWire | MeshVoxelSettingsWire

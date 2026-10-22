@@ -124,6 +124,11 @@ export const BLEND_BINDINGS = {
    *  projection's view uniform and its blue noise. */
   shadowView: 29,
   shadowNoise: 30,
+  /** What the fog reads past the light buffer (`BLEND_FOG_BINDINGS`): the cubemap, the volume, and
+   *  the sampler they are read through. */
+  fogCubemap: 31,
+  fogVolume: 32,
+  fogSampler: 33,
 }
 
 /**
@@ -155,8 +160,19 @@ export const BLEND_VSM_BINDINGS = {
   uniforms: BLEND_BINDINGS.shadowSampler,
   pool: BLEND_BINDINGS.shadowPool,
 }
-/** What a transparent's fragment traces its shadow with (`directShadowWgsl`). */
+/** Where a transparent's fragment reads the fog's cubemap and volume (`fogResourcesWgsl`), in
+ *  group 0, the volume through the sampler alone, the cubic filters left out (`trilinear`). */
+export const BLEND_FOG_BINDINGS = {
+  group: 0,
+  sampler: BLEND_BINDINGS.fogSampler,
+  cubemap: BLEND_BINDINGS.fogCubemap,
+  volume: BLEND_BINDINGS.fogVolume,
+  trilinear: true,
+}
+/** What a transparent's fragment traces its shadow with (`directShadowWgsl`): the blue noise and the
+ *  translucent casters' memory are read-only storage textures, read by load (`loadOnly`). */
 export const BLEND_TRACE_BINDINGS = {
   view: BLEND_BINDINGS.shadowView,
   noise: BLEND_BINDINGS.shadowNoise,
+  loadOnly: true,
 }

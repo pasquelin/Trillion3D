@@ -13,6 +13,7 @@ import { preparedGraph } from './graph.ts'
 import { rootedUnder } from '../world/rooted.ts'
 import { Geometry } from '../../../../../sdk-core/src/world/geometry/geometry.ts'
 import { surfaceOf } from '../../../geometry/pages/surface.ts'
+import { drawSourceOf } from '../../../geometry/selection/drawSource.ts'
 
 /** A scene of one node drawing one mesh of two primitives, with the morph weights it declares. */
 function oneNode(name: string, weights: number[] | null, visible = true) {
@@ -55,6 +56,26 @@ test('weights a node declares reach every primitive of its mesh, the group holdi
   scene.traverse((part) => part instanceof Mesh && parts.push(part))
   assert.equal(parts.length, 2)
   for (const part of parts) assert.deepEqual(part.morphTargetInfluences, [0.5])
+})
+
+test('the distances a node names are those every primitive of its mesh is drawn at', async () => {
+  const geometryOf = () => {
+    const geometry = new Geometry()
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
+    return geometry
+  }
+  const materialOf = () => Promise.resolve(standardSurface())
+  const distances = [undefined, { min: 2, max: 80 }]
+  for (const drawDistance of distances) {
+    const { tables, meshes } = oneNode('far', null)
+    tables.nodes[0].drawDistance = drawDistance
+    const { scene } = await preparedGraph({ tables, meshes, geometryOf, materialOf })
+    const read: unknown[] = []
+    scene.traverse(
+      (part) => part instanceof Mesh && read.push(drawSourceOf(part as HostMesh).drawDistance),
+    )
+    assert.deepEqual(read, [drawDistance, drawDistance])
+  }
 })
 
 // #347: a compiled glTF primitive with `COLOR_0` wears the vertex-coloured variant of its
@@ -118,7 +139,12 @@ test('a mesh a hidden core node names is placed visible by the cells', async () 
     scheme: 'hashSet' as const,
     flat: true,
     hlod: {
-      grids: [{ cell: 128, range: 256, priority: 0, level: 0, blocks: false, files: true }],
+      grids: [
+        {
+          ...{ cell: 128, range: 256, priority: 0, level: 0, blocks: false },
+          ...{ files: true, main: true, flat: true },
+        },
+      ],
       coarser: [null],
       cells: 0,
     },

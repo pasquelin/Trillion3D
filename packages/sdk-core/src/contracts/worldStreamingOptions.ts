@@ -1,6 +1,8 @@
 import {
+  choiceSetting as choice,
   countSetting as count,
   flagSetting as flag,
+  INT32_RANGE,
   integerSetting as integer,
   nonNegativeSetting as nonNegative,
   numberSetting as number,
@@ -15,7 +17,8 @@ import {
  * The run-time settings of a partitioned scene's streaming: how the view, the scene's one
  * streaming source, wishes the cells of each grid and the order they load in, whether a load
  * blocks on slow streaming and whether the HLOD actors load (`WORLD_STREAMING_SETTINGS`,
- * `packages/sdk-browser/src/geometry/partition/source.ts`, `slowStreaming.ts` beside it), and the
+ * `packages/sdk-browser/src/geometry/partition/source.ts`, `slowStreaming.ts` beside it), how far
+ * the view must move before the cells are wished again (`streamingUpdate.ts` beside it), and the
  * warm-up a switch that draws an HLOD actor waits on (`HLOD_WARMUP_SETTINGS`,
  * `packages/sdk-browser/src/frame/prepare/hlodWarm.ts`). Run-time settings, as `./settingRules.ts`
  * says.
@@ -23,13 +26,16 @@ import {
 
 /** How many cells may load at once: a whole number a 32-bit counter holds; 0 or less lifts the
  *  limit, every cell wished starting at once. */
-const LOADING_CELLS: readonly [number, number] = [-2147483648, 2147483647]
+const LOADING_CELLS: readonly [number, number] = INT32_RANGE
 
 /** The view's streaming settings, by the name the partition reads them by, each with the
  *  reference's default: 4 cells loading at once, an angle weight of 0.4, the wider then the higher
  *  priority first, each grid's own range unscaled, a radius of 100 m otherwise, no sector, a whole
  *  turn, no cell kept out by its height, a blocking grid blocking, under a ratio of 0.25, the
- *  HLOD actors on. */
+ *  HLOD actors on, the cells wished again only once the view moved 4 m or turned 10° (an update
+ *  optimisation on, never forced to run; a quantization of 0 compares the exact value), no shape
+ *  forced to the ground, no extra radius (metres) nor angle (degrees), the cells wished to
+ *  activate, not only to load. */
 const WORLD_STREAMING_SETTINGS = /* @__PURE__ */ (() =>
   ({
     maxLoadingCells: integer('worldStreamingMaxLoadingCells', 4, LOADING_CELLS),
@@ -45,6 +51,14 @@ const WORLD_STREAMING_SETTINGS = /* @__PURE__ */ (() =>
     blockOnSlowStreaming: flag('worldStreamingBlockOnSlowStreaming', true),
     blockOnSlowStreamingRatio: nonNegative('worldStreamingBlockOnSlowStreamingRatio', 0.25),
     hlod: flag('hlodEnabled', true),
+    updateOptimization: flag('worldStreamingUpdateOptimization', true),
+    locationQuantization: nonNegative('worldStreamingLocationQuantization', 4),
+    rotationQuantization: nonNegative('worldStreamingRotationQuantization', 10),
+    forceUpdateFrames: count('worldStreamingForceUpdateFrameCount', 0, 0),
+    force2D: flag('worldStreamingForce2D', false),
+    extraRadius: nonNegative('worldStreamingExtraRadius', 0),
+    extraAngle: nonNegative('worldStreamingExtraAngle', 0),
+    targetState: choice('worldStreamingTargetState', 'activated', ['activated', 'loaded']),
   }) as const)()
 /** How the view streams a partitioned scene's cells, every setting named. */
 export type WorldStreaming = SettingValues<typeof WORLD_STREAMING_SETTINGS>

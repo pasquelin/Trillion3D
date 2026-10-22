@@ -4,6 +4,13 @@ import { Ray } from '../math/volumes.ts'
 import { Matrix4 } from '../math/matrix4.ts'
 import { referenceProjection } from './referenceProjection.ts'
 import { drawnView, perspectiveSlope } from '../../../../math/src/projection/camera.ts'
+import {
+  hasClipPlane,
+  resolveClipPlane,
+  resolveViewList,
+  type ClipPlane,
+} from '../../contracts/viewOptions.ts'
+import { NO_VIEW_SET, type ViewSet } from './viewSet.ts'
 
 const view = new Float64Array(4)
 
@@ -74,6 +81,8 @@ export class Camera extends Object3D {
   /** Bottom edge of the orthographic box. */
   declare bottom: number
   private _fitAspect: boolean
+  /** The view's plane and lists, replaced whole at each write (`ViewSet`). */
+  private _set: ViewSet = NO_VIEW_SET
 
   /** `'perspective'` makes far things small; `'orthographic'` keeps every size. */
   readonly projection: 'perspective' | 'orthographic'
@@ -105,6 +114,47 @@ export class Camera extends Object3D {
     this._fitAspect = value
     this.updateProjectionMatrix()
   }
+  /** The plane that clips what this camera's view draws, `null` for none (the default): the side
+   *  its `normal` points to is drawn, the rest is cut. It takes effect while the world's
+   *  `cutClipPlane` setting is on. A write redraws. */
+  get clipPlane(): ClipPlane | null {
+    const [x, y, z, w] = this._set.clipPlane
+    return hasClipPlane(this._set.clipPlane)
+      ? { base: [x * w, y * w, z * w], normal: [x, y, z] }
+      : null
+  }
+  set clipPlane(plane: ClipPlane | null) {
+    this.write({ clipPlane: resolveClipPlane(plane) })
+  }
+  /** Objects this camera's view does not draw, each with everything under it; none by default.
+   *  A write redraws. */
+  get hidden(): readonly Object3D[] {
+    return this._set.hidden
+  }
+  set hidden(objects: Iterable<Object3D>) {
+    this.write({ hidden: resolveViewList(objects, 'hidden') })
+  }
+  /** The only objects this camera's view draws, each with everything under it; `null`, the
+   *  default, draws every object, and an empty list draws none. `hidden` wins over it. A write
+   *  redraws. */
+  get showOnly(): readonly Object3D[] | null {
+    return this._set.showOnly
+  }
+  set showOnly(objects: Iterable<Object3D> | null) {
+    this.write({ showOnly: objects === null ? null : resolveViewList(objects, 'showOnly') })
+  }
+  /** What the engine reads of the view beside the eye (`ViewSet`); the engine's own camera takes
+   *  a page camera's by this setter (`copyWorldCamera`), a write no one hears. */
+  get _viewSet(): ViewSet {
+    return this._set
+  }
+  set _viewSet(set: ViewSet) {
+    this._set = set
+  }
+  private write(change: Partial<ViewSet>) {
+    this._set = Object.freeze({ ...this._set, ...change })
+    this._link?.pose(this)
+  }
   protected override get looksDownNegativeZ() {
     return true
   }
@@ -117,6 +167,7 @@ export class Camera extends Object3D {
     if (!(source instanceof Camera)) return this
     ;(this as { _optics: Camera['_optics'] })._optics = { ...source._optics }
     this._fitAspect = source.fitAspect
+    this._set = source._set
     this.updateProjectionMatrix()
     return this
   }

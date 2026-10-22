@@ -85,14 +85,16 @@ export type PageTaskBlocks = {
   /** `cells`: per node, its core parent's rank (`-1`: the scene root) and its mesh's in `ranks`,
    *  two 32-bit integers, the local matrix the engine composes for its pose in `locals`, sixteen
    *  doubles, the item of the scene's animation banks it plays in `tracks`, one 32-bit integer
-   *  (`-1`: none), and whether it is drawn from its parent's own host mesh in `sources`, one byte;
-   *  all transferred. Absent otherwise. */
+   *  (`-1`: none), whether it is drawn from its parent's own host mesh in `sources`, one byte, and
+   *  the nearest and the farthest distance it is drawn at in `drawDistances`, two 32-bit floats
+   *  (0 and 0: none); all transferred. Absent otherwise. */
   cells?: {
     nodes: number
     ranks: ArrayBuffer
     locals: ArrayBuffer
     tracks: ArrayBuffer
     sources: ArrayBuffer
+    drawDistances: ArrayBuffer
   }
   /** `cellPage`: the page's slots, or its cells (`readCellPage`). Absent otherwise. */
   cellPage?: ReturnType<typeof readCellPage>

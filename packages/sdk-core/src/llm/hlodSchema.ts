@@ -25,11 +25,11 @@ export const hlod: JsonSchemaProperty = /* @__PURE__ */ (() => ({
       maximum: MAX_HLOD_LEVELS,
       default: DEFAULT_HLOD_LEVELS,
       description:
-        "Simple form: the main chain's levels, HLOD 0 included — the objects themselves, then one merged level after another.",
+        "Simple form: the main chain's levels, HLOD 0 included — the objects themselves, then one merged level after another; one level is the objects themselves, always loaded.",
     },
     groups: {
       type: 'object',
-      description: `Simple form, the objects of each group by name, for those no mark names: ${HLOD_GROUPS.join(', ')} — buildings the main chain, foliage two levels, the objects themselves then their cells voxelized together (no shell, a leaf's cut-out kept), their meshes voxelized far away, props their own instanced cells absorbed by the main chain's first merged layer. Each the node's exact name, { regex, flags } on it, or a match object; the first group in key order that matches an object takes it, and an object no group names goes to the default group. Each chain's grids double their cell (from ${DEFAULT_HLOD_CELL_SIZE} m) and range (from ${DEFAULT_HLOD_LOADING_RANGE} m) level after level, its last level always loaded.`,
+      description: `Simple form, the objects of each group by name, for those no mark names: ${HLOD_GROUPS.join(', ')} — buildings the main chain, foliage two levels, the objects themselves then their cells voxelized together (no shell, a leaf's cut-out kept), their meshes voxelized far away, props their own instanced cells absorbed by the main chain's first merged layer (always loaded when the main chain has one level). Each the node's exact name, { regex, flags } on it, or a match object; the first group in key order that matches an object takes it, and an object no group names goes to the default group. Each chain's grids double their cell (from ${DEFAULT_HLOD_CELL_SIZE} m) and range (from ${DEFAULT_HLOD_LOADING_RANGE} m) level after level, its last level always loaded.`,
       properties: Object.fromEntries(
         HLOD_GROUPS.map((group) => [group, nameOrMatch(`The objects of ${group}.`)]),
       ),

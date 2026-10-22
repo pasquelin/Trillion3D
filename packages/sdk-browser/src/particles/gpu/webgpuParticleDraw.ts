@@ -4,7 +4,8 @@ import { buildRenderPipeline, preparedPipeline } from '../../lighting/deferred/f
 import { preparedPipelines } from '../../gpu/core/preparedPipelines.ts'
 import { DRAW_FLOATS, drawOrder, writeDrawWords } from '../drawWords.ts'
 import { displayMaskLayout, type DisplayFilter } from '../../blend/display/displayFilter.ts'
-import { DISC_TOPOLOGY, PARTICLE_DRAW_WGSL } from './particlesWgsl.ts'
+import { DISC_TOPOLOGY, PARTICLE_DRAW_WGSL, particleDrawShader } from './particlesWgsl.ts'
+import { hasClipDistances } from '../../gpu/core/clipDistances.ts'
 import { particleTargets } from '../particleTargets.ts'
 import { PARTICLE_DRAW_PASS } from '../../diagnostic/stage/passLabels.ts'
 import {
@@ -45,7 +46,10 @@ function buildPipelines(
   const plain: Partial<Record<ParticlePool['blend'], GPURenderPipeline>> = {}
   // One module, its two fragment entries (`PARTICLE_DRAW_WGSL`): made at once, so a routed
   // pipeline asked before its check settles builds on it.
-  const module = device.createShaderModule({ label: 'PARTICLE_DRAW', code: PARTICLE_DRAW_WGSL }),
+  const module = device.createShaderModule({
+      label: 'PARTICLE_DRAW',
+      code: hasClipDistances(device) ? particleDrawShader(true) : PARTICLE_DRAW_WGSL,
+    }),
     plainLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   let routedLayout: GPUPipelineLayout | undefined
   /** The routed pipeline of each blend, its layout made by the first one asked. */
@@ -155,6 +159,9 @@ export type ParticleView = {
   filter?: DisplayFilter
   tone?: ArrayLike<number>
   unlit?: boolean
+  /** The view's clip plane in the world, `dot(xyz, p) + w` at least 0 drawn; none when absent
+   *  (`../../frame/render/viewClip.ts`). */
+  clipPlane?: ArrayLike<number>
 }
 
 /** The WebGPU particle draw: one pass over the lit image, one indirect instanced draw per live
@@ -187,7 +194,7 @@ export function createWebgpuParticleDraw(
         const pipeline = filter ? made.routed.of(pool.blend).get() : made.plain[pool.blend],
           kept = stateOf(pool)
         if (!pipeline || !kept) continue
-        writeDrawWords(words, pool, view.viewProj, eye)
+        writeDrawWords(words, pool, view.viewProj, eye, view.clipPlane)
         device.queue.writeBuffer(kept.draw, 0, words)
         pass ??= beginDraw(encoder, view.target, view.reactive, filter, width, height)
         if (filter) pass.setBindGroup(1, filter.maskGroup)

@@ -2,7 +2,12 @@ import { declaredLightingWgsl } from '../lighting/direct/declaredLightingWgsl.ts
 import * as surfaceModel from '../materials/surface/surfaceModel.ts'
 import { bounceApplyWgsl } from '../lighting/bounce/applyWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../lighting/standardLighting.ts'
-import { BLEND_BINDINGS, BLEND_TRACE_BINDINGS, BLEND_VSM_BINDINGS } from '../gpu/bind/bindLayout.ts'
+import {
+  BLEND_BINDINGS,
+  BLEND_FOG_BINDINGS,
+  BLEND_TRACE_BINDINGS,
+  BLEND_VSM_BINDINGS,
+} from '../gpu/bind/bindLayout.ts'
 import { blendRequestWgsl } from './requestWgsl.ts'
 import * as itemFlags from '../visibility/types.ts'
 import { BLEND_TO_EYE_WGSL, blendLit, blendSurfaceWgsl } from './shaderSurface.ts'
@@ -20,6 +25,7 @@ import { REFLECTION_GROUP, reflectionLightViewWgsl } from '../lighting/reflectio
 import { f0Of } from '../../../math/src/wgsl/lighting.ts'
 import { forwardIndirectWgsl } from '../lighting/reflections/weight.ts'
 import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
+import { CLIP_DISTANCES_WGSL, guardedFragments } from '../gpu/core/clipDistances.ts'
 
 /** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
  *  (`declaredLightingWgsl`), the program of a scene that holds none (`pipelines.ts`). Without
@@ -27,17 +33,18 @@ import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
  *  them (`physicalWgsl.ts`), its lights, environment, bounce and reflection go through them, a
  *  fragment
  *  without them summing the very same terms (`../lighting/direct/lobesWgsl.ts`). */
-const blendProgram = (key: Partial<ContractKey>, subgroups: boolean) => {
+const blendProgram = (key: Partial<ContractKey>, subgroups: boolean, clip: boolean) => {
   const lobes = !key.lobeless
   const bindings = {
     transmittance: BLEND_BINDINGS.shadowTransmittance,
     vsm: BLEND_VSM_BINDINGS,
     trace: { ...BLEND_TRACE_BINDINGS, subgroups },
+    fog: BLEND_FOG_BINDINGS,
   }
   return wgslBlock(
-    `blendProgram(${variantLabel(key)}, ${subgroups})`,
+    `blendProgram(${variantLabel(key)}, ${subgroups}${clip ? ', clip' : ''})`,
     [
-      blendVertexWgsl(lobes),
+      blendVertexWgsl(lobes, clip),
       STANDARD_LIGHTING_WGSL,
       declaredLightingWgsl(bindings, key),
       bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes),
@@ -64,7 +71,9 @@ const DUAL_SOURCE_WGSL = wgslBlock('DUAL_SOURCE_WGSL', [], 'enable dual_source_b
 /** The blend module's text (`blendProgram`), with what a pass adds to it: the transmissive stages
  *  (`stage`, `./transmission/transmitWgsl.ts`), the dual blend enabled for them where the device
  *  grants it (`dual`), a diagnostic variant's entries (`diagnostic`); its shadow traces vote over
- *  the subgroup where the device grants subgroups (`subgroups`). */
+ *  the subgroup where the device grants subgroups (`subgroups`); its vertex stage cutting the
+ *  view's plane by the hardware where the device grants clip distances (`clip`), else each
+ *  fragment stage by its pixel (`../gpu/core/clipDistances.ts`). */
 export const blendShader = (
   key: Partial<ContractKey> = {},
   {
@@ -72,14 +81,25 @@ export const blendShader = (
     diagnostic,
     dual = false,
     subgroups = false,
-  }: { stage?: WgslDecl; diagnostic?: WgslDecl; dual?: boolean; subgroups?: boolean } = {},
-) =>
-  wgslModule(
-    blendProgram(key, subgroups),
+    clip = false,
+  }: {
+    stage?: WgslDecl
+    diagnostic?: WgslDecl
+    dual?: boolean
+    subgroups?: boolean
+    clip?: boolean
+  } = {},
+) => {
+  const code = wgslModule(
+    blendProgram(key, subgroups, clip),
     ...(dual ? [DUAL_SOURCE_WGSL] : []),
+    ...(clip ? [CLIP_DISTANCES_WGSL] : []),
     ...(stage ? [stage] : []),
     ...(diagnostic ? [diagnostic] : []),
   )
+  // A device without clip distances cuts at the plane in each fragment stage (`blendClipped`).
+  return clip ? code : guardedFragments(code, 'VSOut', 'if(blendClipped(in)){discard;}')
+}
 
 /** The fragment stage of the runs, its surface and lobes those of `lobes`, and its entry points. */
 const blendFragmentWgsl = (lobes: boolean) =>

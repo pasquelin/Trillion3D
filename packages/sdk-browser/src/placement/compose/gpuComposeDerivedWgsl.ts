@@ -25,7 +25,12 @@ import { FINITE_SENTINEL } from '../../../../math/src/wgsl/constants.ts'
 import { D_HALF } from '../../../../math/src/wgsl/doubleConstants.ts'
 import { toF32 } from '../../../../math/src/wgsl/f32.ts'
 import { STRETCH_DOUBLE_WGSL } from '../gpuStretchWgsl.ts'
-import { LOD_BIT, LOD_INPUT, ROW_LOD_FLOATS } from '../../lighting/shadows/casters/rowLodWords.ts'
+import {
+  LOD_BIT,
+  LOD_INPUT,
+  LOD_OBJECT,
+  ROW_LOD_FLOATS,
+} from '../../lighting/shadows/casters/rowLodWords.ts'
 import { INPUT_LOD, ROW_INPUT_DOUBLES } from '../rows/rowInputPack.ts'
 import { ROOT_BOX_DOUBLES, ROOT_LOCAL_DOUBLES } from '../roots/rootWorldSends.ts'
 
@@ -103,7 +108,7 @@ fn composeRoot(rank:u32,world:array<vec2u,16>)->vec2u{
 
 /** Row `row`'s detail words at `world`: the errors and their centres by the stretch of
  *  the world, the radii, the radius of the root's world box — both the root's words
- *  (`composeRoot`) —, the residency folded in. */
+ *  (`composeRoot`) —, the row's whole object (`composeObject`), the residency folded in. */
 export const LOD_WGSL = wgslBlock(
   'LOD_WGSL',
   [splitDouble, toF32, affineAxis, dSqrt, dMul, dDot3, dSub, FINITE_SENTINEL, D_HALF],
@@ -115,12 +120,26 @@ fn lodCentre(o:u32,at:u32,world:array<vec2u,16>,src:u32,low:u32){
   lods[o+low+axis]=s.y;
  }
 }
+/** The row's whole object (\`rowObjectInputs\`): the offset of its centre from the row's own, turned
+ *  by the linear part of \`world\`, and its radius by the root's stretch \`scale\`, in single
+ *  precision, as the cull reads them (\`lods\`, \`VsmRenderRowLod.object\`); zeros for none. */
+fn composeObject(o:u32,at:u32,world:array<vec2u,16>,scale:vec2u){
+ let a=inputs[at+${LOD_INPUT.object}u];
+ let b=inputs[at+${LOD_INPUT.object + 1}u];
+ let d=vec3f(bitcast<f32>(a.x),bitcast<f32>(a.y),bitcast<f32>(b.x));
+ for(var axis=0u;axis<3u;axis++){
+  let l=vec3f(bitcast<f32>(toF32(world[axis])),bitcast<f32>(toF32(world[4u+axis])),bitcast<f32>(toF32(world[8u+axis])));
+  lods[o+${LOD_OBJECT}u+axis]=bitcast<u32>(l.x*d.x+l.y*d.y+l.z*d.z);
+ }
+ lods[o+${LOD_OBJECT + 3}u]=bitcast<u32>(bitcast<f32>(b.y)*bitcast<f32>(toF32(scale)));
+}
 fn composeLod(row:u32,rank:u32,world:array<vec2u,16>){
  let at=row*${ROW_INPUT_DOUBLES}u+${INPUT_LOD}u;
  let o=row*${ROW_LOD_FLOATS}u;
  let r=rank*${ROOT_BOX_DOUBLES}u;
  for(var k=0u;k<${ROW_LOD_FLOATS}u;k++){lods[o+k]=0u;}
  lods[o+7u]=bitcast<u32>(FINITE_SENTINEL);
+ composeObject(o,at,world,rootBoxes[r+6u]);
  let flags=inputs[at+${LOD_INPUT.flags}u].x;
  if((flags&${LOD_BIT.hasBox}u)!=0u){
   let a=rootBoxes[r];let b=rootBoxes[r+1u];let c=rootBoxes[r+2u];

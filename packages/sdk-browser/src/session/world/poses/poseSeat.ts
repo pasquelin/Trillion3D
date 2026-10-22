@@ -3,6 +3,7 @@ import type { Seat } from '../batches.ts'
 import { hypot3 } from '../../../../../math/src/float/hypot.ts'
 import { touchRows, type PoseState } from './poseState.ts'
 import { writePlacementRow } from '../../../placement/rows/rows.ts'
+import { nodeCasting } from '../../../visibility/shader/castingMark.ts'
 
 /** A sprite's row, rewritten at every write (`spriteRow`). */
 const spriteScratch = new Float64Array(16)
@@ -31,12 +32,12 @@ function spriteRow(world: ArrayLike<number>) {
 }
 
 /** Writes one seated mesh's world matrix — a sprite's row (`spriteRow`) — and flags into its
- *  row: whether it is shown, and whether it casts no shadow. */
+ *  row: whether it is shown and how it casts (`nodeCasting`). */
 export function writeSeat(state: PoseState, mesh: Mesh, seat: Seat, shown: boolean) {
   const rows = seat.batch.rows
   if (!rows || seat.row < 0) return
   const world = mesh.matrixWorld.elements
   const matrix = mesh.primitive === 'sprite' ? spriteRow(world) : world
-  writePlacementRow(rows, seat.row, matrix, shown, mesh.castShadow)
+  writePlacementRow(rows, seat.row, matrix, shown, nodeCasting(mesh))
   touchRows(state, seat.batch, seat.row, seat.row)
 }

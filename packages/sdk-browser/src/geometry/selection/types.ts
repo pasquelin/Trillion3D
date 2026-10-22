@@ -3,6 +3,7 @@ import type { HostAttributes } from '../../session/host/resources.ts'
 import type { DrawSource } from './drawSource.ts'
 import type { PageSurface } from '../pages/surface.ts'
 import type { RuntimeCutProxy } from '../../../../sdk-core/src/contracts/proxy.ts'
+import type { DrawDistanceSettings } from '../../../../sdk-core/src/contracts/objectOptions.ts'
 import type { MatrixElements } from '../../session/host/matrixElements.ts'
 import type { CullingLinks } from '../cut/links.ts'
 import type { PlacementOf } from '../../placement/rows/rows.ts'
@@ -116,6 +117,10 @@ export type ClusterStructureIndex = {
 /** The primitive a root's mesh is drawn from, which holds its proxy once it has one (a cut's at its making,
  *  a compiled mesh's when the cache object arrives), and the surface its placement wears (`ClusterRoot.proxy`). */
 export type RootProxy = { primitive: { runtimeProxy?: RuntimeCutProxy }; surface: PageSurface }
+/** The distances a root is drawn at, from the eye to the centre of its bounds, in the scene's
+ *  units: not drawn nearer than `min`, nor farther than `max`, which is above 0 — a root that names
+ *  no farthest distance carries none. */
+export type DrawDistance = Readonly<Required<DrawDistanceSettings>>
 export type ClusterRoot<T> = {
   world: MatrixElements
   pages: T[]
@@ -163,10 +168,13 @@ export type ClusterRoot<T> = {
   parked?: boolean
   /** True while the host hides the source node or one of its ancestors (`placement/hidden.ts`). */
   hidden?: boolean
-  /** Its mark, absent when 0: its surface's sprite bits (`spriteMark`), set at collection, and
-   *  `SHADOWLESS_ROOT` while its mesh or row casts no shadow (`followPlacementRows`,
-   *  `followHostVisibility`). */
+  /** Its mark, absent when 0: its surface's sprite bits (`spriteMark`), set at collection, and its
+   *  casting bits (`castingMark.ts`) while its mesh or row casts no shadow or casts far ones
+   *  (`followPlacementRows`, `followHostVisibility`). */
   mark?: number
+  /** The distances it is drawn at, absent when it names none: the cut culls it outside them
+   *  (`cutDrawDistanceCulling`, `../dag/shader/drawDistanceWgsl.ts`). */
+  drawDistance?: DrawDistance
   /** The instance-buffer row this root reads its world from, when it was collected from one. */
   placement?: PlacementOf
   /** The results of each of its pages, by the page's rank in `pages`, where its deformation writes

@@ -13,9 +13,9 @@ import {
   LOD_INPUT,
   ROW_LOD_INPUT_DOUBLES,
   rowLodInputs,
+  rowObjectInputs,
 } from '../../lighting/shadows/casters/rowLodWords.ts'
-import type { Placements } from '../../geometry/selection/placements.ts'
-import type { WorldMemo } from '../../geometry/selection/rootWorld.ts'
+import type { ObjectRoot } from '../../lighting/shadows/casters/objectSphere.ts'
 
 /** A row's inputs: its local box's centre and half extent grown by the reach (the sphere), then the
  *  detail's. The centre is the double `(min + max) / 2` the sphere is made from (`rowSphere.ts`). */
@@ -29,13 +29,13 @@ export const INPUT_FLAGS = INPUT_LOD + LOD_INPUT.flags
 
 /**
  * Row inputs `rec` of a root `root`, into `into` from `o`; the zero inputs for a row with no record.
- * `lod` false leaves the detail out — a blended caster's row has none.
+ * `lod` false leaves the detail out — a blended caster's row has none, but its object's sphere.
  */
 export function rowInputs(
   into: Float64Array,
   o: number,
   rec: PageRec | undefined,
-  root: (Placements[number] & WorldMemo) | undefined,
+  root: ObjectRoot | undefined,
   ready: boolean,
   childReady: boolean,
   lod = true,
@@ -48,6 +48,7 @@ export function rowInputs(
   for (let axis = 0; axis < 3; axis++)
     into[o + INPUT_HALF + axis] = (max[axis] - min[axis]) / 2 + reach
   if (lod) rowLodInputs(into, o + INPUT_LOD, rec, root, ready, childReady)
+  else rowObjectInputs(into, o + INPUT_LOD, rec, root)
   into[o + INPUT_FLAGS] = into[o + INPUT_FLAGS] | LOD_BIT.record
 }
 

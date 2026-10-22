@@ -53,6 +53,7 @@ test('the skipped thin transmission and back-facing lobes keep every sum, bit fo
           directionCone: [0, -1, 0, rank % 3 ? -1 : 0.7],
           params: [rank % 3 ? 0 : K.KIND_SPOT, -1, 0, rank % 3 ? 0 : 0.9],
           shape: [0, 0, 0, 0],
+          capsule: [0, 0, 0, 0],
         }))
         const n = [u(-1, 1), u(-1, 1), u(-1, 1)],
           N = n.map((v) => v / (Math.hypot(...n) || 1))

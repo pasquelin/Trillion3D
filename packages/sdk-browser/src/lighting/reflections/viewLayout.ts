@@ -1,5 +1,6 @@
 import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { slabPerspective } from '../../../../math/src/wgsl/projection.ts'
 import { hizDepthWgsl } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { VIEW_WGSL, WORLD_AT_WGSL } from '../deferred/worldAtWgsl.ts'
 
@@ -26,7 +27,11 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../deferred/worldAtWgsl.ts'
  *  - `grid`, the grid's extent over the drawn size (`xy`, `gridExtent`, `grids.ts`; `zw` unused);
  *  - `surroundings`, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`):
  *    the background the screen draws, through the exposure and the display curve
- *    (`createSurroundings`, `../toneUnmap.ts`).
+ *    (`createSurroundings`, `../toneUnmap.ts`);
+ *  - `scene`, what a ray may spend (`../../../../sdk-core/src/contracts/reflectionOptions.ts`):
+ *    the iterations of its march of the screen (`x`), the work (`y`) and the triangle tests (`z`) of its
+ *    walk of each ring of the scene, in the tracer's units, and whether the scene is traced at all (`w`,
+ *    one or zero: the one switch of the scene trace, `screenProbeSceneTraces`).
  */
 const LAYOUT = fieldLayout('ReflectionView', [
   ['viewProj', 'mat4x4f'],
@@ -39,6 +44,7 @@ const LAYOUT = fieldLayout('ReflectionView', [
   ['temporal', 'vec4u'],
   ['grid', 'vec4u'],
   ['surroundings', 'vec4f'],
+  ['scene', 'vec4u'],
 ] as const)
 
 /** Each field's first word in the view. */
@@ -91,6 +97,19 @@ export const reflectionBindingsWgsl = (group: number) =>
 @group(${group}) @binding(${REFLECTION_IMAGE_BINDING}) var reflectionImage:texture_2d<f32>;
 fn reflectionPixelAt(P:vec3f)->f32{return (reflectionView.viewProj*vec4f(P,1.0)).w*reflectionView.slab.x;}`,
   )
+
+/**
+ * A clip point's depth that grows linearly along the view (`reflectionLinearDepth`): its `w` under a perspective,
+ * its `z` under an orthographic projection (`ReflectionView.slab`), and the one of a world point in this view
+ * (`surfaceLinearDepth`): the engine's one depth for both projections, which a program that declares the
+ * reflection's view (`reflectionBindingsWgsl`) lists beside it.
+ */
+export const REFLECTION_LINEAR_DEPTH_WGSL = wgslBlock(
+  'REFLECTION_LINEAR_DEPTH_WGSL',
+  [REFLECTION_VIEW_WGSL, slabPerspective],
+  `fn reflectionLinearDepth(clip:vec4f)->f32{return select(clip.z,clip.w,slabPerspective(reflectionView.slab));}
+fn surfaceLinearDepth(P:vec3f)->f32{return reflectionLinearDepth(reflectionView.viewProj*vec4f(P,1.0));}`,
+)
 
 /** The deferred lighting's view in the reflection group, for a program that has none of its own. */
 export const reflectionLightViewWgsl = (group: number) =>

@@ -29,6 +29,7 @@ function runtime(temporalAntialiasing: boolean) {
     signal: new AbortController().signal,
     capture: { capturing: false },
     vis: {},
+    bounce: { wanted: false },
     run: {
       diagnostic: 'beauty',
       gate: { revisions, resourcesChanged: () => void (changed++, revisions.resources++) },

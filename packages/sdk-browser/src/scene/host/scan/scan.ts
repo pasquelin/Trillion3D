@@ -1,6 +1,7 @@
 import { sameElements } from '../../../../../math/src/matrix/matrixElements.ts'
 import { copyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { unnoted } from '../../../../../sdk-core/src/scene/core/nodeEdits.ts'
+import { nodeCasting } from '../../../visibility/shader/castingMark.ts'
 import { isLightNode } from '../graph/kinds.ts'
 import type { Light } from '../../../../../sdk-core/src/world/light/light.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
@@ -35,7 +36,8 @@ const finite = (value: number) => (Number.isFinite(value) ? value : 0)
 export interface NodeState {
   node: Object3D
   visible: boolean
-  castShadow: boolean
+  /** How the node casts (`nodeCasting`): its `castShadow` and `castFarShadow`. */
+  casting: number
   parent: Object3D | null
   auto: boolean
   matrix: Float64Array | null
@@ -73,7 +75,7 @@ export function snapshot(node: Object3D): NodeState {
   return {
     node,
     visible: node.visible,
-    castShadow: node.castShadow,
+    casting: nodeCasting(node),
     parent: node.parent,
     auto: node.matrixAutoUpdate,
     matrix: node.matrixAutoUpdate ? null : Float64Array.from(node._matrixElements),
@@ -110,15 +112,15 @@ export function scan(state: NodeState): number {
     // still alive, and this walk runs on every watched node once the write count moved.
     parent = node.parent,
     visible = node.visible,
-    castShadow = node.castShadow,
+    casting = nodeCasting(node),
     auto = node.matrixAutoUpdate
   let found = 0
   // A reparented node changes its ancestor chain: the watched set is reshaped.
   if (parent !== state.parent) found |= SCAN_RESHAPED
   state.parent = parent
-  if (visible !== state.visible || castShadow !== state.castShadow) found |= SCAN_FLIPPED
+  if (visible !== state.visible || casting !== state.casting) found |= SCAN_FLIPPED
   state.visible = visible
-  state.castShadow = castShadow
+  state.casting = casting
   if (auto !== state.auto) {
     // Frozen from now on: the matrix it holds is the pose, whatever wrote it.
     state.auto = auto

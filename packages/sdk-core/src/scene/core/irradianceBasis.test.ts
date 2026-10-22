@@ -2,7 +2,12 @@
 // the evaluation are run on the very shader text the GPU receives, against analytic lighting.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { irradianceShader, radianceProjectionShader } from './irradianceBasis.ts'
+import {
+  cosineLobeShader,
+  harmonicsShader,
+  irradianceShader,
+  radianceProjectionShader,
+} from './irradianceBasis.ts'
 import { IRRADIANCE_TERMS } from './irradianceTerms.ts'
 import { IRRADIANCE_BAND } from './environment.ts'
 import { unit } from '../../../../math/src/vector/vectorTuple.ts'
@@ -106,4 +111,19 @@ test('the shader text sums every term once, in band order', () => {
     assert.ok(evaluation.includes(`c${k}*((${term.polynomial('n')})*${term.band})`))
     assert.equal(projection[k], `s${k}+=r*((${term.polynomial('d')})*${term.basis});`)
   })
+})
+
+test('the harmonics of a direction and the cosine lobe of a normal give the irradiance a projected sample gives', () => {
+  const evaluate = (expression: string, v: Vector) =>
+    new Function('v', `return ${expression.replace('array<f32,9>(', '[').replace(/\)$/, ']')};`)(
+      v,
+    ) as number[]
+  for (const direction of normals)
+    for (const n of normals) {
+      const sh = project([{ direction, rgb: [1, 1, 1], weight: 1 }])
+      const factors = evaluate(harmonicsShader('v'), direction)
+      const lobe = evaluate(cosineLobeShader('v'), n)
+      const sum = factors.reduce((total, factor, k) => total + factor * lobe[k], 0)
+      assert.ok(Math.abs(sum - irradiance(sh, n)[0]) < 1e-12, `${direction.x} ${n.x}`)
+    }
 })

@@ -5,6 +5,7 @@ import { createWebgpuShadePipelines } from '../../visibility/passes/shadePipelin
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
 import { createGpuRaster } from '../../visibility/raster/raster.ts'
 import { createTemporalAntialiasing } from '../../post/taa/temporalAntialiasing.ts'
+import { createVelocity } from '../../post/taa/velocity.ts'
 import { SHADE_SHADER } from '../../visibility/shader/shadeWgsl.ts'
 import { VIS_SHADER } from '../../visibility/shader/visWgsl.ts'
 import { wgslStageBindings } from '../core/wgslBindings.fixture.ts'
@@ -38,7 +39,9 @@ async function passLayouts() {
     'hardware resolve': shadeBindGroupLayout,
     transparents: blendBindGroupLayout,
     'small triangles': await firstLayout((d) => createGpuRaster(d, 4, 4, 8)),
-    'temporal antialiasing': await firstLayout((d) => createTemporalAntialiasing(d, [])),
+    'temporal antialiasing': await firstLayout((d) =>
+      createTemporalAntialiasing(d, createVelocity(d, [])),
+    ),
     // The lit resolve recomputes it too, reading the float pool through one binding.
     'deferred lighting': createDeferredLightingLayout(device, true),
     // With bounce: its probes and surface cache are atlases, no storage buffer.

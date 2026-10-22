@@ -9,7 +9,13 @@ import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
  * `perspective` (the projection's clip-w weight) place the camera for the cluster split, whose
  * threshold `hardwareEdge` is the view's pixels per unit at depth one divided by
  * `hardwareRasterEdgePixels`, and `softwareRaster` zero when every cluster is hardware's
- * (`../raster/binWgsl.ts`).
+ * (`../raster/binWgsl.ts`). `clipPlane` is the view's clip plane in the world the rows are placed in,
+ * `dot(xyz, p) + w` at least 0 drawn, all zero for a view that clips nothing (`../../frame/render/viewClip.ts`),
+ * which every vertex stage cuts the primitives by (`../../gpu/core/clipDistances.ts`); `clipRoute`
+ * is 1 where the cut's cull of the plane is on, the split then handing a cluster that reaches
+ * behind the plane to the hardware raster, whose stages cut it (`../raster/binWgsl.ts`).
+ * `tessellation` is one where the frame draws the surfaces that name a displacement tessellated
+ * (`../tessellation/`), zero where it draws them flat.
  */
 export const VIS_UNIFORM = fieldLayout('Uniforms', [
   ['viewProj', 'mat4x4f'],
@@ -27,6 +33,9 @@ export const VIS_UNIFORM = fieldLayout('Uniforms', [
   ['forward', 'vec3f'],
   ['hardwareEdge', 'f32'],
   ['softwareRaster', 'u32'],
+  ['tessellation', 'u32'],
+  ['clipPlane', 'vec4f'],
+  ['clipRoute', 'u32'],
 ] as const)
 
 /** The surface resolve's uniform (`ShadeUni`): its camera, viewport and page count, the cut's pixel

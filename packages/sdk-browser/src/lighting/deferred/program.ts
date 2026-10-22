@@ -11,6 +11,7 @@ import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
 import { bindLight, type ProgramParts, type ProgramState } from './lightGroup.ts'
+import type { FogRead } from '../fog/read.ts'
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. With them,
  *  the frame's key: what its program leaves out (`contractCuts.ts`). */
@@ -48,6 +49,15 @@ export interface DirectLightResources extends Partial<ContractKey> {
    *  substitute. */
   reflection?: GPUTextureView
   receiver?: GPUTextureView // the resolve's shadow receiver target
+  /** What the fog's read is bound to this image (`FogRead`): its cubemap, the volume the image
+   *  built and the frame that maps a point to its cell; absent, their stand-ins. */
+  fog?: FogRead
+  /** What the screen probes left of the pixels' indirect light this image (`../bounce/screen/indirectWgsl.ts`): the
+   *  history they keep, a texture the bounce program reads by load; absent, the stand-in that says none ran. */
+  screenIndirect?: GPUTextureView
+  /** The screen-space ambient occlusion this image drew (`../ao/frame.ts`): a texture of one byte a pixel the opaque
+   *  resolve reads by load, where its view's word says to apply it; absent, the stand-in. */
+  ambientOcclusion?: GPUTextureView
 }
 export interface DeferredSources {
   /** The lighting program (`contractLightingProgram`). */

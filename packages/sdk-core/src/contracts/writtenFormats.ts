@@ -165,8 +165,10 @@ export const CUTOUT_SHEET_VERSION = 1
 
 /**
  * Format of `voxels.bin` and of the manifest's `voxels` section (`stage.rs` lays it out): 4 since a
- * voxel's record is twelve bytes — no coverage, no material, which the runtime never read — and a
- * page's brick holds the rank of its first voxel (`trillion3d_page_codec::voxel`).
+ * voxel's record is twelve bytes — no material, which the runtime never read, and a coverage only
+ * where the build keeps it as opacity (`voxelOpacity`, byte 7: the bytes of a build that does not
+ * are the same) — and a page's brick holds the rank of its first voxel
+ * (`trillion3d_page_codec::voxel`).
  */
 export const VOXEL_VERSION = 4
 

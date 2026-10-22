@@ -16,12 +16,16 @@ import { IRRADIANCE_TERMS } from './irradianceTerms.ts'
  * Irradiance at the unit normal named `normal`, as a shader expression: the sum of each
  * coefficient `coefficient(k)` (a three-component vector) times its band and polynomial. Not
  * clamped: a truncated basis can dip below zero where true irradiance cannot, and each caller
- * clamps.
+ * clamps. `terms` the first terms only, the constant and linear bands for four.
  */
-export function irradianceShader(coefficient: (k: number) => string, normal: string) {
-  return IRRADIANCE_TERMS.map(
-    (term, k) => `${coefficient(k)}*((${term.polynomial(normal)})*${term.band})`,
-  ).join('+')
+export function irradianceShader(
+  coefficient: (k: number) => string,
+  normal: string,
+  terms = IRRADIANCE_TERMS.length,
+) {
+  return IRRADIANCE_TERMS.slice(0, terms)
+    .map((term, k) => `${coefficient(k)}*((${term.polynomial(normal)})*${term.band})`)
+    .join('+')
 }
 
 /**
@@ -59,4 +63,24 @@ export function radianceProjectionShader(
   return IRRADIANCE_TERMS.map(
     (term, k) => `${target(k)}+=${radiance}*((${term.polynomial(direction)})*${term.basis});`,
   ).join('\n')
+}
+
+/**
+ * The nine harmonics of the unit direction named `direction`, as a shader expression of an `array<f32,9>`: each
+ * term's normalisation times its polynomial. A radiance sample of a direction adds its colour times each factor to
+ * the matching coefficient (`radianceProjectionShader` writes the same factors as statements).
+ */
+export function harmonicsShader(direction: string) {
+  const factors = IRRADIANCE_TERMS.map((term) => `${term.basis}*(${term.polynomial(direction)})`)
+  return `array<f32,9>(${factors.join(',')})`
+}
+
+/**
+ * The nine factors of the cosine lobe of the unit normal named `normal`, as a shader expression of an `array<f32,9>`:
+ * each term's band times its polynomial, so that the irradiance is the sum of the coefficients times them
+ * (`irradianceShader` writes the same sum, coefficient by coefficient).
+ */
+export function cosineLobeShader(normal: string) {
+  const factors = IRRADIANCE_TERMS.map((term) => `${term.band}*(${term.polynomial(normal)})`)
+  return `array<f32,9>(${factors.join(',')})`
 }

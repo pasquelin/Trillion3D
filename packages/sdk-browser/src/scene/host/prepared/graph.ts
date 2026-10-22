@@ -28,6 +28,7 @@ import { placedMeshes } from './placed.ts'
 import { bindBanks, bindSkins, clipsOf, movedNodes, streamedMeshes } from './motion.ts'
 import type { RowLink } from '../../../geometry/partition/rows.ts'
 import type { AnimationBanks } from '../../../../../sdk-core/src/scene/core/animationBanks.ts'
+import { holdDrawDistance } from '../../../geometry/selection/drawSource.ts'
 
 /** What the engine knows a drawn mesh by: its mesh and primitive ranks, and the rows placing it
  *  when a partition's cells do. */
@@ -148,6 +149,10 @@ function assembler(
       // Weights a node declares override its mesh's, on every primitive it draws.
       if (declared.weights)
         mesh.traverse((part) => isDrawnNode(part) && weigh(part, declared.weights))
+      // The distances it names are every drawn part's.
+      const { drawDistance } = declared
+      if (drawDistance)
+        mesh.traverse((part) => isDrawnNode(part) && holdDrawDistance(part, drawDistance))
       carried.push(mesh)
     }
     if (declared.camera !== null)

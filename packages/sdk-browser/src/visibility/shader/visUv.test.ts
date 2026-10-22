@@ -39,7 +39,7 @@ const pages: object[] = [],
   reads = { uv: 0 }
 const run = shaderRun<Run>(VIS_SHADER, ['vis_vs', 'maskKeep', 'lineDash', 'floorMod'], {
   pages,
-  uni: { viewProj: IDENTITY },
+  uni: { viewProj: IDENTITY, clipPlane: [0, 0, 0, 0] },
   drawBatch: () => [0, 0],
   pageHeaderFor: () => ({}),
   pageSurfaceRead: () => true,

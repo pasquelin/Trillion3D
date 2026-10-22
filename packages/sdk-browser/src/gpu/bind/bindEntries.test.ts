@@ -108,7 +108,14 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
       asIsShare: { view: {}, givenUpView: {} },
       backdrop: { colorView: {}, depthView: {}, active: false },
       deferred: {
-        placeholders: { slices: {}, atlasView: {}, sampler: {}, bounceGrid: {}, probes: {} },
+        placeholders: {
+          slices: {},
+          atlasView: {},
+          sampler: {},
+          bounceGrid: {},
+          probes: {},
+          fog: {},
+        },
       },
       gpuDrawCalls: 0,
     },

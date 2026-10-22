@@ -3,6 +3,7 @@
 // world's origin. The shipped `rectView`, `polygonFormFactor` and `ltcCorner` run in f32
 // (`../shaderRunF32.fixture.ts`) against the clipped polygon's integral in f64 (each edge cut at the
 // horizon, then the edges' sum of angles), itself checked against a Monte Carlo integral over the rectangle.
+// Its integral with no normal (`rectFormOf`, what a medium reads of it) is the projected solid angle.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { LTC_SIZE, ltcTable } from '../../../../sdk-core/src/lighting/ltcTable.ts'
@@ -22,9 +23,10 @@ const shader = shaderRun<{
   rectView: (light: object, P: V) => View
   polygonFormFactor: (a: V, b: V, c: V, d: V, up: V) => V
   ltcCorner: (q: V, T1: V, T2: V, N: V, m: V) => V
+  rectFormOf: (view: View) => number
 }>(
   wgslModule(RECT_SURFACE_LIGHT_WGSL),
-  ['rectView', 'polygonFormFactor', 'rectEdge', 'cutEdge', 'ltcCorner', 'faceNormal'],
+  ['rectView', 'polygonFormFactor', 'rectEdge', 'cutEdge', 'ltcCorner', 'faceNormal', 'rectFormOf'],
   {
     ...F32_SCOPE,
     rangeWindow: () => 1,
@@ -180,3 +182,44 @@ test('a far light in the mirror direction keeps its glint: the fitted lobe, clip
   // The proxy sphere and acos: 260 % off.
   assert.ok(worst(errors) < 1e-3, `${worst(errors)}`)
 })
+
+test('a rectangle’s integral with no normal is its projected solid angle, the area over the squared distance far away', () => {
+  // A square of side `side` facing the point, `distance` away along its axis: the integral of the
+  // cosine of the angle to the axis over its solid angle, `d² dA / r⁴` over the square, by midpoints.
+  const projected = (side: number, distance: number) => {
+    const n = 600
+    let sum = 0
+    for (let i = 0; i < n; i++)
+      for (let j = 0; j < n; j++) {
+        const [x, y] = [((i + 0.5) / n - 0.5) * side, ((j + 0.5) / n - 0.5) * side]
+        sum += distance ** 2 / (x * x + y * y + distance ** 2) ** 2
+      }
+    return (sum * side * side) / (n * n)
+  }
+  const view = (side: number, distance: number): View => {
+    const h = side / 2
+    return {
+      a: [-h, -h, distance],
+      b: [h, -h, distance],
+      c: [h, h, distance],
+      d: [-h, h, distance],
+      window: 1,
+    }
+  }
+  for (const [side, distance] of [
+    [1, 1],
+    [2, 0.5],
+    [0.1, 0.3],
+    [1, 3],
+  ])
+    near1(
+      shader.rectFormOf(view(side, distance)),
+      projected(side, distance),
+      2e-5,
+      `${side}/${distance}`,
+    )
+  // Far away it is the area over the squared distance.
+  near1(shader.rectFormOf(view(1, 500)), 1 / 500 ** 2, 1e-4, 'far')
+})
+const near1 = (got: number, want: number, relative: number, label: string) =>
+  assert.ok(Math.abs(got - want) <= relative * want, `${label}: ${got} against ${want}`)

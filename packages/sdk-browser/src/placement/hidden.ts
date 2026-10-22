@@ -1,6 +1,6 @@
 import type { ClusterRoot } from '../geometry/selection/types.ts'
 import { rowParked, type PlacementOf } from './rows/rows.ts'
-import { markShadowless } from '../visibility/shader/spriteWgsl.ts'
+import { markCasting, nodeCasting } from '../visibility/shader/castingMark.ts'
 import { rootedUnder } from '../scene/host/world/rooted.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
@@ -81,7 +81,7 @@ function followHidden<E extends { hidden?: boolean }>(
  * source graph. A root whose source node, or one of its ancestors, is hidden is parked as a parked
  * row is — every cut, the light cuts included, skips it, its tables stay —, and taken back once
  * shown again, unless its row is parked. A root placed at its own node's world casts as its mesh
- * says (`castShadow`, its shadowless bit); a row says for its own (`followPlacementRows`). `flip`
+ * says (`nodeCasting`, its marks); a row says for its own (`followPlacementRows`). `flip`
  * hears the rank of each root that flipped: its rows, derived again, stale the shadow pages it left
  * or entered (`rows/rowCastWgsl.ts`). A see-through draw of a hidden node takes `hidden`, which its
  * selection reads (`notDrawn`), and `seeThrough.flipped` hears it and its rank. Read once per scene revision,
@@ -114,7 +114,7 @@ export function followHostVisibility<
     const rank = ranks ? ranks[k] : k,
       root = roots[rank],
       node = rootSource(root)
-    if (root.placement || !node || !markShadowless(root, !node.castShadow)) continue
+    if (root.placement || !node || !markCasting(root, nodeCasting(node))) continue
     flip?.(rank, root)
   }
   followHidden(

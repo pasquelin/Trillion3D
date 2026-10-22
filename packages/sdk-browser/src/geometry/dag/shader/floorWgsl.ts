@@ -23,9 +23,11 @@
  * out-of-bounds counters read as zero, and top-down pruning would then drop everything.
  *
  * Each list read indirectly keeps its dispatch argument's x then y behind its counter
- * (`openSlice`), which the arming kernel copies to the argument (`armWgsl.ts`).
+ * (`openSlice`), which the arming kernel copies to the argument (`armWgsl.ts`). Behind them the
+ * filter's bits, one a placement of the `worldCount` the cut holds (`viewFilterWgsl.ts`): none for
+ * a layout made without placements, a bench's.
  */
-export function dagWorkLayout(blockCount: number) {
+export function dagWorkLayout(blockCount: number, worldCount = 0) {
   // Block counts, block offsets and `BLOCK_MASK_WORDS` per block of each draw mask (`compactWgsl.ts`):
   // no word per page, so `work` never bounds the pages one binding holds (the kept ranks live in
   // `flags`, `differenceWgsl.ts`).
@@ -50,7 +52,10 @@ export function dagWorkLayout(blockCount: number) {
     /** The two kept lists' group counts, then the journal a swap writes back's, then the three
      *  descent queues', x and y each (`armWgsl.ts`). */
     listGroups,
-    words: listGroups + 2 * LISTED_GROUPS,
+    /** The view's filter, a bit a placement, behind the group counts: written by the host before
+     *  a cut whose view filters (`../viewFilterRegion.ts`), read by `filteredOut`. */
+    filter: listGroups + 2 * LISTED_GROUPS,
+    words: listGroups + 2 * LISTED_GROUPS + ceilDiv(worldCount, 32),
   }
 }
 
@@ -83,6 +88,7 @@ export const WORK_BLOCK_WORDS = 2 + 3 * BLOCK_MASK_WORDS
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 import { wgslBlock, wgslConst } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
+import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 
 export const DAG_FLOOR_WGSL = wgslBlock(
   'DAG_FLOOR_WGSL',

@@ -100,8 +100,15 @@ function slots(d: SurfaceDeclaration, { model, lit, standard, physical, sheet }:
     clearcoatMap: mapIf(physical, d.clearcoatMap),
     clearcoatRoughnessMap: mapIf(physical, d.clearcoatRoughnessMap),
     clearcoatNormalMap: mapIf(physical, d.clearcoatNormalMap),
+    displacementMap: mapIf(d.displacement !== undefined, d.displacementMap),
   }
 }
+
+/** Its displacement: the numbers it declares, only with the height map they displace by; a
+ *  surface that declares either alone is drawn flat. */
+const displaced = (d: SurfaceDeclaration) => ({
+  displacement: d.displacement && d.displacementMap ? d.displacement : undefined,
+})
 
 /** Its normal factors. A page that stores no tangent (`FLAG_TANGENT`) has every engine pass rebuild
  *  the frame from its triangle, which turns the second factor of a surface written for vertex
@@ -178,6 +185,7 @@ function fill(into: PageSurface, d: SurfaceDeclaration) {
     slots(d, read),
     relief(d, read),
     lobes(d, read),
+    displaced(d),
     { model: read.model },
     shape(d),
     raster(d),

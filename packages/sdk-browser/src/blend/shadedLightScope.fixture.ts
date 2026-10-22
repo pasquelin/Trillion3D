@@ -56,6 +56,7 @@ export function randomLampScope(
       directionCone: [u(-0.5, 0.5), -1, u(-0.5, 0.5), kind === K.KIND_SPOT ? 0.7 : -1],
       params: [kind, slot(kind, rank), 0, kind === K.KIND_SPOT ? 0.9 : 0],
       shape: [u(0, 0.05), 0, 0, 0],
+      capsule: [0, 0, 0, 0],
     }
   })
   return { count, P, items, ...shadedLightScope(r, u, K, count, items, round) }

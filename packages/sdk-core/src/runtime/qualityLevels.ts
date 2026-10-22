@@ -6,6 +6,14 @@
  * whose settings are not wired yet writes nothing, and reads as `max` would.
  */
 import { SKY_PRESET_LEVELS } from '../modules/sky/qualityPresets.ts'
+import { SCREEN_PROBE_PRESET_LEVELS } from '../bounce/screenProbeLevels.ts'
+import { AMBIENT_OCCLUSION_PRESET_LEVELS } from '../contracts/ambientOcclusionOptions.ts'
+import { BLOOM_PRESET_LEVELS } from '../contracts/bloomRules.ts'
+import { VIEW_DISTANCE_SCALE_LEVELS } from '../contracts/cutOptions.ts'
+import { DEPTH_OF_FIELD_PRESET_LEVELS } from '../contracts/depthOfFieldRules.ts'
+import { FILM_PRESET_LEVELS } from '../contracts/filmOptions.ts'
+import { MOTION_BLUR_PRESET_LEVELS } from '../contracts/motionBlurOptions.ts'
+import { VOLUMETRIC_FOG_PRESET_LEVELS } from '../contracts/volumetricFogOptions.ts'
 import { QUALITY_GROUPS, type QualityGroup, type RenderSettingValue } from './renderSettings.ts'
 
 /** The presets, coarsest first: each sets every group to the level of its own name. */
@@ -41,13 +49,93 @@ export const QUALITY_LEVELS: QualityLevels = {
     fine: { antialiasing: 'high' },
     max: {},
   },
-  // The effects' levels write the atmosphere's eleven settings, the image effects' the light shafts'
-  // switch, the indirect light's the sky light's intensity factor (`SKY_PRESET_LEVELS`): the
+  // The sky's effects levels write the atmosphere's eleven settings (`SKY_PRESET_LEVELS`): the
   // reference's levels 0, 1 and 2; the clouds' and the sky light's other settings stay at their
   // defaults at every level.
   effects: { ...SKY_PRESET_LEVELS.effects, max: {} },
-  imageEffects: { ...SKY_PRESET_LEVELS.imageEffects, max: {} },
-  indirectLight: { ...SKY_PRESET_LEVELS.indirectLight, max: {} },
+  // The view distance's levels write the scale every object's draw distance is multiplied by
+  // (`VIEW_DISTANCE_SCALE_LEVELS`); the cut's other settings stay at their defaults at every level.
+  viewDistance: {
+    smooth: { cutViewDistanceScale: VIEW_DISTANCE_SCALE_LEVELS.smooth },
+    balanced: { cutViewDistanceScale: VIEW_DISTANCE_SCALE_LEVELS.balanced },
+    fine: { cutViewDistanceScale: VIEW_DISTANCE_SCALE_LEVELS.fine },
+    max: {},
+  },
+  // The image effects' levels write the motion blur's quality and its half-resolution gather
+  // (`MOTION_BLUR_PRESET_LEVELS`), the bloom's quality and the convolution's resolution
+  // (`BLOOM_PRESET_LEVELS`) and the settings the reference's levels write of the depth of
+  // field (`DEPTH_OF_FIELD_PRESET_LEVELS`) and the tonemapper's quality and the colour fringe's
+  // (`FILM_PRESET_LEVELS`) and the screen-space occlusion's resolutions, ceiling, depth-pyramid climb and radius
+  // scale (`AMBIENT_OCCLUSION_PRESET_LEVELS`), and the light shafts' switch (`SKY_PRESET_LEVELS`); their other switches stay at their defaults at every level.
+  imageEffects: {
+    smooth: {
+      ...MOTION_BLUR_PRESET_LEVELS.smooth,
+      ...BLOOM_PRESET_LEVELS.smooth,
+      ...DEPTH_OF_FIELD_PRESET_LEVELS.smooth,
+      ...FILM_PRESET_LEVELS.smooth,
+      ...AMBIENT_OCCLUSION_PRESET_LEVELS.smooth,
+      ...SKY_PRESET_LEVELS.imageEffects.smooth,
+    },
+    balanced: {
+      ...MOTION_BLUR_PRESET_LEVELS.balanced,
+      ...BLOOM_PRESET_LEVELS.balanced,
+      ...DEPTH_OF_FIELD_PRESET_LEVELS.balanced,
+      ...FILM_PRESET_LEVELS.balanced,
+      ...AMBIENT_OCCLUSION_PRESET_LEVELS.balanced,
+      ...SKY_PRESET_LEVELS.imageEffects.balanced,
+    },
+    fine: {
+      ...MOTION_BLUR_PRESET_LEVELS.fine,
+      ...BLOOM_PRESET_LEVELS.fine,
+      ...DEPTH_OF_FIELD_PRESET_LEVELS.fine,
+      ...FILM_PRESET_LEVELS.fine,
+      ...AMBIENT_OCCLUSION_PRESET_LEVELS.fine,
+      ...SKY_PRESET_LEVELS.imageEffects.fine,
+    },
+    max: {},
+  },
+  // The shadows' levels write the reference's four shadow rows: the sun's shadow distance scale, its
+  // count of near levels, the scale on their overlap and whether a far-field shadow follows them
+  // (`shadowDistanceScale`, `shadowNearLevels`, `shadowOverlapScale`, `shadowFarField`: the edge of
+  // the far-shadow test, `farShadowDistance`), and the volumetric fog's quality level
+  // (`VOLUMETRIC_FOG_PRESET_LEVELS`); the culling's switches and the fog's other settings stay at
+  // their defaults at every level.
+  shadows: {
+    smooth: {
+      shadowDistanceScale: 0.6,
+      shadowNearLevels: 1,
+      shadowOverlapScale: 0,
+      shadowFarField: false,
+      ...VOLUMETRIC_FOG_PRESET_LEVELS.smooth,
+    },
+    balanced: {
+      shadowDistanceScale: 0.7,
+      shadowNearLevels: 1,
+      shadowOverlapScale: 0.25,
+      shadowFarField: false,
+      ...VOLUMETRIC_FOG_PRESET_LEVELS.balanced,
+    },
+    fine: {
+      shadowDistanceScale: 0.85,
+      shadowNearLevels: 4,
+      shadowOverlapScale: 0.8,
+      shadowFarField: true,
+      ...VOLUMETRIC_FOG_PRESET_LEVELS.fine,
+    },
+    max: {},
+  },
+  // The indirect light's levels write the screen probes' level (`SCREEN_PROBE_LEVELS`) and the sky light's intensity factor (`SKY_PRESET_LEVELS`): the two coarser
+  // presets read the world's probes alone (`off`), the one below the top the `high` level, the top the
+  // default one; the screen probes' other settings stay at their defaults at every level.
+  indirectLight: {
+    smooth: { ...SCREEN_PROBE_PRESET_LEVELS.smooth, ...SKY_PRESET_LEVELS.indirectLight.smooth },
+    balanced: {
+      ...SCREEN_PROBE_PRESET_LEVELS.balanced,
+      ...SKY_PRESET_LEVELS.indirectLight.balanced,
+    },
+    fine: { ...SCREEN_PROBE_PRESET_LEVELS.fine, ...SKY_PRESET_LEVELS.indirectLight.fine },
+    max: {},
+  },
 }
 
 /**

@@ -47,14 +47,14 @@ export const vsmFragmentTraceWgsl = (
     `vsmFragmentTraceWgsl(${pool}, ${vsmTraceBindingsLabel(t)}, ${transmission}, ${kinds})`,
     [
       vsmTraceViewWgsl(t.view, kinds),
-      vsmBlueNoiseWgsl(0, t.noise),
+      vsmBlueNoiseWgsl(0, t.noise, t.loadOnly),
       vsmReceiverTraceWgsl({
         pool: forwardPool(pool),
-        noise: vsmBlueNoiseTwo(0, t.noise),
+        noise: vsmBlueNoiseTwo(0, t.noise, t.loadOnly),
         hiz: [REFLECTION_GROUP, REFLECTION_DEPTH_BINDING],
         lone: true,
         subgroups: t.subgroups,
-        transmission: vsmTransmissionReadWgsl(transmission),
+        transmission: vsmTransmissionReadWgsl(transmission, 0, false, t.loadOnly),
         kinds,
       }),
     ],

@@ -27,6 +27,18 @@ test('a cell file is read into each node its ranks and the local matrix a host n
   assert.throws(() => decodeCellFile(stale), { code: 'INVALID_SCENE_TABLES' })
 })
 
+test('a node that names the distances it is drawn at carries them, 0 for none', () => {
+  const named = [
+    { ...nodes[0], drawDistance: { min: 5, max: 300 } },
+    nodes[1],
+    { ...nodes[1], drawDistance: { min: 0, max: 40 } },
+  ]
+  const rows = cellRows(
+    decodeCellFile(new TextEncoder().encode(JSON.stringify({ version: 3, nodes: named })).buffer),
+  )
+  assert.deepEqual([...rows.drawDistances], [5, 300, 0, 0, 0, 40])
+})
+
 test('a cell file is parsed in a worker of the page worker pool, never on the main thread', () =>
   withNodeWorkerShim(NodeWorker, async () => {
     releasePageWorkers()

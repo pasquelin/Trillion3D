@@ -25,13 +25,14 @@ function structMembers(source: string) {
 }
 
 /** `$zero` of a WGSL text: each structure it declares by name, its members zero — a `bool`'s
- *  `false` —, a vector's components too, so `h.pos.x=…` writes into one. */
+ *  `false`, an array's `[]` —, a vector's components too, so `h.pos.x=…` writes into one. */
 export function structZero(source: string) {
   const members = structMembers(source)
   const zero = (type: string): unknown => {
     const size = /^vec([234])/.exec(type)?.[1]
     if (size) return new Array<number>(Number(size)).fill(0)
     if (type === 'bool') return false
+    if (type === 'array') return []
     if (type === 'mat4x4f') return new Mat(new Array<number>(16).fill(0))
     if (type === 'mat3x3f') return new Mat3([0, 1, 2].map(() => [0, 0, 0]))
     const own = members.get(type)

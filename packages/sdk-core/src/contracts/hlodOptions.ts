@@ -41,7 +41,7 @@ export type HlodExpert = HlodExpertOf<HlodPattern>
  *    (`src/hlod/cells.rs`); its objects' meshes are voxelized far away too
  *    (`voxelizeOptions.ts`);
  *  - `props`: small objects, their own instanced cells absorbed by the main chain's first merged
- *    layer.
+ *    layer — a main chain of one level has none: the props then stay always loaded.
  *  A group matching an object wins over those after it, in the order of the `groups` keys; an
  *  object no group names enters the `default` group's chain. */
 export type HlodGroup = 'buildings' | 'foliage' | 'props'
@@ -59,7 +59,8 @@ export const DEFAULT_HLOD_GROUP: HlodGroup = 'buildings'
  *  itself in every actor its chain builds. */
 export interface HlodSimple {
   /** The main chain's levels, HLOD 0 included, `MIN_HLOD_LEVELS` to `MAX_HLOD_LEVELS`: the first
-   *  instanced, every other merged (`MERGED_LAYER`).
+   *  instanced, every other merged (`MERGED_LAYER`); one level is the objects themselves, instanced
+   *  and always loaded.
    *  @defaultValue {@link DEFAULT_HLOD_LEVELS} */
   levels?: number
   /** The objects of each group by name, for the objects no mark names. */
@@ -123,6 +124,14 @@ function chain(prefix: string, levels: number): HlodLayer[] {
   }))
 }
 
+/** The props' chain: one instanced layer whose cells the main chain's first merged layer absorbs
+ *  (`levels` above 1); a main chain of one level has no merged layer, and the props, the last
+ *  level of their chain, are always loaded as every last level is. */
+const propsLayer = (levels: number): HlodLayer =>
+  levels > 1
+    ? { name: 'props0', builder: 'instanced', parent: 'hlod1', ...gridOf(0) }
+    : { name: 'props0', builder: 'instanced', spatiallyLoaded: false }
+
 /**
  * The HLOD the compiler reads for `options`: none when left out; the expert form as given, its
  * patterns written as the compiler reads them; the simple form as the layers and rules it stands
@@ -162,13 +171,12 @@ export function resolveHlod(options?: HlodOptions | null): HlodWire | undefined 
   const fallback = options.default ?? DEFAULT_HLOD_GROUP
   if (fallback !== 'none' && !HLOD_GROUPS.includes(fallback))
     refuse(`default must be ${HLOD_GROUPS.join(', ')} or none, got ${String(fallback)}`)
-  // Every group's chain, which a mark may name whatever the rules: the props' cells absorbed by
-  // the main chain's first merged layer.
+  // Every group's chain, which a mark may name whatever the rules.
   const layers: HlodLayer[] = [
     ...chain('hlod', levels),
     { name: 'foliage0', builder: 'instanced', parent: 'foliage1', ...gridOf(0) },
     { name: 'foliage1', builder: 'voxel', spatiallyLoaded: false },
-    { name: 'props0', builder: 'instanced', parent: 'hlod1', ...gridOf(0) },
+    propsLayer(levels),
   ]
   const marks: Record<HlodGroup, string> = {
     buildings: 'hlod0',

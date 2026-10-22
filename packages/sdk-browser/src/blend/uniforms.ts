@@ -13,6 +13,7 @@ import { wantsContractLighting } from '../frame/prepare/contractLight.ts'
 import type { DiagnosticMode } from '../../../sdk-core/src/runtime/diagnostics.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { BLEND_VIEW_SIZE, VIEW } from './viewLayout.ts'
+import { writeViewClipPlane } from '../frame/render/viewClip.ts'
 
 /** Diagnostic bits that the WHOLE pass carries: they do not depend on the item. None for beauty
  *  and a view of the lit image, which the transparents light as beauty (`drawsLit`). */
@@ -127,4 +128,6 @@ function writeViewFrame(rt: WebgpuPagesRuntime, tiles: ReturnType<typeof directT
   ints[VIEW.toneCurve] = tiles[4]
   // The cut's threshold the screen-error view measures against (`diagnosticScreenError`).
   packed[VIEW.pixelError] = run.diagnosticPixelError
+  // The view's clip plane: every vertex stage cuts its primitives by it (`../gpu/core/clipDistances.ts`).
+  writeViewClipPlane(rt, run.gate.cam, packed, VIEW.clipPlane)
 }

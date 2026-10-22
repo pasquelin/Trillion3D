@@ -51,6 +51,8 @@ export interface SavedNode {
   visible: boolean
   /** Whether it casts shadows. */
   castShadow: boolean
+  /** Whether it casts shadows past a directional light's shadow distance; absent, it does not. */
+  castFarShadow?: true
   /** Whether shadows fall on it. */
   receiveShadow: boolean
   /** Its drawing order among see-through things. */
@@ -76,6 +78,8 @@ export interface SavedNode {
     sh: number[] | null
     /** A directional light left out of the atmosphere's candidates; absent, it is one. */
     atmosphereSun?: false
+    /** A directional light set to the atmosphere's second light; absent, it is for the first. */
+    atmosphereSunIndex?: 1
   }
   /** A compiled model, by the manifest address it was loaded from: never inlined. */
   model?: { url: string }

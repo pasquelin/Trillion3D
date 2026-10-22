@@ -10,6 +10,7 @@ import { LIGHT_AIR_MEMBERS } from '../atmosphere/layout.ts'
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { isKind, localLightReaches, rangeWindow } from './lightReachWgsl.ts'
 
 /** Words of a cell record of the light grid: its count — the high bit set when a light of
@@ -66,7 +67,12 @@ export const directLightWgsl = (slots?: number) =>
 const SPOT_EDGE:f32=${LIGHT_SETTINGS.spotEdgeSoftness};
 const KIND_SPOT:f32=${LIGHT_KIND.spot}.0;
 const KIND_SUN:f32=${LIGHT_KIND.directional}.0;
-struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,shape:vec4f,}
+const LAMP_BIAS:f32=${wgslF32(LIGHT_SETTINGS.lampDistanceBias)};
+/** A light's record (\`packages/sdk-core/src/scene/light/fields.ts\`): its place and range, colour
+ *  and intensity, direction and cone, kind and shadow, its shape — a rectangle's half axes, a
+ *  lamp's source radius, a sun's disk — and, for a lamp, its tube (its axis times half its length)
+ *  and soft radius. */
+struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,shape:vec4f,capsule:vec4f,}
 /** The count; the environment's irradiance: nine spherical-harmonic coefficients
  *  (\`packages/sdk-core/src/scene/core/environment.ts\`), zero where the host declared none; its fog,
  *  six \`vec4\`: colour and mode, law, range, the sun's lobe, the sky's factor and the sun
@@ -96,6 +102,21 @@ fn lightReaches(rank:u32,P:vec3f)->bool{
  if(spot||rect){cone=directLights.items[rank].directionCone;cone.w=select(-2.0,cone.w,spot);}
  return localLightReaches(sphere.xyz-P,sphere.w,cone.w,cone.xyz,rect);
 }
+/** What of a lamp's light reaches \`P\` before its distance weighs it: the unit direction toward it and
+ *  the mask, its range window (zero at and past its range) times a spot's fade outside its cone. */
+fn lampReach(light:DirectLight,P:vec3f)->vec4f{
+ let offset=light.positionRange.xyz-P;
+ let distance=length(offset);
+ let L=offset/max(distance,1e-6);
+ var mask=rangeWindow(distance,light.positionRange.w);
+ if(isSpot(light)){
+  let cosine=dot(-L,light.directionCone.xyz);
+  let edge=light.directionCone.w;
+  // A declared penumbra widens the fade inward to its inner cone; never narrower than the edge.
+  mask*=smoothstep(edge,max(light.params.w,edge+SPOT_EDGE),cosine);
+ }
+ return vec4f(L,mask);
+}
 /** Unit direction toward the light and attenuation, of a light \`lightReaches\` let through (its
  *  window is zero at and past its range, its fade outside its cone). A punctual light's: a
  *  rectangle has no one direction (\`rectIrradiance\`). The direction is unit as it comes — the
@@ -105,19 +126,11 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  // attenuated by distance. Its direction is that of propagation, so incidence is the opposite.
  // The contract has already normalized it.
  if(isSun(light)){return vec4f(-light.directionCone.xyz,1.0);}
+ let reach=lampReach(light,P);
  let offset=light.positionRange.xyz-P;
- let range=light.positionRange.w;
- let distance=length(offset);
- let L=offset/max(distance,1e-6);
- // Physical inverse square, windowed by range: energy cancels exactly at range.
- var attenuation=rangeWindow(distance,range)/max(distance*distance,1e-4);
- if(isSpot(light)){
-  let cosine=dot(-L,light.directionCone.xyz);
-  let edge=light.directionCone.w;
-  // A declared penumbra widens the fade inward to its inner cone; never narrower than the edge.
-  attenuation*=smoothstep(edge,max(light.params.w,edge+SPOT_EDGE),cosine);
- }
- return vec4f(L,attenuation);
+ // Physical inverse square, its squared distance a square centimetre longer, windowed by range:
+ // energy cancels exactly at range, and stays finite at the lamp.
+ return vec4f(reach.xyz,reach.w/(dot(offset,offset)+LAMP_BIAS));
 }
 `,
   )

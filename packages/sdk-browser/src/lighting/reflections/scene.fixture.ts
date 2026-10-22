@@ -10,6 +10,7 @@ import { reflectionLightViewWgsl, REFLECTION_GROUP, REFLECTION_VIEW_AT } from '.
 import { screenRelativeThickness, screenSlab } from '../../visibility/hiz/gpu/screenSlab.ts'
 import { REFLECTION_CONSTANTS } from './constants.ts'
 import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
+import { REFLECTION_RULES } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import { rasterize, type Box, type Camera } from './boxes.fixture.ts'
 import { HIZ_DEPTH_LAYERS } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { radianceLevels } from '../../scene/targetFormats.ts'
@@ -49,6 +50,7 @@ export function viewOf(
       temporal: [0, 0, 0, 0],
       grid: [2, Math.ceil(size[0] / 2), Math.ceil(size[1] / 2), 2],
       surroundings: [0, 0, 0, 0],
+      scene: [REFLECTION_RULES.reflectionScreenSteps.default, 0, 0, 0],
     },
     view: {
       inverseViewProjection: new Mat([...inverse]),

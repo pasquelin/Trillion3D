@@ -40,7 +40,7 @@ pub(super) fn usage() -> String {
         })
         .collect();
     format!(
-        "Usage: trillion3d-compiler {} [{TEXTURE_FORMAT_OPTION}{}] [{HLOD_OPTION}JSON] [{TEMPORAL_AA_OPTION}{}|true|false] [{RESPONSIVE_OPTION}JSON] [{MATERIALS_OPTION}JSON] [{VOXELIZE_OPTION}JSON] [{PARTITION_SCHEME_OPTION}{}|true] [{PARTITION_GRID_OPTION}JSON] [{MESH_BUILD_OPTION}JSON] [{OBJECT_SETTINGS_OPTION}JSON]\n       trillion3d-compiler --jobs FILE|-\n       {} is a directory or a file in one of the formats --version lists",
+        "Usage: trillion3d-compiler {} [{TEXTURE_FORMAT_OPTION}{}] [{HLOD_OPTION}JSON] [{TEMPORAL_AA_OPTION}{}|true|false] [{RESPONSIVE_OPTION}JSON] [{MATERIALS_OPTION}JSON] [{VOXELIZE_OPTION}JSON] [{PARTITION_SCHEME_OPTION}{}|true] [{PARTITION_GRID_OPTION}JSON] [{PARTITION_GRIDS_OPTION}JSON] [{MESH_BUILD_OPTION}JSON] [{OBJECT_SETTINGS_OPTION}JSON]\n       trillion3d-compiler --jobs FILE|-\n       {} is a directory or a file in one of the formats --version lists",
         line.join(" "),
         texture_format_choices().join("|"),
         TEMPORAL_AA_LEVELS.join("|"),

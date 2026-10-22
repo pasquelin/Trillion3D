@@ -85,17 +85,28 @@ test("every opaque resolve program fits WebGPU's default limits", async () => {
 })
 
 /** Whether a layout of `layouts` shows the fragment stage the transparents' front radiance at
- *  `binding` (`../../lighting/reflections/frontLayer.ts`): a texture of words, read by load, no storage. */
+ *  `binding` (`../../lighting/reflections/frontLayer.ts`): a texture of words, read by load, as a
+ *  read-only storage texture — none of the stage's sixteen sampled textures spent on it. */
 const bindsFront = (layouts: GPUBindGroupLayoutDescriptor[], binding: number) =>
   layouts.some((layout) =>
     [...layout.entries].some(
       (entry) =>
         entry.binding === binding &&
         (entry.visibility & GPUShaderStage.FRAGMENT) !== 0 &&
-        entry.texture?.sampleType === 'uint' &&
-        (entry.texture.viewDimension ?? '2d') === '2d',
+        entry.storageTexture?.access === 'read-only' &&
+        entry.storageTexture.format === 'rg32uint' &&
+        (entry.storageTexture.viewDimension ?? '2d') === '2d',
     ),
   )
+
+/** The most of each kind any pipeline layout of `layouts` binds in its fragment stage. */
+function fragmentCounts(layouts: GPUPipelineLayoutDescriptor[]) {
+  const worst: Record<string, number> = {}
+  for (const layout of layouts)
+    for (const { limit, kind, count } of stageBindingCounts(layout))
+      if (kind.endsWith('Fragment')) worst[limit] = Math.max(worst[limit] ?? 0, count)
+  return worst
+}
 
 test("the blends and the transmissive stages fit WebGPU's default limits", async () => {
   const { device, pipelineLayouts: layouts, bindGroupLayouts } = fakeDevice()
@@ -132,6 +143,17 @@ test("the blends and the transmissive stages fit WebGPU's default limits", async
       assert.ok(!(proxy in bindings), `the ${name} bind no ${proxy}`)
   }
   withinDefaults(layouts, 'the blends and the transmissive stages')
+  // The fragment stage keeps room for the fog's cubemap and volume: the casters' memory, the blue
+  // noise and the front's radiance, read by load alone, are storage textures, not sampled ones.
+  // Before the fog's resources were bound there, and the volume with them: 16 of 16 sampled textures,
+  // 8 of 8 storage buffers, 1 of 4 storage textures, 8 of 12 uniform buffers, 2 of 16 samplers.
+  assert.deepEqual(fragmentCounts(layouts), {
+    maxSampledTexturesPerShaderStage: 15,
+    maxStorageBuffersPerShaderStage: 7,
+    maxStorageTexturesPerShaderStage: 3,
+    maxUniformBuffersPerShaderStage: 7,
+    maxSamplersPerShaderStage: 3,
+  })
 })
 
 test("the reflections' and the depth pyramid's kernels fit WebGPU's defaults", async () => {

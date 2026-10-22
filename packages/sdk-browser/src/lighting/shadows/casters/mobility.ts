@@ -19,9 +19,9 @@ import { writeMobilityRows } from './mobilityWrite.ts'
  * it; `poseOf(rank)`, the pose it was last seen at, a view of the state, none past the placements
  * it is sized for; `rowWords`, one word per row: `MOBILITY_MOVING` for a row of a moving
  * placement, `MOBILITY_CUTOUT` for one whose fragments can be cut, `MOBILITY_SHADOWLESS` for one
- * that casts no shadow, and its corners above `MOBILITY_CORNER_SHIFT`
- * (`../mobilityBits.ts`); `holds`, `ensure`, `move`, `follow`, `moveLead`, `settle`,
- * `touch` and `writeRows`, those of `mobilityState.ts`, `mobilityMoves.ts` and
+ * that casts no shadow, `MOBILITY_FAR_SHADOW` for one that casts far shadows, and its corners above
+ * `MOBILITY_CORNER_SHIFT` (`../mobilityBits.ts`); `holds`, `ensure`, `move`, `follow`, `moveLead`,
+ * `settle`, `touch` and `writeRows`, those of `mobilityState.ts`, `mobilityMoves.ts` and
  * `mobilityWrite.ts`.
  */
 export function createShadowMobility() {

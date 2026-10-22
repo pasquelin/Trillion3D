@@ -46,6 +46,7 @@ function texturesOf(surface: PageSurface) {
   const color = [surface.map, surface.emissiveMap, surface.subsurfaceMap]
   const data = [surface.roughnessMap, surface.metalnessMap, surface.normalMap, surface.aoMap]
   if (hasPhysicalLobes(surface)) for (const field of PHYSICAL_MAP_FIELDS) data.push(surface[field])
+  if (surface.displacement) data.push(surface.displacementMap)
   return [
     ...color.map((texture) => [texture, 'color'] as const),
     ...data.map((texture) => [texture, 'data'] as const),

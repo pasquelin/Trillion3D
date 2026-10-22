@@ -9,14 +9,30 @@ import { BLUR_BYTES, BLUR_EDGES, BLUR_PARAMS } from './gaussianWgsl.ts'
 import { halfOf } from './levelSizes.ts'
 
 const AT = BLUR_PARAMS.at
+/** How a blur takes a read past the image's edge (`BLUR_EDGES`). */
+type Edge = keyof typeof BLUR_EDGES
 /** The tint of a blur that tints nothing. */
 export const WHITE = [1, 1, 1] as const
+/** The cross a blur has when its stage is given none: the plain bell on both axes. */
+export const NO_CROSS = [0, 0] as const
 /** What a stage's uniforms were written for before the first time: nothing, no value equal to it. */
-const UNSET = { percent: NaN, red: NaN, green: NaN, blue: NaN }
+const UNSET = { percent: NaN, red: NaN, green: NaN, blue: NaN, crossX: NaN, crossY: NaN }
 
-/** Whether `tint` is the one `held` was written with. */
-const sameTint = (held: typeof UNSET, tint: ArrayLike<number>) =>
-  held.red === tint[0] && held.green === tint[1] && held.blue === tint[2]
+/** What a stage's uniforms are written for: the percent, the tint and the cross of the two passes. */
+type Held = typeof UNSET
+const heldFor = (percent: number, tint: ArrayLike<number>, cross: readonly number[]): Held => ({
+  percent,
+  red: tint[0],
+  green: tint[1],
+  blue: tint[2],
+  crossX: cross[0],
+  crossY: cross[1],
+})
+/** Whether `a` and `b` name the same kernel: the same percent and the same cross. */
+const sameKernel = (a: Held, b: Held) =>
+  a.percent === b.percent && a.crossX === b.crossX && a.crossY === b.crossY
+/** Whether `a` and `b` name the same tint. */
+const sameTint = (a: Held, b: Held) => a.red === b.red && a.green === b.green && a.blue === b.blue
 
 /** The two buffers of a blur's passes' uniforms. */
 const uniformPair = (device: GPUDevice, label: string) =>
@@ -30,12 +46,12 @@ const uniformPair = (device: GPUDevice, label: string) =>
 
 /** What the passes' uniforms are written from beside the image's size and the tint: how a read
  *  past the image is taken (`BLUR_EDGES`), whether the second pass adds an image, and the kernel's
- *  reads — their count and their offsets and weights. */
+ *  reads of each pass — their count and their offsets and weights; the two differ where the cross
+ *  gives the passes different centres. */
 type BlurReads = {
   edge: number
   adds: boolean
-  count: number
-  taps: ReturnType<typeof gaussianTapsOf>
+  axes: readonly { count: number; taps: ReturnType<typeof gaussianTapsOf> }[]
 }
 
 /**
@@ -51,7 +67,7 @@ function blurWords(
   reads: BlurReads,
   tint: ArrayLike<number>,
 ) {
-  const { taps, count } = reads
+  const { taps, count } = reads.axes[pass]
   words.fill(0)
   words[AT.axis + pass] = 1 / (pass ? height : width)
   words[AT.inTexel] = 1 / (pass ? half : width)
@@ -69,23 +85,30 @@ function blurWords(
   }
 }
 
+/** The reads of a blur with the edge `edge`: none made yet, a kernel for each pass. */
+function newReads(edge: Edge): BlurReads {
+  const axis = () => ({ count: 0, taps: gaussianTapsOf() })
+  return { edge: BLUR_EDGES[edge], adds: false, axes: [axis(), axis()] }
+}
+
+/** Fills the kernel of each pass of `reads` for a blur of `radius` texels, the centre given the
+ *  share `cross` of its pass. */
+function fillKernels(reads: BlurReads, radius: number, cross: readonly number[]) {
+  reads.axes.forEach((read, pass) => (read.count = gaussianKernel(radius, read.taps, cross[pass])))
+}
+
 /**
  * THE TWO PASSES' UNIFORMS OF A BLUR, in the order they run, and what they were written for: the
  * size, the percent, the tint and whether the second pass adds an image. Written again only when
  * one of them changes, the second pass's alone when the tint or `adds` did.
  */
-export function createBlurUniforms(
-  device: GPUDevice,
-  edge: keyof typeof BLUR_EDGES,
-  label: string,
-) {
+export function createBlurUniforms(device: GPUDevice, edge: Edge, label: string) {
   const words = new Float32Array(BLUR_PARAMS.words)
-  const reads: BlurReads = { edge: BLUR_EDGES[edge], adds: false, count: 0, taps: gaussianTapsOf() }
+  const reads = newReads(edge)
   let buffers: GPUBuffer[] = [],
     size = [0, 0, 0],
     held = UNSET
-  // The corner of the first pass's target it draws over: half the width, the height.
-  const corner = [0, 0]
+  const corner = [0, 0] // of the first pass's target it draws over: half the width, the height
   const write = (pass: 0 | 1, tint: ArrayLike<number>) => {
     blurWords(words, pass, size, reads, tint)
     device.queue.writeBuffer(buffers[pass], 0, words)
@@ -102,28 +125,33 @@ export function createBlurUniforms(
       return buffers
     },
     corner,
-    /** Writes what an image of `width × height` texels blurred over `percent` of its width, its
-     *  reads weighted by `tint` and the second pass adding an image when `adds`, asks of the
-     *  uniforms: nothing when they hold it already; the buffers are made again when the size
-     *  moved. */
-    resize(width: number, height: number, percent: number, tint: ArrayLike<number>, adds: boolean) {
+    /** Writes what a blur over `percent` of the width of an image `width × height`, tinted, adding an
+     *  image when `adds`, its passes' centres given the shares `cross`, asks: nothing when held. */
+    resize(
+      width: number,
+      height: number,
+      percent: number,
+      tint: ArrayLike<number>,
+      adds: boolean,
+      cross: readonly number[] = NO_CROSS,
+    ) {
       const radius = gaussianRadius(width, percent)
       const half = gaussianHalvesWidth(radius) ? halfOf(width) : width
-      const sameKernel = size[0] === width && size[1] === height && size[2] === half
-      const sameWeights = sameTint(held, tint) && reads.adds === adds
-      if (sameKernel && held.percent === percent && sameWeights) return
-      if (!sameKernel) {
+      const sameSize = size[0] === width && size[1] === height && size[2] === half
+      const next = heldFor(percent, tint, cross)
+      const kernelHeld = sameSize && sameKernel(held, next)
+      if (kernelHeld && sameTint(held, next) && reads.adds === adds) return
+      if (!sameSize) {
         release()
         size = [width, height, half]
         corner[0] = half
         corner[1] = height
         buffers = uniformPair(device, label)
       }
-      const kernelMoved = !sameKernel || held.percent !== percent
-      held = { percent, red: tint[0], green: tint[1], blue: tint[2] }
+      held = next
       reads.adds = adds
-      if (kernelMoved) {
-        reads.count = gaussianKernel(radius, reads.taps)
+      if (!kernelHeld) {
+        fillKernels(reads, radius, cross)
         write(0, WHITE)
       }
       write(1, tint)

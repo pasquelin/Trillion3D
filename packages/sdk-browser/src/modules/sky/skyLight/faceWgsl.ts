@@ -8,7 +8,7 @@ import {
 } from '../../../lighting/atmosphere/programs.ts'
 import { GROUND_SKY_RADIANCE, groundSkyMarch } from '../../../lighting/atmosphere/captureWgsl.ts'
 import { SKY_CAPTURE } from '../../../lighting/atmosphere/layout.ts'
-import { fogBlockOf } from '../../../lighting/fog/read.ts'
+import { fogBlockOf } from '../../../lighting/fog/readWgsl.ts'
 import { CAPTURE_MAX_RADIANCE } from './layout.ts'
 import { SKY_CUBE_WGSL } from './cubeWgsl.ts'
 

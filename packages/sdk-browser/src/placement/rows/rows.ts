@@ -17,6 +17,7 @@
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type { AnimationBanks } from '../../../../sdk-core/src/scene/core/animationBanks.ts'
 import type { MatrixElements } from '../../session/host/matrixElements.ts'
+import type { DrawDistance } from '../../geometry/selection/types.ts'
 import type { ChangedRuns } from '../../geometry/residency/ranges.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
@@ -31,8 +32,9 @@ export type PlacementRows = {
   readonly matrices: Float64Array
   /** 1 where the row places the resource, 0 where it is parked. */
   readonly live: Uint8Array
-  /** 1 where the row casts no shadow (its mesh's `castShadow` is `false`), 0 where it casts. */
-  readonly shadowless: Uint8Array
+  /** Per row, how its mesh casts (`nodeCasting`): `SHADOWLESS_ROOT` where it casts no shadow (its
+   *  `castShadow` is `false`), `FAR_SHADOW_ROOT` where it casts far ones, 0 where it casts alone. */
+  readonly casting: Uint8Array
   /** Rows that fit before it grows. */
   readonly capacity: number
   /** The rows of the meshes of a loaded model (`session/world/models/models.ts`): each is the model's
@@ -69,6 +71,10 @@ export type PlacementRows = {
   /** Per row, the item of `banks` it plays — the GPU poses it from that track —, -1 for none: a
    *  column of its own, absent until a cell places an instanced skinned object; kept by a growth. */
   tracks?: Int32Array
+  /** Per row, the nearest then the farthest distance it is drawn at (`CellNode.drawDistance`), 0
+   *  and 0 for none: a column of its own, absent until a cell places an object that names one;
+   *  kept by a growth, cleared where a row is parked. */
+  drawDistance?: Float32Array
 }
 
 export function createPlacementRows(capacity: number): PlacementRows {
@@ -76,7 +82,7 @@ export function createPlacementRows(capacity: number): PlacementRows {
   return {
     matrices: new Float64Array(rows * MATRIX_VALUES),
     live: new Uint8Array(rows),
-    shadowless: new Uint8Array(rows),
+    casting: new Uint8Array(rows),
     capacity: rows,
   }
 }
@@ -92,7 +98,7 @@ export function growPlacementRows(before: PlacementRows | null, needed: number) 
     if (before.blended) rows.blended = true
     rows.matrices.set(before.matrices)
     rows.live.set(before.live)
-    rows.shadowless.set(before.shadowless)
+    rows.casting.set(before.casting)
     rows.cells = before.cells?.slice()
     rows.cellsMoved = before.cellsMoved
     rows.banks = before.banks
@@ -100,22 +106,26 @@ export function growPlacementRows(before: PlacementRows | null, needed: number) 
       rows.tracks = new Int32Array(rows.capacity).fill(-1)
       rows.tracks.set(before.tracks)
     }
+    if (before.drawDistance) {
+      rows.drawDistance = new Float32Array(2 * rows.capacity)
+      rows.drawDistance.set(before.drawDistance)
+    }
   }
   return rows
 }
 
 /** Row `row` of `rows` written as its owner writes it: its pose (`null` keeps the one it holds),
- *  whether it places the resource, whether its mesh casts a shadow. */
+ *  whether it places the resource, how its mesh casts (`nodeCasting`). */
 export function writePlacementRow(
   rows: PlacementRows,
   row: number,
   matrix: ArrayLike<number> | null,
   live: boolean,
-  castShadow: boolean,
+  casting: number,
 ) {
   if (matrix) rows.matrices.set(matrix, row * MATRIX_VALUES)
   rows.live[row] = live ? 1 : 0
-  rows.shadowless[row] = castShadow ? 0 : 1
+  rows.casting[row] = casting
 }
 
 /** The world matrix of row `index`: a view on the buffer, never a copy. */
@@ -131,6 +141,11 @@ export type PlacementOf = { rows: PlacementRows; index: number }
 export const rowParked = (placement: PlacementOf | undefined) =>
   !!placement && placement.rows.live[placement.index] === 0
 
-/** True when `placement` names a row whose mesh casts no shadow. */
-export const rowShadowless = (placement: PlacementOf) =>
-  placement.rows.shadowless[placement.index] === 1
+/** How `placement`'s row casts, as its mesh says (`nodeCasting`). */
+export const rowCasting = (placement: PlacementOf) => placement.rows.casting[placement.index]
+
+/** The distances `placement`'s row is drawn at, none for a row that names no farthest one. */
+export function rowDrawDistance({ rows, index }: PlacementOf): DrawDistance | undefined {
+  const far = rows.drawDistance?.[2 * index + 1] ?? 0
+  return far > 0 ? { min: rows.drawDistance![2 * index], max: far } : undefined
+}

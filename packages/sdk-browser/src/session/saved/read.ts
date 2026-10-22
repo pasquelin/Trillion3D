@@ -59,7 +59,7 @@ function readGeometry(saved: SavedGeometry): Geometry {
 
 /** A light built again from what was saved of it. */
 function readLight(saved: NonNullable<SavedNode['light']>) {
-  const { kind, color, groundColor, values, target, sh, atmosphereSun } = saved
+  const { kind, color, groundColor, values, target, sh, atmosphereSun, atmosphereSunIndex } = saved
   return new Light(kind, {
     ...values,
     color,
@@ -67,6 +67,7 @@ function readLight(saved: NonNullable<SavedNode['light']>) {
     target,
     sh: sh ?? undefined,
     atmosphereSun,
+    atmosphereSunIndex,
   })
 }
 
@@ -79,6 +80,7 @@ function wear(o: Object3D, saved: SavedNode) {
   o.scale.fromArray(saved.scale)
   o.visible = saved.visible
   o.castShadow = saved.castShadow
+  o.castFarShadow = saved.castFarShadow ?? false
   o.receiveShadow = saved.receiveShadow
   o.renderOrder = saved.renderOrder
   o.userData = saved.userData

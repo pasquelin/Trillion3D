@@ -347,16 +347,23 @@ world.hardwareRasterEdgePixels = 16 // fewer clusters on the software raster
 `world.cut` holds the cut's settings, each an option of `createWorld` too: `cutTwoPassOcclusion`
 (`true`: the main view tests what it cuts against the previous image's depth, then what that hid
 against the depth it just drew), `cutOcclusionCulling`, `cutFrustumCulling` and `cutMinLodCulling`
-(`true`: each test on), `cutLodBiasFollowsUpscale` (`true`: an upscaled image's screen error follows
+(`true`: each test on), `cutDrawDistanceCulling` (`true`: an object that names a draw distance —
+`drawDistance`, [COMPILER.md](COMPILER.md#object-settings) — is culled outside it, in the cut, in
+the sun's shadows and in the rays' scene; `false`, every object is drawn at every distance),
+`cutViewDistanceScale` (`1`, a finite number of at least 0: the scale every draw distance is
+multiplied by; the quality levels write it, 0.4 at `smooth`, 0.6 at `balanced`, 0.8 at `fine`, 1 at
+`max`), `cutLodBiasFollowsUpscale` (`true`: an upscaled image's screen error follows
 the display over the render width), `cutLodBiasOffset` (`0`) and `cutLodBiasMin` (`-2`), that bias's
 offset and floor in powers of two, and the caps of its lists, `cutMaxNodes` (`2097152`),
 `cutMaxCandidateClusters` (`16777216`) and `cutMaxVisibleClusters` (`4194304`): past one, the cut
-draws what fits and warns. A write names the settings it changes, `null` one's default; a
-value of another kind is refused by name ([ENGINE.md](ENGINE.md#webgpu-page-raster)).
+draws what fits and warns. Of these only `cutViewDistanceScale` is written by a quality level: a
+value the page set holds over the preset. A write names the settings it changes, `null` one's
+default; a value of another kind is refused by name ([ENGINE.md](ENGINE.md#webgpu-page-raster)).
 
 ```js
 const world = createWorld('viewer', { cutTwoPassOcclusion: true })
 world.cut = { cutLodBiasFollowsUpscale: false } // the screen error ignores the upscale, next frame
+world.cut = { cutViewDistanceScale: 0.5 } // every object's draw distance halved
 ```
 
 `world.hiz` holds the depth pyramid's settings, each an option of `createWorld` too: `hizTrace`
@@ -902,8 +909,8 @@ world.scene.add(light.sky()) // the sky's light on the scene, captured from the 
 world.scene.atmosphere = null // No atmosphere.
 ```
 
-The sun is the brightest directional light, its colour times its intensity weighed by the eye's
-sensitivity to each channel, held as lights are added and removed (with an atmosphere or none): a
+The sun is the brightest directional light of index 0 (the second light is below), its colour times
+its intensity weighed by the eye's sensitivity to each channel, held as lights are added and removed (with an atmosphere or none): a
 light added replaces it only if brighter, and the sun removed gives its place to the brightest of
 the others, the first added of equals; `atmosphereSun: false` leaves one out. Where it is on,
 `background` is not shown, and `light.sky()` lights the scene from the sky (without an atmosphere,
@@ -911,6 +918,25 @@ from the background colour; `groundColor`, black, from below). The bounce is on 
 (`world.bounce`, `false` turns it off): the sky light then reaches a surface only where the scene
 lets it — the street lit from above, the arcade dark — and a reflection that leaves the scene
 shows the sky; with the bounce off, the sky light lights every surface with the sky nothing hides.
+
+The air holds two lights, a sun and a second one: a moon, or a second sun. Every directional light
+has an `atmosphereSunIndex`, `0` by default (`1` for the second light); of the lights that may light
+the air (`atmosphereSun` not `false`) the brightest of each index is held, as the sun is: a light
+added takes the place of its index only if brighter, the light removed gives it to the brightest of
+the others of its index, the first added of equals, and a light moved to the other index is removed
+and added again. The sky, the haze over the distance, the sun disks and the sky light all take both
+lights. Index 1 held with none of index 0 is not moved to index 0: the second light shines alone.
+Any index other than 0 or 1 is refused (`INVALID_SCENE_LIGHT`). `SceneLight.atmosphereSunIndex`
+carries the same value in a declared light (directional lights only).
+
+```js
+world.scene.atmosphere = true
+world.scene.add(light.directional({ intensity: 10, position: [-50, 70, 0] })) // the sun, index 0
+const moon = light.directional({ intensity: 0.3, position: [60, 40, 20], atmosphereSunIndex: 1 })
+world.scene.add(moon) // the second light of the air: its own sky, haze, disk and tint on what it lights
+moon.atmosphereSunIndex = 0 // a write reaches the world at once; 0 is the default
+```
+
 A field out of range is refused
 (`INVALID_SCENE_ENVIRONMENT`); after writing a field directly, assign `scene.atmosphere` again.
 `SceneEnvironment.atmosphere` and `SavedScene.atmosphere` carry the same fields. The model:
@@ -921,7 +947,9 @@ A field out of range is refused
 Lights are added, changed and removed like any object. Each is a `SceneLight` (version 2): `point`
 and `spot` carry `position` and `range` in metres, `spot` also `direction` and a `coneAngle`
 half-angle; `directional` only `direction` (of propagation), refused with a `position`, `range` or
-`coneAngle`. All carry linear `color`, a positive radiometric `intensity` and `castsShadow`.
+`coneAngle`. All carry linear `color`, a positive radiometric `intensity` and `castsShadow`. A `directional` may
+also carry `shadowDistance` ([A sun's shadow distance](#a-suns-shadow-distance-and-its-far-casters))
+and `atmosphereSunIndex` ([Scene atmosphere](#scene-atmosphere)), refused on any other kind.
 
 No bound on the light count: a 16×16 screen tile lists up to 64 lights reaching it, past that
 exactly those reaching it. Past 64 shadow
@@ -945,6 +973,70 @@ Under a casting light (the light's `castShadow: true`, `false` by default), ever
 casts (a mesh's `castShadow` defaults to `true`). `mesh.castShadow = false`, written any time,
 leaves every shadow map; the mesh still receives shadows. An outline drawn as a larger copy of its
 part wants it off, or it shades the part.
+
+### A sun's shadow distance and its far casters
+
+A directional light's shadows follow the eye, and a caster far past the distance they are asked to
+reach costs a raster pass for a shadow nobody reads. A sun therefore has a **shadow distance**:
+`shadowDistance`, in metres, `400` by default, `true` the same, `false` or `0` none (no caster is
+left out for being far). 400 m is the distance the shadows are asked to reach; the test's edge lies
+a little farther: the far edge of the last of the sun's near shadow levels, with the overlap that
+level has into the next when a far-field shadow follows it — 427.0 m at the defaults (400 m, near
+plane 0.05 m), the distance itself from 512 m on. A caster whose object lies past the edge (its
+depth along the view, less the radius of its object's bounding sphere) is left out of the sun's
+shadow maps, all of the object or nothing of it, unless the object says `castFarShadow = true`. The
+object is the whole placement the caster belongs to (its root's box), or, for the merged far-field
+shells of the coarser levels of detail, the actor (the HLOD cell's merged mesh) it belongs to.
+
+By default the test reaches the merged far-field shells of the world's coarser levels alone: the
+objects drawn as themselves keep casting at any distance. With `farShadowCullsAllMeshes` it reaches
+every caster, and then `castFarShadow` is what keeps an object in. A compiled object — one of a
+compiled world, drawn as itself — has no per-object setting of its own yet: its shells follow the
+view's.
+
+```js
+const sun = light.directional({ castShadow: true, shadowDistance: 600 })
+sun.shadowDistance = 250 // metres, from the next frame; no cached shadow page is redrawn for it
+tower.castFarShadow = true // this object still casts past the edge (false by default, on every node)
+```
+
+Six settings of the view sit beside it, each an option of `createWorld` too, resolved over the
+quality preset like the raster's: `shadowDistanceScale` (`1`, from 0 to 2) multiplies every sun's
+distance, so `0.5` halves it and `0` leaves the culling nothing to test against: it culls nothing;
+`farShadowCulling` (`true`) is the switch of the whole test; `farShadowCullsAllMeshes` (`false`) says
+which casters the test reaches; and three shape the edge: `shadowNearLevels` (`10`, a whole number
+from 0 to 10; the sun has at most four near levels, so more than four is four, and `0` leaves no
+edge: nothing is culled), `shadowOverlapScale` (`1`, from 0 to 2) is the factor on the tenth of its
+span the last near level overlaps into the next, and `shadowFarField` (`true`) says whether a
+far-field shadow follows the near levels (only for a scaled distance under 512 m). The levels are
+laid from the near plane to the scaled distance, each three times the span of the one before; the
+edge is the distance plus `(distance - start of the last level) * 0.1 * shadowOverlapScale` when a
+far field follows, the distance otherwise.
+
+```js
+const world = createWorld('viewer', { shadowDistanceScale: 0.85 })
+world.shadows = { farShadowCullsAllMeshes: true } // every caster is tested, from the next frame
+world.shadows = { farShadowCullsAllMeshes: null } // back to the default
+```
+
+The quality levels (the `shadows` group) write the four that shape the distance and its edge:
+
+| level      | `shadowDistanceScale` | `shadowNearLevels` | `shadowOverlapScale` | `shadowFarField` | edge at 400 m |
+| ---------- | --------------------- | ------------------ | -------------------- | ---------------- | ------------- |
+| `smooth`   | 0.6                   | 1                  | 0                    | off              | 240.0 m       |
+| `balanced` | 0.7                   | 1                  | 0.25                 | off              | 280.0 m       |
+| `fine`     | 0.85                  | 4                  | 0.8                  | on               | 358.4 m       |
+| `max`      | nothing (1)           | nothing (10)       | nothing (1)          | nothing (on)     | 427.0 m       |
+
+(edge at a near plane of 0.05 m.) A value the page set holds over a preset. A value of another kind,
+or out of its range, is refused by name. None of these settings, nor a light's `shadowDistance`,
+redraws a cached shadow page by itself: the pages follow the casters, as before. An object's
+`castFarShadow` flip does: the pages its rows were drawn into are drawn again.
+
+A saved scene keeps each node's `castFarShadow` when it is `true` (a file saved before the field
+loads, every node casting none far). An agent sets the same through `trillion3d_set_shadows`, and a
+light's distance through the `shadowDistance` field of `trillion3d_add_light`. How the far casters
+are left out of the maps: [SHADOWS.md](SHADOWS.md#far-casters).
 
 ### A see-through surface casts no shadow unless it asks
 

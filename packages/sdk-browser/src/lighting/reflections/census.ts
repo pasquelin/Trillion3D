@@ -1,6 +1,10 @@
 import type { ReflectionFrameMetrics } from '../../../../sdk-core/src/contracts/reflectionMetrics.ts'
 import { createReadbackRing } from '../../gpu/core/readbackRing.ts'
-import { RAY_TRIANGLES } from '../bounce/runtime/runtimeLayout.ts'
+import {
+  REFLECTION_RULES,
+  reflectionRingTests,
+  reflectionRingWork,
+} from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import {
   REFLECTION_CENSUS,
   REFLECTION_CENSUS_WORDS,
@@ -8,7 +12,6 @@ import {
   REFLECTION_WORK_BUCKETS,
   type ReflectionFate,
 } from './censusWgsl.ts'
-import { REFLECTION_COUNTS } from './constants.ts'
 
 /** The bytes of a view's census buffer (its staging ring maps apart). */
 export const REFLECTION_CENSUS_BYTES = REFLECTION_CENSUS_WORDS * 4
@@ -16,11 +19,17 @@ export const REFLECTION_CENSUS_BYTES = REFLECTION_CENSUS_WORDS * 4
 /** Censuses in flight at once: an image whose buffers are all in flight counts nothing, never waits. */
 const IN_FLIGHT = 3
 
+/** The budget of a ring's walk at the settings' defaults, in the tracer's units and triangle tests. */
+const DEFAULT_RING = [
+  reflectionRingWork(REFLECTION_RULES.reflectionRingSteps.default),
+  reflectionRingTests(REFLECTION_RULES.reflectionRingSteps.default),
+] as const
+
 /** The metrics before any census came back: the budget the walks are spent against, every count
  *  unknown. */
 const WAITING: ReflectionFrameMetrics = {
-  proxyUnits: REFLECTION_COUNTS.REFLECTION_PROXY_WORK,
-  proxyTriangles: RAY_TRIANGLES,
+  proxyUnits: DEFAULT_RING[0],
+  proxyTriangles: DEFAULT_RING[1],
   censusReads: null,
   censusFrame: null,
   rays: null,
@@ -32,12 +41,19 @@ const WAITING: ReflectionFrameMetrics = {
   proxyWork: null,
 }
 
-/** The metrics a census `words` of image `frame` gives, `reads` the censuses that came back. */
-function countedBy(words: Uint32Array, reads: number, frame: number): ReflectionFrameMetrics {
+/** The metrics a census `words` of image `frame` gives, `reads` the censuses that came back, `ring` the
+ *  budget of a ring's walk, its units and its triangle tests. */
+function countedBy(
+  words: Uint32Array,
+  reads: number,
+  frame: number,
+  ring: readonly [number, number],
+): ReflectionFrameMetrics {
   const at = REFLECTION_CENSUS
   const fate = (name: ReflectionFate) => words[at.fates + REFLECTION_FATES.indexOf(name)]
   return {
-    ...WAITING,
+    proxyUnits: ring[0],
+    proxyTriangles: ring[1],
     censusReads: reads,
     censusFrame: frame,
     // Every ray the screen stage casts ends in exactly one of these three.
@@ -80,6 +96,7 @@ export function createReflectionCensus(device: GPUDevice) {
     frame = 0,
     shownReads = 0,
     shown = WAITING,
+    spend: readonly [number, number] = DEFAULT_RING,
     tracing = false
   const ring = createReadbackRing(
     device,
@@ -111,12 +128,19 @@ export function createReflectionCensus(device: GPUDevice) {
     },
     /** After the image's submit: its copy maps. */
     submitted: () => ring.submitted(),
+    /** The budget of a ring's walk this image's rays are spent against: its units and its triangle
+     *  tests, which `metrics` reports (`ReflectionFrameMetrics.proxyUnits`). */
+    budget(units: number, tests: number) {
+      if (units === spend[0] && tests === spend[1]) return
+      spend = [units, tests]
+      shown = { ...shown, proxyUnits: units, proxyTriangles: tests }
+    },
     /** What the last census that came back counted, none before the first; null while the view
      *  traces nothing. */
     metrics(): ReflectionFrameMetrics | null {
       if (!tracing) return null
       if (shownReads !== reads) {
-        shown = countedBy(words, reads, frame)
+        shown = countedBy(words, reads, frame, spend)
         shownReads = reads
       }
       return shown

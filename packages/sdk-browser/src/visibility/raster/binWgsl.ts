@@ -14,6 +14,7 @@ import {
 import { FLAG_DYNAMIC, FLAG_LINE, FLAG_SPRITE, FLAG_VOXEL } from '../types.ts'
 import { VIS_TRIANGLE_BITS, visTriangle } from '../visWords.ts'
 import { computeBufferEntries } from '../../gpu/core/computeBindings.ts'
+import { TESSELLATED_ROW_WGSL } from '../tessellation/rowWgsl.ts'
 
 /** The binning module's group 0, binding after binding: the page reads — the page table writable,
  *  where a row's measured bounds are kept (`PageInfo.edgeLength`) —, the image's uniform, the
@@ -39,7 +40,10 @@ export const binLayoutEntries = () =>
  * - the software raster is off (`uni.softwareRaster`, the `softwareRaster` option);
  * - it is a line, a sprite or a voxel row, which the hardware vertex stage widens, turns or traces;
  * - its box needs clipping: a corner on or behind the near plane, or past the far one — the corners
- *   of the box of its vertices, through the same `viewProj * world` the raster uses;
+ *   of the box of its vertices, through the same `viewProj * world` the raster uses —, or, where
+ *   the cut culls by the view's clip plane (`uni.clipRoute`), a corner behind that plane: the
+ *   hardware stages cut the cluster at the plane (`../../gpu/core/clipDistances.ts`), as the
+ *   software raster cannot;
  * - or its longest edge, seen at the nearest point of its level-of-detail sphere, spans
  *   `hardwareRasterEdgePixels` or more: `projected < scale·edge·uni.hardwareEdge`, `projected` the
  *   sphere's nearest depth times the cosine of its tangent (`projectedEdgeScale`), `scale` the
@@ -58,13 +62,19 @@ export const binLayoutEntries = () =>
  * away, is appended to none. The order within a list is invisible: the passes resolve each pixel
  * by a maximum (`VIS_WRITE_WGSL`).
  *
+ * **The tessellation's rows** (`tessellated`): a row whose surface names a displacement and the frame
+ * tessellates (`tessellatedRow`) is left to the tessellation, whose seeding (`../tessellation/`) turns
+ * its triangles into patches: no list takes one of its triangles, and its `raster` word is the
+ * software's, so the hardware compaction walks none of its slots. The text of the split without
+ * the option is the same as it was.
+ *
  * **One binning a pass of the cut.** A row is drawn by the pass whose mask holds it: the main
  * pass's binning reads the frame mask before the post pass, the post pass's the post mask, each
  * through the uniform entry it binds (`uni.selectionOffset`, `../passes/uniforms.ts`), and appends
  * to its own lists (`LIST`, the pipeline's override). The two masks hold no row in common, so each
  * row's `raster` word is written once an image, before the compaction of its pass reads it.
  */
-export const binSource = (capacity: number) =>
+export const binSource = (capacity: number, tessellated = false) =>
   wgslProgram(
     `@group(0) @binding(0) var<storage,read> indices:array<u32>;
 @group(0) @binding(1) var<storage,read> positions:array<f32>;
@@ -104,13 +114,14 @@ struct RowBounds{center:vec3f,extent:vec3f,edge:f32,}
  *  sphere around its measured box. */
 fn rasteredInSoftware(page:PageInfo,b:RowBounds,moving:bool)->bool{
  let m=pageTransform(page);
- var nearest=FAR;var deepest=FAR;
+ var nearest=FAR;var deepest=FAR;var behind=FAR;
  for(var k=0u;k<8u;k++){
   let corner=b.center+b.extent*(vec3f(f32(k&1u),f32((k>>1u)&1u),f32((k>>2u)&1u))*2.0-1.0);
   let clip=m*vec4f(corner,1.0);
   nearest=min(nearest,clip.w-clip.z);deepest=min(deepest,clip.z);
+  if(uni.clipRoute!=0u){behind=min(behind,dot(uni.clipPlane.xyz,(page.world*vec4f(corner,1.0)).xyz)+uni.clipPlane.w);}
  }
- if(nearest<=0.0||deepest<=0.0){return false;}
+ if(nearest<=0.0||deepest<=0.0||behind<0.0){return false;}
  let world=worldMatrix3(page.world);
  let scale=sqrt(max(dot(world[0],world[0]),max(dot(world[1],world[1]),dot(world[2],world[2]))));
  var sphere=page.lodSphere;
@@ -131,7 +142,7 @@ var<workgroup> rowDet:f32;
  let live=row<uni.pageCount;
  let page=pages[select(0u,row,live)];
  let drawn=live&&(uni.selectionEnabled==0u||maskSelects(page.selectionIndex));
- let eligible=drawn&&uni.softwareRaster!=0u&&(page.flags&${FLAG_LINE | FLAG_SPRITE | FLAG_VOXEL}u)==0u;
+ let eligible=drawn&&uni.softwareRaster!=0u&&(page.flags&${FLAG_LINE | FLAG_SPRITE | FLAG_VOXEL}u)==0u${tessellated ? '&&!tessellatedRow(page)' : ''};
  let triangles=page.indexCount/3u;
  // Only a row the split may hand to software reads its triangles to measure its bounds: a row
  // whose vertices move in place every image, another once after its upload (\`PageInfo.edgeLength\`).
@@ -162,7 +173,7 @@ var<workgroup> rowDet:f32;
    if(!moving){pages[row].boxCenter=bounds.center;pages[row].boxExtent=bounds.extent;pages[row].edgeLength=bounds.edge;}
   }
   let software=eligible&&triangles>0u&&rasteredInSoftware(page,bounds,moving);
-  if(drawn){items[row].raster=select(${RASTER_HARDWARE}u,${RASTER_SOFTWARE}u,software);}
+  if(drawn){items[row].raster=select(${RASTER_HARDWARE}u,${RASTER_SOFTWARE}u,software${tessellated ? '||tessellatedRow(page)' : ''});}
   rowSoftware=select(0u,1u,software);
   rowVp=pageTransform(page);rowDet=pageWinding(page);
  }
@@ -197,5 +208,6 @@ fn spread(slot:u32,groups:u32){
       GROUP_GRID_WGSL,
       WORKGROUP_THREADS_WGSL,
       ceilDivWgsl,
+      ...(tessellated ? [TESSELLATED_ROW_WGSL] : []),
     ],
   )

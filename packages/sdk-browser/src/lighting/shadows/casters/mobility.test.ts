@@ -85,7 +85,7 @@ test('a placement touched as shadowless marks its rows, and clears them when it 
       none,
       3,
       undefined,
-      (rank) => off && rank === 1,
+      (rank) => (off && rank === 1 ? MOBILITY_SHADOWLESS : 0),
     )
   write()
   assert.deepEqual([...mobility.rowWords], [0, 0, 0])

@@ -17,7 +17,7 @@ import {
 } from '../../lighting/shadows/vsm/frame/vsmConsumers.ts'
 import { lobesHeld, rowsWearLobes } from './lobesTarget.ts'
 import { track } from '../../lighting/deferred/compileLedger.ts'
-import { drawsLit } from '../../visibility/shader/shadeMode.ts'
+import { drawsLit, showsRaw } from '../../visibility/shader/shadeMode.ts'
 
 /**
  * True when the image must be lit by the declared lights. False in the only unlit view: `unlit`
@@ -31,6 +31,12 @@ import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 export function wantsContractLighting(rt: WebgpuPagesRuntime) {
   return !rt.lights.store.unlit
 }
+
+/** Whether the image shows the lit image as the lighting draws it — a lit view that paints no raw
+ *  values (`showsRaw`) —: what the air and the fog are laid over; the unlit view and the views that
+ *  paint raw values show neither. */
+export const litImageShown = (rt: WebgpuPagesRuntime) =>
+  wantsContractLighting(rt) && !showsRaw(rt.run.diagnostic)
 
 /** Whether the image can hold an as-is pixel: a row showed a surface as-is, or a diagnostic view
  *  the resolve paints writes the flag — a view of the lit image writes none (`drawsLit`).
@@ -162,5 +168,11 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.receiver = active ? receiverResources(rt) : undefined
   // The share of the radiance the opaque trace wrote this image (`../../lighting/reflections/frame.ts`).
   contractResources.reflection = active ? rt.gpu.reflection?.targetView : undefined
+  // What the fog's cubemap and volume this image built are read through (`encodeFogVolume`).
+  contractResources.fog = active ? rt.gpu.fogVolume?.read : undefined
+  // What the screen probes left of the pixels' indirect light this image (`../../lighting/bounce/screen/frame.ts`).
+  contractResources.screenIndirect = active ? rt.gpu.screenProbes?.indirect : undefined
+  // The ambient occlusion this image drew (`../../lighting/ao/frame.ts`).
+  contractResources.ambientOcclusion = active ? rt.gpu.ambientOcclusion?.output : undefined
   return contractResources
 }

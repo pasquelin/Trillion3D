@@ -40,10 +40,12 @@ const tintOf = (cut: RuntimeCutProxy) => (cut.albedo.length ? cut.albedo[0] : NO
 export function createProxyState({ device, packed, frames }: ProxySource) {
   const tree = packed.placementTree
   const slots = Math.max(1, packed.worldCount)
-  // The instance a placement wears now, as written, and the one it keeps while parked.
+  // The instance a placement wears now, as written, and the one it keeps while parked; the
+  // placements out of their draw distances (`proxyInstances.ts`, `distance`) wear none, as parked.
   const held = {
     words: new Uint32Array(slots * INSTANCE_WORDS).fill(NO_INDEX),
     resolved: new Uint32Array(slots * INSTANCE_WORDS).fill(NO_INDEX),
+    culled: new Set<number>(),
     error: 0,
     dirty: true,
   }
@@ -141,7 +143,7 @@ export function createProxyState({ device, packed, frames }: ProxySource) {
       boxes.mark(w)
       resolve(w)
       const at = w * INSTANCE_WORDS,
-        parked = packed.rootNodes[w] === NO_INDEX
+        parked = packed.rootNodes[w] === NO_INDEX || held.culled.has(w)
       held.words.set(held.resolved.subarray(at, at + INSTANCE_WORDS), at)
       if (parked) held.words[at + INSTANCE.node] = NO_INDEX
     }

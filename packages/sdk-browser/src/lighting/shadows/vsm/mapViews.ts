@@ -24,15 +24,29 @@ export const vsmMapsOf = (kind: LightKind) =>
  *  every mip. */
 const vsmMapViewMips = (kind: LightKind) => (kind === 'directional' ? 1 : VSM_MIPS)
 
-/** The raster's views of `maps` maps of each light (`vsmMapsOf` where none is given) and the mip
- *  views they hold in all: what the views' list and the commands are sized for. */
-export function vsmRenderViewBound(lights: readonly { kind: LightKind; count?: number }[]) {
+/** A light as the raster's views count it: its kind and, once the frame's maps are set up, its map
+ *  count and its first map's id. */
+export interface VsmViewLight {
+  kind: LightKind
+  count?: number
+  firstId?: number
+}
+
+/** The maps of one light of the frame: its own count, else those its kind takes. */
+export const vsmLightMaps = (light: VsmViewLight) => light.count ?? vsmMapsOf(light.kind)
+
+/** The mip views the raster draws of one light's maps. */
+export const vsmLightMips = (light: VsmViewLight) =>
+  vsmLightMaps(light) * vsmMapViewMips(light.kind)
+
+/** The raster's views of `maps` maps of each light (`vsmLightMaps`) and the mip views they hold in
+ *  all (`vsmLightMips`): what the views' list and the commands are sized for. */
+export function vsmRenderViewBound(lights: readonly VsmViewLight[]) {
   let views = 0,
     viewMips = 0
   for (const light of lights) {
-    const maps = light.count ?? vsmMapsOf(light.kind)
-    views += maps
-    viewMips += maps * vsmMapViewMips(light.kind)
+    views += vsmLightMaps(light)
+    viewMips += vsmLightMips(light)
   }
   return { views, viewMips }
 }

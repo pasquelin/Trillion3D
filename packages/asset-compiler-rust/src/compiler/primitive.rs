@@ -114,6 +114,8 @@ pub(crate) fn compile_primitive(
         positions.collect_f32()?
     };
     let material = primitive_material(g, p)?;
+    // The blocks a primitive laid out by an assembly is cut in (`source/assembly.rs`).
+    let assembly = crate::dag::AssemblyBlocks::of(p, positions.count, index_values.len())?;
     // Skin and morph pages share the GPU deformation stage before cut/raster.
     let blended = drawn_blended(material);
     let mesh = *mesh_map
@@ -189,6 +191,7 @@ pub(crate) fn compile_primitive(
             root_pages: build.root_pages,
             precision: build.precision,
             scale,
+            assembly,
         },
         &encode,
     )?;

@@ -11,6 +11,7 @@ import { isCancelled } from '../../session/engine/common.ts'
 import { mainViewGpu, viewGpu, type WebgpuView } from '../../frame/backend/state/view.ts'
 import { taaWanted } from '../../frame/backend/state/gpu.ts'
 import { TAA_CAPABILITIES } from './capability.ts'
+import { velocityOf } from './velocityFrame.ts'
 
 /**
  * Rig temporal antialiasing after deferred lighting, at the level the host asks
@@ -118,7 +119,11 @@ export async function rigViewTemporal(
 ) {
   const wanted = viewGpu(rt, view)
   if (!device || !taaWanted(wanted) || wanted.temporal) return false
-  const temporal = await createTaa(rt, device)
+  // The velocity stage the pass reads its vectors and its last image from, the view's own.
+  const temporal = await createTemporalAntialiasing(
+    device,
+    velocityOf(wanted, device, rt.layout.selectionRoots),
+  )
   const gpu = viewGpu(rt, view)
   // Switched off, rigged, removed or closed while the program compiled: not kept.
   const removed = view !== rt.views.main && !rt.views.persistent.includes(view)
@@ -131,10 +136,6 @@ export async function rigViewTemporal(
   rt.run.gate.resourcesChanged()
   return true
 }
-
-/** A pass for this session: its resolves reconstruct the display at every render scale. */
-const createTaa = (rt: WebgpuPagesRuntime, device: GPUDevice) =>
-  createTemporalAntialiasing(device, rt.layout.selectionRoots)
 
 /** The pass leaves the session: capabilities dropped, cause named, image without the pass. */
 function dropTemporalAntialiasing(rt: WebgpuPagesRuntime, error: unknown) {

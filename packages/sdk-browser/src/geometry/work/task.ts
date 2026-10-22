@@ -55,8 +55,8 @@ export async function runPageTask(
     if (request.op === 'cells') {
       const { decodeCellFile } = await import('../partition/cellDecode.ts')
       const cells = decodeCellFile(request.source, request.name)
-      const { ranks, locals, tracks, sources } = cells
-      return done(request, started, { cells }, [ranks, locals, tracks, sources])
+      const { ranks, locals, tracks, sources, drawDistances } = cells
+      return done(request, started, { cells }, [ranks, locals, tracks, sources, drawDistances])
     }
     if (request.op === 'blocks') {
       const { decodeBcLevel } = await import('../../materials/texture/blockDecode.ts')

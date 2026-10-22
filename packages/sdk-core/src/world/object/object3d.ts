@@ -72,6 +72,23 @@ export class Object3D extends TransformNode {
     this._castShadow = value
     this._link?.shadow?.(this)
   }
+  private _castFarShadow = false
+  /** Whether the node still casts into a directional light's shadows past that light's far-shadow
+   *  edge (`shadowDistance`, a little farther): a caster the test reaches is left out of them there
+   *  unless it is set `true`; `false` by default, on every node. By default the test reaches the
+   *  world's merged far-field shells alone, and every caster with the view's
+   *  `farShadowCullsAllMeshes`. Read with `castShadow`: a node that casts none casts none far. A
+   *  compiled object, drawn from the compiled world, has no per-object setting of its own yet: its
+   *  shells follow the view's setting. */
+  get castFarShadow() {
+    return this._castFarShadow
+  }
+  set castFarShadow(value: boolean) {
+    if (value === this._castFarShadow) return
+    noteNodeWrite(this)
+    this._castFarShadow = value
+    this._link?.shadow?.(this)
+  }
   override get parent(): Object3D | null {
     return super.parent as Object3D | null
   }

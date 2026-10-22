@@ -192,3 +192,22 @@ test('a saved sprite is read back a sprite, with its centre and its turn', async
   assert.equal((back.material as Material).rotation, 0.6)
   assert.deepEqual(again.toJSON(), saved)
 })
+
+test('the air a directional light lights is saved: its index, and whether it is a candidate', async () => {
+  const scene = sceneWithLoads([])
+  scene.add(
+    light.directional({ atmosphereSunIndex: 1 }),
+    light.directional({ atmosphereSun: false }),
+    light.directional(),
+  )
+  const saved = JSON.parse(JSON.stringify(scene.toJSON()))
+  const again = sceneWithLoads([])
+  await again.fromJSON(saved)
+  const [moon, left, sun] = again.children as ReturnType<typeof light.directional>[]
+  assert.deepEqual(
+    [moon.atmosphereSunIndex, left.atmosphereSunIndex, sun.atmosphereSunIndex],
+    [1, 0, 0],
+  )
+  assert.deepEqual([moon.atmosphereSun, left.atmosphereSun, sun.atmosphereSun], [true, false, true])
+  assert.deepEqual(again.toJSON(), saved)
+})

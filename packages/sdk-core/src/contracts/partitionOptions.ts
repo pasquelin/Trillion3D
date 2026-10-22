@@ -21,16 +21,33 @@
  * every object loaded with the scene, no cell cut, no HLOD built. A job naming neither compiles at
  * the defaults, its cache key kept. A value left out or `null` names nothing, as the compiler reads
  * it.
+ *
+ * `partitionGrids` names several grids instead, a list of the settings `partitionGrid` takes, each
+ * under a `name`, the first the default grid: each has its own cells, its own loading range and
+ * its own chain of HLOD grids, an object streaming on the one its `runtimeGrid` setting names
+ * (`objectOptions.ts`) — the first when it names none, or one the list does not hold. A job names
+ * `partitionGrid` or `partitionGrids`, not both. Each grid lies flat or not for itself (`flat`).
  */
 import {
-  DEFAULT_PARTITION_CELL_SIZE,
-  DEFAULT_PARTITION_LOADING_RANGE,
-  DEFAULT_PARTITION_PRIORITY,
-  MAX_PARTITION_PRIORITY,
   PARTITION_GRID_FIELD,
   PARTITION_GRID_OPTION,
+  PARTITION_GRIDS_FIELD,
+  PARTITION_GRIDS_OPTION,
 } from './compilerAbi.ts'
-import { fieldsOf, refusal } from './nameMatch.ts'
+import { refusal } from './nameMatch.ts'
+import {
+  HASH_SET_GRID_SETTINGS,
+  resolvePartitionGrid,
+  resolvePartitionGrids,
+  SPATIAL_HASH_GRID_SETTINGS,
+  type PartitionGridOption,
+  type PartitionGridSettingsWire,
+  type PartitionGridsOption,
+  type PartitionGridsWire,
+  type PartitionGridWire,
+} from './partitionGridOptions.ts'
+
+export * from './partitionGridOptions.ts'
 
 /** The job field naming the world partition's scheme (`resolvePartitionScheme`). A job leaving it
  *  out keeps its cache key. */
@@ -68,232 +85,71 @@ export function resolvePartitionScheme(
   return option
 }
 
-/** The main grid's settings only the `hashSet` scheme reads: the bounds a cell of its finest
- *  level streams by, whether its grids lie flat on the ground, and each HLOD level's grid. */
-export const HASH_SET_GRID_SETTINGS = ['streamBounds', 'flat', 'hlodGrids'] as const
-/** The main grid's settings only the `spatialHash` scheme reads: whether each level's cells nest
- *  in the next one's, whether a wished cell pulls in the coarser cells overlapping it, and whether
- *  an object no wider than a finest cell goes to the one under its centre. */
-export const SPATIAL_HASH_GRID_SETTINGS = ['nestedLevels', 'pullCoarser', 'smallByCentre'] as const
-/** The settings `partitionGrid` may name: every scheme's, then each scheme's own. */
-export const PARTITION_GRID_SETTINGS = /* @__PURE__ */ (() =>
-  [
-    'cellSize',
-    'loadingRange',
-    'priority',
-    'origin',
-    'blockOnSlowStreaming',
-    ...HASH_SET_GRID_SETTINGS,
-    ...SPATIAL_HASH_GRID_SETTINGS,
-  ] as const)()
-/** The main grid's `blockOnSlowStreaming` when the job says nothing: the reference's, off. */
-export const DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING = false
-/** The bounds a cell of a loose grid's finest level streams by (`streamBounds`): the box around
- *  its content, its cell's box — of unbounded height on a flat grid —, or the first clipped to the
- *  second. A coarser level's cell streams by its content whatever it says. */
-export const PARTITION_STREAM_BOUNDS = ['content', 'cell', 'clipped'] as const
-/** One of `PARTITION_STREAM_BOUNDS`. */
-export type PartitionStreamBounds = (typeof PARTITION_STREAM_BOUNDS)[number]
-/** The main grid's stream bounds when the job names none: the reference's, its content. */
-export const DEFAULT_PARTITION_STREAM_BOUNDS = 'content' satisfies PartitionStreamBounds
-/** Whether the loose grids lie flat on the ground when the job says nothing: the reference's —
- *  height neither places an object nor keeps a cell out. */
-export const DEFAULT_PARTITION_FLAT = true
-/** The settings one HLOD level's grid may name (`hlodGrids`), each the main grid's times
- *  `2 << level` when left out, as the reference creates them. */
-export const PARTITION_HLOD_GRID_SETTINGS = ['cellSize', 'loadingRange'] as const
-/** Whether a square grid's levels nest when the job says nothing: a grid the reference creates
- *  does not — each level but the top one cell wider, its edges off those of the level below. */
-export const DEFAULT_PARTITION_NESTED_LEVELS = false
-/** Whether a wished cell of a square grid pulls in the coarser cells overlapping it when the job
- *  says nothing: a grid the reference creates does not. */
-export const DEFAULT_PARTITION_PULL_COARSER = false
-/** Whether an object no wider than a finest cell of a square grid goes to the one under its
- *  centre when the job says nothing: a grid the reference creates does. */
-export const DEFAULT_PARTITION_SMALL_BY_CENTRE = true
-
-/** One HLOD level's grid, each setting the main grid's times `2 << level` when left out. */
-export type PartitionHlodGrid = {
-  /** The side of a cell of its finest level, metres, above 0. */
-  cellSize?: number
-  /** The distance from the view, metres, above 0, within which its cell loads. */
-  loadingRange?: number
-}
-
-/** The main grid's settings, each its default when left out. */
-export type PartitionGridSettings = {
-  /** The side of a cell of the finest level, metres, above 0. @defaultValue 128 */
-  cellSize?: number
-  /** The distance from the view, metres, above 0, within which a cell loads. @defaultValue 256 */
-  loadingRange?: number
-  /** The grid's load priority among the grids, a whole number from 0, the lower the sooner.
-   *  @defaultValue 0 */
-  priority?: number
-  /** The grid's origin, glTF's `x` and `z` on the ground, or, under `hashSet`, `x`, `y`, `z` — its
-   *  height read by a loose grid that does not lie flat alone —, metres. @defaultValue [0, 0] */
-  origin?: readonly [number, number] | readonly [number, number, number]
-  /** Whether a load waits for its cells near the view, the session's
-   *  `worldStreamingBlockOnSlowStreaming` on; the HLOD grids never do. @defaultValue false */
-  blockOnSlowStreaming?: boolean
-  /** `hashSet`: the bounds a cell of the finest level streams by (`PARTITION_STREAM_BOUNDS`).
-   *  @defaultValue 'content' */
-  streamBounds?: PartitionStreamBounds
-  /** `hashSet`: whether the grids lie flat on the ground; `false`, they cut height into cells
-   *  too and a cell loads while the view comes within its range in 3D. @defaultValue true */
-  flat?: boolean
-  /** `hashSet`: each HLOD level's grid by level, from 0; a level left out or `null` takes the
-   *  main grid's cell and range times `2 << level`. @defaultValue none */
-  hlodGrids?: readonly (PartitionHlodGrid | null)[]
-  /** `spatialHash`: whether each level's cells nest in the next one's. @defaultValue false */
-  nestedLevels?: boolean
-  /** `spatialHash`: whether a wished cell pulls in every coarser cell overlapping it, and those
-   *  in turn, while the levels do not nest. @defaultValue false */
-  pullCoarser?: boolean
-  /** `spatialHash`: whether an object whose ground box is no larger than a finest cell goes to the
-   *  finest cell under its centre. @defaultValue true */
-  smallByCentre?: boolean
-}
-
-/** The main grid: `true` every default, `false` the streaming off, or the settings it names. */
-export type PartitionGridOption = boolean | PartitionGridSettings
-
-/** The main grid as the compiler reads it: every setting of every scheme named, a scheme's own
- *  only when the job names it; or `false`, the streaming off. */
-export type PartitionGridWire =
-  | false
-  | {
-      cellSize: number
-      loadingRange: number
-      priority: number
-      origin: [number, number] | [number, number, number]
-      blockOnSlowStreaming?: boolean
-      streamBounds?: PartitionStreamBounds
-      flat?: boolean
-      hlodGrids?: (PartitionHlodGrid | null)[]
-      nestedLevels?: boolean
-      pullCoarser?: boolean
-      smallByCentre?: boolean
-    }
-
-/** A finite number above 0. */
-const positive = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isFinite(value) && value > 0
-/** A boolean. */
-const boolean = (value: unknown): value is boolean => typeof value === 'boolean'
-
 /**
- * The main grid the compiler reads for `option`: none when left out.
- * @param option - `true` (every default), `false` (the streaming off), or the settings.
- * @returns The compiler's form (`PartitionGridWire`), `undefined` for none.
- * @throws TypeError naming the setting and what it takes when one is wrong, or the allowed forms.
+ * Whether the grid `grid`, read from `field`, names only what a job of the `hashSet` scheme
+ * (`loose`) or of the `spatialHash` one reads: a setting of the other scheme refuses it, and a
+ * square grid lies on the ground, its origin without a height.
+ * @throws TypeError naming the setting when the scheme does not read it.
  */
-export function resolvePartitionGrid(
-  option?: PartitionGridOption | null,
-): PartitionGridWire | undefined {
-  if (option === undefined || option === null) return undefined
-  if (option === false) return false
-  const refuse = refusal(PARTITION_GRID_FIELD)
-  if (option !== true && (typeof option !== 'object' || Array.isArray(option)))
-    refuse(
-      `must be true, false or an object of ${PARTITION_GRID_SETTINGS.join(', ')}, got ${String(option)}`,
-    )
-  const named: Record<string, unknown> =
-    option === true ? {} : fieldsOf(option, PARTITION_GRID_SETTINGS, 'the grid', refuse)
-  const read = <T>(name: string, fits: (value: unknown) => boolean, fallback: T, takes: string) => {
-    const value = named[name]
-    if (value === undefined || value === null) return fallback
-    if (!fits(value)) refuse(`${name} must be ${takes}, got ${JSON.stringify(value)}`)
-    return value as T
-  }
-  const whole = (value: unknown) =>
-    Number.isInteger(value) && (value as number) >= 0 && (value as number) <= MAX_PARTITION_PRIORITY
-  const point = (value: unknown) =>
-    Array.isArray(value) &&
-    (value.length === 2 || value.length === 3) &&
-    value.every((v) => typeof v === 'number' && Number.isFinite(v))
-  const level = (value: unknown, at: number) => {
-    if (value === null) return null
-    const fields = fieldsOf(value, PARTITION_HLOD_GRID_SETTINGS, `hlodGrids[${at}]`, refuse)
-    for (const name of PARTITION_HLOD_GRID_SETTINGS)
-      if (fields[name] != null && !positive(fields[name]))
-        refuse(`hlodGrids[${at}].${name} must be a number of metres above 0`)
-    return fields as PartitionHlodGrid
-  }
-  const wire: Exclude<PartitionGridWire, false> = {
-    cellSize: read('cellSize', positive, DEFAULT_PARTITION_CELL_SIZE, 'a number of metres above 0'),
-    loadingRange: read(
-      'loadingRange',
-      positive,
-      DEFAULT_PARTITION_LOADING_RANGE,
-      'a number of metres above 0',
-    ),
-    priority: read(
-      'priority',
-      whole,
-      DEFAULT_PARTITION_PRIORITY,
-      `a whole number from 0 to ${MAX_PARTITION_PRIORITY}`,
-    ),
-    origin: [...read<readonly number[]>('origin', point, [0, 0], 'two or three finite numbers')] as
-      [number, number] | [number, number, number],
-  }
-  // A scheme's own settings are written only where named: the compiler refuses one the job's
-  // scheme does not read.
-  const bounds = (value: unknown) => (PARTITION_STREAM_BOUNDS as readonly unknown[]).includes(value)
-  const streamBounds = read<PartitionStreamBounds | undefined>(
-    'streamBounds',
-    bounds,
-    undefined,
-    `one of ${PARTITION_STREAM_BOUNDS.join(', ')}`,
-  )
-  if (streamBounds) wire.streamBounds = streamBounds
-  const levels = read<unknown[] | undefined>('hlodGrids', Array.isArray, undefined, 'an array')
-  if (levels) wire.hlodGrids = levels.map(level)
-  // The settings that are true or false, written only where the job names them.
-  for (const name of ['blockOnSlowStreaming', 'flat', ...SPATIAL_HASH_GRID_SETTINGS] as const) {
-    const named = read<boolean | undefined>(name, boolean, undefined, 'true or false')
-    if (named !== undefined) wire[name] = named
-  }
-  return wire
+function assertGridFitsScheme(grid: PartitionGridSettingsWire, loose: boolean, field: string) {
+  const foreign = loose ? SPATIAL_HASH_GRID_SETTINGS : HASH_SET_GRID_SETTINGS
+  const named = foreign.find((name) => grid[name] !== undefined)
+  if (named)
+    refusal(field)(`${named} is read by partitionScheme ${loose ? 'spatialHash' : 'hashSet'} alone`)
+  if (!loose && grid.origin.length !== 2)
+    refusal(field)(`origin must be two finite numbers, got ${JSON.stringify(grid.origin)}`)
 }
 
 /** A job's partition options as a host names them. */
 export type PartitionJobOptions = {
   partitionScheme?: PartitionSchemeOption | null
   partitionGrid?: PartitionGridOption | null
+  partitionGrids?: PartitionGridsOption | null
 }
 
-/** A job's `partitionScheme` and `partitionGrid` fields as the compiler reads them, each left out
- *  when the job names none.
- *  @throws TypeError when the grid names a setting the job's scheme does not read. */
-export function partitionJobFields({ partitionScheme, partitionGrid }: PartitionJobOptions) {
-  const out: { partitionScheme?: PartitionScheme; partitionGrid?: PartitionGridWire } = {}
+/** A job's `partitionScheme`, `partitionGrid` and `partitionGrids` fields as the compiler reads
+ *  them, each left out when the job names none.
+ *  @throws TypeError when a grid names a setting the job's scheme does not read, or the job names
+ *  both `partitionGrid` and `partitionGrids`. */
+export function partitionJobFields({
+  partitionScheme,
+  partitionGrid,
+  partitionGrids,
+}: PartitionJobOptions) {
+  const out: {
+    partitionScheme?: PartitionScheme
+    partitionGrid?: PartitionGridWire
+    partitionGrids?: PartitionGridsWire
+  } = {}
   const scheme = resolvePartitionScheme(partitionScheme)
   const grid = resolvePartitionGrid(partitionGrid)
+  const grids = resolvePartitionGrids(partitionGrids)
+  if (grid !== undefined && grids !== undefined)
+    refusal(PARTITION_GRIDS_FIELD)(
+      `${PARTITION_GRID_FIELD} and ${PARTITION_GRIDS_FIELD} both name the grids: name them once`,
+    )
   const loose = (scheme ?? DEFAULT_PARTITION_SCHEME) === 'hashSet'
-  const foreign = loose ? SPATIAL_HASH_GRID_SETTINGS : HASH_SET_GRID_SETTINGS
-  const named = grid && foreign.find((name) => grid[name] !== undefined)
-  if (named)
-    refusal(PARTITION_GRID_FIELD)(
-      `${named} is read by partitionScheme ${loose ? 'spatialHash' : 'hashSet'} alone`,
-    )
-  // A square grid lies on the ground: its origin has no height.
-  if (grid && !loose && grid.origin.length !== 2)
-    refusal(PARTITION_GRID_FIELD)(
-      `origin must be two finite numbers, got ${JSON.stringify(grid.origin)}`,
-    )
+  if (grid) assertGridFitsScheme(grid, loose, PARTITION_GRID_FIELD)
+  grids?.forEach((entry, at) =>
+    assertGridFitsScheme(entry, loose, `${PARTITION_GRIDS_FIELD}[${at}]`),
+  )
   if (scheme) out.partitionScheme = scheme
   if (grid !== undefined) out.partitionGrid = grid
+  if (grids !== undefined) out.partitionGrids = grids
   return out
 }
 
 /** A job's partition options as the command line's flags, none for an option the job leaves
  *  out. */
 export function partitionFlags(options: PartitionJobOptions): string[] {
-  const { partitionScheme, partitionGrid } = partitionJobFields(options)
+  const { partitionScheme, partitionGrid, partitionGrids } = partitionJobFields(options)
   return [
     ...(partitionScheme ? [`${PARTITION_SCHEME_OPTION}${partitionScheme}`] : []),
     ...(partitionGrid === undefined
       ? []
       : [`${PARTITION_GRID_OPTION}${JSON.stringify(partitionGrid)}`]),
+    ...(partitionGrids === undefined
+      ? []
+      : [`${PARTITION_GRIDS_OPTION}${JSON.stringify(partitionGrids)}`]),
   ]
 }

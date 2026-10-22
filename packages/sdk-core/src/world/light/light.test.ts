@@ -69,6 +69,31 @@ test('light factories preserve their kinds and explicit zero-valued parameters',
   }
 })
 
+test('a directional light’s shadow distance is a number of metres, true the default, false none', () => {
+  assert.equal(light.directional().shadowDistance, 400)
+  assert.equal(light.directional({ shadowDistance: true }).shadowDistance, 400)
+  assert.equal(light.directional({ shadowDistance: false }).shadowDistance, 0)
+  assert.equal(light.directional({ shadowDistance: 0 }).shadowDistance, 0)
+  assert.equal(light.directional({ shadowDistance: 1250.5 }).shadowDistance, 1250.5)
+  assert.equal(light.point().shadowDistance, 0, 'a lamp that is not a sun holds none')
+  for (const bad of [-1, Infinity, NaN, '400' as unknown as number])
+    assert.throws(
+      () => light.directional({ shadowDistance: bad }),
+      /shadowDistance: must be/,
+      `${bad}`,
+    )
+  const sun = light.directional(),
+    scene = new Group(),
+    { link, heard } = countingLink()
+  scene._link = link
+  scene.add(sun)
+  const before = heard.length
+  sun.shadowDistance = 300
+  assert.equal(sun.shadowDistance, 300)
+  assert.equal(heard.length, before + 1, 'a write reaches the world at once')
+  assert.equal(sun.clone().shadowDistance, 300)
+})
+
 test('cloning a light preserves values but owns independently editable coefficients and numbers', () => {
   const coefficients = Float64Array.from({ length: 27 }, (_, i) => i / 10)
   const source = new Light('spot', {

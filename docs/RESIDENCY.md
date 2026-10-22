@@ -101,8 +101,9 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
   however many groups a page holds, and theirs in turn as long as a priority rises
   ([FORMAT.md](FORMAT.md#cluster-dag)). The requested ones already started or resident move to
   the end of the use order, the views' own first, in their order. A caller may ask pages of its
-  own at a priority it gives, from 1 to 0xffffffe0 as the GPU's requests are (`prefetch`, the
-  residency queue's third argument).
+  own at a priority it gives, kept as it is up to 0xffffffe0, the highest of the GPU's requests, and
+  none at 0 (`prefetch`, the residency queue's third argument); left out, the pages are asked ahead
+  of every view's request, the nearer the deadline the higher.
 - The unique requests, as a percent of the streaming pool's slots, scale the cut's screen error:
   over `streamingQualityMaxPoolPercent` (85) two updates running, the scale falls by 3 % an update,
   down to `streamingQualityMinScale` (0.3); under `streamingQualityMinPoolPercent` (70) thirty
@@ -117,8 +118,10 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
   pool waits for a later update to free a slot.
 - The started streaming pages are installed in the order started, each once its pages' bytes are
   in — none passes one still waiting —, at most `streamingMaxInstallsPerFrame` (128, never more
-  than may be pending) a frame, and no time budget: a page costs its frame what it costs. One whose
-  bytes fail for good is never started again by the session: a read that failed is tried again
+  than may be pending) a frame, and no time budget: a page costs its frame what it costs. A started
+  streaming page whose object was made invalid while its bytes came — another page of it was given
+  up — is dropped when it arrives, never installed, and never started again. One whose bytes fail
+  for good is never started again by the session: a read that failed is tried again
   `streamingNumRetries` times (3; a negative value without end), after a wait of 0.5 s · 2^k, 8 s
   at most; past the last the page is given up, the object it names invalid, no page of it asked for
   again.

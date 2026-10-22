@@ -8,6 +8,9 @@ import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
 import { packDagSelection } from './pack.ts'
 import { scenePages, sceneRoots } from '../cut/cutFrontierScene.fixture.ts'
 import { createDagReadiness } from '../readiness.ts'
+import { DAG_NODE_FLOATS } from '../types.ts'
+import { NODE_MAX, NODE_MIN, NODE_SPHERE } from '../nodeLayout.ts'
+import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
 
 type Reads = { sphere: number; url: number; parentError: number }
 
@@ -81,4 +84,33 @@ test('the blank residency of a placement is the pages its shared state reads rea
     assert.deepEqual(ready, expected(readiness.isReady))
     assert.deepEqual(child, expected(readiness.isChildReady))
   })
+})
+
+test('a displaced surface grows the culling boxes of its primitive by its reach, the balls never', () => {
+  const height = { channel: 0 } as Texture
+  const surface = {
+    displacement: { magnitude: 4, center: 0.25, fade: null },
+    displacementMap: height,
+  }
+  const plain = packDagSelection(sceneRoots(scenePages(64, 4), [new Matrix4()]))
+  const displaced = packDagSelection(
+    sceneRoots(
+      scenePages(64, 4).map((page) => ({ ...page, material: surface as never })),
+      [new Matrix4()],
+    ),
+  )
+  // The reach is the larger side of the displacement: 0.75 of the magnitude 4, three units.
+  const nodes = plain.nodes.length / DAG_NODE_FLOATS
+  assert.ok(nodes > 1)
+  for (let n = 0; n < nodes; n++)
+    for (let a = 0; a < 3; a++) {
+      const at = n * DAG_NODE_FLOATS
+      assert.equal(displaced.nodes[at + NODE_MIN + a], plain.nodes[at + NODE_MIN + a] - 3)
+      assert.equal(displaced.nodes[at + NODE_MAX + a], plain.nodes[at + NODE_MAX + a] + 3)
+    }
+  for (let n = 0; n < nodes; n++)
+    for (let a = 0; a < 4; a++) {
+      const at = n * DAG_NODE_FLOATS + NODE_SPHERE + a
+      assert.equal(displaced.nodes[at], plain.nodes[at])
+    }
 })

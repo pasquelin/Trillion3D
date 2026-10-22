@@ -19,6 +19,7 @@ import { MIB } from '../../../../math/src/constants.ts'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { OverlayFrame } from '../../post/effects/webgpuKinds.ts'
 import { createFinish } from '../../post/finish/finish.ts'
+import { frameOf } from '../../post/effects/webgpuEffects.fixture.ts'
 
 const [width, height] = [3840, 2160]
 // Three blooms: the last one's glow is the composition's, the two before it fill both pass
@@ -40,13 +41,20 @@ test('the default reserve is the target rule on a 3840 × 2160 canvas, the most 
   const finish = createFinish(gpu.device)
   const framed = () => {
     finish.scene.begin(encoder, input, width, height)
-    return { scene: finish.scene, bare: finish.bare, layers: finish.groupFor(false), local: false }
+    // The grain's texture too, which the finishing makes where the grain is drawn.
+    const layers = finish.groupFor(false, undefined, true)
+    return { scene: finish.scene, bare: finish.bare, layers, local: false }
   }
   webgpu.encode(encoder, chain, input, width, height, framed())
   await webgpu.settled()
   webgpu.encode(encoder, chain, input, width, height, framed())
   // The local exposure's grid, log luminance and blur, over the scene's half-size image.
   finish.local.encode(encoder, finish.scene, 50, true)
+  // The motion blur on the resolved image, ahead of the chain: its image, its motion and its tiles.
+  const blur = [effect.motionBlur()]
+  webgpu.readyResolved(blur)
+  await webgpu.settled()
+  webgpu.resolve(encoder, blur, input, frameOf(gpu, width, height))
   // An outline of an object, drawn over the display image: its scan's target.
   const outline = [effect.outline({ objects: [new Object3D()] })]
   const frame = {
@@ -60,7 +68,7 @@ test('the default reserve is the target rule on a 3840 × 2160 canvas, the most 
   assert.equal(
     webgpu.bytes + finish.bytes,
     EFFECT_TARGET_BYTES,
-    'two pass targets, the blooms’ images, outline scan, the finishing’s chain and layers',
+    'two pass targets, the blur’s, the blooms’ images, outline scan, the finishing’s chain and layers',
   )
 })
 

@@ -83,7 +83,7 @@ test('the cutout multiplies by the vertex alpha only on a row that reads its col
 })
 
 test('both rasters hand the interpolated vertex alpha to the cutout; shadows pass one', () => {
-  assert.ok(VIS_SHADER.includes('@location(2) tc:vec3f,}'), 'one interpolant with the UV')
+  assert.ok(VIS_SHADER.includes('@location(2) tc:vec3f,'), 'one interpolant with the UV')
   assert.equal(
     VIS_SHADER.split('if((page.flags&128u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}').length,
     2,

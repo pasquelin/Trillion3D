@@ -1,25 +1,26 @@
-//! How placed nodes are grouped into cells: the main grid's (`grid.rs`), every node in the cell
-//! its batch's box goes to (`CellGrid::place`), whatever its HLOD layer — a cell holds all its
-//! objects, read and let go together. Within a cell, the objects of each HLOD 0 cell their
-//! layer's actor lies in are written apart, and a group whose records pass one stream unit
-//! (`STREAM_BUNDLE_BYTES`) is packed into several files: each file names its HLOD 0 cell, and they
-//! all share their grid cell. The grid cells are then halved at the median of their centres, on
-//! the axis of least cost (`split::bisect_least_cost`, every tree's split), for the paged cell
-//! index alone (`pages.rs`): the index is cut from that tree.
-use super::grid::{CellGrid, Coord};
+//! How placed nodes are grouped into cells: each batch streams on a main grid (`assign_grids`),
+//! every node in the cell its batch's box goes to there (`CellGrid::place`, `grid.rs`), whatever
+//! its HLOD layer — a cell holds all its objects, read and let go together. Within a cell, the
+//! objects of each HLOD 0 cell their layer's actor lies in are written apart, and a group whose
+//! records pass one stream unit (`STREAM_BUNDLE_BYTES`) is packed into several files: each file
+//! names its HLOD 0 cell, and they all share their grid cell. The grid cells are then halved at
+//! the median of their centres, on the axis of least cost (`split::bisect_least_cost`, every
+//! tree's split), for the paged cell index alone (`pages.rs`): the index is cut from that tree.
+use super::grid::Coord;
 use super::*;
 use std::ops::Range;
 use trillion3d_math::geometry::aabb::centre;
 use trillion3d_page_codec::split::bisect_least_cost;
 
 /// One placed node: its rank in the published scene, the HLOD layer it is assigned to
-/// (`Hlod::assigned`, `None`: none), its world box, its main grid cell, the core rank of its
-/// parent (`None`: a scene root) and its box in that parent's frame, its descriptor as the cell
-/// writes it, and that descriptor's size.
+/// (`Hlod::assigned`, `None`: none), its world box, the main grid it streams on (its rank in
+/// `Grids::list`) and its cell there, the core rank of its parent (`None`: a scene root) and its
+/// box in that parent's frame, its descriptor as the cell writes it, and that descriptor's size.
 pub(crate) struct Placed {
     pub node: usize,
     pub layer: Option<usize>,
     pub bounds: [f64; 6],
+    pub grid: usize,
     pub cell: Coord,
     pub parent: Option<usize>,
     pub local: [f64; 6],
@@ -27,21 +28,53 @@ pub(crate) struct Placed {
     pub bytes: usize,
 }
 
-/// One cell of the main grid and the nodes placed in it, of every layer.
+/// One cell of a main grid and the nodes placed in it, of every layer.
 pub(crate) struct MainCell {
+    pub grid: usize,
     pub coord: Coord,
     pub nodes: Vec<Placed>,
 }
 
-/// The main grid's cells of `placed`, each with its nodes, in the order of their coordinates.
+/// The main grids' cells of `placed`, each with its nodes, in the order of their grids, then of
+/// their coordinates.
 pub(crate) fn main_cells(placed: Vec<Placed>) -> Vec<MainCell> {
-    let mut by_cell: BTreeMap<Coord, Vec<Placed>> = BTreeMap::new();
+    let mut by_cell: BTreeMap<(usize, Coord), Vec<Placed>> = BTreeMap::new();
     for node in placed {
-        by_cell.entry(node.cell).or_default().push(node);
+        by_cell
+            .entry((node.grid, node.cell))
+            .or_default()
+            .push(node);
     }
     (by_cell.into_iter())
-        .map(|(coord, nodes)| MainCell { coord, nodes })
+        .map(|((grid, coord), nodes)| MainCell { grid, coord, nodes })
         .collect()
+}
+
+/// Sets the main grid each of `candidates` streams on, its batch's: the one its root's
+/// `runtimeGrid` names (`named`, by batch root; `PartitionGrid::rank_of`), as the reference's
+/// attached actors take their topmost actor's grid; the first grid, 0, for a root naming none or a
+/// name no grid of the job has, as the reference falls back. Returns each such root with the name
+/// it asked, which the reference reports for every actor.
+pub(super) fn assign_grids(
+    candidates: &mut [Candidate],
+    named: &BTreeMap<usize, String>,
+    grid: &crate::PartitionGrid,
+) -> Vec<(usize, String)> {
+    let mut found = BTreeMap::<&str, Option<usize>>::new();
+    let (mut unknown, mut told) = (Vec::new(), BTreeSet::new());
+    for candidate in candidates.iter_mut() {
+        let Some(name) = named.get(&candidate.batch) else {
+            continue;
+        };
+        let rank = *found
+            .entry(name.as_str())
+            .or_insert_with(|| grid.rank_of(name));
+        candidate.grid = rank.unwrap_or(0);
+        if rank.is_none() && told.insert(candidate.batch) {
+            unknown.push((candidate.batch, name.clone()));
+        }
+    }
+    unknown
 }
 
 /// A node of the halving tree: its contiguous range of cells, and its halves unless it is one.
@@ -62,12 +95,13 @@ pub(crate) fn halving(records: Range<usize>) -> Region {
     }
 }
 
-/// One cell of the main grid as it is written: its coordinates, the bounds it streams by — the box
-/// around its content, its cell's or both, or its square with its content's up axis, as its grid
-/// says (`CellGrid::streamed`) —, the union of its nodes' world boxes,
+/// One cell of a main grid as it is written: its grid, its coordinates, the bounds it streams by —
+/// the box around its content, its cell's or both, or its square with its content's up axis, as
+/// its grid says (`CellGrid::streamed`) —, the union of its nodes' world boxes,
 /// and its nodes in files of at most one stream unit each, every file naming the HLOD 0 cell its
 /// objects' actor lies in (`None`: objects in no layer).
 pub(crate) struct GridCell {
+    pub grid: usize,
     pub coord: Coord,
     pub bounds: Box6,
     pub content: Box6,
@@ -118,17 +152,17 @@ fn halve(
     }
 }
 
-/// The cells of `mains` on the main grid `grid` as they are written, in the order of the tree that
-/// halves them, each its files in order, file after file the cells the runtime ranks; and that
-/// tree, over the files. `leaf_of` gives, per main cell, the HLOD 0 cell each layer's actor lies
-/// in (`hlod::cells::hlod_cells`).
+/// The cells of `mains` on their main grids of `grids` as they are written, in the order of the
+/// tree that halves them, each its files in order, file after file the cells the runtime ranks;
+/// and that tree, over the files. `leaf_of` gives, per main cell, the HLOD 0 cell each layer's
+/// actor lies in (`hlod::cells::hlod_cells`).
 pub(crate) fn grid_cells(
     mains: Vec<MainCell>,
     leaf_of: &[BTreeMap<usize, usize>],
-    grid: &CellGrid,
+    grids: &Grids,
 ) -> (Vec<GridCell>, Region) {
     let mut cells: Vec<GridCell> = (mains.into_iter().zip(leaf_of))
-        .map(|(MainCell { coord, nodes }, leaves)| {
+        .map(|(MainCell { grid, coord, nodes }, leaves)| {
             let mut content = EMPTY_FLAT;
             nodes
                 .iter()
@@ -142,8 +176,9 @@ pub(crate) fn grid_cells(
                 .flat_map(|(leaf, nodes)| packed(nodes).into_iter().map(move |file| (leaf, file)))
                 .collect();
             GridCell {
+                grid,
                 coord,
-                bounds: grid.streamed(coord, &content),
+                bounds: grids.main(grid).grid.streamed(coord, &content),
                 content,
                 files,
             }

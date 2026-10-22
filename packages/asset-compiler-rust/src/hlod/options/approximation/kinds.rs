@@ -2,7 +2,7 @@
 //! it is simplified to, how it is unwrapped, what its atlas holds where no chart is, the patches
 //! unwrap's settings, the bake's views, how the scene's base is closed and how the ground plane
 //! clips the shell — each with its words, in its enum's order, and its default.
-use super::super::fields::default_rank;
+use super::super::fields::{counted, default_rank, ranged, set};
 use super::*;
 
 /// Which triangles of the shell are dropped as hidden (`occlusion`, `HLOD_OCCLUSIONS` order).
@@ -37,7 +37,9 @@ impl HlodSimplification {
     ];
 }
 
-/// How the shell is given unique texture coordinates (`uvMethod`, `HLOD_UV_METHODS` order).
+/// How a mesh baked on its own triangles is given unique texture coordinates (`uvMethod`): an
+/// approximated layer's shell takes the first three (`HLOD_UV_METHODS` order), a merged layer's
+/// mesh any of the four (`HLOD_MERGE_UV_METHODS`, `options/merging.rs`).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum HlodUvMethod {
     /// Charts grown by cost and flattened conformally, then packed (`'charts'`, the default:
@@ -46,10 +48,18 @@ pub enum HlodUvMethod {
     /// Patches grown by normal-weighed distance and merged into islands (`'patches'`:
     /// `flatten/uv/unwrap.rs`).
     Patches,
+    /// Charts cut by spectral analysis of the surface — as many as keep their stretch under the
+    /// bound: `uvAtlasStretch` on a shell, 0.11 on a merged mesh — and packed (`'uvAtlas'`:
+    /// `flatten/uv/unwrap/atlas.rs`).
+    UvAtlas,
+    /// A merged layer's old chart layout of the mesh's own first texture set (`'legacy'`:
+    /// `flatten/uv/legacy.rs`); a mesh it finds no layout for takes the patches unwrap.
+    Legacy,
 }
 
 impl HlodUvMethod {
-    pub(super) const ALL: [Self; 2] = [Self::Charts, Self::Patches];
+    /// The methods of an approximated layer, in `HLOD_UV_METHODS` order.
+    pub(super) const ALL: [Self; 3] = [Self::Charts, Self::Patches, Self::UvAtlas];
 }
 
 /// What an approximated layer's atlas holds where it holds no chart's value — its empty texels,
@@ -87,7 +97,10 @@ pub const HLOD_SIMPLIFICATIONS: [&str; 3] = [
     "trianglesPerArea",
     "fixedTriangleCount",
 ];
-pub const HLOD_UV_METHODS: [&str; 2] = ["charts", "patches"];
+pub const HLOD_UV_METHODS: [&str; 3] = ["charts", "patches", "uvAtlas"];
+
+// A word without a method in `HlodUvMethod::ALL` would index past it (`chosen_of`).
+const _: () = assert!(HLOD_UV_METHODS.len() == HlodUvMethod::ALL.len());
 
 /// The patches unwrap's settings (`uvMethod: 'patches'`): the initial patch count, the weight of
 /// the normal's turn in the patches' growth, the mean squared area distortion an island may
@@ -108,6 +121,23 @@ impl Default for HlodPatches {
             merging_threshold: 1.5,
             max_angle_deviation: 45.0,
         }
+    }
+}
+
+impl HlodPatches {
+    /// The settings `map` names (`what` naming the layer's approximation), each checked against
+    /// its range, the others defaulted.
+    pub(super) fn read(map: &Map<String, Value>, what: &str) -> Result<Self> {
+        let mut read = Self::default();
+        let initial = counted(map, "initialPatches", what, (1, 99_999_999))?;
+        set(&mut read.initial, initial);
+        let alignment = ranged(map, "curvatureAlignment", what, (0.01, 100.0))?;
+        set(&mut read.curvature_alignment, alignment);
+        let merging = ranged(map, "mergingThreshold", what, (1.0, f64::MAX))?;
+        set(&mut read.merging_threshold, merging);
+        let deviation = ranged(map, "maxAngleDeviation", what, (0.0, 180.0))?;
+        set(&mut read.max_angle_deviation, deviation);
+        Ok(read)
     }
 }
 

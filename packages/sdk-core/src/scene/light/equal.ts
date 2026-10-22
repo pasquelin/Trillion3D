@@ -1,6 +1,7 @@
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 import type { SceneEnvironment } from '../core/environment.ts'
 import type { SceneLight } from './contracts.ts'
+import { atmosphereSunIndexOf } from './fields.ts'
 import { sameSceneFog } from '../core/fog.ts'
 import { sameSceneAtmosphere } from '../core/atmosphere.ts'
 import { sameSceneSky } from '../core/environmentSky.ts'
@@ -28,12 +29,17 @@ export function sameSceneLight(a: SceneLight, b: SceneLight) {
     a.coneAngle === b.coneAngle &&
     a.penumbra === b.penumbra &&
     a.angularRadius === b.angularRadius &&
+    a.shadowDistance === b.shadowDistance &&
     a.atmosphereSun === b.atmosphereSun &&
+    atmosphereSunIndexOf(a) === atmosphereSunIndexOf(b) &&
     a.emitterRadius === b.emitterRadius &&
+    a.emitterLength === b.emitterLength &&
+    a.emitterSoftRadius === b.emitterSoftRadius &&
     sameVector(a.color, b.color) &&
     sameVector(a.position, b.position) &&
     sameVector(a.direction, b.direction) &&
     sameVector(a.right, b.right) &&
+    sameVector(a.emitterAxis, b.emitterAxis) &&
     sameVector(a.size, b.size)
   )
 }

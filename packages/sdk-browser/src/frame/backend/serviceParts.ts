@@ -10,7 +10,7 @@ import { createWebgpuResidencyQueue } from '../../geometry/residency/queue.ts'
 import { createPageParents } from '../../geometry/selection/pageParents.ts'
 import { createGroupClosure, type GroupClosure } from '../../geometry/cut/groupClosure.ts'
 import { acceptPage, dropPage } from '../io/pageApi.ts'
-import { readGeometryAhead } from '../../geometry/rows/page/pageSlots.ts'
+import { geometryFailedAhead, readGeometryAhead } from '../../geometry/rows/page/pageSlots.ts'
 import { markWebgpuLost } from '../io/lost.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
 import { noteResidenceChange } from '../../lighting/shadows/casters/bounds.ts'
@@ -127,6 +127,9 @@ export function createResidencyFor(
   const read = context.readGeometryPage
     ? readGeometryAhead(geometryUrls, context.readGeometryPage)
     : () => undefined
+  const invalid = context.geometryPageFailed
+    ? geometryFailedAhead(geometryUrls, context.geometryPageFailed)
+    : () => false
   return createWebgpuResidencyQueue({
     tracking,
     sets: residencySets,
@@ -141,6 +144,7 @@ export function createResidencyFor(
     parentsOf,
     hasBytes: parts.hasBytes,
     read,
+    invalid,
     // The cover's missing pages in the order their holders' reads are asked: the bundle whose cell
     // took its turn to load first, first (`../../geometry/hlod/hlodHolds.ts`); a page with no
     // holder before them, one whose bundle no cell holds after, ties in the cover's own order.

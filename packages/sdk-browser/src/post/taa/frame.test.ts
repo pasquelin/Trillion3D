@@ -8,6 +8,9 @@ import { runtime } from './frame.fixture.ts'
 import { TAA_SAMPLES } from './jitter.ts'
 import type { TaaInputs } from './inputs.ts'
 import { TAA_VIEW } from './bindingsWgsl.ts'
+import { NO_VIEW_SET } from '../../../../sdk-core/src/world/camera/viewSet.ts'
+import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
+import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 
 /** The uniform's words a frame writes: whether the history describes nothing (a cut, none yet),
  *  and whether a placement moved. */
@@ -27,25 +30,25 @@ test("without accumulation this frame, the render matrix is the camera's and com
 })
 
 test('an accumulated frame advances jitter, writes the uniform and returns the written target', () => {
-  const { rt, cam, temporal, encoded, frame, flags } = runtime()
+  const { rt, cam, temporal, velocity, encoded, frame, flags } = runtime()
   let u = frame(false)!
   assert.notEqual(taaRenderMatrix(rt, cam), cam.viewProjection, 'the matrix carries the jitter')
   assert.equal(encoded.length, 1)
   assert.equal((encoded[0] as TaaInputs).flags, flags, 'what the as-is share comes from')
-  assert.equal(temporal.motion.resets, 1, 'the first frame has no history: poses are taken')
+  assert.equal(velocity.motion.resets, 1, 'the first frame has no history: poses are taken')
   // Without history the frame is a cut (`params.x`); the next one reads it, and nobody moved
   // (`params.z`).
   assert.equal(u[CUT], 1)
   u = frame(false)!
   assert.equal(u[CUT], 0)
   assert.equal(u[MOVED], 0)
-  assert.deepEqual(temporal.motion.updates, [false], 'unchanged scene: no pose comparison')
+  assert.deepEqual(velocity.motion.updates, [false], 'unchanged scene: no pose comparison')
   assert.equal(temporal.frame.sample, 2)
   // A scene change makes poses be compared, and a placement that moved is told to the pass.
   rt.run.gate.revisions.scene++
-  temporal.motion.moved = true
+  velocity.motion.moved = true
   u = frame(false)!
-  assert.deepEqual(temporal.motion.updates, [false, true])
+  assert.deepEqual(velocity.motion.updates, [false, true])
   assert.equal(u[MOVED], 1)
   frame(false, false)
   assert.equal((encoded.at(-1) as TaaInputs).flags, undefined, 'no as-is pixel, no flags (OMB-11)')
@@ -95,4 +98,37 @@ test('motion restarts the convergence count: a still view after it holds once it
   rt.run.gate.resourcesChanged()
   frame(true)
   assert.equal(temporal.frame.accumulated, 1)
+})
+
+test('a view that clips by a plane is drawn at the centre of its pixels, the pass still accumulating', () => {
+  const { rt, cam, temporal, frame } = runtime()
+  const plane = Object.freeze({ clipPlane: [0, 0, 1, 2], hidden: [], showOnly: null }) as never
+  cam.viewSet = plane
+  frame(false)
+  assert.notDeepEqual(Array.from(temporal.frame.jitter), [0, 0], 'planes are not allowed: jittered')
+  Object.assign(rt.context, { cutClipPlane: true })
+  for (let i = 0; i < 3; i++) {
+    frame(false)
+    assert.deepEqual(Array.from(temporal.frame.jitter), [0, 0], `image ${i}: no jitter`)
+    assert.deepEqual(Array.from(taaRenderMatrix(rt, cam)), Array.from(cam.viewProjection))
+  }
+  assert.equal(temporal.frame.active, true, 'it still accumulates')
+  // The same camera without its plane is jittered again.
+  cam.viewSet = NO_VIEW_SET
+  frame(false)
+  assert.notDeepEqual(Array.from(temporal.frame.jitter), [0, 0])
+})
+
+test("the smallest object measured is the chain's motion blur's, in the stage's uniform and the pass's", () => {
+  const { rt, frame } = runtime()
+  const { rates } = TAA_VIEW.at
+  const sizes = () => [...frame(false)!.subarray(rates + 2, rates + 4)]
+  // Half the projection's scale and the least radius squared: none left out without a blur.
+  assert.deepEqual(sizes(), [0.5, 0])
+  const blur = effect.motionBlur({ perObjectSize: 10 })
+  Object.assign(rt.context, { effects: new EffectChain().add(blur) })
+  // 10 % of the screen is a radius of 5 %, at the reference's 90 degrees (a scale of 1).
+  assert.deepEqual(sizes(), [0.5, Math.fround(0.05 ** 2)])
+  blur.perObjectSize = 0
+  assert.deepEqual(sizes(), [0.5, 0])
 })

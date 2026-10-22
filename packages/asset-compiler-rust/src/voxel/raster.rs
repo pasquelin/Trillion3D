@@ -3,6 +3,7 @@
 //! kept by the separating-axis test (Akenine-Möller). A voxel the triangle only touches is kept, so
 //! a surface lying on a voxel face leaves no hole; the rays then give it to one side (`sample.rs`).
 use crate::trace::tracer::{vertex, World};
+use trillion3d_math::geometry::aabb::aabb_of;
 use trillion3d_math::vector::vec3::{cross, dominant_axis};
 use trillion3d_math::vector::vecn::{dot, scale, sub};
 use trillion3d_page_codec::hash::WordMap;
@@ -103,24 +104,131 @@ fn overlaps(t: [[f64; 3]; 3], cell: Cell) -> bool {
 }
 
 /// The triangles of `triangles` — ranks in `world` — overlapping each of `candidates`, cells of side
-/// `side`, by their rank: what both an HLOD cell's tiles and a mesh's far groups sample each voxel
-/// against.
+/// `side`, by their rank, or within `reach` cells of one it overlaps: what both an HLOD cell's tiles
+/// and a mesh's far groups sample each voxel against, the rays of a voxel meeting what lies `reach`
+/// cells beyond its own (`VoxelSampling::reach`; none at the defaults). Each triangle is listed
+/// once in a cell.
 pub(super) fn binned(
     world: &World,
     (candidates, side): (&[Cell], f64),
+    reach: i32,
     triangles: impl Iterator<Item = usize>,
 ) -> Vec<Vec<u32>> {
     let at: WordMap<Cell, usize> = (candidates.iter().enumerate())
         .map(|(i, &c)| (c, i))
         .collect();
     let mut bins: Vec<Vec<u32>> = vec![Vec::new(); candidates.len()];
+    // The cells around one, looked up: past the candidates' number, each is tested instead.
+    let span = i64::from(reach) * 2 + 1;
+    let lookups = reach > 0 && span.saturating_pow(3) <= candidates.len() as i64;
+    let around: Vec<Cell> = match lookups {
+        true => (-reach..=reach)
+            .flat_map(|z| {
+                (-reach..=reach).flat_map(move |y| (-reach..=reach).map(move |x| [x, y, z]))
+            })
+            .collect(),
+        false => Vec::new(),
+    };
+    let mut found: Vec<usize> = Vec::new();
     for t in triangles {
         let c = [0, 1, 2].map(|k| vertex(world, t, k));
-        cells(c, side, |cell| {
-            if let Some(&i) = at.get(&cell) {
-                bins[i].push(t as u32);
-            }
-        });
+        if reach == 0 {
+            cells(c, side, |cell| {
+                if let Some(&i) = at.get(&cell) {
+                    bins[i].push(t as u32);
+                }
+            });
+            continue;
+        }
+        found.clear();
+        match lookups {
+            true => cells(c, side, |cell| {
+                let near = |o: &Cell| at.get(&[cell[0] + o[0], cell[1] + o[1], cell[2] + o[2]]);
+                found.extend(around.iter().filter_map(near));
+            }),
+            false => found.extend(candidates_near(candidates, (c, side), reach)),
+        }
+        found.sort_unstable();
+        found.dedup();
+        for &i in &found {
+            bins[i].push(t as u32);
+        }
     }
     bins
+}
+
+/// The ranks of the `candidates` within `reach` cells of the cells that hold the box of the
+/// triangle `corners`: a superset of the cells within `reach` of the triangle's own.
+fn candidates_near(
+    candidates: &[Cell],
+    (corners, side): ([[f64; 3]; 3], f64),
+    reach: i32,
+) -> impl Iterator<Item = usize> + '_ {
+    let (low, high) = aabb_of(corners);
+    let cell = |v: f64| (v / side).floor() as i64;
+    let (reach, low, high) = (i64::from(reach), low.map(cell), high.map(cell));
+    (candidates.iter().enumerate())
+        .filter(move |(_, c)| {
+            (0..3).all(|k| (low[k] - reach..=high[k] + reach).contains(&i64::from(c[k])))
+        })
+        .map(|(i, _)| i)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Two quads of two triangles each over x in 0..0.5 and y in 0..1: ranks 0 and 1 at z = 0.5,
+    /// inside voxel `[0, 0, 0]` of side 1, ranks 2 and 3 at z = -0.5, in the voxel below it.
+    fn quads() -> World {
+        let quad = |z: f32| {
+            let corner = |x: f32, y: f32| [x, y, z];
+            let (a, b, c, d) = (
+                corner(0.0, 0.0),
+                corner(0.5, 0.0),
+                corner(0.5, 1.0),
+                corner(0.0, 1.0),
+            );
+            [a, b, c, a, c, d].concat()
+        };
+        let triangles = [quad(0.5), quad(-0.5)].concat();
+        World {
+            triangles,
+            tags: vec![0; 4],
+            ..World::default()
+        }
+    }
+
+    // Behaviour: a triangle is listed in the cells within the rays' reach of the ones it overlaps,
+    // once in each, and in none beyond; at reach 0 only in those it overlaps. Both ways of finding
+    // them — looking up the cells around, or testing the candidates — agree.
+    #[test]
+    fn a_triangle_is_binned_within_the_reach_of_the_rays() {
+        let world = quads();
+        let around: Vec<Cell> = (-1..=1)
+            .flat_map(|z| (-1..=1).flat_map(move |y| (-1..=1).map(move |x| [x, y, z])))
+            .collect();
+        let rank = |cell: Cell| around.iter().position(|&c| c == cell).unwrap();
+        // 27 candidates look their neighbours up (27 cells within reach 1); one tests its box.
+        for (name, cells) in [("looked up", &around[..]), ("tested", &around[13..14])] {
+            let bins = |reach| binned(&world, (cells, 1.0), reach, 0..4);
+            let own = cells.iter().position(|&c| c == [0, 0, 0]).unwrap();
+            assert_eq!(
+                bins(0)[own],
+                vec![0, 1],
+                "{name}: only the target overlaps it"
+            );
+            assert_eq!(
+                bins(1)[own],
+                vec![0, 1, 2, 3],
+                "{name}: the occluder is in reach"
+            );
+        }
+        let bins = binned(&world, (&around, 1.0), 1, 0..4);
+        assert_eq!(
+            bins[rank([1, 1, 1])],
+            vec![0, 1],
+            "the occluder is two cells off"
+        );
+    }
 }

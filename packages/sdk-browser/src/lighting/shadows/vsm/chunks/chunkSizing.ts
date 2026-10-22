@@ -30,15 +30,18 @@ export interface VsmWithin<S> {
 
 /**
  * How a chunked raster's lists are sized, rewritten by each frame: `chunked` rows drawn in chunks
- * over `candidates` candidate rows, `viewWords` words of views, a chunk holding `holds`, its
- * parameter slots `slots`, `pairBytes` a pair and `headerBytes` a command in the pairs' list (the
- * transmission's page list heads each command), `orderBytes` a command in the tiers' order (the
- * opaque raster's bin, `vsmRenderBin`). Its sizes, `sizes` and `within` are made once and
+ * over `candidates` candidate rows, run once in each of `passes` view passes
+ * (`../render/renderViewPasses.ts`: their parameters, counters and arguments are one slot each,
+ * their other lists reused pass after pass), `viewWords` words of views, a chunk holding `holds`,
+ * its parameter slots `slots`, `pairBytes` a pair and `headerBytes` a command in the pairs' list
+ * (the transmission's page list heads each command), `orderBytes` a command in the tiers' order
+ * (the opaque raster's bin, `vsmRenderBin`). Its sizes, `sizes` and `within` are made once and
  * rewritten in place: a frame allocates nothing.
  */
 export interface VsmListSizing {
   chunked: number
   candidates: number
+  passes: number
   viewWords: number
   holds?: Omit<VsmChunk, 'rows'>
   slots?: UniformSlots
@@ -55,6 +58,7 @@ export function vsmListSizing(pairBytes: number, headerBytes: number, orderBytes
   const sizing: VsmListSizing = {
     chunked: 0,
     candidates: 0,
+    passes: 1,
     viewWords: 0,
     pairBytes,
     headerBytes,
@@ -69,7 +73,7 @@ export function vsmListSizing(pairBytes: number, headerBytes: number, orderBytes
 /** The lists a chunk of `rows` rows takes under `sizing`, by buffer, written into its `size`. */
 function vsmChunkListSizes(sizing: VsmListSizing, rows: number) {
   const { size, holds } = sizing,
-    chunks = ceilDiv(sizing.chunked, rows)
+    chunks = ceilDiv(sizing.chunked, rows) * sizing.passes
   size.params = chunks * sizing.slots!.stride
   size.views = sizing.viewWords * 4
   size.candidates = sizing.candidates * VSM_RENDER_CANDIDATE_BYTES
@@ -81,9 +85,10 @@ function vsmChunkListSizes(sizing: VsmListSizing, rows: number) {
   return size
 }
 
-/** `sizing` for `chunked` rows drawn in chunks over `candidates` candidate rows, under `viewWords`
- *  words of views, a chunk holding `holds`, its parameter slots `slots` (`VsmListSizing`): the
- *  opaque raster's and the transmission's one writer; rewritten in place. */
+/** `sizing` for `chunked` rows drawn in chunks over `candidates` candidate rows, run in `passes`
+ *  view passes, under `viewWords` words of views, a chunk holding `holds`, its parameter slots
+ *  `slots` (`VsmListSizing`): the opaque raster's and the transmission's one writer; rewritten in
+ *  place. */
 export function vsmSizingFor(
   sizing: VsmListSizing,
   chunked: number,
@@ -91,9 +96,11 @@ export function vsmSizingFor(
   viewWords: number,
   holds: Omit<VsmChunk, 'rows'>,
   slots: UniformSlots,
+  passes: number,
 ) {
   sizing.chunked = chunked
   sizing.candidates = candidates
+  sizing.passes = passes
   sizing.viewWords = viewWords
   sizing.holds = holds
   sizing.slots = slots

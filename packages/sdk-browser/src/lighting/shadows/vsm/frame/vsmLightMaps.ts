@@ -8,6 +8,7 @@ import type { VsmFrameLight } from '../frameSetup.ts'
 import { vsmShadowed } from '../seenLights.ts'
 import { VSM_TABLES_PER_ROW, type VsmResourceOptions } from '../layout.ts'
 import { vsmMapsOf, vsmRenderViewBound } from '../mapViews.ts'
+import { vsmViewPasses } from '../render/renderViewPasses.ts'
 import { vsmViewPoolPages } from '../poolDraw.ts'
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 
@@ -38,13 +39,20 @@ export function castingCount(lights: readonly VsmFrameLight[]) {
 
 /** The frame's casting lights (`vsmShadowed`), rewritten by each `renderViewBound`. */
 const casting: VsmFrameLight['light'][] = []
-/** The raster's views the frame's casting lights take at most (`vsmRenderViewBound`, the raster's
- *  own rule), before their maps are set up. */
-export function renderViewBound(lights: readonly VsmFrameLight[]) {
+/** The views the frame's casting lights take at most (`vsmRenderViewBound`, the raster's own
+ *  rule), before their maps are set up: all of them in one pass, as the transmission's bin takes
+ *  them, and the most one of the raster's view passes holds, in the `passes` of them
+ *  (`vsmViewPasses`, `limit` the maps a pass lists), as the raster's lists are sized. */
+export function renderViewBound(lights: readonly VsmFrameLight[], limit: number) {
   casting.length = 0
   for (const entry of lights) if (vsmShadowed(entry)) casting.push(entry.light)
   const { views, viewMips } = vsmRenderViewBound(casting)
-  return { viewWords: 4 * views, viewMips }
+  const { list, mostMaps, mostMips } = vsmViewPasses(casting, limit)
+  return {
+    viewWords: 4 * views,
+    viewMips,
+    raster: { viewWords: 4 * mostMaps, viewMips: mostMips, passes: list.length },
+  }
 }
 
 export function directionalCount(lights: readonly VsmFrameLight[]) {

@@ -197,9 +197,10 @@ and brick counts —, a 48-byte record per group (its primitive, `u32::MAX` for 
 its DAG group or compiled mesh; first brick and count; first voxel and count; its error, the error
 it is replaced at and its voxels' side as `f32`; its first brick's corner, `f32` × 3), 16-byte bricks
 (mask `u64`, bit `x + 4y + 16z`; corner in bricks from the group's first, `u16` × 3; joint `u16`,
-`0xFFFF` none), 12-byte voxels in each brick's mask order (sRGB base colour and normals' spread;
-occlusion, roughness, metalness and a zero; mean normal, octahedral; two zeros): what the runtime
-reads of a voxel, no more. Version 4: a voxel's coverage and material stay in the compiler, and a
+`0xFFFF` none), 12-byte voxels in each brick's mask order (sRGB base colour and normals' spread, 255
+when the build drops it (`voxelNdf`); occlusion, roughness, metalness and a zero, or the voxel's
+coverage as its opacity when the build keeps it (`voxelOpacity`), which no pass of the engine reads;
+mean normal, octahedral; two zeros): what the runtime reads of a voxel, no more. Version 4: a voxel's coverage and material stay in the compiler, and a
 page's brick holds the rank of its first voxel. The runtime joins a group's bricks to its DAG as
 pages.
 
@@ -278,10 +279,12 @@ default, each cell streaming by the box around its content or the bounds the job
 square grids over the world of `spatialHash`, each cell streaming by its square. Every batch — the
 topmost object above a node and every object under it — goes to the cell of the main grid the box
 around its objects goes to — 2D, glTF's `+Y` dropped, unless a `hashSet` job lays its grids off the
-ground; the grid the job sets (`partitionGrid`), cells of 128 m loaded within 256 m by default —, a
+ground; the grid the job sets (`partitionGrid`), cells of 128 m loaded within 256 m by default, or, with
+several (`partitionGrids`), the one its object names —, a
 grid cell's nodes packed in files of one stream unit each, grouped by their
 HLOD 0 cell. Each cell names its HLOD 0 cell, the bounds that cell streams by, its grid and the
-level of its cell there (`rust/hlod/cells.rs`, `rust/hlod/grids.rs`).
+level of its cell there, and its main grid when that is not the first (`rust/hlod/cells.rs`,
+`rust/hlod/grids.rs`).
 
 - A cell file's node is `{parent, mesh, matrix | translation, rotation, scale}` — a static
   leaf under its nearest core node, at its declared pose —, `{parent, mesh}` — a static object
@@ -291,11 +294,15 @@ level of its cell there (`rust/hlod/cells.rs`, `rust/hlod/grids.rs`).
   pose, playing that item of [`animation-banks.bin`](#animation-banksbin) —, or
   `{parent, mesh, "source": true}` — an animated object of the core (skinned, morphed, moved by a
   clip, or a joint), drawn by a row under its own node at no pose, its host mesh the row's
-  animation source. Every object streams on the main grid unless its `objectSettings` say
+  animation source. Every object streams on its main grid unless its `objectSettings` say
   `spatiallyLoaded: false`; an object an animation moves — itself or through a parent — takes no
   HLOD layer, nor does an instanced skinned object of `movable` mobility. An instanced skinned
   object's box is its item's sampled bounds at its frame's world, a plain skinned one's the bounds
-  of every clip moving its skin, a morphed one's its mesh's grown by its targets' extents.
+  of every clip moving its skin, a morphed one's its mesh's grown by its targets' extents. A node
+  whose object names a farthest draw distance (`drawDistance` of `objectSettings`,
+  [COMPILER.md](COMPILER.md#object-settings)) carries `"drawDistance": {"min", "max"}`, in the
+  scene's units, here and in the node table of [`scene-tables.json`](#prepared-scene-tables); one
+  naming none carries no byte of it, so the versions are as they were.
 - Versions: `PARTITION_VERSION` 13, `CELL_VERSION` 3 (`rust/compiler/tables/partition.rs`,
   `core/scene/core/tablePartition.ts`, `core/scene/core/tableCell.ts`). Version 5: a lamp's node
   may stand in a cell. Version 6: a cell record adds `grid` (`[level, x, z]`), `bounds` and `hlod`, the root `hlod`. Version 7: the HLOD grids
@@ -329,7 +336,18 @@ level of its cell there (`rust/hlod/cells.rs`, `rust/hlod/grids.rs`).
   on the main grid, an instanced layer's on its own grid —, and bit 1 of a grid's flags is set when
   cell files stream on it: the main grid, and each grid an HLOD 0 cell lies on, an instanced
   layer's whatever its HLOD level — what the runtime walks the cell index and sizes its rows
-  within (`browser/geometry/partition/reach.ts`, `placedReach`).
+  within (`browser/geometry/partition/reach.ts`, `placedReach`). Version 14 is version 13 for a
+  scene of several main grids (`partitionGrids`, two or more): a runtime that reads one grid
+  refuses it by name, one that reads both streams it. A one-grid scene stays version 13, byte for
+  byte. Added to the version 13 fields, for several main grids only: in the root's `hlod`, `mains`
+  (how many of the first `grids` are main grids, the ones objects stream on); in a cell record,
+  `main`, the rank among `hlod.grids` of the main grid the cell lies on (left out for the first); in
+  a grid's flags word, a bit `4`: the grid lies flat unlike the root's `flat`, which stays the first
+  grid's (no bit for a job whose grids agree). A cell record's `grid` has three values on a flat
+  grid, four on one that is not, by its own grid. An HLOD 0 cell of a layer that is not instanced
+  lies on the main grid of the cell its objects are in (its `hlod[2]` is that rank). The flag bit `2`
+  (cell files stream on the grid) is set on a main grid only when a cell file or an HLOD 0 cell lies
+  on it.
 - Writes `rust/compiler/tables/partition.rs:partition`, `rust/compiler/tables/partition/pages.rs:write_page`.
 - Reads `core/scene/core/tablePartition.ts:readCellPage`, `core/scene/core/tableCell.ts:assertCellNodes`.
 
@@ -418,7 +436,7 @@ in the page cache, every cluster of them in the cover, each world page naming it
   Morton curve, a group spreading over several pages, root pages of 32 KiB and 64 clusters, the
   others of 128 KiB and 256 —, a cell holding its actor's root pages, and a page lists every page
   of the groups holding its groups' outputs. Version 25: any layer stands at HLOD 0 — a layer not
-  instanced builds one HLOD 0 actor per main cell, its HLOD 0 cell on the main grid (grid 0),
+  instanced builds one HLOD 0 actor per main cell, its HLOD 0 cell on the main grid of that main cell (grid 0 with one main grid),
   streamed as that main cell is and first drawn past its range —, a cell holding actors is at
   level 1 at least, so a level 0 cell is always one of placements; an instanced layer may build
   actors above HLOD 0, and an object standing as itself (`hlodInstance`) is its source

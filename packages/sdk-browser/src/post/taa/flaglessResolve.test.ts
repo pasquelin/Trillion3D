@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createTemporalAntialiasing } from './temporalAntialiasing.ts'
+import { createVelocity } from './velocity.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { TAA_BINDINGS } from './bindingsWgsl.ts'
 
@@ -16,7 +17,7 @@ test('a frame with no as-is pixel resolves flagless, and switching compiles no p
     ...renderPipelines.map(({ fragment }) => fragment!.module.label),
     ...computePipelines.map(({ compute }) => compute.module.label),
   ]
-  const temporal = await createTemporalAntialiasing(device, [])
+  const temporal = await createTemporalAntialiasing(device, createVelocity(device, []))
   assert.deepEqual(modules(), [
     'TAA_RESOLVE',
     'TAA_RESOLVE_FLAGLESS',

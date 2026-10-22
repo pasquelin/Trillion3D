@@ -45,6 +45,7 @@ export function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number
   // The box is handed on as declared, fitted where the projection is composed, at the shape it
   // is drawn at: the engine composes its own projection from it (`engineCamera.ts`).
   into.orthographic = box
+  into._viewSet = camera._viewSet
   into.updateProjectionMatrix()
   into.updateMatrixWorld()
 }
