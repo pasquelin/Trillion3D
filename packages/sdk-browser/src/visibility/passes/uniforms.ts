@@ -12,7 +12,7 @@ import { writeDepthRamp } from '../../camera/depthConvention.ts'
 import { renderMipBias, renderPixelRatio } from '../../frame/backend/state/renderScale.ts'
 import { diagnosticCode } from '../shader/shadeMode.ts'
 import { wordViews } from '../../gpu/core/wordViews.ts'
-import { clipPlaneCulls, writeViewClipPlane } from '../../frame/render/viewClip.ts'
+import { viewClipRoutes, writeViewClipPlane } from '../../frame/render/viewClip.ts'
 import { tessellationWanted } from '../tessellation/wanted.ts'
 
 /** The cluster raster's setting `field` the session holds (`rasterOptions.ts`), by its one
@@ -91,10 +91,10 @@ export function writeWebgpuVisibilityUniforms(
   // Whether the rows that name a displacement are tessellated (`../tessellation/rowWgsl.ts`): the split
   // leaves them to it and the resolve solves their pixels on the displaced surface.
   sharedInts[U.tessellation] = tessellationWanted(rt) ? 1 : 0
-  // The view's clip plane in the world the rows are placed in, which every vertex stage cuts the
-  // primitives by, and whether the split hands a cluster that reaches behind it to hardware.
-  const clips = writeViewClipPlane(rt, cam, shared, U.clipPlane)
-  sharedInts[U.clipRoute] = clips && clipPlaneCulls(rt) ? 1 : 0
+  // The view's clip plane in the world the rows are placed in, zeros for a view that clips nothing,
+  // and whether the split hands a cluster that reaches behind it to hardware.
+  writeViewClipPlane(rt, cam, shared, U.clipPlane)
+  sharedInts[U.clipRoute] = viewClipRoutes(rt, cam) ? 1 : 0
   sharedInts[U.selectionOffset] = maskOffset
   sharedInts[U.selectionEnabled] = run.gpuSelection ? 1 : 0
   // Render pixels per CSS pixel: a line page's width counts CSS pixels (`lineClip`).

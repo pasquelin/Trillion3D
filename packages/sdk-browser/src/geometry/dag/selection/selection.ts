@@ -52,6 +52,9 @@ type GpuDagSelectionOptions = {
   requests?: RequestBounds
   /** Where the cut says its lists' warnings — an overflow past a cap, caps the device refused. */
   onListNote?: ListNote
+  /** The project switch `cutClipPlane` is on: the cut culls by a view's clip plane
+   *  (`../shader/clipPlaneWgsl.ts`). Off, its text holds none of that code. */
+  clipPlane?: boolean
 }
 
 export async function createGpuDagSelection(
@@ -87,6 +90,7 @@ export async function createGpuDagSelection(
     steps,
     options.lists,
     requests,
+    options.clipPlane,
   )
   options.timed?.(steps.end())
   if (!resources) {

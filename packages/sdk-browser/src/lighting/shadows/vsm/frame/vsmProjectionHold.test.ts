@@ -1,12 +1,16 @@
 // The projection runs again only when one of its inputs changed (`vsmProjectionHold.ts`): the view,
 // the projection with its jitter, any of the three revisions, the lights' epoch or channels, the
-// shadow pages' version, the stochastic phase, the targets' size or the mask itself.
+// shadow pages' version, the stochastic phase, the rays and steps of the traces, the targets' size or the mask itself.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createVsmProjectionHold } from './vsmProjectionHold.ts'
+import { createVsmProjectionHold, vsmTraceKey } from './vsmProjectionHold.ts'
 
 const IDENTITY = Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
 const mask = {}
+const EIGHT_BY_FOUR = {
+  ...{ shadowRayCountDirectional: 8, shadowRayCountLocal: 8 },
+  ...{ shadowSamplesPerRayDirectional: 4, shadowSamplesPerRayLocal: 4 },
+}
 
 function frame(change: (inputs: ReturnType<typeof createVsmProjectionHold>['inputs']) => void) {
   const hold = createVsmProjectionHold()
@@ -18,6 +22,7 @@ function frame(change: (inputs: ReturnType<typeof createVsmProjectionHold>['inpu
     inputs.lightsEpoch = 4
     inputs.shadowEpoch = 5
     inputs.phase = 6
+    inputs.trace = 8
     inputs.size = [64, 32]
     inputs.lights = [{ mapId: 7 }, { mapId: 71 }]
     edit?.(inputs)
@@ -50,6 +55,7 @@ test('any input that changed runs the projection again', () => {
     'lights epoch': (i) => (i.lightsEpoch = 5),
     'shadow pages': (i) => (i.shadowEpoch = 6),
     'stochastic phase': (i) => (i.phase = 7),
+    'rays and steps': (i) => (i.trace = vsmTraceKey({ ...EIGHT_BY_FOUR, shadowRayCountLocal: 4 })),
     'target size': (i) => (i.size = [64, 33]),
     'a light’s channel': (i) => (i.lights = [{ mapId: 7 }, { mapId: 72 }]),
     'a light fewer': (i) => (i.lights = [{ mapId: 7 }]),
@@ -64,4 +70,21 @@ test('another mask is projected into', () => {
   hold.keep(mask)
   assert.equal(hold.held(mask), true)
   assert.equal(hold.held({}), false)
+})
+
+test('every pair of rays and steps the settings take has a key of its own', () => {
+  const keys = new Set<number>()
+  const rays = [0, 1, 7, 8, 15],
+    steps = [0, 1, 4, 63, 64]
+  for (const rd of rays)
+    for (const rl of rays)
+      for (const sd of steps)
+        for (const sl of steps) {
+          const counts = {
+            ...{ shadowRayCountDirectional: rd, shadowRayCountLocal: rl },
+            ...{ shadowSamplesPerRayDirectional: sd, shadowSamplesPerRayLocal: sl },
+          }
+          keys.add(vsmTraceKey(counts))
+        }
+  assert.equal(keys.size, rays.length ** 2 * steps.length ** 2)
 })

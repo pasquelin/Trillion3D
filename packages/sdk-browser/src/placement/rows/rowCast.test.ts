@@ -17,6 +17,8 @@ import { ROW_WORDS } from '../../visibility/types.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import {
   MOBILITY_FAR_SHADOW,
+  MOBILITY_FAR_SKIPPED,
+  MOBILITY_FAR_TESTED,
   MOBILITY_MOVING,
   MOBILITY_SHADOWLESS,
 } from '../../lighting/shadows/mobilityBits.ts'
@@ -183,6 +185,23 @@ test('a caster that starts or stops casting far shadows stales where it stands, 
     assert.ok(holds(flipped[0], 10) && !flipped[0].moving)
     run.deriveRow(1)
     assert.deepEqual(taken(), [], 'derived again with the same flag: nothing')
+  }
+})
+
+// Whether that test reaches a caster or never does (`MOBILITY_FAR_TESTED`, `MOBILITY_FAR_SKIPPED`)
+// decides whether the pages hold it too: a flip stales where it stands, as the far flag does.
+test('a caster the far-shadow test starts or stops reaching stales where it stands', () => {
+  const { run, mobility, taken } = rig()
+  run.deriveRow(1)
+  taken()
+  for (const word of [MOBILITY_FAR_TESTED, MOBILITY_FAR_SKIPPED, 0]) {
+    mobility[1] = word
+    run.deriveRow(1)
+    const flipped = taken()
+    assert.equal(flipped.length, 1, `${word}: its one box`)
+    assert.ok(holds(flipped[0], 10) && !flipped[0].moving)
+    run.deriveRow(1)
+    assert.deepEqual(taken(), [], 'derived again with the same bits: nothing')
   }
 })
 

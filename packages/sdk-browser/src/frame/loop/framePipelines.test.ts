@@ -14,6 +14,8 @@ import { createWebgpuShadePipelines } from '../../visibility/passes/shadePipelin
 import type { ShadeCensus } from '../../visibility/passes/shadeCensus.ts'
 import { createGuideSet } from '../../guides/guideSet.ts'
 import { families } from '../../session/host/families.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import { FLAG_DISPLACED, FLAG_LINE, FLAG_MASK, ROW_WORDS } from '../../visibility/types.ts'
 
 await families.guides.load()
 
@@ -158,4 +160,42 @@ test('the passes beside the cut are asked once it is adopted, never queued ahead
   assert.equal(compiled.async, before + 1, 'asked once the cut is adopted, not before')
   await armedRt.land()
   assert.equal(compiled.sync, 0)
+})
+
+test('a class that draws displaced pixels has its displaced pipeline asked at the frame entry, no other class has one', async () => {
+  const armedRt = armed(),
+    { rt, device, compiled } = armedRt
+  const shade = await classes(armedRt, [3, 5, 7, 8, 9])
+  // Rows, each of its class: 5 displaced, the image tessellates it; 7 displaced and skinned, 8
+  // displaced and masked — both tessellated too; 3 displaced but a line, which is left as it is;
+  // 9 not displaced.
+  const ints = new Uint32Array(ROW_WORDS * 5)
+  const row = (at: number, key: number, flags: number, deformOutput = 0) => {
+    ints[at * ROW_WORDS + PAGE_INFO.at.materialClass] = key
+    ints[at * ROW_WORDS + PAGE_INFO.at.flags] = flags
+    ints[at * ROW_WORDS + PAGE_INFO.at.deformOutput] = deformOutput
+  }
+  row(0, 5, FLAG_DISPLACED)
+  row(1, 9, 0)
+  row(2, 7, FLAG_DISPLACED, 5)
+  row(3, 8, FLAG_DISPLACED | FLAG_MASK)
+  row(4, 3, FLAG_DISPLACED | FLAG_LINE)
+  Object.assign(rt.layout.rows, { pageTableInts: ints, packedCount: 5, rowWrites: 1 })
+  Object.assign(rt.vis, { shadeClasses: shade, materialTable: { displaced: { count: 1 } } })
+  const before = compiled.async
+  askFramePipelines(rt)
+  assert.equal(holdWebgpuFrame(rt, device), true, 'held on the displaced pipelines')
+  assert.equal(compiled.async, before + 3, 'classes 5, 7 and 8 alone')
+  await armedRt.land()
+  for (const key of [5, 7, 8]) assert.equal(shade.displaced(key).ready, true, `class ${key}`)
+  for (const key of [3, 9]) assert.equal(shade.displaced(key).ready, false, `class ${key}`)
+  assert.equal(compiled.sync, 0, 'no frame compiled it')
+  // The setting off, or no displaced surface: none is asked.
+  const off = armed()
+  Object.assign(off.rt.layout.rows, { pageTableInts: ints, packedCount: 5, rowWrites: 1 })
+  Object.assign(off.rt.vis, { shadeClasses: await classes(off, [3, 5, 7, 8, 9]) })
+  Object.assign(off.rt.vis, { materialTable: { displaced: { count: 0 } } })
+  const asked = off.compiled.async
+  askFramePipelines(off.rt)
+  assert.equal(off.compiled.async, asked, 'no displaced surface: nothing asked')
 })

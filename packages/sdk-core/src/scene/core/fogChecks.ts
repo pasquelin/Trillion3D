@@ -1,24 +1,36 @@
 /**
  * THE CHECKS EVERY FIELD OF A FOG IS READ WITH: a finite number, a colour of three, a number
  * within its range — each refused by the name of the field, the same error for every part of the
- * fog (`fog.ts`, `fogSecond.ts`, `fogCubemap.ts`, `fogVolumetric.ts`).
+ * fog (`fog.ts`, `fogSecond.ts`, `fogCubemap.ts`, `fogVolumetric.ts`), and for the atmosphere
+ * (`atmosphere.ts`), whose fields are read with the same refusal and colour check under its name.
  */
 import { EngineError } from '../../contracts/cache.ts'
 import type { LinearRgb } from '../../contracts/material.ts'
+import { isFiniteNumber } from '../../../../math/src/scalar/reals.ts'
 
 /** A finite number, the one test every scene contract field is read with. */
-export const finite = (value: unknown): value is number =>
-  typeof value === 'number' && isFinite(value)
+export const finite = isFiniteNumber
 
-/** Refuses a fog: the error every field's check throws, `message` naming the field. */
-export const refuse = (message: string, fog: unknown): never => {
-  throw new EngineError('INVALID_SCENE_ENVIRONMENT', `fog: ${message}`, { fog })
-}
+/** The refusal of the part of a scene `part` names — `'fog'`, `'atmosphere'` —: the error every
+ *  field's check throws, `message` naming the field, `subject` what was declared. */
+export const refusal =
+  (part: string) =>
+  (message: string, subject: unknown): never => {
+    throw new EngineError('INVALID_SCENE_ENVIRONMENT', `${part}: ${message}`, { [part]: subject })
+  }
 
-/** A colour of three finite numbers ≥ 0, a copy. */
-export function colourOf(color: unknown, name: string, fog: unknown): LinearRgb {
+/** Refuses a fog. */
+export const refuse = refusal('fog')
+
+/** A colour of three finite numbers ≥ 0, a copy; refused by `refuseWith` (a fog's by default). */
+export function colourOf(
+  color: unknown,
+  name: string,
+  subject: unknown,
+  refuseWith: (message: string, subject: unknown) => never = refuse,
+): LinearRgb {
   if (!Array.isArray(color) || color.length !== 3 || !color.every((c) => finite(c) && c >= 0))
-    refuse(`${name} expects three finite numbers ≥ 0`, fog)
+    refuseWith(`${name} expects three finite numbers ≥ 0`, subject)
   const [r, g, b] = color as number[]
   return [r, g, b]
 }

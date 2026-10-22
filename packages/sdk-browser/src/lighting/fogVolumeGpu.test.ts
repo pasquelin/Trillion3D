@@ -97,13 +97,52 @@ test('the volume’s passes, dispatched on the device of the tests: three, two w
       ['scatterMain', 'integrateMain'],
     )
   }
-  // Off, or seen through an orthographic camera, nothing is built.
+  // Off, nothing is built; seen through an orthographic camera, the same three passes are, and the
+  // frame says the view is one (`depthMap.z`).
   gpu.dispatches.length = 0
   assert.equal(volume.encode(encoder, volumeInput(gpu, { volumetricFogQuality: 'off' })), undefined)
+  assert.equal(gpu.dispatches.length, 0)
   const ortho = volumeInput(gpu)
   ortho.camera = { ...ortho.camera, perspective: false }
-  assert.equal(volume.encode(encoder, ortho), undefined)
-  assert.equal(gpu.dispatches.length, 0)
+  assert.ok(volume.encode(encoder, ortho))
+  assert.deepEqual(
+    gpu.dispatches.map((d) => d.entryPoint),
+    ['furthestMain', 'scatterMain', 'integrateMain'],
+  )
+  assert.equal(volume.frame[FOG_VOLUME_FRAME_AT.depthMap + 2], 1)
+  volume.dispose()
+})
+
+test('every resource a pass’s group names exists: a real device refuses a group with an undefined one', async () => {
+  const { gpu, volume } = await started()
+  const before = gpu.bindGroups.length
+  volume.encode(gpu.device.createCommandEncoder(), volumeInput(gpu))
+  const made = gpu.bindGroups.slice(before)
+  assert.equal(made.length, 3, 'one group a program')
+  for (const group of made)
+    for (const entry of group.entries)
+      assert.notEqual(
+        entry.resource,
+        undefined,
+        `binding ${entry.binding} of ${group.layout.label}`,
+      )
+  volume.dispose()
+})
+
+test('the frame is sent by what changed: an image whose frame is the last one’s sends nothing', async () => {
+  const { gpu, volume } = await started()
+  const encoder = gpu.device.createCommandEncoder()
+  const sent = () =>
+    gpu.writes.filter((w) => (w.buffer as { label?: string }).label === 'Trillion3D fog frame')
+      .length
+  volume.encode(encoder, volumeInput(gpu))
+  volume.encode(encoder, volumeInput(gpu))
+  const before = sent()
+  assert.ok(before > 0, 'the first images are sent')
+  volume.encode(encoder, volumeInput(gpu))
+  assert.equal(sent(), before, 'the third is the second, word for word')
+  volume.encode(encoder, { ...volumeInput(gpu), frameIndex: 9 })
+  assert.equal(sent(), before + 1, 'a new image number is sent')
   volume.dispose()
 })
 

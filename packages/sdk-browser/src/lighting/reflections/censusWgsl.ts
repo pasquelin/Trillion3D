@@ -9,17 +9,18 @@ import { REFLECTION_SIDE } from './constants.ts'
  * counts of that image alone, both surfaces together.
  *
  * The screen stage counts the rays it casts (a grid texel whose picked pixel traces) by where they
- * ended: past the near field (`far`, the field answers all the screen left there), answered whole
- * with nothing left (`whole`), or left to the scene stage (`left`), which add up to the rays cast;
+ * ended: answered whole with nothing left (`whole`), or left to the scene stage (`left`), which add up to
+ * the rays cast;
  * and, across them, those the screen answered in part or whole (`screen`: the march met a surface it
  * trusts). The scene stage counts each ray it takes once, by how its walk of the proxy ended, its
- * rings together (`fates`, `REFLECTION_FATES`, `proxy.ts`): no proxy at all, a surface hit, the ray
- * leaving the scene to the environment, a miss that went nowhere (the field answers it), no walk at
- * all because the screen's surface was closer than the proxy can tell, or, for a ray that hit
- * nothing and had a ring spent, the four ways a ring is spent (its units, its triangle tests, its tree
- * steps, a mesh's walk — the causes a probe's ray reports, named by `reflectionSpentFate`), that of the
- * first ring that was; and, for the rays that walked, the units the rings spent together (`work`:
- * under 8, 16, 32, 64, 128, 256, 512, 1 024, 2 048, 4 096, 8 192, more).
+ * windows together (`fates`, `REFLECTION_FATES`, `proxy.ts`): no proxy at all, a surface hit (a ring that spent its
+ * budget having found one counts here: the hit is kept), the ray leaving the scene to the environment, the
+ * screen's far trace answering it (`distant`, `wgsl.ts`), a miss that went nowhere (the field answers it), no walk
+ * at all because the screen's surface was closer than the proxy can tell, or, for a ray that hit nothing and had
+ * a window spent, the four ways one is spent (its units, its triangle tests, its tree steps, a mesh's walk — the
+ * causes a probe's ray reports, named by `reflectionSpentFate`), that of the first window that was; and, for the
+ * rays that walked, the units the windows spent together (`work`: under 8, 16, 32, 64, 128, 256, 512, 1 024,
+ * 2 048, 4 096, 8 192, more).
  *
  * A workgroup counts in its own memory and adds its words to the buffer once (`workgroupTallyWgsl`).
  */
@@ -33,17 +34,17 @@ export const REFLECTION_FATES = [
   'open',
   'miss',
   'bound',
+  'distant',
 ] as const
 export type ReflectionFate = (typeof REFLECTION_FATES)[number]
 /** Buckets of the walk's units: under 8, doubling, the last open. */
 export const REFLECTION_WORK_BUCKETS = 12
 export const REFLECTION_CENSUS = {
-  far: 0,
-  screen: 1,
-  whole: 2,
-  left: 3,
-  fates: 4,
-  work: 4 + REFLECTION_FATES.length,
+  screen: 0,
+  whole: 1,
+  left: 2,
+  fates: 3,
+  work: 3 + REFLECTION_FATES.length,
 } as const
 export const REFLECTION_CENSUS_WORDS = REFLECTION_CENSUS.work + REFLECTION_WORK_BUCKETS
 
@@ -68,6 +69,7 @@ export const REFLECTION_FATE_WGSL = wgslBlock(
     REFLECTION_FATE_OPEN: fate('open'),
     REFLECTION_FATE_MISS: fate('miss'),
     REFLECTION_FATE_BOUND: fate('bound'),
+    REFLECTION_FATE_DISTANT: fate('distant'),
   })}
 var<private> reflectionFate:u32;
 var<private> reflectionWork:u32;`,
@@ -92,7 +94,6 @@ export const reflectionCensusWgsl = (binding: number) =>
     ],
     `${wgslConsts({
       REFLECTION_CENSUS_WORDS,
-      REFLECTION_CENSUS_FAR: REFLECTION_CENSUS.far,
       REFLECTION_CENSUS_SCREEN: REFLECTION_CENSUS.screen,
       REFLECTION_CENSUS_WHOLE: REFLECTION_CENSUS.whole,
       REFLECTION_CENSUS_LEFT: REFLECTION_CENSUS.left,

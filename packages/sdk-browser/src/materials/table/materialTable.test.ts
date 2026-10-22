@@ -5,10 +5,19 @@ import { runInNewContext } from 'node:vm'
 import { createMaterialTable, materialWord } from './materialTable.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
 import { DISPLACEMENT_RECORD, DISPLACEMENT_WORDS } from './displacementRecord.ts'
+import {
+  fadeOutPixels,
+  displacementRange,
+  pagesDisplacementReach,
+} from '../../visibility/tessellation/numbers.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import { surfaceOf } from '../../geometry/pages/surface.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { TESS_READ_PLAIN_WGSL } from '../../visibility/tessellation/queueWgsl.ts'
+import { MATERIAL_RANK_MASK } from '../../visibility/types.ts'
 
 /** The collector, called on demand: what the open world's churn waits for. */
 function gcOf() {
@@ -203,16 +212,28 @@ test('a displaced surface has its record written at its rank beside the table, a
   assert.equal(rank, 1)
   assert.deepEqual([...floats.slice(at + D.scale, at + D.scale + 4)], [4, 0.5, 4, 1])
   assert.deepEqual([words[at + D.map], words[at + D.map + 1]], [6, 2], 'the slot, the texture set')
+  assert.deepEqual(
+    [...floats.slice(at + D.density, at + D.density + 4)],
+    [0, 0, 0, 0],
+    'unmeasured',
+  )
   assert.equal(table.displaced.count, 1)
+  // The densities the compiler measured, 0 for a set it did not: a change of them alone is one.
+  const measured = table.displaced.version
+  surface.displacement = { ...surface.displacement, uvDensities: [2, 0.5, 0, 8] } as never
+  surface.version = 1
+  table.surface(surface, l)
+  assert.deepEqual([...floats.slice(at + D.density, at + D.density + 4)], [2, 0.5, 0, 8])
+  assert.ok(table.displaced.version > measured)
   // A fade that never fades writes zero for both ends; the count holds, the version moves.
   const version = table.displaced.version
   surface.displacement = { magnitude: 2, center: 0, fade: null }
-  surface.version = 1
+  surface.version = 2
   table.surface(surface, l)
   assert.deepEqual([...floats.slice(at, at + 4)], [2, 0, 0, 0])
   assert.deepEqual([table.displaced.count, table.displaced.version > version], [1, true])
   // A surface that stops being displaced, or whose height map the atlas lost, is drawn flat.
-  surface.version = 2
+  surface.version = 3
   l.dataLayer.delete(height)
   table.surface(surface, l)
   assert.deepEqual(
@@ -220,4 +241,58 @@ test('a displaced surface has its record written at its rank beside the table, a
     new Array(DISPLACEMENT_WORDS).fill(0),
   )
   assert.equal(table.displaced.count, 0)
+})
+
+test('the tessellation reads a row’s record from the region of its buffer the records fill, by rank', () => {
+  // Three records written as the table sends them, at word 100 of the buffer, each its rank's.
+  const tess = new Uint32Array(100 + 3 * DISPLACEMENT_WORDS),
+    floats = new Float32Array(tess.buffer)
+  for (let rank = 0; rank < 3; rank++) {
+    const at = 100 + rank * DISPLACEMENT_WORDS,
+      D = DISPLACEMENT_RECORD.at
+    floats.set([rank + 1, 0.5, 4, 1], at + D.scale)
+    floats.set([-1, rank + 2, 0, 0], at + D.bounds)
+    tess.set([20 + rank, 1, 0, 0], at + D.map)
+    floats.set([rank + 3, 0, 0.25, 0], at + D.density)
+  }
+  const { displacementOf } = shaderRun<{
+    displacementOf(page: { material: number }): Record<string, number[]>
+  }>(wgslBlock('records', [TESS_READ_PLAIN_WGSL], ''), ['tw', 'tw4', 'displacementOf'], {
+    tess,
+    tu: { dispBase: 100 },
+    MATERIAL_RANK_MASK,
+  })
+  const row = displacementOf({ material: 1 | (1 << 31) })
+  const words = (name: 'scale' | 'bounds' | 'map' | 'density') => row[name]
+  assert.deepEqual(words('scale'), [2, 0.5, 4, 1])
+  assert.deepEqual(words('bounds'), [-1, 3, 0, 0])
+  assert.deepEqual(words('map'), [21, 1, 0, 0])
+  assert.deepEqual(words('density'), [4, 0, 0.25, 0])
+})
+
+test('the distances a displacement moves a point by hold zero, ordered whichever way the magnitude points', () => {
+  // The heights 0 and 1 against the centre that stays on the surface, times the magnitude.
+  assert.deepEqual(displacementRange({ magnitude: 2, center: 0.25 }), { min: -0.5, max: 1.5 })
+  assert.deepEqual(displacementRange({ magnitude: -2, center: 0.25 }), { min: -1.5, max: 0.5 })
+  // A centre of zero never goes in; of one, never out; the range still holds zero.
+  assert.deepEqual(displacementRange({ magnitude: 3, center: 0 }), { min: 0, max: 3 })
+  assert.deepEqual(displacementRange({ magnitude: 3, center: 1 }), { min: -3, max: 0 })
+  // Faded out at the smaller of the two ends, never for a displacement that does not fade.
+  assert.equal(fadeOutPixels({ fade: { start: 4, end: 2 } }), 2)
+  assert.equal(fadeOutPixels({ fade: null }), 0)
+  // What a primitive's boxes grow by: the greatest reach of the displaced surfaces of its pages.
+  const height = {} as Texture
+  const page = (displacement: { magnitude: number; center: number; fade: null } | undefined) => ({
+    material: { displacement, displacementMap: displacement && { texture: height, channel: 0 } },
+  })
+  assert.equal(pagesDisplacementReach([]), 0)
+  assert.equal(pagesDisplacementReach([page(undefined), page(undefined)]), 0)
+  assert.equal(
+    pagesDisplacementReach([
+      page({ magnitude: 2, center: 0.25, fade: null }),
+      page(undefined),
+      page({ magnitude: 4, center: 0.5, fade: null }),
+    ]),
+    2,
+  )
 })

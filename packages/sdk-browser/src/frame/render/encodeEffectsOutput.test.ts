@@ -1,7 +1,6 @@
-// What the effect chain on the WebGPU path hands on: a view the finishing leaves as it is — a
-// diagnostic view, a capture, one lit by no declared lamp — and an empty chain show the engine's
-// image without it; a composition gets the last bloom's glow; an outline draws over the display
-// only with objects. The finishing's group is made for every lit image and carries the film.
+// What the effect chain on the WebGPU path hands on: a view the finishing leaves as it is — a diagnostic
+// view, a capture, one lit by no declared lamp — and an empty chain show the engine's image without it; a
+// composition gets the last bloom's glow; an outline draws only with objects; the finishing's group carries the film.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
@@ -9,18 +8,18 @@ import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import {
   effectsMoved,
   encodeEffects,
+  encodeLitEffects,
   encodeOverlayEffects,
   encodeResolvedEffects,
 } from './encodeEffects.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { computePasses, drawing, encoder, framed, input, passes } from './encodeEffects.fixture.ts'
+import { resolveFrame } from './effectsFrame.ts'
 import { askLocalPrograms, localProgramsReady } from '../../post/finish/local.ts'
 import { finishedGroup, finishMoving } from '../../post/finish/frame.ts'
 import { FINISH } from '../../post/finish/finishLayout.ts'
 import { halton } from '../../../../math/src/sequence/halton.ts'
-import { near } from '../../../../math/src/float/near.fixture.ts'
-import { grainNoise, grainTexels } from '../../post/finish/grain.ts'
 import { commandArgs } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 import type { PostFrame } from '../../post/finish/finish.ts'
 import { beginTaaFrame } from '../../post/taa/frame.ts'
@@ -108,19 +107,25 @@ test('the local exposure draws its layers before the chain, and the bloom sets u
   assert.notEqual(post?.layers, post?.bare)
 })
 
-test('the finishing’s group is made for every lit image, with the grain’s texture only where the grain is drawn', () => {
+test('the finishing’s group is made for an image that shows a film effect, with the grain’s texture only where the grain is drawn', () => {
   const { device, buffers, textures } = fakeDevice()
   const rt = drawing(new EffectChain())
-  const post = framed(rt, device)
+  let post = framed(rt, device)
   const uniform = () => {
     const { data } = buffers.find(({ label }) => label === 'Trillion3D display finish')!
     return new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4)
   }
   const grains = () => textures.filter(({ label }) => label?.endsWith('finish grain')).length
+  /** The group of the image the settings now written draw: the finishing reads them once, at its
+   *  encode (`encodeFinish`). */
+  const group = () => ((post = framed(rt, device)), finishedGroup(rt, post, undefined))
   const plain = finishedGroup(rt, post, undefined)
-  assert.ok(plain && grains() === 0, 'the dither is drawn on every image: a group, and no grain')
-  assert.equal(uniform()[FINISH.at.dither], Math.fround(1 / 255), 'the step of an 8-bit target')
-  assert.equal(uniform()[FINISH.at.grainLevels + 3], 0)
+  assert.ok(plain && grains() === 0, 'the vignette and the dither are on: a group, and no grain')
+  assert.equal(uniform()[FINISH.at.dither], Math.fround(1 / 255), 'the step of an 8-bit display')
+  assert.deepEqual(
+    [...uniform().subarray(FINISH.at.grainLevels, FINISH.at.grainLevels + 3)],
+    [0, 0, 0],
+  )
   rt.run.frame = 3
   finishedGroup(rt, post, undefined)
   assert.deepEqual(
@@ -129,35 +134,29 @@ test('the finishing’s group is made for every lit image, with the grain’s te
     'the dither’s offset follows the image’s number',
   )
   rt.context.filmGrainIntensity = 0.5
-  const grained = finishedGroup(rt, post, undefined)
+  const grained = group()
   assert.notEqual(grained, plain, 'a group with the grain’s texture')
   assert.equal(grains(), 1)
-  assert.equal(uniform()[FINISH.at.grainLevels + 3], 1)
-  assert.equal(finishedGroup(rt, post, undefined), grained, 'kept while its images hold')
+  assert.equal(uniform()[FINISH.at.grainLevels], 0.5)
+  assert.equal(group(), grained, 'kept while its images hold')
   assert.equal(grains(), 1, 'the texture is made once')
   rt.context.filmGrainIntensity = 0
-  assert.equal(finishedGroup(rt, post, undefined), plain, 'the grain off, the first group again')
+  assert.equal(group(), plain, 'the grain off, the first group again')
   assert.equal(grains(), 1, 'its texture is kept for the grain to come back')
   assert.equal(finishMoving(rt), false, 'the settings are those the image was drawn with')
-  rt.context.vignetteSoftness = 3
-  assert.equal(finishMoving(rt), true, 'a film setting moved: the view is drawn again')
-  framed(rt, device)
-  assert.equal(finishMoving(rt), false)
-})
-
-test('the grain’s texture is generated from the reference’s triangular noise and decodes to a mean of 1 a channel', () => {
-  const { bytes, decode } = grainTexels()
-  assert.equal(bytes.length, 128 * 128 * 4)
-  for (let channel = 0; channel < 3; channel++) {
-    let sum = 0
-    for (let at = channel; at < bytes.length; at += 4) sum += bytes[at] / 255
-    near((sum * decode[channel]) / (128 * 128), 1, `channel ${channel}`, 1e-9)
+  for (const moved of [{ vignetteSoftness: 3 }, { gaussianSampleScale: 0.6 }]) {
+    Object.assign(rt.context, moved) // a film setting, or one the local exposure’s blur follows
+    assert.equal(finishMoving(rt), true, `${Object.keys(moved)}: the view is drawn again`)
+    assert.equal((group(), finishMoving(rt)), false)
   }
-  // The noise is triangular on [−1, 1]: the share of it within x of 0 is 2x − x², 0.75 at a half.
-  const noise = Array.from({ length: 20000 }, (_, at) => grainNoise(at + 1))
-  assert.ok(noise.every((v) => Math.abs(v) <= 1))
-  near(noise.filter((v) => Math.abs(v) < 0.5).length / noise.length, 0.75, 'triangular', 0.02)
-  near(noise.reduce((sum, v) => sum + v, 0) / noise.length, 0, 'centred', 0.02)
+  // Every film effect off — no dither (24 bits), no vignette (the quality that has none) — and no
+  // local exposure or glow: the plain composition, no group.
+  rt.context.quantizationDitheringBits = 32
+  rt.context.tonemapperQuality = 1
+  assert.equal(group(), undefined, 'nothing to finish')
+  assert.equal(rt.gpu.finishPending, false)
+  rt.context.sceneColorTintRed = 0.5
+  assert.ok(group(), 'a tint is a film effect')
 })
 
 test('an outline draws over the display only with objects, in the beauty view, outside a capture', async () => {
@@ -227,16 +226,19 @@ function untemporal(chain: EffectChain) {
     projection: Float64Array.from(IDENTITY_MATRIX4),
     eye: [0, 0, 0],
     perspective: 1,
+    near: 0.1,
   } as unknown as EngineCamera
-  /** One image: its entry, the velocity stage, then the passes on the resolved image; what they
-   *  leave. */
-  const image = () => {
+  /** One image: its entry, the velocity stage, then the passes on the resolved image — or, `lit`, on
+   *  the lit image before the temporal pass; what they leave. */
+  const image = (stage: 'resolved' | 'lit' = 'resolved') => {
     beginTaaFrame(rt, cam)
     rt.run.frame++
     rt.gpu.effectsRevision = rt.context.effects!.revision // the chain, as `encodeEffects` keeps it
     const encoder = device.createCommandEncoder()
     encodeVelocity(rt, device, encoder, cam)
-    return encodeResolvedEffects(rt, device, encoder, undefined, cam)
+    return stage === 'lit'
+      ? encodeLitEffects(rt, device, encoder, cam)
+      : encodeResolvedEffects(rt, device, encoder, undefined, cam)
   }
   return { rt, cam, lit, image, dispatched: () => dispatchedEntries(kit.dispatches) }
 }
@@ -278,4 +280,21 @@ test('the velocity stage is made for a blur that draws, and its target given bac
   assert.equal(image(), undefined, 'the quality off blurs nothing')
   assert.deepEqual([rt.gpu.velocity!.bytes, rt.gpu.effects?.bytes], [0, 0], 'and holds nothing')
   assert.equal(effectsMoved(rt), false, 'drawn with it')
+})
+
+test('a depth of field draws on the lit image with no motion measured, and its quality off draws none', async () => {
+  const dof = effect.depthOfField({ depthBlurRadius: 1000 }) // a depth blur alone, wide enough for 8 pixels
+  const { rt, lit, image } = untemporal(new EffectChain().add(dof))
+  assert.equal(image('lit'), undefined, 'drawn unblurred while its programs compile')
+  await rt.gpu.effects!.settled()
+  image('lit') // asks for its pipelines
+  await new Promise((resolve) => setTimeout(resolve))
+  const sharp = image('lit')
+  assert.ok(sharp && sharp !== lit, 'the lit image blurred')
+  assert.equal(rt.gpu.velocity, undefined, 'no motion measured for it')
+  assert.equal(resolveFrame.temporal.slot, rt.run.frame % 8, 'its noise turns with the frame')
+  rt.context.depthOfFieldQuality = 'off'
+  assert.equal(effectsMoved(rt), true, 'a setting changed breaks the hold')
+  assert.equal(image('lit'), undefined, 'the quality off draws nothing')
+  assert.equal(rt.gpu.effects?.bytes, 0, 'and holds nothing')
 })

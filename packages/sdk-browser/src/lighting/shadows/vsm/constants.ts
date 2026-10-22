@@ -87,6 +87,9 @@ export const VSM_MASK_THROUGH_SHIFT = 16
  *  command and one pair (vec4u). */
 export const VSM_RENDER_CANDIDATE_BYTES = 48
 export const VSM_RENDER_CMD_BYTES = 16
+/** Bytes of a light of the frame in the raster's table (`vsmWriteLights`): its first map's id and its map count, padded to
+ *  a `vec4u`. */
+export const VSM_RENDER_LIGHT_BYTES = 16
 /** Bytes of one command's place in the tiers' order (`vsmRenderBin`). */
 export const VSM_RENDER_ORDER_BYTES = 4
 export const VSM_RENDER_PAIR_BYTES = 16
@@ -244,11 +247,12 @@ export const VSM_NORMAL_BIAS = 0.5 / 1000
 const VSM_NORMAL_OFFSET_FLOOR = 0.02 * VSM_UNIT_PER_CM
 /** The rays after which a group whose lanes all hit (an umbra) stops. */
 const VSM_TRACE_VOTE_AFTER = 1
-/** The rays a pixel traces and the samples each ray takes, every light: 8 rays of 4 steps (5
- *  samples) at most a light, a soft penumbra at a cost a desktop GPU holds every image. More rays smooth the penumbra (its noise falls as one over their root), more samples catch
- *  thinner occluders; each costs in proportion. */
-export const VSM_TRACE_RAYS = 8
-export const VSM_TRACE_STEPS = 4
+/** The most rays a light's trace takes (`shadowRayCountDirectional`, `shadowRayCountLocal`): a
+ *  pixel's mask lane holds their count in a nibble (`vsmMaskCode`). The rays a pixel traces and the
+ *  steps each takes are the view's settings, read from its view uniform (`VsmProjectionView.traceRays`);
+ *  more rays smooth the penumbra (its noise falls as one over their root), more steps catch thinner
+ *  occluders; each costs in proportion. */
+export const VSM_TRACE_RAYS_MAX = 15
 /** The angle (radians) a local ray leans off its light at which its reach toward the light starts
  *  to shorten (`vsmLocalRayReach`); shaders get 1/tan of it. Smaller shortens off-axis rays sooner. */
 const VSM_TRACE_CONE_LIMIT = 0.03
@@ -268,29 +272,13 @@ const VSM_TRACE_PLANE_BIAS_CAP = 50
 /** A sun ray's length, in units of the receiver's distance to the eye. */
 const VSM_TRACE_REACH_SUN = 1.5
 
-// Clipmap (levels are log2 centimetres). Declared: the finest level's radius is 2^7 cm = 1.28 m,
-// the coarsest's 2^23 cm = 83.9 km, the sun's shadow reach; the coarse pages are marked on the
-// levels of radius 655 m to 5.2 km (15 to 18). A finer first level sharpens the nearest shadows
-// for more pages; a coarser last one shortens the reach.
-export const VSM_SUN_FINEST_LEVEL = 6
-export const VSM_SUN_COARSEST_LEVEL = 22
-export const VSM_SUN_COARSE_FROM = 15
-export const VSM_SUN_COARSE_TO = 18
-/** Declared: a level's depth range, 1000 times its radius (unitless): casters that far above the
- *  receivers still cast. Larger, the depth precision of a texel drops in proportion. */
-export const VSM_SUN_DEPTH_SPAN = 1000
-/**
- * The sun's level bias. Each unit below 0 halves the
- * clipmap texel; the clipmap still clamps the total, screen term included, to at least 0
- * (`createVsmClipmap`).
- */
-export const VSM_SUN_LEVEL_BIAS = -1.5
+// Clipmap (levels are log2 centimetres): the levels, their depth range, the coarse pages and the
+// resolution biases are the view's shadow settings (`shadowMapOptions.ts`, `mapSettings.ts`).
 /** Declared: a cached level stays valid while |ΔcentreZ| + radius <= 0.9 · cached depth radius: the
  *  tenth left is the margin before a caster leaves the depth range. */
 export const VSM_SUN_DEPTH_KEEP = 0.9
 
 // Local lights.
-export const VSM_LOCAL_LEVEL_BIAS = 0
 /** Point/spot face near plane: a reversed-Z perspective of half field π/4, width and height 1, near 1 cm, far the light's radius. */
 export const VSM_LOCAL_NEAR_PLANE = 1 * VSM_UNIT_PER_CM
 
@@ -367,7 +355,6 @@ const VSM_CM_PER_UNIT:f32=${wgslF32(VSM_CM_PER_UNIT)};
 const VSM_NORMAL_OFFSET_FLOOR:f32=${wgslF32(VSM_NORMAL_OFFSET_FLOOR)};
 const VSM_TRACE_VOTE_AFTER:i32=${VSM_TRACE_VOTE_AFTER};
 const VSM_TRACE_CONE_COT:f32=${wgslF32(focalScale(VSM_TRACE_CONE_LIMIT))};
-${wgslConsts({ VSM_TRACE_RAYS, VSM_TRACE_STEPS }, 'i32')}
 const VSM_TRACE_SLOPE_CAP_SUN:f32=${wgslF32(VSM_TRACE_SLOPE_CAP_SUN)};
 const VSM_TRACE_SLOPE_CAP_LOCAL:f32=${wgslF32(VSM_TRACE_SLOPE_CAP_LOCAL)};
 const VSM_TRACE_DITHER:f32=${wgslF32(VSM_TRACE_DITHER)};

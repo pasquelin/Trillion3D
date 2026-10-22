@@ -163,7 +163,7 @@ test('the screen probes flags say what each image can read: the screen, the hist
     frame: 1,
     history: true,
     screen: true,
-    field: true,
+    cache: true,
     velocity: true,
     previousInverse: identity,
   }
@@ -175,10 +175,12 @@ test('the screen probes flags say what each image can read: the screen, the hist
       F.importanceLighting |
       F.radianceHistory |
       F.temporal |
-      F.field |
+      F.cache |
       F.occlusion |
       F.sceneTraces |
-      F.velocity,
+      F.velocity |
+      F.disocclusion |
+      F.occlusionTemporal,
   )
   const high = screenProbeSettings({ screenProbes: 'high' })
   assert.equal(
@@ -204,15 +206,15 @@ test('the screen probes flags leave out what an image has not: no history, no ve
     frame: 1,
     history: true,
     screen: true,
-    field: true,
+    cache: true,
     velocity: true,
     previousInverse: identity,
   }
   const ultra = screenProbeSettings()
-  const first = { ...all, frame: 0, history: false, screen: false, field: false }
+  const first = { ...all, frame: 0, history: false, screen: false, cache: false }
   assert.equal(
     screenProbeFlags(ultra, first) &
-      (F.screenTraces | F.radianceHistory | F.temporal | F.field | F.velocity),
+      (F.screenTraces | F.radianceHistory | F.temporal | F.cache | F.velocity),
     0,
     'no history, so neither its vectors',
   )
@@ -254,7 +256,7 @@ test('the screen probes parameters are the words of the settings and the image, 
     frame,
     history: true,
     screen: true,
-    field: true,
+    cache: true,
     velocity: true,
     previousInverse,
   })
@@ -267,7 +269,8 @@ test('the screen probes parameters are the words of the settings and the image, 
   assert.deepEqual(words(at.mode), [3, 2, screenProbeFlags(settings, image(11)), 3])
   assert.deepEqual(words(at.counts), [10, 8160, 50, 8])
   assert.deepEqual(floats(at.weights), [-10000, -1000, 0.1, 10].map(Math.fround))
-  assert.deepEqual(floats(at.spatial), [1000, 10 * DEG2RAD, 1, 1].map(Math.fround))
+  assert.deepEqual(floats(at.spatial), [1000, 10 * DEG2RAD, 1, 200].map(Math.fround))
+  assert.deepEqual(floats(at.occlusion), [2, 3, 0.3, 1].map(Math.fround))
   assert.deepEqual(floats(at.scene), [1.8, 40, 0.05, 0.01].map(Math.fround))
   assert.deepEqual(floats(at.motion), [0.005, 10, 0.9, 0].map(Math.fround))
   assert.deepEqual(floats(at.tuning), [4, 0.4, 0.005, 0.02].map(Math.fround))
@@ -284,4 +287,6 @@ test('the screen probes parameters are the words of the settings and the image, 
     sent - first < SCREEN_PROBE_PARAMS.words,
     'the words from the rank to the turn, not the whole uniform',
   )
+  write(geometry, screenProbeSettings({ screenProbeMaxRayDirections: 3 }), image(11))
+  assert.equal(words(at.mode)[3], 11 % 3, 'the rays turn through the setting’s directions')
 })

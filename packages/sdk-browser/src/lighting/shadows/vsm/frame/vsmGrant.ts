@@ -15,7 +15,7 @@ import {
 } from '../../../../gpu/core/refusal.ts'
 import { noteShadowPressure } from '../../casters/memoryGrant.ts'
 import { createEngineVsm, destroyEngineVsm, type EngineVsm } from './engineVsm.ts'
-import { directionalCount, engineVsmOptions, fullMapsFor, vsmPoolAsked } from './vsmLightMaps.ts'
+import { engineVsmOptions, fullMapsFor, sunMapsFor, vsmPoolAsked } from './vsmLightMaps.ts'
 import { vsmLayout, type VsmResourceOptions } from '../layout.ts'
 import { vsmResourceBytes } from '../layoutBytes.ts'
 import { vsmPoolDraw, vsmPoolFloor, vsmPoolWithin } from '../poolDraw.ts'
@@ -29,7 +29,7 @@ const UNAVAILABLE = 'virtual shadow maps'
  *  as the set that overflowed. */
 export type VsmRefusal = Refusal & {
   wanted: number
-  directional: number
+  sunMaps: number
   fullMapCapacity: number
   poolPages: number
 }
@@ -63,13 +63,13 @@ export function grantEngineVsm(
   if (lights.vsm) destroyEngineVsm(lights.vsm)
   lights.vsm = undefined
   const wanted = fullMapsFor(list),
-    directional = directionalCount(list)
+    sunMaps = sunMapsFor(list)
   const refused = lights.vsmRefusal
-  const same = refused?.wanted === wanted && refused.directional === directional
+  const same = refused?.wanted === wanted && refused.sunMaps === sunMaps
   // The same lights refused an overflow regrow: asked again as it was.
   if (same) fullMapCapacity = Math.max(fullMapCapacity, refused.fullMapCapacity)
   const poolPages = same ? Math.min(pagesAsked, refused.poolPages) : pagesAsked
-  const options = engineVsmOptions(fullMapCapacity, directional, poolPages)
+  const options = engineVsmOptions(fullMapCapacity, sunMaps, poolPages)
   const { frame } = rt.run
   const refusal = (record: Refusal) => refuseSet(rt, list, fullMapCapacity, poolPages, record)
   const asked = vsmLayout(options)
@@ -125,8 +125,8 @@ function refuseSet(
   record: Refusal,
 ) {
   const wanted = fullMapsFor(list),
-    directional = directionalCount(list)
-  rt.lights.vsmRefusal = { ...record, wanted, directional, fullMapCapacity, poolPages }
+    sunMaps = sunMapsFor(list)
+  rt.lights.vsmRefusal = { ...record, wanted, sunMaps, fullMapCapacity, poolPages }
 }
 
 /**

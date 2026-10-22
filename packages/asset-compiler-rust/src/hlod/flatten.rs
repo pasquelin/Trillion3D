@@ -56,12 +56,6 @@ fn screen_size(radius: f64, distance: f64) -> f64 {
     2.0 * SCREEN_MULTIPLE * radius / distance.max(0.01)
 }
 
-/// The distance a sphere of `radius` spans `screen` of the reference view from (`screen_size`'s
-/// inverse).
-fn distance_at(radius: f64, screen: f64) -> f64 {
-    2.0 * SCREEN_MULTIPLE * radius / screen
-}
-
 /// The side of a pixel, in metres, `distance` metres away in the reference view: the inverse of
 /// the texels per metre a unit sphere spans in the view's 1920 texels.
 pub(crate) fn pixel_at(distance: f64) -> f64 {

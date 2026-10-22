@@ -7,7 +7,8 @@ import { halton } from '../../../../math/src/sequence/halton.ts'
  * spread, and the one uniform every pass of it reads (`writeFogVolumeFrame`, `frame.ts`).
  *
  * The grid is a set of cells over the screen and the distance — froxels. Across the image a cell is
- * `pixelSize` pixels square, the view cut into as many as it needs; along the depth a cell's
+ * `pixelSize` pixels square, the view cut into as many as it needs and the cells spread over it;
+ * along the depth a cell's
  * slice is the logarithm of the view depth: `slice = log2(depth · B + O) · S`, with `S` the
  * distribution scale and `B`, `O` solved so that the first slice starts a little past the near plane
  * (`FIRST_SLICE_MARGIN`) and the last ends at the volume's far end. The view depth is the distance
@@ -17,6 +18,32 @@ import { halton } from '../../../../math/src/sequence/halton.ts'
 /** How far past the near plane the first slice starts, metres: 9.5 centimetres of the engines that
  *  fixed the grid, so that no resolution is spent right in front of the camera. */
 export const FIRST_SLICE_MARGIN = 0.095
+/** What is added to the depth buffer's reciprocal depth before it is inverted, per metre: 10⁻¹³ per
+ *  centimetre, so that a pixel no surface drew (depth 0, reversed) converts to `1 / FOG_DEPTH_FUDGE`
+ *  metres — 10¹¹ — and not to a division by zero. */
+export const FOG_DEPTH_FUDGE = 1e-11
+/** The error the history of a still view settles to, as a share of what a display tells apart: one
+ *  step of eight bits. */
+const SETTLED_ERROR = 1 / 256
+
+/** How much more light the volume's glow gives where the fog is made to match the volume
+ *  (`fogMatchesVolume`): the glow is then read in the unit of the fog's own colour, 10 000 times what
+ *  it is otherwise. */
+export const FOG_MATCH_GLOW_SCALE = 10000
+
+/** The images a still view takes to make its volume whole: each blends the history in by the share
+ *  `volumetricFogHistoryShare`, so the error of the first image is that share to the power of the
+ *  images — whole once it is under `SETTLED_ERROR`; one image where there is no history to blend,
+ *  or a share that never lets it go. */
+export function historyHorizon(settings: {
+  volumetricFogUsesHistory: boolean
+  volumetricFogHistoryShare: number
+}) {
+  const share = Math.abs(settings.volumetricFogHistoryShare)
+  if (!settings.volumetricFogUsesHistory || share === 0 || share >= 1) return 1
+  const images = Math.log(SETTLED_ERROR) / Math.log(share)
+  return Math.ceil(images)
+}
 /** The most cells a volume texture may have along an axis the grid is cut into: what the device
  *  grants a 3D texture (`maxTextureDimension3D`), 2048 by default. */
 export const DEFAULT_MAX_VOLUME_DIMENSION = 2048
@@ -97,8 +124,9 @@ export function writeSampleOffsets(
  * matrix the depth buffer was drawn with —, the previous image's, the grid — the cells the view uses
  * — and the textures' — the cells they hold, more where the view is drawn smaller than the targets
  * were made for —, the numbers that map a depth to a slice and a device depth to a view depth, how
- * the history is blended, the lights it takes, the tuning, the medium and the offsets of the
- * samples. Every field is written by `writeFogVolumeFrame`; what a surface reads of it is the view
+ * the history is read (`previous`, `history`: the previous image's view against this one's, and
+ * where its cells end) and blended, the lights it takes, the tuning, the medium and the offsets of
+ * the samples. Every field is written by `writeFogVolumeFrame`; what a surface reads of it is the view
  * block (`viewSlots.ts`).
  */
 export const FOG_VOLUME_FRAME = fieldLayout('FogVolumeFrame', [
@@ -115,6 +143,7 @@ export const FOG_VOLUME_FRAME = fieldLayout('FogVolumeFrame', [
   ['depthMap', 'vec4f'],
   ['uv', 'vec4f'],
   ['previous', 'vec4f'],
+  ['history', 'vec4f'],
   ['blend', 'vec4f'],
   ['lighting', 'vec4f'],
   ['tune', 'vec4f'],

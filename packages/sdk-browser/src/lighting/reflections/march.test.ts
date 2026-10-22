@@ -157,3 +157,37 @@ test('a ray meets a grazing plane in the half of its pixel past the centre, in w
   const { at } = tall.hit([64.5, 100.5, 0.641], [0, 300, 0])
   assert.ok(at && at[1] >= 232 && at[1] < 233, `in row 232: ${at?.[1]}`)
 })
+
+test('a strict march gives a ray up behind a thin surface at the surface, where the plain one passes behind it', () => {
+  // The ray runs 0.3 behind a one-pixel pole (x = 50) over a far floor, and meets a wall at x = 100.
+  const march = marcher(W, H, (x) => (x === 50 ? 0.8 : x === 100 ? 0.5 + SLAB / 4 : 0.1))
+  const ray: [number[], number[]] = [
+    [20.5, 30.5, 0.5],
+    [100, 0, 0],
+  ]
+  const plain = march.hit(...ray)
+  assert.ok(plain.at && plain.at[0] >= 100 && plain.at[0] < 101, `${plain.at?.[0]}`)
+  const strict = march.hit(...ray, { strict: true })
+  assert.equal(strict.at, undefined)
+  // It proved the ray in front of everything up to the pole's pixel, x = 50: t = 0.295.
+  assert.ok(strict.above > 0.29 && strict.above < 0.2955, `${strict.above}`)
+  assert.ok(strict.loads <= plain.bound)
+})
+
+test('a strict march that spends its iterations meets nothing, and says how far it proved the ray clear', () => {
+  const march = marcher(W, H, (x) => (x === 100 ? 0.5 : 0.1))
+  const { o, d } = falling(20, 120, 30, 100, 0.5, 0.01)
+  const whole = march.hit(o, d, { strict: true })
+  assert.ok(whole.at && whole.at[0] >= 100 && whole.at[0] < 101, `${whole.at?.[0]}`)
+  // Three iterations cover a few pixels of the way: no coarse cell stands in for the wall.
+  const cut = march.hit(o, d, { strict: true, cap: 3 })
+  assert.equal(cut.at, undefined)
+  assert.ok(cut.above > 0 && cut.above < (100 - 20) / 100, `${cut.above}`)
+})
+
+test('a strict march of a ray in front of everything proves it clear to the end of the screen', () => {
+  const march = marcher(W, H, (x) => (x < 64 ? 0.2 : 0.1))
+  const { at, above, end } = march.hit([5.5, 5.5, 0.6], [200, 100, 0.2], { strict: true })
+  assert.equal(at, undefined)
+  assert.ok(Math.abs(above - end) < 1e-6, `${above} of ${end}`)
+})

@@ -160,12 +160,11 @@ export const maskAlphaWgsl = (finest: boolean, pool: WgslDecl = TILE_POOL_WGSL) 
   )
 }
 
-/** Data-atlas sample of the camera's passes: `dataSample(slot, uv, ddx, ddy, sampled)`. */
-export const DATA_SAMPLE_WGSL = wgslBlock(
-  'DATA_SAMPLE_WGSL',
-  [atlasSampleWgsl('data', TILE_POOL_WGSL).decl],
-  '',
-)
+/** Data-atlas sample on the textures of `pool`: `dataSample(slot, uv, ddx, ddy, sampled)`. */
+export const dataSampleWgsl = (pool: WgslDecl) =>
+  wgslBlock('DATA_SAMPLE_WGSL', [atlasSampleWgsl('data', pool).decl], '')
+/** The data-atlas sample of the camera's passes (`TILE_POOL_WGSL`). */
+export const DATA_SAMPLE_WGSL = dataSampleWgsl(TILE_POOL_WGSL)
 
 /** Atlas declarations: one pool per lane and the page table, at the bindings the layout gives, in
  *  `group`. */

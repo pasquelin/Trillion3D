@@ -82,6 +82,7 @@ export async function createSessionCut(
     // readout within the session's bounds (`streamingMinRequests`, `streamingMaxRequests`).
     lists: cutListCaps(rt.context),
     requests: requestBounds(rt.context),
+    clipPlane: !!rt.setup.clipping,
     onListNote: (message, details) =>
       rt.diag.engineDiagnostic('gpu-cut-lists', message, { kind: 'warning', ...details }),
   })

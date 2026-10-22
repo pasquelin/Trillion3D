@@ -1,29 +1,39 @@
 import {
+  ANY_NUMBER,
   choiceSetting as choice,
   flagSetting as flag,
-  nonNegativeSetting as nonNegative,
+  nonZeroSetting as nonZero,
   numberSetting as number,
-  positiveSetting as positive,
   rulesOf,
   type SettingOptions,
   type SettingValues,
 } from './settingRules.ts'
 
 /**
- * The run-time settings of the fog's volume (`SceneVolumetricFog`,
- * `../scene/core/fogVolumetric.ts`): how finely its grid cuts the screen and the distance, and the
- * switches of the way it is lit and kept from one image to the next. The scene says whether the
- * volume is on and what it is made of; these are the engine's own, read again at each image, as
- * `./settingRules.ts` says of run-time settings.
+ * The run-time settings of the fog (`SceneHeightFog`, `../scene/core/fogHeight.ts`) and of its
+ * volume (`SceneVolumetricFog`, `../scene/core/fogVolumetric.ts`): how finely the volume's grid cuts
+ * the screen and the distance, the switches of the way it is lit and kept from one image to the
+ * next, and the switches of the fog as a whole. The scene says whether the volume is on and what it
+ * is made of; these are the engine's own, read again at each image, as `./settingRules.ts` says of
+ * run-time settings.
  *
  * The grid is the quality. A level names the cell's side in pixels, the cells along the depth and
  * the lighting samples a cell takes where its history is missing, `off` none: no volume at all,
- * the analytic fog alone. The default is `high`, the finest of the regular levels, as the other
- * families take theirs — the engines' own grid without scalability is `low`'s, 16 pixels and 64
- * slices. Every other number is a setting of its own with its default, so that none is a
+ * the analytic fog alone. The default is `high`, the level every quality group starts at (the
+ * third of four, as the other families take theirs): 8 pixels, 128 slices, 4 samples. Every other
+ * number is a setting of its own with its default, so that none is a
  * constant: the history's share, the moving samples, the spread of the depth slices, how far a
  * cell's sample is lifted off the depth buffer. The quality presets write the
  * level (`../runtime/qualityLevels.ts`).
+ *
+ * Four switches are the fog's as a whole, not the volume's: whether any fog is drawn, whether the
+ * atmosphere's light adds to it, whether it is made to match the volume, and whether an orthographic
+ * view measures its height from the view's own. The engines that fixed them keep the last three as
+ * project settings that choose a program; here they are read at each image, which a program that
+ * had been chosen would answer the same. Of the others those engines keep around the volume, none
+ * applies here, each for the same reason, a system the engine has not: a function of light that
+ * modulates a lamp's scattering by a material, a texture on a rectangle's face, the injection of
+ * lights the GPU traces rays for, and the screen-space blur of the fog.
  */
 
 /** The volume's quality levels, `off` first, then coarsest to finest. */
@@ -62,9 +72,11 @@ export const VOLUMETRIC_FOG_FILTERS = ['trilinear', 'bicubic', 'tricubic'] as co
  *  `volumetricFogUsesHistory`, on — the volume of the image before is blended into this one;
  *  `volumetricFogMovesSamples`, on — each image's lighting samples sit elsewhere in the cell, the blend
  *  averaging them;
- *  `volumetricFogHistoryShare`, 0.9 — the share of the history kept, from 0 to 1;
+ *  `volumetricFogHistoryShare`, 0.9 — the share of the history kept, any number: a share past 1
+ *  or below 0 extrapolates the history, as the engines that fixed it let it;
  *  `volumetricFogSliceSpread`, 32 — how the slices are spread along the depth, more of
- *  them near the eye the smaller it is;
+ *  them near the eye the smaller it is, any number but 0 (the slices divide by it; a negative one
+ *  puts them nearer the far end);
  *  `volumetricFogGlow`, on — the fog's own light is read;
  *  `volumetricFogSkipHidden`, on — a cell wholly behind the surfaces of its pixels is not
  *  lit;
@@ -72,23 +84,40 @@ export const VOLUMETRIC_FOG_FILTERS = ['trilinear', 'bicubic', 'tricubic'] as co
  *  light's inverse-square falloff is taken at, against the spike near the light;
  *  `volumetricFogSampleScatter`, 0 — a random offset, in cells, added to each lighting sample;
  *  `volumetricFogSurfaceLift`, 0.5 — in cells, how far a cell's sample is moved out of the
- *  depth buffer along the depth, −1 not at all;
+ *  depth buffer along the depth, any negative number not at all;
  *  `volumetricFogLiftRange`, 1 — in cells, how far a sample behind the depth buffer is still
- *  brought forward. */
+ *  brought forward;
+ *  `volumetricFogEdgeFade`, 0 — where above 0, the edge of a spot's cone and of a rectangle's
+ *  plane fade over that many cells, so that they flicker less;
+ *  `volumetricFogReadJitter`, 0 — a random offset, in cells, of the point a surface reads the
+ *  volume at, which hides the cells' pixelisation;
+ *  `fogEnabled`, on — any fog at all, the analytic one, the volume and the atmosphere's haze over
+ *  the surfaces included;
+ *  `fogReadsAtmosphere`, on — the atmosphere's sky and its sun on the ground add to the fog's
+ *  colour and lobe;
+ *  `fogMatchesVolume`, off — the fog's colour, its lobe's phase and its albedo are the volume's;
+ *  `fogOrthoHeightAdjustment`, on — an orthographic view measures the fog from the height its own
+ *  position gives, not from its eye. */
 export const VOLUMETRIC_FOG_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     choice('volumetricFogQuality', DEFAULT_VOLUMETRIC_FOG_LEVEL, VOLUMETRIC_FOG_LEVELS),
     choice('volumetricFogReadFilter', 'trilinear', VOLUMETRIC_FOG_FILTERS),
     flag('volumetricFogUsesHistory', true),
     flag('volumetricFogMovesSamples', true),
-    number('volumetricFogHistoryShare', 0.9, [0, 1]),
-    positive('volumetricFogSliceSpread', 32, 'a finite number above 0'),
+    number('volumetricFogHistoryShare', 0.9, ANY_NUMBER),
+    nonZero('volumetricFogSliceSpread', 32, 'a finite number but 0, which the slices divide by'),
     flag('volumetricFogGlow', true),
     flag('volumetricFogSkipHidden', true),
-    nonNegative('volumetricFogLampSoftening', 1),
-    nonNegative('volumetricFogSampleScatter', 0),
-    number('volumetricFogSurfaceLift', 0.5, [-1, Number.MAX_VALUE]),
-    nonNegative('volumetricFogLiftRange', 1),
+    number('volumetricFogLampSoftening', 1, ANY_NUMBER),
+    number('volumetricFogSampleScatter', 0, ANY_NUMBER),
+    number('volumetricFogSurfaceLift', 0.5, ANY_NUMBER),
+    number('volumetricFogLiftRange', 1, ANY_NUMBER),
+    number('volumetricFogEdgeFade', 0, ANY_NUMBER),
+    number('volumetricFogReadJitter', 0, ANY_NUMBER),
+    flag('fogEnabled', true),
+    flag('fogReadsAtmosphere', true),
+    flag('fogMatchesVolume', false),
+    flag('fogOrthoHeightAdjustment', true),
   ] as const))()
 /** The field of one setting of the volume. */
 export type VolumetricFogField = keyof typeof VOLUMETRIC_FOG_RULES

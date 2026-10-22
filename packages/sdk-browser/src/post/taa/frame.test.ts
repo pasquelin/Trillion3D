@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { dropTaaHistory, taaConverged } from './landing.ts'
 import { HISTORY_LAWS } from './historyWgsl.ts'
+import { RAD2DEG } from '../../../../math/src/constants.ts'
 import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
 import { taaRenderMatrix } from './frame.ts'
 import { runtime } from './frame.fixture.ts'
@@ -100,13 +101,14 @@ test('motion restarts the convergence count: a still view after it holds once it
   assert.equal(temporal.frame.accumulated, 1)
 })
 
-test('a view that clips by a plane is drawn at the centre of its pixels, the pass still accumulating', () => {
+test('a view that has a plane is drawn without jitter, whatever the project switch, the pass still accumulating', () => {
   const { rt, cam, temporal, frame } = runtime()
-  const plane = Object.freeze({ clipPlane: [0, 0, 1, 2], hidden: [], showOnly: null }) as never
+  const plane = Object.freeze({
+    ...NO_VIEW_SET,
+    clipPlane: [0, 0, 1, 2],
+    jitters: false,
+  }) as never
   cam.viewSet = plane
-  frame(false)
-  assert.notDeepEqual(Array.from(temporal.frame.jitter), [0, 0], 'planes are not allowed: jittered')
-  Object.assign(rt.context, { cutClipPlane: true })
   for (let i = 0; i < 3; i++) {
     frame(false)
     assert.deepEqual(Array.from(temporal.frame.jitter), [0, 0], `image ${i}: no jitter`)
@@ -120,7 +122,7 @@ test('a view that clips by a plane is drawn at the centre of its pixels, the pas
 })
 
 test("the smallest object measured is the chain's motion blur's, in the stage's uniform and the pass's", () => {
-  const { rt, frame } = runtime()
+  const { rt, cam, frame } = runtime()
   const { rates } = TAA_VIEW.at
   const sizes = () => [...frame(false)!.subarray(rates + 2, rates + 4)]
   // Half the projection's scale and the least radius squared: none left out without a blur.
@@ -129,6 +131,13 @@ test("the smallest object measured is the chain's motion blur's, in the stage's 
   Object.assign(rt.context, { effects: new EffectChain().add(blur) })
   // 10 % of the screen is a radius of 5 %, at the reference's 90 degrees (a scale of 1).
   assert.deepEqual(sizes(), [0.5, Math.fround(0.05 ** 2)])
+  // A narrower view (a projection scale of 2) asks less: the radius follows the field of view
+  // over 90 degrees.
+  const projection = [...IDENTITY_MATRIX4]
+  projection[0] = 2
+  Object.assign(cam, { projection })
+  const fov = (2 * Math.atan(0.5) * RAD2DEG) / 90
+  assert.deepEqual(sizes(), [1, Math.fround((0.05 * fov) ** 2)])
   blur.perObjectSize = 0
-  assert.deepEqual(sizes(), [0.5, 0])
+  assert.deepEqual(sizes(), [1, 0])
 })

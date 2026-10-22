@@ -36,7 +36,7 @@ const finite = (value: number) => (Number.isFinite(value) ? value : 0)
 export interface NodeState {
   node: Object3D
   visible: boolean
-  /** How the node casts (`nodeCasting`): its `castShadow` and `castFarShadow`. */
+  /** How the node casts (`nodeCasting`): its `castShadow`, `castFarShadow` and `farShadowTest`. */
   casting: number
   parent: Object3D | null
   auto: boolean

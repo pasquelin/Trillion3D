@@ -21,13 +21,14 @@ export type {
  * on a sensor of `sensorWidth`), and the image is blurred by those circles, the foreground and the
  * background each as a layer, in the shape of the diaphragm's blades (`../../contracts/depthOfFieldOptions.ts`
  * says each setting and its default; how the blur is drawn — its quality above all — is the world's
- * settings', `../../contracts/depthOfFieldRules.ts`). It runs on the image the temporal pass resolved, before the
- * motion blur, and is OFF until `focusDistance` (or `depthBlurRadius`) is above 0: the engine passes
- * it by then, drawing and allocating nothing for it.
+ * settings', `../../contracts/depthOfFieldRules.ts`). It runs on the lit image at the size it is drawn,
+ * before the temporal pass resolves it — the pass stabilises its own setup in time — and so before the
+ * motion blur, wherever it is added, and is OFF until `focusDistance` (or `depthBlurRadius`) is above 0:
+ * the engine passes it by then, drawing and allocating nothing for it.
  */
 export class DepthOfField extends EffectPass {
   readonly kind = 'depthOfField'
-  readonly stage = 'after-resolve'
+  readonly stage = 'before-resolve'
   private held: ResolvedDepthOfField
   constructor(options: DepthOfFieldOptions = {}) {
     super()
@@ -140,14 +141,14 @@ export class DepthOfField extends EffectPass {
   set petzvalExclusionRadius(value: number) {
     this.write({ petzvalExclusionRadius: value })
   }
-  /** The lens barrel's radius, 0 or more. */
+  /** The lens barrel's radius, in centimetres, 0 or more. */
   get barrelRadius() {
     return this.held.barrelRadius
   }
   set barrelRadius(value: number) {
     this.write({ barrelRadius: value })
   }
-  /** The lens barrel's length, 0 or more; 0 is no barrel. */
+  /** The lens barrel's length, in centimetres, 0 or more; 0 is no barrel. */
   get barrelLength() {
     return this.held.barrelLength
   }

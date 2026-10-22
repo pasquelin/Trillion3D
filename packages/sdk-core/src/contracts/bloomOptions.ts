@@ -27,7 +27,8 @@ import {
  * (`./bloomRules.ts`: `bloomQuality`, `bloomCross`).
  *
  * The other is a convolution of the image with a kernel (`./bloomConvolutionOptions.ts`), the
- * glow a lens makes, cinematic and costly, off by default. A dirt mask (`./bloomDirtOptions.ts`)
+ * glow a lens makes, cinematic and costly, off by default; the kernel is the host's picture, which
+ * the method requires. A dirt mask (`./bloomDirtOptions.ts`)
  * modulates either glow with a picture of the lens's smudges, also off by default.
  */
 
@@ -130,7 +131,8 @@ const DEFAULT_BLOOM = Object.freeze({
  * The bloom an option names: every field it leaves out is the default (`DEFAULT_BLOOM`). The one
  * reading of the option, whoever takes it — `effect.bloom`, the world's own, a setter.
  * @throws RangeError naming the field and the value when one is out of its range, TypeError when
- *   `levels` is not a list of at most six or `method` is not one of the two.
+ *   `levels` is not a list of at most six, `method` is not one of the two, or `method` is
+ *   `'convolution'` and `convolution.kernel` is absent.
  */
 export function resolveBloom(options: BloomOptions = {}): ResolvedBloom {
   const { levels = [], method = DEFAULT_BLOOM.method } = options
@@ -139,6 +141,11 @@ export function resolveBloom(options: BloomOptions = {}): ResolvedBloom {
   if (!BLOOM_METHODS.includes(method))
     return refusal('bloom')(`method must be one of ${BLOOM_METHODS.join(', ')}`)
   const gaussian = options.gaussianIntensity ?? DEFAULT_BLOOM.gaussianIntensity
+  const convolution = resolveBloomConvolution(options.convolution)
+  if (method === 'convolution' && !convolution.kernel)
+    return refusal('bloom')(
+      "method 'convolution' needs convolution.kernel, a picture { width, height, pixels } the host gives: the engine draws none",
+    )
   return Object.freeze({
     method,
     intensity: finiteAtLeast(options.intensity ?? DEFAULT_BLOOM.intensity, 0, 'BLOOM_INTENSITY'),
@@ -153,7 +160,7 @@ export function resolveBloom(options: BloomOptions = {}): ResolvedBloom {
         }),
       ),
     ),
-    convolution: resolveBloomConvolution(options.convolution),
+    convolution,
     dirtMask: resolveBloomDirtMask(options.dirtMask),
   })
 }

@@ -12,6 +12,12 @@ import { DISPLAY_VALUE_WGSL } from '../toneMappingWgsl.ts'
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { AS_IS_FLAG } from '../../materials/surface/surfaceModel.ts'
 import { FINISH_WGSL } from '../../post/finish/finishWgsl.ts'
+import {
+  FINISH_HOOKS_WGSL,
+  PLAIN_HOOKS_WGSL,
+  SHARPEN_WGSL,
+  UNSHARPENED_WGSL,
+} from './composeFragments.ts'
 import { linearToSrgb, luminance } from '../../../../math/src/wgsl/color.ts'
 import { bilinear4, clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -143,67 +149,12 @@ const asIsMix = (curved: string, share: string) =>
 /** What linear radiance goes through before `displayValue`: `exposed`, the radiance with its
  *  exposure applied, the expression of the curve's rank, and `lit`, the chain of programs lit by
  *  declared lights: the pixel's as-is share (`AS_IS_READ`) weighs it and the source is sharpened before
- *  the curve (`SHARPEN_WGSL`). */
+ *  the curve (`composeFragments.ts`). */
 type Chain = { exposed: string; curve: string; lit: boolean }
 
 /**
- * The sharpen, in the composition itself, never a pass or a target of its own: the source pixel and
- * its cross, one source pixel away, read once each (`sourceValue`), before the bloom and the curve;
- * the pixel pulled away from its cross's sum by the strength over six (`strength / 6`, so a strength
- * of 1 is a unit-gain Laplacian), the view's sharpness (`view.viewport.w`), masked off where the
- * exposed luminance steps by one or more against a neighbour (`edge`), so a very bright edge is
- * never sharpened into a ring. The exposure that scales the step holds the local exposure's gain,
- * read from the pixel before it is sharpened (`gainOf`). A neighbour past the last column or row
- * reads the last one. At a strength of 0 — a uniform branch — and in a diagnostic view's raw
- * output the pixel is composed as it is, bit for bit.
- */
-const SHARPEN_WGSL = `
-fn sourceNear(at:vec2f,step:vec2f)->vec3f{
- return sourceValue(clamp(at+step,vec2f(0.0),view.source.zw+0.999)).rgb;
-}
-fn composeColor(pixel:vec4f)->vec4f{
- let at=pixel.xy*view.source.xy;
- let value=sceneColor(at);
- let gain=gainOf(value,at);
- let strength=view.viewport.w;
- if(strength==0.0||view.viewport.z!=0.0){return composeAt(at,value,gain);}
- let c1=sourceNear(at,vec2f(-1.0,0.0));let c2=sourceNear(at,vec2f(1.0,0.0));
- let c3=sourceNear(at,vec2f(0.0,-1.0));let c4=sourceNear(at,vec2f(0.0,1.0));
- let a0=luminance(value.rgb);
- let steps=abs(vec4f(a0)-vec4f(luminance(c1),luminance(c2),luminance(c3),luminance(c4)));
- let edge=saturate(1.0-view.lightParams.w*gain*max(max(steps.x,steps.y),max(steps.z,steps.w)));
- let delta=(c1+c2+c3+c4)-value.rgb*4.0;
- return composeAt(at,vec4f(value.rgb+delta*(-edge*strength/6.0),value.a),gain);
-}`
-/** The composition with no sharpening: the display pixel composed once. */
-const UNSHARPENED_WGSL = `
-fn composeColor(pixel:vec4f)->vec4f{
- let at=pixel.xy*view.source.xy;
- let value=sceneColor(at);
- return composeAt(at,value,gainOf(value,at));
-}`
-/** The scene colour of a plain composition: the source pixel, with no local exposure. */
-const PLAIN_READ_WGSL = `
-fn sceneColor(at:vec2f)->vec4f{return sourceValue(at);}
-fn gainOf(value:vec4f,at:vec2f)->f32{return 1.0;}`
-/**
- * The scene colour of a finishing composition and its local exposure's gain. With a colour fringe
- * the red and the alpha are read where `fringeTaps` puts the red, the green where it puts the green,
- * the blue at the pixel, each bilinearly (`sourceBilinear`); with none, the source pixel. The gain
- * is read from that colour (`localGainOf`).
- */
-const FINISH_READ_WGSL = `
-fn sceneColor(at:vec2f)->vec4f{
- if(!fringeActive()){return sourceValue(at);}
- let size=view.source.zw+vec2f(1.0);
- let taps=fringeTaps(at/size);
- let red=sourceBilinear(taps.xy*size);
- let green=sourceBilinear(taps.zw*size);
- return vec4f(red.r,green.g,sourceValue(at).b,red.a);
-}
-fn gainOf(value:vec4f,at:vec2f)->f32{return localGainOf(value,at/(view.source.zw+vec2f(1.0)));}`
-/**
- * Composition, one source for two separate programs — never a branch in the shader.
+ * Composition, one source for two separate programs — never a branch in the shader. What differs
+ * between the plain and the finishing program is four functions (`composeFragments.ts`).
  * `chain` is what linear radiance goes through before sRGB, always `displayValue`. Background, premultiplication and the raw output of diagnostic views are shared,
  * and so are debug views: a curved chain is weighed back to the pixel as-is by its share
  * (`AS_IS_READ`), since a normal or depth material is never exposed nor tone mapped. At a
@@ -211,7 +162,8 @@ fn gainOf(value:vec4f,at:vec2f)->f32{return localGainOf(value,at/(view.source.zw
  * With `finish`, `hdr` is the image the effect chain's last bloom read, and the composition
  * finishes it (`finished`, `../../post/finish/finishWgsl.ts`): its colour fringe, local exposure,
  * the bloom's glow added, the vignette and the grain, before the exposure and the curve, and the
- * dither (`ditherOf`) added to the colour shown.
+ * dither (`ditherOf`) added to the colour shown, less where the pixel is shown as it is: an as-is
+ * pixel (a share of 1) is exact.
  * The source is read where the display pixel falls in it (`view.source`): at its size, its pixel
  * as it is; drawn below it with no temporal resolve to rebuild it (`../../webgpu/pages/state/
  * renderScale.ts`), its four nearest pixels blended — the one upscale of such an image —, the as-is
@@ -233,15 +185,14 @@ fn sourceValue(at:vec2f)->vec4f{
  if(all(view.source.xy==vec2f(1.0))){return textureLoad(hdr,vec2i(at),0);}
  return sourceBilinear(at);
 }
-${finish ? FINISH_READ_WGSL : PLAIN_READ_WGSL}
+${finish ? FINISH_HOOKS_WGSL : PLAIN_HOOKS_WGSL}
 fn composeAt(at:vec2f,source:vec4f,gain:f32)->vec4f{
  let coord=vec2i(at);
- ${finish ? 'let uv=at/(view.source.zw+vec2f(1.0));' : ''}
- let value=${finish ? 'finished(source,uv,gain)' : 'source'};
+ let value=shownAt(source,at,gain);
  if(value.a==0.0){return view.background;}
  if(view.viewport.z!=0.0){return vec4f(value.rgb,1.0);}
  ${read ? asIsMix(`toneMap(${chain.exposed},${chain.curve})`, read.share) : `let color=displayValue(${chain.exposed},${chain.curve});`}
- return vec4f(${finish ? '(color+ditherOf(uv))' : 'color'}*value.a+view.background.rgb*(1.0-value.a),1.0);
+ return vec4f((color+ditherAt(at)${read ? '*(1.0-share)' : ''})*value.a+view.background.rgb*(1.0-value.a),1.0);
 }
 ${chain.lit ? SHARPEN_WGSL : UNSHARPENED_WGSL}
 @fragment fn compose(@builtin(position) pixel:vec4f)->@location(0) vec4f{return composeColor(pixel);}

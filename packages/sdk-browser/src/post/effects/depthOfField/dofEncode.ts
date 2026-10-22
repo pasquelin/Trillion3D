@@ -1,12 +1,14 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
+import { dispatchOn } from '../../../gpu/core/computeStages.ts'
 import { DEPTH_OF_FIELD_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import type { PreparedPipeline } from '../../../lighting/deferred/fullscreen.ts'
-import { DRAW_ARGUMENT_WORDS, GROUP } from './dofLayout.ts'
+import { BOKEH_LUT_SIZE, DRAW_ARGUMENT_WORDS, GROUP } from './dofLayout.ts'
+import { gathersLayer, scattersOver } from './dofConvolutions.ts'
 import { GATHER_LAYERS } from './dofLayerWgsl.ts'
 import type { DofGroups } from './dofGroups.ts'
 import type { DofImages } from './dofImages.ts'
-import { reducePasses, type DofPlan } from './dofPlan.ts'
-import { dilateConstants, type Constants, type DofPrograms } from './dofPrograms.ts'
+import { reducePasses, tilesOf, type DofPlan } from './dofPlan.ts'
+import { dilateConstants, type DofPrograms } from './dofPrograms.ts'
 import { LUT_FORMATS } from './dofLutWgsl.ts'
 import { POSTFILTER_METHODS } from './dofPostfilterWgsl.ts'
 
@@ -36,8 +38,13 @@ interface Sprite {
   readonly slot: number
 }
 
-/** The workgroups of a dispatch over `w × h` texels. */
-const over = (w: number, h: number) => ({ across: ceilDiv(w, GROUP), down: ceilDiv(h, GROUP) })
+/** One dispatch of `pipeline` on `group`, over `w × h` texels: the workgroups a side that cover them. */
+const over = (pipeline: Step['pipeline'], group: GPUBindGroup, w: number, h: number): Step => ({
+  pipeline,
+  group,
+  across: ceilDiv(w, GROUP),
+  down: ceilDiv(h, GROUP),
+})
 
 /** The tables of a plan that are to be built, each its kind and its group. */
 function lutSteps(plan: DofPlan, groups: DofGroups, programs: DofPrograms, stale: boolean) {
@@ -46,12 +53,12 @@ function lutSteps(plan: DofPlan, groups: DofGroups, programs: DofPrograms, stale
   const table = (format: number, group: GPUBindGroup | undefined): Step[] =>
     group
       ? [
-          {
-            pipeline: programs.compute('lut', { FORMAT: format, ROUNDED: rounded }),
+          over(
+            programs.compute('lut', { FORMAT: format, ROUNDED: rounded }),
             group,
-            across: 4,
-            down: 4,
-          },
+            BOKEH_LUT_SIZE,
+            BOKEH_LUT_SIZE,
+          ),
         ]
       : []
   return [
@@ -61,56 +68,60 @@ function lutSteps(plan: DofPlan, groups: DofGroups, programs: DofPrograms, stale
   ]
 }
 
-/** The setup, tiles, reduction and tables: what the gathers read. */
-function prepareSteps(plan: DofPlan, groups: DofGroups, programs: DofPrograms, lutsStale: boolean) {
-  const [gx, gy] = plan.gather
-  const scatters = plan.foregroundScatter || plan.backgroundScatter
-  const compute = (pass: Parameters<DofPrograms['compute']>[0], constants?: Constants) =>
-    programs.compute(pass, constants)
-  const steps: Step[] = [
-    plan.divisor === 2
-      ? { pipeline: compute('setupHalf'), group: groups.setup, ...over(gx, gy) }
-      : {
-          pipeline: compute('setupFull'),
-          group: groups.setup,
-          ...over(plan.full[0], plan.full[1]),
-        },
-    { pipeline: compute('flatten'), group: groups.flatten, ...over(gx, gy) },
-    ...plan.dilations.map((d, at) => ({
-      pipeline: compute('dilate', dilateConstants(d.mode, d.radius)),
-      group: groups.dilates[at],
-      ...over(plan.tiles[0], plan.tiles[1]),
-    })),
-  ]
-  if (groups.downsample)
+/** The reduction of the setup, level by level, and the packing of the sprite lists it filled. */
+function reduceSteps(plan: DofPlan, groups: DofGroups, programs: DofPrograms) {
+  const [px, py] = plan.pre
+  const fg = scattersOver(plan, 'foreground') ? 1 : 0
+  const bg = scattersOver(plan, 'background') ? 1 : 0
+  const steps = reducePasses(plan.mips).map(({ first, from, count }, at) => {
+    const constants = {
+      FIRST: first ? 1 : 0,
+      REDUCTIONS: first ? count - 1 : count,
+      SCATTER_FG: first ? fg : 0,
+      SCATTER_BG: first ? bg : 0,
+    }
+    const size = [ceilDiv(px, 2 ** from), ceilDiv(py, 2 ** from)]
+    return over(programs.compute('reduce', constants), groups.reduces[at], size[0], size[1])
+  })
+  if (groups.pack)
     steps.push({
-      pipeline: compute('downsample'),
-      group: groups.downsample,
-      ...over(ceilDiv(gx, 2), ceilDiv(gy, 2)),
-    })
-  reducePasses(plan.mips).forEach(({ first, from, count }, at) =>
-    steps.push({
-      pipeline: compute('reduce', {
-        FIRST: first ? 1 : 0,
-        REDUCTIONS: first ? count - 1 : count,
-        SCATTER_FG: first && plan.foregroundScatter ? 1 : 0,
-        SCATTER_BG: first && plan.backgroundScatter ? 1 : 0,
-      }),
-      group: groups.reduces[at],
-      ...over(ceilDiv(gx, 2 ** from), ceilDiv(gy, 2 ** from)),
-    }),
-  )
-  if (scatters && groups.pack)
-    steps.push({
-      pipeline: compute('pack', {
-        SCATTER_FG: plan.foregroundScatter ? 1 : 0,
-        SCATTER_BG: plan.backgroundScatter ? 1 : 0,
-      }),
+      pipeline: programs.compute('pack', { SCATTER_FG: fg, SCATTER_BG: bg }),
       group: groups.pack,
       across: 2,
       down: 1,
     })
-  return [...steps, ...lutSteps(plan, groups, programs, lutsStale)]
+  return steps
+}
+
+/** The setup, its accumulation in time, tiles, reduction and tables: what the gathers read. */
+function prepareSteps(plan: DofPlan, groups: DofGroups, programs: DofPrograms, lutsStale: boolean) {
+  const [gx, gy] = plan.gather
+  const [px, py] = plan.pre
+  const tiles = tilesOf(plan)
+  const { compute } = programs
+  const steps: Step[] = [
+    plan.divisor === 2
+      ? over(compute('setupHalf'), groups.setup, gx, gy)
+      : over(compute('setupFull'), groups.setup, plan.full[0], plan.full[1]),
+  ]
+  if (groups.temporal) {
+    const constants = { HIGH: plan.temporalHigh ? 1 : 0, DIVISOR: plan.divisor }
+    steps.push(over(compute('temporal', constants), groups.temporal, px, py))
+  }
+  steps.push(
+    over(compute('flatten', { GATHER4: px === gx && py === gy ? 0 : 1 }), groups.flatten, gx, gy),
+  )
+  plan.dilations.forEach((d, at) => {
+    const pipeline = compute('dilate', dilateConstants(d.mode, d.radius))
+    steps.push(over(pipeline, groups.dilates[at], tiles[0], tiles[1]))
+  })
+  if (groups.downsample)
+    steps.push(over(compute('downsample'), groups.downsample, ceilDiv(px, 2), ceilDiv(py, 2)))
+  return [
+    ...steps,
+    ...reduceSteps(plan, groups, programs),
+    ...lutSteps(plan, groups, programs, lutsStale),
+  ]
 }
 
 /** The layer's gather, then, for every layer that is filtered, its post-filter, and the sprites'
@@ -127,27 +138,22 @@ function convolutionSteps(
   const sprites: Sprite[] = []
   plan.convolutions.forEach((conv, at) => {
     const layer = images.layers[conv.layer]!
-    gathers.push({
-      pipeline: programs.compute('gather', {
-        LAYER: GATHER_LAYERS[conv.layer],
-        RINGS: conv.rings,
-        QUALITY: conv.quality,
-        BOKEH: conv.bokeh ? 1 : 0,
-      }),
-      group: groups.gathers[at],
-      ...over(gx, gy),
+    const gather = programs.compute('gather', {
+      LAYER: GATHER_LAYERS[conv.layer],
+      RINGS: conv.rings,
+      QUALITY: conv.quality,
+      BOKEH: conv.bokeh ? 1 : 0,
     })
+    gathers.push(over(gather, groups.gathers[at], gx, gy))
     const filter = groups.postfilters[at]
-    if (filter)
-      filters.push({
-        pipeline: programs.compute('postfilter', {
-          LAYER: GATHER_LAYERS[conv.layer],
-          METHOD: POSTFILTER_METHODS[plan.postfilter === 2 ? 'max' : 'median'],
-          TILE: plan.postfilter === 2 ? 1 : 0,
-        }),
-        group: filter,
-        ...over(gx, gy),
+    if (filter) {
+      const postfilter = programs.compute('postfilter', {
+        LAYER: GATHER_LAYERS[conv.layer],
+        METHOD: POSTFILTER_METHODS[plan.postfilter === 2 ? 'max' : 'median'],
+        TILE: plan.postfilter === 2 ? 1 : 0,
       })
+      filters.push(over(postfilter, filter, gx, gy))
+    }
     const sprite = groups.sprites[at]
     if (sprite)
       sprites.push({
@@ -175,16 +181,13 @@ export function dofSteps(
 ): DofSteps {
   const convolutions = convolutionSteps(plan, groups, images, programs)
   const before = [...prepareSteps(plan, groups, programs, lutsStale), ...convolutions.before]
-  const recombine: Step = {
-    pipeline: programs.compute('recombine', {
-      QUALITY: plan.recombine,
-      HAS_FG: plan.gatherForeground ? 1 : 0,
-      HAS_BG: plan.gatherBackground ? 1 : 0,
-      BOKEH: plan.recombineLut ? 1 : 0,
-    }),
-    group: groups.recombine,
-    ...over(plan.full[0], plan.full[1]),
-  }
+  const pipeline = programs.compute('recombine', {
+    QUALITY: plan.recombine,
+    HAS_FG: gathersLayer(plan, 'foreground') ? 1 : 0,
+    HAS_BG: gathersLayer(plan, 'background') ? 1 : 0,
+    BOKEH: plan.recombineLut ? 1 : 0,
+  })
+  const recombine = over(pipeline, groups.recombine, plan.full[0], plan.full[1])
   return {
     before,
     sprites: convolutions.sprites,
@@ -198,11 +201,8 @@ export function dofSteps(
 }
 
 /** Dispatches `step` on `pass`. */
-function run(pass: GPUComputePassEncoder, { pipeline, group, across, down }: Step) {
-  pass.setPipeline(pipeline.get())
-  pass.setBindGroup(0, group)
-  pass.dispatchWorkgroups(across, down)
-}
+const run = (pass: GPUComputePassEncoder, { pipeline, group, across, down }: Step) =>
+  dispatchOn(pass, pipeline, group, across, down)
 
 /**
  * Encodes one image's depth of field: the draw's arguments cleared; the compute pass of the setup, the
@@ -213,11 +213,12 @@ function run(pass: GPUComputePassEncoder, { pipeline, group, across, down }: Ste
 export function encodeDof(
   encoder: GPUCommandEncoder,
   steps: DofSteps,
-  params: { drawArguments: GPUBuffer; viewport: readonly [number, number] },
+  drawArguments: GPUBuffer,
+  viewport: readonly [number, number],
 ) {
   const label = { label: DEPTH_OF_FIELD_PASS }
   let passes = 1
-  if (steps.sprites.length) encoder.clearBuffer(params.drawArguments)
+  if (steps.sprites.length) encoder.clearBuffer(drawArguments)
   const compute = encoder.beginComputePass(label)
   for (const step of steps.before) run(compute, step)
   compute.end()
@@ -226,10 +227,10 @@ export function encodeDof(
       ...label,
       colorAttachments: [{ view: sprite.target, loadOp: 'load', storeOp: 'store' }],
     })
-    pass.setViewport(0, 0, params.viewport[0], params.viewport[1], 0, 1)
+    pass.setViewport(0, 0, viewport[0], viewport[1], 0, 1)
     pass.setPipeline(sprite.pipeline.get())
     pass.setBindGroup(0, sprite.group)
-    pass.drawIndirect(params.drawArguments, sprite.slot * DRAW_ARGUMENT_WORDS * 4)
+    pass.drawIndirect(drawArguments, sprite.slot * DRAW_ARGUMENT_WORDS * 4)
     pass.end()
     passes++
   }

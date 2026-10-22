@@ -17,7 +17,8 @@
  * of it loaded — gates the HLOD 0 actor alone (`worldFollow.ts`).
  *
  * The world may be hidden as a whole (`hide`): every file placed and counted as before, its word
- * zero, and no cell draws (`worldFollow.ts`) — what a cell loaded and not activated is.
+ * zero, and no cell draws what it holds (`worldFollow.ts`) — what a cell loaded and not activated
+ * is; the actors always loaded, which no cell holds, stay drawn.
  *
  * While a load blocks on slow streaming, a file it does not block on stays hidden, wished and
  * loaded, asked again at each sync till the load ends (`settle`). The files wished and not shown are

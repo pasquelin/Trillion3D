@@ -7,6 +7,8 @@ import { AO_OCCLUSION_FORMAT, AO_SETUP_FORMAT } from './layout.ts'
  * 3). Each coarser resolution begins with a setup that halves the surfaces' normals and depths
  * (`setup`), and a search over them (`step`); the last pass, at the image's size, reads the surfaces
  * themselves, blends the coarser result into its own (`final`) and writes the texture the lighting reads.
+ * The first setup's texture is also the half-size map of the farthest opaque depth every tap of every
+ * search reads one texel of (`AO_HALF_DEPTH`): a plan of one resolution makes it too, by that setup alone.
  * The search draws into the textures `AO_TARGETS` names.
  */
 export type AoTarget = 'setup1' | 'setup2' | 'ao2' | 'ao1' | 'ao'
@@ -33,10 +35,13 @@ export const AO_TARGETS: Readonly<
   ao: { scale: 1, format: AO_OCCLUSION_FORMAT },
 }
 
+/** The half-size map of the farthest opaque depth: the alpha of the first setup's texture, one texel a tap. */
+export const AO_HALF_DEPTH: AoTarget = 'setup1'
+
 /** The passes of `levels` resolutions (1 to 3), in the order they are drawn. */
 export function aoPasses(levels: number): AoPass[] {
-  if (levels <= 1) return [{ kind: 'final', target: 'ao' }]
-  const passes: AoPass[] = [{ kind: 'setup', target: 'setup1' }]
+  const passes: AoPass[] = [{ kind: 'setup', target: AO_HALF_DEPTH }]
+  if (levels <= 1) return [...passes, { kind: 'final', target: 'ao' }]
   if (levels >= 3)
     passes.push(
       { kind: 'setup', target: 'setup2' },

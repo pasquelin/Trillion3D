@@ -20,6 +20,7 @@ import {
   VSM_RENDER_ARGS_DRAW,
   VSM_RENDER_ARGS_STRIDE_WORDS,
   VSM_RENDER_CORNER_TIERS,
+  VSM_RENDER_COUNT_RUNS,
   VSM_RENDER_COUNT_VIEWS,
 } from '../render/renderParamsWgsl.ts'
 import {
@@ -91,8 +92,7 @@ test('a cut that follows no world still gives the candidates its frame words, wh
 })
 
 test('the lights are grouped whole, in order, into passes of the maps a dispatch lists', () => {
-  // On 500 rows: the sun's 17 maps and 80 point lights, then 83, then the last 37.
-  const { list, maps, mostMaps, mostMips } = vsmViewPasses(manyLights(200), 500)
+  const { list, maps, mostMaps, mostMips } = vsmViewPasses(manyLights(200), 500) // 497, 498, 222
   assert.deepEqual(
     list.map(({ first, maps: held, mips }) => [first, held, mips]),
     [
@@ -114,19 +114,17 @@ test('the lights are grouped whole, in order, into passes of the maps a dispatch
   // Lights without ids (the floor's, before the maps are set up) fall in the same passes.
   const bare = manyLights(200).map(({ kind, count }) => ({ kind, count }))
   assert.deepEqual(vsmViewPasses(bare, 500).list, list)
-  // None, no pass; off, every light in one pass, however many maps it holds.
   assert.equal(vsmViewPasses([], 500).list.length, 0)
   const off = vsmViewPasses(manyLights(200), vsmViewsPerPass({}, false))
   assert.deepEqual([off.list.length, off.maps], [1, 17 + 200 * 6])
 })
 
-test('a pass lists the maps of a dispatch’s rows, no more than a map id holds: one pass for any frame on any device', () => {
+test('a pass takes the maps of as many lights as a dispatch has rows, no more than a map id holds: one pass for any frame on any device', () => {
   const rows = 65535 // what every device guarantees (`maxComputeWorkgroupsPerDimension`)
   assert.equal(vsmViewsPerPass({}, true), rows)
   assert.equal(vsmViewsPerPass(LOW_DISPATCH, true), 500)
   assert.equal(vsmViewsPerPass({ maxComputeWorkgroupsPerDimension: 2 ** 31 - 1 }, true), 2 ** 16)
-  // The id the commands and the pairs pack: `VSM_MAP_ID_BITS` wide, below the mip, read back by the
-  // expand, the raster and the transmission with a mask of that width.
+  // The id the commands and pairs pack is `VSM_MAP_ID_BITS` wide, below the mip, read back masked.
   const layout = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
   const mask = `0x${((1 << VSM_MAP_ID_BITS) - 1).toString(16).toUpperCase()}u`
   assert.ok(vsmRenderCullWgsl(layout).includes(`view.x|(mipLevel<<${VSM_MAP_ID_BITS}u)`))
@@ -168,14 +166,15 @@ test('the lights’ maps lie in consecutive ids, from 0, as the passes read them
 
 test('the floor sets aside a slot a chunk of each pass', () => {
   const limits = { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27 } as never
-  const floor = (passes: number) => vsmRenderFloorBytes(limits, 20_000, 4 * 497, 3984, 256, passes)
+  const floor = (passes: number, lights = 201) =>
+    vsmRenderFloorBytes(limits, 20_000, 4 * (lights + 497), 3984, 256, passes, lights)
   assert.ok(floor(2) > floor(1) && floor(3) > floor(2), 'the slots of each pass, not of one')
+  assert.ok(floor(1, 400) > floor(1), 'and the table of the lights')
 })
 
 test('a frame of many lights draws in view passes: each clears the views’ count, lists its views, then draws the same chunks', () => {
-  // 200 point lights and a sun on a device whose dispatches have 500 rows: 1217 maps, three passes
-  // of 497, 498 and 222 maps. Before, one pass: a clear, the candidates, the views and the
-  // arguments once, then 2 · chunks passes.
+  // 200 point lights and a sun on a device of 500 dispatch rows: 1217 maps, three passes of 497, 498
+  // and 222 maps (before, one: a clear, the candidates, the views once, then 2 · chunks passes).
   const { fake, stats, passes, slots } = encodeLights(manyLights(200), {}, LOW_DISPATCH)
   const { chunks } = stats
   assert.equal(passes, 3)
@@ -193,8 +192,8 @@ test('a frame of many lights draws in view passes: each clears the views’ coun
   const clears = fake.clears.filter((c) => c.buffer === counts).slice(1)
   assert.deepEqual(
     clears.map(({ offset, size }) => [offset, size]),
-    Array(2).fill([4 * VSM_RENDER_COUNT_VIEWS, 4]),
-    'after the counters whole, the views’ count alone',
+    Array(2).fill([4 * VSM_RENDER_COUNT_VIEWS, 8]),
+    'after the counters whole, the views’ and the runs’ counts alone',
   )
   const entries = (name: string) => fake.dispatches.filter(({ entryPoint }) => entryPoint === name)
   assert.equal(entries('vsmRenderCandidates').length, 1, 'the candidates, once')
@@ -206,29 +205,30 @@ test('a frame of many lights draws in view passes: each clears the views’ coun
     )
   assert.deepEqual(
     entries('vsmRenderViews').map(({ direct }) => direct),
-    [497, 498, 222].map((maps) => ceilDiv(maps, WORKGROUP_THREADS)),
+    Array(3).fill(ceilDiv(201, WORKGROUP_THREADS)),
+    'a thread a light of the frame, every pass',
   )
-  // A pass's slots: its chunks' own indices, its maps, the rows of its chunk.
   const maps = [
     [0, 497],
     [497, 498],
     [995, 222],
   ]
   assert.equal(slots.length, passes * chunks)
-  slots.forEach(({ chunk, chunkFirst, viewFirst, viewCount }, g) => {
+  slots.forEach(({ chunk, chunkFirst, viewFirst, viewCount, lightCount }, g) => {
     const [first, held] = maps[Math.floor(g / chunks)]
     assert.deepEqual(
-      [chunk, chunkFirst, viewFirst, viewCount],
-      [g, (g % chunks) * stats.chunkRows, first, held],
+      [chunk, chunkFirst, viewFirst, viewCount, lightCount],
+      [g, (g % chunks) * stats.chunkRows, first, held, 201],
     )
   })
 })
 
-/** The ids the shipped views kernel lists, run over each of `slots` — a view pass's maps — on maps
- *  of `total` ids where `drawn` ones have a stale rect on a mip the raster takes of them: a sun's
- *  level its one (0), a local map one of its mips (3, past its finest, 2). */
+/** What the shipped views kernel lists, run over the lights of `slots`' passes on `total` maps — a
+ *  sun's 17 levels, then six faces a point light — where `drawn` ones have a stale rect on a mip the
+ *  raster takes of them (a level its one, 0; a face one of its mips, 3, past its finest, 2): each
+ *  group it lists, with the ids of its run. */
 function listedViews(
-  slots: { viewFirst: number; viewCount: number }[],
+  slots: { viewFirst: number; viewCount: number; lightCount: number }[],
   total: number,
   drawn: (id: number) => boolean,
 ) {
@@ -243,57 +243,57 @@ function listedViews(
     },
   })
   const kind = (id: number) => constants.LIGHT_KIND_DIRECTIONAL + (id < 17 ? 0 : 1)
-  const vsmProjectionData = Array.from({ length: total }, (_, id) => ({
+  const records = Array.from({ length: total }, (_, id) => ({
     lightKind: kind(id),
     finestMip: id < 17 ? 0 : 2,
   }))
-  const found: number[] = []
+  const table = (l: number) => (l ? [17 + 6 * (l - 1), 6, 0, 0] : [0, 17, 0, 0])
+  const lights = Array.from({ length: slots[0].lightCount }, (_, l) => table(l))
+  const found: { first: number; ids: number[] }[] = []
   for (const params of slots) {
     const views: number[][] = [],
       counts = [0, 0, 0, 0]
-    const scope = {
-      ...constants,
-      params,
-      vsm: { mapCount: total },
-      vsmProjectionData,
-      vsmStaleRects: rects,
-      views,
-      counts,
-    }
+    const scope = { ...constants, params, lights, views, counts, vsmStaleRects: rects }
     const { vsmRenderViews } = shaderRun<{
       vsmRenderViews: (w: number[], n: number[], lane: number) => void
-    }>(code, ['vsmRenderViews'], scope)
-    const groups = ceilDiv(params.viewCount, WORKGROUP_THREADS)
-    for (let g = 0; g < groups; g++)
+    }>(code, ['vsmRenderViews'], { ...scope, vsm: { mapCount: total }, vsmProjectionData: records })
+    const workgroups = ceilDiv(params.lightCount, WORKGROUP_THREADS)
+    for (let w = 0; w < workgroups; w++)
       for (let lane = 0; lane < WORKGROUP_THREADS; lane++)
-        vsmRenderViews([g, 0, 0], [groups, 1, 1], lane)
-    assert.equal(counts[VSM_RENDER_COUNT_VIEWS], views.length, 'its count')
-    for (const [id] of views)
+        vsmRenderViews([w, 0, 0], [workgroups, 1, 1], lane)
+    const base = params.lightCount
+    let runs = 0
+    for (let g = 0; g < counts[VSM_RENDER_COUNT_VIEWS]; g++) {
+      const [at, n, head] = views[g]
+      const run = views.slice(base + at, base + at + n)
       assert.ok(
-        id >= params.viewFirst && id < params.viewFirst + params.viewCount,
-        'within its maps',
+        run.every(([, , , layers]) => layers !== 0),
+        'a listed map has a layer to draw',
       )
-    found.push(...views.map(([id]) => id))
+      found.push({ first: head, ids: run.map(([id]) => id) })
+      runs += n
+    }
+    assert.equal(counts[VSM_RENDER_COUNT_RUNS], runs, 'the runs reserved')
   }
-  return found.sort((a, b) => a - b)
+  return found
 }
 
-test('the same pages are drawn with one view pass or several: the same maps are listed, each once, in the pass of its light', () => {
+test('the same pages are drawn with one view pass or several: the same maps are listed, each once, in the group of its light', () => {
   const lights = manyLights(200),
     total = 17 + 200 * 6
   const several = encodeLights(lights, {}, LOW_DISPATCH),
     one = encodeLights(lights, { multipassViews: false }, LOW_DISPATCH)
   assert.deepEqual([several.passes, one.passes], [3, 1])
   assert.equal(one.stats.chunks, several.stats.chunks, 'the same chunks of rows')
-  // A pass's first slot says its maps; the views kernel lists those with a page to draw.
+  // A pass's first slot says its maps and lights; the views kernel lists the lights with a map to draw.
   const first = (run: typeof several) => run.slots.filter((_, k) => k % run.stats.chunks === 0)
-  const expected = Array.from({ length: total }, (_, id) => id).filter((id) => id % 3 !== 0)
-  assert.deepEqual(
-    listedViews(first(several), total, (id) => id % 3 !== 0),
-    expected,
-  )
-  assert.deepEqual(
-    listedViews(first(one), total, (id) => id % 3 !== 0),
-    expected,
-  )
+  const drawn = (id: number) => id % 3 !== 0
+  const expected = Array.from({ length: total }, (_, id) => id).filter(drawn)
+  for (const run of [several, one]) {
+    const groups = listedViews(first(run), total, drawn)
+    const ids = groups.flatMap((g) => g.ids).sort((a, b) => a - b)
+    assert.deepEqual(ids, expected)
+    // A group is one light's maps, its first listed one named by the group.
+    for (const { first: head, ids: run } of groups) assert.equal(head, run[0])
+  }
 })

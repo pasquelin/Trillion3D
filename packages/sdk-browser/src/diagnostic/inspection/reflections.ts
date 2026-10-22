@@ -10,7 +10,6 @@ import {
 } from '../../../../math/src/vector/vector.ts'
 import { autoKernel } from '../../gpu/core/computeStages.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
-import { REFLECTION_COUNTS } from '../../lighting/reflections/constants.ts'
 import type { ReflectionGrids } from '../../lighting/reflections/grids.ts'
 import { type InspectedView, unprojectInto, viewForward } from './camera.ts'
 import { INSPECTION_REFLECTION_CAP, type InspectedReflections } from './types.ts'
@@ -19,7 +18,8 @@ import { INSPECTION_REFLECTION_CAP, type InspectedReflections } from './types.ts
 const SAMPLE_FLOATS = 8
 
 /**
- * One texel in `stride`² of a surface's grid, read where the last image left it
+ * One texel in `stride`² of a surface's grid (`grid`: the stride, the columns, the count and the side of the blocks of
+ * pixels a texel stands for), read where the last image left it
  * (`../../lighting/reflections/trace/traceGroups.ts`): the history the accumulation wrote at the texel's
  * block's first pixel — its surface's linear depth (`historyDepth`) —, the fresh texel the trace wrote
  * — its hit's distance and valid bit (`freshPack`) —, and the ray's direction (`rayDirection`)
@@ -36,7 +36,7 @@ const SAMPLES_WGSL = wgslProgram(
  if(i>=grid.z){return;}
  let t=min(vec2u(i%grid.y,i/grid.y)*grid.x,textureDimensions(rays)-1u);
  let f=textureLoad(fresh,t,0).y>>16u;
- let h=textureLoad(history,min(t*${REFLECTION_COUNTS.REFLECTION_TRACE_BLOCK}u,textureDimensions(history)-1u),0).y>>16u;
+ let h=textureLoad(history,min(t*grid.w,textureDimensions(history)-1u),0).y>>16u;
  let depth=select(0.0,unpack2x16float((h&0xfff0u)|8u).x,(h>>4u)!=0u);
  let valid=(f&0x8000u)!=0u&&depth>0.0;
  let w=textureLoad(rays,t,0).x;
@@ -69,6 +69,7 @@ export function encodeReflectionSamples(
   grids: ReflectionGrids,
   parity: number,
   grid: ReturnType<typeof sampleGrid>,
+  block: number,
 ) {
   const bytes = sampleBytes(grid)
   const samples = device.createBuffer({
@@ -81,7 +82,11 @@ export function encodeReflectionSamples(
     size: 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  device.queue.writeBuffer(uniform, 0, new Uint32Array([grid.stride, grid.columns, grid.count, 0]))
+  device.queue.writeBuffer(
+    uniform,
+    0,
+    new Uint32Array([grid.stride, grid.columns, grid.count, block]),
+  )
   const pipeline = samplesKernel(device).get()
   const group = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
@@ -108,7 +113,7 @@ const outsideView = (clip: Float64Array) =>
 /**
  * The rays of `samples` (`SAMPLE_FLOATS` each) placed in the world: a texel's ray leaves its
  * block's centre at the history's depth along the eye's ray through it (`view`, a perspective
- * camera, over a target `size` pixels), toward its direction, as far as its distance.
+ * camera, over a target `size` pixels, a texel a block of `block` pixels a side), toward its direction, as far as its distance.
  */
 export function decodeReflections(
   samples: Float32Array,
@@ -116,8 +121,8 @@ export function decodeReflections(
   stride: number,
   view: InspectedView,
   size: readonly number[],
+  block: number,
 ): InspectedReflections {
-  const block = REFLECTION_COUNTS.REFLECTION_TRACE_BLOCK
   const inverse = invertMatrix4(new Float64Array(16), view.viewProjection),
     forward = viewForward(view.view),
     eye = view.eye

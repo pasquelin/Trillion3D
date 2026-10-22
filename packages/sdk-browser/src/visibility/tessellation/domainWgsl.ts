@@ -13,7 +13,7 @@ import { wgslFn, wgslStruct } from '../../../../math/src/wgsl/decl.ts'
 /** A point of the source triangle before the displacement: in the world, its normal in the world
  *  (the world's matrix applied, so its length follows the object's scale), its texture coordinate
  *  and its clip position. */
-export const DOMAIN_POINT = wgslStruct(
+const DOMAIN_POINT = wgslStruct(
   'DomainPoint',
   [],
   'struct DomainPoint{world:vec3f,normal:vec3f,uv:vec2f,clip:vec4f,}',
@@ -36,55 +36,67 @@ export const domainPoint = wgslFn(
  * where it subtends `fadeStop` it is gone — both in edges: pixels over the threshold. Constant in an
  * orthographic view, whole (zero slope, offset one) for a displacement that never fades.
  */
-export const displacementFade = wgslFn(
-  'displacementFade',
+export const fadeLine = wgslFn(
+  'fadeLine',
   [],
-  `fn displacementFade(scaleRec:vec4f,bounds:vec4f,scale:f32,lodScale:f32,edgesPerPixel:f32,perspective:bool)->vec2f{
+  `fn fadeLine(scaleRec:vec4f,bounds:vec4f,scale:f32,edgesPerUnit:f32,edgesPerPixel:f32,perspective:bool)->vec2f{
  if(!(scaleRec.z>0.0&&scaleRec.w>0.0)){return vec2f(0.0,1.0);}
  let stop=edgesPerPixel*max(scaleRec.w,0.0001);
  let start=edgesPerPixel*max(scaleRec.z,scaleRec.w+0.0001);
- let reach=max(-bounds.x,bounds.y)*lodScale*scale;
- let startDepth=reach/start;let stopDepth=reach/stop;
- let slope=1.0/(startDepth-stopDepth);
- let offset=-stopDepth*slope;
+ let reach=max(-bounds.x,bounds.y)*edgesPerUnit*scale;
+ let wholeDepth=reach/start;let goneDepth=reach/stop;
+ let slope=1.0/(wholeDepth-goneDepth);
+ let offset=-goneDepth*slope;
  if(!perspective){return vec2f(0.0,saturate(slope+offset));}
  return vec2f(slope,offset);
 }`,
 )
 
-/** The clip position of `point` displaced by the height `height` of the map, in 0 to 1, along its
- *  normal: `(height - center) * magnitude`, faded by the depth of the point, the centre and
- *  magnitude the record's (`scaleRec`, `DISPLACEMENT_RECORD`). */
+/** How far `point` moves along its normal for the height `height` of the map, in 0 to 1:
+ *  `(height - center) * magnitude`, faded by the depth of the point, the centre and magnitude the
+ *  record's (`scaleRec`, `DISPLACEMENT_RECORD`). In a shadow map (`shadow`) a point the fade has not
+ *  left whole takes the least displacement, `-center * magnitude`, instead of the faded one: the
+ *  surface does not shadow itself where it fades out. */
+export const pointDisplacement = wgslFn(
+  'pointDisplacement',
+  [DOMAIN_POINT],
+  `fn pointDisplacement(point:DomainPoint,height:f32,scaleRec:vec4f,fade:vec2f,shadow:bool)->f32{
+ let amount=saturate(point.clip.w*fade.x+fade.y);
+ if(shadow&&amount<1.0){return -scaleRec.y*scaleRec.x;}
+ return (saturate(height)-scaleRec.y)*scaleRec.x*amount;
+}`,
+)
+
+/** The clip position of `point` displaced by the height `height` of the map along its normal
+ *  (`pointDisplacement`). */
 export const displacedClip = wgslFn(
   'displacedClip',
-  [DOMAIN_POINT],
+  [DOMAIN_POINT, pointDisplacement],
   `fn displacedClip(point:DomainPoint,height:f32,scaleRec:vec4f,fade:vec2f,viewProj:mat4x4f)->vec4f{
- let amount=saturate(point.clip.w*fade.x+fade.y);
- let distance=(saturate(height)-scaleRec.y)*scaleRec.x*amount;
+ let distance=pointDisplacement(point,height,scaleRec,fade,false);
  return viewProj*vec4f(point.world+point.normal*distance,1.0);
+}`,
+)
+
+/** The density of each texture-coordinate set (`DISPLACEMENT_RECORD`'s `density`) at the object's
+ *  `scale`: the units of the world one unit of the set covers; one where the compiler measured none. */
+export const setDensities = wgslFn(
+  'setDensities',
+  [],
+  `fn setDensities(density:vec4f,scale:f32)->vec4f{
+ return select(vec4f(1.0),density,density>vec4f(0.0))*scale;
 }`,
 )
 
 /** How far the texture coordinate moves across one micro-triangle's edge, which the height map is
  *  read at the level of: the edge's pixels over the pixels a unit of the map's coordinate covers
- *  at `depth`, the same at every point of a triangle so that its neighbours read the same level.
- *  `perUv` is the triangle's world length of one unit of the coordinate (`worldPerUv`). */
+ *  at `depth`, the same at every point of a surface so that the micro-triangles of two triangles
+ *  meet at the same level. `perUv` is the object's units one unit of the coordinate covers, at the
+ *  object's scale: the material's density of the set (`DISPLACEMENT_RECORD`), never a triangle's. */
 export const uvDerivative = wgslFn(
   'uvDerivative',
   [],
-  `fn uvDerivative(depth:f32,perUv:f32,lodScale:f32,invDiceRate:f32,perspective:bool)->f32{
- return select(1.0,depth,perspective)/(perUv*lodScale*invDiceRate);
-}`,
-)
-
-/** The world length of one unit of a triangle's texture coordinate: the root of its world area
- *  over its area in the coordinate; the least a float holds where the coordinate is flat. */
-export const worldPerUv = wgslFn(
-  'worldPerUv',
-  [],
-  `fn worldPerUv(w:mat3x3f,uv:mat3x2f)->f32{
- let world=length(cross(w[1]-w[0],w[2]-w[0]));
- let flat=abs((uv[1].x-uv[0].x)*(uv[2].y-uv[0].y)-(uv[1].y-uv[0].y)*(uv[2].x-uv[0].x));
- return max(sqrt(world/max(flat,1e-20)),1e-6);
+  `fn uvDerivative(depth:f32,perUv:f32,edgesPerUnit:f32,piecesPerEdge:f32,perspective:bool)->f32{
+ return select(1.0,depth,perspective)/(perUv*edgesPerUnit*piecesPerEdge);
 }`,
 )

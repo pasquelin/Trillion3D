@@ -121,6 +121,20 @@ pub fn hermite_basis(w: f64) -> [f64; 4] {
     ]
 }
 
+/// The slope of `hermite_basis` at `w`, term by term: the weights `6w² − 6w`, `3w² − 4w + 1`,
+/// `−6w² + 6w` and `3w² − 2w` that `hermite` takes — over a span of one — to the curve's
+/// derivative, whose direction is the curve's tangent there.
+#[inline]
+pub fn hermite_slope_basis(w: f64) -> [f64; 4] {
+    let w2 = w * w;
+    [
+        6.0 * w2 - 6.0 * w,
+        3.0 * w2 - 4.0 * w + 1.0,
+        -6.0 * w2 + 6.0 * w,
+        3.0 * w2 - 2.0 * w,
+    ]
+}
+
 /// The cubic Hermite spline of `hermite_basis` `[a, b, c, d]` over an interval `span` long, from
 /// the start value and tangent to the end value and tangent:
 /// `((a·p₀ + b·span·m₀) + c·p₁) + d·span·m₁`, each tangent per unit of the interval.

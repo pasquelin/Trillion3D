@@ -20,7 +20,7 @@ export const GATHER_BINDINGS = {
 } as const
 
 /** The densities of the kernel's samples. */
-export const DENSITIES = {
+const DENSITIES = {
   constant: 0,
   hexaweb: 1,
   centerDisk: 2,
@@ -33,7 +33,8 @@ export const DENSITIES = {
  * an invocation) so that the kernel and the accumulators share them without passing them:
  * - `Gp`, the gather's parameters: the rings (`rings` the unit the kernel's sample spacing is made of,
  *   `maxRings` the rings it gathers), the centre of the kernel in the reduced setup's UV and the
- *   pixel's in the image's, the kernel's radius in texels of the gather's size, the pixel's two
+ *   pixel's in the image's, the kernel's radius in texels of the setup accumulation's size (the circles
+ *   it reads are in them, the gather's own where the two are the same size), the pixel's two
  *   random signals, whether it is the fast gather, the closest circle of the tile, the transforms
  *   saturating which circles are considered, the density of the kernel's samples and how it changes;
  * - `Ks`, the kernel scope, remade when the radius changes: the centre moved by a random offset, the

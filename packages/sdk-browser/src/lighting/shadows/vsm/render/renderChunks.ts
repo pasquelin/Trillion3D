@@ -34,8 +34,8 @@ import {
   type VsmChunkGroups,
 } from '../chunks/chunkGroups.ts'
 import type { VsmRenderContext, VsmRenderScene } from './renderPass.ts'
-import type { VsmViewPass } from './renderViewPasses.ts'
-import { vsmChunkSlot } from '../chunks/chunkParams.ts'
+import type { VsmShadowTessellation } from '../tessellation/shadowChain.ts'
+import { vsmChunkSlot, type VsmRenderChunking } from '../chunks/chunkParams.ts'
 
 /** Chunk `c`'s commands (`encodeVsmChunkCommands`), their bin by corner tier, then the expand of
  *  each of the first `tiers` tiers over its commands, lowest first (marking jobs and the raster's
@@ -65,7 +65,7 @@ function encodeVsmChunkCull(
 }
 
 /** Chunk `c`'s raster: one drawIndirect a tier of the first `count` of `tiers`, of its pairs, into
- *  the page-sized dummy `target`. Encoded directly: each chunk is its own pass between its compute passes, and a bundle
+ *  the page-sized dummy `target`, then the patches of the pairs the tessellation took, if it runs. Encoded directly: each chunk is its own pass between its compute passes, and a bundle
  *  of its commands would cost a key and `executeBundles` for the same backend commands. */
 function encodeVsmChunkRaster(
   encoder: GPUCommandEncoder,
@@ -76,6 +76,7 @@ function encodeVsmChunkRaster(
   raster1: GPUBindGroup,
   args: GPUBuffer,
   c: number,
+  tessellation?: VsmShadowTessellation,
 ) {
   const raster = encoder.beginRenderPass({
     label,
@@ -93,6 +94,8 @@ function encodeVsmChunkRaster(
     raster.setPipeline(tiers[t].get())
     raster.drawIndirect(args, (c * VSM_RENDER_ARGS_STRIDE_WORDS + VSM_RENDER_ARGS_DRAW + 4 * t) * 4)
   }
+  // The patches of the displaced surfaces' pairs, which the tiers left undrawn.
+  tessellation?.draw(raster)
   raster.end()
 }
 
@@ -114,9 +117,9 @@ function tiersDrawn(ctx: VsmRenderContext, voxels: boolean) {
 }
 
 /**
- * The candidates' kernel over `rowCount` rows, the camera cut's world switch bound by `world`
- * (`vsmWorldGroup`), then, for each of `passes` — one at least, the maps being some
- * (`encodeVsmRender`) —, its views and, for each of `chunks` — one at least, the rows being some —,
+ * The candidates' kernel over the `rowCount` rows of `chunking`, the camera cut's world switch bound by
+ * `world` (`vsmWorldGroup`), then, for each of its `passes` — one at least, the maps being some
+ * (`encodeVsmRender`) —, its lights' views and, for each of its `chunks` — one at least, the rows being some —,
  * its compute pass (the cull and the expand) and its raster pass. The candidates and the first
  * pass's views open its chunk 0's pass: their dispatches read what theirs wrote, as a following
  * pass would, and no command of the encoder lies between them. A later pass lists its own views
@@ -130,28 +133,36 @@ export function vsmEncodeChunks(
   world: GPUBindGroup,
   pageGroup: GPUBindGroup,
   args: GPUBuffer,
-  rowCount: number,
-  chunks: number,
-  passes: readonly Pick<VsmViewPass, 'maps'>[],
+  {
+    rowCount,
+    chunks,
+    passes,
+    lights,
+  }: Pick<VsmRenderChunking, 'rowCount' | 'chunks' | 'passes' | 'lights'>,
   voxels = false,
+  tessellation?: VsmShadowTessellation,
 ) {
   const tiers = tiersDrawn(ctx, voxels),
     target = [ctx.raster.tiers, tiers] as const
   for (let p = 0; p < passes.length; p++) {
-    if (p) encoder.clearBuffer(ctx.buffers.counts!, VSM_RENDER_COUNT_VIEWS * 4, 4)
+    // The views' and the runs' counters, the pass before's cleared.
+    if (p) encoder.clearBuffer(ctx.buffers.counts!, VSM_RENDER_COUNT_VIEWS * 4, 8)
     for (let c = 0; c < chunks; c++) {
       const slot = vsmChunkSlot(chunks, p, c),
-        each = ctx.passes.chunk(slot),
-        pass = encoder.beginComputePass(each.cullPass)
+        each = ctx.passes.chunk(slot)
+      tessellation?.begin(encoder)
+      const pass = encoder.beginComputePass(each.cullPass)
       // A pass opens with its views, the frame's first with the candidates before them.
       if (!c) {
         if (!p) {
           const candidates = ctx.candidates.pipeline
           encodeVsmCandidates(pass, candidates, groups.cand, world, rowCount)
         }
-        encodeVsmViews(pass, ctx, groups.chunk, each.offset, passes[p].maps)
+        encodeVsmViews(pass, ctx, groups.chunk, each.offset, lights)
       }
       encodeVsmChunkCull(pass, ctx, groups.chunk, args, slot, each.offset, tiers)
+      // The pairs the chunk listed are cut into patches, to be drawn by its raster pass.
+      if (tessellation) tessellation.compute(pass, ctx.groups!, each.offset)
       pass.end()
       // The non-cluster raster: one page viewport, atomicMax into the pool.
       encodeVsmChunkRaster(
@@ -163,6 +174,7 @@ export function vsmEncodeChunks(
         groups.raster1,
         args,
         slot,
+        tessellation,
       )
     }
   }

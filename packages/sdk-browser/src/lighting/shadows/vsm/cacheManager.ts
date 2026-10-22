@@ -25,14 +25,12 @@ import {
   VSM_MAP_UNSEEN,
   VSM_PRESSURE_RISE,
   VSM_PRESSURE_FALL,
-  VSM_FEEDBACK_POOL,
 } from './constants.ts'
 import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
 import {
   vsmDefaultProjectionData,
   type VsmProjectionDataValues,
 } from './projection/projectionData.ts'
-import { createReadbackRing, type ReadbackRing } from '../../../gpu/core/readbackRing.ts'
 import { vsmDemandPages } from './poolDraw.ts'
 import { clamp, lerp } from '../../../../../math/src/scalar/reals.ts'
 import type { VsmClipmap } from './clipmap.ts'
@@ -112,10 +110,13 @@ export class VsmMapCache {
   }
 }
 
-/** A clipmap's cache key: a change invalidates. */
+/** A clipmap's cache key: a change invalidates. `shadowDistance` is the light's own number, in
+ *  metres (`shadowDistanceOf`): a sun re-created by a new distance has no cached page of the old
+ *  one, whatever the edge, the view's scale or its switches make of it each frame. */
 interface VsmSunCacheKey {
   lightDirection: [number, number, number]
   firstLevel: number
+  shadowDistance: number
 }
 
 /** A local light's cache key: a change invalidates. `shape` is what recreating the light's
@@ -149,7 +150,9 @@ export class VsmLightCache {
     lightOriginShift: [0, 0, 0],
     shape: [Number.NaN, Number.NaN, Number.NaN],
   }
-  private clipmapCacheKey: VsmSunCacheKey = { lightDirection: [NaN, NaN, NaN], firstLevel: 0 }
+  private clipmapCacheKey: VsmSunCacheKey = {
+    ...{ lightDirection: [NaN, NaN, NaN], firstLevel: 0, shadowDistance: NaN },
+  }
   /** A sun's clipmap (`buildVsmClipmap`), a local light's setup (`addVsmLocalLightShadow`): kept
    *  with the entry, rewritten in place every frame, made anew with a new entry. */
   clipmap?: VsmClipmap
@@ -204,19 +207,23 @@ export class VsmLightCache {
     }
   }
 
-  /** Updates a clipmap's cache entry. */
+  /** Updates a clipmap's cache entry; whether its key changed — the light was made or moved. */
   updateClipmap(key: VsmSunCacheKey, forceInvalidate: boolean) {
     const k = this.clipmapCacheKey
     const changed =
-      !sameValues(key.lightDirection, k.lightDirection) || key.firstLevel !== k.firstLevel
+      !sameValues(key.lightDirection, k.lightDirection) ||
+      key.firstLevel !== k.firstLevel ||
+      key.shadowDistance !== k.shadowDistance
     this.updateCommon(changed, forceInvalidate, true)
     if (changed) {
       copyInto(k.lightDirection, key.lightDirection)
       k.firstLevel = key.firstLevel
+      k.shadowDistance = key.shadowDistance
     }
+    return changed
   }
 
-  /** Updates a local light's cache entry. */
+  /** Updates a local light's cache entry; whether its key changed, as a clipmap's. */
   updateLocal(key: VsmLocalLightCacheKey, forceInvalidate: boolean) {
     const k = this.localCacheKey
     const changed =
@@ -229,6 +236,7 @@ export class VsmLightCache {
       copyInto(k.lightOriginShift, key.lightOriginShift)
       copyInto(k.shape, key.shape)
     }
+    return changed
   }
 }
 
@@ -400,46 +408,4 @@ export class VsmCacheManager {
 function approach(from: number, to: number, share: number) {
   const next = Math.fround(lerp(from, to, share))
   return next === from ? to : next
-}
-
-/** Bytes the readback holds at most: `maxInFlight` copies of the 4-word message. */
-export const vsmFeedbackReadbackBytes = (maxInFlight = 3) => maxInFlight * 16
-
-/**
- * The GPU → CPU path of the status feedback message (the status feedback kernel): copies the 4-word
- * `feedback` buffer ([message id, free pages, pressure bias bits, scene frame]) into a mappable
- * buffer and, when it maps, feeds `VsmCacheManager.readPoolFeedback`. A few frames in flight,
- * never stalls.
- */
-export class VsmFeedbackReadback {
-  private readonly ring: ReadbackRing
-
-  constructor(device: GPUDevice, cache: VsmCacheManager, maxInFlight = 3) {
-    this.ring = createReadbackRing(
-      device,
-      { label: 'vsm.feedbackReadback', bytes: 16, count: maxInFlight },
-      (mapped) => {
-        const words = new Uint32Array(mapped)
-        if (words[0] === (VSM_FEEDBACK_POOL as number))
-          cache.readPoolFeedback(words[1] | 0, new Float32Array(mapped, 8, 1)[0])
-      },
-    )
-  }
-
-  /** Records the copy; returns false when every staging buffer is still in flight (skipped). */
-  encode(encoder: GPUCommandEncoder, feedback: GPUBuffer) {
-    const staging = this.ring.take()
-    if (!staging) return false
-    encoder.copyBufferToBuffer(feedback, 0, staging, 0, 16)
-    return true
-  }
-
-  /** Call after `queue.submit` of the encoder given to `encode`. */
-  afterSubmit() {
-    this.ring.submitted()
-  }
-
-  destroy() {
-    this.ring.destroy()
-  }
 }

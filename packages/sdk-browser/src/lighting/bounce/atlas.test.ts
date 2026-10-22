@@ -19,6 +19,16 @@ import { createBounceSchedule } from './schedule.ts'
 import { BOUNCE_TABLE_SHADER } from './probes/tableWgsl.ts'
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { cacheFilterEntries, cacheTilesEntries, cacheTraceEntries } from './cache/cacheBindings.ts'
+import { CACHE_FILTER_PROGRAM } from './cache/cacheFilterWgsl.ts'
+import { CACHE_TILES_PROGRAM } from './cache/cacheTilesWgsl.ts'
+import { CACHE_TRACE_PROGRAM } from './cache/cacheTraceWgsl.ts'
+import {
+  reservedNames,
+  topLevelNames,
+  unbalanced,
+  unresolvedNames,
+} from '../../gpu/core/wgslNames.fixture.ts'
 import { BOUNCE_PROBE_SHADER } from './probes/probeWgsl.ts'
 import { BOUNCE_CENSUS_SHADER, CENSUS, CENSUS_WORDS } from './probes/censusWgsl.ts'
 import { kernelShapeOf, screenProbeSources } from './screen/kernels.ts'
@@ -240,6 +250,7 @@ test('the kernels are keyed by what their code depends on: a switch of the occlu
       'occlusion',
       'place',
       'rays',
+      'scatter',
       'screenData',
       'spatial',
       'temporal',
@@ -254,4 +265,26 @@ test('the kernels are keyed by what their code depends on: a switch of the occlu
     [],
     'the passes are a count',
   )
+})
+
+test('every kernel of the radiance cache is a module a device takes: its names declared, none reserved or twice, its bindings the layout holds', () => {
+  const kernels = {
+    tiles: [CACHE_TILES_PROGRAM, cacheTilesEntries(), ['clearPdf', 'generateTiles']],
+    trace: [CACHE_TRACE_PROGRAM, cacheTraceEntries(), ['traceTiles']],
+    filter: [CACHE_FILTER_PROGRAM, cacheFilterEntries(), ['filterMaps']],
+  } as const
+  for (const [name, [code, entries, points]] of Object.entries(kernels)) {
+    assert.deepEqual(unresolvedNames(code), [], name)
+    assert.deepEqual(reservedNames(code), [], name)
+    assert.equal(unbalanced(code), '', name)
+    const names = topLevelNames(code)
+    assert.equal(new Set(names).size, names.length, name)
+    const declared = [...code.matchAll(/@group\(0\)\s*@binding\((\d+)\)/g)].map((m) => +m[1])
+    assert.deepEqual(
+      declared.sort((a, b) => a - b),
+      entries.map((entry) => entry.binding).sort((a, b) => a - b),
+      name,
+    )
+    for (const point of points) assert.ok(code.includes(`fn ${point}(`), `${name} ${point}`)
+  }
 })

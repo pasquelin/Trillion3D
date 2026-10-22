@@ -157,11 +157,18 @@ test('how the motion blur is drawn is the page’s setting, applied once each', 
   switches.motionBlur = { motionBlurQuality: true }
   assert.equal(switches.motionBlur.motionBlurQuality, 'veryHigh')
   assert.throws(() => (switches.motionBlur = { motionBlurQuality: 'ultra' as never }), /ultra/)
-  // The directions are one or two, one by default.
-  assert.equal(switches.motionBlur.motionBlurDirections, 1)
-  switches.motionBlur = { motionBlurDirections: 2 }
-  assert.equal(switches.motionBlur.motionBlurDirections, 2)
-  assert.throws(() => (switches.motionBlur = { motionBlurDirections: 3 }), /motionBlurDirections/)
+  // The directions are one or two, one by default; the scale and the overrides have the reference's
+  // defaults and ranges.
+  const at = (...fields: (keyof typeof switches.motionBlur)[]) =>
+    fields.map((field) => switches.motionBlur[field])
+  assert.deepEqual(
+    at('motionBlurDirections', 'motionBlurScale', 'motionBlurMaxOverride'),
+    [1, 1, -1],
+  )
+  switches.motionBlur = { motionBlurDirections: 2, motionBlurScale: 50 }
+  assert.deepEqual(at('motionBlurDirections', 'motionBlurScale'), [2, 50])
+  for (const bad of [{ motionBlurDirections: 3 }, { motionBlurScale: 51 }])
+    assert.throws(() => (switches.motionBlur = bad), /motionBlur(Directions|Scale)/)
 })
 
 // The film effects' settings are a family by rule (`FILM_RULES`), in the image effects' quality group:

@@ -12,6 +12,11 @@ import { MATERIAL_COMPUTE_PASS, MATERIAL_SURFACES_PASS } from '../../diagnostic/
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
 import { createTextureCaches } from '../texture/textureCaches.ts'
 import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+import { commandArgs } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import { FLAG_DISPLACED } from '../../visibility/types.ts'
+import { SHADE_UNIFORM } from '../../visibility/shader/uniformLayout.ts'
+import { PRISM_UNIFORM } from '../../visibility/tessellation/prismWgsl.ts'
 
 const passSummary = (passes: FakePass[]) => passes.map((pass) => [pass.label, drawsOf(pass)])
 
@@ -109,4 +114,68 @@ test('a backend makes no material depth, its classes are compute stages, and dis
   assert.equal(destroyed.includes(ids), false)
   backend.dispose()
   assert.equal(destroyed.includes(ids), true)
+})
+
+test('a class that draws displaced pixels shades over its own group and pipeline, the others over the resolve’s', () => {
+  const { rt, device, writes, encoder, computePasses, ordinary, bins } = resolveFixture(
+    [5, 9, 5],
+    [5, 9],
+  )
+  // Class 5 holds a displaced row the image tessellates; class 9 none.
+  const rows = rt.layout.rows as unknown as { pageTableInts: Uint32Array; rowWrites: number }
+  rows.pageTableInts[PAGE_INFO.at.flags] = FLAG_DISPLACED
+  rows.rowWrites = 1
+  const token = () => ({}) as GPUBuffer
+  const atlas = () => ({ views: [{}, {}, {}], pages: { buffer: token() } })
+  Object.assign(rt.vis, {
+    materialTable: { displaced: { count: 1 }, view: {} },
+    visView: {},
+    concatPos: token(),
+    concatUv: token(),
+    concatNrm: {},
+    pageTable: token(),
+    textures: { color: atlas(), data: atlas() },
+    mapsSampler: {},
+    shadeUniform: token(),
+    shadeCache: { buffer: token(), encode: () => {} },
+    voxelSteps: { buffer: token() },
+    shadeUniPacked: new Float32Array(SHADE_UNIFORM.words).map((_, i) =>
+      i < 16 && i % 5 === 0 ? 1 : 0,
+    ),
+  })
+  Object.assign(rt.gpu, {
+    device,
+    cache: { buffer: token() },
+    depthView: {},
+    surfaces: { views: () => ['a', 'b', 'c', 'd'], lobesView: {} },
+  })
+  Object.assign(rt.run, { gate: { cam: { eye: [0, 0, 0] } } })
+  const classes = rt.vis.shadeClasses as unknown as Record<string, unknown>
+  classes.displaced = (key: number) => ({ get: () => ({ displaced: key }) })
+  encodeMaterialPasses(rt, encoder)
+  const groups = commandArgs(computePasses[0].commands, 'setBindGroup').map(([index, group]) => [
+    index,
+    group === 'bind group' ? 'resolve' : group === 'output group' ? 'output' : 'displaced',
+  ])
+  // The outputs first, then each class's group 0 as it needs it, set again only where it changes.
+  assert.deepEqual(groups, [
+    [1, 'output'],
+    [0, 'displaced'],
+    [0, 'resolve'],
+  ])
+  assert.deepEqual(pipelinesOf(computePasses[0]), [{ displaced: 5 }, ordinary.get(9)])
+  assert.deepEqual(bins.shaded, [0, 1])
+  // The view's numbers went up first: the inverse of the shade uniform's matrix (the identity here),
+  // the eye, the frame tessellating, the pixels it draws.
+  const sent = writes.find(
+    (w) => (w.buffer as { label?: string }).label === 'Trillion3D displaced resolve',
+  )
+  const words = new Float32Array(sent!.data.buffer, sent!.data.byteOffset, PRISM_UNIFORM.words)
+  const at = PRISM_UNIFORM.at
+  assert.deepEqual(
+    Array.from(words.slice(at.invViewProj, at.invViewProj + 16)),
+    Array.from(rt.vis.shadeUniPacked.slice(0, 16)),
+  )
+  assert.deepEqual(Array.from(words.slice(at.viewport, at.viewport + 2)), [8, 4])
+  assert.equal(new Uint32Array(words.buffer, words.byteOffset, words.length)[at.tessellation], 1)
 })

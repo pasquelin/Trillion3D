@@ -8,13 +8,13 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { createGpuHiz } from '../../visibility/hiz/gpu/factory.ts'
 import { createScreenReflection } from '../reflections/gpu.ts'
 import { encodeScreenProbes } from '../bounce/screen/frame.ts'
-import { SCREEN_PROBE_PASS } from '../../diagnostic/stage/passLabels.ts'
+import { AMBIENT_OCCLUSION_PASS, SCREEN_PROBE_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { dispatchedEntries } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { createDeferredLighting } from './deferred.ts'
 import { gpuHarness } from './contractLighting.fixture.ts'
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts'
+import { blueNoiseTextures } from '../../gpu/noise/blueNoiseTextures.ts'
 import { encodeAmbientOcclusion } from '../ao/frame.ts'
-import { AMBIENT_OCCLUSION_PASS } from '../../diagnostic/stage/passLabels.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 
 // A frame drawn below the display without the temporal resolve was composed pixel for pixel: the
@@ -135,6 +135,35 @@ test('the screen probes leave out the passes their settings leave out, and cast 
   assert.equal(held.rt.gpu.screenProbes, undefined, 'off gives them back')
 })
 
+/** The words the lighting was last told of how to read the screen probes (`writeScreenProbes`). */
+const screenProbeWords = (h: { writes: { offset: number; data: unknown }[] }) => {
+  const last = h.writes.filter((w) => w.offset === VIEW_LAYOUT.at.screenProbes * 4).at(-1)
+  return last ? [...new Float32Array(last.data as ArrayLike<number>)] : []
+}
+
+test('the level low runs the occlusion and the temporal pass alone over one probe, and tells the lighting to read their occlusion over the world’s light; a level that casts tells it the probes’ light', async () => {
+  const low = await probesRuntime({ screenProbes: 'low' })
+  await low.encode()
+  assert.deepEqual(dispatchedEntries(low.h.dispatches), ['occlusion', 'temporal'])
+  const metrics = low.rt.bounce.screen!.metrics!
+  assert.deepEqual([metrics.level, metrics.raysPerImage, metrics.atlas], ['low', 0, [0, 0]])
+  assert.deepEqual(
+    screenProbeWords(low.h),
+    [1, 0.5, 1, 1],
+    'the material’s occlusion, the albedo cap, the strength, mode 1',
+  )
+  const ultra = await probesRuntime()
+  await ultra.encode()
+  assert.deepEqual(screenProbeWords(ultra.h), [1, 0.5, 1, 0], 'mode 0: the probes’ light')
+  const bare = await probesRuntime({
+    screenProbes: 'low',
+    screenProbeShortRangeOcclusion: false,
+  })
+  encodeScreenProbes(bare.rt, bare.h.encoder)
+  assert.deepEqual(bare.h.dispatches, [], 'a level with no probe and no occlusion runs nothing')
+  assert.equal(bare.rt.gpu.screenProbes, undefined)
+})
+
 test('a render scale moves the size an image is drawn at, and the probes made for the targets stay: nothing is remade, the history alone is dropped', async () => {
   const { h, rt, encode } = await probesRuntime()
   await encode()
@@ -155,6 +184,8 @@ test('a render scale moves the size an image is drawn at, and the probes made fo
 
 test('a budget with no room for the probes leaves the lighting none to read, says why, and holds none', async () => {
   const { h, rt } = await probesRuntime()
+  // The engine's blue noise is made before the budget shrinks: the probes' own memory is what has no room.
+  await blueNoiseTextures(h.device)
   installGpuDeviceLedger(h.device, { limit: () => 1024 })
   // The kernels compile off the frame; once they have, the first image that would make the probes finds no room for them.
   for (let waited = 0; waited < 100; waited++) {
@@ -167,17 +198,16 @@ test('a budget with no room for the probes leaves the lighting none to read, say
   assert.equal(h.dispatches.length, 0, 'no pass encoded')
 })
 
-test('the frame runs the screen probes after the reflections and before the lighting binds their result', () => {
-  const text = readFileSync(
-    new URL('../../frame/render/surfaceLighting.ts', import.meta.url),
-    'utf8',
-  )
+test('the frame runs the screen probes after the reflections, the radiance cache the screen probes did not update after them, the occlusion after that, and the lighting binds their results after all', () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+  const preLight = read('../../frame/render/preLight.ts')
   const order = [
     'encodeReflections(rt, encoder)',
     'encodeScreenProbes(rt, encoder)',
-    'gpu.deferred.bind(',
+    'flushRadianceCache(rt, encoder)',
+    'encodeAmbientOcclusion(rt, encoder, cam)',
   ]
-  const at = order.map((call) => text.indexOf(call))
+  const at = order.map((call) => preLight.indexOf(call))
   assert.ok(
     at.every((index) => index >= 0),
     `each is called: ${at}`,
@@ -186,6 +216,12 @@ test('the frame runs the screen probes after the reflections and before the ligh
     at,
     [...at].sort((a, b) => a - b),
     'in this order',
+  )
+  const surfaces = read('../../frame/render/surfaceLighting.ts')
+  assert.ok(
+    surfaces.indexOf('encodePreLight(rt, device, encoder, cam, direct)') <
+      surfaces.indexOf('lightSurfaces(rt, encoder, clear, raw, direct)'),
+    'the lighting binds after the passes it reads',
   )
 })
 
@@ -220,7 +256,7 @@ test('where no screen probes light the image, the occlusion draws its passes in 
   const { h, rt, encode, applied, labels } = await occlusionRuntime()
   await encode()
   // The default quality: two resolutions, the shader quality 2 — the setup, the search at the half, the last pass.
-  assert.deepEqual(labels(), ['setup', '2snm', '2gul'])
+  assert.deepEqual(labels(), ['setup', '2sn', '2fu'])
   assert.deepEqual(
     h.passDescriptors.slice(-3).map((pass) => pass.label),
     Array(3).fill(AMBIENT_OCCLUSION_PASS),
@@ -239,7 +275,7 @@ test('where no screen probes light the image, the occlusion draws its passes in 
     .filter((write) =>
       String((write.buffer as { label?: string })?.label).includes('ambient occlusion pass'),
     )
-    .map((write) => [...new Float32Array(write.data as ArrayLike<number>)])
+    .map((write) => [...new Float32Array(new Uint32Array(write.data as ArrayLike<number>).buffer)])
   assert.deepEqual(
     uniforms.map((w) => [+w[4].toFixed(4), w[6]]),
     [
@@ -271,27 +307,15 @@ test('with the screen probes on, the occlusion draws nothing and holds nothing; 
 test('the occlusion draws as many resolutions as its settings ask, and gives its textures back when it draws none', async () => {
   const one = await occlusionRuntime({ screenProbes: 'off', ambientOcclusionLevels: 1 })
   await one.encode()
-  assert.deepEqual(one.labels(), ['2gnl'])
+  assert.deepEqual(one.labels(), ['setup', '2fn'], 'the half-size depth map, the last pass')
   const three = await occlusionRuntime({ screenProbes: 'off', ambientOcclusionQuality: 90 })
   await three.encode()
   // Setups of the half and the quarter, their searches, and the last pass: shader quality 4, the six-point set.
-  assert.deepEqual(three.labels(), ['setup', 'setup', '4snm', '4sum', '4gul'])
+  assert.deepEqual(three.labels(), ['setup', 'setup', '4sn', '4su', '4fu'])
   const draws = three.h.draws.length
   three.rt.context.ambientOcclusionIntensity = 0
   encodeAmbientOcclusion(three.rt, three.h.encoder, three.camera)
   assert.equal(three.h.draws.length, draws, 'no pass')
   assert.equal(three.rt.gpu.ambientOcclusion!.bytes, 0, 'no byte')
   assert.deepEqual(three.applied(), [0, 0], 'the lighting applies none')
-  const text = readFileSync(
-    new URL('../../frame/render/surfaceLighting.ts', import.meta.url),
-    'utf8',
-  )
-  const calls = ['encodeScreenProbes(rt', 'encodeAmbientOcclusion(rt', 'gpu.deferred.bind('].map(
-    (c) => text.indexOf(c),
-  )
-  assert.deepEqual(
-    calls,
-    calls.toSorted((a, b) => a - b),
-    'before the lighting binds its texture',
-  )
 })

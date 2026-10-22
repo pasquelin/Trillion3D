@@ -1,4 +1,4 @@
-import { sameElements } from '../../../../math/src/matrix/matrixElements.ts'
+import { sameElements, sameRange } from '../../../../math/src/matrix/matrixElements.ts'
 import type { SelectionUniforms } from './selection.ts'
 
 /** Same threshold, projection and pose: the view a readback describes. The render matrices, the
@@ -10,7 +10,7 @@ export function sameSelectionUniforms(a: SelectionUniforms, b: SelectionUniforms
     (a.cullOff ?? 0) !== (b.cullOff ?? 0) ||
     (a.viewDistanceScale ?? 1) !== (b.viewDistanceScale ?? 1) ||
     a.filter !== b.filter ||
-    !sameClipPlane(a.clipPlane, b.clipPlane) ||
+    !sameRange(a.clipPlane, b.clipPlane, 4) ||
     a.near !== b.near ||
     (a.perspective ?? 1) !== (b.perspective ?? 1) ||
     a.pixelScale[0] !== b.pixelScale[0] ||
@@ -24,12 +24,6 @@ export function sameSelectionUniforms(a: SelectionUniforms, b: SelectionUniforms
   )
     return false
   return sameElements(a.view, b.view)
-}
-
-/** Whether two views clip by the same plane, none and all zero alike. */
-function sameClipPlane(a: SelectionUniforms['clipPlane'], b: SelectionUniforms['clipPlane']) {
-  for (let k = 0; k < 4; k++) if ((a?.[k] ?? 0) !== (b?.[k] ?? 0)) return false
-  return true
 }
 
 export function copySelectionUniforms(source: SelectionUniforms): SelectionUniforms {
@@ -47,7 +41,7 @@ export function copySelectionUniforms(source: SelectionUniforms): SelectionUnifo
     occlusion: source.occlusion,
     cullOff: source.cullOff,
     viewDistanceScale: source.viewDistanceScale,
-    clipPlane: source.clipPlane && [...source.clipPlane],
+    clipPlane: [...source.clipPlane],
     filter: source.filter,
     prevViewProj: source.prevViewProj?.slice(),
     prevDepthMap: source.prevDepthMap && [source.prevDepthMap[0], source.prevDepthMap[1]],

@@ -1,6 +1,6 @@
 // The sun's clipmap tests' camera and light-space helpers.
-import { VSM_SUN_FINEST_LEVEL, VSM_SUN_COARSEST_LEVEL } from './constants.ts'
 import { createVsmClipmap, type VsmClipmap } from './clipmap.ts'
+import { VSM_DEFAULT_SHADOWS, vsmSunLevels, type VsmMapSettings } from './mapSettings.ts'
 import { transformAffinePoint } from '../../../../../math/src/vector/vector.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 
@@ -8,14 +8,19 @@ export const SUN = { id: 'sun', direction: [0.3, -0.9, 0.2] }
 /** A 90° perspective camera (x_clip = x_view); its kind is the camera's `perspective`. */
 export const PROJECTION = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, -1, 0, 0, -0.1, 0]
 export const VIEW = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-export const LEVELS = VSM_SUN_COARSEST_LEVEL - VSM_SUN_FINEST_LEVEL + 1
+export const LEVELS = vsmSunLevels(VSM_DEFAULT_SHADOWS)
 
-export function frame(cache: VsmCacheManager, eye: number[], width = 1024) {
+/** The settings `changes` write over the defaults, at scene frame `frame` when it is given. */
+export const mapsOf = (changes: Partial<typeof VSM_DEFAULT_SHADOWS>, frame?: number) =>
+  ({ shadows: { ...VSM_DEFAULT_SHADOWS, ...changes }, frame }) as VsmMapSettings
+
+export function frame(cache: VsmCacheManager, eye: number[], width = 1024, maps?: VsmMapSettings) {
   return createVsmClipmap(
     cache,
     SUN,
     { view: VIEW, projection: PROJECTION, perspective: true, eye },
     { width, height: width },
+    maps,
   )
 }
 /** World metres → the clipmap's light space, centimetres. */

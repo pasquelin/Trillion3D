@@ -24,10 +24,9 @@
  *
  * Every field is optional; the defaults are an Earth-like planet. `true` takes them all.
  */
-import { EngineError } from '../../contracts/cache.ts'
 import type { LinearRgb } from '../../contracts/material.ts'
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
-import { finite } from './fog.ts'
+import { colourOf, finite, refusal } from './fogChecks.ts'
 
 /** The ozone layer: a tent of absorbing gas, `peak` of its density at `altitude`, down to none
  *  `width` below and above it. */
@@ -113,9 +112,7 @@ const ATMOSPHERE_DEFAULTS: ResolvedAtmosphere = /* @__PURE__ */ (() =>
     sampleCountScale: 1,
   }))()
 
-const refuse = (message: string, atmosphere: unknown): never => {
-  throw new EngineError('INVALID_SCENE_ENVIRONMENT', `atmosphere: ${message}`, { atmosphere })
-}
+const refuse = refusal('atmosphere')
 
 /** The numeric fields a limit applies to. */
 type NumberField = Exclude<
@@ -149,10 +146,7 @@ type LinearField =
 
 /** A colour of three finite numbers ≥ 0; the field's default when it is absent. */
 function colour(atmosphere: SceneAtmosphere, field: LinearField | 'groundAlbedo'): LinearRgb {
-  const value = atmosphere[field] ?? ATMOSPHERE_DEFAULTS[field]
-  if (!Array.isArray(value) || value.length !== 3 || !value.every((c) => finite(c) && c >= 0))
-    refuse(`${field} expects three finite numbers ≥ 0`, atmosphere)
-  return [value[0], value[1], value[2]]
+  return colourOf(atmosphere[field] ?? ATMOSPHERE_DEFAULTS[field], field, atmosphere, refuse)
 }
 
 /** The scale of the march's samples, in `(0, 1]`. */

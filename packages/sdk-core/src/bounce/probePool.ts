@@ -1,6 +1,6 @@
 import type { BounceCascades } from './cascades.ts'
 import { BOUNCE_SETTINGS } from './contracts.ts'
-import { createProbePlan, type ProbeEmit, type TableEmit } from './probePlan.ts'
+import { createProbePlan, type ProbeCosts, type ProbeEmit, type TableEmit } from './probePlan.ts'
 import { createProbeSlots, type ProbeSlots } from './probeSlots.ts'
 
 /**
@@ -41,7 +41,8 @@ export interface ProbePool {
   restart(): void
   /**
    * Queues the probes of image `frame` for an eye at `viewpoint` (`createProbePlan`): up to `queue`
-   * probes never traced, then the others, `budget` in all; returns how many.
+   * probes never traced, then the others, `budget` probes' cost in all (`costs`: by distance from the eye, a quarter,
+   * one or four times a probe's whole cost); returns how many.
    */
   probes(
     frame: number,
@@ -49,6 +50,7 @@ export interface ProbePool {
     queue: number,
     budget: number,
     emit: ProbeEmit,
+    costs?: ProbeCosts,
   ): number
   /** The texels of the GPU's table that changed, `limit` at most, written through `emit`; how many. */
   table(limit: number, emit: TableEmit): number
@@ -89,7 +91,10 @@ function giveBack(slots: ProbeSlots, gone: (slot: number) => boolean) {
 export function createProbePool(cascades: BounceCascades): ProbePool {
   const slots = createProbeSlots(cascades)
   const levels = cascades.levels.length
-  const plan = createProbePlan(slots, levels)
+  const plan = createProbePlan(
+    slots,
+    cascades.levels.map((level) => level.spacing),
+  )
   const kept = BOUNCE_SETTINGS.probeKeptMarks
   const eye = new Int32Array(levels * 3)
   const { tally, cell, usedAt } = slots
@@ -124,11 +129,11 @@ export function createProbePool(cascades: BounceCascades): ProbePool {
       giveBack(slots, unread)
     },
     restart: slots.restart,
-    probes(frame, viewpoint, queue, budget, emit) {
+    probes(frame, viewpoint, queue, budget, emit, costs) {
       for (let level = 0; level < levels; level++)
         for (let axis = 0; axis < 3; axis++)
           eye[level * 3 + axis] = Math.floor(viewpoint[axis] / cascades.levels[level].spacing)
-      return plan.probes(frame, eye, queue, budget, emit)
+      return plan.probes(frame, eye, viewpoint, queue, budget, emit, costs)
     },
     table: plan.table,
   }

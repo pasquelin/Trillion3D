@@ -14,6 +14,8 @@ const FUNCTIONS = [
   'rtBegin',
   'rtRadiance',
   'rtLayers',
+  'rtLayersOver',
+  'rtNoRings',
   'rtSurfaceOf',
   'rtStoppedSeen',
   'rtFacing',
@@ -47,6 +49,45 @@ const FUNCTIONS = [
   'rtBlocked',
   'rtProbeRay',
 ]
+/** The tracer's private state at the start of a walk (`rtBegin`): every `var<private>` of the proxy's rays, the
+ *  counters zero, the budgets the whole ones, which a program run over it (`runOver`, a stage of the reflections) is
+ *  given. */
+export const RT_PRIVATE_STATE = {
+  rtWork: 0,
+  rtTests: 0,
+  rtShadowWork: 0,
+  rtBudget: RAY_WORK,
+  rtTestBudget: RAY_TRIANGLES,
+  rtCause: 0,
+  rtReached: 0,
+  rtReachedPlacement: 0,
+  rtAnyHit: false,
+  rtShadowFree: 0,
+  rtShadowHit: 0,
+  rtShadowCause: 0,
+  rtMembers: 0,
+}
+
+/** The windows of a ringed walk (`RtRings`) and what a walk answers (`RtWalk`), as the run reads and returns them. */
+export type RtRings = {
+  begins: number[]
+  ends: number[]
+  count: number
+  work: number
+  tests: number
+  on: boolean
+  detail: number[]
+  detailWork: number
+  detailTests: number
+}
+export type RtWalk = {
+  answer: { color: Vec3; confidence: number; distance: number }
+  stopped: number
+  open: number
+  spent: number
+  work: number
+}
+
 /** The proxy's bindings the run declares. */
 export const BINDINGS = { group: 0, proxy: 12, worlds: 13, tree: 14 }
 
@@ -92,6 +133,17 @@ export function runOver(
       tangent: number,
       budget: number,
     ) => { color: Vec3; confidence: number; distance: number }
+    rtLayersOver: (
+      o: Vec3,
+      d: Vec3,
+      reach: number,
+      tangent: number,
+      budget: number,
+      tests: number,
+      lit: boolean,
+      rings: RtRings,
+    ) => RtWalk
+    rtNoRings: () => RtRings
     rtProbeRay: (o: Vec3, d: Vec3, reach: number) => number[]
     rtBlocked: (o: Vec3, d: Vec3, span: number) => boolean
     testWork: () => number
@@ -109,19 +161,7 @@ export function runOver(
     rtProxy: header,
     rtWorlds: w.worlds,
     rtTree: w.tree,
-    rtWork: 0,
-    rtTests: 0,
-    rtShadowWork: 0,
-    rtBudget: RAY_WORK,
-    rtTestBudget: RAY_TRIANGLES,
-    rtCause: 0,
-    rtReached: 0,
-    rtReachedPlacement: 0,
-    rtAnyHit: false,
-    rtShadowFree: 0,
-    rtShadowHit: 0,
-    rtShadowCause: 0,
-    rtMembers: 0,
+    ...RT_PRIVATE_STATE,
     // The lights are not this program's: a surface lit is its tint, the lighting a unit.
     surfaceLit: (tint: Vec3) => tint,
     surfaceSeen: (tint: Vec3) => tint,

@@ -2,7 +2,7 @@ import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { SelectionUniforms } from '../../gpu/core/selection.ts'
 import { writeClipDepth } from '../../gpu/core/selectionProjection.ts'
 import type { CutPyramid } from '../../geometry/dag/occlusion.ts'
-import { OCCLUSION_TWO_PASS } from '../../geometry/dag/shader/occlusionWgsl.ts'
+import { OCCLUSION_TWO_PASS, twoPassOf } from '../../geometry/dag/shader/occlusionWgsl.ts'
 import { HIZ_LEVELS } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
@@ -88,6 +88,18 @@ export function notePyramidBuilt(
   source.size[1] = rt.gpu.targetSize[1]
   encoder.copyBufferToBuffer(pyramid.levels, 0, source.levels, 0, LEVELS_BYTES)
   sources.set(view, source)
+}
+
+/** The pyramid the drawn view's main pass tests against, as `writeCutOcclusion` bound it to the cut:
+ *  the previous image's, its texture through the levels it was built with; none for a cut in one
+ *  pass, which tests no box and no patch (`../../visibility/tessellation/`). */
+export function previousPyramid(rt: WebgpuPagesRuntime): CutPyramid | undefined {
+  if (!twoPassOf(rt.run.selectionUniforms)) return undefined
+  const source = sources.get(rt.views.active),
+    pyramid = cutPyramid(rt)
+  return source && pyramid && source.view === pyramid.view
+    ? { view: pyramid.view, levels: source.levels }
+    : undefined
 }
 
 /**

@@ -10,6 +10,7 @@ import assert from 'node:assert/strict'
 import { DIRECT_LIGHT_WGSL } from './direct/lightWgsl.ts'
 import { distanceVector3 } from '../../../math/src/vector/vector.ts'
 import { AIR_BUFFER_STRUCT } from './atmosphere/layout.ts'
+import { FOG_VIEW_SLOT, FOG_VIEW_SLOTS } from './fog/viewSlots.ts'
 import { LIGHT_BUFFER_AT } from '../frame/backend/state/lightBufferLayout.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { FOG_SLOTS, packFog } from '../../../sdk-core/src/scene/core/fog.ts'
@@ -22,6 +23,7 @@ import {
   expected,
   heightLaw,
   lawHolds,
+  fogRun,
   near,
   points,
   wgslFogged,
@@ -103,6 +105,101 @@ test('height fog: every field of the law, against the integrated density', () =>
     RGB.map((v) => v * 0.1),
     'max',
     5e-5,
+  )
+})
+
+/** The view block of the light buffer holding the world plane `plane` — `dot(xyz, p) + w` at least 0
+ *  kept — in its fog slot, as the CPU writes it: the offset taken to the eye `eye`. */
+const planeView = (plane: number[], eye: V3) => ({
+  fogView: Array.from({ length: FOG_VIEW_SLOTS }, (_, k) =>
+    k === FOG_VIEW_SLOT.clipPlane
+      ? [...plane.slice(0, 3), plane[3] + plane[0] * eye[0] + plane[1] * eye[1] + plane[2] * eye[2]]
+      : [0, 0, 0, 0],
+  ),
+})
+
+test('height fog: a clip plane between the eye and the point starts the fog at the plane, as a start distance there would', () => {
+  const eye: V3 = [0, 4, 0],
+    flat = { ...HEIGHT, startDistance: 0, cutoffDistance: 0 }
+  const P: V3 = [0, 4, 100],
+    scene = { sun: SUN }
+  const fogged = (plane: number[], at = P) =>
+    wgslFogged(flat, RGB, at, eye, { ...scene, ...planeView(plane, eye) })
+  // The plane z = 30 keeps what lies beyond it: the normal (0, 0, 1) and the offset −30.
+  const from30 = { ...flat, startDistance: 30 }
+  const cut = fogged([0, 0, 1, -30])
+  near(cut, wgslFogged(from30, RGB, P, eye, scene), 'the fog of a start distance of 30', 1e-6)
+  near(cut, heightLaw(from30, eye, P), 'the integrated density from 30', 5e-5)
+  const whole = wgslFogged(flat, RGB, P, eye, scene)
+  assert.ok(
+    cut.every((v, i) => Math.abs(v - whole[i]) > 1e-3),
+    'it is not the fog from the eye',
+  )
+  // A plane behind the eye, or past the point, lies outside the ray: the fog from the eye.
+  for (const plane of [
+    [0, 0, 1, 10],
+    [0, 0, 1, -300],
+  ])
+    near(fogged(plane), whole, `${plane}`, 0)
+  // The plane the fog starts at may be slanted: the ray crosses it at its own distance.
+  near(
+    fogged([0.6, 0, 0.8, -24], [30, 4, 40]),
+    wgslFogged({ ...flat, startDistance: 24 }, RGB, [30, 4, 40], eye, scene),
+    'slanted: the ray, 50 long, is along the normal by 50 and the plane lies 24 away on it',
+    1e-6,
+  )
+  // A plane whose normal points the other way — drawn side beyond it, as a view clipped from above
+  // or from the right is — starts the fog just the same: the reference's test of the sum of the
+  // normal's components ignores it (a defect that loses the fog's start), ours tests a non-zero normal.
+  const away: V3 = [0, 4, -100]
+  near(
+    fogged([0, 0, -1, -30], away),
+    wgslFogged(from30, RGB, away, eye, scene),
+    'the plane z = -30 keeps what lies beyond it, the fog starts there',
+    1e-6,
+  )
+  near(
+    fogged([-1, 0, 0, -30], [-100, 4, 0]),
+    wgslFogged(from30, RGB, [-100, 4, 0], eye, scene),
+    'x',
+    1e-6,
+  )
+})
+
+test('height fog: the plane is crossed by the ray the fog integrates, from the eye held to its ceiling', () => {
+  // 900 m up, past 655 m above the base: the eye is held at 658.36 and the ray's rise compensated.
+  const eye: V3 = [0, 900, 0],
+    P: V3 = [0, 100, 300],
+    flat = { ...HEIGHT, startDistance: 0, cutoffDistance: 0 }
+  const held = HEIGHT.baseHeight + 655.36
+  const ray = [0, P[1] - held, 300]
+  // The plane y = 500 keeps what lies above it, the eye's side: where the compensated ray crosses it
+  // from the held observer, by the world's own arithmetic.
+  const time = -(held - 500) / ray[1]
+  const start = time * Math.hypot(ray[1], ray[2])
+  near(
+    wgslFogged(flat, RGB, P, eye, planeView([0, 1, 0, -500], eye)),
+    wgslFogged({ ...flat, startDistance: start }, RGB, P, eye),
+    'the fog starts where the held observer’s ray meets the plane',
+    1e-5,
+  )
+})
+
+test('height fog: the sky’s ray is measured from the plane too', () => {
+  const eye: V3 = [0, 4, 0],
+    flat = { ...HEIGHT, startDistance: 0, cutoffDistance: 0 }
+  // A ray that rises 0.6 for each 0.8 it advances, leaving the scene: the plane z = 30 crosses it
+  // 37.5 from the eye.
+  const beyond = (fog: typeof flat, scene = {}) =>
+    fogRun<{ fogBeyond: (dir: V3, eye: V3) => number[] }>(fog, ['fogBeyond'], scene).fogBeyond(
+      [0, 0.6, 0.8],
+      eye,
+    )
+  const cut = beyond(flat, planeView([0, 0, 1, -30], eye))
+  near(cut, beyond({ ...flat, startDistance: 37.5 }), 'the sky’s fog starts at the plane', 1e-4)
+  assert.ok(
+    cut.some((v, i) => Math.abs(v - beyond(flat)[i]) > 1e-3),
+    'it is not the fog from the eye',
   )
 })
 

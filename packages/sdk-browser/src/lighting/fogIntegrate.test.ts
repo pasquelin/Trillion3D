@@ -5,21 +5,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { near } from '../../../math/src/float/near.fixture.ts'
+import { subtract } from '../../../math/src/vector/vectorTuple.ts'
 import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { cellGrid } from './fog/layout.ts'
 import { FOG_PROGRAMS } from './fog/programs.ts'
 import { FOG_FURTHEST_WGSL } from './fog/integrateWgsl.ts'
 import { FOG_FRAME_STRUCT_WGSL } from './fog/readWgsl.ts'
-import {
-  CAM,
-  GRID,
-  frameScope,
-  image,
-  pointOf,
-  sub,
-  table,
-  type V3,
-} from './fogVolumeRun.fixture.ts'
+import { CAM, GRID, frameScope, image, pointOf, table, type V3 } from './fogVolumeRun.fixture.ts'
 
 /** The furthest depth's program over a pyramid of `levels` levels, whose cells a test table answers
  *  (`hizCellFarthest`, the depth pyramid's own read, by level and cell). */
@@ -29,6 +21,7 @@ const furthestProgram = (levels: number) =>
 @group(0) @binding(10) var fogFurthestOut:texture_storage_2d<r32float,write>;
 @group(0) @binding(0) var pyramid:texture_2d_array<f32>;
 fn hizLevelCount()->i32{return ${levels};}
+fn hizOpaqueDepth(cell:vec2i)->f32{return textureLoad(pyramid,cell,0,0).r;}
 fn hizCellFarthest(cell:vec2i,level:i32)->f32{return textureLoad(pyramid,cell,level,0).r;}`,
     [FOG_FRAME_STRUCT_WGSL, FOG_FURTHEST_WGSL],
   )
@@ -57,7 +50,7 @@ test('a medium thinner than a thousandth per metre divides its light by the thou
   )
   run.integrateMain([3, 4, 0])
   const here = pointOf([3, 4, 0])
-  const step = Math.hypot(...sub(here, pointOf([3, 4, 0], [0.5, 0.5, 0])))
+  const step = Math.hypot(...subtract(here, pointOf([3, 4, 0], [0.5, 0.5, 0])))
   const [r] = out.cells.get('3,4,0') as number[]
   // The light of the first cell: its scattering over the step, `(1 − e^(−e·d)) / max(e, 10⁻³)`.
   near([r], [(0.2 * (1 - Math.exp(-thin * step))) / 1e-3], 'the guard', 1e-6)
@@ -83,7 +76,7 @@ test('the sum along a column: the light conserved, the transmittance the product
     before = pointOf([3, 4, 0], [0.5, 0.5, 0])
   for (let z = 0; z < GRID.z; z++) {
     const here = pointOf([3, 4, z])
-    const step = Math.hypot(...sub(here, before))
+    const step = Math.hypot(...subtract(here, before))
     const e = 0.5 + 0.01 * z
     const through = Math.exp(-e * step)
     light = light.map((l, c) => l + (([0.2, 0.1, 0.05][c] * (1 - through)) / e) * kept)
@@ -160,19 +153,28 @@ const pyramidOf = (depth: (x: number, y: number) => number) => ({
   },
 })
 
-test('a pyramid too short to hold the footprint holds nothing behind: the furthest depth is nil', () => {
+test('a footprint wider than a short pyramid reads its last level: the image’s furthest depth', () => {
   const out = table()
+  // Two levels: the depth itself and one texel, 0.3; the footprint of a cell reaches past level 1.
   const run = shaderRun<{ furthestMain: (id: number[]) => void }>(
-    furthestProgram(1),
+    furthestProgram(2),
     ['furthestMain'],
     {
       frame: frameScope(image(CAM, true, {}, { grid: GRID7 })),
-      pyramid: pyramidOf(() => 0.5),
+      pyramid: { load: (_c: number[], level: number) => [level === 0 ? 0.9 : 0.3, 0, 0, 0] },
       fogFurthestOut: out,
     },
   )
   run.furthestMain([4, 4, 0])
-  assert.deepEqual(out.cells.get('4,4'), [0, 0, 0, 0])
+  assert.deepEqual(out.cells.get('4,4'), [0.3, 0, 0, 0])
+  // A pyramid of the depth alone — an image of one pixel — reads the depth.
+  const flat = table()
+  shaderRun<{ furthestMain: (id: number[]) => void }>(furthestProgram(1), ['furthestMain'], {
+    frame: frameScope(image(CAM, true, {}, { grid: GRID7 })),
+    pyramid: { load: () => [0.9, 0, 0, 0] },
+    fogFurthestOut: flat,
+  }).furthestMain([4, 4, 0])
+  assert.deepEqual(flat.cells.get('4,4'), [0.9, 0, 0, 0])
 })
 
 test('the furthest depth of a cell is the furthest of the blocks the pyramid would read for it', () => {

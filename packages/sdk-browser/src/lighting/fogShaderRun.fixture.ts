@@ -27,13 +27,14 @@ import { lerp, saturate } from '../../../math/src/scalar/reals.ts'
 import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { near } from '../../../math/src/float/near.fixture.ts'
 import { distanceVector3 } from '../../../math/src/vector/vector.ts'
+import type { Vec3 as V3 } from '../../../math/src/vector/vectorTuple.ts'
 
 export { near }
 
 /** `count` `vec4f` slots, all zero. */
 const zeroSlots = (count: number) => Array.from({ length: count }, () => [0, 0, 0, 0])
 
-export type V3 = [number, number, number]
+export type { V3 }
 export type OldFog = SceneLinearFog | SceneExponentialFog
 /** Points from flat coordinates, three each. */
 export const points = (flat: number[]) =>

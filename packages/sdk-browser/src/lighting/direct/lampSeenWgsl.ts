@@ -23,6 +23,8 @@ export const LAMP_WGSL = wgslBlock(
   [],
   `
 const LINE_FLOOR:f32=1e-12;
+/** \`1 / sum\`, nothing where the sum is nothing. */
+fn inverseOf(sum:f32)->f32{return select(0.0,1.0/sum,sum>0.0);}
 /** Whether a lamp has a size: a source radius or a tube. A sun's lane of \`shape\` is its disk, and a
  *  rectangle's its axis: neither a lamp's source. */
 fn isCapsule(light:DirectLight)->bool{return !isSun(light)&&(light.shape.x>0.0||any(light.capsule!=vec4f(0.0)));}
@@ -44,9 +46,12 @@ fn horizonWrap(cosine:f32,sinSq:f32)->f32{
 }
 /** A lamp of size seen from the point \`offset\` away from its centre, a tube \`halfAxis\` long on each
  *  side of it (zero for a sphere), of source \`radius\`, at normal N, its range and cone \`mask\`, its
- *  inverse square taken at a squared distance \`bias\` longer — \`LAMP_BIAS\`, a medium's own in the way
- *  of its cells, or none for a light a surface's cache stores, whose squared distance is then held at
- *  \`LAMP_BIAS\` at least, so that it stays finite at the lamp. */
+ *  inverse square taken at a squared distance \`bias\` longer: the sum \`1 / (d² + bias)\`, a tube's
+ *  \`i / (c/2 + 1/2 + bias · i)\`. \`bias\` is \`LAMP_BIAS\`, a medium's own in the way of its cells, or 0
+ *  for the light a surface's cache stores: there the sum is the squared distance itself, which is
+ *  nothing at the lamp's own centre (or on a tube's line between its ends), where the division
+ *  would give an infinity and, with the direction it has none of, a NaN into the cache: that point
+ *  takes no light from it (\`inverseOf\`). */
 fn capsuleLamp(offset:vec3f,halfAxis:vec3f,radius:f32,N:vec3f,mask:f32,bias:f32)->Lamp{
  var falloff:f32;var lineCos=1.0;var mean:vec3f;
  if(any(halfAxis!=vec3f(0.0))){
@@ -54,11 +59,11 @@ fn capsuleLamp(offset:vec3f,halfAxis:vec3f,radius:f32,N:vec3f,mask:f32,bias:f32)
   let i0=inverseSqrt(max(dot(p0,p0),LINE_FLOOR));let i1=inverseSqrt(max(dot(p1,p1),LINE_FLOOR));
   let i01=i0*i1;
   lineCos=clamp(dot(p0,p1)*i01,-1.0,1.0);
-  falloff=1.0/max((lineCos*0.5+0.5)/i01+bias,LAMP_BIAS);
+  falloff=i01*inverseOf(lineCos*0.5+0.5+bias*i01);
   mean=0.5*(p0*i0+p1*i1);
  }else{
   let d2=dot(offset,offset);
-  falloff=1.0/max(d2+bias,LAMP_BIAS);
+  falloff=inverseOf(d2+bias);
   mean=offset/max(sqrt(d2),1e-6);
  }
  let toward=mean*inverseSqrt(max(dot(mean,mean),1e-20));

@@ -178,7 +178,8 @@ impl Tally {
 /// The part of a ray's run where a hit counts when none is left out: all of it.
 const OPEN: (f64, f64) = (f64::NEG_INFINITY, f64::INFINITY);
 
-/// The voxel `cell` of side `side`, whose overlapping triangles are `ranks`: its coverage — the
+/// The voxel `cell` of side `side` and rank `rank` (`Sampler::set`), whose overlapping triangles
+/// are `ranks`: its coverage — the
 /// share of its rays that hit inside it — and the sums of each face's rays — a hit `1 / rays` of
 /// its face, its normal turned to the side the ray comes from. A ray's texture is filtered over its
 /// share of the voxel's cross-section, an eighth of the side each way. A ray the build leaves out
@@ -186,8 +187,7 @@ const OPEN: (f64, f64) = (f64::NEG_INFINITY, f64::INFINITY);
 /// Nothing is allocated.
 pub(super) fn sample(
     probe: &Probe<'_>,
-    cell: Cell,
-    side: f64,
+    (cell, side, rank): (Cell, f64, u32),
     ranks: &[u32],
 ) -> (f64, [Moments; FACES]) {
     let among = Among {
@@ -205,7 +205,7 @@ pub(super) fn sample(
     };
     match probe.sampling.single() {
         true => alone(&caster, cell),
-        false => among_rays(&caster, cell),
+        false => among_rays(&caster, rank),
     }
 }
 
@@ -231,11 +231,11 @@ fn alone(caster: &Caster<'_>, cell: Cell) -> (f64, [Moments; FACES]) {
 /// A voxel casting a set of rays: its coverage is the share of the rays counted that hit. A
 /// separable voxel — one whose rays along some axis all hit — is covered whole where a ray of the
 /// crosshair through its centre hits too.
-fn among_rays(caster: &Caster<'_>, cell: Cell) -> (f64, [Moments; FACES]) {
+fn among_rays(caster: &Caster<'_>, rank: u32) -> (f64, [Moments; FACES]) {
     let Probe {
         sampling, sampler, ..
     } = caster.probe;
-    let (set, window) = (sampler.set(cell), sampling.window());
+    let (set, window) = (sampler.set(rank), sampling.window());
     let mut tally = Tally::default();
     for ray in &set.rays {
         tally.add(ray, caster.cast(ray, window));

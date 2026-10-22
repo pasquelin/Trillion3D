@@ -23,7 +23,8 @@ import { FOG_LIGHTS_WGSL } from './lightsWgsl.ts'
  * falls outside the volume, or where the surfaces of the previous image hid it (\`fogRepairHistory\`: the
  * four cells around the read are tested against the previous image's furthest depth; one
  * that failed moves the read toward the side that passed, none that passed drops the history).
- * The blend is \`frame.blend.x\` of the history; the result is held to what a half float stores.
+ * The blend is \`frame.blend.x\` of the history; the result is kept where it is positive and finite as a
+ * 32-bit float, and made zero where it is not (\`fogPositiveFinite\`).
  */
 export const FOG_SCATTER_WGSL = wgslBlock(
   'FOG_SCATTER_WGSL',
@@ -34,11 +35,15 @@ fn fogRand(cell:vec3u,sample:u32)->vec3f{
  let v=rand4dPcg32(vec4i(vec3i(cell),i32(frame.frame.x+8u*sample)));
  return vec3f(v.xyz)/4294967295.0*2.0-1.0;
 }
-/** Where the cell at \`P\` was in the previous volume, in its texture coordinates. */
+/** Where the cell at \`P\` was in the previous volume, in its texture coordinates: its place in the
+ *  previous view, over the cells that image covered of the textures, held to where they end. Its
+ *  depth there is the clip weight, or for an orthographic view — whose weight is 1 — the depth the
+ *  clip depth gives. */
 fn fogHistoryUV(P:vec3f)->vec3f{
  let clip=frame.prevViewProj*vec4f(P,1.0);
- let uvw=vec3f(ndcToUv(perspectiveDivide(clip).xy),fogSliceAtDepth(clip.w)*frame.sliceMap.w);
- return min(uvw*vec3f(frame.previous.xy,1.0),vec3f(1.0));
+ let depth=select(clip.w,(clip.z/clip.w-frame.depthMap.y)/frame.depthMap.x,fogOrtho());
+ let uvw=vec3f(ndcToUv(perspectiveDivide(clip).xy),fogSliceAtDepth(depth)*frame.sliceMap.w);
+ return min(uvw*vec3f(frame.history.xy,1.0),vec3f(frame.history.zw,1.0));
 }
 /** The four texels of the previous furthest depth around \`uv\`, in the order a gather returns
  *  them: bottom-left, bottom-right, top-right, top-left. */
@@ -107,7 +112,7 @@ fn scatterMain(@builtin(global_invocation_id) cell:vec3u){
  var alpha=frame.blend.x;
  var samples=1u;
  if(reproject){
-  if(any(historyUV<vec3f(0.0))||any(historyUV>=vec3f(1.0))||!valid){alpha=0.0;}
+  if(any(historyUV<vec3f(0.0))||any(historyUV>=vec3f(frame.history.zw,1.0))||!valid){alpha=0.0;}
   if(alpha<0.001&&frame.blend.y>1.0){samples=u32(frame.blend.y);}
  }
  let medium=fogMedium(cell);

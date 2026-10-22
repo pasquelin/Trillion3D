@@ -6,13 +6,13 @@ import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
 import { atlasEntry } from '../atlas.ts'
 import { bounceBindingsWgsl } from '../gridWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
-import { spFar } from './farFieldWgsl.ts'
+import { spCacheRead } from './cacheReadWgsl.ts'
 import { spProbes } from './probesWgsl.ts'
 import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
 import { spRays } from './traceWgsl.ts'
 
 /** The field trace's bindings: the probes' records and pixels, the ray words, the radiance written and the ends read and
- *  written in place, the cascades, the light buffer (the sky it holds). */
+ *  written in place, the cascades, the light buffer (the sky it holds), the radiance cache's maps and their tags. */
 export const TRACE_FIELD_BINDINGS = bindingTable({
   params: [0, 'uniform'],
   info: [1, 'float'],
@@ -24,6 +24,10 @@ export const TRACE_FIELD_BINDINGS = bindingTable({
   hit: [7, { store: F.hit, access: 'read-write' }],
   bounceGrid: [8, 'uniform'],
   lights: [10, 'buffer-read'],
+  blue: [11, 'float'],
+  cacheFinal: [12, 'uint'],
+  cacheRaw: [13, 'uint'],
+  cacheTags: [14, 'buffer-read'],
 })
 /** The atlas of the cascades' probes of the field trace. */
 export const TRACE_FIELD_PROBES = 9
@@ -35,12 +39,11 @@ export const traceFieldEntries = () => [
 const T = TRACE_FIELD_BINDINGS.at
 
 /**
- * THE FIELD'S ANSWER TO A PROBE'S RAY, for every ray the screen did not answer: the far field, as the world's probes hold it,
- * blended once for the probe (`spFar`) and read along each ray: the radiance the cascades' probes round the probe's point give
- * along the ray's direction, as far as they answer, the sky and the surroundings the rest; the ray's distance, the probes'
- * mean distance along it where they answered, the scene's limit where they did not (the spatial filter weighs a neighbour's
- * light by the angle its hit makes: a far answer is a far hit). The scene stage after it takes the rays its walk answers
- * from this radiance, in place. A ray the screen answered keeps its radiance and its end.
+ * WHAT LIES PAST THE SCREEN AND THE NEAR SCENE, for every ray the screen did not answer: the radiance cache (`spFarOf`), read for
+ * the probe's point once (`spCacheGather`) — the eight probes of the cell round it — and along each ray (`spCacheSample`):
+ * the light the probes' maps hold along the ray's direction, with the distance their rays went; the environment's, at the ray's
+ * reach, where the cache covers no point of the probe. The scene stage after it takes the rays its walk answers from this
+ * radiance, in place. A ray the screen answered keeps its radiance and its end.
  */
 const SP_TRACE_FIELD = wgslBlock(
   'SP_TRACE_FIELD',
@@ -53,14 +56,14 @@ fn traceField(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index
  let atlas=group.xy;
  let probe=spProbeOrDead(atlas);
  let live=probe.depth>0.0;
- if(live&&spFlag(SP_FLAG_FIELD)){spFarGather(probe.P,probe.N,lane);}
+ if(live&&spFlag(SP_FLAG_CACHE)){spCacheGather(probe.P,lane);}
  workgroupBarrier();
  let t=vec2u(lane%SP_TRACE,lane/SP_TRACE);
  let at=vec2i(atlas*SP_TRACE+t);
  if(!live||spHitIs(textureLoad(hitIo,at).r)){return;}
- let d=spRayDirection(atlas,t,spIndexOf(atlas));
- textureStore(radianceOut,at,vec4u(packLight(spFarRadiance(d)),0u,0u,0u));
- textureStore(hitIo,at,vec4u(spHitWord(spFarDistance(d),false,false),0u,0u,0u));
+ let far=spFarOf(probe.P,spRayDirection(atlas,t,spIndexOf(atlas)));
+ textureStore(radianceOut,at,vec4u(packLight(far.radiance),0u,0u,0u));
+ textureStore(hitIo,at,vec4u(spHitWord(far.distance,false,false),0u,0u,0u));
 }`,
 )
 
@@ -74,8 +77,8 @@ ${wgslConsts({ SP_TRACE: side })}`,
       bounceBindingsWgsl(0, T.bounceGrid, TRACE_FIELD_PROBES),
       spCommon(samples),
       spProbes(T.info, T.normal, T.counts),
-      spFar,
-      spRays(T.ray, T.pixels),
+      spCacheRead(T.cacheFinal, T.cacheRaw, T.cacheTags),
+      spRays(T.ray, T.pixels, T.blue),
       SP_TRACE_FIELD,
     ],
   )

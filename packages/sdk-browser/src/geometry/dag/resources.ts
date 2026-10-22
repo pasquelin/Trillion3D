@@ -73,6 +73,8 @@ export async function createDagResources(
   lists: CutListCaps = cutListCaps(),
   // The least and the most ranks the readout holds: the session's settings.
   requests: RequestBounds = requestBounds(),
+  // The project switch: the cut culls by a view's clip plane.
+  clipPlane = false,
 ) {
   const { bounds, slots, ranks } = readoutSizing(device, packed, listCap, heldSlots, requests)
   const buffers: GPUBuffer[] = [],
@@ -100,7 +102,15 @@ export async function createDagResources(
     const { group, frames, work, dispatchArgs } = made
     // The stages and the arming kernel, asked in one batch under one validation scope.
     const arm = { work, args: dispatchArgs, words: made.workLayout }
-    const compiled = await createDagPipeline(device, group, frames, arm, occlusion.layout, steps)
+    const compiled = await createDagPipeline(
+      device,
+      group,
+      frames,
+      arm,
+      occlusion.layout,
+      steps,
+      clipPlane,
+    )
     const pipeline = compiled.value
     if (!pipeline) {
       release()

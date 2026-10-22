@@ -13,6 +13,7 @@ import { readDescriptors, refusing, texture, withGroups, writeTexels } from './f
 import { fakeBuffers } from './fakeBuffers.ts'
 import { createFakeCommandEncoderFactory, type EncoderRecords } from './fakeEncoder.ts'
 import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
+import '../../../packages/sdk-browser/src/gpu/noise/blueNoise.fixture.ts'
 
 /**
  * THE GPU DEVICE OF THE TESTS, in Node, as WebGPU writes one (`asWebgpuDevice`: an event target,

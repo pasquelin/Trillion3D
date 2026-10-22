@@ -28,6 +28,15 @@ pub(crate) fn children_of(nodes: &[Value], id: usize) -> Result<Vec<usize>> {
     Ok(out)
 }
 
+/// Refuses a document whose `children` or scene name a node it does not hold, before a pass appends
+/// nodes: an index one past the last node would otherwise land on an appended one.
+pub(crate) fn check_references(g: &Value, nodes: &[Value]) -> Result<()> {
+    for id in 0..nodes.len() {
+        children_of(nodes, id)?;
+    }
+    scene_roots(g, nodes).map(|_| ())
+}
+
 /// State of a node in the walk that looks for a cycle: never seen, currently
 /// walking, or fully walked. Finding a node currently being walked means we have
 /// come back on our steps.

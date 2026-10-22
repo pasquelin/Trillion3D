@@ -1,8 +1,8 @@
 //! The `merge` HLOD builder: its cell's original objects merged into one mesh, nothing more — no
 //! simplification —, at every level: never an actor of a level below.
 //!
-//! - each source at the LOD a mesh shows when its bounding sphere spans the layer's
-//!   `lodScreenSize` of the view, a quarter by default (`LodSelection::Calculate`, `lod_error`),
+//! - each source at the LOD the layer's `lodScreenSize` selects among its own, a quarter by default
+//!   (`LodSelection::Calculate`, `calculated_lod`: a glTF mesh has one, its level 0, taken whole),
 //!   or at its fallback mesh (`LodSelection::Lowest`, `fallback`: `RELATIVE_ERROR`, `AT_LEAST`,
 //!   `OVERSHOOT`, `LIMIT`);
 //! - equivalent materials — one definition under two names — collapsed into the first of them

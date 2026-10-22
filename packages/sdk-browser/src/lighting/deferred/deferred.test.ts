@@ -8,8 +8,9 @@ import { BLEND_SHADER, contractLightingShader } from '../../gpu/core/shaderTexts
 import { DEFERRED_BINDINGS } from './bindings.ts'
 import { deferredLayoutEntries } from './layoutEntries.ts'
 import { limitOf, stageBindingCounts } from '../../../../../tests/kit/fakeDevice/limitRules.ts'
-import { AO_QUALITY_SHAPES, AO_RANDOM_BASIS, AO_SAMPLE_SETS } from '../ao/tables.ts'
-import { aoExtentOf, aoPasses, aoTargetExtent, aoTargetRect } from '../ao/plan.ts'
+import { AO_NOISE_BYTES, AO_QUALITY_SHAPES, AO_RANDOM_BASIS, AO_SAMPLE_SETS } from '../ao/tables.ts'
+import { referenceNoiseBytes } from '../ao/reference.fixture.ts'
+import { AO_HALF_DEPTH, aoExtentOf, aoPasses, aoTargetExtent, aoTargetRect } from '../ao/plan.ts'
 import { aoViewBytes } from '../ao/view.ts'
 import { AO_PARAMS_BYTES } from '../ao/layout.ts'
 import { HEIGHT, settingsOf, uniformOf, WIDTH } from '../ao/scene.fixture.ts'
@@ -204,27 +205,27 @@ test('the occlusion’s qualities, sample sets and noise directions are the refe
       [-0.58, 0.814],
     ],
   )
-  // The sixteen bytes pairs of the 4 × 4 block, read back as the noise texture holds them (checked against a float32 evaluation).
+  // The sixteen byte pairs of the 4 × 4 block, written out, are what a single-precision derivation of them gives.
+  assert.deepEqual(AO_NOISE_BYTES, referenceNoiseBytes())
   assert.deepEqual(
-    AO_RANDOM_BASIS.slice(0, 4).map((p) => p.map((x) => +x.toFixed(6))),
+    AO_RANDOM_BASIS.slice(0, 2).map((p) => p.map((x) => +x.toFixed(6))),
     [
       [0.882353, 0.003922],
       [-0.47451, 0.717647],
-      [0.152941, 0.756863],
-      [0.764706, 0.513725],
     ],
   )
-  assert.equal(AO_RANDOM_BASIS.length, 16)
 })
 
 test('the occlusion draws as many resolutions as its quality asks, each a half of the one before', () => {
   const targets = (levels: number) => aoPasses(levels).map((p) => `${p.kind}:${p.target}`)
-  assert.deepEqual(targets(1), ['final:ao'])
+  assert.deepEqual(targets(1), ['setup:setup1', 'final:ao'])
   assert.deepEqual(targets(2), ['setup:setup1', 'step:ao1', 'final:ao'])
   assert.deepEqual(targets(3), ['setup:setup1', 'setup:setup2', 'step:ao2', 'step:ao1', 'final:ao'])
   const last = aoPasses(3).at(-1)!
   assert.deepEqual([last.setup, last.lower], ['setup1', 'ao1'])
   assert.equal(aoPasses(3)[3].lower, 'ao2')
+  // The first setup's texture is every search's half-size depth map, one texel a tap: even the one resolution draws it.
+  assert.equal(AO_HALF_DEPTH, 'setup1')
   // A texture is made at a multiple of eight, and its half and quarter are whole pixels.
   assert.deepEqual(aoExtentOf([1366, 768]), [1368, 768])
   assert.deepEqual(aoTargetExtent('setup2', [1368, 768]), [342, 192])
@@ -242,17 +243,17 @@ test('the occlusion’s uniform holds the reference’s numbers, the radius grow
     [2, 0.003, 0.5, 0.6],
   )
   assert.deepEqual(
-    full.radius.map((x) => +x.toFixed(6)),
+    full.reach.map((x) => +x.toFixed(6)),
     [0.125, 0, 1, 0.4],
   )
   // The half pass takes the scale once: 1.7 times the radius; its depth threshold is halved.
   const half = words(2, 1)
   assert.deepEqual(
-    half.radius.map((x) => +x.toFixed(6)),
+    half.reach.map((x) => +x.toFixed(6)),
     [0.2125, 0, 2, 0.4],
   )
   assert.equal(+half.fade[2].toFixed(6), 0.005)
-  assert.equal(+words(3, 2).radius[0].toFixed(6), +((0.5 * 1.7 ** 2) / 4).toFixed(6))
+  assert.equal(+words(3, 2).reach[0].toFixed(6), +((0.5 * 1.7 ** 2) / 4).toFixed(6))
   // The fade: a multiplier over the fade radius and an addend that ends it at the fade distance, in centimetres.
   assert.deepEqual(
     full.fade.slice(0, 2).map((x) => +x.toFixed(6)),
@@ -262,7 +263,8 @@ test('the occlusion’s uniform holds the reference’s numbers, the radius grow
   assert.deepEqual(half.rects, [WIDTH / 2, HEIGHT / 2, WIDTH / 2, HEIGHT / 2])
   assert.deepEqual(full.low, [WIDTH / 2, HEIGHT / 2, WIDTH / 2, HEIGHT / 2])
   assert.deepEqual(full.upper.slice(0, 2), [WIDTH / 2, HEIGHT / 2])
-  // The camera looks down -z: its forward is -z; a perspective depth is near over distance.
+  // The camera looks down -z: its forward is -z. The projection's depth terms are the temporal passes' (`writeDepthTerms`): a
+  // perspective's depth is near over distance, and a pixel's radius a share of the distance.
   assert.deepEqual(
     [full.right, full.up, full.forward].map((v) => v.slice(0, 3)),
     [
@@ -273,11 +275,15 @@ test('the occlusion’s uniform holds the reference’s numbers, the radius grow
   )
   assert.deepEqual(
     full.depth.map((x) => +x.toFixed(6)),
-    [0.1, 0, 1, 0],
+    [0, 0.1, -1, 0],
+  )
+  assert.deepEqual(
+    full.radius.map((x) => +x.toFixed(6)),
+    [0.016038, 0, -1, 0],
   )
   // In the world's units the radius is the settings' own, in centimetres, shared out by four.
   assert.equal(
-    +uniformOf(1, 0, settingsOf({ ambientOcclusionRadiusInWorldSpace: true })).radius[0].toFixed(6),
+    +uniformOf(1, 1, settingsOf({ ambientOcclusionRadiusInWorldSpace: true })).reach[0].toFixed(6),
     50,
   )
 })

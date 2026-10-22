@@ -1,6 +1,6 @@
 use super::*;
 use crate::compiler::accessor::codes::UNSIGNED_INT;
-use crate::compiler::source::buffers::append_view;
+use crate::compiler::source::buffers::append_accessor;
 use draco_core::{DecodeLimits, DecoderBuffer, FaceIndex, Mesh, MeshDecoder};
 mod attributes;
 mod layout;
@@ -18,15 +18,7 @@ pub(super) fn expand(g: &mut Value, binary: Binary, budget: &Budget<'_>) -> Resu
         return Ok(binary);
     }
     budget.admit(product(binary.bytes().len(), 2)?)?;
-    let mut out = match binary {
-        Binary::Owned(v) => v,
-        mapped => {
-            let bytes = mapped.bytes();
-            let mut out = reserve(bytes.len())?;
-            out.extend_from_slice(bytes);
-            out
-        }
-    };
+    let mut out = binary.into_owned(0)?;
     for (mi, pi) in jobs {
         let primitive = g["meshes"][mi]["primitives"][pi].clone();
         let ext = &primitive["extensions"][DRACO];
@@ -134,7 +126,7 @@ pub(super) fn expand(g: &mut Value, binary: Binary, budget: &Budget<'_>) -> Resu
 fn append(
     g: &mut Value,
     out: &mut Vec<u8>,
-    mut accessor: Value,
+    accessor: Value,
     bytes: &[u8],
     budget: &Budget<'_>,
 ) -> Result<usize> {
@@ -142,17 +134,7 @@ fn append(
     let end = add(start, bytes.len())?;
     budget.admit(add(end, bytes.len())?)?;
     reserve_more(out, end - out.len(), "Draco accessor allocation failed")?;
-    let views = g["bufferViews"]
-        .as_array_mut()
-        .ok_or_else(|| invalid("bufferViews array is required"))?;
-    accessor["bufferView"] = json!(append_view(out, views, bytes, None));
-    accessor["byteOffset"] = json!(0);
-    let accessors = g["accessors"]
-        .as_array_mut()
-        .ok_or_else(|| invalid("accessors array is required"))?;
-    let id = accessors.len();
-    accessors.push(accessor);
-    Ok(id)
+    append_accessor(g, out, accessor, bytes, None)
 }
 
 #[cfg(test)]

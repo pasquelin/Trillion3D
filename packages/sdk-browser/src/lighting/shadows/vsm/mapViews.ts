@@ -5,20 +5,18 @@
  * (`lighting/shadows/vsm/frame/vsmLightMaps.ts`). The GPU lists the views that have pages to draw
  * (`render/renderViewsWgsl.ts`), by the same mips.
  */
-import { VSM_MIPS, VSM_SUN_COARSEST_LEVEL, VSM_SUN_FINEST_LEVEL } from './constants.ts'
+import { VSM_MIPS } from './constants.ts'
+import { VSM_DEFAULT_SHADOWS, vsmSunLevels } from './mapSettings.ts'
 
 type LightKind = 'directional' | 'point' | 'spot' | 'rect' | (string & {})
 
-/** The maps a light of `kind` takes when it casts: a clipmap's levels for a sun (at most: an
+/** The clipmap levels a sun takes when its host names none: the defaults' (`vsmSunLevels`). */
+export const VSM_DEFAULT_SUN_LEVELS = vsmSunLevels(VSM_DEFAULT_SHADOWS)
+
+/** The maps a light of `kind` takes when it casts: a clipmap's `sunLevels` for a sun (at most: an
  *  orthographic camera may start coarser), six cube faces for a point light, one for a spot. */
-export const vsmMapsOf = (kind: LightKind) =>
-  kind === 'directional'
-    ? VSM_SUN_COARSEST_LEVEL - VSM_SUN_FINEST_LEVEL + 1
-    : kind === 'point'
-      ? 6
-      : kind === 'spot'
-        ? 1
-        : 0
+export const vsmMapsOf = (kind: LightKind, sunLevels = VSM_DEFAULT_SUN_LEVELS) =>
+  kind === 'directional' ? sunLevels : kind === 'point' ? 6 : kind === 'spot' ? 1 : 0
 
 /** The mips the raster draws of one map of a light of `kind`: a clipmap level's one, a local map's
  *  every mip. */

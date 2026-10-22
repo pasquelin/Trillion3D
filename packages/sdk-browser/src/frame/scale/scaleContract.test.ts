@@ -193,12 +193,12 @@ function budgeted() {
     control.tick((clock.now += HZ120), true)
     control.hold()
   }
-  control.edgeScale(10, 30)
+  control.edge.ask(10, 30)
   const image = (edgeMs: number, ms = 1, steered = true) => {
     control.tick((clock.now += HZ120), true)
     control.drew(control.wanted(), true)
-    control.observe(ms, control.wanted(), steered, edgeMs, control.edge)
-    return control.edge
+    control.observe(ms, control.wanted(), steered, edgeMs, control.edge.now)
+    return control.edge.now
   }
   return { control, image }
 }
@@ -212,34 +212,36 @@ test('the edge scale moves as the render scale does, on a linear model, a time n
   assert.equal(edge[15], edge[8], 'and no other change for 8 images')
   assert.equal(edge[17], 0.3, 'never under its lowest')
   assert.equal(control.wanted(), 1, 'the render scale, on its own budget, stays whole')
-  assert.equal(control.edgeScale(0, 30), 1, 'a budget of 0 or less: none, what it learnt kept')
-  assert.equal(control.edgeScale(10, 30), 0.3)
+  assert.equal(control.edge.ask(0, 30), 1, 'a budget of 0 or less: none, what it learnt kept')
+  assert.equal(control.edge.ask(10, 30), 0.3)
   const before = image(20, 1, false)
   assert.equal(before, 0.3, 'an image off the controller’s scale is not recorded')
 })
 
 test('a time of 0, or the cut and raster not timed, never lifts a fraction', () => {
-  const { control, image } = budgeted()
-  for (let i = 0; i < 9; i++) image(20)
-  const lowered = control.edge
-  assert.ok(lowered < 1)
-  for (let i = 0; i < 10; i++) assert.ok(image(i % 2 ? 0 : NO_TIME) <= lowered)
+  for (const time of [0, NO_TIME]) {
+    const { control, image } = budgeted()
+    for (let i = 0; i < 9; i++) image(20)
+    const lowered = control.edge.now
+    assert.ok(lowered < 1)
+    for (let i = 0; i < 12; i++) assert.ok(image(time) <= lowered, `${time}`)
+  }
 })
 
 test('over its budget twice in a row, the render scale moves both fractions at once, the edge scale alone waits', () => {
   const alone = budgeted()
   for (let i = 0; i < 4; i++) alone.image(20)
-  assert.equal(alone.control.edge, 1, 'its own panic waits for the change period')
+  assert.equal(alone.control.edge.now, 1, 'its own panic waits for the change period')
   const both = budgeted()
   for (let i = 0; i < 4; i++) both.image(20, 40)
-  assert.ok(both.control.wanted() < 1 && both.control.edge < 1, 'the render scale’s does not')
+  assert.ok(both.control.wanted() < 1 && both.control.edge.now < 1, 'the render scale’s does not')
 })
 
 test('a silent timer, another display and other bounds forget both budgets', () => {
   const lowered = () => {
     const b = budgeted()
     for (let i = 0; i < 9; i++) b.image(20, 40)
-    assert.ok(b.control.wanted() < 1 && b.control.edge < 1)
+    assert.ok(b.control.wanted() < 1 && b.control.edge.now < 1)
     return b
   }
   const silent = lowered()
@@ -248,7 +250,7 @@ test('a silent timer, another display and other bounds forget both budgets', () 
     silent.control.tick(i * HZ120, true)
     silent.control.drew(silent.control.wanted(), true)
   }
-  assert.deepEqual([silent.control.wanted(), silent.control.edge], [1, 1], 'a silent timer')
+  assert.deepEqual([silent.control.wanted(), silent.control.edge.now], [1, 1], 'a silent timer')
   const moved = lowered()
   Object.assign(globalThis, { screen: { width: 2560, height: 1440 }, devicePixelRatio: 1 })
   try {
@@ -257,19 +259,19 @@ test('a silent timer, another display and other bounds forget both budgets', () 
     Reflect.deleteProperty(globalThis, 'screen')
     Reflect.deleteProperty(globalThis, 'devicePixelRatio')
   }
-  assert.deepEqual([moved.control.wanted(), moved.control.edge], [1, 1], 'another display')
+  assert.deepEqual([moved.control.wanted(), moved.control.edge.now], [1, 1], 'another display')
   const bounded = lowered()
   bounded.control.set({ min: 0.5, max: 1 })
-  assert.deepEqual([bounded.control.wanted(), bounded.control.edge], [1, 1], 'other bounds')
+  assert.deepEqual([bounded.control.wanted(), bounded.control.edge.now], [1, 1], 'other bounds')
 })
 
 test('a fixed render scale has no dynamic resolution: the edge scale stays at 1', () => {
   const control = createScaleControl(1)
-  control.edgeScale(10, 30)
+  control.edge.ask(10, 30)
   for (let i = 0; i < 40; i++) {
     control.tick(i * HZ120, true)
     control.drew(1, true)
-    control.observe(1, 1, true, 20, control.edge)
+    control.observe(1, 1, true, 20, control.edge.now)
   }
-  assert.equal(control.edgeScale(10, 30), 1)
+  assert.equal(control.edge.ask(10, 30), 1)
 })

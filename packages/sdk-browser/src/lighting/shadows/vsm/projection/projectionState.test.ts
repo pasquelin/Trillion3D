@@ -1,9 +1,11 @@
-// The projection's view and blue noise belong to one set (`vsmProjectionReserve`): two sets on
-// one device never share them, and freeing a set frees its own and nothing of the other's.
+// The projection's view belongs to one set (`vsmProjectionReserve`): two sets on one device never share
+// it, and freeing a set frees its own and nothing of the other's; the blue noise they read is the
+// device's, made once and shared, never freed with a set.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuDeviceLedger } from '../../../../gpu/core/deviceLedger.ts'
+import { blueNoiseTextures } from '../../../../gpu/noise/blueNoiseTextures.ts'
 import { createVsmResources } from '../resources.ts'
 import {
   releaseVsmProjection,
@@ -14,8 +16,9 @@ import {
 
 const OPTIONS = { fullMapCapacity: 63, poolPages: 256 }
 
-test('two sets on one device hold their own projection, each freed with its set', () => {
+test('two sets on one device hold their own projection, each freed with its set, and read the one blue noise', async () => {
   const { device } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
+  const noise = await blueNoiseTextures(device)
   const ledger = installGpuDeviceLedger(device)
   const a = createVsmResources(device, OPTIONS),
     b = createVsmResources(device, OPTIONS)
@@ -28,6 +31,8 @@ test('two sets on one device hold their own projection, each freed with its set'
   assert.equal(vsmProjectionBytesToMake(a), 0)
   const viewB = vsmProjectionReserve(device, b).uniform
   assert.notEqual(viewA, viewB, 'no view shared')
+  assert.equal(a.projection?.blueNoiseView, noise.view, 'the noise is the device’s')
+  assert.equal(b.projection?.blueNoiseView, noise.view)
   releaseVsmProjection(a)
   assert.equal(ledger.bytes - before, asked, "only the first set's freed")
   assert.equal(vsmProjectionHeldBytes(a), 0)

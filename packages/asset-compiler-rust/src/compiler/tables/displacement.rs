@@ -12,21 +12,25 @@ use super::materials::slot;
 use super::*;
 use crate::compiler::validate::{Fields, OPTIONS};
 
-/// One bound of a fade range, `what` naming it: a finite number above 0, `default` when left out.
+/// The least a fade range's bound may be, in pixels: the reference's own clamp.
+const FADE_BOUND_MIN: f64 = 0.0001;
+
+/// One bound of a fade range, `what` naming it: a finite number of at least `FADE_BOUND_MIN`,
+/// `default` when left out.
 fn fade_bound(value: Option<&Value>, default: f64, what: &str) -> Result<f64> {
     match value {
         None | Some(Value::Null) => Ok(default),
         Some(bound) => OPTIONS.bounded(
             bound,
             what,
-            (f64::MIN_POSITIVE, f64::MAX),
-            "a finite number above 0",
+            (FADE_BOUND_MIN, f64::MAX),
+            "a finite number of at least 0.0001",
         ),
     }
 }
 
 /// The fade range `value` names, `what` naming it: none for `false` or nothing, the default range
-/// for `true`, else an object holding only `DISPLACEMENT_FADE_KEYS`, each bound above 0.
+/// for `true`, else an object holding only `DISPLACEMENT_FADE_KEYS`, each bound at least `FADE_BOUND_MIN`.
 fn fade_range(value: Option<&Value>, what: &str) -> Result<Option<[f64; 2]>> {
     match value {
         None | Some(Value::Null) | Some(Value::Bool(false)) => Ok(None),

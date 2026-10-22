@@ -3,6 +3,7 @@ import { CPU_STEP } from './cpuStepTable.ts'
 import { gpuFrameCostSnapshot } from '../costAudit.ts'
 import type { HostCpuStep } from '../../session/host/cpuProfile.ts'
 import { debugMode } from '../../session/host/debugMode.ts'
+import { probesPerFrameOf } from '../../lighting/bounce/screen/settingsOf.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 /** Attaches the image's counters to the public per-stage profile, when it is mounted. */
@@ -37,7 +38,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
     liveProbes: bounce.probes?.pool.live ?? 0,
     unfilledProbes: bounce.probes?.unfilled ?? 0,
     // The count a frame traces, the probes never traced first.
-    probesPerFrame: bounce.probesPerFrame,
+    probesPerFrame: probesPerFrameOf(rt),
   })
   if (!bounce.probes)
     stages.setReason('bounce', {

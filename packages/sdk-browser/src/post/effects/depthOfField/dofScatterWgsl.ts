@@ -106,7 +106,7 @@ fn scatterVertex(@builtin(vertex_index) vertexId:u32,@builtin(instance_index) in
  let local=vertexId/${SCATTER_GROUP_VERTICES}u;
  let sprite=${SCATTER_GROUPS_PER_INSTANCE}u*instanceId+local;
  let base=sprite*${SCATTER_GROUP_STRIDE}u;
- let centre=bitcast<vec4f>(spriteList[base]).xy;
+ let centre=circleRatio()*bitcast<vec4f>(spriteList[base]).xy;
  var largest=0.0;
  for(var i=0u;i<4u;i++){largest=max(largest,bitcast<f32>(spriteList[base+1u+i*3u].w));}
  var out:SpriteOut;
@@ -125,8 +125,9 @@ fn scatterVertex(@builtin(vertex_index) vertexId:u32,@builtin(instance_index) in
 /**
  * The scatter's draw, vertex shader and pixel. The vertex shader draws a quad of 6 vertices for each group of
  * 2 × 2 samples, as big as the largest of the group's sprites, `SCATTER_GROUPS_PER_INSTANCE` groups an
- * instance. The pixel: a group of 2 × 2 samples, each a sprite of its colour and radius `r`, centred
- * on its own texel; this pixel's offset from each — squeezed, and swirled at the top quality —
+ * instance; the list holds the places in the setup accumulation's texels and the radii in the gather's,
+ * and the places are brought to the gather's (`circleRatio`). The pixel: a group of 2 × 2 samples, each a
+ * sprite of its colour and radius `r`, centred on its own texel; this pixel's offset from each — squeezed, and swirled at the top quality —
  * gives the sprite's coverage of it: `saturate(r f − d + ½)` where `d` is the offset's length and `f`
  * the shape's edge factor in that direction (the table, read mirrored for the foreground, `BOKEH`),
  * else `saturate(½ + ½ r − d² / 2r)`, the circle's first-order expansion. The coverage is weighed by
@@ -153,7 +154,7 @@ fn scatterFragment(
  for(var i=0u;i<4u;i++){
   let entry=spriteList[base+1u+i*3u];
   let radius=bitcast<f32>(entry.w);
-  var offset=position.xy-centre-vec2f(f32(i&1u),f32(i>>1u));
+  var offset=position.xy-centre-circleRatio()*vec2f(f32(i&1u),f32(i>>1u));
   if(HIGH&&view.petzval.x!=0.0){offset=petzvalApply(offset,swirl);}
   offset.x*=view.lens.x;
   let away=length(offset);
@@ -167,7 +168,7 @@ fn scatterFragment(
   if(coverage>0.0){
    var visibility=1.0;
    if(OCCLUSION){
-    let excess=max(radius*0.95-occlusion.x,0.0);
+    let excess=max(radius/circleRatio()*0.95-occlusion.x,0.0);
     visibility=occlusion.y/(occlusion.y+excess*excess);
    }
    if(HIGH&&view.barrel.y>=0.0){

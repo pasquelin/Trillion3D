@@ -1,5 +1,12 @@
 import { refusal } from './nameMatch.ts'
-import { finiteAtLeast, resolveTint, type BloomTint } from './bloomFields.ts'
+import { resolveTint, type BloomTint } from './bloomFields.ts'
+import {
+  nonNegativeSetting as nonNegative,
+  resolveSettings,
+  rulesOf,
+  type SettingOptions,
+  type SettingValues,
+} from './settingRules.ts'
 
 /**
  * The dirt mask of the bloom's glow, whichever method makes it (`./bloomOptions.ts`): a picture of
@@ -17,33 +24,26 @@ export interface BloomDirtImage {
   readonly height: number
 }
 
+/** The dirt mask's scalar settings: its strength, 0 or more, 0 the reference's default — no dirt,
+ *  and the dirt added to the glow is linear in it. */
+const BLOOM_DIRT_RULES = /* @__PURE__ */ (() => rulesOf([nonNegative('intensity', 0)] as const))()
+
 /** What a page may pass to `effect.bloom({ dirtMask })`. */
-export interface BloomDirtMaskOptions {
+export interface BloomDirtMaskOptions extends SettingOptions<typeof BLOOM_DIRT_RULES> {
   /** The picture; none leaves the glow without dirt. */
   image?: BloomDirtImage | null
-  /** The strength of the dirt, 0 or more; 0 shows none. */
-  intensity?: number
-  /** The colour of the dirt, per channel. */
+  /** The colour of the dirt, per channel: a grey 0.5 by default, which the intensity then scales. */
   tint?: BloomTint
 }
 
 /** The dirt mask as the engine reads it: every field set. */
-export interface ResolvedBloomDirtMask {
+export interface ResolvedBloomDirtMask extends SettingValues<typeof BLOOM_DIRT_RULES> {
   readonly image: BloomDirtImage | undefined
-  readonly intensity: number
   readonly tint: readonly [number, number, number]
 }
 
-/**
- * The defaults, each the reference's own: no `image`, an `intensity` of 0 — no dirt — and a grey
- * `tint` of 0.5, which the intensity then scales. Sensitivity: the dirt added to the glow is linear
- * in the intensity.
- */
-const DEFAULT_DIRT_MASK: ResolvedBloomDirtMask = Object.freeze({
-  image: undefined,
-  intensity: 0,
-  tint: Object.freeze([0.5, 0.5, 0.5] as const),
-})
+/** The colour of the dirt the reference starts with: a grey 0.5. */
+const DEFAULT_TINT = Object.freeze([0.5, 0.5, 0.5] as const)
 
 /** `image` when it is a picture with a width and a height, none when it is absent.
  *  @throws TypeError when it is anything else. */
@@ -56,15 +56,16 @@ function resolveImage(image: BloomDirtImage | null | undefined) {
 }
 
 /**
- * The dirt mask an option names: every field it leaves out is the default (`DEFAULT_DIRT_MASK`).
- * @throws RangeError naming the field and the value when a number is out of its range, TypeError
- *   when the image is not a picture.
+ * The dirt mask an option names: every field it leaves out is the default (`BLOOM_DIRT_RULES`, the
+ * tint's grey).
+ * @throws TypeError naming the field and what it takes when the intensity is out of its range or
+ *   the image is not a picture; RangeError naming the tint when it is not three numbers of at least 0.
  */
 export function resolveBloomDirtMask(options: BloomDirtMaskOptions = {}): ResolvedBloomDirtMask {
-  const d = DEFAULT_DIRT_MASK
+  const { image, tint, ...scalars } = options
   return Object.freeze({
-    image: resolveImage(options.image),
-    intensity: finiteAtLeast(options.intensity ?? d.intensity, 0, 'BLOOM_DIRT_INTENSITY'),
-    tint: resolveTint(options.tint, d.tint, 'BLOOM_DIRT_TINT'),
+    ...resolveSettings(BLOOM_DIRT_RULES, scalars),
+    image: resolveImage(image),
+    tint: resolveTint(tint, DEFAULT_TINT, 'BLOOM_DIRT_TINT'),
   })
 }

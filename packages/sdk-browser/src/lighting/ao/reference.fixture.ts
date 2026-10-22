@@ -1,6 +1,5 @@
-// The occlusion's search written a second time, apart from the shader, in plain scalars and arrays, as its steps are
-// laid out in the notes it follows (`SP/fix/W2-1-steps.md`): the tests set it against the shipped WGSL run by
-// `shaderRun`, pixel by pixel. Distances are centimetres, as the shader's.
+// The occlusion's search written a second time, apart from the shader, in plain scalars and arrays, step by step:
+// the tests set it against the shipped WGSL run by `shaderRun`, pixel by pixel. Distances are centimetres, as the shader's.
 import type { AmbientOcclusionSettings } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import { AO_QUALITY_SHAPES, AO_RANDOM_BASIS, AO_SAMPLE_SETS } from './tables.ts'
 import { HEIGHT, WIDTH, type createScene } from './scene.fixture.ts'
@@ -215,3 +214,21 @@ export function quadBlur(
     (1 + weights[0] + weights[1])
   )
 }
+
+/** A float32, as a GPU holds one; the sum and the product of two, rounded once each. */
+const f32 = Math.fround
+/** The byte a value of `[-1, 1]` is stored as: halved, shifted and rounded to nearest, in single precision. */
+const byteOf = (x: number) => Math.trunc(f32(f32(f32(f32(x * 0.5) + 0.5) * 255) + 0.5))
+
+/**
+ * The sixteen byte pairs of the noise block derived, in single precision, as the notes lay it out: the block's
+ * rotation basis in a fixed order over half a turn, each scaled down by a share that varies with its rank, stored one
+ * byte a channel. The tables hold them written out (`AO_NOISE_BYTES`); the test sets the two together.
+ */
+export const referenceNoiseBytes = () =>
+  [0, 11, 7, 3, 10, 4, 15, 12, 6, 8, 1, 14, 13, 2, 9, 5].map((rank) => {
+    const angle = f32(f32(rank * (1 / 16)) * Math.PI)
+    const wobble = f32(Math.sin(f32(f32(198 * rank) * 0.01)))
+    const length = f32(1 - f32(f32(f32(f32(wobble * 0.5) + 0.5) * 23) * 0.01))
+    return [byteOf(f32(f32(Math.cos(angle)) * length)), byteOf(f32(f32(Math.sin(angle)) * length))]
+  })

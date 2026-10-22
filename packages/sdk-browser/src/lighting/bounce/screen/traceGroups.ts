@@ -2,6 +2,7 @@ import { namedEntries } from '../../../gpu/core/computeBindings.ts'
 import { sceneBindEntries } from '../sceneBindings.ts'
 import { COMPOSITE_BINDINGS, CONVERT_BINDINGS } from './gatherWgsl.ts'
 import { buffers, groupOf, type GroupParts } from './groupParts.ts'
+import type { CastKernels, ScreenProbeKernels } from './kernels.ts'
 import { OCCLUSION_BINDINGS } from './occlusionWgsl.ts'
 import { SPATIAL_BINDINGS } from './spatialWgsl.ts'
 import { TEMPORAL_BINDINGS } from './temporalWgsl.ts'
@@ -14,8 +15,8 @@ import {
 import { TRACE_SCREEN_BINDINGS, TRACE_SCREEN_PROBES } from './traceWgsl.ts'
 
 /** The trace of the rays: the screen's stage, the field's and the scene's where it is asked. */
-export function traceGroups(g: GroupParts) {
-  const { device, kernels, r, inputs, last, common, records } = g
+export function traceGroups(g: GroupParts, kernels: CastKernels) {
+  const { device, r, inputs, last, common, records } = g
   const field = { bounceGrid: inputs.bounceGrid }
   const trace = { ray: r.ray, radiance: r.radiance, hit: r.hit }
   return {
@@ -27,6 +28,7 @@ export function traceGroups(g: GroupParts) {
         ...buffers({ ...field, sceneRays: r.sceneRays }),
         history: r.history[last],
         vectors: inputs.vectors,
+        blue: inputs.blue,
       }),
       { binding: TRACE_SCREEN_PROBES, resource: inputs.probes },
     ]),
@@ -35,7 +37,10 @@ export function traceGroups(g: GroupParts) {
         ...common,
         ...records,
         ...trace,
-        ...buffers({ ...field, lights: inputs.lights }),
+        blue: inputs.blue,
+        cacheFinal: inputs.cacheFinal,
+        cacheRaw: inputs.cacheRaw,
+        ...buffers({ ...field, lights: inputs.lights, cacheTags: inputs.cacheTags }),
       }),
       { binding: TRACE_FIELD_PROBES, resource: inputs.probes },
     ]),
@@ -45,6 +50,7 @@ export function traceGroups(g: GroupParts) {
             ...common,
             ...records,
             ...trace,
+            blue: inputs.blue,
             ...buffers({
               ...field,
               lights: inputs.lights,
@@ -60,8 +66,8 @@ export function traceGroups(g: GroupParts) {
 }
 
 /** The filter: the composite into the octahedron, the spatial passes, the conversion to what the pixels read. */
-export function filterGroups(g: GroupParts) {
-  const { device, kernels, r, final, common, probe, records } = g
+export function filterGroups(g: GroupParts, kernels: CastKernels) {
+  const { device, r, inputs, final, common, probe, records } = g
   return {
     composite: groupOf(
       device,
@@ -73,6 +79,7 @@ export function filterGroups(g: GroupParts) {
         radiance: r.radiance,
         hit: r.hit,
         gather: r.gather[0],
+        blue: inputs.blue,
         ...buffers({ moving: r.moving }),
       }),
     ),
@@ -86,6 +93,7 @@ export function filterGroups(g: GroupParts) {
           ...buffers({ disocclusion: r.disocclusion, moving: r.moving }),
           gatherIn: r.gather[source],
           gatherOut: r.gather[1 - source],
+          blue: inputs.blue,
         }),
       ),
     ),
@@ -103,14 +111,30 @@ export function filterGroups(g: GroupParts) {
   }
 }
 
-/** The pixels: the short-range occlusion and the temporal pass, which integrates. */
-export function pixelGroups(g: GroupParts) {
-  const { device, kernels, r, inputs, last, turn, common, probe, surface } = g
+/** The pixels: the short-range occlusion and the temporal pass, which integrates the probes where the level casts them. */
+export function pixelGroups(g: GroupParts, kernels: ScreenProbeKernels) {
+  const { device, r, inputs, last, turn, common, probe, surface } = g
+  const probes = kernels.cast && {
+    ...probe,
+    irradiance: r.irradiance,
+    ...buffers({
+      pixels: r.pixels,
+      header: r.header,
+      indices: r.indices,
+      moving: r.moving,
+      counts: r.counts,
+    }),
+  }
   return {
     occlusion: groupOf(
       device,
       kernels.occlusion,
-      namedEntries(OCCLUSION_BINDINGS.at, { ...common, ...surface, occlusion: r.occlusion }),
+      namedEntries(OCCLUSION_BINDINGS.at, {
+        ...common,
+        ...surface,
+        occlusion: r.occlusion,
+        blue: inputs.blue,
+      }),
     ),
     temporal: groupOf(
       device,
@@ -118,19 +142,12 @@ export function pixelGroups(g: GroupParts) {
       namedEntries(TEMPORAL_BINDINGS.at, {
         ...common,
         ...surface,
-        ...probe,
         occlusion: r.occlusion,
         history: r.history[last],
         historyOut: r.history[turn],
         vectors: inputs.vectors,
-        irradiance: r.irradiance,
-        ...buffers({
-          pixels: r.pixels,
-          header: r.header,
-          indices: r.indices,
-          moving: r.moving,
-          counts: r.counts,
-        }),
+        blue: inputs.blue,
+        ...probes,
       }),
     ),
   }

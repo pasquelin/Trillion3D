@@ -9,14 +9,15 @@ import { workgroupSumLoop } from '../../../gpu/core/workgroupSumWgsl.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
 import { atlasEntry } from '../atlas.ts'
 import { bounceBindingsWgsl } from '../gridWgsl.ts'
+import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
-import { spFar } from './farFieldWgsl.ts'
+import { spCacheRead } from './cacheReadWgsl.ts'
 import { spProbes } from './probesWgsl.ts'
 import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
 
 /** The rays' bindings: the probes' records and pixels, the last image's probes and their filtered radiance, the probes'
- *  coefficients of the pixels' directions, the ray words written, the cascades the field is read from and the light
- *  buffer (the sky it holds). */
+ *  coefficients of the pixels' directions, the ray words written, the cascades and the radiance cache's maps the far light is
+ *  read from, the light buffer (the sky it holds). */
 export const RAYS_BINDINGS = bindingTable({
   params: [0, 'uniform'],
   info: [1, 'float'],
@@ -29,6 +30,10 @@ export const RAYS_BINDINGS = bindingTable({
   ray: [8, { store: F.ray }],
   bounceGrid: [9, 'uniform'],
   lights: [11, 'buffer-read'],
+  blue: [12, 'float'],
+  cacheFinal: [13, 'uint'],
+  cacheRaw: [14, 'uint'],
+  cacheTags: [15, 'buffer-read'],
 })
 /** The atlas of the cascades' probes, which the rays' layout adds (`atlasEntry`). */
 export const RAYS_PROBES = 10
@@ -41,8 +46,8 @@ const B = RAYS_BINDINGS.at
  * Its light comes from the last image, where there is one: the filtered radiance of the four probes round where the probe was
  * (`spHistoryLighting`: the last image's probes, those on its plane, `exp2(scale · (distance / depth)²)` over
  * `importanceHistoryMinWeight`), the share the last image does not give — one minus a quarter of the probes that did — from the
- * field of the world's probes through the direction (`spFarRadiance`, the sky it leaves unanswered included); with no field,
- * one. A direction's luminance is that light's.
+ * radiance cache through the direction (`spCacheSample`, the cone of the probe's rays one texel of its octahedron); where the cache covers no
+ * point of the probe or is not read, one. A direction's luminance is that light's.
  */
 const SP_LIGHTING = wgslBlock(
   'SP_LIGHTING',
@@ -68,7 +73,7 @@ fn spHistoryLighting(P:vec3f,N:vec3f,depth:f32,t:vec2u)->vec4f{
   let kept=textureLoad(historyInfo,vec2i(probe),0);
   let away=abs(dot(kept.xyz,N)-dot(P,N))/depth;
   if(kept.w>=0.0&&exp2(SP_HISTORY_PLANE_SCALE*away*away)>SP_HISTORY_MIN_WEIGHT_PROBE){
-   radiance+=textureLoad(historyGather,vec2i(probe*SP_TRACE+t),0).rgb;
+   radiance+=textureLoad(historyGather,vec2i(probe*SP_GATHER+t*SP_GATHER/SP_TRACE),0).rgb;
    total+=1.0;
   }
  }
@@ -86,7 +91,7 @@ fn spLightLuminance(probe:SpProbe,direction:vec3f,t:vec2u)->f32{
   transparency=kept.a;
  }
  if(transparency>0.0){
-  if(spFlag(SP_FLAG_FIELD)){lighting+=transparency*spFarRadiance(direction);}
+  if(spFlag(SP_FLAG_CACHE)&&spCacheCovers()){lighting+=transparency*spCacheSample(probe.P,direction).radiance;}
   else{lighting=vec3f(1.0);}
  }
  return luminance(lighting);
@@ -111,7 +116,7 @@ fn spInfoPdf(info:vec2u)->f32{return bitcast<f32>(info.y);}`,
  * `spBasis`), times the lighting's over the uniform one and the count of texels; held to `sp.weights.z` where the cosine lobes
  * did not leave it under it, so that a direction the pixels see is never starved of rays by the light's darkness. The lighting's
  * probability is the luminance of the light of its direction over the sum of the probe's (`spLightLuminance`, the far field
- * blended once for the probe, `spFarGather`). The rays are sorted by their probability (the workgroup's bitonic network),
+ * gathered once for the probe, `spCacheGather`). The rays are sorted by their probability (the workgroup's bitonic network),
  * and for every three whose probability is under the minimum, the most probable one is traced as four, at twice the resolution
  * (`importanceLevels` one: the octahedron's texel and the next level down): the three rays the dark directions leave give
  * their share to the direction that wants it. A texel of the ray word names a ray by its octahedron texel and level
@@ -163,11 +168,11 @@ fn genRays(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) l
  let lit=spFlag(SP_FLAG_IMPORTANCE_LIGHTING);
  let t=vec2u(lane%SP_TRACE,lane/SP_TRACE);
  if(lane==0u){atomicStore(&subdivided,0u);}
- if(live&&lit&&spFlag(SP_FLAG_FIELD)){spFarGather(probe.P,probe.N,lane);}
+ if(live&&lit&&spFlag(SP_FLAG_CACHE)){spCacheGather(probe.P,lane);}
  workgroupBarrier();
  var light=0.0;
  if(live&&lit){
-  let direction=equalAreaDecode((vec2f(t)+spNoise(spProbeTile(probePixels[index]),sp.mode.w))/f32(SP_TRACE));
+  let direction=equalAreaDecode((vec2f(t)+blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w))/f32(SP_TRACE));
   light=spLightLuminance(probe,direction,t);
  }
  sums[lane]=light;
@@ -189,19 +194,20 @@ fn genRays(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) l
 }`,
 )
 
-/** The rays' program over `side × side` rays a probe and `samples` of a tile. */
-export const raysShader = (side: number, samples: readonly [number, number]) => {
+/** The rays' program over `side × side` rays a probe, the last image's light read from a gather of `gather × gather` texels, and `samples` of a tile. */
+export const raysShader = (side: number, gather: number, samples: readonly [number, number]) => {
   const count = side * side
   return wgslProgram(
     `${spParams(B.params)}
-${wgslConsts({ SP_TRACE: side, SP_RAYS: count })}
+${wgslConsts({ SP_TRACE: side, SP_RAYS: count, SP_GATHER: gather })}
 @group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;`,
     [
       DIRECT_LIGHT_WGSL,
       bounceBindingsWgsl(0, B.bounceGrid, RAYS_PROBES),
       spCommon(samples),
       spProbes(B.info, B.normal, B.counts),
-      spFar,
+      blueNoiseWgsl(0, B.blue),
+      spCacheRead(B.cacheFinal, B.cacheRaw, B.cacheTags),
       workgroupSortWgsl('rays', count),
       RAYS_WGSL,
     ],

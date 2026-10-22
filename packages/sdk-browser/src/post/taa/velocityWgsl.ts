@@ -22,6 +22,10 @@ const ORTHO_DEPTH_STEPS = 8388607
  * image, in device coordinates — in one word: each axis its signed square root, scaled to
  * `(-2, 2)` of the screen and coded in sixteen bits about the middle, so a slow motion keeps fine
  * steps (`encodeVector`, `decodeVector`: the code alone, a program of another view reads it too).
+ * The least bit of the first axis's code is spare — a vector is read to a step of the code at most
+ * the less —: the velocity stage keeps in it whether the surface moved by itself
+ * (`encodeOwnVector`, `hasOwnMotion`); a surface that did not has only the camera's motion, which a
+ * pass that wants the surfaces' own motion computes where it wants it.
  */
 export const VECTOR_CODEC_WGSL = wgslBlock(
   'VECTOR_CODEC_WGSL',
@@ -37,7 +41,9 @@ fn decodeVector(w:u32)->vec2f{
  let e=vec2f(f32(w&0xffffu),f32(w>>16u))*${wgslF32(1 / 65535)};
  let g=e*${wgslF32(1 / (0.499 * 0.5))}-${wgslF32(32767 / 65535 / (0.499 * 0.5))};
  return g*abs(g)*0.5;
-}`,
+}
+fn encodeOwnVector(v:vec2f,own:bool)->u32{return (encodeVector(v)&~1u)|select(0u,1u,own);}
+fn hasOwnMotion(word:u32)->bool{return (word&1u)!=0u;}`,
 )
 
 /**

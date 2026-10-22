@@ -1,11 +1,20 @@
-import { namedEntries } from '../../../gpu/core/computeBindings.ts'
+import { namedGroup, wholeBuffer } from '../../../gpu/core/computeBindings.ts'
 import { DEPTH_OF_FIELD_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import { DOF_PARAMS_BINDING, DOF_STEP_BINDING } from './dofCommonWgsl.ts'
-import type { DofImages, Image, LutImages, SpriteBuffers, TilePair } from './dofImages.ts'
+import type {
+  DofImages,
+  Image,
+  LutImages,
+  SetupImages,
+  SpriteBuffers,
+  TilePair,
+} from './dofImages.ts'
 import type { DofPrograms } from './dofPrograms.ts'
-import { reducePasses, type Convolution, type DofPlan } from './dofPlan.ts'
+import { scattersOver, type Convolution } from './dofConvolutions.ts'
+import { reducePasses, type DofPlan } from './dofPlan.ts'
 import { DILATE_BINDINGS, FLATTEN_BINDINGS } from './dofTilesWgsl.ts'
 import { DOWNSAMPLE_BINDINGS, SETUP_BINDINGS } from './dofSetupWgsl.ts'
+import { TEMPORAL_BINDINGS } from './dofTemporalWgsl.ts'
 import { REDUCE_BINDINGS } from './dofReduceWgsl.ts'
 import { LUT_BINDINGS } from './dofLutWgsl.ts'
 import { GATHER_BINDINGS } from './dofGatherStateWgsl.ts'
@@ -14,25 +23,33 @@ import { PACK_BINDINGS, SPRITE_BINDINGS } from './dofScatterWgsl.ts'
 import { RECOMBINE_BINDINGS } from './dofRecombineWgsl.ts'
 
 /** What the groups name: the resources of a plan and the image's input and depth. */
-export interface GroupSources {
+interface GroupSources {
   readonly device: GPUDevice
   readonly programs: DofPrograms
   readonly plan: DofPlan
   readonly images: DofImages
+  /** The setup accumulated in time, the pair this depth of field keeps, where the plan accumulates it. */
+  readonly stable: readonly [SetupImages, SetupImages] | undefined
   readonly luts: LutImages | undefined
   readonly buffers: SpriteBuffers
-  /** The uniform, and the uniforms of the dilations then of the reductions, one each. */
+  /** The uniform, and the uniforms of the dilations and of the reductions, one each. */
   readonly params: GPUBuffer
-  readonly steps: readonly GPUBuffer[]
-  /** The image drawn on, its depth and the image the recombine writes. */
+  readonly dilations: readonly GPUBuffer[]
+  readonly reductions: readonly GPUBuffer[]
+  /** The image drawn on, its depth, the motion of its texels (where the setup is accumulated in time)
+   *  and the image the recombine writes. */
   readonly input: GPUTextureView
   readonly depth: GPUTextureView
+  readonly vectors: GPUTextureView | undefined
   readonly output: GPUTextureView
+  /** Which of the two accumulated setups this image writes (0 or 1). */
+  readonly parity: number
 }
 
 /** The groups of the passes of one plan. */
 export interface DofGroups {
   readonly setup: GPUBindGroup
+  readonly temporal: GPUBindGroup | undefined
   readonly flatten: GPUBindGroup
   readonly dilates: readonly GPUBindGroup[]
   readonly downsample: GPUBindGroup | undefined
@@ -45,11 +62,7 @@ export interface DofGroups {
   readonly postfilters: readonly (GPUBindGroup | undefined)[]
   readonly sprites: readonly (GPUBindGroup | undefined)[]
   readonly recombine: GPUBindGroup
-  /** The tiles the gathers read: the last dilated pair. */
-  readonly tiles: TilePair
 }
-
-const whole = (buffer: GPUBuffer) => ({ buffer })
 
 /** A group of `layout` with the resources `entries` named by `bindings`, the uniform first. */
 function groupOf(
@@ -59,26 +72,49 @@ function groupOf(
   resources: Record<string, GPUBindingResource>,
   extra: GPUBindGroupEntry[] = [],
 ) {
-  return device.createBindGroup({
-    label: DEPTH_OF_FIELD_PASS,
-    layout,
-    entries: [
-      { binding: DOF_PARAMS_BINDING, resource: whole(params) },
-      ...extra,
-      ...namedEntries(bindings, resources),
-    ],
+  return namedGroup(device, layout, bindings, resources, DEPTH_OF_FIELD_PASS, [
+    { binding: DOF_PARAMS_BINDING, resource: wholeBuffer(params) },
+    ...extra,
+  ])
+}
+
+/** The setup the passes after its accumulation read: the setup itself, or where the plan accumulates
+ *  it in time, what this image wrote of the two (`parity`) — at a divisor of 1 the setup's colour is
+ *  the image itself. */
+function setupOf({ plan, images, stable, input, parity }: GroupSources) {
+  const written = stable?.[parity]
+  if (written) return { color: written.color.view, coc: written.coc.view }
+  const { setup } = images
+  return { color: plan.divisor === 2 ? setup.color.view : input, coc: setup.coc.view }
+}
+
+/** The group of the setup's accumulation in time, where the plan has one: the setup this image made and
+ *  the history, the other of the two. */
+function temporalGroup(io: GroupSources) {
+  const { programs, plan, images, stable, input, depth, vectors, parity } = io
+  if (!stable || !vectors) return undefined
+  const current = plan.divisor === 2 ? images.setup.color.view : input
+  return groupOf(io, programs.layouts.temporal, TEMPORAL_BINDINGS, {
+    color: current,
+    coc: images.setup.coc.view,
+    depth,
+    vectors,
+    historyColor: stable[1 - parity].color.view,
+    historyCoc: stable[1 - parity].coc.view,
+    sampler: programs.samplers.clamped,
+    outColor: stable[parity].color.view,
+    outCoc: stable[parity].coc.view,
   })
 }
 
 /** The dilations' groups and the tiles the gathers read. Each pass reads the one before: the first
  *  the flattened tiles; the minimum-maximum chain and the other take turns between two images. */
 function dilateGroups(io: GroupSources) {
-  const { programs, plan, images, steps } = io
+  const { programs, plan, images, dilations } = io
   const { flat, minMax, dilated } = images
-  const count = plan.dilations.filter((d) => d.mode !== 'minMax').length
-  const heldMinMax = plan.dilations.some((d) => d.mode === 'minMax')
-    ? minMax[(plan.dilations.filter((d) => d.mode === 'minMax').length - 1) % 2]
-    : flat
+  const spreads = plan.dilations.filter((d) => d.mode === 'minMax').length
+  const count = plan.dilations.length - spreads
+  const heldMinMax = spreads ? minMax[(spreads - 1) % 2] : flat
   const counts = { minMax: 0, minAbs: 0, standalone: 0 }
   const groups = plan.dilations.map((dilation, at) => {
     const rank = counts[dilation.mode]++
@@ -97,39 +133,37 @@ function dilateGroups(io: GroupSources) {
         outFg: output.fg.view,
         outBg: output.bg.view,
       },
-      [{ binding: DOF_STEP_BINDING, resource: whole(steps[at]) }],
+      [{ binding: DOF_STEP_BINDING, resource: wholeBuffer(dilations[at]) }],
     )
   })
   return { groups, tiles: dilated[(count - 1) % 2] }
 }
 
-/** The reductions' groups: the first from the setup — the image itself at a divisor of 1 —, each next one from
- *  the last level the one before wrote; each writes two levels, the second a dummy where the chain ends. */
+/** The reductions' groups: the first from the setup, each next one from the last level the one before
+ *  wrote; each writes two levels, the second a dummy where the chain ends. */
 function reduceGroups(io: GroupSources) {
-  const { programs, plan, images, buffers, steps } = io
+  const { programs, plan, images, buffers, reductions } = io
   const { reducedColor, reducedCoc, dummyColors, dummyCoc } = images
-  const passes = reducePasses(plan.mips)
-  const scatters = plan.foregroundScatter || plan.backgroundScatter
-  return passes.map(({ from, to, count }, at) => {
+  const setup = setupOf(io)
+  return reducePasses(plan.mips).map(({ from, to, count }, at) => {
     const source = at === 0
-    const setup = plan.divisor === 2 ? images.setupColor.view : io.input
     return groupOf(
       io,
       programs.layouts.reduce,
       REDUCE_BINDINGS,
       {
-        color: source ? setup : reducedColor.levels[from],
-        coc: source ? images.setupCoc.view : reducedCoc.levels[from],
-        quarter: source && scatters ? images.quarterColor.view : dummyColors[0].view,
+        color: source ? setup.color : reducedColor.levels[from],
+        coc: source ? setup.coc : reducedCoc.levels[from],
+        quarter: source && scattersOver(plan) ? images.quarterColor.view : dummyColors[0].view,
         outColorA: reducedColor.levels[to],
         outCocA: reducedCoc.levels[to],
         outColorB: count > 1 ? reducedColor.levels[to + 1] : dummyColors[1].view,
         outCocB: count > 1 ? reducedCoc.levels[to + 1] : dummyCoc.view,
-        arguments: whole(buffers.drawArguments),
-        foregroundList: whole(buffers.foreground),
-        backgroundList: whole(buffers.background),
+        arguments: wholeBuffer(buffers.drawArguments),
+        foregroundList: wholeBuffer(buffers.foreground),
+        backgroundList: wholeBuffer(buffers.background),
       },
-      [{ binding: DOF_STEP_BINDING, resource: whole(steps[plan.dilations.length + at]) }],
+      [{ binding: DOF_STEP_BINDING, resource: wholeBuffer(reductions[at]) }],
     )
   })
 }
@@ -153,7 +187,7 @@ function layerGroups(io: GroupSources, conv: Convolution, tiles: TilePair) {
     tileBg: tiles.bg.view,
     lut: tableOf(io, conv).view,
     point: programs.samplers.point,
-    linear: programs.samplers.linear,
+    linear: programs.samplers.clamped,
     wrapped: programs.samplers.wrapped,
     outColor: layer.color.view,
     outAlpha: layer.alpha.view,
@@ -174,7 +208,7 @@ function layerGroups(io: GroupSources, conv: Convolution, tiles: TilePair) {
   const sprites =
     conv.scatter &&
     groupOf(io, programs.layouts.sprites, SPRITE_BINDINGS, {
-      list: whole(list),
+      list: wholeBuffer(list),
       lut: (plan.scatterLut && io.luts ? io.luts.scatter : images.dummyColors[0]).view,
       occlusion: (occluded ? images.occlusion : images.dummyCoc).view,
       sampler: programs.samplers.wrapped,
@@ -205,7 +239,7 @@ function recombineGroup(io: GroupSources) {
     bgColor: color('background'),
     bgAlpha: alpha('background'),
     lut: (plan.recombineLut && luts ? luts.recombine : images.dummyColors[0]).view,
-    linear: programs.samplers.linear,
+    linear: programs.samplers.clamped,
     point: programs.samplers.point,
     out: io.output,
   })
@@ -216,36 +250,37 @@ export function makeGroups(io: GroupSources): DofGroups {
   const { programs, plan, images, luts } = io
   const dilation = dilateGroups(io)
   const gathered = plan.convolutions.map((conv) => layerGroups(io, conv, dilation.tiles))
-  const scatters = plan.foregroundScatter || plan.backgroundScatter
+  const setup = setupOf(io)
   const lut = (image: Image | undefined) =>
     image && groupOf(io, programs.layouts.lut, LUT_BINDINGS, { lut: image.view })
   return {
     setup: groupOf(io, programs.layouts.setup, SETUP_BINDINGS, {
       scene: io.input,
       depth: io.depth,
-      color: (plan.divisor === 2 ? images.setupColor : images.dummyColors[0]).view,
-      coc: images.setupCoc.view,
+      color: (plan.divisor === 2 ? images.setup.color : images.dummyColors[0]).view,
+      coc: images.setup.coc.view,
     }),
+    temporal: temporalGroup(io),
     flatten: groupOf(io, programs.layouts.flatten, FLATTEN_BINDINGS, {
-      coc: images.setupCoc.view,
+      coc: setup.coc,
       fg: images.flat.fg.view,
       bg: images.flat.bg.view,
     }),
     dilates: dilation.groups,
-    downsample: scatters
+    downsample: scattersOver(plan)
       ? groupOf(io, programs.layouts.downsample, DOWNSAMPLE_BINDINGS, {
-          color: images.setupColor.view,
-          coc: images.setupCoc.view,
+          color: setup.color,
+          coc: setup.coc,
           outColor: images.quarterColor.view,
           outCoc: images.quarterCoc.view,
         })
       : undefined,
     reduces: reduceGroups(io),
-    pack: scatters
+    pack: scattersOver(plan)
       ? groupOf(io, programs.layouts.pack, PACK_BINDINGS, {
-          arguments: whole(io.buffers.drawArguments),
-          foregroundList: whole(io.buffers.foreground),
-          backgroundList: whole(io.buffers.background),
+          arguments: wholeBuffer(io.buffers.drawArguments),
+          foregroundList: wholeBuffer(io.buffers.foreground),
+          backgroundList: wholeBuffer(io.buffers.background),
         })
       : undefined,
     luts: {
@@ -257,6 +292,5 @@ export function makeGroups(io: GroupSources): DofGroups {
     postfilters: gathered.map((g) => g.postfilter),
     sprites: gathered.map((g) => g.sprites || undefined),
     recombine: recombineGroup(io),
-    tiles: dilation.tiles,
   }
 }

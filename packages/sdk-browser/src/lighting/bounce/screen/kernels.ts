@@ -14,18 +14,22 @@ import { raysEntries, raysShader } from './importanceWgsl.ts'
 import { occlusionShader, OCCLUSION_BINDINGS, type OcclusionShape } from './occlusionWgsl.ts'
 import { placeShader, PLACE_BINDINGS } from './placeWgsl.ts'
 import { screenDataShader, SCREEN_DATA_BINDINGS } from './screenDataWgsl.ts'
+import { scatterEntries, scatterShader } from './cacheScatterWgsl.ts'
 import { adaptiveSamples } from './screenProbeLayout.ts'
 import { spatialFilterShader, SPATIAL_BINDINGS } from './spatialWgsl.ts'
-import { temporalShader, TEMPORAL_BINDINGS } from './temporalWgsl.ts'
+import { temporalShader, TEMPORAL_BINDINGS, TEMPORAL_PIXEL_BINDINGS } from './temporalWgsl.ts'
 import { traceFieldEntries, traceFieldShader } from './traceFieldWgsl.ts'
 import { traceSceneEntries, traceSceneShader } from './traceSceneWgsl.ts'
 import { traceScreenEntries, traceScreenShader } from './traceWgsl.ts'
 
-/** What the kernels' code depends on: the rays a side of a probe's octahedron, the samples of a tile an
- *  adaptive probe may stand on, the short-range occlusion's shape, whether the scene is traced. A view's
+/** What the kernels' code depends on: the rays a side of a probe's octahedron and the texels a side they are gathered into, the
+ *  samples of a tile an adaptive probe may stand on, the short-range occlusion's shape, whether the scene is traced. A view's
  *  settings that agree on these share their kernels. */
 export interface KernelShape {
+  /** Whether probes are cast: the kernels over them are made. */
+  casts: boolean
   side: number
+  gather: number
   samples: readonly [number, number]
   occlusion: OcclusionShape
   scene: boolean
@@ -33,14 +37,16 @@ export interface KernelShape {
 
 /** The shape of the kernels `settings` need. */
 export const kernelShapeOf = (settings: ScreenProbeSettings): KernelShape => ({
+  casts: settings.casts,
   side: settings.tracingResolution,
+  gather: settings.gatherResolution,
   samples: adaptiveSamples(settings.adaptiveProbes),
   occlusion: {
     downsample: settings.occlusionDownsample,
     pyramid: settings.occlusionPyramid,
     power: settings.occlusionForegroundPower,
   },
-  scene: settings.sceneTraces,
+  scene: settings.values.screenProbeSceneTraces,
 })
 
 /** A kernel's source: its WGSL, the entries of its group 0, its entry points, the pipeline constants it needs, and the key
@@ -72,7 +78,7 @@ const withList = <E extends string>(source: KernelSource<E>, width: number): Ker
  *  `width`. */
 const traceSources = (shape: KernelShape, width: number) => {
   const { side, samples } = shape
-  const probes = `${side}x${samples.join('x')}`
+  const probes = `${side}x${shape.gather}x${samples.join('x')}`
   return {
     traceScreen: withList(
       sourceOf(probes, traceScreenShader(side, samples), traceScreenEntries(), 'traceScreen'),
@@ -95,14 +101,11 @@ const traceSources = (shape: KernelShape, width: number) => {
   }
 }
 
-/**
- * THE SCREEN PROBES' KERNELS' SOURCES for a shape, in the order `encode.ts` dispatches them: the placement, the screen data, the
- * rays, the screen trace, the field's, the scene's where it is asked, the composite, the spatial filter, the conversion, the
- * short-range occlusion and the temporal pass (which integrates). `width` is the device's dispatch width.
- */
-export const screenProbeSources = (shape: KernelShape, width = groupWidth()) => {
-  const { side, samples, occlusion } = shape
-  const probes = `${side}x${samples.join('x')}`
+/** The sources of the kernels over the probes: the placement, the screen data, the scatter of their importance into the radiance cache, the rays, the trace's three stages, the composite, the
+ *  spatial filter and the conversion, in the order `encode.ts` dispatches them. */
+const castSources = (shape: KernelShape, width: number) => {
+  const { side, gather, samples } = shape
+  const probes = `${side}x${gather}x${samples.join('x')}`
   return {
     place: sourceOf(
       `${samples}`,
@@ -119,21 +122,40 @@ export const screenProbeSources = (shape: KernelShape, width = groupWidth()) => 
       SCREEN_DATA_BINDINGS.entries,
       'screenData',
     ),
-    rays: sourceOf(probes, raysShader(side, samples), raysEntries(), 'genRays'),
+    scatter: sourceOf(`${samples}`, scatterShader(samples), scatterEntries(), 'scatterPdf'),
+    rays: sourceOf(probes, raysShader(side, gather, samples), raysEntries(), 'genRays'),
     ...traceSources(shape, width),
     composite: sourceOf(
       probes,
-      compositeShader(side, samples),
+      compositeShader(side, gather, samples),
       COMPOSITE_BINDINGS.entries,
       'composite',
     ),
     spatial: sourceOf(
       probes,
-      spatialFilterShader(side, samples),
+      spatialFilterShader(gather, samples),
       SPATIAL_BINDINGS.entries,
       'spatialFilter',
     ),
-    convert: sourceOf(probes, convertShader(side, samples), CONVERT_BINDINGS.entries, 'convert'),
+    convert: sourceOf(
+      probes,
+      convertShader(side, gather, samples),
+      CONVERT_BINDINGS.entries,
+      'convert',
+    ),
+  }
+}
+
+/**
+ * THE SCREEN PROBES' KERNELS' SOURCES for a shape, in the order `encode.ts` dispatches them: where probes are cast, the placement, the screen
+ * data, the scatter, the rays, the screen trace, the field's, the scene's where it is asked, the composite, the spatial filter and the conversion; then,
+ * at every level that draws, the short-range occlusion and the temporal pass (which integrates the probes where there are any, and
+ * alone keeps the occlusion's history where there are none). `width` is the device's dispatch width.
+ */
+export const screenProbeSources = (shape: KernelShape, width = groupWidth()) => {
+  const { samples, occlusion } = shape
+  return {
+    ...(shape.casts ? castSources(shape, width) : {}),
     occlusion: sourceOf(
       `${samples}|${occlusion.downsample}|${occlusion.pyramid}|${occlusion.power}`,
       occlusionShader(occlusion, samples),
@@ -141,9 +163,9 @@ export const screenProbeSources = (shape: KernelShape, width = groupWidth()) => 
       'occlusion',
     ),
     temporal: sourceOf(
-      `${samples}|${occlusion.downsample}`,
-      temporalShader(occlusion.downsample, samples),
-      TEMPORAL_BINDINGS.entries,
+      `${samples}|${occlusion.downsample}|${shape.casts}`,
+      temporalShader(occlusion.downsample, samples, shape.casts),
+      (shape.casts ? TEMPORAL_BINDINGS : TEMPORAL_PIXEL_BINDINGS).entries,
       'temporal',
     ),
   }
@@ -155,10 +177,11 @@ export interface Kernel<E extends string> {
   pipelines: Record<E, GPUComputePipeline>
 }
 
-/** The screen probes' kernels, compiled: each its layout and pipelines (the scene's only where it is asked). */
-export interface ScreenProbeKernels {
+/** The kernels over the probes, compiled (the scene's only where it is asked). */
+export interface CastKernels {
   place: Kernel<'placeUniform' | 'probeArgs' | 'adaptiveMark' | 'adaptiveSpawn'>
   screenData: Kernel<'screenData'>
+  scatter: Kernel<'scatterPdf'>
   rays: Kernel<'genRays'>
   traceScreen: Kernel<'traceScreen'>
   traceField: Kernel<'traceField'>
@@ -166,6 +189,11 @@ export interface ScreenProbeKernels {
   composite: Kernel<'composite'>
   spatial: Kernel<'spatialFilter'>
   convert: Kernel<'convert'>
+}
+
+/** The screen probes' kernels, compiled: the pixels' two, and those over the probes where the level casts them. */
+export interface ScreenProbeKernels {
+  cast?: CastKernels
   occlusion: Kernel<'occlusion'>
   temporal: Kernel<'temporal'>
 }

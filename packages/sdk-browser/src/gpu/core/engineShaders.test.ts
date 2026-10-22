@@ -13,6 +13,8 @@ import { VIS_SHADER } from '../../visibility/shader/visWgsl.ts'
 import { CLUSTER_DECODING_SHADER } from '../../../../../tests/gpu/cluster/decodingKernel.ts'
 import { FLOAT32_MAX } from '../../../../math/src/constants.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
+import { dofTemporalShader } from '../../post/effects/depthOfField/dofTemporalWgsl.ts'
 
 test('every WGSL text the engine and its proofs compile declares every name it uses', () => {
   const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER }
@@ -89,6 +91,7 @@ const HANDED_IN = new Set([
   'materials/texture/coverageMips.ts',
   'lighting/deferred/program.ts',
   'lighting/deferred/compositions.ts',
+  'lighting/bounce/cache/radianceCache.ts',
   'lighting/bounce/screen/kernels.ts',
   'lighting/ao/pipelines.ts',
   'lighting/shadows/vsm/invalidation/castStale.ts',
@@ -98,6 +101,7 @@ const HANDED_IN = new Set([
   'lighting/shadows/vsm/pageManagementPass.ts',
   'lighting/shadows/vsm/projection/projectionPipelines.ts',
   'lighting/shadows/vsm/render/renderPipes.ts',
+  'lighting/shadows/vsm/tessellation/shadowPrograms.ts',
   'lighting/shadows/vsm/transmission/transmissionContext.ts',
   'lighting/shadows/vsm/transmission/transmissionPipes.ts',
 ])
@@ -108,6 +112,7 @@ test('the list holds the text of every call that compiles a module', () => {
     'engineShaders.fixture.ts',
     'engineShaders.vsm.fixture.ts',
     'engineShaders.compose.fixture.ts',
+    'engineShaders.blur.fixture.ts',
   ]
     .map((name) => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8'))
     .join('\n')
@@ -189,4 +194,108 @@ test('every float literal of the engine WGSL is a finite f32: a compiler refuses
     for (const [, text] of code.matchAll(literal))
       if (Math.abs(Number(text)) > FLOAT32_MAX) past.push(`${name}: ${text}`)
   assert.deepEqual(past, [])
+})
+
+/** One pixel of the depth of field's temporal accumulation of its setup, run in JavaScript on the shipped
+ *  text: the setup's samples `image` by place, a history `past` (written for a display of `rect`), its circle
+ *  and the places it was sampled at, the motion `back`; an image 16 wide on a display of 16 (`up` 1), or 8. */
+function accumulated(o: {
+  image?: (x: number) => number
+  past?: number
+  coc?: [number, number]
+  cut?: boolean
+  back?: number[]
+  high?: boolean
+  up?: number
+  rect?: number
+  jitter?: number
+  taps?: number[][]
+}) {
+  const out: Record<string, number[]> = {}
+  const grey = (v: number) => [v, v, v, 1]
+  const side = 16 / (o.up ?? 1)
+  const view = {
+    gather: [side / 2, side / 2, side / 2, side / 2],
+    image: [side, side, side, side],
+    pre: [8, 8, 8, 8],
+    display: [16, 16, o.rect ?? 16, o.rect ?? 16],
+    depthMap: [1, 1, side - 1, side - 1],
+    scatter: [3, 10, 0, 1],
+    temporal: [o.jitter ?? 0, 0, o.cut ? 1 : 0, 0],
+    current: [0.04, 0, 0, 0],
+    counts: [0, 0, 0, 0],
+  }
+  const { temporalSetup, encodeVector } = shaderRun<{
+    temporalSetup: (id: number[]) => void
+    encodeVector: (v: number[]) => number
+  }>(dofTemporalShader(), ['temporalSetup', 'encodeVector'], {
+    view,
+    HIGH: o.high ?? true,
+    DIVISOR: 2,
+    colorOut: 'color',
+    cocOut: 'coc',
+    historySampler: {},
+    currentColor: { load: (p: number[]) => grey((o.image ?? (() => 0.5))(p[0])) },
+    currentCoc: { load: () => [o.coc?.[0] ?? 0, 0, 0, 0] },
+    depthTexture: { load: () => 0.5 },
+    vectors: { load: () => [encodeVector(o.back ?? [0, 0]), 0, 0, 0] },
+    historyColor: { sample: (uv: number[]) => (o.taps?.push(uv), grey(o.past ?? 0.5)) },
+    historyCoc: { sample: () => [o.coc?.[1] ?? 0, 0, 0, 0] },
+    textureLoad: (t: { load: (p: number[]) => unknown }, p: number[]) => t.load(p),
+    textureSampleLevel: (t: { sample: (uv: number[]) => number[] }, _s: unknown, uv: number[]) =>
+      t.sample(uv),
+    textureStore: (t: string, _p: number[], v: number[]) => void (out[t] = v),
+  })
+  temporalSetup([3, 3, 0])
+  return out
+}
+
+const near = (a: number, b: number, why = '') => assert.ok(Math.abs(a - b) < 1e-3, `${why}: ${a}`)
+
+test('the depth of field’s accumulation of its setup takes the image at a cut, holds the history to the neighbourhood, and blends at its weight', () => {
+  const edge = (x: number) => (x <= 2 ? 0 : x >= 4 ? 1 : 0.5) // a step across the pixel: the box is [0, 1]
+  for (const high of [true, false]) {
+    near(accumulated({ cut: true, past: 9, high }).color[0], 0.5, 'a cut: the image alone')
+    const inside = accumulated({ image: edge, past: 0.9, high }).color[0]
+    near(inside, 0.88, 'inside the box: the history, 4 % image')
+    near(
+      accumulated({ image: edge, past: 5, high }).color[0],
+      0.9737,
+      'far outside: held to the box',
+    )
+    near(accumulated({ past: 0.5, high }).color[0], 0.5, 'a static pixel stays')
+    assert.ok(
+      accumulated({ image: edge, past: 0.9, back: [0.2, 0], high }).color[0] < inside,
+      'moving',
+    )
+  }
+  near(
+    accumulated({ coc: [4, 9] }).coc[0],
+    4,
+    'the history’s circle is held to the neighbourhood’s',
+  )
+})
+
+test('the accumulation filters the setup by the window of its jittered place, as wide as the pixel is large, and reads the history in the rectangle it was written in', () => {
+  // The display's pixel 3 falls at 1.75 of a setup 4 texels wide (an image of 8 rebuilt to 16): the texel 1,
+  // the pixel 0.25 from its centre; a jitter of 1 render pixel moves it by half a texel. A cut ignores the
+  // history: the window is the wider (the image's share of the display) where it is none.
+  const step = (x: number) => (x < 1 ? 0 : x === 1 ? 0.5 : 1)
+  const window = (d2: number, scale2: number) => {
+    const x2 = Math.min(1, scale2 * d2)
+    return (0.905 * x2 - 1.9) * x2 + 1
+  }
+  const filtered = (offset: number[], at: number) => {
+    const dx = [0, -1, 0, 1, 0]
+    const dy = [-1, 0, 0, 0, 1]
+    const w = dx.map((x, i) => window((x - offset[0]) ** 2 + (dy[i] - offset[1]) ** 2, 1))
+    return dx.reduce((sum, x, i) => sum + w[i] * step(at + x), 0) / w.reduce((sum, v) => sum + v)
+  }
+  const cut = (jitter: number) => accumulated({ cut: true, image: step, up: 2, jitter }).color[0]
+  near(cut(0), filtered([0.25, 0.25], 1))
+  near(cut(1), filtered([-0.25, 0.25], 2)) // place 2.25: the texel 2, offset -0.25
+  // A history written for a display of 8 lies in the first half of its images: every tap stays inside it.
+  const taps: number[][] = []
+  accumulated({ up: 2, rect: 8, taps })
+  assert.ok(taps.length > 0 && taps.every(([u, v]) => u <= 0.4375 && v <= 0.4375), `${taps}`)
 })

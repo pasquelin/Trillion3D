@@ -36,25 +36,23 @@
  */
 import type { TablePartition } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { resolveCameraWorld } from '../../camera/world.ts'
 import { createCellBoxes } from './boxes.ts'
 import type { CellFrame } from './follow.ts'
-import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
-import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
 import { createCellIndex, type IndexPage, type PageBody } from './cellIndex.ts'
 import type { CellRows } from './cellDecode.ts'
 import { primeFrames, type CellBudget, type CellFrameIo, type CellPrimeIo } from './cellsPrime.ts'
 import { createDecodes, takeDecoded } from './decodes.ts'
 import { createCellPlan } from './plan.ts'
-import { inCellFrame, placedReach } from './reach.ts'
+import { createCellView } from './cellView.ts'
 import { createCoarserPulls } from './coarser.ts'
 import { createHlodPulls } from '../hlod/hlodPulls.ts'
 import { createLoadSlots } from './loadSlots.ts'
 import { createStreamingSource } from './source.ts'
+import { createSourceVelocity } from './sourceVelocity.ts'
 import { createStreamingUpdate } from './streamingUpdate.ts'
 import { resolveWorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import { capacityOf, type PlacedMesh, type StreamedMeshes } from './rows.ts'
-import { createRowSizing, heldSide, rungOf } from './sizing.ts'
+import { createRowSizing } from './sizing.ts'
 import { createCellPlacements } from './placements.ts'
 import { createCellHolds } from './cellHolds.ts'
 import { createHlodCells } from '../hlod/hlodCells.ts'
@@ -64,6 +62,9 @@ import type { WorldCells } from '../dag/worlds/worldCells.ts'
 import { createSlowStreaming } from './slowStreaming.ts'
 import type { PlacementRows } from '../../placement/rows/rows.ts'
 import { sharedCatalogue, type PartitionShare } from './cellShare.ts'
+
+/** The cells of the main grid a view that only loads activates: none. */
+const NOT_ACTIVATED: ReadonlyMap<number, ArrayLike<number>> = new Map()
 
 type Inputs = {
   partition: TablePartition
@@ -126,21 +127,9 @@ export function createPartitionCells(
     stood: ArrayLike<number> = [0, 0, 0]
   /** Cells waiting for rows. */
   let waiting = 0
-  /** Where the camera at `eye` stands in the cells' frame, and the rung its view asks. */
-  const framed = new Float64Array(MATRIX_VALUES)
-  /** The scene root's world, in the frame it hangs in (`pose`). */
-  const rootWorld = () => {
-    const world = resolveCameraWorld(root).worldMatrix,
-      outer = frame.world?.()
-    return outer ? multiplyMatrix4(framed, outer, world) : world
-  }
-  const view = (eye: ArrayLike<number>, axis?: ArrayLike<number>) => {
-    const world = rootWorld()
-    const local = inCellFrame(world, eye, placedReach(grids, source, pulls), axis)
-    boxes.refresh()
-    const rung = rungOf(heldSide(local.reach, partition.cube, boxes.stretch), partition.cube)
-    return { ...local, rung, world }
-  }
+  /** Where the camera stands in the cells' frame, and the rung its view asks. */
+  const view = createCellView(root, frame, boxes, partition, source, pulls)
+  const velocity = createSourceVelocity()
   /** The rows this placement asks of the meshes, its view's and its actors' (`sizing.ts`). */
   const sizing = createRowSizing(partition, meshes, [share, self], actors)
   const cellUrl = (cell: number) => index.cell(cell).url
@@ -194,13 +183,19 @@ export function createPartitionCells(
       waiting,
       rows: [...meshes.values()].reduce((sum, mesh) => sum + capacityOf(mesh), 0),
     }),
-    /** Before a frame from `eye` looking along the unit `axis`: the plan's cells leave and far
-     *  pages close, rows past those sized grow, the cells wished and not loaded take their turn,
-     *  the pages and the files of the cells loading are asked, those read handed to the page worker
-     *  pool, those decoded opened or placed while the frame's `budget` admits them, and the HLOD
-     *  cells hold their roots and tell the cut what they are. True when a page or cell it wants is
-     *  left for a later frame. */
-    frame(eye: ArrayLike<number>, io: CellFrameIo, budget: CellBudget, axis?: ArrayLike<number>) {
+    /** Before a frame from `eye` looking along the unit `axis`, `up` above it: the plan's cells
+     *  leave and far pages close, rows past those sized grow, the cells wished and not loaded take
+     *  their turn, the pages and the files of the cells loading are asked, those read handed to the
+     *  page worker pool, those decoded opened or placed while the frame's `budget` admits them, and
+     *  the HLOD cells hold their roots and tell the cut what they are. True when a page or cell it
+     *  wants is left for a later frame. */
+    frame(
+      eye: ArrayLike<number>,
+      io: CellFrameIo,
+      budget: CellBudget,
+      axis?: ArrayLike<number>,
+      up?: ArrayLike<number>,
+    ) {
       if (io !== given) at.catalogue = sharedCatalogue((given = io), share, self)
       at.io = io
       at.budget = budget
@@ -209,13 +204,14 @@ export function createPartitionCells(
       const settings = io.streaming
       if (settings) Object.assign(streaming, settings)
       rows.follow()
-      const local = view(eye, axis)
+      const local = view(eye, axis, up)
+      const moving = velocity.update(local.eye, io.time ?? 0)
       sizing.frame(local.rung, io)
       // The ranges are read in the cells' frame, the world DAG's at this placement's pose.
       cells = io.world
       // The wishes are planned again once the view moved or turned enough, in the camera's world.
-      const again = update.due(eye, axis, local.world, !!io.initialLoad, boxes.stretch)
-      if (again) source.set((stood = local.eye), local.axis)
+      const again = update.due(eye, axis, local.aim, local.world, !!io.initialLoad, boxes.stretch)
+      if (again) source.set((stood = local.eye), local.axis, local.heading, moving)
       pulled.update()
       // The HLOD actors off, no HLOD cell is held nor told, every file streams on the main grid.
       if (hlodOn && !streaming.hlod) hlod.close(cells, instance)
@@ -230,7 +226,7 @@ export function createPartitionCells(
       if (again) for (const cell of held.keys()) rows.proxy(cell, !planned.main.has(cell))
       if (hlodOn) hlod.follow(planned.leaves, stood, cells, instance)
       // A cell loaded and not activated holds no image back.
-      const main = streaming.targetState === 'loaded' ? new Map() : planned.main
+      const main = streaming.targetState === 'loaded' ? NOT_ACTIVATED : planned.main
       const waits = slow.weigh(stood, main, !!io.initialLoad)
       cells?.blockingLoad(instance, waits)
       // The cells wished and not loaded take their turn: so many load at once at most, none held

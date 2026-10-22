@@ -90,6 +90,8 @@ export async function createDeferredLighting(
     setLightView: view.writeLightView,
     /** How the resolve applies the ambient occlusion of this image (`writeAmbientOcclusion`). */
     setAmbientOcclusion: view.writeAmbientOcclusion,
+    /** How the resolve reads the screen probes' history of this image (`writeScreenProbes`). */
+    setScreenProbes: view.writeScreenProbes,
     /** Writes the view uniform of this image (`view.ts`). */
     update: viewUpdate(state, view),
     /** Select and lazily compile the active lighting program. */

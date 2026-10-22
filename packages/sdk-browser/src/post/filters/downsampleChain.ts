@@ -18,8 +18,29 @@ export type DownsampleLevel = {
   uniform: GPUBuffer
 }
 
+/** The uniform of the pass that draws a level of `size` texels from an image of `above` texels,
+ *  written once: it depends on the two sizes alone. */
+export function downsampleUniform(
+  device: GPUDevice,
+  label: string,
+  size: readonly number[],
+  above: readonly number[],
+) {
+  const uniform = device.createBuffer({
+    label,
+    size: DOWNSAMPLE_BYTES,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  })
+  words[AT.inTexel] = 1 / above[0]
+  words[AT.inTexel + 1] = 1 / above[1]
+  words[AT.outTexel] = 1 / size[0]
+  words[AT.outTexel + 1] = 1 / size[1]
+  device.queue.writeBuffer(uniform, 0, words)
+  return uniform
+}
+
 /** The level of `size` texels drawn from an image of `above` texels: its image, and the uniform of
- *  its pass, written once — it depends on the two sizes alone. */
+ *  its pass (`downsampleUniform`). */
 export function downsampleLevel(
   device: GPUDevice,
   label: string,
@@ -32,16 +53,7 @@ export function downsampleLevel(
     format: HDR_FORMAT,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
   })
-  const uniform = device.createBuffer({
-    label,
-    size: DOWNSAMPLE_BYTES,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
-  words[AT.inTexel] = 1 / above[0]
-  words[AT.inTexel + 1] = 1 / above[1]
-  words[AT.outTexel] = 1 / size[0]
-  words[AT.outTexel + 1] = 1 / size[1]
-  device.queue.writeBuffer(uniform, 0, words)
+  const uniform = downsampleUniform(device, label, size, above)
   return { texture, view: texture.createView(), uniform }
 }
 

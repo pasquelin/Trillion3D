@@ -24,7 +24,7 @@ export interface VsmTraceBindings {
    *  (`vsmLoneVoteWgsl`). */
   subgroups?: boolean
   /** The blue noise and the translucent casters' memory are read-only storage textures, read by
-   *  load, not sampled textures (`vsmBlueNoiseWgsl`, `vsmTransmissionReadWgsl`). */
+   *  load, not sampled textures (`blueNoiseWgsl`, `vsmTransmissionReadWgsl`). */
   loadOnly?: boolean
 }
 export const vsmTraceBindingsLabel = (t: VsmTraceBindings) =>

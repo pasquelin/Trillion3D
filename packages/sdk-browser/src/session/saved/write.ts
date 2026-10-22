@@ -127,6 +127,7 @@ function saveNode(o: Object3D, tables: Tables): SavedNode {
     visible: o.visible,
     castShadow: o.castShadow,
     ...(o.castFarShadow ? { castFarShadow: true as const } : {}),
+    ...(o.farShadowTest === null ? {} : { farShadowTest: o.farShadowTest }),
     receiveShadow: o.receiveShadow,
     renderOrder: o.renderOrder,
     userData: plain(o.userData),

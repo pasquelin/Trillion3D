@@ -172,7 +172,7 @@ export const MAX_SHADOW_SLICES = 64
 
 /** Faces of a point light's slice: six. */
 export const POINT_FACES = 6
-/** Floats of a light in the GPU buffer: six `vec4f`. */
+/** Floats of a light in the GPU buffer: seven `vec4f`. */
 export const SCENE_LIGHT_FLOATS = 24
 /** Light-buffer header: count, then three reserved words. */
 export const SCENE_LIGHT_HEADER_FLOATS = 4

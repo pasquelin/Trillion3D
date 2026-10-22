@@ -1,5 +1,8 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
-import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import type {
+  ScreenProbeSettings,
+  ScreenProbeValues,
+} from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import {
   computeBufferEntry,
   computeStorageTextureEntry,
@@ -101,8 +104,9 @@ export interface ScreenProbeGeometry {
   /** Samples of a tile an adaptive probe may stand on, along x and y. */
   samplesX: number
   samplesY: number
-  /** Rays a side of a probe's octahedron, traced and gathered. */
+  /** Rays a side of a probe's octahedron, traced, and texels a side of the octahedron they are gathered into. */
   tracing: number
+  gather: number
 }
 
 /** The samples of a tile along each axis for `count` of them: four by four from sixteen, four by two
@@ -117,8 +121,8 @@ const probeTexels = (tracing: number) => Math.max(tracing, IRRADIANCE_PROBE_SIDE
 /** What the shape of the probes depends on in the settings. */
 type ShapeSettings = Pick<
   ScreenProbeSettings,
-  'downsampleFactor' | 'adaptiveProbes' | 'adaptiveFraction' | 'tracingResolution'
->
+  'casts' | 'downsampleFactor' | 'adaptiveProbes' | 'tracingResolution' | 'gatherResolution'
+> & { values: Pick<ScreenProbeValues, 'screenProbeAdaptiveFraction'> }
 
 /**
  * The shapes of the probes of an image of `width × height` pixels cut in tiles of `tile` pixels at `settings`: a probe a tile,
@@ -134,11 +138,12 @@ export function geometryOfTile(
 ): ScreenProbeGeometry {
   const tilesX = Math.max(1, ceilDiv(width, tile)),
     tilesY = Math.max(1, ceilDiv(height, tile))
-  const adaptive = settings.adaptiveProbes > 0 && settings.adaptiveFraction > 0
-  const rows = tilesY + (adaptive ? Math.trunc(tilesY * settings.adaptiveFraction) : 0)
+  const fraction = settings.values.screenProbeAdaptiveFraction
+  const adaptive = settings.casts && settings.adaptiveProbes > 0 && fraction > 0
+  const rows = tilesY + (adaptive ? Math.trunc(tilesY * fraction) : 0)
   const uniform = tilesX * tilesY
   const maxAdaptive = adaptive
-    ? Math.min(Math.trunc(uniform * settings.adaptiveFraction), rows * tilesX - uniform)
+    ? Math.min(Math.trunc(uniform * fraction), rows * tilesX - uniform)
     : 0
   const [samplesX, samplesY] = adaptiveSamples(settings.adaptiveProbes)
   return {
@@ -153,13 +158,14 @@ export function geometryOfTile(
     samplesX,
     samplesY,
     tracing: settings.tracingResolution,
+    gather: settings.gatherResolution,
   }
 }
 
 /**
  * The shapes of the probes of a view of `width × height` pixels at `settings` (`geometryOfTile`): the tile the settings name,
  * doubled, up to sixty-four pixels, until the atlas's textures fit the `side` a device's texture may measure (its
- * `maxTextureDimension2D`).
+ * `maxTextureDimension2D`). A level that casts no probe holds one tile the size of the image: a single probe no kernel reads.
  */
 export function screenProbeGeometry(
   width: number,
@@ -168,7 +174,7 @@ export function screenProbeGeometry(
   side = Infinity,
 ): ScreenProbeGeometry {
   const texels = probeTexels(settings.tracingResolution)
-  let tile = settings.downsampleFactor
+  let tile = settings.casts ? settings.downsampleFactor : Math.max(width, height)
   let found = geometryOfTile(width, height, tile, settings)
   while (tile < MAX_TILE && Math.max(found.tilesX, found.rows) * texels > side) {
     tile *= 2
@@ -185,13 +191,15 @@ export const SCREEN_PROBE_FLAGS = {
   radianceHistory: 1 << 3,
   temporal: 1 << 4,
   stochastic: 1 << 5,
-  field: 1 << 6,
+  cache: 1 << 6,
   octahedral: 1 << 7,
   occlusion: 1 << 8,
   sceneTraces: 1 << 9,
   meshTraces: 1 << 10,
   velocity: 1 << 11,
   fastUpdateClamp: 1 << 12,
+  disocclusion: 1 << 13,
+  occlusionTemporal: 1 << 14,
 } as const
 
 /**
@@ -202,8 +210,10 @@ export const SCREEN_PROBE_FLAGS = {
  * history keeps at most, the uniform probes and the screen trace's iterations; `weights`, the depth weights of the interpolation (the plane's,
  * then the fallback's, as exponents), the probability under which a ray is not traced and the intensity a ray is
  * held to; `spatial`, the spatial filter's position scale and its angle, the width the probes a pixel reads are
- * jittered and the occlusion's strength; `scene`, the detail trace's distance, the distance from the eye it is
- * made within, the bias off a surface and the history's relative depth threshold; `motion`, the relative speed
+ * jittered and the furthest a ray looks; `occlusion`, the horizon search's slices, steps and foreground fraction and the scale of
+ * the neighbourhood the history's occlusion is held to; `scene`, the detail trace's distance, the distance from the eye it is
+ * made within, the bias off a surface and the history's relative depth threshold; `cache`, the radiance cache's radius scale (the
+ * multiple of a probe's nearest ray start the direction a ray reads it by is moved onto a sphere of) and the texels a side of its maps; `motion`, the relative speed
  * difference from which a ray's end moves, the inverse of the share of moving light from which the history gives
  * way, and the most it gives way by; `tuning`, the frames and the share of a probe's pixels that make it
  * disoccluded, the history's depth thickness and the relative thickness of the screen trace; `previous`, the inverse of
@@ -216,7 +226,9 @@ export const SCREEN_PROBE_PARAMS = fieldLayout('ScreenProbeParams', [
   ['counts', 'vec4u'],
   ['weights', 'vec4f'],
   ['spatial', 'vec4f'],
+  ['occlusion', 'vec4f'],
   ['scene', 'vec4f'],
+  ['cache', 'vec4f'],
   ['motion', 'vec4f'],
   ['tuning', 'vec4f'],
   ['previous', 'mat4x4f'],
@@ -227,5 +239,5 @@ export const SCREEN_PROBE_PARAMS_BYTES = SCREEN_PROBE_PARAMS.words * 4
 /** The indirect arguments the placement writes for the kernels over the probes in use (`probeArgs`): the workgroups
  *  of a kernel a probe a group at word `probes`, of one over the trace texels in groups of 8 × 8 at word `texels`. */
 export const SCREEN_PROBE_ARGS = { probes: 0, texels: 3, words: 6 } as const
-/** Words an entry of the scene rays' list holds: the ray's texel (`x | y << 16`) and where the screen left it. */
-export const SCENE_RAY_WORDS = 2
+/** Words an entry of the scene rays' list holds: the ray's texel (`x | y << 16`). */
+export const SCENE_RAY_WORDS = 1

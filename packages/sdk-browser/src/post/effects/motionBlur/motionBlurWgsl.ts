@@ -2,7 +2,6 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { PI, TWO_PI } from '../../../../../math/src/wgsl/constants.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { DEG2RAD } from '../../../../../math/src/constants.ts'
-import { packSmallFloat, unpackSmallFloat } from '../../../gpu/core/smallFloatWgsl.ts'
 import { MOTION_BLUR_PARAMS } from './motionBlurLayout.ts'
 
 /**
@@ -89,25 +88,5 @@ fn streakFrame(streak:vec2f)->StreakFrame{
  let inverse=inverseSqrt(squared+1e-8);
  let axis=streak*inverse;
  return StreakFrame(squared*inverse,axis,abs(axis.x)+abs(axis.y));
-}`,
-)
-
-/**
- * The flattened motion in one word, three unsigned small floats as a 3-channel 11-11-10 float
- * holds them: a length and an angle of 5 bits of exponent and 6 of mantissa, a depth of 5 and 5.
- * - `packSmallFloat`, `unpackSmallFloat` (`../../../gpu/core/smallFloatWgsl.ts`, the engine's one pack of the
- *   format): a number as the field of `mantissa` bits, round to nearest, held to the format's range, and back;
- * - `packFlat`, `unpackFlat`: a texel's length, angle and depth in the word's three fields, the
- *   first in its low bits; `unpackFlat` returns them as `(length, angle, depth)`.
- */
-export const FLAT_PACK_WGSL = wgslBlock(
-  'FLAT_PACK_WGSL',
-  [packSmallFloat, unpackSmallFloat],
-  `
-fn packFlat(reach:f32,angle:f32,depth:f32)->u32{
- return packSmallFloat(reach,6u)|(packSmallFloat(angle,6u)<<11u)|(packSmallFloat(depth,5u)<<22u);
-}
-fn unpackFlat(word:u32)->vec3f{
- return vec3f(unpackSmallFloat(word&0x7ffu,6u),unpackSmallFloat((word>>11u)&0x7ffu,6u),unpackSmallFloat(word>>22u,5u));
 }`,
 )

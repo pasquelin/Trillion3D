@@ -8,8 +8,9 @@ import { GRAIN_BYTES } from './grain.ts'
 /**
  * Bytes the display finishing holds for an image of `width × height` pixels, at most: the scene's
  * half-size image and its levels, the local exposure's grid, log luminance and blur targets, and
- * the grain's texture (`createFinish`). Every level, the blur targets as wide as their image: the reserve a view
- * makes for it (`../effects/targets.ts`).
+ * the grain's texture, which a finishing that draws no grain never makes (`createFinish`). Every
+ * level, the blur targets as wide as their image: the reserve a view makes for it
+ * (`../effects/targets.ts`) is an upper bound.
  */
 export function finishBytesAt(width: number, height: number) {
   const sizes = chainSizes(width, height, BLOOM_LEVEL_COUNT)

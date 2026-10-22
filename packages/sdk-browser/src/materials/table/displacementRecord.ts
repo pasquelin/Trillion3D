@@ -2,7 +2,7 @@ import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
 import { MAX_UV_SETS } from '../../../../sdk-core/src/page/format.ts'
 import type { VisMaterial } from '../../visibility/materialType.ts'
-import { displacementFadeOut, displacementRange } from '../../visibility/tessellation/numbers.ts'
+import { fadeOutPixels, displacementRange } from '../../visibility/tessellation/numbers.ts'
 import type { MaterialLayers } from '../../geometry/rows/page/pageRowMaterial.ts'
 import { layerSlot } from '../../geometry/rows/page/pageRowMaterial.ts'
 
@@ -12,7 +12,7 @@ import { layerSlot } from '../../geometry/rows/page/pageRowMaterial.ts'
  * its normal (`../../visibility/tessellation/`). `scale` holds the magnitude, the centre and the
  * two ends of the fade range in pixels — both zero for a displacement that never fades —, `bounds`
  * the least and the greatest distance a point moves (`displacementRange`) and the size under which
- * the fade is gone (`displacementFadeOut`), `map` the height map's data-atlas slot and the texture
+ * the fade is gone (`fadeOutPixels`), `map` the height map's data-atlas slot and the texture
  * set it reads, zero for a surface that is not displaced. The table is its own small buffer, made only once a displaced surface is written: a
  * scene without one holds none, so the material record every other pass reads is untouched.
  */
@@ -20,6 +20,7 @@ export const DISPLACEMENT_RECORD = fieldLayout('DisplacementRecord', [
   ['scale', 'vec4f'],
   ['bounds', 'vec4f'],
   ['map', 'vec4u'],
+  ['density', 'vec4f'],
 ] as const)
 /** Words of one record. */
 export const DISPLACEMENT_WORDS = DISPLACEMENT_RECORD.words
@@ -72,10 +73,12 @@ export function writeDisplacementRecord(
     const { min, max } = displacementRange(mat.displacement)
     scratch[F.bounds] = min
     scratch[F.bounds + 1] = max
-    scratch[F.bounds + 2] = displacementFadeOut(mat.displacement)
+    scratch[F.bounds + 2] = fadeOutPixels(mat.displacement)
     scratchInts[F.map] = slot
     // The texture set the map reads (glTF's `texCoord`), held to the last one a page carries.
     scratchInts[F.map + 1] = Math.min(mat.displacementMap?.channel ?? 0, MAX_UV_SETS - 1)
+    for (let set = 0; set < 4; set++)
+      scratch[F.density + set] = mat.displacement.uvDensities?.[set] ?? 0
   }
   let changed = false
   for (let i = 0; i < DISPLACEMENT_WORDS; i++)

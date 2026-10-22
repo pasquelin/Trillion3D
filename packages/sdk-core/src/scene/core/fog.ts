@@ -239,7 +239,8 @@ function numbersOf(fog: SceneFog | undefined, h = sceneHeightFog(fog)): number[]
 }
 
 /** What a volume carries that the block does not: the scatter, the particleColor, the glow, the
- *  extinction scale, the fade-in and the switch of the light colours; empty where it is off. Two
+ *  extinction scale, the fade-in, the switch of the light colours and the sky light's intensity;
+ *  empty where it is off. Two
  *  fogs that differ in it light the volume differently. */
 const volumeNumbers = (v: ResolvedHeightFog['volumetric']): number[] =>
   v

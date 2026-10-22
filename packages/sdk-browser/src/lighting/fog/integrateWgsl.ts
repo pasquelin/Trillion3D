@@ -31,6 +31,12 @@ fn fogPyramidLevel(texels:vec4i)->i32{
  let more=any((texels.zw>>vec2u(u32(level)))-(texels.xy>>vec2u(u32(level)))>vec2i(3));
  return level+select(0,1,more);
 }
+/** The furthest depth of the cell \`cell\` of the pyramid's level \`at\`; of the depth itself, the
+ *  level 0, where the image is a single pixel. */
+fn fogFarthestAt(cell:vec2i,at:i32)->f32{
+ if(at==0){return hizOpaqueDepth(cell);}
+ return hizCellFarthest(cell,at);
+}
 @compute @workgroup_size(8,8,1)
 fn furthestMain(@builtin(global_invocation_id) id:vec3u){
  if(any(id.xy>=vec2u(frame.grid.xy))){return;}
@@ -47,15 +53,12 @@ fn furthestMain(@builtin(global_invocation_id) id:vec3u){
  var texels=vec4i(pixels.xy,max(pixels.xy,pixels.zw))>>vec4u(1u);
  let level=fogPyramidLevel(texels);
  texels=texels>>vec4u(u32(level));
- // Our pyramid's level 1 is the footprint's level 0; where the pyramid has no level that high the
- // image is too small to hold the footprint, and nothing is held behind.
- let at=level+1;
- var furthest=0.0;
- if(at<hizLevelCount()){
-  furthest=1.0;
-  for(var y=texels.y;y<=texels.w;y++){
-   for(var x=texels.x;x<=texels.z;x++){furthest=min(furthest,hizCellFarthest(vec2i(x,y),at));}
-  }
+ // Our pyramid's level 1 is the footprint's level 0; a footprint wider than the image reads the last
+ // level, one texel, the image's furthest depth.
+ let at=min(level+1,hizLevelCount()-1);
+ var furthest=1.0;
+ for(var y=texels.y;y<=texels.w;y++){
+  for(var x=texels.x;x<=texels.z;x++){furthest=min(furthest,fogFarthestAt(vec2i(x,y),at));}
  }
  textureStore(fogFurthestOut,vec2i(id.xy),vec4f(furthest,0.0,0.0,0.0));
 }`,

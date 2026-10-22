@@ -7,7 +7,7 @@ import { spVectors } from './vectorsWgsl.ts'
  * The meta word a pixel's history keeps beside its colour (the second word of `SCREEN_PROBE_FORMATS.history`), four fields:
  * the depth the image measured it at — the view-space linear depth, in sixteen bits of a half float —, then in four
  * bits each the amount of fast update it was left with (`ceil(amount · 15)`, so that only none is none) and the frames it
- * holds (`round(frames / longest · 15)`, the longest read in 15 at most: the setting keeps it so), and in eight bits its
+ * holds (`round(frames / min(longest, 15) · 15)`: the code 15 is the longest, whatever it is), and in eight bits its
  * occlusion (`round(occlusion · 255)`, one at least: no pixel lit holds none). `spMetaDepth`, `spMetaFast` and
  * `spMetaOcclusion` read it as it is, the lighting's included (`SP_META_DECODE`); `spMetaOf` writes it and `spMetaFrames` reads the
  * frames against the longest history, which the parameters hold.
@@ -23,14 +23,18 @@ fn spMetaOcclusion(word:u32)->f32{return f32(word>>24u)/255.0;}`,
 const SP_META_WGSL = wgslBlock(
   'SP_META_WGSL',
   [SP_META_DECODE],
-  `fn spMetaOf(w:f32,frames:f32,fast:f32,occlusion:f32)->u32{
- let longest=f32(sp.counts.x);
- let encodedFrames=u32(round(saturate(frames/longest)*15.0));
+  `const SP_FRAME_CODES:f32=${SCREEN_PROBE_CONSTANTS.maxFramesCoded}.0;
+fn spMetaOf(w:f32,frames:f32,fast:f32,occlusion:f32)->u32{
+ let encodedFrames=u32(round(saturate(frames/min(f32(sp.counts.x),SP_FRAME_CODES))*SP_FRAME_CODES));
  let encodedFast=u32(ceil(saturate(fast)*15.0));
  let encodedOcclusion=u32(clamp(round(occlusion*255.0),1.0,255.0));
  return (pack2x16float(vec2f(w,0.0))&0xffffu)|(encodedFast<<16u)|(encodedFrames<<20u)|(encodedOcclusion<<24u);
 }
-fn spMetaFrames(word:u32)->f32{return f32((word>>20u)&15u)/15.0*f32(sp.counts.x);}`,
+fn spMetaFrames(word:u32)->f32{
+ let code=(word>>20u)&15u;
+ let longest=f32(sp.counts.x);
+ return select(f32(code)/SP_FRAME_CODES*min(longest,SP_FRAME_CODES),longest,f32(code)==SP_FRAME_CODES);
+}`,
 )
 
 /**

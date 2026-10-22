@@ -9,6 +9,7 @@ import { worldMatrix3 } from '../../../../../math/src/wgsl/matrix.ts'
 import { markReachWgsl } from '../../../deformation/halfFloat.ts'
 import { runtimeSceneWgsl } from './runtimeSceneWgsl.ts'
 import { runtimeShadowWgsl } from './runtimeShadowWgsl.ts'
+import { runtimeRingsWgsl } from './runtimeRingsWgsl.ts'
 import { sceneKey, type SceneBindings } from '../sceneBindings.ts'
 import { SKY_READ_WGSL } from '../../atmosphere/skyReadWgsl.ts'
 import {
@@ -68,9 +69,9 @@ fn rtFacing(hit:RtHit,direction:vec3f,world:mat3x3f)->vec3f{
 
 /** The light an exhausted walk brings back (`rtLayers`): the cascades' light at `stop` along `direction` from
  *  `start`, read by the surface the walk was at. */
-const rtStoppedWgsl = (scene: SceneBindings) =>
+const rtStoppedWgsl = (scene: SceneBindings, seen: string) =>
   wgslBlock(
-    `rtStoppedWgsl(${sceneKey(scene)})`,
+    `rtStoppedWgsl(${sceneKey(scene)},${seen})`,
     [rtSurfaceWgsl(scene), SURFACE_RAY_WGSL, worldMatrix3, NO_INDEX],
     `
 /** The surface is the hit's, its tint and its face that looks at the ray; where the walk found none, that of the
@@ -79,13 +80,118 @@ const rtStoppedWgsl = (scene: SceneBindings) =>
 fn rtStoppedSeen(hit:RtHit,start:vec3f,direction:vec3f,stop:f32)->vec3f{
  let at=start+direction*stop;
  let placement=select(rtReachedPlacement,hit.placement,hit.found);
- if(placement==NO_INDEX){return surfaceSeen(vec3f(1.0),at,-direction);}
+ if(placement==NO_INDEX){return ${seen}(vec3f(1.0),vec3f(0.0),at,-direction);}
  let tint=rtSurfaceOf(rtWorldsInstance(placement,0u)[RT_INSTANCE_SURFACE]).tint;
- if(!hit.found){return surfaceSeen(tint,at,-direction);}
- return surfaceSeen(tint,at,rtFacing(hit,direction,worldMatrix3(rtWorldOf(placement))));
+ if(!hit.found){return ${seen}(tint,vec3f(0.0),at,-direction);}
+ return ${seen}(tint,vec3f(0.0),at,rtFacing(hit,direction,worldMatrix3(rtWorldOf(placement))));
 }
 `,
   )
+
+/** The function that reads what a surface the walk met, not lit by the lights, brings back: from its tint and its
+ *  emission, at the point `at` of its face turned to the ray `N`. The default reads what the cascades hold there
+ *  (`surfaceSeen`) and adds the emission; a program that reads more (a reflection that takes the image the view
+ *  already holds) names its own, with this signature. */
+const RT_SEEN = 'rtSeenRead'
+const RT_SEEN_WGSL = wgslBlock(
+  'RT_SEEN_WGSL',
+  [],
+  `fn ${RT_SEEN}(tint:vec3f,emission:vec3f,at:vec3f,N:vec3f)->vec3f{return surfaceSeen(tint,at,N)+emission;}`,
+)
+
+/** What a walk answers (`RtWalk`) and what a surface it met adds to it (`rtLayerOf`). */
+const rtLayerWgsl = (scene: SceneBindings, seen: string) =>
+  wgslBlock(
+    `rtLayerWgsl(${sceneKey(scene)},${seen})`,
+    [
+      RADIANCE_ANSWER,
+      rtSurfaceWgsl(scene),
+      worldMatrix3,
+      markReachWgsl,
+      ...(seen === RT_SEEN ? [RT_SEEN_WGSL] : []),
+    ],
+    `
+/** The run-time proxy's one walk of a ray (\`rtLayers\`), the layers it crosses: its answer, the share the
+ *  surfaces stop, the share that went through, and, of a ringed walk, what spent the first ring that was
+ *  (\`RT_CAUSE_*\`, zero where none was) and the units its rings spent together; of any other, \`rtCause\` and \`rtWork\`. */
+struct RtWalk{answer:RadianceAnswer,stopped:f32,open:f32,spent:u32,work:u32,}
+fn rtWalkOf(answer:RadianceAnswer,stopped:f32,open:f32,ringed:bool,cause:u32,walked:u32)->RtWalk{
+ return RtWalk(answer,stopped,open,select(rtCause,cause,ringed),select(rtWork,walked,ringed));
+}
+/** What a surface the walk met adds to it: its radiance, the opacity it weighs it by, the share of the hit the walk knows
+ *  (\`known\`: a deformed placement's reach against the footprint, never opacity) and how far the walk goes on past it. */
+struct RtLayer{radiance:vec3f,opacity:f32,known:f32,travelled:f32,}
+fn rtLayerOf(hit:RtHit,start:vec3f,direction:vec3f,tangent:f32,reach:f32,lit:bool,layer:u32)->RtLayer{
+ let instance=rtWorldsInstance(hit.placement,0u);
+ let surface=rtSurfaceOf(instance[RT_INSTANCE_SURFACE]);
+ let spread=hit.distance*tangent+RT_SPREAD_FLOOR;
+ let marked=markReach(instance[RT_INSTANCE_MARK]);
+ let world=worldMatrix3(rtWorldOf(hit.placement));
+ let known=spread/(spread+marked*length(world[0]));
+ let opacity=select(1.0,surface.opacity,surface.blended);
+ let at=start+direction*hit.distance;let N=rtFacing(hit,direction,world);
+ var radiance:vec3f;
+ if(lit&&layer==0u){radiance=surfaceLit(surface.tint,at,N,reach);}
+ else{radiance=${seen}(surface.tint,select(surface.emission,vec3f(0.0),lit),at,N);}
+ return RtLayer(radiance,opacity,known,hit.distance+max(rtProxy.error,RT_ERROR_FLOOR));
+}
+`,
+  )
+
+const RT_LAYERS_TEXT = `
+fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,tests:u32,lit:bool)->RtWalk{
+ return rtLayersOver(origin,direction,reach,tangent,budget,tests,lit,rtNoRings());
+}
+/** \`rtLayers\` over the windows \`rings\`: the same walk, each layer's nearest surface that of the first window that
+ *  holds one (\`rtNearest\`, the ring's own budget in place of \`budget\` and \`tests\`), which a spent window never
+ *  loses; none of them, the layer is the ray's end. Without windows, \`rtLayers\` itself. */
+fn rtLayersOver(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,tests:u32,lit:bool,rings:RtRings)->RtWalk{
+ rtBegin();rtBudget=budget;rtTestBudget=tests;
+ let ringed=rings.on;
+ var first=reach;
+ var color=vec3f(0.0);
+ var answered=0.0;
+ var through=1.0;var open=0.0;
+ var start=origin;var left=reach;
+ var cause=0u;var walked=0u;
+ for(var layer=0u;layer<RT_LAYERS;layer++){
+  var hit:RtHit;
+  var spent=false;var stops=false;
+  if(ringed){
+   let near=rtNearest(start,direction,left,reach-left,rings);
+   hit=near.hit;stops=near.stopped;spent=near.stopped;
+   walked+=near.work;
+   if(cause==0u){cause=near.cause;}
+  }else{
+   hit=rtScene(start,direction,left);
+   spent=rtSpent();
+  }
+  if(spent){
+   rtCause=rtWhy();
+   if(!lit&&!stops){return rtWalkOf(RadianceAnswer(vec3f(0.0),0.0,first),0.0,0.0,ringed,cause,walked);}
+   let stop=select(rtReached,hit.distance,hit.found);
+   if(layer==0u){first=stop;}
+   color+=through*rtStoppedSeen(hit,start,direction,stop);
+   answered+=through;
+   through=0.0;
+   break;
+  }
+  if(!hit.found){open=through;break;}
+  if(layer==0u){first=hit.distance;}
+  let seen=rtLayerOf(hit,start,direction,tangent,reach,lit,layer);
+  let share=through*seen.opacity;
+  color+=share*seen.known*seen.radiance;
+  answered+=share*seen.known;
+  through*=1.0-seen.opacity;
+  start+=direction*seen.travelled;
+  left-=seen.travelled;
+  if(left<=0.0){open=through;break;}
+  if(through<RT_THROUGH_FLOOR){break;}
+ }
+ if(ringed){rtCause=cause;}
+ return rtWalkOf(RadianceAnswer(select(vec3f(0.0),color/answered,answered>0.0),answered,first),1.0-through,open,ringed,cause,walked);
+}
+`
 
 /**
  * The run-time proxy's one walk of a ray of length `reach` from `origin`: its first surface, and
@@ -104,71 +210,30 @@ fn rtStoppedSeen(hit:RtHit,start:vec3f,direction:vec3f,stop:f32)->vec3f{
  * not finished (`runtimeLayout.ts`): a probe's ray (`lit`) ends as an opaque hit where the walk stopped, at
  * the surface it had found, else at the distance reached (`rtReached`) in the placement of its furthest entry,
  * its radiance what the cascades hold there (`rtStoppedSeen`); a reflection's answers nothing, confidence
- * zero, the next stage's, its budget being about one node's scan.
+ * zero, the next stage's.
+ *
+ * RINGS (`rtLayersOver`, `RtRings`): a walk may be cut into windows along the ray, each walked on a budget
+ * of its own, the nearest surface of a layer being that of the first window that holds one. A window that
+ * spends its budget has met nothing it can vouch for and is skipped, the walk going on at its end — unless
+ * it had already found a surface: that one is kept and answers, never lost to the spend (the nearest of what
+ * the window entered, a nearer one possibly in what it left unwalked) —; a ray that meets nothing in any
+ * window leaves through `open`. A ring is walked only within the box of the placement tree's root, which holds every
+ * surface the tree can answer. A leading detail window is the other rule: its result, a surface it found or the
+ * stop of a walk that spent its budget (as a probe's, a hit where the walk stopped), is taken by noise against a
+ * fade; refused, the rings go on from where it stopped. The windows are the caller's (`rtLayers` has none: every
+ * walk it makes is one). The radiance of a surface that is not a probe's first is read by the function the caller
+ * names (`runtimeRadianceWgsl`).
  */
-const rtLayersWgsl = (scene: SceneBindings) =>
+const rtLayersWgsl = (scene: SceneBindings, seen: string) =>
   wgslBlock(
-    `rtLayersWgsl(${sceneKey(scene)})`,
+    `rtLayersWgsl(${sceneKey(scene)},${seen})`,
     [
-      RADIANCE_ANSWER,
-      rtStoppedWgsl(scene),
-      rtSurfaceWgsl(scene),
+      rtStoppedWgsl(scene, seen),
+      runtimeRingsWgsl(scene),
+      rtLayerWgsl(scene, seen),
       SURFACE_RAY_WGSL,
-      worldMatrix3,
-      markReachWgsl,
     ],
-    `
-/** The run-time proxy's one walk of a ray (\`rtLayers\`), the layers it crosses. */
-struct RtWalk{answer:RadianceAnswer,stopped:f32,open:f32,}
-fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,tests:u32,lit:bool)->RtWalk{
- rtBegin();
- rtBudget=budget;
- rtTestBudget=tests;
- var first=reach;
- var color=vec3f(0.0);
- var answered=0.0;
- var through=1.0;
- var open=0.0;
- var start=origin;
- var left=reach;
- for(var layer=0u;layer<RT_LAYERS;layer++){
-  let hit=rtScene(start,direction,left);
-  if(rtSpent()){
-   rtCause=rtWhy();
-   if(!lit){return RtWalk(RadianceAnswer(vec3f(0.0),0.0,first),0.0,0.0);}
-   let stop=select(rtReached,hit.distance,hit.found);
-   if(layer==0u){first=stop;}
-   color+=through*rtStoppedSeen(hit,start,direction,stop);
-   answered+=through;
-   through=0.0;
-   break;
-  }
-  if(!hit.found){open=through;break;}
-  if(layer==0u){first=hit.distance;}
-  let instance=rtWorldsInstance(hit.placement,0u);
-  let surface=rtSurfaceOf(instance[RT_INSTANCE_SURFACE]);
-  let spread=hit.distance*tangent+RT_SPREAD_FLOOR;
-  let marked=markReach(instance[RT_INSTANCE_MARK]);
-  let world=worldMatrix3(rtWorldOf(hit.placement));
-  let known=spread/(spread+marked*length(world[0]));
-  let opacity=select(1.0,surface.opacity,surface.blended);
-  let at=start+direction*hit.distance;let N=rtFacing(hit,direction,world);
-  var radiance:vec3f;
-  if(lit&&layer==0u){radiance=surfaceLit(surface.tint,at,N,reach);}
-  else{radiance=surfaceSeen(surface.tint,at,N)+select(surface.emission,vec3f(0.0),lit);}
-  let share=through*opacity;
-  color+=share*known*radiance;
-  answered+=share*known;
-  through*=1.0-opacity;
-  let travelled=hit.distance+max(rtProxy.error,RT_ERROR_FLOOR);
-  start+=direction*travelled;
-  left-=travelled;
-  if(left<=0.0){open=through;break;}
-  if(through<RT_THROUGH_FLOOR){break;}
- }
- return RtWalk(RadianceAnswer(select(vec3f(0.0),color/answered,answered>0.0),answered,first),1.0-through,open);
-}
-`,
+    RT_LAYERS_TEXT,
   )
 
 /**
@@ -184,26 +249,34 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,tests:
  * the scene (`skyProbeRadiance`: the cascades hold the sky the scene lets through), and the distance to
  * the first surface.
  */
-export const runtimeRadianceWgsl = (scene: SceneBindings) =>
+export const runtimeRadianceWgsl = (scene: SceneBindings, seen = RT_SEEN) =>
   wgslBlock(
-    `runtimeRadianceWgsl(${sceneKey(scene)})`,
-    [rtLayersWgsl(scene), runtimeShadowWgsl(scene), SKY_READ_WGSL],
+    `runtimeRadianceWgsl(${sceneKey(scene)},${seen})`,
+    [rtLayersWgsl(scene, seen), runtimeShadowWgsl(scene), SKY_READ_WGSL],
     `
 /** A reflection's ray (\`rtLayers\`, read). */
 fn rtRadiance(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32)->RadianceAnswer{
  return rtLayers(origin,direction,reach,tangent,min(budget,RT_WORK),RT_TRIANGLES,false).answer;
 }
-/** The light a probe's ray brings back (\`rtLayers\`, lit): from \`origin\` along \`direction\`, \`reach\`
- *  far, its first surface lit and those a blended one lets it reach read behind it, weighed by what
- *  they stop, the sky for the share that leaves the scene (\`RtWalk.open\`), and the distance to the
- *  first, \`reach\` where it meets nothing. Every ray answers: one whose walk spent its budget ends as a hit
- *  where it stopped (\`runtimeLayout.ts\`); what spent it is left in \`rtCause\`, what spent a shadow ray of
- *  its hits in \`rtShadowCause\`, for the census. */
-fn rtProbeRay(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
+/** What a probe's ray found (\`rtProbeRayOpen\`): the light of the surfaces it met, the share of it that left the scene, and the
+ *  distance to the first surface. */
+struct RtProbeSeen{seen:vec3f,open:f32,distance:f32,}
+/** The light a probe's ray brings back (\`rtLayers\`, lit), the sky kept apart: from \`origin\` along \`direction\`, \`reach\`
+ *  far, its first surface lit and those a blended one lets it reach read behind it, weighed by what they stop, the share that
+ *  leaves the scene (\`RtWalk.open\`), and the distance to the first, \`reach\` where it meets nothing. Every ray answers:
+ *  one whose walk spent its budget ends as a hit where it stopped (\`runtimeLayout.ts\`); what spent it is left in
+ *  \`rtCause\`, what spent a shadow ray of its hits in \`rtShadowCause\`, for the census. */
+fn rtProbeRayOpen(origin:vec3f,direction:vec3f,reach:f32)->RtProbeSeen{
  let walk=rtLayers(origin,direction,reach,0.0,RT_PROBE_WORK,RT_PROBE_TRIANGLES,true);
- var seen=walk.answer.color*walk.stopped;
- if(walk.open>0.0){seen+=walk.open*skyProbeRadiance(direction);}
- return vec4f(seen,walk.answer.distance);
+ return RtProbeSeen(walk.answer.color*walk.stopped,walk.open,walk.answer.distance);
+}
+/** The light a probe's ray brings back, the sky for the share that leaves the scene (\`skyProbeRadiance\`: the cascades hold the sky
+ *  the scene lets through), and the distance to the first surface (\`rtProbeRayOpen\`). */
+fn rtProbeRay(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
+ let found=rtProbeRayOpen(origin,direction,reach);
+ var seen=found.seen;
+ if(found.open>0.0){seen+=found.open*skyProbeRadiance(direction);}
+ return vec4f(seen,found.distance);
 }
 `,
   )

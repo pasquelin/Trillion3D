@@ -1,5 +1,13 @@
 import { refusal } from './nameMatch.ts'
-import { finiteAtLeast } from './bloomFields.ts'
+import {
+  ANY_NUMBER,
+  nonNegativeSetting as nonNegative,
+  numberSetting as number,
+  resolveSettings,
+  rulesOf,
+  type SettingOptions,
+  type SettingValues,
+} from './settingRules.ts'
 
 /**
  * The bloom made by a convolution (`BloomOptions.method` `'convolution'`, `./bloomOptions.ts`): the
@@ -8,6 +16,8 @@ import { finiteAtLeast } from './bloomFields.ts'
  * only a bell. Cinematic: it costs a transform of the image at a fraction of its size
  * (`bloomScreenPercentage`, `./bloomRules.ts`), so it is off by default.
  *
+ * The kernel is a picture the host gives (`kernel`): the engine draws none of its own, as it draws
+ * none of the dirt mask's, and a convolution without one is refused by name (`./bloomOptions.ts`).
  * The kernel is read before it is used. Its brightest texel is its centre. The energy found in a
  * disc around the centre the width of one image pixel is the energy that stays where it is; the
  * rest, clamped to the brightest value found just outside that disc, is the scatter. The glow is
@@ -35,63 +45,41 @@ export interface BloomKernelImage {
   readonly pixels: Float32Array
 }
 
-/** What a page may pass to `effect.bloom({ convolution })`. */
-export interface BloomConvolutionOptions {
-  /** Multiplier of the convolved glow, 0 or more; 0 turns the convolution off. */
-  intensity?: number
-  /** The share of the kernel's energy that is spread rather than kept at the centre, times this,
-   *  0 or more; 0 spreads nothing. */
-  scatterDispersion?: number
-  /** The kernel's width as a share of the image's, from 0 to 1 (more is read as 1). */
-  size?: number
-  /** The kernel; none uses the engine's own, a star with a halo. */
+/** What a page may pass to `effect.bloom({ convolution })` besides the kernel, by field. */
+const BLOOM_CONVOLUTION_RULES = /* @__PURE__ */ (() =>
+  rulesOf([
+    nonNegative('intensity', 1),
+    nonNegative('scatterDispersion', 1),
+    nonNegative('size', 1),
+    number('preFilterMin', 7, ANY_NUMBER),
+    number('preFilterMax', 15000, ANY_NUMBER),
+    number('preFilterMult', 15, ANY_NUMBER),
+    nonNegative('bufferScale', 0.133),
+  ] as const))()
+
+/** What a page may pass to `effect.bloom({ convolution })`. Each field left out is its default,
+ *  the reference's own (`BLOOM_CONVOLUTION_RULES`):
+ *  - `intensity` 1 and `scatterDispersion` 1: the whole of the kernel's scatter, at the strength
+ *    the bloom's intensity gives it; 0 or more, an `intensity` of 0 turns the convolution off, a
+ *    `scatterDispersion` of 0 spreads nothing;
+ *  - `size` 1: the kernel's width as a share of the image's, from 0 to 1 (more is read as 1);
+ *  - `preFilterMin` 7, `preFilterMax` 15000, `preFilterMult` 15: a pixel over 7 in exposed
+ *    luminance is boosted fifteen-fold over the excess, to 15000 at most, so that a lamp or a sun
+ *    throws a halo and a lit wall does not (sensitivity: the boost moves the halo's brightness
+ *    linearly); a `preFilterMax` under the `preFilterMin` turns the boost off;
+ *  - `bufferScale` 0.133: the padding added around the image so the glow does not wrap, as a share
+ *    of the image's width, 13.3 %, 6.7 % each side, which lets a halo cross the edge without
+ *    coming back in from the other; larger costs more. */
+export interface BloomConvolutionOptions extends SettingOptions<typeof BLOOM_CONVOLUTION_RULES> {
+  /** The kernel the glow is made with: required when the bloom's method is `'convolution'`; `null`
+   *  takes it away. */
   kernel?: BloomKernelImage | null
-  /** The luminance above which a pixel is boosted before the transform. */
-  preFilterMin?: number
-  /** The most a boosted pixel's luminance becomes. */
-  preFilterMax?: number
-  /** The slope of the boost above `preFilterMin`. */
-  preFilterMult?: number
-  /** The padding added around the image so the glow does not wrap, as a share of the image's
-   *  width, from 0 to 1; larger costs more. */
-  bufferScale?: number
 }
 
 /** The convolution as the engine reads it: every field set. */
-export interface ResolvedBloomConvolution {
-  readonly intensity: number
-  readonly scatterDispersion: number
-  readonly size: number
+export interface ResolvedBloomConvolution extends SettingValues<typeof BLOOM_CONVOLUTION_RULES> {
   readonly kernel: BloomKernelImage | undefined
-  readonly preFilterMin: number
-  readonly preFilterMax: number
-  readonly preFilterMult: number
-  readonly bufferScale: number
 }
-
-/**
- * The defaults, each the reference's own:
- * - `intensity` 1 and `scatterDispersion` 1: the whole of the kernel's scatter, at the strength the
- *   bloom's intensity gives it.
- * - `size` 1: the kernel as wide as the image.
- * - `kernel` none: the engine's own.
- * - `preFilterMin` 7, `preFilterMax` 15000, `preFilterMult` 15: a pixel over 7 in exposed
- *   luminance is boosted fifteen-fold over the excess, to 15000 at most, so that a lamp or a sun
- *   throws a halo and a lit wall does not. Sensitivity: the boost moves the halo's brightness
- *   linearly.
- * - `bufferScale` 0.133: the padding is 13.3 % of the width, 6.7 % each side, which lets a halo
- *   cross the edge without coming back in from the other.
- */
-const DEFAULT_CONVOLUTION: ResolvedBloomConvolution = Object.freeze({
-  intensity: 1,
-  scatterDispersion: 1,
-  size: 1,
-  kernel: undefined,
-  preFilterMin: 7,
-  preFilterMax: 15000,
-  preFilterMult: 15,
-  bufferScale: 0.133,
-})
 
 /** `kernel` when it is a picture of `4 × width × height` values, none when it is absent.
  *  @throws TypeError when it is anything else. */
@@ -107,40 +95,17 @@ function resolveKernel(kernel: BloomKernelImage | null | undefined) {
 }
 
 /**
- * The convolution an option names: every field it leaves out is the default
- * (`DEFAULT_CONVOLUTION`).
- * @throws RangeError naming the field and the value when a number is out of its range, TypeError
- *   when the kernel is not a picture.
+ * The convolution an option names: every field it leaves out is its default
+ * (`BLOOM_CONVOLUTION_RULES`).
+ * @throws TypeError naming the field and what it takes when a number is out of its range or the
+ *   kernel is not a picture.
  */
 export function resolveBloomConvolution(
   options: BloomConvolutionOptions = {},
 ): ResolvedBloomConvolution {
-  const d = DEFAULT_CONVOLUTION
-  const any = -Number.MAX_VALUE
+  const { kernel, ...scalars } = options
   return Object.freeze({
-    intensity: finiteAtLeast(options.intensity ?? d.intensity, 0, 'BLOOM_CONVOLUTION_INTENSITY'),
-    scatterDispersion: finiteAtLeast(
-      options.scatterDispersion ?? d.scatterDispersion,
-      0,
-      'BLOOM_CONVOLUTION_SCATTER_DISPERSION',
-    ),
-    size: finiteAtLeast(options.size ?? d.size, 0, 'BLOOM_CONVOLUTION_SIZE'),
-    kernel: resolveKernel(options.kernel),
-    preFilterMin: finiteAtLeast(
-      options.preFilterMin ?? d.preFilterMin,
-      any,
-      'BLOOM_PRE_FILTER_MIN',
-    ),
-    preFilterMax: finiteAtLeast(
-      options.preFilterMax ?? d.preFilterMax,
-      any,
-      'BLOOM_PRE_FILTER_MAX',
-    ),
-    preFilterMult: finiteAtLeast(
-      options.preFilterMult ?? d.preFilterMult,
-      any,
-      'BLOOM_PRE_FILTER_MULT',
-    ),
-    bufferScale: finiteAtLeast(options.bufferScale ?? d.bufferScale, 0, 'BLOOM_BUFFER_SCALE'),
+    ...resolveSettings(BLOOM_CONVOLUTION_RULES, scalars),
+    kernel: resolveKernel(kernel),
   })
 }

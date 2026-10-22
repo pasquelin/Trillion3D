@@ -142,19 +142,25 @@ test('a lamp’s attenuation is the inverse square of a distance a square centim
   }
   assert.equal(Math.round(lamps.directIncidence(record, [0.01, 0, 0])[3]), 5000)
   assert.equal(lamps.directIncidence(record, [10, 0, 0])[3], 0, 'zero at the range')
-  // A cache of lit surfaces takes the squared distance itself, held at a square centimetre: the
-  // plain lamp and the sphere and tube alike.
-  for (const [d, want] of [
-    [0, 1e4],
-    [0.01, 1e4],
-    [0.1, 100 * window10(0.1)],
-    [1, window10(1)],
-  ])
-    for (const shape of [lamp(10), lamp(10, 0.2), lamp(10, 0, 1e-4)])
-      assert.ok(
-        Math.abs(seen(shape, [-d, 0, 0], [1, 0, 0], 0).falloff - want) <= 2e-4 * want,
-        `${d}`,
-      )
+  // The sum form `1 / (d² + bias)` for the two biases the lighting gives: a square centimetre
+  // (the surfaces), none (a cache of lit surfaces), at 1 cm, 10 cm and 1 m, for the plain lamp, a
+  // sphere and a tube of two ends 10 µm apart (a point to the rounding of its ends); at the lamp's
+  // own centre there is no sum with no bias, and the lamp gives that point nothing, not a NaN.
+  for (const bias of [BIAS, 0])
+    for (const d of [0.01, 0.1, 1]) {
+      const want = window10(d) / (d * d + bias)
+      for (const shape of [lamp(10), lamp(10, 0.2), lamp(10, 0, 1e-5)]) {
+        const got = seen(shape, [-d, 0, 0], [1, 0, 0], bias).falloff
+        assert.ok(
+          Math.abs(got - want) <= 2e-4 * want,
+          `${bias} bias, ${d} m: ${got} against ${want}`,
+        )
+      }
+    }
+  for (const shape of [lamp(10), lamp(10, 0.2), lamp(10, 0, 2)]) {
+    assert.equal(seen(shape, [0, 0, 0], [1, 0, 0], 0).falloff, 0, 'no sum, no division')
+    assert.ok(seen(shape, [0, 0, 0], [1, 0, 0], BIAS).falloff > 0)
+  }
 })
 
 test('a lamp of size lights as a capsule: the point where it has none, a wrapped horizon, a tube’s falloff', () => {
@@ -179,6 +185,20 @@ test('a lamp of size lights as a capsule: the point where it has none, a wrapped
   const tube = seen(lamp(10, 0, 2), [0, 0, -1], [0, 0, 1])
   assert.ok(Math.abs(tube.falloff - window10(1) / (1 + BIAS)) < 1e-5)
   assert.ok(Math.abs(tube.lineCos) < 1e-6, `${tube.lineCos}`)
+  // A tube of 2 m at 10 cm, 1 m and 3 m off its middle, both biases, by the line's integral
+  // `i / (c / 2 + 1 / 2 + bias · i)` from the distances to its ends and the cosine between them.
+  for (const bias of [BIAS, 0])
+    for (const d of [0.1, 1, 3]) {
+      const [e0, e1] = [Math.hypot(1, d), Math.hypot(1, d)],
+        i01 = 1 / (e0 * e1),
+        c = (d * d - 1) * i01
+      const want = (window10(d) * i01) / (c / 2 + 0.5 + bias * i01)
+      const got = seen(lamp(10, 0, 2), [0, 0, -d], [0, 0, 1], bias).falloff
+      assert.ok(
+        Math.abs(got - want) <= 2e-4 * want,
+        `tube, ${bias} bias, ${d} m: ${got} against ${want}`,
+      )
+    }
   // As its length goes to nothing the tube is the point.
   const short = seen(lamp(10, 0, 1e-4), [0, 0, -2], [0, 0, 1])
   assert.ok(Math.abs(short.falloff - window10(2) / (4 + BIAS)) < 1e-5 * short.falloff)

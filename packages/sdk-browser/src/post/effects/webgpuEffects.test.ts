@@ -12,20 +12,23 @@ import {
   FILTERS,
   HEAD,
   blurring,
+  drawn,
+  filterCodes,
+  flats,
   floatsOf,
   frameOf,
   input,
   loaded,
   recorder,
+  strengthOf,
+  uniformWord,
   viewOf,
-  wordsOf,
 } from './webgpuEffects.fixture.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { chainSizes } from '../filters/levelSizes.ts'
 import { BLOOM_LEVEL_COUNT } from '../../../../sdk-core/src/contracts/bloomOptions.ts'
 import { dispatchedEntries } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import {
-  MOTION_BLUR_PARAMS,
   MOTION_BLUR_PARAMS_BYTES,
   TILE_CLASSES,
   TILE_FORMAT,
@@ -56,11 +59,15 @@ test('an empty chain returns its input and creates, writes and encodes nothing',
   assert.equal(effects.bytes, 0)
 })
 
-test('an idle bloom is no pass: nothing is drawn, nor compiled', async () => {
+test('an idle bloom, or one the view turns off, is no pass: nothing is drawn, nor compiled', async () => {
   const { gpu, effects, frame } = await loaded()
   const { encoder, passes } = recorder(gpu)
   const bloom = effect.bloom({ intensity: 0 })
-  assert.equal(effects.encode(encoder, [bloom], input, 64, 32, frame(encoder, 64, 32)), input)
+  assert.equal(drawn([effect.bloom()], { bloomQuality: 'off' }).length, 0, 'the quality off')
+  assert.equal(
+    effects.encode(encoder, drawn([bloom]), input, 64, 32, frame(encoder, 64, 32)),
+    input,
+  )
   assert.deepEqual([passes.length, gpu.renderPipelines.length, effects.loading], [0, 0, false])
 })
 
@@ -136,19 +143,18 @@ test('a bloom another pass follows writes the target the next one reads', async 
   assert.ok(effects.blend, 'the second leaves its glow to the composition')
 })
 
-/** The weights each written blur uniform of a bloom holds on its red channel, summed over its
- *  reads: 1 for the first pass of a level, its tint times the glow's scale for the second. */
+/** The weights each blur uniform of a bloom holds on its red channel, summed over its reads, in the
+ *  order they were made: 1 for the first pass of a level, its tint times the glow's scale for the second. */
 function sums(gpu: Awaited<ReturnType<typeof loaded>>['gpu']) {
-  const found: number[] = []
-  for (const write of gpu.writes) {
-    if (write.buffer.size !== BLUR_BYTES) continue
-    const words = floatsOf(write)
-    const count = words[BLUR_PARAMS.at.count]
-    let sum = 0
-    for (let i = 0; i < count; i++) sum += words[BLUR_PARAMS.at.taps + 4 * i + 1]
-    found.push(sum)
-  }
-  return found
+  return gpu.buffers
+    .filter(({ size }) => size === BLUR_BYTES)
+    .map((buffer) => {
+      const words = floatsOf(buffer)
+      let sum = 0
+      for (let i = 0; i < words[BLUR_PARAMS.at.count]; i++)
+        sum += words[BLUR_PARAMS.at.taps + 4 * i + 1]
+      return sum
+    })
 }
 
 test('two blooms blur with their own settings, each from its own uniforms', async () => {
@@ -180,119 +186,110 @@ test('two blooms blur with their own settings, each from its own uniforms', asyn
   )
 })
 
-test('a motion blur compiles once, then blurs through flatten, spread, classify and filter', async () => {
-  const { gpu, effects } = await loaded()
-  const blur = effect.motionBlur()
-  assert.equal(effects.readyResolved([blur]), false, 'compiling: the image is drawn unblurred')
+test('a motion blur compiles once, then runs the passes its settings name', async () => {
+  const { effects, after } = await loaded()
+  assert.equal(after.ready([effect.motionBlur()]), false, 'compiling: the image is drawn unblurred')
   assert.equal(effects.loading, true)
   await effects.settled()
-  const { encoder } = recorder(gpu)
-  const frame = frameOf(gpu, 64, 32)
-  assert.notEqual(effects.resolve(encoder, [blur], input, frame), input, 'the blurred image')
-  assert.equal(effects.resolvedPasses, 1, 'one compute pass: at this size the neighbours are read')
-  assert.deepEqual(dispatchedEntries(gpu.dispatches), [...HEAD, ...FILTERS])
-  // The four lists are emptied, and the filter of each class runs indirectly over its own.
-  const heads = gpu.writes.filter(({ buffer }) => buffer.label?.endsWith('tiles'))
-  const lists = gpu.dispatches.slice(3).map(({ buffer }) => buffer)
-  assert.deepEqual([heads.length, lists], [4, heads.map(({ buffer }) => buffer)])
-  assert.equal(effects.bytes, motionBlurBytes(64, 32), 'the budget reserves what it holds')
+  const bytes = motionBlurBytes(64, 32),
+    second = 8 * 64 * 32 + MOTION_BLUR_PARAMS_BYTES
+  const drawnSpread = [HEAD[0], ...HEAD.slice(2), ...FILTERS]
+  // A drawn spread: a compute pass, two draws of the tiles — eight an instance —, a compute pass.
+  for (const [settings, entries, passes, draws, held] of [
+    [{}, [...HEAD, ...FILTERS], 1, [], bytes],
+    [{ motionBlurScatter: true }, drawnSpread, 3, [48, 1, 48, 1], bytes],
+    [{ motionBlurSeparable: true }, [...HEAD, ...FILTERS, ...FILTERS], 1, [], bytes + second],
+  ] as const) {
+    const made = await blurring(settings, {})
+    assert.notEqual(made.after.resolve(made.encoder, made.chain, input, made.frame), input)
+    const seen = made.gpu.draws.flatMap((d) => [d.vertexCount, d.instanceCount])
+    assert.deepEqual(
+      [dispatchedEntries(made.gpu.dispatches), made.after.passes, seen, made.effects.bytes],
+      [entries, passes, draws, held],
+    )
+  }
 })
 
 test('the uniform holds the motion scaled to pixels, rewritten only where it changes', async () => {
-  const { gpu, effects, chain, encoder, frame } = await blurring({}, {})
-  effects.resolve(encoder, chain, input, frame)
-  const [textures, groups] = [gpu.textures.length, gpu.bindGroups.length]
-  frame.now = 1000 / 60
-  effects.resolve(encoder, chain, input, frame)
-  // The lists' heads are emptied each image (`resetList`); the uniform is not rewritten.
-  const uniforms = () =>
-    gpu.writes.filter(({ buffer }) => buffer.size === MOTION_BLUR_PARAMS_BYTES).length
-  const writes = uniforms()
-  frame.now = 2000 / 60
-  effects.resolve(encoder, chain, input, frame)
-  assert.deepEqual(
-    [gpu.textures.length, gpu.bindGroups.length, uniforms() - writes],
-    [textures, groups, 0],
-    'nothing remade, no group made again, the steady uniform not rewritten',
-  )
-  const { scale } = MOTION_BLUR_PARAMS.at
-  // A page at 60 frames a second, a blur relative to 30: a scale of 2, an amount of a half and a
-  // half again for each side of the streak; the longest streak 5 % of 64 pixels, a side.
-  const words = [...wordsOf(gpu.writes[0].buffer).slice(scale, scale + 4)]
-  assert.deepEqual(
-    words.map((value) => +value.toFixed(4)),
-    [16, -8, 1.6, 0.0625],
-  )
+  const { gpu, chain, encoder, frame, after } = await blurring({}, {})
+  const resolve = (now: number, still = false) => {
+    Object.assign(frame, { now, still })
+    return after.resolve(encoder, chain, input, frame)
+  }
+  assert.equal(resolve(0, true), input, 'a still image is left as it is')
+  assert.deepEqual([after.passes, gpu.dispatches.length, gpu.writes.length], [0, 0, 0])
+  resolve(1000 / 60)
+  const [textures, groups, writes] = [gpu.textures.length, gpu.bindGroups.length, gpu.writes.length]
+  resolve(2000 / 60)
+  assert.deepEqual([gpu.textures.length, gpu.bindGroups.length], [textures, groups])
+  assert.ok(gpu.writes.length - writes <= TILE_CLASSES.length, 'the uniform is not rewritten')
+  // 60 frames a second, a blur relative to 30: a scale of 2, an amount of a half and a half again
+  // for each side of the streak; the longest streak 5 % of 64 pixels, a side.
+  const words = [0, 1, 2, 3].map((k) => +uniformWord(gpu, 'scale', k).toFixed(4))
+  assert.deepEqual(words, [16, -8, 1.6, 0.0625])
 })
 
-test('an image that shows what the one before did is left as it is, the clock following the frame', async () => {
-  const { gpu, effects, chain, encoder, frame } = await blurring({}, {})
-  frame.still = true
-  assert.equal(effects.resolve(encoder, chain, input, frame), input)
-  assert.deepEqual([effects.resolvedPasses, gpu.dispatches.length, gpu.writes.length], [0, 0, 0])
-  // The first image that moves is one frame long, not the stillness's: 60 a second, relative to 30.
-  frame.still = false
-  frame.now = 1000 / 60
-  effects.resolve(encoder, chain, input, frame)
-  const { scale } = MOTION_BLUR_PARAMS.at
-  assert.equal(wordsOf(gpu.writes[0].buffer)[scale], 16, 'a scale of 2: half the width, a quarter')
+test('the view’s scale and overrides set the strength and the streak; the half-size input is the temporal pass’s', async () => {
+  const [quarter, scaled] = [{ amount: 0.25 }, { motionBlurScale: 2 }]
+  // A quarter at the first image's scale of 1, 64 pixels wide, half of it a side.
+  assert.deepEqual(await strengthOf({}, quarter), [4, Math.fround(1.6), 1])
+  assert.equal((await strengthOf(scaled, quarter))[0], 8)
+  assert.equal((await strengthOf({ ...scaled, motionBlurAmountOverride: 1 }))[0], 16)
+  assert.equal((await strengthOf({ motionBlurMaxOverride: 10 }))[1], Math.fround(3.2))
+  assert.equal((await strengthOf({}, {}, false))[2], 0, 'the image of no temporal pass')
 })
 
-test('a blur that spreads by drawing passes the compute pass twice around two draws', async () => {
-  const { gpu, effects, chain, encoder, frame } = await blurring({ motionBlurScatter: true }, {})
-  effects.resolve(encoder, chain, input, frame)
-  assert.equal(effects.resolvedPasses, 3, 'a compute pass, the drawing, a compute pass')
-  assert.deepEqual(dispatchedEntries(gpu.dispatches), [HEAD[0], ...HEAD.slice(2), ...FILTERS])
-  const draws = gpu.draws.flatMap(({ vertexCount, instanceCount }) => [vertexCount, instanceCount])
-  assert.deepEqual(draws, [48, 1, 48, 1], 'two draws of the tiles, eight an instance')
+test('an orthographic view keeps the flattened motion in floats, the perspective’s drawn meanwhile', async () => {
+  const { gpu, effects, chain, encoder, frame, after } = await blurring({}, {})
+  frame.camera = { ...frame.camera, perspective: false }
+  after.resolve(encoder, chain, input, frame)
+  assert.deepEqual([effects.loading, flats(gpu)], [true, ['r32uint']])
+  await effects.settled()
+  after.resolve(encoder, chain, input, frame)
+  assert.deepEqual([effects.loading, flats(gpu)], [false, ['r32uint', 'rgba32float']])
+})
+
+test('the filters vote by the subgroup where the device grants subgroups, by the workgroup else', async () => {
+  const [plain, voting] = [await filterCodes([]), await filterCodes(['subgroups'])]
+  assert.deepEqual([plain.length, voting.length], [4, 4])
+  assert.ok(plain.every((code) => code.includes('atomicMax') && !code.includes('subgroupMax')))
+  assert.ok(voting.every((code) => code.includes('subgroupMax') && !code.includes('atomicMax')))
 })
 
 test('a blur of two directions is drawn with one until its programs arrive, then in five classes', async () => {
-  const { gpu, effects, chain, encoder, frame } = await blurring({ motionBlurDirections: 2 }, {})
+  const { gpu, effects, chain, encoder, frame, after } = await blurring(
+    { motionBlurDirections: 2 },
+    {},
+  )
   const drawn = () => [effects.loading, dispatchedEntries(gpu.dispatches)]
-  effects.resolve(encoder, chain, input, frame)
-  // The programs compile: one direction meanwhile, and the image is drawn again once they arrive.
-  assert.deepEqual(drawn(), [true, [...HEAD, ...FILTERS]])
+  after.resolve(encoder, chain, input, frame)
+  assert.deepEqual(drawn(), [true, [...HEAD, ...FILTERS]], 'one direction, drawn again after')
   await effects.settled()
   gpu.dispatches.length = 0
-  effects.resolve(encoder, chain, input, frame)
+  after.resolve(encoder, chain, input, frame)
   assert.deepEqual(drawn(), [false, [...HEAD, ...FILTERS, 'filterTwoTiles']])
   // The images of the second largest motions, twice, and the fifth class's list.
-  const tiles = textureBytesOf({ size: [4, 2], format: TILE_FORMAT })!
+  const seconds = 2 * textureBytesOf({ size: [4, 2], format: TILE_FORMAT })!
   assert.equal(
     effects.bytes,
-    motionBlurBytes(64, 32) + 2 * tiles + listBytes(classEntries(64, 32), 1),
+    motionBlurBytes(64, 32) + seconds + listBytes(classEntries(64, 32), 1),
   )
-  frame.settings = frameOf(gpu, 64, 32).settings
-  effects.resolve(encoder, chain, input, frame)
+  frame.session = frameOf(gpu, 64, 32).session
+  after.resolve(encoder, chain, input, frame)
   assert.equal(effects.bytes, motionBlurBytes(64, 32), 'one direction: what it always held')
 })
 
-test('a separable blur filters twice, the second reading the image between at full size', async () => {
-  const { gpu, effects, chain, encoder, frame } = await blurring({ motionBlurSeparable: true }, {})
-  assert.notEqual(effects.resolve(encoder, chain, input, frame), input)
-  assert.deepEqual(dispatchedEntries(gpu.dispatches), [...HEAD, ...FILTERS, ...FILTERS])
-  const image = 8 * 64 * 32
-  assert.equal(effects.bytes, motionBlurBytes(64, 32) + image + MOTION_BLUR_PARAMS_BYTES)
-  const knobs = gpu.writes
-    .filter(({ buffer }) => buffer.size === MOTION_BLUR_PARAMS_BYTES)
-    .map(({ buffer }) => wordsOf(buffer)[MOTION_BLUR_PARAMS.at.knobs + 2])
-  assert.deepEqual(knobs, [1, 0], 'the half-size input is the first pass’s')
-})
-
-test('two blurs take turns on two images, and the images follow the size and are given back', async () => {
-  const { gpu, effects, chain, encoder, frame } = await blurring({}, {}, { amount: 0.2 })
-  const first = effects.resolve(encoder, chain.slice(0, 1), input, frame)
-  const last = effects.resolve(encoder, chain, input, frame)
+test('two blurs take turns on two images, which follow the size and are given back', async () => {
+  const { gpu, effects, chain, encoder, frame, after } = await blurring({}, {}, { amount: 0.2 })
+  const first = after.resolve(encoder, chain.slice(0, 1), input, frame)
+  const last = after.resolve(encoder, chain, input, frame)
   assert.ok(last !== first && last !== input, 'the second reads the first’s image')
-  effects.resolve(encoder, chain, input, frameOf(gpu, 128, 64))
-  // The second blur's own image and uniform and its own four lists.
+  after.resolve(encoder, chain, input, frameOf(gpu, 128, 64))
+  // The second blur's own image, uniform and four lists.
   const lists = TILE_CLASSES.length * listBytes(classEntries(128, 64), 1)
-  assert.equal(
-    effects.bytes,
-    motionBlurBytes(128, 64) + 8 * 128 * 64 + MOTION_BLUR_PARAMS_BYTES + lists,
-  )
-  assert.equal(effects.resolve(encoder, [], input, frame), input)
+  const own = 8 * 128 * 64 + MOTION_BLUR_PARAMS_BYTES + lists
+  assert.equal(effects.bytes, motionBlurBytes(128, 64) + own)
+  assert.equal(after.resolve(encoder, [], input, frame), input)
   assert.equal(effects.bytes, 0, 'an emptied chain gives everything back')
   destroyRetired(gpu.device)
   const made = gpu.textures.filter(({ label }) => label?.startsWith('Trillion3D motion blur'))

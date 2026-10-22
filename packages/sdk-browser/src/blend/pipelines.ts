@@ -19,7 +19,7 @@ import { filtersDisplay } from './equations.ts'
 import { blendCatchUp } from './blendCatchUp.ts'
 import { families } from '../session/host/families.ts'
 import { hasSubgroups } from '../gpu/core/subgroups.ts'
-import { hasClipDistances } from '../gpu/core/clipDistances.ts'
+import type { Clipping } from '../gpu/core/clipDistances.ts'
 import {
   blendVariantPipeline,
   DIAGNOSTIC_BLEND_WGSL,
@@ -62,6 +62,9 @@ type BlendProgramSetup = {
   /** The first program's transmissive pipelines of each lobe choice, lobed then lobeless: what
    *  the others take their unlit stages from (`createTransmitPipelines`). */
   transmitted: (TransmitPipelines | undefined)[]
+  /** How the programs' modules cut at a view's plane (`../gpu/core/clipDistances.ts`): none, they
+   *  hold none of that code. */
+  clipping?: Clipping
 }
 type ForwardVariants<P> = Awaited<ReturnType<typeof createForwardVariants<P>>>
 
@@ -75,7 +78,11 @@ export async function createWebgpuBlendPipelines(
   feedback = true,
   sharedLayout?: GPUBindGroupLayout,
   share: ShareTargets = 0,
-  { lit, holdsTransmission }: { lit?: ForwardLit; holdsTransmission?: boolean } = {},
+  {
+    lit,
+    holdsTransmission,
+    clipping,
+  }: { lit?: ForwardLit; holdsTransmission?: boolean; clipping?: Clipping } = {},
 ) {
   // The forward materials' layout, which the feedback-free diagnostic pipelines share: the
   // group's table (`blendLayoutEntries`), the view uniform at its size.
@@ -109,8 +116,9 @@ export async function createWebgpuBlendPipelines(
     share,
     reach,
     programs: () => programs,
-    front: createFrontStages(device, blendBindGroupLayout),
+    front: createFrontStages(device, blendBindGroupLayout, clipping),
     transmitted: [],
+    clipping,
   }
   const programs = await createForwardVariants((key) => blendProgram(setup, key), lit)
   await prepareFrontStage(setup.front, items)
@@ -127,7 +135,7 @@ function blendModuleCode(setup: BlendProgramSetup, key: ContractKey) {
     diagnostic: variant ? DIAGNOSTIC_BLEND_WGSL : undefined,
     dual,
     subgroups: hasSubgroups(device),
-    clip: hasClipDistances(device),
+    clipping: setup.clipping,
   })
 }
 

@@ -14,24 +14,22 @@ import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { Bloom } from '../../../../sdk-core/src/world/effect/bloom.ts'
 import { createWebgpuEffects } from '../../post/effects/webgpuEffects.ts'
 import { WEBGPU_KINDS } from '../../post/effects/webgpuKinds.ts'
-import { EFFECT_KIND_BYTES } from '../../post/effects/kindBytes.ts'
+import { KIND_RULES } from '../../post/effects/kindRules.ts'
 import type { PostFrame } from '../../post/finish/finish.ts'
 import { computePasses, drawing, encoder, framed, input, passes } from './encodeEffects.fixture.ts'
-import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { FFT_PARAMS, fftShader } from '../../post/effects/bloom/convolution/fftWgsl.ts'
 import {
-  analyseKernel,
-  applyConstants,
-  NORMALISED_BY,
-} from '../../post/effects/bloom/convolution/kernelStats.ts'
-import { defaultBloomKernel } from '../../post/effects/bloom/convolution/defaultKernel.ts'
+  convolvedBySum,
+  testKernel,
+  texelGrid,
+  transformed,
+} from '../../post/effects/bloom/bloom.fixture.ts'
+import { analyseKernel, applyConstants } from '../../post/effects/bloom/convolution/kernelStats.ts'
 import { planConvolution } from '../../post/effects/bloom/convolution/plan.ts'
 import {
-  channelScale,
-  transformShape,
-  writeTransformWords,
-} from '../../post/effects/bloom/convolution/transformShape.ts'
-import { twiddleTable } from '../../post/effects/bloom/convolution/twiddles.ts'
+  convolutionArriving,
+  transformLineOf,
+} from '../../post/effects/bloom/convolution/convolutionPrograms.ts'
+import { askEffectPrograms } from '../../post/effects/stagePlan.ts'
 
 /** Two identical complete frames, each encoding the chain: what arms the hold. */
 function drawTwice(rt: ReturnType<typeof drawing>, device: GPUDevice) {
@@ -97,28 +95,36 @@ test('the view’s bloom settings and the effect’s dirt mask reach the passes,
   drawTwice(rt, device)
   assert.equal(holdWebgpuFrame(rt, device), true, 'still: held')
   Object.assign(rt.context, { bloomQuality: 'lowest' }) // the three widest levels
+  rt.gpu.kindSettings.peek('bloom', rt.context) // reading apart takes no change from the hold
   assert.equal(holdWebgpuFrame(rt, device), false, 'a quality written: the image is out of date')
   assert.ok(drawnBy(rt, device)[0] < all, 'fewer levels draw')
   Object.assign(rt.context, { bloomQuality: 'off' })
   assert.deepEqual(drawnBy(rt, device), [0, 0], 'off draws no bloom')
   Object.assign(rt.context, { bloomQuality: undefined })
   bloom.dirtMask = { image: { width: 8, height: 8 }, intensity: 1 }
-  assert.equal(drawnBy(rt, device)[0], all + 1 + 3, 'the finishing, and three mip levels')
-  assert.equal(drawnBy(rt, device)[0], all + 1, 'the picture is kept: the finishing alone')
-  bloom.dirtMask = { intensity: 0 }
-  assert.equal(drawnBy(rt, device)[0], all, 'an intensity of 0 draws no dirt')
+  assert.equal(drawnBy(rt, device)[0], all + 3, 'the three mip levels, no pass of its own')
+  assert.equal(drawnBy(rt, device)[0], all, 'the picture is kept')
 })
 
-test('a convolution bloom draws its input and three passes of the transform, the kernel once', async () => {
+test('a convolution bloom reads the level as it is, an input only for another size, and keeps the kernel’s transform', async () => {
   const { device } = fakeDevice()
-  const rt = drawing(new EffectChain().add(effect.bloom({ method: 'convolution' })))
+  const convolution = { kernel: testKernel() }
+  const rt = drawing(new EffectChain().add(effect.bloom({ method: 'convolution', convolution })))
   drawnBy(rt, device)
   await rt.gpu.effects!.settled()
+  // The transform's programs are asked ahead, for the sizes the view draws at; the image is drawn bare till then.
+  askEffectPrograms(rt, device)
+  assert.ok(convolutionArriving(device), 'asked before the first image that needs them')
+  assert.equal(drawnBy(rt, device)[1], 0, 'no compute pass while the transform compiles')
+  assert.equal(rt.gpu.effects!.loading, true)
+  await rt.gpu.effects!.settled()
   const first = drawnBy(rt, device)
-  assert.ok(first[0] >= 1 && first[1] > 3, 'the input, the kernel and the three of the transform')
-  assert.deepEqual(drawnBy(rt, device), [first[0], 3], 'the kernel’s transform is kept')
+  assert.deepEqual(first, [1, 2], 'the half level alone: the kernel’s one pass, the transform’s')
+  assert.deepEqual(drawnBy(rt, device), [first[0], 1], 'the kernel’s transform is kept')
   Object.assign(rt.context, { bloomCacheKernel: false })
   assert.deepEqual(drawnBy(rt, device), first, 'off, it is made again')
+  Object.assign(rt.context, { bloomCacheKernel: true, bloomScreenPercentage: 35.355 })
+  assert.equal(drawnBy(rt, device)[0], 2, 'a size the level is not: one pass brings it down')
 })
 
 test('compiling programs keep the frame from being held, the accumulation still', async () => {
@@ -202,7 +208,7 @@ function spy() {
 }
 
 test('the renderer has one implementation per kind, the kinds the budget reserves', () => {
-  assert.deepEqual(Object.keys(WEBGPU_KINDS).sort(), Object.keys(EFFECT_KIND_BYTES).sort())
+  assert.deepEqual(Object.keys(WEBGPU_KINDS).sort(), Object.keys(KIND_RULES).sort())
 })
 
 test('the renderer hands each pass to its kind, with its rank among that kind', async (t) => {
@@ -227,122 +233,68 @@ test('the renderer hands each pass to its kind, with its rank among that kind', 
 })
 
 test('the convolution plan and the kernel’s reading follow the reference’s numbers', () => {
-  const limits = { side: 16384, maxLine: 4096, bytes: 2 ** 31 }
-  const at = (percent: number, view = [1920, 1080]) =>
-    planConvolution({ view, percent, size: 1, bufferScale: 0.133 }, limits)
-  const [full, half, tenth] = [at(100), at(35.355), at(12.5)]
+  const at = (percent: number) =>
+    planConvolution({ view: [1920, 1080], percent, size: 1, bufferScale: 0.133 }, LIMITS)
   assert.deepEqual(
-    [full.image, full.frequency, full.horizontalFirst],
-    [[1920, 1080], [2048, 2048], true],
+    [at(100).image, at(100).frequency],
+    [
+      [1920, 1080],
+      [2048, 2048],
+    ],
   )
   assert.deepEqual(
-    [full.level, half.level, half.image, at(25).level, tenth.level],
-    [-1, 0, [679, 382], 1, 2],
+    [at(100).level, at(35.355).level, at(35.355).image, at(25).level],
+    [-1, 0, [679, 382], 1],
   )
-  const stats = analyseKernel(defaultBloomKernel(), 1920, 1)
-  const spread = stats.scatterEnergy[0] / (stats.centreEnergy[0] + stats.scatterEnergy[0])
-  assert.ok(stats.centre[0] === 256 && spread > 0.08 && spread < 0.2, 'about an eighth spreads')
+  // The transform is made for the plan's line: 1024 values at the default half, 2048 at the full.
+  assert.deepEqual([at(50), at(100)].map(transformLineOf), [1024, 2048])
+  // 4K at 50 %, the default: a line of 2048, which a device of 16 KiB of workgroup memory holds.
+  const half = planConvolution(
+    { view: [3840, 2160], percent: 50, size: 1, bufferScale: 0.133 },
+    { ...LIMITS, maxLine: 2048 },
+  )
+  assert.deepEqual([half.fraction, Math.max(...half.frequency)], [0.5, 2048])
+  const stats = analyseKernel(testKernel(64), 1920, 1)
   const { sceneTint, multiply } = applyConstants(stats, 0.675)
-  assert.ok(Math.abs(sceneTint[0] + multiply[0] - 1) < 1e-9, 'the image keeps what the glow leaves')
-  assert.deepEqual([...channelScale([0.1, 0.2, 0.3, 0.4])], [0.1, 0.2, 0.1, 0.4])
+  assert.deepEqual(stats.centre, [32, 32], 'the brightest texel is the centre')
+  // The image keeps what the glow leaves, each channel by its own share of the kernel's light: the
+  // green and the blue of this kernel carry 0.7 and 0.4 of the red's.
+  const kept = [0, 1, 2].map((c) => +(sceneTint[c] + multiply[c]).toFixed(3))
+  assert.deepEqual(kept, [1, 0.7, 0.4])
 })
 
-type Texels = number[][][]
-const grid = (w: number, h: number, f: (x: number, y: number, c: number) => number): Texels =>
-  Array.from({ length: h }, (_, y) =>
-    Array.from({ length: w }, (_, x) => [0, 1, 2, 3].map((c) => f(x, y, c))),
-  )
+const LIMITS = { side: 16384, maxLine: 4096, bytes: 2 ** 31 }
 
-/** The shipped transform's passes over `shape`, one thread standing for the workgroup: the rows, the
- *  columns — each channel times `kernel`'s spectrum where it convolves — and the rows back. */
-function transformed(
-  texels: Texels,
-  kernel: number[][],
-  planes: number[][],
-  shape: ReturnType<typeof transformShape>,
-) {
-  const [table, written, words] = [
-    twiddleTable(256),
-    new Map<string, number[]>(),
-    new Float32Array(FFT_PARAMS.words),
-  ]
-  writeTransformWords(words, shape, [1, 1, 1, 1])
-  const at = FFT_PARAMS.at
-  const field = (n: 'size' | 'rois' | 'mode') => [
-    ...new Uint32Array(words.buffer).slice(at[n], at[n] + 4),
-  ]
-  const names = ['forwardRows', 'convolveColumns', 'inverseRows'] as const
-  const run = shaderRun<Record<(typeof names)[number], (at: number[], lane: number) => void>>(
-    fftShader(256),
-    [...names],
-    {
-      LANES: 1,
-      reverseBits: (x: number) =>
-        parseInt([...Array(32)].map((_, b) => (x >>> b) & 1).join(''), 2) >>> 0,
-      workgroupBarrier: () => undefined,
-      fft: {
-        size: field('size'),
-        rois: field('rois'),
-        mode: field('mode'),
-        normBy: [...NORMALISED_BY],
-        scale: [1, 1, 1, 1],
-      },
-      source: 's',
-      planes,
-      kernelPlanes: kernel,
-      factors: Array.from({ length: 128 }, (_, k) => [table[2 * k], table[2 * k + 1]]),
-      glowOut: 'o',
-      waves: Array.from({ length: 256 }, () => [0, 0]),
-      textureLoad: (_: string, p: number[]) => texels[p[1]][p[0]],
-      textureStore: (_: string, p: number[], v: number[]) => void written.set(p.join(','), v),
-    },
-  )
-  for (let s = 0; s < shape.lines; s++) run.forwardRows([s, 0, 0], 0)
-  for (let c = 0; c < shape.columns; c++) run.convolveColumns([c, 0, 0], 0)
-  if (shape.convolve) for (let s = 0; s < shape.lines; s++) run.inverseRows([s, 0, 0], 0)
-  return written
-}
-
-test('the transform’s passes convolve as a direct sum does, whichever direction goes first', () => {
-  for (const horizontalFirst of [true, false]) {
-    const [w, h, side] = horizontalFirst ? [6, 5, 16] : [5, 6, 16]
-    const image = grid(w, h, (x, y, c) => 1 + ((x * 7 + y * 3 + c * 5) % 11) / 4)
-    const kernel = grid(
-      side,
-      side,
+test('the transform’s passes convolve as a direct sum does, each channel by its own kernel sum and scale', () => {
+  for (const [w, h] of [
+    [6, 5],
+    [5, 6],
+  ]) {
+    // The transform goes along the longer padded side first: both directions are run.
+    const plan = planConvolution({ view: [w, h], percent: 100, size: 1, bufferScale: 0 }, LIMITS)
+    const [across, down] = plan.frequency
+    const image = texelGrid(w, h, (x, y, c) => 1 + ((x * 7 + y * 3 + c * 5) % 11) / 4)
+    // A kernel whose channels differ in strength, so a channel divided by another's sum, or scaled
+    // by another's multiplier, comes out wrong.
+    const kernel = texelGrid(
+      across,
+      down,
       (x, y, c) => ((x + y) % 5 ? 0.05 : 0.2 + ((x * y) % 3)) * (c + 1),
     )
-    const plan = planConvolution(
-      { view: [w, h], percent: 100, size: 1, bufferScale: 0 },
-      { side: 4096, maxLine: 256, bytes: 2 ** 30 },
-    )
-    const square = {
-      ...plan,
-      horizontalFirst,
-      frequency: [side, side] as [number, number],
-      columns: side / 2 + 1,
-    }
     const spectrum: number[][] = []
-    transformed(kernel, [], spectrum, transformShape({ ...square, image: [side, side] }, true))
-    const glow = transformed(
-      image,
-      spectrum,
-      [],
-      transformShape({ ...square, image: [w, h] }, false),
-    )
-    const sums = [0, 1, 2, 3].map((c) => kernel.flat().reduce((sum, texel) => sum + texel[c], 0))
-    for (let y = 0; y < h; y++)
-      for (let x = 0; x < w; x++)
-        for (let c = 0; c < 4; c++) {
-          let sum = 0
-          for (let v = 0; v < h; v++)
-            for (let u = 0; u < w; u++)
-              sum += image[v][u][c] * kernel[(y - v + side) % side][(x - u + side) % side][c]
-          const expected = sum / sums[NORMALISED_BY[c]]
+    transformed(kernel, [], spectrum, plan.shapes.kernel)
+    const scale = [0.5, 1.5, 2.5, 3.5]
+    const glow = transformed(image, spectrum, [], plan.shapes.image, scale)
+    convolvedBySum(image, kernel).forEach((row, y) =>
+      row.forEach((texel, x) =>
+        texel.forEach((value, c) => {
+          const expected = value * scale[c]
           assert.ok(
             Math.abs(glow.get(`${x},${y}`)![c] - expected) < 1e-5 * (1 + expected),
-            `${horizontalFirst} ${x},${y},${c}`,
+            `${plan.horizontalFirst} ${x},${y},${c}`,
           )
-        }
+        }),
+      ),
+    )
   }
 })

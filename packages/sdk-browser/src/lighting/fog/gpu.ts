@@ -1,12 +1,7 @@
 import { volumetricFogKnobs } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
-import {
-  newFogVolumeFrame,
-  writeFogVolumeFrame,
-  type FogVolumeImage,
-  type FogVolumePrevious,
-} from './frame.ts'
+import { writeFogVolumeFrame, type FogVolumeImage, type FogVolumePrevious } from './frame.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { cellGrid, DEFAULT_MAX_VOLUME_DIMENSION, type FogGrid } from './layout.ts'
+import { cellGrid, DEFAULT_MAX_VOLUME_DIMENSION, historyHorizon, type FogGrid } from './layout.ts'
 import { createFogGroups, encodeFogPasses, type FogPassInputs } from './passes.ts'
 import type { FogRead } from './read.ts'
 import { createFogVolumeResources, type FogVolumeResources } from './resources.ts'
@@ -28,9 +23,10 @@ export interface FogVolumeInputs
   allocated: readonly [number, number]
 }
 
-/** A field of a scratch object (`FogVolumeInputs`, `Parts`) that holds nothing until its first image
- *  writes it: one object, rewritten each image, allocates none. */
-export const unset = <T>() => undefined as unknown as T
+/** An object whose fields hold nothing until the first image writes them, and nothing again once it
+ *  is let go: the scratch a frame rewrites in place instead of allocating one (`FogVolumeInputs`,
+ *  the volume's image). A reader takes it whole only after the writer has set every field. */
+export type Scratch<T> = { -readonly [K in keyof T]: T[K] | undefined }
 
 /** What the volume's image-by-image work holds: the resources, the stand-ins of a fog with no
  *  cubemap and no volume, the groups, the words of the frame, the largest 3D texture. */
@@ -38,10 +34,9 @@ interface Parts {
   resources: FogVolumeResources
   none: FogRead
   groups: ReturnType<typeof createFogGroups>
-  words: Float32Array<ArrayBuffer>
   maxDimension: number
   /** What the frame is written from, refilled each image. */
-  image: FogVolumeImage
+  image: Scratch<FogVolumeImage>
   /** What the passes are made over, refilled each image. */
   context: Parameters<typeof encodeFogPasses>[1]
 }
@@ -54,6 +49,10 @@ interface Parts {
 interface History {
   previous: FogVolumePrevious & { viewProj: Float32Array; skipHidden: boolean }
   known: boolean
+  /** Images built on the history of the one before, since it last started over (a first image, a
+   *  camera cut, other textures), and how many make it whole (`historyHorizon`). */
+  frames: number
+  horizon: number
   ping: number
   made: number
   resource: { key: number[]; grid: FogGrid }
@@ -99,14 +98,14 @@ function gridsOf(
 /** This image's frame written, where a volume is built: the history the previous image left, if it
  *  can be read (the same textures, no cut, the cells held hidden or not as before). */
 function writeFrame(
-  device: GPUDevice,
-  { words, resources, image }: Parts,
+  { resources, image }: Parts,
   history: History,
   input: FogVolumeInputs,
   knobs: { rebuildSamples: number },
   skipHidden: boolean,
 ) {
   const { previous } = history
+  const kept = history.known && !input.cut && previous.skipHidden === skipHidden
   image.camera = input.camera
   image.medium = input.medium
   image.settings = input.settings
@@ -117,17 +116,16 @@ function writeFrame(
   image.resource = history.resource.grid
   image.rebuildSamples = knobs.rebuildSamples
   image.skipHidden = skipHidden
-  image.previous =
-    history.known && !input.cut && previous.skipHidden === skipHidden ? previous : undefined
-  writeFogVolumeFrame(words, image)
-  device.queue.writeBuffer(resources.frameBuffer, 0, words)
+  image.previous = kept ? previous : undefined
+  writeFogVolumeFrame(resources.frame.words.f, image as FogVolumeImage)
+  resources.frame.send()
+  return kept
 }
 
 /** The volume of one image, built on `encoder` (`createFogVolumeGpu`): its integrated view, none
- *  where the quality is `off`, the camera is not a perspective or the device's budget refuses the
+ *  where the quality is `off` or the device's budget refuses the
  *  textures. */
 function buildVolume(
-  device: GPUDevice,
   parts: Parts,
   history: History,
   encoder: GPUCommandEncoder,
@@ -136,17 +134,19 @@ function buildVolume(
   const { resources, none, maxDimension, context } = parts
   const knobs = volumetricFogKnobs(input.settings.volumetricFogQuality)
   const { camera } = input
-  if (!knobs || !camera.perspective) return void (history.known = false)
+  if (!knobs) return void (history.known = history.frames = 0)
   gridsOf(history, camera, input.allocated, knobs, maxDimension)
   const textures = resources.texturesOf(history.resource.grid)
-  if (!textures) return void (history.known = false)
+  if (!textures) return void (history.known = history.frames = 0)
   if (resources.generation !== history.made) {
     history.made = resources.generation
     history.known = false
   }
   // Cells are held hidden where the setting says and the frame built the pyramid they are read from.
   const skipHidden = input.settings.volumetricFogSkipHidden && !!input.hiz
-  writeFrame(device, parts, history, input, knobs, skipHidden)
+  const kept = writeFrame(parts, history, input, knobs, skipHidden)
+  history.frames = kept ? history.frames + 1 : 1
+  history.horizon = historyHorizon(input.settings)
   context.ping = history.ping
   context.cells = history.view
   context.whiteCubemap = none.cubemap
@@ -163,18 +163,19 @@ function buildVolume(
 
 /** What an image's work holds (`Parts`), made once: nothing in it is allocated again. */
 function newParts(device: GPUDevice, resources: FogVolumeResources, none: FogRead): Parts {
+  const groups = createFogGroups()
   return {
     resources,
     none,
-    groups: createFogGroups(),
-    words: newFogVolumeFrame(),
+    groups,
     maxDimension: device.limits?.maxTextureDimension3D ?? DEFAULT_MAX_VOLUME_DIMENSION,
     image: {
-      camera: unset(),
+      camera: undefined,
+      previous: undefined,
       grid: NO_GRID,
       resource: NO_GRID,
-      medium: unset(),
-      settings: unset(),
+      medium: undefined,
+      settings: undefined,
       rebuildSamples: 0,
       skipHidden: false,
       sunRank: -1,
@@ -184,7 +185,7 @@ function newParts(device: GPUDevice, resources: FogVolumeResources, none: FogRea
     context: {
       device,
       resources,
-      groups: unset(),
+      groups,
       whiteCubemap: none.cubemap,
       ping: 0,
       cells: NO_GRID,
@@ -201,6 +202,8 @@ const newHistory = (): History => ({
     skipHidden: false,
   },
   known: false,
+  frames: 0,
+  horizon: 0,
   ping: 0,
   made: 0,
   resource: { key: [0, 0, 0, 0], grid: NO_GRID },
@@ -216,8 +219,8 @@ const newHistory = (): History => ({
  *
  * Each image it builds the volume in three passes: the furthest depth around each cell across the
  * image, the light each cell scatters blended with the volume of the image before, and the sum
- * along each column. It builds none — `encode` answers no volume — where the quality is `off`, the
- * camera is not a perspective or the budget refuses the textures. Its pipelines compile off the
+ * along each column. It builds none — `encode` answers no volume — where the quality is `off` or the
+ * budget refuses the textures. Its pipelines compile off the
  * frame (`ask`): the frames wait for them.
  */
 export function createFogVolumeGpu(
@@ -227,10 +230,14 @@ export function createFogVolumeGpu(
 ) {
   const resources = createFogVolumeResources(device, failed)
   const parts = newParts(device, resources, none)
-  parts.context.groups = parts.groups
   const history = newHistory()
   const pipelines = Object.values(resources.programs).map((program) => program.pipeline)
   return {
+    /** Whether the volume still advances toward the picture its history converges to: a still view
+     *  is drawn again till it is whole (`historyHorizon` images), then held. */
+    get settling() {
+      return history.known && history.frames < history.horizon
+    },
     /** Whether every pipeline is compiled: until then the image builds no volume. */
     get ready() {
       for (const pipeline of pipelines) if (!pipeline.ready) return false
@@ -242,12 +249,12 @@ export function createFogVolumeGpu(
     },
     /** The words of the frame the last built image wrote: what the view block is made from. */
     get frame() {
-      return parts.words
+      return resources.frame.words.f
     },
     /** The volume of this image, built on `encoder`: its integrated view, which a surface's program
      *  reads, or none. */
     encode: (encoder: GPUCommandEncoder, input: FogVolumeInputs) =>
-      buildVolume(device, parts, history, encoder, input),
+      buildVolume(parts, history, encoder, input),
     /** The scene's fog changed to one with no volume, or the world closed: the history is dropped
      *  and the textures retired. */
     reset() {

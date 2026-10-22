@@ -15,6 +15,7 @@ import { FLAG_DYNAMIC, FLAG_LINE, FLAG_SPRITE, FLAG_VOXEL } from '../types.ts'
 import { VIS_TRIANGLE_BITS, visTriangle } from '../visWords.ts'
 import { computeBufferEntries } from '../../gpu/core/computeBindings.ts'
 import { TESSELLATED_ROW_WGSL } from '../tessellation/rowWgsl.ts'
+import { planeDistance } from '../../../../math/src/wgsl/geometry.ts'
 
 /** The binning module's group 0, binding after binding: the page reads — the page table writable,
  *  where a row's measured bounds are kept (`PageInfo.edgeLength`) —, the image's uniform, the
@@ -31,6 +32,59 @@ export const binLayoutEntries = () =>
     'storage',
   ])
 
+/** The split's own functions, the sphere's projected edge scale and the verdict of a row — with the
+ *  corner test against the view's clip plane in the text made for the project switch (`clipping`),
+ *  as in `binSource`. */
+const splitText = (
+  clipping: boolean,
+) => `/** The smaller of the sphere's two projected edge scales: its nearest depth, at least the near
+ *  plane's, times the cosine of the angle from the view axis to its tangent nearest the axis; one
+ *  under an orthographic projection, zero for a sphere wholly behind the near plane. \`center\` is
+ *  camera-relative, in world units. */
+fn projectedEdgeScale(center:vec3f,radius:f32)->f32{
+ if(uni.perspective<=0.0){return 1.0;}
+ let near=uni.near;
+ let distSq=dot(center,center);
+ let z=dot(uni.forward,center);
+ let x=sqrt(max(0.0,distSq-z*z));
+ let tangentSq=distSq-radius*radius;
+ let tangent=sqrt(max(0.0,tangentSq));
+ var cosine=(-radius*x+tangent*z)*(1.0/distSq);
+ if(tangentSq<0.0||cosine*tangent<near){
+  let h=near-z;
+  let side=x+sqrt(radius*radius-h*h);
+  cosine=near*inverseSqrt(side*side+near*near);
+ }
+ if(z+radius>near){return max(z-radius,near)*cosine;}
+ return 0.0;
+}
+/** A row's bounds in its own space, as the split reads them: its vertex box's centre and half
+ *  extent, and its longest edge. */
+struct RowBounds{center:vec3f,extent:vec3f,edge:f32,}
+/** Whether a row software may take (\`eligible\` below), of bounds \`b\`, is rastered in software
+ *  this image (the split above); \`moving\` a row whose vertices move in place, judged at the
+ *  sphere around its measured box. */
+fn rasteredInSoftware(page:PageInfo,b:RowBounds,moving:bool)->bool{
+ let m=pageTransform(page);
+ var nearest=FAR;var deepest=FAR;${clipping ? 'var behind=FAR;' : ''}
+ for(var k=0u;k<8u;k++){
+  let corner=b.center+b.extent*(vec3f(f32(k&1u),f32((k>>1u)&1u),f32((k>>2u)&1u))*2.0-1.0);
+  let clip=m*vec4f(corner,1.0);
+  nearest=min(nearest,clip.w-clip.z);deepest=min(deepest,clip.z);${
+    clipping
+      ? '\n  if(uni.clipRoute!=0u){behind=min(behind,planeDistance(uni.clipPlane,(page.world*vec4f(corner,1.0)).xyz));}'
+      : ''
+  }
+ }
+ if(nearest<=0.0||deepest<=0.0${clipping ? '||behind<0.0' : ''}){return false;}
+ let world=worldMatrix3(page.world);
+ let scale=sqrt(max(dot(world[0],world[0]),max(dot(world[1],world[1]),dot(world[2],world[2]))));
+ var sphere=page.lodSphere;
+ if(moving||sphere.w<0.0){sphere=vec4f(b.center,length(b.extent));}
+ let center=(page.world*vec4f(sphere.xyz,1.0)).xyz-uni.eye;
+ return !(projectedEdgeScale(center,sphere.w*scale)<scale*b.edge*uni.hardwareEdge);
+}`
+
 /**
  * THE CLUSTER SPLIT AND THE BINNING, one workgroup a page-table row, before either compaction
  * reads the rows (`../draw/shader.ts`).
@@ -40,10 +94,11 @@ export const binLayoutEntries = () =>
  * - the software raster is off (`uni.softwareRaster`, the `softwareRaster` option);
  * - it is a line, a sprite or a voxel row, which the hardware vertex stage widens, turns or traces;
  * - its box needs clipping: a corner on or behind the near plane, or past the far one — the corners
- *   of the box of its vertices, through the same `viewProj * world` the raster uses —, or, where
- *   the cut culls by the view's clip plane (`uni.clipRoute`), a corner behind that plane: the
- *   hardware stages cut the cluster at the plane (`../../gpu/core/clipDistances.ts`), as the
- *   software raster cannot;
+ *   of the box of its vertices, through the same `viewProj * world` the raster uses —, or, in the
+ *   split made for the project switch (`clipping`, `../../gpu/core/clipDistances.ts`) and where
+ *   the cut culls by the view's plane (`uni.clipRoute`), a corner behind that plane: the hardware
+ *   stages cut the cluster at the plane, as the software raster cannot; the text of the split
+ *   without the switch is the same as it was;
  * - or its longest edge, seen at the nearest point of its level-of-detail sphere, spans
  *   `hardwareRasterEdgePixels` or more: `projected < scale·edge·uni.hardwareEdge`, `projected` the
  *   sphere's nearest depth times the cosine of its tangent (`projectedEdgeScale`), `scale` the
@@ -74,7 +129,7 @@ export const binLayoutEntries = () =>
  * to its own lists (`LIST`, the pipeline's override). The two masks hold no row in common, so each
  * row's `raster` word is written once an image, before the compaction of its pass reads it.
  */
-export const binSource = (capacity: number, tessellated = false) =>
+export const binSource = (capacity: number, tessellated = false, clipping = false) =>
   wgslProgram(
     `@group(0) @binding(0) var<storage,read> indices:array<u32>;
 @group(0) @binding(1) var<storage,read> positions:array<f32>;
@@ -85,50 +140,7 @@ export const binSource = (capacity: number, tessellated = false) =>
 @group(0) @binding(6) var<storage,read_write> items:array<DrawItem>;
 /** A bound past every coordinate a box holds. */
 const FAR:f32=3.4e38;
-/** The smaller of the sphere's two projected edge scales: its nearest depth, at least the near
- *  plane's, times the cosine of the angle from the view axis to its tangent nearest the axis; one
- *  under an orthographic projection, zero for a sphere wholly behind the near plane. \`center\` is
- *  camera-relative, in world units. */
-fn projectedEdgeScale(center:vec3f,radius:f32)->f32{
- if(uni.perspective<=0.0){return 1.0;}
- let near=uni.near;
- let distSq=dot(center,center);
- let z=dot(uni.forward,center);
- let x=sqrt(max(0.0,distSq-z*z));
- let tangentSq=distSq-radius*radius;
- let tangent=sqrt(max(0.0,tangentSq));
- var cosine=(-radius*x+tangent*z)*(1.0/distSq);
- if(tangentSq<0.0||cosine*tangent<near){
-  let h=near-z;
-  let side=x+sqrt(radius*radius-h*h);
-  cosine=near*inverseSqrt(side*side+near*near);
- }
- if(z+radius>near){return max(z-radius,near)*cosine;}
- return 0.0;
-}
-/** A row's bounds in its own space, as the split reads them: its vertex box's centre and half
- *  extent, and its longest edge. */
-struct RowBounds{center:vec3f,extent:vec3f,edge:f32,}
-/** Whether a row software may take (\`eligible\` below), of bounds \`b\`, is rastered in software
- *  this image (the split above); \`moving\` a row whose vertices move in place, judged at the
- *  sphere around its measured box. */
-fn rasteredInSoftware(page:PageInfo,b:RowBounds,moving:bool)->bool{
- let m=pageTransform(page);
- var nearest=FAR;var deepest=FAR;var behind=FAR;
- for(var k=0u;k<8u;k++){
-  let corner=b.center+b.extent*(vec3f(f32(k&1u),f32((k>>1u)&1u),f32((k>>2u)&1u))*2.0-1.0);
-  let clip=m*vec4f(corner,1.0);
-  nearest=min(nearest,clip.w-clip.z);deepest=min(deepest,clip.z);
-  if(uni.clipRoute!=0u){behind=min(behind,dot(uni.clipPlane.xyz,(page.world*vec4f(corner,1.0)).xyz)+uni.clipPlane.w);}
- }
- if(nearest<=0.0||deepest<=0.0||behind<0.0){return false;}
- let world=worldMatrix3(page.world);
- let scale=sqrt(max(dot(world[0],world[0]),max(dot(world[1],world[1]),dot(world[2],world[2]))));
- var sphere=page.lodSphere;
- if(moving||sphere.w<0.0){sphere=vec4f(b.center,length(b.extent));}
- let center=(page.world*vec4f(sphere.xyz,1.0)).xyz-uni.eye;
- return !(projectedEdgeScale(center,sphere.w*scale)<scale*b.edge*uni.hardwareEdge);
-}
+${splitText(clipping)}
 // The row's longest squared edge and its box, lane by lane, then folded by the workgroup.
 var<workgroup> edgeOf:array<f32,WORKGROUP_THREADS>;
 var<workgroup> lowOf:array<vec3f,WORKGROUP_THREADS>;
@@ -209,5 +221,6 @@ fn spread(slot:u32,groups:u32){
       WORKGROUP_THREADS_WGSL,
       ceilDivWgsl,
       ...(tessellated ? [TESSELLATED_ROW_WGSL] : []),
+      ...(clipping ? [planeDistance] : []),
     ],
   )

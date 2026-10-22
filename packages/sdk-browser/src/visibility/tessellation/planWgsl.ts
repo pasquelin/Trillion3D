@@ -5,10 +5,12 @@ import { TESS_DECLARATIONS as D } from './bindings.ts'
 import {
   ARG_END,
   ARG_LEVEL,
+  ARG_OCCLUDED,
   ARG_QUEUE,
   ARG_START,
   ARG_VISIBLE,
   DISPATCH_DICE,
+  DISPATCH_RESUME,
   DISPATCH_SPLIT,
   MAX_SPLIT_LEVELS,
 } from './contract.ts'
@@ -46,18 +48,30 @@ const VISIBLE_ARGS = `@compute @workgroup_size(1) fn tessVisibleArgs(){
  dispatch[tu.dispatch+${DISPATCH_DICE + 2}u]=1u;
 }`
 
+/**
+ * THE RESUME'S ARGUMENTS, one thread before the post pass takes up what the main pass's occlusion test
+ * hid: the workgroups of `tessResume`, one for each `WORKGROUP_THREADS` of the patches the main pass
+ * kept, held to the buffer's capacity (`groupGrid`).
+ */
+const RESUME_ARGS = `@compute @workgroup_size(1) fn tessResumeArgs(){
+ let grid=groupGrid(ceilDiv(min(tw(tu.mainArgs+${ARG_OCCLUDED}u),tu.maxOccluded),WORKGROUP_THREADS));
+ dispatch[tu.dispatch+${DISPATCH_RESUME}u]=grid.x;
+ dispatch[tu.dispatch+${DISPATCH_RESUME + 1}u]=grid.y;
+ dispatch[tu.dispatch+${DISPATCH_RESUME + 2}u]=1u;
+}`
+
 const PROGRAM = `${D.tessUniform}
 ${D.tess}
 ${D.dispatch}`
 
 /**
- * The arguments' program: its entry points `tessPlan` and `tessVisibleArgs`, the only ones that write the
+ * The arguments' program: its entry points `tessPlan`, `tessVisibleArgs` and `tessResumeArgs`, the only ones that write the
  * `dispatch` buffer. It binds neither the geometry nor the pages, and the kernels the dispatches it
  * writes launch bind no `dispatch`: a buffer a dispatch reads its size from is never bound writable
  * to the same dispatch.
  */
 export const planSource = () =>
-  wgslProgram(`${PROGRAM}\n${PLAN}\n${VISIBLE_ARGS}`, [
+  wgslProgram(`${PROGRAM}\n${PLAN}\n${VISIBLE_ARGS}\n${RESUME_ARGS}`, [
     TESS_STATE_WGSL,
     GROUP_GRID_WGSL,
     WORKGROUP_THREADS_WGSL,

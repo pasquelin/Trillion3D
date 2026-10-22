@@ -61,21 +61,15 @@ fn spCosine(n:vec3f)->array<f32,9>{return ${cosineLobeShader('n')};}`,
 )
 
 /**
- * THE NOISE AND THE PLACES: the noise (the engine's integer hash), the tile's jitter, the atlas's addresses and the
- * parameters' flag. The probes' tiles are cut from the image's corner, and the pixel a tile's uniform probe stands on
- * moves by a Hammersley point of the tile's side every frame (`spTileJitter`), `tileJitters` of them coming round; the
- * adaptive probes of a tile stand on pixels of the tile's own (`spAdaptivePixel`), each sample a Hammersley point of a
- * seed the tile and the frame's jitter give.
+ * THE PLACES: the tile's jitter, the atlas's addresses and the parameters' flag. The probes' tiles are cut from the image's
+ * corner, and the pixel a tile's uniform probe stands on moves by a Hammersley point of the tile's side every frame
+ * (`spTileJitter`), `tileJitters` of them coming round; the adaptive probes of a tile stand on pixels of the tile's own
+ * (`spAdaptivePixel`), each sample a Hammersley point of a seed the tile and the frame's jitter give.
  */
 const SP_PLACES = wgslBlock(
   'SP_PLACES',
   [hammersley16, rand3dPcg16],
   `fn spFlag(bit:u32)->bool{return (sp.mode.z&bit)!=0u;}
-/** Two values of [0, 1) of the texel \`coord\` and the \`salt\`, a hash of the three. */
-fn spNoise(coord:vec2u,salt:u32)->vec2f{
- let h=rand3dPcg16(vec3i(vec2i(coord),i32(salt))).xy;
- return vec2f(h)*(1.0/65536.0);
-}
 /** The jitter of the tile's uniform probe at jitter \`index\`: a Hammersley point of the tile's side. */
 fn spTileJitter(index:u32)->vec2u{
  return vec2u(hammersley16(index%SP_TILE_JITTERS,SP_TILE_JITTERS,vec2u(0u))*f32(sp.size.z));
@@ -102,16 +96,17 @@ fn spProbeTile(word:u32)->vec2u{
 
 /**
  * A POINT'S DEPTH as the weights measure it: its view depth, the engine's linear one (`surfaceLinearDepth`); a constant
- * under an orthographic camera, where a plane's distance has no depth to be relative to (`spDepthOf`); and its distance
- * from the eye, which the detail trace's fade and the history's fade follow (`spEyeDistance`).
+ * under an orthographic camera, where a plane's distance has no depth to be relative to (`spDepthOf`). Its distance
+ * from the eye, which the detail trace's fade follows, is the view's (`viewEyeDistance`, `../../deferred/worldAtWgsl.ts`).
  */
 const SP_DEPTHS = wgslBlock(
   'SP_DEPTHS',
-  [SP_REFLECTION, slabPerspective],
+  [SP_REFLECTION, slabPerspective, WORLD_AT_WGSL],
   `fn spDepthOf(p:vec3f)->f32{
  return max(select(1000.0,surfaceLinearDepth(p),slabPerspective(reflectionView.slab)),1e-3);
 }
-fn spEyeDistance(p:vec3f)->f32{return length(p-view.camera.xyz);}`,
+/** The furthest a ray looks for a surface, in metres (\`screenProbeMaxTraceDistance\`). */
+fn spMaxTrace()->f32{return sp.spatial.w;}`,
 )
 
 /**
@@ -168,6 +163,5 @@ ${wgslConsts({
   SP_SAMPLES: samples[0] * samples[1],
   SP_TILE_JITTERS: SCREEN_PROBE_CONSTANTS.tileJitters,
 })}
-const SP_MIN_WEIGHT:f32=${SCREEN_PROBE_CONSTANTS.minInterpolationWeight};
-const SP_MAX_TRACE:f32=${SCREEN_PROBE_CONSTANTS.maxTraceDistance};`,
+const SP_MIN_WEIGHT:f32=${SCREEN_PROBE_CONSTANTS.minInterpolationWeight};`,
   )

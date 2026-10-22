@@ -144,3 +144,21 @@ export const sceneAndRules = (
     },
   },
 })
+
+/** What the quality levels `levels` (a preset table of the runtime, by level) write of `field`, as
+ *  the sentence's list — `value at 'level'`, in the table's order —, so the text cannot drift from
+ *  the table the runtime reads; a level that writes none leaves the field at its default and is
+ *  left out. */
+export const presetWritten = (levels: Readonly<Record<string, object>>, field: string) =>
+  Object.entries(levels)
+    .flatMap(([level, values]) =>
+      field in values
+        ? [`${String((values as Record<string, unknown>)[field])} at '${level}'`]
+        : [],
+    )
+    .join(', ')
+
+/** The sentence a setting's meaning ends with: what the quality levels `levels` write of `field`
+ *  (`presetWritten`). */
+export const presetSentence = (levels: Readonly<Record<string, object>>, field: string) =>
+  `The quality levels write ${presetWritten(levels, field)}.`

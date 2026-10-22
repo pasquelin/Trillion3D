@@ -153,7 +153,7 @@ export function submitColorCopy(
       drawCalls: run.gpuDrawCalls,
       renderScale: rt.views.active.scale.drawn,
       scaleSteered: rt.views.active.scale.steered,
-      edgeScale: rt.views.main.scale.edge,
+      edgeScale: rt.views.main.scale.edge.now,
       transparentDrawCalls: run.blendDrawCalls,
       transparentSubmittedTriangles: run.blendSubmittedTriangles,
     })

@@ -21,6 +21,7 @@ import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.t
 import { MOTION_BLUR_RULES } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import { DEPTH_OF_FIELD_RULES } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
 import { BLOOM_RULES } from '../../../../sdk-core/src/contracts/bloomRules.ts'
+import { GAUSSIAN_BLUR_RULES } from '../../../../sdk-core/src/contracts/gaussianBlurRules.ts'
 import { FILM_RULES } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 import { VOLUMETRIC_FOG_RULES } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import { TESSELLATION_RULES } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
@@ -122,6 +123,9 @@ const WORLD_SETTINGS = {
   // The bloom's quality, cross, convolution resolution and two switches: the image effects' group
   // too, whose levels write the quality and the resolution (`quality.ts`).
   ...ruleEntries(BLOOM_RULES, 'imageEffects'),
+  // The Gaussian blur's fast threshold, sample scale and loop mode (the bloom's levels and the local
+  // exposure's blur): the image effects' group too, whose levels write the first two (`quality.ts`).
+  ...ruleEntries(GAUSSIAN_BLUR_RULES, 'imageEffects'),
   // The film effects' settings: the image effects' group too, whose levels write the tonemapper's
   // quality and the colour fringe's (`quality.ts`).
   ...ruleEntries(FILM_RULES, 'imageEffects'),
@@ -148,6 +152,7 @@ export const RULE_FIELDS: ReadonlySet<string> = new Set([
   ...Object.keys(MOTION_BLUR_RULES),
   ...Object.keys(DEPTH_OF_FIELD_RULES),
   ...Object.keys(BLOOM_RULES),
+  ...Object.keys(GAUSSIAN_BLUR_RULES),
   ...Object.keys(FILM_RULES),
   ...Object.keys(SCREEN_PROBE_RULES),
   ...Object.keys(AMBIENT_OCCLUSION_RULES),

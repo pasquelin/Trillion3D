@@ -1,11 +1,12 @@
 /**
- * How the reflections' proxy rays ended, each ray of the scene stage counted once, its rings together:
- * no proxy to walk; a surface hit (`hit`); the ray left the scene to the environment (`open`); the ray
- * went nowhere and the field answers it (`miss`); the screen's surface was closer than the proxy can
- * tell, no walk made (`bound`); and, for a ray that hit nothing and had a ring spent, what spent the first
- * ring that was: its units (`work`), its triangle tests (`tests`), its steps of the placement tree
- * (`tree`) or a mesh's walk (`mesh`) — the ray goes on at the end of that ring, and answers the
- * environment if no ring behind it meets a surface.
+ * How the reflections' proxy rays ended, each ray of the scene stage counted once, its windows together:
+ * no proxy to walk; a surface hit (`hit`, a window that spent its budget having found one included); the ray left the
+ * scene to the environment (`open`); the screen's far trace answered what left it (`distant`); the ray went nowhere
+ * and the field answers it (`miss`); the screen's surface was closer than the proxy can tell, no walk made
+ * (`bound`); and, for a ray that hit nothing and had a window spent, what spent the first one that was: its units
+ * (`work`), its triangle tests (`tests`), its steps of the placement tree (`tree`) or a mesh's walk (`mesh`) — the
+ * ray goes on at the end of that window, and answers the far trace or the environment if none behind it meets a
+ * surface.
  */
 export interface ReflectionProxyEnded {
   noProxy: number
@@ -17,13 +18,14 @@ export interface ReflectionProxyEnded {
   open: number
   miss: number
   bound: number
+  distant: number
 }
 
 /**
  * What the reflections' rays did in one image, counted on the GPU by the trace and read back a few
  * images late (`ShadowFrameMetrics.reflections`): the counts are those of the image `censusFrame`,
  * both surfaces (the opaque one and the transparents' front one) together, and `null` before the first
- * reading. A ray is a grid texel of a 2 × 2 block of pixels whose picked pixel traces.
+ * reading. A ray is a grid texel of a block of pixels (one at the default level, 2 × 2 at `high`) whose picked pixel traces.
  */
 export interface ReflectionFrameMetrics {
   /** The units and the triangle tests a proxy ray may spend in each of its rings: the budget its
@@ -36,11 +38,9 @@ export interface ReflectionFrameMetrics {
   censusFrame: number | null
   /** Rays cast. */
   rays: number | null
-  /** Of them: past the near field, where the field answers all the screen left and no proxy is walked. */
-  farRays: number | null
   /** Of them: met by the screen in part or whole (a surface it trusts). */
   screenRays: number | null
-  /** Of the rays in the near field: answered whole by the screen, nothing left for the scene stage. */
+  /** Of them: answered whole by the screen, nothing left for the scene stage. */
   screenWholeRays: number | null
   /** Of them: left to the scene stage, whose walks end as `proxyEnded` counts. */
   sceneRays: number | null

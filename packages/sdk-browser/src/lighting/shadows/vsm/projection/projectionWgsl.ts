@@ -57,7 +57,7 @@ import {
 } from '../../../../../../math/src/wgsl/integer.ts'
 import { FLOAT32_MIN_NORMAL } from '../../../../../../math/src/wgsl/constants.ts'
 import { unprojectPoint, uvToNdc } from '../../../../../../math/src/wgsl/projection.ts'
-import { vsmBlueNoiseTwo, vsmBlueNoiseWgsl } from '../blueNoise.ts'
+import { blueNoiseWgsl } from '../../../../gpu/noise/blueNoiseWgsl.ts'
 import { VSM_CONSTANTS_WGSL, VSM_PROJECTION_GROUP_SIZE } from '../constants.ts'
 import { VSM_PROJECTION_VIEW_STRUCT } from './projectionView.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
@@ -147,13 +147,13 @@ export function vsmProjectionWgsl(layout: VsmLayout, subgroups = false) {
       VSM_PROJECTION_DATA_WGSL,
       vsmBindingsWgsl(0, VSM_PROJECTION_VSM_SPECS, layout),
       vsmTraceLightWgsl(),
-      vsmBlueNoiseWgsl(1, VSM_PROJECTION_BINDING.blueNoise),
+      blueNoiseWgsl(1, VSM_PROJECTION_BINDING.blueNoise),
       VSM_TRACE_COMMON_WGSL,
       localLightReaches,
       // The traces sample this pass's pool and take the blue noise's pair; its lanes vote.
       vsmReceiverTraceWgsl({
         pool: vsmPoolLoadOf(0, VSM_PROJECTION_VSM_SPECS, layout),
-        noise: vsmBlueNoiseTwo(1, VSM_PROJECTION_BINDING.blueNoise),
+        noise: blueNoiseWgsl(1, VSM_PROJECTION_BINDING.blueNoise),
         hiz: [1, VSM_PROJECTION_BINDING.hizDepth],
         lone: false,
         transmission: vsmTransmissionReadWgsl(VSM_PROJECTION_BINDING.transmission, 1, true),

@@ -33,7 +33,8 @@ export { EffectChain, EffectPass, type EffectKind, type EffectStage } from './ch
 export const effect = {
   /**
    * The blur of a lens: each pixel's depth gives it a circle of confusion and the image is blurred by
-   * them, on the resolved image, ahead of the motion blur. Off until `focusDistance` is above 0.
+   * them, on the lit image before the temporal pass — so ahead of the motion blur, wherever it is added.
+   * Off until `focusDistance` is above 0.
    * @param options - `focusDistance`, `aperture`, `bladeCount`, `sensorWidth`…; the defaults when absent.
    */
   depthOfField: (options?: DepthOfFieldOptions) => new DepthOfField(options),

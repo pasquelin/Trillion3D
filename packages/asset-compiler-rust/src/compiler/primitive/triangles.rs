@@ -61,6 +61,17 @@ pub(crate) fn read<'a>(
     Ok((positions, index_values, triangle_count))
 }
 
+/// Whether primitive `p` draws triangles (`mode` 4, the default).
+pub(crate) fn is_triangle_list(p: &Value) -> bool {
+    p.get("mode").is_none_or(|m| m == 4)
+}
+
+/// Whether primitive `p` moves with nothing but its node: no bones, no morph targets.
+pub(crate) fn is_rigid(p: &Value) -> bool {
+    let bone = |semantic: &str| p.get("attributes").and_then(|a| a.get(semantic)).is_some();
+    p.get("targets").is_none() && !bone("JOINTS_0") && !bone("WEIGHTS_0")
+}
+
 /// The triangle primitives of mesh `mesh` (mode 4, the default), as declared, each with its index
 /// among the mesh's primitives.
 pub(crate) fn mesh_primitives(
@@ -71,7 +82,7 @@ pub(crate) fn mesh_primitives(
     Ok(primitives
         .iter()
         .enumerate()
-        .filter(|(_, p)| p.get("mode").is_none_or(|m| m == 4)))
+        .filter(|(_, p)| is_triangle_list(p)))
 }
 
 /// Positions and triangles of every triangle primitive of mesh `mesh`, one list each, a

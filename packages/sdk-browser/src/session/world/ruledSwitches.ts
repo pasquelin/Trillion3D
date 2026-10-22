@@ -22,6 +22,7 @@ import { MOTION_BLUR_RULES } from '../../../../sdk-core/src/contracts/motionBlur
 import { DEPTH_OF_FIELD_RULES } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import { BLOOM_RULES } from '../../../../sdk-core/src/contracts/bloomRules.ts'
+import { GAUSSIAN_BLUR_RULES } from '../../../../sdk-core/src/contracts/gaussianBlurRules.ts'
 import { FILM_RULES } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 
 /** A family's rules, by field. */
@@ -146,6 +147,9 @@ export const worldFamilies = (settings: WorldSettings) => ({
   ),
   bloom: ruledSwitches(settings, BLOOM_RULES, (session, field, value) =>
     session.setBloom(field, value),
+  ),
+  gaussianBlur: ruledSwitches(settings, GAUSSIAN_BLUR_RULES, (session, field, value) =>
+    session.setGaussianBlur(field, value),
   ),
   film: ruledSwitches(settings, FILM_RULES, (session, field, value) =>
     session.setFilm(field, value),

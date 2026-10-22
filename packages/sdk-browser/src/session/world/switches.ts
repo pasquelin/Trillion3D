@@ -30,6 +30,7 @@ import type { TessellationOptions } from '../../../../sdk-core/src/contracts/tes
 import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import type { DepthOfFieldSettings } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
 import type { BloomSettings } from '../../../../sdk-core/src/contracts/bloomRules.ts'
+import type { GaussianBlurSettings } from '../../../../sdk-core/src/contracts/gaussianBlurRules.ts'
 import type { FilmSettings } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 import type { AmbientOcclusionOptions } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import { worldFamilies } from './ruledSwitches.ts'
@@ -311,6 +312,13 @@ export function worldSwitches(
     },
     set bloom(options: BloomSettings) {
       families.bloom.set(options)
+    },
+    /** How the Gaussian blur is drawn (`gaussianBlurRules.ts`), over the page and the preset. */
+    get gaussianBlur() {
+      return families.gaussianBlur.values()
+    },
+    set gaussianBlur(options: GaussianBlurSettings) {
+      families.gaussianBlur.set(options)
     },
     /** The film effects' settings (`filmOptions.ts`), resolved over the page and the preset. */
     get film() {

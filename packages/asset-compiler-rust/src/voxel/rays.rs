@@ -1,5 +1,5 @@
-//! The rays a voxel casts, drawn once for a build's voxels (`Sampler`), from a fixed seed so a
-//! rebuild samples the same bytes.
+//! The rays a voxel casts, drawn once for a build's voxels (`Sampler`) from a scrambled Sobol'
+//! sequence (`sobol_point`), so a rebuild samples the same bytes.
 //!
 //! By default each a direction uniform on the sphere and a line through a disk across it, as wide
 //! as the cube's diagonal, kept when it crosses the cube — every line through the cube as likely
@@ -8,24 +8,24 @@
 //! through one of the six faces, one side before the face and as far past the voxel's other: a hit
 //! counts only within the voxel's depth. Its point across the face is drawn from a side before the
 //! centre's to the centre's, on each axis — the reference draws it so, half of them lying outside
-//! the voxel's column. A voxel casting one ray alone (`VoxelSampling::single`) draws it from its
-//! cell (`lone_ray`); a separable one tests three axis rays through its centre instead
-//! (`Sampler::crosshair`).
+//! the voxel's column. Ray `k` of set `s` is the point of index `s · rays + k`, its bits reversed,
+//! from seed 0. A voxel casting one ray alone (`VoxelSampling::single`) draws it from the Morton
+//! code of its cell on a grid of 1 024 cells a side (`lone_ray`); a separable one tests three axis
+//! rays through its centre instead (`Sampler::crosshair`).
 use super::raster::Cell;
 use super::sample::FACES;
 use super::VoxelSampling;
 use std::borrow::Cow;
 use std::f64::consts::TAU;
 use std::sync::OnceLock;
-use trillion3d_math::sequence::random::splitmix_draw;
+use trillion3d_math::sequence::sobol::{evolve_seed, sobol_point};
 use trillion3d_math::vector::vec3::{cross, dominant_axis, frame_across};
 use trillion3d_math::vector::vecn::{add, scale};
-use trillion3d_math::GOLDEN;
 use trillion3d_page_codec::partition::morton3;
 
-/// Sets of rays the voxels take in turn, by their cell: neighbours sample with other rays, so a
-/// pattern of the set never repeats across a wall.
-const VARIATIONS: usize = 16;
+/// Sets of rays the voxels take in turn, by their rank (`Sampler::set`): neighbours sample with
+/// other rays, so a pattern of the set never repeats across a wall.
+const VARIATIONS: usize = 64;
 
 /// One ray of a set, in voxel sides from the voxel's centre: its direction, where it starts, how
 /// far it runs, the face it is counted on — its direction's main axis, face `2a` for a ray along
@@ -96,7 +96,9 @@ impl Sampler {
     fn new(sampling: &VoxelSampling) -> Self {
         let sets = match sampling.single() {
             true => Vec::new(),
-            false => (0..VARIATIONS).map(|set| ray_set(set, sampling)).collect(),
+            false => (0..VARIATIONS as u32)
+                .map(|set| ray_set(set, sampling))
+                .collect(),
         };
         let along = |axis: usize| {
             let (mut direction, mut enter) = ([0.0; 3], [0.0; 3]);
@@ -109,29 +111,29 @@ impl Sampler {
         }
     }
 
-    /// The set the voxel `cell` takes its rays from.
-    pub(super) fn set(&self, cell: Cell) -> &RaySet {
-        let mix =
-            cell[0] as u32 ^ (cell[1] as u32).wrapping_mul(3) ^ (cell[2] as u32).wrapping_mul(5);
-        &self.sets[mix as usize % VARIATIONS]
+    /// The set the voxel of rank `rank` takes its rays from: the voxels of a group are ranked in
+    /// the order its triangles find them (`cells`), and take the sets in turn.
+    pub(super) fn set(&self, rank: u32) -> &RaySet {
+        &self.sets[rank as usize % VARIATIONS]
     }
 }
 
-/// The one ray a voxel casts alone: any direction, from a seed of its cell on a grid of 1 024
-/// cells a side, so the voxels around it cast other rays.
+/// The one ray a voxel casts alone: the point of its cell's Morton code on a grid of 1 024 cells
+/// a side, its bits reversed, so the voxels around it cast other rays.
 pub(super) fn lone_ray(cell: Cell) -> Ray {
-    let tile = morton3(cell.map(|c| c as u32));
-    let mut state = 0x7369_6E67_u64 ^ u64::from(tile).wrapping_mul(GOLDEN);
-    random(&mut state, 0.0)
+    random(morton3(cell.map(|c| c as u32)).reverse_bits(), 0.0)
 }
 
 /// The set `set` of `sampling.rays()` rays, each weighing its hit one over those its face counts.
-fn ray_set(set: usize, sampling: &VoxelSampling) -> RaySet {
-    let mut state = 0x7672_6179_u64 ^ (set as u64).wrapping_mul(GOLDEN);
-    let mut rays: Vec<Ray> = (0..sampling.rays())
-        .map(|_| match sampling.separable {
-            true => aligned(&mut state),
-            false => random(&mut state, sampling.back_up),
+fn ray_set(set: u32, sampling: &VoxelSampling) -> RaySet {
+    let count = sampling.rays() as u32;
+    let mut rays: Vec<Ray> = (0..count)
+        .map(|k| {
+            let index = (set * count + k).reverse_bits();
+            match sampling.separable {
+                true => aligned(index),
+                false => random(index, sampling.back_up),
+            }
         })
         .collect();
     let mut per_face = [0usize; FACES];
@@ -144,15 +146,17 @@ fn ray_set(set: usize, sampling: &VoxelSampling) -> RaySet {
     RaySet { rays, per_face }
 }
 
-/// A ray in a random direction, starting `back_up` sides before the cube: the line, drawn again
-/// until it crosses the cube.
-fn random(state: &mut u64, back_up: f64) -> Ray {
+/// The ray of point `index` in a random direction, starting `back_up` sides before the cube: the
+/// line, drawn again from the moved seed until it crosses the cube.
+fn random(index: u32, back_up: f64) -> Ray {
+    let mut seed = 0;
     loop {
-        let mut draw = || splitmix_draw(state);
-        let (z, turn) = (1.0 - 2.0 * draw(), TAU * draw());
-        let ring = (1.0 - z * z).max(0.0).sqrt();
+        let [e, f] = sobol_point(index, &mut seed);
+        let (z, turn) = (1.0 - 2.0 * e, TAU * f);
+        let ring = (1.0 - z * z).sqrt();
         let direction = [ring * turn.cos(), ring * turn.sin(), z];
-        let (radius, angle) = (draw().sqrt() * 0.5 * 3f64.sqrt(), TAU * draw());
+        let [e, f] = sobol_point(index, &mut seed);
+        let (radius, angle) = (e.sqrt() * 0.5 * 3f64.sqrt(), TAU * f);
         let across = frame_across(direction);
         let other = cross(direction, across);
         let origin = add(
@@ -161,7 +165,7 @@ fn random(state: &mut u64, back_up: f64) -> Ray {
         );
         let (mut entry, mut exit) = (f64::NEG_INFINITY, f64::INFINITY);
         for (k, d) in direction.iter().enumerate() {
-            let (near, far) = match d.abs() < 1e-12 {
+            let (near, far) = match *d == 0.0 {
                 true if origin[k].abs() > 0.5 => (f64::INFINITY, f64::NEG_INFINITY),
                 true => (f64::NEG_INFINITY, f64::INFINITY),
                 false => {
@@ -181,21 +185,24 @@ fn random(state: &mut u64, back_up: f64) -> Ray {
     }
 }
 
-/// A ray along an axis through a face of the cube picked at random: a side before the face, three
-/// long, at a point across it from a side before the centre's to the centre's on each axis.
-fn aligned(state: &mut u64) -> Ray {
-    let mut draw = || splitmix_draw(state);
-    let face = ((draw() * FACES as f64) as usize).min(FACES - 1);
-    let (z, sign) = (face / 2, if face % 2 == 0 { 1.0 } else { -1.0 });
+/// The ray of point `index` along an axis, through a face of the cube the index and the seed pick
+/// (an odd face runs up its axis, an even one down): a side before the face, three long, at a
+/// point across it from a side before the centre's to the centre's on each axis.
+fn aligned(index: u32) -> Ray {
+    let mut seed = 0;
+    let pick = index.wrapping_add(evolve_seed(&mut seed)) % FACES as u32;
+    let (z, sign) = ((pick >> 1) as usize, if pick & 1 == 1 { 1.0 } else { -1.0 });
     // The axes across the one it runs along, in a turn: 0 then 1 and 2, 1 then 2 and 0, 2 then 0
     // and 1.
     let x = (1 << z) & 3;
     let y = (1 << x) & 3;
+    let [e, f] = sobol_point(index, &mut seed);
     let mut enter = [0.0; 3];
-    (enter[x], enter[y]) = (draw() - 1.0, draw() - 1.0);
+    (enter[x], enter[y]) = (e - 1.0, f - 1.0);
     enter[z] = -1.5 * sign;
     let mut direction = [0.0; 3];
     direction[z] = sign;
+    let face = 2 * z + usize::from(sign < 0.0);
     Ray::new(direction, frame_across(direction), (enter, 3.0), face)
 }
 

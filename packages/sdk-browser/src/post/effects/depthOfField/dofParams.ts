@@ -1,12 +1,13 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
+import { putVec4 } from '../../../gpu/core/fieldLayout.ts'
 import { DEG2RAD } from '../../../../../math/src/constants.ts'
 import type { ResolvedDepthOfField } from '../../../../../sdk-core/src/contracts/depthOfFieldOptions.ts'
 import type { DepthOfFieldValues } from '../../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
 import { TAA_VIEW } from '../../taa/bindingsWgsl.ts'
 import { writeDepthTerms } from '../../taa/view.ts'
 import { METRES_PER_CENTIMETRE } from './cocModel.ts'
-import type { DofPlan } from './dofPlan.ts'
-import { DOF_PARAMS, DOF_STEP, SCATTER_GROUP_MARGIN } from './dofLayout.ts'
+import { circleRatio, errorMultiplierOf, type DofPlan } from './dofPlan.ts'
+import { COC_TILE, DOF_PARAMS, DOF_STEP, SCATTER_GROUP_MARGIN } from './dofLayout.ts'
 
 /** The `x`th word of a field of the uniform. */
 const AT = DOF_PARAMS.at
@@ -29,81 +30,140 @@ export interface DofParamsInput {
   readonly perspective: boolean
   /** The exposure the image is shown at, which the scatter's brightness test reads. */
   readonly exposure: number
-  /** The image's rank among eight, which the recombine's sample pattern turns by. */
+  /** The display's size, and the size the history of the setup's accumulation was written at. */
+  readonly display: readonly number[]
+  readonly historyDisplay: readonly number[]
+  /** The frame's rank among eight, which the recombine's sample pattern turns by, the image's jitter in
+   *  render pixels, as the temporal pass reads it, and whether the history of the setup's accumulation
+   *  describes nothing. */
   readonly frame: number
+  readonly jitter: readonly [number, number]
+  readonly cut: boolean
 }
 
 /** The matte box's three flags as the sine and cosine of each flag's pitch and roll, and the
  *  reciprocal of the pitch's sine and its length, the pitch measured from the barrel's side. */
 function writeMatteBox(into: Float32Array, volume: ResolvedDepthOfField) {
   let active = false
-  volume.matteBox.forEach((flag, at) => {
-    const pitch = (flag.pitch + 90) * DEG2RAD
-    const roll = flag.roll * DEG2RAD
-    const length = flag.length * METRES_PER_CENTIMETRE
-    into.set(
-      [Math.sin(pitch), Math.cos(pitch), Math.sin(roll), Math.cos(roll)],
+  const { matteBox } = volume
+  for (let at = 0; at < matteBox.length; at++) {
+    const pitch = (matteBox[at].pitch + 90) * DEG2RAD
+    const roll = matteBox[at].roll * DEG2RAD
+    const length = matteBox[at].length * METRES_PER_CENTIMETRE
+    putVec4(
+      into,
       AT.matteAngles + 4 * at,
+      Math.sin(pitch),
+      Math.cos(pitch),
+      Math.sin(roll),
+      Math.cos(roll),
     )
-    into.set([1 / Math.sin(pitch), length, 0, 0], AT.matteSizes + 4 * at)
+    putVec4(into, AT.matteSizes + 4 * at, 1 / Math.sin(pitch), length)
     active ||= length > 0
-  })
+  }
   return active
+}
+
+/** The words of the sizes: the image's and the textures it lies in, the gather's, the tiles' and the
+ *  first mip level's, the setup accumulation's, the display's and the history's. */
+function writeSizes(into: Float32Array, ints: Uint32Array, input: DofParamsInput) {
+  const { plan, extent, display, historyDisplay } = input
+  putVec4(ints, AT.image, plan.full[0], plan.full[1], extent[0], extent[1])
+  putVec4(ints, AT.gather, plan.gather[0], plan.gather[1], plan.buffer[0], plan.buffer[1])
+  putVec4(
+    ints,
+    AT.tiles,
+    ceilDiv(plan.gather[0], COC_TILE),
+    ceilDiv(plan.gather[1], COC_TILE),
+    plan.reduced[0],
+    plan.reduced[1],
+  )
+  putVec4(ints, AT.pre, plan.pre[0], plan.pre[1], plan.preBuffer[0], plan.preBuffer[1])
+  putVec4(into, AT.display, display[0], display[1], historyDisplay[0], historyDisplay[1])
+}
+
+/** The temporal accumulation's words (`temporal`, `current`): the jitter, the cut, the bilateral
+ *  strength; the weight of the image in the history. */
+function writeTemporal(into: Float32Array, input: DofParamsInput) {
+  const { plan, settings, jitter, cut } = input
+  putVec4(
+    into,
+    AT.temporal,
+    plan.temporal ? jitter[0] : 0,
+    plan.temporal ? jitter[1] : 0,
+    cut ? 1 : 0,
+    settings.depthOfFieldBilateralStrength,
+  )
+  putVec4(into, AT.current, settings.depthOfFieldTemporalCurrentWeight)
 }
 
 /**
  * Writes the uniform's words (`DOF_PARAMS`) into `into`, `ints` its unsigned view: the sizes (the
- * image's, the gather's, the tiles', the first mip level's), the circle of confusion's model at the
- * gather's width, the bokeh's, the scatter's tests, the recombine's, the swirl, the lens and the barrel
- * and matte box — the barrel's length written as −1 where there is no vignette —, the projection's depth
- * terms and the ratio of the depth's size to the image's.
+ * image's, the gather's, the tiles', the first mip level's, the setup accumulation's, the display's),
+ * the circle of confusion's model at the gather's width and the setup's, the bokeh's, the scatter's tests, the
+ * recombine's, the swirl, the lens and the barrel and matte box — the barrel's length written as −1
+ * where there is no vignette —, the projection's depth terms and the ratio of the depth's size to the
+ * image's. Nothing is allocated.
  */
 export function writeDofParams(into: Float32Array, ints: Uint32Array, input: DofParamsInput) {
-  const { plan, settings, volume, render, extent } = input
+  const { plan, settings, volume, render } = input
   const { coc, bokeh } = plan
   const image = plan.full
-  ints.set([image[0], image[1], extent[0], extent[1]], AT.image)
-  ints.set([plan.gather[0], plan.gather[1], plan.buffer[0], plan.buffer[1]], AT.gather)
-  ints.set([plan.tiles[0], plan.tiles[1], plan.reduced[0], plan.reduced[1]], AT.tiles)
-  ints.set([Math.floor(plan.scatterGroups), 0, input.frame, 0], AT.counts)
-  into.set([render[0] / image[0], render[1] / image[1], render[0] - 1, render[1] - 1], AT.depthMap)
-  into.set([coc.infinityRadius, coc.minForeground, coc.maxBackground, coc.depthBlurRadius], AT.coc)
-  into.set([coc.squeeze, 1 / coc.squeeze, coc.depthBlurExponent, coc.focusDistance], AT.lens)
-  into.set([plan.gather[0], plan.errorMultiplier, 1 / plan.errorMultiplier, 0], AT.basis)
-  into.set([bokeh.bladeCount, bokeh.rotation, bokeh.circumscribed, bokeh.incircle], AT.bokeh)
-  into.set([bokeh.bladeRadius, bokeh.bladeCenterOffset, 0, 0], AT.blade)
-  into.set(
-    [
-      Math.max(settings.depthOfFieldScatterMinRadius, 3),
-      settings.depthOfFieldScatterNeighborColor,
-      settings.depthOfFieldDistinctionLimit,
-      input.exposure,
-    ],
+  writeSizes(into, ints, input)
+  putVec4(ints, AT.counts, Math.floor(plan.scatterGroups), 0, input.frame, 0)
+  putVec4(
+    into,
+    AT.depthMap,
+    render[0] / image[0],
+    render[1] / image[1],
+    render[0] - 1,
+    render[1] - 1,
+  )
+  putVec4(
+    into,
+    AT.coc,
+    coc.infinityRadius,
+    coc.minForeground,
+    coc.maxBackground,
+    coc.depthBlurRadius,
+  )
+  putVec4(into, AT.lens, coc.squeeze, 1 / coc.squeeze, coc.depthBlurExponent, coc.focusDistance)
+  const reach = errorMultiplierOf(plan.rings) * circleRatio(plan)
+  putVec4(into, AT.basis, plan.gather[0], reach, 1 / reach, plan.pre[0])
+  putVec4(into, AT.bokeh, bokeh.bladeCount, bokeh.rotation, bokeh.circumscribed, bokeh.incircle)
+  putVec4(into, AT.blade, bokeh.bladeRadius, bokeh.bladeCenterOffset)
+  putVec4(
+    into,
     AT.scatter,
+    settings.depthOfFieldScatterMinRadius,
+    settings.depthOfFieldScatterNeighborColor,
+    settings.depthOfFieldDistinctionLimit,
+    input.exposure,
   )
-  into.set(
-    [settings.depthOfFieldSlightFocusRejection, settings.depthOfFieldRecombineMinBlur, 0, 0],
+  putVec4(
+    into,
     AT.recombine,
+    settings.depthOfFieldSlightFocusRejection,
+    settings.depthOfFieldRecombineMinBlur,
   )
-  into.set(
-    [
-      volume.petzvalBokeh,
-      volume.petzvalFalloff,
-      volume.petzvalExclusionBoxWidth,
-      volume.petzvalExclusionBoxHeight,
-    ],
+  putVec4(
+    into,
     AT.petzval,
+    volume.petzvalBokeh,
+    volume.petzvalFalloff,
+    volume.petzvalExclusionBoxWidth,
+    volume.petzvalExclusionBoxHeight,
   )
-  into.set([volume.petzvalExclusionRadius, 0, 0, 0], AT.petzvalMore)
-  into.set([coc.sensorWidth, coc.sensorHeight, coc.aperture, coc.lensImageDistance], AT.optics)
+  putVec4(into, AT.petzvalMore, volume.petzvalExclusionRadius)
+  putVec4(into, AT.optics, coc.sensorWidth, coc.sensorHeight, coc.aperture, coc.lensImageDistance)
   const matte = writeMatteBox(into, volume)
-  into.set(
-    [coc.barrelRadius, coc.barrelLength > 0 || matte ? coc.barrelLength : -1, 0, 0],
-    AT.barrel,
-  )
+  putVec4(into, AT.barrel, coc.barrelRadius, coc.barrelLength > 0 || matte ? coc.barrelLength : -1)
   writeDepthTerms(scratch, input.projection, input.perspective, render[0])
-  into.set(scratch.subarray(TERMS.depth, TERMS.depth + 4), AT.depth)
-  into.set(scratch.subarray(TERMS.radius, TERMS.radius + 4), AT.radius)
+  for (let at = 0; at < 4; at++) {
+    into[AT.depth + at] = scratch[TERMS.depth + at]
+    into[AT.radius + at] = scratch[TERMS.radius + at]
+  }
+  writeTemporal(into, input)
 }
 
 /** What a repeating pass's step holds. */
@@ -127,26 +187,26 @@ export const dilateStep = (multiplier: number): DofStepInput => ({
 
 /**
  * The step of one reduction of the setup, read at its `inputMip` level: the last texel it may read
- * — the gather's width and height less half a texel, at the level's size —, the size of its pass,
- * and the quarter-size copy's mapping the scatter's neighbour test reads (the ratio of the quarter's
- * size to the gather's, and its last texel).
+ * — the setup accumulation's width and height less half a texel, at the level's size —, the size of
+ * its pass, and the quarter-size copy's mapping the scatter's neighbour test reads (the ratio of the
+ * quarter's size to the setup's, and its last texel).
  */
 export function reduceStep(plan: DofPlan, inputMip: number): DofStepInput {
-  const [gx, gy] = plan.gather
+  const [px, py] = plan.pre
   const level = 2 ** inputMip
-  const quarter = [Math.floor(gx / 2), Math.floor(gy / 2)]
+  const quarter = [Math.floor(px / 2), Math.floor(py / 2)]
   return {
     a: [
-      (quarter[0] - 0.5) / (gx - 0.5),
-      (quarter[1] - 0.5) / (gy - 0.5),
+      (quarter[0] - 0.5) / (px - 0.5),
+      (quarter[1] - 0.5) / (py - 0.5),
       Math.max(quarter[0] - 1, 0),
       Math.max(quarter[1] - 1, 0),
     ],
     b: [
-      Math.floor((gx - 0.5) / level),
-      Math.floor((gy - 0.5) / level),
-      ceilDiv(gx, level),
-      ceilDiv(gy, level),
+      Math.floor((px - 0.5) / level),
+      Math.floor((py - 0.5) / level),
+      ceilDiv(px, level),
+      ceilDiv(py, level),
     ],
   }
 }

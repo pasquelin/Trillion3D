@@ -6,12 +6,11 @@
  */
 import { clamp, lerp } from '../../../../math/src/scalar/reals.ts'
 
-/** Reads a pass may make: the widest kernel, 32 reads of 63 texels. A declared value: it is the
- *  uniform array a pass binds, and a wider blur costs more than it shows. */
-export const GAUSSIAN_MAX_TAPS = 32
-/** The radius, in texels, from which the horizontal pass writes half the width: the vertical pass
- *  reads it bilinearly. Below it the blur is narrow enough for the halved width to show. */
-const FAST_BLUR_RADIUS = 7
+/** Reads a pass may make at most: the uniform array a pass binds. A declared value: 128 reads of 255
+ *  texels, the widest kernel any loop mode (`gaussianTapCap`) allows. */
+export const GAUSSIAN_MAX_TAPS = 128
+/** The reads of a pass under the loop mode 0, the default: 32, a kernel of 63 texels at most. */
+const UNROLLED_TAPS = 32
 /** The Gaussian's exponent: `exp(−16.7 (x / radius)²)` — at the radius the weight is 5e−8, so the
  *  kernel is cut where it ends, not through its bell. A declared look: it is the width at which a
  *  blur of a given size has always been drawn. */
@@ -22,8 +21,19 @@ const SMALLEST_RADIUS = 1e-5
 /** The radius in texels of a blur `percent` of an image `width` texels wide across. */
 export const gaussianRadius = (width: number, percent: number) => (width * percent) / 200
 
-/** Whether a blur of `radius` texels writes its horizontal pass at half the width. */
-export const gaussianHalvesWidth = (radius: number) => radius >= FAST_BLUR_RADIUS
+/** Whether a blur of `radius` texels writes its horizontal pass at half the width, from the radius
+ *  `threshold` on (`gaussianFastBlurThreshold`): the vertical pass reads that bilinearly, a cheaper
+ *  pass of a blur a little softer along x, which shows more the narrower the blur. */
+export const gaussianHalvesWidth = (radius: number, threshold: number) => radius >= threshold
+
+/** The most reads a pass makes under the loop mode `mode` (`gaussianLoopMode`): 32 under 0, 128 under
+ *  1 and 2. The mode also says how the reference runs the reads — unrolled, or by a loop with a stop
+ *  test —, which here is one loop whose count the uniform holds: 1 and 2 are the same. */
+export const gaussianTapCap = (mode: number) => (mode === 0 ? UNROLLED_TAPS : GAUSSIAN_MAX_TAPS)
+
+/** The scale of a blur's reach as the setting is read: `gaussianSampleScale`, from 0.1 to 10. */
+const SMALLEST_SCALE = 0.1
+const LARGEST_SCALE = 10
 
 /**
  * The weight of the texel `x` texels out when `cross` gives the centre a share, `bell` the weight
@@ -48,16 +58,26 @@ export const gaussianTapsOf = (): GaussianTaps => ({
 
 /**
  * Fills `taps` with the kernel of a blur of `radius` texels and returns its reads. The texels
- * `−reach … +reach` are taken two by two, `reach` the radius rounded up and no wider than the
- * widest kernel; a pair is read at the weighted mean of its two offsets, with the sum of their
- * weights, and the last texel of an odd run alone. A pair of no weight at all — a radius so small
- * its outer texels vanish — stays on its first texel, where the quotient of its weights would be
- * undefined. A `cross` above 0 gives the centre texel a share of the weight (`centreWeight`): the
- * bell at 0, the bloom's cross at its own settings (`bloomCross`).
+ * `−reach … +reach` are taken two by two, `reach` the radius times `scale` (`gaussianSampleScale`,
+ * held from 0.1 to 10) rounded up and no wider than the widest kernel `cap` reads allow
+ * (`gaussianTapCap`); the weights follow the radius itself, so a scale under 1 cuts the kernel
+ * short and over 1 reads further out. A pair is read at the weighted mean of its two offsets, with
+ * the sum of their weights, and the last texel of an odd run alone. A pair of no weight at all — a
+ * radius so small its outer texels vanish, or a `cross` of 1 and over — stays on its first texel,
+ * where the quotient of its weights would be undefined. A `cross` above 0 gives the centre texel a
+ * share of the weight (`centreWeight`): the bell at 0, the bloom's cross at its own settings
+ * (`bloomCross`).
  */
-export function gaussianKernel(radius: number, taps: GaussianTaps, cross = 0) {
-  const sigma = clamp(radius, SMALLEST_RADIUS, GAUSSIAN_MAX_TAPS - 1)
-  const reach = Math.min(Math.ceil(sigma), GAUSSIAN_MAX_TAPS - 1)
+export function gaussianKernel(
+  radius: number,
+  taps: GaussianTaps,
+  cross = 0,
+  scale = 1,
+  cap = UNROLLED_TAPS,
+) {
+  const sigma = clamp(radius, SMALLEST_RADIUS, cap - 1)
+  const scaled = radius * clamp(scale, SMALLEST_SCALE, LARGEST_SCALE)
+  const reach = Math.ceil(clamp(scaled, SMALLEST_RADIUS, cap - 1))
   const weight = (x: number) => centreWeight(Math.exp(-BELL * (x / sigma) ** 2), x, cross)
   let count = 0,
     sum = 0

@@ -8,6 +8,7 @@ import { DIAGNOSTICS, type DiagnosticMode } from '../runtime/diagnostics.ts'
 import { validateSceneLight } from '../scene/light/validate.ts'
 import type { SceneLight } from '../scene/light/contracts.ts'
 import { HALF_PI } from '../../../math/src/constants.ts'
+import { FILM_RULES, type FilmField } from '../contracts/filmOptions.ts'
 
 const ajv = new Ajv()
 const tool = (name: string) => {
@@ -171,42 +172,9 @@ test('a light that says nothing of shadows gets what the engine makes of that si
   assert.equal(light.castsShadow, engine.castsShadow)
 })
 
-test('the film tool names every film setting with the reference’s default', () => {
-  const defaults = Object.fromEntries(
-    Object.entries(tool('trillion3d_set_film').parameters.properties).map(([name, property]) => [
-      name,
-      property.default,
-    ]),
-  )
-  assert.deepEqual(defaults, {
-    filmGrainIntensity: 0,
-    filmGrainIntensityShadows: 1,
-    filmGrainIntensityMidtones: 1,
-    filmGrainIntensityHighlights: 1,
-    filmGrainShadowsMax: 0.09,
-    filmGrainHighlightsMin: 0.5,
-    filmGrainHighlightsMax: 1,
-    filmGrainScaleX: 1,
-    filmGrainScaleY: 1,
-    filmGrainSequenceLength: 97,
-    chromaticAberration: 0,
-    chromaticAberrationStartOffset: 0,
-    chromaticAberrationQuality: 'high',
-    chromaticAberrationMax: -1,
-    vignetteType: 'cosineFourthLaw',
-    vignetteColorRed: 0,
-    vignetteColorGreen: 0,
-    vignetteColorBlue: 0,
-    vignetteCenterX: 0.5,
-    vignetteCenterY: 0.5,
-    vignetteSizeX: 1,
-    vignetteSizeY: 1,
-    vignetteSoftness: 5,
-    tonemapperQuality: 5,
-    tonemapperSharpen: -1,
-    sceneColorTintRed: 1,
-    sceneColorTintGreen: 1,
-    sceneColorTintBlue: 1,
-    quantizationDitheringBits: 0,
-  })
+test('the film tool names every film setting with its rule’s default', () => {
+  const { properties } = tool('trillion3d_set_film').parameters
+  assert.deepEqual(Object.keys(properties).sort(), Object.keys(FILM_RULES).sort())
+  for (const [name, property] of Object.entries(properties))
+    assert.equal(property.default, FILM_RULES[name as FilmField].default, name)
 })

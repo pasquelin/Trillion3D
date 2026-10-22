@@ -29,11 +29,15 @@ export const SUBSURFACE_MAP_BIT = SURFACE_MAP_FIELDS.indexOf('subsurfaceMap')
 /** A displaced surface's numbers, as its material declares them: the distance the height 1 lies
  *  from the height `center` along the normal, the height that stays on the surface, and the fade
  *  range in pixels — the on-screen size of the largest displacement at which it starts to fade and
- *  at which it is gone — or `null` for a displacement that never fades. */
+ *  at which it is gone — or `null` for a displacement that never fades, and the density of its
+ *  texture coordinates. */
 export type SurfaceDisplacement = {
   readonly magnitude: number
   readonly center: number
   readonly fade: { readonly start: number; readonly end: number } | null
+  /** The units of the object's space one unit of each of its first four texture-coordinate sets
+   *  covers (`DisplacementWire`): the micro-triangles' map level follows it. 0 or absent reads 1. */
+  readonly uvDensities?: readonly number[]
 }
 
 export type VisMaterial = {

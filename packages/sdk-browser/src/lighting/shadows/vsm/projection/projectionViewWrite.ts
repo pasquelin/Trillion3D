@@ -14,6 +14,7 @@ import {
 } from '../../../../../../math/src/matrix/matrix4.ts'
 import { matrixAtRenderOrigin } from '../../../../../../math/src/projection/renderOrigin.ts'
 import { vsmWriteDepthFromDeviceZ } from '../constants.ts'
+import { VSM_DEFAULT_SHADOWS } from '../mapSettings.ts'
 import {
   VSM_PROJECTION_HEADER_WORDS,
   VSM_PROJECTION_LIGHT_WORD,
@@ -55,7 +56,7 @@ export interface ViewWords {
 const ORIGIN = [0, 0, 0] as const
 
 /** What the view's header is written from (`VsmProjectionFrame`). */
-type ViewInputs = Pick<VsmProjectionFrame, 'width' | 'height' | 'camera' | 'frameIndex'>
+type ViewInputs = Pick<VsmProjectionFrame, 'width' | 'height' | 'camera' | 'frameIndex' | 'trace'>
 
 /** The view's matrices into `scratch`: its inverse — the eye its translation (words 12-14) —, the
  *  origin shift, and the shifted-to-view, view-to-clip, shifted-to-clip matrices and its inverse. */
@@ -112,6 +113,13 @@ function writeViewHeader(view: ViewWords, inputs: ViewInputs, count: number) {
   f[VSM_PROJECTION_VIEW_WORD.viewForward + 2] = s.shiftedToView[10]
   vsmWriteDepthFromDeviceZ(f, VSM_PROJECTION_VIEW_WORD.depthFromDeviceZ, s.viewToClip, perspective)
   writeScreenWords(view, inputs, s.viewToClip, perspective)
+  // The rays and steps of a sun's trace, then a local light's.
+  const rays = VSM_PROJECTION_VIEW_WORD.traceRays,
+    trace = inputs.trace ?? VSM_DEFAULT_SHADOWS
+  u[rays] = trace.shadowRayCountDirectional
+  u[rays + 1] = trace.shadowRayCountLocal
+  u[rays + 2] = trace.shadowSamplesPerRayDirectional
+  u[rays + 3] = trace.shadowSamplesPerRayLocal
 }
 
 /** The header's screen words (`screenRayScale` on) from view-to-clip `v2c`. */

@@ -43,9 +43,9 @@ export const BLOOM_QUALITY_STAGES: Readonly<Record<Exclude<BloomQualityLevel, 'o
  *   blurs nothing, and the level's own enlargement shows): above 0 both passes do, a cross of
  *   light with arms along both axes; below 0 only the vertical pass does, by the absolute value, a
  *   streak along the horizontal; 0 is the plain blur;
- * - `bloomScreenPercentage` (100): the resolution the convolution runs at, in percent of the
+ * - `bloomScreenPercentage` (50): the resolution the convolution runs at, in percent of the
  *   image's width, from 10 to 100 (a value outside is read as the nearer end); lower is much
- *   cheaper and softer;
+ *   cheaper and softer, 100 the cinematic setting;
  * - `bloomApplyLocalExposure` (on): whether the local exposure is applied to the image the bloom
  *   reads, so what glows is what the image will show;
  * - `bloomCacheKernel` (on): whether the convolution keeps the transform of its kernel while the
@@ -55,7 +55,7 @@ export const BLOOM_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     choice('bloomQuality', 'highest', BLOOM_QUALITY_LEVELS),
     number('bloomCross', 0, ANY_NUMBER),
-    nonNegative('bloomScreenPercentage', 100),
+    nonNegative('bloomScreenPercentage', 50),
     flag('bloomApplyLocalExposure', true),
     flag('bloomCacheKernel', true),
   ] as const))()
@@ -70,7 +70,8 @@ export type BloomValues = SettingValues<typeof BLOOM_RULES>
 /** What each quality level below the top writes of the quality and the convolution's resolution, the
  *  reference's own scalability rows: five Gaussian levels and the convolution at 25 % of the image's
  *  width at `smooth`, five and 35.355 % at `balanced`, all six and 50 % at `fine`; `max` writes
- *  nothing: six levels and the full width, the reference's own defaults (`runtime/qualityLevels.ts`). */
+ *  nothing: six levels and half the width, the defaults, which are its row (`runtime/qualityLevels.ts`).
+ *  The blur's own settings are the Gaussian blur's (`./gaussianBlurRules.ts`). */
 export const BLOOM_PRESET_LEVELS = {
   smooth: { bloomQuality: 'high', bloomScreenPercentage: 25 },
   balanced: { bloomQuality: 'high', bloomScreenPercentage: 35.355 },

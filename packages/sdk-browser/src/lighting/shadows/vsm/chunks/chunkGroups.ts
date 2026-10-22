@@ -39,20 +39,21 @@ export function encodeVsmCandidates(
   dispatchRows(pass, ceilDiv(rowCount, WORKGROUP_THREADS))
 }
 
-/** The views with pages to draw among the `mapCount` maps of a view pass, whose parameters the slot
- *  at `offset` holds (`../render/renderViewsWgsl.ts`, groups `views0` over the VSM tables,
- *  `views1` over the lists), then the cull dispatch of the pass's chunks, in `pass`. */
+/** The lights with pages to draw among the `lightCount` of the frame, those whose maps lie in a view
+ *  pass, whose parameters the slot at `offset` holds (`../render/renderViewsWgsl.ts`, groups
+ *  `views0` over the VSM tables, `views1` over the lists), then the cull dispatch of the pass's
+ *  chunks, in `pass`. */
 export function encodeVsmViews(
   pass: GPUComputePassEncoder,
   kernels: VsmChunkKernels,
   groups: Pick<VsmChunkGroups, 'args' | 'views0' | 'views1'>,
   offset: readonly number[],
-  mapCount: number,
+  lightCount: number,
 ) {
   pass.setPipeline(kernels.views.pipeline)
   pass.setBindGroup(0, groups.views0)
   pass.setBindGroup(1, groups.views1, offset)
-  dispatchRows(pass, ceilDiv(mapCount, WORKGROUP_THREADS))
+  dispatchRows(pass, ceilDiv(lightCount, WORKGROUP_THREADS))
   pass.setPipeline(kernels.args.cull.pipeline)
   pass.setBindGroup(0, groups.args, offset)
   pass.dispatchWorkgroups(1)
@@ -161,8 +162,9 @@ export function vsmSceneRowsMoved(
   next[9] = b.pairs
   next[10] = b.args
   next[11] = b.order
-  next[12] = own
-  next.length = own ? 13 : 12
+  next[12] = b.lights
+  next[13] = own
+  next.length = own ? 14 : 13
   return identity.moved()
 }
 
@@ -177,7 +179,7 @@ export function vsmChunkListGroups(
   b: Record<VsmListName, GPUBuffer>,
   extra: readonly GPUBuffer[] = [],
 ) {
-  const { views, candidates, counts, cmds, pairs, args } = b
+  const { views, lights, candidates, counts, cmds, pairs, args } = b
   const params = { buffer: b.params, size: VSM_RENDER_PARAMS_BYTES }
   const group = (layout: GPUBindGroupLayout, buffers: (GPUBuffer | typeof params)[]) =>
     vsmBufferGroup(device, layout, buffers)
@@ -196,7 +198,7 @@ export function vsmChunkListGroups(
       counts,
       ...extra,
     ]),
-    views1: group(kernels.views.groups[1], [params, views, counts]),
+    views1: group(kernels.views.groups[1], [params, views, counts, lights]),
     cull1: group(kernels.cull.groups[1], [params, views, candidates, counts, cmds]),
     args: group(kernels.args.cull.groups[0], [params, counts, args]),
   }

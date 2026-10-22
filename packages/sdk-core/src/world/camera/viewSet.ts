@@ -10,6 +10,9 @@ import { NO_CLIP_PLANE, type ClipPlaneValues } from '../../contracts/viewOptions
 export interface ViewSet {
   /** The plane, `[nx, ny, nz, w]`; all zero for none. */
   readonly clipPlane: ClipPlaneValues
+  /** Whether the view is drawn with the temporal jitter: false for a view that has a clip plane,
+   *  whose cut would move with it; set with the plane, where the set is made. */
+  readonly jitters: boolean
   /** The objects the view does not draw. */
   readonly hidden: readonly Object3D[]
   /** The only objects the view draws; `null` for every object. */
@@ -19,6 +22,7 @@ export interface ViewSet {
 /** The set of a camera that clips and filters nothing, shared by every one that has none. */
 export const NO_VIEW_SET: ViewSet = Object.freeze({
   clipPlane: NO_CLIP_PLANE,
+  jitters: true,
   hidden: Object.freeze([]) as readonly Object3D[],
   showOnly: null,
 })

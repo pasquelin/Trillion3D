@@ -30,7 +30,7 @@ export const REFLECTION_LOBE_RAY_WGSL = wgslBlock(
  *
  * - DIRECTION: the half-vector drawn among the normals the eye sees (`reflectionSampleDirection`): the
  *   view stretched by the lobe's widths along its axis and across, a direction drawn on the spherical cap
- *   the visible normals cover — its height drawn over all but the `REFLECTION_TAIL_BIAS` of it nearest
+ *   the visible normals cover — its height drawn over all but the sampling bias's share of it nearest
  *   the horizon, the grazing microfacets whose rays are the noisiest and dimmest —, unstretched; the ray
  *   its mirror about it, pdf D(h)·G₁(v) / (4 n·v), which the reuse weighs by (`resolveWgsl.ts`). A ray
  *   that would leave under the surface is folded back above it: never the lobe's centre, a spike.
@@ -75,7 +75,7 @@ fn reflectionSampleDirection(N:vec3f,V:vec3f,axis:vec3f,widths:vec2f,u:vec2f)->v
  let B=cross(N,T);
  let seen=normalize(vec3f(widths*vec2f(dot(V,T),dot(V,B)),max(dot(V,N),1e-4)));
  let phi=TWO_PI*u.x;
- let z=mix(1.0,-seen.z,u.y*(1.0-REFLECTION_TAIL_BIAS));
+ let z=mix(1.0,-seen.z,u.y*(1.0-reflectionView.lobe.z));
  let sine=sqrt(clamp(1.0-z*z,0.0,1.0));
  let cap=vec3f(sine*cos(phi),sine*sin(phi),z)+seen;
  let h=normalize(vec3f(widths*cap.xy,max(cap.z,0.0)));

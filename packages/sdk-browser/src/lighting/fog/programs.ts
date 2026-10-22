@@ -3,7 +3,6 @@ import { hizDepthWgsl } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { DIRECT_LIGHT_WGSL } from '../direct/lightWgsl.ts'
 import { directShadowWgsl } from '../direct/shadowWgsl.ts'
 import { TILE_SLICE_WGSL } from '../direct/lightingWgsl.ts'
-import { VSM_TRACE_KINDS_SUN } from '../shadows/vsm/trace/traceWgsl.ts'
 import { FOG_GRID_WGSL, FOG_CELLS_WGSL } from './gridWgsl.ts'
 import { FOG_FURTHEST_WGSL, FOG_INTEGRATE_WGSL } from './integrateWgsl.ts'
 import { FOG_FRAME_STRUCT_WGSL, fogBlockOf } from './readWgsl.ts'
@@ -15,8 +14,9 @@ import { FOG_SCATTER_WGSL } from './scatterWgsl.ts'
  * - `furthest`: the furthest depth around each cell of the grid across the image, read from
  *   the depth pyramid the frame builds (`FOG_FURTHEST_WGSL`);
  * - `scatter`: the light each cell scatters, blended with the previous volume (`FOG_SCATTER_WGSL`), over
- *   the light buffer, the light lists, the sun's shadow — the virtual shadow maps a blended surface
- *   reads, one sample of the light's map (`directShadowWgsl`) — and the fog's cubemap;
+ *   the light buffer, the light lists, the shadow of the lights that cast one into the volume — the
+ *   virtual shadow maps a blended surface reads, one sample of the light's map (`directShadowWgsl`) —
+ *   and the fog's cubemap;
  * - `integrate`: the sum of the cells along each column (`FOG_INTEGRATE_WGSL`).
  */
 export const FOG_BINDING = {
@@ -110,7 +110,8 @@ const declarations = (bindings: FogBindings) =>
     .map((name) => DECLARATIONS[name])
     .join('\n')
 
-/** The sun's shadow: one sample of the light's virtual shadow map at the cell's point. */
+/** The shadow of the light that casts one into the volume, the sun — a lamp casts none there by
+ *  default —: one sample of its virtual shadow map at the cell's point. */
 const SHADOW = directShadowWgsl(0, {
   vsm: {
     pageTable: b.pageTable,
@@ -120,8 +121,6 @@ const SHADOW = directShadowWgsl(0, {
   },
   trace: { view: b.shadowView, noise: 0 },
   quality: 0,
-  localShadows: false,
-  kinds: VSM_TRACE_KINDS_SUN,
 })
 
 /** What the fog reads past the light buffer in the scatter: the cubemap, and the sampler it and the

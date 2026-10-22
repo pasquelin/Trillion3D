@@ -102,39 +102,47 @@ test("one instance's states switch none of the other's: past its range, an insta
   assert.equal(drawn.filter((p) => p < 2 * leaves).length, 0, 'a returning placement draws none')
 })
 
-test('a world hidden stays placed and switched as ever, its cells and files drawing nothing', () => {
+test('a world hidden stays placed and switched as ever, its cells and files drawing nothing but the actors always loaded', () => {
   const s = worldScene()
   const world = s.packed.world!
-  // The links the fixture wrote are the follower's to make.
+  // The links the fixture wrote are the follower's to make; the last cell's actor lies in the first.
   world.links.fill(0xffffffff)
+  world.parent[2] = 0
   const follower = createLinkFollower({ packed: s.packed, cold: () => {} })!
   const leaves = s.world.leaves
   follower.residency({ length: s.packed.pageCount, flag: () => 1 })
   for (let u = 0; u < leaves; u++) follower.placeInCell(u, u, 0, u, true)
-  // The first two cells wished and placed, the last not wished: its own actor stands for it.
-  for (let c = 0; c < leaves - 1; c++) follower.show(0, c, CELL_TOLD.wished | CELL_TOLD.placed)
+  // The first cell wished and placed; the others not wished, the second one's actor held by no
+  // cell (always loaded), the last one's held by the first.
+  follower.show(0, 0, CELL_TOLD.wished | CELL_TOLD.placed)
   follower.sync()
   const drawn = () => [[...world.states.slice(0, leaves)], [...world.files.slice(0, leaves)]]
-  const placements = [CELL_DRAW.placements, CELL_DRAW.placements, CELL_DRAW.hlod]
-  assert.deepEqual(drawn(), [placements, [1, 1, 1]])
+  const { placements, hlod } = CELL_DRAW
+  assert.deepEqual(drawn(), [
+    [placements, hlod, hlod],
+    [1, 1, 1],
+  ])
   follower.activated(false)
   assert.equal(follower.sync(), true, 'the words moved')
   assert.deepEqual(
     drawn(),
     [
-      [0, 0, 0],
+      [0, hlod, 0],
       [0, 0, 0],
     ],
-    'nothing draws',
+    'only the actor always loaded draws',
   )
-  assert.deepEqual(
-    [0, 1].map((c) => follower.visible(0, c)),
-    [true, true],
-    'the cells stay shown',
-  )
+  assert.equal(follower.visible(0, 0), true, 'the cell stays shown')
   assert.equal(follower.fileShown(0, 0), true, 'and the files')
   assert.equal(follower.shown, true, 'every cell and file wished is as shown as it was')
   follower.activated(true)
   follower.sync()
-  assert.deepEqual(drawn(), [placements, [1, 1, 1]], 'drawn again as they were')
+  assert.deepEqual(
+    drawn(),
+    [
+      [placements, hlod, hlod],
+      [1, 1, 1],
+    ],
+    'drawn again as they were',
+  )
 })

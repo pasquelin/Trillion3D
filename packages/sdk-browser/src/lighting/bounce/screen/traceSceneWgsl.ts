@@ -31,6 +31,7 @@ export const TRACE_SCENE_BINDINGS = bindingTable({
   lights: [10, 'buffer-read'],
   lightLists: [11, 'buffer-read'],
   sceneRays: [12, 'buffer-read'],
+  blue: [16, 'float'],
 })
 /** The atlas of the cascades' probes of the scene trace, and the proxy's three bindings. */
 export const TRACE_SCENE_PROBES = 9
@@ -48,7 +49,7 @@ const SCENE_RAYS_LIST = listWgsl({
   name: 'sceneRays',
   group: 0,
   binding: C.sceneRays,
-  entry: 'vec2u',
+  entry: 'u32',
   append: false,
 })
 
@@ -56,21 +57,19 @@ const SCENE_RAYS_LIST = listWgsl({
  * ONE WALK OF THE PROXY from the probe along a direction over `[begin, end]`, lit: the engine's one coarse geometry of the
  * scene (`../runtime/runtimeSceneWgsl.ts`, the proxy the world's probes and the reflections cast their rays over), its first
  * surface lit where the ray lands — the lights, their shadows traced against the proxy, the bounce — as a world probe's ray
- * lights it (`rtLayers`, lit). The ray leaves the probe by the bias (`sp.scene.z`) along the direction and the larger of it
- * and the proxy's certified error off the surface, so that it never meets the proxy's own copy of the surface it leaves; the
- * light the first surface sends back, the share of the walk left unanswered (`transparency`), and the distance it reached.
+ * lights it (`rtLayers`, lit). The ray leaves a point the larger of the bias (`sp.scene.z`) and the proxy's certified error off the
+ * surface and along the direction, so that it never meets the proxy's own copy of the surface it leaves, and `begin` and `end` are
+ * measured from that point; the light the first surface sends back, the share of the walk left unanswered (`transparency`), and the distance it reached.
  */
 const SP_WALK = wgslBlock(
   'SP_WALK',
   [],
-  `const SP_MIN_TRACE:f32=0.0001;
-struct SpWalk{lighting:vec3f,transparency:f32,distance:f32,}
+  `struct SpWalk{lighting:vec3f,transparency:f32,distance:f32,}
 fn spWalk(probe:SpProbe,d:vec3f,begin:f32,end:f32)->SpWalk{
- let start=max(begin,sp.scene.z);
- if(rtProxy.instances==0u||start>=end){return SpWalk(vec3f(0.0),1.0,0.0);}
+ if(rtProxy.instances==0u||begin>=end){return SpWalk(vec3f(0.0),1.0,0.0);}
  let lift=max(sp.scene.z,rtProxy.error);
- let walk=rtLayers(probe.P+probe.N*lift+d*start,d,end-start,0.0,RT_PROBE_WORK,RT_PROBE_TRIANGLES,true);
- return SpWalk(walk.answer.color*walk.stopped,1.0-walk.stopped,start+walk.answer.distance+lift);
+ let walk=rtLayers(probe.P+(probe.N+d)*lift+d*begin,d,end-begin,0.0,RT_PROBE_WORK,RT_PROBE_TRIANGLES,true);
+ return SpWalk(walk.answer.color*walk.stopped,1.0-walk.stopped,begin+walk.answer.distance);
 }`,
 )
 
@@ -84,18 +83,18 @@ const SP_DETAIL = wgslBlock(
   'SP_DETAIL',
   [SP_WALK, interleavedGradientNoise],
   `struct SpDetail{ran:bool,hit:bool,lighting:vec3f,distance:f32,}
-fn spDetailEnd()->f32{return min(sp.scene.x,SP_MAX_TRACE);}
+fn spDetailEnd()->f32{return min(sp.scene.x,spMaxTrace());}
 fn spDetail(probe:SpProbe,d:vec3f,missed:f32,coord:vec2u)->SpDetail{
  var out=SpDetail(false,false,vec3f(0.0),0.0);
- let begin=max(SP_MIN_TRACE,missed-2.0*sp.scene.z);
+ let begin=max(sp.motion.w,missed-2.0*sp.scene.z);
  if(begin>=spDetailEnd()){return out;}
  out.ran=true;
  let walk=spWalk(probe,d,begin,spDetailEnd());
- let fade=saturate(6.0*spEyeDistance(probe.P)/sp.scene.y-5.0);
+ let fade=saturate(6.0*viewEyeDistance(probe.P)/sp.scene.y-5.0);
  if(mix(walk.transparency,1.0,fade)<interleavedGradientNoise(vec2f(coord)+vec2f(0.5),0.0)){
   out.hit=true;
   out.lighting=walk.lighting*(1.0-fade);
-  out.distance=min(walk.distance,SP_MAX_TRACE);
+  out.distance=min(walk.distance,spMaxTrace());
  }
  return out;
 }`,
@@ -113,13 +112,13 @@ const SP_SCENE_RAY = wgslBlock(
   [SP_DETAIL],
   `struct SpScene{radiance:vec3f,word:u32,}
 fn spSceneRay(probe:SpProbe,d:vec3f,missed:f32,coord:vec2u,field:vec3f,fieldWord:u32)->SpScene{
- let reach=spLocalReach(probe.P,probe.N);
+ let reach=spLocalReach(probe.P);
  let moving=abs(probe.speed)/max(probe.depth,1.0)>sp.motion.x;
- var begin=max(SP_MIN_TRACE,missed-2.0*sp.scene.z);
+ var begin=max(sp.motion.w,missed-2.0*sp.scene.z);
  if(spFlag(SP_FLAG_MESH_TRACES)&&probe.depth<sp.scene.y){
   let detail=spDetail(probe,d,missed,coord);
   if(detail.hit){return SpScene(detail.lighting,spHitWord(detail.distance,true,moving));}
-  if(detail.ran){begin=max(SP_MIN_TRACE,spDetailEnd()-2.0*sp.scene.z);}
+  if(detail.ran){begin=max(sp.motion.w,spDetailEnd()-2.0*sp.scene.z);}
  }
  let walk=spWalk(probe,d,begin,reach);
  var out=SpScene(walk.lighting+walk.transparency*field,fieldWord);
@@ -141,13 +140,14 @@ fn traceScene(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) g
  let rank=flatIndex(id,groups,WORKGROUP_THREADS);
  if(rank>=sceneRays.count){return;}
  let entry=sceneRays.entries[rank];
- let at=vec2u(entry.x&0xffffu,entry.x>>16u);
+ let at=vec2u(entry&0xffffu,entry>>16u);
  let atlas=at/SP_TRACE;
  let probe=spReadProbe(atlas);
  if(probe.depth<=0.0){return;}
  let texel=vec2i(at);
  let d=spRayDirection(atlas,at%SP_TRACE,spIndexOf(atlas));
- let scene=spSceneRay(probe,d,bitcast<f32>(entry.y),at,unpackLight(textureLoad(radianceIo,texel).r),textureLoad(hitIo,texel).r);
+ let ended=textureLoad(hitIo,texel).r;
+ let scene=spSceneRay(probe,d,spHitDistance(ended),at,unpackLight(textureLoad(radianceIo,texel).r),ended);
  textureStore(radianceIo,texel,vec4u(packLight(scene.radiance),0u,0u,0u));
  textureStore(hitIo,texel,vec4u(scene.word,0u,0u,0u));
 }`,
@@ -165,7 +165,7 @@ ${wgslConsts({ SP_TRACE: side })}`,
       spCommon(samples),
       spReach,
       spProbes(C.info, C.normal, C.counts),
-      spRays(C.ray, C.pixels),
+      spRays(C.ray, C.pixels, C.blue),
       SP_TRACE_SCENE,
     ],
   )

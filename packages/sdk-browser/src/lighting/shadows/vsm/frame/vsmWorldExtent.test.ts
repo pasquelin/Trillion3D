@@ -6,6 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSceneLightStore } from '../../../../../../sdk-core/src/scene/light/store.ts'
 import type { SceneLight } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
+import type { ShadowOptions } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { SUN } from '../../../../../../sdk-core/src/scene/light/shadow/lightShadow.fixture.ts'
 import { installGpuGlobals } from '../../../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
@@ -47,7 +48,7 @@ function world(side: number, near = 0) {
 
 /** The set a frame of `world(side)` holds: the lights it shadows, the bytes of its page table,
  *  marks and requests, and its mask's layers. */
-async function shadowSet(side: number, near = 0) {
+async function shadowSet(side: number, near = 0, settings: ShadowOptions = {}) {
   installGpuGlobals()
   const gpu = fakeDevice({ ...BACKEND, limits: SHADOW_LIMITS })
   const { fixture, backend } = quadBackend(gpu.device, {
@@ -56,6 +57,7 @@ async function shadowSet(side: number, near = 0) {
     // own size: the display's default fraction (about 0.58 here) would ask them a mip coarser.
     viewport: [2048, 2048],
     renderScale: 1,
+    ...settings,
   })
   try {
     await backend.prepare()
@@ -89,4 +91,12 @@ test('lamps near the eye past the first set of maps grow its tables in the frame
   const near = await shadowSet(2, 40)
   assert.equal(near.shadowed, 3 + 40, 'the sun, both spots and every near lamp cast')
   assert.ok(near.tables > first.tables, `${near.tables} > ${first.tables}: the tables grew`)
+})
+
+test("a sun's tables follow the clipmap levels the settings ask, its maps all the same cast", async () => {
+  const first = await shadowSet(2)
+  // Thirty-one levels, from 0 to 30: more maps than the first set's 64 blocks hold beside the rest.
+  const deep = await shadowSet(2, 0, { shadowClipmapFirstLevel: 0, shadowClipmapLastLevel: 30 })
+  assert.equal(deep.shadowed, first.shadowed, 'the same lights cast')
+  assert.ok(deep.tables > first.tables, `${deep.tables} > ${first.tables}: the tables follow`)
 })

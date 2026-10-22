@@ -28,7 +28,7 @@ async function observed(
   const main = {
     scale: {
       bounds: { auto: false },
-      edgeBudgetMs,
+      edge: { budgetMs: edgeBudgetMs },
       observe: (gpuMs: number | null, _scale: number, _steered: boolean, ms = 0, fraction = 0) => {
         seen.push(gpuMs)
         edge.push([ms, fraction])

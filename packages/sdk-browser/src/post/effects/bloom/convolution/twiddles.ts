@@ -1,3 +1,5 @@
+import { TAU } from '../../../../../../math/src/constants.ts'
+
 /**
  * The factors of a Fourier transform of `n` values, computed once in double precision on the CPU:
  * the transform of a line reads `exp(−2πi k / n)` for k from 0 to n/2 − 1, and a transform of a
@@ -9,7 +11,7 @@
 export function twiddleTable(n: number) {
   const table = new Float32Array(n)
   for (let k = 0; k < n / 2; k++) {
-    const angle = (-2 * Math.PI * k) / n
+    const angle = (-TAU * k) / n
     table[2 * k] = Math.cos(angle)
     table[2 * k + 1] = Math.sin(angle)
   }

@@ -18,7 +18,6 @@ import { contextReader } from '../../../../sdk-core/src/contracts/settingRules.t
 import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import { FIRST_ANALYSIS_VIEW } from './rejectionWgsl.ts'
 import { writesGivenUp } from '../../frame/prepare/asIsShareTarget.ts'
-import { viewClips } from '../../frame/render/viewClip.ts'
 
 /** The temporal pass's setting `field` the session holds (`temporalOptions.ts`), by its one
  *  resolver, read at each image. */
@@ -62,8 +61,7 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   followVelocity(rt, active)
   if (!temporal || !active) {
     // No temporal upscaler: the dynamic scale still steers a beauty image, which the composition
-    // upscales spatially; a capture or a
-    // diagnostic view at the bounds' maximum.
+    // upscales spatially; a capture or a diagnostic view is drawn at the bounds' maximum.
     const { scale } = rt.views.active
     if (scalesTargets(rt)) return drawFrameAt(rt, scale.wanted(), !rt.run.textureConverging)
     return drawFrameAt(rt, scale.bounds.max, scale.bounds.max === scale.wanted())
@@ -81,9 +79,9 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { targetSize, displaySize } = rt.gpu
   state.phases = upscalePhases(targetSize[0], displaySize[0])
   taaJitter(state.sample, state.jitter, state.phases)
-  // A view that clips by a plane draws at the centre of its pixels: the plane cuts the geometry
-  // exactly where it is, and no jitter moves the cut.
-  if (viewClips(rt, cam)) state.jitter.fill(0)
+  // A view that has a plane draws unjittered: the cut would move with the jitter (a stand-in
+  // camera no frame entry made carries no set).
+  if (cam.viewSet?.jitters === false) state.jitter.fill(0)
   state.jitterGrid[0] = targetSize[0]
   state.jitterGrid[1] = targetSize[1]
   jitterViewProjection(

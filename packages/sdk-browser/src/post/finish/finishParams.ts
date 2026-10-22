@@ -1,9 +1,10 @@
 import { EXPOSURE_MIDDLE_GREY } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { putVec4 } from '../../gpu/core/fieldLayout.ts'
 import { luminanceReading, type ExposureSettings } from '../exposure/meterParams.ts'
 import { halfOf } from '../filters/levelSizes.ts'
 import { FINISH, GRID_EMPTY, GRID_TILE } from './finishLayout.ts'
-import { vignetteStrength, writeFilmParams, type FilmInput } from './filmParams.ts'
+import { writeFilmParams, type FilmInput } from './filmParams.ts'
 
 const AT = FINISH.at
 /** How near to 1 a contrast or a strength is to leave the image as it is. */
@@ -23,7 +24,7 @@ export const localExposureOn = (settings: ExposureSettings) =>
 
 /** What the finishing's uniform is written from: the film's input (`FilmInput`: the film settings,
  *  the scene's vignette strength, the display image's size — the grid is built over its half-size
- *  image —, its format and its number) and the exposure's. */
+ *  image —, whether the grain is drawn and the image's number) and the exposure's. */
 export type FinishInput = FilmInput & {
   settings: ExposureSettings
   /** Whether the exposure is the automatic one, whose bias moves the middle grey. */
@@ -31,6 +32,11 @@ export type FinishInput = FilmInput & {
   /** Whether the local exposure runs, and whether a glow is added. */
   local: boolean
   glow: boolean
+  /** What the image's colour is multiplied by where the glow took some of its light, per channel;
+   *  none where it took none. */
+  keep?: readonly number[]
+  /** What the glow's dirt mask multiplies it by, per channel; none where no mask is drawn. */
+  dirt?: readonly number[]
 }
 
 /** The share of the grid's width the half-size image fills along one axis, `pixels` wide: the
@@ -47,23 +53,20 @@ const reachOf = (strength: number) => (strength >= 1 ? SHARPEST : 1 / (1 - stren
  * words frame after frame. The middle grey the local exposure pulls toward is 0.18 times two to
  * the local bias, times two to the exposure's own bias where the exposure is automatic — its
  * target —; a manual exposure leaves the grey where it is. The film's words follow
- * (`writeFilmParams`).
+ * (`writeFilmParams`), the vignette's among them.
  */
 export function writeFinishParams(words: Float32Array, input: FinishInput) {
   const { settings, size } = input
   const reading = luminanceReading(settings)
-  const aspect = size[1] / size[0]
-  const circle = Math.SQRT2 / Math.sqrt(1 + aspect * aspect)
   const grey =
     EXPOSURE_MIDDLE_GREY *
     2 ** ((input.auto ? settings.exposureBias : 0) + settings.localExposureMiddleGreyBias)
   words.fill(0)
-  words[AT.look] = vignetteStrength(input.film, input.vignette)
   words[AT.look + 1] = 1
   words[AT.look + 2] = input.local ? 1 : 0
   words[AT.look + 3] = input.glow ? 1 : 0
-  words[AT.screen] = circle
-  words[AT.screen + 1] = aspect * circle
+  if (input.keep) putVec4(words, AT.keep, input.keep[0], input.keep[1], input.keep[2], 1)
+  if (input.dirt) putVec4(words, AT.dirt, input.dirt[0], input.dirt[1], input.dirt[2], 1)
   words.set(reading.weights, AT.weights)
   words[AT.weights + 3] = reading.lowest
   words[AT.histogram] = reading.scale

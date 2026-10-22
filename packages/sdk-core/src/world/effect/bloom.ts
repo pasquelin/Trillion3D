@@ -92,8 +92,9 @@ export class Bloom extends EffectPass {
   set levels(value: readonly BloomLevelOptions[]) {
     this.write({ levels: this.held.levels.map((level, at) => ({ ...level, ...value[at] })) })
   }
-  /** The convolution's settings; a write takes the fields it names and leaves the others as they
-   *  are. */
+  /** The convolution's settings, its kernel among them; a write takes the fields it names and leaves
+   *  the others as they are. The method `'convolution'` needs a kernel, so a page gives one before
+   *  it writes the method, or in the one call. */
   get convolution() {
     return this.held.convolution
   }

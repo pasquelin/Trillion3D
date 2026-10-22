@@ -1,4 +1,6 @@
+import { isFiniteNumber } from '../../../math/src/scalar/reals.ts'
 import { refusal } from './nameMatch.ts'
+import { SHADOW_MAP_RULES } from './shadowMapOptions.ts'
 import {
   flagSetting as flag,
   integerSetting as integer,
@@ -33,7 +35,7 @@ export type ShadowDistanceOption = number | boolean | null | undefined
 
 /** Whether `value` is a shadow distance in metres: a finite number of at least zero. */
 export const isShadowDistance = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isFinite(value) && value >= 0
+  isFiniteNumber(value) && value >= 0
 
 /**
  * The shadow distance, in metres, `option` names: a finite number of at least zero as itself,
@@ -66,8 +68,8 @@ const LIGHT_CASCADES = 4
  *  the light's own four —, `shadowOverlapScale`, 1, from 0 to 2 — the factor on the share of its
  *  span the last near level overlaps into the next — and `shadowFarField`, on — whether a far-field
  *  shadow follows the near levels —, and the one of the raster's view passes: `shadowMultipassViews`,
- *  on — whether the lights whose maps would pass the maps one pass lists (the rows of the cull's
- *  dispatch, 65 535 on any device, `vsmViewsPerPass` in
+ *  on — whether the lights whose maps would pass the maps one pass takes (the rows of the cull's
+ *  dispatch, a light a row, 65 535 on any device, `vsmViewsPerPass` in
  *  `packages/sdk-browser/src/lighting/shadows/vsm/render/renderViewPasses.ts`) are drawn in several
  *  passes, each light whole in one, or, off, every light in one pass: the pages are the same either
  *  way. */
@@ -80,6 +82,7 @@ export const SHADOW_RULES = /* @__PURE__ */ (() =>
     number('shadowOverlapScale', 1, [0, 2]),
     flag('shadowFarField', true),
     flag('shadowMultipassViews', true),
+    ...SHADOW_MAP_RULES,
   ] as const))()
 /** The field of one setting of the shadows. */
 export type ShadowField = keyof typeof SHADOW_RULES

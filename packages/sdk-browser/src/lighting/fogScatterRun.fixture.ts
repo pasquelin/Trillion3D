@@ -25,6 +25,7 @@ export const PLAIN = {
   volumetricFogSurfaceLift: -1,
 }
 
+/** A light's record: its lanes by name. */
 export type Light = Record<string, number[]>
 /** The sun: a directional light, `rgb` times `intensity`, going down. */
 export const SUN: Light = {
@@ -46,6 +47,13 @@ export function scatter(
     falloff?: number
     sunRank?: number
     sky?: number[]
+    /** Whether the scene has a sky light, where `sky` gives its irradiance: yes by default. */
+    skyLight?: boolean
+    /** The fog's own colour, for a medium lit by it (`useFogColors`). */
+    fogColor?: number[]
+    /** What every shadow read gives, 1 by default, and the kinds of the lights it was asked for. */
+    shade?: number
+    shadowReads?: number[]
     volumetric?: Parameters<typeof image>[1]
     settings?: Parameters<typeof image>[2]
     depth?: (c: number[]) => number
@@ -57,13 +65,20 @@ export function scatter(
     previousFurthest?: number
     /** The size the view is drawn at where it is smaller than the targets the textures were made for. */
     drawn?: [number, number]
+    /** The camera, where it is not the perspective one of the other tests. */
+    camera?: ReturnType<typeof camera>
+    /** The texels of the previous furthest depth the program loads, kept. */
+    loads?: number[][]
+    /** Where the camera of the image before stood, where it is not where this one does. */
+    previousEye?: V3
   } = {},
 ) {
   const { lights = [], density = 0.1, falloff = 0 } = world
   // A view drawn smaller than the targets: its camera of that size, the textures' cells those of CAM.
-  const cam = world.drawn ? camera(EYE, ...world.drawn) : CAM
+  const cam = world.camera ?? (world.drawn ? camera(EYE, ...world.drawn) : CAM)
+  const before = world.previousEye ? camera(world.previousEye, ...(world.drawn ?? [160, 90])) : cam
   const previous = world.before
-    ? { viewProj: cam.viewProj, width: cam.width, height: cam.height }
+    ? { viewProj: before.viewProj, width: before.width, height: before.height }
     : undefined
   const img = image(
     cam,
@@ -74,7 +89,9 @@ export function scatter(
   const block = emptyLights({ fog: FOG_SLOTS, sky: SKY_SLOTS, atmosphere: ATMOSPHERE_SLOTS })
   block.fog[FOG_SLOT.law] = [density, falloff, 0, 1]
   block.fog[FOG_SLOT.second] = [world.second ?? 0, 0, 0, 0]
+  if (world.fogColor) block.fog[FOG_SLOT.color] = [...world.fogColor, 0]
   if (world.sky) block.sky[SKY_SLOT.irradiance] = [...world.sky, 0]
+  if (world.sky && world.skyLight !== false) block.sky[SKY_SLOT.upper] = [0, 0, 0, 1]
   block.count = lights.length
   block.items = lights
   const out = table()
@@ -84,12 +101,17 @@ export function scatter(
     tileLights: [],
     fogDepth: table(world.depth ?? (() => 0)),
     fogFurthest: table(() => [world.furthest ?? 0, 0, 0, 0]),
-    fogPreviousFurthest: table(() => [world.previousFurthest ?? 0, 0, 0, 0]),
+    fogPreviousFurthest: {
+      load: (c: number[]) => (world.loads?.push([...c]), [world.previousFurthest ?? 0, 0, 0, 0]),
+    },
     fogPreviousVolume: {},
     fogSampler: {},
     fogCubemap: {},
     fogScattering: out,
-    shadowFactor: () => 1,
+    shadowFactor: (_slice: number, light: Light) => (
+      world.shadowReads?.push(light.params[0]),
+      world.shade ?? 1
+    ),
     textureSampleLevel: (_t: unknown, _s: unknown, uvw: number[]) => (
       world.sampled?.push(uvw),
       world.previous ?? [0, 0, 0, 0]

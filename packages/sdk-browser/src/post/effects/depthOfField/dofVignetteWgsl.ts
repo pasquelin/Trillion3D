@@ -10,8 +10,9 @@ import { DOF_PARAMS_WGSL } from './dofCommonWgsl.ts'
  *   the centre as two half floats, the scale as a float;
  * - `projectFlag`: a matte box flag's edge on the barrel's end along the object's direction, as two
  *   packed pairs of half floats: a point of it and its direction;
- * - `vignetteData`: both, for the sprite group at pixel `texel`: the two `vec4u` the draw list
- *   keeps, the barrel then the three flags;
+ * - `vignetteData`: both, for the sprite group at texel `texel` of the setup accumulation (its place in
+ *   the gather's texels, `circleRatio`) and a circle `coc` in the gather's texels: the two `vec4u` the
+ *   draw list keeps, the barrel then the three flags;
  * - `hitCylinder`: a pixel's place on the barrel's end and its visibility through the barrel (0 to 1,
  *   the edge soft); `hitFlag`: its visibility past a flag (a sharp ramp of 128).
  */
@@ -38,7 +39,7 @@ fn projectFlag(direction:vec3f,flag:u32)->vec2u{
  return vec2u(pack2x16float(onEnd),pack2x16float(vec2f(normal.y,-normal.x)));
 }
 fn vignetteData(texel:vec2u,coc:f32)->array<vec4u,2>{
- let draw=vec2f(texel&vec2u(0xfffffffeu))+0.5;
+ let draw=(vec2f(texel&vec2u(0xfffffffeu))+0.5)*circleRatio();
  let clip=(draw/vec2f(view.gather.xy))*2.0-1.0;
  let direction=normalize(-vec3f(clip*(view.optics.xy*0.5),-view.optics.w));
  let barrel=projectCylinder(coc,clip);

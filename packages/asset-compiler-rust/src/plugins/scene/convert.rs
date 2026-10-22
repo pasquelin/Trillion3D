@@ -64,13 +64,7 @@ impl Bin {
         )
     }
 }
-pub(crate) fn f32_bytes(values: &[f32]) -> Vec<u8> {
-    let mut out = Vec::with_capacity(values.len() * 4);
-    for v in values {
-        out.extend_from_slice(&v.to_le_bytes());
-    }
-    out
-}
+pub(crate) use crate::support::le::f32_bytes;
 
 /// What a conversion could not deliver: named and counted reasons, never a silent
 /// failure. Shared with scene drivers, whose manifests publish the same fields.

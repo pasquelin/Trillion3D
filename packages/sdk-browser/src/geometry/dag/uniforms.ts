@@ -102,9 +102,9 @@ export function writeDagUniforms(
     packDoubles(ints, W('eye'), cw, 0, 3)
   }
   writeOcclusion(target, ints, uniforms)
-  // The view's clip plane in the render frame (`shader/clipPlaneWgsl.ts`) and its filter's bits
-  // (`shader/viewFilterWgsl.ts`): none, all zero and 0, unless the view has them.
-  if (uniforms.clipPlane) target.set(uniforms.clipPlane, W('clipPlane'))
+  // The view's clip plane in the render frame (`shader/clipPlaneWgsl.ts`), all zero for none, and
+  // its filter's bits (`shader/viewFilterWgsl.ts`), 0 unless the view has them.
+  target.set(uniforms.clipPlane, W('clipPlane'))
   ints[W('filterBase')] = uniforms.filter ? (at.filter ?? 0) : 0
   // A packing no placement of which names a distance tests none: the cull stays off, and the cut
   // reads no distance word (`shader/drawDistanceWgsl.ts`).

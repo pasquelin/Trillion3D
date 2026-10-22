@@ -83,11 +83,11 @@ const BILATERAL_ENTRIES = [
  *
  * A pixel with a history (`bilateralIn`, this image's accumulation, a texel a pixel) reads its own, and
  * where it is short or still noisy, the spatial filter: its disocclusion, one minus its count over
- * `REFLECTION_DISOCCLUSION_FRAMES`; its spread, the standard deviation of its luminance the history's
+ * the disocclusion frames; its spread, the standard deviation of its luminance the history's
  * second moment gives (`historyMoment`). It filters where the spread passes half its luminance (at
  * least 0.1) — a converged pixel whose rays still meet the sky one image and a building the next — or
- * past 0.01 of disocclusion, over a radius of `REFLECTION_FILTER_RADIUS` × saturate(8 · roughness)
- * pixels past one (a mirror's reflection is never blurred), `REFLECTION_FILTER_TAPS` neighbours to
+ * past 0.01 of disocclusion, over a radius of the filter's radius × saturate(8 · roughness)
+ * pixels past one (a mirror's reflection is never blurred), the filter's taps of neighbours to
  * twice as many as the disocclusion grows, inside the view. Each neighbour is weighed by the
  * same-surface test on its own surface and by its luminance against the pixel's,
  * exp2(−|L − Lₙ| / spread), which goes to one as the disocclusion grows. A converged, quiet pixel
@@ -134,14 +134,14 @@ fn bilateralLinearDepth(z:f32,b:f32)->f32{
 /** What the lobe the pixel \`own\` at \`coord\` of the surface \`layer\` traces reflects of its history
  *  \`held\`, and, while that is short or noisy, of its neighbours' (the spatial filter). */
 fn bilateralTop(coord:vec2i,own:ReflectingPixel,held:vec4u,layer:u32)->vec3f{
- let disocclusion=1.0-saturate(historyCount(held)/REFLECTION_DISOCCLUSION_FRAMES);
- let radius=REFLECTION_FILTER_RADIUS*saturate(own.top*8.0);
+ let disocclusion=1.0-saturate(historyCount(held)/reflectionView.spread.w);
+ let radius=reflectionView.spread.y*saturate(own.top*8.0);
  let mine=reflectionDenoised(texelRadiance(held.xy));
  let lum=luminance(mine);
  let deviation=sqrt(max(historyMoment(held)-lum*lum,0.0));
  let noisy=deviation/max(lum,0.1)>0.5;
- if(!((noisy||disocclusion>0.01)&&radius>1.0)){return texelRadiance(held.xy);}
- let taps=u32(mix(f32(REFLECTION_FILTER_TAPS),f32(2u*REFLECTION_FILTER_TAPS),disocclusion)+0.5);
+ if(!(reflectionDone(REFLECTION_BILATERAL)&&(noisy||disocclusion>0.01)&&radius>1.0)){return texelRadiance(held.xy);}
+ let taps=u32(mix(f32(reflectionView.taps.y),f32(2u*reflectionView.taps.y),disocclusion)+0.5);
  let depth=surfaceLinearDepth(own.P);
  let b=bilateralDepthB(own.z,depth);
  let span=reflectionSurfaceSpan(depth,own.N,own.V);

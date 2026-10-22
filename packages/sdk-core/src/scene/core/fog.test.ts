@@ -8,7 +8,6 @@ import assert from 'node:assert/strict'
 import { createSceneLightStore } from '../light/store.ts'
 import { ENVIRONMENT_COEFFICIENTS, SCENE_ENVIRONMENT_FLOATS } from './environment.ts'
 import { FOG_MODE, FOG_SLOT, FOG_SLOTS, packFog, sameSceneFog, validateSceneFog } from './fog.ts'
-import { clampEditedFog } from './fogBounds.ts'
 import { cubemapMipCount, faceAverages } from './fogCubemap.ts'
 import { heightFogOf } from './fogHeight.ts'
 import { VOLUMETRIC_FOG_DEFAULTS } from './fogVolumetric.ts'
@@ -172,34 +171,11 @@ test('the second layer, the end distance, the cubemap and the volume have their 
   assert.deepEqual(slot(withCube, FOG_SLOT.cubeBlend).slice(0, 2), [0.0125, -0.25].map(Math.fround))
 })
 
-test('the second layer is held to its bounds at every run; an edit holds the whole fog to its own', () => {
-  // Bounds in metres: the editor's density 10 and falloff 2 per 1000 centimetres, ÷ 10.
+test('the second layer is held to its bounds at every run, the first as written', () => {
+  // Bounds in metres: the density 10 and falloff 2 per 1000 centimetres, ÷ 10.
   const held = heightFogOf({ secondLayer: { baseDensity: 5, falloff: 3, heightShift: -7 } }).second
   assert.deepEqual(held, { baseDensity: 1, falloff: 0.2, heightShift: -7 })
-  // A script's first layer is as written; a person's edit holds it.
   assert.equal(heightFogOf({ baseDensity: 5 }).baseDensity, 5)
-  const edited = clampEditedFog({
-    baseDensity: 5,
-    falloff: 3,
-    startDistance: -1,
-    maxOpacity: 2,
-    horizontalLimit: 1e30,
-    cubemap: { ...CUBE, turn: 400, sharpFrom: 50, averageUntil: 80 },
-  })
-  assert.deepEqual(
-    [edited.baseDensity, edited.falloff, edited.startDistance, edited.maxOpacity],
-    [1, 0.2, 0, 1],
-  )
-  assert.equal(edited.horizontalLimit, 879609302220.8)
-  // The average-colour distance never passes the direct-use distance: the one the edit left.
-  assert.deepEqual(
-    [edited.cubemap!.turn, edited.cubemap!.averageUntil, edited.cubemap!.sharpFrom],
-    [360, 50, 50],
-  )
-  assert.equal(
-    clampEditedFog({ cubemap: { ...CUBE, averageUntil: 5000 } }).cubemap!.averageUntil,
-    1000,
-  )
 })
 
 test('the cubemap holds levels down to one texel a face, whose colour is the face’s mean', () => {

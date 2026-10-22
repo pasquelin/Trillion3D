@@ -1,7 +1,9 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { PI } from '../../../../../math/src/wgsl/constants.ts'
+import { COLOR_SPACES_WGSL } from '../../taa/colorSpaceWgsl.ts'
 import { DEPTH_WGSL } from '../../taa/depthWgsl.ts'
-import { COC_TILE, DOF_PARAMS, DOF_STEP, MAX_RECOMBINE_COC } from './dofLayout.ts'
+import { SAFE_RCP_WGSL } from '../../taa/historyWgsl.ts'
+import { DOF_PARAMS, DOF_STEP, MAX_RECOMBINE_COC } from './dofLayout.ts'
 
 /**
  * What every pass of the depth of field shares: the uniforms, named `view` and `dofStep` (the first is
@@ -14,12 +16,15 @@ import { COC_TILE, DOF_PARAMS, DOF_STEP, MAX_RECOMBINE_COC } from './dofLayout.t
 export const DOF_PARAMS_BINDING = 0
 export const DOF_STEP_BINDING = 1
 
-/** The uniform `view`. */
+/** The uniform `view`, and `circleRatio`: the factor that takes a circle of confusion held in the texels of
+ *  the setup accumulation (its encoded unit) to the gather's — and a position in the gather's texels to the
+ *  setup's, the other way —, 1 where the two are the same size. */
 export const DOF_PARAMS_WGSL = wgslBlock(
   'DOF_PARAMS_WGSL',
   [],
   `${DOF_PARAMS.wgsl}
-@group(0) @binding(${DOF_PARAMS_BINDING}) var<uniform> view:DofParams;`,
+@group(0) @binding(${DOF_PARAMS_BINDING}) var<uniform> view:DofParams;
+fn circleRatio()->f32{return f32(view.gather.x)/f32(view.pre.x);}`,
 )
 
 /** The uniform `dofStep`, of a pass that repeats. */
@@ -32,8 +37,8 @@ export const DOF_STEP_WGSL = wgslBlock(
 
 /**
  * The circle of confusion and its small helpers:
- * - `DOF_EXTREME`, a radius no circle reaches that a half float still holds; `luma4`, the luma of a
- *   colour times 4; `safeRcp`; `affine`, a saturating affine transformation;
+ * - `DOF_EXTREME`, a radius no circle reaches that a half float still holds; `affine`, a saturating
+ *   affine transformation; `depthTexel`, the depth texel under an image texel;
  * - `cocOfDepth`: the signed radius, in texels of an image `basis` wide, of a point `depth` metres
  *   away — the circle the lens' focus gives it or the depth blur's, the larger; negative in front of
  *   the focus, positive behind it and where the lens has none —, held to the limits (`cocModel.ts` is
@@ -42,16 +47,16 @@ export const DOF_STEP_WGSL = wgslBlock(
  */
 export const DOF_COC_WGSL = wgslBlock(
   'DOF_COC_WGSL',
-  [DOF_PARAMS_WGSL, DEPTH_WGSL, PI],
+  [DOF_PARAMS_WGSL, DEPTH_WGSL, COLOR_SPACES_WGSL, SAFE_RCP_WGSL, PI],
   `
 const DOF_EXTREME:f32=16384.0;
-const DOF_TILE:u32=${COC_TILE}u;
 const DOF_SLIGHT:f32=${MAX_RECOMBINE_COC}.0;
-const DOF_LUT:f32=32.0;
-fn luma4(c:vec3f)->f32{return c.g*2.0+(c.r+c.b);}
-fn safeRcp(x:f32)->f32{return select(0.0,1.0/x,x>0.0);}
 fn affine(x:f32,t:vec2f)->f32{return saturate(x*t.x+t.y);}
 fn isForeground(coc:f32)->bool{return coc<0.0;}
+// The depth texel under the centre of the image texel p: the depth is drawn at the image's size.
+fn depthTexel(p:vec2i)->vec2i{
+ return clamp(vec2i(floor((vec2f(p)+0.5)*view.depthMap.xy)),vec2i(0),vec2i(view.depthMap.zw));
+}
 fn cocOfDepth(depth:f32,basis:f32)->f32{
  let radius=((depth-view.lens.w)/depth)*view.coc.x*basis;
  let blur=(1.0-exp2(-depth*view.lens.z))*view.coc.w*basis;

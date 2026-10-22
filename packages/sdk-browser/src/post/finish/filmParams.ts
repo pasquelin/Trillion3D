@@ -1,33 +1,39 @@
-import {
-  DITHER_OTHER_BITS,
-  FRINGE_EXTREME,
-  FRINGE_LEAST,
-  FRINGE_PER_NANOMETRE,
-  FRINGE_PRIMARIES,
-  FRINGE_START_LIMIT,
-  GRAIN_LEAST_QUALITY,
-  GRAIN_LEAST_SCALE,
-  GRAIN_REFERENCE_WIDTH,
-  GRAIN_TEXTURE_SIDE,
-  VIGNETTE_LEAST_QUALITY,
-  VIGNETTE_LEAST_SIZE,
-  VIGNETTE_TYPES,
-  type FilmValues,
-} from '../../../../sdk-core/src/contracts/filmOptions.ts'
+import { VIGNETTE_TYPES, type FilmValues } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 import { halton } from '../../../../math/src/sequence/halton.ts'
-import { FILM as FILM_CURVE } from '../../lighting/filmCurveConstants.ts'
+import { putVec4 } from '../../gpu/core/fieldLayout.ts'
+import { DISPLAY_FORMAT } from '../../scene/targetFormats.ts'
+import { quantizationError } from '../taa/colorSpaceWgsl.ts'
 import { FINISH } from './finishLayout.ts'
-import { grainTexels } from './grain.ts'
+import { GRAIN_TEXTURE_SIDE, grainTexels } from './grain.ts'
 
 const AT = FINISH.at
 
-/** The formats of a channel of 8 bits: the display's, whose step the dither is one of. */
-const EIGHT_BIT = new Set<GPUTextureFormat>([
-  'rgba8unorm',
-  'bgra8unorm',
-  'rgba8unorm-srgb',
-  'bgra8unorm-srgb',
-])
+/** The tonemapper quality under which the vignette is off. */
+const VIGNETTE_LEAST_QUALITY = 2
+/** The tonemapper quality under which the grain is off. */
+const GRAIN_LEAST_QUALITY = 4
+/** The fringe's intensity, in percent, over which the effect draws at all. */
+const FRINGE_LEAST = 0.01
+/** The fringe's intensity `chromaticAberrationMax` of −2 forces, to look at an extreme one. */
+const FRINGE_EXTREME = 5
+/** The wavelengths of the three primaries, in nanometres: a simple lens bends a colour roughly in
+ *  proportion to its wavelength's distance from the blue's. */
+const FRINGE_PRIMARIES = { red: 611.3, green: 549.1, blue: 464.3 } as const
+/** The shift of a colour per nanometre away from the blue's wavelength, for an intensity of 100
+ *  percent, as a share of the position's distance past the start offset. */
+const FRINGE_PER_NANOMETRE = 0.007
+/** The start offset from which the fringe does nothing: the whole image lies under it. */
+const FRINGE_START_LIMIT = 1 - 1e-4
+/** Width of the image, in pixels, the grain's texels are sized for: at this width a texel is a
+ *  pixel at a grain scale of 1, and the grain grows with the image. */
+const GRAIN_REFERENCE_WIDTH = 1920
+/** The smallest grain scale and the smallest vignette size read. */
+const LEAST_SCALE = 0.001
+/** The bits from which the dither's step, 1/(2^bits − 1), is under what a single-precision colour
+ *  holds near 1: adding it changes nothing, so none is drawn. */
+const DITHER_NONE_BITS = 24
+/** The bits of a channel of the display (`DISPLAY_FORMAT`): its step is the dither's. */
+const DISPLAY_BITS = Math.round(-Math.log2(quantizationError(DISPLAY_FORMAT)))
 
 /** What the film's words are written from, beside the settings. */
 export type FilmInput = {
@@ -37,8 +43,8 @@ export type FilmInput = {
   vignette: number
   /** The display image's size, in pixels. */
   size: readonly number[]
-  /** The format the image is written in: its channel's bits are the dither's step. */
-  format: GPUTextureFormat
+  /** Whether the grain is drawn (`grainOn`). */
+  grain: boolean
   /** The number of the image: the grain's pattern and the dither's follow it. */
   frame: number
 }
@@ -71,20 +77,6 @@ function fringeShifts(intensity: number, start: number) {
   return [shift(FRINGE_PRIMARIES.red), shift(FRINGE_PRIMARIES.green), reach ? start : 0] as const
 }
 
-/**
- * The weights of a colour's channels in the luminance the grain's zones read: the grading gamut's
- * luminance row carried through the matrix from that gamut to sRGB — the matrix applied to the
- * row, as the reference writes it.
- */
-const GRAIN_LUMA = [0, 1, 2].map((channel) => {
-  const { luma, workingToSrgb } = FILM_CURVE.numbers
-  return (
-    luma[0] * workingToSrgb[channel] +
-    luma[1] * workingToSrgb[3 + channel] +
-    luma[2] * workingToSrgb[6 + channel]
-  )
-})
-
 /** Whether the grain is drawn: its strength, nil under the quality that has none, and the strength
  *  of at least one of its three zones, are not 0. */
 export function grainOn(film: FilmValues) {
@@ -97,67 +89,94 @@ export function grainOn(film: FilmValues) {
   )
 }
 
-/** The dither's step: one level of the display's channel, or of `bits` where the setting names
- *  them, the target's own bits otherwise — 8, or ten for any other format. */
-function ditherStep(film: FilmValues, format: GPUTextureFormat) {
-  const bits = film.quantizationDitheringBits
-  return 1 / (2 ** (bits > 0 ? bits : EIGHT_BIT.has(format) ? 8 : DITHER_OTHER_BITS) - 1)
+/** The dither's step: one level of the display's channel, or of `quantizationDitheringBits` where
+ *  the setting names them; 0, none drawn, from `DITHER_NONE_BITS`. */
+function ditherStep(film: FilmValues) {
+  const bits = film.quantizationDitheringBits || DISPLAY_BITS
+  return bits >= DITHER_NONE_BITS ? 0 : 1 / (2 ** bits - 1)
 }
 
-/** Writes the three words `(x, y, z)` of the `vec4f` at `at`, its fourth `w`. */
-const put3 = (words: Float32Array, at: number, x: number, y: number, z: number, w = 0) => {
-  words[at] = x
-  words[at + 1] = y
-  words[at + 2] = z
-  words[at + 3] = w
+const tintOn = (film: FilmValues) =>
+  film.sceneColorTintRed !== 1 || film.sceneColorTintGreen !== 1 || film.sceneColorTintBlue !== 1
+
+/** Whether a film effect other than the vignette is drawn — the fringe, the grain (`grain`), the
+ *  tint or the dither —: a lit image with none of them, no vignette, no local exposure and no glow
+ *  is composed plain (`finishedGroup`). */
+export const filmOn = (film: FilmValues, grain: boolean) =>
+  grain || tintOn(film) || fringeIntensity(film) > FRINGE_LEAST || ditherStep(film) > 0
+
+/** `high` read at least a step above `low`: a `smoothstep` of two edges that meet is undefined. */
+const above = (low: number, high: number) => Math.max(high, low + Math.max(1e-6, low * 1e-6))
+
+/** The vignette's words: its strength, scale, shape, colour, centre and size. */
+function writeVignette(words: Float32Array, { film, size, vignette }: FilmInput) {
+  const aspect = size[1] / size[0]
+  const circle = Math.SQRT2 / Math.sqrt(1 + aspect * aspect)
+  const { vignetteColorRed: red, vignetteColorGreen: green, vignetteColorBlue: blue } = film
+  words[AT.look] = vignetteStrength(film, vignette)
+  const shape = VIGNETTE_TYPES.indexOf(film.vignetteType)
+  putVec4(words, AT.screen, circle, aspect * circle, shape, red || green || blue ? 1 : 0)
+  putVec4(words, AT.shape, red, green, blue, film.vignetteSoftness)
+  putVec4(
+    words,
+    AT.around,
+    film.vignetteCenterX - 0.5,
+    film.vignetteCenterY - 0.5,
+    1 / Math.max(LEAST_SCALE, film.vignetteSizeX),
+    1 / Math.max(LEAST_SCALE, film.vignetteSizeY),
+  )
 }
 
-/**
- * Writes the film's words of the finishing's uniform (`FINISH`, `finishLayout.ts`) into `words`:
- * the tint, the fringe, the vignette's look, the grain and the dither, each as the reference reads
- * its settings, from `input`. The vignette's strength is the first word of `look`, which the
- * caller writes (`vignetteStrength`) with its own words; the vignette's shape is written here. The
- * grain's words are written only where it is drawn, the rest left at the 0 the caller cleared.
- */
-export function writeFilmParams(words: Float32Array, input: FilmInput) {
-  const { film, size, frame } = input
-  put3(words, AT.tint, film.sceneColorTintRed, film.sceneColorTintGreen, film.sceneColorTintBlue)
-  const intensity = fringeIntensity(film)
-  const [red, green, start] = fringeShifts(intensity, film.chromaticAberrationStartOffset)
-  put3(words, AT.fringe, red, green, start, intensity > FRINGE_LEAST ? 1 : 0)
-  words[AT.screen + 2] = VIGNETTE_TYPES.indexOf(film.vignetteType)
-  put3(words, AT.shape, film.vignetteColorRed, film.vignetteColorGreen, film.vignetteColorBlue)
-  words[AT.shape + 3] = film.vignetteSoftness
-  words[AT.around] = film.vignetteCenterX - 0.5
-  words[AT.around + 1] = film.vignetteCenterY - 0.5
-  words[AT.around + 2] = 1 / Math.max(VIGNETTE_LEAST_SIZE, film.vignetteSizeX)
-  words[AT.around + 3] = 1 / Math.max(VIGNETTE_LEAST_SIZE, film.vignetteSizeY)
-  const dither = AT.dither
-  words[dither] = ditherStep(film, input.format)
-  words[dither + 1] = halton(frame & 7, 2)
-  words[dither + 2] = halton(frame & 7, 3)
-  if (!grainOn(film)) return
+/** The grain's words: its strength in each zone, the zones' bounds, the decode of its texture and
+ *  the texture's coordinates per image coordinate. */
+function writeGrain(words: Float32Array, { film, size, frame }: FilmInput) {
   const strength = film.filmGrainIntensity
-  put3(
+  putVec4(
     words,
     AT.grainLevels,
     strength * film.filmGrainIntensityShadows,
     strength * film.filmGrainIntensityMidtones,
     strength * film.filmGrainIntensityHighlights,
-    1,
   )
-  put3(words, AT.grainBounds, film.filmGrainShadowsMax, film.filmGrainHighlightsMin, 0)
-  words[AT.grainBounds + 2] = film.filmGrainHighlightsMax
-  put3(words, AT.grainLuma, GRAIN_LUMA[0], GRAIN_LUMA[1], GRAIN_LUMA[2])
-  put3(words, AT.grainDecode, ...grainTexels().decode)
-  // The texture's coordinates per image coordinate: a texel is one pixel of an image
-  // `GRAIN_REFERENCE_WIDTH` wide, whatever the image's size, so the pattern repeats across it; the
-  // repeat steps through the van der Corput points of the images of the sequence.
+  const low = film.filmGrainHighlightsMin
+  putVec4(
+    words,
+    AT.grainBounds,
+    above(0, film.filmGrainShadowsMax),
+    low,
+    above(low, film.filmGrainHighlightsMax),
+  )
+  const [decodeRed, decodeGreen, decodeBlue] = grainTexels().decode
+  putVec4(words, AT.grainDecode, decodeRed, decodeGreen, decodeBlue)
+  // A texel is one pixel of an image `GRAIN_REFERENCE_WIDTH` wide, whatever the image's size, so
+  // the pattern repeats across it; the repeat steps through the van der Corput points of the
+  // images of the sequence.
   const across = GRAIN_REFERENCE_WIDTH / GRAIN_TEXTURE_SIDE
-  const point = (frame % Math.max(1, film.filmGrainSequenceLength)) + 1
-  words[AT.grainUv] = across / Math.max(film.filmGrainScaleX, GRAIN_LEAST_SCALE)
-  words[AT.grainUv + 1] =
-    (across * size[1]) / size[0] / Math.max(film.filmGrainScaleY, GRAIN_LEAST_SCALE)
-  words[AT.grainUv + 2] = halton(point, 2)
-  words[AT.grainUv + 3] = halton(point, 3)
+  const point = (frame % film.filmGrainSequenceLength) + 1
+  putVec4(
+    words,
+    AT.grainUv,
+    across / Math.max(film.filmGrainScaleX, LEAST_SCALE),
+    (across * (size[1] / size[0])) / Math.max(film.filmGrainScaleY, LEAST_SCALE),
+    halton(point, 2),
+    halton(point, 3),
+  )
+}
+
+/**
+ * Writes the film's words of the finishing's uniform (`FINISH`, `finishLayout.ts`) into `words`:
+ * the vignette, the tint, the fringe, the dither and, where it is drawn, the grain, each as the
+ * reference reads its settings, from `input`. A word of an effect that is off stays at the 0 the
+ * caller cleared, or is 0 here, which the shader tests once.
+ */
+export function writeFilmParams(words: Float32Array, input: FilmInput) {
+  const { film, frame } = input
+  writeVignette(words, input)
+  const { sceneColorTintRed: r, sceneColorTintGreen: g, sceneColorTintBlue: b } = film
+  putVec4(words, AT.tint, r, g, b, tintOn(film) ? 1 : 0)
+  const intensity = fringeIntensity(film)
+  const [shiftRed, shiftGreen, start] = fringeShifts(intensity, film.chromaticAberrationStartOffset)
+  putVec4(words, AT.fringe, shiftRed, shiftGreen, start, intensity > FRINGE_LEAST ? 1 : 0)
+  putVec4(words, AT.dither, ditherStep(film), halton(frame & 7, 2), halton(frame & 7, 3))
+  if (input.grain) writeGrain(words, input)
 }

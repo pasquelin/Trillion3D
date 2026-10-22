@@ -23,19 +23,19 @@
  *
  * Cost: O(1) per cell tested or ranked.
  */
-import { DEG2RAD } from '../../../../math/src/constants.ts'
-import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { length2 } from '../../../../math/src/vector/vector.ts'
 import { boxGroundDistance } from '../../../../math/src/geometry/boxDistance.ts'
-import { slabCut } from '../../../../math/src/geometry/slab.ts'
 import type { WorldStreaming } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
 import type {
   PartitionGrid,
   TablePartition,
 } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
 import type { LoadingCell } from './loadOrder.ts'
-import { createSourceShape, type ViewPose } from './sourceShape.ts'
+import { createSourceRank } from './sourceRank.ts'
+import { createSourceShape, NO_HEADING, type ViewPose } from './sourceShape.ts'
 
+/** A view standing still. */
+const NO_VELOCITY = [0, 0, 0]
 /** The settings that shape the view's circle or sector: the update reads them too. */
 export const SOURCE_SHAPE = [
   'useGridRange',
@@ -47,6 +47,9 @@ export const SOURCE_SHAPE = [
   'extraRadius',
   'extraAngle',
 ] as const
+/** The reference adds a velocity in centimetres per second to the unit axis: one metre is a
+ *  hundred of them. */
+const CENTIMETRES = 100
 /** The settings `meets` and `radius` read. */
 const READ = [...SOURCE_SHAPE, 'zCulling'] as const
 
@@ -54,11 +57,10 @@ const READ = [...SOURCE_SHAPE, 'zCulling'] as const
  * The view as the source for a partition of `scheme` whose grids (`hlod.grids`) lie flat or not,
  * under the settings `streaming` holds as they stand — read at each test, so a setting changed
  * takes from the next frame —, set each frame (`set`): its eye and the unit axis of its view, both
- * in the cells' frame. A flat loose grid's sector, or one the settings force to the ground (`force2D`),
- * turns around that axis with its up part dropped, unscaled; one that does not lie flat around
- * the axis itself; a square grid's around its unit heading on the ground, glTF's `+Y` up dropped.
- * A view looking straight down has no heading: a square grid's sector is then the whole circle,
- * and no angle weighs a cell's turn.
+ * in the cells' frame. A flat loose grid's sector, or one the settings force to the ground
+ * (`force2D`), turns around that axis with its up part dropped, unscaled; one that does not lie
+ * flat around the axis itself; a square grid's around its unit heading on the ground, glTF's `+Y`
+ * up dropped, which a view looking straight down takes from its up vector (`aimOf`).
  */
 export function createStreamingSource(
   streaming: WorldStreaming,
@@ -79,70 +81,22 @@ export function createStreamingSource(
     headed: false,
   }
   const { eye, heading, eye3, axis3 } = pose
-  const { toward, sectored, besideSector, beyondHeight, gap, gapTo, outsideCone } =
-    createSourceShape(streaming, loose, pose)
+  const shape = createSourceShape(streaming, loose, pose)
+  const { sectored, valid, besideSector, beyondHeight, gapTo, outsideCone } = shape
+  /** The axis the loose cells are sorted by: the view's, its average velocity added when the
+   *  settings ask (`useVelocity`). */
+  const rankAxis = [0, 0, 0]
   /** The circle's radius for a grid of loading range `range`, its extra radius added. */
   const radiusOf = (range: number) =>
     (streaming.useGridRange ? range * streaming.rangeScale : streaming.radius) +
     streaming.extraRadius
-  /** A loose cell's rank by distance: the squared 3D distance from the eye to its box over the
-   *  squared radius, at most 1, times half the cosine of the view's axis with the way from the box
-   *  to the eye plus a half — the cosine -1 from within or on it —; and that squared distance. */
-  const looseRanked = (bounds: ArrayLike<number>, at: number, range: number, out: LoadingCell) => {
-    const squared = gapTo(bounds, at)
-    const along = axis3[0] * gap[0] + axis3[1] * gap[1] + axis3[2] * gap[2]
-    const cosine = squared > 0 ? along / Math.sqrt(squared) : -1
-    const radius = radiusOf(range)
-    const ratio = radius > 0 ? clamp(squared / (radius * radius), 0, 1) : 0
-    out.distance = ratio * (cosine * 0.5 + 0.5)
-    out.raw = squared
-    return out
-  }
-  const span = new Float64Array(2),
-    origin = [0, 0, 0],
-    direction = [0, 0, 0],
-    point = [0, 0],
-    pointsX = new Float64Array(5),
-    pointsZ = new Float64Array(5)
-  /** A square cell's rank by distance: the squared distance from the eye to its centre times its
-   *  angle factor squared — its smallest angle to the heading over π, its corners and centre
-   *  tried, unless the heading's ray across the radius meets it, at least a degree's, raised to
-   *  `angleWeight` —, and that squared distance alone. */
-  const squareRanked = (bounds: ArrayLike<number>, at: number, range: number, out: LoadingCell) => {
-    const cx = (bounds[at] + bounds[at + 3]) / 2,
-      cz = (bounds[at + 2] + bounds[at + 5]) / 2
-    const raw = (cx - eye[0]) ** 2 + (cz - eye[1]) ** 2
-    let factor = 1
-    if (pose.headed && streaming.angleWeight > 0) {
-      const reach = radiusOf(range)
-      origin[0] = eye[0]
-      origin[1] = bounds[at + 1]
-      origin[2] = eye[1]
-      direction[0] = heading[0] * reach
-      direction[2] = heading[1] * reach
-      span[0] = 0
-      span[1] = 1
-      let angle = 0
-      if (!slabCut(span, bounds, at, bounds, at + 3, origin, direction)) {
-        let most = 0
-        pointsX[0] = pointsX[1] = bounds[at]
-        pointsX[2] = pointsX[3] = bounds[at + 3]
-        pointsX[4] = cx
-        pointsZ[0] = pointsZ[2] = bounds[at + 2]
-        pointsZ[1] = pointsZ[3] = bounds[at + 5]
-        pointsZ[4] = cz
-        for (let k = 0; k < 5; k++) {
-          toward(pointsX[k], pointsZ[k], point)
-          most = Math.max(most, heading[0] * point[0] + heading[1] * point[1])
-        }
-        angle = Math.acos(clamp(most, -1, 1)) / Math.PI
-      }
-      factor = clamp(angle, DEG2RAD, 1) ** streaming.angleWeight
-    }
-    out.distance = raw * factor * factor
-    out.raw = raw
-    return out
-  }
+  const { loose: looseRanked, square: squareRanked } = createSourceRank(
+    streaming,
+    pose,
+    shape,
+    rankAxis,
+    radiusOf,
+  )
   /** `READ` as the last `set` saw them: what moves `revision` with the eye and the axis. */
   const seen = READ.map(() => NaN)
   let revision = 0
@@ -157,24 +111,34 @@ export function createStreamingSource(
     return moved
   }
   return {
-    /** The view stands at `eye` looking along the unit `axis`, both in the cells' frame. */
-    set(at: ArrayLike<number>, axis: ArrayLike<number>) {
+    /** The view stands at `eye` looking along the unit `axis`, heading `aim` on the ground — the
+     *  axis, but for a view looking straight down or up (`aimOf`) — and moving at `velocity`
+     *  metres per second, all in the cells' frame. */
+    set(at: ArrayLike<number>, axis: ArrayLike<number>, aim = axis, velocity = NO_VELOCITY) {
       let moved = settingsMoved()
       for (let k = 0; k < 3; k++) {
         if (eye3[k] !== at[k] || axis3[k] !== axis[k]) moved = true
         eye3[k] = at[k]
         axis3[k] = axis[k]
       }
-      if (moved) revision++
       eye[0] = at[0]
       eye[1] = at[2]
-      const length = length2(axis[0], axis[2])
-      pose.headed = length > 1e-9
       // A loose grid's sector keeps the axis as it is, its up part dropped; a square grid's turns
-      // it to a unit heading on the ground.
+      // the aim to a unit heading on the ground.
+      const side = loose ? axis : aim
+      const length = length2(side[0], side[2])
+      pose.headed = length > NO_HEADING
       const scale = loose ? 1 : pose.headed ? 1 / length : 0
-      heading[0] = axis[0] * scale
-      heading[1] = axis[2] * scale
+      moved ||= heading[0] !== side[0] * scale || heading[1] !== side[2] * scale
+      heading[0] = side[0] * scale
+      heading[1] = side[2] * scale
+      if (moved) revision++
+      // The axis the loose cells are sorted by, its velocity added when the settings ask.
+      const push = streaming.useVelocity ? CENTIMETRES : 0
+      let size = 0
+      for (let k = 0; k < 3; k++) size += (rankAxis[k] = axis[k] + velocity[k] * push) ** 2
+      const inverse = push && size >= 1e-8 ? 1 / Math.sqrt(size) : push ? 0 : 1
+      for (let k = 0; k < 3; k++) rankAxis[k] *= inverse
     },
     /** Advances whenever what `meets` reads moved at a `set`: the eye, the axis or a setting. What
      *  it said at one revision it says at the same revision again. */
@@ -197,6 +161,7 @@ export function createStreamingSource(
       { range, flat }: Pick<PartitionGrid, 'range' | 'flat'>,
     ) {
       const radius = radiusOf(range)
+      if (!valid(radius)) return false
       if (solid(flat)) return gapTo(bounds, at) <= radius * radius && !outsideCone(bounds, at)
       const away = boxGroundDistance(bounds, at, eye[0], eye[1])
       if (!(loose ? away <= radius : away < radius)) return false

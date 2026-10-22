@@ -4,7 +4,7 @@
  * and a trace's result. No binding but the noise pair the host gives (`vsmRayNoiseWgsl`).
  */
 import { SUBGROUP_ALL_WGSL } from '../../../../gpu/core/subgroups.ts'
-import { VSM_NOISE_TILE } from '../blueNoise.ts'
+import { BLUE_NOISE_TILE } from '../../../../gpu/noise/blueNoiseWgsl.ts'
 import { VSM_F32_BELOW_ONE } from '../constants.ts'
 import { type WgslDecl, wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
 import { FLOAT32_MIN_NORMAL, QUARTER_PI } from '../../../../../../math/src/wgsl/constants.ts'
@@ -59,19 +59,19 @@ fn vsmRayJitter(noise:f32,i:u32)->f32{return additive2d(vec2f(noise),i).x;}
 )
 
 /** The rays' four random values a ray (`vsmRayNoise4`), from the noise pair `noise` provides
- *  (`vsmNoiseTwo`): the disk point (xy) and the start's dither (zw). */
+ *  (`blueNoiseVec2`): the disk point (xy) and the start's dither (zw). */
 export const vsmRayNoiseWgsl = (noise: WgslDecl) =>
   wgslBlock(
     'vsmRayNoiseWgsl',
-    [VSM_NOISE_TILE, additive2d, noise],
+    [BLUE_NOISE_TILE, additive2d, noise],
     `
 /** Four blue-noise values for a pixel, ray and frame: two reads of the blue-noise texture, offset by
  *  the additive sequence. */
 fn vsmRayNoise4(pixelPos:vec2u,timeIndex:u32,rayIndex:u32,rayTotal:u32)->vec4f{
- let dims=vec2f(VSM_NOISE_TILE.xy);
+ let dims=vec2f(BLUE_NOISE_TILE.xy);
  let offset1=vec2i(additive2d(vec2f(0.0),rayIndex)*dims);
  let offset2=vec2i(additive2d(vec2f(0.0),rayIndex+rayTotal)*dims);
- return vec4f(vsmNoiseTwo(pixelPos+bitcast<vec2u>(offset1),timeIndex),vsmNoiseTwo(pixelPos+bitcast<vec2u>(offset2),timeIndex));
+ return vec4f(blueNoiseVec2(pixelPos+bitcast<vec2u>(offset1),timeIndex),blueNoiseVec2(pixelPos+bitcast<vec2u>(offset2),timeIndex));
 }
 `,
   )

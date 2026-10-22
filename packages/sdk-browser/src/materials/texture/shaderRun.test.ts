@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from './shaderRun.fixture.ts'
+import { Mat } from './shaderRunMatrix.fixture.ts'
 
 test('a component is assigned in place, a value held by two names is two values', () => {
   const { f } = shaderRun<{ f: (s: Record<string, number>) => unknown }>(
@@ -36,4 +37,28 @@ test('a program run again is compiled once, called with its new scope', () => {
   } finally {
     globalThis.Function = original
   }
+})
+
+test('a 4×4 matrix times a 4×4 matrix is their product, the right one applied first', () => {
+  const { f } = shaderRun<{ f: (a: Mat, b: Mat, v: number[]) => number[] }>(
+    'fn f(a:mat4x4f,b:mat4x4f,v:vec4f)->vec4f{let m=a*b;return m*v;}',
+    ['f'],
+    {},
+  )
+  // A scales by two, B translates by (1, 0, 0): A * B moves the point first, then scales it.
+  const scale = new Mat([2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1])
+  const move = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1])
+  assert.deepEqual(f(scale, move, [1, 1, 1, 1]), [4, 2, 2, 1])
+  assert.deepEqual(f(move, scale, [1, 1, 1, 1]), [3, 2, 2, 1])
+})
+
+test('a row vector times a 4×4 matrix is the vector against each column', () => {
+  const { f } = shaderRun<{ f: (v: number[], m: Mat) => number[] }>(
+    'fn f(v:vec4f,m:mat4x4f)->vec4f{return v*m;}',
+    ['f'],
+    {},
+  )
+  // The plane (0, 0, 1, 5) carried by a translation of 2 along z: its offset moves by the plane's normal.
+  const move = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 2, 1])
+  assert.deepEqual(f([0, 0, 1, 5], move), [0, 0, 1, 7])
 })

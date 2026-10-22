@@ -51,8 +51,9 @@
  * - `allowAssemblies`: the assembly a mesh's glTF `extras.assembly` names — `parts`, meshes by
  *   their rank, each with an optional `materialRemap` (a glTF material for each of its primitives),
  *   and `nodes`, each a `part` and a glTF node's `matrix` or `translation`, `rotation` and `scale` —
- *   is built: the mesh is its own triangles and every node's part, carried by its transform
- *   (`true`), or its own triangles alone (`false`, the default);
+ *   is built: each node of the assembly is a node of the scene under every node that places the
+ *   mesh, carrying its part's mesh, whose pages are written once (`true`), or the mesh is its own
+ *   triangles alone and the import report counts it (`false`, the default);
  * - `positionPrecision`: the position grid of the mesh's pages, cells of `2^-n` centimetre, a whole
  *   number from `MIN_POSITION_PRECISION` to `MAX_POSITION_PRECISION` — left out, it follows the
  *   density of the mesh (`POSITION_PRECISION_SETTING`);
@@ -147,9 +148,9 @@ export type MeshBuildSettings = {
   /** Whether a voxel's record carries its coverage as its opacity, no coverage handed over to its
    *  neighbours; no voxel is drawn by it. @defaultValue false */
   voxelOpacity?: boolean
-  /** Whether the assembly the mesh's glTF `extras.assembly` names is built, the mesh then its own
-   *  triangles and every node's part carried by its transform; false draws its own triangles
-   *  alone. @defaultValue false */
+  /** Whether the assembly the mesh's glTF `extras.assembly` names is built, each of its nodes a node
+   *  of the scene under every node that places the mesh, carrying its part's mesh; false draws the
+   *  mesh's own triangles alone. @defaultValue false */
   allowAssemblies?: boolean
   /** The position grid of the pages, cells of `2^-n` centimetre, a whole number from
    *  `MIN_POSITION_PRECISION` to `MAX_POSITION_PRECISION`. @defaultValue the mesh's density */

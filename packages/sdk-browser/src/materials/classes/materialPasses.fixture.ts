@@ -43,6 +43,8 @@ export function resolveFixture(classes: number[], compiled: number[]) {
     context: {},
     layout: { rows: { pageTableInts: ints, packedCount: classes.length } },
     vis: {
+      // No displaced surface: no class shades through the displaced pipelines.
+      materialTable: { displaced: { count: 0 } },
       writesFeedback: true,
       shadeBindGroup: 'bind group',
       shadeClasses: {
@@ -68,7 +70,7 @@ export function resolveFixture(classes: number[], compiled: number[]) {
       },
     },
   } as unknown as WebgpuPagesRuntime
-  const { device, passes, computePasses } = fakeDevice()
+  const { device, passes, computePasses, writes } = fakeDevice()
   const encoder = device.createCommandEncoder()
-  return { rt, encoder, passes, computePasses, made, ordinary, bins }
+  return { rt, device, writes, encoder, passes, computePasses, made, ordinary, bins }
 }

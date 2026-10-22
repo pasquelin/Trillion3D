@@ -20,6 +20,14 @@ import {
   type ScreenProbeKernels,
 } from './kernels.ts'
 
+/** The stand-ins of the radiance cache's maps (`ScreenProbeStore.noCache`). */
+interface NoCache {
+  final: GPUTextureView
+  raw: GPUTextureView
+  tags: GPUBuffer
+  pdf: GPUBuffer
+}
+
 /** A kernel in the making or made: `kernel` once the device has handed its pipelines back. */
 interface KernelEntry {
   kernel?: Kernel<string>
@@ -34,7 +42,8 @@ interface ShapeOf {
 }
 
 /** The state the screen probes keep for a device: the settings' watch, the kernels (each compiled once for what its code depends
- *  on, off the frame, the frames held while they compile), what the last image counted and the surfaces' stand-in. */
+ *  on, off the frame, the image drawn without the probes while they compile), what the last image counted and the surfaces'
+ *  stand-in. */
 export interface ScreenProbeStore {
   /** Why the probes could not be made, when they could not. */
   reason: string | null
@@ -46,6 +55,8 @@ export interface ScreenProbeStore {
   kernelsFor(device: GPUDevice, settings: ScreenProbeSettings): ScreenProbeKernels | undefined
   /** What the kernels bind for the surfaces' vectors where the image drew none: a texel of zero. */
   noVectors(device: GPUDevice): GPUTextureView
+  /** What the kernels bind for the radiance cache where there is none: texels and tags of zero, and importance functions nothing reads. */
+  noCache(device: GPUDevice): NoCache
   dispose(): void
 }
 
@@ -58,6 +69,13 @@ export function createScreenProbeStore(): ScreenProbeStore {
   const sets = new Map<string, ScreenProbeKernels>()
   const shapes = new WeakMap<ScreenProbeSettings, ShapeOf>()
   let stand: { device: GPUDevice; texture: GPUTexture; view: GPUTextureView } | undefined
+  let standCache:
+    { device: GPUDevice; made: GPUTexture[]; buffers: GPUBuffer[]; views: NoCache } | undefined
+  const destroyStandCache = () => {
+    for (const resource of [...(standCache?.made ?? []), ...(standCache?.buffers ?? [])])
+      resource.destroy()
+    standCache = undefined
+  }
   const store: ScreenProbeStore = {
     reason: null,
     metrics: undefined,
@@ -75,7 +93,7 @@ export function createScreenProbeStore(): ScreenProbeStore {
       let asked = shapes.get(wanted)
       if (!asked) {
         const shape = kernelShapeOf(wanted)
-        const key = `${shape.side}|${shape.samples}|${shape.occlusion.downsample}|${shape.occlusion.pyramid}|${shape.occlusion.power}|${shape.scene}`
+        const key = `${shape.casts}|${shape.side}|${shape.gather}|${shape.samples}|${shape.occlusion.downsample}|${shape.occlusion.pyramid}|${shape.occlusion.power}|${shape.scene}`
         shapes.set(wanted, (asked = { shape, key }))
       }
       const set = sets.get(asked.key)
@@ -90,19 +108,38 @@ export function createScreenProbeStore(): ScreenProbeStore {
       }
       return stand.view
     },
+    noCache(device) {
+      if (!standCache || standCache.device !== device) {
+        destroyStandCache()
+        const final = standInTexture(device, 'Trillion3D empty radiance cache', 'r32uint')
+        const raw = standInTexture(device, 'Trillion3D empty radiance cache raw', 'rg32uint')
+        const buffer = (label: string) =>
+          device.createBuffer({ label, size: 16, usage: GPUBufferUsage.STORAGE })
+        const tags = buffer('Trillion3D empty radiance cache tags'),
+          pdf = buffer('Trillion3D empty radiance cache importance')
+        standCache = {
+          device,
+          made: [final, raw],
+          buffers: [tags, pdf],
+          views: { final: final.createView(), raw: raw.createView(), tags, pdf },
+        }
+      }
+      return standCache.views
+    },
     dispose() {
       kernels.clear()
       sets.clear()
       owner = undefined
       stand?.texture.destroy()
       stand = undefined
+      destroyStandCache()
     },
   }
   return store
 }
 
 /** The kernels of the shape `asked` from what is compiled, those missing asked of `device` together off the frame (the frames
- *  held meanwhile, `track`); the set once all are made, else none. */
+ *  drawn without the probes meanwhile, `track`); the set once all are made, else none. */
 function assemble(
   store: ScreenProbeStore,
   device: GPUDevice,
@@ -121,7 +158,12 @@ function assemble(
     if (!kernel) return undefined
     made[name] = kernel
   }
-  const set = made as unknown as ScreenProbeKernels
+  const { occlusion, temporal, ...cast } = made
+  const set = {
+    occlusion,
+    temporal,
+    ...(asked.shape.casts && { cast }),
+  } as unknown as ScreenProbeKernels
   sets.set(asked.key, set)
   asked.sources = undefined
   return set
@@ -148,5 +190,5 @@ function startKernels(
     },
     (error: unknown) => refuse(String(error)),
   )
-  track(device, compile, true)
+  track(device, compile, false)
 }

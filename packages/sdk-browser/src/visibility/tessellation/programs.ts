@@ -7,6 +7,19 @@ import { planSource } from './planWgsl.ts'
 import { seedSource } from './seedWgsl.ts'
 import { splitSource } from './splitWgsl.ts'
 
+/** The tessellation's four modules, one for each program. */
+function tessellationModules(device: GPUDevice) {
+  return {
+    plan: device.createShaderModule({ label: 'Trillion3D tessellation plan', code: planSource() }),
+    seed: device.createShaderModule({ label: 'Trillion3D tessellation seed', code: seedSource() }),
+    split: device.createShaderModule({
+      label: 'Trillion3D tessellation split',
+      code: splitSource(),
+    }),
+    dice: device.createShaderModule({ label: 'Trillion3D tessellation dice', code: diceSource() }),
+  }
+}
+
 /**
  * The tessellation's pipelines, one for each kernel and none for a pass: what a pass differs by
  * travels in its uniform (`uniform.ts`). Each program has a bind group layout of its own
@@ -17,18 +30,19 @@ import { splitSource } from './splitWgsl.ts'
  * it.
  */
 export function createTessellationPrograms(device: GPUDevice) {
-  const layouts = {} as Record<TessProgram, GPUBindGroupLayout>
+  const layouts: Partial<Record<TessProgram, GPUBindGroupLayout>> = {}
   const stage = (
     program: TessProgram,
     module: GPUShaderModule,
     entryPoint: string,
     constants?: Record<string, number>,
   ) => {
-    layouts[program] ??= device.createBindGroupLayout({ entries: tessLayoutEntries(program) })
-    const layout = device.createPipelineLayout({ bindGroupLayouts: [layouts[program]] })
+    const layout = (layouts[program] ??= device.createBindGroupLayout({
+      entries: tessLayoutEntries(program),
+    }))
     return preparedComputeStage(
       device,
-      layout,
+      device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       module,
       entryPoint,
       constants,
@@ -36,33 +50,17 @@ export function createTessellationPrograms(device: GPUDevice) {
     )
   }
   const rows = groupWidthConstants(groupWidth(device.limits))
-  const planModule = device.createShaderModule({
-    label: 'Trillion3D tessellation plan',
-    code: planSource(),
-  })
-  const seedModule = device.createShaderModule({
-    label: 'Trillion3D tessellation seed',
-    code: seedSource(),
-  })
-  const splitModule = device.createShaderModule({
-    label: 'Trillion3D tessellation split',
-    code: splitSource(),
-  })
-  const diceModule = device.createShaderModule({
-    label: 'Trillion3D tessellation dice',
-    code: diceSource(),
-  })
+  const { plan, seed, split, dice } = tessellationModules(device)
   const stages = {
-    seed: stage('seed', seedModule, 'tessSeed'),
-    plan: stage('plan', planModule, 'tessPlan', rows),
-    visibleArgs: stage('plan', planModule, 'tessVisibleArgs', rows),
-    split: stage('split', splitModule, 'tessSplit'),
-    dice: [
-      stage('dice', diceModule, `tessDice${MODE_DEPTH}`),
-      stage('dice', diceModule, `tessDice${MODE_ID}`),
-    ],
+    seed: stage('seed', seed, 'tessSeed'),
+    resume: stage('seed', seed, 'tessResume'),
+    plan: stage('plan', plan, 'tessPlan', rows),
+    visibleArgs: stage('plan', plan, 'tessVisibleArgs', rows),
+    resumeArgs: stage('plan', plan, 'tessResumeArgs', rows),
+    split: stage('split', split, 'tessSplit'),
+    dice: [stage('dice', dice, `tessDice${MODE_DEPTH}`), stage('dice', dice, `tessDice${MODE_ID}`)],
   }
-  const all = [stages.seed, stages.plan, stages.visibleArgs, stages.split, ...stages.dice]
+  const all = [...Object.values(stages).flat()]
   return {
     layouts,
     ...stages,
@@ -74,4 +72,3 @@ export function createTessellationPrograms(device: GPUDevice) {
     },
   }
 }
-export type TessellationPrograms = ReturnType<typeof createTessellationPrograms>

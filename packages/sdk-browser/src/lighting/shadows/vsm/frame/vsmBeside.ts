@@ -7,12 +7,16 @@ import { vsmTransmissionContextBytes } from '../transmission/transmissionContext
 import { vsmTransmissionFloorBytes } from '../transmission/transmissionBinPlan.ts'
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
 import { vsmPmContextBytes } from '../pageManagementPass.ts'
-import { vsmProjectionBytesToMake, vsmProjectionReserve } from '../projection/projectionStore.ts'
+import {
+  projectionReady,
+  vsmProjectionBytesToMake,
+  vsmProjectionReserve,
+} from '../projection/projectionStore.ts'
 import { VSM_CAST_PARAMS_BYTES } from '../invalidation/castInvalidationWgsl.ts'
 import { outOfMemoryContext } from '../../../../session/memory/outOfMemory.ts'
 import {
   castingCount,
-  directionalCount,
+  sunMapsFor,
   engineVsmOptions,
   fullMapsFor,
   renderViewBound,
@@ -58,7 +62,7 @@ export function bytesBeside(
 ) {
   const [width, height] = sharedMaskSize(rt, ...rt.gpu.allocatedSize)
   const limit = vsmViewsPerPass(device.limits, shadowSetting(rt, 'shadowMultipassViews'))
-  const { viewWords, viewMips, raster: views } = renderViewBound(lights, limit)
+  const { viewWords, viewMips, lights: lightCount, raster: views } = renderViewBound(lights, limit)
   const pages = layout.poolPages
   const casters = rt.layout.rows,
     used = rt.services.blendCasters.used
@@ -69,6 +73,7 @@ export function bytesBeside(
     views.viewMips,
     pages,
     views.passes,
+    lightCount,
   )
   const blended = Math.max(0, casters.casterSlots - casters.blendFirst)
   const transmission =
@@ -76,7 +81,15 @@ export function bytesBeside(
       ? Math.max(
           held.transmission,
           vsmTransmissionBytes(layout) +
-            vsmTransmissionFloorBytes(device.limits, used, blended, viewWords, viewMips, pages),
+            vsmTransmissionFloorBytes(
+              device.limits,
+              used,
+              blended,
+              viewWords,
+              viewMips,
+              pages,
+              lightCount,
+            ),
         )
       : 0
   const casting = castingCount(lights)
@@ -96,7 +109,7 @@ export function bytesBeside(
 /** The layout of the first set of `lights` (`grantEngineVsm`, from `planVsmFrame`): the maps they
  *  want at every physical page the view asks (`vsmPoolAsked`). */
 export const vsmFirstSetLayout = (rt: WebgpuPagesRuntime, lights: readonly VsmFrameLight[]) =>
-  vsmLayout(engineVsmOptions(fullMapsFor(lights), directionalCount(lights), vsmPoolAsked(rt)))
+  vsmLayout(engineVsmOptions(fullMapsFor(lights), sunMapsFor(lights), vsmPoolAsked(rt)))
 
 /** Bytes the first set of `lights` takes as the first lit frame asks it (`grantEngineVsm`, from
  *  `planVsmFrame`) — the maps they want at every physical page — with what the frame makes beside
@@ -114,10 +127,11 @@ export function vsmSetBytes(
 
 /**
  * Makes what the frame projects with before any other shadow allocation of the frame — the mask,
- * a layer per four casting lights, the projection's view uniforms and blue noise — when the
+ * a layer per four casting lights, the projection's view uniforms — when the
  * budget's room holds what they grow by: a larger canvas, more casting lights (`masksGrowth`). The
  * lists the raster then grows within the room cannot take theirs. Past it the lights read no
- * shadow this frame, said once a set, and the next frames ask again.
+ * shadow this frame, said once a set, and the next frames ask again. The same while the engine's blue noise is not made
+ * (the frames wait for it at their entry: `askBlueNoise`).
  */
 export function reserveProjection(
   rt: WebgpuPagesRuntime,
@@ -130,8 +144,7 @@ export function reserveProjection(
   const growth = masksGrowth(vsm, width, height, lights) + vsmProjectionBytesToMake(vsm.res)
   if (growth <= 0 || growth <= ledgerRoom(device)) {
     ensureMasks(device, vsm, width, height, lights)
-    vsmProjectionReserve(device, vsm.res)
-    return true
+    return projectionReady(vsmProjectionReserve(device, vsm.res))
   }
   if (!vsm.said.has('mask')) {
     vsm.said.add('mask')

@@ -334,8 +334,10 @@ export const vsmCoarseMarkingWgsl = (layout: VsmLayout) =>
     vsmFillCover(o3);
    }
   }
- }else{
-  // A local map (a far receiver always finds one) asks for its last mip's page.
+ }else if(pd.coarseLevel||pd.finestMip>=VSM_MIPS-1u){
+  // A local map (a far receiver always finds one) asks for its last mip's page, unless the view
+  // turns local coarse pages off (\`shadowMarkCoarsePagesLocal\` 0, no coarse flag in its record):
+  // a light whose finest mip is the last (a distant light, one page) always does.
   let entryCell=vsmTableEntryOf(handle,VSM_MIPS-1u,vec2u(0u,0u));
   vsmRequestPage(entryCell,flags);
   if(pd.useCover){vsmFillCover(entryCell);}

@@ -1,11 +1,10 @@
-//! The LODs of a source mesh a merged layer takes (`Lods`): the clusters of its DAG from the finest
-//! cut a layer's `Calculate` takes up to its roots, on the vertices they use, cut at the error a
-//! screen size stands for (`lod_error`); its fallback, which `Lowest` takes (`fallback`); and the
-//! bounds its screen sizes and an automatic atlas side read (`MeshBounds`).
+//! The LODs of a source mesh a merged layer takes (`Lods`): the LOD `Calculate` takes by the
+//! layer's screen size (`calculated_lod`) — a glTF mesh has one, its level 0, taken whole —, on the
+//! vertices it uses; its fallback, which `Lowest` takes (`fallback`); and the bounds an automatic
+//! atlas side reads (`MeshBounds`).
 use super::{fallback, Cut, Geometry, LodSelection};
 use crate::dag::{DagCluster, DagGroup};
 use crate::hlod::chain::cover::{compact_attribute, SourceCover};
-use crate::proxy::cut::in_cut;
 use crate::simplify::SolveRules;
 use crate::Result;
 use trillion3d_math::geometry::aabb::{aabb_of, centre};
@@ -14,19 +13,19 @@ use trillion3d_math::vector::vec3::point;
 use trillion3d_page_codec::encode::Attribute;
 use trillion3d_page_codec::OPTIONAL;
 
-/// The pixel error a source's LODs are spaced by: a LOD of deviation `d` is drawn from where `d`
-/// spans that many pixels across a view of 1920 texels and a quarter turn, `d · 960 / 8` away.
-const LOD_PIXEL_ERROR: f64 = 8.0;
+/// The screen size a mesh's first LOD is drawn down to by default: a mesh of one LOD is drawn at any
+/// size above it.
+const LOD0_SCREEN_SIZE: f64 = 2.0;
 
-/// The object-space error of the LOD a mesh whose bounding sphere has `radius` shows when that
-/// sphere spans `screen` of the view: a LOD stands from the distance its deviation spans
-/// `LOD_PIXEL_ERROR` pixels, plus the radius — the deviation lies somewhere in the mesh's sphere —,
-/// and is drawn while the sphere seen from there spans more than `screen`
-/// (`flatten::distance_at`); the coarsest such LOD is the cut at the deviation that distance stands
-/// for.
-fn lod_error(radius: f64, screen: f64) -> f64 {
-    (super::super::distance_at(radius, screen) - radius) * LOD_PIXEL_ERROR
-        / (super::super::SCREEN.0 / 2.0)
+/// The LOD of a mesh whose LODs are drawn down to `screen_sizes` that a layer's calculated
+/// selection takes at `screen`: walking back from the coarsest, the first drawn at more than
+/// `screen`, else the first. A glTF mesh has one LOD (`LOD0_SCREEN_SIZE`): its level 0, whatever
+/// the layer's screen size.
+fn calculated_lod(screen_sizes: &[f64], screen: f64) -> usize {
+    (0..screen_sizes.len())
+        .rev()
+        .find(|&lod| screen_sizes[lod] > screen)
+        .unwrap_or(0)
 }
 
 /// A source mesh's bounds in object space, of its level 0: its box (low corner, then high) and
@@ -72,8 +71,9 @@ pub(crate) struct Lods {
     positions: Vec<f32>,
     carried: Vec<Attribute>,
     indices: Vec<u32>,
-    /// Per cluster: its own error, its parent's and its corners' range in `indices`.
-    clusters: Vec<(f64, f64, std::ops::Range<usize>)>,
+    /// The corners of the LOD `Calculate` takes (its level 0) in `indices`; empty when no merged
+    /// layer takes it.
+    calculated: std::ops::Range<usize>,
     /// The fallback's corners' range in `indices`, on the vertices after the clusters'; empty
     /// when no merged layer takes it.
     fallback: std::ops::Range<usize>,
@@ -96,15 +96,13 @@ impl Lods {
         let level0 = (dag.iter().filter(|c| c.level == 0)).flat_map(|c| c.indices.iter().copied());
         let bounds = MeshBounds::of(pos, level0);
         let mut joined = Vec::new();
-        let mut clusters = Vec::new();
         if let Some(screen) = taken.calculate {
-            let finest = lod_error(bounds.radius, screen);
-            for cluster in dag.iter().filter(|c| c.parent_error > finest) {
-                let start = joined.len();
+            let lod = calculated_lod(&[LOD0_SCREEN_SIZE], screen);
+            for cluster in dag.iter().filter(|c| c.level == lod) {
                 joined.extend_from_slice(&cluster.indices);
-                clusters.push((cluster.lod_error, cluster.parent_error, start..joined.len()));
             }
         }
+        let calculated = 0..joined.len();
         let (mut positions, mut attributes, mut indices) =
             compacted(pos, carried.iter().copied(), &joined);
         let mut lowest = 0..0;
@@ -124,7 +122,7 @@ impl Lods {
             positions,
             carried: attributes,
             indices,
-            clusters,
+            calculated,
             fallback: lowest,
             bounds,
         })
@@ -136,18 +134,14 @@ impl Lods {
         self.built
     }
 
-    /// The corners of the clusters `cut` takes, by the engine's cut rule (`in_cut`): `Calculate`'s
-    /// cut at the error its screen size stands for (`lod_error`), or the fallback `Lowest` takes.
-    pub(super) fn selected(&self, (selection, screen): Cut) -> impl Iterator<Item = &[u32]> {
-        let error = lod_error(self.bounds.radius, screen);
-        let calculated = (self.clusters.iter())
-            .filter(move |(own, parent, _)| {
-                selection == LodSelection::Calculate && in_cut(*own, *parent, error)
-            })
-            .map(|(.., range)| &self.indices[range.clone()]);
+    /// The corners `cut` takes: `Calculate`'s LOD (`calculated_lod`: the source's one LOD whatever
+    /// the screen size), or the fallback `Lowest` takes.
+    pub(super) fn selected(&self, (selection, _): Cut) -> impl Iterator<Item = &[u32]> {
+        let calculated =
+            (selection == LodSelection::Calculate).then(|| &self.indices[self.calculated.clone()]);
         let lowest =
             (selection == LodSelection::Lowest).then(|| &self.indices[self.fallback.clone()]);
-        calculated.chain(lowest)
+        calculated.into_iter().chain(lowest)
     }
 
     /// The LOD `cut` takes as a cover on the vertices it uses, with every attribute the source

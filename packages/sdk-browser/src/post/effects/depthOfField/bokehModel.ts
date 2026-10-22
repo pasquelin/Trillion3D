@@ -1,4 +1,4 @@
-import { clamp } from '../../../../../math/src/scalar/reals.ts'
+import { PI } from '../../../../../math/src/constants.ts'
 import type { ResolvedDepthOfField } from '../../../../../sdk-core/src/contracts/depthOfFieldOptions.ts'
 
 /**
@@ -11,7 +11,7 @@ import type { ResolvedDepthOfField } from '../../../../../sdk-core/src/contracts
  */
 
 /** The shapes: the circle, straight blades, blades of the radius the widest opening gives. */
-export type BokehShape = 'circle' | 'straight' | 'rounded'
+type BokehShape = 'circle' | 'straight' | 'rounded'
 
 /** The shape of the bokeh and what its tables are built from. */
 export interface BokehModel {
@@ -56,9 +56,9 @@ export const sameBokeh = (a: BokehModel, b: BokehModel) =>
 
 /** The straight blades of `count` blades on a circle of radius 1, scaled so their area is π. */
 function straight(count: number) {
-  const coverage = Math.PI / count
+  const coverage = PI / count
   const triangle = Math.cos(coverage) * Math.sin(coverage)
-  const circumscribed = 1 / Math.sqrt((count * triangle) / Math.PI)
+  const circumscribed = 1 / Math.sqrt((count * triangle) / PI)
   return {
     ...CIRCLE,
     shape: 'straight' as const,
@@ -70,7 +70,7 @@ function straight(count: number) {
 
 /** The blades of `count` blades rounded to a circle `ratio` times the corners' radius, of area π. */
 function rounded(count: number, ratio: number) {
-  const coverage = Math.PI / count
+  const coverage = PI / count
   // The blade's circle for a circle of corners of radius 1, the angle one blade shows of it, and the
   // distance from its centre to the bokeh's.
   const bladeRadius = ratio
@@ -80,7 +80,7 @@ function rounded(count: number, ratio: number) {
   const triangle = Math.cos(coverage) * Math.sin(coverage)
   const bladeTriangle = bladeRadius * bladeRadius * Math.cos(visible) * Math.sin(visible)
   const cap = bladeRadius * bladeRadius * visible - bladeTriangle
-  const upscale = Math.sqrt(Math.PI / (count * (triangle + cap)))
+  const upscale = Math.sqrt(PI / (count * (triangle + cap)))
   // Where the blade pivots, which fixes the rotation of the diaphragm.
   const pivotX = 0.5 * (bladeRadius - 1)
   const pivotY = Math.sqrt(bladeRadius * bladeRadius - pivotX * pivotX)
@@ -97,9 +97,7 @@ function rounded(count: number, ratio: number) {
 
 /** The bokeh of `volume`'s lens, with the squeeze `squeeze` of the circle of confusion's model. */
 export function compileBokehModel(volume: ResolvedDepthOfField, squeeze: number): BokehModel {
-  const count = clamp(volume.bladeCount, 4, 16)
-  const { aperture } = volume
-  const widest = Math.max(volume.minAperture, 0)
+  const { aperture, bladeCount: count, minAperture: widest } = volume
   if (aperture <= widest) return { ...CIRCLE, squeeze }
   if (widest === 0) return { ...straight(count), squeeze }
   return { ...rounded(count, aperture / widest), squeeze }

@@ -1,7 +1,7 @@
 import { bufferEntry, resourceEntry } from './liveEntries.ts'
 import { BLEND_BINDINGS, atlasLayoutEntries } from './bindLayout.ts'
 import { bufferLayout, storageTextureLayout, textureLayout } from '../core/computeBindings.ts'
-import { VSM_BLUE_NOISE_FORMAT } from '../../lighting/shadows/vsm/blueNoise.ts'
+import { BLUE_NOISE_FORMAT } from '../noise/blueNoiseTextures.ts'
 import { VSM_TRANSMISSION_FORMAT } from '../../lighting/shadows/vsm/transmission/transmissionLayout.ts'
 import { atlasEntries, type AtlasResources } from './bindEntries.ts'
 import { FRONT_TRACED_LAYOUT } from '../../lighting/reflections/frontLayer.ts'
@@ -102,7 +102,7 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   shadowTransmittance: ['fragment', storageTextureLayout(VSM_TRANSMISSION_FORMAT, '2d-array')],
   shadowPool: ['fragment', STORAGE],
   shadowView: ['fragment', UNIFORM],
-  shadowNoise: ['fragment', storageTextureLayout(VSM_BLUE_NOISE_FORMAT)],
+  shadowNoise: ['fragment', storageTextureLayout(BLUE_NOISE_FORMAT)],
   bounceGrid: ['fragment', UNIFORM],
   probes: ['fragment', FLOAT_ARRAY],
   tileLights: ['fragment', STORAGE],

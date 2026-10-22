@@ -1,27 +1,30 @@
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import { contextReader } from '../../../../sdk-core/src/contracts/settingRules.ts'
-import { hasClipPlane } from '../../../../sdk-core/src/contracts/viewOptions.ts'
+import { hasClipPlane, NO_CLIP_PLANE } from '../../../../sdk-core/src/contracts/viewOptions.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 /** The cut's setting `field` the session holds (`cutOptions.ts`), by its one resolver. */
 const cutSetting = contextReader(CUT_RULES)
 
 /**
- * WHETHER AND WHERE THE DRAWN VIEW CLIPS, for every pass that draws geometry beside the cut: the
- * host allows planes (`cutClipPlane`) and the view's camera has one (`Camera.clipPlane`,
- * `../../../../sdk-core/src/contracts/viewOptions.ts`). The one reading of the two, for the
- * rasters, the blends, the particles and the temporal jitter alike.
+ * WHETHER THE DRAWN VIEW CLIPS, for every pass that draws geometry beside the cut: the project
+ * switch is on (`cutClipPlane`, read once when the session opens, `WebgpuPagesSetup.clipping`) and
+ * the view's camera has a plane (`Camera.clipPlane`,
+ * `../../../../sdk-core/src/contracts/viewOptions.ts`). A view that does not clip holds a zero
+ * plane, which the programs made for the switch keep whole.
  */
 export function viewClips(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   // A stand-in camera no frame entry made (a bench's) carries no set, hence no plane.
   const set = cam.viewSet as EngineCamera['viewSet'] | undefined
-  return !!set && hasClipPlane(set.clipPlane) && cutSetting(rt, 'cutClipPlane')
+  return !!set && hasClipPlane(set.clipPlane) && !!rt.setup.clipping
 }
 
-/** Whether the cut culls by the view's plane (`cutClipPlaneCulling`): the split then hands a
- *  cluster that reaches behind it to the hardware raster (`../../visibility/raster/binWgsl.ts`). */
-export const clipPlaneCulls = (rt: WebgpuPagesRuntime) => cutSetting(rt, 'cutClipPlaneCulling')
+/** Whether the cut culls by the view's plane (`cutClipPlaneCulling`) while it clips: the split then
+ *  hands a cluster that reaches behind it to the hardware raster
+ *  (`../../visibility/raster/binWgsl.ts`, `clipRoute`). */
+export const viewClipRoutes = (rt: WebgpuPagesRuntime, cam: EngineCamera) =>
+  viewClips(rt, cam) && cutSetting(rt, 'cutClipPlaneCulling')
 
 /**
  * The view's plane written as four words at `at` of `out`, in the world, for a shader that keeps
@@ -36,11 +39,11 @@ export function writeViewClipPlane(
   at: number,
 ) {
   const clips = viewClips(rt, cam),
-    [x, y, z, w] = clips ? cam.viewSet.clipPlane : [0, 0, 0, 0]
-  out[at] = x
-  out[at + 1] = y
-  out[at + 2] = z
-  out[at + 3] = 0 - w
+    plane = clips ? cam.viewSet.clipPlane : NO_CLIP_PLANE
+  out[at] = plane[0]
+  out[at + 1] = plane[1]
+  out[at + 2] = plane[2]
+  out[at + 3] = 0 - plane[3]
   return clips
 }
 
@@ -50,4 +53,23 @@ const scratch = new Float64Array(4)
 export function viewClipPlane(rt: WebgpuPagesRuntime, cam: EngineCamera): ArrayLike<number> {
   writeViewClipPlane(rt, cam, scratch, 0)
   return scratch
+}
+
+/** The view's plane at `at` of `out` with the offset taken to the eye (`cam.eye`) — `dot(normal,
+ *  eye)` added to the offset `writeViewClipPlane` writes, in double precision, so that a reader
+ *  measures from the eye whatever the distance to the world's origin: the fog's
+ *  (`../../lighting/fog/viewSlots.ts`) and the cut's, whose frame the eye is the origin of
+ *  (`cutViewSet.ts`). Four zeros for a view that does not clip; returns whether it clips. */
+export function writeViewClipPlaneAtEye(
+  rt: WebgpuPagesRuntime,
+  cam: EngineCamera,
+  out: { [index: number]: number },
+  at: number,
+) {
+  // In double precision whatever `out` holds, rounded once on the way out.
+  const clips = writeViewClipPlane(rt, cam, scratch, 0),
+    { eye } = cam
+  scratch[3] += scratch[0] * eye[0] + scratch[1] * eye[1] + scratch[2] * eye[2]
+  for (let k = 0; k < 4; k++) out[at + k] = scratch[k]
+  return clips
 }

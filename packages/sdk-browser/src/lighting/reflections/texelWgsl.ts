@@ -31,7 +31,7 @@ import { luminance } from '../../../../math/src/wgsl/color.ts'
  *   (`REFLECTION_HISTORY_DISTANCE`), zero where none, as the clear writes it: it carries the surface
  *   it was resolved on into the next image, whose depth no longer holds it —, `z` the second moment of
  *   its luminance in the denoiser's space (`historyMoment`), `w` how many images it averages, not
- *   rounded (`historyCount`, `REFLECTION_HISTORY` at most), each an `f32`'s bits.
+ *   rounded (`historyCount`, the history's images at most), each an `f32`'s bits.
  *
  * `reflectionLinearDepth`: a clip point's depth that grows linearly along the view — its `w` under a
  * perspective, its `z` under an orthographic projection —, `surfaceLinearDepth` the one of a world
@@ -45,7 +45,7 @@ import { luminance } from '../../../../math/src/wgsl/color.ts'
  * (`REFLECTION_CREASE_FAR`).
  *
  * THE DENOISER'S SPACE: every mean of radiance — the resolve's, the accumulation's, the last pass's — is
- * taken on `reflectionDenoised` radiance, c / (1 + L(c)·e / `REFLECTION_DENOISER_RANGE`), L the
+ * taken on `reflectionDenoised` radiance, c / (1 + L(c)·e / the tonemap range), L the
  * luminance and e the view's exposure, and turned back by `reflectionLinear`: under the range a radiance is itself, past it it weighs as the
  * range, so one sample of a headlight in a lobe's tail is a bright sample, not a thousandfold one that
  * lights a block.
@@ -110,7 +110,7 @@ fn reflectionSameSurface(spanOf:vec2f,depth:f32,N:vec3f,other:f32,otherN:vec3f,p
  let near=1.0-smoothstep(span,2.0*span,abs(other-depth));
  return near*smoothstep(REFLECTION_CREASE_FAR,REFLECTION_CREASE_NEAR,dot(N,otherN));
 }
-fn reflectionToneScale()->f32{return view.lightParams.w/REFLECTION_DENOISER_RANGE;}
+fn reflectionToneScale()->f32{return select(0.0,view.lightParams.w/reflectionView.denoise.w,reflectionView.denoise.w>0.0);}
 fn reflectionDenoised(c:vec3f)->vec3f{return c/(1.0+luminance(c)*reflectionToneScale());}
 fn reflectionLinear(d:vec3f)->vec3f{return d/max(1.0-luminance(d)*reflectionToneScale(),REFLECTION_EPSILON);}`,
 )

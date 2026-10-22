@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import {
   blurring,
+  drawn,
   frameOf,
   input as resolved,
   loaded,
@@ -25,8 +26,6 @@ import {
   TWO_SCENES,
   twoStreak,
   near,
-  packFlat,
-  unpackFlat,
   weighedStreak,
   type Vec,
 } from './motionBlur/motionBlurRun.fixture.ts'
@@ -118,23 +117,6 @@ test('each tile suggests the cheapest class that gives its motion its due', () =
     [4, 4, 0],
   )
   assert.deepEqual([twice([3, 0, 4, 0], [0, 0.4]), twice([0, 0, 20, 0], [0, 0])], [1, 2])
-})
-
-test('the flattened motion is one word of 11-11-10 unsigned floats, to the precision they hold', () => {
-  for (const [length, angle, depth] of [
-    [0, 0, 0],
-    [1, 0.5, 2],
-    [37.3, 0.123, 1234.5],
-    [4096, 1, 64000],
-    [3e-6, 0.00003, 0.001],
-  ]) {
-    const [l, a, d] = unpackFlat(packFlat(length, angle, depth))
-    assert.ok(Math.abs(l - length) <= length / 128 + 2 ** -20, `length ${length} → ${l}`)
-    assert.ok(Math.abs(a - angle) <= angle / 128 + 2 ** -20, `angle ${angle} → ${a}`)
-    assert.ok(Math.abs(d - depth) <= depth / 64 + 2 ** -19, `depth ${depth} → ${d}`)
-  }
-  assert.deepEqual(unpackFlat(packFlat(1e9, 1e9, 1e9)), [65024, 65024, 64512], 'held to the range')
-  assert.equal(packFlat(1, 0, 0) >>> 0, 0x3c0 << 0, 'a length of 1: exponent 15 in the low 11 bits')
 })
 
 test('a streak is the mean of the samples it is asked for; of one motion and one depth, weighed whole', () => {
@@ -279,18 +261,33 @@ test('the largest motions are spread by drawing past three tiles of streak, or w
 })
 
 test('an idle motion blur is no pass: nothing is drawn, nor compiled', async () => {
-  const { gpu, effects } = await loaded()
+  const { gpu, effects, after } = await loaded()
   const { encoder, passes } = recorder(gpu)
   const blur = effect.motionBlur({ amount: 0 })
-  assert.equal(effects.readyResolved([blur]), true)
-  assert.equal(effects.resolve(encoder, [blur], resolved, frameOf(gpu, 64, 32)), resolved)
+  assert.equal(after.ready(drawn([blur])), true)
+  assert.equal(after.resolve(encoder, drawn([blur]), resolved, frameOf(gpu, 64, 32)), resolved)
   assert.deepEqual([passes.length, gpu.computePipelines.length, effects.bytes], [0, 0, 0])
 })
 
+test('the view sets the strength and the longest streak a pass draws with: its overrides revive or silence it', () => {
+  const draws = (pass: ReturnType<typeof effect.motionBlur>, session: object) =>
+    drawn([pass], session).length
+  const idle = effect.motionBlur({ amount: 0 }),
+    plain = effect.motionBlur()
+  assert.deepEqual([draws(idle, {}), draws(plain, {})], [0, 1])
+  // An override from 0 up replaces the pass's value, the scale then not applying; −1 leaves it.
+  assert.equal(draws(idle, { motionBlurAmountOverride: 0.5 }), 1, 'a strength the view gives')
+  assert.equal(draws(idle, { motionBlurScale: 50 }), 0, 'a scale of nothing is nothing')
+  assert.equal(draws(plain, { motionBlurAmountOverride: 0 }), 0, 'silenced')
+  assert.equal(draws(plain, { motionBlurMaxOverride: 0 }), 0, 'no longest streak')
+  assert.equal(draws(plain, { motionBlurScale: 0 }), 0, 'no strength')
+  assert.equal(draws(plain, { motionBlurScale: 0, motionBlurAmountOverride: 0.5 }), 1)
+})
+
 test('an image drawn below the largest size lies in the top-left of images of the largest', async () => {
-  const { gpu, effects, chain, encoder } = await blurring({}, {})
+  const { gpu, effects, chain, encoder, after } = await blurring({}, {})
   const frame = frameOf(gpu, 32, 16, {}, [64, 32])
-  assert.notEqual(effects.resolve(encoder, chain, resolved, frame), resolved)
+  assert.notEqual(after.resolve(encoder, chain, resolved, frame), resolved)
   assert.equal(effects.bytes, motionBlurBytes(64, 32), 'the images are made at the largest size')
   const words = wordsOf(gpu.writes[0].buffer).slice(0, 4)
   assert.deepEqual([...words], [32, 16, 1 / 32, 1 / 16], 'the blur is of the size drawn')

@@ -1,4 +1,5 @@
 import { preparedComputeStage } from '../../gpu/core/computeStages.ts'
+import { uniformBlock } from '../../gpu/core/uniformBlock.ts'
 import {
   computeBufferEntry,
   computeSamplerEntry,
@@ -7,17 +8,12 @@ import {
   computeUniformEntry,
 } from '../../gpu/core/computeBindings.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
-import {
-  budgetRefused,
-  ledgerReplacing,
-  ledgerRoom,
-  ledgerTentative,
-} from '../../gpu/core/deviceLedger.ts'
+import { ledgerAdmitted } from '../../gpu/core/deviceLedger.ts'
 import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
 import { hizDepthEntries } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { FOG_VOLUME_FRAME_WORDS, type FogGrid } from './layout.ts'
 import { FOG_BINDING, FOG_PROGRAM_BINDINGS, FOG_PROGRAMS, type FogProgramName } from './programs.ts'
-import { FOG_VOLUME_FORMAT } from './read.ts'
+import { createFogSampler, FOG_VOLUME_FORMAT } from './read.ts'
 
 /** The layout entry of each binding of the volume's programs, by name; the pyramid's three
  *  (`hizDepthEntries`) are made where a program names it. */
@@ -144,17 +140,17 @@ const volumeBytes = (grid: FogGrid) =>
  * none, and asked again at the next image.
  */
 export function createFogVolumeResources(device: GPUDevice, failed: (error: unknown) => void) {
-  const frameBuffer = device.createBuffer({
-    label: 'Trillion3D fog frame',
-    size: FOG_VOLUME_FRAME_WORDS * 4,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
+  const frame = uniformBlock(device, 'Trillion3D fog frame', FOG_VOLUME_FRAME_WORDS * 4)
   const programs = createFogPrograms(device, failed)
   let textures: VolumeTextures | undefined
   let generation = 0
   return {
-    frameBuffer,
+    /** The frame the passes read: its words, written each image, and its buffer, sent by what
+     *  changed (`uniformBlock`). */
+    frame,
     programs,
+    /** The sampler the scatter reads the previous volume through (the one of the device). */
+    sampler: createFogSampler(device),
     /** How many times the textures were made. */
     get generation() {
       return generation
@@ -170,17 +166,14 @@ export function createFogVolumeResources(device: GPUDevice, failed: (error: unkn
       const replaced = textures ? volumeBytes(textures.grid) : 0
       if (textures) this.release()
       // The volume is an optional allocation, the analytic fog its fallback: made under the ledger's
-      // tentative admission, the memory it replaces counted out (`ledgerReplacing`).
-      if (volumeBytes(grid) - replaced > ledgerRoom(device)) return undefined
-      try {
-        textures = ledgerTentative(device, () =>
-          ledgerReplacing(device, replaced, () => createVolumeTextures(device, grid)),
-        )
-      } catch (error) {
-        if (!budgetRefused(error)) throw error
-        return undefined
-      }
-      generation++
+      // tentative admission, the memory it replaces counted out (`ledgerAdmitted`).
+      textures = ledgerAdmitted(device, {
+        replaced,
+        asked: volumeBytes(grid),
+        what: 'the fog volume',
+        make: () => createVolumeTextures(device, grid),
+      }).value
+      if (textures) generation++
       return textures
     },
     /** Retires the textures held: they may be named by this image's commands. */
@@ -192,7 +185,7 @@ export function createFogVolumeResources(device: GPUDevice, failed: (error: unkn
     },
     dispose() {
       this.release()
-      frameBuffer.destroy()
+      frame.buffer.destroy()
     },
   }
 }

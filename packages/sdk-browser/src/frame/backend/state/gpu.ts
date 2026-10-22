@@ -9,8 +9,7 @@ import type { TemporalAntialiasing } from '../../../post/taa/temporalAntialiasin
 import type { Velocity } from '../../../post/taa/velocity.ts'
 import type { ScreenProbeView } from '../../../lighting/bounce/screen/view.ts'
 import type { AmbientOcclusion } from '../../../lighting/ao/frame.ts'
-import type { BlurWatch, DepthOfFieldWatch } from '../../../post/effects/blurPlan.ts'
-import type { BloomWatch } from '../../../post/effects/bloom/bloomSettings.ts'
+import { createKindSettings, type KindSettings } from '../../../post/effects/kindSettings.ts'
 import type { ExposureMeter } from '../../../post/exposure/meter.ts'
 import type { Finish } from '../../../post/finish/finish.ts'
 import { isTaaLevelOn } from '../../../post/taa/levels.ts'
@@ -107,14 +106,9 @@ export interface WebgpuGpuState {
   /** Revision of the chain the last encoded image drew, -1 while its programs compile: another
    *  one breaks the hold. */
   effectsRevision: number
-  /** The view's reading of the motion blur's settings (`MOTION_BLUR_RULES`): another reading breaks
-   *  the hold (`../../../post/effects/blurPlan.ts`); none before the first image. */
-  motionBlurWatch: BlurWatch | undefined
-  /** The same for the depth of field's settings (`DEPTH_OF_FIELD_RULES`). */
-  depthOfFieldWatch: DepthOfFieldWatch | undefined
-  /** The view's reading of the bloom's settings (`BLOOM_RULES`): another reading breaks the hold
-   *  (`../../../post/effects/bloom/bloomSettings.ts`); none before the first image. */
-  bloomWatch: BloomWatch | undefined
+  /** The view's reading of the settings of the effect kinds (`../../../post/effects/kindSettings.ts`):
+   *  another reading breaks the hold; made with the state, the chain's code not loaded yet. */
+  kindSettings: KindSettings
   /** The guide pass, built by the first image that shows a guide (`guidePass.ts`). */
   guides: WebgpuGuidePass | undefined
   /** Revision of the page's guides the last encoded image drew (`encodeGuides.ts`). */
@@ -184,9 +178,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     finishPending: false,
     effects: undefined,
     effectsRevision: 0,
-    motionBlurWatch: undefined,
-    depthOfFieldWatch: undefined,
-    bloomWatch: undefined,
+    kindSettings: createKindSettings(),
     guides: undefined,
     guideRevision: 0,
     particles: undefined,

@@ -1,7 +1,7 @@
 // What the virtual shadow maps ask of the GPU budget before the frame makes them: their mask with
 // the frame targets, the set the first lit frame draws, reserved before the pools grant themselves.
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
-import { castingCount, directionalCount, fullMapsFor } from './vsmLightMaps.ts'
+import { castingCount, fullMapsFor, sunMapsFor } from './vsmLightMaps.ts'
 import { ensureMasks, masksGrowth, sharedMaskSize } from './vsmMask.ts'
 import { ledgerTentative } from '../../../../gpu/core/deviceLedger.ts'
 import { deviceWaiting } from '../../../../gpu/core/refusal.ts'
@@ -49,7 +49,7 @@ export function vsmReserveBytes(rt: WebgpuPagesRuntime) {
     vsmRefusal &&
     deviceWaiting(vsmRefusal, rt.run.frame) &&
     vsmRefusal.wanted === wanted &&
-    vsmRefusal.directional === directionalCount(list)
+    vsmRefusal.sunMaps === sunMapsFor(list)
   if (refused) return 0
   const rows = rt.lights.spheres ? 0 : shadowRowBytes(rt.layout.rows.casterSlots)
   return Math.max(0, vsmSetBytes(rt, device, list) - shadowHeldBytes(rt)) + rows

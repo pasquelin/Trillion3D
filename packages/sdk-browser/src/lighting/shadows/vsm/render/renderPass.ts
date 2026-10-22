@@ -30,10 +30,17 @@
  * same chunks of rows over each pass's own views. The candidates are the frame's, listed once; the
  * commands and pairs of a pass are sized for the most maps and mips any pass holds.
  *
+ * A light is a culling volume: a caster is tested once against each light's — a local light's
+ * range sphere, a sun's far-shadow distance (`vsmRenderCull`) — and only a caster the volume holds
+ * goes on to cull against the maps of that light, those with a page to draw (`vsmRenderViews`
+ * lists the lights, from the table `vsmWriteLights` lays, and their listed maps).
+ *
  * Order (one frame per submit: parameters go through `queue.writeBuffer`):
  *   clear counters → vsmRenderCandidates (rows)
- *   per view pass (the second on: clear the views' count): vsmRenderViews → vsmRenderArgsCull
- *   per chunk: vsmRenderCull (indirect) → vsmRenderArgsExpand → vsmRenderBin (indirect) →
+ *   per view pass (the second on: clear the lights' and the runs' counts): vsmRenderViews (a thread
+ *              a light) → vsmRenderArgsCull
+ *   per chunk: vsmRenderCull (indirect, a thread a caster and a listed light) →
+ *              vsmRenderArgsExpand → vsmRenderBin (indirect) →
  *              vsmRenderExpand (indirect, once a corner tier, over its commands) →
  *              vsmRenderArgsDraw → raster pass, one drawIndirect a tier into a 128×128 dummy
  *              target.
@@ -54,9 +61,11 @@ import {
 } from '../chunks/chunkLists.ts'
 import {
   vsmWriteChunkParams,
+  vsmWriteLights,
   type VsmRenderCamera,
   type VsmRenderChunking,
 } from '../chunks/chunkParams.ts'
+import type { VsmShadowTessellation } from '../tessellation/shadowChain.ts'
 import { RENDER_LABEL, vsmRenderContext } from './renderPipes.ts'
 import { renderChunking, renderSizes } from './renderBudget.ts'
 import { vsmViewPasses, vsmViewsPerPass } from './renderViewPasses.ts'
@@ -113,6 +122,13 @@ export interface VsmRenderScene {
   /** The greatest far-shadow distance of the frame's lights when each is a sun that has one, else 0
    *  or absent (`farDropOf`): a caster past it is in no map view. */
   farDrop?: number
+  /** The least share of the main view's distance a caster's object may span, as a radius over its
+   *  distance, to be drawn into a map that is redrawn whole (`shadowRadiusThreshold`): the cull
+   *  leaves a smaller one out of such a map; 0 or absent, none. */
+  radiusThreshold?: number
+  /** The tessellation of the displaced surfaces' pairs, while the frame has one
+   *  (`vsmShadowTessellation`): its `kinds` say which maps take it, and the chunks run it. */
+  tessellation?: VsmShadowTessellation
   /** Whether the lights whose maps would pass what a pass lists are drawn in several passes
    *  (`shadowMultipassViews`, `vsmViewPasses`); false puts every light in one. */
   multipassViews: boolean
@@ -171,6 +187,7 @@ export function vsmRenderContextBytes(res: VsmResources) {
 const range = { first: 0, end: 0, candidates: 0 }
 const chunking: VsmRenderChunking = {
   rowCount: 0,
+  lights: 0,
   chunks: 0,
   chunkRows: 0,
   cmds: 0,
@@ -199,7 +216,9 @@ export function encodeVsmRender(
   const asked = renderChunking(device.limits, res.layout.poolPages, mostMips, scene.rowCount)
   range.end = range.candidates = scene.rowCount
   const chosen = vsmChunkRows(ctx.rowBound, scene.rowSpheres, range, frame.lights, asked)
-  const sizing = renderSizes(scene.rowCount, 4 * mostMaps, chosen, ctx.slots, passes.length)
+  const lights = frame.lights.length
+  const words = 4 * (lights + mostMaps)
+  const sizing = renderSizes(scene.rowCount, words, lights, chosen, ctx.slots, passes.length)
   const within = vsmChunkRowsWithin(device, ctx.buffers, chosen.rows, sizing.sizes, sizing.within)
   const roomLimited = within.limited,
     size = within.size
@@ -207,8 +226,10 @@ export function encodeVsmRender(
   if (!size) return { chunks: 0, chunkRows, roomLimited }
   const chunks = ceilDiv(scene.rowCount, chunkRows)
 
-  const { params, counts, args } = vsmEnsureLists(ctx, RENDER_LABEL, size)
+  const { params, counts, args, lights: table } = vsmEnsureLists(ctx, RENDER_LABEL, size)
+  vsmWriteLights(device, table, frame.lights)
   chunking.rowCount = scene.rowCount
+  chunking.lights = lights
   chunking.chunks = chunks
   chunking.chunkRows = chunkRows
   chunking.cmds = chosen.cmds(chunkRows)
@@ -219,7 +240,16 @@ export function encodeVsmRender(
 
   const tables = renderGroups(ctx, res, scene)
   const world = vsmWorldGroup(device, ctx.world, ctx.candidates.groups[1], scene.world)
-  const { pageGroup, rowCount, voxels } = scene
-  vsmEncodeChunks(encoder, ctx, tables, world, pageGroup, args, rowCount, chunks, passes, voxels)
+  vsmEncodeChunks(
+    encoder,
+    ctx,
+    tables,
+    world,
+    scene.pageGroup,
+    args,
+    chunking,
+    scene.voxels,
+    scene.tessellation,
+  )
   return { chunks, chunkRows, roomLimited }
 }

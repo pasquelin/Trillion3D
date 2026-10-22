@@ -16,6 +16,7 @@ import type { ShadowOptions } from '../../../../sdk-core/src/contracts/shadowOpt
 import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import type { DepthOfFieldSettings } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
 import type { BloomSettings } from '../../../../sdk-core/src/contracts/bloomRules.ts'
+import type { GaussianBlurSettings } from '../../../../sdk-core/src/contracts/gaussianBlurRules.ts'
 import type { FilmSettings } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 import type { AmbientOcclusionOptions } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import type { ScreenProbeOptions } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
@@ -38,7 +39,8 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  `worldStreamingLocationQuantization` (4 m), `worldStreamingRotationQuantization` (10°),
  *  `worldStreamingForceUpdateFrameCount` (0), `worldStreamingForce2D` (false),
  *  `worldStreamingExtraRadius` (0 m), `worldStreamingExtraAngle` (0°),
- *  `worldStreamingTargetState` (`'activated'`), `hlodEnabled` (true), `hlodWarmup` (true),
+ *  `worldStreamingTargetState` (`'activated'`), `worldStreamingPriority` (128),
+ *  `worldStreamingUseVelocity` (false), `hlodEnabled` (true), `hlodWarmup` (true),
  *  `hlodWarmupFrames` (5),
  *  `hlodWarmupGeometry` (true), `hlodWarmupTextures` (true), `hlodWarmupTextureScale` (2),
  *  `hlodWarmupTextureClamp` (2048).
@@ -47,7 +49,8 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  (`../../../../sdk-core/src/contracts/cutOptions.ts`): `cutTwoPassOcclusion` (true),
  *  `cutOcclusionCulling` (true), `cutFrustumCulling` (true), `cutMinLodCulling` (true),
  *  `cutDrawDistanceCulling` (true), `cutViewDistanceScale` (1; the view distance's quality levels
- *  write it), `cutClipPlane` (false: a camera's `clipPlane` applies only once it is on),
+ *  write it), `cutClipPlane` (false: a camera's `clipPlane` applies only in a world made with it on,
+ *  the one setting read once, when the session opens),
  *  `cutClipPlaneCulling` (true), `cutViewFiltering` (true: a camera's `hidden` and `showOnly`
  *  lists apply), `cutLodBiasFollowsUpscale` (true), `cutLodBiasOffset` (0), `cutLodBiasMin` (-2),
  *  `cutMaxNodes` (2097152), `cutMaxCandidateClusters` (16777216), `cutMaxVisibleClusters`
@@ -78,7 +81,10 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  their object sets `castFarShadow` —, `farShadowCullsAllMeshes` (false) — whether that test
  *  reaches every caster, or only the world's merged shells of its coarser levels —,
  *  `shadowNearLevels` (10, from 0 to 10, at most the light's four), `shadowOverlapScale` (1, from 0
- *  to 2) and `shadowFarField` (true) — the three that shape the edge —; changed later by
+ *  to 2) and `shadowFarField` (true) — the three that shape the edge —, and the shadow maps' own
+ *  (`../../../../sdk-core/src/contracts/shadowMapOptions.ts`: the clipmap's levels and depth range,
+ *  the coarse pages, the resolution biases, the radius threshold, the rays and steps of a trace and
+ *  the page pool); changed later by
  *  `world.shadows`. The motion blur's
  *  drawing likewise (`../../../../sdk-core/src/contracts/motionBlurOptions.ts`):
  *  `motionBlurQuality` (`'veryHigh'`, or `'off'`, `'low'`, `'medium'`, `'high'`: 16 samples a pixel
@@ -86,14 +92,17 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  (true), `motionBlurSeparable` (false), `motionBlurScatter` (false) and `motionBlurDirections`
  *  (1, or 2); changed later by
  *  `world.motionBlur`. The depth of field's drawing likewise
- *  (`../../../../sdk-core/src/contracts/depthOfFieldRules.ts`): `depthOfFieldQuality` (`'high'`, or `'off'`, `'low'`,
- *  `'veryHigh'`, `'extreme'`), `depthOfFieldGatherDivisor` (2), `depthOfFieldAccumulator` (`'high'`),
+ *  (`../../../../sdk-core/src/contracts/depthOfFieldRules.ts`): `depthOfFieldQuality` (`'on'`, or `'off'`),
+ *  `depthOfFieldGatherDivisor` (2), `depthOfFieldAccumulator` (`'high'`),
  *  `depthOfFieldRingCount` (4), `depthOfFieldPostfilter` (`'median'`), the scatter's and the recombine's settings
  *  and the others the file lists, each the reference's default; changed later by `world.depthOfField`. The bloom's drawing likewise
  *  (`../../../../sdk-core/src/contracts/bloomRules.ts`): `bloomQuality` (`'highest'`, or `'off'`,
  *  `'lowest'`, `'low'`, `'medium'`, `'high'`: how many of the six Gaussian levels draw), `bloomCross`
- *  (0), `bloomScreenPercentage` (100: the convolution's resolution), `bloomApplyLocalExposure` (true)
- *  and `bloomCacheKernel` (true); changed later by `world.bloom`. The film effects' likewise
+ *  (0), `bloomScreenPercentage` (50: the convolution's resolution), `bloomApplyLocalExposure` (true)
+ *  and `bloomCacheKernel` (true); changed later by `world.bloom`. The Gaussian blur's likewise
+ *  (`../../../../sdk-core/src/contracts/gaussianBlurRules.ts`): `gaussianFastBlurThreshold` (100: the
+ *  radius a blur's first pass is halved from), `gaussianSampleScale` (1: the kernel's reach) and
+ *  `gaussianLoopMode` (0: the most reads of a pass); changed later by `world.gaussianBlur`. The film effects' likewise
  *  (`../../../../sdk-core/src/contracts/filmOptions.ts`): the grain (`filmGrain…`, off by
  *  default), the colour fringe (`chromaticAberration…`, off), the vignette's look (`vignette…`,
  *  beside the scene's strength), `tonemapperQuality` (5), `tonemapperSharpen` (−1: the scene's),
@@ -103,10 +112,11 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  (`'max'`; `'off'` draws none, `'high'`, `'max'` and `'cinematic'` set the grid's cell size and
  *  depth and the history's samples) and eleven settings it is read with, changed later by
  *  `world.volumetricFog`; the fog only exists in a scene whose fog sets `volumetric`. The reflections'
- *  trace likewise (`../../../../sdk-core/src/contracts/reflectionOptions.ts`): `reflectionScreenSteps` (50,
- *  the iterations of a reflected ray's march of the screen, from 1 to 256) and `reflectionRingSteps` (256,
- *  the steps it takes in each of the scene's four rings, from 1 to 4096), changed later by
- *  `world.reflections`. The screen-space ambient occlusion's likewise
+ *  trace likewise (`../../../../sdk-core/src/contracts/reflectionOptions.ts`): `reflectionScreenSteps` (50, the
+ *  iterations of a reflected ray's march of the screen), `reflectionRingSteps` (256, the steps it takes in each of the
+ *  scene's four rings), `reflectionMeshTraces` (true) and `reflectionDetailSteps` (64), its detail window, and
+ *  `reflectionDistantScreenTraces` (true), `reflectionDistantScreenSteps` (16) and `reflectionDistantScreenDistance`
+ *  (2000 m), the far screen trace, changed later by `world.reflections`. The screen-space ambient occlusion's likewise
  *  (`../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts`): `ambientOcclusion` (true: the master
  *  switch), `ambientOcclusionIntensity` (0.5; 0 is off), `ambientOcclusionRadius` (2 m) and its
  *  `ambientOcclusionRadiusInWorldSpace` (false), `ambientOcclusionFadeDistance` (80 m) and
@@ -147,6 +157,7 @@ export interface WorldOptions
     MotionBlurSettings,
     DepthOfFieldSettings,
     BloomSettings,
+    GaussianBlurSettings,
     FilmSettings,
     VolumetricFogOptions,
     TessellationOptions,

@@ -149,7 +149,7 @@ fn gatherLayer(@builtin(global_invocation_id) gid:vec3u,@builtin(workgroup_id) w
  gp.rings=RINGS;
  gp.maxRings=RINGS;
  gp.viewport=(vec2f(id)+0.5)/vec2f(view.gather.xy);
- gp.centre=(vec2f(id)+0.5)/vec2f(view.tiles.zw);
+ gp.centre=(vec2f(id)+0.5)*(vec2f(view.pre.xy)/vec2f(view.gather.xy))/vec2f(view.tiles.zw);
  gp.random=vec2f(interleavedGradientNoise(vec2f(id),0.0),interleavedGradientNoise(vec2f(id),1.0));
  gp.fast=false;
  gp.density=D_CONSTANT;

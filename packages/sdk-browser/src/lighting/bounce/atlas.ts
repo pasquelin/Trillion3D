@@ -23,7 +23,7 @@ export const BOUNCE_ATLAS_FORMAT: GPUTextureFormat = 'rgba32float'
 export const PROBE_TEXELS = PROBE_FLOATS / 4
 
 /** Probes along a row of the pool's layer: a power of two, so that a slot's row is a shift. */
-const POOL_ROW_PROBES = 128
+export const POOL_ROW_PROBES = 128
 
 /** The layers of the atlas: the pool's probes, then the table that names them. */
 const POOL_LAYER = 0

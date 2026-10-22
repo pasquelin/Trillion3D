@@ -96,7 +96,7 @@ export function flip(field: EnergyField, pixel: number, on: boolean) {
 }
 
 /** Which pixel an extremum looks for: the tightest cluster, or the largest void. */
-export type Extremum = 'cluster' | 'void'
+type Extremum = 'cluster' | 'void'
 
 /** The chunks' best pixels and the tournament over them, for one kind of extremum. */
 export interface ExtremumTree {

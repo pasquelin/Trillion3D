@@ -77,3 +77,24 @@ fn multiple_buffers_still_pack_and_validate_embedded_length() {
     );
     fs::remove_dir_all(&dir).expect("cleanup");
 }
+
+// Behaviour: a binary made growable keeps its bytes and has the room a pass asked for — a mapped
+// one copied once with it, an owned one grown in place — so that appending what was asked
+// reallocates nothing.
+#[test]
+fn a_binary_made_growable_has_the_room_asked_for() {
+    let dir = scratch("glb", "grow");
+    fs::write(dir.join("bytes.bin"), [1u8, 2, 3, 4]).expect("bytes");
+    let mapped = Binary::Mapped(map_source(&dir.join("bytes.bin")).expect("map"));
+    let mut grown = mapped.into_owned(100).expect("copy");
+    assert_eq!(grown, [1, 2, 3, 4]);
+    assert!(grown.capacity() >= 104);
+    let room = grown.capacity();
+    grown.extend([0u8; 100]);
+    assert_eq!(grown.capacity(), room, "the room asked for was enough");
+    let mut owned = Binary::Owned(vec![9, 8, 7]).into_owned(50).expect("grown");
+    assert_eq!(owned, [9, 8, 7]);
+    assert!(owned.capacity() >= 53);
+    owned.clear();
+    fs::remove_dir_all(&dir).expect("cleanup");
+}

@@ -3,9 +3,9 @@ import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { ScreenProbeFrameMetrics } from '../../../../../sdk-core/src/contracts/shadowMetrics.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
-import { wantsContractLighting } from '../../../frame/prepare/contractLight.ts'
-import { drawsLit } from '../../../visibility/shader/shadeMode.ts'
+import { blueNoiseNow, blueNoiseRefused } from '../../../gpu/noise/blueNoiseTextures.ts'
 import { reflectionGroup, reflectionLightView, reflectionProxy } from '../../reflections/group.ts'
+import { screenProbesCast } from './cast.ts'
 import { encodeScreenProbes as encodePass } from './encode.ts'
 import { createScreenProbeGroups } from './groups.ts'
 import type { ScreenProbeInputs } from './groupParts.ts'
@@ -18,7 +18,13 @@ import { screenProbeVectors } from './vectorSource.ts'
 function metricsOf(
   settings: ScreenProbeSettings,
   geometry: ScreenProbeGeometry | undefined,
-  read: { history?: boolean; screen?: boolean; velocity?: boolean; bytes?: number },
+  read: {
+    history?: boolean
+    screen?: boolean
+    velocity?: boolean
+    bytes?: number
+    cacheBytes?: number
+  },
   unavailable: string | null,
 ): ScreenProbeFrameMetrics {
   const g = geometry
@@ -28,20 +34,24 @@ function metricsOf(
     uniformProbes: g?.uniform ?? 0,
     adaptiveCapacity: g?.maxAdaptive ?? 0,
     tracingResolution: settings.tracingResolution,
-    raysPerImage: g ? (g.uniform + g.maxAdaptive) * g.tracing * g.tracing : 0,
-    atlas: g ? [g.tilesX, g.rows] : [0, 0],
+    raysPerImage: g && settings.casts ? (g.uniform + g.maxAdaptive) * g.tracing * g.tracing : 0,
+    atlas: g && settings.casts ? [g.tilesX, g.rows] : [0, 0],
     history: !!read.history,
-    screenTraces: !!read.screen && settings.screenTraces,
-    sceneTraces: !!g && settings.sceneTraces,
-    meshTraces: !!g && settings.sceneTraces && settings.meshTraces,
+    screenTraces: settings.casts && !!read.screen && settings.values.screenProbeScreenTraces,
+    sceneTraces: !!g && settings.casts && settings.values.screenProbeSceneTraces,
+    meshTraces:
+      !!g && settings.casts && settings.values.screenProbeSceneTraces && settings.meshTraces,
     velocity: !!read.velocity,
     bytes: read.bytes ?? 0,
+    radianceCache: !!read.cacheBytes && settings.radianceCache,
+    radianceCacheResolution: read.cacheBytes ? settings.cache.resolution : 0,
+    radianceCacheBytes: read.cacheBytes ?? 0,
     unavailable,
   }
 }
 
 /** What an image needs of the frame to cast probes, or nothing while the frame lacks any of it: the device, the
- *  reflection (its depth pyramid, its last lit image, its view), the G-buffer, the lights and the lighting. */
+ *  reflection (its depth pyramid, its last lit image, its view), the G-buffer, the lights, the lighting and the blue noise. */
 function neededOf(rt: WebgpuPagesRuntime) {
   const { gpu, vis, lights, run } = rt
   const { device, reflection, surfaces, deferred } = gpu
@@ -56,27 +66,47 @@ function neededOf(rt: WebgpuPagesRuntime) {
     !lightView ||
     !vis.reflectionPipelines ||
     !lights.buffer ||
-    !run.depthDrawn ||
-    !wantsContractLighting(rt) ||
-    !drawsLit(run.diagnostic)
+    !run.depthDrawn
   )
     return undefined
-  return { device, reflection, surfaces, deferred, depth, lightView, lights: lights.buffer }
+  const noise = blueNoiseNow(device)
+  return (
+    noise && {
+      device,
+      reflection,
+      surfaces,
+      deferred,
+      depth,
+      lightView,
+      lights: lights.buffer,
+      noise,
+    }
+  )
 }
+
+/** Why the blue noise is not there to read, or nothing where it is. */
+const noiseWhy = (device: GPUDevice | undefined) =>
+  device && !blueNoiseNow(device)
+    ? blueNoiseRefused(device)
+      ? 'the blue noise was refused'
+      : 'the blue noise is loading'
+    : undefined
 
 /** The frame's resources the probes read, handed to `castProbes`. */
 type Needed = NonNullable<ReturnType<typeof neededOf>>
 
 /** What the groups name of the frame: its normals and flags, the lights and their lists, the cascades (or the
- *  lighting's stand-ins), the proxy the rays walk and the vectors of the image (or the stand-in of none). */
+ *  lighting's stand-ins), the proxy the rays walk, the vectors of the image (or the stand-in of none) and the blue noise (made:
+ *  the image asked for it before it cast). */
 function inputsOf(
   rt: WebgpuPagesRuntime,
-  { device, surfaces, deferred, lights }: Needed,
+  { device, surfaces, deferred, lights, noise }: Needed,
   store: ScreenProbeStore,
   vectors: GPUTextureView | undefined,
 ): ScreenProbeInputs {
   const frames = surfaces.views(),
     probes = rt.bounce.probes
+  const cache = probes?.cache.views ?? store.noCache(device)
   return {
     normals: frames[1],
     flags: frames[3],
@@ -86,6 +116,11 @@ function inputsOf(
     probes: probes?.probes ?? deferred.placeholders.probes,
     proxy: reflectionProxy(rt)!,
     vectors: vectors ?? store.noVectors(device),
+    blue: noise.view,
+    cacheFinal: cache.final,
+    cacheRaw: cache.raw,
+    cacheTags: cache.tags,
+    cachePdf: cache.pdf,
   }
 }
 
@@ -97,7 +132,7 @@ function groupsOf(
   kernels: NonNullable<ScreenProbeView['kernels']>,
   settings: ScreenProbeSettings,
 ) {
-  const parity = settings.spatialFilterPasses & 1
+  const parity = settings.casts ? settings.spatialFilterPasses & 1 : 0
   if (view.kernels !== kernels || view.parity !== parity) {
     if (view.parity !== undefined && view.parity !== parity) view.history = false
     view.kernels = kernels
@@ -140,12 +175,13 @@ function castProbes(
     sameValues(held.viewProjection, state.viewProjection)
   const screen = reflection.frame.depthDrawn && held.valid
   const velocity = history && !!vectors
+  const cacheViews = rt.bounce.probes?.cache.views
   invertMatrix4(state.previousInverse, held.viewProjection)
   state.write(geometry, settings, {
     frame: state.frame,
     history,
     screen,
-    field: !!rt.bounce.probes,
+    cache: !!cacheViews && settings.radianceCache,
     velocity,
     previousInverse: state.previousInverse,
   })
@@ -155,13 +191,27 @@ function castProbes(
     groups: groups(state.turn, inputsOf(rt, needed, store, vectors)),
     reflection: reflectionGroup(reflection, depth, lightView),
     settings,
+    cache: rt.bounce.probes?.cache,
   })
+  const { values } = settings
+  needed.deferred.setScreenProbes(
+    +values.screenProbeMaterialAO,
+    values.screenProbeOcclusionMaxAlbedo,
+    values.screenProbeOcclusionIntensity,
+    settings.casts ? 0 : 1,
+  )
   state.indirect = state.resources.history[state.turn]
   state.viewProjection.set(reflection.frame.viewProjection)
   state.history = true
   state.turn = (1 - state.turn) as 0 | 1
   state.frame++
-  return metricsOf(settings, geometry, { history, screen, velocity, bytes: state.bytes }, null)
+  const cacheBytes = rt.bounce.probes?.cache.bytes
+  return metricsOf(
+    settings,
+    geometry,
+    { history, screen, velocity, bytes: state.bytes, cacheBytes },
+    null,
+  )
 }
 
 /** The view's probes given back, and the lighting left none to read. */
@@ -181,7 +231,7 @@ export function encodeScreenProbes(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
   const { bounce, gpu } = rt
   const store = (bounce.screen ??= createScreenProbeStore())
   const settings = store.read(rt.context)
-  if (!settings.enabled || !bounce.wanted) {
+  if (!screenProbesCast(rt)) {
     release(rt)
     store.metrics = undefined
     return
@@ -191,10 +241,15 @@ export function encodeScreenProbes(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
       gpu.screenProbes.indirect = undefined
       gpu.screenProbes.history = false
     }
-    store.metrics = metricsOf(settings, undefined, { bytes: gpu.screenProbes?.bytes }, why)
+    store.metrics = metricsOf(
+      settings,
+      undefined,
+      { bytes: gpu.screenProbes?.bytes, cacheBytes: rt.bounce.probes?.cache.bytes },
+      why,
+    )
   }
   const needed = neededOf(rt)
-  if (!needed) return skip('no lit image to cast the probes on')
+  if (!needed) return skip(noiseWhy(gpu.device) ?? 'no lit image to cast the probes on')
   const kernels = store.kernelsFor(needed.device, settings)
   if (!kernels) return skip(store.reason ?? 'the screen probes are compiling')
   const { view, why } = ensureScreenProbeView(
@@ -208,12 +263,21 @@ export function encodeScreenProbes(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
   store.metrics = castProbes(rt, encoder, needed, store, view, kernels, settings)
 }
 
-/** Asks the screen probes' kernels of the device at a frame's entry, off the frame, once the image is lit by the probes' level: the
- *  frames wait for them (`track`), showing the previous image, never compiling a kernel themselves. */
+/** Asks the screen probes' kernels of the device at a frame's entry, off the frame, once the image is lit by the probes' level
+ *  (the blue noise they read is asked beside them, `askBlueNoise`): the kernels compile off the frame (`track`) and the image is
+ *  drawn without the probes meanwhile, never compiling a kernel itself. */
 export function askScreenProbes(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { bounce } = rt
-  if (!bounce.wanted || !wantsContractLighting(rt)) return
-  const store = (bounce.screen ??= createScreenProbeStore())
+  if (!screenProbesCast(rt)) return
+  const store = (rt.bounce.screen ??= createScreenProbeStore())
+  store.kernelsFor(device, store.read(rt.context))
+}
+
+/** Whether the view's screen probes still build their history: the last image cast them, the history is temporal, and fewer
+ *  images were cast than the frames it holds at most — a quiet view is drawn again till then, not held on a history of one image. */
+export function screenProbesSettling(rt: WebgpuPagesRuntime) {
+  const view = rt.gpu.screenProbes,
+    store = rt.bounce.screen
+  if (!view?.indirect || !store) return false
   const settings = store.read(rt.context)
-  if (settings.enabled) store.kernelsFor(device, settings)
+  return settings.values.screenProbeTemporal && view.frame < settings.maxFramesAccumulated
 }

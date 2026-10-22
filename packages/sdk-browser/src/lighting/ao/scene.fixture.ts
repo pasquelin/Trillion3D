@@ -1,8 +1,11 @@
 // A small synthetic view for the occlusion's tests: a floor and a wall met at a right angle (a concave corner),
 // the depth the engine would draw (reversed, `near / distance`), its surfaces' normals and the farthest-depth
-// pyramid's first level, with the uniform a pass reads and the functions the shader's bindings stand for
-// (`sceneScope`). No GPU: `shaderRun` runs the shipped WGSL against them.
+// pyramid's first level, which the half-size depth map holds, with the uniform a pass reads and the functions the
+// shader's bindings stand for (`sceneScope`). No GPU: `shaderRun` runs the shipped WGSL against them.
+import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { perspectiveProjection } from '../../../../math/src/projection/camera.ts'
 import { AO_PARAMS } from './layout.ts'
+import { AO_FAR_CM, AO_DEPTH_SCALE } from './commonWgsl.ts'
 import { aoPasses } from './plan.ts'
 import { writeAoParams, type AoImage } from './params.ts'
 import { resolveAmbientOcclusion } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
@@ -15,7 +18,8 @@ import { resolveSettings } from '../../../../sdk-core/src/contracts/settingRules
 export const WIDTH = 64
 export const HEIGHT = 36
 const NEAR = 0.1
-const FOV_HALF_TAN = Math.tan((30 * Math.PI) / 180)
+const FOV_DEGREES = 60
+const FOV_HALF_TAN = Math.tan((FOV_DEGREES / 2 / 180) * Math.PI)
 const ASPECT = WIDTH / HEIGHT
 
 /** What the view holds: a floor at `floor` metres under the eye and a wall `wall` metres ahead, or an open sky. */
@@ -25,8 +29,6 @@ export interface Geometry {
   /** A box's front face `box` metres ahead over the middle third of the picture, in front of the wall. */
   box?: number
 }
-
-const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi)
 
 /** The ray of pixel `(x, y)`'s centre: its direction with a unit distance ahead (the camera looks down -z). */
 const rayOf = (x: number, y: number) => [
@@ -79,11 +81,9 @@ export function createScene(geometry: Geometry) {
 export const settingsOf = (options: AmbientOcclusionOptions = {}) =>
   resolveAmbientOcclusion(resolveSettings(AMBIENT_OCCLUSION_RULES, options))
 
-/** The image the passes are told of: this view, a camera at the origin looking down -z, a perspective projection. */
+/** The image the passes are told of: this view, a camera at the origin looking down -z, the engine's perspective projection. */
 export function imageOf(noiseIndex = 0): AoImage {
-  const projection = new Float64Array(16)
-  projection[0] = 1 / (ASPECT * FOV_HALF_TAN)
-  projection[5] = 1 / FOV_HALF_TAN
+  const projection = perspectiveProjection(new Float64Array(16), FOV_DEGREES, ASPECT, NEAR, 1)
   const world = new Float64Array(16)
   world[0] = world[5] = world[10] = world[15] = 1
   return {
@@ -91,8 +91,6 @@ export function imageOf(noiseIndex = 0): AoImage {
     extent: [WIDTH, HEIGHT],
     projection,
     world,
-    near: NEAR,
-    far: 1000,
     perspective: true,
     noiseIndex,
   }
@@ -110,22 +108,22 @@ export function uniformOf(levels: number, at: number, settings = settingsOf(), i
   )
 }
 
-/** What the textures a pass reads hold, besides the surfaces: the setup texture's texels (rgba, rows of `width`) and the
- *  coarser occlusion's value at a texel. */
+/** What the textures a pass reads hold, besides the surfaces and the half-size depth map: the setup texture's texels (rgba,
+ *  rows of `width`) and the coarser occlusion's value at a texel. */
 export interface Textures {
   setup?: { texels: Float32Array; width: number }
   lower?: (x: number, y: number) => number
 }
 
-/** The pyramid's and the textures' reads, the names the shader's bindings carry, over `scene`. */
+/** The pyramid's and the textures' reads, the names the shader's bindings carry, over `scene`, with `view` the pass's uniform. */
 export function sceneScope(
   scene: ReturnType<typeof createScene>,
-  ao: object,
+  view: object,
   textures: Textures = {},
 ) {
   const { setup, lower } = textures
   return {
-    ao,
+    view,
     hizOpaqueDepth: ([x, y]: number[]) => scene.device(x, y),
     hizCellFarthest: ([x, y]: number[]) => scene.farthest(x, y),
     hizLevelCount: () => 5,
@@ -133,11 +131,18 @@ export function sceneScope(
     hizLevels: { level: [[0, WIDTH, HEIGHT, 0]], count: [5, 0, 0, 0] },
     textureLoad: (texture: string, [x, y]: number[]) => {
       if (texture === 'normals') return scene.normal(x, y)
+      // The half-size depth map: the first level's farthest depth, in centimetres over the setup's scale, in the alpha,
+      // by the near plane as the uniform holds it (single precision), as the pixels' own depths are read.
+      if (texture === 'half') {
+        const cm = Math.min((Math.fround(NEAR) / scene.farthest(x, y)) * 100, AO_FAR_CM)
+        return [0, 0, 0, cm / AO_DEPTH_SCALE]
+      }
       if (texture === 'lower') return [lower ? lower(x, y) : 0, 0, 0, 1]
       const at = setup ? 4 * (y * setup.width + x) : 0
       return setup ? Array.from(setup.texels.slice(at, at + 4)) : [0, 0, 0, 0]
     },
     normals: 'normals',
+    halfDepth: 'half',
     setupTex: 'setup',
     lowerAo: 'lower',
   }

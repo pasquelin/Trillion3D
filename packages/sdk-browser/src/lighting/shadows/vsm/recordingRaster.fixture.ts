@@ -31,6 +31,19 @@ export function recordingRaster(device: GPUDevice, rowCount: number) {
  *  maps a pass at most, so a sun and 200 point lights, 1217 maps, take three passes. */
 export const LOW_DISPATCH = { maxComputeWorkgroupsPerDimension: 500 }
 
+/** The raster of 200 000 rows under a sun's 17 levels, `scene` over the recording one, encoded into
+ *  `encoder` on `device`: what the encoding returned. */
+export function encodeRows(
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  scene: Partial<VsmRenderScene> = {},
+) {
+  const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
+  const raster = recordingRaster(device, 200_000)
+  const lights = [{ kind: 'directional' as const, firstId: 0, count: 17 }]
+  return encodeVsmRender(encoder, res, { device, lights }, { ...raster.scene, ...scene })!
+}
+
 /** A sun's 17 clipmap levels, then `points` point lights of six faces, in the order of their ids. */
 export function manyLights(points: number) {
   const lights: VsmBoundLight[] = [{ kind: 'directional', firstId: 0, count: 17 }]
@@ -76,6 +89,7 @@ export function encodeLights(
         chunkRows: word('chunkRows'),
         viewFirst: word('viewFirst'),
         viewCount: word('viewCount'),
+        lightCount: word('lightCount'),
       },
     }
   })

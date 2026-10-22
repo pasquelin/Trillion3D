@@ -247,6 +247,8 @@ pub struct Hlod {
     pub default: Option<usize>,
     marks: Vec<(String, usize)>,
     pub named: Value,
+    /// The parents the layers lost (`chains`), each told to the job as a warning.
+    pub dropped: Vec<String>,
 }
 
 /// One object's assignment (`Hlod::assigned`): its layer, if any, and, where its mark won over a

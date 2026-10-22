@@ -45,10 +45,10 @@ function besideMs(rt: WebgpuPagesRuntime, measure = frameOf) {
 }
 
 /** The GPU time of the passes that build the visibility buffer in the frame `sample` describes, the
- *  views drawn beside the main one in it, which the cut's edge scale is fitted to (`edgeBudgetMs`);
+ *  views drawn beside the main one in it, which the cut's edge scale is fitted to (`edge.budgetMs`);
  *  NaN where the sample holds none, or the scale has no budget to fit. */
 function edgeMsOf(rt: WebgpuPagesRuntime, sample: GpuTimingSample) {
-  if (!(rt.views.main.scale.edgeBudgetMs > 0)) return Number.NaN
+  if (!(rt.views.main.scale.edge.budgetMs > 0)) return Number.NaN
   const main = gpuPassBlockTotals(sample).visibilityMs
   return main === null ? Number.NaN : main + besideMs(rt, visibilityOf)
 }

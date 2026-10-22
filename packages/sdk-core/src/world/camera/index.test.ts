@@ -99,9 +99,9 @@ test('a clip plane is the point it passes through and the unit normal of the sid
   eye.clipPlane = { base: [0, 3, 0], normal: [0, 5, 0] }
   assert.deepEqual(eye._viewSet.clipPlane, [0, 1, 0, 3], 'n · p - w >= 0 is drawn, w = n · base')
   assert.deepEqual(eye.clipPlane, { base: [0, 3, 0], normal: [0, 1, 0] })
-  // Each part left out is at its default: the origin, up.
+  // Each part left out is at its default: the origin, up (the engine's, +y).
   eye.clipPlane = {}
-  assert.deepEqual(eye._viewSet.clipPlane, [0, 0, 1, 0])
+  assert.deepEqual(eye._viewSet.clipPlane, [0, 1, 0, 0])
   eye.clipPlane = { base: { x: 1, y: 2, z: 4 }, normal: { x: 0, y: 0, z: -2 } }
   assert.deepEqual(eye._viewSet.clipPlane, [0, 0, -1, -4])
   // A zero normal, null and false name none.
@@ -110,8 +110,23 @@ test('a clip plane is the point it passes through and the unit normal of the sid
     assert.equal(eye.clipPlane, null)
     assert.deepEqual(eye._viewSet.clipPlane, [0, 0, 0, 0])
   }
+  // A normal too small for its square to be held is still a direction.
+  eye.clipPlane = { normal: [0, 1e-200, 0] }
+  assert.deepEqual(eye._viewSet.clipPlane, [0, 1, 0, 0])
   for (const bad of [true, 3, { base: [0, 0] }, { normal: [0, 0, NaN] }, { base: 'a' }])
     assert.throws(() => (eye.clipPlane = bad as never), /clipPlane: /)
+})
+
+test('a view that has a plane is drawn without temporal jitter, the set saying so where it is made', () => {
+  const eye = camera.perspective()
+  assert.equal(eye._viewSet.jitters, true)
+  eye.clipPlane = { base: [0, 3, 0] }
+  assert.equal(eye._viewSet.jitters, false)
+  eye.hidden = []
+  assert.equal(eye._viewSet.jitters, false, 'a list written leaves it as the plane says')
+  eye.clipPlane = null
+  assert.equal(eye._viewSet.jitters, true)
+  assert.equal(eye._viewSet.hidden.length, 0)
 })
 
 test('the lists are copies, hidden empty and showOnly null by default, an empty showOnly drawing nothing', () => {

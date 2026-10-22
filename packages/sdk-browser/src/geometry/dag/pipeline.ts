@@ -1,4 +1,4 @@
-import { DAG_SELECTION_SHADER } from './shader/shader.ts'
+import { dagSelectionShader } from './shader/shader.ts'
 import type { CutSteps } from './cut/cutSteps.ts'
 import { dagBindEntries } from './shader/bindings.ts'
 import { validatedOrWhy } from '../../gpu/core/errorScope.ts'
@@ -10,8 +10,9 @@ import { dagArmGroup, dagArmLayout, type DagArmWords } from './arm.ts'
 /** The selection stages and the arming kernel, the cut's bind group over `frames` and the arming
  *  group over `arm.work` and `arm.args`, under one validation scope, or why the device refused
  *  them; the stages that read the pyramid on `occlusion` too (`occlusion.ts`). One layout and one
- *  text whatever the world: every table is a record table (`cut/cutTables.ts`). A text that does
- *  not compile throws its compiler's messages. */
+ *  text whatever the world but for the project switch `clipPlane` (`dagSelectionShader`): every
+ *  table is a record table (`cut/cutTables.ts`). A text that does not compile throws its
+ *  compiler's messages. */
 export function createDagPipeline(
   device: GPUDevice,
   buffers: DagGroup,
@@ -19,12 +20,13 @@ export function createDagPipeline(
   arm: { work: GPUBuffer; args: GPUBuffer; words: DagArmWords },
   occlusion: GPUBindGroupLayout,
   steps?: CutSteps,
+  clipPlane = false,
 ) {
   return validatedOrWhy(device, async () => {
     const layout = device.createBindGroupLayout({ entries: dagBindEntries() })
     steps?.begin('shader module')
     const module = await checkShaderModule(
-      device.createShaderModule({ code: DAG_SELECTION_SHADER }),
+      device.createShaderModule({ code: dagSelectionShader(clipPlane) }),
       'camera cut selection',
     )
     steps?.begin('pipelines')

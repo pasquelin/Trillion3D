@@ -42,10 +42,7 @@ test('a particle routes its straight colour, where the mask is set', () => {
   const color = [0.6, 0.3, 0.2, 0.5]
   const scope = {
     ...routeScope(1, leftHalf),
-    draw: {
-      ...{ drawn: [8, 8], unclip: new Mat([...IDENTITY_MATRIX4]), eye: [0, 0, 5], softness: 1 },
-      clipPlane: [0, 0, 0, 0],
-    },
+    draw: { drawn: [8, 8], unclip: new Mat([...IDENTITY_MATRIX4]), eye: [0, 0, 5], softness: 1 },
     depth: () => 0,
     Routed: (lit: number[], tint: number[], add: number[], reactive: number[]) => ({
       ...layers(lit, tint, add),
@@ -55,7 +52,7 @@ test('a particle routes its straight colour, where the mask is set', () => {
   type Particle = { fsRouted: (at: object) => Layers & { reactive: number[] } }
   const { fsRouted } = shaderRun<Particle>(
     PARTICLE_DRAW_WGSL,
-    ['fsRouted', 'particle', 'particleClipped', 'perspectiveDivide', ...ROUTE_FUNCTIONS],
+    ['fsRouted', 'particle', 'perspectiveDivide', ...ROUTE_FUNCTIONS],
     scope,
   )
   // The uniform is read at each call: one run serves both views.

@@ -100,6 +100,17 @@ fn reflectionLobeOf(R:vec3f,alpha:f32,lobe:vec4f)->ReflectionLobe{
 fn reflectionReadTangent(lobe:ReflectionLobe)->f32{return max(lobe.tangents.x,lobe.tangents.y/REFLECTION_TAPS);}`,
 )
 
+/** A radiance a ray brings back (`reflectionClampRay`) held to the ceiling of a ray, `ReflectionView.light.x` (40 in the display's
+ *  white by default): its largest component past it, the whole scaled down to it. */
+export const REFLECTION_CLAMP_WGSL = wgslBlock(
+  'REFLECTION_CLAMP_WGSL',
+  [REFLECTION_VIEW_WGSL],
+  `fn reflectionClampRay(c:vec3f)->vec3f{
+ let most=max(c.x,max(c.y,c.z));
+ return select(c,c*(reflectionView.light.x/most),most>reflectionView.light.x);
+}`,
+)
+
 /** The radiance around the scene (`reflectionEnvironment`), one rule: a ray along `R` that leaves
  *  the scene reaches what the scene's sky gives it in that direction (`skyRadiance`: the atmosphere's
  *  sky, a sky light's colour, its ground below the horizon), where the scene shows one; else what the
@@ -135,22 +146,6 @@ export const REFLECTION_PROBES_WGSL = wgslBlock(
       'reflectionProbeLevel',
       ',lobe:ReflectionLobe',
       probeThrough('lobe'),
-    ),
-  ],
-  '',
-)
-
-/** The same through two lobes at once (`reflectionProbesPairGathered`): one gather of the probes, a
- *  column each — the trace's alone. */
-export const REFLECTION_PROBES_PAIR_WGSL = wgslBlock(
-  'REFLECTION_PROBES_PAIR_WGSL',
-  [
-    REFLECTION_LOBE_WGSL,
-    probeFieldWgsl(
-      'reflectionProbesPair',
-      'reflectionProbePairLevel',
-      ',lobe:ReflectionLobe,other:ReflectionLobe',
-      [probeThrough('lobe'), probeThrough('other')],
     ),
   ],
   '',

@@ -21,51 +21,30 @@ import { wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
 
 const CM = `${VSM_UNIT_PER_CM}`
 
+/** The fields of a map's record (`VsmProjectionRecord`), in memory order, as `name:type`: the one
+ *  list the record's struct, the decoded struct's first members and the decode's copy are made from
+ *  (`projectionData.ts` lays the same words). */
+const RECORD_FIELDS = (
+  'lightKind:u32 emitterSize:f32 finestMip:u32 mapLevel:i32 lightViewToClip:mat4x4f ' +
+  'lightDirection:vec3f levelsLeft:i32 planesToMapUv:mat4x4f shiftedToMapUv:mat4x4f ' +
+  'originShiftHigh:vec3f flags:u32 originShiftLow:vec3f levelBias:f32 clipmapOrigin:vec3f ' +
+  'ditherTexels:f32 cornerSteps:vec2i lightRange:f32 tableOrigin:u32 farShadowDistance:f32'
+).split(' ')
+const recordMembers = RECORD_FIELDS.map((field) => ` ${field},`).join('\n')
+const recordCopy = RECORD_FIELDS.map((field) => {
+  const [name] = field.split(':')
+  return ` r.${name}=raw.${name};`
+}).join('\n')
+
 export const VSM_PROJECTION_DATA_WGSL = wgslBlock(
   'VSM_PROJECTION_DATA_WGSL',
   [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL],
   `
 struct VsmProjectionRecord{
- lightKind:u32,
- emitterSize:f32,
- finestMip:u32,
- mapLevel:i32,
- lightViewToClip:mat4x4f,
- lightDirection:vec3f,
- levelsLeft:i32,
- planesToMapUv:mat4x4f,
- shiftedToMapUv:mat4x4f,
- originShiftHigh:vec3f,
- flags:u32,
- originShiftLow:vec3f,
- levelBias:f32,
- clipmapOrigin:vec3f,
- ditherTexels:f32,
- cornerSteps:vec2i,
- lightRange:f32,
- tableOrigin:u32,
- farShadowDistance:f32,
+${recordMembers}
 }
 struct VsmProjectionData{
- lightKind:u32,
- emitterSize:f32,
- finestMip:u32,
- mapLevel:i32,
- lightViewToClip:mat4x4f,
- lightDirection:vec3f,
- levelsLeft:i32,
- planesToMapUv:mat4x4f,
- shiftedToMapUv:mat4x4f,
- originShiftHigh:vec3f,
- flags:u32,
- originShiftLow:vec3f,
- levelBias:f32,
- clipmapOrigin:vec3f,
- ditherTexels:f32,
- cornerSteps:vec2i,
- lightRange:f32,
- tableOrigin:u32,
- farShadowDistance:f32,
+${recordMembers}
  handle:VsmHandle,
  uncached:bool,
  lightUnseen:bool,
@@ -77,25 +56,7 @@ struct VsmProjectionData{
 fn vsmUnpackProjection(raw:VsmProjectionRecord,h:VsmHandle)->VsmProjectionData{
  var r:VsmProjectionData;
  r.handle=h;
- r.lightKind=raw.lightKind;
- r.emitterSize=raw.emitterSize;
- r.finestMip=raw.finestMip;
- r.mapLevel=raw.mapLevel;
- r.lightViewToClip=raw.lightViewToClip;
- r.lightDirection=raw.lightDirection;
- r.levelsLeft=raw.levelsLeft;
- r.planesToMapUv=raw.planesToMapUv;
- r.shiftedToMapUv=raw.shiftedToMapUv;
- r.originShiftHigh=raw.originShiftHigh;
- r.flags=raw.flags;
- r.originShiftLow=raw.originShiftLow;
- r.levelBias=raw.levelBias;
- r.clipmapOrigin=raw.clipmapOrigin;
- r.ditherTexels=raw.ditherTexels;
- r.cornerSteps=raw.cornerSteps;
- r.lightRange=raw.lightRange;
- r.tableOrigin=raw.tableOrigin;
- r.farShadowDistance=raw.farShadowDistance;
+${recordCopy}
  r.uncached=(r.flags&VSM_MAP_UNCACHED)!=0u;
  r.lightUnseen=(r.flags&VSM_MAP_UNSEEN)!=0u;
  r.coarseLevel=(r.flags&VSM_MAP_COARSE)!=0u;

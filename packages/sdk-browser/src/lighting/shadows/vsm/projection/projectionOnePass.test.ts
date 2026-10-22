@@ -11,7 +11,7 @@ import { VSM_PROJECTION_MAX_PASS_LIGHTS, VSM_PROJECTION_VIEW_BYTES } from './pro
 import { writeVsmProjectionFrame, type VsmProjectionLight } from './projectionPass.ts'
 import { camera, sun } from './projectionScene.fixture.ts'
 import { vsmLayout } from '../layout.ts'
-import { VSM_PROJECTION_HEADER_WORDS } from './projectionView.ts'
+import { VSM_PROJECTION_HEADER_WORDS, VSM_PROJECTION_VIEW_WORD } from './projectionView.ts'
 import { projectionKit } from './projectionKit.fixture.ts'
 import {
   VSM_TRACE_KINDS_BOTH,
@@ -51,7 +51,7 @@ test('one store a layer the tile holds a light of, under bounds the view gives: 
   assert.match(CODE, /lights:array<VsmProjectionLight,64>/)
   assert.match(CODE, /texture_storage_2d_array<r32uint,write>/)
   assert.match(CODE, /texture_storage_2d<r32uint,write>/)
-  assert.equal(VSM_PROJECTION_VIEW_BYTES, 400 + 64 * 48)
+  assert.equal(VSM_PROJECTION_VIEW_BYTES, 416 + 64 * 48)
 })
 
 test('nine lights: one vsm.projection pass, each light at its offset of the view', async () => {
@@ -77,7 +77,7 @@ test('nine lights: one vsm.projection pass, each light at its offset of the view
   // The header and the nine records: the shader reads no record past the count.
   const upload = uploaded()
   assert.ok(upload)
-  assert.equal(upload.size, 400 + 9 * 48, 'the view uniform, up to its last light')
+  assert.equal(upload.size, 416 + 9 * 48, 'the view uniform, up to its last light')
   const u = new Uint32Array(upload.data.buffer, upload.data.byteOffset, upload.size! / 4)
   const f = new Float32Array(u.buffer, u.byteOffset, u.length)
   assert.equal(u[75], 9, 'the count')
@@ -96,4 +96,34 @@ test('nine lights: one vsm.projection pass, each light at its offset of the view
   )
   const tooMany = Array.from({ length: VSM_PROJECTION_MAX_PASS_LIGHTS + 1 }, () => lights[0])
   assert.throws(() => writeVsmProjectionFrame(res, { lights: tooMany } as never))
+})
+
+test('the view’s rays and steps are written into its uniform: a sun’s and a local light’s, the defaults without any', () => {
+  const { project, upload } = projectionKit()
+  const traced = () => {
+    const data = upload()!.data
+    const at = VSM_PROJECTION_VIEW_WORD.traceRays
+    return [...new Uint32Array(data.buffer, data.byteOffset + 4 * at, 4)]
+  }
+  project([sun])
+  assert.deepEqual(traced(), [8, 8, 4, 4], 'the rays and steps of the defaults')
+  const trace = {
+    ...{ shadowRayCountDirectional: 4, shadowRayCountLocal: 0 },
+    ...{ shadowSamplesPerRayDirectional: 2, shadowSamplesPerRayLocal: 7 },
+  }
+  project([sun], { trace })
+  assert.deepEqual(traced(), [4, 0, 2, 7], 'a sun’s rays and steps, then a local light’s')
+})
+
+test('a trace takes the view’s rays and steps for its kind of light, one tap along the axis where its rays are 0', () => {
+  const trace = functionsOf(CODE, ['vsmTraceLight'])
+  for (const text of [
+    'let rays=select(vsmView.traceRays.y,vsmView.traceRays.x,directional);',
+    'var stepCount=i32(select(vsmView.traceRays.w,vsmView.traceRays.z,directional));',
+    'let rayCap=max(rays,1u);',
+    'if(single){s=0.0;}',
+    'ditherWorld=select(VSM_TRACE_DITHER*pd.ditherTexels*texel,0.0,single);',
+  ])
+    assert.ok(trace.includes(text), text)
+  assert.doesNotMatch(CODE, /VSM_TRACE_RAYS|VSM_TRACE_STEPS/, 'no constant of the shader')
 })

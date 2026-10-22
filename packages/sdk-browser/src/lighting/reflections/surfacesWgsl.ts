@@ -13,13 +13,13 @@ import { REFLECTION_RAY_FORMAT } from './grids.ts'
  * one's (`frontLayer.ts`) — and its flags, normal and roughness and lobes are read from it alike. Only
  * the depth differs: `layer` 0 is the opaque one the Hi-Z holds, 1 the front pass's own; every kernel
  * passes its layer as a constant. `reflectionGridSize`: the grid's extent over the drawn size
- * (`ReflectionView.grid`, `grids.ts`), a texel a block of `REFLECTION_TRACE_BLOCK` pixels, what every
+ * (`ReflectionView.grid`, `grids.ts`), a texel a block of `reflectionBlock()` pixels (the level's row), what every
  * grid kernel bounds its texels by — a texel past the extent is none; `reflectionViewport`: the drawn
  * size, what every pixel kernel bounds its pixels by. `reflectionBlockPixel`: the `k`-th pixel of a
  * texel's block, row by row, the one order of a block's pixels. `reflectionJitter`: the pixel of a
- * texel's 2 × 2 block this image traces, the tile jitter: the texel's cell in its 2 × 2 group plus the image's turn, modulo
- * four, picks one of the four rooks — every image the four texels of a group stand for four rows and
- * four columns. `reflectionTracedPixel`: the pixel a grid texel stands for this image — the
+ * texel's block this image traces, the tile jitter: none for a block of one pixel; for a block of two, the texel's
+ * cell in its 2 × 2 group plus the image's turn, modulo four, picks one of the four rooks — every image the four texels
+ * of a group stand for four rows and four columns. `reflectionTracedPixel`: the pixel a grid texel stands for this image — the
  * classification's pick (`tiles.ts`), told in the texel's ray word (`rayPack`), which the
  * classification writes and the screen stage writes its ray into beside it (`surfaceRays`, storage);
  * every kernel after them reads it sampled (`surfaceRaysRead`, `reflectionRayWord`), one view of the
@@ -72,9 +72,11 @@ fn surfaceTopAt(coord:vec2i,flags:u32)->vec4f{
 fn reflectionGridSize()->vec2u{return reflectionView.grid.xy;}
 fn reflectionViewport()->vec2u{return vec2u(view.viewport.xy);}
 fn reflectionBlockPixel(g:vec2u,k:u32)->vec2u{
- return g*REFLECTION_TRACE_BLOCK+vec2u(k%REFLECTION_TRACE_BLOCK,k/REFLECTION_TRACE_BLOCK);
+ let block=reflectionBlock();
+ return g*block+vec2u(k%block,k/block);
 }
 fn reflectionJitter(g:vec2u)->vec2u{
+ if(reflectionBlock()==1u){return vec2u(0u);}
  let index=((g.x&1u)+2u*(g.y&1u)+reflectionView.temporal.x)%4u;
  return vec2u(select(0u,1u,(index&2u)!=0u),select(1u,0u,(index&1u)!=0u));
 }

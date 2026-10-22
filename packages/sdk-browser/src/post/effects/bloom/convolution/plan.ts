@@ -6,12 +6,14 @@
  * image padded by half the kernel's reach — so the glow of the left edge does not come back in at the
  * right — and by zeros up to a power of two.
  */
+import { floorLog2, nextPow2 } from '../../../../../../math/src/scalar/integers.ts'
 import { clamp, clampCompare } from '../../../../../../math/src/scalar/reals.ts'
 import { chainSizes } from '../../../filters/levelSizes.ts'
+import type { TransformShape } from './transformShape.ts'
 
 /** What bounds a transform on the device: the widest texture, the longest line the workgroup memory
  *  holds (`maxLine`), the most bytes a storage buffer binds (each of the two spectra is one). */
-export interface ConvolutionLimits {
+interface ConvolutionLimits {
   side: number
   maxLine: number
   bytes: number
@@ -30,16 +32,6 @@ const LEVELS = [
   { level: 1, fraction: 0.25 },
   { level: 0, fraction: 0.5 },
 ] as const
-
-/** `n` rounded up to a power of two, two at least: a transform of one value has no stage. */
-export function roundUpPowerOfTwo(n: number) {
-  let line = 2
-  while (line < n) line *= 2
-  return line
-}
-
-/** The base-two logarithm of the power of two `n`. */
-export const lineBits = (n: number) => Math.round(Math.log2(n))
 
 /**
  * The fraction of the image the convolution runs at: `percent` of it, from 0.1 up to what the device
@@ -94,14 +86,42 @@ export interface ConvolutionPlan {
   fraction: number
   /** Texels of one plane of the image's spectrum and of the kernel's: `columns` wide. */
   columns: number
-  /** Bytes of the image's four planes, of the kernel's four, and of the image the transform reads. */
-  bytes: { image: number; kernel: number; input: number }
+  /** What the transform's passes read of the plan, for the image and for the kernel's resized
+   *  picture, which fills the whole transform: each line of the first direction as long as the
+   *  transform, as many lines as the transform is long across. */
+  shapes: { image: TransformShape; kernel: TransformShape }
+  /** The sizes, the support and the direction the kernel's transform depends on, as a word: two
+   *  plans with the same one give the same kernel spectrum. */
+  key: string
+  /** Bytes of the image's four planes and of the kernel's four. */
+  bytes: { image: number; kernel: number }
 }
 
 /** Bytes of a complex value of one channel. */
 const COMPLEX_BYTES = 8
-/** Bytes of a texel of the image the transform reads, four floats. */
-const TEXEL_BYTES = 16
+
+/** What a transform's passes read of a plan of the transform `frequency`, the image `image` and
+ *  `columns` of a half spectrum, going along `along` first, for the image or the `kernel`. */
+function shapeOf(
+  [along, across]: readonly [number, number],
+  frequency: readonly number[],
+  image: readonly number[],
+  columns: number,
+  kernel: boolean,
+): TransformShape {
+  const lines = kernel ? frequency[across] : image[across]
+  return {
+    bitsAlong: floorLog2(frequency[along]),
+    bitsAcross: floorLog2(frequency[across]),
+    columns,
+    horizontal: along === 0 ? 1 : 0,
+    extent: kernel ? frequency[along] : image[along],
+    lines,
+    planeStride: lines * columns,
+    kernelStride: frequency[across] * columns,
+    convolve: kernel ? 0 : 1,
+  }
+}
 
 /** The plan of the fraction `fraction` of the image `view`. */
 function planAt(
@@ -115,17 +135,24 @@ function planAt(
   const input: [number, number] =
     level < 0 ? [view[0], view[1]] : chainSizes(view[0], view[1], level + 1)[level]
   const downscale = Math.fround(fraction / share)
+  // The input is at least one texel and the downscale above 0: no side rounds up to less than one.
   const image: [number, number] = [
-    Math.max(1, Math.ceil(Math.fround(input[0] * downscale))),
-    Math.max(1, Math.ceil(Math.fround(input[1] * downscale))),
+    Math.ceil(Math.fround(input[0] * downscale)),
+    Math.ceil(Math.fround(input[1] * downscale)),
   ]
   const support = clamp(size, 0, 1)
   const radius = transformPadding(image, support, clamp(buffer, 0, 1), maxLine)
   const kernelSize = Math.ceil(Math.fround(support * Math.max(image[0], image[1])))
   const padded = [Math.max(image[0] + radius, kernelSize), Math.max(image[1] + radius, kernelSize)]
-  const frequency: [number, number] = [roundUpPowerOfTwo(padded[0]), roundUpPowerOfTwo(padded[1])]
+  // A kernel of size 0 over an image of one texel pads to nothing, and a transform of one value has no
+  // stage (its loops would shift by 2³²−1): two values at least.
+  const frequency: [number, number] = [
+    Math.max(2, nextPow2(padded[0])),
+    Math.max(2, nextPow2(padded[1])),
+  ]
   const horizontalFirst = frequency[1] * padded[0] > frequency[0] * padded[1]
-  const [along, across] = horizontalFirst ? [0, 1] : [1, 0]
+  const axes = horizontalFirst ? ([0, 1] as const) : ([1, 0] as const)
+  const [along, across] = axes
   const columns = frequency[along] / 2 + 1
   return {
     level,
@@ -136,10 +163,14 @@ function planAt(
     support,
     fraction,
     columns,
+    shapes: {
+      image: shapeOf(axes, frequency, image, columns, false),
+      kernel: shapeOf(axes, frequency, image, columns, true),
+    },
+    key: `${image}|${frequency}|${support}|${horizontalFirst}`,
     bytes: {
       image: 4 * image[across] * columns * COMPLEX_BYTES,
       kernel: 4 * frequency[across] * columns * COMPLEX_BYTES,
-      input: image[0] * image[1] * TEXEL_BYTES,
     },
   }
 }
@@ -149,7 +180,7 @@ const FIT_STEPS = 48
 const FIT_FACTOR = 0.93
 
 /** The settings a plan is made from. */
-export interface ConvolutionAsk {
+interface ConvolutionAsk {
   /** The image the chain was handed. */
   view: readonly number[]
   /** `bloomScreenPercentage`. */

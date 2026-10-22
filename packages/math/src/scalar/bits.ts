@@ -13,6 +13,11 @@ export const setBit = (words: Uint32Array, i: number, base = 0) => {
   words[base + (i >>> 5)] |= 1 << (i & 31)
 }
 
+/** Clears bit `i` (a non-negative int32) of the bit set at word `base` of `words`. */
+export const clearBit = (words: Uint32Array, i: number, base = 0) => {
+  words[base + (i >>> 5)] &= ~(1 << (i & 31))
+}
+
 /** Flips bit `i` (a non-negative int32) of the bit set at word `base` of `words`. */
 export const flipBit = (words: Uint32Array, i: number, base = 0) => {
   words[base + (i >>> 5)] ^= 1 << (i & 31)

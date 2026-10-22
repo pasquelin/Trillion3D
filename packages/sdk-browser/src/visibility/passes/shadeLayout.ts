@@ -23,34 +23,36 @@ import {
  * the targets every class stores its pixels in and the bins it reads them from (group 1,
  * `shadeOutputLayout`, `../shader/shadeOutputsWgsl.ts`). Four storage textures a stage — the
  * surfaces' colours and words, each every layer, the feedback target and the lobes —: what every
- * device holds.
+ * device holds. `shadeLayoutEntries` are group 0's entries: the layout of the classes that draw a
+ * displaced pixel adds two (`../tessellation/prismFrame.ts`).
  */
-export function shadeLayout(device: GPUDevice) {
+export const shadeLayoutEntries = (): GPUBindGroupLayoutEntry[] => {
   const b = SHADE_BINDINGS
-  return device.createBindGroupLayout({
-    entries: [
-      computeTextureEntry(b.visView, 'uint'),
-      computeBufferEntry(b.cache, 'read-only-storage'),
-      computeBufferEntry(b.position, 'read-only-storage'),
-      computeBufferEntry(b.uv, 'read-only-storage'),
-      // The float pool's normal atlas (`../../gpu/core/floatAtlas.ts`).
-      computeTextureEntry(b.normal, 'unfilterable-float', '2d-array'),
-      computeBufferEntry(b.pageTable, 'read-only-storage'),
-      // The rows' frames the resolve reads (`../shader/shadeCacheWgsl.ts`).
-      computeBufferEntry(b.shadeCache, 'read-only-storage'),
-      // The surfaces' records — a texture, no storage buffer of the eight —, and the lobes target
-      // (`physicalWgsl.ts`).
-      computeTextureEntry(b.material, 'uint', '2d-array'),
-      computeStorageTextureEntry(b.lobes, PHYSICAL_LOBES_FORMAT),
-      ...atlasLayoutEntries(b.color, COMPUTE),
-      computeSamplerEntry(b.sampler, 'filtering'),
-      computeUniformEntry(b.uniform, { minBindingSize: SHADE_UNIFORM_BYTES }),
-      ...atlasLayoutEntries(b.data, COMPUTE),
-      // The voxel trace's counters (`voxelStepsWgsl.ts`): only the voxel classes write them.
-      computeBufferEntry(b.voxelSteps, 'storage'),
-    ],
-  })
+  return [
+    computeTextureEntry(b.visView, 'uint'),
+    computeBufferEntry(b.cache, 'read-only-storage'),
+    computeBufferEntry(b.position, 'read-only-storage'),
+    computeBufferEntry(b.uv, 'read-only-storage'),
+    // The float pool's normal atlas (`../../gpu/core/floatAtlas.ts`).
+    computeTextureEntry(b.normal, 'unfilterable-float', '2d-array'),
+    computeBufferEntry(b.pageTable, 'read-only-storage'),
+    // The rows' frames the resolve reads (`../shader/shadeCacheWgsl.ts`).
+    computeBufferEntry(b.shadeCache, 'read-only-storage'),
+    // The surfaces' records — a texture, no storage buffer of the eight —, and the lobes target
+    // (`physicalWgsl.ts`).
+    computeTextureEntry(b.material, 'uint', '2d-array'),
+    computeStorageTextureEntry(b.lobes, PHYSICAL_LOBES_FORMAT),
+    ...atlasLayoutEntries(b.color, COMPUTE),
+    computeSamplerEntry(b.sampler, 'filtering'),
+    computeUniformEntry(b.uniform, { minBindingSize: SHADE_UNIFORM_BYTES }),
+    ...atlasLayoutEntries(b.data, COMPUTE),
+    // The voxel trace's counters (`voxelStepsWgsl.ts`): only the voxel classes write them.
+    computeBufferEntry(b.voxelSteps, 'storage'),
+  ]
 }
+
+export const shadeLayout = (device: GPUDevice) =>
+  device.createBindGroupLayout({ entries: shadeLayoutEntries() })
 
 /** The classes' group 1, made once a device: every set of classes binds the bins' one group. */
 export const shadeOutputLayout = oncePerDevice((device) => {

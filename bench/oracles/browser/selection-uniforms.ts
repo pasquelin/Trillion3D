@@ -46,6 +46,7 @@ export function referenceCameraUniforms(
     ),
     depthMap: [-cam.projection[10], cam.projection[14]],
     viewSize: [width, height],
+    clipPlane: [0, 0, 0, 0],
   })
 }
 

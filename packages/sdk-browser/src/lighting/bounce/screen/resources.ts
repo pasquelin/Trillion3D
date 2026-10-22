@@ -106,6 +106,7 @@ function probeTextures(
 ) {
   const probes: [number, number] = [g.tilesX, g.rows]
   const traced: [number, number] = [g.tilesX * g.tracing, g.rows * g.tracing]
+  const gathered: [number, number] = [g.tilesX * g.gather, g.rows * g.gather]
   const pair = <T>(make: (side: number) => T): Turn<T> => [make(0), make(1)]
   return {
     info: pair((side) => a.texture(`probes ${side}`, probes, F.info)),
@@ -113,7 +114,7 @@ function probeTextures(
     ray: a.texture('rays', traced, F.ray),
     radiance: a.texture('trace radiance', traced, F.trace),
     hit: a.texture('trace ends', traced, F.hit),
-    gather: pair((side) => a.texture(`gather ${side}`, traced, F.gather)),
+    gather: pair((side) => a.texture(`gather ${side}`, gathered, F.gather)),
     irradiance: a.texture(
       'irradiance',
       irradianceSize(g, settings.irradianceFormat === 'octahedral'),

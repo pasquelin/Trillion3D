@@ -58,8 +58,15 @@ export const vec4Array = (count: number): FieldType => ({
 })
 
 /** Writes the four numbers `x, y, z, w` into `out` from its word `at`: the one way a frame's
- *  `vec4f` is written. */
-export function putVec4(out: Float32Array, at: number, x: number, y = 0, z = 0, w = 0) {
+ *  `vec4f` is written — and its `vec4u`, into the words' unsigned view. */
+export function putVec4(
+  out: Float32Array | Uint32Array,
+  at: number,
+  x: number,
+  y = 0,
+  z = 0,
+  w = 0,
+) {
   out[at] = x
   out[at + 1] = y
   out[at + 2] = z

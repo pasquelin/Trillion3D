@@ -7,7 +7,11 @@ import { wgslFn } from '../../../../math/src/wgsl/decl.ts'
  *   rounded to nearest, held to the format's range (0 to 65024 at six bits, 64512 at five) — below 2⁻¹⁴ the
  *   field is a denormal —, and back;
  * - `packLight`, `unpackLight`: a colour's three channels in the word, the first two of six bits of mantissa, the
- *   third of five, the first in the low bits; a channel under zero is zero.
+ *   third of five, the first in the low bits; a channel under zero is zero;
+ * - `ditherLight`: a colour moved by up to half a unit in the last place of the word's mantissas, either way, by a
+ *   number `e` of [0, 1) (the unit being the power of two under each channel over two to the mantissa's bits), so that
+ *   rounding the result rounds the colour up or down with the odds that make it right on average: what a light
+ *   kept over many images, each blended into the last, needs not to drift.
  */
 export const packSmallFloat = wgslFn(
   'packSmallFloat',
@@ -43,4 +47,18 @@ export const unpackLight = wgslFn(
   'unpackLight',
   [unpackSmallFloat],
   'fn unpackLight(w:u32)->vec3f{return vec3f(unpackSmallFloat(w&0x7ffu,6u),unpackSmallFloat((w>>11u)&0x7ffu,6u),unpackSmallFloat(w>>22u,5u));}',
+)
+
+export const ditherLight = wgslFn(
+  'ditherLight',
+  [],
+  `fn ditherLight(c:vec3f,e:f32)->vec3f{
+ let spread=c*vec3f(0.015625,0.015625,0.03125);
+ let unit=vec3f(
+  bitcast<f32>(bitcast<u32>(spread.x)&0xff800000u),
+  bitcast<f32>(bitcast<u32>(spread.y)&0xff800000u),
+  bitcast<f32>(bitcast<u32>(spread.z)&0xff800000u),
+ );
+ return c+unit*(e-0.5);
+}`,
 )

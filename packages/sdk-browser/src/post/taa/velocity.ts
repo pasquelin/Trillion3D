@@ -4,7 +4,7 @@ import { preparedComputeStage } from '../../gpu/core/computeStages.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { VELOCITY_PASS } from '../../diagnostic/stage/passLabels.ts'
-import { createLayer } from '../finish/localLayer.ts'
+import { createLayer } from '../filters/sizedImage.ts'
 import { TAA_VIEW_BYTES } from './bindingsWgsl.ts'
 import { createTaaFrameState } from './frameState.ts'
 import { velocityInputEntries, velocityInputResources, type VelocityInputs } from './inputs.ts'
@@ -116,7 +116,8 @@ function velocityPass(
 
 /**
  * THE VELOCITY STAGE OF A VIEW: the target every pass that reads the motion of the image's texels
- * reads — the motion of each render texel, as a reprojection vector (`VECTOR_FORMAT`) —, written
+ * reads — the motion of each render texel's own surface, as a reprojection vector
+ * (`VECTOR_FORMAT`, `encodeOwnVector`), dilated by none —, written
  * once an image before the lighting (`encodeVelocity`, `velocityFrame.ts`), and what it is
  * measured with: the placements' motion (`createPlacementMotion`), the view's last image
  * (`frame`, the one the temporal pass keeps its history by) and the uniform it reads
@@ -158,7 +159,7 @@ export function createVelocity(device: GPUDevice, roots: readonly MotionRoot[]) 
     get bytes() {
       return target.bytes
     },
-    /** Each render texel's reprojection vector (`encodeVector`) of the last image measured. */
+    /** Each render texel's own reprojection vector (`encodeOwnVector`) of the last image measured. */
     get vectors() {
       if (!target.view) throw new Error('VELOCITY_TARGET_MISSING')
       return target.view

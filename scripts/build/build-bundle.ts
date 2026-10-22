@@ -20,6 +20,7 @@ const WORKERS = [
 ]
 const MODULES = [
   'sdk-browser/src/wasm/kernels.wasm',
+  'sdk-browser/src/gpu/noise/blueNoise.bin',
   'sdk-browser/src/physics/joltPhysics.wasm',
   'sdk-browser/src/physics/joltPhysicsThreads.wasm',
 ]

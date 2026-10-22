@@ -38,6 +38,9 @@ export type CellFrameIo = {
    *  the session's first image is shown (`Engine.initialLoad`) —, which holds no cell back from
    *  loading and weighs no slow streaming (`slowStreaming.ts`). */
   initialLoad?: boolean
+  /** The clock of the session in seconds, what the view's velocity is measured by (`sourceVelocity.ts`);
+   *  absent, the view is taken as standing still. */
+  time?: number
   /** How the view streams the cells, the session's settings as they stand
    *  (`WORLD_STREAMING_SETTINGS`): taken from this frame, every default when none is given. */
   streaming?: WorldStreaming

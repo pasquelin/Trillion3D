@@ -53,6 +53,9 @@ export interface SavedNode {
   castShadow: boolean
   /** Whether it casts shadows past a directional light's shadow distance; absent, it does not. */
   castFarShadow?: true
+  /** Whether a directional light's far-shadow test reaches it or never does; absent, the view's
+   *  rule decides. */
+  farShadowTest?: boolean
   /** Whether shadows fall on it. */
   receiveShadow: boolean
   /** Its drawing order among see-through things. */

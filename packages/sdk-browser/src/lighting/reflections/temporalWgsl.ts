@@ -30,11 +30,11 @@ const SHARED = REFLECTION_SIDE + 2 * BORDER
  * - NEIGHBOURHOOD: the tile's resolved pixels and a border of two staged once in workgroup memory,
  *   denoised and in YCoCg, as halves (two `pack2x16float` words), corners and
  *   pixels past the viewport left out; a pixel's window, 5 × 5 but its corners, its own resolved value
- *   weighing one, gives their mean, the centre, and `REFLECTION_CLAMP` standard deviations, the extent.
+ *   weighing one, gives their mean, the centre, and `clampScale` standard deviations, the extent.
  * - TWO HISTORIES: one reprojected from the surface,
  *   the pixel's point `P` through the last image's view-projection (`ReflectionView.radianceViewProj`,
  *   the one previous view of the engine), its four texels kept as their depth lies within
- *   `REFLECTION_HISTORY_DISTANCE` of the reprojected one, jittered by the image's noise and widened as
+ *   the history distance threshold of the reprojected one, jittered by the image's noise and widened as
  *   the surface turns edge-on; and, for a lobe narrow enough that its direction matters more than the
  *   surface's motion (its dominant-direction factor past ½), one reprojected from the hit, the point the
  *   reflection seems to lie at — along the pixel's view ray, its depth plus the hit's distance —, its
@@ -42,9 +42,9 @@ const SHARED = REFLECTION_SIDE + 2 * BORDER
  *   reads the last image's history inside the last image's drawn size alone
  *   (`ReflectionView.radiance.xy`, its bilinear footprint held within it, so no texel past it bleeds
  *   in), texels without a history left out; none kept, none. No history either where there is none to
- *   read (`reflectionView.traced`): an image whose screen is not traced.
+ *   read (`reflectionView.traced`): an image whose screen is not traced, or whose history the settings turn off.
  * - CLAMP: each history, in YCoCg, held within the centre ± the extent — the window's, or
- *   `REFLECTION_CLAMP` deviations of the history's own luminance (its second moment) where wider —; the surface's
+ *   `clampScale` deviations of the history's own luminance (its second moment) where wider —; the surface's
  *   taken whole, unless the hit's lies nearer the centre — then 0.8 of the surface's, a fifth of the
  *   hit's, so one error never loses the history at once —, the hit's alone where the surface has none.
  *   The farther the clamp moved it, `length(|Δ| / max(extent, 0.1))` — the 0.1 of its pre-exposed
@@ -59,7 +59,7 @@ const SHARED = REFLECTION_SIDE + 2 * BORDER
  *   before this image's: a quiet history — a mirror, a converged surface — keeps the window's extent
  *   and follows a change at once; a noisy one is moved by a change past its own noise alone.
  * - BLEND: the count of the history chosen (the surface's past 0.5 of it) times that
- *   trust, plus one, `REFLECTION_HISTORY` at most (`ACCUMULATION_WGSL`); the resolved value taken at one over that
+ *   trust, plus one, the history's images at most (`ACCUMULATION_WGSL`); the resolved value taken at one over that
  *   count.
  *
  * A RECONSTRUCTED SAMPLE is a pixel that is not its 2 × 2 block's jitter pixel
@@ -125,7 +125,7 @@ fn temporalWindow(local:vec2u,centre:vec3f)->TemporalWindow{
   n+=v.w;
  }
  let m=sum/n;
- return TemporalWindow(m,REFLECTION_CLAMP*sqrt(max(square/n-m*m,vec3f(0.0))));
+ return TemporalWindow(m,reflectionView.denoise.y*sqrt(max(square/n-m*m,vec3f(0.0))));
 }
 /** A history: its radiance in the denoiser's space, its luminance's second moment there, its count,
  *  whether it holds. */
@@ -143,7 +143,7 @@ fn temporalHistory(Q:vec3f,surface:bool,N:vec3f,V:vec3f,noise:f32)->TemporalHist
  let corner=vec2i(floor(at));
  let f=at-floor(at);
  let depth=reflectionLinearDepth(clip);
- var threshold=REFLECTION_HISTORY_DISTANCE*mix(0.5,1.5,noise);
+ var threshold=reflectionView.denoise.z*mix(0.5,1.5,noise);
  if(surface){threshold/=clamp(dot(V,N),0.1,1.0);}
  var sum=vec3f(0.0);
  var moment=0.0;
@@ -182,7 +182,7 @@ fn temporalPixel(coord:vec2i,local:vec2u,layer:u32)->vec4u{
  let P=surfacePointAt(layer,coord);
  let V=viewToEye(P);
  var count=0.0;
- if(reflectionView.traced.x!=0u){
+ if(reflectionView.traced.x!=0u&&reflectionDone(REFLECTION_TEMPORAL)){
   // The interleaved gradient noise at the pixel, the image's turn modulo eight.
   let noise=interleavedGradientNoise(vec2f(coord),f32(reflectionView.temporal.x%8u));
   var fromHit=TemporalHistory(vec3f(0.0),0.0,0.0,false);
@@ -195,7 +195,7 @@ fn temporalPixel(coord:vec2i,local:vec2u,layer:u32)->vec4u{
   }
   let fromSurface=temporalHistory(P,true,top.xyz,V,noise);
   if(fromSurface.valid||fromHit.valid){
-   let reconstructed=any(vec2u(coord)%REFLECTION_TRACE_BLOCK!=reflectionJitter(vec2u(coord)/REFLECTION_TRACE_BLOCK));
+   let reconstructed=any(vec2u(coord)%reflectionBlock()!=reflectionJitter(vec2u(coord)/reflectionBlock()));
    let window=temporalWindow(local,mine.xyz);
    let hitY=toYcocg(fromHit.radiance);
    let surfaceY=toYcocg(fromSurface.radiance);
@@ -208,14 +208,14 @@ fn temporalPixel(coord:vec2i,local:vec2u,layer:u32)->vec4u{
    let heldMoment=mix(fromHit.moment,fromSurface.moment,alpha);
    let heldLuminance=luminance(mix(fromHit.radiance,fromSurface.radiance,alpha));
    let variance=max(heldMoment-heldLuminance*heldLuminance,0.0);
-   let extent=max(window.extent*select(1.0,2.0,reconstructed),vec3f(REFLECTION_CLAMP*sqrt(variance)));
+   let extent=max(window.extent*select(1.0,2.0,reconstructed),vec3f(reflectionView.denoise.y*sqrt(variance)));
    let lo=window.centre-extent;
    let hi=window.centre+extent;
    let clamped=mix(clamp(hitY,lo,hi),clamp(surfaceY,lo,hi),alpha);
    let least=vec3f(REFLECTION_CLAMP_FLOOR/max(view.lightParams.w,REFLECTION_EPSILON));
    let trust=0.75*saturate(1.0-length(abs(clamped-history)/max(extent,least)))+0.25;
    let held=select(fromHit.count,fromSurface.count,alpha>0.5);
-   count=accumulationCount(held*trust,1.0,f32(REFLECTION_HISTORY));
+   count=accumulationCount(held*trust,1.0,reflectionView.denoise.x);
    let fresh=1.0/(count+select(0.0,4.0,reconstructed));
    let kept=fromYcocg(clamped);
    // The history's moment moved with its mean: the clamp shifts the images' average, never their spread.

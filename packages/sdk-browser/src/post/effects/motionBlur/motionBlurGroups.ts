@@ -1,5 +1,5 @@
-import { namedEntries, wholeBuffer as whole } from '../../../gpu/core/computeBindings.ts'
-import { wordViews } from '../../../gpu/core/wordViews.ts'
+import { namedGroup, wholeBuffer as whole } from '../../../gpu/core/computeBindings.ts'
+import { uniformBlock } from '../../../gpu/core/uniformBlock.ts'
 import { MOTION_BLUR_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import { CLASSIFY_BINDINGS, CLASSIFY_TWO_BINDINGS } from './classifyWgsl.ts'
 import { GATHER_BINDINGS, GATHER_TWO_BINDINGS, SCATTER_BINDINGS } from './dilateWgsl.ts'
@@ -9,183 +9,150 @@ import type { MotionBlurGroups } from './motionBlurEncode.ts'
 import { MOTION_BLUR_PARAMS_BYTES, TILE_CLASSES, tileClasses } from './motionBlurLayout.ts'
 import type { MotionBlurPrograms } from './motionBlurPrograms.ts'
 import type { MotionBlurTargets } from './motionBlurTargets.ts'
-import type { TwoDirectionPrograms } from './motionBlurTwoPrograms.ts'
+import type { VariantPrograms } from './motionBlurVariants.ts'
 import { FILTER_TWO_BINDINGS } from './weighTwoWgsl.ts'
 import type { ResolveFrame } from '../webgpuKinds.ts'
 
 /** A uniform and the words it is written from. */
-export type Uniform = { buffer: GPUBuffer; words: ReturnType<typeof wordViews> }
+export type Uniform = ReturnType<typeof uniformBlock>
 
 /** A uniform of the blur's parameters. */
-export const uniformOf = (device: GPUDevice): Uniform => ({
-  buffer: device.createBuffer({
-    label: `${MOTION_BLUR_PASS} uniform`,
-    size: MOTION_BLUR_PARAMS_BYTES,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  }),
-  words: wordViews(new ArrayBuffer(MOTION_BLUR_PARAMS_BYTES)),
-})
+export const uniformOf = (device: GPUDevice): Uniform =>
+  uniformBlock(device, `${MOTION_BLUR_PASS} uniform`, MOTION_BLUR_PARAMS_BYTES)
 
-/** The groups of a pass: its `layout` over `entries`. */
-const groupOf = (device: GPUDevice, layout: GPUBindGroupLayout, entries: GPUBindGroupEntry[]) =>
-  device.createBindGroup({ label: MOTION_BLUR_PASS, layout, entries })
+/** What the groups of a blur are made of: the device, the programs of the variant it is drawn with,
+ *  and the shared ones (the drawn spread's layout), the targets and lists, the blur's uniform and the
+ *  frame. */
+type Context = {
+  device: GPUDevice
+  programs: MotionBlurPrograms
+  vp: VariantPrograms
+  targets: MotionBlurTargets
+  nth: number
+  params: GPUBufferBinding
+  frame: ResolveFrame
+}
 
 /** What the passes before the filter read of the frame: the blur's uniform, the stage's uniform,
  *  vectors and the depth. */
-const frameInputs = (params: GPUBufferBinding, frame: ResolveFrame) => ({
+const frameInputs = ({ params, frame }: Context) => ({
   params,
   view: whole(frame.view),
   vectors: frame.vectors,
   depth: frame.depth,
 })
 
+/** A group of a pass of the blur. */
+const group = <Name extends string>(
+  { device }: Context,
+  layout: GPUBindGroupLayout,
+  bindings: Record<Name, number>,
+  resources: Partial<Record<Name, GPUBindingResource>>,
+) => namedGroup(device, layout, bindings, resources, MOTION_BLUR_PASS)
+
 /** The groups of the passes before the filter, with one direction: the flattening, the spread by
  *  reading or by drawing, and the classifying, which fills the `nth` blur's lists of the filter
  *  tiles. */
-function oneDirectionGroups(
-  device: GPUDevice,
-  { layouts }: MotionBlurPrograms,
-  targets: MotionBlurTargets,
-  nth: number,
-  params: GPUBufferBinding,
-  frame: ResolveFrame,
-) {
-  const { flat, tilesA, tilesB } = targets.held
-  const [gatherHalf, gatherFull, weighHalf, weighFull] = targets.lists(nth).map(whole)
+function oneDirectionGroups(c: Context) {
+  const { flat, tilesA, tilesB } = c.targets.held
+  const [gatherHalf, gatherFull, weighHalf, weighFull] = c.targets.lists(c.nth).map(whole)
+  const { layouts } = c.vp
   return {
-    flatten: groupOf(
-      device,
-      layouts.flatten,
-      namedEntries(FLATTEN_BINDINGS, {
-        ...frameInputs(params, frame),
-        flat: flat.view,
-        tiles: tilesA.view,
-      }),
-    ),
-    gather: groupOf(
-      device,
-      layouts.gather,
-      namedEntries(GATHER_BINDINGS, { params, tiles: tilesA.view, out: tilesB.view }),
-    ),
+    flatten: group(c, layouts.flatten, FLATTEN_BINDINGS, {
+      ...frameInputs(c),
+      flat: flat.view,
+      tiles: tilesA.view,
+    }),
+    gather: group(c, layouts.gather, GATHER_BINDINGS, {
+      params: c.params,
+      tiles: tilesA.view,
+      out: tilesB.view,
+    }),
     gatherDrawn: undefined,
-    scatter: groupOf(
-      device,
-      layouts.scatter,
-      namedEntries(SCATTER_BINDINGS, { params, tiles: tilesA.view }),
-    ),
-    classify: groupOf(
-      device,
-      layouts.classify,
-      namedEntries(CLASSIFY_BINDINGS, {
-        params,
-        tiles: tilesB.view,
-        gatherHalf,
-        gatherFull,
-        weighHalf,
-        weighFull,
-      }),
-    ),
+    classify: group(c, layouts.classify, CLASSIFY_BINDINGS, {
+      params: c.params,
+      tiles: tilesB.view,
+      gatherHalf,
+      gatherFull,
+      weighHalf,
+      weighFull,
+    }),
   }
 }
 
 /** The same with two directions, which also name the images of the tiles' second largest motions:
  *  the spread by reading the neighbours reads and writes the ranges and the seconds, the spread by
  *  drawing (`gatherDrawn`) leaves the drawn ranges as they are and spreads the seconds alone. */
-function twoDirectionGroups(
-  device: GPUDevice,
-  { layouts }: MotionBlurPrograms,
-  two: TwoDirectionPrograms,
-  targets: MotionBlurTargets,
-  nth: number,
-  params: GPUBufferBinding,
-  frame: ResolveFrame,
-) {
-  const { flat, tilesA, tilesB, secondsA, secondsB } = targets.held
-  const [gatherHalf, gatherFull, weighHalf, weighFull, weighTwo] = targets.lists(nth).map(whole)
-  const spread = { params, tiles: tilesA.view, tilesSecond: secondsA!.view }
-  const group = (layout: GPUBindGroupLayout, entries: GPUBindGroupEntry[]) =>
-    groupOf(device, layout, entries)
+function twoDirectionGroups(c: Context) {
+  const { flat, tilesA, tilesB, secondsA, secondsB } = c.targets.held
+  const [gatherHalf, gatherFull, weighHalf, weighFull, weighTwo] = c.targets.lists(c.nth).map(whole)
+  const layouts = c.vp.layouts
+  const spread = { params: c.params, tiles: tilesA.view, tilesSecond: secondsA!.view }
   return {
-    flatten: group(
-      two.layouts.flatten,
-      namedEntries(FLATTEN_TWO_BINDINGS, {
-        ...frameInputs(params, frame),
-        flat: flat.view,
-        tiles: tilesA.view,
-        tilesSecond: secondsA!.view,
-      }),
-    ),
-    gather: group(
-      two.layouts.gather,
-      namedEntries(GATHER_TWO_BINDINGS, { ...spread, out: tilesB.view, outSecond: secondsB!.view }),
-    ),
-    gatherDrawn: group(
-      two.layouts.gatherDrawn,
-      namedEntries(GATHER_TWO_BINDINGS, {
-        ...spread,
-        centre: tilesB.view,
-        outSecond: secondsB!.view,
-      }),
-    ),
-    scatter: group(layouts.scatter, namedEntries(SCATTER_BINDINGS, { params, tiles: tilesA.view })),
-    classify: group(
-      two.layouts.classify,
-      namedEntries(CLASSIFY_TWO_BINDINGS, {
-        params,
-        tiles: tilesB.view,
-        tilesSecond: secondsB!.view,
-        gatherHalf,
-        gatherFull,
-        weighHalf,
-        weighFull,
-        weighTwo,
-      }),
-    ),
+    flatten: group(c, layouts.flatten, FLATTEN_TWO_BINDINGS, {
+      ...frameInputs(c),
+      flat: flat.view,
+      tiles: tilesA.view,
+      tilesSecond: secondsA!.view,
+    }),
+    gather: group(c, layouts.gather, GATHER_TWO_BINDINGS, {
+      ...spread,
+      out: tilesB.view,
+      outSecond: secondsB!.view,
+    }),
+    gatherDrawn: group(c, layouts.gatherDrawn!, GATHER_TWO_BINDINGS, {
+      ...spread,
+      centre: tilesB.view,
+      outSecond: secondsB!.view,
+    }),
+    classify: group(c, layouts.classify, CLASSIFY_TWO_BINDINGS, {
+      params: c.params,
+      tiles: tilesB.view,
+      tilesSecond: secondsB!.view,
+      gatherHalf,
+      gatherFull,
+      weighHalf,
+      weighFull,
+      weighTwo,
+    }),
   }
 }
 
 /** The groups of one filter pass, from the image `color` into `blurred`: one a class, each naming
- *  the `nth` blur's list of the tiles of its class; with `two`, the class of two motions too, which
- *  also names the image of the tiles' second largest motions. */
+ *  the `nth` blur's list of the tiles of its class; the class of two motions too, with two
+ *  directions, which also names the image of the tiles' second largest motions. */
 function filterGroups(
-  device: GPUDevice,
-  { layouts, sampler }: MotionBlurPrograms,
-  two: TwoDirectionPrograms | undefined,
-  targets: MotionBlurTargets,
-  nth: number,
-  params: GPUBufferBinding,
+  c: Context,
+  binding: GPUBufferBinding,
   color: GPUTextureView,
   blurred: GPUTextureView,
 ) {
-  const { flat, tilesB, secondsB } = targets.held
-  const lists = targets.lists(nth)
-  return tileClasses(two ? 2 : 1).map((_, at) => {
+  const { flat, tilesB, secondsB } = c.targets.held
+  const lists = c.targets.lists(c.nth)
+  const { layouts } = c.vp
+  return tileClasses(c.vp.variant.directions).map((_, at) => {
     const own = {
-      params,
+      params: binding,
       color,
-      sampler,
+      sampler: c.programs.sampler,
       flat: flat.view,
       tiles: tilesB.view,
       list: whole(lists[at]),
+      blurred,
     }
-    return device.createBindGroup({
-      label: MOTION_BLUR_PASS,
-      layout: two && at === TILE_CLASSES.length ? two.layouts.filter : layouts.filter,
-      entries:
-        two && at === TILE_CLASSES.length
-          ? namedEntries(FILTER_TWO_BINDINGS, { ...own, blurred, tilesSecond: secondsB!.view })
-          : namedEntries(FILTER_BINDINGS, { ...own, blurred }),
-    })
+    return at < TILE_CLASSES.length
+      ? group(c, layouts.filter, FILTER_BINDINGS, own)
+      : group(c, layouts.filterTwo!, FILTER_TWO_BINDINGS, { ...own, tilesSecond: secondsB!.view })
   })
 }
 
 /** The groups the passes of the `nth` blur of the chain are bound with, over the image `input`, the
- *  blurred image `output` and, for two passes, the one `between` (`MotionBlurTargets`); those of
- *  two directions where `two` is given. */
+ *  blurred image `output` and, for two passes, the one `between` (`MotionBlurTargets`), for the
+ *  programs of `variant`. */
 export function bindGroups(
   device: GPUDevice,
   programs: MotionBlurPrograms,
-  two: TwoDirectionPrograms | undefined,
+  variant: VariantPrograms,
   targets: MotionBlurTargets,
   nth: number,
   uniforms: readonly Uniform[],
@@ -194,13 +161,13 @@ export function bindGroups(
 ): MotionBlurGroups {
   const { input, output, between } = images
   const params = whole(uniforms[0].buffer)
-  const filters = (color: GPUTextureView, blurred: GPUTextureView, binding: GPUBufferBinding) =>
-    filterGroups(device, programs, two, targets, nth, binding, color, blurred)
+  const c: Context = { device, programs, vp: variant, targets, nth, params, frame }
+  const { tilesA } = targets.held
+  const before = variant.variant.directions > 1 ? twoDirectionGroups(c) : oneDirectionGroups(c)
   return {
-    ...(two
-      ? twoDirectionGroups(device, programs, two, targets, nth, params, frame)
-      : oneDirectionGroups(device, programs, targets, nth, params, frame)),
-    filter: filters(input, between ?? output, params),
-    second: between && filters(between, output, whole(uniforms[1].buffer)),
+    ...before,
+    scatter: group(c, programs.scatterLayout, SCATTER_BINDINGS, { params, tiles: tilesA.view }),
+    filter: filterGroups(c, params, input, between ?? output),
+    second: between && filterGroups(c, whole(uniforms[1].buffer), between, output),
   }
 }

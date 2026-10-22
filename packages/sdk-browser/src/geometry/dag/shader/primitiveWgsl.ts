@@ -46,12 +46,14 @@ fn placedBefore(w:u32)->mat4x4f{
  if(beforeW!=w){beforeW=w;beforePose=previousPose(w);}
  return beforePose;
 }
-/** Plane \`i\` of the view in placement \`w\`'s space, moved out by its deformation reach; a
+/** The world plane \`plane\` in placement \`w\`'s space, moved out by its deformation reach; a
  *  primitive no camera culls (\`unculledOf\`) takes a plane no box leaves. */
-fn planeOf(w:u32,i:u32)->vec4f{
+fn placedPlane(w:u32,plane:vec4f)->vec4f{
  placed(w);
- return select(grownPlane(placedT*views[0u].planes[i],reachOf(w)),vec4f(0.0,0.0,0.0,1.0),unculledOf(w));
+ return select(grownPlane(placedT*plane,reachOf(w)),vec4f(0.0,0.0,0.0,1.0),unculledOf(w));
 }
+/** Plane \`i\` of the view's frustum in placement \`w\`'s space (\`placedPlane\`). */
+fn planeOf(w:u32,i:u32)->vec4f{return placedPlane(w,views[0u].planes[i]);}
 /** Frustum planes are brought into the primitive's space, so no box is ever transformed. GPU
  *  mirror of \`frustumExcludesBox\` (sdk-core, packages/math/src/geometry/frustum/box.ts): same
  *  corners, same sum. An infinite far plane is not tested (\`farSkip\`): it rejects no box. */

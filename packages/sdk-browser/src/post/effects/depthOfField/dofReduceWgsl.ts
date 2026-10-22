@@ -127,14 +127,15 @@ fn spriteEntries(index:u32,lane:u32,texel:vec2u,color:vec3f,coc:f32,list:u32){
 
 /**
  * The scattering of one texel, which returns the colour left for the gather:
- * - the factor, from the brightness, the circle's size past the least scattered (the layer's sign
- *   when only one scatters), the distance to the image's edge the circle must fit in, the neighbours
- *   where the texel is already a candidate, then sharpened (`2 f − 1`);
+ * - the factor, from the brightness, the circle's size — in the gather's texels (`circleRatio`) — past
+ *   the least scattered (the layer's sign when only one scatters), the distance to the setup's edge the
+ *   circle must fit in, the neighbours where the texel is already a candidate, then sharpened
+ *   (`2 f − 1`);
  * - a texel above 0.01 scatters; each 2 × 2 block (a lane's `lane & 15`) that has any scattering texel
  *   gets a place in its layer's list — the workgroup's first lane counting them into the draw's
  *   instance counter —, where each of its four texels writes its colour times the factor and the
- *   intensity a circle spreads (`1 / π r²`, held to 1) — 0 for the other layer's sign — if the
- *   list has room, else the texel is not scattered;
+ *   intensity a circle spreads (`1 / π r²`, held to 1, `r` in the setup's texels) — 0 for the other
+ *   layer's sign — if the list has room, else the texel is not scattered;
  * - what was scattered is taken out of the gather's colour; a texel that was not has its weight
  *   lowered by the distinction filter.
  */
@@ -155,7 +156,8 @@ fn scatterFactor(texel:vec2u,color:vec4f,coc:f32)->f32{
 }
 fn scatterPass(texel:vec2u,lane:u32,input:vec4f,coc:f32)->vec4f{
  var color=input;
- var factor=scatterFactor(texel,color,coc);
+ let radius=coc*circleRatio();
+ var factor=scatterFactor(texel,color,radius);
  let scatters=factor>0.01;
  let foreground=isForeground(coc);
  if(!scatters){color*=distinction(coc,color);}
@@ -173,12 +175,12 @@ fn scatterPass(texel:vec2u,lane:u32,input:vec4f,coc:f32)->vec4f{
  let amount=color.rgb*(factor*loss);
  if(SCATTER_FG&&(bit&masks.x)!=0u){
   let index=baseForeground+countOneBits(masks.x&(bit-1u));
-  if(index<view.counts.x){spriteEntries(index,lane>>4u,texel,select(vec3f(0.0),amount,foreground),coc,0u);}
+  if(index<view.counts.x){spriteEntries(index,lane>>4u,texel,select(vec3f(0.0),amount,foreground),radius,0u);}
   else{factor=0.0;}
  }
  if(SCATTER_BG&&(bit&masks.y)!=0u){
   let index=baseBackground+countOneBits(masks.y&(bit-1u));
-  if(index<view.counts.x){spriteEntries(index,lane>>4u,texel,select(amount,vec3f(0.0),foreground),coc,1u);}
+  if(index<view.counts.x){spriteEntries(index,lane>>4u,texel,select(amount,vec3f(0.0),foreground),radius,1u);}
   else{factor=0.0;}
  }
  return vec4f(color.rgb*(1.0-factor),color.a);

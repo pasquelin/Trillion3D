@@ -116,11 +116,12 @@ function lodBiasFactor(rt: WebgpuPagesRuntime) {
  * The drawn view's selection uniforms under `cam`: its pixels at the size the image is drawn at,
  * the image's render matrix — its jitter included — the boxes' pixel centres are found with, the
  * culls the host turned off, the scale of the draw distances, the view's clip plane and filter, the
- * frame. The threshold the cut
- * reads is the host's pixels per edge divided by the view's level-of-detail factor (`lodBiasFactor`) and the streaming quality scale
+ * frame. The threshold the cut reads is the host's pixels per edge divided by the view's
+ * level-of-detail factor (`lodBiasFactor`) and the streaming quality scale
  * (`../../geometry/residency/poolPressure.ts`): residency coarsens, one DAG level where a page is
  * missing (`../../geometry/cut/rule.ts`) — or, where a GPU time budget asks it, by the lesser of
- * that scale and the edge scale's fraction (`../scale/scaleControl.ts`, `cutEdgeScaleBudgetMs`).
+ * that scale and the edge scale's fraction, the world's for every view
+ * (`../scale/scaleControl.ts`, `cutEdgeScaleBudgetMs`).
  */
 function writeCutUniforms(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: number) {
   const { run, gpu, services } = rt,
@@ -128,7 +129,7 @@ function writeCutUniforms(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError:
     size = gpu.targetSize
   const scale = Math.min(
     services.residency.qualityScale,
-    rt.views.main.scale.edgeScale(
+    rt.views.main.scale.edge.ask(
       cutSetting(rt, 'cutEdgeScaleBudgetMs'),
       cutSetting(rt, 'cutEdgeScaleMinPercent'),
     ),
@@ -141,10 +142,7 @@ function writeCutUniforms(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError:
     (cutSetting(rt, 'cutDrawDistanceCulling') ? 0 : CULL_DRAW_DISTANCE_OFF) |
     (cutSetting(rt, 'cutClipPlaneCulling') ? 0 : CULL_CLIP_PLANE_OFF)
   // The view's clip plane and its lists of hidden and shown objects (`./cutViewSet.ts`).
-  writeCutViewSet(rt, cam, uniforms, {
-    clipPlane: cutSetting(rt, 'cutClipPlane'),
-    filtering: cutSetting(rt, 'cutViewFiltering'),
-  })
+  writeCutViewSet(rt, cam, uniforms, cutSetting(rt, 'cutViewFiltering'))
   const distances = cutSetting(rt, 'cutViewDistanceScale')
   uniforms.viewDistanceScale = distances
   // What the rays' scene meets of the objects out of their draw distances, from the same eye.

@@ -97,7 +97,7 @@ const meshBuildSettings: Record<keyof MeshBuildSettingsWire, JsonSchemaProperty>
     ),
     allowAssemblies: ruleSchema(
       rules.allowAssemblies,
-      `Whether the assembly the mesh's glTF extras.assembly names is built: parts (meshes by their rank, each with an optional materialRemap, a glTF material for each of its primitives) and nodes (a part and a glTF node's matrix, or translation, rotation and scale each); the mesh is then its own triangles and every node's part carried by its transform, its levels of detail built over the nodes. False draws the mesh's own triangles alone (default ${rules.allowAssemblies.default}).`,
+      `Whether the assembly the mesh's glTF extras.assembly names is built: parts (meshes by their rank, each with an optional materialRemap, a glTF material for each of its primitives) and nodes (a part and a glTF node's matrix, or translation, rotation and scale each); each node of the assembly is then a node of the scene under every node that places the mesh, carrying its part's mesh, whose pages are written once however many nodes name it. False draws the mesh's own triangles alone and the import report counts the assembly (default ${rules.allowAssemblies.default}).`,
     ),
     positionPrecision: int(
       `The position grid of the mesh's pages: every position sits on cells of 2^-n centimetre. Left out, the precision follows the mesh's density — seven less the mean base-2 logarithm of the half-diagonal, in centimetres, of its finest clusters' boxes, never finer than a sixteenth of a centimetre — and falls as far as the widest cluster needs to fit 2^21 cells an axis.`,

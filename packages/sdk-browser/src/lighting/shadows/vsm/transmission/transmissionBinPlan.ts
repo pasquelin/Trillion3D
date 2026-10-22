@@ -36,8 +36,8 @@ const sizing = vsmListSizing(VSM_TRANSMISSION_PAGE_BYTES, VSM_TRANSMISSION_HEADE
 
 /**
  * The fewest bytes a transmission's chunk lists take to bin `used` of `rowCount` blended rows
- * under views of `viewWords` words and `viewMips` mips at `pages` pages (`vsmDrawFloorBytes`), on
- * a device of `limits`. Asked with the first transmission.
+ * under views of `viewWords` words and `viewMips` mips of `lights` lights at `pages` pages
+ * (`vsmDrawFloorBytes`), on a device of `limits`. Asked with the first transmission.
  */
 export function vsmTransmissionFloorBytes(
   limits: GPUSupportedLimits,
@@ -46,6 +46,7 @@ export function vsmTransmissionFloorBytes(
   viewWords: number,
   viewMips: number,
   pages: number,
+  lights: number,
 ) {
   if (used <= 0 || rowCount <= 0 || viewWords <= 0) return 0
   const rows = Math.min(CHUNK_ROWS, used)
@@ -57,7 +58,7 @@ export function vsmTransmissionFloorBytes(
   const slots = vsmChunkParamSlots(limits)
   return vsmDrawFloorBytes(
     rows,
-    vsmSizingFor(sizing, used, rowCount, viewWords, holds, slots, 1).sizes,
+    vsmSizingFor(sizing, used, rowCount, viewWords, lights, holds, slots, 1).sizes,
   )
 }
 
@@ -77,6 +78,7 @@ const plan: BinPlan = {
   used: 0,
   within: sizing.within,
   rowCount: 0,
+  lights: 0,
   chunks: 0,
   chunkRows: 0,
   cmds: 0,
@@ -106,7 +108,17 @@ export function binPlan(
   worst.pages = pages
   worst.cap = CHUNK_ROWS * pages
   const chosen = vsmChunkRows(ctx.rowBound, scene.rowSpheres, range, frame.lights, worst)
-  const sized = vsmSizingFor(sizing, used, rowCount, 4 * views, chosen, ctx.slots, 1)
+  const lights = frame.lights.length
+  const sized = vsmSizingFor(
+    sizing,
+    used,
+    rowCount,
+    4 * (lights + views),
+    lights,
+    chosen,
+    ctx.slots,
+    1,
+  )
   const within = vsmChunkRowsWithin(
     frame.device,
     ctx.buffers,
@@ -117,6 +129,7 @@ export function binPlan(
   const chunkRows = within.rows
   plan.rowCount = rowCount
   onePass.maps = views
+  plan.lights = lights
   plan.used = used
   plan.chunks = within.size ? ceilDiv(used, chunkRows) : 0
   plan.chunkRows = chunkRows

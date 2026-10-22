@@ -27,20 +27,25 @@ export function marcher(
   const size = [width, height]
   return {
     /** Where the ray from `o` along `d` stops on the screen, or undefined: a miss; the cells it
-     *  read, and the iterations it may take. */
-    hit(o: number[], d: number[]) {
+     *  read, the iterations it may take, and how far it proved the ray in front of the depth (`above`).
+     *  `strict`: the reference's march, no floor, a ray behind a surface given up (`screenMarchOver`),
+     *  `cap` its iterations. */
+    hit(o: number[], d: number[], { strict = false, cap = 2 ** 32 - 1 } = {}) {
       run.counter.loads = 0
       const end = run.screenMarchEnd(o.slice(0, 2), d.slice(0, 2), size)
       const {
         t,
         plane,
         front: transparent,
-      } = run.screenMarch(o, d, end, run.thickness, run.slab, 2 ** 32 - 1)
+        above,
+      } = run.screenMarchOver(o, d, end, run.thickness, run.slab, cap, strict)
       const at = t < 0 ? undefined : o.map((x, k) => x + d[k] * t)
       return {
         at,
         depth: plane[0],
         transparent,
+        above,
+        end,
         loads: run.counter.loads,
         bound: run.screenMarchBudget(d, end, run.levels),
       }

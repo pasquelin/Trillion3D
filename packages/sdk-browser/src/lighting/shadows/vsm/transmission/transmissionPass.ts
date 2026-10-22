@@ -99,7 +99,7 @@ export function encodeVsmTransmission(
   // The encoder's clears first: the clear, the bin and the resolve are then one compute pass, each
   // dispatch reading what those before it wrote.
   encoder.clearBuffer(trans.build, 0, VSM_TRANSMISSION_COUNTER_WORDS * 4)
-  const bin = binning && binLists(encoder, ctx, trans, res, scene, binning)
+  const bin = binning && binLists(encoder, ctx, trans, res, scene, binning, frame.lights)
   const pass = encoder.beginComputePass(TRANSMISSION_PASS)
   pass.setPipeline(ctx.clear.pipeline)
   pass.setBindGroup(0, vsmPerFrameSet(groups.clear0, res, clearTables, ctx))

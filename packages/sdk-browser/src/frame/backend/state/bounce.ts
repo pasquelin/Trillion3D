@@ -20,8 +20,9 @@ export interface WebgpuBounceState {
   pending: Promise<unknown> | undefined
   /** What the host asked. */
   wanted: boolean
-  /** The probes an image traces, those never traced first (`resolveProbesPerFrame`). */
-  probesPerFrame: number
+  /** The probes an image traces, those never traced first, in the cost of a whole map each (`resolveProbesPerFrame`): the host's
+   *  count, none where it named none — the radiance cache's row of the level then (`probesPerFrameOf`). */
+  probesPerFrame: number | undefined
   /** The GPU duration of the bounce stage in the last timed image, in milliseconds: a measure, nothing
    *  steers by it; null until one was timed. */
   passMs: number | null
@@ -112,7 +113,8 @@ export function createWebgpuBounceState(
     proxy: undefined,
     pending: undefined,
     wanted,
-    probesPerFrame: resolveProbesPerFrame(probesPerFrame),
+    probesPerFrame:
+      probesPerFrame === undefined ? undefined : resolveProbesPerFrame(probesPerFrame),
     passMs: null,
     reason: null,
     lightEpoch: 0,

@@ -6,16 +6,13 @@ import assert from 'node:assert/strict'
 import { near } from '../../../math/src/float/near.fixture.ts'
 import { halton } from '../../../math/src/sequence/halton.ts'
 import { VOLUMETRIC_FOG_FILTERS } from '../../../sdk-core/src/contracts/volumetricFogOptions.ts'
-import { FOG_VOLUME_FRAME_AT, writeSampleOffsets } from './fog/layout.ts'
+import { FOG_MATCH_GLOW_SCALE, FOG_VOLUME_FRAME_AT, writeSampleOffsets } from './fog/layout.ts'
 import { sliceParams, volumeUvMax, cellGrid, FIRST_SLICE_MARGIN } from './fog/layout.ts'
-import {
-  FOG_VOLUME_FLAG,
-  newFogVolumeFrame,
-  writeFogViewBlock,
-  writeFogVolumeFrame,
-} from './fog/frame.ts'
+import { FOG_VOLUME_FLAG, newFogVolumeFrame, writeFogVolumeFrame } from './fog/frame.ts'
+import { FOG_OBSERVER_REACH, writeFogViewBlock } from './fog/viewBlock.ts'
 import { FOG_VIEW_FLOATS, FOG_VIEW_SLOT } from './fog/viewSlots.ts'
 import { FOG_PROGRAMS } from './fog/programs.ts'
+import type { ResolvedHeightFog } from '../../../sdk-core/src/scene/core/fogHeight.ts'
 import { camera, depthAtSlice, image, sliceAtDepth } from './fogVolumeRun.fixture.ts'
 import {
   reservedNames,
@@ -98,37 +95,62 @@ test('the frame: the grid, the depth numbers of the engine’s projection, the h
   const p = sliceParams(2, 62, 32, 8)
   near(field(at.sliceMap), [p.b, p.o, 32, 1 / 8], 'slice map', 1e-5)
   const flags = field(at.medium)[3]
-  assert.equal(
-    flags,
-    FOG_VOLUME_FLAG.glow | FOG_VOLUME_FLAG.skipHidden | FOG_VOLUME_FLAG.usesHistory,
-  )
+  const { glow, skipHidden, usesHistory } = FOG_VOLUME_FLAG
+  assert.equal(flags, glow | skipHidden | usesHistory)
   assert.equal(field(at.medium)[2], 0.25)
   // The hidden cells are skipped only where the image says its pyramid is there.
   const bare = writeFogVolumeFrame(newFogVolumeFrame(), { ...img, skipHidden: false })
-  assert.equal(bare[at.medium + 3], FOG_VOLUME_FLAG.glow | FOG_VOLUME_FLAG.usesHistory)
+  assert.equal(bare[at.medium + 3], glow | usesHistory)
   // No history, no blend; a previous image with the same grid, the setting's weight; reprojection off, none.
   assert.equal(field(at.blend)[0], 0)
   const previous = { viewProj: cam.viewProj, width: 160, height: 90 }
   const after = writeFogVolumeFrame(newFogVolumeFrame(), { ...img, previous })
   assert.equal(after[at.blend], Math.fround(0.9))
-  // The cells lie at multiples of their side in pixels: the history is read at the view over the
-  // cells' span, the last row of cells reaching past the edge of the view.
-  near(Array.from(after.subarray(at.previous, at.previous + 2)), [1, 90 / 96], 'span', 1e-6)
+  // The same view twice: the cells overhang it as before, the ratio is 1; the read may reach
+  // `(cover − inset) / textures` along an axis, and the previous image's cells end at `cells / textures`.
+  const words = (f: number) => Array.from(after.subarray(f, f + 4))
+  near(words(at.previous), [1, 1, (160 - 5) / 160, (96 - 5) / 96], 'previous', 1e-6)
+  near(words(at.history), [1, 1, 1, 1], 'history', 1e-6)
   const off = image(cam, true, { volumetricFogUsesHistory: false }, { previous })
   assert.equal(writeFogVolumeFrame(newFogVolumeFrame(), off)[at.blend], 0)
 })
+
+test('a view drawn smaller than the one before reads it where its cells were: the ratio of the overhangs, the cells it covered', () => {
+  const cam = camera([1, 2, 3])
+  const textures = image(cam).grid
+  // The image before: 160 × 90, 20 × 12 cells of 8 pixels, overhanging its view by 1 and 90/96.
+  // This one: 120 × 66, 15 × 9 cells, overhanging by 1 and 66/72, in the same textures.
+  const smaller = camera([1, 2, 3], 120, 66)
+  const now = { ...image(smaller), grid: { ...textures, x: 15, y: 9 }, resource: textures }
+  const previous = { viewProj: cam.viewProj, width: 160, height: 90 }
+  const w = writeFogVolumeFrame(newFogVolumeFrame(), { ...now, previous })
+  const at = FOG_VOLUME_FRAME_AT
+  const words = (f: number) => Array.from(w.subarray(f, f + 4))
+  const ratio = [1 / 1, 90 / 96 / (66 / 72)]
+  near(words(at.previous).slice(0, 2), ratio, 'the overhangs before over now', 1e-6)
+  near(words(at.history), [ratio[0], ratio[1], 1, 1], 'over the cells it covered', 1e-6)
+  // The image before was the smaller one: its cells end short of the textures'.
+  const back = writeFogVolumeFrame(newFogVolumeFrame(), {
+    ...image(cam),
+    previous: { viewProj: cam.viewProj, width: 120, height: 66 },
+  })
+  near(Array.from(back.subarray(at.history + 2, at.history + 4)), [15 / 20, 9 / 12], 'ends', 1e-6)
+})
+
+/** What the view block takes of the camera and the fog beside the frame: a perspective view, no fog. */
+const LOOK = { perspective: true, eyeHeight: 2, fog: {} as ResolvedHeightFog }
 
 test('the view block: what a surface needs of the image, all zero where no volume was built', () => {
   const cam = camera([1, 2, 3])
   const img = image(cam, { startAt: 2 }, { volumetricFogReadFilter: 'tricubic' })
   const frame = writeFogVolumeFrame(newFogVolumeFrame(), img)
-  const block = writeFogViewBlock(new Float32Array(FOG_VIEW_FLOATS), frame, img.settings)
+  const block = writeFogViewBlock(new Float32Array(FOG_VIEW_FLOATS), frame, img.settings, LOOK)
   const slot = (s: number) => Array.from(block.subarray(s * 4, s * 4 + 4))
   near(slot(FOG_VIEW_SLOT.eye), [1, 2, 3, 1], 'eye, built', 0)
   near([slot(FOG_VIEW_SLOT.forward)[3]], [VOLUMETRIC_FOG_FILTERS.indexOf('tricubic')], 'filter', 0)
   near(slot(FOG_VIEW_SLOT.projection), Array.from(cam.viewProj.subarray(0, 4)), 'matrix', 1e-6)
   near(slot(FOG_VIEW_SLOT.grid), [20, 12, 8, 8], 'grid', 0)
-  const none = writeFogViewBlock(block, undefined, img.settings)
+  const none = writeFogViewBlock(block, undefined, img.settings, LOOK)
   assert.ok(none.every((v) => v === 0))
 })
 
@@ -141,4 +163,83 @@ test('the programs: every name declared, braces paired, none twice, no reserved 
     const twice = topLevelNames(code).filter((n) => seen.size === seen.add(n).size)
     assert.deepEqual(twice, [], `${name} declares a name twice`)
   }
+})
+
+test('the frame carries the fog-wide settings: the edge fade, the sky light’s share, the local shadows, the glow in the matched unit', () => {
+  const at = FOG_VOLUME_FRAME_AT
+  const words = (
+    settings: Parameters<typeof image>[2],
+    volumetric: Parameters<typeof image>[1] = true,
+  ) => writeFogVolumeFrame(newFogVolumeFrame(), image(camera([1, 2, 3]), volumetric, settings))
+  const base = words({})
+  assert.equal(base[at.blend + 2], 0, 'no fade by default')
+  assert.equal(words({ volumetricFogEdgeFade: 1.5 })[at.blend + 2], 1.5)
+  // The glow is read in the unit of the fog's own colour where the fog matches the volume.
+  const glow = (settings: Parameters<typeof image>[2]) =>
+    words(settings, { glow: [1, 2, 3] })[at.glow]
+  near([glow({ fogMatchesVolume: true }) / glow({})], [FOG_MATCH_GLOW_SCALE], 'unit', 1e-3)
+})
+
+test('the view block’s switches: each lane zero at the defaults, set by the settings, the observer by an orthographic view’s height', () => {
+  const slot = (block: Float32Array, s: number) => Array.from(block.subarray(s * 4, s * 4 + 4))
+  const block = (settings: Parameters<typeof image>[2], look = LOOK) =>
+    writeFogViewBlock(
+      new Float32Array(FOG_VIEW_FLOATS),
+      undefined,
+      image(camera([1, 2, 3]), true, settings).settings,
+      look,
+    )
+  const lanes = (b: Float32Array) =>
+    [FOG_VIEW_SLOT.options, FOG_VIEW_SLOT.observer, FOG_VIEW_SLOT.match, FOG_VIEW_SLOT.albedo].map(
+      (s) => slot(b, s),
+    )
+  const zero = [
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+  ]
+  assert.deepEqual(lanes(block({})), zero, 'the defaults write nothing')
+  assert.deepEqual(slot(block({ fogEnabled: false }), FOG_VIEW_SLOT.options), [1, 0, 0, 0])
+  assert.deepEqual(slot(block({ fogReadsAtmosphere: false }), FOG_VIEW_SLOT.options), [0, 1, 0, 0])
+  // Matched to the volume: its glow in the fog's unit, its anisotropy and its particles' colour.
+  const medium = {
+    glow: [3, 2, 1].map((c) => c / 100),
+    anisotropy: 0.4,
+    particleColor: [0.5, 0.6, 0.7],
+  }
+  const matched = block(
+    { fogMatchesVolume: true },
+    { ...LOOK, fog: { volumetric: medium } as ResolvedHeightFog },
+  )
+  near(slot(matched, FOG_VIEW_SLOT.options), [0, 0, 1, 0], 'matches', 0)
+  near(slot(matched, FOG_VIEW_SLOT.match), [3, 2, 1, 0.4], 'match', 1e-6)
+  near(slot(matched, FOG_VIEW_SLOT.albedo), [0.5, 0.6, 0.7, 0], 'albedo', 1e-6)
+  // No volume to match: the volume's own defaults.
+  assert.ok(
+    slot(block({ fogMatchesVolume: true }), FOG_VIEW_SLOT.match)[3] > 0,
+    'its default anisotropy',
+  )
+  // An orthographic view measures the fog from its height: the observer may rise by it, less the 655 m
+  // a perspective view's does; a view below the ground gets none.
+  const ortho = { ...LOOK, perspective: false, eyeHeight: 2000 }
+  assert.deepEqual(slot(block({}, ortho), FOG_VIEW_SLOT.options), [0, 0, 0, 1])
+  near(
+    slot(block({}, ortho), FOG_VIEW_SLOT.observer),
+    [2000 - FOG_OBSERVER_REACH, 0, 0, 0],
+    'observer',
+    1e-3,
+  )
+  near(
+    slot(block({}, { ...ortho, eyeHeight: -5 }), FOG_VIEW_SLOT.observer),
+    [-FOG_OBSERVER_REACH, 0, 0, 0],
+    'below',
+    1e-3,
+  )
+  assert.deepEqual(
+    lanes(block({ fogOrthoHeightAdjustment: false }, ortho)),
+    zero,
+    'the setting off',
+  )
+  assert.deepEqual(lanes(block({}, { ...LOOK, eyeHeight: 2000 })), zero, 'a perspective view')
 })

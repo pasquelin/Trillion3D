@@ -6,7 +6,8 @@ import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { gatherShader } from './dilateWgsl.ts'
 import { filterShader } from './filterWgsl.ts'
 import { filterTwoShader } from './weighTwoWgsl.ts'
-import { flattenShader } from './flattenWgsl.ts'
+import { wgslModule } from '../../../../../math/src/wgsl/assemble.ts'
+import { packLight as packLightWgsl } from '../../../gpu/core/smallFloatWgsl.ts'
 
 export type Vec = number[]
 export const blurUniform = {
@@ -27,10 +28,13 @@ export const near = (actual: readonly number[], expected: readonly number[], dig
     expected.map((value) => Number(value.toFixed(digits))),
   )
 
-export const { packFlat, unpackFlat } = shaderRun<{
-  packFlat: (length: number, angle: number, depth: number) => number
-  unpackFlat: (word: number) => Vec
-}>(flattenShader(), ['packFlat', 'unpackFlat'], { mb: blurUniform })
+/** The flattened motion's word (`packLight`): `(length, angle, depth)` in. */
+const { packLight } = shaderRun<{ packLight: (motion: Vec) => number }>(
+  wgslModule(packLightWgsl),
+  ['packLight'],
+  {},
+)
+const packFlat = (length: number, angle: number, depth: number) => packLight([length, angle, depth])
 
 /** What the filter's shaders read of an image of 64 × 32 texels, in a `texture` of its size or
  *  larger: the colour from `colour`, the flattened motion (length, angle, depth in metres) from

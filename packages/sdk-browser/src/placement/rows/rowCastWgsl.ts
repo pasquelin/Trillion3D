@@ -7,8 +7,9 @@
  *
  * The cast state is 0 for a row the pass never derived in this sphere buffer, or one it cleared;
  * else 1 + its bits: moving (`MOBILITY_MOVING`, the static slice leaves it out), shadowless
- * (`MOBILITY_SHADOWLESS`, no caster pass draws it) and casting far (`MOBILITY_FAR_SHADOW`, a sun's
- * far-shadow test keeps it: its pages are drawn again when it flips). A row whose state was 0 has no pose to leave:
+ * (`MOBILITY_SHADOWLESS`, no caster pass draws it), casting far (`MOBILITY_FAR_SHADOW`, a sun's
+ * far-shadow test keeps it) and whether that test reaches it or never does (`MOBILITY_FAR_TESTED`,
+ * `MOBILITY_FAR_SKIPPED`): its pages are drawn again when either flips. A row whose state was 0 has no pose to leave:
  * its arrival appends the box of the sphere it enters with — the one owner of a caster row's
  * arrival and departure, the CPU declaring neither (`followCasters`) —, moving when the caster is;
  * a sphere buffer made anew stales every page (`spheresMadeAnew`,
@@ -30,6 +31,8 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import {
   MOBILITY_FAR_SHADOW,
+  MOBILITY_FAR_SKIPPED,
+  MOBILITY_FAR_TESTED,
   MOBILITY_MOVING,
   MOBILITY_SHADOWLESS,
 } from '../../lighting/shadows/mobilityBits.ts'
@@ -64,7 +67,9 @@ fn castCode(row:u32)->f32{
  let moving=select(0u,1u,(word&${MOBILITY_MOVING}u)!=0u);
  let shadowless=select(0u,2u,(word&${MOBILITY_SHADOWLESS}u)!=0u);
  let far=select(0u,4u,(word&${MOBILITY_FAR_SHADOW}u)!=0u);
- return f32(1u+moving+shadowless+far);
+ let tested=select(0u,8u,(word&${MOBILITY_FAR_TESTED}u)!=0u);
+ let skipped=select(0u,16u,(word&${MOBILITY_FAR_SKIPPED}u)!=0u);
+ return f32(1u+moving+shadowless+far+tested+skipped);
 }
 fn castState(code:f32)->u32{return u32(code)-1u;}
 fn sphereHalf(s:array<f32,${CLUSTER_SPHERE_FLOATS}>)->f32{return (s[3]+length(vec3f(s[4],s[5],s[6])))*CAST_GROWTH;}

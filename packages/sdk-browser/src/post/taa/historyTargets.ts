@@ -2,7 +2,7 @@ import { HISTORY_FORMATS, resolveTargetUsage } from './resolve.ts'
 import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import type { AccumulatedImage } from '../../lighting/deferred/program.ts'
-import { ANALYSIS_BYTES_PER_PIXEL } from './analysis.ts'
+import { ANALYSIS_BYTES_PER_PIXEL } from './analysisTargets.ts'
 
 /** Both ping-pong histories: colour, and the share target (as-is share, validity). */
 const HISTORY_BYTES_PER_PIXEL = HISTORY_FORMATS.reduce(

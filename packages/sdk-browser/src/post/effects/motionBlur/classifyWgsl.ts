@@ -12,7 +12,7 @@ import { MOTION_BLUR_PARAMS_WGSL } from './motionBlurWgsl.ts'
 
 /** The pixels a motion must cross for a pixel to be blurred at all: under half a pixel, in
  *  length, the motion is none, and the classes that gather it leave the pixel as it is. */
-export const MINIMAL_PIXEL_VELOCITY = 0.5
+export const LEAST_STREAK_PIXELS = 0.5
 
 /** The classifying pass's bindings: the blur's uniform, the tile ranges read, and the list of each class's
  *  tiles written (`TILE_CLASSES`). */
@@ -56,7 +56,7 @@ const SUGGEST_ONE = `fn suggestedClass(range:vec4f)->u32{
  let smallest=dot(range.xy,range.xy);
  let largest=dot(range.zw,range.zw);
  let halved=largest>mb.knobs.x*mb.knobs.x&&mb.knobs.y!=0.0;
- if(largest<${MINIMAL_PIXEL_VELOCITY * MINIMAL_PIXEL_VELOCITY}){return 0u;}
+ if(largest<${LEAST_STREAK_PIXELS * LEAST_STREAK_PIXELS}){return 0u;}
  if(smallest>0.4*largest){return select(1u,0u,halved);}
  return select(3u,2u,halved);
 }`
@@ -66,8 +66,8 @@ const SUGGEST_TWO = `fn suggestedClass(range:vec4f,second:vec2f)->u32{
  let smallest=dot(range.xy,range.xy);
  let largest=dot(range.zw,range.zw);
  let halved=largest>mb.knobs.x*mb.knobs.x&&mb.knobs.y!=0.0;
- if(largest<${MINIMAL_PIXEL_VELOCITY * MINIMAL_PIXEL_VELOCITY}){return 0u;}
- if(dot(second,second)>=${MINIMAL_PIXEL_VELOCITY * MINIMAL_PIXEL_VELOCITY}){return ${TILE_CLASSES_TWO.indexOf(TWO_MOTION_CLASS)}u;}
+ if(largest<${LEAST_STREAK_PIXELS * LEAST_STREAK_PIXELS}){return 0u;}
+ if(dot(second,second)>=${LEAST_STREAK_PIXELS * LEAST_STREAK_PIXELS}){return ${TILE_CLASSES_TWO.indexOf(TWO_MOTION_CLASS)}u;}
  if(smallest>0.4*largest){return select(1u,0u,halved);}
  return select(3u,2u,halved);
 }`

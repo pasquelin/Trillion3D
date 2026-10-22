@@ -9,7 +9,12 @@ import { readFileSync } from 'node:fs'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { replayWrites } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { createVsmMarking, VSM_PER_PAGE_BIN_COUNT, vsmMarkingBytes } from './markingPass.ts'
-import { vsmMarkingClears, vsmResetPageTableWgsl, type VsmClearTarget } from './markingWgsl.ts'
+import {
+  vsmCoarseMarkingWgsl,
+  vsmMarkingClears,
+  vsmResetPageTableWgsl,
+  type VsmClearTarget,
+} from './markingWgsl.ts'
 import { createVsmResources } from './resources.ts'
 import { vsmLayout } from './layout.ts'
 
@@ -146,4 +151,14 @@ test('the frame opens the marking pass: the dirty flags cleared before it, the a
     order.every((k, i) => k > 0 && (i === 0 || k > order[i - 1])),
     `${order}`,
   )
+})
+
+test("a local map asks its last mip's page where its record says coarse, a one-page light always", () => {
+  const code = vsmCoarseMarkingWgsl(vsmLayout({ fullMapCapacity: 7 }))
+  // The sun's level and the local map are read by the one flag of their records.
+  const branch = '}else if(pd.coarseLevel||pd.finestMip>=VSM_MIPS-1u){'
+  const local = code.slice(code.indexOf(branch))
+  assert.ok(code.includes('if(pd.lightKind==LIGHT_KIND_DIRECTIONAL){'), 'the sun branch')
+  assert.ok(local.startsWith(branch), 'the local branch: flagged, or a one-page light')
+  assert.ok(local.includes('vsmTableEntryOf(handle,VSM_MIPS-1u,vec2u(0u,0u))'), 'its last mip')
 })

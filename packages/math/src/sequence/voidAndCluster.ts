@@ -12,10 +12,10 @@ import {
 } from './noiseField.ts'
 
 /** The share of the pixels the first binary pattern turns on: the density that gave the best masks. */
-export const INITIAL_DENSITY = 0.1
+const INITIAL_DENSITY = 0.1
 
 /** The seed of the first pattern, so that a mask is the same on every run. */
-export const NOISE_SEED = 0x1337feed
+const NOISE_SEED = 0x1337feed
 
 /** Turns `pixel` on or off and brings the trees up to date with what that changed. */
 function move(field: EnergyField, trees: readonly ExtremumTree[], pixel: number, on: boolean) {

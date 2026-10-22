@@ -31,7 +31,7 @@ import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
  * pixel spans (`ReflectionView.slab.x` under a perspective, none under an orthographic projection) —,
  * while the lobe is `t·tan θ` wide there (`reflectionConeTangent`). A neighbour is kept while that
  * parting stays within the lobe's width, `n ≤ t·tan θ / (w + t·a)` at the nearer hit,
- * `REFLECTION_REUSE_RADIUS` pixels at most: a mirror's disc is under a pixel, and it keeps its own ray
+ * the reconstruction's radius at most: a mirror's disc is under a pixel, and it keeps its own ray
  * alone — the same rule, no case of its own. What depends on the pixel alone is taken once
  * (`reflectionReachOf`), the hit a tap.
  *
@@ -94,16 +94,17 @@ fn reflectionReuseWeight(P:vec3f,N:vec3f,V:vec3f,a2:f32,Q:vec3f,d:vec3f,t:f32,pd
  * accumulation and the last pass read (`resolvedOut`), the hit's distance beside it.
  *
  * - CENTRE (2 × 2): the four grid texels whose blocks surround the pixel, each whose picked pixel
- *   traced weighed by how near that pixel lies, (2 − |dx|)(2 − |dy|), normalised; the hit and the ray
- *   of the nearest stand for the centre. The jitter pixel of its block reads its own
- *   ray whole; the three others reconstruct it from their neighbours' (the temporal accumulation's
- *   reconstructed samples, `temporalWgsl.ts`).
+ *   traced weighed by how near that pixel lies, (b − |dx|)(b − |dy|) for blocks of `b` pixels a side,
+ *   normalised; the hit and the ray of the nearest stand for the centre. The jitter pixel of its block reads its own
+ *   ray whole — every pixel's, of a block of one —; the others reconstruct it from their neighbours' (the temporal
+ *   accumulation's reconstructed samples, `temporalWgsl.ts`).
  * - RECONSTRUCTION, past a mirror — a reach wider than a block, where the centre's texels alone no
  *   longer cover the lobe —: the centre re-weighed by its ray's weight on the pixel's lobe, at least
- *   10⁻³, then up to `REFLECTION_REUSE_TAPS` neighbours on the disc
+ *   10⁻³, then up to the level's samples of neighbours on the disc
  *   of the lobe's reach (`REFLECTION_REUSE_WGSL`), in pixels, each texel's ray weighed on the pixel's
  *   lobe — its point and pdf read beside its ray (`reflectionRayData`), two texels a tap beside its
- *   fresh one —, its hit held to the centre's, the nearest kept.
+ *   fresh one —, its hit held to the centre's, the nearest kept; the neighbours together weigh at least the level's
+ *   share of the centre's weight, their mean scaled up to it where they weigh less.
  *
  * The mean is taken in the denoiser's space (`reflectionDenoised`). A pixel that does not reflect, or
  * whose lobe traces nothing, resolves nothing (a zero texel, no lighting), and the last pass gives it
@@ -140,7 +141,8 @@ fn resolvePixel(coord:vec2i,layer:u32)->vec4u{
  let V=viewToEye(P);
  let size=vec2i(reflectionGridSize());
  let p=max(coord,vec2i(1));
- let first=(p-vec2i(1))/i32(REFLECTION_TRACE_BLOCK);
+ let block=f32(reflectionBlock());
+ let first=(p-vec2i(1))/i32(reflectionBlock());
  var sum=vec3f(0.0);
  var total=0.0;
  var best=0.0;
@@ -155,7 +157,7 @@ fn resolvePixel(coord:vec2i,layer:u32)->vec4u{
   if(!reflectionWordTraces(w)){continue;}
   let traced=vec2i(reflectionTracedOf(vec2u(g),w));
   let d=abs(vec2f(traced-p));
-  let weight=(2.0-d.x)*(2.0-d.y);
+  let weight=(block-d.x)*(block-d.y);
   if(weight<=0.0){continue;}
   let t=textureLoad(freshIn,g,0).xy;
   sum+=weight*reflectionDenoised(texelRadiance(t));
@@ -167,8 +169,8 @@ fn resolvePixel(coord:vec2i,layer:u32)->vec4u{
  var lighting=vec3f(0.0);
  if(centred){lighting=sum/total;}
  let reach=reflectionReachOf(P,alpha);
- let radius=min(reflectionReuseReach(reach,hit),f32(REFLECTION_REUSE_RADIUS));
- if(radius>f32(REFLECTION_TRACE_BLOCK)){
+ let radius=min(reflectionReuseReach(reach,hit),reflectionView.spread.x);
+ if(reflectionDone(REFLECTION_RECONSTRUCTION)&&radius>f32(reflectionBlock())){
   let a2=alpha*alpha;
   let near=hit;
   var weight=1e-3;
@@ -176,13 +178,14 @@ fn resolvePixel(coord:vec2i,layer:u32)->vec4u{
    let ray=reflectionRayData(centreTexel,centre);
    weight=max(reflectionReuseWeight(P,top.xyz,V,a2,ray.Q,rayDirection(word),near,ray.pdf),1e-3);
   }
-  sum=weight*lighting;
-  total=weight;
+  // The neighbours' rays alone, weighed together at least by the level's share of the pixel's own.
+  var around=vec3f(0.0);
+  var aroundTotal=0.0;
   let seed=reflectionReuseSeed(coord);
-  for(var k=0u;k<REFLECTION_REUSE_TAPS;k++){
-   let n=coord+vec2i(round(radius*reflectionReuseTap(k,REFLECTION_REUSE_TAPS,seed)));
+  for(var k=0u;k<reflectionView.taps.x;k++){
+   let n=coord+vec2i(round(radius*reflectionReuseTap(k,reflectionView.taps.x,seed)));
    if(any(n<vec2i(0))){continue;}
-   let g=n/i32(REFLECTION_TRACE_BLOCK);
+   let g=n/i32(reflectionBlock());
    if(any(g>=size)){continue;}
    let w=reflectionRayWord(vec2u(g));
    if(!reflectionWordTraces(w)){continue;}
@@ -194,11 +197,16 @@ fn resolvePixel(coord:vec2i,layer:u32)->vec4u{
    let ray=reflectionRayData(g,source);
    let wn=reflectionReuseWeight(P,top.xyz,V,a2,ray.Q,rayDirection(w),reached,ray.pdf);
    if(!(wn>1e-6)){continue;}
-   sum+=wn*reflectionDenoised(texelRadiance(t));
-   total+=wn;
+   around+=wn*reflectionDenoised(texelRadiance(t));
+   aroundTotal+=wn;
    hit=min(hit,reached);
   }
-  lighting=sum/total;
+  let least=reflectionView.spread.z*weight;
+  if(aroundTotal>1e-6&&least>aroundTotal){
+   around*=least/aroundTotal;
+   aroundTotal=least;
+  }
+  lighting=(weight*lighting+around)/(weight+aroundTotal);
  }
  return freshPack(reflectionLinear(lighting),hit);
 }

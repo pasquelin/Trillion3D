@@ -36,7 +36,6 @@ fn primitive(
                 root_pages: 1,
                 precision: Default::default(),
                 scale: None,
-                assembly: None,
             },
             &encode,
         )

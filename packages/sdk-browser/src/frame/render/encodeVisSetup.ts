@@ -77,7 +77,7 @@ export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
     raster.capacity !== capacity
   ) {
     raster?.dispose()
-    raster = vis.gpuRaster = createGpuRaster(device, width, height, capacity)
+    raster = vis.gpuRaster = createGpuRaster(device, width, height, capacity, !!rt.setup.clipping)
   }
   // The displaced surfaces' tessellation, held only while the image draws one (`tessellationWanted`).
   raster.followTessellation(device, tessellationWanted(rt) ? tessellationAsked(rt) : undefined)
@@ -159,7 +159,7 @@ export function visibilityRasterStages(
   input.depthView = gpu.depthView
   input.hizView = gpuHiz.level0View
   input.selection = run.gpuSelection
-  input.tessellation = tessellationInput(rt, run.gate.cam, gpu.targetSize[1]!)
+  input.tessellation = tessellationInput(rt, textures, gpu.targetSize)
   run.gpuComputeDispatches += raster.encodeBinning(encoder, input, RASTER_PASS_MAIN)
   const size = gpu.targetSize
   // Full-screen resolve triangles are draw calls like the others: the pyramid's level zero after

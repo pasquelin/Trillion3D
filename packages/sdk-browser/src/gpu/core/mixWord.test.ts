@@ -1,8 +1,8 @@
 // The one word hash (`mixWord`): the processor's twin follows the shipped WGSL word for word, and
 // the salt every second coordinate of a hash takes (`GOLDEN_U32`) decorrelates as the odd constant
 // the temporal pass took before. The other words the passes keep their values in are tested here too: the
-// 11-11-10 small floats (`smallFloatWgsl.ts`), and the workgroup's sort and sum they are ordered and
-// reduced by (`workgroupSortWgsl.ts`, `workgroupSumWgsl.ts`).
+// 11-11-10 small floats (`smallFloatWgsl.ts`) and the dither that rounds them, and the workgroup's sort and sum they
+// are ordered and reduced by (`workgroupSortWgsl.ts`, `workgroupSumWgsl.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
@@ -12,7 +12,7 @@ import { hashUnit, mixWord as mixWordWgsl } from '../../../../math/src/wgsl/samp
 import { mixWord } from '../../../../math/src/scalar/integers.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { cpuHashUnit } from '../../../../math/src/scalar/hashUnit.fixture.ts'
-import { packLight, unpackLight } from './smallFloatWgsl.ts'
+import { ditherLight, packLight, unpackLight } from './smallFloatWgsl.ts'
 import { workgroupSortWgsl } from './workgroupSortWgsl.ts'
 import { workgroupSumLoop } from './workgroupSumWgsl.ts'
 
@@ -187,4 +187,31 @@ test('the workgroup sum halves a power of two: the loop is the barriered one, an
   )
   assert.ok(workgroupSumLoop('SP_RAYS', 'x').includes('(SP_RAYS)/2u'), 'a width the shader names')
   for (const bad of [0, 1, 12, 2.5]) assert.throws(() => workgroupSumLoop(bad, 'x'), RangeError)
+})
+
+test('a colour dithered before it is packed rounds up or down with the odds that make it right on average: a light blended into itself does not drift', () => {
+  const run = shaderRun<{
+    packLight: (c: number[]) => number
+    unpackLight: (w: number) => number[]
+    ditherLight: (c: number[], e: number) => number[]
+  }>(
+    wgslModule(packLight, unpackLight, ditherLight),
+    ['packLight', 'unpackLight', 'ditherLight'],
+    {},
+  )
+  // A third of a step above a number the format holds, in each channel: nearest rounding always goes down.
+  const colour = [1 + 0.3 / 64, 4 + 4 * (0.3 / 64), 0.5 + 0.5 * (0.3 / 32)]
+  const mean = [0, 0, 0]
+  const draws = 1024
+  for (let k = 0; k < draws; k++) {
+    const back = run.unpackLight(run.packLight(run.ditherLight(colour, (k + 0.5) / draws)))
+    back.forEach((value, i) => (mean[i] += value / draws))
+  }
+  const plain = run.unpackLight(run.packLight(colour))
+  colour.forEach((value, i) => {
+    const step = i === 2 ? 0.5 / 32 : value > 2 ? 4 / 64 : 1 / 64
+    assert.ok(Math.abs(mean[i] - value) < step / 100, `channel ${i}: ${mean[i]} for ${value}`)
+    assert.ok(Math.abs(plain[i] - value) > step / 5, `without it channel ${i} is ${plain[i]}`)
+  })
+  assert.deepEqual(run.ditherLight([0, 0, 0], 0.9), [0, 0, 0], 'none stays none')
 })

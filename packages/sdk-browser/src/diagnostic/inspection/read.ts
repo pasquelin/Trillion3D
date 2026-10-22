@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { captureRead } from '../../gpu/core/heldReadback.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { inspectedCamera, type InspectedView } from './camera.ts'
@@ -73,6 +74,7 @@ async function readWords(
   words: DeviceWords,
   reflection: NonNullable<WebgpuPagesRuntime['gpu']['reflection']> | undefined,
   grid: ReturnType<typeof sampleGrid> | undefined,
+  block: number,
   signal: AbortSignal,
 ) {
   const { tableBytes } = words,
@@ -88,7 +90,7 @@ async function readWords(
         if (words.table) encoder.copyBufferToBuffer(words.table, 0, staging, 0, tableBytes)
         if (!reflection || !grid) return
         const { grids, trace } = reflection
-        made = encodeReflectionSamples(device, encoder, grids, trace.parity, grid)
+        made = encodeReflectionSamples(device, encoder, grids, trace.parity, grid, block)
         encoder.copyBufferToBuffer(made.samples, 0, staging, tableBytes, total - tableBytes)
       },
       (mapped) => mapped.slice(0, total),
@@ -119,11 +121,11 @@ async function readInspection(rt: WebgpuPagesRuntime): Promise<FrameInspection |
   // The reflections of a perspective view of the lit image alone: an orthographic one has no eye
   // ray to place them on, and a view of no lit image traces none (`encodeReflections`).
   const reflection = cam.perspective === 1 && drawsLit(run.diagnostic) ? gpu.reflection : undefined
-  const rays = reflection?.grids.textures.at(-1)
-  const grid = rays && sampleGrid(rays.width, rays.height)
+  const block = reflection?.frame.settings?.block ?? 1
+  const grid = reflection && sampleGrid(ceilDiv(size[0], block), ceilDiv(size[1], block))
   const tableBytes = Math.min(shadowTableRows(maps), tableHeight) * tableWidth * 4
   const table = vsm?.res.current.pageTable
-  const words = await readWords(device, { table, tableBytes }, reflection, grid, rt.signal)
+  const words = await readWords(device, { table, tableBytes }, reflection, grid, block, rt.signal)
   return {
     frame,
     camera,
@@ -140,6 +142,7 @@ async function readInspection(rt: WebgpuPagesRuntime): Promise<FrameInspection |
           grid.stride,
           cam,
           size,
+          block,
         )
       : null,
     lights: inspectedLights(lights.store, cam, size),

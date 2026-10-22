@@ -13,7 +13,7 @@ import {
 } from './colorSpaceWgsl.ts'
 import { REPROJECT_BITS, REPROJECTED_WORD_WGSL, SHADING_HISTORY_FORMAT } from './reprojectWgsl.ts'
 import { SHARE_CODE_MASK } from './velocityWgsl.ts'
-import { FILTERING_WEIGHT } from './flickerWgsl.ts'
+import { FILTERING_WEIGHT } from './flickerStages.ts'
 import { THIN_COVERAGE_BITS, THIN_MASK_BITS, THIN_RUNS } from './thinGeometryWgsl.ts'
 import { SAFE_RCP_WGSL } from './historyWgsl.ts'
 import {

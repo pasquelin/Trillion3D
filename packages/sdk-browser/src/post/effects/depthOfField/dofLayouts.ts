@@ -10,6 +10,7 @@ import { DOF_PARAMS_BINDING, DOF_STEP_BINDING } from './dofCommonWgsl.ts'
 import { COC_FORMAT, COLOR_FORMAT, LUT_FORMAT, TILE_FORMAT } from './dofLayout.ts'
 import { DILATE_BINDINGS, FLATTEN_BINDINGS } from './dofTilesWgsl.ts'
 import { DOWNSAMPLE_BINDINGS, SETUP_BINDINGS } from './dofSetupWgsl.ts'
+import { TEMPORAL_BINDINGS } from './dofTemporalWgsl.ts'
 import { REDUCE_BINDINGS } from './dofReduceWgsl.ts'
 import { LUT_BINDINGS } from './dofLutWgsl.ts'
 import { GATHER_BINDINGS } from './dofGatherStateWgsl.ts'
@@ -18,8 +19,8 @@ import { PACK_BINDINGS, SPRITE_BINDINGS } from './dofScatterWgsl.ts'
 import { RECOMBINE_BINDINGS } from './dofRecombineWgsl.ts'
 
 /**
- * The bind group layouts of the depth of field's passes, and its samplers. Every texture is a
- * half-float image, read filterable; every sampler is one of the three the gather reads through.
+ * The bind group layouts of the depth of field's passes. Every texture is a half-float image, read
+ * filterable; every sampler is one of the post passes' three (`../../../gpu/core/postSamplers.ts`).
  */
 
 /** The entries every layout is written from. */
@@ -35,7 +36,7 @@ const store = (binding: number) => computeBufferEntry(binding, 'storage')
 const layoutOf = (device: GPUDevice, label: string, entries: GPUBindGroupLayoutEntry[]) =>
   device.createBindGroupLayout({ label: `${DEPTH_OF_FIELD_PASS} ${label}`, entries })
 
-/** The layouts of the setup, the tiles and their dilations. */
+/** The layouts of the setup, its temporal accumulation, the tiles and their dilations. */
 function setupLayouts(device: GPUDevice) {
   return {
     setup: layoutOf(device, 'setup', [
@@ -44,6 +45,18 @@ function setupLayouts(device: GPUDevice) {
       depth(SETUP_BINDINGS.depth),
       out(SETUP_BINDINGS.color),
       out(SETUP_BINDINGS.coc, COC_FORMAT),
+    ]),
+    temporal: layoutOf(device, 'temporal', [
+      uniform,
+      read(TEMPORAL_BINDINGS.color),
+      read(TEMPORAL_BINDINGS.coc),
+      depth(TEMPORAL_BINDINGS.depth),
+      computeTextureEntry(TEMPORAL_BINDINGS.vectors, 'uint'),
+      read(TEMPORAL_BINDINGS.historyColor),
+      read(TEMPORAL_BINDINGS.historyCoc),
+      computeSamplerEntry(TEMPORAL_BINDINGS.sampler),
+      out(TEMPORAL_BINDINGS.outColor),
+      out(TEMPORAL_BINDINGS.outCoc, COC_FORMAT),
     ]),
     flatten: layoutOf(device, 'flatten', [
       uniform,
@@ -157,20 +170,3 @@ export const dofLayouts = (device: GPUDevice) => ({
   ...reduceLayouts(device),
   ...layerLayouts(device),
 })
-
-/** The three samplers the gather and the recombine read through. */
-export function dofSamplers(device: GPUDevice) {
-  const make = (label: string, filter: GPUFilterMode, wrap: GPUAddressMode) =>
-    device.createSampler({
-      label: `${DEPTH_OF_FIELD_PASS} ${label}`,
-      magFilter: filter,
-      minFilter: filter,
-      addressModeU: wrap,
-      addressModeV: wrap,
-    })
-  return {
-    point: make('point sampler', 'nearest', 'clamp-to-edge'),
-    linear: make('linear sampler', 'linear', 'clamp-to-edge'),
-    wrapped: make('wrapped sampler', 'linear', 'repeat'),
-  }
-}

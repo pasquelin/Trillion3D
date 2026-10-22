@@ -1,15 +1,26 @@
 // The projection's mask is a function of its inputs: the view and the projection it reconstructs
 // the pixels with, the scene and resources the depth was drawn from, the lights and their channels,
-// the shadow pages (their version, once settled) and the stochastic phase of the rays. A drawn
+// the shadow pages (their version, once settled), the rays and steps of the traces and the stochastic phase of the rays. A drawn
 // frame whose inputs all equal those of the frame that wrote the mask rewrites the same mask: the
 // projection is not run, and the mask the last one wrote is read again.
 import { copyMatrix4 } from '../../../../../../math/src/matrix/matrix4.ts'
 import { sameValues } from '../../../../../../math/src/matrix/matrixElements.ts'
-import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../projection/projectionView.ts'
+import {
+  VSM_PROJECTION_MAX_PASS_LIGHTS,
+  type VsmTraceCounts,
+} from '../projection/projectionView.ts'
 
 /** The words of a key, in `write`'s order: the view and the projection, the three revisions, the
- *  two epochs, the phase, the two sizes, the light count and the lights' first ids. */
-const KEY_WORDS = 16 + 16 + 9 + VSM_PROJECTION_MAX_PASS_LIGHTS
+ *  two epochs, the phase, the trace key, the two sizes, the light count and the lights' first ids. */
+const KEY_WORDS = 16 + 16 + 10 + VSM_PROJECTION_MAX_PASS_LIGHTS
+
+/** The rays and steps of a view's traces as one number, each count a digit of its own (rays 0 to
+ *  15, steps 0 to 64): a mask differs where they do. */
+export const vsmTraceKey = (counts: VsmTraceCounts) =>
+  counts.shadowRayCountDirectional +
+  16 *
+    (counts.shadowRayCountLocal +
+      16 * (counts.shadowSamplesPerRayDirectional + 65 * counts.shadowSamplesPerRayLocal))
 
 /** What a projection was drawn from. */
 export interface VsmProjectionInputs {
@@ -22,6 +33,8 @@ export interface VsmProjectionInputs {
   shadowEpoch: number
   /** The stochastic phase (`stochasticPhase`). */
   phase: number
+  /** The rays and steps of the traces (`vsmTraceKey`). */
+  trace: number
   /** The targets' allocated size. */
   size: readonly [number, number]
   /** The lights the pass reads, in channel order, each with its first map id. */
@@ -40,6 +53,7 @@ export function createVsmProjectionHold() {
       lightsEpoch: 0,
       shadowEpoch: 0,
       phase: 0,
+      trace: 0,
       size: [0, 0],
       lights: [],
     }
@@ -71,6 +85,7 @@ function write(key: Float64Array, inputs: VsmProjectionInputs) {
   key[at++] = inputs.lightsEpoch
   key[at++] = inputs.shadowEpoch
   key[at++] = inputs.phase
+  key[at++] = inputs.trace
   key[at++] = size[0]
   key[at++] = size[1]
   key[at++] = lights.length

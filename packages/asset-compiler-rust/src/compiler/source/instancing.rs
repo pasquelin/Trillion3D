@@ -82,10 +82,7 @@ pub(crate) fn expand_gpu_instances(g: &mut Value, bin: &[u8]) -> Result<()> {
     }
     // Checked before the table grows: an index one past the last node stays refused instead of
     // landing on an instance.
-    for id in 0..nodes.len() {
-        crate::compiler::source::nodes::children_of(nodes, id)?;
-    }
-    crate::compiler::source::nodes::scene_roots(g, nodes)?;
+    crate::compiler::source::nodes::check_references(g, nodes)?;
     let nodes = g["nodes"].as_array_mut().expect("nodes checked above");
     let mut moved = Vec::with_capacity(expanded.len());
     for (id, children) in expanded {

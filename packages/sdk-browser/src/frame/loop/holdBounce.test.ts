@@ -22,3 +22,22 @@ test('probes still being built keep the frame drawn, a refused bounce does not',
   rt.bounce.reason = 'bounce unavailable'
   assert.equal(unsettledMask(rt), 0, 'a bounce that will never come is a steady state')
 })
+
+test('screen probes still building their history keep the frame drawn, a whole one or an image that cast none does not', () => {
+  const rt = settledRt()
+  type Screen = NonNullable<typeof rt.bounce.screen>
+  type View = NonNullable<typeof rt.gpu.screenProbes>
+  const settings = { values: { screenProbeTemporal: true }, maxFramesAccumulated: 10 }
+  rt.bounce.screen = { read: () => settings } as unknown as Screen
+  const view = { indirect: {}, frame: 3 }
+  rt.gpu.screenProbes = view as unknown as View
+  assert.deepEqual(unsettledReasons(unsettledMask(rt)), ['screenProbes'])
+  view.frame = 10
+  assert.equal(unsettledMask(rt), 0, 'a history of the frames it holds at most is a steady state')
+  view.frame = 3
+  settings.values.screenProbeTemporal = false
+  assert.equal(unsettledMask(rt), 0, 'a history that is not temporal is never built')
+  settings.values.screenProbeTemporal = true
+  view.indirect = undefined as unknown as object
+  assert.equal(unsettledMask(rt), 0, 'an image that cast no probe leaves nothing to wait for')
+})

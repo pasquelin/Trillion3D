@@ -3,7 +3,8 @@ import { MOTION_BLUR_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import { resetList } from '../../../gpu/dispatch/list.ts'
 import { SCATTER_QUADS, SCATTER_VERTICES } from './dilateWgsl.ts'
 import { FILTER_TILE, FLATTEN_TILE, filterTiles, flattenTiles } from './motionBlurLayout.ts'
-import type { Kit, MotionBlurPrograms } from './motionBlurPrograms.ts'
+import type { MotionBlurPrograms } from './motionBlurPrograms.ts'
+import type { Kit } from './motionBlurVariants.ts'
 import type { MotionBlurTargets } from './motionBlurTargets.ts'
 
 /** The groups the passes of one blur are bound with (`MotionBlurSet`). */

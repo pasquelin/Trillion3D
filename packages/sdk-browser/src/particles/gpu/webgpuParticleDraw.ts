@@ -5,7 +5,7 @@ import { preparedPipelines } from '../../gpu/core/preparedPipelines.ts'
 import { DRAW_FLOATS, drawOrder, writeDrawWords } from '../drawWords.ts'
 import { displayMaskLayout, type DisplayFilter } from '../../blend/display/displayFilter.ts'
 import { DISC_TOPOLOGY, PARTICLE_DRAW_WGSL, particleDrawShader } from './particlesWgsl.ts'
-import { hasClipDistances } from '../../gpu/core/clipDistances.ts'
+import type { Clipping } from '../../gpu/core/clipDistances.ts'
 import { particleTargets } from '../particleTargets.ts'
 import { PARTICLE_DRAW_PASS } from '../../diagnostic/stage/passLabels.ts'
 import {
@@ -37,18 +37,20 @@ const drawLayout = (device: GPUDevice) => {
 
 /** The draw's pipelines on `layout`: the plain one of each blend, compiled in the background once
  *  its module's check passes, and the routed ones, prepared when asked. `fail` hears a pipeline
- *  not made, `failed` holding from then on. */
+ *  not made, `failed` holding from then on. `clipping`, the way the module cuts at a view's plane
+ *  (the project switch, `../../gpu/core/clipDistances.ts`): none, the text holds none of it. */
 function buildPipelines(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   fail: (error: unknown) => void,
+  clipping?: Clipping,
 ) {
   const plain: Partial<Record<ParticlePool['blend'], GPURenderPipeline>> = {}
   // One module, its two fragment entries (`PARTICLE_DRAW_WGSL`): made at once, so a routed
   // pipeline asked before its check settles builds on it.
   const module = device.createShaderModule({
       label: 'PARTICLE_DRAW',
-      code: hasClipDistances(device) ? particleDrawShader(true) : PARTICLE_DRAW_WGSL,
+      code: clipping ? particleDrawShader(clipping) : PARTICLE_DRAW_WGSL,
     }),
     plainLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   let routedLayout: GPUPipelineLayout | undefined
@@ -159,8 +161,8 @@ export type ParticleView = {
   filter?: DisplayFilter
   tone?: ArrayLike<number>
   unlit?: boolean
-  /** The view's clip plane in the world, `dot(xyz, p) + w` at least 0 drawn; none when absent
-   *  (`../../frame/render/viewClip.ts`). */
+  /** The view's clip plane in the world, `dot(xyz, p) + w` at least 0 drawn, all zero for a view
+   *  that clips nothing (`../../frame/render/viewClip.ts`); none when absent. */
   clipPlane?: ArrayLike<number>
 }
 
@@ -174,9 +176,10 @@ export function createWebgpuParticleDraw(
   device: GPUDevice,
   stateOf: (pool: ParticlePool) => DrawState | undefined,
   fail: (error: unknown) => void,
+  clipping?: Clipping,
 ) {
   const layout = drawLayout(device),
-    made = buildPipelines(device, layout, fail)
+    made = buildPipelines(device, layout, fail, clipping)
   const words = new Float32Array(DRAW_FLOATS),
     order: ParticlePool[] = []
   return {

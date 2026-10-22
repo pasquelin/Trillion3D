@@ -1,11 +1,20 @@
+import {
+  effectiveMax,
+  effectiveTargetFps,
+  type MotionBlurValues,
+} from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import type { MotionBlur } from '../../../../sdk-core/src/world/effect/motionBlur.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
-import { writeChanged } from '../../gpu/core/writeChanged.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { createMotionBlurClock } from './motionBlur/motionBlurClock.ts'
 import { encodeMotionBlur, type MotionBlurGroups } from './motionBlur/motionBlurEncode.ts'
 import { bindGroups, uniformOf, type Uniform } from './motionBlur/motionBlurGroups.ts'
-import { MOTION_BLUR_PARAMS_BYTES } from './motionBlur/motionBlurLayout.ts'
+import {
+  BASE_VARIANT,
+  MOTION_BLUR_PARAMS_BYTES,
+  flatFormOf,
+  type BlurVariant,
+} from './motionBlur/motionBlurLayout.ts'
 import {
   spreadsByDrawing,
   writeMotionBlurParams,
@@ -13,13 +22,11 @@ import {
 } from './motionBlur/motionBlurParams.ts'
 import {
   createMotionBlurPrograms,
+  createOtherVariant,
   type MotionBlurPrograms,
 } from './motionBlur/motionBlurPrograms.ts'
 import { createMotionBlurTargets, type MotionBlurTargets } from './motionBlur/motionBlurTargets.ts'
-import {
-  createTwoDirectionPrograms,
-  type TwoDirectionPrograms,
-} from './motionBlur/motionBlurTwoPrograms.ts'
+import type { VariantPrograms } from './motionBlur/motionBlurVariants.ts'
 import type { ResolveFrame, WebgpuResolveKind } from './webgpuKinds.ts'
 
 /** What one blur of the chain holds: its uniforms, the clock its time scale follows, and the groups
@@ -37,43 +44,49 @@ type Held = {
 function writeUniform(device: GPUDevice, mine: Held, at: number, input: MotionBlurInput) {
   const uniform = (mine.uniforms[at] ??= uniformOf(device))
   writeMotionBlurParams(uniform.words.f, uniform.words.u, input)
-  writeChanged(device, uniform.buffer, uniform.words.u, 0, uniform.words.u.length)
+  uniform.send()
 }
 
-/** The programs and targets every blur of the chain shares, and the programs of two directions a
- *  blur asked `asked` directions is drawn with: none for one, or while they compile
+/** The programs and targets every blur of the chain shares, and the programs a blur asking for
+ *  `wanted` is drawn with: its variant's once they are compiled, the base's until then
  *  (`createWebgpuMotionBlur`). */
 type Shared = {
   programs: MotionBlurPrograms
   targets: MotionBlurTargets
-  twoFor: (asked: number) => TwoDirectionPrograms | undefined
+  variantFor: (wanted: BlurVariant) => VariantPrograms
 }
 
+/** A variant's key. */
+const keyOf = ({ directions, flat }: BlurVariant) => `${directions} ${flat}`
+
 /**
- * The programs of two directions, compiled at the first ask (`for(asked)`, with `asked` of 2) and
- * none before they arrive: a blur is drawn with one meanwhile (`arriving` tells the compile runs).
- * A compile that fails is said once (`fail`) and not asked again.
+ * The programs of the variants other than the base — two directions (`motionBlurDirections`), an
+ * orthographic view's form of the flattened motion —, each compiled at the first ask (`for`) and none
+ * before they arrive: a blur is drawn with the base's meanwhile, and `arriving` tells a compile
+ * runs. A compile that fails is said once (`fail`) and not asked again.
  */
-function createTwoGate(
+function createVariantGate(
   device: GPUDevice,
   programs: MotionBlurPrograms,
   fail: (error: unknown) => void,
 ) {
-  let made: TwoDirectionPrograms | undefined,
-    arriving: Promise<void> | undefined,
-    refused = false
+  const made = new Map([[keyOf(BASE_VARIANT), programs.base]])
+  const refused = new Set<string>()
+  let arriving: Promise<void> | undefined
   return {
     get arriving() {
       return arriving
     },
-    for(asked: number) {
-      if (asked < 2 || refused) return undefined
-      if (!made)
-        arriving ??= createTwoDirectionPrograms(device, programs).then(
-          (two) => void ((made = two), (arriving = undefined)),
-          (error) => void ((refused = true), (arriving = undefined), fail(error)),
+    for(wanted: BlurVariant) {
+      const key = keyOf(wanted)
+      const held = made.get(key)
+      if (held) return held
+      if (!arriving && !refused.has(key))
+        arriving = createOtherVariant(device, programs, wanted).then(
+          (variant) => void (made.set(key, variant), (arriving = undefined)),
+          (error) => void (refused.add(key), (arriving = undefined), fail(error)),
         )
-      return made
+      return programs.base
     },
   }
 }
@@ -83,7 +96,7 @@ function createTwoGate(
 function groupsOf(
   device: GPUDevice,
   { programs, targets }: Shared,
-  two: TwoDirectionPrograms | undefined,
+  variant: VariantPrograms,
   mine: Held,
   nth: number,
   frame: ResolveFrame,
@@ -103,7 +116,7 @@ function groupsOf(
     mine.groups[identity.slot] = bindGroups(
       device,
       programs,
-      two,
+      variant,
       targets,
       nth,
       mine.uniforms,
@@ -124,11 +137,14 @@ function drawBlur(
   nth: number,
   input: GPUTextureView,
   frame: ResolveFrame,
+  settings: MotionBlurValues,
 ) {
-  const { programs, targets } = shared,
-    { settings } = frame
-  const two = shared.twoFor(settings.motionBlurDirections)
-  targets.ensure(frame.extent, frame.allocated, two ? 2 : 1)
+  const { targets } = shared
+  const variant = shared.variantFor({
+    directions: settings.motionBlurDirections as 1 | 2,
+    flat: flatFormOf(frame.camera.perspective),
+  })
+  targets.ensure(frame.extent, frame.allocated, variant.variant)
   const output = targets.output(nth % 2).view
   const between = settings.motionBlurSeparable ? targets.output(2).view : undefined
   const params = {
@@ -136,15 +152,20 @@ function drawBlur(
     settings,
     image: frame.size,
     grid: frame.render,
-    timeScale: mine.clock.next(frame.now, blur.targetFps),
+    timeScale: mine.clock.next(frame.now, effectiveTargetFps(blur, settings)),
+    halfInput: settings.motionBlurHalfResInput && frame.resolved,
   }
   writeUniform(device, mine, 0, params)
   if (between) writeUniform(device, mine, 1, { ...params, halfInput: false })
-  const groups = groupsOf(device, shared, two, mine, nth, frame, { input, output, between })
-  const drawn = spreadsByDrawing(blur.max, settings.motionBlurScatter, frame.size[0])
+  const groups = groupsOf(device, shared, variant, mine, nth, frame, { input, output, between })
+  const drawn = spreadsByDrawing(
+    effectiveMax(blur, settings),
+    settings.motionBlurScatter,
+    frame.size[0],
+  )
   return encodeMotionBlur(device, encoder, {
-    programs,
-    kit: two ? (drawn ? two.kits.drawn : two.kits.read) : programs.kit,
+    programs: shared.programs,
+    kit: drawn ? variant.kits.drawn : variant.kits.read,
     targets,
     groups,
     lists: targets.lists(nth),
@@ -161,20 +182,20 @@ function drawBlur(
  * clock and its groups, made as the chain asks (`resize`) and kept while the images they name
  * hold. `resolve` blurs the image it is handed with the nth blur, from the motion measured for the
  * image (`ResolveFrame`), and returns the blurred image. Nothing exists before the first blur that
- * draws. The programs of two directions (`motionBlurDirections`) are compiled at the first blur
- * that asks for them (`arriving`, `fail` where they cannot be made): it is drawn with one direction
- * meanwhile, and the image is drawn again once they arrive.
+ * draws. The programs of two directions (`motionBlurDirections`) and of an orthographic view are
+ * compiled at the first blur that asks for them (`arriving`, `fail` where they cannot be made): it is
+ * drawn with the base's meanwhile, and the image is drawn again once they arrive.
  */
 export async function createWebgpuMotionBlur(
   device: GPUDevice,
   fail: (error: unknown) => void = () => {},
-): Promise<WebgpuResolveKind<MotionBlur>> {
+): Promise<WebgpuResolveKind<MotionBlur, MotionBlurValues>> {
   const programs = await createMotionBlurPrograms(device)
-  const gate = createTwoGate(device, programs, fail)
+  const gate = createVariantGate(device, programs, fail)
   const shared: Shared = {
     programs,
     targets: createMotionBlurTargets(device),
-    twoFor: (asked) => gate.for(asked),
+    variantFor: (wanted) => gate.for(wanted),
   }
   const held: Held[] = []
   let passes = 0
@@ -194,7 +215,7 @@ export async function createWebgpuMotionBlur(
     get passes() {
       return passes
     },
-    /** The compile of the programs of two directions, while it runs. */
+    /** The compile of the programs of another variant, while it runs. */
     get arriving() {
       return gate.arriving
     },
@@ -209,16 +230,16 @@ export async function createWebgpuMotionBlur(
         })
       while (held.length > count) drop(held.pop()!)
     },
-    resolve(encoder, blur, nth, input, frame) {
+    resolve(encoder, blur, nth, input, frame, settings) {
       const mine = held[nth]
       // An image that shows what the one before did has no motion: the streak is nil, the clock
       // follows the frame all the same.
       if (frame.still) {
-        mine.clock.next(frame.now, blur.targetFps)
+        mine.clock.next(frame.now, effectiveTargetFps(blur, settings))
         passes = 0
         return input
       }
-      passes = drawBlur(device, encoder, shared, mine, blur, nth, input, frame)
+      passes = drawBlur(device, encoder, shared, mine, blur, nth, input, frame, settings)
       return shared.targets.output(nth % 2).view
     },
     dispose: release,

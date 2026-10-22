@@ -36,44 +36,17 @@ const BOX_CULLED = 0,
   BOX_OCCLUDED = 2
 
 /**
- * THE TWO-PASS OCCLUSION OF THE CUT.
- *
- * Every box the cut keeps past its frustum and its level of detail — a cell of the placement tree,
- * a placement's root, a node, a cluster — is projected to the screen and judged here:
- *
- * - its projected rectangle must cover a pixel centre, under this image's render matrix, the one the
- *   raster draws with — jitter included: a box that covers none draws nothing (`coversCentre`);
- * - in the MAIN pass, a box the previous image's pyramid hides — at the pose the previous image drew
- *   it at, projected with that image's matrix in that image's pixels, never when it reaches the near
- *   plane — is held for the post pass (`BOX_OCCLUDED`): its subtree is not walked, its pages not
- *   asked for, its cluster not drawn;
- * - in the POST pass, run once the main pass's clusters are drawn and the pyramid rebuilt from them
- *   (`../../../visibility/passes/passes.ts`), the boxes held are judged again against that pyramid,
- *   and so is every box the post pass's own descent keeps: hidden there, a box is gone.
- *
- * The pyramid's farthest culling layer is read (`hizCullFarthest`): its level `k + 1` is the
- * half-resolution level `k` the test is written for, a texel the farthest depth — reversed, the
- * smallest — of the pixels under it. The rectangle is clipped to the view, shifted to that level, and
- * the level is the first where it spans at most four texels a side (`footprintLevel`): the sixteen
- * texels' minimum against the box's nearest depth.
- * A level past the pyramid's last hides nothing. The levels uniform bound is the one the pyramid was
- * built with (`../../../frame/render/cutPyramid.ts`): the previous image's in the main pass, at the
- * size it drew at (`prevSize`), this image's in the post pass.
- *
- * The view's sizes, matrices and depth maps are the cut's uniform's (`../viewLayout.ts`): `viewProj`
- * and `prevViewProj` map the render frame — the eye at zero — to clip space; the previous one is the
- * previous image's matrix composed at THIS image's eye, so a pose at this eye serves both. A box is
- * tested at its placement's pose now (`preparedPose`) against this image's matrix, and at the pose
- * the previous image drew (`placedBefore`, `../previousPoses.ts`) against the previous image's; a
- * cell of the placement tree is a world box, in the render frame now and before.
+ * What judging a box against a Hi-Z pyramid needs of neither the cut's views nor its poses: the box
+ * in clip space (`clipBoxOf`, the projection's weight given), the pixel centres its rectangle covers
+ * (`centreRect`, `coversCentre`), and the pyramid's verdict on a rectangle at a depth
+ * (`footprintLevel`, `pyramidShows`). The host declares the pyramid and its levels uniform
+ * (`hizPyramid`, `hizLevels`): the cut's boxes (`DAG_OCCLUSION_WGSL`) and the tessellation's patches
+ * (`../../../visibility/tessellation/splitWgsl.ts`) read them through the one test.
  */
-export const DAG_OCCLUSION_WGSL = wgslBlock(
-  'DAG_OCCLUSION_WGSL',
-  [HIZ_LEVELS_STRUCT_WGSL, HIZ_READ_WGSL, HIZ_MIP_WGSL, transformHalfExtent, DAG_INF, NO_INDEX],
-  `@group(${OCCLUSION_GROUP}) @binding(${OCCLUSION_BINDING.pyramid}) var hizPyramid:texture_2d_array<u32>;
-@group(${OCCLUSION_GROUP}) @binding(${OCCLUSION_BINDING.levels}) var<uniform> hizLevels:HizLevels;
-${wgslConsts({ OCCLUSION_TWO_PASS, CUT_MAIN, CUT_POST, BOX_CULLED, BOX_SEEN, BOX_OCCLUDED })}
-/** A box in clip space: its normalized rectangle and depths (\`lo\`, \`hi\`; reversed depth, the
+export const PYRAMID_BOX_WGSL = wgslBlock(
+  'PYRAMID_BOX_WGSL',
+  [HIZ_LEVELS_STRUCT_WGSL, HIZ_READ_WGSL, HIZ_MIP_WGSL, transformHalfExtent, DAG_INF],
+  `/** A box in clip space: its normalized rectangle and depths (\`lo\`, \`hi\`; reversed depth, the
  *  nearest the largest), whether it reaches the near plane, and whether it lies between the near and
  *  the far planes. */
 struct ClipBox{lo:vec3f,hi:vec3f,crossesNear:bool,inside:bool,}
@@ -81,8 +54,8 @@ struct ClipBox{lo:vec3f,hi:vec3f,crossesNear:bool,inside:bool,}
  *  \`clip.z = depth.x * w + depth.y\` along its clip weight \`w\`: its eight corners' rectangle and
  *  the depths at their nearest and farthest weights. Orthographic: the centre and its extent mapped
  *  whole, the weight one. A box across the eye's plane covers the whole screen. */
-fn clipBox(c:vec3f,e:vec3f,m:mat4x4f,depth:vec2f)->ClipBox{
- if(views[0u].perspective<=0.0){
+fn clipBoxOf(c:vec3f,e:vec3f,m:mat4x4f,depth:vec2f,perspective:bool)->ClipBox{
+ if(!perspective){
   let centre=(m*vec4f(c,1.0)).xyz;let d=transformHalfExtent(m,e);
   let lo=centre-d;let hi=centre+d;
   return ClipBox(lo,hi,hi.z>1.0,hi.z>0.0&&lo.z<1.0);
@@ -137,6 +110,49 @@ fn pyramidShows(r:vec4i,nearest:f32)->bool{
  }
  return nearest>=farthest;
 }
+`,
+)
+
+/**
+ * THE TWO-PASS OCCLUSION OF THE CUT.
+ *
+ * Every box the cut keeps past its frustum and its level of detail — a cell of the placement tree,
+ * a placement's root, a node, a cluster — is projected to the screen and judged here:
+ *
+ * - its projected rectangle must cover a pixel centre, under this image's render matrix, the one the
+ *   raster draws with — jitter included: a box that covers none draws nothing (`coversCentre`);
+ * - in the MAIN pass, a box the previous image's pyramid hides — at the pose the previous image drew
+ *   it at, projected with that image's matrix in that image's pixels, never when it reaches the near
+ *   plane — is held for the post pass (`BOX_OCCLUDED`): its subtree is not walked, its pages not
+ *   asked for, its cluster not drawn;
+ * - in the POST pass, run once the main pass's clusters are drawn and the pyramid rebuilt from them
+ *   (`../../../visibility/passes/passes.ts`), the boxes held are judged again against that pyramid,
+ *   and so is every box the post pass's own descent keeps: hidden there, a box is gone.
+ *
+ * The pyramid's farthest culling layer is read (`hizCullFarthest`): its level `k + 1` is the
+ * half-resolution level `k` the test is written for, a texel the farthest depth — reversed, the
+ * smallest — of the pixels under it. The rectangle is clipped to the view, shifted to that level, and
+ * the level is the first where it spans at most four texels a side (`footprintLevel`): the sixteen
+ * texels' minimum against the box's nearest depth.
+ * A level past the pyramid's last hides nothing. The levels uniform bound is the one the pyramid was
+ * built with (`../../../frame/render/cutPyramid.ts`): the previous image's in the main pass, at the
+ * size it drew at (`prevSize`), this image's in the post pass.
+ *
+ * The view's sizes, matrices and depth maps are the cut's uniform's (`../viewLayout.ts`): `viewProj`
+ * and `prevViewProj` map the render frame — the eye at zero — to clip space; the previous one is the
+ * previous image's matrix composed at THIS image's eye, so a pose at this eye serves both. A box is
+ * tested at its placement's pose now (`preparedPose`) against this image's matrix, and at the pose
+ * the previous image drew (`placedBefore`, `../previousPoses.ts`) against the previous image's; a
+ * cell of the placement tree is a world box, in the render frame now and before.
+ */
+export const DAG_OCCLUSION_WGSL = wgslBlock(
+  'DAG_OCCLUSION_WGSL',
+  [PYRAMID_BOX_WGSL, HIZ_LEVELS_STRUCT_WGSL, HIZ_MIP_WGSL, NO_INDEX],
+  `@group(${OCCLUSION_GROUP}) @binding(${OCCLUSION_BINDING.pyramid}) var hizPyramid:texture_2d_array<u32>;
+@group(${OCCLUSION_GROUP}) @binding(${OCCLUSION_BINDING.levels}) var<uniform> hizLevels:HizLevels;
+${wgslConsts({ OCCLUSION_TWO_PASS, CUT_MAIN, CUT_POST, BOX_CULLED, BOX_SEEN, BOX_OCCLUDED })}
+/** \`clipBoxOf\` under the cut's view: its projection's weight. */
+fn clipBox(c:vec3f,e:vec3f,m:mat4x4f,depth:vec2f)->ClipBox{return clipBoxOf(c,e,m,depth,views[0u].perspective>0.0);}
 /** The cut's pass, which the main pass's prepare and the post pass's open write (\`dagPrepare\`,
  *  \`dagPostPrepare\`). */
 fn cutPass()->u32{return atomicLoad(&work[passWord()]);}

@@ -8,13 +8,6 @@ import { encodeReflectionTrace } from './trace/traceEncode.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 import { environmentCurve } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { appliedExposureOf } from '../../post/exposure/applied.ts'
-import {
-  readReflectionSetting,
-  reflectionRingTests,
-  reflectionRingWork,
-} from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
-import { readSetting } from '../../../../sdk-core/src/contracts/settingRules.ts'
-import { SCREEN_PROBE_RULES } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 
 /** Stages the image's reflection view (`stageReflectionImage`), which the trace and the forward
  *  programs read: `traced`, whether the trace runs this image; unchanged, nothing is sent. */
@@ -31,17 +24,11 @@ function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced
   )
   // The transparents' front surface, answered where this very image's pass wrote it (`encodeFrontPass`).
   frame.front = traced && reflection.front.reflected === frontStamp(run.frame)
-  // What a ray may spend, from the session's settings (`reflectionOptions.ts`).
-  frame.screenSteps = readReflectionSetting(rt, 'reflectionScreenSteps')
-  frame.ringSteps = readReflectionSetting(rt, 'reflectionRingSteps')
-  // The scene trace's one switch, the screen probes' own (`screenProbeSceneTraces`): the reflections' rays and
-  // the probes' go to the scene by it alone.
-  frame.sceneTraces = readSetting(SCREEN_PROBE_RULES, rt.context, 'screenProbeSceneTraces')
-  reflection.census.budget(
-    reflectionRingWork(frame.ringSteps),
-    reflectionRingTests(frame.ringSteps),
-  )
+  // What a ray may spend and which stages run, from the session's settings (`settings.ts`).
+  const settings = (frame.settings = reflection.settings(rt.context))
+  reflection.census.budget(settings.ringWork, settings.ringTests)
   stageReflectionImage(reflection, frame)
+  return settings
 }
 
 /**
@@ -106,7 +93,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
       !!lights.buffer &&
       !!deferred
   // Every image whose radiance is built is staged.
-  writeFrame(rt, reflection, traced)
+  const settings = writeFrame(rt, reflection, traced)
   if (!hiz || !depth) return
   if (traced) {
     const views = surfaces.views()
@@ -132,6 +119,7 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
       inputs,
       group,
       gpu.targetSize,
+      settings.block,
       !!reflection.frame.front,
     )
     reflection.census.copy(encoder, run.frame)

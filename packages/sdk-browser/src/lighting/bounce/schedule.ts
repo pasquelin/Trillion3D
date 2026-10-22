@@ -1,5 +1,6 @@
 import { BOUNCE_PROBE_QUEUE } from '../../../../sdk-core/src/bounce/contracts.ts'
 import type { ProbePool, ProbeEmit, TableEmit } from '../../../../sdk-core/src/bounce/probePool.ts'
+import type { ProbeCosts } from '../../../../sdk-core/src/bounce/probePlan.ts'
 import { ATLAS_WIDTH } from './atlas.ts'
 import { PROBE_QUEUE_WORDS, packQueued } from './probes/probeQueueWgsl.ts'
 import { TABLE_RECORD_WORDS } from './probes/tableWgsl.ts'
@@ -24,9 +25,9 @@ export function createBounceSchedule(pool: ProbePool) {
   const lanes = new Float32Array(records.buffer)
   let groups = 0,
     written = 0
-  const probe: ProbeEmit = (slot, level, x, y, z, fresh) => {
+  const probe: ProbeEmit = (slot, level, x, y, z, fresh, downsampled) => {
     const at = groups++ * PROBE_QUEUE_WORDS
-    queue[at] = packQueued(slot, level, fresh)
+    queue[at] = packQueued(slot, level, fresh, downsampled)
     cells[at + 1] = x
     cells[at + 2] = y
     cells[at + 3] = z
@@ -53,14 +54,14 @@ export function createBounceSchedule(pool: ProbePool) {
     },
     /**
      * Fills the queue and the records of image `frame` for an eye at `viewpoint`, a budget of `budget`
-     * probes; returns the probes queued. The texels written are `texels`; a pool with no work queues
-     * nothing.
+     * probes (`costs`: what a probe at a distance takes of it); returns the probes queued. The texels written are `texels`; a pool
+     * with no work queues nothing.
      */
-    plan(frame: number, viewpoint: ArrayLike<number>, budget: number) {
+    plan(frame: number, viewpoint: ArrayLike<number>, budget: number, costs?: ProbeCosts) {
       groups = 0
       written = 0
       if (!pool.working) return 0
-      pool.probes(frame, viewpoint, BOUNCE_PROBE_QUEUE, budget, probe)
+      pool.probes(frame, viewpoint, BOUNCE_PROBE_QUEUE, budget, probe, costs)
       pool.table(TABLE_RECORDS, table)
       records[0] = written
       return groups

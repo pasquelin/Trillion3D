@@ -9,7 +9,7 @@ export type CutViewField = Extract<
 /** What each of them means (`../contracts/cutOptions.ts`). */
 export const CUT_VIEW_MEANINGS: Readonly<Record<CutViewField, string>> = {
   cutClipPlane:
-    "Whether a view's clip plane applies: a camera's clipPlane — a point of the plane and the normal toward the side that is drawn — clips what its view draws; the cut culls what lies wholly behind it and the raster cuts what straddles it. Shadows are not clipped. false, a view's plane is ignored.",
+    "The project switch of the clip plane, read once when the session opens (changing it later changes nothing): a camera's clipPlane — a point of the plane and the normal toward the side that is drawn — clips what its view draws; the cut culls what lies wholly behind it, every pass that draws the scene's geometry cuts what straddles it, and the fog starts at it. Shadows are not clipped. false, the default, no program holds any of that code and a view's plane is ignored.",
   cutClipPlaneCulling:
     "Whether the cut culls an object, a node or a cluster that lies wholly behind a view's clip plane, and flags the ones that straddle it for the raster's cut; false, the cut tests nothing against the plane. No effect while cutClipPlane is off.",
   cutViewFiltering:

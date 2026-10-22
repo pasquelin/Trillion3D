@@ -1,7 +1,9 @@
 import type { BounceCascades } from '../../../../../sdk-core/src/bounce/cascades.ts'
+import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { ProbePool } from '../../../../../sdk-core/src/bounce/probePool.ts'
 import { BOUNCE_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import type { ProxyResources } from '../../../geometry/dag/cut/cutReaders.ts'
+import type { RadianceCache } from '../cache/radianceCache.ts'
 import type { createBounceCensus } from '../census.ts'
 import type { createBounceMarks, MarkSurface } from '../marks.ts'
 import type { createBounceSchedule } from '../schedule.ts'
@@ -40,6 +42,8 @@ export type ProbeParts = {
   /** The census's buffer: the update adds its counts to it. */
   counts: GPUBuffer
   lists: ReturnType<typeof worldLightLists>
+  /** The radiance cache: the maps of the probes queued, made after the pass (`../cache/radianceCache.ts`). */
+  cache: RadianceCache
 }
 
 /** The work of an image: whether it marks, the probes it queues, the texels of the table it writes and
@@ -95,17 +99,22 @@ function encodePass(
   if (work.counting) census.copy(encoder)
 }
 
-/** What image `frame` traces, filled into `work`: the probes queued for an eye at `viewpoint`, the texels of
- *  the table to write and whether the field is counted after the update. */
+/** What image `frame` traces, filled into `work`: the probes queued for an eye at `viewpoint` — a budget of `probesPerFrame`
+ *  probes' cost, the cost of a probe by its distance from the eye as `settings` give it —, the texels of the table to write and
+ *  whether the field is counted after the update. */
 function plan(
   parts: ProbeParts,
   work: Work,
   frame: number,
   viewpoint: ArrayLike<number>,
   probesPerFrame: number,
+  { cache }: ScreenProbeSettings,
 ) {
   const { schedule, census } = parts
-  work.groups = schedule.plan(frame, viewpoint, probesPerFrame)
+  work.groups = schedule.plan(frame, viewpoint, probesPerFrame, {
+    downsampleSq: cache.downsampleSq,
+    supersampleSq: cache.supersampleSq,
+  })
   work.counting = work.groups > 0 && census.begin(frame)
   work.texels = schedule.texels
 }
@@ -119,20 +128,28 @@ export function createProbeEncoder(
   parts: ProbeParts,
   scene: ProbeScene,
   lights: () => GPUBuffer,
-  probesPerFrame: number,
+  /** The probes an image traces, in the cost of a whole map each: read at each image. */
+  probesPerFrame: () => number,
   /** The empty lists bound where no grid holds them. */
   noLists: GPUBuffer,
+  /** The screen probes' settings, which the radiance cache follows: read at each image. */
+  settings: () => ScreenProbeSettings,
 ) {
   const { cascades, pool, marks, lists } = parts
   let generation = 1,
     frame = 0
   /** The work of the image in hand, refilled each image: what the last one did when it is over. */
   const work: Work = { marking: false, counting: false, groups: 0, texels: 0 }
+  const retrace = () => {
+    generation++
+    pool.restart()
+  }
   return {
+    /** Every probe is traced again, sleeping probes wake: the maps of the radiance cache were made again. */
+    retrace,
     /** A light changed: every probe is updated again, sleeping probes wake. */
     restart() {
-      generation++
-      pool.restart()
+      retrace()
       lists.stale()
     },
     /** The series is open: a probe holding nothing or short of its updates, a texel of the table to
@@ -167,10 +184,18 @@ export function createProbeEncoder(
       work.marking = marks.begin(surface, frame + 1, slid)
       if (!work.marking && !pool.working) return false
       const group = parts.bind(proxy, lights(), listing ?? noLists)
+      const now = settings()
       frame++
-      plan(parts, work, frame, viewpoint, probesPerFrame)
+      plan(parts, work, frame, viewpoint, probesPerFrame(), now)
       upload(parts, work, generation, frame)
       encodePass(parts, encoder, group, surface, work)
+      parts.cache.queued(now, {
+        groups: work.groups,
+        proxy,
+        lights: lights(),
+        lists: listing ?? noLists,
+        eye: viewpoint,
+      })
       return true
     },
   }

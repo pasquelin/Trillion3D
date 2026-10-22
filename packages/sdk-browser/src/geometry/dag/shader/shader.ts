@@ -15,7 +15,7 @@ import { DAG_WANTED_WGSL } from './wantedWgsl.ts'
 import { DAG_LIVE_WGSL } from './liveWgsl.ts'
 import { DAG_LEVEL_WGSL } from './levelWgsl.ts'
 import { DAG_DRAW_DISTANCE_WGSL } from './drawDistanceWgsl.ts'
-import { DAG_CLIP_PLANE_WGSL } from './clipPlaneWgsl.ts'
+import { DAG_CLIP_PLANE_WGSL, DAG_NO_CLIP_PLANE_WGSL } from './clipPlaneWgsl.ts'
 import { DAG_VIEW_FILTER_WGSL } from './viewFilterWgsl.ts'
 import { DAG_LISTS_WGSL } from './listsWgsl.ts'
 import { DAG_POST_PASS_WGSL } from './postPassWgsl.ts'
@@ -37,10 +37,8 @@ import { markReachWgsl } from '../../../deformation/halfFloat.ts'
 import { VIEW_UNIFORM_STRUCT } from '../viewLayout.ts'
 import { CLUSTER_LAYOUT } from '../layout.ts'
 
-/** The selection kernel over the record tables `DAG_ACCESS_WGSL` reads. The `DAG_*_WGSL`
- *  fragments are this program's parts, which it lists all (`docs/MATHS.md`, "The WGSL library"). */
-export const DAG_SELECTION_SHADER = wgslProgram(
-  `${CLUSTER_LAYOUT.wgsl}
+/** The selection kernel's text over the record tables `DAG_ACCESS_WGSL` reads. */
+const DAG_SELECTION_TEXT = `${CLUSTER_LAYOUT.wgsl}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,minError:f32,open:u32,kind:u32,pad:u32,}
 // \`view\` and \`planes\` are those of the render frame, whose origin is \`cameraWorld\` — the camera sits at zero
 // there —; \`eye\` is that origin in doubles, which every translation a cut reads is taken off (\`worldPoseWgsl.ts\`).
@@ -114,44 +112,57 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
  }
  flushTally(lid);
 }
-`,
-  [
-    DAG_ACCESS_WGSL,
-    DAG_BINDINGS_WGSL,
-    DAG_PRIMITIVE_WGSL,
-    DAG_WORLD_POSE_WGSL,
-    DAG_ERROR_WGSL,
-    CUT_RULE_WGSL,
-    DAG_COMPACT_WGSL,
-    DAG_COMMIT_WGSL,
-    DAG_TOTALS_WGSL,
-    DAG_READING_WGSL,
-    DAG_DIFFERENCE_WGSL,
-    DAG_SWAP_WGSL,
-    DAG_WANTED_WGSL,
-    DAG_LIVE_WGSL,
-    DAG_LEVEL_WGSL,
-    DAG_DRAW_DISTANCE_WGSL,
-    DAG_CLIP_PLANE_WGSL,
-    DAG_VIEW_FILTER_WGSL,
-    DAG_LISTS_WGSL,
-    DAG_POST_PASS_WGSL,
-    DAG_OCCLUSION_WGSL,
-    DAG_TREE_DESCENT_WGSL,
-    DAG_TREE_PREPARE_WGSL,
-    DAG_WORLD_GATE_WGSL,
-    DAG_FLOOR_WGSL,
-    BLOCK_MASK_WORDS_WGSL,
-    DAG_HELD_OPEN_WGSL,
-    FLAT_INDEX_WGSL,
-    WORKGROUP_THREADS_WGSL,
-    DAG_VIEWS_WGSL,
-    DAG_RECORD_WGSL,
-    DAG_ARM_WGSL,
-    DAG_ARM_LISTS_WGSL,
-    ROW_CLOSURE_WGSL,
-    boxBehindPlane,
-    isNanWord,
-    markReachWgsl,
-  ],
-)
+`
+
+/** The `DAG_*_WGSL` fragments are this program's parts, which it lists all (`docs/MATHS.md`, "The
+ *  WGSL library"), but for the clip plane's (`dagSelectionShader`). */
+const DAG_SELECTION_PARTS = [
+  DAG_ACCESS_WGSL,
+  DAG_BINDINGS_WGSL,
+  DAG_PRIMITIVE_WGSL,
+  DAG_WORLD_POSE_WGSL,
+  DAG_ERROR_WGSL,
+  CUT_RULE_WGSL,
+  DAG_COMPACT_WGSL,
+  DAG_COMMIT_WGSL,
+  DAG_TOTALS_WGSL,
+  DAG_READING_WGSL,
+  DAG_DIFFERENCE_WGSL,
+  DAG_SWAP_WGSL,
+  DAG_WANTED_WGSL,
+  DAG_LIVE_WGSL,
+  DAG_LEVEL_WGSL,
+  DAG_DRAW_DISTANCE_WGSL,
+  DAG_VIEW_FILTER_WGSL,
+  DAG_LISTS_WGSL,
+  DAG_POST_PASS_WGSL,
+  DAG_OCCLUSION_WGSL,
+  DAG_TREE_DESCENT_WGSL,
+  DAG_TREE_PREPARE_WGSL,
+  DAG_WORLD_GATE_WGSL,
+  DAG_FLOOR_WGSL,
+  BLOCK_MASK_WORDS_WGSL,
+  DAG_HELD_OPEN_WGSL,
+  FLAT_INDEX_WGSL,
+  WORKGROUP_THREADS_WGSL,
+  DAG_VIEWS_WGSL,
+  DAG_RECORD_WGSL,
+  DAG_ARM_WGSL,
+  DAG_ARM_LISTS_WGSL,
+  ROW_CLOSURE_WGSL,
+  boxBehindPlane,
+  isNanWord,
+  markReachWgsl,
+]
+
+/** The selection kernel; `clipPlane`, the project switch (`cutClipPlane`) is on: the cut then culls
+ *  by a view's clip plane (`DAG_CLIP_PLANE_WGSL`), else its text holds none of that code
+ *  (`DAG_NO_CLIP_PLANE_WGSL`). */
+export const dagSelectionShader = (clipPlane: boolean) =>
+  wgslProgram(DAG_SELECTION_TEXT, [
+    ...DAG_SELECTION_PARTS,
+    clipPlane ? DAG_CLIP_PLANE_WGSL : DAG_NO_CLIP_PLANE_WGSL,
+  ])
+
+/** The kernel of a session whose project switch is off. */
+export const DAG_SELECTION_SHADER = dagSelectionShader(false)

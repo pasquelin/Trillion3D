@@ -50,8 +50,7 @@ override BOKEH:bool=false;
 var<workgroup> reach:array<f32,${GROUP * GROUP}>;
 // The circle of confusion of the image texel p, from the depth under it.
 fn fullCoc(p:vec2i)->f32{
- let t=clamp(vec2i(floor((vec2f(p)+0.5)*view.depthMap.xy)),vec2i(0),vec2i(view.depthMap.zw));
- return cocOfDepth(sceneDepthOf(textureLoad(depthTexture,t,0)),view.basis.x);
+ return cocOfDepth(sceneDepthOf(textureLoad(depthTexture,depthTexel(p),0)),view.basis.x);
 }`,
 )
 

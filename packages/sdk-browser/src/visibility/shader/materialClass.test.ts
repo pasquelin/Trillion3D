@@ -2,14 +2,24 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MATERIAL_CLASS_WGSL, materialClassKey } from './materialClass.ts'
 import {
+  FLAG_DISPLACED,
+  FLAG_DYNAMIC,
   FLAG_HAS_COLOR,
   FLAG_HAS_MAP,
   FLAG_HAS_NORMAL,
   FLAG_HAS_UV,
+  FLAG_LINE,
   FLAG_MASK,
+  FLAG_SPRITE,
   FLAG_VOXEL,
 } from '../types.ts'
-import { SHADE_SHADER } from './shadeWgsl.ts'
+import { SHADE_SHADER, shadeShader } from './shadeWgsl.ts'
+import { DISPLACED_SHADE_BINDINGS } from '../tessellation/prismWgsl.ts'
+import { displacedShadeLayout } from '../tessellation/prismFrame.ts'
+import { TESSELLATED_FLAGS_WGSL } from '../tessellation/rowWgsl.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { shadeLayoutEntries } from '../passes/shadeLayout.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { DIAGNOSTICS } from '../../../../sdk-core/src/runtime/diagnostics.ts'
 import { createExplorerDiagnosticApi } from '../../api/diagnosticApi.ts'
@@ -125,4 +135,70 @@ test('the materials view colours a pixel by the class that resolved it', () => {
     setMode: (mode) => modes.push(`mode:${mode}`),
   }).setDiagnostic('materials')
   assert.deepEqual(modes, ['engine:materials', 'mode:materials'])
+})
+
+/** The bindings of group 0 a resolve text declares. */
+const declaredBindings = (code: string) =>
+  [...code.matchAll(/@group\(0\) @binding\((\d+)\)/g)]
+    .map((m) => Number(m[1]))
+    .sort((a, b) => a - b)
+
+test('a displaced class’s resolve is a module of its own over a group of its own; the others compile what they did', async () => {
+  // The plain text holds none of it; the displaced one places the pixel by the prism's weights and
+  // declares the two bindings its group adds.
+  const displaced = shadeShader({ displaced: true })
+  assert.doesNotMatch(SHADE_SHADER, /solveDisplaced|prismDepth|prism\./)
+  assert.match(SHADE_SHADER, /let bary=perspectiveBarycentric/)
+  assert.match(displaced, /var bary=perspectiveBarycentric/)
+  assert.match(displaced, /if\(prism\.tessellation!=0u&&tessellatedFlags\(page\)\)\{/)
+  const added = Object.values(DISPLACED_SHADE_BINDINGS)
+  assert.deepEqual(declaredBindings(displaced), [...declaredBindings(SHADE_SHADER), ...added])
+  // Their layout: the resolve's entries and those two — the depth, and the uniform.
+  const { device, computePipelines, pipelineLayouts } = fakeDevice()
+  const layout = displacedShadeLayout(device) as unknown as { entries: GPUBindGroupLayoutEntry[] }
+  assert.deepEqual(
+    layout.entries.map((e) => e.binding).sort((a, b) => a - b),
+    [...shadeLayoutEntries().map((e) => e.binding), ...added].sort((a, b) => a - b),
+  )
+  const [depth, uniform] = added.map((b) => layout.entries.find((e) => e.binding === b)!)
+  assert.equal(depth!.texture?.sampleType, 'depth')
+  assert.equal(uniform!.buffer?.type, 'uniform')
+  // A scene that tessellates nothing never makes the module or the layout.
+  const made = await createWebgpuShadePipelines(device, {} as GPUShaderModule, [0, 5])
+  assert.equal(computePipelines.length, 2)
+  assert.equal(pipelineLayouts.length, 1, 'the classes’ one layout, none of the displaced')
+  // Asked, class 5 has a pipeline over the displaced text and group; the plain one is as it was.
+  await made.shadeClasses.displaced(5).prepare()
+  assert.equal(computePipelines.length, 3)
+  assert.equal(pipelineLayouts.length, 2, 'the displaced group’s own layout, made once asked')
+  const [plain, , own] = [computePipelines[1]!, computePipelines[0]!, computePipelines[2]!]
+  assert.deepEqual(own.compute.constants, plain.compute.constants)
+  assert.equal((own.compute.module as unknown as { code: string }).code, displaced)
+  assert.equal(
+    plain.compute.module,
+    computePipelines[0]!.compute.module,
+    'the plain classes share theirs',
+  )
+  assert.notEqual(own.layout, plain.layout)
+})
+
+test('a displaced row is tessellated whatever moves or cuts it, and left as it is only when it is no triangle surface', () => {
+  const { tessellatedFlags } = shaderRun<{
+    tessellatedFlags(page: { flags: number; deformOutput: number }): boolean
+  }>(wgslBlock('rows', [TESSELLATED_FLAGS_WGSL], ''), ['tessellatedFlags'], {})
+  const drawn = (flags: number, deformOutput = 0) =>
+    tessellatedFlags({ flags: (flags | FLAG_DISPLACED) >>> 0, deformOutput })
+  // A masked row is cut out at the vertices of its micro-triangles; a skinned or morphed one — its
+  // corners deformed this frame — and one the host rewrites in place are diced as they stand.
+  assert.deepEqual(
+    [drawn(0), drawn(FLAG_MASK), drawn(0, 7), drawn(FLAG_MASK, 7), drawn(FLAG_DYNAMIC)],
+    [true, true, true, true, true],
+  )
+  // A line, a sprite and a voxel brick have no surface to push along a normal; a row that is not
+  // displaced is none of the tessellation's.
+  assert.deepEqual(
+    [FLAG_LINE, FLAG_SPRITE, FLAG_VOXEL].map((flag) => drawn(flag)),
+    [false, false, false],
+  )
+  assert.equal(tessellatedFlags({ flags: FLAG_MASK, deformOutput: 7 }), false)
 })

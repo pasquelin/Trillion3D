@@ -22,14 +22,29 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../deferred/worldAtWgsl.ts'
  *    `frontLayer.ts`);
  *  - `temporal`, the reflections' turn (`x`: the image's rank in the samples' sequence, advanced
  *    every image, `stageReflectionImage`; `yzw` unused);
- *  - `grid`, the grid's extent over the drawn size (`xy`, `gridExtent`, `grids.ts`; `zw` unused);
+ *  - `grid`, the grid's extent over the drawn size (`xy`, `gridExtent`, `grids.ts`), the side of the blocks of pixels a texel
+ *    traces one ray of (`z`, the level's row), `w` unused;
  *  - `surroundings`, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`):
  *    the background the screen draws, through the exposure and the display curve
  *    (`createSurroundings`, `../toneUnmap.ts`);
- *  - `scene`, what a ray may spend (`../../../../sdk-core/src/contracts/reflectionOptions.ts`):
- *    the iterations of its march of the screen (`x`), the work (`y`) and the triangle tests (`z`) of its
- *    walk of each ring of the scene, in the tracer's units, and whether the scene is traced at all (`w`,
- *    one or zero: the one switch of the scene trace, `screenProbeSceneTraces`).
+ *  - `scene`, what a ray may spend (`../../../../sdk-core/src/contracts/reflectionOptions.ts`): the iterations of
+ *    its march of the screen (`x`), the work (`y`) and the triangle tests (`z`) of its walk of each ring of the
+ *    scene, in the tracer's units, and the flags of what is traced and done (`w`, `REFLECTION_SCENE_TRACES` and
+ *    the bits after it);
+ *  - `detail`, the work (`x`) and triangle tests (`y`) of the detail window's walk, the steps of the far screen
+ *    trace (`z`) and the voxels across a ring's cube (`w`);
+ *  - `reach`, the detail window's length (`x`), the distance from the eye at which its hits fade out (`y`), the
+ *    metres a ray leaves a surface by at least (`z`) and the far screen trace's length (`w`);
+ *  - `march`, the thickness of a surface of the screen march as a share of its depth (`x`), the far trace's slope
+ *    tolerance (`y`) and offset bias (`z`), the longest ray (`w`);
+ *  - `light`, the most radiance a ray brings back (`x`), the depth thickness (`y`) and the cosine of the facing
+ *    (`z`) with which a scene hit takes the lit image, the length the sky is fogged over at least (`w`);
+ *  - `denoise`, the images a history holds (`x`), the clamp's scale (`y`), the history's distance threshold (`z`),
+ *    the tonemap range (`w`);
+ *  - `spread`, the reconstruction's radius (`x`), the bilateral filter's (`y`), the reconstruction's least weight
+ *    (`z`), the disocclusion frames (`w`);
+ *  - `lobe`, the roughness past which a lobe casts no ray (`x`), the fade to it (`y`), the sampling's bias (`z`);
+ *  - `taps`, the reconstruction's samples (`x`), the bilateral filter's (`y`), the period of the ray directions (`z`).
  */
 const LAYOUT = fieldLayout('ReflectionView', [
   ['viewProj', 'mat4x4f'],
@@ -42,6 +57,14 @@ const LAYOUT = fieldLayout('ReflectionView', [
   ['grid', 'vec4u'],
   ['surroundings', 'vec4f'],
   ['scene', 'vec4u'],
+  ['detail', 'vec4u'],
+  ['reach', 'vec4f'],
+  ['march', 'vec4f'],
+  ['light', 'vec4f'],
+  ['denoise', 'vec4f'],
+  ['spread', 'vec4f'],
+  ['lobe', 'vec4f'],
+  ['taps', 'vec4u'],
 ] as const)
 
 /** Each field's first word in the view. */
@@ -81,7 +104,8 @@ export const REFLECTION_FRONT_BINDING = 10
  * radiance pyramid — one texture (`reflectionImage`): the lit image at level 0, level `k` at mip
  * `k` — and its trilinear sampler, the depth it
  * marches, the engine's pyramid (`hizDepthWgsl`); and `reflectionPixelAt`, the world size of a
- * pixel at the point `P` — its clip `w` times the pixel at a unit `w` (`slab.x`). The program names the deferred lighting's view (`view`, the pixel's world point
+ * pixel at the point `P` — its clip `w` times the pixel at a unit `w` (`slab.x`) —, the side of the blocks of
+ * pixels a texel traces (`reflectionBlock`) and whether a flag of the trace is set (`reflectionDone`). The program names the deferred lighting's view (`view`, the pixel's world point
  * `worldAt`, the eye `viewToEye`, the drawn size, the exposure, the display curve, the background)
  * itself: it already has it, or declares it in this group (`reflectionLightViewWgsl`).
  */
@@ -92,7 +116,9 @@ export const reflectionBindingsWgsl = (group: number) =>
     `@group(${group}) @binding(${REFLECTION_VIEW_BINDING}) var<uniform> reflectionView:ReflectionView;
 @group(${group}) @binding(${REFLECTION_SAMPLER_BINDING}) var reflectionSampler:sampler;
 @group(${group}) @binding(${REFLECTION_IMAGE_BINDING}) var reflectionImage:texture_2d<f32>;
-fn reflectionPixelAt(P:vec3f)->f32{return (reflectionView.viewProj*vec4f(P,1.0)).w*reflectionView.slab.x;}`,
+fn reflectionPixelAt(P:vec3f)->f32{return (reflectionView.viewProj*vec4f(P,1.0)).w*reflectionView.slab.x;}
+fn reflectionBlock()->u32{return reflectionView.grid.z;}
+fn reflectionDone(bit:u32)->bool{return (reflectionView.scene.w&bit)!=0u;}`,
   )
 
 /**

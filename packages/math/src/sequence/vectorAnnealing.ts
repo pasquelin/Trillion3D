@@ -19,7 +19,7 @@ import {
  */
 
 /** How a mask is annealed: the spread of the energy in space and in value, and the run's length. */
-export interface AnnealingOptions {
+interface AnnealingOptions {
   /** The spread of the energy over the pixels, on every axis. */
   sigma: number
   /** The spread of the energy over the values. */

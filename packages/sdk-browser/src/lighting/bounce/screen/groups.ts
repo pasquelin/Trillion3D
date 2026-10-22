@@ -2,7 +2,8 @@ import { createWebgpuBindIdentity } from '../../../gpu/bind/bindIdentity.ts'
 import { namedEntries } from '../../../gpu/core/computeBindings.ts'
 import { buffers, groupOf, type GroupParts, type ScreenProbeInputs } from './groupParts.ts'
 import { RAYS_BINDINGS, RAYS_PROBES } from './importanceWgsl.ts'
-import type { ScreenProbeKernels } from './kernels.ts'
+import type { CastKernels, ScreenProbeKernels } from './kernels.ts'
+import { SCATTER_BINDINGS, SCATTER_PROBES } from './cacheScatterWgsl.ts'
 import { PLACE_BINDINGS } from './placeWgsl.ts'
 import type { ScreenProbeResources } from './resources.ts'
 import { SCREEN_DATA_BINDINGS } from './screenDataWgsl.ts'
@@ -11,9 +12,9 @@ import { filterGroups, pixelGroups, traceGroups } from './traceGroups.ts'
 /** The bind groups of every kernel for one parity of the history's turn about. */
 export type ScreenProbeGroups = ReturnType<typeof createGroups>
 
-/** The placement, the screen data and the rays. */
-function placeGroups(g: GroupParts) {
-  const { device, kernels, r, inputs, last, final, common, probe, records, surface } = g
+/** The placement, the screen data, the scatter into the radiance cache and the rays. */
+function placeGroups(g: GroupParts, kernels: CastKernels) {
+  const { device, r, inputs, last, final, common, probe, records, surface } = g
   return {
     place: groupOf(
       device,
@@ -42,9 +43,23 @@ function placeGroups(g: GroupParts) {
         ...surface,
         history: r.history[last],
         vectors: inputs.vectors,
+        blue: inputs.blue,
         ...buffers({ brdf: r.brdf, disocclusion: r.disocclusion }),
       }),
     ),
+    scatter: groupOf(device, kernels.scatter, [
+      ...namedEntries(SCATTER_BINDINGS.at, {
+        ...common,
+        ...probe,
+        ...buffers({
+          counts: r.counts,
+          brdf: r.brdf,
+          pdf: inputs.cachePdf,
+          bounceGrid: inputs.bounceGrid,
+        }),
+      }),
+      { binding: SCATTER_PROBES, resource: inputs.probes },
+    ]),
     rays: groupOf(device, kernels.rays, [
       ...namedEntries(RAYS_BINDINGS.at, {
         ...common,
@@ -52,7 +67,15 @@ function placeGroups(g: GroupParts) {
         historyInfo: r.info[last],
         historyGather: r.gather[final],
         ray: r.ray,
-        ...buffers({ brdf: r.brdf, bounceGrid: inputs.bounceGrid, lights: inputs.lights }),
+        blue: inputs.blue,
+        cacheFinal: inputs.cacheFinal,
+        cacheRaw: inputs.cacheRaw,
+        ...buffers({
+          brdf: r.brdf,
+          bounceGrid: inputs.bounceGrid,
+          lights: inputs.lights,
+          cacheTags: inputs.cacheTags,
+        }),
       }),
       { binding: RAYS_PROBES, resource: inputs.probes },
     ]),
@@ -73,7 +96,6 @@ function createGroups(
   const probe = { info: r.info[turn], normal: r.normal }
   const parts: GroupParts = {
     device,
-    kernels,
     r,
     inputs,
     turn,
@@ -84,31 +106,35 @@ function createGroups(
     records: { ...probe, ...buffers({ counts: r.counts, pixels: r.pixels }) },
     surface: { normals: inputs.normals, flags: inputs.flags },
   }
+  const { cast } = kernels
   return {
-    ...placeGroups(parts),
-    ...traceGroups(parts),
-    ...filterGroups(parts),
-    ...pixelGroups(parts),
+    ...pixelGroups(parts, kernels),
+    /** The groups of the kernels over the probes, where the level casts them. */
+    cast: cast && {
+      ...placeGroups(parts, cast),
+      ...traceGroups(parts, cast),
+      ...filterGroups(parts, cast),
+    },
   }
 }
 
-/** The inputs that are one resource each, in the order the identity names them: those of `ScreenProbeInputs` but the proxy,
- *  which names three. A field added to the inputs and left out here fails the compile. */
-const INPUT_KEYS = [
-  'normals',
-  'flags',
-  'lights',
-  'lightLists',
-  'bounceGrid',
-  'probes',
-  'vectors',
-] as const satisfies readonly Exclude<keyof ScreenProbeInputs, 'proxy'>[]
-const inputsComplete: Exclude<
-  keyof ScreenProbeInputs,
-  'proxy' | (typeof INPUT_KEYS)[number]
-> extends never
-  ? true
-  : never = true
+/** The inputs that are one resource each, those of `ScreenProbeInputs` but the proxy, which names three: a field added to the
+ *  inputs and left out of this table fails the compile. The identity names them in this order. */
+const INPUT_SLOT: Record<Exclude<keyof ScreenProbeInputs, 'proxy'>, true> = {
+  normals: true,
+  flags: true,
+  lights: true,
+  lightLists: true,
+  bounceGrid: true,
+  probes: true,
+  vectors: true,
+  blue: true,
+  cacheFinal: true,
+  cacheRaw: true,
+  cacheTags: true,
+  cachePdf: true,
+}
+const INPUT_KEYS = Object.keys(INPUT_SLOT) as (keyof typeof INPUT_SLOT)[]
 
 /**
  * The groups of a view's kernels over its resources, one set for each parity of the history's turn about, made
@@ -121,7 +147,6 @@ export function createScreenProbeGroups(
   resources: ScreenProbeResources,
   passes: number,
 ) {
-  if (!inputsComplete) throw new Error('SCREEN_PROBE_INPUTS')
   const identity = createWebgpuBindIdentity(INPUT_KEYS.length + 3)
   const sets: (ScreenProbeGroups | undefined)[] = [undefined, undefined]
   return (turn: 0 | 1, inputs: ScreenProbeInputs) => {

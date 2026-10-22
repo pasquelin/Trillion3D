@@ -20,6 +20,7 @@ import type { ShadowOptions } from '../../../sdk-core/src/contracts/shadowOption
 import type { MotionBlurSettings } from '../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import type { DepthOfFieldSettings } from '../../../sdk-core/src/contracts/depthOfFieldRules.ts'
 import type { BloomSettings } from '../../../sdk-core/src/contracts/bloomRules.ts'
+import type { GaussianBlurSettings } from '../../../sdk-core/src/contracts/gaussianBlurRules.ts'
 import type { FilmSettings } from '../../../sdk-core/src/contracts/filmOptions.ts'
 import type { AmbientOcclusionOptions } from '../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import type { ScreenProbeOptions } from '../../../sdk-core/src/bounce/screenProbeOptions.ts'
@@ -56,27 +57,35 @@ export type PointOfInterest = {
  *  out the casters past the edge of that distance; `farShadowCullsAllMeshes`, false: whether the
  *  test reaches every caster, not only the world's merged shells; and the three that shape its
  *  edge: `shadowNearLevels`, 10, from 0 to 10, capped by the light's four; `shadowOverlapScale`, 1,
- *  from 0 to 2; `shadowFarField`, true, `../../../sdk-core/src/contracts/shadowOptions.ts`), set by
+ *  from 0 to 2; `shadowFarField`, true, `../../../sdk-core/src/contracts/shadowOptions.ts`) and the
+ *  shadow maps' own (the clipmap's levels and depth range, the coarse pages, the resolution biases,
+ *  the radius threshold, the rays and steps of a trace, the page pool: `shadowClipmap…`,
+ *  `shadowMarkCoarsePages…`, `shadowResolutionLodBias…`, `shadowRadiusThreshold…`, `shadowRayCount…`,
+ *  `shadowSamplesPerRay…`, `shadowMaxPhysicalPages`,
+ *  `../../../sdk-core/src/contracts/shadowMapOptions.ts`), set by
  *  `explorer.setShadows`. The motion
  *  blur's drawing (`motionBlurQuality`, `'veryHigh'`;
  *  `motionBlurHalfResGather`, false; `motionBlurHalfResInput`, true; `motionBlurSeparable`, false;
  *  `motionBlurScatter`, false; `motionBlurDirections`, 1,
  *  `../../../sdk-core/src/contracts/motionBlurOptions.ts`), set by
- *  `explorer.setMotionBlur`. The depth of field's drawing (`depthOfFieldQuality`, `'high'`: `'off'`, `'low'`,
- *  `'high'`, `'veryHigh'` or `'extreme'`; `depthOfFieldRingCount`, 4; `depthOfFieldAccumulator`, `'high'`; and the others of
+ *  `explorer.setMotionBlur`. The depth of field's drawing (`depthOfFieldQuality`, `'on'`: `'off'` or `'on'`;
+ *  `depthOfFieldRingCount`, 4; `depthOfFieldAccumulator`, `'high'`; `depthOfFieldTemporalQuality`, `'high'`; and the others of
  *  `../../../sdk-core/src/contracts/depthOfFieldRules.ts`), set by `explorer.setDepthOfField`. The bloom's drawing (`bloomQuality`, `'highest'`: `'off'`, `'lowest'`,
- *  `'low'`, `'medium'`, `'high'` or `'highest'`; `bloomCross`, 0; `bloomScreenPercentage`, 100;
+ *  `'low'`, `'medium'`, `'high'` or `'highest'`; `bloomCross`, 0; `bloomScreenPercentage`, 50;
  *  `bloomApplyLocalExposure`, true; `bloomCacheKernel`, true,
- *  `../../../sdk-core/src/contracts/bloomRules.ts`), set by `explorer.setBloom`. The film effects' (`filmGrain…`, `chromaticAberration…`,
+ *  `../../../sdk-core/src/contracts/bloomRules.ts`), set by `explorer.setBloom`. The Gaussian blur's
+ *  (`gaussianFastBlurThreshold`, 100; `gaussianSampleScale`, 1; `gaussianLoopMode`, 0,
+ *  `../../../sdk-core/src/contracts/gaussianBlurRules.ts`), set by `explorer.setGaussianBlur`. The film effects' (`filmGrain…`, `chromaticAberration…`,
  *  `vignette…`, `tonemapperQuality`, `tonemapperSharpen`, `sceneColorTint…`,
  *  `quantizationDitheringBits`, `../../../sdk-core/src/contracts/filmOptions.ts`), set by
  *  `explorer.setFilm`. The volumetric fog's quality (`volumetricFogQuality`, `'max'`: `'off'`,
  *  `'high'`, `'max'` or `'cinematic'`) and its eleven other settings
  *  (`../../../sdk-core/src/contracts/volumetricFogOptions.ts`), set by `explorer.setVolumetricFog`;
  *  the volume exists only in a scene whose fog sets `volumetric`. The reflections' trace
- *  (`reflectionScreenSteps`, 50: the iterations of a reflected ray's march of the screen, from 1 to 256;
- *  `reflectionRingSteps`, 256: the steps it takes in each of the scene's four rings, from 1 to 4096,
- *  `../../../sdk-core/src/contracts/reflectionOptions.ts`), set by `explorer.setReflections`. The screen-space
+ *  (`reflectionScreenSteps`, 50 and `reflectionRingSteps`, 256: the iterations of a reflected ray's march of the screen and
+ *  the steps it takes in each ring of the scene; `reflectionMeshTraces`, true and `reflectionDetailSteps`, 64: its detail
+ *  window; `reflectionDistantScreenTraces`, true, `reflectionDistantScreenSteps`, 16 and `reflectionDistantScreenDistance`,
+ *  2000 m: the far screen trace, `../../../sdk-core/src/contracts/reflectionOptions.ts`), set by `explorer.setReflections`. The screen-space
  *  ambient occlusion's (`ambientOcclusion`, true; `ambientOcclusionIntensity`, 0.5; `ambientOcclusionRadius`, 2 m;
  *  `ambientOcclusionQuality`, 50; and the others of `../../../sdk-core/src/contracts/ambientOcclusionOptions.ts`),
  *  set by `explorer.setAmbientOcclusion`. The software raster (`softwareRaster`, on by default: a cluster whose
@@ -112,6 +121,7 @@ export interface MeasuredWorldOptions
     MotionBlurSettings,
     DepthOfFieldSettings,
     BloomSettings,
+    GaussianBlurSettings,
     FilmSettings,
     VolumetricFogOptions,
     TessellationOptions,

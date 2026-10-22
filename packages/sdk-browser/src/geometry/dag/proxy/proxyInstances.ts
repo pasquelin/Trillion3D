@@ -14,7 +14,8 @@
  * again.
  *
  * A placement out of the draw distances its object names, from the main view's eye, is met by no ray
- * (`distance`): its instance wears no node, as a parked one's.
+ * (`distance`): its instance wears no node, as a parked one's. The distances are judged again when the eye, the
+ * scale or a placement moved, and written in runs.
  *
  * A member of the run (`../runtime/runtime.ts`): its operations tell it what moved — roots appended, a
  * placement parked or marked — and each cut refreshes the surfaces a host edited since. Without a
@@ -24,10 +25,7 @@
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import { INSTANCE, INSTANCE_WORDS } from '../../../lighting/bounce/runtime/runtimeLayout.ts'
 import { createProxyState, type ProxySource } from './proxyState.ts'
-import { DAG_NODE_FLOATS, type PackedDag } from '../types.ts'
-import { NODE_MAX, NODE_MIN } from '../nodeLayout.ts'
-import { DRAW_DISTANCE_MARK } from '../frameTable.ts'
-import { outsideDrawDistances } from '../drawDistance.ts'
+import { createProxyDistances } from './proxyDistances.ts'
 
 /** What the pose reads of the deformation (`deformation/session.ts`): the float pool its records
  *  lie in, each placement's record in it (the first float plus one, zero for none) and the revision
@@ -38,44 +36,19 @@ export type PoseHost = {
   revision: number
 }
 
-/** Whether placement `w`'s root's bounds' centre — the box of the node its descent starts from,
- *  through the placement's world — lies from `eye` out of its draw distances, `scale` times them
- *  (`packed.drawDistance`). */
-function outsideRoot(packed: PackedDag, w: number, eye: ArrayLike<number>, scale: number) {
-  const at = packed.rootBases[w] * DAG_NODE_FLOATS,
-    { elements: m } = packed.worldSources[w].world,
-    { nodes, drawDistance } = packed
-  const c = [0, 1, 2].map((a) => 0.5 * (nodes[at + NODE_MIN + a] + nodes[at + NODE_MAX + a]))
-  const centre = [0, 1, 2].map(
-    (r) => m[r] * c[0] + m[4 + r] * c[1] + m[8 + r] * c[2] + m[12 + r] - eye[r],
-  )
-  return outsideDrawDistances(
-    centre[0] ** 2 + centre[1] ** 2 + centre[2] ** 2,
-    drawDistance?.[2 * w] ?? 0,
-    drawDistance?.[2 * w + 1] ?? 0,
-    scale,
-  )
-}
-
 export function createProxyInstances(resources: ProxySource) {
   const state = createProxyState(resources),
     { slots, held, arena, posed, boxes, write, writeInstances, header, markOf } = state
   const { packed } = resources
-  /** The placements that name a farthest draw distance (`DRAW_DISTANCE_MARK`). */
-  const named = new Set<number>()
-  const note = (w: number, mark: number) => {
-    if (mark & DRAW_DISTANCE_MARK) named.add(w)
-    else {
-      named.delete(w)
-      held.culled.delete(w)
-    }
-  }
+  const distances = createProxyDistances({ slots, held, arena, writeInstances, packed })
+  const { note } = distances
   for (let w = 0; w < state.live(); w++) note(w, packed.mark[w] ?? 0)
   /** Row `w` of the culling's world table was written: its box is made again at the next
-   *  `worldBoxes`. */
+   *  `worldBoxes`, its draw distances judged on its new centre. */
   function worldWritten(w: number) {
     if (w < 0 || w >= slots) return
     boxes.mark(w)
+    distances.worldWritten(w)
   }
   return {
     /** The buffer a program reads the proxy through, or none: it then reads the stand-ins. */
@@ -104,7 +77,10 @@ export function createProxyInstances(resources: ProxySource) {
      *  boxes made again. */
     appended(from: number, to: number) {
       write(from, to)
-      for (let w = from; w < to; w++) note(w, packed.mark[w] ?? 0)
+      for (let w = from; w < to; w++) {
+        distances.worldWritten(w)
+        note(w, packed.mark[w] ?? 0)
+      }
     },
     /** Placement `w` parked, or taken back. */
     park(w: number, parked: boolean) {
@@ -134,26 +110,7 @@ export function createProxyInstances(resources: ProxySource) {
       held.words[at + INSTANCE.mark] = kept
       writeInstances(w, 1)
     },
-    /** The placements that name draw distances, those out of them from `eye` — the main view's, in
-     *  the world's units — scaled by `scale` (`cutViewDistanceScale`) wearing no node from now on,
-     *  those back in wearing it again: the centre of the root's bounds, as the cut tests it
-     *  (`../shader/drawDistanceWgsl.ts`). `scale` undefined, the cull is off: every one is met.
-     *  How many changed. */
-    distance(eye: ArrayLike<number>, scale: number | undefined) {
-      let changed = 0
-      for (const w of named) {
-        const out = scale !== undefined && outsideRoot(packed, w, eye, scale)
-        if (out === held.culled.has(w)) continue
-        if (out) held.culled.add(w)
-        else held.culled.delete(w)
-        const at = w * INSTANCE_WORDS
-        held.words[at + INSTANCE.node] =
-          out || packed.rootNodes[w] === NO_INDEX ? NO_INDEX : held.resolved[at + INSTANCE.node]
-        writeInstances(w, 1)
-        changed++
-      }
-      return changed
-    },
+    distance: distances.distance,
     /** The surfaces a host edited since the last cut, written again. */
     refresh() {
       if (!arena.buffer) return

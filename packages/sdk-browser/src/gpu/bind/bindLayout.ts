@@ -161,13 +161,14 @@ export const BLEND_VSM_BINDINGS = {
   pool: BLEND_BINDINGS.shadowPool,
 }
 /** Where a transparent's fragment reads the fog's cubemap and volume (`fogResourcesWgsl`), in
- *  group 0, the volume through the sampler alone, the cubic filters left out (`trilinear`). */
+ *  group 0, read as a translucent layer reads it (`translucent`): through the sampler alone, the cubic
+ *  filters left out. */
 export const BLEND_FOG_BINDINGS = {
   group: 0,
   sampler: BLEND_BINDINGS.fogSampler,
   cubemap: BLEND_BINDINGS.fogCubemap,
   volume: BLEND_BINDINGS.fogVolume,
-  trilinear: true,
+  translucent: true,
 }
 /** What a transparent's fragment traces its shadow with (`directShadowWgsl`): the blue noise and the
  *  translucent casters' memory are read-only storage textures, read by load (`loadOnly`). */

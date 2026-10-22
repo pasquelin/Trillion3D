@@ -115,8 +115,9 @@ export class Camera extends Object3D {
     this.updateProjectionMatrix()
   }
   /** The plane that clips what this camera's view draws, `null` for none (the default): the side
-   *  its `normal` points to is drawn, the rest is cut. It takes effect while the world's
-   *  `cutClipPlane` setting is on. A write redraws. */
+   *  its `normal` points to is drawn, the rest is cut. It takes effect where the world was made
+   *  with the project switch `cutClipPlane` on; a view with a plane is drawn without temporal
+   *  jitter. A write redraws. */
   get clipPlane(): ClipPlane | null {
     const [x, y, z, w] = this._set.clipPlane
     return hasClipPlane(this._set.clipPlane)
@@ -151,8 +152,9 @@ export class Camera extends Object3D {
   set _viewSet(set: ViewSet) {
     this._set = set
   }
-  private write(change: Partial<ViewSet>) {
-    this._set = Object.freeze({ ...this._set, ...change })
+  private write(change: Partial<Omit<ViewSet, 'jitters'>>) {
+    const set = { ...this._set, ...change }
+    this._set = Object.freeze({ ...set, jitters: !hasClipPlane(set.clipPlane) })
     this._link?.pose(this)
   }
   protected override get looksDownNegativeZ() {

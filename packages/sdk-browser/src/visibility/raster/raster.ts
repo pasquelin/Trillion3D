@@ -13,14 +13,14 @@ import {
 } from './contract.ts'
 import { RESOLVE, rasterSource } from './shader.ts'
 import { binLayoutEntries, binSource } from './binWgsl.ts'
+import { lazyTessellatedBin, stagesOf } from './binStages.ts'
 import { SMALL_BINDINGS, atlasLayoutEntries } from '../../gpu/bind/bindLayout.ts'
 import { createRasterBindings } from './bindings.ts'
 import { createRasterResolves } from './resolve.ts'
-import { preparedComputeStage } from '../../gpu/core/computeStages.ts'
 import type { GpuRasterInput } from './types.ts'
 import type { OpenPass } from '../../gpu/core/lazyComputePass.ts'
 import { followTessellation } from '../tessellation/follow.ts'
-import { TESSELLATION_DISPATCHES, type Tessellation } from '../tessellation/tessellation.ts'
+import type { Tessellation } from '../tessellation/tessellation.ts'
 import type { TessellationCapacity } from '../tessellation/uniform.ts'
 import { dispatchRows } from '../../gpu/dispatch/grid.ts'
 import {
@@ -49,6 +49,7 @@ export function createGpuRaster(
   width: number,
   height: number,
   capacity: number,
+  clipping = false,
 ) {
   const { targetBytes, listOffsets, work, indirect } = rasterBuffers(
     device,
@@ -56,7 +57,7 @@ export function createGpuRaster(
     height,
     capacity,
   )
-  const { layouts, ...pipelines } = rasterPipelines(device, capacity, listOffsets)
+  const { layouts, ...pipelines } = rasterPipelines(device, capacity, listOffsets, clipping)
   const bindings = createRasterBindings(device, layouts, work)
   const r: Raster = {
     ...{ work, indirect, listOffsets, targetBytes, ...pipelines },
@@ -90,9 +91,12 @@ export function createGpuRaster(
     /** Keeps the tessellation of the displaced surfaces as `asked` says — its capacity, none where
      *  the image tessellates nothing: made, its pipelines and the binning's variant that leaves it
      *  the rows asked off the frame, made again when the capacity moved, given back when none. */
-    followTessellation(device: GPUDevice, asked: TessellationCapacity | undefined) {
-      r.tessellation = followTessellation(r.tessellation, device, work, asked)
-      if (asked) for (const stage of r.tessellatedBin()) stage.ask()
+    followTessellation: (device: GPUDevice, asked: TessellationCapacity | undefined) =>
+      followTessellation(r, device, work, asked),
+    /** The tessellation held now: the shadow maps' chain runs in its buffers
+     *  (`../../lighting/shadows/vsm/tessellation/shadowChain.ts`). */
+    get tessellation() {
+      return r.tessellation
     },
     /** The depth both rasters wrote so far, into the pyramid's level zero (`size` the image's
      *  drawn size). */
@@ -166,7 +170,12 @@ function rasterBuffers(device: GPUDevice, width: number, height: number, capacit
   return { targetBytes, listOffsets, work, indirect }
 }
 
-function rasterPipelines(device: GPUDevice, capacity: number, listOffsets: readonly number[]) {
+function rasterPipelines(
+  device: GPUDevice,
+  capacity: number,
+  listOffsets: readonly number[],
+  clipping: boolean,
+) {
   const b = SMALL_BINDINGS
   const compute = COMPUTE
   const rasterLayout = device.createBindGroupLayout({
@@ -184,18 +193,11 @@ function rasterPipelines(device: GPUDevice, capacity: number, listOffsets: reado
     ],
   })
   const binLayout = device.createBindGroupLayout({ entries: binLayoutEntries() })
-  // Asked, compiled off the thread from now, the frames held on them: the raster is made at a
-  // frame's entry (`../../frame/loop/framePipelines.ts`), and the frame that draws it finds them.
-  // One module each, one pipeline a pass: the pass's lists are its override (`LIST`), the word
-  // their header starts at.
-  const stages = (layout: GPUBindGroupLayout, module: GPUShaderModule) => {
-    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
-    return (entryPoint: string, pass: RasterPass) =>
-      preparedComputeStage(device, pipelineLayout, module, entryPoint, {
-        LIST: listOffsets[pass]! / 4,
-      }).ask()
-  }
-  const binStage = stages(binLayout, device.createShaderModule({ code: binSource(capacity) })),
+  const stages = stagesOf(device, listOffsets)
+  const binStage = stages(
+      binLayout,
+      device.createShaderModule({ code: binSource(capacity, false, clipping) }),
+    ),
     rasterStage = stages(rasterLayout, device.createShaderModule({ code: rasterSource(capacity) }))
   const bin = RASTER_PASSES.map((pass) => binStage('bin', pass)),
     plan = RASTER_PASSES.map((pass) => binStage('plan', pass))
@@ -206,23 +208,10 @@ function rasterPipelines(device: GPUDevice, capacity: number, listOffsets: reado
       [MODE_DEPTH, MODE_ID].map((mode) => rasterStage(rasterEntry(klass, mode), pass)),
     ),
   )
-  // The binning that leaves the tessellated rows to the tessellation (`binSource`'s flag): one
-  // pipeline a pass, made at the first ask. A scene without a displaced surface never compiles it.
-  let tessellatedBin: ReturnType<typeof binStage>[] | undefined
-  const tessellated = () => {
-    if (!tessellatedBin) {
-      const stage = stages(
-        binLayout,
-        device.createShaderModule({ code: binSource(capacity, true) }),
-      )
-      tessellatedBin = RASTER_PASSES.map((pass) => stage('bin', pass))
-    }
-    return tessellatedBin
-  }
   return {
     layouts: { raster: rasterLayout, bin: binLayout },
     bin,
-    tessellatedBin: tessellated,
+    tessellatedBin: lazyTessellatedBin(device, capacity, clipping, binLayout, stages),
     plan,
     raster,
   }
@@ -288,6 +277,6 @@ function encodeBinning(
     pass * DISPATCH_WORDS * 4,
     DISPATCH_WORDS * 4,
   )
-  return 2 + (r.tessellating ? TESSELLATION_DISPATCHES : 0)
+  return 2 + (r.tessellating ? r.tessellation!.levelDispatches(pass) : 0)
 }
 export type GpuRaster = ReturnType<typeof createGpuRaster>
