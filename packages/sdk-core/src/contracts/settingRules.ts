@@ -76,6 +76,9 @@ type FieldOptions<T extends SettingRules> = {
 /** Any finite number. */
 export const ANY_NUMBER: SettingRange = [-1.7976931348623157e308, 1.7976931348623157e308]
 
+/** The range of a finite number from `low` up. */
+export const atLeast = (low: number): SettingRange => [low, ANY_NUMBER[1]]
+
 /** A switch of field `field` and default `value`. */
 export const flagSetting = <F extends string>(field: F, value: boolean) =>
   ({ kind: 'flag', field, default: value }) as const

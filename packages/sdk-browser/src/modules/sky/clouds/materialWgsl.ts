@@ -1,5 +1,10 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import {
+  computeSamplerEntry,
+  computeTextureEntry,
+  computeUniformEntry,
+} from '../../../gpu/core/computeBindings.ts'
+import {
   type CLOUD_MATERIAL_RULES,
   type CloudMaterial,
 } from '../../../../../sdk-core/src/modules/sky/cloudMaterial.ts'
@@ -61,19 +66,20 @@ const SLOTS = Object.entries(CLOUD_MATERIAL_SLOTS) as [string, readonly (keyof C
 /** The floats of the material block. */
 export const CLOUD_MATERIAL_FLOATS = SLOTS.length * 4
 
-/** The resolved material settings (`resolveCloudPart`) as the block the shader declares: each slot
- *  its settings one after the other, the rest of its four floats zero. */
-export function packCloudMaterial(material: CloudMaterial) {
-  const block = new Float32Array(CLOUD_MATERIAL_FLOATS)
+/** The resolved material settings (`resolveCloudPart`) as the block the shader declares, into
+ *  `out` (`CLOUD_MATERIAL_FLOATS` floats): each slot its settings one after the other, the rest of
+ *  its four floats zero. */
+export function packCloudMaterial(out: Float32Array, material: CloudMaterial) {
+  out.fill(0, 0, CLOUD_MATERIAL_FLOATS)
   SLOTS.forEach(([, fields], slot) => {
     let next = slot * 4
     for (const field of fields) {
       const value = material[field]
-      const parts = typeof value === 'object' ? value : [Number(value)]
-      for (const part of parts) block[next++] = part
+      if (typeof value === 'object') for (const part of value) out[next++] = part
+      else out[next++] = Number(value)
     }
   })
-  return block
+  return out
 }
 
 /** The declarations a program makes for the material, from binding `first` of group `group` on:
@@ -88,28 +94,50 @@ export const cloudMaterialBindings = (group: number, first: number) => `
 @group(${group}) @binding(${first + 5}) var lightningVolume:texture_3d<f32>;
 @group(${group}) @binding(${first + 6}) var cloudSampler:sampler;`
 
+/** The layout entries of `cloudMaterialBindings` from binding `first`, in its order: the block, the
+ *  noise volume, the pattern, the profile, the mask, the lightning volume, the sampler. */
+export const cloudMaterialLayoutEntries = (first: number): GPUBindGroupLayoutEntry[] => [
+  computeUniformEntry(first),
+  computeTextureEntry(first + 1, 'float', '3d'),
+  computeTextureEntry(first + 2, 'float'),
+  computeTextureEntry(first + 3, 'float'),
+  computeTextureEntry(first + 4, 'float'),
+  computeTextureEntry(first + 5, 'float', '3d'),
+  computeSamplerEntry(first + 6),
+]
+
 export const CLOUD_MATERIAL_WGSL = wgslBlock(
   'CLOUD_MATERIAL_WGSL',
   [],
   `
 struct CloudMaterialBlock{${SLOTS.map(([slot]) => `${slot}:vec4f,`).join('')}}
 const CM_PER_KM:f32=100000.0;
+const CLOUD_CM_TO_KM:f32=0.00001;
+const CLOUD_CM_TO_M:f32=0.01;
+const CLOUD_M_TO_CM:f32=100.0;
+const CLOUD_M_TO_KM:f32=0.001;
 /** The share of the altitude, at the layer's bottom and top, where no cloud draws, and the floor
  *  of the warp that bends the erosion's coordinates. */
 const CLOUD_EDGE_CUT:f32=0.02;
 const CLOUD_WARP_FLOOR:f32=0.05;
 /** The distance from the eye, in centimetres, over which a cloud fades in. */
 const CLOUD_NEAR_FADE:f32=50000.0;
-/** The density a full storm adds per metre. */
 /** The most the emissive pin passes. */
 const CLOUD_EMISSIVE_MOST:f32=65000.0;
+/** The density a full storm adds per metre. */
 const CLOUD_STORM_DENSITY:f32=0.666667;
-/** What the wind has carried the noise by at \`time\`: the pattern's width in texels over the tile
- *  in kilometres sets the rate. */
-fn cloudWindDrift(time:f32)->vec3f{
- let wind=cloudMaterial.wind;
- let tile=f32(textureDimensions(layoutPattern,0).x)/cloudMaterial.coverageDensity.x*1000.0;
- return wind.xyz*wind.w*(time/tile);
+var<private> cloudLayoutTileCm:f32;
+var<private> cloudTurn:vec2f;
+var<private> cloudDrift:vec3f;
+/** What does not change along a thread's march, once for the thread at \`time\`: the layout tile in
+ *  centimetres, the cosine and the sine of the placement's turn, and what the wind has carried the
+ *  noise by (the pattern's width in texels over the tile in kilometres sets the rate). */
+fn cloudMaterialStart(time:f32){
+ let m=cloudMaterial;
+ cloudLayoutTileCm=m.coverageDensity.x*CM_PER_KM;
+ cloudTurn=vec2f(cos(m.placement.w),sin(m.placement.w));
+ let tile=f32(textureDimensions(layoutPattern,0).x)/m.coverageDensity.x*1000.0;
+ cloudDrift=m.wind.xyz*m.wind.w*(time/tile);
 }
 struct CloudSample{extinction:vec3f,albedo:vec3f,ambientOcclusion:f32,emissive:vec3f,conservativeDensity:vec4f,}
 /** The light of a lightning flash at \`place\`: the volume read at its finest level and again at the
@@ -143,10 +171,9 @@ fn cloudLightning(place:vec3f,time:f32)->f32{
 fn cloudMaterialAt(world:vec3f,altitude:f32,cameraRelative:vec3f,time:f32)->CloudSample{
  let m=cloudMaterial;
  let storm=m.storm.x;
- let shifted=world/(m.coverageDensity.x*CM_PER_KM)+vec3f(0.5,0.5,0.0);
- let turn=m.placement.w;
+ let shifted=world/cloudLayoutTileCm+vec3f(0.5,0.5,0.0);
  let around=shifted.xy-0.5;
- let layoutXY=0.5+vec2f(cos(turn)*around.x-sin(turn)*around.y,sin(turn)*around.x+cos(turn)*around.y);
+ let layoutXY=0.5+vec2f(cloudTurn.x*around.x-cloudTurn.y*around.y,cloudTurn.y*around.x+cloudTurn.x*around.y);
  let place=vec3f(layoutXY,shifted.z)-m.placement.xyz;
  let patternXY=(place-0.5).xy;
  let maskXY=(place+m.placement.xyz).xy;
@@ -164,7 +191,7 @@ fn cloudMaterialAt(world:vec3f,altitude:f32,cameraRelative:vec3f,time:f32)->Clou
   textureSampleLevel(heightProfile,cloudSampler,vec2f(altitude,pattern.z),0.0).b);
  let stormProfile=m.typeWeights.w*textureSampleLevel(heightProfile,cloudSampler,vec2f(altitude,pattern.w),0.0).a;
  let profileLess=mix(max(max(profile.x,profile.y),profile.z),stormProfile,storm)-0.5;
- let drift=cloudWindDrift(time);
+ let drift=cloudDrift;
  let erosionAt=m.erosionNoise.xyz*place+m.erosionNoise.w*drift;
  let distortionAt=m.distortionNoise.xyz*place+m.distortionNoise.w*drift;
  let distortionStrength=mix(m.noiseStrength.y,m.noiseStrength.y*m.noiseStrength.w,storm);

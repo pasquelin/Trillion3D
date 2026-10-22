@@ -1,0 +1,85 @@
+import { retire } from '../../../gpu/core/frameRetire.ts'
+import { resolveTargetUsage } from '../../../post/taa/resolve.ts'
+import type { Size } from '../clouds/reconstructLayout.ts'
+import { LIGHT_SHAFT_FORMAT, lightShaftFactor } from './layout.ts'
+import type { LightShaftSizes } from './describe.ts'
+
+/**
+ * THE HISTORY OF A LIGHT SHAFT CHAIN, a pair of images at the shafts' texture size the temporal
+ * filter alternates between: it reads `held`, the last image it drew, and draws `next`; `commit`
+ * after the draw swaps them, so `held` is then the filtered shafts' image the radial blur reads, and
+ * the history of the next image. The occlusion has one for the view, a bloom one for each light.
+ *
+ * It also keeps what the last image's pixels were laid over, to read it back by: the view it was
+ * drawn for, and the buffer that view and the reduction make (`valid`, `viewport`, `buffer`). Nothing
+ * restarts it but a first image and a change of size; a frame that skips the chain leaves it as it
+ * was, and the camera's move since the last image the chain ran is not known to it.
+ */
+export function createLightShaftHistory(device: GPUDevice) {
+  const textures: GPUTexture[] = []
+  const views: GPUTextureView[] = []
+  let held = 0
+  const history = {
+    /** The image `held` describes something: a draw has been committed since the last allocation. */
+    valid: false,
+    /** The scene view the held image was drawn for, in the pixels the scene is drawn in. */
+    viewport: { width: 0, height: 0 } as Size,
+    /** The held image's texture, in the scene's pixels: the shafts' texture size times the factor. */
+    buffer: { width: 0, height: 0 } as Size,
+    /** The last image the filter drew. */
+    get held() {
+      return views[held]
+    },
+    /** The image the filter draws into. */
+    get next() {
+      return views[1 - held]
+    },
+    /** Makes both images at `texture`, the former ones retired, none valid. */
+    allocate(texture: Size) {
+      history.drop()
+      for (let i = 0; i < 2; i++) {
+        const image = device.createTexture({
+          label: `Trillion3D light shaft history ${i}`,
+          size: texture,
+          format: LIGHT_SHAFT_FORMAT,
+          usage: resolveTargetUsage(),
+        })
+        textures.push(image)
+        views.push(image.createView())
+      }
+    },
+    /** Keeps the images when they have the size of `texture`, else makes them. */
+    fit(texture: Size) {
+      if (
+        textures.length &&
+        textures[0].width === texture.width &&
+        textures[0].height === texture.height
+      )
+        return
+      history.allocate(texture)
+    },
+    /** After the draw: the image drawn becomes the held one, for the scene `sizes` and the reduction
+     *  `downsample` it was drawn at. */
+    commit(sizes: LightShaftSizes, downsample: number) {
+      const factor = lightShaftFactor(downsample)
+      held = 1 - held
+      history.valid = true
+      history.viewport = sizes.scene.view
+      history.buffer = {
+        width: sizes.shaft.texture.width * factor,
+        height: sizes.shaft.texture.height * factor,
+      }
+    },
+    /** Drops the images (this image's commands may still name them: retired), and the history. */
+    drop() {
+      for (const texture of textures) retire(device, texture)
+      textures.length = 0
+      views.length = 0
+      held = 0
+      history.valid = false
+    },
+  }
+  return history
+}
+
+export type LightShaftHistory = ReturnType<typeof createLightShaftHistory>

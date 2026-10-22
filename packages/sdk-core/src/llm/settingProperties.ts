@@ -17,6 +17,7 @@ import { CUT_RULES, type CutField } from '../contracts/cutOptions.ts'
 import { ANIMATION_RULES, type AnimationField } from '../contracts/animationOptions.ts'
 import { SHADING_RULES, type ShadingField } from '../contracts/shadingOptions.ts'
 import { EXPOSURE_RULES, type ExposureField } from '../contracts/exposureOptions.ts'
+import { SKY_QUALITY_RULES, type SkyQualityField } from '../modules/sky/quality.ts'
 import { TEMPORAL_RULES, type TemporalField } from '../contracts/temporalOptions.ts'
 import {
   DEFAULT_STREAMING_MAX_INSTALLS_PER_FRAME,
@@ -190,6 +191,162 @@ const EXPOSURE_MEANINGS: Readonly<Record<ExposureField, string>> = {
     'How sharply the shadow contrast takes over past its threshold, from 0 to 1: 1 the sharpest.',
 }
 
+/** What each quality setting of the sky means (`../modules/sky/quality.ts`). The atmosphere's and
+ *  the light shafts' are written by the quality presets; the clouds' and the sky light's capture
+ *  stay at their defaults at every preset. */
+const SKY_QUALITY_MEANINGS: Readonly<Record<SkyQualityField, string>> = {
+  skyTableFast:
+    'Whether the sky is read from a table of the view directions instead of marched per pixel: faster, with artefacts where the sky has fine detail such as the earth shadow or a scattering lobe.',
+  aerialFastOnOpaque:
+    'Whether the haze on opaque surfaces is read from the low-resolution volume made for translucent ones: faster, with the same artefacts.',
+  atmosphereSamplesMin:
+    'Fewest samples of the atmosphere march, from 1; the count grows with the distance up to atmosphereSamplesMax.',
+  atmosphereSamplesMax:
+    'Most samples of the atmosphere march, from 1; read no lower than atmosphereSamplesMin.',
+  skyTableSamplesMin: 'Fewest samples of the march that fills the sky table, from 1.',
+  skyTableSamplesMax:
+    'Most samples of the march that fills the sky table, from 1; read no lower than skyTableSamplesMin.',
+  aerialSamplesPerSlice: 'Most samples a slice of the haze volume takes, from 1.',
+  aerialDepthSlices: 'Slices of the haze volume along the depth, a whole number from 4.',
+  transmittanceSamples: 'Samples that build the transmittance table, from 1.',
+  multiScatterSamples: 'Samples that build the multiple-scattering table, from 1.',
+  transmittanceSmallFormat:
+    'Whether the transmittance table is kept in four 8-bit channels, at lower quality.',
+  cloudViewSamplesMax: 'Most samples a cloud view ray takes; read no lower than 2.',
+  cloudReflectionSamplesMax:
+    'Most samples a cloud ray seen in a reflection takes; read no lower than 2.',
+  cloudShadowSamplesMax: 'Most samples a cloud shadow ray takes; read no lower than 2.',
+  cloudReflectionShadowSamplesMax:
+    'Most samples a cloud shadow ray seen in a reflection takes; read no lower than 2.',
+  cloudSamplesMin:
+    'Fewest samples a cloud ray takes, a whole number from 0; it keeps a layer used as low fog fine near the eye.',
+  cloudDistanceToMaxSamplesKm:
+    'Distance in kilometres over which the samples of a cloud ray grow from their minimum to their maximum, from 0.00001.',
+  cloudStepOnEmpty:
+    'Step of the cloud march, in samples, where the density bound is zero, a whole number from 1: more is faster but bands.',
+  cloudShadowMapResolutionMax: 'Largest side of the clouds shadow map, a whole number.',
+  cloudShadowMapSamplesMax:
+    'Most samples a ray of the clouds shadow map takes; read no lower than 4.',
+  cloudShadowMapHorizonMultiplier:
+    'Factor on the samples of the clouds shadow map when the sun reaches the horizon, from 1; 1 leaves them.',
+  cloudShadowMapSpatialFiltering:
+    'Blur passes smoothing the clouds shadow map, from 0 (none) to 4.',
+  cloudShadowMapNewFrameWeight:
+    "Share of the current image in the clouds shadow map's temporal blend, from 0 to 1; 1 turns the blend off.",
+  cloudDistantSkyLight: 'Whether the distant sky light lights the clouds.',
+  atmosphereOn: 'Whether the atmosphere is drawn at all.',
+  cloudsOn: 'Whether the clouds are drawn at all.',
+  atmosphereDistanceToMaxSamplesKm:
+    'Distance in kilometres at which the atmosphere march takes its most samples, from 0.0001.',
+  atmosphereSampleLightShadowMap:
+    "Whether the atmosphere march reads the light's shadow map, for the shadows the air shows.",
+  skyTableDistanceToMaxSamplesKm:
+    'Distance in kilometres at which the march that fills the sky table takes its most samples, from 0.0001.',
+  aerialDepthKm:
+    'Length in kilometres of the haze volume, from 1; the last slice is used beyond it.',
+  aerialWidth: 'Side in texels of the haze volume, a whole number from 4.',
+  aerialDepthTest:
+    'Whether the haze is kept from being drawn on pixels closer than where it starts, which saves time.',
+  transmittanceTable: 'Whether the transmittance table is built.',
+  distantSkyLightTable: 'Whether the table of the distant sky light is built.',
+  multiScatterHighQuality:
+    'Whether the multiple scattering is built from more directions: more exact, dearer.',
+  distantSkyLightAltitudeKm:
+    'Altitude in kilometres at which the sky is sampled to integrate the distant sky light.',
+  skyTablesFullPrecision: 'Whether every sky table is kept in 32 bits per channel.',
+  transmittanceWidth: 'Width in texels of the transmittance table, a whole number from 4.',
+  transmittanceHeight: 'Height in texels of the transmittance table, a whole number from 4.',
+  multiScatterWidth: 'Width in texels of the multiple-scattering table, a whole number from 4.',
+  multiScatterHeight: 'Height in texels of the multiple-scattering table, a whole number from 4.',
+  skyTableWidth: 'Width in texels of the sky table, a whole number from 4.',
+  skyTableHeight: 'Height in texels of the sky table, a whole number from 4.',
+  cloudSamplesClamp:
+    'Most samples a cloud ray takes once its count is worked out, a whole number from 0; it keeps a long ray from holding the GPU, and set too low leaves the clouds incomplete.',
+  cloudSampleLightShadowMap: "Whether the clouds read the light's shadow map.",
+  cloudAerialPerspective: 'Whether the haze lights the clouds.',
+  cloudAtmosphericLights: 'Whether the sun and the moon light the clouds.',
+  cloudHighQualityAerial:
+    'Whether the haze on the clouds is traced per pixel in a second pass instead of read from its volume; it needs cloudAerialPerspective.',
+  cloudFogOnAllPixels:
+    'Whether the fog is applied where the clouds do not cover as well, a little dearer, which removes a jump where the coverage reaches 0.',
+  cloudLocalLights: 'Whether the lamps light the clouds: experimental and dear.',
+  cloudLocalLightShadowSamples:
+    'Samples of the shadow of a lamp on the clouds, from 0 to 128; read only with cloudLocalLights.',
+  cloudShadowMap:
+    'Whether the clouds shadow map of the sun is built, for a sun that casts cloud shadows.',
+  cloudShadowMapLightRotationCutDegrees:
+    "Turn of the sun in degrees past which the clouds shadow map's temporal blend starts again.",
+  cloudShadowMapSnapKm:
+    "Length in kilometres the clouds shadow map's position is snapped to so it does not flicker; 0 or less breaks the map's position.",
+  cloudShadowMapSnapToPixelGrid:
+    "Whether the clouds shadow map's origin is snapped to its texels, so it does not shimmer when the camera moves.",
+  cloudShadowMapLightDistanceOverrideKm:
+    'Above 0, the distance in kilometres of the light from the ground for the clouds shadow map; 0 or less leaves the distance from its extent.',
+  cloudSkyAO:
+    "Whether the clouds' occlusion of the sky light is built, for a sky light that asks for it.",
+  cloudSkyAOResolutionMax: "Largest side of the clouds' sky occlusion map, a whole number.",
+  cloudSkyAOTraceSamples:
+    'Samples taken to find the ground occlusion of the clouds sky occlusion, a whole number.',
+  cloudSkyAOFiltering: 'Whether the clouds sky occlusion map is dilated and smoothed.',
+  cloudSkyAOSnapKm:
+    "Length in kilometres the clouds sky occlusion map's position is snapped to so it does not flicker; 0 or less breaks the map's position.",
+  cloudEmptySpaceSkipping:
+    'Whether a table of where the clouds start lets the rays skip the empty air: experimental.',
+  cloudEmptySpaceSkippingDepthKm: 'Distance in kilometres the empty-space table covers, from 1.',
+  cloudEmptySpaceSkippingSliceBias:
+    'Slices the start of the empty-space table is moved by; -1 moves it one slice toward the eye.',
+  cloudEmptySpaceSkippingCorners:
+    'Whether the corners of a cell of the empty-space table are read as well as its centre.',
+  cloudRenderTarget:
+    'Whether the clouds are traced into a target of their own, at the size cloudTraceSize says, and laid over the scene.',
+  cloudUpsampling:
+    "The way the traced clouds are laid over the scene: 'bilinear'; 'bilinearJitter'; 'nearestDepth', the nearest with a depth test; 'bilinearJitterClosest', with a jitter keeping the closest; 'bilateral'. A cloudTraceSize of 'quarterToFull' or 'full' reads 'nearestDepth' whatever is asked.",
+  cloudUpsampleAcceptance:
+    'How little a noisy cloud sample may differ from its neighbours to be blended, from 0: more accepts fewer; read by the jitter ways of cloudUpsampling.',
+  cloudRenderTargetScale:
+    "Size of the clouds' target, from 0.1 to 1; read only with a cloudTraceSize of 'quarterToFull'.",
+  cloudReprojectionBoxConstraint:
+    'Whether the reprojected cloud image is held to the neighbourhood of the new one.',
+  cloudReprojectionMinDistanceKm:
+    "Distance in kilometres a cloud surface must be at for the last image to be reprojected, from 0; 4 hides the errors of reprojecting a layer's single front depth, at the price of a noisier near cloud.",
+  cloudDisocclusionMaxDistanceKm:
+    'Distance in kilometres past which the pixels uncovered by a moving cloud are no longer rebuilt, from 0.',
+  cloudFogLateOnTranslucent:
+    'Whether the late fog pass also gives the clouds with their fog, for the translucent surfaces behind them; dearer and takes more memory; read only with cloudFogLate.',
+  cloudTraceSize:
+    "Size the clouds are traced at: 'quarterToHalf' a quarter of the view rebuilt at half, then enlarged; 'half' half of the view, then enlarged; 'quarterToFull' a quarter rebuilt at the full size, where a cloud cannot hide behind an opaque mesh; 'full' the full size, so that clouds also show on translucent surfaces.",
+  cloudFogLate:
+    'Whether the fog is applied to the clouds late in the frame, after they are rebuilt and enlarged, so it does not lag with them; the enlarging pass costs about twice as much.',
+  lightShafts: 'Whether the sun and the lamps that ask for them draw light shafts.',
+  lightShaftDownsample:
+    'Factor the light shafts are computed at under the view size, a whole number from 1 to 8.',
+  lightShaftTemporalFilter: 'Whether the light shafts are filtered over the images.',
+  lightShaftAfterDof:
+    'Whether the light shafts are drawn in the separate translucency, after the depth of field.',
+  lightShaftBlurPasses: 'Radial blur passes of the light shafts, a whole number from 0.',
+  lightShaftFirstPassDistance:
+    'Fraction of the distance to the light that the first radial blur pass blurs over.',
+  skyLightRealTimeCapture: "Whether the platform allows the sky light's real-time capture at all.",
+  skyLightTimeSlicing:
+    "Whether the sky light's capture and convolutions are spread over several images to lower the cost of each.",
+  skyLightFacesPerFrame:
+    'Cube faces whose clouds are drawn per image when the capture is time sliced, a whole number from 1 to 6: more is less lag between faces when the sun moves fast.',
+  skyLightCloudDivider:
+    "Factor the clouds' size is divided by in the sky light's capture, a whole number from 1 to 8.",
+  skyLightShadowFromOpaque:
+    "Whether opaque meshes shadow the sky and the clouds from the sun in the sky light's capture.",
+  skyLightDepthBuffer:
+    "Whether the sky light's capture has a depth buffer, so that meshes cover each other and the height fog follows the depth.",
+  skyLightAlwaysClear:
+    "Whether the sky light's capture is cleared to black before the sky is drawn.",
+  skyLightResolutionOverride:
+    "Side in texels of the sky light's capture, from 16, in place of the sky light's own; a lower value leaves its own.",
+  skyLightCubemapMaxResolution:
+    "Largest side in texels of the sky light's cube when above 0; below that the sky light's own side is kept.",
+  skyLightIntensityScale:
+    "Factor on the sky light's intensity: it keeps the contrast of a level that draws less occlusion.",
+}
+
 /** The schema of each setting of a contract's rules by field (`SettingRule`): its kind, its
  *  default, its bounds and what it means. */
 function ruleProperties<F extends string>(
@@ -232,6 +389,9 @@ function ruleProperties<F extends string>(
   }
   return properties
 }
+
+/** The schema of the sky's quality settings, by field. */
+export const skyQualityProperties = () => ruleProperties(SKY_QUALITY_RULES, SKY_QUALITY_MEANINGS)
 
 /** The schema of the geometry streaming's eight settings, by field. */
 export const streamingProperties = () => ruleProperties(STREAMING_RULES, streamingMeanings())

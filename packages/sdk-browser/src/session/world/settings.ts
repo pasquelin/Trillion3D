@@ -16,6 +16,10 @@ import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import { ANIMATION_RULES } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
+import {
+  SKY_QUALITY_RULES,
+  SKY_QUALITY_RULES_BY_GROUP,
+} from '../../../../sdk-core/src/modules/sky/quality.ts'
 import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import {
   createRenderSettings,
@@ -40,11 +44,11 @@ type RuleEntry<V> = V extends boolean
   : V extends number
     ? NumberSettingEntry
     : Omit<ChoiceSettingEntry, 'default' | 'choices'> & { default: V; choices: readonly V[] }
-/** The entry of one setting of a contract's rules (`RegistryRule`), of the view distance's group:
- *  its kind, default and range or names the rule's. A number `above` its range's start lies from
+/** The entry of one setting of a contract's rules (`RegistryRule`), of the quality group `quality`
+ *  (the view distance's by default): its kind, default and range or names the rule's. A number `above` its range's start lies from
  *  the smallest number past it. */
-function ruleEntry(rule: RegistryRule) {
-  const group = base('viewDistance')
+function ruleEntry(rule: RegistryRule, quality: QualityGroup = 'viewDistance') {
+  const group = base(quality)
   if (rule.kind === 'flag') return { kind: rule.kind, default: rule.default, ...group }
   if (rule.kind === 'choice')
     return { kind: rule.kind, default: rule.default, choices: rule.choices, ...group }
@@ -52,15 +56,19 @@ function ruleEntry(rule: RegistryRule) {
   return { kind: rule.kind, default: rule.default, range, ...group }
 }
 /** The entries of the settings of a contract's rules by field, each setting by its field. */
-const ruleEntries = <R extends Readonly<Record<string, RegistryRule>>>(rules: R) =>
+const ruleEntries = <R extends Readonly<Record<string, RegistryRule>>>(
+  rules: R,
+  group?: QualityGroup,
+) =>
   Object.fromEntries(
-    Object.entries(rules).map(([field, rule]) => [field, ruleEntry(rule)]),
+    Object.entries(rules).map(([field, rule]) => [field, ruleEntry(rule, group)]),
   ) as unknown as { [F in keyof R]: RuleEntry<R[F]['default']> }
 
-/** The rules of every setting declared by rule, by field: the cluster raster's, the geometry
- *  streaming's, the partition's streaming and the HLOD warm-up's, the cut's, the animation's, the
- *  shading's, the exposure's, the temporal pass's. Both the table below and `RULE_FIELDS` read this
- *  one object, so no table is listed twice. */
+/** The rules of the settings declared by rule that belong to the view distance's group, by field:
+ *  the cluster raster's, the geometry streaming's, the partition's streaming and the HLOD warm-up's,
+ *  the cut's, the animation's, the shading's, the exposure's, the temporal pass's. The sky's quality
+ *  settings (`SKY_QUALITY_RULES_BY_GROUP`) are in the groups the reference writes them in. Both the
+ *  table below and `RULE_FIELDS` read these, so no table is listed twice. */
 const RULES = {
   ...RASTER_RULES,
   ...STREAMING_RULES,
@@ -93,11 +101,17 @@ const WORLD_SETTINGS = {
   },
   bounce: flag(true, 'indirectLight'),
   ...ruleEntries(RULES),
+  ...ruleEntries(SKY_QUALITY_RULES_BY_GROUP.effects, 'effects'),
+  ...ruleEntries(SKY_QUALITY_RULES_BY_GROUP.imageEffects, 'imageEffects'),
+  ...ruleEntries(SKY_QUALITY_RULES_BY_GROUP.indirectLight, 'indirectLight'),
 } as const satisfies Readonly<Record<string, RenderSettingEntry>>
 
 /** The fields of every setting declared by rule: no quality level writes one unless its table
  *  lists it (`quality.ts`). */
-export const RULE_FIELDS: ReadonlySet<string> = new Set(Object.keys(RULES))
+export const RULE_FIELDS: ReadonlySet<string> = new Set([
+  ...Object.keys(RULES),
+  ...Object.keys(SKY_QUALITY_RULES),
+])
 
 /** A world's registry over the engine's settings. */
 export const createWorldSettings = () => createRenderSettings(WORLD_SETTINGS)

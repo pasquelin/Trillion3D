@@ -131,6 +131,21 @@ test('every level writes settings of its own group that a preset may write, with
     assert.deepEqual(QUALITY_LEVELS[group].max, {}, `${group}: max is today's defaults`)
 })
 
+test('the sky presets write the reference levels 0, 1 and 2 over the level-3 defaults', () => {
+  const { settings, quality: q } = quality()
+  q.preset = 'smooth'
+  assert.equal(settings.get('atmosphereSamplesMax'), 16)
+  assert.equal(settings.get('transmittanceSmallFormat'), true)
+  assert.equal(settings.get('lightShafts'), false)
+  assert.equal(settings.get('skyLightIntensityScale'), 0.8)
+  q.preset = 'fine'
+  assert.equal(settings.get('aerialSamplesPerSlice'), 2)
+  assert.equal(settings.get('lightShafts'), true)
+  q.preset = 'max'
+  assert.equal(settings.get('atmosphereSamplesMax'), 128)
+  assert.equal(settings.get('cloudViewSamplesMax'), 768, 'the clouds have no level')
+})
+
 test('renderSize is the size the last frame says it was drawn at, none before one', () => {
   const { frame, quality: q } = quality()
   assert.equal(q.renderSize, null)

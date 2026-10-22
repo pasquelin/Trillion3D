@@ -5,6 +5,7 @@
  * whatever they become. The other levels write only the settings their group has wired; a level
  * whose settings are not wired yet writes nothing, and reads as `max` would.
  */
+import { SKY_PRESET_LEVELS } from '../modules/sky/quality.ts'
 import { QUALITY_GROUPS, type QualityGroup, type RenderSettingValue } from './renderSettings.ts'
 
 /** The presets, coarsest first: each sets every group to the level of its own name. */
@@ -40,6 +41,13 @@ export const QUALITY_LEVELS: QualityLevels = {
     fine: { antialiasing: 'high' },
     max: {},
   },
+  // The effects' levels write the atmosphere's eleven settings, the image effects' the light shafts'
+  // switch, the indirect light's the sky light's intensity factor (`SKY_PRESET_LEVELS`): the
+  // reference's levels 0, 1 and 2; the clouds' and the sky light's other settings stay at their
+  // defaults at every level.
+  effects: { ...SKY_PRESET_LEVELS.effects, max: {} },
+  imageEffects: { ...SKY_PRESET_LEVELS.imageEffects, max: {} },
+  indirectLight: { ...SKY_PRESET_LEVELS.indirectLight, max: {} },
 }
 
 /**
