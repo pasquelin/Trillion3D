@@ -87,3 +87,24 @@ fn lampSeen(light:DirectLight,P:vec3f,N:vec3f,incidence:vec4f,bias:f32)->Lamp{
  return lamp;
 }`,
 )
+
+/**
+ * A LOCAL LIGHT AS A POINT OF A MEDIUM SEES IT, which has no surface: the unit direction toward it
+ * in `xyz` and, in `w`, how much of it reaches the point. A rectangle is its form factor with no
+ * normal (`rectFormOf`) times its range window; any other lamp the falloff its own term gives
+ * (`lampSeen`), its cosine unread, its inverse square taken at a squared distance `bias` longer
+ * (`LAMP_BIAS` for a point of no cell size). The volumetric fog and the clouds both read a lamp so.
+ */
+export const VOLUME_LAMP_WGSL = wgslBlock(
+  'VOLUME_LAMP_WGSL',
+  [LAMP_WGSL],
+  `
+fn volumeLamp(light:DirectLight,P:vec3f,bias:f32)->vec4f{
+ if(isRect(light)){
+  let r=rectView(light,P);
+  return vec4f(normalize(light.positionRange.xyz-P),rectFormOf(r)*r.window);
+ }
+ let incidence=directIncidence(light,P);
+ return vec4f(incidence.xyz,lampSeen(light,P,vec3f(0.0),incidence,bias).falloff);
+}`,
+)

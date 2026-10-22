@@ -60,9 +60,9 @@ import { REFLECTION_PROXY_WGSL } from './proxy.ts'
 export const REFLECTION_FIELD_OVER_WGSL = wgslBlock(
   'REFLECTION_FIELD_OVER_WGSL',
   [REFLECTION_ENVIRONMENT_WGSL, REFLECTION_PROBES_SHARE_WGSL],
-  `fn reflectionFieldOver(gathered:vec4f,R:vec3f)->vec3f{
+  `fn reflectionFieldOver(gathered:vec4f,R:vec3f,rough:f32)->vec3f{
  let under=select(1.0,1.0-min(gathered.w,1.0),skyLit());
- return under*reflectionEnvironment(R)+reflectionProbesShare(gathered);
+ return under*reflectionEnvironment(R,rough)+reflectionProbesShare(gathered);
 }`,
 )
 
@@ -74,7 +74,7 @@ export const REFLECTION_FIELD_STAGE_WGSL = wgslBlock(
   'REFLECTION_FIELD_STAGE_WGSL',
   [REFLECTION_FIELD_OVER_WGSL, REFLECTION_PROBES_WGSL, REFLECTION_CLAMP_WGSL],
   `fn reflectionField(P:vec3f,N:vec3f,lobe:ReflectionLobe)->vec3f{
- return reflectionClampRay(reflectionFieldOver(reflectionProbesGathered(P,N,lobe),lobe.R));
+ return reflectionClampRay(reflectionFieldOver(reflectionProbesGathered(P,N,lobe),lobe.R,lobe.rough));
 }`,
 )
 
@@ -149,7 +149,7 @@ const SCENE_STAGE_TEXT = `fn reflectionSceneStage(P:vec3f,N:vec3f,lobe:Reflectio
     if(ray.hit>=REFLECTION_FAR&&far.confidence>=0.5){ray.hit=far.distance;}
    }
   }
-  let sky=reflectionFogged(reflectionEnvironment(lobe.R),P,lobe.R*max(reflectionView.light.w,reflectionView.march.w));
+  let sky=reflectionFogged(reflectionEnvironment(lobe.R,0.0),P,lobe.R*max(reflectionView.light.w,reflectionView.march.w));
   ray.radiance+=open*reflectionClampRay(sky);
   ray.rest-=open;
  }

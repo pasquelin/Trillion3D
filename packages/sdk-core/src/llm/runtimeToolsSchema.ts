@@ -12,6 +12,11 @@ import { ANIMATION_RULES } from '../contracts/animationOptions.ts'
 import { SHADING_RULES } from '../contracts/shadingOptions.ts'
 import { EXPOSURE_RULES } from '../contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
+import { HIZ_RULES } from '../contracts/hizOptions.ts'
+import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
+import { VOLUMETRIC_LIGHTMAP_RULES } from '../contracts/volumetricLightmapOptions.ts'
+import { DISTANCE_FIELD_OCCLUSION_RULES } from '../contracts/distanceFieldOcclusionOptions.ts'
+import { GLOBAL_DISTANCE_FIELD_RULES } from '../contracts/globalDistanceFieldOptions.ts'
 import { SHADOW_DISTANCE_DEFAULT, SHADOW_RULES } from '../contracts/shadowOptions.ts'
 import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
 import { DEPTH_OF_FIELD_RULES } from '../contracts/depthOfFieldRules.ts'
@@ -23,6 +28,7 @@ import { VOLUMETRIC_FOG_RULES } from '../contracts/volumetricFogOptions.ts'
 import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
+import { SKY_QUALITY_RULES } from '../modules/sky/quality.ts'
 
 /** A tool that writes the run-time settings of the rules by field `rules`, each as the explorer's
  *  options describe it (`EXPLORER_OPTIONS_SCHEMA`). Each call is marked pure, so a bundle that
@@ -165,6 +171,31 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
     TEMPORAL_RULES,
   ),
   /* @__PURE__ */ settingTool(
+    'trillion3d_set_hiz',
+    "Changes from the next frame how the depth pyramid is read: how the reflections' screen trace walks it ('reference', the closest opaque depth of each texel, or 'planes', each pixel a plane), whether its trace layers hold the transparent surfaces (off by default) and how the transparent clusters are tested against it ('finer' or 'reference').",
+    HIZ_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_light_function',
+    "Changes from the next frame how the light functions are drawn: whether the atlas is made, the texels of a slot and the slots of its side, the most lights that read it, whether a texel holds a grey or a colour, and which passes read it: the opaque lighting, the volumetric fog's local lights (its sun always reads it) and the translucent layers (off by default).",
+    LIGHT_FUNCTION_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_volumetric_lightmap',
+    "Changes from the next frame whether the precomputed indirect light of the scene (its volumetric lightmap) is read, by the fog's static term and by the lighting of movable objects; on by default. Off, every read answers black.",
+    VOLUMETRIC_LIGHTMAP_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_global_distance_field',
+    "Changes from the next frame how the global distance field is made from the meshes' distance fields (a mesh has one where its build sets distanceField): whether it is made and updated, how many clipmaps (4 by default, at most 6), the view distance and resolution that size them, how often each updates, whether the static meshes are composited apart, the fast camera mode, and the budgets of the atlas the meshes' fields are streamed into. A scene whose meshes built no distance field is not touched.",
+    GLOBAL_DISTANCE_FIELD_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_distance_field_occlusion',
+    "Changes from the next frame how the dynamic sky light is occluded by the distance fields (the global one and the meshes' own, which a mesh has where its build sets distanceField): whether it is drawn and its quality (1 the global field alone, 2 the meshes' fields too), how the cones' samples are spaced, the farthest a pixel is lit by it, the cones' sample set and jitter, the temporal filter, the specular occlusion's mode and strength, and the room of a screen tile for meshes. A scene with no distance field, a sky light that casts no shadow or screen probes lighting the pixels are not touched.",
+    DISTANCE_FIELD_OCCLUSION_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
     'trillion3d_set_shadows',
     "Changes from the next frame how a directional light's shadow maps take their casters by distance: the factor on every light's shadow distance, whether the casters past that distance are left out, and whether that test reaches every caster or the world's merged far-field shells alone, and whether the lights whose maps would pass what one pass of the shadow raster lists are drawn in several passes. It also sets the shadow maps' own: the sun clipmap's levels and depth range, the coarse pages, the resolution biases at rest and while a light moves, the size under which a caster is left out of a map redrawn whole, the rays and steps of a shadow trace, and the page pool.",
     SHADOW_RULES,
@@ -201,8 +232,13 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_volumetric_fog',
-    "Changes from the next frame how the fog's volume is drawn where the scene's fog turns it on (scene.fog.volumetric): its quality — the cells' size and depth, off for none —, how a surface filters it, how the volume of the image before is blended in, and the tuning of its lighting samples.",
+    "Changes from the next frame how the fog's volume is drawn where the sky module's height fog turns it on (scene.sky heightFog.volumetric): its quality — the cells' size and depth, off for none —, how a surface filters it, how the volume of the image before is blended in, and the tuning of its lighting samples.",
     VOLUMETRIC_FOG_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_sky_quality',
+    "Changes from the next frame how the sky is drawn: the atmosphere's switches, its samples and their caps, the sizes of its tables and of the haze volume it hazes the distance with, whether a light's shadow shades the air, the clouds' tracing and shadows, the light shafts and the sky light's capture. Each setting's default is the reference's top level; the quality presets write the lower ones.",
+    SKY_QUALITY_RULES,
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_indirect_light',
@@ -270,6 +306,97 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
           type: 'boolean',
           default: false,
           description: 'Enables virtual shadow map casting.',
+        },
+        fogScattering: {
+          type: 'number',
+          minimum: 0,
+          default: 1,
+          description:
+            'How much of this light the volumetric fog and the clouds scatter, a factor on its colour there; 0 leaves it out of both. It does not change the light on surfaces.',
+        },
+        shadowsFog: {
+          type: 'boolean',
+          description:
+            "Whether this light's shadow also shadows the volumetric fog (it must cast shadows). True by default for a directional light, false for any other.",
+        },
+        useTemperature: {
+          type: 'boolean',
+          default: false,
+          description:
+            "Whether this light's colour is multiplied by the colour of a black body at temperatureKelvin.",
+        },
+        temperatureKelvin: {
+          type: 'number',
+          default: 6500,
+          description:
+            'The black body temperature in kelvin that useTemperature takes the colour of, read between 1000 and 15000; 6500 is white.',
+        },
+        sunDiskTint: {
+          type: 'array',
+          items: { type: 'number', minimum: 0, description: 'Linear RGB component.' },
+          description:
+            "Directional only: a linear RGB colour [R, G, B] the sun's disk in the sky is multiplied by, never the light it gives; white by default.",
+        },
+        shaftOcclusion: {
+          type: 'boolean',
+          default: false,
+          description:
+            "Directional only: whether this light darkens the fog's inscattering where the scene hides it (light shafts).",
+        },
+        shaftOcclusionDarkness: {
+          type: 'number',
+          default: 0.05,
+          description: 'Directional only: what a shaft occlusion of 0 maps to; 1 darkens nothing.',
+        },
+        shaftOcclusionDepthRange: {
+          type: 'number',
+          default: 1000,
+          description:
+            'Directional only: everything closer to the eye than this distance, in metres, occludes the shafts.',
+        },
+        shaftOverrideDirection: {
+          type: 'array',
+          items: { type: 'number', description: 'Direction component.' },
+          description:
+            "Directional only: a direction [x, y, z] the shafts come from instead of the light's own; zero, the default, keeps the light's.",
+        },
+        shaftBloom: {
+          type: 'boolean',
+          default: false,
+          description: 'Whether this light adds a bloom around itself (light shafts).',
+        },
+        shaftBloomScale: {
+          type: 'number',
+          default: 0.2,
+          description: 'The factor on the colour the shaft bloom adds.',
+        },
+        shaftBloomThreshold: {
+          type: 'number',
+          default: 0,
+          description: 'The brightness the image must pass, after exposure, to bloom.',
+        },
+        shaftBloomMaxBrightness: {
+          type: 'number',
+          default: 100,
+          description: 'A brightness above it, after exposure, is brought down to it.',
+        },
+        shaftBloomTint: {
+          type: 'array',
+          items: { type: 'number', minimum: 0, description: 'Linear RGB component.' },
+          description:
+            "A linear RGB colour [R, G, B] the shaft bloom's colour is multiplied by; white by default.",
+        },
+        shadowsAir: {
+          type: 'boolean',
+          default: false,
+          description:
+            "Directional only: whether this light's shadow also shades the atmosphere (the haze and the sky's march read it along their rays); it must cast shadows.",
+        },
+        transmittancePerPixel: {
+          type: 'boolean',
+          default: false,
+          description:
+            "Directional only: whether the atmosphere's transmittance toward this light is read for each surface point and not once at the ground.",
         },
         shadowDistance: {
           type: 'number',

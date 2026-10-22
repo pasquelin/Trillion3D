@@ -5,6 +5,7 @@ import { length3 } from '../../../../math/src/vector/vector.ts'
 import { cameraForward } from '../../camera/forward.ts'
 import type { ResolvedAtmosphere } from '../../../../sdk-core/src/scene/core/atmosphere.ts'
 import { topRadiusOf } from '../../../../sdk-core/src/scene/core/atmosphereOptics.ts'
+import { SKY_CAPTURE } from './layout.ts'
 
 /**
  * WHAT THE AIR'S PROGRAMS KNOW OF AN IMAGE: where the eye stands on the planet and how it is
@@ -25,12 +26,20 @@ const FRAME_LAYOUT = fieldLayout('AirFrame', [
   ['up', 'vec4f'],
   ['eye', 'vec4f'],
   ['size', 'vec4f'],
+  ['capture', 'vec4f'],
+  ['preExposure', 'vec4f'],
+  ['index', 'vec4u'],
 ] as const)
 /** The frame's words. */
 export const FRAME_FLOATS = FRAME_LAYOUT.words
+/** The altitude of the capture's place a frame holds, kilometres. */
+export const captureKmOf = (frame: ArrayLike<number>) => frame[FRAME_LAYOUT.at.capture + 3]
 /** `camera` holds the eye relative to the planet's centre, kilometres, and its distance from it;
  *  `eye` the eye in the scene, metres, and 1 for a perspective view (0: the air is not drawn);
- *  `size` the image's pixels and their inverse. */
+ *  `size` the image's pixels and their inverse; `capture` the place the sky is captured from,
+ *  scene metres, and its altitude above the planet's ground, kilometres; `preExposure` the number
+ *  the sky's light is multiplied by as it is written (x; 1 for a capture); `index` the image's number
+ *  (the noise a marched pixel jitters by). */
 export const FRAME_WGSL = wgslBlock('FRAME_WGSL', [], FRAME_LAYOUT.wgsl)
 
 /** How far above the ground the eye is held, kilometres: the sky is seen from the surface, never
@@ -90,6 +99,20 @@ function putAxes(
   put(out, at.left, sx, sy, sz, 0)
 }
 
+/** The place the sky is captured from: `capture.position`, scene metres, at the altitude it stands
+ *  over the planet's ground, no lower than the eye is held; the height `SKY_CAPTURE` names, over
+ *  the origin, where no place is given. */
+function writeCapture(
+  out: Float32Array,
+  at: number,
+  air: ResolvedAtmosphere,
+  capture: { position: ArrayLike<number> } | undefined,
+) {
+  if (!capture) return put(out, at, 0, 0, 0, SKY_CAPTURE.altitudeKm)
+  const [x, y, z] = [capture.position[0], capture.position[1], capture.position[2]]
+  put(out, at, x, y, z, Math.max(EYE_FLOOR, (y - air.groundHeight) / 1000))
+}
+
 /**
  * Writes the image's frame into `out` (`FRAME_FLOATS` floats): the matrices, the eye on the planet
  * — its height above the centre in `camera.w` —, the table's axes, and the image's size. Nothing is
@@ -106,6 +129,11 @@ export function writeAirFrame(
   inverseViewProj: ArrayLike<number>,
   width: number,
   height: number,
+  extra: {
+    capture?: { position: ArrayLike<number> }
+    frameIndex?: number
+    preExposure?: number
+  } = {},
 ) {
   const at = FRAME_LAYOUT.at
   const radius = air.planetRadius,
@@ -127,5 +155,8 @@ export function writeAirFrame(
   put(out, at.up, ux, uy, uz, 0)
   put(out, at.eye, camera.eye[0], camera.eye[1], camera.eye[2], camera.perspective === 1 ? 1 : 0)
   put(out, at.size, width, height, 1 / width, 1 / height)
+  writeCapture(out, at.capture, air, extra.capture)
+  put(out, at.preExposure, extra.preExposure ?? 1, 0, 0, 0)
+  new Uint32Array(out.buffer, out.byteOffset + at.index * 4, 1)[0] = extra.frameIndex ?? 0
   return out
 }

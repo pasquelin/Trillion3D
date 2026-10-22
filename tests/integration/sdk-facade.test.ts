@@ -126,14 +126,17 @@ test('generated inventory and explicit facade files are current', async () => {
   // metrics, the primitives' quantization and the adaptive pixel error are gone (PartitionAudit,
   // OcclusionFrameMetrics, WorldFrameMetrics, PrimitiveQuantization, adaptivePixelError). The
   // scene's sky, height fog and exposure carry their own names (SceneAtmosphere, ResolvedAtmosphere,
-  // SceneOzoneLayer, SceneSky, SceneHeightFog, SceneFogDirectional, SceneExposure), and the bloom its
-  // levels (BloomLevelOptions, BloomTint, ResolvedBloomLevel). The atmosphere's second light is
+  // SceneOzoneLayer, SceneHeightFog, SceneFogDirectional, SceneExposure), and the bloom its
+  // levels (BloomLevelOptions, BloomTint, ResolvedBloomLevel). The module manager and descriptor
+  // are public (createModuleManager, ModuleHooks, ModuleManager, defineModule, mergeModuleParts,
+  // resolveModuleOption, ModuleDecision, ModuleDescriptor, ModuleOption, ModulePartFields,
+  // ModuleParts, ModuleReason, ModuleState). The atmosphere's second light is
   // named by its two indices (ATMOSPHERE_SUN_INDICES, AtmosphereSunIndex), the sun's shadows by
   // their rules, their options and the distance a light names (SHADOW_RULES, ShadowOptions,
   // ShadowDistanceOption, SHADOW_DISTANCE_DEFAULT). The motion blur
   // (MotionBlur, MotionBlurOptions, ResolvedMotionBlur) and the screen probes' frame metrics
   // (ScreenProbeFrameMetrics) leave with the barrels of their families.
-  assert.equal(inventory.exports.length, 798)
+  assert.equal(inventory.exports.length, 825)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

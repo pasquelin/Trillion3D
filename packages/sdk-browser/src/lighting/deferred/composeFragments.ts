@@ -31,7 +31,7 @@ fn composeColor(pixel:vec4f)->vec4f{
  let c3=sourceNear(at,vec2f(0.0,-1.0));let c4=sourceNear(at,vec2f(0.0,1.0));
  let a0=luminance(value.rgb);
  let steps=abs(vec4f(a0)-vec4f(luminance(c1),luminance(c2),luminance(c3),luminance(c4)));
- let edge=saturate(1.0-view.lightParams.w*gain*max(max(steps.x,steps.y),max(steps.z,steps.w)));
+ let edge=saturate(1.0-view.preExposure.y*gain*max(max(steps.x,steps.y),max(steps.z,steps.w)));
  let delta=(c1+c2+c3+c4)-value.rgb*4.0;
  return composeAt(at,vec4f(value.rgb+delta*(-edge*strength/6.0),value.a),gain);
 }`

@@ -218,7 +218,7 @@ pub const ALLOW_ASSEMBLIES_SETTING: &str = "allowAssemblies";
 pub const POSITION_PRECISION_SETTING: &str = "positionPrecision";
 pub const NORMAL_PRECISION_SETTING: &str = "normalPrecision";
 pub const TANGENT_PRECISION_SETTING: &str = "tangentPrecision";
-pub const MESH_BUILD_SETTINGS: [&str; 22] = [
+pub const MESH_BUILD_SETTINGS: [&str; 27] = [
     "storedTangents",
     "keptTriangles",
     "trimmedError",
@@ -238,6 +238,11 @@ pub const MESH_BUILD_SETTINGS: [&str; 22] = [
     "voxelNdf",
     "voxelOpacity",
     "allowAssemblies",
+    "distanceField",
+    "distanceFieldScale",
+    "distanceFieldTwoSided",
+    "distanceFieldDensity",
+    "distanceFieldMaxResolution",
     "positionPrecision",
     "normalPrecision",
     "tangentPrecision",
@@ -287,25 +292,26 @@ pub const HLOD_MESH_BUILD_SETTINGS: [&str; 7] = [
 ];
 pub const HLOD_SHAPE_PRESERVATIONS: [&str; 2] = ["none", "area"];
 pub const DEFAULT_SHAPE_PRESERVATION: &str = "none";
-/// The job field setting each object's settings, the command line's flag holding it as JSON, the
-/// key of its rules by object, its settings — each also the key of a glTF node's `extras` naming
-/// it —, an instanced skinned object's settings, the mobilities it may name and the defaults, the
-/// reference's; the frames a second a bank samples and plays its clips at.
+/// The object settings' job field, flag, rules key, settings (each a glTF node's `extras` key),
+/// skinned-instance settings, mobilities, defaults (the reference's) and bank frame rate.
 pub const OBJECT_SETTINGS_FIELD: &str = "objectSettings";
 pub const OBJECT_SETTINGS_OPTION: &str = "--object-settings=";
 pub const OBJECT_SETTINGS_OBJECTS: &str = "objects";
 pub const SPATIALLY_LOADED_SETTING: &str = "spatiallyLoaded";
 pub const SKINNED_INSTANCE_SETTING: &str = "skinnedInstance";
 pub const RUNTIME_GRID_SETTING: &str = "runtimeGrid";
+pub const FAR_FIELD_SETTING: &str = "farField";
+pub const DEFAULT_FAR_FIELD: bool = false;
 pub const DRAW_DISTANCE_SETTING: &str = "drawDistance";
 pub const DRAW_DISTANCE_SETTINGS: [&str; 2] = ["min", "max"];
 pub const DEFAULT_DRAW_DISTANCE_MIN: f64 = 0.0;
 pub const DEFAULT_DRAW_DISTANCE_MAX: f64 = 0.0;
-pub const OBJECT_SETTINGS: [&str; 4] = [
+pub const OBJECT_SETTINGS: [&str; 5] = [
     "spatiallyLoaded",
     "skinnedInstance",
     "drawDistance",
     "runtimeGrid",
+    "farField",
 ];
 pub const SKINNED_INSTANCE_SETTINGS: [&str; 7] = [
     "clip",

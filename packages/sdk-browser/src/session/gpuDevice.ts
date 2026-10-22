@@ -7,7 +7,7 @@ import { addressParam } from './host/addressFlag.ts'
  * timestamps, subgroups (the light tiles' depth bounds), 16-bit shader floats, depth clipping
  * control (the shadow pool's sun casters), clip distances (they spare a lamp's moving group
  * the overdraw past its page), dual-source blending (the water composite's per-channel
- * transmittance), and the block-compressed texture formats the cache bakes. A
+ * transmittance), 32-bit float textures read bilinearly (a 32-bit float sky light cubemap), and the block-compressed texture formats the cache bakes. A
  * kernel that uses one branches on the device's own `features` and keeps its plain path as the
  * fallback when it is absent; the session publishes what the device got
  * (`grantedGpuFeatures`), never guesses it.
@@ -20,6 +20,7 @@ const OPTIONAL_GPU_FEATURES: readonly GPUFeatureName[] = [
   'depth-clip-control',
   'clip-distances',
   'dual-source-blending',
+  'float32-filterable',
   ...Object.values(BLOCK_FEATURES),
 ]
 

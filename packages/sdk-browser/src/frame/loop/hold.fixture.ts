@@ -144,6 +144,7 @@ export function deferredLightingHarness() {
 }
 
 export const view = () => ({}) as GPUTextureView
-export const surface = { views: () => [view(), view(), view(), view()] } as unknown as Parameters<
-  Awaited<ReturnType<typeof createDeferredLighting>>['bind']
->[0]
+export const surface = {
+  views: () => [view(), view(), view(), view()],
+  stores: () => [view(), view()],
+} as unknown as Parameters<Awaited<ReturnType<typeof createDeferredLighting>>['bind']>[0]

@@ -10,10 +10,20 @@ import { Mesh } from '../../../../../sdk-core/src/world/object/mesh.ts'
 import { InstancedMesh } from '../../../../../sdk-core/src/world/object/instancedMesh.ts'
 import { Light } from '../../../../../sdk-core/src/world/light/light.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
+import { firstMaterial } from '../../../../../sdk-core/src/contracts/material.ts'
+import { Material } from '../../../../../sdk-core/src/world/material/material.ts'
 import type { HostInstancedMesh, HostMesh } from '../../../session/host/resources.ts'
 
 /** The nodes a draw submits: a mesh of the core's at one placement, or at several. */
 export const isDrawnNode = (node: object): node is HostMesh => node instanceof Mesh
+
+/** A mesh wearing a material of the volume domain (`material.volume`): it draws no surface, it is
+ *  voxelised into the fog's volume, an instanced one at each of its placements. */
+export const isVolumeNode = (node: object): boolean => {
+  if (!(node instanceof Mesh)) return false
+  const material = firstMaterial(node.material as object)
+  return material instanceof Material && material.domain === 'volume'
+}
 
 /** A mesh drawn at several placements. */
 export const isInstancedNode = (node: object): node is HostInstancedMesh =>

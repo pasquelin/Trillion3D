@@ -21,7 +21,8 @@ export const INCIDENCE = (zeroTerm: string) => `
  * range —, then, where it adds light and casts a shadow, one ray toward it through the resident
  * proxy, started off the point along the light (\`BOUNCE_SETTINGS.shadowBiasMetres\`, up to \`shadowBiasSlopeMetres\`
  * more where the surface grazes it), which keeps a closed door closed for the bounce as for the direct term.
- * Every shadow-casting light that adds light at the point is tested: one left untested would shine through the
+ * The light function multiplies what the light adds (\`lightFunctionOf\`), before the shadow's ray, which a light
+ * the function wholly dims does not cast. Every shadow-casting light that adds light at the point is tested: one left untested would shine through the
  * wall. A sun's ray reaches \`reach\`; a lamp's, or a rectangle's, stops \`shadowBiasMetres\` short of the light,
  * where a surface it stands against would else shade the point, and starts at most half the way to it. A
  * rectangle casts no shadow by its contract (\`validateRect\`, \`packages/sdk-core/src/scene/light/validate.ts\`),
@@ -40,7 +41,9 @@ export const irradianceTerm = (rectless = false) => `
  }`
  }
  if(all(lit==vec3f(0.0))){return lit;}
- if(light.params.z>0.5){
+ lit*=lightFunctionOf(light.params.x,P);
+ if(all(lit==vec3f(0.0))){return lit;}
+ if(castsShadow(light)){
   let fromSun=isSun(light);
   let biasNear=${wgslF32(BOUNCE_SETTINGS.shadowBiasMetres)};
   let bias=biasNear+${wgslF32(BOUNCE_SETTINGS.shadowBiasSlopeMetres)}*saturate(1.0-dot(N,toward));
@@ -58,5 +61,5 @@ const PUNCTUAL_IRRADIANCE = `${INCIDENCE('vec3f(0.0)')}
  let lamp=lampSeen(light,P,N,incidence,0.0);
  let cosine=select(lamp.side,lamp.cosine,lamp.capsule);
  if(cosine<=0.0){return vec3f(0.0);}
- lit=light.colorIntensity.rgb*light.colorIntensity.w*lamp.falloff*cosine;
+ lit=light.colorIntensity.rgb*airTintOf(rank,light,P)*cloudShadowOnSurface(rank,P)*light.colorIntensity.w*lamp.falloff*cosine;
  toward=incidence.xyz;`

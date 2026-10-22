@@ -56,7 +56,8 @@ pub(super) fn node_parents(nodes: &[Value]) -> Result<Vec<Option<usize>>> {
 /// One entry per node of the document: its name, its children, the mesh, camera and skin it carries,
 /// its local pose as declared, whether it declares itself visible (`KHR_node_visibility`), and,
 /// for a node that draws a mesh, the distances its settings say it is drawn at (`"drawDistance"`,
-/// `objects`, `DrawDistance`), left out when they name none.
+/// `objects`, `DrawDistance`), and whether a view's primed depth draws it (`"farField"`), each
+/// left out when it names none.
 pub(super) fn node_table(g: &Value, objects: &crate::ObjectSettings) -> Result<Vec<Value>> {
     let nodes = values(g, "nodes")?;
     let meshes = g
@@ -106,12 +107,14 @@ pub(super) fn node_table(g: &Value, objects: &crate::ObjectSettings) -> Result<V
             "scale": declared(node, "scale"),
             "visible": !crate::compiler::source::nodes::declared_hidden(node),
         });
-        let distance = match mesh {
-            Some(_) => objects.node(g, id)?.draw_distance,
-            None => None,
-        };
-        if let Some(distance) = distance {
-            entry["drawDistance"] = distance.entry();
+        if mesh.is_some() {
+            let setting = objects.node(g, id)?;
+            if let Some(distance) = setting.draw_distance {
+                entry["drawDistance"] = distance.entry();
+            }
+            if setting.far_field {
+                entry["farField"] = json!(true);
+            }
         }
         table.push(entry);
     }

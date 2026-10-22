@@ -7,6 +7,12 @@ import assert from 'node:assert/strict'
 import { CUT_RULES } from './cutOptions.ts'
 import { STREAMING_RULES } from './streamingOptions.ts'
 import {
+  SUN_TEMPERATURE_RULES,
+  temperatureColour,
+  temperatureFactor,
+} from '../modules/sky/sunColour.ts'
+import { defineModule, mergeModuleParts, resolveModuleOption } from '../modules/descriptor.ts'
+import {
   choiceSetting,
   countSetting,
   nonNegativeSetting,
@@ -15,14 +21,9 @@ import {
   resolveSettings,
   rulesOf,
   settingsDiffer,
+  vectorSetting,
   settingsWatch,
 } from './settingRules.ts'
-import {
-  AMBIENT_OCCLUSION_PRESET_LEVELS,
-  AMBIENT_OCCLUSION_RULES,
-  ambientOcclusionMode,
-  resolveAmbientOcclusion,
-} from './ambientOcclusionOptions.ts'
 import { TESSELLATION_RULES } from './tessellationOptions.ts'
 import { VOLUMETRIC_FOG_RULES } from './volumetricFogOptions.ts'
 
@@ -50,6 +51,52 @@ test('two readings of a family differ where one of its settings does', () => {
   assert.equal(settingsDiffer(rules, used, resolveSettings(rules, { scale: 2 })), false)
   assert.equal(settingsDiffer(rules, used, resolveSettings(rules, { scale: 3 })), true)
   assert.equal(settingsDiffer(rules, used, resolveSettings(rules, { scale: 2, frames: 6 })), true)
+})
+
+// A module's option is read by one resolver, and the sources' parts merge field by field.
+test('a module option is true, false, silent or an object of its parts, and nothing else', () => {
+  const sky = defineModule({
+    name: 'sky',
+    enabledByDefault: false,
+    requires: [],
+    parts: ['clouds'],
+  })
+  assert.deepEqual(resolveModuleOption(sky, true), { parts: {} })
+  assert.equal(resolveModuleOption(sky, false), false)
+  assert.equal(resolveModuleOption(sky, null), undefined)
+  assert.throws(() => resolveModuleOption(sky, { fog: true }), /unknown part "fog"/)
+  assert.throws(() => resolveModuleOption(sky, { clouds: 3 as never }), /neither a boolean/)
+  const stronger = { parts: { clouds: { a: 1 } } },
+    weaker = { parts: { clouds: { a: 2, b: 3 } } }
+  assert.deepEqual(mergeModuleParts(sky, [stronger, weaker]), { clouds: { a: 1, b: 3 } })
+  assert.deepEqual(mergeModuleParts(sky, [{ parts: { clouds: false } }, weaker]), { clouds: false })
+})
+
+test('a vector takes finite numbers of its default length, and two readings compare by parts', () => {
+  const colour = vectorSetting('colour', [0.1, 0.2, 0.3])
+  assert.deepEqual(resolveSetting(colour, null), [0.1, 0.2, 0.3])
+  assert.deepEqual(resolveSetting(colour, [1, 0, 0]), [1, 0, 0])
+  assert.throws(() => resolveSetting(colour, [1, 0]), /an array of 3 finite numbers, got 1,0/)
+  assert.throws(() => resolveSetting(colour, [1, 0, Infinity]), /an array of 3 finite numbers/)
+  const rules = rulesOf([colour] as const)
+  const used = resolveSettings(rules, { colour: [1, 0, 0] })
+  assert.equal(settingsDiffer(rules, used, resolveSettings(rules, { colour: [1, 0, 0] })), false)
+  assert.equal(settingsDiffer(rules, used, resolveSettings(rules, { colour: [1, 0, 1] })), true)
+})
+
+test('the temperature colour is white off, and a black body clamped to 1000..15000 K on', () => {
+  const near = (got: readonly number[], want: readonly number[]) =>
+    got.forEach((x, i) => assert.ok(Math.abs(x - want[i]!) < 1e-4, `${got} vs ${want}`))
+  const rest = resolveSettings(SUN_TEMPERATURE_RULES, {})
+  assert.deepEqual([rest.useTemperature, rest.temperatureKelvin], [false, 6500])
+  assert.deepEqual(temperatureColour([0.5, 0.6, 0.7], rest), [0.5, 0.6, 0.7])
+  near(temperatureFactor(1000), [4.60024713, 0.0397531, 0])
+  near(temperatureFactor(6500), [1.04415519, 0.98326854, 1.03569215])
+  near(temperatureFactor(15000), [0.78461866, 0.99252683, 1.70842794])
+  assert.deepEqual(temperatureFactor(10), temperatureFactor(1000))
+  assert.deepEqual(temperatureFactor(1e6), temperatureFactor(15000))
+  const on = resolveSettings(SUN_TEMPERATURE_RULES, { useTemperature: true })
+  assert.deepEqual(temperatureColour([1, 1, 1], on), temperatureFactor(6500))
 })
 
 test('the cut culls an object by the distances it names, at their own size, unless asked otherwise', () => {
@@ -128,116 +175,6 @@ test('a watch of a family reads it into one object and says whether any setting 
   assert.equal(watch.moved, false)
   watch.read({ frames: 6 })
   assert.deepEqual([watch.moved, first.frames, first.scale], [true, 6, 1])
-})
-
-test('the ambient occlusion settings read by their rules with the reference’s defaults, its lengths in metres', () => {
-  const values = resolveSettings(AMBIENT_OCCLUSION_RULES, {})
-  // The reference's post-process defaults (intensity 0.5, radius 200, fade 8000 and 5000 centimetres, power 2, bias 3,
-  // quality 50, mip blend 0.6, scale 1.7, threshold 0.01) and the comparison run's level-3 cvars.
-  assert.deepEqual(values, {
-    ambientOcclusion: true,
-    ambientOcclusionIntensity: 0.5,
-    ambientOcclusionStaticFraction: 1,
-    ambientOcclusionRadius: 2,
-    ambientOcclusionRadiusInWorldSpace: false,
-    ambientOcclusionFadeDistance: 80,
-    ambientOcclusionFadeRadius: 50,
-    ambientOcclusionPower: 2,
-    ambientOcclusionBias: 3,
-    ambientOcclusionQuality: 50,
-    ambientOcclusionMipBlend: 0.6,
-    ambientOcclusionMipScale: 1.7,
-    ambientOcclusionMipThreshold: 0.01,
-    ambientOcclusionLevels: -1,
-    ambientOcclusionMaxQuality: 100,
-    ambientOcclusionMipLevelFactor: 0.4,
-    ambientOcclusionRadiusScale: 1,
-    ambientOcclusionWithScreenProbes: false,
-  })
-  for (const [field, value] of [
-    ['ambientOcclusionIntensity', 1.5],
-    ['ambientOcclusionPower', 0],
-    ['ambientOcclusionMipBlend', 0.05],
-    ['ambientOcclusionLevels', 4],
-    ['ambientOcclusionRadiusScale', 20],
-  ] as const)
-    assert.throws(() => resolveSetting(AMBIENT_OCCLUSION_RULES[field], value), /must be/, field)
-})
-
-test('the ambient occlusion’s quality picks its resolutions and its samples as the reference’s does', () => {
-  const settings = (
-    options: Parameters<typeof resolveSettings<typeof AMBIENT_OCCLUSION_RULES>>[1],
-  ) => resolveAmbientOcclusion(resolveSettings(AMBIENT_OCCLUSION_RULES, options))
-  // The default quality 50: two resolutions, the medium samples; the radius scaled and in centimetres.
-  const normal = settings({})
-  assert.deepEqual(
-    [normal.quality, normal.levels, normal.shaderQuality, normal.radiusCm, normal.enabled],
-    [50, 2, 2, 200, true],
-  )
-  // Each step of the quality: over 35 and 70 a resolution more, over 5, 25, 55 and 75 a shape more.
-  const at = (ambientOcclusionQuality: number) => {
-    const { levels, shaderQuality } = settings({ ambientOcclusionQuality })
-    return [levels, shaderQuality]
-  }
-  assert.deepEqual([0, 5, 6, 25, 26, 35, 36, 55, 56, 70, 71, 75, 76, 100].map(at), [
-    [1, 0],
-    [1, 0],
-    [1, 1],
-    [1, 1],
-    [1, 2],
-    [1, 2],
-    [2, 2],
-    [2, 2],
-    [2, 3],
-    [2, 3],
-    [3, 3],
-    [3, 3],
-    [3, 4],
-    [3, 4],
-  ])
-  // The ceiling holds the quality down; a negative one names it; the levels name the resolutions.
-  assert.equal(
-    settings({ ambientOcclusionQuality: 90, ambientOcclusionMaxQuality: 60 }).quality,
-    60,
-  )
-  assert.equal(settings({ ambientOcclusionMaxQuality: -80 }).quality, 80)
-  assert.equal(settings({ ambientOcclusionLevels: 3 }).levels, 3)
-  assert.equal(settings({ ambientOcclusionLevels: 1, ambientOcclusionQuality: 100 }).levels, 1)
-  // The radius scales, in centimetres.
-  assert.equal(
-    settings({ ambientOcclusionRadius: 3, ambientOcclusionRadiusScale: 1.5 }).radiusCm,
-    450,
-  )
-  // Nothing draws with the switch off, an intensity of 0, no resolution, or a radius under a tenth of a centimetre.
-  for (const off of [
-    { ambientOcclusion: false },
-    { ambientOcclusionIntensity: 0 },
-    { ambientOcclusionLevels: 0 },
-    { ambientOcclusionRadius: 0.001, ambientOcclusionRadiusScale: 0.5 },
-  ])
-    assert.equal(settings(off).enabled, false, JSON.stringify(off))
-  // The smooth level writes no resolution at all: the reference's first post-process level.
-  assert.equal(settings(AMBIENT_OCCLUSION_PRESET_LEVELS.smooth).enabled, false)
-  assert.equal(settings(AMBIENT_OCCLUSION_PRESET_LEVELS.balanced).enabled, true)
-})
-
-test('the ambient occlusion draws where no screen probes light the pixels, or occludes their light when asked and their own is off', () => {
-  const on = resolveAmbientOcclusion(resolveSettings(AMBIENT_OCCLUSION_RULES, {}))
-  const asked = resolveAmbientOcclusion(
-    resolveSettings(AMBIENT_OCCLUSION_RULES, { ambientOcclusionWithScreenProbes: true }),
-  )
-  const off = resolveAmbientOcclusion(
-    resolveSettings(AMBIENT_OCCLUSION_RULES, { ambientOcclusionIntensity: 0 }),
-  )
-  assert.equal(ambientOcclusionMode(on, { probes: false, shortRange: true }), 'scene')
-  assert.equal(ambientOcclusionMode(on, { probes: false, shortRange: false }), 'scene')
-  // With the screen probes, their short-range occlusion replaces it: nothing, by default.
-  assert.equal(ambientOcclusionMode(on, { probes: true, shortRange: true }), 'none')
-  assert.equal(ambientOcclusionMode(on, { probes: true, shortRange: false }), 'none')
-  // Asked, and the probes' own occlusion off, it occludes their light; their own on, never.
-  assert.equal(ambientOcclusionMode(asked, { probes: true, shortRange: false }), 'probes')
-  assert.equal(ambientOcclusionMode(asked, { probes: true, shortRange: true }), 'none')
-  assert.equal(ambientOcclusionMode(off, { probes: false, shortRange: false }), 'none')
 })
 
 test('the tessellation rules default to the reference and refuse what they do not take', () => {

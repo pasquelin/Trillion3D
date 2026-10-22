@@ -5,7 +5,10 @@ import {
   type ProjectionFrame,
 } from './projectionUniform.ts'
 import { buildComputeStage } from './computeStages.ts'
-import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
+import {
+  TRANSPARENT_REFERENCE_TEST,
+  transparentOcclusionShader,
+} from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
 import { retire } from './frameRetire.ts'
 import { createHeldCopy, type CullStep, type HeldCopy } from './heldCopy.ts'
@@ -44,8 +47,9 @@ export type AuditView = {
 }
 
 /** What an image tells the test before its compute pass (`begin`): the frame its boxes are
- *  projected under, and what the image does with its occlusion (`CullStep`). */
-export type OcclusionFrame = ProjectionFrame & { cull: CullStep }
+ *  projected under, what the image does with its occlusion (`CullStep`), and whether it walks the
+ *  pyramid as the reference does (`hizTransparentTest` `'reference'`) or at the finer level. */
+export type OcclusionFrame = ProjectionFrame & { cull: CullStep; referenceTest: boolean }
 
 /**
  * Occlusion of transparent clusters, done by the GPU, on the current frame's pyramid.
@@ -63,85 +67,101 @@ export async function createTransparentOcclusion(
 ) {
   if (entryCount < 1) return undefined
   const buffers = occlusionBuffers(device, entryCount)
-  let o: Occlusion
   try {
     const made = await occlusionPipeline(device)
     if (!made) return freed(buffers)
-    const uniforms = device.createBuffer({
-      label: 'Trillion3D transparent occlusion uniform v1',
-      size: PROJECTION_UNI.words * 4,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    })
-    o = {
-      ...{ device, entryCount, sources, ...buffers, ...made, uniforms },
-      ...{ bound: createWebgpuBindIdentity(), bindGroup: undefined, disposed: false },
-      held: createHeldCopy(device, 'Trillion3D held transparent verdicts'),
-      // A thread an entry.
-      groups: workgroupCount(entryCount, WORKGROUP_THREADS),
-      writeUniform: createProjectionUniformWriter(),
-      // Copied, the camera's matrices being rewritten by the next image: the audit reads the last
-      // frame tested, never an earlier one.
-      kept: {
-        width: 0,
-        height: 0,
-        near: 0,
-        view: new Float64Array(16),
-        viewProj: new Float64Array(16),
-      },
-      lastFrame: undefined,
-      cull: 'follow',
-      drawsKept: false,
-    }
-    return {
-      /** The view the last image tested was projected under; `undefined` before the first. */
-      get lastFrame() {
-        return o.lastFrame
-      },
-      begin: (frame: OcclusionFrame) => beginOcclusion(o, frame),
-      /** The world corners of each entry, the entries pass's (`../../blend/transparent/
-       *  entryCorners.ts`): made anew by a growth. */
-      get corners() {
-        return o.corners
-      },
-      /** One bit per entry, set where the entry is never culled: filled by the owner, then sent
-       *  whole by `uploadUnculled`. */
-      get unculledBits() {
-        return o.unculledBits
-      },
-      uploadUnculled() {
-        if (!o.disposed) device.queue.writeBuffer(o.unculled, 0, o.unculledBits)
-      },
-      /** The entries the test covers: past them it reads nothing. */
-      get entryCount() {
-        return o.entryCount
-      },
-      /** The test made to cover `entries`, its buffers made over when it covers fewer: the pipeline
-       *  names no size. Returns whether they were — the corners and bits are then to be sent again. */
-      grow(entries: number) {
-        if (o.disposed || entries <= o.entryCount) return false
-        // The old buffers may be named by this image's commands: retired, never destroyed now.
-        retire(device, o.corners)
-        retire(device, o.unculled)
-        Object.assign(o, occlusionBuffers(device, entries), { entryCount: entries })
-        o.groups = workgroupCount(entries, WORKGROUP_THREADS)
-        return true
-      },
-      /**
-       * Writes each entry's verdict for this frame. Without a fresh pyramid there is nothing to
-       * walk: the buffer goes back to zero, and the compact keeps all its entries.
-       */
-      encode: (encoder: GPUCommandEncoder, pyramidFresh: boolean) =>
-        encodeOcclusion(o, encoder, pyramidFresh),
-      dispose() {
-        o.disposed = true
-        o.held.drop()
-        o.uniforms.destroy()
-        freed(o)
-      },
-    }
+    return occlusionHandle(device, newOcclusion(device, entryCount, sources, buffers, made))
   } catch {
     // A partial GPU setup must leak nothing.
     return freed(buffers)
+  }
+}
+
+/** The state of the test over its `buffers` and its compiled pipeline `made`, the projection
+ *  uniform made. */
+function newOcclusion(
+  device: GPUDevice,
+  entryCount: number,
+  sources: TransparentOcclusionSources,
+  buffers: ReturnType<typeof occlusionBuffers>,
+  made: NonNullable<Awaited<ReturnType<typeof occlusionPipeline>>>,
+): Occlusion {
+  const uniforms = device.createBuffer({
+    label: 'Trillion3D transparent occlusion uniform v1',
+    size: PROJECTION_UNI.words * 4,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  })
+  return {
+    ...{ device, entryCount, sources, ...buffers, ...made, uniforms },
+    ...{ bound: createWebgpuBindIdentity(), bindGroup: undefined, disposed: false },
+    held: createHeldCopy(device, 'Trillion3D held transparent verdicts'),
+    // A thread an entry.
+    groups: workgroupCount(entryCount, WORKGROUP_THREADS),
+    writeUniform: createProjectionUniformWriter(),
+    // Copied, the camera's matrices being rewritten by the next image: the audit reads the last
+    // frame tested, never an earlier one.
+    kept: {
+      width: 0,
+      height: 0,
+      near: 0,
+      view: new Float64Array(16),
+      viewProj: new Float64Array(16),
+    },
+    lastFrame: undefined,
+    cull: 'follow',
+    referenceTest: false,
+    drawsKept: false,
+  }
+}
+
+/** What the test offers its owner, over its state `o`. */
+function occlusionHandle(device: GPUDevice, o: Occlusion) {
+  return {
+    /** The view the last image tested was projected under; `undefined` before the first. */
+    get lastFrame() {
+      return o.lastFrame
+    },
+    begin: (frame: OcclusionFrame) => beginOcclusion(o, frame),
+    /** The world corners of each entry, the entries pass's (`../../blend/transparent/
+     *  entryCorners.ts`): made anew by a growth. */
+    get corners() {
+      return o.corners
+    },
+    /** One bit per entry, set where the entry is never culled: filled by the owner, then sent
+     *  whole by `uploadUnculled`. */
+    get unculledBits() {
+      return o.unculledBits
+    },
+    uploadUnculled() {
+      if (!o.disposed) device.queue.writeBuffer(o.unculled, 0, o.unculledBits)
+    },
+    /** The entries the test covers: past them it reads nothing. */
+    get entryCount() {
+      return o.entryCount
+    },
+    /** The test made to cover `entries`, its buffers made over when it covers fewer: the pipeline
+     *  names no size. Returns whether they were — the corners and bits are then to be sent again. */
+    grow(entries: number) {
+      if (o.disposed || entries <= o.entryCount) return false
+      // The old buffers may be named by this image's commands: retired, never destroyed now.
+      retire(device, o.corners)
+      retire(device, o.unculled)
+      Object.assign(o, occlusionBuffers(device, entries), { entryCount: entries })
+      o.groups = workgroupCount(entries, WORKGROUP_THREADS)
+      return true
+    },
+    /**
+     * Writes each entry's verdict for this frame. Without a fresh pyramid there is nothing to
+     * walk: the buffer goes back to zero, and the compact keeps all its entries.
+     */
+    encode: (encoder: GPUCommandEncoder, pyramidFresh: boolean) =>
+      encodeOcclusion(o, encoder, pyramidFresh),
+    dispose() {
+      o.disposed = true
+      o.held.drop()
+      o.uniforms.destroy()
+      freed(o)
+    },
   }
 }
 
@@ -169,6 +189,8 @@ type Occlusion = NonNullable<Awaited<ReturnType<typeof occlusionPipeline>>> & {
   lastFrame: AuditView | undefined
   /** What the image does with its occlusion (`OcclusionFrame.cull`). */
   cull: CullStep
+  /** The pyramid walk the image tests with (`OcclusionFrame.referenceTest`). */
+  referenceTest: boolean
   /** The image draws the verdicts a frozen cut kept again: it tests nothing. */
   drawsKept: boolean
 }
@@ -181,6 +203,7 @@ type Occlusion = NonNullable<Awaited<ReturnType<typeof occlusionPipeline>>> & {
 function beginOcclusion(o: Occlusion, frame: OcclusionFrame) {
   if (o.disposed) return
   o.cull = frame.cull
+  o.referenceTest = frame.referenceTest
   o.drawsKept = frame.cull === 'held' && o.held.holds(o.sources.occluded())
   if (o.drawsKept) return
   o.writeUniform(o.device, o.uniforms, frame)
@@ -216,7 +239,8 @@ function occlusionBuffers(device: GPUDevice, entryCount: number) {
   return { corners, unculledBits, unculled }
 }
 
-/** The test's layout and pipeline; undefined when its module fails. */
+/** The test's layout and its two pipelines — the finer level's walk, the reference's —; undefined
+ *  when its module fails. */
 async function occlusionPipeline(device: GPUDevice) {
   const layout = device.createBindGroupLayout({
     entries: [
@@ -230,8 +254,13 @@ async function occlusionPipeline(device: GPUDevice) {
   })
   const module = device.createShaderModule({ code: transparentOcclusionShader() })
   if (await shaderFailed(module)) return undefined
-  const pipeline = await buildComputeStage(device, [layout], module, 'testTransparentClusters')
-  return { layout, pipeline }
+  const [pipeline, referencePipeline] = await Promise.all([
+    buildComputeStage(device, [layout], module, 'testTransparentClusters'),
+    buildComputeStage(device, [layout], module, 'testTransparentClusters', {
+      [TRANSPARENT_REFERENCE_TEST]: 1,
+    }),
+  ])
+  return { layout, pipeline, referencePipeline }
 }
 
 /**
@@ -284,7 +313,7 @@ function testOcclusion(
       ]),
     })
   const pass = encoder.beginComputePass({ label: TRANSPARENT_OCCLUSION_PASS })
-  pass.setPipeline(o.pipeline)
+  pass.setPipeline(o.referenceTest ? o.referencePipeline : o.pipeline)
   pass.setBindGroup(0, o.bindGroup!)
   dispatchRows(pass, o.groups)
   pass.end()

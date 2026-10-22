@@ -17,6 +17,7 @@ import {
 } from '../../../../math/src/wgsl/projection.ts'
 import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
 import { DIVISOR_FLOOR } from '../../../../math/src/wgsl/constants.ts'
+import { preExposedWgsl } from '../../post/exposure/preWgsl.ts'
 import {
   clipDirective,
   clippedStructText,
@@ -145,7 +146,7 @@ fn bound(@builtin(local_invocation_index) local: u32) {
  *  value by its display colour, not the lit image. */
 const particleDrawWgsl = (clipping?: Clipping) =>
   wgslProgram(
-    /* wgsl */ `struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4f, softness: f32, exposure: f32, curve: f32, unlit: f32, drawn: vec2f${clipping ? ', clipPlane: vec4f' : ''} }
+    /* wgsl */ `struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4f, softness: f32, exposure: f32, curve: f32, unlit: f32, drawn: vec2f, preExposure: f32${clipping ? ', clipPlane: vec4f' : ''} }
 @group(0) @binding(0) var<uniform> draw: Draw;
 @group(0) @binding(1) var<storage, read> state: State;
 @group(0) @binding(2) var depth: texture_depth_2d;
@@ -170,18 +171,19 @@ fn particle(in: Out) -> vec4f {
   let behind = distance(perspectiveDivide(scene), draw.eye) - distance(in.local, draw.eye);
   let soft = select(1.0, saturate(behind / draw.softness), abs(scene.w) > DIVISOR_FLOOR);
   let k = saturate(1 - dot(in.corner, in.corner)) * soft * in.life * draw.color.a;
-  return vec4f(draw.color.rgb, 1) * k;
+  return vec4f(preExposedClipped(draw.color.rgb), 1) * k;
 }
 ${clipping === 'pixel' ? 'fn particleClipped(in: Out) -> bool { return planeDistance(draw.clipPlane, in.local) < 0.0; }\n' : ''}struct Lit { @location(0) color: vec4f, @location(1) reactive: vec4f }
 @fragment fn fs(in: Out) -> Lit { let c = particle(in); return Lit(c, vec4f(0, 1, 0, c.a)); }
 struct Routed { @location(0) color: vec4f, @location(1) tint: vec4f, @location(2) add: vec4f, @location(3) reactive: vec4f }
 @fragment fn fsRouted(in: Out) -> Routed {
   let c = particle(in);
-  let r = displayRoute(draw.color.rgb, draw.exposure, u32(draw.curve), draw.unlit != 0, c.a, maskAt(in.at));
+  let r = displayRoute(preExposedClipped(draw.color.rgb), draw.exposure, u32(draw.curve), draw.unlit != 0, c.a, maskAt(in.at));
   return Routed(c * r.keep, r.tint, r.add, vec4f(0, 1, 0, c.a));
 }`,
     [
       STATE_WGSL,
+      preExposedWgsl('draw.preExposure'),
       DISPLAY_ROUTE_WGSL,
       displayMaskWgsl(1),
       tangentBillboard,

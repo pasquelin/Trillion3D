@@ -11,8 +11,10 @@ import { interleavedGradientNoise } from '../../../../../math/src/wgsl/sampling.
 import { listWgsl } from '../../../gpu/dispatch/list.ts'
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 import { packLight } from '../../../gpu/core/smallFloatWgsl.ts'
+import { SUBSURFACE_FLAG } from '../../../materials/surface/subsurface.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { SCREEN_MARCH_WGSL } from '../../../visibility/hiz/gpu/screenMarch.ts'
+import { screenTraceDepthThresholdScale } from '../../distanceField/representationWgsl.ts'
 import { REFLECTION_CONSTANTS_WGSL } from '../../reflections/constantsWgsl.ts'
 import { REFLECTION_DEPTH_BINDING, REFLECTION_GROUP } from '../../reflections/viewLayout.ts'
 import { atlasEntry } from '../atlas.ts'
@@ -38,7 +40,8 @@ export const TRACE_SCREEN_BINDINGS = bindingTable({
   hit: [9, { store: F.hit }],
   bounceGrid: [10, 'uniform'],
   sceneRays: [12, 'buffer'],
-  blue: [13, 'float'],
+  flags: [13, 'uint'],
+  blue: [14, 'float'],
 })
 /** The atlas of the cascades' probes of the screen trace. */
 export const TRACE_SCREEN_PROBES = 11
@@ -110,9 +113,10 @@ fn spHitHistory(H:vec3f,hitPoint:vec3f,noise:f32)->SpHistoryHit{
  * probe's surface twice a pixel's corner off its normal (the depth is point-sampled: a pixel's depth sticks out of the plane it
  * stands for), goes no further than the cascades trust the screen — `reach`, `spLocalReach`: past it the field of the world's
  * probes answers: twice the diagonal of the cell of the finest level that holds the probe, the scene's limit where none does
- * — and marches the depth pyramid (`screenMarch`, a surface `sp.tuning.w` of its depth thick, `sp.counts.z` iterations). A
+ * — and marches the depth pyramid (`screenMarch`, a surface `sp.tuning.w` of its depth thick, times `screenProbeThicknessScaleWithoutField` where the probe's surface has no distance field (`screenTraceDepthThresholdScale`) — the setting `screenProbeRelativeDepthThickness` times the projection's scale —, `sp.counts.z` iterations, down to the full-resolution depth by the setting `hizFullResDepth`). A
  * start off the screen, a hit near its edge, a hit the last image lit another surface at (its depth then, in the history's meta
- * word, against the one expected within `sp.tuning.z` of device depth, widened or narrowed by the noise) is a miss, the next
+ * word, against the one expected within `sp.tuning.z` of device depth, widened or narrowed by the noise), or on a thin
+ * sheet that transmits light (`SUBSURFACE_FLAG`, the surface buffer's mark of backface diffuse light, by the setting `screenProbeSkipFoliageHits`), or one with a thin feature in front of it (`spThinFeature`, `screenProbeThicknessCertaintySteps` samples, taken only where foliage hits are kept), is a miss, the next
  * stage's. A ray the screen answers keeps the radiance the last image lit its hit with, and is moving when what it met moves
  * against the probe (`sp.motion.x`: their speeds' difference over the probe's depth, a metre at least); every ray keeps its
  * distance: to the hit, even a dropped one, to where the march left the screen, or, a clean miss, two centimetres past its
@@ -120,8 +124,32 @@ fn spHitHistory(H:vec3f,hitPoint:vec3f,noise:f32)->SpHistoryHit{
  */
 const SP_SCREEN_TRACE = wgslBlock(
   'SP_SCREEN_TRACE',
-  [SP_HIT_HISTORY, interleavedGradientNoise, clipToFramebuffer, slabPerspective],
+  [
+    SP_HIT_HISTORY,
+    interleavedGradientNoise,
+    clipToFramebuffer,
+    slabPerspective,
+    screenTraceDepthThresholdScale,
+  ],
   `const SP_CLEAN_MISS_OFFSET:f32=0.02;
+@group(0) @binding(${S.flags}) var sceneFlags:texture_2d<u32>;
+/** Whether a thin feature stands in front of the hit: \`steps\` linear samples along the ray from the hit toward its end,
+ *  over a span of \`steps\` texels of the half-resolution level, the first at the hit; the ray is above the closest depth
+ *  there at any of them. */
+fn spThinFeature(start:vec3f,delta:vec3f,end:f32,t:f32,size:vec2f,steps:f32)->bool{
+ let ray=start+delta*t;
+ let remain=delta*(end-t);
+ let span=length(delta.xy*end/size*(1.0/size)*steps);
+ let endTime=min(span/max(length(remain.xy/size),1e-12),1.0);
+ for(var i=0.0;i<steps;i+=1.0){
+  let p=ray+(i/steps)*endTime*remain;
+  if(all(p.xy>vec2f(0.0))&&all(p.xy<size)){
+   let tileZ=select(screenTileDepth(p.xy,0,hizLevelCount()-1),hizOpaqueDepth(vec2i(floor(p.xy))),hizTracePlanes());
+   if(p.z>tileZ){return true;}
+  }
+ }
+ return false;
+}
 /** What the screen answers: whether it did, whether what it met moves, the radiance of the last image at the hit, the distance. */
 struct SpSeen{hit:bool,moving:bool,radiance:vec3f,distance:f32,}
 fn spScreenTrace(probe:SpProbe,pixel:vec2u,reach:f32,d:vec3f,noise:f32)->SpSeen{
@@ -139,8 +167,9 @@ fn spScreenTrace(probe:SpProbe,pixel:vec2u,reach:f32,d:vec3f,noise:f32)->SpSeen{
  let B=A+toward*span;
  let delta=clipToFramebuffer(B,size)-S0;
  let end=screenMarchEnd(S0.xy,delta.xy,size);
- let thickness=select(REFLECTION_THICKNESS,sp.tuning.w/reflectionView.slab.x,slabPerspective(reflectionView.slab));
- let marched=screenMarch(S0,delta,end,thickness,reflectionView.slab,sp.counts.z);
+ let scale=screenTraceDepthThresholdScale(textureLoad(sceneFlags,vec2i(pixel),0).r,sp.trace.x);
+ let thickness=select(REFLECTION_THICKNESS,sp.tuning.w/reflectionView.slab.x,slabPerspective(reflectionView.slab))*scale;
+ let marched=screenMarch(S0,delta,end,thickness,sp.tuning.w*scale,reflectionView.slab,sp.counts.z,spFlag(SP_FLAG_FULL_RES_DEPTH));
  if(marched.t<0.0||marched.plane.x<=0.0){
   let left=end*A.w/(end*A.w+(1.0-end)*max(B.w,1e-6));
   seen.distance=select(left*span,min(reach+SP_CLEAN_MISS_OFFSET,spMaxTrace()),end>=1.0);
@@ -149,11 +178,14 @@ fn spScreenTrace(probe:SpProbe,pixel:vec2u,reach:f32,d:vec3f,noise:f32)->SpSeen{
  let H=S0+delta*marched.t;
  let hitPoint=worldAt(H.xy,marched.plane.x+dot(H.xy-marched.pixel,marched.plane.yz));
  seen.distance=min(distance(hitPoint,probe.P),spMaxTrace());
+ if(sp.trace.y>0.0&&spThinFeature(S0,delta,end,marched.t,size,sp.trace.y)){return seen;}
  let previous=spHitHistory(H,hitPoint,noise);
  if(!previous.kept){return seen;}
  if(spDeviceGap(textureLoad(historyIn,previous.texel,0).g,previous.expected)>=sp.tuning.z*mix(0.5,2.0,noise)){return seen;}
+ if(spFlag(SP_FLAG_SKIP_FOLIAGE_HITS)&&(textureLoad(sceneFlags,vec2i(floor(H.xy)),0).r&${SUBSURFACE_FLAG}u)!=0u){return seen;}
  seen.hit=true;
- seen.radiance=textureLoad(reflectionImage,previous.texel,0).rgb;
+ // The last image holds its light multiplied by the pre-exposure it was lit with: read as it is.
+ seen.radiance=textureLoad(reflectionImage,previous.texel,0).rgb*reflectionView.radiance.w;
  seen.moving=abs(probe.speed-previous.speed)/max(probe.depth,1.0)>sp.motion.x;
  return seen;
 }`,

@@ -10,6 +10,7 @@ import {
   computeTextureEntry,
   computeUniformEntry,
 } from '../../gpu/core/computeBindings.ts'
+import { skyLightReadLayoutEntries } from '../../modules/sky/skyLight/read.ts'
 import { hizDepthEntries } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 import { radianceLayouts } from './radiance/radiance.ts'
@@ -22,6 +23,7 @@ import {
   REFLECTION_IMAGE_BINDING,
   REFLECTION_LIGHT_VIEW_BINDING,
   REFLECTION_SAMPLER_BINDING,
+  REFLECTION_SKY_LIGHT,
   REFLECTION_VIEW_BINDING,
   REFLECTION_VIEW_BYTES,
 } from './viewLayout.ts'
@@ -45,6 +47,8 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) => {
       computeTextureEntry(REFLECTION_IMAGE_BINDING, 'float', '2d', visibility),
       // The transparents' front depth, a depth texture read as the float it holds.
       computeTextureEntry(REFLECTION_FRONT_BINDING, 'unfilterable-float', '2d', visibility),
+      // The sky light: its cubes, sampler, harmonics and the view's uniform.
+      ...skyLightReadLayoutEntries(REFLECTION_SKY_LIGHT, visibility),
     ],
   })
 })

@@ -10,13 +10,8 @@ import { saveScene } from '../saved/write.ts'
 import { readScene } from '../saved/read.ts'
 import type { SavedScene } from '../saved/format.ts'
 import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs/jobs.ts'
-import { validateSceneFog } from '../../../../sdk-core/src/scene/core/fog.ts'
-import {
-  validateSceneAtmosphere,
-  type ResolvedAtmosphere,
-  type SceneAtmosphere,
-} from '../../../../sdk-core/src/scene/core/atmosphere.ts'
-import { sceneFogOf, type Fog } from './sceneFog.ts'
+import { checkSkyOption } from '../../../../sdk-core/src/modules/sky/descriptor.ts'
+import type { ModuleOption } from '../../../../sdk-core/src/modules/descriptor.ts'
 
 /** What `scene.load` may be told about the model it loads; every field is optional. */
 export interface LoadOptions {
@@ -42,9 +37,8 @@ export type SceneLoader = ((url: string, options: LoadOptions) => Promise<Loaded
   added?: (model: LoadedModel) => void
 }
 
-/** What a world hears from its scene: a node's changes, its background, its fog and its
- *  atmosphere set or written. */
-export type WorldSceneLink = SceneLink & { background(): void; fog(): void; atmosphere(): void }
+/** What a world hears from its scene: a node's changes, its background and its sky module word. */
+export type WorldSceneLink = SceneLink & { background(): void; sky(option: ModuleOption): void }
 
 /**
  * The root of a world's scene: objects are added to it, a compiled model is loaded into it, and
@@ -61,12 +55,7 @@ export class Scene extends Object3D {
   private readonly recoloured = () => (this._link as Partial<WorldSceneLink> | null)?.background?.()
   /** A picture of the surroundings; `null` for none. */
   environment: Texture | null = null
-  private _fog: Fog | null = null
-  /** Tells the world the fog changed, chained on its colour to hear writes in place. */
-  private readonly refogged = () => (this._link as Partial<WorldSceneLink> | null)?.fog?.()
-
-  private _atmosphere: SceneAtmosphere | true | null = null
-  private _air: ResolvedAtmosphere | undefined
+  private _sky: ModuleOption = undefined
 
   /** Called before the scene is drawn; none by default. */
   declare onBeforeRender?: () => void
@@ -103,49 +92,20 @@ export class Scene extends Object3D {
     if (value) listen(value, this.recoloured)
     this.recoloured()
   }
-  /** Fog over every surface, opaque and transparent; `null`, the default,
-   *  for none, at no cost. `{ color, near, far }` fades objects into `color` from `near` to `far`,
-   *  distances from the camera; `{ color, density }` thickens by `density` per unit of distance;
-   *  add `heightFalloff` (and `baseHeight`, 0 by default) and it lies on the ground, thinning out
-   *  above `baseHeight` — divided by e every `1 / heightFalloff` units up. The height fog's own
-   *  fields (`SceneHeightFog`: `baseDensity`, `falloff`, `maxOpacity`, `startDistance`,
-   *  `cutoffDistance`, the sun's `directional` lobe, `skyContribution`, every one with its default,
-   *  `{}` the default fog) say the same law in base 2, in metres (`fogHeight.ts`).
-   *  A change shows at the next frame: a new fog set here, or its colour written through its
-   *  methods. A direct write of `near`, `far`, `density`... is not heard: set `fog` again after
-   *  one. A fog out of range — `far` not beyond `near`, a negative density — is refused
-   *  (`INVALID_SCENE_ENVIRONMENT`). */
-  get fog() {
-    return this._fog
+  /** The sky module: the air, the sun, the sky light, the height fog and the clouds of a new
+   *  world's level, off by default and then at no cost. `true` switches it on with every part at
+   *  its default, `false` off; an object switches or sets parts: `{ clouds: false, sun: { intensity:
+   *  8 }, heightFog: true }`, each part `true`, `false` or its settings. `undefined` or `null` says
+   *  nothing and gives the module back to the page's word (`world.modules`) or its default. A part
+   *  or a setting out of range is refused (`INVALID_MODULE_OPTION`, `INVALID_SCENE_ENVIRONMENT`)
+   *  and nothing changes. Where the atmosphere is on, `background` is not shown. */
+  get sky() {
+    return this._sky
   }
-  set fog(value: Fog | null) {
-    if (value) validateSceneFog(sceneFogOf(value)!)
-    if (this._fog?.color) unlisten(this._fog.color, this.refogged)
-    this._fog = value ?? null
-    if (value?.color) listen(value.color, this.refogged)
-    this.refogged()
-  }
-  /** The planet's air: the sky behind every surface, the haze over the distance, and the sun's
-   *  light tinted by what it crosses; `null`, the default, for none, at no cost. `true` is an
-   *  Earth-like atmosphere; an object sets any of its fields over those defaults (`planetRadius`
-   *  and `height` in kilometres, the scattering coefficients per kilometre, `groundHeight` in
-   *  metres: the height of the planet's ground in the scene, 0 by default). The sun is the
-   *  brightest directional light (`light.directional({ atmosphereSun: false })` leaves one out);
-   *  `light.sky()` lights the scene from the sky. Where the atmosphere is on, `background` is not
-   *  shown. A change shows at the next frame: set `atmosphere` again after writing a field of
-   *  it. A value out of range — a negative radius, an anisotropy outside (−1, 1) — is refused
-   *  (`INVALID_SCENE_ENVIRONMENT`). */
-  get atmosphere() {
-    return this._atmosphere
-  }
-  set atmosphere(value: SceneAtmosphere | true | null) {
-    this._air = value ? validateSceneAtmosphere(value) : undefined
-    this._atmosphere = value ?? null
-    ;(this._link as Partial<WorldSceneLink> | null)?.atmosphere?.()
-  }
-  /** The atmosphere with every field set, what the lighting reads; none without one. */
-  get resolvedAtmosphere() {
-    return this._air
+  set sky(value: ModuleOption) {
+    checkSkyOption(value)
+    this._sky = value
+    ;(this._link as Partial<WorldSceneLink> | null)?.sky?.(value)
   }
   /** Loads a compiled model — its manifest URL — and adds it to this scene. A manifest this world
    *  loaded already is not read again: the model returned is another placement of it, its own

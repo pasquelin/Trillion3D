@@ -1,5 +1,6 @@
 import { tradeView } from '../view/viewTrade.ts'
 import { disposeBackdrop } from '../../blend/transparent/transmission.ts'
+import { disposeCloudView } from '../../modules/sky/clouds/viewTargets.ts'
 import type { DeviceGrant } from '../../gpu/core/errorScope.ts'
 import type { HizPyramid } from '../../visibility/hiz/gpu/types.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -47,6 +48,7 @@ export function releaseSet(gpu: TargetSet['gpu'], vis: TargetSet['vis']) {
   gpu.colorView = gpu.depthView = gpu.hdrView = gpu.feedbackView = undefined
   gpu.displayTexture = gpu.displayView = undefined
   gpu.targetBytes = 0
+  disposeCloudView(gpu)
   vis.visTexture = undefined
   vis.visView = undefined
   disposeBackdrop(gpu as WebgpuGpuState)

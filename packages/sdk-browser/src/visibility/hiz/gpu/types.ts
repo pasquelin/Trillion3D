@@ -11,6 +11,9 @@ export type GpuHiz = {
   /** The build of its nearest layer — each pixel's plane, each cell's nearest — and of the
    *  finished depth's farthest layer, once level 0 holds the whole depth, as dispatches of the open compute pass. */
   encodeNearest(open: OpenPass): void
+  /** The build of the drawn pyramid's culling layer with the push `push` of its level 0, for the
+   *  primed pyramid (`hizPrime`): false when its kernel is not compiled yet. */
+  encodePrimed(open: OpenPass, push: HizPrimedPush): boolean
   /** The levels uniform (`hizLevelWords`): the one mip table, which the cut's occlusion test and
    *  the transparent occlusion test bind (`hizMip`) as the depth readers do. */
   readonly levelTable: GPUBuffer
@@ -27,6 +30,11 @@ export type GpuHiz = {
    *  writes it, so no reader folds a layer this image did not write. It changes identity on every
    *  target resize. */
   front(wanted: boolean): GPUTextureView | undefined
+  /** Whether the nearest layer is built as the planes' corners, with the finished depth's farthest
+   *  layer and each pixel's slopes (`hizTrace` `'planes'`), or as the closest depth of each texel's
+   *  centre, the pyramid the reference's trace walks: its words sent when they move, so that an
+   *  image builds and a reader reads the mode it was told. */
+  planes(wanted: boolean): void
   resize(device: GPUDevice, width: number, height: number): boolean
   /**
    * The `width × height` this image draws in the top-left of level 0, at most its size: the build
@@ -42,6 +50,11 @@ export type GpuHiz = {
   swap(next: HizPyramid | undefined): HizPyramid | undefined
   dispose(): void
 }
+
+/** The push of the primed pyramid's level 0: the projection's near and far planes and weight (1 a
+ *  perspective, 0 an orthographic one), and the distance, in the scene's units, the depth moves
+ *  away from the eye by. */
+export type HizPrimedPush = { near: number; far: number; perspective: number; bias: number }
 
 /** The resources of `GpuHiz.depth` (`createGpuHiz`). A new object whenever one of them changes: a
  *  reader's bind group follows its identity. */

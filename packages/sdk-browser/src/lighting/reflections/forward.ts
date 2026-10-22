@@ -90,7 +90,7 @@ export const forwardIndirectWgsl = (group: number, lobes: boolean, traced: numbe
   return mat2x3f(bounceLighting(rgb,metal,N,P,ao),reflectionShare(forwardFrontTraced(position),f0,rough,N,V));
  }
  let probes=surfaceProbesGathered(P,N,reflectionBaseLobe(N,V,rough));
- let seen=Reflected(reflectionFieldOver(probes[1],reflect(-V,N)),reflectionFieldCoat(P,V));
+ let seen=Reflected(reflectionFieldOver(probes[1],reflect(-V,N),rough),reflectionFieldCoat(P,V));
  return mat2x3f(lambertDiffuse(rgb,metal,indirectGathered(probes[0],N),ao),reflectionShare(seen,f0,rough,N,V));
 }`,
   )

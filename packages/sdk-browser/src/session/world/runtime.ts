@@ -1,6 +1,7 @@
 import { createRequestLoop } from './requestLoop.ts'
 import { createWorldContents } from './contents.ts'
 import { createWorldLights } from './lights.ts'
+import { createWorldVolumes } from './volumes.ts'
 import { createWorldLink } from './link.ts'
 import { createWorldBackground } from './background.ts'
 import { watchFirstFrame } from '../openWatch.ts'
@@ -9,6 +10,7 @@ import { followPageCamera } from './camera.ts'
 import { namedMove } from './sceneMethods.ts'
 import type { WorldRuntimeInputs } from './runtimeInputs.ts'
 import { askedFrame } from './frames/askedFrame.ts'
+import { noticeRefused } from '../../diagnostic/world/worldNotices.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import {
   worldApply,
@@ -25,7 +27,14 @@ import {
 export function createWorldRuntime(inputs: WorldRuntimeInputs) {
   const { canvas, scene, camera } = inputs
   const contents = createWorldContents(scene, inputs.diagnostic.notices),
-    lights = createWorldLights(scene),
+    lights = createWorldLights(scene, () => inputs.modules.sky),
+    volumes = createWorldVolumes(contents.volumes, (_mesh, error) =>
+      noticeRefused(
+        inputs.diagnostic.notices,
+        'a volume material',
+        error instanceof Error ? error.message : String(error),
+      ),
+    ),
     background = createWorldBackground(scene)
   const placeCamera = followPageCamera(camera, canvas)
   const track = worldReopens(
@@ -48,7 +57,7 @@ export function createWorldRuntime(inputs: WorldRuntimeInputs) {
   // A world its page leads follows its canvas before each frame; a session's own loop, itself.
   const led = inputs.options().interactive === false
   const parts: WorldRuntimeParts = {
-    ...{ inputs, state, contents, lights, background, track, led, placeCamera, moveNamed },
+    ...{ inputs, state, contents, lights, volumes, background, track, led, placeCamera, moveNamed },
     // The scene's resolutions: one pass at a time, a burst one pass (`worldResolution`).
     resolves: createRequestLoop(() => resolution()),
     invalidate,
@@ -65,7 +74,10 @@ export function createWorldRuntime(inputs: WorldRuntimeInputs) {
       ? 'its session is open and draws nothing'
       : `no session has opened, ${state.closed}`
   })
-  scene._link = createWorldLink({ contents, lights, invalidate, relight, schedule })
+  scene._link = createWorldLink({
+    ...{ contents, lights, invalidate, relight, schedule },
+    sky: inputs.modules.scene,
+  })
   return runtimeHandle(parts, reopens, frame, relight)
 }
 
@@ -178,6 +190,7 @@ function runtimeHandle(
     }),
     dispose() {
       state.disposed = true
+      inputs.modules.dispose()
       state.explorer?.dispose()
       track.dispose(state.explorer)
       contents.cuts.dispose()

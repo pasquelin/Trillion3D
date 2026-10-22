@@ -262,7 +262,9 @@ function encodeBinning(
   if (r.tessellating) r.tessellation!.begin(encoder, input, pass)
   const binning = encoder.beginComputePass({ label: RASTER_BINNING_PASS })
   binning.setBindGroup(0, r.bindings.bin(input, pass))
-  binning.setPipeline((r.tessellating ? r.tessellatedBin() : r.bin)[pass]!.get())
+  binning.setPipeline(
+    (r.tessellating || input.leaveTessellated ? r.tessellatedBin() : r.bin)[pass]!.get(),
+  )
   // A workgroup a drawable row, in rows.
   dispatchRows(binning, Math.max(1, input.pageRows))
   binning.setPipeline(r.plan[pass]!.get())

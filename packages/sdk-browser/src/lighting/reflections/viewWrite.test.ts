@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { REFLECTION_COUNTS } from './constants.ts'
 import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 import { heldImage } from './heldImage.fixture.ts'
+import { screenRelativeThickness } from '../../visibility/hiz/gpu/screenSlab.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
 import { createReflectionCensus } from './census.ts'
 import { createReflectionSettingsReader } from './settings.ts'
@@ -54,6 +55,7 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
     viewProjection,
     size: [400, 300] as const,
     depthDrawn: true,
+    eye: [0, 0, 0],
   }
   write(frame, held, 8)
   const { words, bits: traced } = sent
@@ -64,8 +66,10 @@ test('the view uniform carries the pixel scale, the held image, the slab and whe
   )
   assert.deepEqual(
     [...words.slice(REFLECTION_VIEW_AT.slab + 1, REFLECTION_VIEW_AT.slab + 4)],
-    [0, 0, 1],
+    [0, Math.fround(0.1), 1],
   )
+  // The reference walk's thickness: a perspective's scale is 1.
+  assert.equal(words[REFLECTION_VIEW_AT.thickness], Math.fround(0.005))
   assert.deepEqual(
     [
       words[REFLECTION_VIEW_AT.radiance],
@@ -110,16 +114,25 @@ function stillView<Extra extends object>(extra: Extra) {
     viewProjection: perspectiveProjection(new Float64Array(16), 90, 1, 0.1, 1),
     size: [64, 32] as const,
     depthDrawn: true,
+    eye: [0, 0, 0],
     ...extra,
   }
   return { sent, write: createReflectionViewWriter(device, buffer), held, frame }
 }
 
 test("the slab follows the projection: a perspective's depth at infinity, an orthographic one's step", () => {
-  const slab = (viewProjection: number[], size: readonly [number, number]) => {
+  const slab = (
+    viewProjection: number[],
+    size: readonly [number, number],
+    eye: number[] = [0, 0, 0],
+  ) => {
     const { device, buffer, held: sent } = viewDevice()
     const held = heldImage()
-    createReflectionViewWriter(device, buffer)({ viewProjection, size, depthDrawn: true }, held, 1)
+    createReflectionViewWriter(device, buffer)(
+      { viewProjection, size, depthDrawn: true, eye },
+      held,
+      1,
+    )
     return [...sent.words.slice(REFLECTION_VIEW_AT.slab, REFLECTION_VIEW_AT.slab + 4)]
   }
   // A finite reversed perspective, near 0.1 and far 100: z = n(f − w) / (w(f − n)) = A + B / w.
@@ -129,10 +142,19 @@ test("the slab follows the projection: a perspective's depth at infinity, an ort
   const [scale, atInfinity, step, perspective] = slab(finite, [1000, 500])
   assert.equal(scale, Math.fround(0.004))
   assert.ok(Math.abs(atInfinity - -n / (far - n)) < 1e-6, `${atInfinity}`)
-  assert.deepEqual([step, perspective], [0, 1])
+  assert.ok(Math.abs(step - (n * far) / (far - n)) < 1e-6, `${step}`)
+  assert.equal(perspective, 1)
   // An orthographic projection: its depth spans `scale · |∇z|` for a pixel's thickness.
   const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1]
   assert.deepEqual(slab(identity, [10, 4]), [0.5, 0, 1, 0])
+  // The depth of the eye's plane, the clip depth at the eye: 2 · 3 at an eye three units along z.
+  assert.equal(slab(identity, [10, 4], [0, 0, 3])[1], 6)
+  // The orthographic scale of the thickness falls by tens with the depth range, counted in
+  // centimetres (the world is in metres): a range of 50 cm keeps a tenth, one of 1000 m (10⁵ cm)
+  // five digits.
+  const wide = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 / 1000, 0, 0, 0, 0, 1]
+  assert.ok(Math.abs(screenRelativeThickness(identity, 0.005) - 0.0005) < 1e-12)
+  assert.ok(Math.abs(screenRelativeThickness(wide, 0.005) - 5e-8) < 1e-15)
 })
 
 test('a still view with transparents writes its view once: the front pass sets a flag, never a frame rank', () => {

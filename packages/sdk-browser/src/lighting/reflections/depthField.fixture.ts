@@ -13,7 +13,11 @@ import {
   hizTextureSize,
   HIZ_WHOLE_FARTHEST,
 } from '../../visibility/hiz/gpu/pyramidTexture.ts'
-import { HIZ_LEVELS_FRONT_WORD, hizLevelWords } from '../../visibility/hiz/gpu/levelsUniform.ts'
+import {
+  HIZ_LEVELS_FRONT_WORD,
+  HIZ_LEVELS_PLANES_WORD,
+  hizLevelWords,
+} from '../../visibility/hiz/gpu/levelsUniform.ts'
 import {
   hizReduceCeil,
   hizReduceNearestCeil,
@@ -32,6 +36,7 @@ export const HIZ_DEPTH_READERS = [
   'hizCellStep',
   'hizCellNearest',
   'hizCellFarthest',
+  'hizCellCullFarthest',
   'hizLevelCount',
   'hizCullFarthest',
   'hizNearest',
@@ -69,13 +74,16 @@ export const depthLoads =
  * finer ones it covers before it): level 0 of the nearest layer by the shipped build's first pass
  * (`hizSource`, its plane's slopes and nearest corner), the coarser texels of every layer by the
  * oracle's reductions (`hizReduceCeil`, `hizReduceNearestCeil`). `word` is the texel the shipped
- * readers load (`hizTexel`'s place, a layer); `levels` the levels uniform.
+ * readers load (`hizTexel`'s place, a layer); `levels` the levels uniform. `planes` is the build's
+ * mode (`hizTrace` `'planes'`, which the march tests of the planes pin; false, the closest depth of
+ * each centre the reference's walk reads).
  */
 export function depthField(
   width: number,
   height: number,
   depth: ArrayLike<number>,
   front: ArrayLike<number> = [],
+  planes = true,
 ) {
   /** The nearest transparent surface's depth at a pixel, zero for none. */
   const frontOf = (i: number) => front[i] ?? 0
@@ -111,7 +119,7 @@ export function depthField(
     {
       [HIZ_NEAREST_BUILD]: true,
       // This image wrote the front layer: zero where no transparent surface lies.
-      uni: { a: 0, b: width, c: height, upper, front: 1 },
+      uni: { a: 0, b: width, c: height, upper, front: 1, planes: planes ? 1 : 0 },
       level0,
       // Level 0's two layers: the opaque depth, then the nearest transparent surface's.
       textureLoad: (_: object, p: number[], layer: number) => [
@@ -167,6 +175,7 @@ export function depthField(
   }
   const words = hizLevelWords(sizes, offsets, layout)
   words[HIZ_LEVELS_FRONT_WORD] = 1
+  words[HIZ_LEVELS_PLANES_WORD] = planes ? 1 : 0
   return {
     width,
     height,

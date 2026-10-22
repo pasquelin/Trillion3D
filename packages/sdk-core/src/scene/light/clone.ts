@@ -14,5 +14,11 @@ export function cloneSceneLight(light: SceneLight): SceneLight {
   if (light.right) copy.right = [...light.right]
   if (light.emitterAxis) copy.emitterAxis = [...light.emitterAxis]
   if (light.size) copy.size = [...light.size]
+  if (light.sunDiskTint) copy.sunDiskTint = [...light.sunDiskTint]
+  if (light.shaftOverrideDirection) copy.shaftOverrideDirection = [...light.shaftOverrideDirection]
+  if (light.shaftBloomTint) copy.shaftBloomTint = [...light.shaftBloomTint]
+  if (light.cloudScatteredLuminanceScale)
+    copy.cloudScatteredLuminanceScale = [...light.cloudScatteredLuminanceScale]
+  if (light.lightFunctionScale) copy.lightFunctionScale = [...light.lightFunctionScale]
   return copy
 }

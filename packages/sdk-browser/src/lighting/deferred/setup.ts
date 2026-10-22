@@ -1,5 +1,6 @@
-import { receiverPlaceholders } from '../../visibility/passes/receiver.ts'
+import { createFloatAtlas } from '../../gpu/core/floatAtlas.ts'
 import { deferredLayoutEntries } from './layoutEntries.ts'
+import { LIGHT_SHAFT_NO_MASK } from '../../modules/sky/lightShafts/layout.ts'
 import { standInTexture } from '../../gpu/core/standInTexture.ts'
 import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
 import { arrayView } from '../../gpu/core/textureViews.ts'
@@ -18,6 +19,7 @@ import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { SCREEN_PROBE_FORMATS } from '../bounce/screen/screenProbeLayout.ts'
 import { AO_OCCLUSION_FORMAT } from '../ao/layout.ts'
 import { createFogStandIns } from '../fog/read.ts'
+import { createLightFunctionStandIns } from '../lightFunction/standIns.ts'
 import { BLUE_NOISE_FORMAT } from '../../gpu/noise/blueNoiseTextures.ts'
 
 /** The resolve's layout; each composition's is its own (`compositions.ts`). */
@@ -81,8 +83,9 @@ export function createDeferredPlaceholders(device: GPUDevice) {
   let fogStandIns: ReturnType<typeof createFogStandIns> | undefined
   // The proxy's bindings in every program that traces it when no placement wears one.
   const standIns = runtimeStandIns(device)
-  const receiver = receiverPlaceholders(device)
+  const normals = createFloatAtlas(device, 'Trillion3D empty normals', 1)
   const vsm = createVsmPlaceholders(device)
+  const lightFunction = createLightFunctionStandIns(device)
   // One texel of zero: what a resolve bound before its reflection target reads.
   const reflection = device.createTexture({
     label: 'Trillion3D empty reflection',
@@ -104,6 +107,13 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     'Trillion3D empty ambient occlusion',
     AO_OCCLUSION_FORMAT,
   )
+  // One white texel: the light shafts' mask where the image drew none, which multiplies the fog by 1.
+  const lightShaft = standInTexture(
+    device,
+    'Trillion3D empty light shaft mask',
+    LIGHT_SHAFT_NO_MASK.format,
+    { fill: LIGHT_SHAFT_NO_MASK.fill },
+  )
   return {
     ...vsm.views,
     tiles: contract.tiles,
@@ -113,22 +123,25 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     transmittanceView: contract.transmittance,
     bounceGrid: contract.bounceGrid,
     probes: contract.probes,
+    lightFunction: lightFunction.read,
     runtime: standIns.runtime,
     runtimeWorlds: standIns.runtimeWorlds,
     runtimeTree: standIns.runtimeTree,
-    receiver: receiver.resources,
     reflection: reflection.createView(),
     screenIndirect: screenIndirect.createView(),
     ambientOcclusion: ambientOcclusion.createView(),
+    lightShaft: lightShaft.createView(),
     /** The empty normal atlas: what a transparent item without normals reads (zeros). */
-    emptyNormals: receiver.normals,
+    emptyNormals: normals.view,
     dispose() {
-      receiver.dispose()
+      normals.texture.destroy()
       reflection.destroy()
       screenIndirect.destroy()
       ambientOcclusion.destroy()
+      lightShaft.destroy()
       fogStandIns?.destroy()
       vsm.destroy()
+      lightFunction.destroy()
       contract.destroy()
       standIns.destroy()
     },

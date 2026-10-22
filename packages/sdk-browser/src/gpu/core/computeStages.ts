@@ -36,6 +36,28 @@ export const preparedComputeStage = (
   label?: string,
 ) => preparedComputePipeline(device, computeStage(layout, module, entryPoint, constants, label))
 
+/** The stage `entry` of `code` on the bind-group layouts `layouts`, group by group, labelled
+ *  `label`, asked now, off the frame; `failed` hears a failure to compile. */
+export function askedComputeStage(
+  device: GPUDevice,
+  layouts: readonly GPUBindGroupLayout[],
+  code: string,
+  entry: string,
+  label: string,
+  failed: (error: unknown) => void,
+) {
+  const stage = preparedComputeStage(
+    device,
+    device.createPipelineLayout({ bindGroupLayouts: layouts }),
+    device.createShaderModule({ label, code }),
+    entry,
+    undefined,
+    label,
+  ).ask()
+  stage.prepare().catch(failed)
+  return stage
+}
+
 /** Runs `stage` on `group`, over `x` × `y` workgroups, in the compute pass `pass`: the dispatches of
  *  one job — a transform's three passes, a kernel's preparation — share one pass, each seeing what the
  *  one before wrote. */

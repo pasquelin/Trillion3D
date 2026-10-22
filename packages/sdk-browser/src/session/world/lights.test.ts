@@ -1,10 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { light } from '../../../../sdk-core/src/world/light/light.ts'
+import { Light, light } from '../../../../sdk-core/src/world/light/light.ts'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import { IRRADIANCE_BAND } from '../../../../sdk-core/src/scene/core/environment.ts'
 import {
   boxReads,
@@ -197,44 +196,15 @@ test('lights moved ahead of others add up in the scene’s new order, to the bit
   assert.notDeepEqual(after, before, 'the order shows: (1 + ε) + ε is 1, (ε + ε) + 1 is not')
 })
 
-test('a sky light gives the sky to the probes apart from the light every other source gives', () => {
+test('a sky light node gives the environment nothing: the sky module’s sky light lights the scene by its cube', () => {
   const { scene, lights } = wiredLights()
-  // A background of binary fractions, which the sums hold as they are.
-  ;(scene as unknown as { background: Color }).background = new Color([0.25, 0.5, 0.75])
-  const sun = light.sky({ intensity: 2, groundColor: 0x000000 })
-  scene.add(light.ambient({ intensity: 1 }), sun)
-  const api = lightStore()
-  const environment = lights.sync(api)!
-  const sky = lights.sky()!
+  scene.add(light.ambient({ intensity: 1 }))
+  scene.add(new Light('sky', { intensity: 2 }))
+  const environment = lights.sync(lightStore())!
   // The ambient alone is the environment's: a uniform irradiance, the constant band alone.
   assert.ok(Math.abs(environment[0] - 1 / IRRADIANCE_BAND.constant) < 1e-12)
   assert.ok(
     environment.slice(3).every((c) => c === 0),
     'no sky in it',
   )
-  // The sky light is the block's: the radiance a ray that leaves the scene reaches, the colour
-  // behind the scene scaled by its intensity, its ground below; its irradiance, the sky nothing hides.
-  assert.deepEqual(sky.upper, [0.5, 1, 1.5])
-  assert.deepEqual(sky.lower, [0, 0, 0])
-  assert.equal(sky.light, true)
-  assert.ok(Math.abs(sky.irradiance[0] - (0.5 * Math.PI) / 2 / IRRADIANCE_BAND.constant) < 1e-12)
-  // Hidden, it gives nothing; the scene then shows no sky, and the block is none.
-  sun.visible = false
-  lights.sync(api)
-  assert.equal(lights.sky(), undefined)
-})
-
-test('a scene with an atmosphere and no sky light shows its sky, which lights nothing', () => {
-  const { scene, lights } = wiredLights()
-  ;(scene as unknown as { resolvedAtmosphere: object }).resolvedAtmosphere = {}
-  lights.sync(lightStore())
-  const sky = lights.sky()!
-  assert.deepEqual(sky.upper, [1, 1, 1], 'the sky as drawn, for a reflection')
-  assert.equal(sky.light, false, 'a sky light is what lights with it')
-  assert.ok(sky.irradiance.every((c) => c === 0))
-  // With a sky light, its colour and intensity scale that sky.
-  scene.add(light.sky({ intensity: 3, color: 0xffffff }))
-  lights.sync(lightStore())
-  assert.deepEqual(lights.sky()!.upper, [3, 3, 3])
-  assert.equal(lights.sky()!.light, true)
 })

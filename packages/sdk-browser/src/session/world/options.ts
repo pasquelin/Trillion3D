@@ -11,8 +11,14 @@ import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.t
 import type { DynamicResolutionOptions } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
 import type { AnimationOptions } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import type { ShadingOptions } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
+import type { ExposureCurveOptions } from '../../../../sdk-core/src/contracts/exposureCurve.ts'
 import type { ExposureOptions } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.ts'
+import type { LightFunctionOptions } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
+import type { VolumetricLightmapOptions } from '../../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
+import type { DistanceFieldOcclusionOptions } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
+import type { GlobalDistanceFieldOptions } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import type { ShadowOptions } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
 import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import type { DepthOfFieldSettings } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
@@ -20,6 +26,7 @@ import type { BloomSettings } from '../../../../sdk-core/src/contracts/bloomRule
 import type { GaussianBlurSettings } from '../../../../sdk-core/src/contracts/gaussianBlurRules.ts'
 import type { FilmSettings } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 import type { AmbientOcclusionOptions } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import type { SkyQualityOptions } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import type { ScreenProbeOptions } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { ReflectionOptions } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import type { VolumetricFogOptions } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
@@ -81,11 +88,13 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  `exposureHistogramLogMax` (+20) in stops of luminance, `exposureLowPercent` (10) and
  *  `exposureHighPercent` (90), `exposureSpeedUp` (3) and `exposureSpeedDown` (1) in stops a
  *  second, `exposureTransitionDistance` (1.5 stops), `exposureBlackBucketWeight` (0) and
- *  `exposureLuminanceMethod` (`'uniform'`, or `'ntsc'`, `'workingSpace'`), and the local
- *  exposure's `localExposureHighlightContrast` and `localExposureShadowContrast` (0.8),
+ *  `exposureLuminanceMethod` (`'uniform'`, or `'ntsc'`, `'workingSpace'`), the pre-exposure's
+ *  `preExposure` (true) and `preExposureOverride` (0), which apply to a lit view whatever its
+ *  exposure, and the local exposure's `localExposureHighlightContrast` and `localExposureShadowContrast` (0.8),
  *  `localExposureDetailStrength` (1), `localExposureBlurBlend` (0.6), `localExposureBlurSize`
  *  (50 %), `localExposureMiddleGreyBias` (0) and the two thresholds and their strengths, which
- *  apply to a lit view whatever its exposure; changed later by `world.exposureSettings`. The
+ *  apply to a lit view whatever its exposure; changed later by `world.exposureSettings`. The exposure's compensation curve,
+ *  `exposureCurve` (none), is read at the opening only. The
  *  temporal pass's likewise (`../../../../sdk-core/src/contracts/temporalOptions.ts`):
  *  `temporalThinGeometry` (false) — whether it looks for geometry thinner than a pixel and relaxes
  *  its history there, at any level but `'off'`; changed later by `world.temporal`. The sun's
@@ -124,7 +133,7 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  the tint (`sceneColorTint…`, 1) and `quantizationDitheringBits` (0: the display's own step);
  *  changed later by `world.film`. The volumetric fog's
  *  (`../../../../sdk-core/src/contracts/volumetricFogOptions.ts`): `volumetricFogQuality`
- *  (`'max'`; `'off'` draws none, `'high'`, `'max'` and `'cinematic'` set the grid's cell size and
+ *  (`'high'`; `'off'` draws none, `'low'`, `'high'` and `'ultra'` set the grid's cell size and
  *  depth and the history's samples) and eleven settings it is read with, changed later by
  *  `world.volumetricFog`; the fog only exists in a scene whose fog sets `volumetric`. The reflections'
  *  trace likewise (`../../../../sdk-core/src/contracts/reflectionOptions.ts`): `reflectionScreenSteps` (50, the
@@ -138,7 +147,23 @@ import type { StreamingOptions } from '../../../../sdk-core/src/contracts/stream
  *  `ambientOcclusionFadeRadius` (50 m), `ambientOcclusionPower` (2), `ambientOcclusionBias` (3), the
  *  quality (`ambientOcclusionQuality`, 50) with `ambientOcclusionLevels` (-1) and
  *  `ambientOcclusionMaxQuality` (100), and `ambientOcclusionWithScreenProbes` (false); changed later
- *  by `world.ambientOcclusion`. The cluster
+ *  by `world.ambientOcclusion`. The depth
+ *  pyramid's likewise (`../../../../sdk-core/src/contracts/hizOptions.ts`): `hizTrace`
+ *  (`'reference'`, or `'planes'`) — how the reflections' trace reads it —, `hizFoldTransparents`
+ *  (false) — whether its trace layers hold the transparent surfaces —, `hizTransparentTest`
+ *  (`'finer'`, or `'reference'`) — how the transparent clusters are tested against it — and
+ *  `hizRelativeDepthThickness` — the thickness of a surface the reference walk takes —,
+ *  `hizFullResDepth` (true) — whether the screen probes' walk goes down to the full-resolution
+ *  depth — and `lightGridHizCull` (true) — whether the light grid leaves empty the cells behind
+ *  their column's farthest depth —, then `hizPrime` (`'off'`, `'whenMissing'` or `'always'`) — when
+ *  a view builds a pyramid from a small, coarse draw of the objects that set `farField`, for its
+ *  cut's main pass to test against when the image before left none — with `hizPrimeSizeBias` (2),
+ *  `hizPrimeDepthBias` (1.5 m), `hizPrimeErrorScale` (32) and `hizPrimeFarFieldOnly` (true);
+ *  changed later by `world.hiz`. The light functions' likewise
+ *  (`../../../../sdk-core/src/contracts/lightFunctionOptions.ts`): `lightFunctionAtlas` (true), `lightFunctionSlotResolution` (128),
+ *  `lightFunctionAtlasSize` (4), `lightFunctionMaxLights` (-1, no limit), `lightFunctionFormat`
+ *  (`'grey'`), `lightFunctionDeferred` (true), `lightFunctionFog` (true),
+ *  `lightFunctionBounce` (true) and `lightFunctionTranslucent` (false); changed later by `world.lightFunction`. The cluster
  *  raster's split likewise
  *  (`../../../../sdk-core/src/contracts/rasterOptions.ts`): `softwareRaster` (true) — a cluster
  *  whose longest edge projects under `hardwareRasterEdgePixels` and whose box crosses neither clip
@@ -170,7 +195,13 @@ export interface WorldOptions
     AnimationOptions,
     ShadingOptions,
     ExposureOptions,
+    ExposureCurveOptions,
     TemporalOptions,
+    HizOptions,
+    LightFunctionOptions,
+    VolumetricLightmapOptions,
+    GlobalDistanceFieldOptions,
+    DistanceFieldOcclusionOptions,
     ShadowOptions,
     MotionBlurSettings,
     DepthOfFieldSettings,
@@ -182,6 +213,7 @@ export interface WorldOptions
     ScreenProbeOptions,
     ReflectionOptions,
     AmbientOcclusionOptions,
+    SkyQualityOptions,
     RasterOptions,
     StreamingOptions {
   /**

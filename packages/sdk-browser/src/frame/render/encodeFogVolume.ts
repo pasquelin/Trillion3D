@@ -1,9 +1,7 @@
 import type { VolumetricFogValues } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import { shownHeightFog } from '../../../../sdk-core/src/scene/core/fog.ts'
 import type { ResolvedHeightFog } from '../../../../sdk-core/src/scene/core/fogHeight.ts'
-import type { ResolvedFogCubemap } from '../../../../sdk-core/src/scene/core/fogCubemap.ts'
-import { retire } from '../../gpu/core/frameRetire.ts'
-import { createFogCubemap } from '../../lighting/fog/cubemapGpu.ts'
+import { fogCubemapView, type createFogCubemap } from '../../lighting/fog/cubemapGpu.ts'
 import { createFogVolumeGpu, type FogVolumeGpu } from '../../lighting/fog/gpu.ts'
 import type { FogRead } from '../../lighting/fog/read.ts'
 import type { WebgpuGpuState } from '../backend/state/gpu.ts'
@@ -54,6 +52,14 @@ function volumeMedium(fog: ResolvedHeightFog | undefined, settings: VolumetricFo
   return built && settings.volumetricFogQuality !== 'off' ? medium : undefined
 }
 
+/** The medium of the volume this image builds, none where it builds none: what the light grid's
+ *  cull keeps the lists of the cells behind the surfaces for (`lighting/tiles/cullView.ts`). The run's
+ *  settings are not read where the scene has no volume. */
+export function fogVolumeMedium(rt: WebgpuPagesRuntime) {
+  const fog = shownFog(rt)
+  return fog?.volumetric ? volumeMedium(fog, fogSettingsOf(rt)) : undefined
+}
+
 /** Whether this image shows an atmosphere: the scene's, in a lit view of the lit image. */
 const airShown = (rt: WebgpuPagesRuntime) =>
   !!rt.lights.store.environment?.atmosphere && litImageShown(rt)
@@ -72,21 +78,6 @@ export function askFogVolume(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const fog = shownFog(rt)
   if (!gpu.deferred || !fog?.volumetric) return
   if (volumeMedium(fog, fogSettingsOf(rt))) startVolume(rt, device, (gpu.fogVolume ??= newState()))
-}
-
-/** The cubemap's texture for the picture the fog holds: made once for it and kept while the fog
- *  holds it, retired when it does not. None where the fog has no cubemap. */
-function cubemapView(
-  device: GPUDevice,
-  held: FogVolumeState,
-  cube: ResolvedFogCubemap | undefined,
-) {
-  if (held.cube && held.cube.texels !== cube?.texels) {
-    retire(device, held.cube.made)
-    held.cube = undefined
-  }
-  if (cube && !held.cube) held.cube = { texels: cube.texels, made: createFogCubemap(device, cube) }
-  return held.cube?.made.view
 }
 
 /** What the programs read the fog through this image: the held object where nothing changed. */
@@ -125,7 +116,7 @@ function buildVolume(
   }
   const cut = rt.run.gate.temporalRevision !== held.revision
   held.revision = rt.run.gate.temporalRevision
-  const inputs = fogInputsOf(rt, cam, direct, buffer, { medium, settings, cubemap }, cut)
+  const inputs = fogInputsOf(rt, cam, direct, device, buffer, { medium, settings, cubemap }, cut)
   let volume: GPUTextureView | undefined
   try {
     volume = held.gpu.encode(encoder, inputs)
@@ -170,7 +161,7 @@ export function encodeFogVolume(
     return void (gpu.fogVolume && disposeFogVolume(gpu))
   }
   const held = (gpu.fogVolume ??= newState())
-  const cubemap = cubemapView(device, held, fog.cubemap)
+  const cubemap = fogCubemapView(device, held, fog.cubemap)
   const volume = buildVolume(rt, device, encoder, cam, direct, held, fog, settings, cubemap)
   readOf(held, gpu.deferred!.placeholders.fog, cubemap, volume)
 }

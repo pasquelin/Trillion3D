@@ -5,6 +5,7 @@ import {
   hizBuildPasses,
   hizBuildWords,
   hizUniformSlots,
+  HIZ_UNI,
 } from './uniforms.ts'
 import { workgroup } from './buildKernel.fixture.ts'
 import { layout, texel, type Scene } from './buildScene.fixture.ts'
@@ -15,7 +16,8 @@ import { uniformStride } from '../../../session/memory/pools.ts'
 // states) and `buildHiz` transcribed line by line, for `buildEquivalence.test.ts`: of the culling
 // farthest layer, or of the nearest (`Scene.nearest`), whose level 0 the texture's texels stand
 // for — each pixel's plane corner, which `hizSource` returns there — and is not copied; the nearest
-// build also writes the finished depth's farthest layer, from level 1 (`whole`).
+// build also writes the finished depth's farthest layer, from level 1 (`whole`), where it keeps the
+// planes (`Scene.planes`, the default) and none otherwise.
 const SLOT_WORDS = HIZ_SLOT_WORDS
 
 /** A compute pass that records each dispatch as its uniform slot's first word, then its grid. */
@@ -44,7 +46,7 @@ export function buildBefore(scene: Scene, pyramid: Float32Array, whole: Float32A
     const [w, h] = sizes[i],
       src = i ? pyramid.subarray(offsets[i], offsets[i] + w * h) : level0
     pyramid.set(evaluateHizReduce(src, w, h, nearest).data, offsets[i + 1])
-    if (nearest) {
+    if (nearest && scene.planes !== false) {
       const farther = i ? whole.subarray(offsets[i], offsets[i] + w * h) : level0
       whole.set(evaluateHizReduce(farther, w, h).data, offsets[i + 1])
     }
@@ -61,6 +63,9 @@ export function buildAfter(
   const { sizes, routed, first, upper } = layout(scene)
   const passes = hizBuildPasses(sizes, scene.maxLevels)
   const words = hizBuildWords(sizes, routed, passes, uniformStride(), upper)
+  // The host's planes word, up in every slot of a nearest build that keeps them.
+  if (scene.nearest && scene.planes !== false)
+    for (let i = 0; i < passes.length; i++) words[(i * uniformStride()) / 4 + HIZ_UNI.at.planes] = 1
   const { pass, dispatches } = recordingPass()
   encodeHizPyramid(
     pass,

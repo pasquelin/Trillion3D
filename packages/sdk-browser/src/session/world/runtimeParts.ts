@@ -3,6 +3,7 @@ import { buildWorldSource } from './source.ts'
 import type { createRequestLoop } from './requestLoop.ts'
 import type { createWorldContents } from './contents.ts'
 import type { createWorldLights } from './lights.ts'
+import type { createWorldVolumes } from './volumes.ts'
 import type { createWorldBackground } from './background.ts'
 import type { worldReopens } from './reopen.ts'
 import type { followPageCamera } from './camera.ts'
@@ -30,6 +31,7 @@ export type WorldRuntimeParts = {
   state: WorldRuntimeState
   contents: ReturnType<typeof createWorldContents>
   lights: ReturnType<typeof createWorldLights>
+  volumes: ReturnType<typeof createWorldVolumes>
   background: ReturnType<typeof createWorldBackground>
   track: ReturnType<typeof worldReopens>
   /** The page leads the frames: the world follows the canvas's size before each. */
@@ -46,7 +48,7 @@ export type WorldReopens = ReturnType<typeof createRequestLoop>
 
 /** One opening: the session in place closed, the next one opened on what the scene holds. */
 export function worldOpening(parts: WorldRuntimeParts) {
-  const { inputs, state, contents, lights, track, placeCamera, moveNamed } = parts
+  const { inputs, state, contents, lights, volumes, track, placeCamera, moveNamed } = parts
   const { canvas, open = openMeasuredWorld } = inputs
   return async () => {
     if (state.disposed) return
@@ -69,6 +71,7 @@ export function worldOpening(parts: WorldRuntimeParts) {
     state.explorer = null
     plan.release()
     lights.reset()
+    volumes.reset()
     state.lightsChanged = true
     inputs.diagnostic.opening()
     if (!built) {
@@ -112,25 +115,9 @@ export function worldOpening(parts: WorldRuntimeParts) {
   }
 }
 
-/** The sky lights' take of the atmosphere's captures, by session: a new session starts again. The
- *  call takes the capture of `session` that landed since as what the sky lights give, from now, and
- *  says whether it did. */
-function skyTaker(lights: WorldRuntimeParts['lights']) {
-  let taken: object | null = null,
-    revision = 0
-  return (session: MeasuredWorld) => {
-    const sky = session.skyCapture()
-    if (!sky || (session === taken && sky.revision === revision)) return false
-    taken = session
-    revision = sky.revision
-    lights.skyCaptured(sky.coefficients)
-    return true
-  }
-}
-
 /** The change list, applied once before a frame: rows seated, poses written, lights stored. */
 export function worldApply(parts: WorldRuntimeParts, reopens: WorldReopens) {
-  const { inputs, state, contents, lights, background } = parts
+  const { inputs, state, contents, lights, volumes, background } = parts
   const { poses, cuts } = contents
   const uploads = vertexUploads(
     () => state.explorer,
@@ -141,7 +128,6 @@ export function worldApply(parts: WorldRuntimeParts, reopens: WorldReopens) {
         'the engine cannot write them in place: they are not drawn',
       ),
   )
-  const takeSky = skyTaker(lights)
   return () => {
     const session = state.explorer
     if (state.seatWanted) {
@@ -175,15 +161,17 @@ export function worldApply(parts: WorldRuntimeParts, reopens: WorldReopens) {
             session.composePlacements(parent, world, links, whole),
         },
       )
-    // A capture of the atmosphere's sky that landed since is what the sky lights give, from now.
-    if (takeSky(session)) state.lightsChanged = true
-    if (state.lightsChanged)
+    if (state.lightsChanged) {
       session.setEnvironment({
         ...inputs.display(),
         irradiance: lights.sync(session),
-        sky: lights.sky(),
       })
+      // The sky module's parts, after the lights its sun and sky light are: the clouds, their shadow
+      // maps and the sky light's capture follow them.
+      session.applySky(inputs.modules.sky.resolved, {})
+    }
     state.lightsChanged = false
+    volumes.sync(session)
     background.write(session)
   }
 }

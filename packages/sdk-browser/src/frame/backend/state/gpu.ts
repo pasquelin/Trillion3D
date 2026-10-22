@@ -24,6 +24,8 @@ import type { TargetGrant } from '../../prepare/targetsSet.ts'
 import type { FrameDifference } from '../../render/frameDifference.ts'
 import type { AtmosphereGpu } from '../../../lighting/atmosphere/gpu.ts'
 import type { FogVolumeState } from '../../render/encodeFogVolume.ts'
+import type { LightShaftsGpu } from '../../../modules/sky/lightShafts/frame.ts'
+import type { CloudViewGpu } from '../../../modules/sky/clouds/viewTargets.ts'
 
 /** GPU resources of the image: page cache, frame targets and presentation. */
 export interface WebgpuGpuState {
@@ -124,6 +126,12 @@ export interface WebgpuGpuState {
   /** The scene's fog volume and cubemap, made once a scene turns the volume on or sets a cubemap
    *  (`../../render/encodeFogVolume.ts`). */
   fogVolume?: FogVolumeState
+  /** The view's light shafts: their images and histories, and the occlusion mask the fog reads,
+   *  made at the first image that draws them (`../../../modules/sky/lightShafts/frame.ts`). */
+  lightShafts?: LightShaftsGpu
+  /** The view's clouds: the images they are traced and rebuilt into, with the state the rebuilding
+   *  keeps, made at the first image that draws them (`../../render/encodeClouds.ts`). */
+  clouds?: CloudViewGpu
 }
 
 /** The copy of the opaque scene the distortion rereads and the offsets it accumulates, with their
@@ -203,7 +211,7 @@ export function swapSurfaces(
 }
 
 /** Bytes of a view's frame targets: those it made, its effect chain's, its finishing's, its
- *  velocity stage's, its screen probes', its ambient occlusion's and its fog's. */
+ *  velocity stage's, its screen probes', its ambient occlusion's, its fog's, its light shafts' and its clouds'. */
 export const viewTargetBytes = (
   gpu: Pick<
     WebgpuGpuState,
@@ -214,6 +222,8 @@ export const viewTargetBytes = (
     | 'screenProbes'
     | 'ambientOcclusion'
     | 'fogVolume'
+    | 'lightShafts'
+    | 'clouds'
   >,
 ) =>
   gpu.targetBytes +
@@ -222,4 +232,6 @@ export const viewTargetBytes = (
   (gpu.velocity?.bytes ?? 0) +
   (gpu.screenProbes?.bytes ?? 0) +
   (gpu.ambientOcclusion?.bytes ?? 0) +
-  (gpu.fogVolume?.bytes ?? 0)
+  (gpu.fogVolume?.bytes ?? 0) +
+  (gpu.lightShafts?.bytes ?? 0) +
+  (gpu.clouds?.bytes ?? 0)

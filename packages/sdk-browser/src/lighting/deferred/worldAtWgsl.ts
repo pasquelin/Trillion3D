@@ -4,15 +4,17 @@ import { pixelToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection
 
 /** View uniform, shared by both programs and by the distortion: `viewport` carries the
  *  size, the raw-output flag of diagnostic views and the composition's sharpening strength; `lightParams` the contract light count, tiles in X and Y, and
- *  exposure, applied before the display curve — the scene's number, or the one an automatic
- *  exposure measured and copied there on the GPU (`../../post/exposure/frame.ts`); `display.x` the rank of that curve
+ *  the scene's exposure, which the lighting reads in the units of the light it traces; `display.x` the rank of that curve
  *  (`../toneMappingWgsl.ts`), `display.yzw` the eye the fog is measured from; `jitter` the TAA's
  *  (`viewJitterWords`, `jitterWords.ts`); `source` the composition's image: its pixels per display
  *  pixel on each axis (`xy`), and its last pixel (`zw`) (`view.ts`, `writeSource`); `views` the
  *  lighting term a view of the lit image shows in place of the surface (`x`, `LIT_VIEWS`,
  *  `../../visibility/shader/shadeMode.ts`, `writeLightView`; `y` how the ambient occlusion applies, 0 none,
  *  1 to the emission and the sky light, 2 to the screen probes' light, and `z` the share it applies at,
- *  `writeAmbientOcclusion`; `w` unused); `screenProbes` how the resolve reads the screen probes' history: `x` whether the
+ *  `writeAmbientOcclusion`; `w` unused); `preExposure` the number every light is written multiplied
+ *  by (`x`, `../../post/exposure/pre.ts`) and the scale the composition multiplies the image by
+ *  (`y`): the exposure over that number, the scene's, or the one an automatic exposure measured
+ *  and copied there on the GPU (`../../post/exposure/frame.ts`; `z`, `w` unused); `screenProbes` how the resolve reads the screen probes' history: `x` whether the
  *  material's occlusion multiplies their light (through the multi-bounce of the albedo), `y` the albedo that is capped at,
  *  `z` the strength of their short-range occlusion and `w` their mode, 0 their light, 1 their occlusion alone over the
  *  world's probes' light (`writeScreenProbes`). The
@@ -27,6 +29,7 @@ export const VIEW_LAYOUT = fieldLayout('View', [
   ['jitter', 'vec4f'],
   ['source', 'vec4f'],
   ['views', 'vec4f'],
+  ['preExposure', 'vec4f'],
   ['screenProbes', 'vec4f'],
 ] as const)
 export const VIEW_WGSL = wgslBlock('VIEW_WGSL', [], VIEW_LAYOUT.wgsl)

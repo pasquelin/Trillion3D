@@ -4,6 +4,7 @@ import { VIS_MAX_PAGES } from '../../visibility/types.ts'
 import { beginTransparentOcclusion } from '../../blend/transparent/occlusionHost.ts'
 import { sendDrawItemWords } from '../../visibility/passes/itemWords.ts'
 import { encodeWebgpuVisibilityPasses } from '../../visibility/passes/passes.ts'
+import { skyLightSubmitted } from './encodeSkyLight.ts'
 import { createRenderEncoder, openFrameEncoder, submitColorCopy } from './encoder.ts'
 import { encodeRowWords } from '../../placement/rows/rowWordsPass.ts'
 import { encodeSurfaceLighting } from './surfaceLighting.ts'
@@ -80,6 +81,8 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   vis.voxelSteps?.encodeCopy(encoder, run.frame)
   const presented = encodeSurfaceLighting(rt, device, encoder, cam)
   submitColorCopy(rt, device, encoder, height, width, presented)
+  // A captured scene that is due is drawn between this image and the next.
+  skyLightSubmitted(rt)
   // Submitted triangles are those of every drawable row, the ones the cut's masks leave undrawn
   // included. The total is held by the row table, on its dirty rows only.
   return layout.itemWordsHold.total + run.blendSubmittedTriangles

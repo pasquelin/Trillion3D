@@ -57,7 +57,8 @@ const SECOND_ON_GROUND = `${air(ATMOSPHERE_SLOT.secondIlluminance)}.rgb*${air(AT
 const SECOND_SHOWN = `${air(ATMOSPHERE_SLOT.secondDisk)}.w>0.0`
 
 /** `fogOver`: the fog apart, for a layer that multiplies what lies behind it — its inscattering,
- *  then the transmittance from the eye to `P`; no fog adds nothing and keeps everything — and
+ *  then the transmittance from the eye to `P`; no fog adds nothing and keeps everything —
+ *  `fogOverNoHaze`: the same without the haze of the air, for a layer that lays the haze itself — and
  *  `fogged`: a lit colour at the world point `P` seen from `eye`, behind the fog; no fog leaves it
  *  as it is.
  *
@@ -255,16 +256,31 @@ fn fogBeyond(dir:vec3f,eye:vec3f)->vec4f{
  return fogStack(fogVolumeLookup(toward),over);
 }
 fn fogsBackground()->bool{return fogDrawn()&&${fog(FOG_SLOT.color)}.w>${FOG_MODE.exponential - 0.5}&&!(${AIR_SHOWN});}
-fn fogOver(P:vec3f,eye:vec3f)->vec4f{
+fn fogOver(P:vec3f,eye:vec3f)->vec4f{return fogLaid(P,eye,true);}
+fn fogOverNoHaze(P:vec3f,eye:vec3f)->vec4f{return fogLaid(P,eye,false);}
+fn fogLaid(P:vec3f,eye:vec3f,haze:bool)->vec4f{
  var over=vec4f(0.0,0.0,0.0,1.0);
  if(!fogDrawn()){return over;}
  let withSky=fogSkyShown();
  let mode=${fog(FOG_SLOT.color)}.w;
  if(mode>${FOG_MODE.exponential - 0.5}){over=heightFog(P,eye,withSky);}
  else if(mode>${FOG_MODE.none}.5){over=linearFog(P,eye,withSky);}
- if(${AIR_SHOWN}){over=fogStack(over,aerialPerspective(P,eye));}
+ if(haze&&${AIR_SHOWN}){over=fogStack(over,aerialPerspective(P,eye));}
  if(mode>${FOG_MODE.exponential - 0.5}){over=fogStack(fogVolumeLookup(P-eye),over);}
  return over;
+}
+/** The fog \`over\` seen at the pixel \`pixel\` of the scene, its inscattering multiplied by the light
+ *  shafts' occlusion mask there (\`lightShaftMask\`, \`./fog/readWgsl.ts\`): the whole fog's — the
+ *  height fog, the volume and the haze laid with them —, its transmittance as it is; and
+ *  \`fogBeyondAt\`, the same over the sky's pixels. */
+fn fogShafted(over:vec4f,pixel:vec2f)->vec4f{return vec4f(over.rgb*lightShaftMask(pixel),over.a);}
+fn fogBeyondAt(dir:vec3f,eye:vec3f,pixel:vec2f)->vec4f{return fogShafted(fogBeyond(dir,eye),pixel);}
+/** \`fogged\` for an opaque surface at the pixel \`pixel\`: the haze is left out where it is marched for
+ *  each pixel instead. */
+fn foggedOpaque(rgb:vec3f,P:vec3f,eye:vec3f,pixel:vec2f)->vec3f{
+ if(${fog(FOG_SLOT.color)}.w==${FOG_MODE.none}.0&&!(${AIR_SHOWN})){return rgb;}
+ let over=fogShafted(fogLaid(P,eye,!opaqueHazeMarched()),pixel);
+ return rgb*over.a+over.rgb;
 }
 fn fogged(rgb:vec3f,P:vec3f,eye:vec3f)->vec3f{
  if(${fog(FOG_SLOT.color)}.w==${FOG_MODE.none}.0&&!(${AIR_SHOWN})){return rgb;}

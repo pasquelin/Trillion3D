@@ -28,7 +28,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   if (rt.views.active === rt.views.main) run.gpuSelection?.keepPoses()
   // Targets that no longer fit the view are asked; the frame is held until granted.
   void requestFrameTargets(rt, gpuDevice)
-  const pixelError = run.gate.pixelError,
+  // A view that asks more detail (`ViewOverrides.lodScale`) cuts at a finer tolerance, one of 1 as is.
+  const pixelError = run.gate.pixelError / rt.views.active.overrides.lodScale,
     cam = run.gate.cam
   followSceneInputs(rt, gpuDevice)
   // The session's images are shown from the first drawn once the main view has loaded.

@@ -21,7 +21,7 @@ export function createSceneLightContractBuffer(device: GPUDevice, store: SceneLi
   const buffer = device.createBuffer({
     label: 'Trillion3D direct lights v1',
     size: LIGHT_BUFFER_AT.items + bufferSlots(store) * SLOT_BYTES,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
   })
   device.queue.writeBuffer(buffer, LIGHT_BUFFER_AT.ltc, ltcTable())
   return buffer
@@ -52,7 +52,6 @@ export function uploadSceneLights(device: GPUDevice, lights: WebgpuLightState) {
     { packed } = store
   device.queue.writeBuffer(buffer, 0, packed, 0, SCENE_LIGHT_HEADER_FLOATS)
   device.queue.writeBuffer(buffer, HEAD_BYTES, store.environmentPacked)
-  device.queue.writeBuffer(buffer, LIGHT_BUFFER_AT.sky, store.skyPacked)
   device.queue.writeBuffer(buffer, LIGHT_BUFFER_AT.atmosphere, store.atmospherePacked)
   // Only the declared slots: those past the count are never read.
   device.queue.writeBuffer(

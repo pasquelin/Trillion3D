@@ -1,3 +1,4 @@
+use crate::volumetric_lightmap::bake::abi::{LIGHTMAP_BAKE_FIELD, LIGHTMAP_BAKE_OPTION};
 use crate::*;
 pub(crate) use serde_json::Map;
 use texture_formats::{
@@ -13,6 +14,7 @@ pub fn machine_threads() -> usize {
         .min(MAX_THREADS)
 }
 
+mod lightmap_bake;
 mod materials;
 pub(crate) mod mesh_build;
 pub(crate) mod name_match;
@@ -23,6 +25,7 @@ mod texture_formats;
 mod usage;
 mod voxelize;
 pub use crate::hlod::options::{marked, Hlod, HlodBuilder, HlodLayer, HlodLodSelection};
+pub use lightmap_bake::LightmapBakeOptions;
 pub use materials::MaterialOptions;
 pub use mesh_build::MeshBuildOptions;
 pub use objects::ObjectSettings;
@@ -66,9 +69,9 @@ pub const ID_FIELD: &str = "id";
 
 /// The fields a job names as JSON, beside `JOB_FIELDS`: the HLOD, the scene's temporal
 /// anti-aliasing, the responsive objects, the settings by material name, the voxelized objects,
-/// the partition's scheme and main grid or its several grids, the mesh build settings and each
-/// object's settings.
-const JSON_FIELDS: [&str; 10] = [
+/// the partition's scheme and main grid or its several grids, the mesh build settings, each
+/// object's settings and the volumetric lightmap's bake.
+const JSON_FIELDS: [&str; 11] = [
     HLOD_FIELD,
     TEMPORAL_AA_FIELD,
     RESPONSIVE_FIELD,
@@ -79,6 +82,7 @@ const JSON_FIELDS: [&str; 10] = [
     PARTITION_GRIDS_FIELD,
     MESH_BUILD_FIELD,
     OBJECT_SETTINGS_FIELD,
+    LIGHTMAP_BAKE_FIELD,
 ];
 
 /// The one reading of a compile job, whichever form named it: a batch file's job object, or the
@@ -138,6 +142,7 @@ pub fn job_options(
         partition_grid: PartitionGrid::read(job),
         mesh_build: MeshBuildOptions::read(job.get(MESH_BUILD_FIELD)),
         object_settings: ObjectSettings::read(job.get(OBJECT_SETTINGS_FIELD)),
+        lightmap_bake: LightmapBakeOptions::read(job.get(LIGHTMAP_BAKE_FIELD)),
         cancelled,
     })
 }
@@ -165,6 +170,7 @@ pub fn parse_compiler_args(
         (PARTITION_GRIDS_OPTION, PARTITION_GRIDS_FIELD),
         (MESH_BUILD_OPTION, MESH_BUILD_FIELD),
         (OBJECT_SETTINGS_OPTION, OBJECT_SETTINGS_FIELD),
+        (LIGHTMAP_BAKE_OPTION, LIGHTMAP_BAKE_FIELD),
     ];
     let is_json = |arg: &String| json_flags.iter().any(|(option, _)| arg.starts_with(option));
     let (flags, args): (Vec<String>, Vec<String>) = args
@@ -246,6 +252,10 @@ impl Options {
     /// This job's object settings, or their refusal (`INVALID_OPTIONS`) when they do not read.
     pub(crate) fn object_settings(&self) -> crate::Result<&ObjectSettings> {
         refused(&self.object_settings)
+    }
+    /// This job's lightmap bake, or its refusal (`INVALID_OPTIONS`) when it does not read.
+    pub(crate) fn lightmap_bake(&self) -> crate::Result<&LightmapBakeOptions> {
+        refused(&self.lightmap_bake)
     }
     /// This job's RAM budget in bytes, `ramBudgetMb`; past what a `usize` counts, no bound.
     pub fn ram_budget_bytes(&self) -> usize {

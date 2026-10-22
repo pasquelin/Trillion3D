@@ -3,7 +3,8 @@ import type { ScreenProbeResources } from './resources.ts'
 
 /** What the image gives the probes that is not theirs: its normals and flags, the lights (the sky they hold),
  *  the light grid's lists, the cascades' uniform and atlas — the world's probes, or the stand-ins where none are
- *  made —, the proxy their rays walk, the surfaces' vectors of the image (or the stand-in of none) and the engine's blue noise. */
+ *  made —, the proxy their rays walk, the light functions' atlas their lit hits wear (a stand-in where the
+ *  bounce's lights wear none), the surfaces' vectors of the image (or the stand-in of none) and the engine's blue noise. */
 export interface ScreenProbeInputs {
   normals: GPUTextureView
   flags: GPUTextureView
@@ -12,6 +13,7 @@ export interface ScreenProbeInputs {
   bounceGrid: GPUBuffer
   probes: GPUTextureView
   proxy: ProxyResources
+  lightFunction: GPUTextureView
   vectors: GPUTextureView
   /** The engine's blue noise, both masks (`gpu/noise/blueNoiseTextures.ts`). */
   blue: GPUTextureView

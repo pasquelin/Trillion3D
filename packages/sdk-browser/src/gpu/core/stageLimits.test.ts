@@ -147,12 +147,18 @@ test("the blends and the transmissive stages fit WebGPU's default limits", async
   // noise and the front's radiance, read by load alone, are storage textures, not sampled ones.
   // Before the fog's resources were bound there, and the volume with them: 16 of 16 sampled textures,
   // 8 of 8 storage buffers, 1 of 4 storage textures, 8 of 12 uniform buffers, 2 of 16 samplers.
+  // The light functions' atlas and its table, one texture of words read by load, is the fourth
+  // storage texture: the sampled textures and the storage buffers stay as they were.
+  // The sky light's cubes (the reflection group's, one cube array and its sampler) are the sixteenth sampled
+  // texture; its harmonics and the view's uniform are two uniform buffers. The clouds' shade is not bound here:
+  // the reference lights a translucent surface by it only where a project setting asks, per vertex
+  // (`r.SupportCloudShadowOnForwardLitTranslucent`, off), and two maps more would pass the sixteen.
   assert.deepEqual(fragmentCounts(layouts), {
-    maxSampledTexturesPerShaderStage: 15,
+    maxSampledTexturesPerShaderStage: 16,
     maxStorageBuffersPerShaderStage: 7,
-    maxStorageTexturesPerShaderStage: 3,
-    maxUniformBuffersPerShaderStage: 7,
-    maxSamplersPerShaderStage: 3,
+    maxStorageTexturesPerShaderStage: 4,
+    maxUniformBuffersPerShaderStage: 9,
+    maxSamplersPerShaderStage: 4,
   })
 })
 

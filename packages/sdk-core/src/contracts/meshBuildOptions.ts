@@ -152,6 +152,19 @@ export type MeshBuildSettings = {
    *  of the scene under every node that places the mesh, carrying its part's mesh; false draws the
    *  mesh's own triangles alone. @defaultValue false */
   allowAssemblies?: boolean
+  /** Whether the mesh's signed distance field is built, for the distance-field occlusion and the
+   *  software ray tracing. @defaultValue false */
+  distanceField?: boolean
+  /** The mesh's distance field resolution scale, at least 0 (0 builds none): the voxels a unit of
+   *  its size holds are the density times it. @defaultValue 1 */
+  distanceFieldScale?: number
+  /** Whether the field is built as if every triangle were two-sided. @defaultValue false */
+  distanceFieldTwoSided?: boolean
+  /** The voxels a centimetre of a mesh of scale 1 holds, from 0.05 to 0.4. @defaultValue 0.2 */
+  distanceFieldDensity?: number
+  /** The most voxels along one axis a field holds, at least 1; a mesh of scale 1 or less holds
+   *  half. @defaultValue 256 */
+  distanceFieldMaxResolution?: number
   /** The position grid of the pages, cells of `2^-n` centimetre, a whole number from
    *  `MIN_POSITION_PRECISION` to `MAX_POSITION_PRECISION`. @defaultValue the mesh's density */
   positionPrecision?: number

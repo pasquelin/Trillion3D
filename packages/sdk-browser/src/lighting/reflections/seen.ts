@@ -43,7 +43,7 @@ fn reflectionSeenAnswer(P:vec3f,lobe:ReflectionLobe,H:vec2f,cell:vec2f,plane:vec
 struct ReflectionSeen{answer:RadianceAnswer,left:f32,}
 fn reflectionSeen(P:vec3f,N:vec3f,lobe:ReflectionLobe,bias:f32)->ReflectionSeen{
  let ray=reflectionRaySpan(P,N,lobe,bias,0.0,reflectionView.march.w);
- let marched=screenMarchOver(ray.o,ray.d,ray.end,reflectionThickness(),reflectionView.slab,reflectionView.scene.x,true);
+ let marched=screenMarch(ray.o,ray.d,ray.end,reflectionThickness(),reflectionView.thickness,reflectionView.slab,reflectionView.scene.x,true);
  var out=ReflectionSeen(RadianceAnswer(vec3f(0.0),0.0,0.0),reflectionRayDistance(ray,marched.above));
  if(marched.t<0.0){return out;}
  let H=ray.o+ray.d*marched.t;
@@ -94,7 +94,7 @@ fn reflectionDistant(P:vec3f,N:vec3f,lobe:ReflectionLobe,coord:vec2u)->RadianceA
  * THE SCREEN'S ANSWER to a ray (`reflectionSeen`, the far trace's `reflectionDistant`), from the view's depth and its last
  * lit image.
  *
- * `reflectionSeen`: the strict march (`screenMarchOver`, `visibility/hiz/gpu/screenMarch.ts`) of the ray along the lobe's
+ * `reflectionSeen`: the march (`screenMarch`, `visibility/hiz/gpu/screenMarch.ts`: by default the reference's walk, which gives a ray up behind a surface) of the ray along the lobe's
  * centre from the surface to the longest ray, in `ReflectionView.scene.x` iterations, over surfaces as thick as
  * `ReflectionView.march.x` of their depth (`reflectionThickness`, in pixels of footprint: under a perspective the share of
  * the depth over the pixel's own, under an orthographic projection the constant `REFLECTION_THICKNESS`). It answers what the lit

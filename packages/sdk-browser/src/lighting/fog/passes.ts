@@ -1,12 +1,19 @@
-import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
+import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import { FOG_VOLUME_PASS } from '../../diagnostic/stage/passLabels.ts'
+import type { SkyLightReadSet } from '../../modules/sky/skyLight/read.ts'
+import type { CloudShadowSet } from '../atmosphere/cloudShadowRead.ts'
 import { hizDepthBindEntries } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import type { HizDepth } from '../../visibility/hiz/gpu/types.ts'
-import { FOG_BINDING } from './programs.ts'
+import type { GlobalFieldRead } from '../distanceField/view.ts'
+import type { VolumetricLightmapGpu } from '../volumetricLightmap/gpu.ts'
+import { FOG_BINDING } from './bindings.ts'
 import type { FogGrid } from './layout.ts'
 import type { FogVolumeResources, VolumeTextures } from './resources.ts'
+import { heldGroup, keptGroup, threads, type ProgramGroups } from './groupKeeping.ts'
+import type { VoxelBuffers } from './voxelGpu.ts'
+import { encodeStatic } from './staticPass.ts'
+import { encodeVoxels } from './voxelPasses.ts'
 
 /** What one image gives the volume's passes: the scene's depth and, where this image built the depth
  *  pyramid's farthest layer of the finished opaque depth before the volume (after the raster's rest
@@ -27,59 +34,54 @@ export interface FogPassInputs {
     view: GPUBuffer
   }
   cubemap?: GPUTextureView
-}
-
-/** One program's bind groups: what they name (`WebgpuBindIdentity`, two held, the images taking
- *  turns), and the group made for each identity held, by its slot. */
-interface ProgramGroups {
-  identity: WebgpuBindIdentity
-  groups: (GPUBindGroup | undefined)[]
+  /** The light functions' atlas and its table, or the stand-in that answers none. */
+  lightFunction: GPUTextureView
+  /** The shade the clouds cast on the sun, or the stand-in that casts none. */
+  cloudShadow: CloudShadowSet
+  /** The sky light's harmonics and uniform, or the stand-in that gives none. */
+  sky: SkyLightReadSet
+  /** The global distance field, where each sample of a cell finds the sky's visibility in it (`distanceFieldSkyOcclusion`
+   *  gives it under its gate); none, the sky is wholly visible. */
+  field?: GlobalFieldRead
+  /** The volumetric lightmap, where the image reads one (`volumetricLightmapOf`): the static term's pass
+   *  reads it. */
+  lightmap?: VolumetricLightmapGpu
 }
 
 /** The bind groups of the three programs, made again only where a resource they name was replaced:
  *  nothing is allocated in an image whose resources are those of two images before. */
 export function createFogGroups() {
   const program = (): ProgramGroups => ({ identity: createWebgpuBindIdentity(2), groups: [] })
-  return { furthest: program(), scatter: program(), integrate: program() }
+  return {
+    furthest: program(),
+    scatter: program(),
+    scatterSky: program(),
+    static: program(),
+    integrate: program(),
+    prepare: program(),
+    voxelize: program(),
+  }
 }
 
 /** The groups of the volume's programs (`createFogGroups`). */
 export type FogGroups = ReturnType<typeof createFogGroups>
 
 /** What the passes of an image are made over: the device, the resources, the groups, the stand-in
- *  cubemap, which of the two scatter volumes this image writes and the cells the view uses of the
- *  textures (the threads dispatched: the textures may hold more). */
+ *  cubemap and the stand-in volume, which of the two scatter volumes this image writes and the cells
+ *  the view uses of the textures (the threads dispatched: the textures may hold more); the
+ *  voxelisation's buffers and the objects it voxelises this image, none where it voxelises none. */
 export interface FogPassContext {
   device: GPUDevice
   resources: FogVolumeResources
   groups: FogGroups
   whiteCubemap: GPUTextureView
+  emptyVolume: GPUTextureView
   ping: number
   cells: FogGrid
-}
-
-/** Groups of `size` threads that cover `n` cells. */
-const threads = (n: number, size: number) => ceilDiv(n, size)
-
-/** The group held for the identity just named (`next`), none where it moved: the group then held at
- *  its slot was made for another. */
-function heldGroup({ identity, groups }: ProgramGroups) {
-  if (identity.moved()) groups[identity.slot] = undefined
-  return groups[identity.slot]
-}
-
-/** A group made for the identity just named, kept at its slot. */
-function keptGroup(
-  device: GPUDevice,
-  layout: GPUBindGroupLayout,
-  { identity, groups }: ProgramGroups,
-  entries: GPUBindGroupEntry[],
-) {
-  return (groups[identity.slot] = device.createBindGroup({
-    label: 'Trillion3D fog',
-    layout,
-    entries,
-  }))
+  voxel: VoxelBuffers
+  voxelObjects: number
+  /** Whether the static term's pass runs this image (`FogVolumeImage.staticBuilt`). */
+  staticBuilt: boolean
 }
 
 /** The entries of the furthest depth's group: the frame, the pyramid, the plane written. */
@@ -96,11 +98,8 @@ function furthestEntries(resources: FogVolumeResources, hiz: HizDepth, plane: GP
 /** The entries of the scatter's group: the light buffer and its lists, the depth, the furthest depth
  *  of this image and of the one before, the volume before and the one written, the cubemap and the
  *  shadow maps. */
-function scatterEntries(
-  { resources, ping, whiteCubemap }: FogPassContext,
-  input: FogPassInputs,
-  textures: VolumeTextures,
-) {
+function scatterEntries(context: FogPassContext, input: FogPassInputs, textures: VolumeTextures) {
+  const { resources, ping, whiteCubemap } = context
   const { vsm } = input
   const planes = textures.furthest
   return namedEntries(FOG_BINDING, {
@@ -114,13 +113,27 @@ function scatterEntries(
     sampler: resources.sampler,
     scattering: textures.scattering[ping].view,
     cubemap: input.cubemap ?? whiteCubemap,
+    voxelIn: voxelViews(context, textures)[0],
+    voxelEmitIn: voxelViews(context, textures)[1],
     pageTable: { buffer: vsm.pageTable },
     projectionData: { buffer: vsm.projectionData },
     shadowUniforms: { buffer: vsm.uniforms },
     shadowPool: { buffer: vsm.pool },
     shadowView: { buffer: vsm.view },
+    lightFunction: input.lightFunction,
+    cloudShadow: { buffer: input.cloudShadow.block },
+    cloudShadowMap0: input.cloudShadow.maps[0],
+    cloudShadowMap1: input.cloudShadow.maps[1],
+    skyHarmonics: { buffer: input.sky.harmonics },
+    skyParams: { buffer: input.sky.params },
+    staticIn: textures.baked?.view ?? resources.bakedStandIn,
   })
 }
+
+/** The two volumes the scatter reads the voxelised objects from: this image's, where it voxelised
+ *  any, else the stand-in volume (the frame's flag then says not to read it). */
+const voxelViews = ({ emptyVolume }: FogPassContext, textures?: VolumeTextures) =>
+  textures?.voxel ? [textures.voxel[0].view, textures.voxel[1].view] : [emptyVolume, emptyVolume]
 
 /** The entries of the integration's group: the frame, the scatter read, the volume written. */
 function integrateEntries(
@@ -163,6 +176,17 @@ function encodeFurthest(
   pass.dispatchWorkgroups(threads(context.cells.x, 8), threads(context.cells.y, 8))
 }
 
+/** The scatter this image runs and the groups it keeps: the one that finds the sky's visibility of each sample in the
+ *  global distance field, where the field is given and the program is compiled (its compile is asked now), else the
+ *  plain one. */
+function scatterOf(context: FogPassContext, input: FogPassInputs) {
+  const { resources, groups } = context
+  const sky = input.field && resources.skyScatter()
+  return sky?.pipeline.ready
+    ? { program: sky, groups: groups.scatterSky, field: input.field }
+    : { program: resources.programs.scatter, groups: groups.scatter, field: undefined }
+}
+
 /** The light each cell scatters, blended with the volume of the image before. */
 function encodeScatter(
   pass: GPUComputePassEncoder,
@@ -170,8 +194,9 @@ function encodeScatter(
   input: FogPassInputs,
   textures: VolumeTextures,
 ) {
-  const { device, resources, groups, ping, whiteCubemap } = context
-  const { next } = groups.scatter.identity
+  const { device, ping, whiteCubemap } = context
+  const { program, groups, field } = scatterOf(context, input)
+  const { next } = groups.identity
   const { vsm } = input
   next[0] = input.depth
   next[1] = input.lights
@@ -186,16 +211,24 @@ function encodeScatter(
   next[10] = vsm.uniforms
   next[11] = vsm.pool
   next[12] = vsm.view
-  pass.setPipeline(resources.programs.scatter.pipeline.get())
+  next[13] = textures.voxel?.[0] ?? null
+  next[14] = textures.voxel?.[1] ?? null
+  next[15] = input.lightFunction
+  next[16] = input.cloudShadow.block
+  next[17] = input.cloudShadow.maps[0]
+  next[18] = input.cloudShadow.maps[1]
+  next[19] = field?.readGeneration
+  next[20] = input.sky.harmonics
+  next[21] = input.sky.params
+  next[22] = textures.baked ?? null
+  pass.setPipeline(program.pipeline.get())
   pass.setBindGroup(
     0,
-    heldGroup(groups.scatter) ??
-      keptGroup(
-        device,
-        resources.programs.scatter.layout,
-        groups.scatter,
-        scatterEntries(context, input, textures),
-      ),
+    heldGroup(groups) ??
+      keptGroup(device, program.layout, groups, [
+        ...scatterEntries(context, input, textures),
+        ...(field?.readEntries(FOG_BINDING.field) ?? []),
+      ]),
   )
   const { cells } = context
   pass.dispatchWorkgroups(threads(cells.x, 4), threads(cells.y, 4), threads(cells.z, 4))
@@ -228,8 +261,10 @@ function encodeIntegrate(
 
 /**
  * The volume's passes over `textures`, in one compute pass: the furthest depth of the cells across
- * the image (where `skipHidden` holds cells hidden, from the pyramid `input.hiz` names), the light
- * each cell scatters blended with the volume of the image before, and the sum along each column.
+ * the image (where `skipHidden` holds cells hidden, from the pyramid `input.hiz` names), the objects
+ * of the volume material domain voxelised into the volume (where there are any), the light
+ * each cell scatters blended with the volume of the image before — each sample lit by the sky's visibility it sees in the
+ * global distance field, where that is given —, and the sum along each column.
  * This image's volume is the one `context.ping` names.
  */
 export function encodeFogPasses(
@@ -241,6 +276,9 @@ export function encodeFogPasses(
 ) {
   const pass = encoder.beginComputePass({ label: FOG_VOLUME_PASS })
   if (skipHidden && input.hiz) encodeFurthest(pass, context, input.hiz, textures)
+  if (context.voxelObjects && textures.voxel) encodeVoxels(pass, context, textures.voxel)
+  if (context.staticBuilt && input.lightmap && textures.baked)
+    encodeStatic(pass, context, input, input.lightmap, textures.baked, textures)
   encodeScatter(pass, context, input, textures)
   encodeIntegrate(pass, context, textures)
   pass.end()

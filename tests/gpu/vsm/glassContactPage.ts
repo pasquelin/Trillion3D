@@ -24,6 +24,7 @@ import { vsmLayout } from '../../../packages/sdk-browser/src/lighting/shadows/vs
 import { vsmProjectionWgsl } from '../../../packages/sdk-browser/src/lighting/shadows/vsm/projection/projectionWgsl.ts'
 import { functionsOf } from '../../../packages/sdk-browser/src/materials/texture/shaderRule.fixture.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { HIZ_RULES } from '../../../packages/sdk-core/src/contracts/hizOptions.ts'
 import { wgslF32 } from '../../../packages/math/src/wgsl/number.ts'
 import { clipToFramebuffer } from '../../../packages/math/src/wgsl/projection.ts'
 import { bufferHolding } from '../../kit/device/computeReadback.ts'
@@ -57,7 +58,7 @@ const castText = () => {
 }
 
 /** The geometry of a surface's thickness the reflection's march takes, in this view. */
-const SLAB = screenSlab([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], HEIGHT)
+const SLAB = screenSlab([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], HEIGHT, [0, 0, 0])
 
 const SHADER = (group: number) =>
   wgslProgram(
@@ -71,14 +72,15 @@ ${castText()}
  let origin=vec3f(-0.9,0.0,${FLOOR});
  let towardLight=vec3f(1.0,0.0,0.5);
  let rayLength=1.4;
- let thickness=6.0;
+ let pixels=6.0;
+ let relative=${wgslF32(HIZ_RULES.hizRelativeDepthThickness.default)};
  out[0]=vsmScreenRayCast(origin,towardLight,rayLength,0.5);
  let size=vsmView.viewPixels.xy;
  let start=clipToFramebuffer(vsmView.shiftedToClip*vec4f(origin,1.0),size);
  let stop=clipToFramebuffer(vsmView.shiftedToClip*vec4f(origin+towardLight*rayLength,1.0),size);
  let d=stop-start;
  let slab=vec4f(${[...SLAB].map(wgslF32).join(',')});
- let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),thickness,slab,0xffffffffu);
+ let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),pixels,relative,slab,0xffffffffu,true);
  out[1]=select(0.0,1.0,hit.t>=0.0);
  out[2]=select(0.0,1.0,hit.front);
 }`,
@@ -93,6 +95,8 @@ export async function testGlassContact(): Promise<GlassContact> {
   const { hiz } = await standaloneHiz(device, WIDTH, HEIGHT)
   // A scene with transparents asks the front layer (`GpuHiz.front`): an opaque one holds none.
   hiz.front(true)
+  // The pane's contact is the planes' march (`hizTrace` `'planes'`).
+  hiz.planes(true)
   const pyramid = hiz.swap(undefined) as Pyramid
   hiz.swap(pyramid)
   const depth = hiz.depth()

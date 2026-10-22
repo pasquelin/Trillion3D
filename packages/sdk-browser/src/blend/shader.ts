@@ -5,6 +5,7 @@ import { STANDARD_LIGHTING_WGSL } from '../lighting/standardLighting.ts'
 import {
   BLEND_BINDINGS,
   BLEND_FOG_BINDINGS,
+  BLEND_LIGHT_FUNCTION_BINDINGS,
   BLEND_TRACE_BINDINGS,
   BLEND_VSM_BINDINGS,
 } from '../gpu/bind/bindLayout.ts'
@@ -25,6 +26,7 @@ import { REFLECTION_GROUP, reflectionLightViewWgsl } from '../lighting/reflectio
 import { f0Of } from '../../../math/src/wgsl/lighting.ts'
 import { forwardIndirectWgsl } from '../lighting/reflections/forward.ts'
 import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
+import { BLEND_PRE_EXPOSED_WGSL } from './viewLayout.ts'
 import { clipDirective, type Clipping } from '../gpu/core/clipDistances.ts'
 
 /** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
@@ -40,6 +42,7 @@ const blendProgram = (key: Partial<ContractKey>, subgroups: boolean, clipping?: 
     vsm: BLEND_VSM_BINDINGS,
     trace: { ...BLEND_TRACE_BINDINGS, subgroups },
     fog: BLEND_FOG_BINDINGS,
+    lightFunction: BLEND_LIGHT_FUNCTION_BINDINGS,
   }
   return wgslBlock(
     `blendProgram(${variantLabel(key)}, ${subgroups}${clipping ? `, ${clipping}` : ''})`,
@@ -107,6 +110,7 @@ const blendFragmentWgsl = (lobes: boolean) =>
     `blendFragmentWgsl(${lobes})`,
     [
       blendRequestWgsl(lobes),
+      BLEND_PRE_EXPOSED_WGSL,
       DISPLAY_ROUTE_WGSL,
       displayMaskWgsl(DISPLAY_MASK_GROUP),
       ...(lobes ? [] : [BLEND_LOBELESS_WGSL]),
@@ -170,8 +174,10 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
   // Lit, the surface is seen through the fog; unlit, it keeps what it emits.
   if((flags&${surfaceModel.FOG_FREE_MODEL_BIT << surfaceModel.MODEL_SHIFT}u)==0u){rgb=fogged(rgb,in.view,uni.eye.xyz);}
  }else{rgb+=s.emissive;}
- let r=displayRoute(rgb,uni.exposure,uni.toneCurve,unlit,alpha,masked);
- return BlendOut(vec4f(rgb,alpha*r.keep),s.request,vec4f(0.0,1.0,0.0,alpha*r.keep),r.tint,r.add,blendGivenUp(in,alpha*r.keep));
+ // The light is written multiplied by the image's pre-exposure, as the opaque resolve writes it.
+ let hdr=preExposedClipped(rgb);
+ let r=displayRoute(hdr,uni.exposure,uni.toneCurve,unlit,alpha,masked);
+ return BlendOut(vec4f(hdr,alpha*r.keep),s.request,vec4f(0.0,1.0,0.0,alpha*r.keep),r.tint,r.add,blendGivenUp(in,alpha*r.keep));
 }
 // The reflection's resources are group 1 (\`REFLECTION_GROUP\`); a filtered image's pipelines read
 // the display mask (group 2), every other one reads none.

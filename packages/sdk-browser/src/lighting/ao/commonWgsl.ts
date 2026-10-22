@@ -58,7 +58,7 @@ fn aoPyramidDepth(ndc:vec2f,lod:f32)->f32{
   let last=vec2i(ceil(view.lens.zw*0.5))-vec2i(1);
   return textureLoad(halfDepth,clamp(vec2i(floor(pixel*0.5)),vec2i(0),last),0).a*AO_DEPTH_SCALE;
  }
- return aoDepthCm(hizCellFarthest(vec2i(floor(pixel/exp2(f32(level+1)))),level+1));
+ return aoDepthCm(hizCellCullFarthest(vec2i(floor(pixel/exp2(f32(level+1)))),level+1));
 }
 ${vec2Table('aoBasis', AO_RANDOM_BASIS)}
 fn aoNoise(pixel:vec2i)->vec2f{

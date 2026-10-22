@@ -27,7 +27,7 @@ test('a batch job names the fields of one compile job, as the single job names t
   // Type-checked: a batch field the compile job does not declare (the former `triangles`), or a
   // job field the batch misses, makes this assignment fail to compile. The compile configuration
   // a job carries beside its fields — HLOD layers, materials, temporal settings, voxelization, the
-  // partition's grid, the mesh build, the objects' settings — is no command-line field.
+  // partition's grid, the mesh build, the objects' settings, the lightmap's bake — is no command-line field.
   type ConfigField =
     | 'hlod'
     | 'materials'
@@ -37,6 +37,7 @@ test('a batch job names the fields of one compile job, as the single job names t
     | 'partitionGrids'
     | 'meshBuild'
     | 'objectSettings'
+    | 'lightmapBake'
     | (typeof MATERIAL_SETTINGS)[number]
   type SameKeys<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
   const same: SameKeys<Exclude<keyof BatchJob, 'id' | ConfigField>, JobField> = true

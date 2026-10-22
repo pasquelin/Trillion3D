@@ -10,6 +10,8 @@ import { validateSceneAtmosphere } from './atmosphere.ts'
 import { ATMOSPHERE_SLOT } from './atmospherePack.ts'
 import { ENVIRONMENT_COEFFICIENTS } from './environment.ts'
 import { FOG_SLOT } from './fog.ts'
+import { mergeModuleParts, resolveModuleOption } from '../../modules/descriptor.ts'
+import { checkSkyOption, resolveSky, SKY_MODULE } from '../../modules/sky/descriptor.ts'
 
 const GREY = [0.5, 0.5, 0.5] as const
 
@@ -140,4 +142,44 @@ test('a change of fog alone leaves light transport, and the bounce probes, as th
     castsShadow: false,
   })
   assert.equal(store.transportEpoch, transport + 2)
+})
+
+/** The merged parts of a sky option written by one source. */
+const skyParts = (option: boolean | Record<string, boolean | object>) =>
+  mergeModuleParts(SKY_MODULE, [resolveModuleOption(SKY_MODULE, option) as never])
+
+test('the sky module on holds its five parts at the level values; a part switched off is gone', () => {
+  const sky = resolveSky(skyParts(true))
+  const { light, shafts, cloudShadow, direction } = sky.sun!
+  assert.deepEqual(
+    [light.intensity, light.useTemperature, light.temperatureKelvin, light.angle],
+    [6, true, 6500, 0.7357],
+  )
+  assert.deepEqual(
+    [light.shadowDistance, light.shadowsAir, shafts.shaftOcclusion, cloudShadow.shadowsClouds],
+    [200, true, true, true],
+  )
+  assert.ok(Math.abs(Math.hypot(...direction) - 1) < 1e-12 && direction[1] < 0, 'it shines down')
+  const fog = sky.fog as { baseDensity: number; baseHeight: number }
+  assert.deepEqual([fog.baseDensity, fog.baseHeight], [0.00436, -68.5])
+  assert.deepEqual(
+    [sky.skyLight!.light.realTimeCapture, sky.skyLight!.light.mobility],
+    [true, 'movable'],
+  )
+  const { reflectionSamplesScale, reflectionShadowSamplesScale } = sky.clouds!.settings
+  assert.deepEqual([reflectionSamplesScale, reflectionShadowSamplesScale], [0.1041667, 0.3])
+  assert.equal(sky.atmosphere!.planetRadius, validateSceneAtmosphere(true).planetRadius)
+  const some = resolveSky(skyParts({ clouds: false, heightFog: false, sun: { intensity: 8 } }))
+  assert.deepEqual([some.clouds, some.fog, some.sun!.light.intensity], [undefined, undefined, 8])
+})
+
+test('a height fog naming another law takes none of the level numbers, and a refused word changes nothing', () => {
+  const sky = resolveSky(skyParts({ heightFog: { color: GREY, density: 0.02 } }))
+  assert.deepEqual(sky.fog, { color: GREY, density: 0.02, heightFalloff: 0, baseHeight: 0 })
+  assert.throws(() => checkSkyOption({ sun: { nope: 1 } }), /sun/)
+  assert.throws(() => checkSkyOption({ heightFog: { maxOpacity: 2 } }), {
+    code: 'INVALID_SCENE_ENVIRONMENT',
+  })
+  assert.throws(() => checkSkyOption({ unknownPart: true }), { code: 'INVALID_MODULE_OPTION' })
+  assert.doesNotThrow(() => checkSkyOption(undefined))
 })

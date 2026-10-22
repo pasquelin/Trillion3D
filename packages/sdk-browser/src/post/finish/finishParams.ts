@@ -1,26 +1,12 @@
 import { EXPOSURE_MIDDLE_GREY } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { putVec4 } from '../../gpu/core/fieldLayout.ts'
-import { luminanceReading, type ExposureSettings } from '../exposure/meterParams.ts'
+import { luminanceReading, reachOf, type ExposureSettings } from '../exposure/meterParams.ts'
 import { halfOf } from '../filters/levelSizes.ts'
 import { FINISH, GRID_EMPTY, GRID_TILE } from './finishLayout.ts'
 import { writeFilmParams, type FilmInput } from './filmParams.ts'
 
 const AT = FINISH.at
-/** How near to 1 a contrast or a strength is to leave the image as it is. */
-const NEARLY = 1e-8
-/** The distance past a threshold, in stops, of a strength of 1: the contrast scale takes over
- *  at once, as a distance no image reaches. */
-const SHARPEST = 1e30
-
-const moved = (value: number) => Math.abs(value - 1) > NEARLY
-
-/** Whether the settings ask the local exposure to run: a contrast, or the detail, not 1. At 1 for
- *  all three the layers put every pixel back where it was. */
-export const localExposureOn = (settings: ExposureSettings) =>
-  moved(settings.localExposureHighlightContrast) ||
-  moved(settings.localExposureShadowContrast) ||
-  moved(settings.localExposureDetailStrength)
 
 /** What the finishing's uniform is written from: the film's input (`FilmInput`: the film settings,
  *  the scene's vignette strength, the display image's size — the grid is built over its half-size
@@ -43,9 +29,6 @@ export type FinishInput = FilmInput & {
  *  grid holds a whole tile where the image fills part of one, so the image's unit coordinate lands
  *  at this share of the grid's. */
 const gridScale = (pixels: number) => pixels / GRID_TILE / ceilDiv(pixels, GRID_TILE)
-
-/** How far past a threshold the contrast takes over: `1 / (1 − strength)` stops. */
-const reachOf = (strength: number) => (strength >= 1 ? SHARPEST : 1 / (1 - strength))
 
 /**
  * Writes the finishing's uniform (`FINISH`) into `words`. The exposure, its second word, is the

@@ -45,12 +45,13 @@ export type RadianceStages = ReturnType<typeof radianceLayouts> & {
 }
 
 /** What a view's radiance pyramid holds: whether it holds an image of this view, and the
- *  view-projection and drawn size that image was drawn with — the next image reprojects its hits
- *  with them. */
+ *  view-projection, drawn size and pre-exposure that image was drawn with — the next image
+ *  reprojects its hits with the first two, and divides the light it reads by the last. */
 export type HeldImage = {
   valid: boolean
   viewProjection: Float64Array
   size: [number, number]
+  preExposure: number
 }
 
 /** Bytes of the pyramid of a view at `width × height`: the other HDR target whole, and the levels
@@ -90,6 +91,7 @@ export function createRadiancePyramid(device: GPUDevice, width: number, height: 
       valid: false,
       viewProjection: new Float64Array(16),
       size: [0, 0],
+      preExposure: 1,
     } as HeldImage,
     /** The build's groups (`buildGroups`) for each of the HDR targets it was made over, by the
      *  slot of their identity: the two take turns, each finds its groups held. */

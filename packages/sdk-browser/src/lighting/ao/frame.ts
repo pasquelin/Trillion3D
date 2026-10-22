@@ -252,5 +252,6 @@ export function encodeAmbientOcclusion(
   const groups = groupsOf(view, programs, plan.passes, needed)
   drawPasses(encoder, view, groups, plan, programs, settings, imageOf(rt, cam, extent))
   state.output = view.textures.ao
-  deferred.setAmbientOcclusion(...applyOf(rt, settings, mode))
+  const [code, amount] = applyOf(rt, settings, mode)
+  deferred.setAmbientOcclusion(code, amount)
 }

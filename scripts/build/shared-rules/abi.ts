@@ -256,16 +256,16 @@ pub const DEFAULT_HOLD_TEXTURE: bool = ${shape.holdTextureCoordinates.default};
 pub const HLOD_MESH_BUILD_SETTINGS: ${strings(compiler.HLOD_MESH_BUILD_SETTINGS)};
 pub const HLOD_SHAPE_PRESERVATIONS: ${strings(compiler.HLOD_SHAPE_PRESERVATIONS)};
 pub const DEFAULT_SHAPE_PRESERVATION: &str = ${JSON.stringify(shape.shapePreservation.default)};
-/// The job field setting each object's settings, the command line's flag holding it as JSON, the
-/// key of its rules by object, its settings — each also the key of a glTF node's \`extras\` naming
-/// it —, an instanced skinned object's settings, the mobilities it may name and the defaults, the
-/// reference's; the frames a second a bank samples and plays its clips at.
+/// The object settings' job field, flag, rules key, settings (each a glTF node's \`extras\` key),
+/// skinned-instance settings, mobilities, defaults (the reference's) and bank frame rate.
 pub const OBJECT_SETTINGS_FIELD: &str = ${JSON.stringify(compiler.OBJECT_SETTINGS_FIELD)};
 pub const OBJECT_SETTINGS_OPTION: &str = ${JSON.stringify(compiler.OBJECT_SETTINGS_OPTION)};
 pub const OBJECT_SETTINGS_OBJECTS: &str = ${JSON.stringify(compiler.OBJECT_SETTINGS_OBJECTS)};
 pub const SPATIALLY_LOADED_SETTING: &str = ${JSON.stringify(compiler.SPATIALLY_LOADED_SETTING)};
 pub const SKINNED_INSTANCE_SETTING: &str = ${JSON.stringify(compiler.SKINNED_INSTANCE_SETTING)};
 pub const RUNTIME_GRID_SETTING: &str = ${JSON.stringify(compiler.RUNTIME_GRID_SETTING)};
+pub const FAR_FIELD_SETTING: &str = ${JSON.stringify(compiler.FAR_FIELD_SETTING)};
+pub const DEFAULT_FAR_FIELD: bool = ${compiler.DEFAULT_FAR_FIELD};
 pub const DRAW_DISTANCE_SETTING: &str = ${JSON.stringify(compiler.DRAW_DISTANCE_SETTING)};
 pub const DRAW_DISTANCE_SETTINGS: ${strings(compiler.DRAW_DISTANCE_SETTINGS)};
 pub const DEFAULT_DRAW_DISTANCE_MIN: f64 = ${compiler.DEFAULT_DRAW_DISTANCE_MIN.toFixed(1)};

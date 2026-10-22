@@ -1,6 +1,6 @@
 import { jitterViewProjection, taaJitter, upscalePhases } from './jitter.ts'
 import { taaExposure, writeTaaView } from './view.ts'
-import { appliedExposureOf } from '../exposure/applied.ts'
+import { preExposureOf } from '../exposure/pre.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
@@ -163,7 +163,8 @@ export function encodeTaaPass(
     { moved, still } = velocity
   const { targetSize, displaySize } = gpu
   inputs.filter = writtenFilter(gpu.displayFilter) // `displayFilter.ts`
-  const exposure = taaExposure(appliedExposureOf(rt))
+  const pre = preExposureOf(rt)
+  const exposure = taaExposure(pre.shown)
   const knobs = taaKnobs(gpu.temporalLevel),
     viewCode = taaViewCode(run.diagnostic)
   const work = analysisFor(rt, state, knobs, viewCode)
@@ -184,6 +185,7 @@ export function encodeTaaPass(
     viewCode,
     knobs,
     work,
+    pre.now / state.previousPreExposure,
   )
   readSharedInputs(rt, inputs, current, asIs, share)
   const output = temporal.encode(encoder, inputs, targetSize, cam.perspective === 0, work)
@@ -193,6 +195,7 @@ export function encodeTaaPass(
   run.gpuDrawCalls += work.antiAlias ? 2 : 1
   keepImage(rt, state, cam, targetSize)
   state.previousExposure = exposure
+  state.previousPreExposure = pre.now
   state.accumulated = still ? state.accumulated + 1 : 1
   state.sample = (state.sample + 1) % state.phases
   state.stochasticSample++

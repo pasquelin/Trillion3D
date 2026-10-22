@@ -1,6 +1,8 @@
 import { Material } from './material.ts'
 import type { MaterialParameters } from './materialParameters.ts'
 import { DEFAULT_IOR, DEFAULT_SHININESS } from './defaults.ts'
+import { MaterialGraph } from './graph/api.ts'
+import type { MaterialDomain } from '../../contracts/volumeMaterial.ts'
 
 /** A member building one kind, with the values that kind starts from. */
 const kind =
@@ -43,6 +45,31 @@ export const material = {
    *  picture is, turned in the image by `rotation` and smaller with distance unless
    *  `sizeAttenuation` is false. */
   sprite: kind('sprite', { rotation: 0, sizeAttenuation: true, transparent: true }),
+  /**
+   * A material of the volume domain: its mesh is drawn as no surface; the box it fills (its
+   * geometry's bounds, placed by its pose) is voxelised into the fog's volume, where it adds
+   * `albedo` times `extinction` of scattering, `extinction`, and `emissive` times
+   * `emissiveIntensity` of light, per metre. It needs the scene's fog to have a volume
+   * (the sky module's `heightFog.volumetric`).
+   */
+  volume: kind('volume', { albedo: 0xffffff, extinction: 0, emissiveOnly: false }),
+  /**
+   * A material of the light function domain: what a light that wears it (`light.lightFunction`)
+   * multiplies its colour by, at each point its projection maps to a coordinate of the material.
+   * The colour it gives is its emission: `emissive` times `emissiveIntensity`, times `emissiveMap`
+   * read at that coordinate (the map's own wrap, filters, repeat, offset and rotation apply), white
+   * by default; a `graph` wired to its `emissive` output gives it instead. It has no world position
+   * and no depth, so it is drawn once into an atlas slot. A mesh refuses it (`INVALID_MATERIAL`).
+   */
+  lightFunction: kind('lightFunction', { emissive: 0xffffff }),
+  /**
+   * A new, empty material graph for `domain` — `'surface'`, `'lightFunction'` or `'volume'` —: nodes
+   * wired into the outputs the domain reads, compiled to the shader that computes them. A material
+   * of that domain wears it with `{ graph }` (`material.lightFunction({ graph })`); its outputs then
+   * replace the parameters they stand for. See `MaterialGraph`.
+   * @param domain - The domain whose outputs the graph is wired into.
+   */
+  graph: (domain: MaterialDomain) => new MaterialGraph(domain),
   /** Invisible, except where shadows fall on it. */
   shadow: kind('shadow', { color: 0x000000, transparent: true, opacity: 0.5 }),
   /**
@@ -58,4 +85,4 @@ export const material = {
   }) => new Material('shader', { ...p }),
 }
 
-export { Material, type MaterialParameters }
+export { Material, MaterialGraph, type MaterialParameters }

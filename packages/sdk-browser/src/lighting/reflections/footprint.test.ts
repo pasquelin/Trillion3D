@@ -171,14 +171,15 @@ test('the screen is marched over a span of the ray alone: past a hit or short of
   const bias = scene.reflectionRayBias(P, N)
   const whole = scene.reflectionSeen(P, N, lobe, bias)
   assert.ok(whole.answer.confidence > 0, 'the wall is seen')
-  // The distance the strict march finds along the span, none where it meets nothing.
+  // The distance the march finds along the span, none where it meets nothing.
   const span = (start: number, stop: number) => {
     const ray = scene.reflectionRaySpan(P, N, lobe, bias, start, stop)
-    const marched = scene.screenMarchOver(
+    const marched = scene.screenMarch(
       ray.o,
       ray.d,
       ray.end,
       scene.reflectionThickness(),
+      scene.relativeThickness,
       scene.slab,
       50,
       true,

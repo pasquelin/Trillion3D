@@ -12,6 +12,7 @@ import { ensureWebgpuShadeBindings } from '../../gpu/bind/shadeBindings.ts'
 import { visPostEntry, writeWebgpuVisibilityUniforms } from '../../visibility/passes/uniforms.ts'
 import { RASTER_PASS_MAIN, RASTER_PASS_POST } from '../../visibility/raster/contract.ts'
 import { uniformStride } from '../../session/memory/pools.ts'
+import { skyLightSubmitted } from './encodeSkyLight.ts'
 import { createRenderEncoder, submitColorCopy } from './encoder.ts'
 import { encodeSurfaceLighting } from './surfaceLighting.ts'
 import type { GpuRasterInput } from '../../visibility/raster/types.ts'
@@ -49,6 +50,8 @@ export function encodeEmptySurfaces(
   pass.end()
   const presented = encodeSurfaceLighting(rt, device, encoder, cam)
   submitColorCopy(rt, device, encoder, height, width, presented)
+  // A captured scene that is due is drawn between this image and the next.
+  skyLightSubmitted(rt)
   return run.blendSubmittedTriangles
 }
 
@@ -114,12 +117,14 @@ const MAIN_HALF = [false] as const,
  *   their depth, then level zero again from the whole depth;
  * - `ids(post)`: the identifiers of everything drawn — the post pass's too when `post` —, once
  *   every depth is down, then the resolve into the attachments.
- * None when a resource the raster reads is missing: the image is then not drawn.
+ * None when a resource the raster reads is missing: the image is then not drawn. `primed` is the
+ * primed depth's draw: no tessellation, and the displaced surfaces' rows left out.
  */
 export function visibilityRasterStages(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
+  primed = false,
 ) {
   const { vis, gpu, run } = rt
   const raster = vis.gpuRaster,
@@ -159,7 +164,8 @@ export function visibilityRasterStages(
   input.depthView = gpu.depthView
   input.hizView = gpuHiz.level0View
   input.selection = run.gpuSelection
-  input.tessellation = tessellationInput(rt, textures, gpu.targetSize)
+  input.tessellation = primed ? undefined : tessellationInput(rt, textures, gpu.targetSize)
+  input.leaveTessellated = primed && tessellationWanted(rt)
   run.gpuComputeDispatches += raster.encodeBinning(encoder, input, RASTER_PASS_MAIN)
   const size = gpu.targetSize
   // Full-screen resolve triangles are draw calls like the others: the pyramid's level zero after

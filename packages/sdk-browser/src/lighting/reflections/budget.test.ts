@@ -111,7 +111,16 @@ test('every ray of floors and waves stays within K(M) iterations and none runs o
         REFLECTION_CONSTANTS.REFLECTION_FAR,
       )
       run.counter.loads = 0
-      const hit = run.screenMarch(ray.o, ray.d, ray.end, run.thickness, run.slab, 2 ** 32 - 1)
+      const hit = run.screenMarch(
+        ray.o,
+        ray.d,
+        ray.end,
+        run.thickness,
+        run.relativeThickness,
+        run.slab,
+        2 ** 32 - 1,
+        true,
+      )
       const bound = run.screenMarchBudget(ray.d, ray.end, run.levels)
       const reads = run.counter.loads
       assert.ok(reads <= bound, `scene ${scene}, ray ${k}: ${reads} reads of ${bound}`)

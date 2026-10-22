@@ -66,14 +66,23 @@ export function fogReadLayoutEntries(
   if (b.cubemap !== undefined)
     entries.push(computeTextureEntry(b.cubemap, 'float', 'cube', visibility))
   if (b.volume !== undefined) entries.push(computeTextureEntry(b.volume, 'float', '3d', visibility))
+  if (b.lightShaft !== undefined)
+    entries.push(computeTextureEntry(b.lightShaft, 'float', '2d', visibility))
   return entries
 }
 
-/** The bind group entries of a program that binds `read` as `b` (`fogReadLayoutEntries`). */
-export function fogReadBindEntries(b: FogResourceBindings, read: FogRead): GPUBindGroupEntry[] {
+/** The bind group entries of a program that binds `read` as `b` (`fogReadLayoutEntries`), with the
+ *  light shafts' occlusion mask `lightShaft` where it binds one. */
+export function fogReadBindEntries(
+  b: FogResourceBindings,
+  read: FogRead,
+  lightShaft?: GPUTextureView,
+): GPUBindGroupEntry[] {
   const entries: GPUBindGroupEntry[] = []
   if (b.sampler !== undefined) entries.push({ binding: b.sampler, resource: read.sampler })
   if (b.cubemap !== undefined) entries.push({ binding: b.cubemap, resource: read.cubemap })
   if (b.volume !== undefined) entries.push({ binding: b.volume, resource: read.volume })
+  if (b.lightShaft !== undefined && lightShaft)
+    entries.push({ binding: b.lightShaft, resource: lightShaft })
   return entries
 }

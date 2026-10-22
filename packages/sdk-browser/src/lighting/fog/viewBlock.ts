@@ -96,6 +96,7 @@ export function writeFogViewBlock(
   copyWords(out, FOG_VIEW_SLOT.sliceMap, frame, at.sliceMap, 4)
   copyWords(out, FOG_VIEW_SLOT.uv, frame, at.uv, 4)
   copyWords(out, FOG_VIEW_SLOT.grid, frame, at.texture, 4)
+  copyWords(out, FOG_VIEW_SLOT.exposure, frame, at.exposure, 4)
   asFloat[0] = frame[at.frame]
   put(
     out,

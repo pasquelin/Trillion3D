@@ -3,7 +3,7 @@
  * each a plain object of the one key order the schema is published in (type, minimum, maximum,
  * description).
  */
-import type { SettingRule } from '../contracts/settingRules.ts'
+import { settingTakes, type SettingRule } from '../contracts/settingRules.ts'
 import type { JsonSchemaProperty } from './types.ts'
 
 /** A switch. */
@@ -52,6 +52,14 @@ export const choiceSchema = (
 export const ruleSchema = (rule: SettingRule, description: string): JsonSchemaProperty => {
   if (rule.kind === 'flag') return flag(description)
   if (rule.kind === 'choice') return choiceSchema(rule, description)
+  if (rule.kind === 'vector')
+    return {
+      type: 'array',
+      items: { type: 'number', description: 'One component.' },
+      minItems: rule.default.length,
+      maxItems: rule.default.length,
+      description: `${description} Takes ${settingTakes(rule)}.`,
+    }
   const [minimum, maximum] = rule.range
   return bounded(
     rule.kind === 'int' ? 'integer' : 'number',

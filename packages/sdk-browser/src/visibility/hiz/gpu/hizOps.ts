@@ -1,6 +1,6 @@
 import { allocPyramid, pyramidLayout, type Pyramid } from './pyramid.ts'
 import { HIZ_SLOT_WORDS, HIZ_UNI } from './uniforms.ts'
-import { HIZ_LEVELS_FRONT_WORD } from './levelsUniform.ts'
+import { HIZ_LEVELS_FRONT_WORD, HIZ_LEVELS_PLANES_WORD } from './levelsUniform.ts'
 import type { UniformSlots } from '../../../session/memory/pools.ts'
 import { writeChangedSlots } from '../../../gpu/core/writeChanged.ts'
 import type { createHizPipelines } from './pipelines.ts'
@@ -60,13 +60,17 @@ export function installHiz(h: HizState, gpu: GpuHiz, next: Pyramid | undefined) 
 
 /** The drawn pyramid's build words, from word zero: of each pass's slot, the words its struct
  *  holds that changed go up, as a whole compare at 256 bytes sends them; and its levels uniform.
- *  Both carry its front word (`Pyramid.frontWritten`): the first pass's, which reads level 0. */
-function sendHizBuild(h: HizState, { drawn, frontWritten }: Pyramid) {
-  const front = frontWritten ? 1 : 0
+ *  Both carry its front word (`Pyramid.frontWritten`): the first pass's, which reads level 0, and
+ *  its planes word (`Pyramid.planes`). */
+function sendHizBuild(h: HizState, { drawn, frontWritten, planes }: Pyramid) {
+  const front = frontWritten ? 1 : 0,
+    kept = planes ? 1 : 0
   h.image.set(drawn.words, 0)
   h.image[HIZ_UNI.at.front] = front
+  h.image[HIZ_UNI.at.planes] = kept
   writeChangedSlots(h.device, h.uniforms, h.image, h.slots, 0, drawn.passes.length)
   drawn.levelWords[HIZ_LEVELS_FRONT_WORD] = front
+  drawn.levelWords[HIZ_LEVELS_PLANES_WORD] = kept
   h.device.queue.writeBuffer(h.levelTable, 0, drawn.levelWords)
 }
 
@@ -112,4 +116,13 @@ export function hizFront(h: HizState, wanted: boolean) {
     sendHizBuild(h, at)
   }
   return wanted ? at.frontView : undefined
+}
+
+/** The drawn pyramid's nearest layer kept as the planes' corners while `wanted` (`GpuHiz.planes`),
+ *  its planes word sent when it moved: else it holds the closest depth of each texel's centre. */
+export function hizPlanes(h: HizState, wanted: boolean) {
+  const { at } = h
+  if (h.disposed || !at || at.planes === wanted) return
+  at.planes = wanted
+  sendHizBuild(h, at)
 }

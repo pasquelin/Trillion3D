@@ -22,6 +22,8 @@ test('the screen probes flags say what each image can read: the screen, the hist
     cache: true,
     velocity: true,
     previousInverse: identity,
+    relativeThickness: 0.02,
+    fullResDepth: true,
   }
   const ultra = screenProbeSettings()
   assert.equal(
@@ -36,7 +38,9 @@ test('the screen probes flags say what each image can read: the screen, the hist
       F.sceneTraces |
       F.velocity |
       F.disocclusion |
-      F.occlusionTemporal,
+      F.occlusionTemporal |
+      F.fullResDepth |
+      F.skipFoliageHits,
   )
   const high = screenProbeSettings({ screenProbes: 'high' })
   assert.equal(
@@ -65,6 +69,8 @@ test('the screen probes flags leave out what an image has not: no history, no ve
     cache: true,
     velocity: true,
     previousInverse: identity,
+    relativeThickness: 0.02,
+    fullResDepth: true,
   }
   const ultra = screenProbeSettings()
   const first = { ...all, frame: 0, history: false, screen: false, cache: false }
@@ -115,6 +121,8 @@ test('the screen probes parameters are the words of the settings and the image, 
     cache: true,
     velocity: true,
     previousInverse,
+    relativeThickness: 0.03,
+    fullResDepth: true,
   })
   write(geometry, settings, image(11))
   const at = SCREEN_PROBE_PARAMS.at
@@ -129,6 +137,12 @@ test('the screen probes parameters are the words of the settings and the image, 
   assert.deepEqual(floats(at.occlusion), [2, 3, 0.3, 1].map(Math.fround))
   assert.deepEqual(floats(at.scene), [1.8, 40, 0.05, 0.01].map(Math.fround))
   assert.deepEqual(floats(at.motion), [0.005, 10, 0.9, 0].map(Math.fround))
+  assert.deepEqual(floats(at.tuning), [4, 0.4, 0.005, 0.03].map(Math.fround))
+  assert.deepEqual(
+    floats(at.trace),
+    [2, 0, 0, 0].map(Math.fround),
+    'foliage hits skipped: no certainty steps',
+  )
   assert.deepEqual(floats(at.tuning), [4, 0.4, 0.005, 0.02].map(Math.fround))
   assert.deepEqual(floats(at.previous + 4), [0, 2, 0, 0], 'the second column of the last inverse')
   const first = sent

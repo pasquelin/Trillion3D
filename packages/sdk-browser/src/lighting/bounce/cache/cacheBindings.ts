@@ -1,11 +1,20 @@
 import {
+  COMPUTE,
   computeBufferEntry,
   computeStorageTextureEntry,
   computeTextureEntry,
   computeUniformEntry,
 } from '../../../gpu/core/computeBindings.ts'
 import { atlasEntry } from '../atlas.ts'
-import { PROBE_BINDINGS, PROBE_PROXY } from '../probes/probeBindings.ts'
+import {
+  PROBE_BINDINGS,
+  PROBE_CLOUD_SHADOW,
+  PROBE_PROXY,
+  PROBE_SKY_LIGHT,
+} from '../probes/probeBindings.ts'
+import { cloudShadowLayoutEntries } from '../../atmosphere/cloudShadowRead.ts'
+import { skyLightReadLayoutEntries } from '../../../modules/sky/skyLight/read.ts'
+import { lightFunctionLayoutEntry } from '../../lightFunction/bindings.ts'
 import { sceneLayoutEntries } from '../sceneBindings.ts'
 import { RADIANCE_CACHE_FORMATS as F } from './cacheLayout.ts'
 
@@ -37,8 +46,9 @@ export const cacheTilesEntries = () => {
 }
 
 /** The bindings of the kernel that traces the tiles (`cacheTraceWgsl.ts`): the probe pass's own — the levels' uniform, the proxy,
- *  the lights, the queue, the probes' atlas, the world grid's light lists, the culling's worlds and the placement tree — and the
- *  tile list, the raw atlas written and the cache's parameters. */
+ *  the lights, the queue, the probes' atlas, the world grid's light lists, the culling's worlds and the placement tree, the light
+ *  functions' atlas, the sky light and the clouds' shade, at the probe pass's own numbers (`PROBE_BINDINGS`) — and the
+ *  tile list, the raw atlas written and the cache's parameters, past them. */
 export const CACHE_TRACE_BINDINGS = {
   grid: PROBE_BINDINGS.grid,
   proxy: PROBE_BINDINGS.proxy,
@@ -48,9 +58,10 @@ export const CACHE_TRACE_BINDINGS = {
   lists: PROBE_BINDINGS.lists,
   worlds: PROBE_BINDINGS.worlds,
   tree: PROBE_BINDINGS.tree,
-  tiles: 10,
-  raw: 11,
-  params: 12,
+  lightFunction: PROBE_BINDINGS.lightFunction,
+  tiles: 19,
+  raw: 20,
+  params: 21,
 } as const
 
 /** The layout of the trace kernel. */
@@ -66,6 +77,9 @@ export const cacheTraceEntries = () => {
     computeStorageTextureEntry(B.raw, F.raw),
     computeUniformEntry(B.params),
     ...sceneLayoutEntries(PROBE_PROXY),
+    lightFunctionLayoutEntry(B.lightFunction),
+    ...skyLightReadLayoutEntries(PROBE_SKY_LIGHT, COMPUTE),
+    ...cloudShadowLayoutEntries(PROBE_CLOUD_SHADOW, COMPUTE),
   ]
 }
 

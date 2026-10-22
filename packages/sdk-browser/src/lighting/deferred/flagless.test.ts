@@ -77,7 +77,7 @@ test('the flagless composition gives the flag-reading one at every share of 0 (O
             background,
             // No sharpening (`view.viewport.w`): the display pixel composed once.
             viewport: { z, w: 0 },
-            lightParams: { w },
+            preExposure: { y: w },
             display: { x },
             source: { xy: 1 },
           }
@@ -101,7 +101,12 @@ test('a flagless frame composes with its own pipelines and binds no share, compi
   const flags = view(),
     views = [view(), view(), view(), flags]
   const lighting = await createDeferredLighting(device)
-  lighting.bind({ views: () => views } as unknown as SurfaceBuffer, view(), view(), false)
+  lighting.bind(
+    { views: () => views, stores: () => [views[0], flags] } as unknown as SurfaceBuffer,
+    view(),
+    view(),
+    false,
+  )
   const compiled = renderPipelines.length,
     image = { color: view(), share: view() }
   for (const asIs of [false, true]) {
@@ -135,7 +140,7 @@ test('a finishing composition reads the fringe’s taps, and adds the dither to 
   const view = {
     source: [1, 1, 7, 3],
     viewport: [8, 4, 0, 0],
-    lightParams: [0, 0, 0, 1],
+    preExposure: [1, 1, 0, 0],
     display: [0, 0, 0, 0],
     background: [0, 0, 0, 1],
   }

@@ -32,6 +32,8 @@ export interface WebgpuBounceState {
   lightEpoch: number
   /** Builds of the sky by direction already seen (`AtmosphereGpu.skyBuilds`): a new one restarts it too. */
   skyBuilds: number
+  /** The light functions' atlas as the bounce's lights read it (`lightFunctionRevision`) already seen: a change restarts it too. */
+  lightFunctions: number
   /** Scene revision the probes last followed the placements at, -1 before any
    *  (`../../prepare/bounce.ts`, `syncLightingProxies`). */
   sceneEpoch: number
@@ -119,6 +121,7 @@ export function createWebgpuBounceState(
     reason: null,
     lightEpoch: 0,
     skyBuilds: 0,
+    lightFunctions: -1,
     sceneEpoch: -1,
     probesUpdated: 0,
     raysLaunched: 0,

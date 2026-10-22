@@ -74,7 +74,12 @@ export const FLAG_LIT = 1,
   FLAG_DISPLACED = 0x80000000,
   /** Frame flag of the transparent draw: a diagnostic view is shown, the surface's own lighting is
    *  not (`../blend/uniforms.ts`, `diagnosticBits`). */
-  FLAG_DIAGNOSTIC_VIEW = 0x40000000
+  FLAG_DIAGNOSTIC_VIEW = 0x40000000,
+  /** A row's mesh has a distance field (`PageRec.distanceField`): the shade pass marks its pixels in the surface
+   *  buffer's flags (`DISTANCE_FIELD_REPRESENTATION_FLAG`), which the screen probes' trace reads. The bit of
+   *  `FLAG_DIAGNOSTIC_VIEW`, which is a frame flag of the blend pass: a blend item keeps only the low sixteen
+   *  bits of a row's (`ITEM_FLAG_BITS`), so the two never meet. */
+  FLAG_DISTANCE_FIELD = 0x40000000
 /** Beside it, which view: its code (`DIAGNOSTIC_VIEWS`, `shader/shadeMode.ts`) in the frame flags'
  *  four bits from here, which the transparent pass reads as the resolve reads `uni.mode`: above
  *  every flag a blend item carries (`ITEM_FLAG_BITS`), which the frame flags are OR'd with. */

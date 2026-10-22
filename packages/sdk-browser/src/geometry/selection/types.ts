@@ -75,6 +75,9 @@ export type PageRec = {
   /** The engine's own record of the surface this cluster wears (`../pages/surface.ts`). Every reader
    *  on the way to the image takes it from here and nothing else. */
   material: PageSurface
+  /** The cluster's mesh has a distance field the scene holds, casts a dynamic shadow and affects distance-field
+   *  lighting (`lighting/distanceField/representationWgsl.ts`): its row carries `FLAG_DISTANCE_FIELD`. */
+  distanceField?: boolean
   transparent?: boolean
   /** What the page is drawn from: its attributes, declaration and node (`./drawSource.ts`). */
   drawSource?: DrawSource

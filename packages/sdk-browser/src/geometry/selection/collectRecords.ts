@@ -17,6 +17,7 @@ export function createPageRecords(
   surface: PageSurface,
   transparent: boolean,
   order: number,
+  distanceField: boolean,
 ): PageRec[] {
   return primitive.pages.map((page, pageIndex) => {
     const entry = template.pages[pageIndex],
@@ -49,6 +50,7 @@ export function createPageRecords(
       depthLayer: page.depthLayer ?? 0,
       attributes: drawSource.attributes,
       material: surface,
+      distanceField,
       transparent,
       drawSource,
       // A flat cut has no tree: transparent pages recover their draw order from the source rank,

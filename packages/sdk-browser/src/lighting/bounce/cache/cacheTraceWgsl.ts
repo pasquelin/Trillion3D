@@ -4,8 +4,14 @@ import { packLight } from '../../../gpu/core/smallFloatWgsl.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
 import { BOUNCE_GRID_WGSL, bounceBindingsWgsl } from '../gridWgsl.ts'
 import { QUEUED_PROBE_WGSL } from '../probes/probeQueueWgsl.ts'
-import { PROBE_PROXY } from '../probes/probeBindings.ts'
-import { runtimeRadianceWgsl } from '../runtime/runtimeRadianceWgsl.ts'
+import {
+  PROBE_CLOUD_SHADOW,
+  PROBE_LIGHT_FUNCTION,
+  PROBE_PROXY,
+  PROBE_SKY_LIGHT,
+} from '../probes/probeBindings.ts'
+import { runtimeProbeRayWgsl } from '../runtime/runtimeRadianceWgsl.ts'
+import { skyLightReadWgsl } from '../../../modules/sky/skyLight/read.ts'
 import { CACHE_TRACE_BINDINGS as B } from './cacheBindings.ts'
 import { cacheTileList } from './cacheTilesWgsl.ts'
 import {
@@ -90,7 +96,8 @@ fn traceTiles(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) groups
  }
 }`,
   [
-    runtimeRadianceWgsl(PROBE_PROXY),
+    runtimeProbeRayWgsl(PROBE_PROXY, PROBE_LIGHT_FUNCTION, PROBE_CLOUD_SHADOW),
+    skyLightReadWgsl(PROBE_SKY_LIGHT),
     DIRECT_LIGHT_WGSL,
     bounceBindingsWgsl(0, B.grid, B.probes),
     BOUNCE_GRID_WGSL,

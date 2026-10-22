@@ -283,7 +283,6 @@ function offsetsOf(text: string, name: string) {
 test('the light buffer’s regions sit where the lighting, the air’s programs and the CPU read them', () => {
   const lights = offsetsOf(wgslModule(DIRECT_LIGHT_WGSL), 'DirectLights')
   const air = offsetsOf(AIR_BUFFER_STRUCT, 'AirBuffer')
-  assert.equal(lights.sky, LIGHT_BUFFER_AT.sky)
   assert.equal(lights.atmosphere, LIGHT_BUFFER_AT.atmosphere)
   assert.equal(lights.fogView, LIGHT_BUFFER_AT.fogView)
   assert.equal(lights.ltc, LIGHT_BUFFER_AT.ltc)
@@ -292,7 +291,6 @@ test('the light buffer’s regions sit where the lighting, the air’s programs 
   // block the sky's draw reads the fog through —, its block, the view's, the haze volume and the
   // sky by direction, which they write.
   assert.equal(air.fog, lights.fog)
-  assert.equal(air.sky, lights.sky)
   assert.equal(air.atmosphere, lights.atmosphere)
   assert.equal(air.atmosphereView, lights.atmosphereView)
   assert.equal(air.fogView, lights.fogView)

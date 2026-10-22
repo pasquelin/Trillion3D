@@ -539,6 +539,42 @@ frame's space. Every instance of one item is in one pose: one track.
 - Writes `rust/compiler/tables/motion/bank.rs:bake_banks`; reads
   `core/scene/core/animationBanks.ts:decodeAnimationBanks`.
 
+## `volumetric-lightmap.bin`
+
+The precomputed indirect light of a baked scene: a sparse grid of bricks of third-order spherical
+harmonics (`rust/volumetric_lightmap`, read by `sdk-core/src/lighting/volumetricLightmapFile.ts`).
+Words are little-endian `u32`. The head, 35 words: the magic `T3VL`, the version (1), the brick
+size (4), the world box the grid covers (lower then upper corner, `f32` × 3 each), the indirection
+volume's size in texels and the atlas's (`u32` × 3 each), then for each of the ten layers its texel
+format (1 `rgba8uint`, 2 `rg11b10ufloat`, 3 `rgba8unorm`, 4 `r8unorm`) and its byte length. The
+layers follow, each on a four-byte boundary, texels in x, then y, then z order:
+
+| Layer  | Format          | Volume      | Holds                                                                                                                                                                         |
+| ------ | --------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0      | `rgba8uint`     | indirection | per texel of the finest level: the brick's place in the atlas layout (three bytes) and how many finest bricks it spans                                                        |
+| 1      | `rg11b10ufloat` | atlas       | the ambient colour (the zeroth coefficient)                                                                                                                                   |
+| 2 to 7 | `rgba8unorm`    | atlas       | the other coefficients, red low and high, green low and high, blue low and high: each divided by the ambient and by its basis function's scale, mapped from [-1, 1] to [0, 1] |
+| 8      | `rgba8unorm`    | atlas       | the sky's bent normal mapped to [0, 1], its length the sky's visibility; empty (0 bytes) where the sky is not shadowed                                                        |
+| 9      | `r8unorm`       | atlas       | the stationary sun's unshadowed fraction                                                                                                                                      |
+
+The atlas is a layout of up to 256 bricks a side, each brick `brickSize + 1` texels wide: the
+`brickSize`³ unique samples and one row of padding on the three upper faces, so that a trilinear read
+never leaves its brick. The indirection volume names, for a position, the brick holding it; a brick of
+a coarser level spans several texels of it. A file of another version is refused whole.
+
+Written by the compiler when the job names `lightmapBake` ([COMPILER.md](COMPILER.md#volumetric-lightmap)):
+`rust/volumetric_lightmap/bake.rs` fills the layers, `writer.rs` lays them out. The manifest's
+`volumetricLightmap` section names it: `{ version, file, bytes, bounds, bricks, levels, indirection,
+passes, sky }` — the version of the file, its name, its size, the world box the volume covers (lower then
+upper corner, metres), the bricks it holds and the levels they come in, the indirection volume's size,
+the passes each probe took, and whether a sky light was baked (it never is: the bent normal layer is
+empty).
+
+- Versions: `VOLUMETRIC_LIGHTMAP_VERSION` (`rust/volumetric_lightmap/format.rs`); the head's
+  constants `VOLUMETRIC_LIGHTMAP_MAGIC`, `VOLUMETRIC_LIGHTMAP_LAYERS`,
+  `VOLUMETRIC_LIGHTMAP_FIXED_WORDS`, `VOLUMETRIC_LIGHTMAP_LAYER_WORDS`,
+  `VOLUMETRIC_LIGHTMAP_HEADER_WORDS`, `VOLUMETRIC_LIGHTMAP_MAX_LAYOUT`.
+
 ## `lights.json`
 
 The source's punctual lights in the engine's radiometric light contract, world space: the one

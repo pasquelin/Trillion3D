@@ -40,7 +40,7 @@ const SP_HORIZON = (shape: OcclusionShape) =>
     [],
     `const SP_FOREGROUND_POWER:f32=${shape.power};
 fn spOcclusionDepth(pix:vec2i)->f32{
- ${shape.pyramid ? 'return hizCellFarthest(pix/vec2i(2),1);' : 'return hizOpaqueDepth(pix);'}
+ ${shape.pyramid ? 'return hizCellCullFarthest(pix/vec2i(2),1);' : 'return hizOpaqueDepth(pix);'}
 }
 fn spHorizonCos(at:vec2f,P:vec3f,V:vec3f,depth:f32,invForeground:f32,low:f32,current:f32)->f32{
  if(any(at<=vec2f(0.0))||any(at>=vec2f(sp.size.xy))){return current;}

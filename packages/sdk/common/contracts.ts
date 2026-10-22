@@ -16,6 +16,7 @@ export type { AlphaMode, LinearRgb, Material, Side } from '../../sdk-core/src/co
 export { assertSceneProxy, decodeSceneProxy } from '../../sdk-core/src/scene/core/proxy.ts'
 export type {
   BounceFrameMetrics,
+  ScreenProbeFrameMetrics,
   ShadowFrameMetrics,
 } from '../../sdk-core/src/contracts/shadowMetrics.ts'
 export { createSafetyPolicy } from '../../sdk-core/src/runtime/safety/safety.ts'
@@ -33,6 +34,8 @@ export {
 export type { ColorSpace } from '../../sdk-core/src/world/constants/index.ts'
 export { createJob } from '../../sdk-core/src/runtime/jobs/jobs.ts'
 export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/runtime/jobs/jobs.ts'
+export { createModuleManager } from '../../sdk-core/src/modules/manager.ts'
+export type { ModuleHooks, ModuleManager } from '../../sdk-core/src/modules/manager.ts'
 export { createSceneRoot, SceneRoot } from '../../sdk-core/src/scene/core/root.ts'
 export {
   CUTOUT_SHEET_FILE,
@@ -61,11 +64,26 @@ export type {
 } from '../../sdk-core/src/contracts/dag.ts'
 export { dagWarningsDiagnostic } from '../../sdk-core/src/contracts/dagWarnings.ts'
 export {
+  defineModule,
+  mergeModuleParts,
+  resolveModuleOption,
+} from '../../sdk-core/src/modules/descriptor.ts'
+export type {
+  ModuleDecision,
+  ModuleDescriptor,
+  ModuleOption,
+  ModulePartFields,
+  ModuleParts,
+  ModuleReason,
+  ModuleState,
+} from '../../sdk-core/src/modules/descriptor.ts'
+export {
   DEPTH_LAYER_BIAS_UNITS,
   depthLayerUnits,
   MAX_DEPTH_LAYER,
   TRANSPARENT_DEPTH_LAYER,
 } from '../../sdk-core/src/lod/depthLayer.ts'
+export type { DrawDistanceSettings } from '../../sdk-core/src/contracts/objectOptions.ts'
 export { geometryPageAddress, streamBundleAddress } from '../../sdk-core/src/page/contracts.ts'
 export type {
   GeometryPageDescriptor,
@@ -78,6 +96,7 @@ export type {
   ReflectionFrameMetrics,
   ReflectionProxyEnded,
 } from '../../sdk-core/src/contracts/reflectionMetrics.ts'
+export type { RenderSettingSource } from '../../sdk-core/src/runtime/renderSettings.ts'
 export type {
   ResolvedAtmosphere,
   SceneAtmosphere,
@@ -96,7 +115,6 @@ export type {
   SceneHeightFog,
 } from '../../sdk-core/src/scene/core/fogHeight.ts'
 export { SceneNode } from '../../sdk-core/src/scene/core/node.ts'
-export type { SceneSky } from '../../sdk-core/src/scene/core/environmentSky.ts'
 export type { SoftBodyType } from '../../sdk-core/src/physics/soft/soft.ts'
 export {
   TABLE_FILTERS,
@@ -106,6 +124,7 @@ export {
   TABLE_TRIPLETS,
 } from '../../sdk-core/src/scene/core/tableSurfaces.ts'
 export type {
+  TableDisplacement,
   TableFilter,
   TableMaterial,
   TableTexture,

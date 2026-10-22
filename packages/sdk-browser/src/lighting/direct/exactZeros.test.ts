@@ -74,6 +74,8 @@ test('the skipped thin transmission and back-facing lobes keep every sum, bit fo
           vsmBiasNormal: (normal: number[]) => normal,
           shadowTransmission: [1, 1, 1],
           shadowFactor: () => 1,
+          airTintOf: () => [1, 1, 1],
+          cloudShadowOnSurface: () => 1,
         }
         const surface = [[u(0, 1), u(0, 1), u(0, 1)], u(0, 1), u(0.06, 1), N, [0.6, 0.8, 0], P, 1]
         const at = (source: string) =>

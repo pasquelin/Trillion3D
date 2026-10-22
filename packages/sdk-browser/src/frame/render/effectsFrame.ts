@@ -3,7 +3,7 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import type { ResolveFrame, ResolveTemporal } from '../../post/effects/webgpuKinds.ts'
 import type { PlanStage } from '../../post/effects/stagePlan.ts'
 import type { Velocity } from '../../post/taa/velocity.ts'
-import { appliedExposureOf } from '../../post/exposure/applied.ts'
+import { preExposureOf } from '../../post/exposure/pre.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { cpuNow } from '../../diagnostic/stopwatch.ts'
 
@@ -73,7 +73,7 @@ export function readResolveFrame(
   resolveCamera.projection = cam.projection
   resolveCamera.perspective = cam.perspective !== 0
   resolveCamera.near = cam.near
-  resolveCamera.exposure = appliedExposureOf(rt)
+  resolveCamera.exposure = preExposureOf(rt).shown
   frame.camera = resolveCamera
   readTemporal(rt, velocity, stage === 'before-resolve')
   frame.temporal = resolveTemporal

@@ -33,11 +33,23 @@ export type {
 } from '../../sdk-core/src/world/constants/index.ts'
 export { Bloom } from '../../sdk-core/src/world/effect/bloom.ts'
 export type {
+  BloomConvolutionOptions,
+  BloomKernelImage,
+  ResolvedBloomConvolution,
+} from '../../sdk-core/src/contracts/bloomConvolutionOptions.ts'
+export type {
+  BloomDirtImage,
+  BloomDirtMaskOptions,
+  ResolvedBloomDirtMask,
+} from '../../sdk-core/src/contracts/bloomDirtOptions.ts'
+export type {
   BloomLevelOptions,
+  BloomMethod,
   BloomOptions,
-  BloomTint,
+  ResolvedBloom,
   ResolvedBloomLevel,
 } from '../../sdk-core/src/contracts/bloomOptions.ts'
+export type { BloomTint } from '../../sdk-core/src/contracts/bloomFields.ts'
 export { Box3 } from '../../sdk-core/src/world/math/box3.ts'
 export type { BoundedNode } from '../../sdk-core/src/world/math/box3.ts'
 export { budget } from '../../sdk-browser/src/api/budgetFamily.ts'
@@ -97,6 +109,13 @@ export type {
   PhysicsShape,
   PhysicsType,
 } from '../../sdk-core/src/physics/options.ts'
+export { DepthOfField } from '../../sdk-core/src/world/effect/depthOfField.ts'
+export type {
+  DepthOfFieldOptions,
+  MatteBoxFlag,
+  ResolvedDepthOfField,
+  ResolvedMatteBoxFlag,
+} from '../../sdk-core/src/contracts/depthOfFieldOptions.ts'
 export { detectCapabilities } from '../../sdk-browser/src/api/capability/capabilities.ts'
 export type { GpuCapabilities } from '../../sdk-browser/src/api/capability/capabilities.ts'
 export { effect } from '../../sdk-core/src/world/effect/index.ts'
@@ -145,10 +164,11 @@ export type {
   SixDofAxis,
 } from '../../sdk-core/src/physics/joint/jointOptions.ts'
 export { light, Light } from '../../sdk-core/src/world/light/light.ts'
-export type { LightParameters } from '../../sdk-core/src/world/light/light.ts'
+export type { LightParameters } from '../../sdk-core/src/world/light/lightParameters.ts'
 export { loader } from '../../sdk-browser/src/api/loaderFamily.ts'
 export { material } from '../../sdk-core/src/world/material/index.ts'
 export { Material } from '../../sdk-core/src/world/material/material.ts'
+export { MaterialGraph } from '../../sdk-core/src/world/material/graph/api.ts'
 export type { MaterialParameters } from '../../sdk-core/src/world/material/materialParameters.ts'
 export { math } from '../../sdk-core/src/world/math/index.ts'
 export { Matrix3 } from '../../sdk-core/src/world/math/matrix3.ts'
@@ -156,6 +176,11 @@ export { Matrix4 } from '../../sdk-core/src/world/math/matrix4.ts'
 export { Mesh } from '../../sdk-core/src/world/object/mesh.ts'
 export type { Primitive } from '../../sdk-core/src/world/object/mesh.ts'
 export { metric } from '../../sdk-browser/src/api/metricFamily.ts'
+export { MotionBlur } from '../../sdk-core/src/world/effect/motionBlur.ts'
+export type {
+  MotionBlurOptions,
+  ResolvedMotionBlur,
+} from '../../sdk-core/src/contracts/motionBlurOptions.ts'
 export { object } from '../../sdk-core/src/world/object/index.ts'
 export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/orbitControls.ts'
 export { Outline } from '../../sdk-core/src/world/effect/outline.ts'
@@ -182,6 +207,14 @@ export type {
 } from '../../sdk-core/src/contracts/settingRules.ts'
 export type { SceneLink } from '../../sdk-core/src/world/object/sceneLink.ts'
 export type { SceneMaterial, SceneMaterialPatch } from '../../sdk-browser/src/api/materialValues.ts'
+export {
+  SHADOW_DISTANCE_DEFAULT,
+  SHADOW_RULES,
+} from '../../sdk-core/src/contracts/shadowOptions.ts'
+export type {
+  ShadowDistanceOption,
+  ShadowOptions,
+} from '../../sdk-core/src/contracts/shadowOptions.ts'
 export { Skeleton } from '../../sdk-core/src/world/animation/skeleton.ts'
 export {
   SOFT_AREAL_DENSITY,

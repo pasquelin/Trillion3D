@@ -80,7 +80,9 @@ export interface SceneAtmosphere {
   /** The lowest elevation, degrees, the sun's transmittance is read at: a sun below it is lit as
    *  if it stood there. */
   minSunElevation?: number
-  /** Scale of the samples the air is marched with, `(0, 1]`: below 1 is cheaper and coarser. */
+  /** Scale of the samples the air is marched with, from 0.25: below 1 is cheaper and coarser, above
+   *  1 finer, up to the caps the quality settings give the marches (`atmosphereSamplesMax`,
+   *  `skyTableSamplesMax`, `aerialSamplesPerSlice`); 1 by default. */
   sampleCountScale?: number
 }
 
@@ -111,6 +113,9 @@ const ATMOSPHERE_DEFAULTS: ResolvedAtmosphere = /* @__PURE__ */ (() =>
     minSunElevation: -90,
     sampleCountScale: 1,
   }))()
+
+/** The least scale of the march's samples. */
+export const LEAST_SAMPLE_SCALE = 0.25
 
 const refuse = refusal('atmosphere')
 
@@ -149,11 +154,9 @@ function colour(atmosphere: SceneAtmosphere, field: LinearField | 'groundAlbedo'
   return colourOf(atmosphere[field] ?? ATMOSPHERE_DEFAULTS[field], field, atmosphere, refuse)
 }
 
-/** The scale of the march's samples, in `(0, 1]`. */
+/** The scale of the march's samples, from `LEAST_SAMPLE_SCALE` with no upper bound. */
 function sampleScale(atmosphere: SceneAtmosphere) {
-  const scale = number(atmosphere, 'sampleCountScale', 0, 1)
-  if (!(scale > 0)) refuse('sampleCountScale must be in (0, 1]', atmosphere)
-  return scale
+  return number(atmosphere, 'sampleCountScale', LEAST_SAMPLE_SCALE)
 }
 
 /** The ozone layer, its fields set. */

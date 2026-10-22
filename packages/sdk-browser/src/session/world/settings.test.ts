@@ -25,6 +25,10 @@ import { ANIMATION_RULES } from '../../../../sdk-core/src/contracts/animationOpt
 import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
+import { VOLUMETRIC_LIGHTMAP_RULES } from '../../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
+import { SKY_QUALITY_RULES } from '../../../../sdk-core/src/modules/sky/quality.ts'
+import { TESSELLATION_RULES } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
 import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { MOTION_BLUR_RULES } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import { BLOOM_RULES } from '../../../../sdk-core/src/contracts/bloomRules.ts'
@@ -34,7 +38,9 @@ import { VOLUMETRIC_FOG_RULES } from '../../../../sdk-core/src/contracts/volumet
 import { SCREEN_PROBE_RULES } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
-import { TESSELLATION_RULES } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
+import { LIGHT_FUNCTION_RULES } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
+import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
+import { GLOBAL_DISTANCE_FIELD_RULES } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import {
   DEPTH_OF_FIELD_PRESET_LEVELS,
   DEPTH_OF_FIELD_RULES,
@@ -81,6 +87,14 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(EXPOSURE_RULES, {}),
   // The temporal pass's thin geometry detection: off, its contract's default.
   ...resolveSettings(TEMPORAL_RULES, {}),
+  // The tessellation of displaced materials: each its contract's default.
+  ...resolveSettings(TESSELLATION_RULES, {}),
+  // The depth pyramid's trace, transparent fold and transparent test: each its contract's default.
+  ...resolveSettings(HIZ_RULES, {}),
+  // The volumetric lightmap: read, its contract's default.
+  ...resolveSettings(VOLUMETRIC_LIGHTMAP_RULES, {}),
+  // The sky's quality settings: each its rule's default.
+  ...resolveSettings(SKY_QUALITY_RULES, {}),
   // The sun's shadows: the distance scale 1, the far-shadow culling on, its reach the merged shells.
   ...resolveSettings(SHADOW_RULES, {}),
   // The motion blur's drawing: the quality `veryHigh`, the half-resolution input on, the rest off.
@@ -100,12 +114,15 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(REFLECTION_RULES, {}),
   // The screen-space ambient occlusion: the reference's post-process defaults, in metres.
   ...resolveSettings(AMBIENT_OCCLUSION_RULES, {}),
+  // The light functions: the reference's atlas defaults, the translucent layers off.
+  ...resolveSettings(LIGHT_FUNCTION_RULES, {}),
+  // The global distance field: the reference's clipmaps, update rhythm and atlas budgets.
+  ...resolveSettings(GLOBAL_DISTANCE_FIELD_RULES, {}),
+  // The distance-field occlusion: the reference's defaults.
+  ...resolveSettings(DISTANCE_FIELD_OCCLUSION_RULES, {}),
   // The depth of field's drawing: on, the gather at half size, four rings, the median
   // post-filter, the background's scatter occluding, the recombine at its low quality.
   ...resolveSettings(DEPTH_OF_FIELD_RULES, {}),
-  // The displaced surfaces' tessellation: on, a micro-triangle two pixels across, five patches a
-  // group, two mebi-patches for the splitting queue and for the visible list.
-  ...resolveSettings(TESSELLATION_RULES, {}),
 }
 
 test('every default is the constant the engine reads today, and a fresh registry resolves it', () => {

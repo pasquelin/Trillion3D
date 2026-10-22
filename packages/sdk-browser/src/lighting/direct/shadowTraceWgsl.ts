@@ -15,15 +15,15 @@ import { vsmTransmissionReadWgsl } from '../shadows/vsm/transmission/transmissio
 import { REFLECTION_DEPTH_BINDING, REFLECTION_GROUP } from '../reflections/viewLayout.ts'
 import { forwardPool, vsmTraceBindingsLabel, type VsmTraceBindings } from './shadowBindings.ts'
 
-/** The shadow projection's view uniform (`VsmProjectionView`) at `binding`: what a fragment's trace
- *  reads. */
-const vsmTraceViewWgsl = (binding: number, kinds: number) =>
+/** The shadow projection's view uniform (`VsmProjectionView`) at `binding` of group `group`: what a
+ *  fragment's trace reads. */
+const vsmTraceViewWgsl = (binding: number, kinds: number, group = 0) =>
   wgslBlock(
-    `vsmTraceViewWgsl(${binding}, ${kinds})`,
+    `vsmTraceViewWgsl(${binding}, ${kinds}, ${group})`,
     [vsmTraceLightWgsl(kinds)],
     `
 ${VSM_PROJECTION_VIEW_STRUCT}
-@group(0) @binding(${binding}) var<uniform> vsmView:VsmProjectionView;`,
+@group(${group}) @binding(${binding}) var<uniform> vsmView:VsmProjectionView;`,
   )
 
 /**
@@ -90,12 +90,12 @@ export const VSM_NO_PIXEL_WGSL = wgslFn('vsmTraceAt', [], 'fn vsmTraceAt(pixel:v
  * no screen segment, nothing of the translucent casters. Its fragment needs no pixel
  * (`vsmTraceAt` keeps none).
  */
-export const vsmFragmentSampleWgsl = (pool: number, view: number, kinds: number) =>
+export const vsmFragmentSampleWgsl = (pool: number, view: number, kinds: number, group = 0) =>
   wgslBlock(
-    `vsmFragmentSampleWgsl(${pool}, ${view}, ${kinds})`,
+    `vsmFragmentSampleWgsl(${pool}, ${view}, ${kinds}, ${group})`,
     [
-      vsmTraceViewWgsl(view, kinds),
-      vsmSampleLightWgsl(forwardPool(pool), kinds),
+      vsmTraceViewWgsl(view, kinds, group),
+      vsmSampleLightWgsl(forwardPool(pool, group), kinds),
       VSM_NO_PIXEL_WGSL,
     ],
     `

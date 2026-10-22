@@ -12,7 +12,7 @@ import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER, snapshotGroups } from './p
 import { PROBE_TEXELS } from './atlas.ts'
 import { ATLAS_CALLS, simulatedAtlas } from './atlas.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
-import { FLOOR_EYE, floorProbes } from './floorProbes.fixture.ts'
+import { FLOOR_ATLAS, FLOOR_EYE, FLOOR_SHADE, floorProbes } from './floorProbes.fixture.ts'
 import { BOUNCE_LIGHT_LISTS_PASS, BOUNCE_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
@@ -116,7 +116,7 @@ test('a working image copies no atlas: one bounce pass updates, then the snapsho
     }
     return log
   }
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE), true)
+  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE), true)
   const groups = probes.lastProbes,
     work = workOf()
   assert.ok(groups > 0)
@@ -142,7 +142,7 @@ test('a working image copies no atlas: one bounce pass updates, then the snapsho
       work.includes(`pass ${BOUNCE_LIGHT_LISTS_PASS}`),
   )
   const before = work.length
-  assert.equal(probes.encode(encoder, 1, FLOOR_EYE), true)
+  assert.equal(probes.encode(encoder, 1, FLOOR_EYE, FLOOR_ATLAS, FLOOR_SHADE), true)
   assert.equal(workOf().slice(before).includes(`pass ${BOUNCE_LIGHT_LISTS_PASS}`), false)
   probes.dispose()
   tiles!.dispose()

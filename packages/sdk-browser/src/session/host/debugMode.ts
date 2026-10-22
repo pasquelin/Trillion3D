@@ -3,15 +3,15 @@ import { families } from './families.ts'
 
 /** Whether a world or the page turned the debug mode on (`setDebugMode`). */
 let asked = false
-/** Whether the page's address carries `?profile`. */
-const profileAsked = addressFlag((params) => params.has('profile'))
+/** Whether the page's address carries `?profile`; the stats module's profile reads it too. */
+export const profileAsked = addressFlag((params) => params.has('profile'))
 
 /**
  * The engine's debug mode, a development build's tools against a shipping build: the frames are
  * filed into the CPU step profile and the engine profiler's report only in it, and the
  * measurement's code (`families.measurement`) is fetched only once it turns on, or by what reads it
  * — a listened diagnostic channel, an A/B layout. A page that never asks for it — a world's `debug`
- * option or setter, a stats overlay, `?profile` in its address — files no frame into a profile. It
+ * option or setter, `?profile` in its address — files no frame into a profile. It
  * is the page's: every world reads it.
  */
 export function debugMode() {

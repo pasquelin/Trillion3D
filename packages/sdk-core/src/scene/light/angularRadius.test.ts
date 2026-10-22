@@ -6,6 +6,13 @@ import { sameSceneLight } from './equal.ts'
 import { cloneSceneLight } from './clone.ts'
 import type { SceneLight } from './contracts.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
+import { temperatureFactor } from '../../modules/sky/sunColour.ts'
+import { validateSceneAtmosphere } from '../core/atmosphere.ts'
+import { ATMOSPHERE_SLOT } from '../core/atmospherePack.ts'
+import { diskSolidAngle } from '../core/atmosphereOptics.ts'
+import { createSceneLightStore } from './store.ts'
+import { baseOf } from './fields.ts'
 
 const source: SceneLight = {
   id: 'disk',
@@ -36,5 +43,74 @@ test('directional source angle is validated, copied and packed in radians', () =
         range: 10,
       }),
     /angularRadius/,
+  )
+})
+
+test('the sun’s colour follows its temperature, its disk its tint, and the air reads both and the switches', () => {
+  const store = createSceneLightStore()
+  store.setEnvironment({ exposure: 1, atmosphere: validateSceneAtmosphere(true) })
+  const slot = store.add({
+    ...source,
+    id: 'sun',
+    intensity: 2,
+    castsShadow: true,
+    useTemperature: true,
+    temperatureKelvin: 3000,
+    sunDiskTint: [1, 0.5, 0.25],
+    shadowsAir: true,
+    transmittancePerPixel: true,
+  })
+  const block = (at: number) => Array.from(store.atmospherePacked.subarray(at * 4, at * 4 + 4))
+  const colour = () => Array.from(store.packed.subarray(baseOf(slot) + 4, baseOf(slot) + 7))
+  const factor = temperatureFactor(3000)
+  const lit = factor.map((c) => 2 * c)
+  near(
+    block(ATMOSPHERE_SLOT.sunIlluminance).slice(0, 3),
+    lit,
+    'the illuminance: colour, temperature, intensity',
+    1e-5,
+  )
+  const solid = diskSolidAngle(0.5357 * (Math.PI / 180) * 0.5)
+  const disk = block(ATMOSPHERE_SLOT.sunDisk)
+  near(
+    [0, 1, 2].map((c) => (disk[c] * solid) / lit[c]),
+    [1, 0.5, 0.25],
+    'the disk: the illuminance tinted, over its solid angle, held by nothing',
+    1e-5,
+  )
+  near(
+    block(ATMOSPHERE_SLOT.lightFlags),
+    [1, 0, 1, 0],
+    'it shades the air, its transmittance per point',
+  )
+  assert.equal(block(ATMOSPHERE_SLOT.lightSlots)[0], slot, 'its slot in the light buffer')
+  near(
+    colour(),
+    factor,
+    'untinted by the air: the surfaces read the transmittance themselves',
+    1e-6,
+  )
+  store.set('sun', { transmittancePerPixel: false })
+  assert.ok(colour()[2] < factor[2], 'read once at the ground: the air reddens it')
+  store.setAirOn(false)
+  near(colour(), factor, 'the atmosphere off: as declared', 1e-6)
+  assert.equal(block(ATMOSPHERE_SLOT.planet)[0], 0, 'and no air in the block')
+  store.setAirOn(true)
+  assert.equal(block(ATMOSPHERE_SLOT.planet)[0], 1)
+  for (const bad of [{ sunDiskTint: [1, -1, 1] }, { temperatureKelvin: NaN }, { shadowsAir: 1 }])
+    assert.throws(
+      () => validateSceneLight({ ...source, ...bad } as never),
+      /sunDiskTint|temperatureKelvin|shadowsAir/,
+    )
+  assert.throws(
+    () =>
+      validateSceneLight({
+        ...source,
+        kind: 'point',
+        position: [0, 0, 0],
+        range: 10,
+        shadowsAir: true,
+      }),
+    /shadowsAir/,
   )
 })

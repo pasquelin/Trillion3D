@@ -1,8 +1,12 @@
+import { skyLightReadOf } from '../../../frame/render/encodeSkyLight.ts'
 import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
 import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { ScreenProbeFrameMetrics } from '../../../../../sdk-core/src/contracts/shadowMetrics.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
+import { hizSetting } from '../../../visibility/hiz/setting.ts'
+import { screenRelativeThickness } from '../../../visibility/hiz/gpu/screenSlab.ts'
+import { lightFunctionResources } from '../../lightFunction/frame.ts'
 import { blueNoiseNow, blueNoiseRefused } from '../../../gpu/noise/blueNoiseTextures.ts'
 import { reflectionGroup, reflectionLightView, reflectionProxy } from '../../reflections/group.ts'
 import { screenProbesCast } from './cast.ts'
@@ -96,8 +100,8 @@ const noiseWhy = (device: GPUDevice | undefined) =>
 type Needed = NonNullable<ReturnType<typeof neededOf>>
 
 /** What the groups name of the frame: its normals and flags, the lights and their lists, the cascades (or the
- *  lighting's stand-ins), the proxy the rays walk, the vectors of the image (or the stand-in of none) and the blue noise (made:
- *  the image asked for it before it cast). */
+ *  lighting's stand-ins), the proxy the rays walk, the light functions' atlas, the vectors of the image (or the stand-in of
+ *  none) and the blue noise (made: the image asked for it before it cast). */
 function inputsOf(
   rt: WebgpuPagesRuntime,
   { device, surfaces, deferred, lights, noise }: Needed,
@@ -115,6 +119,8 @@ function inputsOf(
     bounceGrid: probes?.uniform ?? deferred.placeholders.bounceGrid,
     probes: probes?.probes ?? deferred.placeholders.probes,
     proxy: reflectionProxy(rt)!,
+    lightFunction:
+      lightFunctionResources(rt, 'lightFunctionBounce') ?? deferred.placeholders.lightFunction,
     vectors: vectors ?? store.noVectors(device),
     blue: noise.view,
     cacheFinal: cache.final,
@@ -185,12 +191,17 @@ function castProbes(
     cache: !!cacheViews && settings.radianceCache,
     velocity,
     previousInverse: state.previousInverse,
+    relativeThickness: screenRelativeThickness(
+      reflection.frame.viewProjection,
+      settings.values.screenProbeRelativeDepthThickness,
+    ),
+    fullResDepth: hizSetting(rt, 'hizFullResDepth'),
   })
   encodePass(encoder, {
     kernels,
     resources: state.resources,
     groups: groups(state.turn, inputsOf(rt, needed, store, vectors)),
-    reflection: reflectionGroup(reflection, depth, lightView),
+    reflection: reflectionGroup(reflection, depth, lightView, skyLightReadOf(rt)),
     settings,
     cache: rt.bounce.probes?.cache,
   })

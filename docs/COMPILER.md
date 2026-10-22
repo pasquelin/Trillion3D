@@ -38,7 +38,7 @@ trillion3d-compiler --build-inputs
 
 Exactly 5, 7 or 8 positional arguments, plus `--textures-format=`, `--hlod=`,
 `--temporal-antialiasing=`, `--responsive=`, `--materials=`, `--voxelize=`, `--partition-scheme=`,
-`--partition-grid=`, `--partition-grids=`, `--mesh-build=` and `--object-settings=` anywhere, the last of each kept
+`--partition-grid=`, `--partition-grids=`, `--mesh-build=`, `--object-settings=` and `--lightmap-bake=` anywhere, the last of each kept
 (`compiler/args.rs`); a JSON flag that is not JSON is refused (`INVALID_OPTIONS`):
 the fields of one job, named as a batch job names them and in the order `JOB_FIELDS` declares
 (`packages/sdk-core/src/contracts/compilerAbi.ts`, printed into the compiler's `shared_math/abi.rs`).
@@ -50,7 +50,7 @@ sources of the compiler and of the crates it links, their manifests, the lock fi
 scripts and the cargo configuration.
 
 | Argument             | Meaning                                                                                                                                                                 | Default                                       |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `source`             | A folder with `manifest.json`, a `.gltf`/`.glb`, a scene or container of [Input formats](#input-formats), or a folder of such files merged into one scene               | required                                      |
 | `cache`              | Output folder, created if missing; one pointer per scope, pruned after each compile, so one source per cache                                                            | required                                      |
 | `scope`              | `slice` keeps whole mesh instances up to the triangle budget; `full` keeps everything                                                                                   | required                                      |
@@ -68,8 +68,9 @@ scripts and the cargo configuration.
 | `--partition-scheme=` | How the objects are cut into cells and streamed, `hashSet` or `spatialHash`, or `true` the default ([The partition's grids](#the-partitions-grids)) | none: `hashSet` |
 | `--partition-grid=`  | The partition's main grid, as JSON: `{ "cellSize", "loadingRange", "priority", "origin" }` and its scheme's own settings, `true` every default, `false` the streaming off ([The partition's grids](#the-partitions-grids)) | none: 128 m cells loaded within 256 m, priority 0, centred on the origin |
 | `--partition-grids=` | Several main grids instead, as a JSON list of `partitionGrid`'s settings each under a `name`, the first the default grid, never beside `--partition-grid=` ([Several streaming grids](#several-streaming-grids-partitiongrids)) | none: one grid |
-| `--mesh-build=`      | How each mesh is built, as JSON: `{ "storedTangents", "keptTriangles", "trimmedError", "dropNearCollapsed", "alwaysResidentKib", "recomputeNormals", "recomputeTangents", "useMikkTSpace", "computeWeightedNormals", "skinnedWeldPosition", "skinnedWeldNormal", "skinnedWeldTexture", "positionPrecision", "normalPrecision", "tangentPrecision", "voxelRays", "voxelLevel", "voxelBackUp", "voxelSeparable", "voxelNdf", "voxelOpacity", "objects" }` ([Mesh build settings](#mesh-build-settings))         | none: no stored tangent, every triangle kept, no near-collapsed triangle dropped, one root page resident, every normal rebuilt, tangents by MikkTSpace, a skinned weld within 200 nm, 2·10⁻⁵ and 1/1024, positions on a grid following the mesh's density, normals of 8 bits an axis, tangents of 7 bits, voxels of 64 rays |
-| `--object-settings=` | Each object's settings, as JSON: `{ "spatiallyLoaded", "skinnedInstance", "drawDistance", "runtimeGrid", "objects" }` ([Object settings](#object-settings))                                                                       | none: every object streams, no skinned instance |
+| `--mesh-build=`            | How each mesh is built, as JSON: `{ "storedTangents", "keptTriangles", "trimmedError", "dropNearCollapsed", "alwaysResidentKib", "recomputeNormals", "recomputeTangents", "useMikkTSpace", "computeWeightedNormals", "skinnedWeldPosition", "skinnedWeldNormal", "skinnedWeldTexture", "positionPrecision", "normalPrecision", "tangentPrecision", "voxelRays", "voxelLevel", "voxelBackUp", "voxelSeparable", "voxelNdf", "voxelOpacity", "distanceField", "distanceFieldScale", "distanceFieldTwoSided", "distanceFieldDensity", "distanceFieldMaxResolution", "objects" }` ([Mesh build settings](#mesh-build-settings)) | none: no stored tangent, every triangle kept, no near-collapsed triangle dropped, one root page resident, every normal rebuilt, tangents by MikkTSpace, a skinned weld within 200 nm, 2·10⁻⁵ and 1/1024, positions on a grid following the mesh's density, normals of 8 bits an axis, tangents of 7 bits, voxels of 64 rays |
+| `--lightmap-bake=`         | Whether the scene gets a volumetric lightmap, and how it is baked, as JSON: `true` every default, `false` none, or `{ "detailCellSize", "qualityMultiplier", "giSamples", "maxRefinementLevels", "irradianceCaching", "irradianceCacheQuality", "irradianceCacheSpacing", "irradianceCacheCornerRejection", "automaticVolumeExpand", "automaticVolumeLimit", "volumes" }` ([Volumetric lightmap](#volumetric-lightmap))                                                                                                                                                                                                     | none: no bake                                                                                                                                                                                                                                                                                                               |
+| `--object-settings=` | Each object's settings, as JSON: `{ "spatiallyLoaded", "skinnedInstance", "drawDistance", "runtimeGrid", "farField", "objects" }` ([Object settings](#object-settings))                                                                       | none: every object streams, no skinned instance |
 
 ```sh
 trillion3d-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
@@ -125,6 +126,7 @@ process, each with its own cache:
 | `jobs[].partitionGrids`                                                      | As `--partition-grids=`, a JSON list                                       | none                                                          |
 | `jobs[].meshBuild`                                                           | As `--mesh-build=`, a JSON object                                          | none                                                          |
 | `jobs[].objectSettings`                                                      | As `--object-settings=`, a JSON object                                     | none                                                          |
+| `jobs[].lightmapBake`                                                        | As `--lightmap-bake=`, `true`, `false` or a JSON object                    | none                                                          |
 
 Jobs go in file order to the first free worker. Two jobs writing one cache, under any spelling, or
 a job asking for more than the whole budget, refuse the batch before it starts (`INVALID_BATCH`).
@@ -208,7 +210,7 @@ await prepare(source, cache, 'full', 150000, {
 or `'--partition-grid=false'` for a scene loaded whole.
 
 | Field          | Meaning                                                                                       | Default  |
-| -------------- | --------------------------------------------------------------------------------------------- | -------- |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
 | `cellSize`     | The side of the finest cell, metres, above 0                                                  | `128`    |
 | `loadingRange` | The distance from the view, metres, above 0, within which a cell loads                        | `256`    |
 | `priority`     | The grid's load priority among the grids, a whole number from 0 to 4294967295, the lower the sooner | `0` |
@@ -278,7 +280,7 @@ await prepare(source, cache, 'full', 150000, {
 `trillion3d-compile '--partition-grids=[{},{"name":"towers","cellSize":1024,"loadingRange":4096}]' '--object-settings={"objects":[{"match":{"regex":"^tower"},"runtimeGrid":"towers"}]}' …`
 
 | Entry field | Meaning | Default |
-| --- | --- | --- |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
 | `name` | The grid's name: a text, not empty, holding neither `:` nor `.`, told from another's without regard to case; required but of the first grid | `"MainPartition"` (first grid) |
 | every setting of `partitionGrid` | `cellSize`, `loadingRange`, `priority`, `origin`, `blockOnSlowStreaming`, and each scheme's own | as `partitionGrid` |
 
@@ -321,16 +323,17 @@ await prepare(source, cache, 'full', 150000, {
 on a node.
 
 | Setting           | Meaning                                                                                                                         | Default |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
 | `spatiallyLoaded` | `true`: the object streams on its main grid; `false`: it is loaded with the scene and always drawn                               | `true`  |
 | `skinnedInstance` | A skinned object plays a clip baked into the [animation banks](#animation-banks) on the GPU: `true` every default, `false` none, or the settings below | `false` |
 | `drawDistance` | The distances an object is drawn at, from the eye to the centre of its bounds, in the scene's units: `false` none, or `{ min, max }` — the cut does not draw the object nearer than `min` nor farther than `max`; a `max` of 0 or left out names no farthest distance: it is `false` too, one form for none, so `min` alone culls nothing. Each is a finite number of at least 0 | `false` |
 | `runtimeGrid` | The name of the streaming grid the object streams on ([Several streaming grids](#several-streaming-grids-partitiongrids)): a text holding neither `:` nor `.`; none, or a name no grid of the job holds, the first grid. An object attached under another streams on the grid of the topmost object above it | the first grid |
+| `farField` | Whether a view's primed depth draws the object (`hizPrime`, a small coarse draw its Hi-Z pyramid is built from before its cut): `true` or `false` | `false` |
 
 An instanced skinned object's settings:
 
 | Setting                  | Meaning                                                                                                                     | Default                                    |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | `clip`                   | The animation it plays: its rank in the document, or its name                                                               | the first animation moving a joint of its skin |
 | `looping`                | Whether its track wraps at its end; `false`, it holds its last pose                                                         | `true`                                     |
 | `playRate`               | The seconds of the clip one second plays                                                                                    | `1`                                        |
@@ -467,7 +470,7 @@ await prepare(source, cache, 'slice', 150000, {
 ```
 
 | Field     | Meaning                                                                                                                                                                                                             | Default      |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
 | `levels`  | The main chain's levels, HLOD 0 included, 1 to 256: the first `instanced`, every other `merge`; one level is the objects themselves, instanced and always loaded                                                                                                                                                                 | `2`          |
 | `groups`  | The objects of each group by name, for those no mark names: `buildings`, the main chain; `foliage`, a chain of two levels — the objects themselves, then one `voxel` actor per HLOD 0 cell, its objects voxelized together, their meshes candidates for voxels far away too — a group turns to voxels only where they beat its triangles ([Voxels far away](#voxels-far-away)); `props`, their own instanced cells absorbed by the main chain's first merged layer (always loaded when the main chain has one level). Each the node's exact name (a string), a regular expression on it, or `{ node, mesh, material, extras }`; the first group in key order that matches an object takes it | none         |
 
@@ -521,7 +524,7 @@ hlod: {
 ```
 
 | Field                                                | Meaning                                                                                                                                                                                           |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `layers[].name`                                      | Unique name                                                                                                                                                                                       |
 | `layers[].builder`                                   | `instanced` (the objects themselves, each its source mesh at its own detail — at the last LOD of its mesh with `clusterDag: false`), `approximate` (one closed shell per cell, its materials baked), `merge` (the cell's objects merged into one mesh), `voxel` (the cell's objects voxelized together, its `meshBuild` the voxels' sampling alone: [Voxels far away](#voxels-far-away)), `simplify` (the cell's objects remeshed through their volume, simplified for the distance the actor is first drawn from, their materials transferred onto its atlas: [Simplified layers](#simplified-layers)) |
 | `layers[].parent`                                    | The layer its cells' actors are built by; none at a chain's top, whose actors, one per cell of the level below, are always loaded; an `instanced` layer, or a `merge` layer keeping its materials, builds nothing above a layer whose actors wear materials of their own |
@@ -924,7 +927,7 @@ level-0 triangles no coarser level replaces, a root's or a stalled group's child
 A mesh's glTF `extras` set how it keeps its shape as it coarsens:
 
 | Key                      | Values                                                                                                                                                                                                                                                           | Default  |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
 | `shapePreservation`      | `none`; `area`, each simplification pushes the open border of the material that lost the most area outwards by what it lost, so thin pieces (leaves, blades, cards) keep their coverage with distance; `voxelize`, voxels far away ([Voxels far away](#voxels-far-away)) | `none`   |
 | `edgeLengthBound`        | A number of at least 0: a collapse costs at least the square of each edge it makes over this bound, in units where the mean triangle of the group is a quarter to a half of a unit across, so no long sliver appears; 0 bounds nothing                       | `0`      |
 | `holdTextureCoordinates` | `true`: texture coordinates are taken from the vertices a collapse keeps instead of solved, and count nothing in the error — for texture sets holding values that do not blend, as indices                                                                     | `false`  |
@@ -942,7 +945,7 @@ least 0, or a hold that is not `true` or `false`, refuses the job (`INVALID_OPTI
 built (`compiler/args/mesh_build.rs`):
 
 | Setting             | Values                                                                                                                                                                                                                                                                                       | Default |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
 | `storedTangents`    | `true`: the pages store the build's tangents — the source's glTF `TANGENT` unless the build rebuilds them (`recomputeNormals`, `recomputeTangents`), rebuilt where the source has none, or +X with sign 1 for a primitive without them in a mesh another primitive of which has some —, carried through every simplification at a sixteenth of a normal's weight and their sign at a half, which the shading then takes in place of the frame it rebuilds from the triangle ([FORMAT.md](FORMAT.md#pages)); a primitive without normals, its build keeping them, stores none | `false` |
 | `recomputeNormals`  | `true`: every normal is rebuilt from the triangles, two triangles sharing an edge smoothed together, and every stored tangent with them; a primitive without `NORMAL` gets them. `false`: the source's are kept, only a normal that is nothing rebuilt. A skinned mesh keeps its source's frames either way | `true`  |
 | `recomputeTangents` | `true`: every stored tangent is rebuilt. `false`: the source's are kept while the normals are, only a tangent whose frame is not whole rebuilt. Read only with `storedTangents` | `true`  |
@@ -957,6 +960,11 @@ built (`compiler/args/mesh_build.rs`):
 | `voxelSeparable` | `true`: the rays of a voxel run along its three axes alone, each through one face of it and a point of that face, one side before the face and three long; only a hit within the voxel's depth counts and a ray that hits outside it is left out of the count. A voxel whose rays along one axis all hit is covered whole when a ray through its centre along an axis hits too; a voxel that casts one ray is covered when the first of those three rays hits. `false`: rays in every direction | `false` |
 | `voxelNdf` | `true`: a voxel keeps the spread of the normals its rays hit — its normal is their mean and its record carries the mean's length, which the shading reads as roughness. `false`: the record carries the direction of the mean alone, the spread dropped | `true` |
 | `voxelOpacity` | `true`: no coverage is handed over to the neighbours of a voxel dropped — every voxel a ray hit is kept — and each voxel's record carries its coverage as its opacity (byte 7 of its 12-byte record). The engine draws no voxel by it: the opacity is written and no pass reads it. `false`: the coverage is handed over until no more voxels are left than it sums to | `false` |
+| `distanceField`              | `true`: the mesh's signed distance field is built, for the distance-field occlusion of the sky light and the software ray tracing ([Distance fields](#distance-fields)). `false`: none                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | `true`             |
+| `distanceFieldScale`         | A number of at least 0: the mesh's resolution scale — the voxels a unit of its size holds are `distanceFieldDensity` times it. 0 builds no field for the mesh                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | `1`                |
+| `distanceFieldTwoSided`      | `true`: the field is built as if every triangle were two-sided, so that no back face makes a voxel inside the mesh. A double-sided material is two-sided either way                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `false`            |
+| `distanceFieldDensity`       | A number from 0.05 to 0.4: the voxels a centimetre of a mesh of scale 1 holds. Changing it rebuilds every field                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | `0.2`              |
+| `distanceFieldMaxResolution` | A whole number of at least 1: the most voxels along one axis a field holds; a mesh of scale 1 or less holds half of it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | `256`              |
 | `keptTriangles`     | A number from 0 to 1: under 1, once the DAG is built its finest detail is cut away — the cut is grown from the roots, the cluster of largest error replaced by the clusters its group was made of, until the cut holds more than this share of the source's triangles and the next replacement would lower its error further; every cluster under the cut is dropped, and the cut's clusters become leaves, drawn wherever their parent is too coarse | `1`     |
 | `trimmedError`      | A number of at least 0, percent of the mesh's size — the square root of the smaller of twice its area and a quarter of its box's surface —: above 0, the same cut, grown until its error falls under this share                                                                                         | `0`     |
 | `dropNearCollapsed` | `true`: a triangle two of whose corners lie within 200 nanometres of each other on every axis is dropped before the build. `false`: only one two of whose corners are one point                                                                                                              | `false` |
@@ -1107,6 +1115,134 @@ A voxel layer's own sampling:
   levels follow that rule.
 - `voxelOpacity` writes the coverage into the voxel record; no pass of the engine reads it.
 - A setting of the wrong kind refuses the job (`INVALID_OPTIONS`), a mesh's `extras` one too.
+
+## Distance fields
+
+A mesh whose build sets `distanceField` (`true`, the default: the reference's gameplay templates, third
+person, first person and top down, turn the generation on in a new project) gets a signed distance
+field, read by the distance-field occlusion of the sky light and the software ray tracing. It is built from the mesh's level-0
+triangles, in the reference's own unit, the centimetre (a metre is 100 of them), and written in
+`distanceFields.bin` (`distance_field/`), which the manifest's `distanceFields` section names; a scene
+whose meshes build none writes neither.
+
+- The mesh's box, at least a unit of half-extent an axis, is held by bricks of 8 × 8 × 8 voxels, 7 of
+  which are the brick's own and the eighth shared with the next brick for the trilinear filter, and a
+  voxel of border all round the box for the gradient. A mesh with a quarter of its triangles
+  two-sided or more, or built with `distanceFieldTwoSided`, has its box grown by a texel first.
+- Mip 0 holds `size × distanceFieldDensity × distanceFieldScale / 7` bricks along an axis, rounded
+  and held between 1 and `distanceFieldMaxResolution / 2` over 7 (the whole resolution over 7 for a
+  scale above 1), at most 1023. Mips 1 and 2 halve them, rounding up.
+- A voxel is one byte: its distance to the surface in the band of four voxels either side, 0 the
+  farthest inside, 255 the farthest outside. The distance is the nearest triangle's; the voxel is
+  inside when more than a quarter of the 98 rays it casts over the sphere (49 stratified over each
+  hemisphere, drawn from a fixed seed) hit a back face of a one-sided material. The triangles of a
+  blended material are left out.
+- A brick holding only voxels at 0 or only at 255 is not stored: its cell of the mip's indirection
+  table holds `0xffffffff`.
+
+```json
+{
+  "meshBuild": {
+    "objects": [
+      { "match": { "node": { "regex": "^Hedge" } }, "distanceFieldScale": 0.5 },
+      { "match": { "node": { "regex": "^Sign" } }, "distanceField": false },
+      { "match": { "node": { "regex": "^Fence" } }, "distanceFieldTwoSided": true }
+    ]
+  }
+}
+```
+
+Here every mesh builds a field as the default says, the hedges at half the voxels, the signs none and
+the fences as if two-sided. To build none at all: `trillion3d-compile '--mesh-build={"distanceField":false}' …`;
+on a mesh, `"extras": { "distanceField": false }` or `{ "distanceFieldScale": 2 }`. A setting of the wrong kind
+refuses the job (`INVALID_OPTIONS`).
+
+## Volumetric lightmap
+
+A job that names `lightmapBake` (`true`, or an object of the settings below; `false` or none, the
+default, bakes nothing and keeps the cache key) gets the indirect light of its scene baked on the
+CPU, in `volumetric-lightmap.bin` ([FORMAT.md](FORMAT.md#volumetric-lightmapbin)), which the manifest's
+`volumetricLightmap` section names (`volumetric_lightmap/bake/`). The bake follows the reference's GPU
+lightmapper step for step, and a baked scene is the same at every run, whatever the threads: every
+random number comes from a sequence seeded by the probe's place.
+
+1. **The volume.** The boxes `volumes` names, or the scene's box grown by `automaticVolumeExpand`
+   (cut to a cube of half-size `automaticVolumeLimit` around its centre when it is larger). It is cut
+   in top-level cells of `4^maxRefinementLevels` cells of `detailCellSize`.
+2. **The bricks.** The triangles of the objects that meet a box, those of opaque and masked materials,
+   are rasterised conservatively on a grid four times finer than a finest brick; each fragment
+   allocates the cells within a quarter cell of it that lie within two cells of a box. A brick of
+   4 × 4 × 4 probes is made for each allocated cell, for each coarser level a cell has one below it
+   (each level four times coarser than the last), and for every cell of the coarsest level, so that no
+   part of the volume is left without light. Bricks are ranked coarse level first, then by Morton code.
+3. **The probes.** `giSamples × qualityMultiplier` passes (and `irradianceCacheQuality` before them
+   while `irradianceCaching` is on). Each pass takes, for every probe, one path in each of the two
+   hemispheres around it — jittered inside the probe's cell, up to 32 bounces, a light drawn and
+   shadowed at each surface and weighed against the light the bounce's own ray finds, Russian roulette
+   by the light a path still carries — and adds the light to the probe's spherical harmonics. The sun's
+   shadowing is the share of the first 32 passes whose ray toward it reaches the sky. A path that
+   meets the back of a surface drawn on one side only is no sample; a probe lit by fewer than a third
+   of the passes is not trusted.
+4. **The stitching.** Padding rows are copied from the neighbouring brick of the same level; untrusted
+   probes take the mean of the trusted ones around them; the border where a fine brick meets a coarser
+   one takes the coarse brick's light, filtered, once for each level to cross.
+
+| Setting                          | Meaning                                                                                                                                                            | Default                      |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- |
+| `detailCellSize`                 | A number from 0.01 to 200: the size, in metres, of a cell of the finest level; halving it can multiply the memory by up to eight                                   | `2` (the reference's 200 cm) |
+| `qualityMultiplier`              | A whole number from 1 to 256: the multiple of `giSamples` the probes take                                                                                          | `4`                          |
+| `giSamples`                      | A whole number from 32 to 65536: the paths a probe takes for a unit of quality, across all bounces                                                                 | `512`                        |
+| `maxRefinementLevels`            | A whole number from 1 to 4: the levels of bricks (the file names a brick's span in a byte)                                                                         | `3`                          |
+| `irradianceCaching`              | `true`: paths end in a cache of the radiance that leaves a surface after a first bounce; it brightens interiors and biases a little. `false` for an exterior scene | `true`                       |
+| `irradianceCacheQuality`         | A whole number from 4 to 65536: the passes that build the cache                                                                                                    | `128`                        |
+| `irradianceCacheSpacing`         | A number from 0.04 to 10.24: the size of a cache cell, in metres                                                                                                   | `0.32`                       |
+| `irradianceCacheCornerRejection` | A number from 0 to 8: how near a hit may be, in cache cells, for the cache to be read there                                                                        | `1`                          |
+| `automaticVolumeExpand`          | A number of at least 0: how far, in metres, the scene's box grows when no volume is named                                                                          | `5`                          |
+| `automaticVolumeLimit`           | A number above 0: the half-size, in metres, past which that box is cut to a cube                                                                                   | `100`                        |
+| `volumes`                        | A list of boxes, each a lower then an upper corner in metres                                                                                                       | none: the scene's own        |
+
+```json
+{
+  "lightmapBake": {
+    "detailCellSize": 1,
+    "giSamples": 256,
+    "irradianceCaching": false,
+    "volumes": [
+      [
+        [-40, -2, -40],
+        [40, 30, 40]
+      ]
+    ]
+  }
+}
+```
+
+Here the lightmap covers a box of 80 × 32 × 80 m with cells of a metre, 256 paths a probe times the
+default 4, and no irradiance cache (an open scene). On the command line,
+`trillion3d-compile '--lightmap-bake={"giSamples":256}' …`, or `--lightmap-bake=true` for every
+default. A setting of the wrong kind or out of its range refuses the job (`INVALID_OPTIONS`).
+
+What the bake does not do, said rather than guessed:
+
+- **The sky light.** The compile job holds no sky radiance, so the sky gives no light and the file has
+  no bent normal layer; an outdoor scene's lightmap holds the light of its lights and emissive
+  surfaces alone.
+- **Lights.** Every light is a stationary one: the engine draws its direct light itself, the lightmap
+  holds what the light gives after a bounce. A point or spot is a sphere of its `emitterRadius` (a
+  point when it names none; a tube's `emitterLength` is not read), the sun a disk of its
+  `angularRadius`.
+- **Surfaces.** A blended material, or a masked one whose base-colour factor is under its cutoff, lets
+  everything through the bake's rays (the texture's alpha is not read), and a surface's colour and
+  emission are its factors times the mean of their textures.
+- **The reference's own limits** that the bake does not take: the memory cap and the spherical
+  harmonics smoothing of the reference's offline importer (`volumetricLightmapMaximumBrickMemoryMb`,
+  `volumetricLightmapSphericalHarmonicSmoothing`) are steps of that importer, which its GPU lightmapper
+  does not run, so they have no setting here.
+- **A deviation, proved.** Under the irradiance cache a path that ends in a cell takes the cell's
+  radiance, which already holds the emission of its surface; the reference adds that emission once
+  more, so an emissive surface lights twice as much beside a cache cell. The bake adds it once: in a
+  closed room of albedo 0.5 whose walls emit 1, the ambient is 7.09 (`4π · 0.282 · 2`); the bake reads
+  7.0 to 7.19 without the cache and 7.06 to 7.13 with it, where the reference's step reads 10.6 with it.
 
 ## Cancellation
 
@@ -1399,7 +1535,7 @@ The code is the contract: each module's head states its rules and their reasons.
 `packages/asset-compiler-rust/src/`.
 
 | Stage                  | What it does                                                                                             | Module                                                                                           |
-| ---------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Import                 | Routes each source to its driver; converting drivers write the intermediate glTF under `native/imports/` | `plugins.rs`, `plugins/scene/convert.rs`                                                                        |
 | Scene loading          | Decodes transport compression, keeps the rendered scene's nodes, expands GPU instancing                  | `compiler/source.rs`, `load/compressed.rs`, `source/nodes.rs`, `source/instancing.rs`         |
 | Admission              | Refuses a job above its budget, cuts primitives and images into waves that fit                           | `compiler/plan.rs`, `compiler/budget.rs`                                                         |
@@ -1418,6 +1554,11 @@ The code is the contract: each module's head states its rules and their reasons.
 | Publication            | Atomic writes, pointer, prune, cache lock                                                                | `cache/storage.rs`, `cache/publish.rs`, `cache/prune.rs`, `compiler/cache/lock.rs`            |
 
 Every platform cooks the same bytes; the root `.cargo/config.toml` and `build.rs` say how.
+
+### `volumetric-lightmap.bin` — the baked indirect light (stage `volumetric-lightmap`)
+
+Written only for a job that names `lightmapBake`, from the scene's geometry and `lights.json`; the
+layout is [FORMAT.md](FORMAT.md#volumetric-lightmapbin), the algorithm [Volumetric lightmap](#volumetric-lightmap).
 
 ### `lights.json` — the lamps of the source file
 

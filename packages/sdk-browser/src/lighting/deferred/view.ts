@@ -22,7 +22,7 @@ const AT = VIEW_LAYOUT.at
 export type ClearColor = { r: number; g: number; b: number; a: number }
 
 /** With no declared light: zero lights, zero tiles, an exposure of 1, the default curve, the eye
- *  unread, the default sharpening. */
+ *  unread, the default sharpening, a pre-exposure of 1 shown at 1. */
 export const ZERO_DIRECT = [
   0,
   0,
@@ -33,10 +33,15 @@ export const ZERO_DIRECT = [
   0,
   0,
   DEFAULT_SHARPNESS,
+  UNIT_EXPOSURE,
+  UNIT_EXPOSURE,
 ] as const
-/** The words of `direct` that fill `lightParams` and `display`; the one after them is the
- *  sharpening strength, the viewport's fourth word. */
+/** The words of `direct` that fill `lightParams` and `display`; the ones after them are the
+ *  sharpening strength, the viewport's fourth word, then the image's pre-exposure and the scale the
+ *  composition multiplies it by (`preExposure`, `PreExposure`). */
 const DIRECT_WORDS = 8
+/** Where `direct` holds the words after those (`DIRECT_WORDS`), and how many it holds. */
+export const DIRECT_AT = { sharpness: 8, preExposure: 9, shown: 10, words: 11 } as const
 
 /** Writes the source words of `drawn` pixels shown at `shown` into `packed`: the ratio on each
  *  axis, exactly 1 at the display's size, and the last pixel. True when they changed. */
@@ -57,11 +62,21 @@ function setSource(packed: Float32Array, drawn: readonly number[], shown: readon
   return true
 }
 
+/** The words of `direct` into the view's `packed` words: the light parameters and the display's, the
+ *  sharpening strength, the pre-exposure and the scale shown at (the GPU copies the measured one
+ *  over the last, `../../post/exposure/frame.ts`). */
+function writeDirect(packed: Float32Array, direct: ArrayLike<number>) {
+  packed[AT.viewport + 3] = direct[DIRECT_AT.sharpness]
+  for (let i = 0; i < DIRECT_WORDS; i++) packed[AT.lightParams + i] = direct[i]
+  packed[AT.preExposure] = direct[DIRECT_AT.preExposure]
+  packed[AT.preExposure + 1] = direct[DIRECT_AT.shown]
+}
+
 /** Writes `values` at the word `at` of `packed` and of `buffer`, the words alone, when one changed. */
 function writeWords(
   device: GPUDevice,
   buffer: GPUBuffer,
-  packed: Float32Array,
+  packed: Float32Array<ArrayBuffer>,
   at: number,
   values: readonly number[],
 ) {
@@ -87,7 +102,8 @@ export function createDeferredView(device: GPUDevice) {
     /** The TAA jitter of the next image `write` writes (`viewJitterWords`). */
     setJitter,
     /** `rawOutput` skips the display chain; `direct` carries the contract lights, the
-     *  tiles in X and Y, the exposure, the display curve's rank, the eye, then the sharpening. */
+     *  tiles in X and Y, the exposure, the display curve's rank, the eye, then the sharpening and the
+     *  pre-exposure (`DIRECT_AT`). */
     write(
       inverseViewProjection: ArrayLike<number>,
       camera: readonly number[],
@@ -102,12 +118,11 @@ export function createDeferredView(device: GPUDevice) {
       packed[AT.viewport] = width
       packed[AT.viewport + 1] = height
       packed[AT.viewport + 2] = rawOutput ? 1 : 0
-      packed[AT.viewport + 3] = direct[DIRECT_WORDS]
       packed[AT.background] = clear.r
       packed[AT.background + 1] = clear.g
       packed[AT.background + 2] = clear.b
       packed[AT.background + 3] = clear.a
-      for (let i = 0; i < DIRECT_WORDS; i++) packed[AT.lightParams + i] = direct[i]
+      writeDirect(packed, direct)
       device.queue.writeBuffer(buffer, 0, packed)
     },
     /** The composition's source of this image: an image of `drawn` pixels shown at `shown`, the

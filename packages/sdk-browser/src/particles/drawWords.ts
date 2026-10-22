@@ -6,7 +6,8 @@ import { ADD_ONE, OVER } from '../blend/equations.ts'
 
 /** The words the particle draw gives a pool: clip matrix from its origin and inverse, made
  *  in double precision, eye from the origin, radius, colour at birth, softness; words 41–43 the
- *  image's exposure, display curve and unlit flag, 44–45 the size it draws, written by the draw;
+ *  image's scale, display curve and unlit flag, 44–45 the size it draws and 46 its pre-exposure,
+ *  written by the draw;
  *  words 48–51 the view's clip plane from the pool's origin (`writeDrawWords`). */
 export const DRAW_FLOATS = 52
 

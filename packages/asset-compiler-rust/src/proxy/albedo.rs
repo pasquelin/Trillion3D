@@ -7,7 +7,7 @@ use trillion3d_math::color::srgb_byte_to_linear;
 /// 1×1 — levels arranged finest to coarsest, occupies last four
 /// bytes. Nothing to decode here: compiler already reduced it, re-reading
 /// source would create two truths. Texture without preview leaves material factor alone.
-fn average(previews: &[TexturePreview], texture: u64) -> Option<[f64; 3]> {
+pub(crate) fn average(previews: &[TexturePreview], texture: u64) -> Option<[f64; 3]> {
     let preview = previews
         .iter()
         .find(|entry| entry.texture as u64 == texture)?;

@@ -66,6 +66,28 @@ function createReflectionTargets(device: GPUDevice, width: number, height: numbe
   return { target, uniform, resolved }
 }
 
+/** What each image of a reflection writes in place, and the groups it keeps: the reflection group
+ *  over the depth it was bound with (`GpuHiz.depth`), the lit image the pyramid holds as its level 0
+ *  and the lighting's view — two kept, the two HDR targets taking turns (`reflectionGroup`) —, what
+ *  the image tells its view, what the trace and the radiance build read, the radiance a ray leaving
+ *  the scene reaches (`createSurroundings`), and the Hi-Z nearest build's pass. */
+function reflectionImageState() {
+  return {
+    group: { identity: createWebgpuBindIdentity(2), slots: [] as (GPUBindGroup | undefined)[] },
+    frame: {
+      viewProjection: viewProj,
+      eye: [0, 0, 0],
+      size: [0, 0],
+      depthDrawn: false,
+    } as ReflectionFrame,
+    inputs: {} as TraceInputs,
+    radianceInputs: {} as RadianceInputs,
+    surroundings: createSurroundings(),
+    /** The Hi-Z nearest build's pass, timed alone, opened lazily. */
+    depthPass: new LazyComputePass(REFLECTION_PASS),
+  }
+}
+
 /**
  * A view's reflection at `width × height`: the target the last pass writes, the radiance pyramid of
  * its last lit image (`radiance`, which holds the image it was made of: the next image reprojects its
@@ -104,10 +126,6 @@ export function createScreenReflection(
     /** The transparents' front layer (`frontLayer.ts`): a texel of each target without blends. */
     front,
     writeView: createReflectionViewWriter(device, uniform),
-    /** The reflection group over the depth it was bound with (`GpuHiz.depth`), the lit image the
-     *  pyramid holds as its level 0 and the lighting's view: two kept, the two HDR targets taking
-     *  turns (`reflectionGroup`). */
-    group: { identity: createWebgpuBindIdentity(2), slots: [] as (GPUBindGroup | undefined)[] },
     /** The trace's bind groups, every kernel's, kept while their inputs stay
      *  (`encodeReflectionTrace`). */
     trace: createTraceGroups(),
@@ -115,14 +133,7 @@ export function createScreenReflection(
     census,
     /** The reflections' settings of the context, resolved once while none moves (`settings.ts`). */
     settings: createReflectionSettingsReader(),
-    /** What the image tells its view, what the trace and the radiance build read, and the radiance
-     *  a ray leaving the scene reaches (`createSurroundings`): written in place each image. */
-    frame: { viewProjection: viewProj, size: [0, 0], depthDrawn: false } as ReflectionFrame,
-    inputs: {} as TraceInputs,
-    radianceInputs: {} as RadianceInputs,
-    surroundings: createSurroundings(),
-    /** The Hi-Z nearest build's pass, timed alone, opened lazily. */
-    depthPass: new LazyComputePass(REFLECTION_PASS),
+    ...reflectionImageState(),
     dispose() {
       target.destroy()
       radiance.image.texture.destroy()

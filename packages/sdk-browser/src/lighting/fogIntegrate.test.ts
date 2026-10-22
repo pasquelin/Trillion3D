@@ -14,7 +14,7 @@ import { FOG_FRAME_STRUCT_WGSL } from './fog/readWgsl.ts'
 import { CAM, GRID, frameScope, image, pointOf, table, type V3 } from './fogVolumeRun.fixture.ts'
 
 /** The furthest depth's program over a pyramid of `levels` levels, whose cells a test table answers
- *  (`hizCellFarthest`, the depth pyramid's own read, by level and cell). */
+ *  (`hizCellCullFarthest`, the depth pyramid's own read, by level and cell). */
 const furthestProgram = (levels: number) =>
   wgslProgram(
     `@group(0) @binding(2) var<uniform> frame:FogVolumeFrame;
@@ -22,7 +22,7 @@ const furthestProgram = (levels: number) =>
 @group(0) @binding(0) var pyramid:texture_2d_array<f32>;
 fn hizLevelCount()->i32{return ${levels};}
 fn hizOpaqueDepth(cell:vec2i)->f32{return textureLoad(pyramid,cell,0,0).r;}
-fn hizCellFarthest(cell:vec2i,level:i32)->f32{return textureLoad(pyramid,cell,level,0).r;}`,
+fn hizCellCullFarthest(cell:vec2i,level:i32)->f32{return textureLoad(pyramid,cell,level,0).r;}`,
     [FOG_FRAME_STRUCT_WGSL, FOG_FURTHEST_WGSL],
   )
 

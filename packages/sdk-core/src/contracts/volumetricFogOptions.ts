@@ -1,7 +1,9 @@
 import {
   ANY_NUMBER,
   choiceSetting as choice,
+  countSetting as count,
   flagSetting as flag,
+  integerSetting as integer,
   nonZeroSetting as nonZero,
   numberSetting as number,
   rulesOf,
@@ -87,6 +89,10 @@ export const VOLUMETRIC_FOG_FILTERS = ['trilinear', 'bicubic', 'tricubic'] as co
  *  depth buffer along the depth, any negative number not at all;
  *  `volumetricFogLiftRange`, 1 — in cells, how far a sample behind the depth buffer is still
  *  brought forward;
+ *  `volumetricFogVoxelizationSlicesPerPass`, 8 — the slices of an object voxelised into the volume
+ *  (`../scene/volume/contracts.ts`) that make one pass, at least 1;
+ *  `volumetricFogVoxelizationShowOnlyPass`, −1 — from 0, the one pass of each object that is
+ *  voxelised, to see where the passes lie; −1 all of them;
  *  `volumetricFogEdgeFade`, 0 — where above 0, the edge of a spot's cone and of a rectangle's
  *  plane fade over that many cells, so that they flicker less;
  *  `volumetricFogReadJitter`, 0 — a random offset, in cells, of the point a surface reads the
@@ -112,6 +118,8 @@ export const VOLUMETRIC_FOG_RULES = /* @__PURE__ */ (() =>
     number('volumetricFogSampleScatter', 0, ANY_NUMBER),
     number('volumetricFogSurfaceLift', 0.5, ANY_NUMBER),
     number('volumetricFogLiftRange', 1, ANY_NUMBER),
+    count('volumetricFogVoxelizationSlicesPerPass', 8, 1),
+    integer('volumetricFogVoxelizationShowOnlyPass', -1, [-1, Number.MAX_SAFE_INTEGER]),
     number('volumetricFogEdgeFade', 0, ANY_NUMBER),
     number('volumetricFogReadJitter', 0, ANY_NUMBER),
     flag('fogEnabled', true),

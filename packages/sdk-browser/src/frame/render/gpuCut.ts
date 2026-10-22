@@ -8,7 +8,8 @@ import {
   CULL_MIN_LOD_OFF,
 } from '../../geometry/dag/shader/viewsWgsl.ts'
 import { taaRenderMatrix } from '../../post/taa/frame.ts'
-import { writeCutOcclusion } from './cutPyramid.ts'
+import { pyramidStands, writeCutOcclusion } from './cutPyramid.ts'
+import { primeHizFrame } from './primeHiz.ts'
 import { writeCutViewSet } from './cutViewSet.ts'
 import { readCutSetting as cutSetting } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import { mirrorDrawnFromShown } from '../backend/helpers.ts'
@@ -88,6 +89,8 @@ function decideOcclusion(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     cutSetting(rt, 'cutTwoPassOcclusion') &&
     cutSetting(rt, 'cutOcclusionCulling') &&
     layout.rows.packedCount > 0
+  // The pyramid the view has none of, primed from a small draw when the setting asks it.
+  if (asked) primeHizFrame(rt, cam, pyramidStands)
   const pyramid = writeCutOcclusion(rt, cam, run.selectionUniforms, asked)
   cutOf(rt)?.bindPyramid(pyramid)
 }

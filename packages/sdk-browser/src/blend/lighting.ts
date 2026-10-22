@@ -2,6 +2,7 @@ import { directLightResources } from '../frame/prepare/contractLight.ts'
 import type { BlendLighting } from '../gpu/bind/blendBindEntries.ts'
 import { vsmOrStandIns } from '../lighting/shadows/vsm/frame/vsmConsumers.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
+import { lightFunctionResources } from '../lighting/lightFunction/frame.ts'
 
 /**
  * Lighting resources the blend pass binds: exactly those the opaque resolve just resolved,
@@ -15,6 +16,9 @@ export function blendLightResources(
   const { placeholders } = rt.gpu.deferred!
   const fog = contract.fog ?? placeholders.fog
   const vsm = vsmOrStandIns(contract.vsm, placeholders)
+  // The translucent layers read the light functions where the setting says (`lightFunctionTranslucent`).
+  const lightFunction =
+    lightFunctionResources(rt, 'lightFunctionTranslucent') ?? placeholders.lightFunction
   return {
     directLights: contract.lights!,
     shadowData: vsm.pageTable,
@@ -35,5 +39,6 @@ export function blendLightResources(
     fogCubemap: fog.cubemap,
     fogVolume: fog.volume,
     fogSampler: fog.sampler,
+    lightFunctionAtlas: lightFunction,
   }
 }

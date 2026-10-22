@@ -1,3 +1,4 @@
+import { skyLightReadOf } from '../frame/render/encodeSkyLight.ts'
 import { bindForwardReflection } from '../lighting/reflections/group.ts'
 import { feedbackAttachment } from '../frame/prepare/attachments.ts'
 import { blendEntries } from './identity.ts'
@@ -69,7 +70,7 @@ export function drawBlendRuns(
 ) {
   const { blendState } = rt,
     args = blendState.argsBuffer!
-  if (reflected) bindForwardReflection(pass, rt)
+  if (reflected) bindForwardReflection(pass, rt, skyLightReadOf(rt))
   if (filter) pass.setBindGroup(DISPLAY_MASK_GROUP, filter.maskGroup)
   // The groups of the identity the frame named (`voidStaleBlendGroups`), not a draw slot.
   const held = blendState.identity.slot,

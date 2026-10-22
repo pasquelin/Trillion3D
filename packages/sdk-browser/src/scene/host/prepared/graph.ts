@@ -153,6 +153,8 @@ function assembler(
       const { drawDistance } = declared
       if (drawDistance)
         mesh.traverse((part) => isDrawnNode(part) && holdDrawDistance(part, drawDistance))
+      // Drawn by a view's primed depth, as its drawn parts say (`Object3D.farField`).
+      if (declared.farField) mesh.traverse((part) => isDrawnNode(part) && (part.farField = true))
       carried.push(mesh)
     }
     if (declared.camera !== null)

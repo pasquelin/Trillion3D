@@ -6,6 +6,7 @@ import {
   uvToNdc,
 } from '../../../../math/src/wgsl/projection.ts'
 import { FOG_SLOT } from '../../../../sdk-core/src/scene/core/fog.ts'
+import { rand4dPcg32 } from '../../../../math/src/wgsl/sampling.ts'
 import { FLOAT32_MAX } from '../../../../math/src/wgsl/constants.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { FOG_VOLUME_FLAG } from './frame.ts'
@@ -33,7 +34,9 @@ import { FOG_DEPTH_FUDGE } from './layout.ts'
  * The medium is the height fog's, read at the cell's height: its density, the first layer's and the
  * second's summed, halved — the volume reads density as an extinction where the analytic fog reads
  * it as the exponent of two —, times the extinction scale; the particles scatter the particle
- * colour's share of what they extinguish; the glow is the medium's own light.
+ * colour's share of what they extinguish; the glow is the medium's own light. The objects of the volume material
+ * domain add to it what the voxelisation held for the cell (`voxelWgsl.ts`): their scattering to
+ * the particles', their extinction to the extinction, their emissive light to the glow.
  */
 export const FOG_CELLS_WGSL = wgslBlock(
   'FOG_CELLS_WGSL',
@@ -58,12 +61,17 @@ fn fogCellPoint(cell:vec3u,offset:vec3f)->vec4f{
 `,
 )
 
-/** What the cells read of the scene: the depth buffer, the medium. */
-export const FOG_GRID_WGSL = wgslBlock(
-  'FOG_GRID_WGSL',
-  [FOG_CELLS_WGSL, ndcToUv, perspectiveDivide, FLOAT32_MAX],
+/**
+ * WHERE A CELL'S SAMPLES LIE ON THE SURFACES, from the depth buffer alone: the sample's offset within its cell
+ * moved forward off the surface behind it (\`fogLiftOffSurface\`), and the sample the image's jitter and the cell's
+ * random numbers (\`fogRand\`) put it at (\`fogSampleOffset\`: sample \`s\` of the cell). The scatter takes its samples there,
+ * and finds the sky's visibility (\`skyVisibilityWgsl.ts\`) of each. The program declares the frame and
+ * the scene's depth (\`fogDepth\`).
+ */
+export const FOG_SURFACE_WGSL = wgslBlock(
+  'FOG_SURFACE_WGSL',
+  [FOG_CELLS_WGSL, ndcToUv, perspectiveDivide, rand4dPcg32],
   `
-const FOG_HALF_DENSITY:f32=0.5;
 /** The view depth the depth buffer holds at \`pixel\`: its far value, where no surface was drawn, converts
  *  to \`1 / FOG_DEPTH_FUDGE\` (10¹¹ metres), the tiny fudge keeping the division finite; for an
  *  orthographic view, whose depth buffer is linear, to the far plane's. */
@@ -87,6 +95,25 @@ fn fogLiftOffSurface(cell:vec3u,offset:vec3f)->vec3f{
  }
  return moved;
 }
+/** Three random numbers of the cell and the sample, each in [−1, 1]. */
+fn fogRand(cell:vec3u,sample:u32)->vec3f{
+ let v=rand4dPcg32(vec4i(vec3i(cell),i32(frame.frame.x+8u*sample)));
+ return vec3f(v.xyz)/4294967295.0*2.0-1.0;
+}
+/** The offset within the cell of its sample \`s\`: the image's jitter and the cell's random shift, lifted off the surface. */
+fn fogSampleOffset(cell:vec3u,s:u32)->vec3f{
+ var jitter=frame.offsets[s].xyz;
+ if(frame.tune.z>0.0){jitter+=frame.tune.z*fogRand(cell,s);}
+ return fogLiftOffSurface(cell,jitter);
+}`,
+)
+
+/** What the cells read of the scene: the depth buffer, the medium. */
+export const FOG_GRID_WGSL = wgslBlock(
+  'FOG_GRID_WGSL',
+  [FOG_SURFACE_WGSL, FLOAT32_MAX],
+  `
+const FOG_HALF_DENSITY:f32=0.5;
 /** A cell's medium: what its particles scatter (xyz) and its extinction (w), per metre, and its
  *  own light. */
 struct FogMedium{scattering:vec4f,glow:vec3f,}
@@ -98,8 +125,14 @@ fn fogMedium(cell:vec3u)->FogMedium{
  let density=first.x*exp2(-first.y*(height-first.z))+second.x*exp2(-second.y*(height-second.z));
  let extinction=max(density*FOG_HALF_DENSITY*frame.medium.y,0.0);
  var glow=vec3f(0.0);
- if((u32(frame.medium.w)&${FOG_VOLUME_FLAG.glow}u)!=0u){glow=frame.glow.rgb;}
- return FogMedium(vec4f(frame.particleColor.rgb*extinction,extinction),glow);
+ var scattering=vec4f(frame.particleColor.rgb*extinction,extinction);
+ let flags=u32(frame.medium.w);
+ if((flags&${FOG_VOLUME_FLAG.glow}u)!=0u){glow=frame.glow.rgb;}
+ if((flags&${FOG_VOLUME_FLAG.voxels}u)!=0u){
+  scattering+=textureLoad(fogVoxelIn,vec3i(cell),0);
+  glow+=textureLoad(fogVoxelEmitIn,vec3i(cell),0).rgb;
+ }
+ return FogMedium(scattering,glow);
 }
 /** A value kept where it is positive and finite, zero where it is not (a NaN, an infinity, a negative). */
 fn fogPositiveFinite(v:vec4f)->vec4f{

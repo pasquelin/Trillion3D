@@ -2,6 +2,7 @@
 // projection looking down −z —, the frame the volume's passes read as `writeFogVolumeFrame` writes it,
 // turned into the values `shaderRun` runs the shipped programs with, and the textures those programs
 // load from and store to, as plain tables.
+import { newFogStaticLight } from './fog/staticLight.ts'
 import {
   orthographicProjection,
   perspectiveProjection,
@@ -86,6 +87,7 @@ function cameraOf(
     viewProj,
     inverseViewProj: invertMatrix4(new Float64Array(16), viewProj),
     depthViewProj: viewProj,
+    world: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, eye[0], eye[1], eye[2], 1],
     near,
     width,
     height,
@@ -114,6 +116,11 @@ export function image(
     sunRank: 0,
     lightCells: [0, 0],
     frameIndex: 0,
+    voxels: false,
+    // No baked light; the sky light lights the volume by its harmonics, as a movable one does.
+    staticLight: { ...newFogStaticLight(), skyDiffuse: true },
+    staticBuilt: false,
+    preExposure: 1,
     ...more,
   }
 }
@@ -149,6 +156,8 @@ export function frameScope(img: FogVolumeImage) {
           'medium',
           'particleColor',
           'glow',
+          'staticLight',
+          'exposure',
         ] as const
       ).map((name) => [name, vec(at[name])]),
     ),

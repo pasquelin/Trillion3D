@@ -1,13 +1,19 @@
 import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts'
 import type { ResolvedAtmosphere } from '../../../../sdk-core/src/scene/core/atmosphere.ts'
+import type { ModuleOption } from '../../../../sdk-core/src/modules/descriptor.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { PhysicsOption } from '../../../../sdk-core/src/physics/options.ts'
+import type { LightShaftParameters } from '../../../../sdk-core/src/world/light/lightShaftSettings.ts'
+import type { LightCloudShadowParameters } from '../../../../sdk-core/src/world/light/lightCloudShadowSettings.ts'
 
-/** The name a saved scene carries, and the one version of its layout this runtime reads. Version
- *  1 wrote a mesh's `castShadow` as `false` by default, which the engine never read: it is
- *  refused. */
+/** The name a saved scene carries, and the version of its layout this runtime writes. Version 1
+ *  wrote a mesh's `castShadow` as `false` by default, which the engine never read: it is refused.
+ *  Version 2 wrote the air and the fog as `atmosphere` and `fog`, and the sky light as a light
+ *  node: it is read, and moved into the sky module once (`read.ts`). */
 export const SCENE_FORMAT = 'trillion3d-scene'
-export const SCENE_FORMAT_VERSION = 2
+export const SCENE_FORMAT_VERSION = 3
+/** The versions this runtime reads. */
+const READ_VERSIONS: readonly number[] = [2, SCENE_FORMAT_VERSION]
 
 /** A geometry: the family call that built it, or its vertices when no call can build it again. */
 export interface SavedGeometry {
@@ -53,6 +59,8 @@ export interface SavedNode {
   castShadow: boolean
   /** Whether it casts shadows past a directional light's shadow distance; absent, it does not. */
   castFarShadow?: true
+  /** Whether it is a far-field object, which the primed depth pyramid draws; absent, it is not. */
+  farField?: true
   /** Whether a directional light's far-shadow test reaches it or never does; absent, the view's
    *  rule decides. */
   farShadowTest?: boolean
@@ -83,6 +91,22 @@ export interface SavedNode {
     atmosphereSun?: false
     /** A directional light set to the atmosphere's second light; absent, it is for the first. */
     atmosphereSunIndex?: 1
+    /** A light whose shadow-on-fog setting is against its kind's default (`Light.shadowsFog`);
+     *  absent, the default. */
+    shadowsFog?: boolean
+    /** A light whose colour follows its temperature (`Light.useTemperature`); absent, it does not. */
+    useTemperature?: true
+    /** A directional light whose shadow shades the air (`Light.shadowsAir`); absent, it does not. */
+    shadowsAir?: true
+    /** A directional light whose air transmittance is read per surface point
+     *  (`Light.transmittancePerPixel`); absent, it is not. */
+    transmittancePerPixel?: true
+    /** A directional light's sun-disk tint (`Light.sunDiskTint`) when it is not white. */
+    sunDiskTint?: [number, number, number]
+    /** The light shaft settings (`Light.shaft*`) that differ from their defaults; absent, none. */
+    shafts?: LightShaftParameters
+    /** The cloud shadow settings (`Light.cloudShadow*`) that differ from their defaults; absent, none. */
+    cloudShadows?: LightCloudShadowParameters
   }
   /** A compiled model, by the manifest address it was loaded from: never inlined. */
   model?: { url: string }
@@ -112,9 +136,11 @@ export interface SavedScene {
   formatVersion: number
   /** The background colour, or `null`. */
   background: [number, number, number] | null
-  /** The fog, its colour in linear components, or `null`. */
-  fog: SceneFog | null
-  /** The atmosphere, every field set; absent, none. */
+  /** The sky module's word as the scene held it (`scene.sky`); absent, none. */
+  sky?: ModuleOption
+  /** Version 2 only: the fog, its colour in linear components, or `null`. */
+  fog?: SceneFog | null
+  /** Version 2 only: the atmosphere, every field set; absent, none. */
   atmosphere?: ResolvedAtmosphere
   /** The camera saved with the scene, or `null`. */
   camera: SavedCamera | null
@@ -129,10 +155,10 @@ export interface SavedScene {
 /** Refuses what is not a saved scene of the version this runtime reads, by name. */
 export function assertSavedScene(value: unknown): asserts value is SavedScene {
   const saved = value as Partial<SavedScene> | null
-  if (saved?.format !== SCENE_FORMAT || saved.formatVersion !== SCENE_FORMAT_VERSION)
+  if (saved?.format !== SCENE_FORMAT || !READ_VERSIONS.includes(saved.formatVersion as number))
     throw new EngineError(
       'UNSUPPORTED_SCENE_FORMAT',
-      `Not a saved scene of version ${SCENE_FORMAT_VERSION}`,
+      `Not a saved scene of version ${READ_VERSIONS.join(' or ')}`,
       { format: saved?.format, formatVersion: saved?.formatVersion },
     )
 }

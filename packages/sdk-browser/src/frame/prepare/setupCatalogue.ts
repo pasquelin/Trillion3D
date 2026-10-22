@@ -4,6 +4,7 @@ import { createBlendCopyRecord } from '../../geometry/cluster/blendCopyRecord.ts
 import type { EngineContext } from '../../session/engine/types.ts'
 import { createWebgpuPageTracking } from '../../geometry/rows/page/pageTracking.ts'
 import { collectClusterPages } from '../../geometry/selection/collect.ts'
+import { distanceFieldMeshes } from '../../lighting/distanceField/fieldsLoad.ts'
 import { indexPagesByUrl } from '../../geometry/selection/requests.ts'
 import type { WebgpuDiagnostics } from './setup.ts'
 import { withWorldRoot } from './worldRoot.ts'
@@ -16,7 +17,10 @@ export function setupPages(context: EngineContext, diag: WebgpuDiagnostics) {
   const { source, draws, metadata, indices } = context
   // The world DAG beside the scene's pages as the cut's last root, when the scene streams one
   // (`../../geometry/hlod/worldRecords.ts`).
-  const scene = collectClusterPages(source, draws, metadata, indices, { allowMissing: true })
+  const scene = collectClusterPages(source, draws, metadata, indices, {
+    allowMissing: true,
+    distanceFieldMeshes: distanceFieldMeshes(context.distanceFields),
+  })
   const collected = withWorldRoot(scene, context)
   const { roots, allPages, requests } = collected
   const pagedBlendCopies = new Map<MatrixElements, BlendCopy[]>()

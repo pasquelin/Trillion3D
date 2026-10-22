@@ -111,7 +111,6 @@ export function listsOf(bounce: string) {
       'entryOf',
       'gridColumn',
       'columnGap',
-      'runReach',
       'sphereInColumn',
       'lightRun',
       'isSun',

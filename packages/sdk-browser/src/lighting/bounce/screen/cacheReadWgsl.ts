@@ -143,6 +143,6 @@ fn spFarOf(P:vec3f,d:vec3f,size:f32)->SpFar{
   let s=spCacheSample(P,d,size);
   return SpFar(s.radiance,select(s.distance,spMaxTrace(),s.distance>=CACHE_MAX_HIT));
  }
- return SpFar(reflectionEnvironment(d),spMaxTrace());
+ return SpFar(reflectionEnvironment(d,0.0),spMaxTrace());
 }`,
   )

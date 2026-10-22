@@ -75,6 +75,9 @@ export type PlacementRows = {
    *  and 0 for none: a column of its own, absent until a cell places an object that names one;
    *  kept by a growth, cleared where a row is parked. */
   drawDistance?: Float32Array
+  /** Per row, 1 when a view's primed depth draws it (`CellNode.farField`): a column of its own,
+   *  absent until a cell places an object that sets it; kept by a growth. */
+  farField?: Uint8Array
 }
 
 export function createPlacementRows(capacity: number): PlacementRows {
@@ -109,6 +112,10 @@ export function growPlacementRows(before: PlacementRows | null, needed: number) 
     if (before.drawDistance) {
       rows.drawDistance = new Float32Array(2 * rows.capacity)
       rows.drawDistance.set(before.drawDistance)
+    }
+    if (before.farField) {
+      rows.farField = new Uint8Array(rows.capacity)
+      rows.farField.set(before.farField)
     }
   }
   return rows
@@ -149,3 +156,22 @@ export function rowDrawDistance({ rows, index }: PlacementOf): DrawDistance | un
   const far = rows.drawDistance?.[2 * index + 1] ?? 0
   return far > 0 ? { min: rows.drawDistance![2 * index], max: far } : undefined
 }
+
+/** How many times a row's far-field flag changed: what the primed draw's set is read again by
+ *  (`../../frame/render/primeFarField.ts`). */
+let farFieldMoves = 0
+export const rowFarFieldMoves = () => farFieldMoves
+
+/** Row `row` of `rows` is a far-field row or not from now on; the column is made by the first row
+ *  that is one. */
+export function seatFarField(rows: PlacementRows, row: number, farField: boolean) {
+  if (farField) rows.farField ??= new Uint8Array(rows.capacity)
+  const held = rows.farField
+  if (!held || held[row] === (farField ? 1 : 0)) return
+  held[row] = farField ? 1 : 0
+  farFieldMoves++
+}
+
+/** Whether `placement`'s row is a far-field row. */
+export const rowFarField = (placement: PlacementOf | undefined) =>
+  !!placement && placement.rows.farField?.[placement.index] === 1

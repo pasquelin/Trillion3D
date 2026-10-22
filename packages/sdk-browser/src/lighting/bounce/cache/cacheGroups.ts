@@ -1,8 +1,13 @@
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { createWebgpuBindIdentity } from '../../../gpu/bind/bindIdentity.ts'
 import type { ProxyResources } from '../../../geometry/dag/cut/cutReaders.ts'
-import { PROBE_PROXY } from '../probes/probeBindings.ts'
 import { sceneBindEntries } from '../sceneBindings.ts'
+import { PROBE_CLOUD_SHADOW, PROBE_PROXY, PROBE_SKY_LIGHT } from '../probes/probeBindings.ts'
+import { cloudShadowBindEntries, type CloudShadowSet } from '../../atmosphere/cloudShadowRead.ts'
+import {
+  skyLightReadBindEntries,
+  type SkyLightReadSet,
+} from '../../../modules/sky/skyLight/read.ts'
 import {
   CACHE_FILTER_BINDINGS,
   CACHE_MIPS_BINDINGS,
@@ -25,12 +30,16 @@ export interface CacheWiring {
   slots: number
 }
 
-/** What an image queued for the cache: the probes, what the trace reads, the image's eye. */
+/** What an image queued for the cache: the probes, what the trace reads — the light functions' atlas, the sky light and the clouds' shade
+ *  as the probe pass reads them —, the image's eye. */
 export interface Queued {
   groups: number
   proxy: ProxyResources
   lights: GPUBuffer
   lists: GPUBuffer
+  lightFunction: GPUTextureView
+  sky: SkyLightReadSet
+  cloudShadow: CloudShadowSet
   eye: ArrayLike<number>
 }
 
@@ -99,6 +108,12 @@ export function cacheTraceBinder(device: GPUDevice, kernels: CacheKernels, wirin
     next[3] = q.proxy.tree
     next[4] = q.lights
     next[5] = q.lists
+    next[6] = q.lightFunction
+    next[7] = q.sky.cube
+    next[8] = q.sky.params
+    next[9] = q.cloudShadow.block
+    next[10] = q.cloudShadow.maps[0]
+    next[11] = q.cloudShadow.maps[1]
     if (identity.moved()) {
       const B = CACHE_TRACE_BINDINGS
       group = device.createBindGroup({
@@ -113,6 +128,9 @@ export function cacheTraceBinder(device: GPUDevice, kernels: CacheKernels, wirin
           { binding: B.raw, resource: s.views.raw },
           { binding: B.params, resource: { buffer: s.params } },
           ...sceneBindEntries(PROBE_PROXY, q.proxy),
+          { binding: B.lightFunction, resource: q.lightFunction },
+          ...skyLightReadBindEntries(PROBE_SKY_LIGHT, q.sky),
+          ...cloudShadowBindEntries(PROBE_CLOUD_SHADOW, q.cloudShadow),
         ],
       })
     }

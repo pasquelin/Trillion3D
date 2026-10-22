@@ -34,7 +34,10 @@ test('the frame metrics carry the sampled pool and count its growths', async () 
   /** One frame of 160 × 160 pixels, the GPU's pool state `words`. */
   const frame = async (at: number, words?: number[]) => {
     tiles.ensure(160, 160, lights, LIGHT_SETTINGS.tileLights)
-    tiles.update(new Float64Array(16), [0, 0, 0], 160, 160)
+    tiles.update(new Float64Array(16), [0, 0, 0], 160, 160, {
+      depth: undefined,
+      words: new Float32Array(8),
+    })
     tiles.encode(encoder, at)
     if (words) new Uint32Array(readback.getMappedRange()).set(words)
     tiles.submitted()

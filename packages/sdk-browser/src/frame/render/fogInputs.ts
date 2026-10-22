@@ -3,12 +3,20 @@ import type { VolumetricFogValues } from '../../../../sdk-core/src/contracts/vol
 import type { ResolvedVolumetricFog } from '../../../../sdk-core/src/scene/core/fogVolumetric.ts'
 import { cameraForward } from '../../camera/forward.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { cloudShadowStandIn } from '../../lighting/atmosphere/cloudShadowStandIn.ts'
 import type { FogVolumeInputs, Scratch } from '../../lighting/fog/gpu.ts'
+import { fillFogStaticLight } from '../../lighting/fog/staticFrame.ts'
+import { newFogStaticLight } from '../../lighting/fog/staticLight.ts'
+import { lightFunctionResources } from '../../lighting/lightFunction/frame.ts'
 import { opaquePyramidOf } from '../../lighting/reflections/frame.ts'
 import { vsmOrStandIns } from '../../lighting/shadows/vsm/frame/vsmConsumers.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { viewProj } from '../backend/helpers.ts'
+import { preExposureOf } from '../../post/exposure/pre.ts'
 import { directLightResources } from '../prepare/contractLight.ts'
+import { cloudShadowOf } from './encodeCloudShadow.ts'
+import { skyLightReadOf } from './encodeSkyLight.ts'
+import { fogSkyField } from './encodeSkyOcclusion.ts'
 
 /** The matrices and vectors of the image's camera the volume reads: the inverse view-projection and
  *  the forward are written here, the rest are the engine camera's own. */
@@ -25,6 +33,7 @@ const inputs: Scratch<FogVolumeInputs> = {
   camera: {
     eye: NO_VECTOR,
     forward,
+    world: NO_MATRIX,
     projection: NO_MATRIX,
     viewProj: NO_MATRIX,
     inverseViewProj: inverse,
@@ -39,12 +48,20 @@ const inputs: Scratch<FogVolumeInputs> = {
   sunRank: -1,
   lightCells,
   frameIndex: 0,
+  preExposure: 1,
   allocated: [0, 0],
   depth: undefined,
   hiz: undefined,
+  field: undefined,
+  volumes: undefined,
   lights: undefined,
   tiles: undefined,
   cubemap: undefined,
+  lightFunction: undefined,
+  cloudShadow: undefined,
+  sky: undefined,
+  staticLight: newFogStaticLight(),
+  lightmap: undefined,
   cut: false,
   vsm: undefined,
 }
@@ -63,12 +80,15 @@ const vsmInputs: Scratch<NonNullable<FogVolumeInputs['vsm']>> = {
  * virtual shadow maps the sun's shadow reads — the very ones a blended surface binds
  * (`directLightResources`), or their stand-ins. `direct` is what the light lists encoded
  * (`encodeDirectLights`), whose columns and rows the volume's lights are read from; `cut` whether
- * the camera cut the history. Returns the inputs whole: they stay valid until `clearFogInputs`.
+ * the camera cut the history; the light functions' atlas, the clouds' shade and the sky light are the
+ * ones the image holds or their stand-ins, the baked light (`fillFogStaticLight`) the one the medium and
+ * the view's switches let it read. Returns the inputs whole: they stay valid until `clearFogInputs`.
  */
 export function fogInputsOf(
   rt: WebgpuPagesRuntime,
   cam: EngineCamera,
   direct: ArrayLike<number>,
+  device: GPUDevice,
   buffer: GPUBuffer,
   fog: { medium: ResolvedVolumetricFog; settings: VolumetricFogValues; cubemap?: GPUTextureView },
   cut: boolean,
@@ -80,6 +100,7 @@ export function fogInputsOf(
   invertMatrix4(inverse, cam.viewProjection)
   cameraForward(forward, cam.world)
   camera!.eye = cam.eye
+  camera!.world = cam.world
   camera!.projection = cam.projection
   camera!.viewProj = cam.viewProjection
   camera!.near = cam.near
@@ -89,6 +110,8 @@ export function fogInputsOf(
   inputs.allocated = gpu.allocatedSize
   inputs.depth = gpu.depthView
   inputs.hiz = opaquePyramidOf(rt)
+  inputs.field = fogSkyField(rt, camera!.perspective)
+  inputs.volumes = rt.context.sceneVolumes
   inputs.lights = buffer
   inputs.tiles = contract.tiles ?? placeholders.tiles
   const vsm = vsmOrStandIns(contract.vsm, placeholders)
@@ -105,6 +128,12 @@ export function fogInputsOf(
   inputs.medium = fog.medium
   inputs.settings = fog.settings
   inputs.cubemap = fog.cubemap
+  inputs.preExposure = preExposureOf(rt).now
+  inputs.lightFunction =
+    lightFunctionResources(rt, 'lightFunctionFog') ?? placeholders.lightFunction
+  inputs.cloudShadow = cloudShadowOf(rt) ?? cloudShadowStandIn(device)
+  inputs.sky = skyLightReadOf(rt)
+  fillFogStaticLight(inputs as FogVolumeInputs, rt, device, fog.medium)
   inputs.cut = cut
   return inputs as FogVolumeInputs
 }
@@ -117,6 +146,11 @@ export function clearFogInputs() {
     inputs.medium =
     inputs.hiz =
     inputs.cubemap =
+    inputs.field =
+    inputs.lightFunction =
+    inputs.cloudShadow =
+    inputs.sky =
+    inputs.lightmap =
       undefined
   inputs.vsm = undefined
   vsmInputs.pageTable = vsmInputs.projectionData = vsmInputs.uniforms = undefined

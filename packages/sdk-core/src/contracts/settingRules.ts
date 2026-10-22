@@ -1,4 +1,5 @@
 import { refusal } from './nameMatch.ts'
+import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 
 /**
  * The one typing and the one reading of the engine's run-time settings a family declares by rule:
@@ -8,7 +9,7 @@ import { refusal } from './nameMatch.ts'
  * (`./shadingOptions.ts`), the automatic and the local exposure (`./exposureOptions.ts`), the
  * temporal pass (`./temporalOptions.ts`). Each setting is a rule (`SettingRule`) — its kind, its
  * field, its default, the reference's, and, a number, its range, a choice, the names it takes —
- * built by `flagSetting`, `numberSetting`, `integerSetting`, `positiveSetting`, `nonNegativeSetting`,
+ * built by `flagSetting`, `numberSetting`, `integerSetting`, `vectorSetting`, `positiveSetting`, `nonNegativeSetting`,
  * `countSetting` or `choiceSetting`, so its default's type is its value's: a switch a boolean, a
  * number a number, a choice one of its names. The compiler's mesh build (`./meshBuildAbi.ts`)
  * declares its settings the same way, its refusals naming what a rule takes (`settingFits`,
@@ -58,6 +59,7 @@ export type SettingRule =
       readonly default: string
       readonly choices: readonly string[]
     }
+  | { readonly kind: 'vector'; readonly field: string; readonly default: readonly number[] }
 /** Settings by a name: the one their reader gives them, or their field. */
 type SettingRules = Readonly<Record<string, SettingRule>>
 /** The values of `T`'s settings, by the names `T` gives them, every one named. */
@@ -88,6 +90,9 @@ type FieldOptions<T extends SettingRules> = {
 export const ANY_NUMBER: SettingRange = [-1.7976931348623157e308, 1.7976931348623157e308]
 /** Any whole number a signed 32-bit word holds. */
 export const INT32_RANGE: SettingRange = [-2147483648, 2147483647]
+
+/** The range of a finite number from `low` up. */
+export const atLeast = (low: number): SettingRange => [low, ANY_NUMBER[1]]
 
 /** A switch of field `field` and default `value`. */
 export const flagSetting = <F extends string>(field: F, value: boolean) =>
@@ -138,6 +143,11 @@ export const choiceSetting = <F extends string, const C extends readonly string[
   choices: C,
 ) => ({ kind: 'choice', field, default: value, choices }) as const
 
+/** A vector of field `field` whose default `value` fixes its length: finite numbers, a linear
+ *  colour (three) as well as a set of coefficients. */
+export const vectorSetting = <F extends string>(field: F, value: readonly number[]) =>
+  ({ kind: 'vector', field, default: Object.freeze([...value]) }) as const
+
 /** The rules `rules` list, by their field. */
 export const rulesOf = <const T extends readonly SettingRule[]>(rules: T) =>
   Object.fromEntries(rules.map((rule) => [rule.field, rule])) as {
@@ -152,6 +162,7 @@ export function settingTakes(rule: SettingRule) {
   if (rule.kind === 'flag') return 'true or false'
   if (rule.kind === 'choice')
     return `one of ${rule.choices.map((name) => `'${name}'`).join(', ')}${isLevelRule(rule) ? ', true or false' : ''}`
+  if (rule.kind === 'vector') return `an array of ${rule.default.length} finite numbers`
   return (
     rule.takes ??
     `${rule.kind === 'int' ? 'a whole number' : 'a number'} from ${rule.range[0]} to ${rule.range[1]}`
@@ -173,7 +184,7 @@ export function resolveSetting<R extends SettingRule>(
     return (option ? rule.default : 'off') as R['default']
   if (!settingFits(rule, option))
     refusal(rule.field)(`must be ${settingTakes(rule)}, got ${String(option)}`)
-  return option as R['default']
+  return Array.isArray(option) ? ([...option] as R['default']) : (option as R['default'])
 }
 
 /** Whether `value` is one `rule` takes: a switch a boolean, a number a finite one in its range,
@@ -181,6 +192,12 @@ export function resolveSetting<R extends SettingRule>(
 export function settingFits(rule: SettingRule, value: unknown) {
   if (rule.kind === 'flag') return typeof value === 'boolean'
   if (rule.kind === 'choice') return typeof value === 'string' && rule.choices.includes(value)
+  if (rule.kind === 'vector')
+    return (
+      Array.isArray(value) &&
+      value.length === rule.default.length &&
+      value.every((part) => typeof part === 'number' && Number.isFinite(part))
+    )
   const [low, high] = rule.range
   return (
     typeof value === 'number' &&
@@ -234,6 +251,12 @@ export const settingWriter =
     writeSetting(rules, options, field, option)
   }
 
+/** One setting's value, whatever its kind. */
+type SettingValue = boolean | number | string | readonly number[]
+/** Whether two values of one setting are the same: a vector by its parts. */
+const sameValue = (a: SettingValue, b: SettingValue) =>
+  a === b || (typeof a === 'object' && typeof b === 'object' && sameValues(a, b))
+
 /** Each group's rules in their order, read once: a frame's reading allocates no list. */
 const entries = new WeakMap<SettingRules, readonly (readonly [string, SettingRule])[]>()
 const namedRules = (rules: SettingRules) => {
@@ -250,8 +273,8 @@ export function resolveSettingsInto<T extends SettingRules>(
   options: FieldOptions<T>,
   into: SettingValues<T>,
 ) {
-  const held = options as Readonly<Record<string, boolean | number | string | null | undefined>>
-  const out = into as Record<string, boolean | number | string>
+  const held = options as Readonly<Record<string, SettingValue | null | undefined>>
+  const out = into as Record<string, SettingValue>
   for (const [name, rule] of namedRules(rules)) out[name] = resolveSetting(rule, held[rule.field])
   return into
 }
@@ -264,9 +287,9 @@ export function settingsDiffer<T extends SettingRules>(
   used: SettingValues<T>,
   settings: SettingValues<T>,
 ) {
-  const before = used as Record<string, boolean | number | string>
-  const now = settings as Record<string, boolean | number | string>
-  for (const [name] of namedRules(rules)) if (before[name] !== now[name]) return true
+  const before = used as Record<string, SettingValue>
+  const now = settings as Record<string, SettingValue>
+  for (const [name] of namedRules(rules)) if (!sameValue(before[name], now[name])) return true
   return false
 }
 

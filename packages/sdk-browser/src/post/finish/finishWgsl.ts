@@ -1,4 +1,5 @@
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { LOCAL_LOG_WGSL } from '../exposure/localLogWgsl.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { FILM } from '../../lighting/filmCurveConstants.ts'
 import { FINISH, GRID_DEPTH } from './finishLayout.ts'
@@ -81,7 +82,7 @@ export const GLOWED_PIXEL_WGSL = wgslFn(
  */
 export const FINISH_WGSL = wgslBlock(
   'FINISH_WGSL',
-  [GLOWED_PIXEL_WGSL],
+  [GLOWED_PIXEL_WGSL, LOCAL_LOG_WGSL],
   `
 ${FINISH.wgsl}
 @group(1) @binding(0) var<uniform> finish:Finish;
@@ -103,16 +104,8 @@ fn baseLog(logLight:f32,uv:vec2f)->f32{
 fn localGain(logLight:f32,uv:vec2f)->f32{
  let logExposed=logLight+log2(finish.look.y);
  let base=baseLog(logLight,uv);
- var centred=base-finish.base.x;
- let high=centred>0.0;
- let contrast=select(finish.base.z,finish.base.y,high);
- let edge=select(finish.grid.w,finish.grid.z,high);
- let reach=select(finish.reach.y,finish.reach.x,high);
- let kept=select(min(0.0,centred+edge),max(0.0,centred-edge),high);
- let grown=saturate((abs(centred)-edge)/reach);
- let shift=(centred-kept)*(1.0-smoothstep(0.0,1.0,grown));
- centred=centred-shift;
- return exp2(finish.base.x+shift+centred*contrast+(logExposed-base)*finish.base.w-logExposed);
+ let placed=localLog(base,finish.base.x,finish.base.yz,finish.grid.zw,finish.reach.xy);
+ return exp2(placed+(logExposed-base)*finish.base.w-logExposed);
 }
 fn localGainOf(source:vec4f,uv:vec2f)->f32{
  if(finish.look.z==0.0){return 1.0;}

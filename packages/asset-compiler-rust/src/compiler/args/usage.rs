@@ -2,6 +2,7 @@
 //! (`SHORT_FORMS`), and the usage line spelled from them and from every flag a job field takes
 //! (`usage`), which a command line of no form is refused with.
 use super::texture_formats::{texture_format_choices, TEXTURE_FORMAT_OPTION};
+use crate::volumetric_lightmap::bake::abi::LIGHTMAP_BAKE_OPTION;
 use crate::*;
 
 /// The fields each form of the command line leaves out, the full form first: a short form
@@ -40,7 +41,7 @@ pub(super) fn usage() -> String {
         })
         .collect();
     format!(
-        "Usage: trillion3d-compiler {} [{TEXTURE_FORMAT_OPTION}{}] [{HLOD_OPTION}JSON] [{TEMPORAL_AA_OPTION}{}|true|false] [{RESPONSIVE_OPTION}JSON] [{MATERIALS_OPTION}JSON] [{VOXELIZE_OPTION}JSON] [{PARTITION_SCHEME_OPTION}{}|true] [{PARTITION_GRID_OPTION}JSON] [{PARTITION_GRIDS_OPTION}JSON] [{MESH_BUILD_OPTION}JSON] [{OBJECT_SETTINGS_OPTION}JSON]\n       trillion3d-compiler --jobs FILE|-\n       {} is a directory or a file in one of the formats --version lists",
+        "Usage: trillion3d-compiler {} [{TEXTURE_FORMAT_OPTION}{}] [{HLOD_OPTION}JSON] [{TEMPORAL_AA_OPTION}{}|true|false] [{RESPONSIVE_OPTION}JSON] [{MATERIALS_OPTION}JSON] [{VOXELIZE_OPTION}JSON] [{PARTITION_SCHEME_OPTION}{}|true] [{PARTITION_GRID_OPTION}JSON] [{PARTITION_GRIDS_OPTION}JSON] [{MESH_BUILD_OPTION}JSON] [{OBJECT_SETTINGS_OPTION}JSON] [{LIGHTMAP_BAKE_OPTION}JSON|true|false]\n       trillion3d-compiler --jobs FILE|-\n       {} is a directory or a file in one of the formats --version lists",
         line.join(" "),
         texture_format_choices().join("|"),
         TEMPORAL_AA_LEVELS.join("|"),

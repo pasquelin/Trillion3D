@@ -60,6 +60,12 @@ function halfRead(bits: number) {
 }
 
 /**
+ * `value` as the nearest half, ties to even, rounded once from the double (`Math.f16round`'s
+ * result, which Node 22 lacks) — past the largest finite half, infinity.
+ */
+export const halfRound = (value: number) => halfRead(toHalf(value))
+
+/**
  * `value` as a half store keeps it: made a float32 first, the precision errors are built in, then
  * the nearest half, ties to even — past the largest finite half, infinity.
  */

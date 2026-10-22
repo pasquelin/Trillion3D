@@ -9,6 +9,7 @@ import {
 import { diagnosticCode, drawsLit } from '../visibility/shader/shadeMode.ts'
 import { writeBlendDiagnostic } from './diagnostic.ts'
 import { directTiles } from '../frame/render/encodeLights.ts'
+import { DIRECT_AT } from '../lighting/deferred/view.ts'
 import { wantsContractLighting } from '../frame/prepare/contractLight.ts'
 import type { DiagnosticMode } from '../../../sdk-core/src/runtime/diagnostics.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
@@ -123,8 +124,10 @@ function writeViewFrame(rt: WebgpuPagesRuntime, tiles: ReturnType<typeof directT
   packed[VIEW.pixelRatio] = renderPixelRatio(rt)
   // Texture level offset of a frame drawn below the display (`tilePoolWgsl`).
   packed[VIEW.mipBias] = renderMipBias(rt)
-  // The composition's exposure and display curve: the display filter's colour (`display/displayFilter.ts`).
-  packed[VIEW.exposure] = tiles[3]
+  // The composition's scale and display curve: the display filter's colour (`display/displayFilter.ts`);
+  // and the pre-exposure every light is written multiplied by.
+  packed[VIEW.exposure] = tiles[DIRECT_AT.shown]
+  packed[VIEW.preExposure] = tiles[DIRECT_AT.preExposure]
   ints[VIEW.toneCurve] = tiles[4]
   // The cut's threshold the screen-error view measures against (`diagnosticScreenError`).
   packed[VIEW.pixelError] = run.diagnosticPixelError

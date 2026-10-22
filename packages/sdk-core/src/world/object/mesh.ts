@@ -2,6 +2,7 @@ import { Object3D } from './object3d.ts'
 import type { Listeners } from '../../runtime/listeners.ts'
 import { Geometry } from '../geometry/geometry.ts'
 import { Material } from '../material/material.ts'
+import { assertMeshMaterial } from '../material/lightFunctionMaterial.ts'
 import type { Box3 } from '../math/box3.ts'
 import { ObjectPhysics } from '../../physics/objectPhysics.ts'
 import type { PhysicsOption } from '../../physics/options.ts'
@@ -58,6 +59,7 @@ export class Mesh<M extends object = Material> extends Object3D {
     primitive: Primitive = 'triangles',
   ) {
     super()
+    assertMeshMaterial(material)
     this.castShadow = true
     this.primitive = primitive
     this.type = primitive === 'triangles' ? 'Mesh' : primitive
@@ -105,6 +107,7 @@ export class Mesh<M extends object = Material> extends Object3D {
     return this._material
   }
   set material(material: M | M[]) {
+    assertMeshMaterial(material)
     this.wear(() => (this._material = material))
   }
   /** Puts on another geometry or material: heard from the new one when in a world, which is told. */

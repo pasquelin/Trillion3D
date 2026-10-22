@@ -23,9 +23,12 @@ export interface TaaFrameState {
   /** The render grid that image was drawn in, `(width, height)`: the render-resolution histories'
    *  viewport (`analysis.ts`). */
   previousRender: Float64Array
-  /** That image's exposure: the render-resolution histories are kept exposed, and corrected by the
-   *  ratio to this image's. */
+  /** That image's scale (the exposure over its pre-exposure): the render-resolution histories are
+   *  kept exposed, and corrected by the ratio to this image's. */
   previousExposure: number
+  /** That image's pre-exposure: the colour history holds light multiplied by it, and is brought to
+   *  this image's by the ratio (`historyRead`). */
+  previousPreExposure: number
   hasHistory: boolean
   /** Images accumulated, the view still, since the history was last dropped (`dropTaaHistory`) or
    *  the image last moved — the camera, a placement, a deformation, the scene or its resources —:
@@ -68,6 +71,7 @@ export function createTaaFrameState(): TaaFrameState {
     previousEye: new Float64Array(3),
     previousRender: new Float64Array(2),
     previousExposure: 1,
+    previousPreExposure: 1,
     hasHistory: false,
     accumulated: 0,
     resourcesSeen: -1,

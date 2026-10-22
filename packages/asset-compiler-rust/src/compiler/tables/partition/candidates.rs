@@ -57,7 +57,8 @@ impl Row {
 /// box in the frame of the core node its row hangs under, whether it may take an HLOD layer —
 /// nothing moves it, itself or through a node above it, and an instanced skinned object's mobility
 /// keeps it still —, the root of its batch, the main grid it streams on (`assign_grids`), and the
-/// distances it is drawn at, when its settings name any (`DrawDistance`).
+/// distances it is drawn at, when its settings name any (`DrawDistance`), and whether a view's
+/// primed depth draws it (`far_field`).
 pub(super) struct Candidate {
     pub node: usize,
     pub mesh: usize,
@@ -68,6 +69,7 @@ pub(super) struct Candidate {
     pub batch: usize,
     pub grid: usize,
     pub draw_distance: Option<DrawDistance>,
+    pub far_field: bool,
 }
 
 impl Candidate {
@@ -105,6 +107,9 @@ impl Candidate {
         };
         if let Some(distance) = &self.draw_distance {
             entry["drawDistance"] = distance.entry();
+        }
+        if self.far_field {
+            entry["farField"] = json!(true);
         }
         (core_parent, entry)
     }
@@ -259,6 +264,7 @@ pub(super) fn gather(
             batch,
             grid: 0,
             draw_distance: setting.draw_distance,
+            far_field: setting.far_field,
         });
     }
     candidates.retain(|c| !pinned.contains(&c.batch));

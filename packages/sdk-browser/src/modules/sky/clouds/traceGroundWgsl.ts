@@ -1,0 +1,50 @@
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { CLOUD_LIGHT_WGSL } from './traceLightWgsl.ts'
+
+/**
+ * THE GROUND'S BOUNCE ON A SAMPLE, the material's choice (`groundContribution`): the light of the
+ * air's lights that the ground, a plain Lambert surface of the component's albedo under the
+ * sample, sends back up into the cloud, as if it lit the sample from every direction of the lower
+ * hemisphere equally (so the uniform phase), less what the cloud between the sample and the ground
+ * takes out of it.
+ *
+ * The cloud's depth toward the ground is five samples of its extinction along the vertical, at
+ * most five kilometres long or the sample's altitude in the layer, spread by their square, as the
+ * shadow ray's; a sample where the material's density bound is zero adds nothing. The light is
+ * each light's illuminance before the cloud's scale, with the air's transmittance toward it at the
+ * sample, times the ground's albedo over pi times the cosine of the first light on the ground,
+ * times the hemisphere's solid angle (2 pi) times the uniform phase. The program that includes it
+ * declares the trace block (\`cloudTrace\`), whose \`ground\` is the albedo.
+ */
+export const CLOUD_GROUND_WGSL = wgslBlock(
+  'CLOUD_GROUND_WGSL',
+  [CLOUD_LIGHT_WGSL],
+  `
+const CLOUD_PI:f32=3.14159265;
+/** The vertical length, in centimetres, over which the ground's bounce is dimmed at most, and the
+ *  samples that integrate it. */
+const CLOUD_GROUND_LENGTH_CM:f32=500000.0;
+const CLOUD_GROUND_STEPS:f32=5.0;
+/** The light the ground bounces into the sample at \`rel\` centimetres from the eye, \`air\` the air's
+ *  transmittance toward each of \`lights\` there. */
+fn cloudGroundLight(rel:vec3f,air:array<vec3f,2>,lights:CloudLights)->vec3f{
+ let centre=cloudPlanetEye+rel;
+ let normal=normalize(centre);
+ let reach=min(CLOUD_GROUND_LENGTH_CM,length(centre)-cloudBottomCm);
+ let each=1.0/CLOUD_GROUND_STEPS;
+ var depth=vec3f(0.0);
+ var before=0.0;
+ for(var s=each;s<=1.00001;s+=each){
+  let after=s*s;
+  let share=after-before;
+  let there=cloudPointAt(rel-normal*(reach*(after-0.5*share)));
+  before=after;
+  if(there.spot.conservativeDensity.x<=0.0){continue;}
+  depth+=there.spot.extinction*(reach*CLOUD_CM_TO_M*share);
+ }
+ var bounced=vec3f(0.0);
+ for(var k=0u;k<lights.count;k++){bounced+=air[k]*lights.list[k].raw;}
+ let lambert=saturate(dot(lights.list[0].toward,normal))*(cloudTrace.ground.rgb/CLOUD_PI);
+ return bounced*(lambert*(2.0*CLOUD_PI*UNIFORM_PHASE))*exp(-depth);
+}`,
+)

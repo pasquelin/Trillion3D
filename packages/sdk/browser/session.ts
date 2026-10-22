@@ -10,7 +10,6 @@ export type { CharacterSettings } from '../../sdk-browser/src/session/world/char
 export type { ControlSettings } from '../../sdk-browser/src/session/world/controls/controlsAccessors.ts'
 export { createWorld } from '../../sdk-browser/src/session/world/world.ts'
 export type { World } from '../../sdk-browser/src/session/world/world.ts'
-export type { Fog } from '../../sdk-browser/src/session/world/sceneFog.ts'
 export type {
   GeometryPool,
   MemoryBudgets,

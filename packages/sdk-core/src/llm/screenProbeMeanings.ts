@@ -98,7 +98,7 @@ export const SCREEN_PROBE_MEANINGS: Readonly<Record<ScreenProbeField, string>> =
   screenProbeHistoryDepthTestThickness:
     "How far apart, in device depth, a screen trace's hit and the last image's depth may be for the last image's lit colour to answer the ray; larger keeps more hits and ghosts more.",
   screenProbeRelativeDepthThickness:
-    'The thickness, relative to its depth, the screen trace gives a surface it crosses: larger finds hits behind thin edges.',
+    "The thickness, relative to its depth, the screen trace gives a surface it crosses (0.02 by default), times the projection's depth scale (1 under a perspective): larger finds hits behind thin edges.",
   screenProbeMaxIterations:
     "The most steps the screen trace's march takes through the depth pyramid.",
   screenProbeRadianceCache:
@@ -121,4 +121,10 @@ export const SCREEN_PROBE_MEANINGS: Readonly<Record<ScreenProbeField, string>> =
     'Whether the radiance cache keeps the sky apart from the light: each texel holds, beside the light the rays found on surfaces, the share of its ray that left the scene, which the reader fills with the sky itself in that direction (the sky then follows the current sun without the maps being traced again); false, the sky is in the light.',
   screenProbeRadianceCacheSupersampleThreshold:
     "The share, from 0 to 1, of the pixels' lobes above which a full-side tile of a probe's map is traced again at twice the side.",
+  screenProbeThicknessScaleWithoutField:
+    "The scale of the thickness the screen trace gives the depth buffer's surfaces at a pixel whose surface has no distance field to resume a ray behind it (2 by default; 1 where it has one): larger treats those surfaces as thicker.",
+  screenProbeThicknessCertaintySteps:
+    'The linear steps taken along the ray past a screen hit, from 0 to 64 (4 by default), that look for a thin feature in front of it and drop the hit if one is found; used only where foliage hits are not skipped (screenProbeSkipFoliageHits off), else 0.',
+  screenProbeSkipFoliageHits:
+    "Whether a screen trace's hit on a thin double-sided sheet that transmits light (a leaf, a curtain: a material with a subsurface colour) is dropped, so the ray goes on to the next stage; true by default, which avoids the aliasing of high-frequency foliage. The probes' march reads the half-resolution level of the depth pyramid or the full-resolution depth by hizFullResDepth.",
 }

@@ -1,16 +1,30 @@
 import type { PhysicsMaterialPreset } from '../../physics/options.ts'
 import type { MaterialParameters } from './materialParameters.ts'
 import { alphaModeOf, type Material as EngineMaterial } from '../../contracts/material.ts'
+import {
+  resolveVolumeMaterial,
+  VOLUME_MATERIAL_KIND,
+  type MaterialDomain,
+  type VolumeMaterial,
+} from '../../contracts/volumeMaterial.ts'
 import { Color, type ColorInput } from '../math/color.ts'
 import { listen, unlisten } from '../observed.ts'
 import { createListeners, type Listeners } from '../../runtime/listeners.ts'
 import type { Blending, Side } from '../constants/index.ts'
+import {
+  forgetLightFunctionMaterial,
+  LIGHT_FUNCTION_MATERIAL_KIND,
+} from './lightFunctionMaterial.ts'
+import { MaterialGraph } from './graph/api.ts'
+import type { GraphData } from './graph/graph.ts'
+import { graphError } from './graph/valueType.ts'
 
 /** The fields whose value is a colour: written through `Color`, whatever the page passes. Every
  *  surface and table that carries a colour reads this list. */
 export const MATERIAL_COLOURS: ReadonlySet<string> = new Set([
   'color',
   'emissive',
+  'albedo',
   'specular',
   'sheenColor',
   'specularColor',
@@ -78,6 +92,10 @@ export class Material {
   /** kg/m³, for a body's mass. */ declare density?: number
   /** Physics friction. */ declare friction?: number
   /** Physics restitution. */ declare restitution?: number
+  /** The graph wired into this material's outputs (`material.graph(domain)`), or none: its
+   *  outputs replace the parameters they stand for. A graph of another domain than the material's is
+   *  refused. */
+  declare graph?: MaterialGraph
   /** Bumped by every write: what the world compares to repaint. */
   version = 0
   /** Who wears this material: every mesh holding it hears its writes. */
@@ -114,6 +132,7 @@ export class Material {
     })
   }
   private assign(key: string, value: unknown) {
+    if (key === 'graph') return this.assignGraph(value)
     const current = this[key]
     if (MATERIAL_COLOURS.has(key) && !(value instanceof Color)) {
       // A colour written as a value: into the held `Color`, or a new one heard like the others.
@@ -128,6 +147,22 @@ export class Material {
     const sampled = value as Heard | null
     if (sampled?.isTexture) sampled._listeners?.subscribe(this.heard)
   }
+  /** Holds the graph `value` (a `MaterialGraph`, or its saved data), heard like a texture; none
+   *  clears it. */
+  private assignGraph(value: unknown) {
+    const next =
+      value === undefined || value === null
+        ? undefined
+        : value instanceof MaterialGraph
+          ? value
+          : MaterialGraph.fromJSON(value as GraphData)
+    if (next && next.domain !== this.domain)
+      throw graphError(`a ${next.domain} graph cannot be worn by a ${this.domain} material`)
+    this.graph?._listeners.unsubscribe(this.heard)
+    next?._listeners.subscribe(this.heard)
+    if (next) this.graph = next
+    else delete this.graph
+  }
   /** Stops hearing what `key` held, unless another field of this material still holds it. */
   private release(key: string, held: unknown) {
     const texture = (held as Heard | null)?.isTexture
@@ -140,6 +175,23 @@ export class Material {
   set needsUpdate(_value: boolean) {}
   get needsUpdate() {
     return false
+  }
+  /** The domain the material is authored in: a volume material (`material.volume`) is voxelised
+   *  into the fog's volume where its mesh stands and draws no surface. */
+  get domain(): MaterialDomain {
+    if (this.kind === LIGHT_FUNCTION_MATERIAL_KIND) return 'lightFunction'
+    return this.kind === VOLUME_MATERIAL_KIND ? 'volume' : 'surface'
+  }
+  /** The outputs of a material of the volume domain, held to their ranges: its albedo, its
+   *  extinction and its emissive light (`emissive` times `emissiveIntensity`). */
+  volumeOutputs(): VolumeMaterial {
+    const emissive = this.emissive.toArray().map((c) => c * this.emissiveIntensity)
+    return resolveVolumeMaterial({
+      albedo: (this.albedo as Color | undefined)?.toArray(),
+      extinction: this.extinction as number | undefined,
+      emissive: emissive as [number, number, number],
+      emissiveOnly: this.emissiveOnly as boolean | undefined,
+    })
   }
   /** The engine's physical surface record of this material (`contracts/material.ts`). A kind
    *  outside the physical family is drawn through the host family of its name, which the engine
@@ -162,11 +214,14 @@ export class Material {
     const parameters: MaterialParameters = {}
     for (const [key, value] of Object.entries(this))
       if (key !== 'kind' && !MATERIAL_BOOKKEEPING.has(key))
-        parameters[key] = value instanceof Color ? value.clone() : value
+        parameters[key] =
+          value instanceof Color || value instanceof MaterialGraph ? value.clone() : value
     return new Material(this.kind, parameters)
   }
   /** Forgets the wearers: a disposed material repaints nobody. */
   dispose() {
+    forgetLightFunctionMaterial(this)
+    this.graph?._listeners.unsubscribe(this.heard)
     this._listeners.clear()
   }
 }

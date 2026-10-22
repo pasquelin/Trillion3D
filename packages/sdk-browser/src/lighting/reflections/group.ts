@@ -2,6 +2,7 @@ import type { GpuHiz, HizDepth } from '../../visibility/hiz/gpu/types.ts'
 import { hizDepthBindEntries } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import type { ProxyResources } from '../../geometry/dag/cut/cutReaders.ts'
 import type { ScreenReflection } from './gpu.ts'
+import { skyLightReadBindEntries, type SkyLightReadSet } from '../../modules/sky/skyLight/read.ts'
 import { reflectionLayout } from './reflectionPipelines.ts'
 import {
   REFLECTION_DEPTH_BINDING,
@@ -10,6 +11,7 @@ import {
   REFLECTION_IMAGE_BINDING,
   REFLECTION_LIGHT_VIEW_BINDING,
   REFLECTION_SAMPLER_BINDING,
+  REFLECTION_SKY_LIGHT,
   REFLECTION_VIEW_BINDING,
 } from './viewLayout.ts'
 
@@ -21,12 +23,13 @@ export function reflectionGroup(
   reflection: ScreenReflection,
   depth: HizDepth,
   lightView: GPUBuffer,
+  sky: SkyLightReadSet,
 ) {
   const image = reflection.radiance.image.texture,
     { identity, slots } = reflection.group
   const { next } = identity
   next.length = 0
-  next.push(depth, image, lightView)
+  next.push(depth, image, lightView, sky.cube, sky.params)
   const moved = identity.moved()
   const kept = slots[identity.slot]
   if (kept && !moved) return kept
@@ -43,6 +46,7 @@ export function reflectionGroup(
       { binding: REFLECTION_IMAGE_BINDING, resource: image.createView() },
       // The transparents' front depth, the front pass's depth itself (`frontLayer.ts`).
       { binding: REFLECTION_FRONT_BINDING, resource: reflection.front.views.depth },
+      ...skyLightReadBindEntries(REFLECTION_SKY_LIGHT, sky),
     ],
   }))
 }
@@ -83,9 +87,13 @@ export function reflectionProxy({ gpu, run }: ReflectionHost): ProxyResources | 
 
 /** Binds, in the forward `pass`, the reflection group (`REFLECTION_GROUP`): the view's reflection
  *  over its depth pyramid, made with the frame's targets and the visibility programs. */
-export function bindForwardReflection(pass: GPURenderPassEncoder, rt: ReflectionHost) {
+export function bindForwardReflection(
+  pass: GPURenderPassEncoder,
+  rt: ReflectionHost,
+  sky: SkyLightReadSet,
+) {
   const depth = rt.vis.gpuHiz?.depth(),
     lightView = reflectionLightView(rt)
   if (rt.gpu.reflection && depth && lightView)
-    pass.setBindGroup(REFLECTION_GROUP, reflectionGroup(rt.gpu.reflection, depth, lightView))
+    pass.setBindGroup(REFLECTION_GROUP, reflectionGroup(rt.gpu.reflection, depth, lightView, sky))
 }

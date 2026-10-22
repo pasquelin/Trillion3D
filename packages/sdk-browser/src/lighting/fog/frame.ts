@@ -12,6 +12,7 @@ import {
   FOG_MATCH_GLOW_SCALE,
   type FogGrid,
 } from './layout.ts'
+import type { FogStaticLight } from './staticLight.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /** The bits of the frame's `medium.w`: which of the medium's switches are on. */
@@ -20,6 +21,8 @@ export const FOG_VOLUME_FLAG = {
   skipHidden: 2,
   usesHistory: 4,
   fogColors: 8,
+  /** The objects of the volume material domain were voxelised into this image's volume. */
+  voxels: 16,
 } as const
 
 /** What one image tells the volume about its camera: the matrices as column-major arrays — the
@@ -34,6 +37,8 @@ export interface FogVolumeCamera {
   viewProj: ArrayLike<number>
   inverseViewProj: ArrayLike<number>
   depthViewProj: ArrayLike<number>
+  /** The camera's world matrix: its first column is the right and its second the up of the view. */
+  world: ArrayLike<number>
   /** The distance of the near plane, metres. */
   near: number
   width: number
@@ -50,6 +55,8 @@ export interface FogVolumePrevious {
   viewProj: ArrayLike<number>
   width: number
   height: number
+  /** The pre-exposure the volume's light was written multiplied by. */
+  preExposure: number
 }
 
 /** What the image gives the volume. */
@@ -71,6 +78,13 @@ export interface FogVolumeImage {
   /** Whether a cell behind the surfaces of its pixels is held hidden: the setting, and the depth
    *  pyramid its furthest depth is read from. */
   skipHidden: boolean
+  /** Whether the objects of the volume material domain were voxelised into this image's volume. */
+  voxels: boolean
+  /** What the volume takes of the baked light (`FogStaticLight`), and whether the static term's pass
+   *  wrote its volume this image (it needs the lightmap and a term to add): the sky light is left to
+   *  that pass only then. */
+  staticLight: FogStaticLight
+  staticBuilt: boolean
   /** The rank of the directional light that lights the volume — the light store's held sun, the
    *  one the analytic fog's lobe follows (`SceneLightStore.fogSunSlot`) —, −1 for none. */
   sunRank: number
@@ -78,6 +92,8 @@ export interface FogVolumeImage {
   lightCells: readonly [number, number]
   /** The image's number, which moves the jitter. */
   frameIndex: number
+  /** The pre-exposure the volume's light is written multiplied by (`../../post/exposure/pre.ts`). */
+  preExposure: number
 }
 
 /** The depth buffer's map to a view depth, `a` and `b`, rewritten each image. */
@@ -148,6 +164,9 @@ function writeHistory(out: Float32Array, image: FogVolumeImage) {
     image.rebuildSamples,
     settings.volumetricFogEdgeFade,
   )
+  // The history's light, written multiplied by its own pre-exposure, is brought to this image's.
+  const now = image.preExposure
+  put(out, at.exposure, now, previous ? now / previous.preExposure : 1, 1 / now)
 }
 
 /** The medium's fields, the tuning, the lights it takes and the offsets of the samples. */
@@ -168,7 +187,8 @@ function writeMedium(out: Float32Array, image: FogVolumeImage) {
     (settings.volumetricFogGlow ? FOG_VOLUME_FLAG.glow : 0) |
     (image.skipHidden ? FOG_VOLUME_FLAG.skipHidden : 0) |
     (settings.volumetricFogUsesHistory ? FOG_VOLUME_FLAG.usesHistory : 0) |
-    (medium.useFogColors ? FOG_VOLUME_FLAG.fogColors : 0)
+    (medium.useFogColors ? FOG_VOLUME_FLAG.fogColors : 0) |
+    (image.voxels ? FOG_VOLUME_FLAG.voxels : 0)
   const { anisotropy: g, densityScale, fadeInRate } = medium
   put(out, at.medium, g, densityScale, fadeInRate, flags)
   put(
@@ -185,6 +205,15 @@ function writeMedium(out: Float32Array, image: FogVolumeImage) {
     medium.glow[0] * glowScale,
     medium.glow[1] * glowScale,
     medium.glow[2] * glowScale,
+  )
+  const { staticLight } = image
+  put(
+    out,
+    at.staticLight,
+    staticLight.intensity,
+    staticLight.skyShadowing && image.staticBuilt ? 1 : 0,
+    staticLight.skyDiffuse ? 1 : 0,
+    image.staticBuilt ? 1 : 0,
   )
   // The cells' samples move from image to image only where the history averages them: the jitter
   // of the offsets needs the reprojection, the random jitter of each sample (`tune.z`) does not.

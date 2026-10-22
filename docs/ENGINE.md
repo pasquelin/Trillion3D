@@ -443,6 +443,102 @@ world.cut = { cutDrawDistanceCulling: false } // every object drawn at every dis
 | `cutMaxCandidateClusters`  | Most candidate clusters one cut lists, a whole number from 1 to 2³¹ − 1                               | `16777216` |
 | `cutMaxVisibleClusters`    | Most clusters one cut draws, a whole number from 1 to 2³¹ − 1                                         | `4194304`  |
 
+**Depth pyramid settings.** The depth pyramid keeps its culling layer (the opaque depth, f32, the
+farthest of each 2 × 2, edges clamped) whatever the settings. Its trace layers are what the
+reflections' screen march reads. By default (`hizTrace` `'reference'`) the nearest layer is the
+closest opaque depth of each texel's centre and the march is the reference's walk
+(`visibility/hiz/gpu/screenMarchReference.ts`): its level 1 is the half-resolution mip 0 and the walk
+goes down to the full-resolution depth image, as the reflections' reference does, a hit the tile's
+depth, flat. In that walk a ray hits a surface it lies less far behind than
+`hizRelativeDepthThickness` (0.005) of the surface's depth (at least 10⁻⁷ m), times the projection's
+depth scale (1 under a perspective; `screenRelativeThickness` derives it under an orthographic one,
+from its depth range in centimetres, the depth measured from the eye's plane); `'planes'` keeps its
+thickness in pixels. With `'planes'` the nearest layer
+holds each pixel's plane corner, a finished-depth farthest layer is built beside it, and the march is
+the engine's own (`screenMarchPlanes.ts`), which a grazing surface cannot slip through. The
+transparent front depth is folded into the trace layers only by `hizFoldTransparents` (off). A
+transparent cluster is tested against the culling layer at a finer level by default (`'finer'`,
+`visibility/hiz/gpu/rectWgsl.ts`) or, by `hizTransparentTest` `'reference'`, over four texels a
+side of the lowest level that holds it (`visibility/hiz/gpu/footprintWgsl.ts`, the cut's own test).
+The screen probes' trace walks the same pyramid with `screenMarch(..., full)`: `hizFullResDepth`
+(on) takes the walk down to the full-resolution depth as the reflections' does; off, it stops at the
+half-resolution level, each tile's depth scaled by a factor rising from 0.99 to 1 over the first
+tenth of the march, and a hit is the centre of the 2 × 2 pixels of the texel. The relative
+thickness of its surfaces is its own setting, `screenProbeRelativeDepthThickness` (0.02), times the
+projection's depth scale (`screenRelativeThickness`, on the CPU) and written into the probes'
+uniform; a hit on a thin sheet that transmits light (`SUBSURFACE_FLAG`) is dropped by
+`screenProbeSkipFoliageHits` (on): the surface buffer's mark `SUBSURFACE_FLAG` is its backface diffuse light, which the
+reference tests as `bHasBackfaceDiffuse`. The thickness of the surfaces is scaled by the pixel's surface: 1 where it has
+a distance field to resume a ray behind it (`hasDistanceFieldRepresentation`, the surface flag 8 the shade pass writes
+for the rows of a mesh that has a field, casts a dynamic shadow and affects distance-field lighting:
+`FLAG_DISTANCE_FIELD`), `screenProbeThicknessScaleWithoutField` (2) where it has none
+(`screenTraceDepthThresholdScale`), read at the probe's own pixel. Where foliage hits are kept, a hit is followed by
+`screenProbeThicknessCertaintySteps` (4) linear samples along the ray toward its end, over that many texels of the
+half-resolution level, and dropped (the ray goes on to the next stage) if the ray is above the closest depth at any of
+them: a thin feature in front of it (`spThinFeature`); while they are skipped the steps are 0.
+
+The light grid (`lighting/tiles/`) reads the culling layer of the image's own pyramid, when
+`lightGridHizCull` is on (the default): for each column of 64 pixels, widened by one fog cell where
+the image builds a fog volume, `pyramidFarthest` (`visibility/hiz/gpu/footprintWgsl.ts`, the cut's
+4 × 4 footprint read) gives the farthest depth; the cells whose nearest face lies behind it are left
+empty and every light's run ends at the cell that holds it (`lighting/tiles/cullWgsl.ts`). A column
+with a background pixel, a pyramid that is not this image's, or a world grid (the bounce's) is not
+cut. The settings are world options by their field, changed by `world.hiz` from the next frame
+(`packages/sdk-core/src/contracts/hizOptions.ts`):
+
+```ts
+const world = createWorld(canvas, { hizTransparentTest: 'reference' })
+world.hiz = { hizTrace: 'planes', hizFoldTransparents: true }
+world.hiz = { hizTrace: null } // back to the default, the reference's walk
+world.hiz = { hizRelativeDepthThickness: 0.01 } // thicker reflection hits
+world.hiz = { hizFullResDepth: false } // the probes' walk stops at the half-resolution level
+world.hiz = { lightGridHizCull: false } // every cell the lights reach is listed
+```
+
+| Field                       | Meaning                                                                      | Default       |
+| --------------------------- | ---------------------------------------------------------------------------- | ------------- |
+| `hizTrace`                  | How the reflections' trace reads the pyramid: `'reference'`, or `'planes'`   | `'reference'` |
+| `hizFoldTransparents`       | The trace layers hold the nearest transparent surface beside the opaque one  | `false`       |
+| `hizTransparentTest`        | How a transparent cluster is tested: `'finer'` (16 texels), or `'reference'` | `'finer'`     |
+| `hizRelativeDepthThickness` | Reflections, `'reference'` walk: a surface's thickness, a share of its depth | `0.005`       |
+| `hizFullResDepth`           | The screen probes' walk goes down to the full-resolution depth               | `true`        |
+| `lightGridHizCull`          | The light grid leaves empty the cells behind their column's farthest depth   | `true`        |
+| `hizPrime`                  | When a primed pyramid is built: `'off'`, `'whenMissing'` or `'always'`       | `'off'`       |
+| `hizPrimeSizeBias`          | The primed draw is the image shifted right by `1 + this`, from 0 to 8        | `2`           |
+| `hizPrimeDepthBias`         | Metres the primed depth is pushed away from the eye by                       | `1.5`         |
+| `hizPrimeErrorScale`        | Factor on the cut's pixel error for the primed draw                          | `32`          |
+| `hizPrimeFarFieldOnly`      | The primed draw holds the objects that set `farField` alone                  | `true`        |
+
+**The primed pyramid** (`frame/render/primeHiz.ts`). The cut's main pass tests a box against the
+pyramid of the image before; a view with none (its first image, a resize, a cut of the camera) tests
+nothing and draws everything its post pass would have judged. With `hizPrime` `'whenMissing'` such an
+image first builds a pyramid of its own from a small draw, and `'always'` does for every image. The
+primed view (`frame/render/primeState.ts`) holds a depth target and a visibility target at the main
+view's allocated size shifted right by `1 + hizPrimeSizeBias`, a raster over them and a Hi-Z
+pyramid. Its cut (`GpuSelection.aside(true)`) is the main view's frustum at the image's render matrix,
+over the placements that set `farField` (the cut's view filter, `geometry/selection/viewFilter.ts`;
+all of them without `hizPrimeFarFieldOnly`), at `hizPrimeErrorScale` times the pixel error, in one
+pass: no page is asked, no readback copies it and no row is stamped. The main pass of that cut is
+rastered, hardware slots then software lists, into the small depth (`frame/render/primeStage.ts`,
+no identifier is resolved), and the pyramid is built from it with a push of its level 0
+(`visibility/hiz/gpu/primedWgsl.ts`): the depth is turned to the distance it stands for,
+`hizPrimeDepthBias` is added and the sum turned back, clamped to [0, 1], the far plane's zero staying
+zero. It is built in a command buffer of its own, submitted before the image's: the cut's tables and
+the raster's buffers are written by the queue, and an image encoded behind it would read the last
+write. The image's cut then runs two passes against it, with this image's matrix, depth map and the
+primed size in place of the previous image's; it is never kept for the next image. A scene where no
+object sets `farField` allocates nothing, encodes nothing and sends nothing. Limits: the rows' words
+and the deformation are those of the image before (the rows pass runs in the image's own buffer), a
+tessellated row is left out, and an object of a compiled world has no `farField` of its own yet.
+
+```ts
+const world = createWorld(canvas, { hizPrime: 'whenMissing' })
+mountains.farField = true // drawn into the primed pyramid
+world.hiz = { hizPrime: 'always', hizPrimeSizeBias: 3, hizPrimeErrorScale: 16 }
+world.hiz = { hizPrimeFarFieldOnly: false } // the whole cut is primed, not the flagged objects
+world.hiz = { hizPrime: null } // back to 'off'
+```
+
 Two rasterizers write the one visibility buffer, chosen cluster by cluster (`visibility/raster/`).
 A binning kernel, one workgroup a drawable row (`visibility/raster/binWgsl.ts`), reads each row's
 longest edge, vertex box and level-of-detail sphere: a row whose box crosses the near or the far
@@ -573,6 +669,22 @@ normal map take (`physicalValues`); only without stored tangents does each map b
 its own coordinates. A page stores tangents only for a mesh the compiler was
 told to (`meshBuild.storedTangents`, [docs/COMPILER.md](COMPILER.md#mesh-build-settings)).
 
+## Material graph
+
+A material of any domain may wear a graph (`world/material/graph/`, authored in [docs/SDK.md](SDK.md#material-graph)): nodes wired into the outputs its domain reads, compiled by `materials/graph/` to one WGSL function an output. The graph is data: a `GraphStore` of nodes (`id`, `kind`, `props`, `inputs`: a wire is a node and one of its outputs), the wires of the outputs, the textures of its texture nodes and the values written to its parameters. A wire may only name a node already added, so a graph has no cycle and the nodes are in compile order. It is a `Material` field (`graph`), heard like a texture (`Material.assignGraph`), cloned with the material, saved as `GraphData` by the material's `toJSON` (a graph holding a texture is `SCENE_NOT_SAVABLE`), and checked at assignment against the material's domain.
+
+**The outputs** (`graph/outputs.ts`) are ten, each with its type and its default (`baseColor` float3 0 0 0, `metallic` 0, `specular` 0.5, `roughness` 0.5, `emissive` float3 0, `opacity` 1, `opacityMask` 1, `normal` float3 0 0 1, `ambientOcclusion` 1, `subsurfaceColor` float3 1 1 1); a domain lists those it reads (`DOMAIN_OUTPUTS`): a surface all ten, the opacity only when it blends, the mask only when it is masked (`outputActive`, by `alphaModeOf`); a light function `emissive`; a volume `baseColor` (its albedo), `subsurfaceColor` (its extinction), `emissive` and `ambientOcclusion`. An output a domain does not read, or an inactive one, takes its default and is not compiled.
+
+**The compile** (`materials/graph/compile.ts`) is a translation of each wired output's wire into WGSL `let` lines, one function `mg<Output>(ctx: MgContext, g: MgValues)` each. A node is translated once (`State.value` memoises by node), its output's component mask applied. Values are typed `flex` (a scalar written as a constant, which fits any width), `f1` to `f4` and `texture` (`graph/valueType.ts`); an operation of a scalar and a vector repeats the scalar (`splat`), of two vectors of different widths is refused; a cast (`value.ts`) may repeat a scalar, cut components or fill with zeros only where the use allows. A constant stays a literal and folds through the operation (`arith.ts`, `vector.ts`, `choose.ts`): zero or one factors, equal or constant-alpha `lerp`, a power of 0 or 1, a base 0, a choice between constants; the result of an output is cast to its type (`forceCast`). Errors are `INVALID_MATERIAL` with the node.
+
+**The values** a compiled function reads are one uniform `MgValues`: `v`, a `vec4f` per parameter name (a scalar reads `.x`), then `t`, the colour-atlas slot of each texture, four to a `vec4u` (`materials/graph/layout.ts`, `Slots`). `Slots.fill(graph, buffer, offset, slotOf)` writes them from the graph's values; it is false while a texture has no slot yet. A texture parameter `name` is one slot, replaced by the texture `graph.set(name, texture)` gives. The context `MgContext` is the host's: eight texture coordinate sets, the world position, the eye, the object's position, the vertex and pixel normals, the time (the game's and the real one), and the footprint of the coordinate (`ddx`, `ddy`).
+
+**Textures** are read through the colour atlas (`colorSample`, `materials/virtual/wgsl.ts`) at the sample's coordinate, `mipMode` `none` with the footprint of the coordinate — `dpdx`/`dpdy` of the coordinate for a program whose pixels are neighbours (`derivatives: 'screen'`), the context's `ddx`/`ddy` for one that has no neighbours (`'context'`) —, `bias` that footprint scaled by `exp2(bias)`, `level` a footprint of one texel of the level (`mgSampleLevel`).
+
+**Light functions** (`lighting/lightFunction/graphSlot.ts`) compile the graph of the material for the atlas (`compileGraph`, screen derivatives) once a version of the material: `mgEmissive` is the colour of the slot, black where `emissive` is not wired, and the slot's parameters are a 16-byte head (the time twice) then `MgValues`. The program is keyed by the graph's text (`SlotPrograms`, `slotPrograms.ts`), the slot's group bound at the size it reads. A slot is drawn again when the material or a texture changes, while a texture is not read at the detail the slot shows, and at each image when the graph reads the time (`GraphSlot.animated`; `LightFunctionAtlas.waiting` and `changes` follow). A graph the compile refuses names `light-function-graph-refused` once and the slot is drawn from the material's parameters. The atlas cannot give a world position, a camera or a normal: those nodes are refused at compile, and the position of the object is zero.
+
+**The surface and the volume** are not read yet: a graph worn by a surface or a volume material compiles (`compileGraph`, the pass's own pool for `sample`, `derivatives: 'context'`) and is kept with the material, but the resolve and the fog's voxelisation still use the material's constants and maps. Their hook is `mgBaseColor`, `mgMetallic`, `mgSpecular`, `mgRoughness`, `mgEmissive`, `mgOpacity`, `mgOpacityMask`, `mgNormal`, `mgAmbientOcclusion` and `mgSubsurfaceColor`, each called with the context filled from the pixel or the voxel.
+
 ## Temporal antialiasing
 
 A temporal upscaler (`taa/`): a jittered image, motion derived from the visibility buffer, a
@@ -625,8 +737,9 @@ distance, exponentially inside, at the rise's or the fall's speed, with the fram
 on the GPU, into the composition's view uniform, so an image is shown at the exposure measured on it,
 and into a staging buffer of the readback ring (`gpu/core/readbackRing.ts`), which brings it to the
 CPU a few images late: `appliedExposureOf`, 1 until one came back. That value is the exposure every
-reader outside the composition uses — the lighting parameters, the temporal resolve's weights and its
-correction by the ratio of one image's exposure to the last's, the reflections' ranges and the
+reader outside the composition uses — the lighting parameters, the pre-exposure every light is written
+multiplied by, the temporal resolve's weights and its correction by the ratio of one image's scale
+(the exposure over its pre-exposure) to the last's, the reflections' ranges and the
 background a mirror shows, the display layers —, so the lag is theirs and the image's never. A frame
 waits for nothing: no stall, no readback awaited. The settings are `world.exposureSettings`
 (`packages/sdk-core/src/contracts/exposureOptions.ts`); a view whose exposure is still moving toward
@@ -635,6 +748,68 @@ A view lit by no declared lamp shows its albedo as it is (`UNLIT_COMPOSITIONS`):
 curve, whatever `world.exposure` says. The flat `scene.background` is a display colour, drawn as it
 is, never exposed. A manual exposure runs no pass: its number is the lighting parameter and the
 composition's multiplier, exactly as before the automatic one existed.
+
+**Pre-exposure** (`post/exposure/pre.ts`, `preExposureOf`, option `preExposure` of
+`world.exposureSettings`, on by default; `preExposureOverride`, 0 by default, names the number
+instead). Every light an image holds is written already multiplied by one number, the image's
+pre-exposure: the exposure the CPU knows (`appliedExposureOf`, the last one measured, or the manual
+number) times the luminance of the scene colour tint times the local exposure's mean gain
+(`averageLocalExposureOf`: the mean, over the histogram's buckets, of the log of the gain the local
+exposure gives a pixel of that luminance, computed by the exposure's update with the exposure and
+read back with it, `meterWgsl.ts`; 1 where the local exposure does not run and for a manual
+exposure), 1 for a view that is not lit, that shows raw
+values or that runs no post (a capture, the sky light's capture included). It is fixed once an image
+(`beginPreExposure`) and read, for the whole image, from `preExposureOf`. The composition multiplies
+the image by the exposure over that number (`view.preExposure.y`: the exposure the GPU measured on
+the image divided by the pre-exposure it holds, `meterWgsl.ts`, copied into the view's uniform and
+the finishing's), so the picture is the same with the option off. What it gains is range: a half
+float holds the light of the image at any exposure. The writers apply it at the end of what they
+sum, over `preExposed(rgb)` (`post/exposure/preWgsl.ts`: the light multiplied) or, for a surface's
+final write, `preExposedClipped(rgb)`: the sum of every term multiplied by the pre-exposure first,
+the whole colour then held to 32256, as a base pass clips its output: the opaque
+resolve (`lighting/deferred/surfaceWgsl.ts`: the surface, an unlit one, the fog laid over the
+background, the lit views), the translucent layers (`blend/shader.ts`, the transmissive stage in
+`blend/transmission/transmitWgsl.ts`), the particles (`particles/gpu/particlesWgsl.ts`), the
+clouds' traced luminance and the fog laid on them (`modules/sky/clouds/traceWgsl.ts`,
+`composeWgsl.ts`), the fog volume (above). The sky (`lighting/atmosphere/skyWgsl.ts`) is another's
+writer. Reflections, the bounce, the fog's analytic law and the haze are sums of the surface's
+terms, in the units of the light before it is written, and need none of their own. What is kept from
+one image to the next is brought to the new number by the ratio of the pre-exposures: the temporal
+history's colour (`historyRead`, an as-is pixel excepted), the fog volume's cells, the clouds'
+reconstruction history (`sampleHistoryLight`), and the radiance image the reflections and the
+screen probes read, divided by the pre-exposure it was lit with (`ReflectionView.radiance.w`). The
+histogram measures the image divided by it, the local exposure, the bloom, the depth of field and
+the light shafts work on the image multiplied by the exposure over it.
+
+```js
+const world = createWorld('viewer')
+world.exposureSettings = { preExposure: false } // every light written as it is; the same picture
+world.exposureSettings = { preExposureOverride: 0.25 } // lights written multiplied by 0.25
+```
+
+**Exposure compensation curve** (`packages/sdk-core/src/contracts/exposureCurve.ts`, option
+`exposureCurve` of the session and of `createWorld`, `explorer.setExposureCurve`; none by default,
+which is a factor of 1 and the same image). Stops added to the exposure's target by how bright the
+scene is. The curve (keys by EV100, linear, constant or cubic between them, an extrapolation on each
+side) is baked once into 64 half-float samples of `2^compensation` over EV100 -10 to +20
+(`bakeExposureCurve`, `exposureCurveTable`: the same option object gives the same table), held in
+a uniform of the update (`meter.ts`). The update reads it at the frame's mean luminance, before the
+range holds it: `ev = log2(mean / 0.18)`, the place in the table `(ev + 10) · 63 / 30` clamped, the
+two samples around it mixed (`post/exposure/curveWgsl.ts`), and multiplies the exposure's bias by
+the factor (`meterWgsl.ts`, `adapt`). The factor is part of the bias the readback and the local
+exposure's middle grey take.
+
+```js
+const world = createWorld('viewer', {
+  exposureCurve: [
+    [-4, 1],
+    [0, 0],
+    [8, -1],
+  ], // [EV100, stops]: dark scenes brighter, bright ones darker
+})
+explorer.setExposureCurve([{ ev: 0, compensation: 0.5, interpolation: 'cubic' }, [10, -0.5]])
+explorer.setExposureCurve(null) // no curve
+```
 
 **The film curve** (`lighting/filmCurveWgsl.ts`, constants `filmCurveConstants.ts`) is evaluated
 analytically in the composition, no table: exposed sRGB radiance to the film's wide working gamut,
@@ -730,6 +905,55 @@ shadowed or rectangular light runs a program built without that code
 
 <!-- wave-1: W1-1/W1-3/W1-9 docs pending -->
 
+## Light functions
+
+A light that wears a light function (`SceneLight.lightFunction`, the id of a `material.lightFunction`
+material; `world/material/lightFunctionMaterial.ts`) multiplies its colour, at each point, by what the
+material gives there. The material is of the engine's one material system, in the light function
+domain: its colour is its emission, `emissive` times `emissiveIntensity` times `emissiveMap` at the
+projection coordinate; it reads no world position and no depth, which is what lets the atlas draw it
+once a material. The map is a slot of the materials' colour atlas (`lighting/lightFunction/maps.ts`:
+`appendWebgpuTexture`, tiles asked by `warm` at the pixels the slot shows, the slot drawn again till
+they are resident). Its record fields are `lightFunction`, `lightFunctionScale` (10.24 m on each
+axis), `lightFunctionFadeDistance` (1000 m), `lightFunctionDisabledBrightness` (0.5) and, for a
+rectangle, `lightFunctionConeAngle` (0, at most 89 degrees) (`scene/light/lightFunction.ts`); the
+light's 24 floats do not grow: the light function table's entry the light reads rides in its kind word,
+above the rank and the flags (`LIGHT_FUNCTION_STEP`; 0, none), set by the frame, not by the host
+(`SceneLightStore.assignLightFunction`).
+
+Each image (`lighting/lightFunction/frame.ts`) plans which lights read which entry
+(`plan.ts`): the lights that wear a material, each material once. A limit (`lightFunctionMaxLights`,
+the atlas's slots) leaves out the farthest lights, a sun counting as at the eye; the table of entries
+(`entries.ts`, `layout.ts`) holds for each light its fade distance, kind, disabled brightness (a half
+float), the slot's corner and the cone's tangent, and the matrix from the world to the light's axes
+(`up, right, along`, each over its scale). The atlas (`atlas.ts`) is one `rgba32uint` texture: the
+slots on top, the table under them, so that every pass reads both through one binding. A slot is drawn
+by a program of its format and of whether the material wears a map (`renderWgsl.ts`), over `uv` from 0
+to 1 across its texels; it holds the square root of the colour, the grey of its three channels or the
+three (`lightFunctionFormat`); a slot is drawn again when its material is written or its map's slot
+or detail moved; while a map is not read at the detail the slot shows, the held frame is drawn
+(`lightFunctionsWaiting`).
+
+The read (`lightFunctionReadWgsl`) takes the point to the light's axes and the kind to a coordinate:
+a spot `xy / (z tan) / 2 + 1/2`, a rectangle the same when it has a cone, a point light its longitude
+and latitude, a sun its axes; the coordinate wraps, the slot is read bilinear and clamped to the slot,
+squared, and faded to the disabled brightness by `saturate((fade - distance) / (fade / 5))` from the eye.
+The opaque lighting multiplies the light's colour by it, diffuse and specular alike (`declaredLight`,
+`declaredLightSplit`); the volumetric fog multiplies the sun's colour and, where `lightFunctionFog`
+is set, each local light's (`fogSun`, `fogLocal`); the translucent layers read it where
+`lightFunctionTranslucent` is set. The bounce's light term (`declaredIrradiance`, `lightsIrradiance`) multiplies
+what each light adds at a hit by the function, before its shadow ray (`irradianceTerm`): a light the function
+dims to nothing casts none; where `lightFunctionBounce` is set,
+the probe pass (`probes/probeBindings.ts`, `PROBE_LIGHT_FUNCTION`: binding 10, the eye from the cascades'
+uniform `BounceGrid.eye`) and the screen probes' scene trace (`TRACE_SCENE_LIGHT_FUNCTION`: binding 16, the
+view's eye) bind the atlas, a stand-in elsewhere. The probes are traced again (`restart`) when the atlas changes
+(`LightFunctionAtlas.changes`, `lightFunctionRevision`), so a material that reads `time` restarts them at each
+image. The reflections' rays (`surfaceSeen`) evaluate no light. The clouds' lamps take the light as it is.
+The binding spends the one storage texture left of the translucent layers' four (a sampled texture
+elsewhere): 15 of 16 sampled textures, 7 of 8 storage buffers, 4 of 4 storage textures. The bounce's programs
+take a sampled texture each: the probe pass 4 of 16 sampled textures (5 of 8 storage buffers, 1 of 4 storage
+textures), the screen probes' scene trace 10 of 16 (6 of 8, 2 of 4).
+
 ## Light that bounces
 
 Dynamic, on by default (`bounce: false` turns it off): irradiance probes trace
@@ -796,7 +1020,7 @@ read, so an update never sees a neighbour half-written.
 A probe ray that leaves the scene reaches the sky (`lighting/atmosphere/skyReadWgsl.ts`): the share
 of the ray the scene lets through times the radiance of the sky in its direction, above the horizon
 the atmosphere's sky by direction, below it the sky light's ground colour, black by default — when a
-sky light gives it (`light.sky()`). The probes thus hold the sky the scene lets through: a street is
+sky light gives it (the sky module's `skyLight` part). The probes thus hold the sky the scene lets through: a street is
 lit from above, an arcade is not. A probe in open sky is no longer asleep for good: it is updated
 again when the sky or the sun changes, as when any light does (`frame/render/encodeLights.ts`).
 A pixel takes the sky light's diffuse light from the probes alone, never added again beside the
@@ -864,11 +1088,146 @@ totals do: one reduction, a lane a counter (`gpu/core/workgroupTallyWgsl.ts`); a
 workgroup (the coverage of the texture levels) pours its bins in a loop of its own. The placements that wear a
 proxy and the triangles they wear are published beside (`geometry/dag/proxy/proxyBoxes.ts`).
 
+## Distance fields
+
+A mesh whose `meshBuild` sets `distanceField` (true by default, as in the reference's gameplay templates; the settings are in
+[COMPILER.md](COMPILER.md#distance-fields)) gets a signed distance field: bricks of 8 × 8 × 8 bytes around its
+surface, 7 voxels of each its own and the eighth the trilinear filter's, a voxel the distance to the surface in
+the band of four voxels either side, three mips, the coarsest always loaded. The compiler writes every mesh's in
+`distanceFields.bin` (`asset-compiler-rust/src/distance_field/`), named by the manifest's `distanceFields`
+section; `sdk-core/src/lighting/distanceFieldFile.ts` reads it (`parseDistanceFields`: per compiled mesh its box,
+and per mip the indirection table, the bricks, the distance scale and bias, the volume-to-virtual-coordinate
+scale and add).
+
+The global distance field composites them into clipmaps around the viewer: `sdk-core/src/lighting/globalDistanceField.ts`
+places them (`clipmapExtent`, `placeClipmap`, `pageAtlasSizeInPages`, `updateFrequency`) and
+`contracts/globalDistanceFieldOptions.ts` holds the reference's settings with their defaults (4 clipmaps of 128
+voxels, an extent of the view distance 20000 cm over 8 doubling for each next, mips by 4, pages of 7 voxels, the
+static meshes composited apart, two clipmaps updated a frame; lengths in centimetres, as the sky light's).
+`lighting/distanceField/globalReadWgsl.ts` reads them: `gdfSample`, `gdfDistanceToNearestSurface`,
+`gdfConeTrace` and `gdfSkyVisibility`, the fog's sky visibility (one 45 degree cone straight up, ten steps);
+The reads bind four resources, consecutive from a first binding: the view block (`GdfView`), the page table
+(`texture_3d<u32>`), the page atlas (a read-only storage buffer of bytes) and the coarse mip (`texture_3d<f32>`,
+`r32float`), no sampler; a position is carried to the field's translated space by `gdfTranslated` first. A pass
+takes their layout entries and bind group entries from the scene (`readLayoutEntries`, `readEntries`) and makes its
+group again when `readGeneration` changes. `lighting/distanceField/representationWgsl.ts` tells whether a pixel's surface has a field
+(`hasDistanceFieldRepresentation`, `screenTraceDepthThresholdScale`):
+
+```ts
+import { globalDistanceFieldReadWgsl } from './lighting/distanceField/globalReadWgsl.ts'
+const read = globalDistanceFieldReadWgsl(/* group */ 2, /* first binding */ 0)
+// in a program: let visibility = gdfSkyVisibility(gdfTranslated(positionInCentimetres), vec3f(0.0, 1.0, 0.0));
+```
+
+The sky light's occlusion by the field (`lighting/distanceField/ao/`) is drawn (`encodeSkyOcclusion`, in the indirect
+light's step, after the distance fields' update and the depth pyramid) when the sky light is dynamic and casts
+shadows, no screen probes light the pixels and the scene has distance-field objects (`skyOcclusionGate`): the normals and depths of the scene at half resolution
+(`dfaoNormals`); nine cones over each surface's hemisphere, traced at a quarter of that resolution against the global
+field from the sky light's distance on (`globalDistanceFieldStartDistance`, 100 cm) — and, at the high quality
+(`distanceFieldOcclusionQuality` 2), against the meshes' own fields up to it, their screen tiles listed by drawing
+each culled mesh's bounding sphere —; the cones' visibilities combined into a bent normal; the bent normal upsampled
+by the surface's plane and normal and filtered over time (`distanceFieldOcclusionUseHistory`, a history weight of
+0.85, a stability pass that fills what dropped its history). The settings are
+`contracts/distanceFieldOcclusionOptions.ts`, the reference's console variables with their defaults. A lit pixel reads
+the image with `dfaoReadWgsl` and the sky light applies it with `skyLightOcclusionWgsl` (`modules/sky/skyLight/`): the
+diffuse light read along the bent normal, scaled by the contrast curve, exponent and least occlusion of the light's
+settings and combined with the material's and the screen's occlusion by the least or the product; the specular light
+by the bent normal's length or its cone's intersection with the reflection's, plus the tint. The meshes' fields are
+read through `meshFieldWgsl` (`loadDfObjectBounds`, `loadDfObjectData`, `dfAssetMip`), the one reader of the
+placements' records; the sky light's read takes how the image is applied from the occlusion's state
+(`skyOcclusionUse`, the `occlusion` argument of `writeSkyLightRead`).
+
+The volumetric fog finds the sky's visibility of each sample of a cell, not of the cell's first alone, through the
+global field (`FOG_SKY_VISIBILITY_WGSL`, a cone straight up), under the same gate with the sky light's volumetric
+shadow, the global field on and a perspective view (`fogSkyField`); the scatter that binds the field is made at the
+first image that wants it (`scatterSky`), the plain one serving until it is compiled.
+
+The scene side is `lighting/distanceField/scene.ts` (`createDistanceFieldScene`, made at the first image of a
+session whose cache carries fields, `EngineContext.distanceFields`, read from the manifest's `distanceFields`
+section by `fieldsLoad.ts`; each image of the main view calls `encodeDistanceFields`, `frame.ts`):
+
+- **Placements** (`objectTracker.ts`, `objectRecords.ts`, `objectBuffers.ts`): the cut's roots whose mesh has a
+  field are read as they are, never changed; a root added, moved, shown or hidden, or that starts or stops moving
+  (`lights.mobility.moves`), rewrites its records on the GPU — bounds, 3 `vec4` (centre as a high and a low float,
+  sphere radius, box half-extent, flags); data, 10 `vec4` (world-to-volume rows relative to the high centre,
+  volume extent and surface bias, draw distances, volume-to-world rows and scale, asset) — and names the region it
+  changed for the global field, per cache (static, movable).
+- **Atlas** (`atlasState.ts`, `atlasRequests.ts`, `atlasGpu.ts`, `brickUpload.ts`, `streaming.ts`,
+  `streamingWgsl.ts`): the coarsest mip of a mesh is loaded with its first placement; the GPU asks each frame for
+  the mips its nearest placement wants (the outer clipmap's box: two mips; the clipmap half way in: three), the
+  answer comes back through a ring of four staging buffers, and the mips that fit (`meshDistanceFieldBrickAtlasDepth`,
+  `meshDistanceFieldUploadKiB`) are loaded a frame later, in blocks of `meshDistanceFieldBlockBricks` bricks of an
+  `r8unorm` 3D texture, their indirection tables in one word buffer allocated first fit.
+- **Clipmaps** (`updateRegions.ts`, `regionBounds.ts`): the centre snapped to a page, the scroll, the update regions
+  (modified boxes that reach the clipmap, the slabs the camera uncovered, the static clipmap's for the movable
+  one), the whole composition when needed, the frequency and phase of each clipmap's turn.
+- **Passes** (`globalUpdate.ts`, `cullWgsl.ts`, `allocateWgsl.ts`, `composeWgsl.ts`, `mipWgsl.ts`), per cache, in the
+  reference's order: placements culled to the clipmaps; update regions to page tiles and culling cells; placements
+  culled to the cells; pages allocated from the free list, and returned; pages composited, a voxel the nearest
+  distance of the placements within the influence range, a byte over twice the range, the nearer of it and the static
+  page under a movable one; the coarse mip propagated in five steps. The page atlas is a storage buffer of bytes (a
+  page 8 × 8 × 8, the eighth the filter's margin) read with an explicit trilinear filter (`atlasFetchWgsl.ts`), since
+  a compute pass cannot write an 8-bit texture on every device and the composition reads it back; the page tables are
+  `r32uint` volumes, the mip an `r32float` volume. An indirect dispatch's arguments are written from counters by a
+  one-thread pass, so a count past the device's workgroup limit runs in rows.
+- **Reads**: the positions `globalReadWgsl.ts` takes are translated (`gdfTranslated`, the view's translation added to
+  a world position in centimetres); the bindings are the view block, the page table, the atlas buffer and the coarse
+  mip (`readLayoutEntries`, `readEntries`; they change with `readGeneration`).
+- **Not carried over**: the reference's coverage atlas, object grid and landscape heightfields belong to its other
+  lighting systems and to landscapes; this engine has none of them.
+
+```ts
+const scene = createDistanceFieldScene(device, fields) // fields: parseDistanceFields(bytes)
+scene.occlusionDistance = 600 // the sky light's occlusion distance, centimetres
+// each image, before the passes that read the field:
+scene.update(
+  encoder,
+  { roots, moving: (rank) => false, epoch: 0, origin: eyeInCentimetres, frame, delta },
+  settings,
+)
+device.queue.submit([encoder.finish()])
+scene.submitted()
+```
+
+## Sky module
+
+The sky is one module (`packages/sdk-core/src/modules/sky/descriptor.ts`, `SKY_MODULE`): the air, the
+sun, the sky light, the height fog and the clouds of a new world's level, five parts each switched
+alone, off by default. The module manager (`modules/manager.ts`) holds one decision per source
+(editor, page, quality, scene) and resolves a module as the strongest source says, per part and per
+field (`mergeModuleParts`); a world builds its manager with the sky and stats modules
+(`session/world/worldModules.ts`) and starts or stops each, in registration order and the reverse,
+at every write of `scene.sky` or `world.modules`.
+
+A module that is off holds nothing. The sky's start is the only place its lights are made and its
+parts resolved (`resolveSky`); off, `WorldModules.sky` is `NO_SKY` (no resolved part, no light), the
+display carries no fog and no atmosphere, and a pass that reads a part reads it from
+`modules.sky.resolved`, where an absent part is the pass's gate: no resource is made, no pass
+encoded. The module's lights hang from no scene (`session/world/skyLights.ts`): the sun is one
+directional light aimed by the part's `rotation` (`sunDirection`), the sky light one light of kind
+`sky`; each sync shows them after the scene's lights (`session/world/lights.ts`).
+
+**One sky light.** The scene keeps one sky light: the last one shown replaces the others, whose
+radiance, irradiance and fog factor are dropped, and the fog scatters that light's own
+`fogScattering` — not a sum or a mean of several. The sun competes with the scene's directional
+lights by the air's rule, the brightest of each index.
+
+```js
+world.scene.sky = true // the level: air, sun (6 lux, 6500 K), sky light, height fog, clouds
+world.scene.sky = { clouds: false, sun: { shadowsClouds: false } } // two words, one object
+world.modules.set('sky', { heightFog: false }) // the page, over the scene's
+world.modules.state('sky') // { enabled: true, by: 'scene', parts: { …, heightFog: false } }
+```
+
+A sun with `shadowsClouds` makes the cloud march read the sun's opaque shadow map, and only for the
+air's first light (`cloudsReadOpaqueShadow(light, sunIndex)`, `modules/sky/cloudShadow.ts`). A scene
+saved before the module is read once into its parts (`session/saved/legacySky.ts`).
+
 ## Fog
 
-`scene.fog` is a term of the one lighting model, applied by every program that lights a surface:
+The height fog part of the sky module is a term of the one lighting model, applied by every program that lights a surface:
 the law is `packages/sdk-core/src/scene/core/fog.ts` and `fogHeight.ts`, its shader text
-`lighting/fogShader.ts`, its options [SDK.md](SDK.md#scene-fog). A surface's radiance `L` reaches the
+`lighting/fogShader.ts`, its options [SDK.md](SDK.md#height-fog-part). A surface's radiance `L` reaches the
 eye as `L · T + S`, before the exposure; `T` is the transmittance along the view ray, `S` the light
 the medium scatters toward the eye. The linear fog is the ramp from `near` to `far`, `S = color ·
 (1 − T)`. The height fog is the reference's:
@@ -923,12 +1282,117 @@ exp(−density · d)` where nothing falls off, the density divided by e every `1
   metres up — is a spelling of this law, mapped exactly: `baseDensity = density / (ln 2)²`,
   `falloff = heightFalloff / ln 2`, the other fields at their defaults (`heightFogOf`). The GPU holds
   one law; no scene changes its image.
+- **Lights in the volume.** Each light scatters its colour times its `fogScattering` (lane 14 of
+  its record, `1` by default; the volume and the clouds' lamps skip a light of `0`): the sun by the
+  phase function and its shadow where its `shadowsFog` flag is set (a bit of the kind word, lane 12:
+  the rank, under 4, plus 4 for a shadow, plus 8 for the fog's shadow; a sun's by default); a local
+  light by the inverse square of the distance a cell's radius longer, the window of its range, a
+  rectangle's form factor, and one sample of its shadow map where `shadowsFog` is set. The sky light
+  adds its irradiance's bands over π times its share (the `w` of the sky block's first slot, zero
+  without a sky light). A light's light function multiplies its colour there ([Light functions](#light-functions)): the sun's always, a local light's where `lightFunctionFog` is set. The sky light's term is multiplied by the sky's visibility of the cell, the share a cone of 45 degrees straight up sees
+  through the global distance field (`lighting/fog/skyVisibilityWgsl.ts`, a pass of its own before the scatter, whose
+  volume the scatter loads as a storage texture: the scatter binds the most sampled textures a stage may), where the
+  frame gives the field (the light is dynamic, casts shadows and a volumetric shadow, no screen probes light the fog, the
+  view a perspective); the cell's first sample gives it to all the samples the scatter takes. Not applied, with the reason:
+  the cloud shadow on the sun (the cloud shadow map is declared but no frame draws or binds it). The static term is
+  the baked light of the [volumetric lightmap](#volumetric-lightmap), added to the light of each sample: a pass of its own
+  before the scatter (`lighting/fog/staticWgsl.ts`; the scatter binds the most sampled textures a stage may and the lightmap is
+  nine more) takes the samples the scatter takes — the cell's plan (`planWgsl.ts`: hidden, history, how many samples) and
+  `fogSampleOffset` give the same points — and writes the mean of what they add, in a volume of three floats a cell that
+  the scatter loads as a storage texture and adds to the mean of the lights. The scatter's light and this term are sums over
+  the same samples, so their sum is the one the scatter would make sample by sample. A sample adds the lightmap's two
+  bands dotted with the phase's zonal harmonic, over π, never negative, times the fog's
+  `volumetric.staticLightingScatteringIntensity` (`FogStaticLight.intensity`: the fog's value while the image's lighting and the
+  `volumetricLightmap` setting are on and the scene has a lightmap, else 0); and, where the sky light is stationary and
+  casts shadows and the lightmap holds a bent normal (`skyShadowing`), the sky light's term times the bent normal's length
+  in place of the global field's visibility. A static sky light lights the fog by none of its own harmonics (the lightmap holds
+  its light), nor a view whose sky lighting is off, unless the fog's own colours stand in (`useFogColors`). The pre-exposure is applied: each cell's light is written multiplied by the
+  image's pre-exposure (`frame.exposure.x`), the history's brought to it by the ratio of the two
+  (`frame.exposure.y`), the extinction left as it is, and a surface reads the light divided by it
+  again (`FOG_VIEW_SLOT.exposure`, `fogVolumeLookup`) — [Exposure](#exposure-and-the-display-curve).
+  The clouds' lamps read a light as the
+  fog does (`volumeLamp`, `lighting/direct/lampSeenWgsl.ts`): a lamp by `lampSeen` at `LAMP_BIAS`, a
+  rectangle by its form factor, each times its `fogScattering`.
+- **Objects of the volume material domain.** A mesh with a material of the volume domain
+  (`material.volume`) draws no surface and a declared object (`addFogVolume`) none either: each is a
+  box, or a sphere, voxelised into the medium before the light is scattered (`lighting/fog/voxel*.ts`).
+  The record of each object that reaches the volume — its sphere closer to the eye than the fog's
+  distance plus its radius — is written relative to the eye (`writeVoxelObjects`). A first pass, a
+  thread an object (`prepareMain`), takes its sphere to view space, the slices of its nearest and
+  farthest depth (`trunc(log2(depth · B + O) · S)`, the first held at 0, the last at the grid's) and
+  the view-space rectangle of its box's corners. The second pass, a thread a cell (`voxelizeMain`),
+  is the rasterisation of each object's camera-facing quad on each slice, seen from the cell: the
+  quad lies at the slice's depth — the slice plus the frame's first depth offset —, over the
+  object's rectangle (a box) or the square around the circle the sphere cuts the slice at (a sphere,
+  radius `√(r² − Δ²)`, `Δ` the slice's distance from the sphere's centre in depth), shifted across
+  by the frame's first offsets over the grid (`offset / cells` in device units, the quad's own
+  shift); it covers the cell whose centre lies in its projection, left and top edges in, right and
+  bottom out. A covered cell reads the object's material at its centre's place on the slice — the
+  ray through it with the matrix the depth was drawn with — and counts it where that place lies in
+  the object's sphere or box, by `fade³` with `fade = 1 − saturate((depth / distance − 0.6) / 0.4)`.
+  What it adds — `albedo · extinction` of scattering, `extinction`, emissive light — goes in two
+  volumes (scattering with extinction, emissive) that the scatter adds to the cell's medium
+  (`fogMedium`): the object's scattering to the particles', its extinction to the extinction, its
+  emissive light to the glow. Passes of `volumetricFogVoxelizationSlicesPerPass` slices (8) divide an
+  object's slices; `volumetricFogVoxelizationShowOnlyPass` keeps one of them. The glow switch
+  `volumetricFogGlow` gates the emissive light of the objects as it gates the fog's. Authored
+  numbers are per metre and the cells are metres: the scale of the units is 1. The sum over objects
+  is made in single precision, once, where a blend unit adds half floats object by object.
 - **Block.** Six `vec4` of the light buffer, behind the irradiance (`FOG_SLOT`): colour and mode, the
   law, the range, the lobe, the sky's factor, the sun (direction toward it and luminance).
 
+## Volumetric lightmap
+
+Precomputed indirect light, baked by the compiler (`lightmapBake`, [COMPILER.md](COMPILER.md#volumetric-lightmap)) and read by position (`lighting/volumetricLightmap/`,
+`sdk-core/src/lighting/volumetricLightmapFile.ts`; the file is [FORMAT.md](FORMAT.md#volumetric-lightmapbin)).
+`parseVolumetricLightmap(bytes)` reads the file; `createVolumetricLightmapTextures(device, data)`
+makes its ten 3D textures (a black texel each where there is no lightmap, or no bent normal);
+`writeVolumetricLightmapView(words, at, data, shown)` writes the four `vec4f` a shader finds a
+position with (zeros when the lightmap is absent or `shown` is false, the `volumetricLightmap`
+setting). `volumetricLightmapWgsl(group, first)` is the sampling, for a program that binds
+`VOLUMETRIC_LIGHTMAP_BINDINGS` (12) consecutive bindings from `first`
+(`volumetricLightmapLayoutEntries`, `volumetricLightmapGroupEntries`): the view block, a bilinear
+sampler clamped to the edge, the indirection volume (a read-only storage texture, read by load:
+none of the stage's sixteen sampled textures), nine filtered textures.
+
+- `vlmBrickUvs(world)`: the position clamped into the volume (at most 0.99 of its size), its
+  indirection texel, then the brick's place in the atlas at the fraction of its span the position
+  lies at, in padded bricks, half a texel in. A zero view answers the origin.
+- `vlmSh1`, `vlmSh2`, `vlmSh3(uv)`: the light in one, two or three bands. The coefficients are
+  read from [0, 1] back to [-1, 1] and multiplied by the ambient and by the scales
+  `0.488603/0.282095` (the three linear ones), `1.092548/0.282095`, `4 · 0.315392/0.282095` and
+  `2 · 0.546274/0.282095` the file divided them by. `vlmDotSh1`, `vlmDotSh2`, `vlmDotSh3` project
+  them on a basis.
+- `vlmSkyBentNormal(uv)` (mapped back to [-1, 1]; its length is the sky's visibility) and
+  `vlmDirectionalShadowing(uv)`.
+
+A scene's one lightmap covers all of it: there are no sub-level bricks to stream in or out. The
+fog reads it as its static term:
+
+```wgsl
+// where the cell's world position is `world`, the fog's phase `phaseG` and the view direction `cameraVector`
+// (from the eye to the point; the bake's coefficients are those of the scene's own axes, up or not)
+var brickUvs=vec3f(0.0);
+if(skyScattering>0.0||staticIntensity>0.0){brickUvs=vlmBrickUvs(world);}
+// the sky's visibility, where the sky light wants its static shadowing
+if(skyStaticShadowing>0.0){visibility=length(vlmSkyBentNormal(brickUvs));}
+// the static term: the indirect light of the stationary lights, the direct and indirect of the static
+if(staticIntensity>0.0){
+ let hg=vec4f(1.0,cameraVector.y,cameraVector.z,cameraVector.x)*vec4f(1.0,phaseG,phaseG,phaseG);
+ lightScattering+=(staticIntensity/PI)*max(vlmDotSh2(vlmSh2(brickUvs),hg),vec3f(0.0));
+}
+```
+
+`staticIntensity` is the height fog part's `volumetric.staticLightingScatteringIntensity` (default 1, never
+below 0) while the image's lighting and the `volumetricLightmap` setting are on, else 0. The session reads the file
+with the manifest (`readVolumetricLightmap`, `lighting/volumetricLightmap/fileLoad.ts`, verified against the size and digest
+the manifest announces; `EngineContext.volumetricLightmapData`), none for a cache that baked none; its textures are made once,
+at the first image that reads them and the setting is on (`volumetricLightmapOf`), and freed with the runtime. A scene
+without a lightmap allocates none.
+
 ## Atmosphere and sky light
 
-`scene.atmosphere` is a planet's air lit by the sun: a term of the one lighting model like the fog,
+The `atmosphere` part of the sky module is a planet's air lit by the sun: a term of the one lighting model like the fog,
 whose coefficients and defaults are `packages/sdk-core/src/scene/core/atmosphere.ts` (an Earth-like
 planet of 6360 km, air 60 km thick, ground at `y = groundHeight`, 0 by default). Distances of the
 planet are kilometres, the scene stays in metres. Where it is on, `scene.background` is not shown.
@@ -946,7 +1410,11 @@ reads (`L = albedo / π · E · cosθ`), so a 10-lux sun gives the same sky-to-s
 intensity. A surface is lit by `E · T(ground→sun)`, written into the sun's own slot of the light
 buffer by the store (`atmosphereSun.ts`; the declared light is untouched, the transmittance
 integrated on the CPU over 15 samples, once when the air or the sun moves). The sun's disk is drawn
-at `E / (2π(1 − cos α))`, `α` its angular radius, times the transmittance toward it.
+at `E · tint / (2π(1 − cos α))`, `α` its angular radius, `tint` its `sunDiskTint`, times the
+transmittance toward it and the rim's softening, each channel held under 64000 after the product
+(the image's sky under 32256). A light's colour is multiplied by that of a black body at its
+temperature when `useTemperature` is on (`lightColour`, `scene/light/fields.ts`, the clamp 1000 to
+15000 K), before the intensity, in the sun's choice, its illuminance and its light on surfaces.
 
 **Two lights.** The air holds up to two lights, one per index (`SceneLight.atmosphereSunIndex`, 0 or
 1, 0 by default), each chosen among the lights that may light the air as the sun is (brightest,
@@ -963,13 +1431,36 @@ sun's is. Where there is no second light the marches run their per-light loops o
 of it. A saved world keeps each light's index (`SavedNode.light.atmosphereSunIndex`, written only
 for index 1).
 
-**The tables** (`lighting/atmosphere/`): a transmittance table (256 × 64) and a multiple-scattering
-table (32 × 32), built when the air changes; the sky seen from the eye (192 × 104, 4 to 32 samples
-by distance) and the haze volume (32 × 32 × 16 cells over 96 km, 2 samples a slice) built each image,
-a thread to a texel; a mean sky radiance at 6 km (64 directions), the sky light's capture (1024
-directions) and the sky by direction (128 × 64 texels, in the scene's own axes, kept in the light
-buffer) when the sun or the air moves. About 20 000 and 16 000 short marches per image, no
-readback in the frame, no pipeline compiled on it.
+**The tables** (`lighting/atmosphere/`): their sizes and sample counts are the quality settings of the
+sky (`AirShape`, `shape.ts`; the defaults the reference's top level), the programs written once for
+a shape and made again when the settings make another. A transmittance table (256 × 64, 10 samples,
+stored as its square root, in four half floats or, at `transmittanceSmallFormat`, four bytes) and a
+multiple-scattering table (32 × 32, 15 samples; from the first 8 of 64 directions over the sphere at
+`multiScatterHighQuality`) are built when the air changes; the sky seen from the eye (192 × 104, 4
+to 32 samples by distance, the cap no more than 32 times `sampleCountScale`) and the haze volume
+(32 × 32 × 16 cells over 96 km, up to 4 samples a slice, twice `sampleCountScale` at most) are built
+each image, a thread to a texel, with the mean sky radiance at 6 km (the 64 directions of a grid
+jittered by a fixed generator, `sphereSamples.ts`) that the fog takes on; the sky light's capture
+(1024 directions) and the sky by direction (128 × 64 texels, in the scene's own axes, kept in the
+light buffer) are made when the sun, the air or the altitude of the capture's place moves. The haze
+volume lives in a region of the light buffer of 32768 cells (16384 in 32-bit floats,
+`skyTablesFullPrecision`): the slices are cut to fit, and a surface reads its size from the view's
+block (`VIEW_SLOT.volume`). A sky pixel is marched, not read from the table, at `skyTableFast` off
+(`atmosphereSamplesMin`, `atmosphereSamplesMax`, jittered by the blue noise).
+
+**Shade on the air.** A directional light that asks for it (`SceneLight.shadowsAir`) shades the air:
+at each step of the sky table's march and of the haze volume's, the light's virtual shadow map is read
+at the step's place (`airShadow`, `airShadowWgsl.ts`; one sample, as the fog's volume reads the sun's)
+and multiplies the light scattered into the ray, the multiply-scattered share left unshaded. The
+planet's shadow and the scene's multiply. `atmosphereSampleLightShadowMap` turns the read off.
+
+**What the clouds read of the air.** Besides the haze surfaces read, the air builds, when the clouds
+ask (`airRequests`, `encodeAtmosphere.ts`), the haze's light alone and the air's alone in two volumes
+of the same cells (`hazeSeparate`, the march keeping `radianceMie` and `radianceRay` apart, the
+ozone's absorption shared half and half), and the haze all around a capture's place (`capture360`: a
+longitude and the sine of the latitude across, the distance down), read with `hazeOnly`, `airOnly`
+and `captureHaze` (`separatedWgsl.ts`). The clouds' high-quality haze (`cloudHighQualityAerial`)
+marches it for the pixel to the cloud's depth (`cloudHaze`, `cloudHazeWgsl.ts`).
 
 **Drawing.** The sky is premultiplied radiance over the HDR image where the resolve left the
 background, under the fog's height law like any pixel ([Fog](#fog), the sky), so exposure, the curve
@@ -980,22 +1471,83 @@ transparent alike (`fogged`, `fogOver`, `lighting/fogShader.ts`); the fog takes 
 radiance on as its own colour and scatters the sun's light on the ground ([Fog](#fog)). A scene
 without an atmosphere reads none of it. The unlit view and the views that paint raw values show none.
 
-**Sky light.** `light.sky()` gives the scene the sky's irradiance. The sky's upper half is
-projected on the nine harmonics of the environment (`irradianceBasis.ts`) on the GPU, read back
-a few frames later without waiting (`Engine.skyCapture`), and kept as the sky light's own block
-of the light buffer (`environmentSky.ts`), apart from the environment's other lights; its lower half
-is the light's `groundColor`, black by default. Without an atmosphere it is the background colour,
-a uniform sky. It is captured once and again whenever the air or the sun changes, never per frame.
-That block is the irradiance of a surface the bounce probes do not answer; where they answer they
-carry the sky ([Light that bounces](#light-that-bounces)), occluded by the scene.
+**Sky light.** The `skyLight` part (a light that affects the world) gives the scene the sky it captures
+into a cube (`modules/sky/skyLight`): the cube, filtered by roughness, and nine harmonics summed from it, on
+the GPU, never read back. Every reader reads that one cube, through the light's read
+(`modules/sky/skyLight/read.ts`), at the colour of the light times its intensity, black in a view whose
+`skyLighting` override is off. The diffuse light of a surface is the harmonics along its normal
+(`skyLightDiffuse`): where the bounce probes answer they carry the sky, occluded by the scene
+([Light that bounces](#light-that-bounces)); the share they leave is the sky light's own diffuse light, the
+sky nothing hides. The volumetric fog scatters the harmonics' first three terms along the way to the eye,
+times the part's `volumetricScatteringIntensity`. A specular read takes the cube along the reflection
+vector at the mip its roughness asks (`skyLightReflection`); a bounce probe's ray that leaves the scene
+reads it sharp (`skyLightRay`). Its lower half is the part's `lowerHemisphereColor`, black by default,
+laid into the cube at the capture. Without an atmosphere the cube is black (clouds aside). A specified
+cubemap blends to a second one by a fraction (`SkyLightInputs.blend`): both are filtered, and the light
+mixes the two cubes and their harmonics.
 
-**Reflections.** A reflection ray that leaves the scene reaches the sky along its direction, sharp
-(`reflectionEnvironment`, `lighting/reflections/field.ts`): above the horizon the atmosphere's sky,
-scaled by the sky light's colour and intensity — as it is drawn where the scene has no sky light —,
-or with no atmosphere the sky light's flat colour; below it the sky light's ground colour. A scene
-with neither an atmosphere nor a sky light keeps the flat background the screen draws. Where the
-probes hold the sky, the field of a reflection takes the environment for the share they do not
-answer alone, the sky never twice.
+**Reflections.** A reflection ray that leaves the scene reaches the sky along its direction
+(`reflectionEnvironment`, `lighting/reflections/field.ts`): the sky light's cube, sharp for a ray, at the
+roughness of the lobe for the field's read; a scene with an atmosphere and no sky light shows the
+atmosphere's sky by direction above the horizon and none below it; a scene with neither keeps the flat
+background the screen draws. Where the probes hold the sky, the field of a reflection takes the
+environment for the share they do not answer alone, the sky never twice.
+
+**Sky light, captured scene** (`modules/sky/skyLight/captureScene.ts`). A sky light whose
+`realTimeCapture` is off and whose `sourceType` is `'capturedScene'` (the default) lights the scene
+with the scene itself, drawn once into its cube from the light's position. Six cameras, one per
+face of the cube, +x, -x, +y, -y, +z, -z, each square with a field of 90 degrees and its nearest
+distance the light's `skyDistanceThreshold` (150000 cm, so nothing nearer than 1500 m is in the
+cube), draw the scene aside (`Engine.captureHdrViews`, `frame/io/hdrCapture.ts`) at the cube's side
+(`cubemapResolution`, made a power of two) times `skyLightCaptureSupersample` (1). The image of a
+face is the lit linear radiance, before exposure, the effects and the tone curve; it is clamped to
+the half float's range, the colour below the horizon is the light's `lowerHemisphereColor` when
+`lowerHemisphereIsSolidColor`, and it is copied into the face (`copySceneFaceMain`); then the mips,
+the filter by roughness and the nine harmonics are made as for any source (`captureFilter.ts`). The
+mean of the sky radiance the light reports is the harmonics' last vector, as for any source.
+
+The faces are drawn by a view of their own with `ViewOverrides` (`frame/backend/state/viewOverrides.ts`):
+no sky light, every surface of roughness 1, no particle, light shaft, light function, effect,
+exposure, tone curve or temporal pass, the cut asked at `skyLightCaptureLodDistanceScale` (1, a
+value of zero or less being 1), the reflections traced unless `skyLightCaptureReflections` is off;
+with `captureEmissiveOnly` the lights, the probes, the reflections and the occlusion are off and the
+diffuse and specular colours are zero, so that only what the surfaces emit is in the cube. The main
+view holds the neutral overrides: its programs read none of them, and the rewrite of the roughness
+and the diffuse colour (`lighting/deferred/surfaceOverride.ts`) is a pass encoded for a capture view
+only.
+
+It is drawn between two frames, after the frame is submitted, never inside it; the cube read by the
+lighting (`read()`) is the last one made, and stays until the next replaces it. A capture is asked
+when the light is created, when it first captures a scene, when its cubemap or the angle of its
+cubemap changes, when `realTimeCapture` is switched, when its cube is made again (a new
+`cubemapResolution`), and by `recapture()`; not when its colour, intensity, lower hemisphere or
+distance threshold changes, nor when it moves: those apply at the next capture. A static light is
+not captured, and neither is a light with `affectsWorld` off.
+
+```ts
+const part = resolveSkyLight({
+  realTimeCapture: false, // the scene is captured, not the sky
+  sourceType: 'capturedScene',
+  mobility: 'stationary', // a static light is not captured
+  cubemapResolution: 128,
+  skyDistanceThreshold: 150000, // centimetres: the near plane of the faces
+  captureEmissiveOnly: false,
+})
+const capture = createSkyLightCapture(device, report)
+const input = {
+  part,
+  width: skyLightCubeWidth(part, maxCubeSide),
+  position: [0, 10, 0],
+  frame,
+  atmosphere: false,
+  fogShown: false,
+}
+// Once a frame, after it is submitted:
+if (capture.sceneDue(input)) await capture.captureScene(engine, input)
+const sky = capture.read() // the cube, its mips and the harmonics; none before the first capture
+// The world changed (a building came down): the sky is captured again at the next look.
+capture.recapture()
+```
 
 ## Transparent surfaces
 

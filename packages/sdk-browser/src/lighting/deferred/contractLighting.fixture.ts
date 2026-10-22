@@ -11,7 +11,10 @@ export function gpuHarness() {
   const viewBuffer = () =>
     gpu.buffers.find((buffer) => buffer.label === 'Trillion3D deferred view v1')
   const surfaceViews = [view(), view(), view(), view()],
-    surface = { views: () => surfaceViews } as unknown as SurfaceBuffer
+    surface = {
+      views: () => surfaceViews,
+      stores: () => [surfaceViews[0], surfaceViews[3]],
+    } as unknown as SurfaceBuffer
   return {
     ...gpu,
     encoder: gpu.device.createCommandEncoder(),

@@ -125,7 +125,7 @@ export function sceneScope(
   return {
     view,
     hizOpaqueDepth: ([x, y]: number[]) => scene.device(x, y),
-    hizCellFarthest: ([x, y]: number[]) => scene.farthest(x, y),
+    hizCellCullFarthest: ([x, y]: number[]) => scene.farthest(x, y),
     hizLevelCount: () => 5,
     // The pyramid's levels: the first holds the drawn size (the width and height in its second and third words).
     hizLevels: { level: [[0, WIDTH, HEIGHT, 0]], count: [5, 0, 0, 0] },

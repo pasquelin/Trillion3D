@@ -18,7 +18,6 @@ import {
 } from '../../../../../bench/oracles/browser/gpuLightGridOracle.ts'
 import {
   NEWTON_STEPS,
-  RUN_MARGIN,
   columnFrame,
   lightRun,
 } from '../../../../../bench/oracles/browser/gpuLightGridRunOracle.ts'
@@ -109,9 +108,8 @@ test('edge cases: a lamp touching one pixel, a cell every lamp reaches, near and
 test("the pass runs the oracle's constants and the resolve its slice", () => {
   const W = wgslConstants(wgslModule(GRID_BOUNDS_WGSL))
   assert.equal(W.NEWTON_STEPS, NEWTON_STEPS)
-  assert.deepEqual([W.RUN_FRONT, W.RUN_BACK].map(Math.fround), RUN_MARGIN)
-  // The view's runs widen the range as the oracle does (`RUN_REACH`), by no world cell's side.
-  assert.ok(GRID_BOUNDS_WGSL.text.includes('let r=runReach(radius,0.0);'))
+  assert.ok(!('RUN_FRONT' in W) && !('RUN_BACK' in W), 'the reference widens no depth')
+  assert.ok(GRID_BOUNDS_WGSL.text.includes('let r=radius;'), 'the reference widens no range')
   const { gridSlice: shipped } = shaderFunctions<{ gridSlice: (z: number) => number }>(
     DIRECT_LIGHTING_WGSL,
     ['gridSlice'],

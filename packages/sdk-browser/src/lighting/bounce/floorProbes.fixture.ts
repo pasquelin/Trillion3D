@@ -9,6 +9,13 @@ import type { ScreenProbeSettings } from '../../../../sdk-core/src/bounce/screen
 
 /** The eye the floor is read from: the tests encode with it. */
 export const FLOOR_EYE = [4, 4, 2]
+/** The light functions' atlas of a probe pass over the recording device: a stand-in, none being read. */
+export const FLOOR_ATLAS = {} as GPUTextureView
+/** What the probes' rays read of the sky light and of the clouds' shade over the recording device: stand-ins. */
+export const FLOOR_SHADE = {
+  sky: { cube: {}, sampler: {}, harmonics: {}, params: {} },
+  cloudShadow: { maps: [{}, {}], sampler: {}, block: {} },
+} as never
 
 /** The cells an image of the floor reads: the eight probes around a point of it every metre, a
  *  step of the normal bias above it, in the two finest levels — marked as the image's marks would be,

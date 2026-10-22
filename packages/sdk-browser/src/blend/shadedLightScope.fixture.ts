@@ -30,6 +30,7 @@ function shadedLightScope(
     shadowReceiverPlane: [0, 0, 0],
     vsmBiasNormal: (vector: number[]) => vector,
     shadowFactor: (slice: number) => (slice < 0 ? 1 : shades[slice]),
+    airTintOf: () => [1, 1, 1],
   }
   return { normal, scope }
 }

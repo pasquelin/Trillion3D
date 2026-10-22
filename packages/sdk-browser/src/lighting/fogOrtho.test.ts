@@ -46,7 +46,7 @@ test('a cell lies where its pixel’s ray reaches its depth, and its light comes
     positionRange: [...centre, 40],
     colorIntensity: [1, 1, 1, 50],
     directionCone: [0, 0, 0, -2],
-    params: [0, -1, 0, -2],
+    params: [0, -1, 1, -2],
     shape: [0, 0, 0, 0],
     capsule: [0, 0, 0, 0],
   }

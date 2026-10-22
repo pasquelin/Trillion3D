@@ -12,6 +12,7 @@ import { sameSceneLight } from '../../../../sdk-core/src/scene/light/equal.ts'
 import { rootedUnder } from '../../scene/host/world/rooted.ts'
 import { createWorldLights } from './lights.ts'
 import { createWorldLink } from './link.ts'
+import { NO_SKY, type WorldSky } from './worldModules.ts'
 
 /** A light store keeping what is written into it, and the order lamps were added in. */
 export const lightStore = () => {
@@ -31,7 +32,9 @@ export type LightStore = ReturnType<typeof lightStore>
 /** A scene whose link tells a world's lights, as a world's runtime wires them; the frames it
  *  asked are counted. */
 export function wiredLights(scene: Object3D = object.group()) {
-  const lights = createWorldLights(scene)
+  // The sky module's word, as a test sets it.
+  let sky: WorldSky = NO_SKY
+  const lights = createWorldLights(scene, () => sky)
   const calls = { relight: 0, invalidate: 0 }
   const contents = {
     poses: { moved() {}, touchRange() {} },
@@ -45,8 +48,9 @@ export function wiredLights(scene: Object3D = object.group()) {
     invalidate: () => void calls.invalidate++,
     relight: () => void calls.relight++,
     schedule: () => {},
+    sky: () => {},
   })
-  return { scene, lights, calls }
+  return { scene, lights, calls, setSky: (next: WorldSky) => void (sky = next) }
 }
 
 /** How many times `run` asks whether a node is a light (`isLightNode`, an `instanceof`). */

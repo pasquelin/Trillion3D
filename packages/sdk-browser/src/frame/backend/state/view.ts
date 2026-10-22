@@ -13,6 +13,7 @@ import { createWebgpuTimingState, type WebgpuTimingState } from './timing.ts'
 import type { ViewFrameMetrics } from '../../../../../sdk-core/src/contracts/metrics.ts'
 import { createViewScale, type ViewScale } from '../../view/viewScale.ts'
 import type { ScaleControl } from '../../scale/scaleControl.ts'
+import { NO_OVERRIDES, type ViewOverrides } from './viewOverrides.ts'
 
 /**
  * What one camera owns in the runtime groups: the cut it draws and what its image made of it, its
@@ -68,6 +69,8 @@ export const TARGET_GPU_KEYS = [
   'allocatedSize',
   'displaySize',
   'targetBytes',
+  // The clouds' images are drawn at the render size, and go with the targets of that size.
+  'clouds',
 ] as const satisfies readonly (keyof WebgpuGpuState)[]
 export const VIEW_GPU_KEYS = [
   ...TARGET_GPU_KEYS,
@@ -80,6 +83,8 @@ export const VIEW_GPU_KEYS = [
   'effectsRevision',
   // The fog's volume and its history, which follow the camera of the view that built them.
   'fogVolume',
+  // The light shafts' histories, which follow the camera of the view that drew them.
+  'lightShafts',
   // The canvas the view presents into: the main view's, or one of its own (`./persistentView.ts`).
   'presenter',
 ] as const satisfies readonly (keyof WebgpuGpuState)[]
@@ -131,6 +136,9 @@ export interface WebgpuView {
   /** The scale it is drawn at, never traded: the main view's is the world's controller
    *  (`WebgpuViews.main`); the drawn view's is read through `views.active.scale`. */
   scale: ViewScale
+  /** What the view turns off or forces in its passes (`./viewOverrides.ts`): a capture's, else
+   *  none; read through `views.active.overrides`, never traded with the groups. */
+  overrides: ViewOverrides
   /** The differences the view publishes its cut by (`../../../geometry/cut/adoption/publication.ts`): the main view's
    *  are the publication's own, another view's are made at its first cut and emptied when it is
    *  released. */
@@ -175,12 +183,13 @@ let ownViews = 0
 /** A view of `width × height` that has drawn nothing yet: no targets, no history, no temporal
  *  pass, no timer, no canvas of its own, at the display's scale — a view drawn without
  *  accumulation, as a capture is. `own`, it keeps its per-view caches under an identity of its
- *  own (`WebgpuView.id`); else the main view's. */
+ *  own (`WebgpuView.id`); else the main view's. `overrides`, what its passes turn off or force. */
 export function createWebgpuView(
   width: number,
   height: number,
   scale: ViewScale = createViewScale(1, { wanted: () => 1 }),
   own = false,
+  overrides: ViewOverrides = NO_OVERRIDES,
 ): WebgpuView {
   const viewport: [number, number] = [width, height]
   const gpu = pick(createWebgpuGpuState(viewport), VIEW_GPU_KEYS)
@@ -194,6 +203,7 @@ export function createWebgpuView(
     vis: pick(createWebgpuVisState(), VIEW_VIS_KEYS),
     timing: pick(createWebgpuTimingState(), VIEW_TIMING_KEYS),
     scale,
+    overrides,
   }
 }
 
@@ -211,6 +221,7 @@ export function createWebgpuViews(
     vis: pick(rt.vis, VIEW_VIS_KEYS),
     timing: pick(rt.timing, VIEW_TIMING_KEYS),
     scale,
+    overrides: NO_OVERRIDES,
   }
   return { main, active: main, persistent: [], mainImages: 0 } satisfies WebgpuViews
 }

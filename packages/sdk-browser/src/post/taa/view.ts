@@ -16,8 +16,9 @@ const T = TAA_VIEW.at,
   anchored = new Float64Array(16),
   packed = new Float32Array(TAA_VIEW_BYTES / 4)
 
-/** The exposure every measured colour of the pass is exposed by: the view's pre-exposure
- *  (`../exposure/applied.ts`), kept above zero so its ratio to the last image's stays finite. */
+/** The scale every measured colour of the pass is exposed by: the exposure over the image's
+ *  pre-exposure (`../exposure/pre.ts`), kept above zero so its ratio to the last image's stays
+ *  finite. */
 export const taaExposure = (exposure: number) => Math.max(exposure, 1e-6)
 
 /** Writes `(width, height, 1/width, 1/height)` of `grid` at `at`. */
@@ -72,6 +73,29 @@ export function writeDepthTerms(
   into[T.radius + 3] = perspective ? 0 : 1
 }
 
+/** The device depth of a point on the view axis at distance `s`, `(a·s + b) / (c·s + d)`, for the
+ *  perspective `projection` (column-major): the terms `(a, b, c, d)`, with `s` the distance ahead
+ *  of the eye whichever way the projection looks (`a` and `c` carry the sign that puts it so). */
+export function depthTermsAhead(
+  projection: ArrayLike<number>,
+): readonly [number, number, number, number]
+/** The same terms written in place at `out[offset..offset + 4]`, with no array made. */
+export function depthTermsAhead(
+  projection: ArrayLike<number>,
+  out: Float32Array,
+  offset: number,
+): void
+export function depthTermsAhead(projection: ArrayLike<number>, out?: Float32Array, offset = 0) {
+  const ahead = Math.sign(projection[11]) || 1
+  const a = projection[10] * ahead
+  const c = projection[11] * ahead
+  if (!out) return [a, projection[14], c, projection[15]] as const
+  out[offset] = a
+  out[offset + 1] = projection[14]
+  out[offset + 2] = c
+  out[offset + 3] = projection[15]
+}
+
 /** The degrees of the field of view the objects' size is relative to: the reference view's. */
 const DEFAULT_FOV_DEGREES = 90
 
@@ -97,12 +121,31 @@ function writeObjectSize(
   into[T.rates + 3] = least * least
 }
 
+/** The uniform's exposure words: the scale, the ratio of the exposures (the scale times the
+ *  pre-exposure) of this image and the last, which brings the histories kept in an exposed space to
+ *  this image's, the flicker count's two fade-in rates, and the ratio of the pre-exposures that the
+ *  history's light is brought by. The ratios are 1 with no history. */
+function writeExposure(
+  state: TaaFrameState,
+  exposure: number,
+  preExposureRatio: number,
+  frameIntervalMs: number | null,
+) {
+  packed[T.exposure] = exposure
+  packed[T.exposure + 1] = state.hasHistory
+    ? (exposure / state.previousExposure) * preExposureRatio
+    : 1
+  packed[T.exposure + 2] = flickerCountRate(frameIntervalMs)
+  packed[T.exposure + 3] = flickerCountRate(frameIntervalMs, THIN_GEOMETRY_PERIODS)
+  packed[T.preExposure] = state.hasHistory ? preExposureRatio : 1
+}
+
 /**
  * The pass's uniform for this frame (`TaaView`, `bindingsWgsl.ts`): both matrices at the eye, the
  * display grid the history has, whether the history describes nothing (a cut), the display layers'
  * history holds the last image's (`layers`), a placement moved (`moved`), the `render` grid the frame
  * was drawn in, its jitter and its rank, the eye and whether a GPU deformation moved (`deformed`);
- * the `exposure` every measured colour is exposed by (`taaExposure`), and its ratio to the last
+ * the `exposure` scale every measured colour is exposed by (`taaExposure`), and its ratio to the last
  * image's; the flicker rates for a frame `frameIntervalMs` long; what the resolve outputs in place
  * of the accumulated colour (`output`, `taaViewCode`); the camera's parallax since the last image; the blend factor a whole shading history takes the image at (`MAX_HISTORY_SAMPLES`); the
  * projection's depth terms;
@@ -126,6 +169,7 @@ export function writeTaaView(
   output = 0,
   knobs: TaaLevelKnobs = TAA_LEVEL_KNOBS.max,
   work: AnalysisWork = knobs.work,
+  preExposureRatio = 1,
 ) {
   // Inverse of the view-projection WITHOUT jitter: the reprojected pixel is its unshifted centre,
   // with the depth read at the shifted sample. At a fixed camera, history is thus re-read exactly
@@ -144,10 +188,7 @@ export function writeTaaView(
   packed[T.jitter + 3] = stochasticSlot(state)
   packed.set(cam.eye, T.eye)
   packed[T.eye + 3] = deformed ? 1 : 0
-  packed[T.exposure] = exposure
-  packed[T.exposure + 1] = state.hasHistory ? exposure / state.previousExposure : 1
-  packed[T.exposure + 2] = flickerCountRate(frameIntervalMs)
-  packed[T.exposure + 3] = flickerCountRate(frameIntervalMs, THIN_GEOMETRY_PERIODS)
+  writeExposure(state, exposure, preExposureRatio, frameIntervalMs)
   // The last projection of the eye's move since: `previous · (lastEye − eye, 0)`, its three first
   // columns, which anchoring at the eye leaves as they are.
   const last = state.previousViewProjection,

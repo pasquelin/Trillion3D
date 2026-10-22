@@ -1,5 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { SKY_READ_WGSL } from '../atmosphere/skyReadWgsl.ts'
+import { SKY_DIFFUSE_READ_WGSL } from '../atmosphere/skyReadWgsl.ts'
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
 
 /**
@@ -26,7 +26,7 @@ import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
  */
 export const INDIRECT_WGSL = wgslBlock(
   'INDIRECT_WGSL',
-  [BOUNCE_GRID_WGSL, SKY_READ_WGSL],
+  [BOUNCE_GRID_WGSL, SKY_DIFFUSE_READ_WGSL],
   `
 /** The irradiance of a gather of the probes (\`gathered\`, its share of the answer in \`w\`) on a
  *  surface of normal \`N\`: the probes' where they answer, the sky light's for the rest where one

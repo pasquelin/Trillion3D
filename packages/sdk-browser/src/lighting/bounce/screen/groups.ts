@@ -136,6 +136,7 @@ const INPUT_SLOT: Record<Exclude<keyof ScreenProbeInputs, 'proxy'>, true> = {
   lightLists: true,
   bounceGrid: true,
   probes: true,
+  lightFunction: true,
   vectors: true,
   blue: true,
   cacheFinal: true,

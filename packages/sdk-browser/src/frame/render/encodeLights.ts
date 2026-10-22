@@ -8,17 +8,44 @@ import {
   tonemapperSharpness,
 } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 import { appliedExposureOf } from '../../post/exposure/applied.ts'
+import { beginPreExposure } from '../../post/exposure/pre.ts'
+import { DIRECT_AT } from '../../lighting/deferred/view.ts'
 import { uploadSceneLights } from '../backend/state/lightBuffer.ts'
 import { ensureBounce, syncLightingProxies } from '../prepare/bounce.ts'
-import { probesWaitForSky } from './encodeAtmosphere.ts'
 import { createMarkSurface } from '../../lighting/bounce/marks.ts'
 import { planVsmFrame } from '../../lighting/shadows/vsm/frame/vsmPlan.ts'
 import { encodeVsmFrame } from '../../lighting/shadows/vsm/frame/vsmEncode.ts'
+import { lightGridCull } from '../../lighting/tiles/cullView.ts'
+import {
+  encodeLightFunctions,
+  lightFunctionResources,
+  lightFunctionRevision,
+} from '../../lighting/lightFunction/frame.ts'
+import { encodeDistanceFields } from '../../lighting/distanceField/frame.ts'
+import { heldSkyLight } from './skyLightHeld.ts'
+import { skyLightPending, skyLightReadOf } from './encodeSkyLight.ts'
+import { cloudShadowOf } from './encodeCloudShadow.ts'
+import { cloudShadowStandIn } from '../../lighting/atmosphere/cloudShadowStandIn.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 /** The floats the deferred and blend passes reread: lights, tiles in X and Y, exposure, display
- *  curve, the eye the fog is measured from, then the composition's sharpening strength. */
-const directParams = new Float32Array(9)
+ *  curve, the eye the fog is measured from, the composition's sharpening strength, then the image's
+ *  pre-exposure and the scale it is shown at (`PreExposure`). */
+const directParams = new Float32Array(DIRECT_AT.words)
+/**
+ * The image's exposure words. Exposure is not a light: it sets conversion of radiance into an image,
+ * and cannot light anything the declared lights do not already light. The word is the one the CPU
+ * knows (`appliedExposureOf`), in the units of the light the lighting traces. The image's
+ * pre-exposure is fixed here (`beginPreExposure`), before any pass writes light: the number every
+ * light is written multiplied by, and the scale the composition multiplies the image by until the
+ * GPU has measured the image's own (`../../post/exposure/meter.ts`) and copied it over.
+ */
+function writeExposureWords(rt: WebgpuPagesRuntime) {
+  const pre = beginPreExposure(rt)
+  directParams[3] = appliedExposureOf(rt)
+  directParams[DIRECT_AT.preExposure] = pre.now
+  directParams[DIRECT_AT.shown] = pre.shown
+}
 /** Camera world position, reused from one image to the next: bounce allocates nothing. */
 const viewpoint = new Float64Array(3)
 /** What the image drew, for the probes' marks, refilled each image. */
@@ -55,7 +82,7 @@ function drawnSurface(rt: WebgpuPagesRuntime, cam: EngineCamera) {
 
 /**
  * Direct lighting of an image, in order: the virtual shadow maps' CPU plan, the light buffer,
- * bounce, the per-tile light lists, the virtual shadow maps' GPU work (`../../lighting/shadows/vsm/frame/vsmEncode.ts`), then
+ * bounce, the per-tile light lists (cut by the depth pyramid this image built), the virtual shadow maps' GPU work (`../../lighting/shadows/vsm/frame/vsmEncode.ts`), then
  * the parameters deferred resolve will reread. A scene with no declared light launches neither
  * shadows nor lists: it pays nothing, and the unlit view outputs its raw albedo.
  */
@@ -70,29 +97,30 @@ export function encodeDirectLights(
     { store, tiles } = lights
   const active = store.count
   lights.lightsActive = active
+  // The meshes' distance fields and the global field, before any pass that reads them.
+  encodeDistanceFields(rt, device, encoder, cam, heldSkyLight(rt))
   const environment = store.environment
   directParams.fill(0)
-  // Exposure is not a light: it sets conversion of radiance into an image, and cannot light anything
-  // the declared lights do not already light. The word is the one the CPU knows
-  // (`appliedExposureOf`); an automatic exposure replaces it, on the GPU, with the one measured on
-  // this very image (`../../post/exposure/meter.ts`) before the composition reads it.
-  directParams[3] = appliedExposureOf(rt)
+  writeExposureWords(rt)
   directParams[4] = environmentCurve(environment)
   // The eye itself, under any projection: an orthographic camera's view point is a direction.
   directParams.set(cam.eye, 5)
-  directParams[8] = tonemapperSharpness(
+  directParams[DIRECT_AT.sharpness] = tonemapperSharpness(
     readFilmSetting(rt, 'tonemapperSharpen'),
     environmentSharpness(environment),
   )
   // The unlit view reads neither light lists nor a shadow map: it therefore encodes none of them.
   // A representation change held for the camera to rest is released to the list now: the first
   // lit frame's invalidation stales its pages, whatever the camera does.
-  if (!active || store.unlit) {
+  // A view that is not lit (`ViewOverrides.lighting`) lists none either.
+  if (!active || store.unlit || !rt.views.active.overrides.lighting) {
     lights.changes.releaseDeferred()
     // A lit view with no lamp may still hold an environment: its irradiance goes to the GPU.
     if (!store.unlit) uploadSceneLights(device, lights)
     return directParams
   }
+  // The light functions' indices are in the kind words before the buffer goes up.
+  encodeLightFunctions(rt, device, encoder, cam)
   // The virtual shadow maps (`../../lighting/shadows/vsm/frame/`): the CPU plan gives every shadowed light its
   // mask channel before the light buffer goes up; the GPU work follows the light lists, which the
   // per-pixel marking walks, and precedes the lighting pass that reads the mask.
@@ -107,7 +135,7 @@ export function encodeDirectLights(
   encodeBounce(rt, device, encoder, active, cam)
   // Kept bounce resources follow the placements even while bounce is toggled off.
   syncLightingProxies(rt)
-  const listed = encodeTileLists(rt, encoder, viewProjection, cam.eye)
+  const listed = encodeTileLists(rt, device, encoder, viewProjection, cam)
   encodeVsmFrame(rt, device, encoder, cam)
   if (!listed || !tiles) return directParams
   directParams[0] = active
@@ -121,9 +149,10 @@ export function encodeDirectLights(
  *  none could be encoded — no lists, no depth, or a device that could not fit them. */
 function encodeTileLists(
   rt: WebgpuPagesRuntime,
+  device: GPUDevice,
   encoder: GPUCommandEncoder,
   viewProjection: ArrayLike<number>,
-  eye: ArrayLike<number>,
+  cam: EngineCamera,
 ) {
   const { lights, gpu } = rt,
     { tiles } = lights,
@@ -131,7 +160,7 @@ function encodeTileLists(
   // Sized before the bounce listed its world grid (`encodeDirectLights`); a buffer the world's growth
   // replaced since is bound again by the pass.
   if (!tiles || !lights.buffer) return false
-  tiles.update(viewProjection, eye, width, height)
+  tiles.update(viewProjection, cam.eye, width, height, lightGridCull(rt, device, cam))
   return tiles.encode(encoder, rt.run.frame)
 }
 
@@ -167,22 +196,36 @@ function encodeBounce(
   syncLightingProxies(rt)
   probes.setIrradianceView(irradiance)
   // The sky their rays reach is built a frame after the first one that asks (`encodeAtmosphere`).
-  if (probesWaitForSky(rt)) return
+  if (skyLightPending(rt)) return
   // The store revision rises as soon as a light is added, set or removed: that is the signal the
   // grid needs to restart, and it costs no read. A change of fog alone is not one. The sky is the
   // other: a ray that leaves the scene reads the table the atmosphere builds when its sun or its air
   // changes (`skyBuilds`), which no light's revision tells.
   const skyBuilds = rt.gpu.atmosphere?.skyBuilds ?? 0
-  if (bounce.lightEpoch !== lights.store.transportEpoch || bounce.skyBuilds !== skyBuilds) {
+  // The light functions the bounce's lights wear are light transport too: the atlas changed, or the bounce began or
+  // stopped reading it (`lightFunctionBounce`), and the probes are traced again.
+  const functions = lightFunctionRevision(rt, 'lightFunctionBounce')
+  if (
+    bounce.lightEpoch !== lights.store.transportEpoch ||
+    bounce.skyBuilds !== skyBuilds ||
+    bounce.lightFunctions !== functions
+  ) {
     bounce.lightEpoch = lights.store.transportEpoch
     bounce.skyBuilds = skyBuilds
+    bounce.lightFunctions = functions
     probes.restart()
   }
   // Camera world position, posted by image entry: the levels re-centre on it by cell step. No
   // allocation. What the image draws tells which cells it reads (`drawnSurface`): a pivoting camera
   // marks the cells it turns to.
   viewpoint.set(cam.eye)
-  bounce.encoded = probes.encode(encoder, active, viewpoint, drawnSurface(rt, cam))
+  const atlas =
+    lightFunctionResources(rt, 'lightFunctionBounce') ?? rt.gpu.deferred!.placeholders.lightFunction
+  const shade = {
+    sky: skyLightReadOf(rt),
+    cloudShadow: cloudShadowOf(rt) ?? cloudShadowStandIn(device),
+  }
+  bounce.encoded = probes.encode(encoder, active, viewpoint, atlas, shade, drawnSurface(rt, cam))
   bounce.probesUpdated = probes.lastProbes
   bounce.raysLaunched = probes.lastRays
 }

@@ -1,21 +1,8 @@
 import { DEPTH_NEAR } from '../../camera/depthConvention.ts'
-import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { uvToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection.ts'
 import { faceNormal, sphereBehindPlane } from '../../../../math/src/wgsl/geometry.ts'
 import { FINITE_SENTINEL, INFINITE_THRESHOLD } from '../../../../math/src/wgsl/constants.ts'
-import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
-
-/** The range a light's run is solved for, in both grids: widened by a thousandth, and by a
- *  thousandth of a \`cell\`'s side where its cells are world lengths (the bounce's lattice; zero for
- *  the view's, whose depth ends are widened apart, \`RUN_FRONT\`/\`RUN_BACK\`), past every rounding of
- *  the point a reader takes its cell at: a run never misses a cell its light reaches, and a light it
- *  holds in excess adds an exact zero there. */
-export const RUN_REACH = { radius: 1.001, cell: 0.001 } as const
-const runReach = wgslFn(
-  'runReach',
-  [],
-  `fn runReach(radius:f32,cell:f32)->f32{return radius*${wgslF32(RUN_REACH.radius)}+cell*${wgslF32(RUN_REACH.cell)};}`,
-)
 
 /**
  * A column of the light grid and the run of its cells a light's range meets:
@@ -36,19 +23,15 @@ const runReach = wgslFn(
  */
 export const GRID_BOUNDS_WGSL = wgslBlock(
   'GRID_BOUNDS_WGSL',
-  [uvToNdc, unprojectPoint, faceNormal, sphereBehindPlane, INFINITE_THRESHOLD, runReach],
+  [uvToNdc, unprojectPoint, faceNormal, sphereBehindPlane, INFINITE_THRESHOLD],
   `/** The steps each end of a light's run takes toward its sphere. */
 const NEWTON_STEPS:u32=4u;
-/** The factors a run's front and back depth are widened by: never the neighbour's slice by a
- *  rounding of the depth a pixel reads. */
-const RUN_FRONT:f32=${1 + 1 / 1024};
-const RUN_BACK:f32=${1 - 1 / 1024};
 /** Depth the column's deep corners are read at: any depth short of the background gives the same
  *  planes; a deep one spreads the corners apart, so the planes keep their precision far from the
  *  world origin. */
 const COLUMN_DEPTH:f32=${DEPTH_NEAR / 1024};
 struct Edge{at:f32,slope:f32,}
-struct Column{planes:array<vec4f,5>,across:vec3f,down:vec3f,into:vec3f,edges:array<Edge,4>,near:f32,}
+struct Column{planes:array<vec4f,5>,across:vec3f,down:vec3f,into:vec3f,edges:array<Edge,4>,near:f32,reach:u32,}
 /** World position of a column's corner — bit 0 picks the right edge, bit 1 the bottom — at depth z. */
 fn cellCorner(cell:vec2u,corner:u32,z:f32)->vec3f{
  let size=view.viewport.xy;
@@ -91,12 +74,12 @@ fn gridColumn(cell:vec2u)->Column{
  column.edges[2]=columnEdge(near,deep,column.down,true,0u,1u,tn,td);
  column.edges[3]=columnEdge(near,deep,column.down,false,2u,3u,tn,td);
  column.near=tn;
+ column.reach=GRID_SLICES-1u;
  return column;
 }
 /** A sphere not wholly behind any of the column's planes. */
 fn sphereInColumn(column:Column,centre:vec3f,radius:f32)->bool{
- let r=runReach(radius,0.0);
- for(var i=0u;i<5u;i++){if(sphereBehindPlane(column.planes[i],centre,r)){return false;}}
+ for(var i=0u;i<5u;i++){if(sphereBehindPlane(column.planes[i],centre,radius)){return false;}}
  return true;
 }
 /** f(t), the squared distance from the centre \`c\` (across, down, along) to the column's section at
@@ -113,17 +96,17 @@ fn sectionGap(column:Column,c:vec3f,t:f32)->vec2f{
  return gap;
 }
 /** The depth where the view axis through \`centre\` is at \`t\`, as the render matrix gives it. */
-fn depthAt(column:Column,centre:vec3f,t:f32,margin:f32)->u32{
+fn depthAt(column:Column,centre:vec3f,t:f32)->u32{
  let p=vec4f(centre+column.into*(t-dot(column.into,centre)),1.0);
  let w=dot(view.depthRows[1],p);
  if(w<=0.0){return 0u;}
- return gridSlice(dot(view.depthRows[0],p)/w*margin);
+ return gridSlice(dot(view.depthRows[0],p)/w);
 }
 /** The first and last slice of the column a sphere may meet, \`vec2u(1u,0u)\` for none. */
 fn lightRun(column:Column,centre:vec3f,radius:f32)->vec2u{
  if(!(radius>0.0)){return vec2u(1u,0u);}
  if(radius>INFINITE_THRESHOLD){return vec2u(0u,GRID_SLICES-1u);}
- let r=runReach(radius,0.0);let R=r*r;
+ let r=radius;let R=r*r;
  let c=vec3f(dot(column.across,centre),dot(column.down,centre),dot(column.into,centre));
  var lo=max(c.z-r,column.near);var hi=c.z+r;
  if(!(lo<=hi)){return vec2u(1u,0u);}
@@ -141,7 +124,7 @@ fn lightRun(column:Column,centre:vec3f,radius:f32)->vec2u{
   hi+=(R-at.x)/at.y;
  }
  if(!(lo<=hi)){return vec2u(1u,0u);}
- return vec2u(depthAt(column,centre,lo,RUN_FRONT),depthAt(column,centre,hi,RUN_BACK));
+ return vec2u(depthAt(column,centre,lo),depthAt(column,centre,hi));
 }`,
 )
 
@@ -155,8 +138,8 @@ fn lightRun(column:Column,centre:vec3f,radius:f32)->vec2u{
  *
  * A light of range `r` meets the column where its distance `d` across x and y to the column's
  * square is at most `r`, and there the slices between `c.z − h` and `c.z + h`, `h = √(r² − d²)`: the
- * very cells its sphere meets, the range widened past every rounding of the point a reader takes its
- * cell at (`runReach`, `bounceLightSlice`).
+ * very cells its sphere meets, by the squared distance of the point to its square under the squared
+ * range, as the cell of a light's list is chosen.
  *
  * The lattice's edge cells reach past it, to infinity: a point outside the lattice reads the edge
  * cell it is clamped to (`bounceLightSlice`), so an edge column's square runs on past the lattice's
@@ -165,35 +148,35 @@ fn lightRun(column:Column,centre:vec3f,radius:f32)->vec2u{
  */
 export const WORLD_GRID_BOUNDS_WGSL = wgslBlock(
   'WORLD_GRID_BOUNDS_WGSL',
-  [INFINITE_THRESHOLD, FINITE_SENTINEL, runReach],
-  `struct Column{low:vec2f,high:vec2f,}
+  [INFINITE_THRESHOLD, FINITE_SENTINEL],
+  `struct Column{low:vec2f,high:vec2f,reach:u32,}
 /** The column of cell \`cell\`: its square, relative to the grid's corner — an edge column's run
  *  on to infinity past the lattice's side (\`COLUMN_SLICES\` columns a side). */
 fn gridColumn(cell:vec2u)->Column{
  let side=view.origin.w;
  let low=select(vec2f(cell)*side,vec2f(-FINITE_SENTINEL),cell==vec2u(0u));
  let high=select(vec2f(cell+vec2u(1u))*side,vec2f(FINITE_SENTINEL),cell>=vec2u(COLUMN_SLICES-1u));
- return Column(low,high);
+ return Column(low,high,COLUMN_SLICES-1u);
 }
+/** The last slice of a column a reader can read the lists at: the lattice is not a screen's, all of them. */
+fn columnReach(cell:vec2u)->u32{return COLUMN_SLICES-1u;}
 /** The squared distance across x and y from \`centre\` to the column's square. */
 fn columnGap(column:Column,centre:vec3f)->f32{
  let d=max(max(column.low-centre.xy,centre.xy-column.high),vec2f(0.0));
  return dot(d,d);
 }
-/** A sphere that meets the column's square. */
+/** A sphere that meets the column's square: its distance to it under the radius. */
 fn sphereInColumn(column:Column,centre:vec3f,radius:f32)->bool{
- let r=runReach(radius,view.origin.w);
- return columnGap(column,centre)<=r*r;
+ return columnGap(column,centre)<radius*radius;
 }
 /** The first and last cell of the column a sphere may meet, \`vec2u(1u,0u)\` for none: a run past the
  *  column's first or last slice holds that slice, which the points past it read. */
 fn lightRun(column:Column,centre:vec3f,radius:f32)->vec2u{
  if(!(radius>0.0)){return vec2u(1u,0u);}
  if(radius>INFINITE_THRESHOLD){return vec2u(0u,COLUMN_SLICES-1u);}
- let r=runReach(radius,view.origin.w);
  let gap=columnGap(column,centre);
- if(gap>r*r){return vec2u(1u,0u);}
- let h=sqrt(r*r-gap);
+ if(!(gap<radius*radius)){return vec2u(1u,0u);}
+ let h=sqrt(radius*radius-gap);
  let lo=floor((centre.z-h)/view.origin.w);let hi=floor((centre.z+h)/view.origin.w);
  let last=f32(COLUMN_SLICES-1u);
  return vec2u(u32(clamp(lo,0.0,last)),u32(clamp(hi,0.0,last)));

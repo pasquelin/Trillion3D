@@ -1,5 +1,4 @@
-import { sceneFogOf, type Fog } from '../world/sceneFog.ts'
-import type { ResolvedAtmosphere } from '../../../../sdk-core/src/scene/core/atmosphere.ts'
+import type { ModuleOption } from '../../../../sdk-core/src/modules/descriptor.ts'
 import { MATERIAL_BOOKKEEPING } from '../../../../sdk-core/src/world/material/material.ts'
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
@@ -7,6 +6,9 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts'
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts'
+import { tintSet } from '../../../../sdk-core/src/world/light/lightAirSettings.ts'
+import { settingsSet } from '../../../../sdk-core/src/world/light/lightShaftSettings.ts'
+import { settingsSet as cloudShadowSettingsSet } from '../../../../sdk-core/src/world/light/lightCloudShadowSettings.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import type { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import type { LoadedModel } from '../world/models/loadedModel.ts'
@@ -26,8 +28,7 @@ import {
 type SceneLike = Object3D & {
   background: unknown
   environment: unknown
-  fog: Fog | null
-  resolvedAtmosphere?: ResolvedAtmosphere
+  sky?: ModuleOption
 }
 
 /** A linear colour, or a point a light aims at. */
@@ -96,8 +97,7 @@ export function saveScene(scene: SceneLike, camera?: Camera): SavedScene {
     format: SCENE_FORMAT,
     formatVersion: SCENE_FORMAT_VERSION,
     background: background && rgb(background),
-    fog: sceneFogOf(scene.fog) ?? null,
-    ...(scene.resolvedAtmosphere && { atmosphere: plain(scene.resolvedAtmosphere) }),
+    ...(scene.sky != null && { sky: plain(scene.sky) as ModuleOption }),
     camera: camera ? saveCamera(camera) : null,
     geometries: [...tables.geometries.keys()].map(saveGeometry),
     materials: [...tables.materials.keys()].map(saveMaterial),
@@ -127,6 +127,7 @@ function saveNode(o: Object3D, tables: Tables): SavedNode {
     visible: o.visible,
     castShadow: o.castShadow,
     ...(o.castFarShadow ? { castFarShadow: true as const } : {}),
+    ...(o.farField ? { farField: true as const } : {}),
     ...(o.farShadowTest === null ? {} : { farShadowTest: o.farShadowTest }),
     receiveShadow: o.receiveShadow,
     renderOrder: o.renderOrder,
@@ -139,7 +140,9 @@ function saveNode(o: Object3D, tables: Tables): SavedNode {
   }
   if ((o as { isGroup?: boolean }).isGroup) saved.kind = 'group'
   if (mesh.isMesh) saveMesh(saved, mesh, tables)
-  if (lamp.isLight)
+  if (lamp.isLight) {
+    const shafts = settingsSet(lamp)
+    const cloudShadows = cloudShadowSettingsSet(lamp)
     saved.light = {
       kind: lamp.kind,
       color: rgb(lamp.color),
@@ -149,7 +152,15 @@ function saveNode(o: Object3D, tables: Tables): SavedNode {
       sh: lamp.sh ? [...lamp.sh] : null,
       ...(lamp.atmosphereSun ? {} : { atmosphereSun: false as const }),
       ...(lamp.atmosphereSunIndex ? { atmosphereSunIndex: lamp.atmosphereSunIndex } : {}),
+      ...(lamp.shadowsFog === (lamp.kind === 'directional') ? {} : { shadowsFog: lamp.shadowsFog }),
+      ...(lamp.useTemperature ? { useTemperature: true as const } : {}),
+      ...(lamp.shadowsAir ? { shadowsAir: true as const } : {}),
+      ...(lamp.transmittancePerPixel ? { transmittancePerPixel: true as const } : {}),
+      ...(tintSet(lamp) ? { sunDiskTint: rgb(tintSet(lamp)!) } : {}),
+      ...(Object.keys(shafts).length ? { shafts } : {}),
+      ...(Object.keys(cloudShadows).length ? { cloudShadows } : {}),
     }
+  }
   if (model.isLoadedModel) saved.model = { url: model.record.manifestUrl }
   return saved
 }

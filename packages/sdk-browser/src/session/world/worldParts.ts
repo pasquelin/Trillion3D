@@ -20,6 +20,7 @@ import { worldSwitches } from './switches.ts'
 import { worldMixerView } from './mixerView.ts'
 import { createWorldViews } from './views.ts'
 import { worldRuntimeOf, type WorldState } from './worldRuntime.ts'
+import { createWorldModules } from './worldModules.ts'
 
 /** The state a world starts in: a perspective camera, the display defaults, nothing animating. */
 const startingState = (): WorldState => ({
@@ -57,9 +58,11 @@ export function worldParts(target: WorldTarget, options: WorldOptions) {
   const views = createWorldViews({ canvas, pixelRatio: options.pixelRatio, invalidate })
   const diagnostic = worldDiagnostic(() => runtime.explorer, options.debug, invalidate)
   const switches = worldSwitches(options, () => runtime, frames)
+  const modules = createWorldModules({ canvas, changed: () => runtime.displayChanged() })
   const runtime = worldRuntimeOf({
     ...{ canvas, options, device, scene, state, frames, switches, pools, diagnostic, invalidate },
     views,
+    modules,
     loading: loader.loading,
     step: () => ahead(controls),
   })
@@ -88,7 +91,7 @@ export function worldParts(target: WorldTarget, options: WorldOptions) {
       diagnostic,
       views,
     },
-    ...{ switches, runtime, physics, adopt, controls, ahead, live },
+    ...{ switches, modules, runtime, physics, adopt, controls, ahead, live },
   }
 }
 /** What `worldParts` builds. */

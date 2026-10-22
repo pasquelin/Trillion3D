@@ -1,6 +1,8 @@
 export * from './contracts/index.ts'
 export * from './bounce/contracts.ts'
 export * from './contracts/proxy.ts'
+export * from './modules/descriptor.ts'
+export * from './modules/manager.ts'
 export * from './bounce/cascades.ts'
 export * from './bounce/probePool.ts'
 export { assertSceneProxy, decodeSceneProxy } from './scene/core/proxy.ts'
@@ -57,6 +59,7 @@ export { LOD_QUALITY, lodQuality } from './lod/policy.ts'
 export type { LodQualityId } from './lod/policy.ts'
 export { frameStatistics, summarize } from './runtime/stats.ts'
 export * from './runtime/stageProfile.ts'
+export type { RenderSettingSource } from './runtime/renderSettings.ts'
 export {
   PAGE_INTEGRATION_FAILURES,
   PAGE_INTEGRATION_PROTOCOL,
@@ -177,7 +180,6 @@ export type {
 export type { SceneExposure } from './contracts/exposureOptions.ts'
 /** The distances an object is drawn at: a draw source holds them, an object's settings name them. */
 export type { DrawDistanceSettings } from './contracts/objectOptions.ts'
-export type { SceneSky } from './scene/core/environmentSky.ts'
 export type {
   AtmosphereSunIndex,
   SceneLight,

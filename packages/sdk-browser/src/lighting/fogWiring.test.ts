@@ -32,14 +32,14 @@ test('the opaque resolve fogs its lit sum at the pixel, from the eye in display.
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER])
     assert.match(
       shader,
-      /var rgb=litSurface\(lit,indirect\[0\][^,]*,[^\n]*,indirect\[1\],emissive\.rgb[^,;]*,[^;]*\);[^]*?if\(\(surfaceFlag&128u\)==0u\)\{rgb=fogged\(rgb,P,view\.display\.yzw\);\}/,
+      /var rgb=litSurface\(lit,indirect\[0\][^,]*,[^\n]*,indirect\[1\],emissive\.rgb[^,;]*,[^;]*\);[^]*?if\(\(surfaceFlag&128u\)==0u\)\{rgb=foggedOpaque\(rgb,P,view\.display\.yzw,pixel\.xy\);\}/,
     )
   // An unlit or matcap surface (flag 1) is fogged; a diagnostic, normal or depth one (flag 3) is not.
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER]) {
     assert.match(shader, /if\(flag==3u\)\{return vec4f\(base\.rgb,1\.0\);\}/)
     assert.match(
       shader,
-      /if\(flag==1u\)\{var rgb=base\.rgb;if\(\(surfaceFlag&128u\)==0u\)\{rgb=fogged\(rgb,P,view\.display\.yzw\);\}/,
+      /if\(flag==1u\)\{var rgb=base\.rgb;if\(\(surfaceFlag&128u\)==0u\)\{rgb=foggedOpaque\(rgb,P,view\.display\.yzw,pixel\.xy\);\}/,
     )
   }
   assert.match(

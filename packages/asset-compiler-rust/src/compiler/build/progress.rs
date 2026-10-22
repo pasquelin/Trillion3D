@@ -51,6 +51,8 @@ pub(crate) fn with_ratio(progress: impl Fn(Value) + Sync) -> impl Fn(Value) + Sy
             Some("textures") => 0.965 + 0.005 * frac(&event),
             Some("proxy") => 0.97,
             Some("voxels") => 0.977,
+            Some("distanceFields") => 0.978,
+            Some("volumetricLightmap") => 0.9785 + 0.0015 * frac(&event),
             Some("lights") => 0.98,
             // The HLOD actors build inside the tables' stage: one step per cell's job.
             Some("hlod") => 0.98 + 0.009 * frac(&event),

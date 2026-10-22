@@ -8,7 +8,12 @@ import {
 import { packHizPyramid } from './oracle.fixture.ts'
 import type { PackedHiz } from './oracle.fixture.ts'
 import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
+import { wgslModule } from '../../../../../math/src/wgsl/assemble.ts'
+import { f32Bits } from '../../../../../math/src/float/bits.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
+import { HIZ_REFERENCE_HIDDEN_WGSL } from './footprintWgsl.ts'
+import { hizLevelWords } from './levelsUniform.ts'
+import { pyramidBytes } from './oracle.ts'
 import { Mat } from '../../../materials/texture/shaderRunMatrix.fixture.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import {
@@ -195,6 +200,60 @@ test('edge cases: one texel, a kernel-wide footprint, a buried box, a box in fro
   assert.equal(judge(wide, edge, wide.sizes.length, 0.25)?.after, true)
   // No mip covers the rectangle: unjudged on both sides.
   assert.equal(judge(wide, full, 2, 0.25), undefined)
+})
+
+test('the reference test (four texels of the lowest level) hides nothing the finer level shows', () => {
+  // The shipped reference walk (`hiddenByReferencePyramid`) over random depth images and boxes,
+  // against the finer walk's verdict (`judge`): each texel the finer walk reads lies under a texel
+  // of the reference's, so its minimum is no less and it hides at least what the reference hides.
+  const rand = lcgRandom(31)
+  let reference = 0,
+    finer = 0
+  for (let trial = 0; trial < 60; trial++) {
+    const width = 1 + Math.floor(rand() * 150),
+      height = 1 + Math.floor(rand() * 150)
+    const palette = Array.from({ length: 5 }, () => Math.fround(rand()))
+    const packed = packHizPyramid(
+      Array.from({ length: height }, () =>
+        Array.from({ length: width }, () => palette[Math.floor(rand() * palette.length)]),
+      ),
+    )
+    const layout = pyramidBytes(width, height),
+      words = hizLevelWords(layout.sizes, layout.offsets, layout)
+    const run = shaderRun<{
+      hiddenByReferencePyramid: (rect: number[], nearest: number) => boolean
+    }>(wgslModule(HIZ_REFERENCE_HIDDEN_WGSL), ['hiddenByReferencePyramid'], {
+      hizPyramid: {},
+      uni: { width, height },
+      hizLevels: {
+        level: Array.from({ length: 16 }, (_, k) => [...words.subarray(k * 4, k * 4 + 4)]),
+        count: [...words.subarray(64)],
+      },
+      // The culling layer: level 0 in its own slice, the coarser levels in the last, after the
+      // first level's `first` texels of the packed pyramid.
+      textureLoad: (_: object, at: number[], slice: number) => [
+        f32Bits(packed.data[at[1] * 8192 + at[0] + (slice === 2 ? packed.first : 0)]),
+      ],
+    })
+    for (let box = 0; box < 40; box++) {
+      const x0 = Math.floor(rand() * width),
+        y0 = Math.floor(rand() * height)
+      const rect = [
+        x0,
+        y0,
+        Math.min(width - 1, x0 + Math.floor(rand() * 40)),
+        Math.min(height - 1, y0 + Math.floor(rand() * 40)),
+      ]
+      const nearest = Math.fround(rand())
+      const verdicts = judge(packed, rect, packed.sizes.length, nearest)
+      if (!verdicts) continue
+      const hides = run.hiddenByReferencePyramid(rect, nearest)
+      assert.ok(!hides || verdicts.after, `trial ${trial}, [${rect}]: the finer walk shows it`)
+      if (hides) reference++
+      if (verdicts.after) finer++
+    }
+  }
+  assert.ok(reference > 0 && finer >= reference, `${reference} hidden by the reference, ${finer}`)
 })
 
 // The patches of a displaced surface are judged by the view as the cut judges a box

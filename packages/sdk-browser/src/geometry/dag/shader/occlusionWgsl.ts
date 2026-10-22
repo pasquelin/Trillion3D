@@ -2,11 +2,7 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 import { transformHalfExtent } from '../../../../../math/src/wgsl/geometry.ts'
-import {
-  HIZ_LEVELS_STRUCT_WGSL,
-  HIZ_READ_WGSL,
-} from '../../../visibility/hiz/gpu/pyramidTexture.ts'
-import { HIZ_MIP_WGSL } from '../../../visibility/hiz/gpu/rectWgsl.ts'
+import { HIZ_FOOTPRINT_WGSL } from '../../../visibility/hiz/gpu/footprintWgsl.ts'
 import { DAG_INF } from './infDecl.ts'
 
 /** The group of the cut's occlusion, and its bindings: the pyramid and its levels
@@ -45,7 +41,7 @@ const BOX_CULLED = 0,
  */
 export const PYRAMID_BOX_WGSL = wgslBlock(
   'PYRAMID_BOX_WGSL',
-  [HIZ_LEVELS_STRUCT_WGSL, HIZ_READ_WGSL, HIZ_MIP_WGSL, transformHalfExtent, DAG_INF],
+  [HIZ_FOOTPRINT_WGSL, transformHalfExtent, DAG_INF],
   `/** A box in clip space: its normalized rectangle and depths (\`lo\`, \`hi\`; reversed depth, the
  *  nearest the largest), whether it reaches the near plane, and whether it lies between the near and
  *  the far planes. */
@@ -84,32 +80,6 @@ fn centreRect(lo:vec2f,hi:vec2f,size:vec2u)->vec4i{
  return vec4i(max(p.xy,vec2i(0)),min(p.zw,vec2i(size)-vec2i(1)));
 }
 fn coversCentre(r:vec4i)->bool{return all(r.zw>=r.xy);}
-/** The half-resolution level where an inclusive rectangle of half-resolution texels \`t\` spans at
- *  most four texels a side: two texels of level \`k\` cover \`2^(k+1)\`, one level more where the
- *  rectangle's alignment needs it. */
-fn footprintLevel(t:vec4i)->u32{
- let span=t.zw-t.xy;
- let level=u32(max(max(firstLeadingBit(span.x),firstLeadingBit(span.y))-1,0));
- return level+select(0u,1u,any((t.zw>>vec2u(level))-(t.xy>>vec2u(level))>vec2i(3)));
-}
-/** Whether the pyramid lets the pixel rectangle \`r\` (\`centreRect\`) show a surface at reversed
- *  depth \`nearest\`: the farthest depth of its footprint (\`footprintLevel\`) no nearer than it. */
-fn pyramidShows(r:vec4i,nearest:f32)->bool{
- let half=vec4i(r.xy,max(r.xy,r.zw))>>vec4u(1u);
- let level=footprintLevel(half);
- let t=half>>vec4u(level);
- let l=level+1u;
- if(l>=hizLevels.count.x){return true;}
- let mip=hizMip(l);let size=vec2i(hizLevels.level[l].yz);
- var farthest=1.0;
- for(var y=0;y<4;y++){
-  for(var x=0;x<4;x++){
-   let at=clamp(min(t.xy+vec2i(x,y),t.zw),vec2i(0),size-vec2i(1));
-   farthest=min(farthest,hizCullFarthest(mip.x+u32(at.y)*mip.y+u32(at.x)));
-  }
- }
- return nearest>=farthest;
-}
 `,
 )
 
@@ -147,7 +117,7 @@ fn pyramidShows(r:vec4i,nearest:f32)->bool{
  */
 export const DAG_OCCLUSION_WGSL = wgslBlock(
   'DAG_OCCLUSION_WGSL',
-  [PYRAMID_BOX_WGSL, HIZ_LEVELS_STRUCT_WGSL, HIZ_MIP_WGSL, NO_INDEX],
+  [PYRAMID_BOX_WGSL, NO_INDEX],
   `@group(${OCCLUSION_GROUP}) @binding(${OCCLUSION_BINDING.pyramid}) var hizPyramid:texture_2d_array<u32>;
 @group(${OCCLUSION_GROUP}) @binding(${OCCLUSION_BINDING.levels}) var<uniform> hizLevels:HizLevels;
 ${wgslConsts({ OCCLUSION_TWO_PASS, CUT_MAIN, CUT_POST, BOX_CULLED, BOX_SEEN, BOX_OCCLUDED })}

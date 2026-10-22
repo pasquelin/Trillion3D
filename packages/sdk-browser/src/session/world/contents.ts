@@ -63,7 +63,12 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     resolve: (landed?: () => void) => resolve(state, landed),
     seat: (session?: ModelSession) => seat(state, session),
     /** A mesh's geometry or material was written: it is read again on the next resolve. */
-    stale: (mesh: Mesh) => stale.add(mesh),
+    stale(mesh: Mesh) {
+      members.retype(mesh)
+      stale.add(mesh)
+    },
+    /** The meshes wearing a volume material: no surface of theirs is drawn. */
+    volumes: members.volumes,
     get staleCount() {
       return stale.size
     },

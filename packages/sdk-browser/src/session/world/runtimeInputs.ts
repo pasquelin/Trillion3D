@@ -8,6 +8,7 @@ import type { openMeasuredWorld, MeasuredWorld } from '../explorer.ts'
 import type { MeasuredWorldOptions } from '../options.ts'
 import type { Scene } from './scene.ts'
 import type { worldDiagnostic } from './handles.ts'
+import type { WorldModules } from './worldModules.ts'
 
 /** What a world hands its runtime (`runtime.ts`): its canvas, scene and camera, the session
  *  options of the moment, and the hooks that hear each session and frame. */
@@ -31,6 +32,8 @@ export type WorldRuntimeInputs = {
     fog?: SceneFog
     atmosphere?: ResolvedAtmosphere
   }
+  /** The world's modules: the sky module's lights and parts are read from them. */
+  modules: WorldModules
   /** Whether the world has drawn a frame yet. */
   drawn: () => boolean
   /** Settles once the world's device is granted, a lost one asked again. */

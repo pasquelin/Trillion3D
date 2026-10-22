@@ -63,3 +63,9 @@ export function summaryOf(values: ArrayLike<number>): Summary | null {
     p99: quantile(sorted, 0.99)!,
   }
 }
+
+/** The median and 95th percentile of a list of values (`summaryOf`), `null` when it is empty. */
+export function spread(values: ArrayLike<number>) {
+  const summary = summaryOf(values)
+  return summary && { p50: summary.p50, p95: summary.p95 }
+}

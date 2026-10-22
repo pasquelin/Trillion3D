@@ -2,6 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { namedMove } from './sceneMethods.ts'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { Scene } from './scene.ts'
+import { createWorldModules, NO_SKY } from './worldModules.ts'
 
 test('a move by name asks a frame only when the node moved', () => {
   const scene = new Object3D(),
@@ -17,4 +19,43 @@ test('a move by name asks a frame only when the node moved', () => {
   assert.deepEqual([moved, frames], [[node], 1], 'a real move marks the node and asks a frame')
   move('door', at(2))
   assert.deepEqual([moved.length, frames], [1, 1], 'the same pose again asks nothing')
+})
+
+test('the scene’s sky word is checked, held and told to the world; a refused one changes nothing', () => {
+  const scene = new Scene()
+  const heard: unknown[] = []
+  scene._link = { sky: (option: unknown) => heard.push(option) } as never
+  assert.equal(scene.sky, undefined, 'off until a source says otherwise')
+  scene.sky = { clouds: false, sun: { intensity: 8 } }
+  assert.deepEqual(heard, [{ clouds: false, sun: { intensity: 8 } }])
+  assert.throws(() => (scene.sky = { sun: { nope: 1 } }), /sun/)
+  assert.throws(() => (scene.sky = { rain: true } as never), { code: 'INVALID_MODULE_OPTION' })
+  assert.deepEqual(scene.sky, { clouds: false, sun: { intensity: 8 } })
+  assert.equal(heard.length, 1)
+  scene.sky = null
+  assert.deepEqual([scene.sky, heard.at(-1)], [null, null])
+})
+
+test('the sky module is off and empty until a source switches it on, and the page’s word holds over the scene’s', () => {
+  let changes = 0
+  const modules = createWorldModules({ canvas: {} as never, changed: () => changes++ })
+  assert.equal(modules.sky, NO_SKY, 'off: no part resolved, no light')
+  modules.scene(true)
+  const { resolved, lights } = modules.sky
+  assert.deepEqual(
+    [lights.map((l) => l.kind), Object.keys(resolved!).sort()],
+    [['directional'], ['atmosphere', 'clouds', 'fog', 'skyLight', 'sun']],
+  )
+  modules.page.set('sky', { clouds: false, sun: false })
+  assert.deepEqual(
+    [modules.sky.lights.map((l) => l.kind), modules.sky.resolved!.clouds],
+    [[], undefined],
+  )
+  modules.page.set('sky', false)
+  assert.equal(modules.sky, NO_SKY, 'the page switches it off over the scene')
+  modules.page.clear('sky')
+  assert.equal(modules.sky.lights.length, 1, 'the scene’s word is back')
+  assert.deepEqual([modules.page.state('sky').by, changes], ['scene', 4])
+  modules.dispose()
+  assert.equal(modules.sky, NO_SKY)
 })

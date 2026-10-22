@@ -71,7 +71,7 @@ test('the display layers take the colour the composition shows, through its curv
   }
   assert.match(
     CONTRACT_COMPOSITIONS.plain.still,
-    /toneMap\(value\.rgb\*view\.lightParams\.w\/max\(value\.a,1e-6\),u32\(view\.display\.x\)\)/,
+    /toneMap\(value\.rgb\*view\.preExposure\.y\/max\(value\.a,1e-6\),u32\(view\.display\.x\)\)/,
   )
 })
 

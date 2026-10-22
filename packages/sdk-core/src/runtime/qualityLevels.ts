@@ -5,6 +5,7 @@
  * whatever they become. The other levels write only the settings their group has wired; a level
  * whose settings are not wired yet writes nothing, and reads as `max` would.
  */
+import { SKY_PRESET_LEVELS } from '../modules/sky/qualityPresets.ts'
 import { SCREEN_PROBE_PRESET_LEVELS } from '../bounce/screenProbeLevels.ts'
 import { AMBIENT_OCCLUSION_PRESET_LEVELS } from '../contracts/ambientOcclusionOptions.ts'
 import { BLOOM_PRESET_LEVELS } from '../contracts/bloomRules.ts'
@@ -51,6 +52,10 @@ export const QUALITY_LEVELS: QualityLevels = {
     fine: { antialiasing: 'high' },
     max: {},
   },
+  // The sky's effects levels write the atmosphere's eleven settings (`SKY_PRESET_LEVELS`): the
+  // reference's levels 0, 1 and 2; the clouds' and the sky light's other settings stay at their
+  // defaults at every level.
+  effects: { ...SKY_PRESET_LEVELS.effects, max: {} },
   // The view distance's levels write the scale every object's draw distance is multiplied by
   // (`VIEW_DISTANCE_SCALE_LEVELS`); the cut's other settings stay at their defaults at every level.
   viewDistance: {
@@ -64,7 +69,7 @@ export const QUALITY_LEVELS: QualityLevels = {
   // (`BLOOM_PRESET_LEVELS`) and the settings the reference's levels write of the depth of
   // field (`DEPTH_OF_FIELD_PRESET_LEVELS`) and the tonemapper's quality and the colour fringe's
   // (`FILM_PRESET_LEVELS`) and the screen-space occlusion's resolutions, ceiling, depth-pyramid climb and radius
-  // scale (`AMBIENT_OCCLUSION_PRESET_LEVELS`); their other switches stay at their defaults at every level.
+  // scale (`AMBIENT_OCCLUSION_PRESET_LEVELS`), and the light shafts' switch (`SKY_PRESET_LEVELS`); their other switches stay at their defaults at every level.
   imageEffects: {
     smooth: {
       ...MOTION_BLUR_PRESET_LEVELS.smooth,
@@ -73,6 +78,7 @@ export const QUALITY_LEVELS: QualityLevels = {
       ...DEPTH_OF_FIELD_PRESET_LEVELS.smooth,
       ...FILM_PRESET_LEVELS.smooth,
       ...AMBIENT_OCCLUSION_PRESET_LEVELS.smooth,
+      ...SKY_PRESET_LEVELS.imageEffects.smooth,
     },
     balanced: {
       ...MOTION_BLUR_PRESET_LEVELS.balanced,
@@ -81,6 +87,7 @@ export const QUALITY_LEVELS: QualityLevels = {
       ...DEPTH_OF_FIELD_PRESET_LEVELS.balanced,
       ...FILM_PRESET_LEVELS.balanced,
       ...AMBIENT_OCCLUSION_PRESET_LEVELS.balanced,
+      ...SKY_PRESET_LEVELS.imageEffects.balanced,
     },
     fine: {
       ...MOTION_BLUR_PRESET_LEVELS.fine,
@@ -89,6 +96,7 @@ export const QUALITY_LEVELS: QualityLevels = {
       ...DEPTH_OF_FIELD_PRESET_LEVELS.fine,
       ...FILM_PRESET_LEVELS.fine,
       ...AMBIENT_OCCLUSION_PRESET_LEVELS.fine,
+      ...SKY_PRESET_LEVELS.imageEffects.fine,
     },
     max: {},
   },
@@ -127,15 +135,27 @@ export const QUALITY_LEVELS: QualityLevels = {
     },
     max: {},
   },
-  // The indirect light's levels write the screen probes' level (`SCREEN_PROBE_LEVELS`): the two coarser
+  // The indirect light's levels write the screen probes' level (`SCREEN_PROBE_LEVELS`) and the sky light's intensity factor (`SKY_PRESET_LEVELS`): the two coarser
   // presets read the world's probes alone (`off`), the one below the top the `high` level, the top the
   // default one; and the reflections' level (`REFLECTION_LEVELS`): the two coarser presets trace none (`off`),
   // the one below the top the `high` level, the top the default one; the other settings of both stay at their
   // defaults at every level.
   indirectLight: {
-    smooth: { ...SCREEN_PROBE_PRESET_LEVELS.smooth, ...REFLECTION_PRESET_LEVELS.smooth },
-    balanced: { ...SCREEN_PROBE_PRESET_LEVELS.balanced, ...REFLECTION_PRESET_LEVELS.balanced },
-    fine: { ...SCREEN_PROBE_PRESET_LEVELS.fine, ...REFLECTION_PRESET_LEVELS.fine },
+    smooth: {
+      ...SCREEN_PROBE_PRESET_LEVELS.smooth,
+      ...SKY_PRESET_LEVELS.indirectLight.smooth,
+      ...REFLECTION_PRESET_LEVELS.smooth,
+    },
+    balanced: {
+      ...SCREEN_PROBE_PRESET_LEVELS.balanced,
+      ...SKY_PRESET_LEVELS.indirectLight.balanced,
+      ...REFLECTION_PRESET_LEVELS.balanced,
+    },
+    fine: {
+      ...SCREEN_PROBE_PRESET_LEVELS.fine,
+      ...SKY_PRESET_LEVELS.indirectLight.fine,
+      ...REFLECTION_PRESET_LEVELS.fine,
+    },
     max: {},
   },
 }

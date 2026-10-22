@@ -1,6 +1,8 @@
 import { HIZ_NEAREST_BUILD, HIZ_SHADER } from './shader.ts'
+import { HIZ_PRIMED_BINDING, HIZ_PRIMED_BYTES, HIZ_PRIMED_SHADER } from './primedWgsl.ts'
 import { hizBindEntries } from './bindEntries.ts'
-import { buildComputeStage } from '../../../gpu/core/computeStages.ts'
+import { buildComputeStage, preparedComputeStage } from '../../../gpu/core/computeStages.ts'
+import { computeUniformEntry } from '../../../gpu/core/computeBindings.ts'
 import { validated } from '../../../gpu/core/errorScope.ts'
 import { shaderFailed } from '../../../gpu/core/shaderModule.ts'
 import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
@@ -27,3 +29,27 @@ export const createHizPipelines = oncePerDevice((device) =>
     return { layout, buildPipeline, nearestPipeline }
   }),
 )
+
+/**
+ * The build of the primed pyramid (`hizShader`, primed): the culling layer's kernel with the push
+ * of its level 0, on a layout of its own — the build's three bindings and the push's uniform —,
+ * asked off the thread once a device, by the image that builds one (`hizPrime`). The images that
+ * never prime compile nothing.
+ */
+export const hizPrimedPipeline = oncePerDevice((device) => {
+  const layout = device.createBindGroupLayout({
+    entries: [
+      ...hizBindEntries(HIZ_SLOT_WORDS * 4),
+      computeUniformEntry(HIZ_PRIMED_BINDING, { minBindingSize: HIZ_PRIMED_BYTES }),
+    ],
+  })
+  const stage = preparedComputeStage(
+    device,
+    device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+    device.createShaderModule({ code: HIZ_PRIMED_SHADER }),
+    'buildHiz',
+    undefined,
+    'Trillion3D Hi-Z primed build',
+  )
+  return { layout, stage }
+})

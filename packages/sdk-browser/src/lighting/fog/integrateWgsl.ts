@@ -8,7 +8,7 @@ import { FOG_CELLS_WGSL } from './gridWgsl.ts'
  * reverse-Z, so the furthest is the least.
  *
  * It is read from the depth pyramid the frame builds before the volume (`visibility/hiz/gpu/`):
- * the farthest layer of the finished opaque depth (`hizCellFarthest`), built in this image after the
+ * the farthest layer of the finished opaque depth (`hizCellCullFarthest`), built in this image after the
  * raster's rest pass and the transparents' front pass (`encodeDepthPyramid`) — none of it the last
  * image's, none unfinished —; where the transparents' front is folded into it, the host gives the
  * volume no pyramid and no cell is held hidden (`opaquePyramidOf`). The rectangle is the cell's
@@ -35,7 +35,7 @@ fn fogPyramidLevel(texels:vec4i)->i32{
  *  level 0, where the image is a single pixel. */
 fn fogFarthestAt(cell:vec2i,at:i32)->f32{
  if(at==0){return hizOpaqueDepth(cell);}
- return hizCellFarthest(cell,at);
+ return hizCellCullFarthest(cell,at);
 }
 @compute @workgroup_size(8,8,1)
 fn furthestMain(@builtin(global_invocation_id) id:vec3u){
@@ -76,7 +76,9 @@ fn furthestMain(@builtin(global_invocation_id) id:vec3u){
  * where the extinction is thinner, as the engines hold theirs; its transmittance is \`exp(−e·d)\`. Both
  * are faded in from the eye over the near fade-in distance (\`frame.medium.z\`, the inverse): the
  * first metres of the volume weigh in as the distance travelled grows. The result holds, for each
- * cell, the light and the transmittance from the eye to its far side.
+ * cell, the light and the transmittance from the eye to its far side. The light is a sum of the
+ * cells' light, which holds the pre-exposure it was written multiplied by (\`./scatterWgsl.ts\`): it
+ * leaves the integration multiplied by it, as it came.
  */
 export const FOG_INTEGRATE_WGSL = wgslBlock(
   'FOG_INTEGRATE_WGSL',

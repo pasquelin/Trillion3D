@@ -36,8 +36,11 @@ const MANTISSA_BITS: Partial<Record<GPUTextureFormat, number>> = {
 export const quantizationError = (format: GPUTextureFormat) => 0.5 ** (MANTISSA_BITS[format] ?? 23)
 /** The largest scene colour a channel holds before a sum of four of them overflows a half. */
 export const LARGEST_SCENE_COLOR = HALF_MAX * 0.25
-/** The largest value an 11- or 10-bit float holds: what a stored history colour is held below. */
+/** The largest value a 10-bit float holds (5 exponent bits, a full 5 bit mantissa): what a stored
+ *  history colour is held below. */
 export const LARGEST_SMALL_FLOAT = 64512
+/** The largest value an 11-bit float holds (5 exponent bits, a full 6 bit mantissa). */
+export const MOST_11_BIT = 65024
 /** Half a step of the display the image is shown on (`DISPLAY_FORMAT`): below it no change is
  *  seen. */
 export const DISPLAY_STEP_ERROR = quantizationError(DISPLAY_FORMAT) / 2

@@ -158,36 +158,71 @@ test('a ray meets a grazing plane in the half of its pixel past the centre, in w
   assert.ok(at && at[1] >= 232 && at[1] < 233, `in row 232: ${at?.[1]}`)
 })
 
-test('a strict march gives a ray up behind a thin surface at the surface, where the plain one passes behind it', () => {
+// The reference's walk (`hizTrace` `'reference'`, the default): the closest depth of each texel's
+// centre, mip by mip, down to the full-resolution depth as the reflections' reference does, a hit
+// the tile's depth flat (`screenMarchReference`).
+const reference = (depth: (x: number, y: number) => number) => marcher(W, H, depth, () => 0, false)
+
+test('the reference walk stops on the wall it falls onto, at the depth of its tile, flat', () => {
+  // A wall four pixels wide over a far floor; the ray crosses its depth in the second pixel.
+  const wall = (x: number) => (x >= 80 && x < 84 ? 0.5 : 0.1)
+  const { o, d } = falling(20, 120, 30, 81, 0.5, 0.01)
+  const { at, depth } = reference(wall).hit(o, d)
+  assert.ok(at && at[0] >= 80 && at[0] < 82, `in the wall: ${at?.[0]}`)
+  assert.equal(depth, 0.5, 'the tile’s depth, no slope')
+})
+
+test('the reference walk passes above a wall and behind a floor', () => {
+  const march = reference((x) => (x >= 80 && x < 84 ? 0.5 : 0.1))
+  assert.equal(march.hit([20.5, 30.5, 0.6], [100, 0, 0]).at, undefined, 'above the wall')
+  // Behind a floor by more than the reference's thickness, a share of the floor's depth.
+  const floor = reference(() => 0.5)
+  assert.equal(floor.hit([20.5, 30.5, 0.0], [100, 0, 0]).at, undefined, 'behind the floor')
+  // A share of the floor's distance from the eye's plane (depth 1 in the flat view: 0.5 m) behind
+  // it, scaled by the projection (a range of 1 m is 100 cm, a hundredth): 0.5 · 0.005 / 100.
+  assert.ok(floor.hit([20.5, 30.5, 0.5 - 0.00001], [100, 0, 0]).at, 'within its thickness')
+  assert.equal(floor.hit([20.5, 30.5, 0.5 - 0.00005], [100, 0, 0]).at, undefined, 'past it')
+})
+
+test('the reference walk reads the full-resolution depth: a one-pixel wall is its own pixel', () => {
+  const wall = (x: number) => (x === 81 ? 0.5 : 0.1)
+  const { o, d } = falling(20, 120, 30, 80.5, 0.5, 0.01)
+  // It falls through the empty pixel 80 onto the wall's pixel.
+  const { at } = reference(wall).hit(o, d)
+  assert.ok(at && at[0] >= 81 && at[0] < 82, `${at?.[0]}`)
+})
+
+test('the reference walk gives a ray up behind a thin surface at the surface, where the planes march passes behind it', () => {
   // The ray runs 0.3 behind a one-pixel pole (x = 50) over a far floor, and meets a wall at x = 100.
-  const march = marcher(W, H, (x) => (x === 50 ? 0.8 : x === 100 ? 0.5 + SLAB / 4 : 0.1))
+  const scene = (x: number) => (x === 50 ? 0.8 : x === 100 ? 0.5 + SLAB / 4 : 0.1)
+  const march = marcher(W, H, scene)
   const ray: [number[], number[]] = [
     [20.5, 30.5, 0.5],
     [100, 0, 0],
   ]
   const plain = march.hit(...ray)
   assert.ok(plain.at && plain.at[0] >= 100 && plain.at[0] < 101, `${plain.at?.[0]}`)
-  const strict = march.hit(...ray, { strict: true })
+  const strict = reference(scene).hit(...ray)
   assert.equal(strict.at, undefined)
   // It proved the ray in front of everything up to the pole's pixel, x = 50: t = 0.295.
-  assert.ok(strict.above > 0.29 && strict.above < 0.2955, `${strict.above}`)
+  assert.ok(strict.above > 0.29 && strict.above < 0.3055, `${strict.above}`)
   assert.ok(strict.loads <= plain.bound)
 })
 
-test('a strict march that spends its iterations meets nothing, and says how far it proved the ray clear', () => {
-  const march = marcher(W, H, (x) => (x === 100 ? 0.5 : 0.1))
+test('the reference walk that spends its iterations meets nothing, and says how far it proved the ray clear', () => {
+  const march = reference((x) => (x === 100 ? 0.5 : 0.1))
   const { o, d } = falling(20, 120, 30, 100, 0.5, 0.01)
-  const whole = march.hit(o, d, { strict: true })
+  const whole = march.hit(o, d)
   assert.ok(whole.at && whole.at[0] >= 100 && whole.at[0] < 101, `${whole.at?.[0]}`)
   // Three iterations cover a few pixels of the way: no coarse cell stands in for the wall.
-  const cut = march.hit(o, d, { strict: true, cap: 3 })
+  const cut = march.hit(o, d, { cap: 3 })
   assert.equal(cut.at, undefined)
   assert.ok(cut.above > 0 && cut.above < (100 - 20) / 100, `${cut.above}`)
 })
 
-test('a strict march of a ray in front of everything proves it clear to the end of the screen', () => {
-  const march = marcher(W, H, (x) => (x < 64 ? 0.2 : 0.1))
-  const { at, above, end } = march.hit([5.5, 5.5, 0.6], [200, 100, 0.2], { strict: true })
+test('the reference walk of a ray in front of everything proves it clear to the end of the screen', () => {
+  const march = reference((x) => (x < 64 ? 0.2 : 0.1))
+  const { at, above, end } = march.hit([5.5, 5.5, 0.6], [200, 100, 0.2])
   assert.equal(at, undefined)
   assert.ok(Math.abs(above - end) < 1e-6, `${above} of ${end}`)
 })

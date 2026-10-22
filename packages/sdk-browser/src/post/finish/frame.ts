@@ -16,11 +16,11 @@ import { wantsContractLighting } from '../../frame/prepare/contractLight.ts'
 import { beautyImage } from '../../frame/backend/state/renderScale.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { EXPOSURE_AT, exposureSettings } from '../exposure/frame.ts'
-import type { ExposureSettings } from '../exposure/meterParams.ts'
+import { localExposureOn, type ExposureSettings } from '../exposure/meterParams.ts'
 import type { FusedBlend } from '../effects/webgpuKinds.ts'
 import { createFinish, type PostFrame } from './finish.ts'
 import { filmOn, grainOn, vignetteStrength } from './filmParams.ts'
-import { localExposureOn, type FinishInput } from './finishParams.ts'
+import type { FinishInput } from './finishParams.ts'
 import { askLocalPrograms, localProgramsReady } from './local.ts'
 
 /** What the finishing's uniform is written from, refilled at each image. */
@@ -44,7 +44,7 @@ const resolvedBlur = {} as GaussianBlurValues
 
 /** The film effects' settings, resolved from the view's context: the one place they are read by
  *  the finishing. The object is the same at each call. */
-const filmSettings = (rt: WebgpuPagesRuntime) =>
+export const filmSettings = (rt: WebgpuPagesRuntime) =>
   resolveSettingsInto(FILM_RULES, rt.context, resolvedFilm)
 
 /** The Gaussian blur's settings, resolved from the view's context: the local exposure's blurred

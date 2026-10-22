@@ -95,6 +95,9 @@ export const volumeUvMax = (width: number, height: number, grid: FogGrid) => {
     (cover(height) - inset) / (grid.y * grid.pixelSize),
   ] as const
 }
+/** The format of the static term's volume: three single-precision floats a cell (and one unused), so that
+ *  the mean of the samples' baked light reaches the scatter as the scatter would have summed it. */
+export const FOG_STATIC_FORMAT = 'rgba32float' as const satisfies GPUTextureFormat
 /** How many lighting samples a cell takes where the volume holds no history: 16 is the most. */
 export const MAX_REBUILD_SAMPLES = 16
 /** The offsets within a cell the lighting samples are taken at, one per sample, as the images pass,
@@ -125,8 +128,9 @@ export function writeSampleOffsets(
  * — and the textures' — the cells they hold, more where the view is drawn smaller than the targets
  * were made for —, the numbers that map a depth to a slice and a device depth to a view depth, how
  * the history is read (`previous`, `history`: the previous image's view against this one's, and
- * where its cells end) and blended, the lights it takes, the tuning, the medium and the offsets of
- * the samples. Every field is written by `writeFogVolumeFrame`; what a surface reads of it is the view
+ * where its cells end) and blended, the lights it takes, the tuning, the medium, the baked light it takes (`FogStaticLight`), the pre-exposure its light is
+ * written multiplied by — with the ratio of it to the history's and its reciprocal — and the
+ * offsets of the samples. Every field is written by `writeFogVolumeFrame`; what a surface reads of it is the view
  * block (`viewSlots.ts`).
  */
 export const FOG_VOLUME_FRAME = fieldLayout('FogVolumeFrame', [
@@ -150,6 +154,8 @@ export const FOG_VOLUME_FRAME = fieldLayout('FogVolumeFrame', [
   ['medium', 'vec4f'],
   ['particleColor', 'vec4f'],
   ['glow', 'vec4f'],
+  ['staticLight', 'vec4f'],
+  ['exposure', 'vec4f'],
   ['offsets', vec4Array(MAX_REBUILD_SAMPLES)],
   ['frame', 'vec4u'],
 ] as const)

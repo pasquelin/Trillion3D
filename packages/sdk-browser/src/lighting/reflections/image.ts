@@ -39,6 +39,7 @@ export function encodeImageRadiance(
     inputs,
     frame.size,
     frame.viewProjection,
+    frame.preExposure,
   )
   pass.end()
 }

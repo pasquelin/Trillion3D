@@ -138,11 +138,16 @@ fails is `FAMILY_LOAD_FAILED` (`T3D-E090`, `details.family`) on
 `world.diagnostic.error` (and `world.physics.error`), asked again at the next use, ten seconds later
 at the soonest. Frames that need a family wait for it, never draw without it. A page downloads only the renderer it draws with.
 
-**Debug mode** (`createWorld(target, { debug: true })`, `world.diagnostic.debug = true`, a stats
-overlay, `?profile` in the address) files frames into `world.cpuSteps` and the frame report
+**Debug mode** (`createWorld(target, { debug: true })`, `world.diagnostic.debug = true`, `?profile` in the address) files frames into `world.cpuSteps` and the frame report
 (`EngineProfiler`). The pass mapping (`gpuPassStageOf`, `gpuPassBlockOf`, `gpuPassBlockTotals`)
 is the engine's own, there from the first frame; a page reading the frame report from its first
 frame turns debug mode on before it.
+
+`world.openCpuSteps()` opens a CPU step window of the caller's own: `read()` summarises the images
+filed since it opened (or since its last read) and opens it again, `close()` stops it. It fills
+outside debug mode while it is open, and does not move `world.cpuSteps()`. The stats module
+(`startStats(world, { parts, parent?, corner?, words?, worlds? })`, handle `read`, `stop`, `ready`)
+reads one for its CPU section, open only while full reports are asked for.
 
 **Frame inspection.** `await world.diagnostic.inspect()` reads what the main view's next image
 computed, in world metres, for a map drawn from above (`FrameInspection`, `null` when the session
@@ -361,6 +366,122 @@ world.cut = { cutLodBiasFollowsUpscale: false } // the screen error ignores the 
 world.cut = { cutViewDistanceScale: 0.5 } // every object's draw distance halved
 ```
 
+`world.hiz` holds the depth pyramid's settings, each an option of `createWorld` too: `hizTrace`
+(`'reference'`: the reflections' trace walks the closest opaque depth of each half-resolution texel,
+mip by mip, down to the full-resolution depth, as the reference's does; `'planes'`: it reads each pixel as a plane, which keeps a hit on
+a grazing surface that the centre alone passes over), `hizFoldTransparents` (`false`: the trace
+layers hold the opaque depth alone; `true`, the nearest transparent surface of each pixel too, so a
+ray stops at glass) and `hizTransparentTest` (`'finer'`: a transparent cluster is tested over up to
+sixteen texels a side of a fine level; `'reference'`: over four texels a side of the lowest level
+that holds it; the image is the same, `'finer'` rejects more clusters), `hizRelativeDepthThickness`
+(`0.005`: in the `'reference'` walk, the reflections hit a surface a ray lies no further behind than
+that share of the surface's depth, times the projection's depth scale; `'planes'` keeps its
+thickness in pixels), `hizFullResDepth` (`true`: the screen probes' `'reference'` walk goes down to
+the full-resolution depth; `false` stops at the half-resolution level, a little less exact and
+cheaper; the reflections' walk always goes down) and `lightGridHizCull` (`true`: the light grid
+leaves empty the cells behind the farthest depth of their column of the image, read from the pyramid
+the image built; `false` lists every cell the lights reach). The cut's occlusion reads
+the culling layer, which no setting changes. A write names the settings it changes, `null` one's
+default; a value of another kind is refused by name.
+
+```js
+const world = createWorld('viewer', { hizTrace: 'planes' })
+world.hiz = { hizTrace: null, hizFoldTransparents: true } // the default trace, glass in the pyramid
+world.hiz = { hizRelativeDepthThickness: 0.01 } // thicker reflection hits
+world.hiz = { hizFullResDepth: false, lightGridHizCull: false } // half-resolution probe walk, no cull
+```
+
+`hizPrime` (`'off'`) builds, before a view's cut tests anything, a primed pyramid from a small,
+coarse draw of the objects that set `farField` (`object.farField = true`, `false` by default; a saved
+scene keeps it when `true`), for the cut's main pass to test against: `'whenMissing'` for an image
+whose view has no pyramid of the image before (its first, one after a resize, one after a cut of
+the camera), `'always'` for every image. The draw is the image's size shifted right by
+`1 + hizPrimeSizeBias` (`2`: an eighth), its depth pushed away from the eye by `hizPrimeDepthBias`
+metres (`1.5`), its clusters cut at `hizPrimeErrorScale` (`32`) times the image's pixel error;
+`hizPrimeFarFieldOnly` (`true`) draws the flagged objects alone, `false` the whole cut. With no
+object flagged it draws nothing and costs nothing. The image is the same: the primed pyramid only
+lets the main pass skip what it hides, and the post pass judges again what it hid.
+
+```js
+const world = createWorld('viewer', { hizPrime: 'whenMissing' })
+mountains.farField = true // this object is drawn into the primed pyramid
+world.hiz = { hizPrime: 'always', hizPrimeDepthBias: 3 } // every image, pushed away by 3 metres
+world.hiz = { hizPrime: null } // back to the default, 'off'
+```
+
+`world.volumetricLightmap` holds the setting of the precomputed indirect light a baked scene carries
+(a `volumetric-lightmap.bin`, [FORMAT.md](FORMAT.md#volumetric-lightmapbin)), an option of
+`createWorld` too: `volumetricLightmap` (`true`: the lightmap is read by the fog's static term and by
+the lighting of movable objects; `false`: every read of it answers black, as in a scene without one;
+it does nothing where the scene has no lightmap). The fog's static term is scaled by
+the `heightFog` part's `volumetric.staticLightingScatteringIntensity` (`1`, never below `0`; `0` leaves the term
+out). The fog's sky light follows the
+sky light part's `mobility`: a `'static'` one lights the fog by none of its own harmonics (its light is the
+lightmap's), a `'stationary'` one that casts shadows scatters multiplied by the lightmap's sky visibility (a lightmap
+baked with a sky light; the compiler does not bake one yet), a `'movable'` one by the global distance field's. A write names the setting it changes, `null` its default; a value of another kind is refused
+by name.
+
+```js
+const world = createWorld('viewer', { volumetricLightmap: false }) // the precomputed light off
+world.volumetricLightmap = { volumetricLightmap: null } // back to the default, on
+```
+
+`world.globalDistanceField` holds the settings of the global distance field, an option of `createWorld`
+too: the clipmaps composited from the meshes' distance fields around the camera (a mesh has one where
+its build sets `distanceField`, [COMPILER.md](COMPILER.md#distance-fields)) and the brick atlas those
+fields are streamed into ([ENGINE.md](ENGINE.md#distance-fields)). Lengths are in centimetres. Each
+setting is the reference's console variable of that name with its default:
+`globalDistanceField` (`true`), `globalDistanceFieldUpdate` (`true`), `globalDistanceFieldClipmaps` (`4`, at
+most 6), `globalDistanceFieldViewDistance` (`20000`), `globalDistanceFieldClipmapExponent` (`2`),
+`globalDistanceFieldResolution` (`128`), `globalDistanceFieldMipFactor` (`4`),
+`globalDistanceFieldOccupancyRatio` (`0.3`), `globalDistanceFieldCacheMostlyStaticSeparately` (`true`),
+`globalDistanceFieldPartialUpdates` (`true`), `globalDistanceFieldStaggeredUpdates` (`true`),
+`globalDistanceFieldUpdatesPerFrame` (`2`), `globalDistanceFieldForceFullUpdate` (`false`),
+`globalDistanceFieldForceUpdateOnce` (`false`), `globalDistanceFieldFastCameraMode` (`false`),
+`globalDistanceFieldCameraVelocityDecay` (`0.7`), `globalDistanceFieldAverageCulledObjectsPerCell` (`512`),
+`globalDistanceFieldRecacheOnStreaming` (`true`), `globalDistanceFieldForceRecacheOnStreaming` (`false`),
+`globalDistanceFieldStartDistance` (`100`), `globalDistanceFieldMinMeshRadius` (`20`),
+`globalDistanceFieldMinMeshRadiusInVoxels` (`0.5`), and the atlas's `meshDistanceFieldMaxObjectRadius`
+(`100000`), `meshDistanceFieldSurfaceBiasExpand` (`0.25`), `meshDistanceFieldBrickAtlasSize` (`128`, a power
+of two, read when the atlas is made), `meshDistanceFieldBrickAtlasDepth` (`32`), `meshDistanceFieldUploadKiB`
+(`8192`), `meshDistanceFieldBlockBricks` (`16`, read when the atlas is made), `meshDistanceFieldForceMips`
+(`0`: follow the view; 1 to 3 loads that many mips of every mesh) and `meshDistanceFieldReverseAllocation`
+(`false`). A write names the settings it changes, `null` one's default; a value of another kind is refused
+by name. A scene whose meshes built no distance field is not touched.
+
+```js
+const world = createWorld('viewer', { globalDistanceFieldClipmaps: 5 }) // one more clipmap
+world.globalDistanceField = {
+  globalDistanceFieldViewDistance: 40000,
+  meshDistanceFieldUploadKiB: 16384,
+}
+world.globalDistanceField = { globalDistanceFieldFastCameraMode: true } // follow a fast camera, lower quality
+world.globalDistanceField = { globalDistanceFieldFastCameraMode: null } // back to the default, off
+```
+
+`world.distanceFieldOcclusion` holds the settings of the sky light's occlusion by the distance fields, an option of
+`createWorld` too: how much of the sky each pixel sees, from cones traced against the global field and the meshes' own
+fields ([ENGINE.md](ENGINE.md#distance-fields)), drawn when the sky light is movable and casts shadows, no screen
+probes light the pixels and a mesh built a distance field. Each setting is the reference's console variable of that
+name with its default; lengths are in centimetres: `distanceFieldOcclusion` (`true`), `distanceFieldOcclusionQuality`
+(`2`: 0 off, 1 the global field alone, 2 the meshes' fields too), `distanceFieldOcclusionObjects` (`true`),
+`distanceFieldOcclusionStepExponentScale` (`0.5`), `distanceFieldOcclusionMaxViewDistance` (`20000`, held to 65000),
+`distanceFieldOcclusionViewFadeDistanceScale` (`0.7`), `distanceFieldOcclusionSampleSet` (`1`),
+`distanceFieldOcclusionJitterConeDirections` (`false`), `distanceFieldOcclusionUseJitter` (`true`),
+`distanceFieldOcclusionTraverseMips` (`true`), `distanceFieldOcclusionUseHistory` (`true`),
+`distanceFieldOcclusionHistoryStabilityPass` (`true`), `distanceFieldOcclusionHistoryWeight` (`0.85`),
+`distanceFieldOcclusionHistoryDistanceThreshold` (`30`), `distanceFieldOcclusionSpecularMode` (`1`),
+`skyLightSpecularOcclusionStrength` (`1`, at least 0.1 where it is used) and `distanceFieldOcclusionObjectsPerCullTile`
+(`512`). A write names the settings it changes, `null` one's default; a value of another kind is refused by name. A
+scene whose meshes built no distance field is not touched.
+
+```js
+const world = createWorld('viewer', { distanceFieldOcclusionQuality: 1 }) // the global field alone
+world.distanceFieldOcclusion = { distanceFieldOcclusionMaxViewDistance: 40000 } // light pixels up to 400 m
+world.distanceFieldOcclusion = { distanceFieldOcclusionUseHistory: false } // no temporal filter
+world.distanceFieldOcclusion = { distanceFieldOcclusionQuality: null } // back to the default, 2
+```
+
 `world.shading` holds the material pass's settings, each an option of `createWorld` too:
 `shadeBinningMode` (`'auto'`: each material's pixels binned as its shading asks — one by one for
 every material of the engine —, `'pixel'` one by one, `'quad'` by 2 × 2 quad). The image is the same
@@ -382,15 +503,50 @@ out of the mean, `exposureSpeedUp` (`3`) and `exposureSpeedDown` (`1`) in stops 
 `exposureTransitionDistance` (`1.5` stops, past which the exposure moves linearly),
 `exposureBlackBucketWeight` (`0`, from 0 to 1: how much the pixels of no light count) and
 `exposureLuminanceMethod` (`'uniform'`, the mean of the channels; `'ntsc'`; `'workingSpace'`). They
-apply where `world.exposure` is `'auto'`, from the next frame. The same object holds the local
-exposure's settings, `localExposure…`, which apply to a lit view whatever its exposure (the effect
-chain, below). A write names the settings it changes, `null` one's default; a value a setting does
+apply where `world.exposure` is `'auto'`, from the next frame. The same object holds the
+pre-exposure's two settings, which apply to a lit view whatever its exposure: `preExposure` (`true`:
+every light is written to the image already multiplied by the exposure of the image before, and the
+composition multiplies the image by the exposure over that number, so the picture is the same and
+the half floats keep their range at any exposure; `false` writes every light as it is) and
+`preExposureOverride` (`0`: above 0, the number every light is multiplied by, in place of the
+exposure of the image before). It also holds the local exposure's settings, `localExposure…`, which
+apply to a lit view whatever its exposure (the effect chain, below). A write names the settings it changes, `null` one's default; a value a setting does
 not take is refused by name.
+
+The exposure's compensation curve, `exposureCurve` (an option of `createWorld` and of the explorer,
+read at the opening; `explorer.setExposureCurve(curve)` changes it, `null` or `false` gives it back),
+adds stops to the target by how bright the scene is: a list of keys `[ev, compensation]`, an EV100
+(the mean luminance over middle grey, one stop a doubling) and the stops added there (0 none, -1
+twice as dark, 1 twice as bright), linear between keys; or `{ keys, before, after }` for the
+extrapolations (`'constant'` by default; `'cycle'`, `'cycleWithOffset'`, `'oscillate'`, `'linear'`,
+`'none'`), a key an object `{ ev, compensation, interpolation, tangentMode, arriveTangent,
+leaveTangent, … }` for a `'constant'` or `'cubic'` run. It is baked into 64 samples over EV100 -10 to
++20. None by default: the image is the same. A curve is replaced, not edited in place, and one that
+is not a curve is refused by name.
+
+```js
+const world = createWorld('viewer', {
+  exposureCurve: [
+    [-4, 1],
+    [0, 0],
+    [8, -1],
+  ],
+})
+explorer.setExposureCurve({
+  keys: [
+    [0, 0.5],
+    [10, -0.5],
+  ],
+  after: 'linear',
+})
+explorer.setExposureCurve(null) // no compensation
+```
 
 ```js
 const world = createWorld('viewer', { exposureBias: 0.5 })
 world.exposure = 'auto' // the default: measured each frame
 world.exposureSettings = { exposureSpeedUp: 8, exposureSpeedDown: 4 } // adapts faster, next frame
+world.exposureSettings = { preExposure: false } // every light written as it is, the same picture
 world.exposure = 1.5 // the manual multiplier, whatever the image holds
 ```
 
@@ -552,13 +708,13 @@ press asks, the next one grabs. A drag writes the local pose through the parents
 scales uniformly, by e per handle length up the screen. `attach` or `detach` mid-drag ends it with its `dragEnd`.
 
 `scene.toJSON(camera)` writes plain, versioned JSON (`format: 'trillion3d-scene'`, `formatVersion:
-2`): hierarchy, poses, each shape by the call that built it (`geometry.box(2, 1, 1)`; one changed
+3`): hierarchy, poses, each shape by the call that built it (`geometry.box(2, 1, 1)`; one changed
 after, or hand-written, by its vertices), materials by parameters, bodies as `physics` declared them
-(at rest), lights, background, fog, the camera's pose; shared shapes and materials once, a loaded
+(at rest), lights, background, the sky module's word (`sky`), the camera's pose; shared shapes and materials once, a loaded
 model by its manifest address, `helper` marks left out. A texture, a picture environment, a shader
 material or a number JSON cannot hold is refused (`SCENE_NOT_SAVABLE`). `await scene.fromJSON(json,
 camera)` replaces the content (`helper` marks kept) and reloads the models; another format or
-version is refused (`UNSUPPORTED_SCENE_FORMAT`) before anything is removed. Calls during a read run
+version (2 and 3 are read; 2's air, fog and sky light move into the sky module) is refused (`UNSUPPORTED_SCENE_FORMAT`) before anything is removed. Calls during a read run
 in order, each replacing the last. A scene editor needs these three doors and nothing else.
 
 ### Live material values
@@ -798,6 +954,63 @@ decoded RGBA ceiling, checked before allocation (`TEXTURE_BUDGET`). `tiling` is 
 an assigned material raises `UNSUPPORTED_SCENE_UPDATE`: assign a replacement first. Dropped IDs are
 never reused.
 
+## Material graph
+
+A material can compute its outputs from a graph: nodes wired into the outputs its domain reads, compiled to the shader that evaluates them. `material.graph(domain)` makes an empty one; each call on it adds a node and gives back the wire of its output, and `output(name, wire)` plugs a wire into an output.
+
+```js
+import { material, light, Texture } from 'trillion3d'
+
+const g = material.graph('lightFunction') // 'surface' | 'lightFunction' | 'volume'
+const clouds = g.textureSample(new Texture(cloudImage), { uv: g.panner({ speed: [0.02, 0] }) })
+const tint = g.vectorParameter('tint', [1, 0.9, 0.7, 1]) // named, given values with g.set
+g.output('emissive', g.multiply(g.channel(clouds, 'rgb'), g.channel(tint, 'rgb')))
+
+lamp.lightFunction = material.lightFunction({ graph: g }) // the light shines through moving clouds
+g.set('tint', [1, 0.5, 0.2]) // the next image
+```
+
+A material wears a graph of its own domain (`material.lightFunction({ graph })`, `material.volume({ graph })`, any other member for `'surface'`); another domain is refused (`INVALID_MATERIAL`). The graph is heard like a texture: a write to it, to a texture it reads, or to a parameter (`g.set(name, value)`) repaints what wears it. `material.clone()` clones the graph, and a saved world stores it with the material and reads it back, except a graph that holds a texture, refused as a material that holds one is (`SCENE_NOT_SAVABLE`).
+
+**Outputs by domain.** An output is cast to its type (a scalar is repeated, a longer vector is cut, a shorter one is filled with zeros) and takes its default where nothing is wired.
+
+| Output             | Type   | Default | `surface`                        | `lightFunction` | `volume`            |
+| ------------------ | ------ | ------- | -------------------------------- | --------------- | ------------------- |
+| `baseColor`        | float3 | 0, 0, 0 | read                             |                 | the albedo          |
+| `metallic`         | float  | 0       | read                             |                 |                     |
+| `specular`         | float  | 0.5     | read                             |                 |                     |
+| `roughness`        | float  | 0.5     | read                             |                 |                     |
+| `emissive`         | float3 | 0, 0, 0 | read                             | the colour      | the light given off |
+| `opacity`          | float  | 1       | read when `transparent`          |                 |                     |
+| `opacityMask`      | float  | 1       | read when `alphaTest` is above 0 |                 |                     |
+| `normal`           | float3 | 0, 0, 1 | read (tangent space)             |                 |                     |
+| `ambientOcclusion` | float  | 1       | read                             |                 | read                |
+| `subsurfaceColor`  | float3 | 1, 1, 1 | read                             |                 | the extinction      |
+
+An output the domain does not read is refused when it is wired (`INVALID_MATERIAL`). A light function has no world position, camera, normal or depth: it is drawn once into an atlas slot for every light and view, so `worldPosition`, `cameraPosition`, `vertexNormal` and `pixelNormal` are refused there (`INVALID_MATERIAL`, naming the node), and `objectPosition` is zero. The volume domain has no normal. `pixelNormal` cannot feed `normal`.
+
+**Types.** A value is a float of one to four components (a texture object is a fifth kind, which only a sample reads). A scalar written as a constant fits any width. An operation between a scalar and a vector repeats the scalar; between two vectors of different widths it is an error ("arithmetic between float2 and float3 is undefined"). `min`, `max` and `clamp` make their other inputs the type of the first. Constants fold: the sum, product or sine of constants is a constant, a product by 0 or 1 and a quotient by 1 write no code, a `lerp` of equal values or at 0 or 1 is one of them, a quotient by a constant 0 stays a quotient.
+
+**Nodes.** Where an input is not wired, a node uses its own constant (its default is in brackets).
+
+| Group       | Calls                                                                                                                                                                                                                                                           |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Constants   | `constant(x)` to `constant(x, y, z, w)`; `channel(wire, 'rgb' \| 'r' \| 'a'…)` picks an output of a node (a sample's rgb, r, g, b, a, rgba)                                                                                                                     |
+| Parameters  | `scalarParameter(name, 0)`, `vectorParameter(name, [0, 0, 0, 1])`, `textureParameter(name, texture)`; `g.set(name, value)` gives them values                                                                                                                    |
+| Textures    | `textureSample(texture, { uv, texture, mip, mipMode: 'none' \| 'level' \| 'bias', constCoordinate: 0, name })`, `textureObject(texture)`                                                                                                                        |
+| Coordinates | `texCoord(index = 0, uTiling = 1, vTiling = 1)`, `time(period?)` (0 holds it still), `panner({ speed: [u, v], coordinate, time, fractionalPart })`, `rotator({ centerX: 0.5, centerY: 0.5, speed: 0.25, coordinate, time })`                                    |
+| World       | `worldPosition(cameraRelative)`, `cameraPosition()`, `objectPosition()`, `vertexNormal()`, `pixelNormal()`, where the domain has them                                                                                                                           |
+| Arithmetic  | `add(a, b)` (0, 1), `subtract` (1, 1), `multiply` (0, 1), `divide` (1, 2), `power(base, exponent = 2)`, `abs`, `min` (0, 1), `max` (0, 1), `clamp(x, min = 0, max = 1, mode)`, `saturate`, `lerp(a, b, alpha)` (0, 1, 0.5), `oneMinus`, `frac`, `floor`, `ceil` |
+| Waves       | `sine(x, period = 1)`, `cosine(x, period = 1)`: `x` is in turns of `period` when it is above 0, in radians otherwise                                                                                                                                            |
+| Vectors     | `dot`, `cross` (float3), `normalize`, `length`, `appendVector(a, b)` (four components at most), `componentMask(x, 'rg')`                                                                                                                                        |
+| Choice      | `if(a, b, greater, equal, less, threshold = 0.00001)`: `greater` where `a >= b`, `less` below, `equal` within the threshold when wired                                                                                                                          |
+
+A number passed where a wire goes is that node's own constant: `g.multiply(tex, 2)` and `g.lerp(a, b, 0.25)` need no constant node. A texture reads through the materials' colour atlas, with its own wrap, filters, repeat, offset and rotation; `mipMode` `'level'` reads the level in `mip` (0 is the full picture), `'bias'` adds `mip` to the level the footprint asks. A sample waits, like a map, until its texture has joined the atlas.
+
+A graph worn by a light function is read now; one worn by a surface or a volume material compiles and is kept with it, and drives the image once the surface and the fog read it.
+
+A graph that does not compile (a missing required input, a type error, a node the domain has no value for) raises `INVALID_MATERIAL` naming the node. A light function whose graph is refused is drawn from its parameters, as one with no graph is, and the engine names the refusal once (`light-function-graph-refused`). A light function that reads `time` is drawn again at each image; the time is the seconds since its atlas was made.
+
 ## Lights
 
 Only a light the host declared lights an opaque surface: no fixed ambient, constant sky or authored
@@ -817,41 +1030,119 @@ lighting rule: [ENGINE.md](ENGINE.md#transparent-surfaces).
 its methods (`set`, `setRGB`, `setHex`, `setHSL`), it shows next frame; a direct `.r`, `.g` or `.b`
 write needs it set again. A picture background is refused (`UNSUPPORTED_SCENE_UPDATE`).
 
-### Scene fog
+### Sky module
 
-`world.scene.fog` places distance or height fog over opaque and transparent surfaces; its `color` is a linear-RGB `Color`, `null` (the default) none. Distance is from the camera;
-height uses the scene's positive Y:
+The sky is one module: the air, the sun, the sky light, the height fog and the clouds of a new
+world's level, each a part. It is off by default and then costs nothing: no part is resolved, no
+light is held, nothing is allocated and no pass is drawn. One word switches it on, `scene.sky` for a
+scene (it is saved with it) or `world.modules` for a page; both take `true` (every part at its
+default), `false`, or an object naming the parts, each `true`, `false` or its settings:
 
 ```js
-import { Color } from 'trillion3d'
+world.scene.sky = true // the whole level: air, sun, sky light, height fog, clouds
+world.scene.sky = { clouds: false } // all but the clouds
+world.scene.sky = { sun: { intensity: 8, rotation: [-30, 90, 0] }, heightFog: true, clouds: false }
+world.scene.sky = { heightFog: { baseDensity: 0.004, falloff: 0.03, volumetric: true } }
+world.scene.sky = null // no word: the page's, else off
 
-const color = new Color().setRGB(0.35, 0.45, 0.6)
-world.scene.fog = { color, near: 10, far: 100 } // Linear: clear before 10, all fog after 100.
-world.scene.fog = { color, density: 0.02 } // Exponential: uniform medium.
-world.scene.fog = { color, density: 0.02, heightFalloff: 0.15, baseHeight: 0 } // Height fog, extinction form.
-world.scene.fog = {} // Height fog, every field at its default (the reference's, below).
-world.scene.fog = { baseDensity: 0.004, falloff: 0.03, maxOpacity: 0.8, startDistance: 20 } // Height fog.
-world.scene.fog = null // No fog.
+world.modules.set('sky', false) // the page switches it off, over the scene's word
+world.modules.set('sky', { sun: { shaftBloom: true } }) // and sets a field, over the scene's
+world.modules.clear('sky') // the scene's word is back
+world.modules.state('sky') // { enabled, by: 'scene', parts: { sun: { … }, clouds: false, … } }
 ```
 
-The height fog's own fields are the reference's numbers in metres, each with its default; the law
+Per field the strongest word wins: the editor's, then the page's, then a quality preset's (none switches the sky on),
+then the scene's, then the default; a part a stronger word switched off stays off. A part or a field the
+module does not have, or a value out of range, is refused (`INVALID_MODULE_OPTION`,
+`INVALID_SCENE_ENVIRONMENT`) and nothing changes. The stats overlay is the second module
+(`world.modules.set('stats', true)`, its panel in the canvas's parent; its tabs and the panel are
+its parts).
+
+| Part         | What it is                                                                                                  | Defaults, the level's                                                                                                                                                                                                                                                                                                                      |
+| ------------ | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `atmosphere` | The planet's air: the sky, the haze, the sun's light tinted by it ([Atmosphere part](#atmosphere-part)).    | The component's: Earth-like.                                                                                                                                                                                                                                                                                                               |
+| `sun`        | One directional light, the air's first light, with its shadows, light shafts and cloud shadow map.          | `intensity` 6 lux, `useTemperature` on at `temperatureKelvin` 6500, `angle` 0.7357° (the disk's diameter), `rotation` `[-16.2856, 43.7319, 112.3607]` (pitch, yaw, roll in degrees; the yaw turns about +y, a negative pitch shines down), `shadowDistance` 200 m, `castShadow`, `shadowsAir` and `shadowsClouds` on, `shaftOcclusion` on. |
+| `skyLight`   | The sky's light on the scene, captured from the air and the clouds.                                         | `realTimeCapture` on, `mobility: 'movable'`; the other fields the component's.                                                                                                                                                                                                                                                             |
+| `heightFog`  | Fog thinning out with height ([Height fog part](#height-fog-part)); its volume is its `volumetric` setting. | `baseDensity` 0.00436 per metre (0.0436 in the reference's centimetre numbers) at `baseHeight` −68.5 m; the other fields as below.                                                                                                                                                                                                         |
+| `clouds`     | One layer of clouds, ray marched from the eye.                                                              | The layer's and the material's defaults; `reflectionSamplesScale` 0.1041667 and `reflectionShadowSamplesScale` 0.3.                                                                                                                                                                                                                        |
+
+The sun's own fields are a light's (`intensity`, `color`, `useTemperature`, `temperatureKelvin`,
+`angle`, `rotation`, `shadowDistance`, `castShadow`, `shadowsAir`, `shadowsFog`, `fogScattering`,
+`atmosphereSunIndex`, `transmittancePerPixel`, `sunDiskTint`), its light shafts' (`shaftOcclusion`,
+`shaftOcclusionDarkness`, `shaftOcclusionDepthRange`, `shaftOverrideDirection`, `shaftBloom`,
+`shaftBloomScale`, `shaftBloomThreshold`, `shaftBloomMaxBrightness`, `shaftBloomTint`) and its cloud
+shadow map's (`shadowsClouds`: the cloud march reads the sun's opaque shadow map, only for the air's
+first light; `castCloudShadows`, `cloudShadowStrength`, `cloudShadowOnAtmosphereStrength`,
+`cloudShadowOnSurfaceStrength`, `cloudShadowDepthBiasKm`, `cloudShadowExtentKm`,
+`cloudShadowResolutionScale`, `cloudShadowRaySamplesScale`, `cloudScatteredLuminanceScale`). The
+module's lights hang from no scene and are never saved: a directional light of the scene competes
+with the sun by the air's rule (the brightest of each index is held). There is one sky light, the
+part's: where a scene is made to hold more, the last shown lights it, the others give nothing.
+
+The sun's light shafts are the light's own: `shaftOcclusion` is on for the sun and off for any other
+light, and the same nine fields are a light's below. For the sun they are written the same way:
+
+```js
+world.modules.set('sky', {
+  sun: {
+    shaftOcclusionDarkness: 0.2, // the occluded fog keeps a fifth of its inscattering
+    shaftOcclusionDepthRange: 2000, // whatever is nearer than 2 km occludes
+    shaftBloom: true,
+    shaftBloomTint: [1, 0.9, 0.7], // a warm bloom
+  },
+})
+```
+
+The quality presets and the sky's quality settings reach the module through the effects and shadows
+groups, as they reach the rest of the image:
+
+```js
+world.quality.preset = 'fine' // the effects' and shadows' level 2: fewer samples, smaller tables
+world.skyQuality = { cloudShadowMap: false, lightShafts: false } // switch two passes off
+world.skyQuality = { cloudShadowMap: null } // given back to the preset
+```
+
+A scene saved before the module (`formatVersion` 2) moves its `atmosphere`, its `fog` and its sky
+light node into the module's parts once, when it is read; each part keeps the fields it had, the
+fog the numbers it had by default and not the level's, and the sun and the clouds, which that scene
+never had, are off. A scene is saved with its `sky` word (`formatVersion` 3).
+
+### Height fog part
+
+The `heightFog` part places height fog over opaque and transparent surfaces; its `color` is a
+linear-RGB array, and `false` takes it off. A part naming a linear or an extinction law
+(`near`/`far`, `density`/`heightFalloff`) is that law alone and takes none of the level's numbers.
+Distance is from the camera; height uses the scene's positive Y:
+
+```js
+const color = [0.35, 0.45, 0.6]
+world.scene.sky = { heightFog: { color, near: 10, far: 100 } } // Linear: clear before 10, all fog after 100.
+world.scene.sky = { heightFog: { color, density: 0.02 } } // Exponential: uniform medium.
+world.scene.sky = { heightFog: { color, density: 0.02, heightFalloff: 0.15, baseHeight: 0 } } // Extinction form.
+world.scene.sky = { heightFog: true } // Height fog at the level's numbers.
+world.scene.sky = { heightFog: { baseDensity: 0.004, falloff: 0.03, maxOpacity: 0.8 } } // Height fog.
+world.scene.sky = { heightFog: false } // No fog.
+```
+
+The height fog's own fields are the reference's numbers in metres, each with its default (those of
+the table, but `baseDensity` and `baseHeight`, which the level sets as above); the law
 is [ENGINE.md](ENGINE.md#fog). A reference number in centimetres converts exactly: a density or
 falloff is divided by 10 (they are per 1000 centimetres), a distance by 100.
 
-| Field | Default | Meaning (the reference's number → ours) |
-| --- | --- | --- |
-| `color` | black | The light the fog scatters by itself, linear RGB. With an atmosphere the sky's light is added to it. |
-| `baseDensity` | `0.002` | Density at `baseHeight`, per metre, ≥ 0 (its `0.02` ÷ 10). |
-| `falloff` | `0.02` | Per metre, ≥ 0: the density halves every `1 / falloff` metres up, 50 m (its `0.2` ÷ 10). |
-| `baseHeight` | `0` | The height the density is `baseDensity` at, metres. |
-| `maxOpacity` | `1` | The most of a surface's light the fog may hide, in [0, 1]. |
-| `startDistance` | `0` | Metres from the eye where the fog starts, ≥ 0. |
-| `cutoffDistance` | `0` | Metres from the eye past which there is no fog, ≥ 0; 0 none. |
-| `directional` | `{ exponent: 4, startDistance: 100, color: [0, 0, 0] }` | The sun's lobe: sharpness `exponent` > 0, metres before the sun's light is scattered (its `10 000` ÷ 100), the luminance scattered toward the sun times the sun's own. |
-| `skyContribution` | `[1, 1, 1]` | The factor of the atmosphere's sky radiance the fog takes on, per channel, ≥ 0. |
+| Field             | Default                                                 | Meaning (the reference's number → ours)                                                                                                                                |
+| ----------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `color`           | black                                                   | The light the fog scatters by itself, linear RGB. With an atmosphere the sky's light is added to it.                                                                   |
+| `baseDensity`     | `0.002`                                                 | Density at `baseHeight`, per metre, ≥ 0 (its `0.02` ÷ 10).                                                                                                             |
+| `falloff`         | `0.02`                                                  | Per metre, ≥ 0: the density halves every `1 / falloff` metres up, 50 m (its `0.2` ÷ 10).                                                                               |
+| `baseHeight`      | `0`                                                     | The height the density is `baseDensity` at, metres.                                                                                                                    |
+| `maxOpacity`      | `1`                                                     | The most of a surface's light the fog may hide, in [0, 1].                                                                                                             |
+| `startDistance`   | `0`                                                     | Metres from the eye where the fog starts, ≥ 0.                                                                                                                         |
+| `cutoffDistance`  | `0`                                                     | Metres from the eye past which there is no fog, ≥ 0; 0 none.                                                                                                           |
+| `directional`     | `{ exponent: 4, startDistance: 100, color: [0, 0, 0] }` | The sun's lobe: sharpness `exponent` > 0, metres before the sun's light is scattered (its `10 000` ÷ 100), the luminance scattered toward the sun times the sun's own. |
+| `skyContribution` | `[1, 1, 1]`                                             | The factor of the atmosphere's sky radiance the fog takes on, per channel, ≥ 0.                                                                                        |
 
-With `scene.atmosphere` on, the default fog is coloured by the sky and scatters the sun's light: a
-fog of `{}` over `atmosphere = true` and a `light.directional` is the reference's default fog. A
+With the atmosphere part on, the default fog is coloured by the sky and scatters the sun's light: a
+`heightFog` over the `atmosphere` part and a sun is the reference's default fog. A
 height fog lies over the atmosphere's sky too: from the horizon down, where the scene draws no
 ground, a pixel is the fog's colour alone (a distance fog leaves the sky as it is); with no
 atmosphere it lies over the background colour the same way. Without an
@@ -863,36 +1154,116 @@ added. The extinction form `{ color, density, heightFalloff?, baseHeight? }` sta
 
 `near` and `far` are finite with `0 ≤ near < far`; `density`, `heightFalloff` and the colour
 components finite and nonnegative; `baseHeight` finite; the height fog's numbers in the ranges
-above; otherwise `INVALID_SCENE_ENVIRONMENT`. After
-writing a field directly, assign `scene.fog` again (a `Color` method applies by itself). A
-`fog: false` material stays unfogged. `SceneEnvironment.fog` and `SavedScene.fog` carry the same
-fields. The law: [fog lighting law](ENGINE.md#fog).
+above; otherwise `INVALID_SCENE_ENVIRONMENT`. To change a field, write `scene.sky` again. A
+`fog: false` material stays unfogged. `SceneEnvironment.fog` carries the same fields. The law:
+[fog lighting law](ENGINE.md#fog).
 
-### Scene atmosphere
+#### Objects in the fog's volume
 
-`world.scene.atmosphere` fills the sky, hazes the distance and tints the sun's light through the
-air of a planet whose ground is the scene's plane `y = 0`; `null` (the default) none, at no cost.
-`true` is an Earth-like atmosphere, an object sets any field over those defaults — planet radius
-and air thickness in kilometres, scattering and absorption coefficients per kilometre, the ground's
-height in scene metres:
+A mesh whose material is of the volume domain draws no surface: the box its geometry fills, placed
+by its pose, is voxelised into the volume of the `heightFog` part's `volumetric` setting (the scene needs that volume,
+with a `volumetricFogQuality` other than `off`), where it adds to the medium of every cell it
+covers. `material.volume` takes the three outputs of the domain; each is per metre, linear:
+
+| Output         | Default | Meaning                                                                                                                            |
+| -------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `albedo`       | white   | The share of the light each channel scatters, in [0, 1] (held to it).                                                              |
+| `extinction`   | `0`     | The fraction of light a metre of the object takes away, ≥ 0 (held to 65 000): 0 adds no medium.                                    |
+| `emissive`     | black   | The light the object gives off, ≥ 0 per channel (held to 65 000), times `emissiveIntensity`; read where `volumetricFogGlow` is on. |
+| `emissiveOnly` | `false` | True: the albedo and the extinction count as zero, only the emissive light is added (the unlit model of the domain).               |
+
+A cell adds `albedo · extinction` of scattering, `extinction` and the emissive light, each times a
+fade that is 1 up to 0.6 of the fog's distance and falls to 0 at it, and only where its centre lies
+in the object's box. Overlaps add. An object farther from the eye than the fog's distance plus its
+radius is left out.
 
 ```js
-world.scene.atmosphere = true
-world.scene.atmosphere = { planetRadius: 6360, height: 60, mieAnisotropy: 0.8, groundHeight: 0 }
-world.scene.add(light.directional({ intensity: 10, position: [-50, 70, 0] })) // the sun
-world.scene.add(light.sky()) // the sky's light on the scene, captured from the atmosphere
-world.scene.atmosphere = null // No atmosphere.
+const smoke = new Mesh(
+  new BoxGeometry(4, 3, 4),
+  material.volume({ albedo: [0.8, 0.8, 0.8], extinction: 0.4 }),
+)
+smoke.position.set(0, 1.5, -8)
+world.scene.add(smoke) // a box of smoke in the fog; it draws no surface
+const lamp = material.volume({ emissive: [2, 1, 0.5], emissiveOnly: true })
+smoke.material = lamp // an emissive glow in the same box, from the next frame
+```
+
+A page without a mesh declares an object directly: `addFogVolume({ id, shape, matrix, boundsMin,
+boundsMax, material })` (`shape` `'box'`, the default, covers the oriented box `boundsMin`…
+`boundsMax` of its own space placed by `matrix`; `'sphere'` covers the sphere around that box, as a
+particle does; `material` the outputs above), `setFogVolume(id, patch)`, `removeFogVolume(id)` and
+`fogVolumes()`. A name already held is refused (`DUPLICATE_SCENE_FOG_VOLUME`), an unknown one
+(`UNKNOWN_SCENE_FOG_VOLUME`), a field out of its range (`INVALID_SCENE_FOG_VOLUME`, or
+`INVALID_MATERIAL` for an output). A mesh drawn at several placements (`InstancedMesh`) is drawn
+as it is, not voxelised.
+
+```js
+session.addFogVolume({
+  id: 'beam',
+  shape: 'sphere',
+  matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 2, -6, 1],
+  boundsMin: [-1, -1, -1],
+  boundsMax: [1, 1, 1],
+  material: { extinction: 1.5, emissive: [0.2, 0.4, 1] },
+})
+```
+
+Two run-time settings pick the passes an object is voxelised in, as settings of the volume
+(`volumetricFog…`): `volumetricFogVoxelizationSlicesPerPass` (default `8`, at least 1) is how many
+of the slices an object reaches make one pass, and `volumetricFogVoxelizationShowOnlyPass`
+(default `-1`) keeps one pass of each object, from `0`, to see where the passes lie; `-1` keeps
+them all. The passes only divide the slices: the sum is the same.
+
+```js
+world.volumetricFogVoxelizationSlicesPerPass = 4 // passes of four slices
+world.volumetricFogVoxelizationShowOnlyPass = 1 // only the second pass of each object, to look
+world.volumetricFogVoxelizationShowOnlyPass = -1 // back to all of them
+```
+
+### Atmosphere part
+
+The `atmosphere` part fills the sky, hazes the distance and tints the sun's light through the
+air of a planet whose ground is the scene's plane `y = 0`. `true` is an Earth-like atmosphere, an
+object sets any field over those defaults — planet radius and air thickness in kilometres,
+scattering and absorption coefficients per kilometre, the ground's height in scene metres:
+
+```js
+world.scene.sky = { atmosphere: true } // the air alone: no sun, no clouds
+world.scene.sky = {
+  atmosphere: { planetRadius: 6360, height: 60, mieAnisotropy: 0.8, groundHeight: 0 },
+}
+world.scene.sky = { atmosphere: true, sun: { intensity: 10 }, skyLight: true } // the air, a sun, the sky's light
+world.scene.sky = { atmosphere: false } // no atmosphere
 ```
 
 The sun is the brightest directional light of index 0 (the second light is below), its colour times
 its intensity weighed by the eye's sensitivity to each channel, held as lights are added and removed (with an atmosphere or none): a
 light added replaces it only if brighter, and the sun removed gives its place to the brightest of
 the others, the first added of equals; `atmosphereSun: false` leaves one out. Where it is on,
-`background` is not shown, and `light.sky()` lights the scene from the sky (without an atmosphere,
-from the background colour; `groundColor`, black, from below). The bounce is on by default
+`background` is not shown, and the `skyLight` part lights the scene from the sky (without an
+atmosphere, from the background colour; `lowerHemisphereColor`, black, from below). The bounce is on by default
 (`world.bounce`, `false` turns it off): the sky light then reaches a surface only where the scene
 lets it — the street lit from above, the arcade dark — and a reflection that leaves the scene
 shows the sky; with the bounce off, the sky light lights every surface with the sky nothing hides.
+
+The sky light can also light the scene with the scene itself: with `realTimeCapture` off and
+`sourceType: 'capturedScene'` it draws the scene once from its position into its cube, the six faces
+of a cube seen from there, the distance `skyDistanceThreshold` (150000 cm, the reference's default)
+the nearest it shows, and `captureEmissiveOnly` keeping only what the surfaces emit. It is captured
+when the light is created, when its cubemap or its angle changes and when `realTimeCapture` is
+switched; not when its colour, its intensity or its lower hemisphere changes, nor when it moves. A
+host that changed the world asks for the sky again by writing the part again:
+
+```js
+world.scene.sky = {
+  skyLight: { realTimeCapture: false, sourceType: 'capturedScene', cubemapResolution: 128 },
+}
+```
+
+Its quality settings: `skyLightCaptureSupersample` (1, from 1 to 8) draws the faces larger and
+averages them down, `skyLightCaptureLodDistanceScale` (1) asks more detail of the scene in the faces,
+`skyLightCaptureReflections` (on) traces the scene's reflections in them. The model:
+[sky light, captured scene](ENGINE.md#atmosphere-and-sky-light).
 
 The air holds two lights, a sun and a second one: a moon, or a second sun. Every directional light
 has an `atmosphereSunIndex`, `0` by default (`1` for the second light); of the lights that may light
@@ -905,16 +1276,90 @@ Any index other than 0 or 1 is refused (`INVALID_SCENE_LIGHT`). `SceneLight.atmo
 carries the same value in a declared light (directional lights only).
 
 ```js
-world.scene.atmosphere = true
+world.scene.sky = { atmosphere: true, sun: false } // the scene's own lights are the air's
 world.scene.add(light.directional({ intensity: 10, position: [-50, 70, 0] })) // the sun, index 0
 const moon = light.directional({ intensity: 0.3, position: [60, 40, 20], atmosphereSunIndex: 1 })
 world.scene.add(moon) // the second light of the air: its own sky, haze, disk and tint on what it lights
 moon.atmosphereSunIndex = 0 // a write reaches the world at once; 0 is the default
 ```
 
+A light's colour can follow a temperature: with `useTemperature` on, its colour is multiplied by
+that of a black body at `temperatureKelvin` (6500 by default, white; read between 1000 and 15000),
+and the sun, the sky and the fog take that colour. Three options say more of how a directional light
+meets the air: `sunDiskTint` (white, a linear colour) multiplies the sun's disk in the sky and never
+the light it gives; `shadowsAir` (off) lets the light's shadow shade the air — the haze and the sky's
+march read its shadow map along their rays, so that a mountain's shadow reaches into the haze, as
+`atmosphereSampleLightShadowMap` (on) allows; `transmittancePerPixel` (off) reads the air's
+transmittance toward the light for each surface point and not once at the ground, so that a low sun
+reddens a valley and not the summit above it. A saved world keeps each of them.
+
+A light draws light shafts through nine fields, each written to its record and to a saved world
+only when it differs from its default. `shaftOcclusion` (off) lets the light darken the fog's
+inscattering where the scene hides it: `shaftOcclusionDarkness` (0.05) is what a full occlusion
+maps to, 1 darkening nothing, and everything nearer the eye than `shaftOcclusionDepthRange` (1000
+metres) occludes; `shaftOverrideDirection` (`[0, 0, 0]`, a vector) names, when it is not zero, the
+direction the shafts come from instead of the light's own. These four belong to a directional light
+alone. `shaftBloom` (off) adds a bloom around any light: `shaftBloomScale` (0.2) is the factor on
+the colour it adds, `shaftBloomThreshold` (0) the brightness the image must pass after exposure to
+bloom, `shaftBloomMaxBrightness` (100) the brightness above which it is brought down, and
+`shaftBloomTint` (white, a linear colour) the factor on its colour. A vector is changed in place with
+`set`, as `sunDiskTint` is.
+
+```js
+const sun = light.directional({ intensity: 10, position: [-50, 70, 0], castShadow: true })
+sun.shaftOcclusion = true
+sun.shaftOcclusionDepthRange = 2000 // metres
+sun.shaftOverrideDirection.set(-0.3, 0.4, 0.1) // the shafts come from there
+sun.shaftBloom = true
+sun.shaftBloomTint.set([1, 0.85, 0.6])
+world.addLight({ id: 'lamp', kind: 'point', intensity: 50, position: [0, 3, 0], shaftBloom: true })
+```
+
+```js
+const sun = light.directional({ intensity: 10, position: [-50, 70, 0], castShadow: true })
+sun.useTemperature = true
+sun.temperatureKelvin = 5200 // a warmer white
+sun.sunDiskTint.set([1, 0.8, 0.6]) // the disk redder than the light it gives
+sun.shadowsAir = true // the mountains' shadows in the haze
+world.addLight({
+  id: 'moon',
+  kind: 'directional',
+  direction: [0.2, -1, 0.1],
+  color: [0.7, 0.8, 1],
+  intensity: 0.3,
+  atmosphereSunIndex: 1,
+  temperatureKelvin: 4100,
+  useTemperature: true,
+})
+```
+
+The air's samples are scaled by `sampleCountScale` (1, from 0.25): the caps its quality settings
+give the marches (below) are no more than 32 times it, and the haze volume's samples a slice no more
+than twice it. The air's quality is the sky's quality settings of `world.skyQuality` — `atmosphereOn`
+(on), the samples of a march through the air (`atmosphereSamplesMin`, `atmosphereSamplesMax`,
+`atmosphereDistanceToMaxSamplesKm`), of the sky table (`skyTableSamplesMin`, `skyTableSamplesMax`,
+`skyTableDistanceToMaxSamplesKm`) and of a slice of the haze volume (`aerialSamplesPerSlice`), the
+sizes of the tables (`transmittanceWidth`, `transmittanceHeight`, `multiScatterWidth`,
+`multiScatterHeight`, `skyTableWidth`, `skyTableHeight`) and of the haze volume (`aerialWidth`,
+`aerialDepthSlices`, `aerialDepthKm`), the samples that build the transmittance and the
+multiple-scattering tables (`transmittanceSamples`, `multiScatterSamples`), and the switches
+`skyTableFast` (the sky read from its table, else every sky pixel marched), `aerialDepthTest`,
+`transmittanceTable`, `transmittanceSmallFormat` (the table in four 8-bit channels),
+`distantSkyLightTable` and `distantSkyLightAltitudeKm` (the fog's sky, made every image),
+`multiScatterHighQuality` (8 directions over the sphere), `skyTablesFullPrecision` (the haze
+volume in 32-bit floats) and `atmosphereSampleLightShadowMap` —, whose defaults are the reference's
+top level and which the `smooth`, `balanced` and `fine` presets set to its lower three:
+
+```js
+world.quality.preset = 'fine' // the effects' level 2: 2 samples a slice, 64 samples at most
+world.skyQuality = { skyTableFast: false, atmosphereSamplesMax: 256 } // every sky pixel marched
+world.scene.sky = { atmosphere: { sampleCountScale: 2 } } // twice the samples, within those caps
+world.skyQuality = { skyTableFast: null } // given back to the preset
+```
+
 A field out of range is refused
-(`INVALID_SCENE_ENVIRONMENT`); after writing a field directly, assign `scene.atmosphere` again.
-`SceneEnvironment.atmosphere` and `SavedScene.atmosphere` carry the same fields. The model:
+(`INVALID_SCENE_ENVIRONMENT`); to change a field, write `scene.sky` again.
+`SceneEnvironment.atmosphere` carries the same fields. The model:
 [atmosphere and sky light](ENGINE.md#atmosphere-and-sky-light).
 
 ### Declared lights
@@ -924,12 +1369,90 @@ and `spot` carry `position` and `range` in metres, `spot` also `direction` and a
 half-angle; `directional` only `direction` (of propagation), refused with a `position`, `range` or
 `coneAngle`. All carry linear `color`, a positive radiometric `intensity` and `castsShadow`. A `directional` may
 also carry `shadowDistance` ([A sun's shadow distance](#a-suns-shadow-distance-and-its-far-casters))
-and `atmosphereSunIndex` ([Scene atmosphere](#scene-atmosphere)), refused on any other kind.
+and `atmosphereSunIndex` ([Atmosphere part](#atmosphere-part)), refused on any other kind.
+
+Two options of every light say how the volumetric fog and the clouds take it, over the light on
+surfaces, which they never change: `fogScattering` (default `1`, `0` or more) is the factor on its
+colour in the fog volume and in the clouds' local lights, and a light of `0` is left out of both;
+`shadowsFog` (default `true` for a `directional` light, `false` for any other) lets a light that
+casts a shadow shadow the fog too. The sky light has the same factor, its part's `volumetricScatteringIntensity`
+(`1` by default): the factor on the sky the fog scatters. A saved world
+keeps a `shadowsFog` set against its kind's default; `fogScattering` is among the light's numbers.
+
+```js
+const lamp = light.point({ intensity: 20, position: [0, 3, 0], distance: 12, castShadow: true })
+lamp.fogScattering = 0.5 // half of it in the fog and the clouds; 0 leaves it out of both
+lamp.shadowsFog = true // its shadow map also shadows the fog volume (a sun's does by default)
+world.scene.sky = { skyLight: { volumetricScatteringIntensity: 0 } } // the fog scatters none of the sky light
+```
+
+The same in the declared form: `world.addLight({ id: 'lamp', kind: 'point', ..., fogScattering: 0.5,
+shadowsFog: true })`; a negative `fogScattering` or a `shadowsFog` that is not a boolean is refused
+(`INVALID_SCENE_LIGHT`), and so is `shadowsFog: true` on a `rect`, which casts no shadow.
 
 No bound on the light count: a 16×16 screen tile lists up to 64 lights reaching it, past that
 exactly those reaching it. Past 64 shadow
 slices a caster lights without a shadow (`shadowCastersUnsliced`). The shadow pool and its metrics:
 [SHADOWS.md](SHADOWS.md#memory).
+
+### Light functions
+
+A light can wear a light function: a material that gives, at each point the light reaches, a factor
+on its colour, to cast the shape of a window, a leaf canopy or a moving cloud. It is a material of
+the engine's one material system, made as `material.lightFunction`; the colour it gives is its
+emission: `emissive` times `emissiveIntensity`, times `emissiveMap` read at the coordinate of the
+light's projection across its tile (0 to 1), with the map's own wrap, filters, repeat, offset and
+rotation. White, no effect, by default. It has no world position and no depth: it is drawn once,
+whatever the lights that wear it, into one atlas the lighting, the volumetric fog and the
+translucent layers read. The map joins the materials' colour atlas, within the texture budget, and
+the slot is drawn again until the map is read at the detail the slot shows. A material made by
+another member is refused (`TypeError`), and a mesh refuses a light function material (`INVALID_MATERIAL`). A [material graph](#material-graph) wired to its `emissive` output replaces the parameters.
+
+```js
+import { material, light, Texture } from 'trillion3d'
+
+const window = material.lightFunction({ emissiveMap: new Texture(frameImage) }) // a window's panes
+const lamp = light.spot({ intensity: 60, position: [0, 4, 0], distance: 20, angle: 0.6 })
+lamp.lightFunction = window // the light now shines through it
+lamp.lightFunctionScale.set(4, 4, 4) // metres a tile: up, right, along the light (10.24 each by default)
+lamp.lightFunctionFadeDistance = 200 // metres from the eye past which it fades (1000 by default)
+lamp.lightFunctionDisabledBrightness = 0.5 // what the light is where it is faded out (0.5 by default)
+window.emissive = 0xffcc66 // a warm tint, written to every light that wears it
+sun.lightFunction = window // a sun projects it along its direction
+rectLamp.lightFunctionConeAngle = 30 // a rectangle: through a cone of 30 degrees (0, flat, by default)
+```
+
+How a light projects it: a spot maps its cone to the tile (the edge of the cone is the edge of the
+tile at any distance); a point light maps the tile around itself by longitude and latitude; a
+rectangle by its face's plane, or through `lightFunctionConeAngle` (at most 89 degrees) like a spot;
+a sun by its axes, the tile repeating every `lightFunctionScale`. The function fades to
+`lightFunctionDisabledBrightness` over the last fifth of `lightFunctionFadeDistance` from the eye.
+The declared form is `world.addLight({ id, kind, ..., lightFunction: id,
+lightFunctionScale: [4, 4, 4] })`; a scale of three numbers above 0, a fade distance above 0, a
+brightness of 0 or more and, for a `rect`, a cone angle of 0 or more are checked, and any of these
+beside no `lightFunction` is refused (`INVALID_SCENE_LIGHT`).
+
+`world.lightFunction` holds the settings of the atlas, each an option of `createWorld` too, with
+the reference's default: `lightFunctionAtlas` (`true`, the whole system), `lightFunctionSlotResolution`
+(128 texels a side of a slot, at least 32), `lightFunctionAtlasSize` (4 slots a side, from 2 to 16:
+16 materials at the default; a light whose material has no slot left has none),
+`lightFunctionMaxLights` (`-1`, no limit: the most lights that read the atlas, the nearest to the
+eye, suns first, kept), `lightFunctionFormat` (`'grey'`, the mean of the colour; or `'colour'`), and
+which passes read the atlas: `lightFunctionDeferred` (`true`, the lighting of the opaque image),
+`lightFunctionFog` (`true`, the volumetric fog's local lights; its sun always reads it),
+`lightFunctionBounce` (`true`, the lights of the bounce: the probes' rays and the screen probes' scene
+traces) and `lightFunctionTranslucent` (`false`, the translucent layers).
+
+```js
+world.lightFunction = { lightFunctionAtlasSize: 8, lightFunctionSlotResolution: 256 } // 64 sharper slots
+world.lightFunction = { lightFunctionTranslucent: true, lightFunctionFormat: 'colour' } // glass, coloured
+world.lightFunction = { lightFunctionFog: false } // the fog's lamps shine plain; its sun keeps its function
+world.lightFunction = { lightFunctionBounce: false } // the bounce lights its surfaces with plain lamps
+```
+
+The bounce reads the function at the surface a probe's ray hits: a lamp whose function dims that point
+gives it less light, and one that dims it wholly casts no shadow ray there. A function that moves (a
+material that reads `time`) or changes makes the probes trace again, at each image it does.
 
 ### A lamp's range is authored, and no frame shortens it
 
@@ -1052,14 +1575,14 @@ child of the model, changed like any light. A cache without `lights.json` has no
 
 What a host sets and reads; the pools' mechanics are [RESIDENCY.md](RESIDENCY.md).
 
-| Setting                     | Default                      | What it is                                                                                                           |
-| --------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `world.budget.gpu`          | 2 179 MiB                    | every GPU pool together, divided by `world.budget.split`                                                             |
-| `world.budget.cpu`          | the page cache's own default | what the world keeps in CPU memory                                                                                   |
+| Setting                     | Default                      | What it is                                                                                                                                                   |
+| --------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `world.budget.gpu`          | 2 179 MiB                    | every GPU pool together, divided by `world.budget.split`                                                                                                     |
+| `world.budget.cpu`          | the page cache's own default | what the world keeps in CPU memory                                                                                                                           |
 | `world.budget.geometryPool` | 512 MiB                      | slots of a 128 KiB streaming page each, the root pages held beside them in the root region; clamped to `geometryPoolCeiling`; the call a memory slider makes |
-| `world.budget.texturePool`  | 512 MiB                      | virtual-texture tiles, every texture's tail always resident; clamped to `texturePoolCeiling`                         |
-| `world.budget.canvas`       | 3840 × 2160                  | the largest drawing buffer, `{ width, height }`, the effect targets are reserved at                                  |
-| `world.budget.physics`      | `DEFAULT_PHYSICS_BUDGET`     | [PHYSICS.md](PHYSICS.md#budgets)                                                                                     |
+| `world.budget.texturePool`  | 512 MiB                      | virtual-texture tiles, every texture's tail always resident; clamped to `texturePoolCeiling`                                                                 |
+| `world.budget.canvas`       | 3840 × 2160                  | the largest drawing buffer, `{ width, height }`, the effect targets are reserved at                                                                          |
+| `world.budget.physics`      | `DEFAULT_PHYSICS_BUDGET`     | [PHYSICS.md](PHYSICS.md#budgets)                                                                                                                             |
 
 - **GPU split.** The shadow pool, bounce probes and effect targets are reserved first (at
   their live descriptor bytes), then the geometry and texture pools up to their ceilings; root

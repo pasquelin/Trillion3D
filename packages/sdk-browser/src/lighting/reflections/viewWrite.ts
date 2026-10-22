@@ -1,6 +1,6 @@
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { writeChanged } from '../../gpu/core/writeChanged.ts'
-import { screenSlab } from '../../visibility/hiz/gpu/screenSlab.ts'
+import { screenRelativeThickness, screenSlab } from '../../visibility/hiz/gpu/screenSlab.ts'
 import type { HeldImage } from './radiance/radiance.ts'
 import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 import { gridSide } from './grids.ts'
@@ -14,6 +14,8 @@ import { REFLECTION_COUNTS } from './constants.ts'
 export type ReflectionFrame = {
   /** The render view-projection the depth was drawn with, jitter included. */
   viewProjection: ArrayLike<number>
+  /** The eye, in the world the view-projection takes (`screenSlab`). */
+  eye: ArrayLike<number>
   /** The drawn size. */
   size: readonly [number, number]
   /** Whether the depth pyramid holds this image's whole depth. */
@@ -26,6 +28,9 @@ export type ReflectionFrame = {
   surroundings?: ArrayLike<number>
   /** What a ray may spend and which of its stages run (`reflectionOptions.ts`): the settings' defaults when absent. */
   settings?: ReflectionSettings
+  /** The pre-exposure this image's light is written multiplied by: the radiance image that is held
+   *  keeps it, and the next image divides the light it reads by it (1 when absent). */
+  preExposure?: number
 }
 
 /** The flags of what a trace does (`ReflectionView.scene.w`): each bit of `REFLECTION_COUNTS` its setting's. */
@@ -129,11 +134,14 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     staged[REFLECTION_VIEW_AT.radiance] = held.size[0]
     staged[REFLECTION_VIEW_AT.radiance + 1] = held.size[1]
     staged[REFLECTION_VIEW_AT.radiance + 2] = levels - 1
-    staged.set(screenSlab(m, height), REFLECTION_VIEW_AT.slab)
+    staged[REFLECTION_VIEW_AT.radiance + 3] = 1 / held.preExposure
+    staged.set(screenSlab(m, height, frame.eye), REFLECTION_VIEW_AT.slab)
     traced[0] = frame.depthDrawn && held.valid ? 1 : 0
     front[0] = frame.front ? 1 : 0
     temporal[0] = frame.turn ?? 0
-    writeTrace(frame.settings ?? (defaults ??= defaultReflections()), frame.size)
+    const trace = frame.settings ?? (defaults ??= defaultReflections())
+    writeTrace(trace, frame.size)
+    staged[REFLECTION_VIEW_AT.thickness] = screenRelativeThickness(m, trace.relativeThickness)
     if (frame.surroundings) staged.set(frame.surroundings, REFLECTION_VIEW_AT.surroundings)
     else staged.fill(0, REFLECTION_VIEW_AT.surroundings, REFLECTION_VIEW_AT.surroundings + 4)
     writeChanged(device, buffer, words, 0, REFLECTION_VIEW_WORDS)

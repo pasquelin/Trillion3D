@@ -5,6 +5,10 @@ export const SURFACE_COLOURS_FORMAT = 'rgba16float'
 /** The format of the surfaces' word layers (`SurfaceBuffer.words`): the narrowest a compute stage
  *  stores, an 8-bit target being none. */
 export const SURFACE_WORDS_FORMAT = 'r32uint'
+/** The colours' first layers, the lighting reads through one binding of them: the base colour and
+ *  metalness, then the normal and roughness; the emission follows when the frame holds it
+ *  (`SurfaceBuffer.layers`). */
+export const SURFACE_COLOUR_LAYERS = { base: 0, normal: 1 } as const
 /** The words' layers: the flags, then the shadow receiver's two words
  *  (`../../visibility/shader/receiverTargetWgsl.ts`). */
 export const SURFACE_WORDS = { flags: 0, receiver: 1 } as const
@@ -19,13 +23,19 @@ export const SURFACE_WORD_LAYERS = SURFACE_WORDS.receiver + SURFACE_RECEIVER_WOR
  *  builds its output struct and its stores from this one table
  *  (`../../visibility/shader/shadeOutputsWgsl.ts`; `surfaceBuffer.ts` holds what each one stores). */
 export const SURFACE_OUTPUTS = [
-  { name: 'baseMetal', wgsl: 'vec4f', format: SURFACE_COLOURS_FORMAT, target: 'colours', layer: 0 },
+  {
+    name: 'baseMetal',
+    wgsl: 'vec4f',
+    format: SURFACE_COLOURS_FORMAT,
+    target: 'colours',
+    layer: SURFACE_COLOUR_LAYERS.base,
+  },
   {
     name: 'normalRough',
     wgsl: 'vec4f',
     format: SURFACE_COLOURS_FORMAT,
     target: 'colours',
-    layer: 1,
+    layer: SURFACE_COLOUR_LAYERS.normal,
   },
   {
     name: 'emissiveAo',

@@ -1,4 +1,5 @@
 import { wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { LIGHT_KIND_SPAN } from '../../../../sdk-core/src/scene/light/contracts.ts'
 
 /**
  * Whether a local light may light a point at `offset` from it (its centre minus the point): the one
@@ -33,9 +34,24 @@ export const rangeWindow = wgslFn(
 }`,
 )
 
-/** The light buffer's type rank is a float: the one place that rereads it, every kind's test its call. */
+/** A light's kind word (`LIGHT_FIELD.kind`) is a float: its rank, under `LIGHT_KIND_SPAN`, plus the flags
+ *  above it (`LIGHT_FLAG`). The rank alone: */
+export const lightKindOf = wgslFn(
+  'lightKindOf',
+  [],
+  `fn lightKindOf(word:f32)->f32{return f32(u32(word)%${LIGHT_KIND_SPAN}u);}`,
+)
+
+/** Whether a flag bit (`LIGHT_FLAG`) is set in a light's kind word. */
+export const lightFlagged = wgslFn(
+  'lightFlagged',
+  [],
+  'fn lightFlagged(word:f32,flag:u32)->bool{return (u32(word)&flag)!=0u;}',
+)
+
+/** The one place that rereads a kind word as a rank: every kind's test its call. */
 export const isKind = wgslFn(
   'isKind',
-  [],
-  'fn isKind(kind:f32,rank:f32)->bool{return abs(kind-rank)<0.5;}',
+  [lightKindOf],
+  'fn isKind(word:f32,rank:f32)->bool{return abs(lightKindOf(word)-rank)<0.5;}',
 )

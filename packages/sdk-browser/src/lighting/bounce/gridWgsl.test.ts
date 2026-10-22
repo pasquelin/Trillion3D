@@ -11,7 +11,7 @@ import { applyMarks, markWords } from '../../../../sdk-core/src/bounce/probeMark
 import { functionBody } from '../../materials/texture/shaderRule.fixture.ts'
 import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
 import { BOUNCE_APPLY_WGSL } from './applyWgsl.ts'
-import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
+import { surfaceRayWgsl } from './surfaceRayWgsl.ts'
 import { BOUNCE_PROBE_SHADER } from './probes/probeWgsl.ts'
 import { directLightingWgsl } from '../direct/lightingWgsl.ts'
 import {
@@ -22,18 +22,13 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { unit } from '../../../../math/src/vector/vectorTuple.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
-import { SKY_SLOT, SKY_SLOTS } from '../../../../sdk-core/src/scene/core/environmentSky.ts'
-import {
-  addUniformIrradiance,
-  emptyIrradiance,
-} from '../../../../sdk-core/src/scene/core/environment.ts'
 
 const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
 
 test('the bounce passes read the one Lambert 1/π of the direct term', () => {
   assert.equal(occurrences(wgslModule(BOUNCE_APPLY_WGSL), INVERSE_PI.text), 1)
-  assert.equal(occurrences(wgslModule(SURFACE_RAY_WGSL), INVERSE_PI.text), 1)
+  assert.equal(occurrences(wgslModule(surfaceRayWgsl()), INVERSE_PI.text), 1)
 })
 
 test('every probe shader projects and evaluates the one order-2 basis', () => {
@@ -110,20 +105,17 @@ test('a bounce probe is read in the band order the environment uses', () => {
   }
 })
 
-test('the probes carry the sky where they answer; the sky light’s own irradiance stands for the rest', () => {
-  // A uniform sky of irradiance (0.5, 0.25, 0.125), as the light buffer's block holds it, a sky light shining.
-  const sh = emptyIrradiance()
-  addUniformIrradiance(sh, [0.5, 0.25, 0.125])
-  const sky = Array.from({ length: SKY_SLOTS }, () => [0, 0, 0, 0])
-  for (let k = 0; k < 9; k++)
-    sky[SKY_SLOT.irradiance + k] = [sh[k * 3], sh[k * 3 + 1], sh[k * 3 + 2], 0]
-  sky[SKY_SLOT.upper] = [1, 1, 1, 1]
+test('the probes carry the sky where they answer; the sky light’s own diffuse light stands for the rest', () => {
+  // A sky light shining, its diffuse light of irradiance (0.5, 0.25, 0.125) on every normal: the cube
+  // and harmonics are the program's own bindings (`skyLightIrradiance`), read here as a function.
+  let shining = true
   const { indirectGathered, environmentSky, skyIrradiance } = shaderRun<{
     indirectGathered: (gathered: number[], N: number[]) => number[]
     environmentSky: (N: number[]) => number[]
     skyIrradiance: (N: number[]) => number[]
   }>(wgslModule(BOUNCE_APPLY_WGSL), ['indirectGathered', 'environmentSky', 'skyIrradiance'], {
-    directLights: { sky },
+    skyLightApplied: () => shining,
+    skyLightIrradiance: () => [0.5, 0.25, 0.125],
   })
   const N = [0, 1, 0],
     probes = [0.1, 0.2, 0.3]
@@ -137,20 +129,19 @@ test('the probes carry the sky where they answer; the sky light’s own irradian
   part.forEach((c, i) =>
     assert.ok(Math.abs(c - (0.75 * [0.5, 0.25, 0.125][i] + 0.25 * probes[i])) < 1e-9),
   )
-  // A coefficient below zero is never a light below zero.
-  sky[SKY_SLOT.irradiance] = [-1, 0, 0, 0]
+  // No light shining (no cube ready, or the view's sky lighting off): no light below zero, none at all.
+  shining = false
   assert.deepEqual(skyIrradiance([0, 1, 0]), [0, 0, 0])
   // The environment adds none of it beside them: a program that reads the probes never counts it twice.
   assert.deepEqual(environmentSky(N), [0, 0, 0])
 })
 
 test('a scene with no sky light is no darker for a partial read: the probes that answer stand for the rest', () => {
-  // No sky light shines: the block holds none, and the pixel's environment (ambient, hemisphere) is its own
+  // No sky light shines, and the pixel's environment (ambient, hemisphere) is its own
   // term beside the probes, so the share the probes leave has no unoccluded light of its own to take.
-  const sky = Array.from({ length: SKY_SLOTS }, () => [0, 0, 0, 0])
   const { indirectGathered } = shaderRun<{
     indirectGathered: (gathered: number[], N: number[]) => number[]
-  }>(wgslModule(BOUNCE_APPLY_WGSL), ['indirectGathered'], { directLights: { sky } })
+  }>(wgslModule(BOUNCE_APPLY_WGSL), ['indirectGathered'], { skyLightApplied: () => false })
   const N = [0, 1, 0],
     probes = [0.1, 0.2, 0.3]
   assert.deepEqual(indirectGathered([...probes, 1], N), probes, 'answered whole')
@@ -171,18 +162,13 @@ test('the sky light is the environment’s where no probe is read, the probes’
 
 test('a surface a probe ray or a reflection hits is lit by what the probes hold there, never by the sky light', () => {
   // A bright sky light: the pixel's fallback where no probe answers (`indirectGathered`), never a hit's.
-  const sh = emptyIrradiance()
-  addUniformIrradiance(sh, [0.5, 0.25, 0.125])
-  const sky = Array.from({ length: SKY_SLOTS }, () => [0, 0, 0, 0])
-  for (let k = 0; k < 9; k++)
-    sky[SKY_SLOT.irradiance + k] = [sh[k * 3], sh[k * 3 + 1], sh[k * 3 + 2], 0]
-  sky[SKY_SLOT.upper] = [1, 1, 1, 1]
   let gathered = [0, 0, 0, 0]
   const { surfaceSeen, surfaceLit } = shaderRun<{
     surfaceSeen: (albedo: number[], P: number[], N: number[]) => number[]
     surfaceLit: (albedo: number[], P: number[], N: number[], reach: number) => number[]
-  }>(wgslModule(SURFACE_RAY_WGSL), ['surfaceSeen', 'surfaceLit'], {
-    directLights: { sky },
+  }>(wgslModule(surfaceRayWgsl()), ['surfaceSeen', 'surfaceLit'], {
+    skyLightApplied: () => true,
+    skyLightIrradiance: () => [0.5, 0.25, 0.125],
     sampleBounceGathered: () => gathered,
     // The lights add a unit of irradiance: only the indirect share is under test.
     lightsIrradiance: () => [1, 1, 1],

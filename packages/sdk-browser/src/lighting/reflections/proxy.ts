@@ -50,7 +50,7 @@ export const REFLECTION_PROXY_WGSL = wgslBlock(
     REFLECTION_LINEAR_DEPTH_WGSL,
     WORLD_AT_WGSL,
     interleavedGradientNoise,
-    runtimeRadianceWgsl(REFLECTION_PROXY_BINDINGS, 'reflectionSeenAt'),
+    runtimeRadianceWgsl(REFLECTION_PROXY_BINDINGS, undefined, undefined, 'reflectionSeenAt'),
   ],
   `struct ReflectionProxied{answer:RadianceAnswer,open:f32,}
 /** How a walk that spent a budget ended, by what spent it (\`rtCause\`, \`RT_CAUSE_*\`). */

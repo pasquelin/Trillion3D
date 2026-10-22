@@ -1,6 +1,9 @@
 import { EngineError } from '../../contracts/cache.ts'
 import { ATMOSPHERE_SUN_INDICES, type AtmosphereSunIndex, type SceneLight } from './contracts.ts'
 import { finite } from '../core/fog.ts'
+import { validateFogFields } from './validateFog.ts'
+import { validateLightFunction } from './lightFunction.ts'
+import { validateLightSettings } from './validateSettings.ts'
 import { isShadowDistance } from '../../contracts/shadowOptions.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import { hypot3 } from '../../../../math/src/float/hypot.ts'
@@ -50,12 +53,17 @@ function unused(
     | 'right'
     | 'size'
     | 'atmosphereSun'
-    | 'atmosphereSunIndex',
+    | 'atmosphereSunIndex'
+    | 'sunDiskTint'
+    | 'shadowsAir'
+    | 'transmittancePerPixel',
   why: string,
 ) {
   if (light[field] !== undefined)
     throw new EngineError('INVALID_SCENE_LIGHT', `${light.id}: ${field} ${why}`, { field })
 }
+/** The fields only a spot has. */
+const SPOT_ONLY = ['coneAngle', 'penumbra'] as const
 /** Range of a point or spot: strictly positive, in metres. */
 function range(value: unknown, id: string): number {
   if (!finite(value) || value <= 0)
@@ -112,6 +120,46 @@ export function validateAtmosphereSunIndex(value: unknown, who: string): Atmosph
     })
   return value as AtmosphereSunIndex
 }
+/** A switch of a light: a boolean when given. */
+function validateSwitch(
+  light: SceneLight,
+  validated: SceneLight,
+  field: 'useTemperature' | 'shadowsAir' | 'transmittancePerPixel',
+) {
+  const value = light[field]
+  if (value === undefined) return
+  if (typeof value !== 'boolean')
+    throw new EngineError('INVALID_SCENE_LIGHT', `${light.id}: ${field} expects a boolean`, {
+      [field]: value,
+    })
+  validated[field] = value
+}
+/** The temperature of a light: whether its colour follows it, and the kelvin (a finite number,
+ *  read between 1000 and 15000 where the colour is made). */
+function validateTemperature(light: SceneLight, validated: SceneLight) {
+  validateSwitch(light, validated, 'useTemperature')
+  if (light.temperatureKelvin === undefined) return
+  if (!finite(light.temperatureKelvin))
+    throw new EngineError(
+      'INVALID_SCENE_LIGHT',
+      `${light.id}: temperatureKelvin expects a number`,
+      {
+        temperatureKelvin: light.temperatureKelvin,
+      },
+    )
+  validated.temperatureKelvin = light.temperatureKelvin
+}
+/** What a directional light says of the air besides its disk: the disk's tint, three numbers of at
+ *  least 0, whether its shadow shades the air, and whether its transmittance is read per point. */
+function validateAirSettings(light: SceneLight, validated: SceneLight) {
+  validateSwitch(light, validated, 'shadowsAir')
+  validateSwitch(light, validated, 'transmittancePerPixel')
+  if (light.sunDiskTint === undefined) return
+  const tint = vector(light.sunDiskTint, 'sunDiskTint', light.id)
+  if (tint.some((channel) => channel < 0))
+    throw new EngineError('INVALID_SCENE_LIGHT', `${light.id}: negative sunDiskTint`, { tint })
+  validated.sunDiskTint = tint
+}
 /**
  * The fields of a directional light: whether it is the atmosphere's sun and which, its angular
  * radius, and its direction, required. It has neither position nor range, and says so by refusing them.
@@ -127,6 +175,7 @@ function validateDirectional(light: SceneLight, validated: SceneLight): SceneLig
   }
   if (light.atmosphereSunIndex !== undefined)
     validated.atmosphereSunIndex = validateAtmosphereSunIndex(light.atmosphereSunIndex, id)
+  validateAirSettings(light, validated)
   if (light.angularRadius !== undefined) {
     if (!finite(light.angularRadius) || light.angularRadius < 0 || light.angularRadius >= HALF_PI)
       throw new EngineError('INVALID_SCENE_LIGHT', `${id}: invalid angularRadius`, {
@@ -145,8 +194,7 @@ function validateDirectional(light: SceneLight, validated: SceneLight): SceneLig
   }
   unused(light, 'position', 'does not exist for a directional light')
   unused(light, 'range', 'does not exist for a directional light: it carries everywhere')
-  unused(light, 'coneAngle', 'exists only for a spot')
-  unused(light, 'penumbra', 'exists only for a spot')
+  for (const field of SPOT_ONLY) unused(light, field, 'exists only for a spot')
   unused(light, 'emitterRadius', 'does not exist for a directional light: it has no position')
   for (const field of ['emitterLength', 'emitterSoftRadius', 'emitterAxis'] as const)
     unused(light, field, 'does not exist for a directional light: it has no position')
@@ -157,6 +205,14 @@ function validateDirectional(light: SceneLight, validated: SceneLight): SceneLig
   )
   return validated
 }
+/** The fields only a directional light has (besides its angular radius and shadow distance). */
+const DIRECTIONAL_ONLY = [
+  'atmosphereSun',
+  'atmosphereSunIndex',
+  'sunDiskTint',
+  'shadowsAir',
+  'transmittancePerPixel',
+] as const
 /**
  * Validates a light and returns a normalised copy. A rejected light never enters the buffer:
  * the contract accepts neither negative intensity, nor zero range, nor a spot without direction, nor
@@ -184,14 +240,15 @@ export function validateSceneLight(light: SceneLight): SceneLight {
     intensity: light.intensity,
     castsShadow: !!light.castsShadow,
   }
-  if (light.kind !== 'rect') {
-    unused(light, 'right', 'exists only for a rect')
-    unused(light, 'size', 'exists only for a rect')
-  }
-  if (light.kind !== 'directional') {
-    unused(light, 'atmosphereSun', 'exists only for a directional light')
-    unused(light, 'atmosphereSunIndex', 'exists only for a directional light')
-  }
+  validateTemperature(light, validated)
+  validateFogFields(light, validated)
+  validateLightFunction(light, validated)
+  validateLightSettings(light, validated)
+  if (light.kind !== 'rect')
+    for (const field of ['right', 'size'] as const) unused(light, field, 'exists only for a rect')
+  if (light.kind !== 'directional')
+    for (const field of DIRECTIONAL_ONLY)
+      unused(light, field, 'exists only for a directional light')
   if (light.kind === 'directional') return validateDirectional(light, validated)
   unused(light, 'angularRadius', 'exists only for a directional light')
   unused(light, 'shadowDistance', 'exists only for a directional light')
@@ -213,8 +270,7 @@ export function validateSceneLight(light: SceneLight): SceneLight {
     }
     return validated
   }
-  unused(light, 'coneAngle', 'exists only for a spot')
-  unused(light, 'penumbra', 'exists only for a spot')
+  for (const field of SPOT_ONLY) unused(light, field, 'exists only for a spot')
   if (light.direction !== undefined) validated.direction = direction(light.direction, id)
   return validated
 }
@@ -225,8 +281,7 @@ export function validateSceneLight(light: SceneLight): SceneLight {
  */
 function validateRect(light: SceneLight, validated: SceneLight): SceneLight {
   const { id } = light
-  unused(light, 'coneAngle', 'exists only for a spot')
-  unused(light, 'penumbra', 'exists only for a spot')
+  for (const field of SPOT_ONLY) unused(light, field, 'exists only for a spot')
   unused(light, 'emitterRadius', 'bounds a shadow map, which a rect does not have')
   for (const field of ['emitterLength', 'emitterSoftRadius', 'emitterAxis'] as const)
     unused(light, field, 'exists only for a point or a spot')

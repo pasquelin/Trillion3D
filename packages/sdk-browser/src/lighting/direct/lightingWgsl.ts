@@ -1,4 +1,9 @@
-import { DEFERRED_BINDINGS, DEFERRED_FOG_BINDINGS } from '../deferred/bindings.ts'
+import {
+  DEFERRED_BINDINGS,
+  DEFERRED_CLOUD_SHADOW_BINDINGS,
+  DEFERRED_FOG_BINDINGS,
+  DEFERRED_LIGHT_FUNCTION_BINDINGS,
+} from '../deferred/bindings.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { vsmTraceKindsOf } from '../shadows/vsm/trace/traceWgsl.ts'
 import { directLightWgsl } from './lightWgsl.ts'
@@ -17,7 +22,18 @@ import { directShadowWgsl } from './shadowWgsl.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
 import { fogBlockOf } from '../fog/readWgsl.ts'
+import {
+  lightFunctionBindingsLabel,
+  lightFunctionReadWgsl,
+  NO_LIGHT_FUNCTION_WGSL,
+  type LightFunctionBindings,
+} from '../lightFunction/readWgsl.ts'
 import { fogBindingsLabel, type FogResourceBindings } from '../fog/readWgsl.ts'
+import {
+  cloudShadowReadWgsl,
+  NO_CLOUD_SHADOW_WGSL,
+  type CloudShadowBindings,
+} from '../atmosphere/cloudShadowRead.ts'
 import { reflectionLobeWgsl } from '../lobeAxisWgsl.ts'
 import {
   LOBELESS_LIGHTING_WGSL,
@@ -82,6 +98,12 @@ export type LightingBindings = {
   trace?: VsmTraceBindings
   /** Where the fog's cubemap, volume and frame are bound (`fogBlockOf`). */
   fog: FogResourceBindings
+  /** Where the light functions' atlas and table are bound and the eye their fade is measured from
+   *  (`lightFunctionReadWgsl`); left out, a program reads none: every light is unchanged. */
+  lightFunction?: LightFunctionBindings
+  /** Where the clouds' shade of the air's lights is bound (`cloudShadowReadWgsl`); left out, a program
+   *  reads none: every light is unshaded (`NO_CLOUD_SHADOW_WGSL`). */
+  cloudShadow?: CloudShadowBindings
 }
 
 /** The bindings as a block name reads them, in their declared order, the defaults resolved. */
@@ -91,8 +113,10 @@ export const bindingsLabel = ({
   resolveTransmission,
   trace,
   fog,
+  lightFunction,
+  cloudShadow,
 }: LightingBindings) =>
-  `${transmittance}, ${vsm ? vsmBindingsLabel(vsm) : null}, ${resolveTransmission ?? null}, ${trace ? vsmTraceBindingsLabel(trace) : null}, ${fogBindingsLabel(fog)}`
+  `${transmittance}, ${vsm ? vsmBindingsLabel(vsm) : null}, ${resolveTransmission ?? null}, ${trace ? vsmTraceBindingsLabel(trace) : null}, ${fogBindingsLabel(fog)}, ${lightFunctionBindingsLabel(lightFunction)}, ${cloudShadow ? `cloud ${cloudShadow.group}:${cloudShadow.block}` : null}`
 
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
@@ -122,6 +146,10 @@ export const lightingBase = (
           : { pass: 'mask', resolveTransmission: bindings.resolveTransmission },
       ),
       fogBlockOf(bindings.fog),
+      bindings.lightFunction
+        ? lightFunctionReadWgsl(bindings.lightFunction)
+        : NO_LIGHT_FUNCTION_WGSL,
+      bindings.cloudShadow ? cloudShadowReadWgsl(bindings.cloudShadow) : NO_CLOUD_SHADOW_WGSL,
       declaredLightWgsl(key),
       TILE_SLICE_WGSL,
       sliceLightingWgsl(),
@@ -163,6 +191,8 @@ const DIRECT_BINDINGS: LightingBindings = {
   transmittance: CONTRACT_SHADOW_BINDINGS.transmittance,
   resolveTransmission: DEFERRED_BINDINGS.transmissionResolve,
   fog: DEFERRED_FOG_BINDINGS,
+  lightFunction: DEFERRED_LIGHT_FUNCTION_BINDINGS,
+  cloudShadow: DEFERRED_CLOUD_SHADOW_BINDINGS,
 }
 
 /**

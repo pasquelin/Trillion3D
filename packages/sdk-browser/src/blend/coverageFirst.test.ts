@@ -81,6 +81,8 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     'normalFootprintVariance',
     'lobeRoughness',
     'bendNormal',
+    'preExposed',
+    'preExposedClipped',
   ]
   const zero = (v: number[]) => v.map(() => 0)
   const lit = () => (counts.lights++, [0.25, 0.25, 0.25])
@@ -103,7 +105,7 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     // The diagnostic palettes' lookups, never reached by a beauty item.
     diagnosticLevel: () => [0, 0, 0],
     diagnosticHlod: () => [0, 0, 0],
-    uni: { camPos: [0, 0, 5, 1], viewport: [64, 64], eye: [0, 0, 5] },
+    uni: { camPos: [0, 0, 5, 1], viewport: [64, 64], eye: [0, 0, 5], preExposure: 1 },
     surfaceModel: 0,
     thinSubsurface: [0, 0, 0],
   }

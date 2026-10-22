@@ -3,7 +3,7 @@
  * builders, the sky, the haze a surface is seen through — finds in the light buffer, behind the
  * fog.
  *
- * Seventeen `vec4`, written by the CPU when the atmosphere or the suns change (`packAtmosphere`),
+ * Nineteen `vec4`, written by the CPU when the atmosphere or the suns change (`packAtmosphere`),
  * the slots below by number. The sun is the directional light that lights the air: its direction
  * toward it, its illuminance outside the air, the luminance of its disk, and the transmittance of
  * the air toward it at the ground (what tints the light surfaces receive, `SunLight`). The air
@@ -49,29 +49,41 @@ export const ATMOSPHERE_SLOT = {
   secondDisk: 15,
   /** The transmittance of the air toward the second light at the ground. */
   secondTransmittance: 16,
+  /** For the sun then the second light: whether its shadow shades the air, then whether the
+   *  transmittance toward it is read for each surface point (the sun's two, the second light's two). */
+  lightFlags: 17,
+  /** For the sun then the second light: its slot in the light buffer, −1 where it has none. */
+  lightSlots: 18,
 } as const
 
 /** `vec4` slots of the block. */
-export const ATMOSPHERE_SLOTS = 17
+export const ATMOSPHERE_SLOTS = 19
 /** Floats of the block: four to a slot. Written as a literal, so a bundle that reads none keeps
  *  none. */
-export const ATMOSPHERE_FLOATS = 68
+export const ATMOSPHERE_FLOATS = 76
 
 /** A light of the atmosphere: a directional light that lights the air. */
 export interface AtmosphereSun {
   /** Where its light goes, a unit vector. */
   direction: readonly number[]
-  /** Its illuminance outside the air, per channel: colour times intensity. */
+  /** Its illuminance outside the air, per channel: colour (with its temperature) times intensity. */
   illuminance: Rgb
   /** The angular radius of its disk, radians, above 0. */
   angularRadius: number
   /** The transmittance of the air toward it at the ground, per channel. */
   transmittance: Rgb
+  /** The colour its disk is multiplied by; white when absent. */
+  diskTint?: Rgb
+  /** Whether its shadow shades the air; off when absent. */
+  shadowsAir?: boolean
+  /** Whether the transmittance toward it is read per surface point; off when absent. */
+  perPixel?: boolean
+  /** Its slot in the light buffer; none when absent. */
+  lightSlot?: number
 }
 
-/** The largest disk luminance written: what a half float holds with room for bloom and the
- *  temporal resolve (`65504 / 2`). */
-const MAX_DISK_LUMINANCE = 32256
+/** The colour of a disk that is not tinted. */
+const NO_TINT: Rgb = [1, 1, 1]
 
 /** The slots a light's numbers go to: its direction toward it, its illuminance, its disk, the
  *  transmittance of the air toward it. */
@@ -105,7 +117,8 @@ const putSlot = (out: Float32Array, slot: number, ...values: number[]) => out.se
  *  the luminance of its disk and a one (there is a light), the air's transmittance toward it. */
 function putSun(out: Float32Array, at: SunSlots, sun: AtmosphereSun) {
   const solidAngle = diskSolidAngle(sun.angularRadius)
-  const disk = sun.illuminance.map((c) => Math.min(c / solidAngle, MAX_DISK_LUMINANCE))
+  const tint = sun.diskTint ?? NO_TINT
+  const disk = sun.illuminance.map((c, i) => (c * tint[i]) / solidAngle)
   putSlot(out, at.direction, ...sun.direction.map((c) => -c), Math.cos(sun.angularRadius))
   putSlot(out, at.illuminance, ...sun.illuminance)
   putSlot(out, at.disk, ...disk, 1)
@@ -146,8 +159,16 @@ export function packAtmosphere(
   )
   put(ATMOSPHERE_SLOT.sunTransmittance, 1, 1, 1, atmosphere.heightFogContribution)
   put(ATMOSPHERE_SLOT.sunIlluminance, 0, 0, 0, atmosphere.sampleCountScale)
+  const flags = [0, 0, 0, 0],
+    slots = [-1, -1, 0, 0]
   suns.forEach((sun, index) => {
-    if (sun) putSun(out, SUN_SLOTS[index], sun)
+    if (!sun) return
+    putSun(out, SUN_SLOTS[index], sun)
+    flags[index] = sun.shadowsAir ? 1 : 0
+    flags[2 + index] = sun.perPixel ? 1 : 0
+    slots[index] = sun.lightSlot ?? -1
   })
+  put(ATMOSPHERE_SLOT.lightFlags, ...flags)
+  put(ATMOSPHERE_SLOT.lightSlots, ...slots)
   return out
 }

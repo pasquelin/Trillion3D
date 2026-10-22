@@ -129,6 +129,10 @@ export const BLEND_BINDINGS = {
   fogCubemap: 31,
   fogVolume: 32,
   fogSampler: 33,
+  /** What the light functions are read from (`BLEND_LIGHT_FUNCTION_BINDINGS`): the atlas and its
+   *  table, one texture of words read by load — a read-only storage texture, as the other load-only
+   *  targets: the stage's last storage texture of four. */
+  lightFunctionAtlas: 34,
 }
 
 /**
@@ -169,6 +173,14 @@ export const BLEND_FOG_BINDINGS = {
   cubemap: BLEND_BINDINGS.fogCubemap,
   volume: BLEND_BINDINGS.fogVolume,
   translucent: true,
+}
+/** Where a transparent's fragment reads the light functions (`lightFunctionReadWgsl`), in group 0, and
+ *  the eye their fade is measured from. */
+export const BLEND_LIGHT_FUNCTION_BINDINGS = {
+  group: 0,
+  atlas: BLEND_BINDINGS.lightFunctionAtlas,
+  eye: 'uni.eye',
+  storage: true,
 }
 /** What a transparent's fragment traces its shadow with (`directShadowWgsl`): the blue noise and the
  *  translucent casters' memory are read-only storage textures, read by load (`loadOnly`). */

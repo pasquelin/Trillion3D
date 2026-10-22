@@ -13,10 +13,13 @@ import { buildComputeStage } from '../../gpu/core/computeStages.ts'
 import { BOUNCE_LIGHT_LISTS_PASS, LIGHT_TILES_PASS } from '../../diagnostic/stage/passLabels.ts'
 
 /** The pass's uniform: the inverse matrix, the viewport and columns, the origin, two depth rows,
- *  the word the grid's records start at. */
-const UNIFORM_FLOATS = 36
+ *  the word the grid's records start at, the cull (`TileView.cull`) and the fog's slice map
+ *  (`TileView.sliceMap`). */
+const UNIFORM_FLOATS = 44
 /** The uniform's word of the records' start (`TileView.start`). */
 export const START_WORD = 32
+/** The uniform's word of the cull (`cullView.ts`): its eight numbers, `cull` then `sliceMap`. */
+export const CULL_WORD = 36
 
 /** One grid of the buffer: its pass, its uniform and its pool, its columns and the words it takes. */
 export type Grid = {
@@ -49,14 +52,14 @@ export const recordsOf = (g: Grid) => g.columns * g.slices * TILE_STRIDE_WORDS
 export async function createGrid(
   device: GPUDevice,
   kind: LightGridKind,
-  layout: GPUBindGroupLayout,
+  layouts: GPUBindGroupLayout[],
 ) {
   const module = await createCheckedShaderModule(
     device,
     lightTilesShader(kind),
     kind === 'view' ? 'LIGHT_TILES_SHADER' : 'LIGHT_TILES_WORLD_SHADER',
   )
-  const pipeline = await buildComputeStage(device, [layout], module, 'lightTiles')
+  const pipeline = await buildComputeStage(device, layouts, module, 'lightTiles')
   const packed = new Float32Array(UNIFORM_FLOATS)
   const grid: Grid = {
     kind,
@@ -83,12 +86,14 @@ export async function createGrid(
 }
 
 /** A grid's pass (`tiles.ts`), its group bound again first when its buffer moved
- *  (`bind`); none for a grid never sized. */
+ *  (`bind`), and the depth pyramid's group `cull` the view's grid reads (`cullView.ts`); none for a
+ *  grid never sized. */
 export function encodeGrid(
   grid: Grid,
   bind: (grid: Grid) => void,
   encoder: GPUCommandEncoder,
   frame: number,
+  cull?: GPUBindGroup,
 ) {
   if (!grid.group && !grid.bound.next[0]) return false
   bind(grid)
@@ -96,6 +101,7 @@ export function encodeGrid(
   const pass = encoder.beginComputePass({ label: grid.label })
   pass.setPipeline(grid.pipeline)
   pass.setBindGroup(0, grid.group)
+  if (cull) pass.setBindGroup(1, cull)
   pass.dispatchWorkgroups(grid.tilesX, grid.tilesY, 1)
   pass.end()
   grid.pool.sampleState(encoder, frame)

@@ -10,7 +10,9 @@ import {
   computeUniformEntry,
   sequentialEntries,
 } from '../../gpu/core/computeBindings.ts'
-import { createGrid, encodeGrid, recordsOf, START_WORD, type Grid } from './lightGrid.ts'
+import { createGrid, CULL_WORD, encodeGrid, recordsOf, START_WORD, type Grid } from './lightGrid.ts'
+import { createCullBinding } from './cullBinding.ts'
+import type { LightGridCull } from './cullView.ts'
 /** Columns of the light grid over `pixels`, at least one: the grid covers the whole target, never
  *  one column short. */
 const tilesOn = (pixels: number) => workgroupCount(pixels, LIGHT_SETTINGS.tileSize)
@@ -23,7 +25,8 @@ export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>
  * pool. The grids are laid out again only when a grid needs more columns or its pool grows — the
  * buffer grown by the engine's one rule, the old one retired; then the world grid's lists are
  * listed again (`revision`) —; each grid's group follows the light buffer,
- * which grows with the scene; encoding allocates nothing. The passes read no depth.
+ * which grows with the scene; encoding allocates nothing. The view's pass reads the depth pyramid
+ * of the image (`./cullWgsl.ts`, `./cullView.ts`); the world's reads no depth.
  */
 export async function createGpuLightTiles(device: GPUDevice) {
   const layout = device.createBindGroupLayout({
@@ -34,21 +37,33 @@ export async function createGpuLightTiles(device: GPUDevice) {
       computeBufferEntry(3, 'storage'),
     ],
   })
-  const view = await createGrid(device, 'view', layout)
-  const world = await createGrid(device, 'world', layout).catch((error) => {
+  const cull = createCullBinding(device)
+  const view = await createGrid(device, 'view', [layout, cull.layout])
+  const world = await createGrid(device, 'world', [layout]).catch((error) => {
     view.uniform.destroy()
     view.pool.dispose()
+    cull.dispose()
     throw error
   })
-  return lightTiles(device, layout, view, world)
+  return lightTiles(device, layout, view, world, cull)
 }
 
 /** The passes' calls (`createGpuLightTiles`) on their two grids. */
-function lightTiles(device: GPUDevice, layout: GPUBindGroupLayout, view: Grid, world: Grid) {
+function lightTiles(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  view: Grid,
+  world: Grid,
+  cull: ReturnType<typeof createCullBinding>,
+) {
   const inverse = new Float64Array(16),
     origin = new Float64Array(3),
     rows = new Float64Array(8)
-  const state = { tiles: undefined as GPUBuffer | undefined, revision: 0 }
+  const state = {
+    tiles: undefined as GPUBuffer | undefined,
+    revision: 0,
+    pyramid: cull.group(),
+  }
   const grids = [view, world]
   /** The grid's group over the buffer and the lights it was last given, made again when either
    *  moved: a buffer the other grid's growth replaced is bound again by the next pass. */
@@ -161,12 +176,14 @@ function lightTiles(device: GPUDevice, layout: GPUBindGroupLayout, view: Grid, w
       world.packed[23] = cell
       upload(world)
     },
-    /** The render matrix (jitter included) and the eye, both absolute and in f64. */
+    /** The render matrix (jitter included) and the eye, both absolute and in f64, and the image's
+     *  cull (`cullView.ts`): the pyramid its pass reads and the numbers it cuts by. */
     update(
       viewProjection: ArrayLike<number>,
       eye: ArrayLike<number>,
       width: number,
       height: number,
+      depthCull: LightGridCull,
     ) {
       const { packed } = view
       packed.set(tileViewInverse(inverse, origin, viewProjection, eye, rows), 0)
@@ -176,11 +193,14 @@ function lightTiles(device: GPUDevice, layout: GPUBindGroupLayout, view: Grid, w
       packed[19] = view.tilesY
       packed.set(origin, 20)
       packed.set(rows, 24)
+      packed.set(depthCull.words, CULL_WORD)
+      state.pyramid = cull.group(depthCull.depth)
       upload(view)
     },
     /** Encodes the view grid's pass of image `frame`, one workgroup a column; its pool state is
      *  sampled after. */
-    encode: (encoder: GPUCommandEncoder, frame: number) => encodeGrid(view, bind, encoder, frame),
+    encode: (encoder: GPUCommandEncoder, frame: number) =>
+      encodeGrid(view, bind, encoder, frame, state.pyramid),
     /** Encodes the world grid's pass. */
     encodeWorld: (encoder: GPUCommandEncoder, frame: number) =>
       encodeGrid(world, bind, encoder, frame),
@@ -195,6 +215,7 @@ function lightTiles(device: GPUDevice, layout: GPUBindGroupLayout, view: Grid, w
         grid.uniform.destroy()
         grid.group = undefined
       }
+      cull.dispose()
       state.tiles?.destroy()
       state.tiles = undefined
     },

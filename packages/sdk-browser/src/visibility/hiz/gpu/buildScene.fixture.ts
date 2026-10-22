@@ -10,6 +10,9 @@ export type Scene = {
   maxLevels: number
   /** The nearest layer's build (`HIZ_NEAREST_BUILD`): the maximum, level 0 not copied. */
   nearest?: boolean
+  /** The nearest build keeps the planes (`HIZ_UNI.at.planes`), and writes the finished depth's
+   *  farthest layer beside it: the default; else it writes the nearest layer alone. */
+  planes?: boolean
 }
 
 export function layout(scene: Scene) {

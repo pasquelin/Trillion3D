@@ -8,8 +8,9 @@ import {
   packAtmosphere,
   type AtmosphereSun,
 } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
-import { SKY_RAYS } from '../../lighting/atmosphere/layout.ts'
-import { SKY_RAYS_PROGRAM } from '../../lighting/atmosphere/skyRaysWgsl.ts'
+import { SKY_CAPTURE, SKY_RAYS } from '../../lighting/atmosphere/layout.ts'
+import { DEFAULT_AIR_SHAPE } from '../../lighting/atmosphere/shape.ts'
+import { skyRaysProgram } from '../../lighting/atmosphere/skyRaysWgsl.ts'
 import { shaderRun } from './shaderRun.fixture.ts'
 
 const unpackHalves = (word: number) => [fromHalf(word & 0xffff), fromHalf(word >>> 16)]
@@ -38,10 +39,11 @@ export function skyByDirection(block: Float32Array, row = 40) {
     0, 0,
   ])
   const { skyRaysMain } = shaderRun<{ skyRaysMain: (id: number[]) => void }>(
-    SKY_RAYS_PROGRAM.code,
+    skyRaysProgram(DEFAULT_AIR_SHAPE).code,
     ['skyRaysMain'],
     {
       directLights: { atmosphere: blockRows(block), skyRays },
+      frame: { capture: [0, 0, 0, SKY_CAPTURE.altitudeKm] },
       transmittanceAt: () => [1, 1, 1],
       multiScatterAt: () => [0, 0, 0],
     },

@@ -103,6 +103,9 @@ export const SCREEN_PROBE_RULES = /* @__PURE__ */ (() =>
     nonNegative('screenProbeRadianceCacheSupersampleThreshold', 0.1),
     integer('screenProbeRadianceCacheMipmaps', 1, [1, 3]),
     flag('screenProbeRadianceCacheSkyVisibility', false),
+    flag('screenProbeSkipFoliageHits', true),
+    positive('screenProbeThicknessScaleWithoutField', 2, 'a finite number above 0'),
+    integer('screenProbeThicknessCertaintySteps', 4, [0, 64]),
   ] as const))()
 /** The field of one setting of the screen probes. */
 export type ScreenProbeField = keyof typeof SCREEN_PROBE_RULES
@@ -143,6 +146,8 @@ export type ScreenProbeSettings = LevelKnobs & {
   fastUpdateInverseFraction: number
   /** Whether the rays' directions follow the light (the importance sampling's second half). */
   importanceLighting: boolean
+  /** The linear steps along the ray past a hit that look for a thin feature (0 while foliage hits are skipped). */
+  thicknessCertaintySteps: number
 }
 
 /** Whether the short-range occlusion is searched and applied: its switch is on and its strength is above zero. */
@@ -234,5 +239,8 @@ export function resolveScreenProbes(values: ScreenProbeValues): ScreenProbeSetti
     fastUpdateInverseFraction: 1 / values.screenProbeFastUpdateFraction,
     importanceLighting:
       values.screenProbeImportanceSampling && values.screenProbeImportanceIncomingLighting,
+    thicknessCertaintySteps: values.screenProbeSkipFoliageHits
+      ? 0
+      : values.screenProbeThicknessCertaintySteps,
   }
 }

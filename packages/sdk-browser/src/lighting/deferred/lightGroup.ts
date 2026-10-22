@@ -2,7 +2,17 @@
  * THE LIGHT GROUP of a deferred program (`program.ts`): the frame's resources named, an absent one
  * by its stand-in, and the group made again only when one of them was replaced.
  */
-import { DEFERRED_BINDINGS, DEFERRED_FOG_BINDINGS } from './bindings.ts'
+import {
+  DEFERRED_BINDINGS,
+  DEFERRED_CLOUD_SHADOW_BINDINGS,
+  DEFERRED_FOG_BINDINGS,
+  DEFERRED_LIGHT_FUNCTION_BINDINGS,
+  DEFERRED_SKY_LIGHT_BINDINGS,
+} from './bindings.ts'
+import { cloudShadowBindEntries, type CloudShadowSet } from '../atmosphere/cloudShadowRead.ts'
+import { cloudShadowStandIn } from '../atmosphere/cloudShadowStandIn.ts'
+import { skyLightReadBindEntries, type SkyLightReadSet } from '../../modules/sky/skyLight/read.ts'
+import { skyLightStandIn } from '../../modules/sky/skyLight/standIn.ts'
 import { fogReadBindEntries, type FogRead } from '../fog/read.ts'
 import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
 import type { DeferredPlaceholders } from './setup.ts'
@@ -10,7 +20,7 @@ import { CONTRACT_SHADOW_BINDINGS } from '../direct/shadowBindings.ts'
 import type { ComposeInput } from './shaders.ts'
 import type { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import type { createCompositions } from './compositions.ts'
-import { sequentialEntries, namedEntries } from '../../gpu/core/computeBindings.ts'
+import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import type { DeferredBindings, DeferredSources, DirectLightResources } from './program.ts'
 
 /** A composition: its group, and the input its pipelines compose (`compositions`). */
@@ -41,6 +51,14 @@ export type ProgramParts = {
   compositions: Awaited<ReturnType<typeof createCompositions>>
 }
 
+/** The surfaces' entries: the colour layers and the word layers whole, each one binding, and the emission's. */
+const surfaceEntries = (surface: SurfaceBuffer): GPUBindGroupEntry[] =>
+  namedEntries(DEFERRED_BINDINGS, {
+    colours: surface.stores()[0],
+    emissiveAo: surface.views()[2],
+    words: surface.stores()[1],
+  })
+
 /** The program's `bind`: names the frame's resources, an absent one by its stand-in, and rebuilds
  *  the light group only when one of them was replaced. */
 export function bindLight(
@@ -59,11 +77,14 @@ export function bindLight(
     maskTiles = direct.vsmMaskTiles ?? placeholders.vsmMaskTiles,
     through = direct.vsmThrough ?? placeholders.vsmThrough,
     probes = direct.probes,
-    receiver = direct.receiver ?? placeholders.receiver,
     reflection = direct.reflection ?? placeholders.reflection,
     fog = direct.fog ?? placeholders.fog,
+    lightShaft = direct.lightShaft ?? placeholders.lightShaft,
     screen = direct.screenIndirect,
-    occlusion = direct.ambientOcclusion ?? placeholders.ambientOcclusion
+    occlusion = direct.ambientOcclusion ?? placeholders.ambientOcclusion,
+    lightFunction = direct.lightFunction ?? placeholders.lightFunction,
+    sky = direct.sky ?? skyLightStandIn(parts.device),
+    cloudShadow = direct.cloudShadow ?? cloudShadowStandIn(parts.device)
   state.boundHdr = hdr
   const { next } = state.identity
   next[0] = surface
@@ -71,18 +92,24 @@ export function bindLight(
   next[2] = tiles
   next[3] = mask
   next[4] = probes
-  next[5] = receiver
   next[6] = through
   next[7] = maskTiles
   next[8] = reflection
   next[9] = screen
   next[10] = fog
   next[11] = occlusion
+  next[12] = lightFunction
+  next[13] = lightShaft
+  next[5] = sky.cube
+  next[14] = sky.params
+  next[15] = cloudShadow.block
+  next[16] = cloudShadow.maps[0]
+  next[17] = cloudShadow.maps[1]
   state.boundSurface = surface
   if (reboundLight(state)) return
   state.boundFlags = surface.views()[3]
   const entries: GPUBindGroupEntry[] = [
-    ...sequentialEntries(surface.views()),
+    ...surfaceEntries(surface),
     ...namedEntries(DEFERRED_BINDINGS, { depth, view: { buffer: bindings.uniform } }),
   ]
   if (sources.direct) {
@@ -93,10 +120,13 @@ export function bindLight(
       mask,
       maskTiles,
       through,
-      receiver,
+      sky,
+      cloudShadow,
       reflection,
       fog,
+      lightShaft,
       occlusion,
+      lightFunction,
     }
     entries.push(...contractEntries(placeholders, surface, contract))
   }
@@ -142,14 +172,16 @@ function contractEntries(
     mask: GPUTextureView
     maskTiles: GPUTextureView
     through: GPUTextureView
-    receiver: GPUTextureView
+    sky: SkyLightReadSet
+    cloudShadow: CloudShadowSet
     reflection: GPUTextureView
     fog: FogRead
+    lightShaft: GPUTextureView
     occlusion: GPUTextureView
+    lightFunction: GPUTextureView
   },
 ): GPUBindGroupEntry[] {
   return [
-    { binding: DEFERRED_BINDINGS.receiver, resource: r.receiver },
     { binding: DEFERRED_BINDINGS.subsurface, resource: surface.subsurfaceView },
     { binding: DEFERRED_BINDINGS.lobes, resource: surface.lobesView },
     ...namedEntries(DEFERRED_BINDINGS, {
@@ -161,6 +193,9 @@ function contractEntries(
     { binding: DEFERRED_BINDINGS.transmissionResolve, resource: r.through },
     { binding: DEFERRED_BINDINGS.reflection, resource: r.reflection },
     { binding: DEFERRED_BINDINGS.ambientOcclusion, resource: r.occlusion },
-    ...fogReadBindEntries(DEFERRED_FOG_BINDINGS, r.fog),
+    { binding: DEFERRED_LIGHT_FUNCTION_BINDINGS.atlas, resource: r.lightFunction },
+    ...fogReadBindEntries(DEFERRED_FOG_BINDINGS, r.fog, r.lightShaft),
+    ...skyLightReadBindEntries(DEFERRED_SKY_LIGHT_BINDINGS, r.sky),
+    ...cloudShadowBindEntries(DEFERRED_CLOUD_SHADOW_BINDINGS, r.cloudShadow),
   ]
 }

@@ -7,6 +7,7 @@ import { enginePose } from '../../camera/world.ts'
 import { composesOffscreen } from '../../diagnostic/gpuVariant.ts'
 import type { WebgpuPagesCore } from '../backend/runtime.ts'
 import { rowWordsDropped } from '../../placement/rows/rowTargets.ts'
+import { distanceFieldsSubmitted } from '../../lighting/distanceField/frame.ts'
 
 /** A command buffer of the image, timed with its other parts when the image is sampled
  *  (`../../gpu/timing/encoder.ts`), never a capture's. */
@@ -60,9 +61,9 @@ function submittedReadbacks(rt: WebgpuPagesCore, published: boolean) {
   rt.lights.tiles?.submitted()
   rt.bounce.probes?.submitted()
   rt.gpu.reflection?.census.submitted()
-  rt.gpu.atmosphere?.submitted()
   rt.gpu.exposure?.submitted()
   vsmSubmitted(rt)
+  distanceFieldsSubmitted(rt)
 }
 
 export function submitColorCopy(

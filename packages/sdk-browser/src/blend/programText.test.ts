@@ -15,9 +15,10 @@ import { blendFrontShader } from './frontStageWgsl.ts'
 
 // Retaken when the vertex came to pass the item's history share code above the triangle's rank
 // (`TRI_GIVEN_UP_SHIFT`), the page reads drew a voxel row's bricks as boxes (`voxelWgsl.ts`), and
-// the lobed vertex took the one texture set past the first its maps name (`channelsAlt`). Its text
-// holds no clipping code: a view with a plane draws with a module of its own (`clipping`).
-const VERTEX = 'a113a179c0e0aed0afd72307ae4c456336a5cf0c3599e5b6474a414902ea8dca'
+// the lobed vertex took the one texture set past the first its maps name (`channelsAlt`), the view
+// came to hold the pre-exposure every light is written multiplied by (`preExposure`), and a view with
+// a plane draws with a module of its own (`clipping`): its text holds no clipping code.
+const VERTEX = 'e2ba8300621ede614f51709a2e74dd74976ac408a35d5df8936d50d45fd53566'
 // Retaken when the blend module took that vertex, the per-material history share it writes for
 // the temporal pass where its material gives the history up, and the stored tangents' frame in a
 // module of its own (`tangentFrameWgsl.ts`) for the normal map and the lobes both, and then the
@@ -33,15 +34,20 @@ const VERTEX = 'a113a179c0e0aed0afd72307ae4c456336a5cf0c3599e5b6474a414902ea8dca
 // (`distanceAlong`), the one rule its neighbours' filter reads them by too, and then the fog's height
 // law came to be written over a ray apart from its point (`heightFogAlong`), for the sky's ray that
 // leaves the scene (`fogBeyond`), and then the fog read whether an atmosphere shows by one text, and
-// gained the test of a background no sky is drawn on (`fogsBackground`), and then the fog's cubemap,
+// gained the test of a background no sky is drawn on (`fogsBackground`), and then the reflections'
+// screen march came to be two walks of the depth pyramid, picked by its levels uniform
+// (`screenMarch`, `hizTrace`), and then the reflection view's block gained the share of a surface's
+// depth the reference walk takes for its thickness (`thickness`), and then the fog's cubemap,
 // volume and sampler were bound in the module and read where a pixel is fogged (`fogResourcesWgsl`),
 // the volume's view being read from the light buffer, and the casters' memory, the blue noise and the
-// front's radiance became read-only storage textures read by load (`loadOnlyTarget`), and then the fog
+// front's radiance became read-only storage textures read by load (`loadOnlyTarget`), and then the
+// layers came to write their light multiplied by the pre-exposure (`preExposed`), the sum clipped after it
+// (`preExposedClipped`), and the sky light's cubes joined the reflection group, and then the fog
 // started its ray at the view's clip plane (`heightFogAlong`, the plane in the fog's view block), and
 // then took the fog's switches, its lobe and its observer from that block, and a light record its
 // share in the volume (`DirectLight.volume`), and then the reflections' field stage held a ray's answer to a ceiling
 // (`reflectionClampRay`) and read the trace's settings from the view (`reflectionView.lobe`, `.taps`, `.denoise`).
-const BLEND = 'f4a4b7f1808ff403763a144d457f58b7ed3ea4f1d2d873fa90c6a88d98a1a2b0'
+const BLEND = 'dc960cb1edde5f3a8232bc28b40ce15f12458bd6394d5a52ae9bfa632f05b20a'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */

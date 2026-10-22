@@ -2,7 +2,6 @@
 // 20 × 12 × 8 cells and a view of 160 × 90 pixels (`fogScatter.test.ts`, `fogLights.test.ts`).
 import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { FOG_SLOT, FOG_SLOTS } from '../../../sdk-core/src/scene/core/fog.ts'
-import { SKY_SLOT, SKY_SLOTS } from '../../../sdk-core/src/scene/core/environmentSky.ts'
 import { ATMOSPHERE_SLOTS } from '../../../sdk-core/src/scene/core/atmospherePack.ts'
 import { FOG_PROGRAMS } from './fog/programs.ts'
 import {
@@ -32,7 +31,8 @@ export const SUN: Light = {
   positionRange: [0, 0, 0, 0],
   colorIntensity: [1, 0.5, 0.25, 4],
   directionCone: [0, -1, 0, -2],
-  params: [2, -1, 0, -2],
+  // The record's lanes: kind word (a sun: rank 2 and its shadows-the-fog flag), shadow slot, the share the fog scatters, inner cone.
+  params: [10, -1, 1, -2],
   shape: [0, 0, 0, 0],
   capsule: [0, 0, 0, 0],
 }
@@ -47,11 +47,13 @@ export function scatter(
     falloff?: number
     sunRank?: number
     sky?: number[]
+    /** The share of the sky light the fog scatters (the sky block's first `w`): 1 unless given. */
+    skyShare?: number
     /** Whether the scene has a sky light, where `sky` gives its irradiance: yes by default. */
     skyLight?: boolean
     /** The fog's own colour, for a medium lit by it (`useFogColors`). */
     fogColor?: number[]
-    /** What every shadow read gives, 1 by default, and the kinds of the lights it was asked for. */
+    /** What every shadow read gives, 1 by default, and the lane 0 of the lights it was asked for. */
     shade?: number
     shadowReads?: number[]
     volumetric?: Parameters<typeof image>[1]
@@ -78,7 +80,7 @@ export function scatter(
   const cam = world.camera ?? (world.drawn ? camera(EYE, ...world.drawn) : CAM)
   const before = world.previousEye ? camera(world.previousEye, ...(world.drawn ?? [160, 90])) : cam
   const previous = world.before
-    ? { viewProj: before.viewProj, width: before.width, height: before.height }
+    ? { viewProj: before.viewProj, width: before.width, height: before.height, preExposure: 1 }
     : undefined
   const img = image(
     cam,
@@ -86,12 +88,10 @@ export function scatter(
     { ...PLAIN, ...world.settings },
     { sunRank: world.sunRank ?? -1, previous, resource: image(CAM).grid },
   )
-  const block = emptyLights({ fog: FOG_SLOTS, sky: SKY_SLOTS, atmosphere: ATMOSPHERE_SLOTS })
+  const block = emptyLights({ fog: FOG_SLOTS, atmosphere: ATMOSPHERE_SLOTS })
   block.fog[FOG_SLOT.law] = [density, falloff, 0, 1]
   block.fog[FOG_SLOT.second] = [world.second ?? 0, 0, 0, 0]
   if (world.fogColor) block.fog[FOG_SLOT.color] = [...world.fogColor, 0]
-  if (world.sky) block.sky[SKY_SLOT.irradiance] = [...world.sky, 0]
-  if (world.sky && world.skyLight !== false) block.sky[SKY_SLOT.upper] = [0, 0, 0, 1]
   block.count = lights.length
   block.items = lights
   const out = table()
@@ -108,10 +108,24 @@ export function scatter(
     fogSampler: {},
     fogCubemap: {},
     fogScattering: out,
+    fogVoxelIn: table(),
+    fogVoxelEmitIn: table(),
+    // The static term's volume is not read: the frame says no pass wrote it.
+    fogStaticIn: table(),
     shadowFactor: (_slice: number, light: Light) => (
       world.shadowReads?.push(light.params[0]),
       world.shade ?? 1
     ),
+    // No light function in the cell: every light as it is (`lightFunctionReadWgsl` has its own proofs).
+    lightFunctionOf: () => [1, 1, 1],
+    // The sky light: its diffuse light along any direction (`skyLightDiffuseSimple`), the scattering intensity it
+    // lights the volume by (none where the scene has no sky light), whether one shines.
+    skyLightApplied: () => !!world.sky && world.skyLight !== false,
+    skyLightScattering: () => (world.skyLight === false ? 0 : (world.skyShare ?? 1)),
+    skyLightDiffuseSimple: () => world.sky ?? [0, 0, 0],
+    // No clouds' shade over the sun.
+    cloudShadowOnSurface: () => 1,
+    lightFunctionFogLocalOf: () => [1, 1, 1],
     textureSampleLevel: (_t: unknown, _s: unknown, uvw: number[]) => (
       world.sampled?.push(uvw),
       world.previous ?? [0, 0, 0, 0]

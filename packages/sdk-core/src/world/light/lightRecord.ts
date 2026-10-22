@@ -8,6 +8,10 @@ import {
 import { SHADOW_DISTANCE_DEFAULT } from '../../contracts/shadowOptions.ts'
 import { Vector3 } from '../math/vector3.ts'
 import { Light } from './light.ts'
+import * as lightFunction from './lightFunctionSettings.ts'
+import * as lightShaft from './lightShaftSettings.ts'
+import * as lightCloudShadow from './lightCloudShadowSettings.ts'
+import { recordColourAndAir } from './lightAirSettings.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 
 /** The kinds that are lamps — a position or a direction the engine's light store holds. */
@@ -56,6 +60,12 @@ export function lampRecord(
     intensity: light.intensity,
     castsShadow: lampCastsShadow(light),
   }
+  if (light.fogScattering !== 1) record.fogScattering = light.fogScattering
+  recordColourAndAir(light, record)
+  if (light.shadowsFog !== (kind === 'directional')) record.shadowsFog = light.shadowsFog
+  lightFunction.record(light, record)
+  lightShaft.record(light, record)
+  lightCloudShadow.record(light, record)
   if (rectangle) {
     light.getWorldDirection(aim)
     const m = light.matrixWorld.elements
@@ -97,73 +107,19 @@ function writeSource(record: SceneLight, light: Light, range: number) {
   record.emitterAxis = right.set(m[4], m[5], m[6]).normalize().toArray()
 }
 
-/** What a sky light sees of the sky: the atmosphere's radiance as the engine captured it — nine
- *  coefficients of it, none yet — when the scene has an atmosphere, else the flat colour behind
- *  the scene, linear. */
-export interface SkySource {
-  /** Whether the scene has an atmosphere: the sky is then the captured one. */
-  atmosphere: boolean
-  /** The radiance coefficients of the atmosphere's upper sky (27 numbers), once captured. */
-  captured?: ArrayLike<number>
-  /** The scene's background colour, linear: the sky of a scene without an atmosphere. */
-  background: readonly number[]
-}
-
-/** The axis a sky light's two halves are cut along: the scene's up. */
-const ZENITH = [0, 1, 0]
-
-/** A sky light's irradiance: the sky above, its `groundColor` below. The captured atmosphere is
- *  radiance coefficients (`addIrradianceCoefficients` lays them in, a colour's channels scaling
- *  each); a flat sky is a hemisphere of that radiance, `π L` of irradiance on a normal facing it. */
-function addSkyIrradiance(light: Light, sh: IrradianceSum, source: SkySource) {
-  const { intensity, color } = light
-  const tint = [color.r * intensity, color.g * intensity, color.b * intensity]
-  const lower = light.groundColor.toArray().map((c) => c * intensity * Math.PI)
-  if (!source.atmosphere) {
-    const upper = source.background.map((c, i) => c * tint[i] * Math.PI)
-    addHemisphereIrradiance(sh, upper, lower, ZENITH)
-    return
-  }
-  const { captured } = source
-  if (captured) for (let k = 0; k < captured.length; k++) sh[k] += captured[k] * tint[k % 3]
-  addHemisphereIrradiance(sh, [0, 0, 0], lower, ZENITH)
-}
-
-/**
- * Adds what the sky light `light` shows a ray that leaves the scene to `upper` and `lower`, three
- * numbers each (`SceneSky`): above the horizon its colour times its intensity — a factor of the
- * atmosphere's sky, or with no atmosphere that factor of the sky's own colour, the background —,
- * below it its `groundColor` times its intensity (black by default). Returns whether it added any:
- * not a sky light, or one giving nothing, adds none.
- */
-export function addSkyRadiance(light: Light, source: SkySource, upper: number[], lower: number[]) {
-  if (light.kind !== 'sky' || !(light.intensity > 0)) return false
-  const { intensity, color, groundColor } = light
-  const tint = [color.r * intensity, color.g * intensity, color.b * intensity]
-  const ground = groundColor.toArray()
-  for (let c = 0; c < 3; c++) {
-    upper[c] += source.atmosphere ? tint[c] : source.background[c] * tint[c]
-    lower[c] += ground[c] * intensity
-  }
-  return true
-}
-
 /**
  * Adds what `light` gives from every direction — its irradiance, a function of the normal alone —
  * to the nine coefficients `sh` (`scene/core/environment.ts`): an ambient its colour times
  * intensity everywhere; a sky over a ground (`hemisphere`) its colour on normals toward its
  * position seen from the origin and `groundColor` on the opposite ones; a probe its coefficients,
- * or its colour everywhere when it carries none; a sky light the sky `sky` describes above and
- * its `groundColor` below (black by default). A lamp adds nothing here; whether the light is
- * shown is the caller's to decide, as for `lampRecord`. Returns whether it added anything.
+ * or its colour everywhere when it carries none. A lamp adds nothing here, nor does a sky light: the
+ * sky module's sky light lights the scene by the cube it captures (`modules/sky/skyLight`). Whether the
+ * light is shown is the caller's to decide, as for `lampRecord`. Returns whether it added anything.
  */
-export function addLightIrradiance(light: Light, sh: IrradianceSum, sky?: SkySource) {
+export function addLightIrradiance(light: Light, sh: IrradianceSum) {
   if (!(light.intensity > 0)) return false
   const scale = light.intensity
-  if (light.kind === 'sky') {
-    if (!sky) return false
-    addSkyIrradiance(light, sh, sky)
-  } else if (light.kind === 'probe' && light.sh) addIrradianceCoefficients(sh, light.sh, scale)
+  if (light.kind === 'probe' && light.sh) addIrradianceCoefficients(sh, light.sh, scale)
   else if (light.kind === 'ambient' || light.kind === 'probe')
     addUniformIrradiance(sh, scaled(light.color, scale))
   else if (light.kind === 'hemisphere') {
@@ -202,8 +158,17 @@ export function lightFromRecord(record: SceneLight): Light {
     shadowDistance: record.shadowDistance,
     atmosphereSun: record.atmosphereSun,
     atmosphereSunIndex: record.atmosphereSunIndex,
+    useTemperature: record.useTemperature,
+    temperatureKelvin: record.temperatureKelvin,
+    shadowsAir: record.shadowsAir,
+    transmittancePerPixel: record.transmittancePerPixel,
+    sunDiskTint: record.sunDiskTint,
+    fogScattering: record.fogScattering,
+    shadowsFog: record.shadowsFog,
     softRadius: record.emitterSoftRadius,
     tubeLength: record.emitterLength,
+    ...lightShaft.fromRecord(record),
+    ...lightCloudShadow.fromRecord(record),
   })
   node.name = record.id
   // A tube lies along the node's own up: turned there from the scene's.

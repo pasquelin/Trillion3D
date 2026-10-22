@@ -2,6 +2,7 @@ import { allocPyramid, encodeHizPyramid, type Pyramid } from './pyramid.ts'
 import { hizUniformSlots } from './uniforms.ts'
 import { HIZ_LEVELS } from './pyramidTexture.ts'
 import { createHizPipelines } from './pipelines.ts'
+import { encodePrimedLayer } from './primed.ts'
 import { destroyAll } from '../../../gpu/core/errorScope.ts'
 import type { GpuHiz } from './types.ts'
 import type { OpenPass } from '../../../gpu/core/lazyComputePass.ts'
@@ -9,6 +10,7 @@ import {
   bindHiz,
   hizExtent,
   hizFront,
+  hizPlanes,
   hizResize,
   installHiz,
   type HizPipelines,
@@ -100,10 +102,12 @@ function hizApi(h: HizState, first: Pyramid): GpuHiz {
     // A whole layer, four mips per dispatch (`buildHiz`), in the frame's compute pass.
     encodePyramid: (open) => encodeLayer(h, open, h.buildPipeline),
     encodeNearest: (open) => encodeLayer(h, open, h.nearestPipeline),
+    encodePrimed: (open, push) => encodePrimedLayer(h, open, push),
     levelTable: h.levelTable,
     extent: (drawnWidth, drawnHeight) => hizExtent(h, drawnWidth, drawnHeight),
     pyramidView: () => (h.disposed ? undefined : h.at?.pyramidView),
     front: (wanted) => hizFront(h, wanted),
+    planes: (wanted) => hizPlanes(h, wanted),
     depth() {
       if (h.disposed) return undefined
       bindHiz(h)

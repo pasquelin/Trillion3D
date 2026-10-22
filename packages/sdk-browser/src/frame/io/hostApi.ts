@@ -25,6 +25,15 @@ export function refreshSceneLights(rt: WebgpuPagesRuntime) {
   })
 }
 
+/**
+ * The store of the objects voxelised into the fog's volume has changed. As for the lights, nothing is
+ * recomputed here: the next image reads the store, and the cached capture is invalidated.
+ */
+export function refreshFogVolumes(rt: WebgpuPagesRuntime) {
+  rt.capture.capturedRevision = -1
+  rt.run.gate.movedInPlace()
+}
+
 /** Re-renders the last camera once new pages arrived, unless a readback is holding the image. */
 export function syncResident(rt: WebgpuPagesRuntime) {
   const { run, gpu, capture } = rt

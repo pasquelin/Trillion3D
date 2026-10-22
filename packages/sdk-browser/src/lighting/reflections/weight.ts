@@ -18,6 +18,7 @@ import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { REFLECTION_FIELD_STAGE_WGSL } from './wgsl.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { REFLECTION_SAMPLE_WGSL } from './sampleWgsl.ts'
+import { SKY_READ_WGSL } from '../atmosphere/skyReadWgsl.ts'
 
 /** What a surface's lobes reflect: the base lobe's radiance and the clear coat's. */
 const REFLECTED_WGSL = wgslStruct('Reflected', [], 'struct Reflected{base:vec3f,coat:vec3f,}')
@@ -182,6 +183,7 @@ export const RESOLVED_INDIRECT_WGSL = wgslBlock(
   'RESOLVED_INDIRECT_WGSL',
   [
     resolvedReflectionWgsl,
+    SKY_READ_WGSL,
     REFLECTION_PROBES_LEFT_WGSL,
     AMBIENT_SPECULAR_OCCLUSION_WGSL,
     BOUNCE_APPLY_WGSL,
@@ -206,7 +208,7 @@ export const RESOLVED_INDIRECT_WGSL = wgslBlock(
  }
  let probes=surfaceProbesGathered(P,N,reflectionBaseLobe(N,V,rough));
  // The surroundings the trace left in the pixel give way to the probes where these hold the sky.
- let under=select(vec3f(0.0),min(probes[1].w,1.0)*skyRadiance(reflect(-V,N)),skyLit());
+ let under=select(vec3f(0.0),min(probes[1].w,1.0)*skyRadianceAt(reflect(-V,N),rough),skyLit());
  let diffuse=select(lambertDiffuse(rgb,metal,indirectGathered(probes[0],N),ao)*shortRange,screenDiffuse(rgb,metal,seen,ao),screened);
  let field=traced.rgb+(reflectionProbesShare(probes[1])-under)*reflectionWeight(f0Of(rgb,metal),rough,N,V)*lobeThrough();
  return mat2x3f(diffuse,field*ambientSpecularOcclusion(occluded,N,V,rough));

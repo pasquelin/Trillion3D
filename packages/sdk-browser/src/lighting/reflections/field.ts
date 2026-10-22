@@ -86,7 +86,7 @@ fn reflectionLevelTrust(level:f32,top:f32)->f32{return 1.0-smoothstep(top-1.0,to
 export const REFLECTION_LOBE_WGSL = wgslBlock(
   'REFLECTION_LOBE_WGSL',
   [REFLECTION_BANDS_WGSL, REFLECTION_CONE_WGSL, vectorRejection],
-  `struct ReflectionLobe{R:vec3f,T:vec3f,bands:vec3f,tangents:vec2f,}
+  `struct ReflectionLobe{R:vec3f,T:vec3f,bands:vec3f,tangents:vec2f,rough:f32,}
 fn reflectionLobeOf(R:vec3f,alpha:f32,lobe:vec4f)->ReflectionLobe{
  let s=reflectionBands(alpha);
  let ts=reflectionConeTangent(alpha);
@@ -95,7 +95,7 @@ fn reflectionLobeOf(R:vec3f,alpha:f32,lobe:vec4f)->ReflectionLobe{
  if(lobe.w!=alpha){t=reflectionBands(lobe.w);tt=reflectionConeTangent(lobe.w);}
  let across=vectorRejection(lobe.xyz,R);
  let T=across*inverseSqrt(max(dot(across,across),REFLECTION_FLOOR));
- return ReflectionLobe(R,T,vec3f(0.5*(s.x+t.x),(2.0*s.y+t.y)/3.0,(s.y-t.y)/3.0),vec2f(ts,tt));
+ return ReflectionLobe(R,T,vec3f(0.5*(s.x+t.x),(2.0*s.y+t.y)/3.0,(s.y-t.y)/3.0),vec2f(ts,tt),sqrt(alpha));
 }
 fn reflectionReadTangent(lobe:ReflectionLobe)->f32{return max(lobe.tangents.x,lobe.tangents.y/REFLECTION_TAPS);}`,
 )
@@ -112,8 +112,9 @@ export const REFLECTION_CLAMP_WGSL = wgslBlock(
 )
 
 /** The radiance around the scene (`reflectionEnvironment`), one rule: a ray along `R` that leaves
- *  the scene reaches what the scene's sky gives it in that direction (`skyRadiance`: the atmosphere's
- *  sky, a sky light's colour, its ground below the horizon), where the scene shows one; else what the
+ *  the scene reaches what the scene's sky gives it in that direction at the roughness `rough` of the
+ *  lobe it stands for, 0 for a ray (`skyRadianceAt`: the sky light's filtered cube, or an atmosphere's
+ *  sky without one), where the scene shows one; else what the
  *  screen draws in its direction, the background — the declared colour or the default one, drawn
  *  behind every image (the canvas is opaque) —, as the radiance the view's exposure and curve turn
  *  into it: the uniform radiance of the view's `surroundings`, which every lobe keeps whole. The
@@ -121,8 +122,8 @@ export const REFLECTION_CLAMP_WGSL = wgslBlock(
 export const REFLECTION_ENVIRONMENT_WGSL = wgslBlock(
   'REFLECTION_ENVIRONMENT_WGSL',
   [REFLECTION_VIEW_WGSL, SKY_READ_WGSL],
-  `fn reflectionEnvironment(R:vec3f)->vec3f{
- if(skyShown()){return skyRadiance(R);}
+  `fn reflectionEnvironment(R:vec3f,rough:f32)->vec3f{
+ if(skyShown()){return skyRadianceAt(R,rough);}
  return reflectionView.surroundings.rgb;
 }`,
 )

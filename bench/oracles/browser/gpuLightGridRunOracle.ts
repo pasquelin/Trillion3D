@@ -47,8 +47,6 @@ export function columnFrame(view: TileView, cell: [number, number], column: Plan
 
 /** `NEWTON_STEPS`: the steps each end of a light's run takes toward the sphere. */
 export const NEWTON_STEPS = 4
-/** `RUN_FRONT`, `RUN_BACK`: the factors a run's front and back depth are widened by. */
-export const RUN_MARGIN = [Math.fround(1 + 1 / 1024), Math.fround(1 - 1 / 1024)]
 
 /** `lightRun`: the run of slices a sphere may meet in the column, `null` for none. At depth `t`
  *  along the view axis the column's section is a rectangle whose edges are linear in `t`; the
@@ -66,7 +64,7 @@ export function lightRun(
   if (!(radius > 0)) return null
   if (radius > 3e38) return [0, grid.slices - 1]
   const [across, down, into] = frame.axes
-  const r = Math.fround(radius * 1.001)
+  const r = Math.fround(radius)
   const ct = dot(into, centre)
   const c = [dot(across, centre), dot(down, centre)]
   const R = Math.fround(r * r)
@@ -105,11 +103,9 @@ export function lightRun(
     hi = Math.fround(hi + Math.fround(Math.fround(R - at.value) / at.slope))
   }
   if (!(lo <= hi)) return null
-  // A depth a thousandth nearer at the front, farther at the back: never the neighbour's slice by
-  // a rounding of the depth the pixel reads.
-  const sliceAt = (t: number, margin: number) => {
+  const sliceAt = (t: number) => {
     const d = depthOf(view, add(centre, scale(into, Math.fround(t - ct))))
-    return d.w > 0 ? gridSlice(Math.fround(Math.fround(d.z / d.w) * margin), grid) : 0
+    return d.w > 0 ? gridSlice(Math.fround(d.z / d.w), grid) : 0
   }
-  return [sliceAt(lo, RUN_MARGIN[0]), sliceAt(hi, RUN_MARGIN[1])]
+  return [sliceAt(lo), sliceAt(hi)]
 }

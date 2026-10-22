@@ -99,7 +99,7 @@ test('an orthographic camera fitted to the picture keeps its fit across a save',
 test('another format version is refused, and the scene is left as it was', async () => {
   const scene = sceneWithLoads([])
   scene.add(object.group())
-  const saved = { ...scene.toJSON(), formatVersion: 3 }
+  const saved = { ...scene.toJSON(), formatVersion: 4 }
   await assert.rejects(scene.fromJSON(saved), { code: 'UNSUPPORTED_SCENE_FORMAT' })
   assert.equal(scene.children.length, 1)
 })
@@ -211,4 +211,66 @@ test('the air a directional light lights is saved: its index, and whether it is 
   )
   assert.deepEqual([moon.atmosphereSun, left.atmosphereSun, sun.atmosphereSun], [true, false, true])
   assert.deepEqual(again.toJSON(), saved)
+})
+
+test('a light’s temperature, and a sun’s disk tint and air switches, are saved', async () => {
+  const scene = sceneWithLoads([])
+  const sun = light.directional({
+    useTemperature: true,
+    temperatureKelvin: 4200,
+    shadowsAir: true,
+    transmittancePerPixel: true,
+    sunDiskTint: [1, 0.5, 0.25],
+  })
+  scene.add(sun, light.directional())
+  const saved = JSON.parse(JSON.stringify(scene.toJSON()))
+  const again = sceneWithLoads([])
+  await again.fromJSON(saved)
+  const [back, plain] = again.children as ReturnType<typeof light.directional>[]
+  assert.deepEqual(
+    [back.useTemperature, back.temperatureKelvin, back.shadowsAir, back.transmittancePerPixel],
+    [true, 4200, true, true],
+  )
+  assert.deepEqual(back.sunDiskTint.toArray(), [1, 0.5, 0.25])
+  assert.deepEqual(
+    [plain.useTemperature, plain.temperatureKelvin, plain.shadowsAir, plain.sunDiskTint.r],
+    [false, 6500, false, 1],
+    'a light that sets none is saved with none',
+  )
+  assert.deepEqual(again.toJSON(), saved)
+})
+
+test('the sky word is saved with the scene and read back', async () => {
+  const scene = sceneWithLoads([])
+  scene.sky = { clouds: false, sun: { intensity: 8 } }
+  const saved = scene.toJSON()
+  assert.deepEqual([saved.formatVersion, saved.sky], [3, { clouds: false, sun: { intensity: 8 } }])
+  assert.equal('fog' in saved || 'atmosphere' in saved, false, 'the old fields are not written')
+  scene.sky = null
+  await scene.fromJSON(saved)
+  assert.deepEqual(scene.sky, { clouds: false, sun: { intensity: 8 } })
+})
+
+test('a version 2 scene moves its air, fog and sky light into the sky module once', async () => {
+  const scene = sceneWithLoads([])
+  const pointer = light.point({ intensity: 1 })
+  scene.add(pointer)
+  const old = { ...scene.toJSON(), formatVersion: 2, fog: {}, atmosphere: { planetRadius: 6000 } }
+  const sky = { ...old.children[0], light: { ...old.children[0].light!, kind: 'sky' } }
+  sky.light.values = { ...sky.light.values, intensity: 2 }
+  await scene.fromJSON({ ...old, children: [sky] } as never)
+  assert.equal(scene.children[0].children.length, 0, 'the sky light node is a plain node now')
+  const word = scene.sky as Record<string, Record<string, unknown> | false>
+  assert.deepEqual(
+    [word.sun, word.clouds, (word.atmosphere as { planetRadius: number }).planetRadius],
+    [false, false, 6000],
+  )
+  assert.deepEqual(
+    word.heightFog,
+    { baseDensity: 0.002, baseHeight: 0 },
+    'the fog it had, not the level’s',
+  )
+  assert.equal((word.skyLight as { intensity: number }).intensity, 2)
+  await scene.fromJSON({ ...scene.toJSON(), sky: undefined, formatVersion: 2 })
+  assert.equal(scene.sky, null, 'a version 2 scene without the three has no sky module')
 })

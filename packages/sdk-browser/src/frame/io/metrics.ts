@@ -18,6 +18,12 @@ import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { bounceState } from '../backend/state/bounce.ts'
 import { viewTargetBytes } from '../backend/state/gpu.ts'
 import { disposeFogVolume } from '../render/encodeFogVolume.ts'
+import { disposeDistanceFields } from '../../lighting/distanceField/frame.ts'
+import { disposeVolumetricLightmap } from '../../lighting/volumetricLightmap/frame.ts'
+import { disposeLightShafts } from '../../modules/sky/lightShafts/frame.ts'
+import { disposeCloudView } from '../../modules/sky/clouds/viewTargets.ts'
+import { disposeSkyModule } from '../render/encodeCloudsSky.ts'
+import { releaseUnlitLights } from '../render/captureLights.ts'
 
 /** Geometry bytes beside the page pool: the float pool's three lists. */
 export function vertexBytesOf(
@@ -144,6 +150,8 @@ function disposeImagePasses(gpu: WebgpuPagesRuntime['gpu']) {
   gpu.atmosphere?.dispose()
   gpu.atmosphere = undefined
   disposeFogVolume(gpu)
+  disposeLightShafts(gpu)
+  disposeCloudView(gpu)
 }
 
 /** Releases every GPU resource and the scene; the trace queue is drained before the promise settles. */
@@ -160,6 +168,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   services.residency.quietPending()
   rt.rays?.dispose()
   rt.rays = undefined
+  disposeDistanceFields(rt)
+  disposeVolumetricLightmap(rt)
   timing.gpuTiming?.dispose()
   rt.vis.pooledDeformation?.table.destroy()
   rt.vis.pooledDeformation = undefined
@@ -185,6 +195,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   gpu.zeroUv = undefined
   capture.surfaceCapture?.dispose()
   disposeImagePasses(gpu)
+  disposeSkyModule(rt)
   rt.lights.tiles?.dispose()
   if (rt.lights.vsm) destroyEngineVsm(rt.lights.vsm)
   rt.lights.vsm = undefined
@@ -204,6 +215,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   disposeRootBoxes(rt)
   disposeTreeLeaves(rt)
   rt.lights.spheres = undefined
+  releaseUnlitLights(rt)
   rt.lights.buffer?.destroy()
   const closing = gpu.cache?.dispose()
   gpu.cache = undefined

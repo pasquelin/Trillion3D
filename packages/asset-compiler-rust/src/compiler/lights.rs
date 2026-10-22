@@ -161,18 +161,18 @@ fn scene_lights(
     Ok(report(lights, rejected, counts))
 }
 /// Compilation stage: lights come out as a cache product under their name, outside
-/// the manifest. Its version therefore does not move, and a reader that ignores
-/// this file reads the cache unchanged.
+/// the manifest, and as the document the bake of the volumetric lightmap reads. Its version
+/// therefore does not move, and a reader that ignores this file reads the cache unchanged.
 pub(crate) fn stage_scene_lights(
     scene: (&Value, &[u8], &[Mat4]),
     scene_nodes: Nodes<'_>,
     directory: &Path,
     progress: impl Fn(Value),
-) -> Result<Product> {
+) -> Result<(Product, Value)> {
     let lights = scene_lights(scene, scene_nodes)?;
     let written = product(directory, SCENE_LIGHTS_FILE, &serde_json::to_vec(&lights)?)?;
     progress(lights_event(&lights));
-    Ok(written)
+    Ok((written, lights))
 }
 
 /// The `lights` event: how many lights were kept, and the reasons the others were left out.

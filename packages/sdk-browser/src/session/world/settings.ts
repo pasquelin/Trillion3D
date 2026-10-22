@@ -11,13 +11,22 @@ import {
 import { RASTER_RULES } from '../../../../sdk-core/src/contracts/rasterOptions.ts'
 import { STREAMING_RULES } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
 import { WORLD_STREAMING_RULES } from '../../../../sdk-core/src/contracts/worldStreamingOptions.ts'
-import type { SettingRule } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import type { RegistryRule } from './ruledSwitches.ts'
 import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import { DYNAMIC_RESOLUTION_RULES } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
 import { ANIMATION_RULES } from '../../../../sdk-core/src/contracts/animationOptions.ts'
 import { SHADING_RULES } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import { EXPOSURE_RULES } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
+import {
+  SKY_QUALITY_RULES,
+  SKY_QUALITY_RULES_BY_GROUP,
+} from '../../../../sdk-core/src/modules/sky/quality.ts'
 import { TEMPORAL_RULES } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
+import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
+import { LIGHT_FUNCTION_RULES } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
+import { VOLUMETRIC_LIGHTMAP_RULES } from '../../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
+import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
+import { GLOBAL_DISTANCE_FIELD_RULES } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { MOTION_BLUR_RULES } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import { DEPTH_OF_FIELD_RULES } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
@@ -52,32 +61,32 @@ type RuleEntry<V> = V extends boolean
   : V extends number
     ? NumberSettingEntry
     : Omit<ChoiceSettingEntry, 'default' | 'choices'> & { default: V; choices: readonly V[] }
-/** The entry of one setting of a contract's rules (`SettingRule`), of the view distance's group
- *  unless `of` names another: its kind, default and range or names the rule's. A number `above` its
- *  range's start lies from the smallest number past it. */
-function ruleEntry(rule: SettingRule, of: QualityGroup) {
-  const group = base(of)
+/** The entry of one setting of a contract's rules (`RegistryRule`), of the quality group `quality`
+ *  (the view distance's by default): its kind, default and range or names the rule's. A number `above` its range's start lies from
+ *  the smallest number past it. */
+function ruleEntry(rule: RegistryRule, quality: QualityGroup = 'viewDistance') {
+  const group = base(quality)
   if (rule.kind === 'flag') return { kind: rule.kind, default: rule.default, ...group }
   if (rule.kind === 'choice')
     return { kind: rule.kind, default: rule.default, choices: rule.choices, ...group }
   const range = rule.above ? ([Number.MIN_VALUE, rule.range[1]] as const) : rule.range
   return { kind: rule.kind, default: rule.default, range, ...group }
 }
-/** The entries of the settings of a contract's rules by field, each setting by its field, in the
- *  quality group `of`: the view distance's, but the sun's shadows (`SHADOW_RULES`) in the shadows'. */
-const ruleEntries = <R extends Readonly<Record<string, SettingRule>>>(
+/** The entries of the settings of a contract's rules by field, each setting by its field. */
+const ruleEntries = <R extends Readonly<Record<string, RegistryRule>>>(
   rules: R,
-  of: QualityGroup = 'viewDistance',
+  group?: QualityGroup,
 ) =>
   Object.fromEntries(
-    Object.entries(rules).map(([field, rule]) => [field, ruleEntry(rule, of)]),
+    Object.entries(rules).map(([field, rule]) => [field, ruleEntry(rule, group)]),
   ) as unknown as { [F in keyof R]: RuleEntry<R[F]['default']> }
 
-/** The rules of every setting declared by rule, by field: the cluster raster's, the geometry
- *  streaming's, the partition's streaming and the HLOD warm-up's, the cut's, the animation's, the
- *  shading's, the exposure's, the temporal pass's — the view distance's group; the sun's shadows
- *  (`SHADOW_RULES`) are the shadows' group's. Both the table below and `RULE_FIELDS` read these
- *  objects, so no table is listed twice. */
+/** The rules of the settings declared by rule that belong to the view distance's group, by field:
+ *  the cluster raster's, the geometry streaming's, the partition's streaming and the HLOD warm-up's,
+ *  the cut's, the animation's, the shading's, the exposure's, the temporal pass's, the depth
+ *  pyramid's and the tessellation's. The sky's quality settings (`SKY_QUALITY_RULES_BY_GROUP`) and
+ *  the families written below with their group are in the groups the reference writes them in.
+ *  Both the table below and `RULE_FIELDS` read these, so no table is listed twice. */
 const RULES = {
   ...RASTER_RULES,
   ...STREAMING_RULES,
@@ -88,6 +97,11 @@ const RULES = {
   ...SHADING_RULES,
   ...EXPOSURE_RULES,
   ...TEMPORAL_RULES,
+  ...HIZ_RULES,
+  ...LIGHT_FUNCTION_RULES,
+  ...VOLUMETRIC_LIGHTMAP_RULES,
+  ...GLOBAL_DISTANCE_FIELD_RULES,
+  ...DISTANCE_FIELD_OCCLUSION_RULES,
   ...TESSELLATION_RULES,
 }
 
@@ -113,6 +127,9 @@ const WORLD_SETTINGS = {
   },
   bounce: flag(true, 'indirectLight'),
   ...ruleEntries(RULES),
+  ...ruleEntries(SKY_QUALITY_RULES_BY_GROUP.effects, 'effects'),
+  ...ruleEntries(SKY_QUALITY_RULES_BY_GROUP.imageEffects, 'imageEffects'),
+  ...ruleEntries(SKY_QUALITY_RULES_BY_GROUP.indirectLight, 'indirectLight'),
   // The sun's shadow distance, its far-shadow culling: the shadows' group, whose levels write the
   // distance's scale (`quality.ts`).
   ...ruleEntries(SHADOW_RULES, 'shadows'),
@@ -149,6 +166,7 @@ const WORLD_SETTINGS = {
  *  lists it (`quality.ts`). */
 export const RULE_FIELDS: ReadonlySet<string> = new Set([
   ...Object.keys(RULES),
+  ...Object.keys(SKY_QUALITY_RULES),
   ...Object.keys(SHADOW_RULES),
   ...Object.keys(VOLUMETRIC_FOG_RULES),
   ...Object.keys(MOTION_BLUR_RULES),
