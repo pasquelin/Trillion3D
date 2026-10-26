@@ -124,12 +124,20 @@ test('a readback that fits under the cap is never declared truncated', () => {
 test('the host reads the requests in the order the GPU wrote them, and ranks nothing', () => {
   // Each rank is a request's page, a whole word (`request/request.ts`): past the old twenty-two bits too.
   // The GPU wrote them in the order its threads won the counter (`shader/snapshotWgsl.ts`); the
-  // reader keeps that order, each priority at its page's rank: the host ranks them.
+  // requests keep that order, each priority at its page's rank: the host ranks them. The pages
+  // they name are listed in increasing order, so the same cut reads the same list every image.
   const requests = [70, 11, 2 ** 31 + 42, 8, 7]
   const reading = lire(readback([5, 0, 0, 0], requests, [9, 3, 0xffffffe0, 1, 5]))!
-  assert.deepEqual(reading.pageIds, requests)
+  assert.deepEqual(reading.pageIds, [7, 8, 11, 70, 2 ** 31 + 42])
   assert.deepEqual(reading.requests.pages, requests)
   assert.deepEqual(reading.requests.priorities, [9, 3, 0xffffffe0, 1, 5])
+})
+
+test('the same requests won in another order name the same pages in the same order', () => {
+  const first = lire(readback([4, 0, 0, 0], [30, 10, 20, 10]))!.pageIds.slice()
+  const again = lire(readback([4, 0, 0, 0], [10, 20, 10, 30]))!.pageIds.slice()
+  assert.deepEqual(first, [10, 10, 20, 30])
+  assert.deepEqual(again, first)
 })
 
 test('triangle totals are reread as the GPU posted them, no drawn counter beside them', () => {

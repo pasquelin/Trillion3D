@@ -40,6 +40,28 @@ export const copiedWords = (listCap: number) => countWord(listCap) + listCap
 /** The ranks being sorted, held from one readback to the next. */
 let sorting = new Uint32Array(0)
 
+/** A buffer of `count` ranks, the one the readbacks share, grown when it is short. */
+function sortingRun(count: number) {
+  if (sorting.length < count) sorting = new Uint32Array(Math.max(count, 2 * sorting.length))
+  return sorting.subarray(0, count)
+}
+
+/** `run` sorted as integers, copied into `into`, cut to its length. */
+function sortedInto(run: Uint32Array, into: number[]) {
+  run.sort()
+  for (let i = 0; i < run.length; i++) into[i] = run[i]
+  into.length = run.length
+  return into
+}
+
+/** `into` rewritten in increasing order, through the buffer the readbacks share: no list is
+ *  allocated. */
+export function sortRanks(into: number[]) {
+  const run = sortingRun(into.length)
+  for (let i = 0; i < run.length; i++) run[i] = into[i]
+  return sortedInto(run, into)
+}
+
 /** A list the GPU wrote behind a header at word `at`: its count, bounded by the `ranks` it holds —
  *  the kernel counts past them (`shader/finishWgsl.ts`) — and by what the readback holds, then its
  *  ranks, copied into `into` in increasing order. The cut writes the drawn pages in the order its
@@ -48,12 +70,8 @@ let sorting = new Uint32Array(0)
  *  is the pages' own. */
 export function readSortedList(ints: Uint32Array, at: number, into: number[], ranks: number) {
   const count = clamp(ints.length - at - SELECTION_HEADER_WORDS, 0, Math.min(ints[at] ?? 0, ranks))
-  if (sorting.length < count) sorting = new Uint32Array(Math.max(count, 2 * sorting.length))
   const start = at + SELECTION_HEADER_WORDS
-  const run = sorting.subarray(0, count)
+  const run = sortingRun(count)
   run.set(ints.subarray(start, start + count))
-  run.sort()
-  for (let i = 0; i < count; i++) into[i] = run[i]
-  into.length = count
-  return into
+  return sortedInto(run, into)
 }

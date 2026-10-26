@@ -33,7 +33,7 @@ export type PageResidency = { readonly length: number; flag(page: number): numbe
 type CutRequests = { pages: number[]; counts: number[]; priorities: number[] }
 export type SelectionResult = {
   requests: CutRequests
-  /** The packed pages the requests name, request after request: what the host's lists follow. */
+  /** The packed pages the requests name, in increasing order: what the host's lists follow. */
   pageIds: number[]
   frustumRejected: number
   lodLevel: number

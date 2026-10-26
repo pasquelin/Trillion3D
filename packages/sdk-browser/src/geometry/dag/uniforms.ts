@@ -15,6 +15,7 @@ import {
   PEAK_VISIBLE,
   SELECTION_HEADER_WORDS,
   readSortedList,
+  sortRanks,
 } from './readoutWords.ts'
 import type { SelectionResult, SelectionUniforms } from '../../gpu/core/selection.ts'
 import { twoPassOf } from './shader/occlusionWgsl.ts'
@@ -207,7 +208,9 @@ function writeOcclusion(target: Float32Array, ints: Uint32Array, uniforms: Selec
 /** The requests of a readback into `result`: each rank is a REQUEST — a leaf's first page, a whole
  *  word, in the order the GPU's threads asked them, its page count and its priority at the same
  *  rank of their lists (`request/request.ts`): the host ranks them. The pages they name follow,
- *  request after request, in `pageIds`.
+ *  request after request, in `pageIds`, then sorted: the requests keep the order the threads won
+ *  the counter, which differs from one image to the next though the cut does not, and the host's
+ *  lists compare their sequences (`../cut/adoption/delta.ts`).
  *
  *  Arrays written rank after rank, then cut to their length, and never sized ahead: an array whose
  *  length is set before its ranks are written holds holes from then on, and each of the reads that
@@ -239,6 +242,7 @@ function readRequests(
   }
   requests.pages.length = requests.counts.length = requests.priorities.length = count
   pageIds.length = pages
+  sortRanks(pageIds)
 }
 
 /** The cut's counters of a readback into `result`: what the GPU holds describes the cut, not the
