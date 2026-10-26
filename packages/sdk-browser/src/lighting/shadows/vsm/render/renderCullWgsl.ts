@@ -108,17 +108,20 @@ const cullBindingsText = /* wgsl */ `@group(1) @binding(0) var<uniform> params:V
 @group(1) @binding(4) var<storage,read_write> records:array<vec4u>;
 /**
  * Whether the raster emits the candidate's triangles in this map with corners 1 and 2 swapped, so
- * that a face toward the light is counter-clockwise on the framebuffer (\`vsmRenderVs\`). A
+ * that a face toward the light is counter-clockwise as the rasterizer reads it (\`vsmRenderVs\`). A
  * triangle's projected winding is its facing times the sign of D: for a perspective map, D = −det
  * of the UV matrix's u, v, w rows (the light at the shifted origin, those rows linear), for an
- * orthographic one det of its u, v, z rows (z toward the light, reversed Z); the page's NDC y and
- * the framebuffer's y each turn it once. Swapped where D < 0, against a row whose faces turn
- * (\`VSM_RENDER_CAND_FLIPPED\`); a two-sided row's second copy swaps once more.
+ * orthographic one det of its u, v, z rows (z toward the light, reversed Z); the page's NDC y turns
+ * it once, and the rasterizer reads the winding in NDC, its framebuffer flip not counted. Swapped
+ * where D > 0, against a row whose faces turn (\`VSM_RENDER_CAND_FLIPPED\`); a two-sided row's second
+ * copy swaps once more.
  */
 fn vsmRenderSwapped(m:mat4x4f,ortho:bool,flags:u32)->bool{
  let r3=select(vec3f(m[0].w,m[1].w,m[2].w),vec3f(m[0].z,m[1].z,m[2].z),ortho);
  let d=dot(vec3f(m[0].x,m[1].x,m[2].x),cross(vec3f(m[0].y,m[1].y,m[2].y),r3));
- return select(d>0.0,d<0.0,ortho)!=((flags&VSM_RENDER_CAND_FLIPPED)!=0u);
+ let perspectiveSwap=d<0.0;
+ let orthoSwap=d>0.0;
+ return select(perspectiveSwap,orthoSwap,ortho)!=((flags&VSM_RENDER_CAND_FLIPPED)!=0u);
 }
 /** Whether a map's mip view draws the candidate of shifted centre \`centre\` at its own level of
  *  detail: the engine's cut rule (\`drawsCompared\`) on its group's error and its parent's, projected

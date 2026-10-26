@@ -18,6 +18,9 @@ async function shot(device: GPUDevice, events: unknown[], receiver: Receiver, op
     sceneLights,
     pixelError: 1,
     shadowTranslucentQuality: 1,
+    // The three images are compared at one exposure: an automatic one brightens the shaded image.
+    exposureMethod: 'manual',
+    exposureApplyPhysicalCamera: false,
   })
   try {
     await backend.prepare()

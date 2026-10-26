@@ -161,7 +161,8 @@ const traceLightRaysText = (lone: boolean) => /* wgsl */ `
    let dir=vsmConeDirection(basis,s,noise4.xy);
    // The start, within the dither square across the light. A local ray's is moved along the light
    // onto the receiver's plane (its slope in the light's frame), never more than the cap, in the
-   // world; a sun ray's is moved in the map's UV once projected, and biased (\`vsmSunDitherBias\`).
+   // world; a sun ray's is moved in the map's UV once projected, and lifted to the centre of the
+   // texel it starts in (\`vsmSunDitherBias\`).
    var start=lightMap.pInMap;
    var uvOffset=vec2f(0.0);
    if(directional){
@@ -180,7 +181,7 @@ const traceLightRaysText = (lone: boolean) => /* wgsl */ `
    var bias=0.0;
    if(!directional){bias=vsmLocalPlaneBias(lightMap,rayStart,uvDepthSlope,biasCap);}
    else if(single){bias=vsmSunTapBias(lightMap,uvDepthSlope);}
-   else{bias=vsmSunDitherBias(lightMap,uvOffset,t0,uvDepthSlope);}
+   else{bias=vsmSunDitherBias(lightMap,rayStart,uvOffset,t0,uvDepthSlope);}
    var ray=vsmRayBegin(light,lightMap,rayStart,rayEnd,bias,uvOffset);
    var hitDepth=0.0;
    hit=vsmMarch(&ray,stepCount,stepOffset,&hitDepth);

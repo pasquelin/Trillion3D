@@ -365,8 +365,12 @@ off), `shadowSmrtMaxRayAngleFromLight` (0.03), `shadowSmrtExtrapolateMaxSlopeLoc
 `shadowSmrtRayLengthScaleDirectional` (1.5), and `shadowMarkPixelPagesMipModeLocal` (0: every mip; 1 the even ones;
 2 the odd ones). The sun ray's start dither is sized as the reference sizes it:
 a step in the clipmap level's UV, `0.5 / 16384 * scale * distance to the eye / 2^(level - bias)`, added to the ray's start UV
-once projected, with the plane bias `2 * max(0, dot(slope, step))` less what the start offset gained
-(`vsmSunDitherUv`, `vsmSunDitherBias`, `vsmRayLine`, `vsm/trace/traceRayWgsl.ts`); a local ray's stays the receiver's pixel size at the
+once projected, and lifted by the receiver plane's climb `2 * max(0, dot(slope, step))` to the centre of the texel the
+dithered start falls in, as a local ray and a sun's one tap are, less what the start offset gained: the receiver's own
+surface stored there is never in front of the ray's first sample. The reference lifts it over the dither step alone and
+leaves the half texel to its centre to the screen segment; where that segment stops at once, its start sample hits its own
+surface, acne in streaks on a lit face, still under a converged temporal pass (`vsmSunDitherUv`, `vsmSunDitherBias`,
+`vsmRayLine`, `vsm/trace/traceRayWgsl.ts`); a local ray's stays the receiver's pixel size at the
 map's bias.
 
 **The instance's cache state, per view.** The reference keeps, for each primitive view, two bit arrays: cached as dynamic, and

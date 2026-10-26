@@ -75,27 +75,48 @@ fn vsmSunDitherUv(pd:VsmProjectionData,distance:f32)->f32{
  if(!(scale>0.0)){return 0.0;}
  return (0.5/f32(VSM_LEVEL0_TEXELS))*scale*distance*VSM_CM_PER_UNIT/exp2(f32(pd.mapLevel)-pd.levelBias);
 }
-/** The bias of a sun ray whose start is moved \`offsetUv\` (a step in the map's UV) off its receiver, the start moved
- *  \`startOffset\` along the ray: the plane's lift over that step, its slope held to
- *  \`VSM_TRACE_PLANE_SLOPE_SUN\`, less the depth the start offset gained already (never below 0). */
-fn vsmSunDitherBias(m:VsmLightMap,offsetUv:vec2f,startOffset:f32,uvDepthSlope:vec2f)->f32{
- let slope=clamp(uvDepthSlope,vec2f(-VSM_TRACE_PLANE_SLOPE_SUN),vec2f(VSM_TRACE_PLANE_SLOPE_SUN));
- let gained=abs(startOffset*vsmProjectionData[m.handle.id].lightViewToClip[2][2]);
- return max(0.0,vsmPlaneLift(slope,offsetUv)-gained);
-}
 /** The plane's lift from a receiver to the centre of its texel \`texelXY\` (the receiver at
  *  \`texelPos\` of a map \`texels\` wide), held to \`cap\`. */
 fn vsmCentreLift(texelXY:vec2u,texelPos:vec2f,texels:u32,uvDepthSlope:vec2f,cap:f32)->f32{
  let toCentre=(vec2f(texelXY)+0.5-texelPos)/f32(texels);
  return min(cap,vsmPlaneLift(uvDepthSlope,toCentre));
 }
+/** The most a sun's receiver-plane lift reaches: \`VSM_TRACE_ONE_TAP_BIAS_CAP\` centimetres of the
+ *  depth the map of \`m\` spans. */
+fn vsmSunBiasCap(m:VsmLightMap)->f32{
+ return VSM_TRACE_ONE_TAP_BIAS_CAP*${CM}*abs(vsmProjectionData[m.handle.id].lightViewToClip[2][2]);
+}
+/** The bias of a sun ray started at \`rayStart\` (its receiver moved along the ray by the screen
+ *  segment) and moved \`offsetUv\` (a step in the map's UV) by its dither: the plane's lift from the
+ *  receiver to the centre of the texel the dithered start falls in, on the page that texel lies in,
+ *  held to \`vsmSunBiasCap\`, less the depth the start offset \`startOffset\` gained already (never
+ *  below 0). A receiver's own surface stored in that texel is never in front of the ray's first
+ *  sample: the rule of a local ray (\`vsmLocalPlaneBias\`) and of a sun's one tap
+ *  (\`vsmSunTapBias\`). Where no texel of the map holds the start, or a coarser level does, the lift is
+ *  the plane's over the dither step alone; the slope is held to \`VSM_TRACE_PLANE_SLOPE_SUN\`. */
+fn vsmSunDitherBias(m:VsmLightMap,rayStart:vec3f,offsetUv:vec2f,startOffset:f32,uvDepthSlope:vec2f)->f32{
+ let slope=clamp(uvDepthSlope,vec2f(-VSM_TRACE_PLANE_SLOPE_SUN),vec2f(VSM_TRACE_PLANE_SLOPE_SUN));
+ let gained=abs(startOffset*vsmProjectionData[m.handle.id].lightViewToClip[2][2]);
+ var lift=vsmPlaneLift(slope,offsetUv);
+ // The start as \`vsmRayLine\` places it: its projection held in the map's square, then dithered.
+ let startUv=saturate(perspectiveDivide(vsmProjectionData[m.handle.id].shiftedToMapUv*vec4f(rayStart,1.0)).xy)+offsetUv;
+ if(all(startUv==saturate(startUv))){
+  let page=vsmClipmapPage(m.handle,vsmPageKey(true,0u,startUv));
+  let t=vsmClipmapTexel(m.handle,page,startUv);
+  if(t.valid&&t.levelHandle.id==m.handle.id){
+   // The receiver's own place in the texels of that page (an affine map, valid off its page too).
+   let receiver=vsmClipmapTexel(m.handle,page,m.mapPoint.xy);
+   lift=vsmCentreLift(t.mapTexelXY,receiver.mapTexelPos,vsmTexelsAtLevel(0u),slope,vsmSunBiasCap(m));
+  }
+ }
+ return max(0.0,lift-gained);
+}
 /** The bias of a sun's one tap, which takes no ray: the plane's lift from the receiver to the
- *  centre of the texel its level maps it on, held to \`VSM_TRACE_ONE_TAP_BIAS_CAP\`. */
+ *  centre of the texel its level maps it on (\`vsmCentreLift\`), held to \`vsmSunBiasCap\`. */
 fn vsmSunTapBias(m:VsmLightMap,uvDepthSlope:vec2f)->f32{
  let t=vsmClipmapTexel(m.level,m.page,m.levelPoint.xy);
  if(!t.valid){return 0.0;}
- let cap=VSM_TRACE_ONE_TAP_BIAS_CAP*${CM}*abs(vsmProjectionData[m.handle.id].lightViewToClip[2][2]);
- return vsmCentreLift(t.mapTexelXY,t.mapTexelPos,vsmTexelsAtLevel(0u),uvDepthSlope,cap);
+ return vsmCentreLift(t.mapTexelXY,t.mapTexelPos,vsmTexelsAtLevel(0u),uvDepthSlope,vsmSunBiasCap(m));
 }`
 
 const rayBeginText = /* wgsl */ `
