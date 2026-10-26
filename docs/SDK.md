@@ -677,6 +677,7 @@ block-compressed textures, BC7, BC5 and BC6H, a quarter of those layers' memory,
 `1` is compression by writing through a view of another format, which WebGPU cannot do, so it compresses nothing; `0` never),
 `surfaceCacheAllowCardSharing` (`true`: cards of one mesh with the same
 materials, face and proportions copy one capture), `surfaceCacheAllowCardDownsampleFromSelf` (`true`),
+`surfaceCacheCaptureLodScaleFactor` (`1`: the view's pixel error over it is the error the pages are drawn at),
 `surfaceCacheResampleLighting` (`true`), `surfaceCacheDilationMode` (`0`: 1 the
 two-sided meshes, 2 all), `surfaceCacheDiffuseColorBoost` (`1`, up to `4`: the luminance of the albedo a read returns,
 raised to the power of its inverse) and `surfaceCacheFastCameraMode` (`false`: lower density, half the greatest resolution, twice the

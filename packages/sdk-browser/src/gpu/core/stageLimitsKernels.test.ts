@@ -29,6 +29,8 @@ import {
   COPY_WGSL,
   LIGHTS_WGSL,
   RESAMPLE_COMPRESSED_WGSL,
+  RESAMPLE_LIGHTING_COMPRESSED_WGSL,
+  RESAMPLE_LIGHTING_WGSL,
   RESAMPLE_WGSL,
   RESOLVE_WGSL,
 } from '../../lighting/surfaceCache/copyWgsl.ts'
@@ -100,8 +102,8 @@ test("the decode, the bins, the measure and the deformation fit WebGPU's default
 
 test("the surface cache's capture kernels and atlas view fit WebGPU's default limits", () => {
   // The kernels of an atlas, plain and compressed, and the viewer are built on their own layouts; the
-  // programs declare, beside, every binding they name — the resample's read library holds three layers
-  // of light it never reads, the clear of the blocks the pages' lists it does not use.
+  // programs declare, beside, every binding they name — the resamples' read library holds layers they never
+  // read, the clear of the blocks the pages' lists it does not use.
   const { device, pipelineLayouts: layouts } = fakeDevice()
   const kernels = [false, true].map((compressed) => createCaptureKernels(device, compressed))
   createAtlasViewer(device)
@@ -110,6 +112,8 @@ test("the surface cache's capture kernels and atlas view fit WebGPU's default li
     ['the resolve', RESOLVE_WGSL],
     ['the resample', RESAMPLE_WGSL],
     ['the resample of a compressed atlas', RESAMPLE_COMPRESSED_WGSL],
+    ['the resample of the light', RESAMPLE_LIGHTING_WGSL],
+    ['the resample of the light of a compressed atlas', RESAMPLE_LIGHTING_COMPRESSED_WGSL],
     ['the copy', COPY_WGSL],
     ['the copy of a compressed atlas', COPY_COMPRESSED_WGSL],
     ['the encoders of the blocks', ENCODE_WGSL],

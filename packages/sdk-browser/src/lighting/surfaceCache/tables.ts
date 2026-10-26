@@ -17,6 +17,7 @@ import type {
   IndexList,
   SurfaceCache,
 } from '../../../../sdk-core/src/lighting/surfaceCache/state.ts'
+import { resized } from '../../../../math/src/sequence/resized.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { NO_MESH_CARDS, TABLE_AT, TABLE_HEADER_WORDS } from './layout.ts'
 
@@ -26,9 +27,15 @@ import { NO_MESH_CARDS, TABLE_AT, TABLE_HEADER_WORDS } from './layout.ts'
  * table from a placement to its mesh cards — each as many records as its capacity, the header saying
  * where each begins (`TABLE_AT`). The CPU's cache (`SurfaceCache`) is the truth: what its passes
  * changed since the last image, listed in `cache.changes`, is written here — a record at a time,
- * the runs of neighbours in one write —, and the buffer is made again, larger, when a section's
+ * the runs of neighbours in one copy —, and the buffer is made again, larger, when a section's
  * capacity is passed: then every record is written. The records' layouts are the cache's own
  * (`cardRecords.ts`, `pageRecords.ts`).
+ *
+ * The records go up as a step of the image's commands, not before them: they are written to an upload
+ * buffer, and each run copied from it into the tables on the image's encoder (`SurfaceTables.update`).
+ * What the image encoded before reads the tables as they were — the capture's resample reads the cards it
+ * captures again so (`copy.ts`) —; what it encodes after reads them as they are. The upload buffer holds
+ * every update of an image, one after the other: all of them are written before the image's commands run.
  */
 
 /** The records a section holds at least. */
@@ -83,21 +90,6 @@ const sameCapacity = (a: Capacity, b: Capacity) =>
   a.pages === b.pages &&
   a.placements === b.placements
 
-/** A scratch the records are written in before they go up: its words as floats and integers. */
-function createScratch() {
-  let words: CardWords = { f32: new Float32Array(0), u32: new Uint32Array(0) }
-  return {
-    /** A scratch of at least `count` words. */
-    of(count: number) {
-      if (words.u32.length < count) {
-        const buffer = new ArrayBuffer(nextPow2(count) * 4)
-        words = { f32: new Float32Array(buffer), u32: new Uint32Array(buffer) }
-      }
-      return words
-    },
-  }
-}
-
 /** One past the largest index of `list`. */
 function endOf(list: IndexList) {
   let end = 0
@@ -120,31 +112,50 @@ const NONE = new Int32Array(0)
 const sortedOf = (list: IndexList) =>
   list.count ? Int32Array.from(list.list.subarray(0, list.count)).sort() : NONE
 
-/**
- * Writes the records `indices` of `section` into `buffer`: each run of consecutive indices in one
- * `writeBuffer`, from the scratch `scratch`.
- */
-function writeRuns(
-  device: GPUDevice,
-  buffer: GPUBuffer,
-  scratch: ReturnType<typeof createScratch>,
-  section: Section,
-  indices: ArrayLike<number>,
-) {
+/** What an update sends up: its words, one run after the other, and for each run where it goes in the
+ *  tables and how many words it is (`runs`: pairs). */
+function createUpload() {
+  let words: CardWords = { f32: new Float32Array(0), u32: new Uint32Array(0) }
+  let used = 0
+  const runs: number[] = []
+  return {
+    runs,
+    get used() {
+      return used
+    },
+    get words() {
+      return words.u32
+    },
+    clear() {
+      used = 0
+      runs.length = 0
+    },
+    /** The words of a run of `count` words that goes to word `to` of the tables, and where it starts in them. */
+    add(to: number, count: number) {
+      const u32 = resized(words.u32, used + count)
+      if (u32 !== words.u32) words = { f32: new Float32Array(u32.buffer), u32 }
+      runs.push(to, count)
+      const at = used
+      used += count
+      return { words, at }
+    },
+  }
+}
+
+type Upload = ReturnType<typeof createUpload>
+
+/** Adds the records `indices` of `section` to `upload`: each run of consecutive indices one run. */
+function writeRuns(upload: Upload, section: Section, indices: ArrayLike<number>) {
   let from = 0
   while (from < indices.length) {
     let to = from + 1
     while (to < indices.length && indices[to] === indices[to - 1] + 1) to++
     const count = to - from
-    const words = scratch.of(count * section.words)
-    for (let k = 0; k < count; k++) section.fill(words, k * section.words, indices[from + k])
-    device.queue.writeBuffer(
-      buffer,
-      (section.at + indices[from] * section.words) * 4,
-      words.u32.buffer,
-      0,
-      count * section.words * 4,
+    const { words, at } = upload.add(
+      section.at + indices[from] * section.words,
+      count * section.words,
     )
+    for (let k = 0; k < count; k++) section.fill(words, at + k * section.words, indices[from + k])
     from = to
   }
 }
@@ -226,36 +237,28 @@ type TableSections = ReturnType<typeof sectionsOf>
 /** Writes every record of the cache: what a buffer made again holds. A placement with no mesh cards
  *  reads as none, so every number of the table is written. */
 function writeAll(
-  device: GPUDevice,
-  scratch: ReturnType<typeof createScratch>,
+  upload: Upload,
   sections: TableSections,
-  gpu: GPUBuffer,
   cache: SurfaceCache,
   placements: number,
 ) {
-  writeRuns(device, gpu, scratch, sections.meshCards, allocatedOf(cache.meshCards))
-  writeRuns(device, gpu, scratch, sections.cards, allocatedOf(cache.cards))
+  writeRuns(upload, sections.meshCards, allocatedOf(cache.meshCards))
+  writeRuns(upload, sections.cards, allocatedOf(cache.cards))
   const held = allocatedOf(cache.pages)
-  writeRuns(device, gpu, scratch, sections.pageTable, held)
-  writeRuns(device, gpu, scratch, sections.cardPages, held)
+  writeRuns(upload, sections.pageTable, held)
+  writeRuns(upload, sections.cardPages, held)
   const ids = Array.from({ length: placements }, (_, id) => id)
-  writeRuns(device, gpu, scratch, sections.placements, ids)
+  writeRuns(upload, sections.placements, ids)
 }
 
 /** Writes the records the cache's passes changed since the last image. */
-function writeChanges(
-  device: GPUDevice,
-  scratch: ReturnType<typeof createScratch>,
-  sections: TableSections,
-  gpu: GPUBuffer,
-  { changes }: SurfaceCache,
-) {
-  writeRuns(device, gpu, scratch, sections.meshCards, sortedOf(changes.meshCards))
-  writeRuns(device, gpu, scratch, sections.cards, sortedOf(changes.cards))
+function writeChanges(upload: Upload, sections: TableSections, { changes }: SurfaceCache) {
+  writeRuns(upload, sections.meshCards, sortedOf(changes.meshCards))
+  writeRuns(upload, sections.cards, sortedOf(changes.cards))
   const pages = sortedOf(changes.pages)
-  writeRuns(device, gpu, scratch, sections.pageTable, pages)
-  writeRuns(device, gpu, scratch, sections.cardPages, pages)
-  writeRuns(device, gpu, scratch, sections.placements, sortedOf(changes.placements))
+  writeRuns(upload, sections.pageTable, pages)
+  writeRuns(upload, sections.cardPages, pages)
+  writeRuns(upload, sections.placements, sortedOf(changes.placements))
 }
 
 /** Writes the table's header into `header`. */
@@ -287,9 +290,11 @@ function writeHeader(
 /** What the tables keep between two images. */
 interface TableState {
   readonly device: GPUDevice
-  readonly scratch: ReturnType<typeof createScratch>
+  readonly upload: Upload
+  /** The header of this update, and the one the tables hold: sent only when they differ. */
   readonly header: Uint32Array<ArrayBuffer>
   readonly headerFloats: Float32Array
+  readonly sentHeader: Uint32Array
   readonly source: TableSource
   readonly sections: TableSections
   buffer: GPUBuffer | undefined
@@ -297,14 +302,36 @@ interface TableState {
   generation: number
 }
 
-/** Brings the buffer level with `cache` (`SurfaceTables.update`). */
+/** Sends what `upload` holds into the tables: the words in an upload buffer of their own, each run copied
+ *  from it on `encoder`; the upload buffer is retired, freed once the image is submitted. */
+function sendUpload(state: TableState, encoder: GPUCommandEncoder) {
+  const { upload, device } = state
+  const staging = device.createBuffer({
+    label: 'Trillion3D surface cache tables upload',
+    size: upload.used * 4,
+    usage: GPUBufferUsage.COPY_SRC,
+    mappedAtCreation: true,
+  })
+  new Uint32Array(staging.getMappedRange()).set(upload.words.subarray(0, upload.used))
+  staging.unmap()
+  const { runs } = upload
+  for (let k = 0, from = 0; k < runs.length; k += 2) {
+    encoder.copyBufferToBuffer(staging, from * 4, state.buffer!, runs[k]! * 4, runs[k + 1]! * 4)
+    from += runs[k + 1]!
+  }
+  retire(device, staging)
+  upload.clear()
+}
+
+/** Brings the buffer level with `cache` on `encoder` (`SurfaceTables.update`). */
 function updateTables(
   state: TableState,
   cache: SurfaceCache,
   preExposure: number,
   colorBoost: number,
+  encoder: GPUCommandEncoder,
 ): boolean {
-  const { device, scratch, source, sections } = state
+  const { device, upload, source, sections } = state
   const { changes } = cache
   const wanted = capacityFor(cache, endOf(changes.placements), state.capacity)
   const grown = !state.buffer || !state.capacity || !sameCapacity(wanted, state.capacity)
@@ -321,33 +348,39 @@ function updateTables(
   }
   source.cache = cache
   source.side = cache.atlasPages * PAGE_SIZE
-  const gpu = state.buffer!
   const placements = state.capacity!.placements
-  if (grown) writeAll(device, scratch, sections, gpu, cache, placements)
-  else writeChanges(device, scratch, sections, gpu, cache)
+  if (grown) writeAll(upload, sections, cache, placements)
+  else writeChanges(upload, sections, cache)
   changes.cards.clear()
   changes.meshCards.clear()
   changes.pages.clear()
   changes.placements.clear()
-  writeHeader(state.header, state.headerFloats, source, placements, preExposure, colorBoost)
-  device.queue.writeBuffer(gpu, 0, state.header)
+  const { header, headerFloats, sentHeader } = state
+  writeHeader(header, headerFloats, source, placements, preExposure, colorBoost)
+  if (grown || header.some((word, at) => word !== sentHeader[at])) {
+    const { words, at } = upload.add(0, TABLE_HEADER_WORDS)
+    words.u32.set(header, at)
+    sentHeader.set(header)
+  }
+  if (upload.used) sendUpload(state, encoder)
   return grown
 }
 
 /** The tables of a surface cache on the GPU. */
 export function createSurfaceTables(device: GPUDevice) {
-  const header = new Uint32Array(TABLE_HEADER_WORDS)
   /** What the records are written from. */
   const source: TableSource = {
     where: layoutOf({ meshCards: 0, cards: 0, pages: 0, placements: 0 }),
     cache: undefined as unknown as SurfaceCache,
     side: 0,
   }
+  const header = new Uint32Array(TABLE_HEADER_WORDS)
   const state: TableState = {
     device,
-    scratch: createScratch(),
+    upload: createUpload(),
     header,
     headerFloats: new Float32Array(header.buffer),
+    sentHeader: new Uint32Array(TABLE_HEADER_WORDS),
     source,
     sections: sectionsOf(source),
     buffer: undefined,
@@ -369,14 +402,19 @@ export function createSurfaceTables(device: GPUDevice) {
       return state.buffer?.size ?? 0
     },
     /**
-     * Brings the buffer level with `cache`: the records its passes changed are written and its
-     * header, the buffer made again where a section's capacity is passed. The table from a
-     * placement's number to its mesh cards' index is the cache's own (`SurfaceCache.placements`);
-     * `preExposure` is the number the light is kept multiplied by, `colorBoost` the boost of the
-     * diffuse colour. True when the buffer is another.
+     * Brings the buffer level with `cache`, as a step of `encoder`: the records its passes changed are
+     * copied in and its header, the buffer made again where a section's capacity is passed — the one it
+     * replaces holds the tables as they were until the image is submitted. The table from a placement's
+     * number to its mesh cards' index is the cache's own (`SurfaceCache.placements`); `preExposure` is the
+     * number the light is kept multiplied by, `colorBoost` the boost of the diffuse colour. True when the
+     * buffer is another.
      */
-    update: (cache: SurfaceCache, preExposure: number, colorBoost: number): boolean =>
-      updateTables(state, cache, preExposure, colorBoost),
+    update: (
+      cache: SurfaceCache,
+      preExposure: number,
+      colorBoost: number,
+      encoder: GPUCommandEncoder,
+    ): boolean => updateTables(state, cache, preExposure, colorBoost, encoder),
     dispose() {
       state.buffer?.destroy()
       state.buffer = undefined

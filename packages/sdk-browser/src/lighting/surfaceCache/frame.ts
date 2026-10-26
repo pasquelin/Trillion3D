@@ -48,7 +48,7 @@ import { cardShadingBytes, createCardShading, type CardShading } from './capture
 import type { CardRaster } from './capture/raster.ts'
 import { MOST_VIEWS, cardRasterBytes, createCardRaster } from './capture/cardRaster.ts'
 import { atlasCompression } from './compress.ts'
-import { createCaptureKernels, type CaptureKernels } from './copy.ts'
+import { createCaptureKernels, type CaptureKernels, type CaptureSettings } from './copy.ts'
 import { createAtlasViewer, type AtlasViewer } from './debug.ts'
 import { ATLAS_VIEWS } from './debugWgsl.ts'
 import { createSurfaceFeedback, type SurfaceFeedback } from './feedbackBuffer.ts'
@@ -66,11 +66,13 @@ import { createSurfaceTables, type SurfaceTables } from './tables.ts'
  * Each image of the main view, in the order of the passes: the placements follow the cut's roots
  * (`placements.ts`); the atlases are made at the size the settings ask, where the device's budget leaves
  * room (`atlases.ts`); the cache updates for the camera — which placements have mesh cards, which
- * pages of which cards are captured —, and what it changed goes to the GPU's tables (`tables.ts`);
+ * pages of which cards are captured —; the pages that copy another card's texels are filled, and the
+ * light each captured page's card held is carried into the capture atlas, from the tables as they were
+ * (`copy.ts`, its resample stage); what the update changed then goes to the GPU's tables (`tables.ts`);
  * the pages it captures are drawn by the raster of the cards' views (`capture/cardRaster.ts`) — every
  * page of the image, up to the captures an image is budgeted —, shaded (`capture/shade.ts`), resolved
- * to the cards' encodings, copied into the atlas and given their first light (`copy.ts`), in one compute
- * pass; a compressed atlas has its blocks copied in after it (`compress.ts`). A page the image did not
+ * to the cards' encodings, copied into the atlas and given the light they start with (`copy.ts`), in one
+ * compute pass; a compressed atlas has its blocks copied in after it (`compress.ts`). A page the image did not
  * draw stays pending (`Page.pending`): a read finds none there and goes on to the page above, and the
  * page is asked again. The cache makes no mesh cards' page until the raster can draw the placement.
  *
@@ -249,12 +251,37 @@ function askAgain(
 const viewCapacity = (settings: SurfaceCacheSettings) =>
   clamp(maxCapturesPerFrame(settings), 1, MOST_VIEWS)
 
+/** What the capture's kernels run with in this image. */
+const captureSettingsOf = (
+  state: SurfaceCacheFrameState,
+  preExposure: number,
+): CaptureSettings => ({
+  dilate: state.settings.surfaceCacheDilationMode === 2,
+  resample: state.settings.surfaceCacheResampleLighting,
+  radiosity: state.settings.surfaceCacheRadiosity,
+  preExposure,
+})
+
+/** The resample stage of the capture over the pages of the image, which reads the cards in `tables`
+ *  (`CaptureKernels.resample`). */
+function resample(
+  encoder: GPUCommandEncoder,
+  state: SurfaceCacheFrameState,
+  pages: readonly CapturePage[],
+  tables: GPUBuffer,
+  settings: CaptureSettings,
+) {
+  state.pass.begin(encoder)
+  state.kernels!.resample(state.pass, pages, { atlases: state.atlases!, tables }, settings)
+  state.pass.end()
+}
+
 /** Captures the pages of the image: drawn, shaded, resolved, copied. The account of it. */
 function capture(
   encoder: GPUCommandEncoder,
   state: SurfaceCacheFrameState,
   pages: readonly CapturePage[],
-  preExposure: number,
+  settings: CaptureSettings,
   eye: ArrayLike<number>,
 ) {
   const { cache, atlases, raster, shading, kernels } = state
@@ -284,11 +311,7 @@ function capture(
     state.pass,
     drawnPages,
     { atlases, tables: state.tables.buffer!, colours: shading.surfaces.stores()[0] },
-    {
-      dilate: state.settings.surfaceCacheDilationMode === 2,
-      resample: state.settings.surfaceCacheResampleLighting,
-      preExposure,
-    },
+    settings,
   )
   state.pass.end()
   kernels.copyBlocks(encoder, atlases)
@@ -485,6 +508,10 @@ function updateImage(
     state.busy = true
     return
   }
+  const preExposure = cachedLightingPreExposureOf(rt)
+  const colorBoost = 1 / state.settings.surfaceCacheDiffuseColorBoost
+  // The pages whose counters came back read from now on — the resample below among the readers.
+  state.tables.update(cache, preExposure, colorBoost, encoder)
   const work = updateSurfaceCache(cache, state.settings, {
     origins: [origin],
     orthographic: cam.perspective === 0,
@@ -493,19 +520,21 @@ function updateImage(
     ready: (placement) => raster.ready(placement),
     feedback: state.feedback.take(),
   })
-  const preExposure = cachedLightingPreExposureOf(rt)
-  state.tables.update(cache, preExposure, 1 / state.settings.surfaceCacheDiffuseColorBoost)
+  const settings = captureSettingsOf(state, preExposure)
   if (work.reset || !atlases.cleared) {
     atlases.clear(encoder)
     state.kernels?.clearBlocks(encoder, atlases)
     // Every page lost its light, and the radiosity's probes with it.
     if (state.lighting) state.lighting.historyLost = true
   }
+  // The pages' copied texels and carried light read the cards as they were, before the image's tables go up.
+  resample(encoder, state, work.pages, state.tables.buffer!, settings)
+  state.tables.update(cache, preExposure, colorBoost, encoder)
   const account = work.pages.length
-    ? capture(encoder, state, work.pages, preExposure, cam.eye)
+    ? capture(encoder, state, work.pages, settings, cam.eye)
     : NO_WORK
   // The pages the image confirmed read from now on (`confirmPages`).
-  state.tables.update(cache, preExposure, 1 / state.settings.surfaceCacheDiffuseColorBoost)
+  state.tables.update(cache, preExposure, colorBoost, encoder)
   if (state.shading?.failure)
     state.why = `the capture's shading could not be made: ${String(state.shading.failure)}`
   else if (raster.failure)

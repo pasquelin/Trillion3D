@@ -501,7 +501,9 @@ export function createCardRaster(
       const { params32 } = b
       params32.u[CARD_PARAMS.at.views] = n
       params32.u[CARD_PARAMS.at.rowCap] = b.rows
-      params32.f[CARD_PARAMS.at.threshold] = rt.run.gate.pixelError
+      // The pages are drawn at the view's pixel error over the capture's detail factor.
+      params32.f[CARD_PARAMS.at.threshold] =
+        rt.run.gate.pixelError / (rt.surfaceCache?.settings.surfaceCacheCaptureLodScaleFactor ?? 1)
       device.queue.writeBuffer(b.params, 0, params32.bytes)
       prepareDescent(d, b, tables, s.cut.pageCount)
       const g = groupsOf(d, b, s, tables)

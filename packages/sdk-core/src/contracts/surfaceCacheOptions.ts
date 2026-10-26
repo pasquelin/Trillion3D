@@ -6,6 +6,7 @@ import {
   integerSetting as integer,
   nonNegativeSetting as nonNegative,
   numberSetting as number,
+  positiveSetting as positive,
   rulesOf,
   type SettingOptions,
   type SettingValues,
@@ -56,8 +57,10 @@ import {
  * `surfaceCacheCardCaptureFactor` (64). A share `surfaceCacheCardCaptureRefreshFraction` (0.125) of
  * that budget captures pages again, the oldest first, to follow changes of the materials, and
  * `surfaceCacheCardCaptureEnableInvalidation` (on) lets a change of a mesh ask for the same at once.
- * `surfaceCacheResampleLighting` (on) carries the light of a page captured again into its new
- * texels, and `surfaceCacheDilationMode` (0) widens the captured data of a page by a texel: 0 never, 1 for
+ * The pages are drawn at the detail the view's pixel error asks, divided by
+ * `surfaceCacheCaptureLodScaleFactor` (1): above 1, finer clusters; under 1, coarser.
+ * `surfaceCacheResampleLighting` (on) carries the light a card held into its pages when they are captured
+ * again or made anew, which the radiosity's accumulation over images needs, and `surfaceCacheDilationMode` (0) widens the captured data of a page by a texel: 0 never, 1 for
  * the two-sided meshes, 2 for all. `surfaceCacheFastCameraMode` (off), for a camera that moves
  * fast, lowers the density to a fifth, halves the greatest resolution and doubles the captures.
  * `surfaceCacheDiffuseColorBoost` (1, up to 4) raises the luminance of the albedo a read of the cards returns
@@ -110,6 +113,7 @@ export const SURFACE_CACHE_RULES = /* @__PURE__ */ (() =>
     nonNegative('surfaceCacheMeshCardsMinSize', 10),
     flag('surfaceCacheMeshCardsCullFaces', true),
     number('surfaceCacheCardCaptureMargin', 0, ANY),
+    positive('surfaceCacheCaptureLodScaleFactor', 1),
     count('surfaceCacheNumFramesToKeepUnusedPages', 256, 0),
     integer('surfaceCacheCompress', 1, [0, 2]),
     count('surfaceCacheCardCapturesPerFrame', 300, 0),

@@ -29,7 +29,9 @@ import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
  * the same pages: the visibility of the raster (`ids`, the identifier of the nearest triangle of each
  * texel, 0 where none) and its depth (`depth`, the engine's reversed depth: 1 at the card's outer
  * face, 0 at its inner one), which the raster of the card views writes; then the albedo, normal and
- * emission the surfaces' shading makes of them, the same encodings as the atlas's.
+ * emission the surfaces' shading makes of them, the same encodings as the atlas's; and the light the
+ * pages held before the image, resampled into their new texels (`direct`, `indirect`, and `frames`, a word
+ * for each tile), which the copy of the light puts in the atlas.
  */
 
 /** The formats of the atlas's layers. */
@@ -86,6 +88,9 @@ export const CAPTURE_FORMATS = {
   albedo: 'rgba8unorm',
   normal: 'rgba8unorm',
   emissive: 'r32uint',
+  direct: 'r32uint',
+  indirect: 'r32uint',
+  frames: 'r32uint',
 } as const satisfies Record<string, GPUTextureFormat>
 
 /** The texels of a tile of the atlas: what the lighting's work and the capture's lists are cut in. */
@@ -126,14 +131,13 @@ export const NO_MESH_CARDS = 0xffffffff
  *  whose texels it takes. Four vectors of four words. */
 export const PAGE_ENTRY_WORDS = 16
 /** Bits of an entry's flags: a page that takes the texels of another card instead of being drawn, a
- *  copy that is read mirrored, a page whose texels dilate by one, a page mapped for this capture, whose
- *  atlas texels are another page's until it is captured, where a page captured again keeps its own and
- *  the light in them. */
-export const PAGE_FLAGS = { copy: 1, flipped: 2, dilate: 4, fresh: 8 } as const
+ *  copy that is read mirrored, a page whose texels dilate by one, a page whose card held pages before
+ *  the image, whose light is resampled into the page (`CapturePage.resampleLighting`). */
+export const PAGE_FLAGS = { copy: 1, flipped: 2, dilate: 4, resampleLighting: 8 } as const
 
 /** The parameters of the capture's kernels: the sides, the pages and tiles the dispatch is over — the
- *  tiles listed from `tileBase` —, whether a copied page's light is its emission (`resample`), the
- *  number the light is kept multiplied by and the inverse sides. */
+ *  tiles listed from `tileBase` —, whether the pages' light is resampled (`resample`), whether the
+ *  radiosity is on (`radiosity`), the number the light is kept multiplied by and the inverse sides. */
 export const CAPTURE_PARAMS = fieldLayout('CaptureParams', [
   ['captureSide', 'u32'],
   ['atlasSide', 'u32'],
@@ -144,7 +148,7 @@ export const CAPTURE_PARAMS = fieldLayout('CaptureParams', [
   ['preExposure', 'f32'],
   ['invAtlasSide', 'f32'],
   ['invCaptureSide', 'f32'],
-  ['padA', 'f32'],
+  ['radiosity', 'u32'],
   ['padB', 'f32'],
   ['padC', 'f32'],
 ] as const)

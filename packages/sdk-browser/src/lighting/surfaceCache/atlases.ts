@@ -78,6 +78,13 @@ function allocate(
     albedo: layer('capture albedo', captureSide, CAPTURE_FORMATS.albedo),
     normal: layer('capture normal', captureSide, CAPTURE_FORMATS.normal),
     emissive: layer('capture emission', captureSide, CAPTURE_FORMATS.emissive),
+    direct: layer('capture direct lighting', captureSide, CAPTURE_FORMATS.direct),
+    indirect: layer('capture indirect lighting', captureSide, CAPTURE_FORMATS.indirect),
+    frames: layer(
+      'capture radiosity frames',
+      Math.max(1, captureSide / TILE),
+      CAPTURE_FORMATS.frames,
+    ),
   }
   return { physical, capture }
 }

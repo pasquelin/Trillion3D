@@ -31,8 +31,9 @@ export const COMBINE_BINDINGS = {
 
 export const COMBINE_ENTRIES = ['combineDirect', 'combineIndirect'] as const
 
-/** A channel that is a number, no infinity: its exponent is not all ones. */
-const FINITE_WGSL = wgslBlock(
+/** A light none of whose channels is under zero, an infinity or not a number: such a channel is zero. The
+ *  capture's copy of the light (`../copyWgsl.ts`) shares it. */
+export const FINITE_LIGHT_WGSL = wgslBlock(
   'LIGHTING_FINITE_WGSL',
   [],
   `fn finiteLight(v:vec3f)->vec3f{
@@ -77,7 +78,7 @@ fn combineIndirect(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n
         tables: COMBINE_BINDINGS.tables,
         context: { binding: COMBINE_BINDINGS.context, access: 'read' },
       }),
-      FINITE_WGSL,
+      FINITE_LIGHT_WGSL,
       INVERSE_PI,
       packLight,
       unpackLight,

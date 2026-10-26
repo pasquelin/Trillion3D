@@ -17,6 +17,8 @@ import {
   COPY_WGSL,
   LIGHTS_WGSL,
   RESAMPLE_COMPRESSED_WGSL,
+  RESAMPLE_LIGHTING_COMPRESSED_WGSL,
+  RESAMPLE_LIGHTING_WGSL,
   RESAMPLE_WGSL,
   RESOLVE_WGSL,
 } from './copyWgsl.ts'
@@ -31,20 +33,44 @@ import {
 import { surfaceCacheReadLayoutEntries } from './sampleWgsl.ts'
 
 /**
- * THE CAPTURE'S KERNELS ON THE GPU (`copyWgsl.ts`): the pipelines of the four — five for a compressed
+ * THE CAPTURE'S KERNELS ON THE GPU (`copyWgsl.ts`): the pipelines of the five — six for a compressed
  * atlas —, and what an image gives them — the pages it captures, laid as a list of page entries and
  * the lists of the tiles of those pages each kernel works over, written to the buffers they read. The
- * kernels run in the order the capture needs: the shaded surfaces resolved to the cards' encodings,
- * the pages that copy another card's texels filled from the atlas as it was, then every page copied
+ * kernels run in two stages, in the order the capture needs. Before the image's tables go up
+ * (`resample`), over the tables as they were: the pages that copy another card's texels filled from
+ * the atlas, and the light each page's card held carried into the capture atlas. Then, after the raster
+ * and the shading (`encode`): the shaded surfaces resolved to the cards' encodings, every page copied
  * into the atlas — its depth alone, for a compressed atlas, whose other layers are blocks the
  * encoders (`compressWgsl.ts`) write to a staging buffer, which `copyBlocks` puts in the atlas after
- * the pass — and given its first light.
+ * the pass — and given the light it starts with. Each stage lays its pages in buffers of its own: both
+ * are written before the image's commands run.
  */
 
 const ro = 'read-only-storage' as const
 
 /** The kernels' names. `encode` is the compressed atlas's alone. */
-type Kernel = 'resolve' | 'resample' | 'copy' | 'encode' | 'lights'
+type Kernel = 'resample' | 'resampleLighting' | 'resolve' | 'copy' | 'encode' | 'lights'
+
+/** The stages: the kernels that run before the tables go up, and those after the shading. */
+type Stage = 'resample' | 'capture'
+/** The tiles a kernel works over: those of the pages drawn, of the pages that copy, of every page. */
+type Tiles = 'draw' | 'copy' | 'all'
+
+/** The stage of each kernel and the tiles it works over. */
+const KERNELS: Record<Kernel, { readonly stage: Stage; readonly tiles: Tiles }> = {
+  resample: { stage: 'resample', tiles: 'copy' },
+  resampleLighting: { stage: 'resample', tiles: 'all' },
+  resolve: { stage: 'capture', tiles: 'draw' },
+  copy: { stage: 'capture', tiles: 'all' },
+  encode: { stage: 'capture', tiles: 'all' },
+  lights: { stage: 'capture', tiles: 'all' },
+}
+
+/** The tile lists a stage lays, in order: the ones its kernels work over (`KERNELS`). */
+const LISTS_OF: Record<Stage, readonly Tiles[]> = {
+  resample: ['copy', 'all'],
+  capture: ['draw', 'all'],
+}
 
 /** A kernel's program and its entry points. */
 interface Program {
@@ -56,11 +82,15 @@ interface Program {
  *  the blocks, three entry points — one for each layer in blocks —, are the compressed atlas's alone. */
 function programsOf(compressed: boolean) {
   const kernels: Partial<Record<Kernel, Program>> = {
-    resolve: { code: RESOLVE_WGSL, entries: ['resolvePages'] },
     resample: {
       code: compressed ? RESAMPLE_COMPRESSED_WGSL : RESAMPLE_WGSL,
       entries: ['resamplePages'],
     },
+    resampleLighting: {
+      code: compressed ? RESAMPLE_LIGHTING_COMPRESSED_WGSL : RESAMPLE_LIGHTING_WGSL,
+      entries: ['resampleLightingPages'],
+    },
+    resolve: { code: RESOLVE_WGSL, entries: ['resolvePages'] },
     copy: { code: compressed ? COPY_COMPRESSED_WGSL : COPY_WGSL, entries: ['copyPages'] },
   }
   if (compressed) kernels.encode = { code: ENCODE_WGSL, entries: ENCODE_ENTRIES }
@@ -98,6 +128,13 @@ function layoutEntriesOf(compressed: boolean): Record<Kernel, GPUBindGroupLayout
       write(13, CAPTURE_FORMATS.emissive),
       write(14, CAPTURE_FORMATS.depth),
     ],
+    resampleLighting: [
+      ...surfaceCacheReadLayoutEntries(3, { feedback: false, compressed }),
+      computeTextureEntry(11, 'uint'),
+      write(12, CAPTURE_FORMATS.direct),
+      write(13, CAPTURE_FORMATS.indirect),
+      write(14, CAPTURE_FORMATS.frames),
+    ],
     copy: [
       ...captureLayers(),
       write(7, formats.depth),
@@ -107,21 +144,32 @@ function layoutEntriesOf(compressed: boolean): Record<Kernel, GPUBindGroupLayout
     ],
     encode: [...captureLayers(), computeBufferEntry(7, 'storage')],
     lights: [
-      computeTextureEntry(3, 'uint'),
-      write(4, formats.direct),
-      write(5, formats.indirect),
-      write(6, formats.final),
-      write(7, formats.frames),
+      computeTextureEntry(3, 'float'),
+      computeTextureEntry(4, 'uint'),
+      computeTextureEntry(5, 'uint'),
+      computeTextureEntry(6, 'uint'),
+      computeTextureEntry(7, 'uint'),
+      write(8, formats.direct),
+      write(9, formats.indirect),
+      write(10, formats.final),
+      write(11, formats.frames),
+      computeBufferEntry(12, ro),
     ],
   }
   for (const entries of Object.values(layouts)) entries.unshift(...lists)
   return layouts
 }
 
-/** What the kernels read beside the pages: the atlases, the tables, the capture's shaded surfaces. */
-export interface CaptureInputs {
+/** What the kernels that run before the tables go up read beside the pages: the atlases and the tables as
+ *  they were before the image. */
+export interface ResampleInputs {
   readonly atlases: SurfaceAtlases
   readonly tables: GPUBuffer
+}
+
+/** What the kernels after the shading read beside the pages: the atlases, the tables as they are, the
+ *  capture's shaded surfaces. */
+export interface CaptureInputs extends ResampleInputs {
   /** The colours of the surfaces the classes shaded (`CardShading.surfaces`). */
   readonly colours: GPUTextureView
 }
@@ -130,26 +178,33 @@ export interface CaptureInputs {
 export interface CaptureSettings {
   /** Whether every page dilates by a texel (`surfaceCacheDilationMode` 2). */
   readonly dilate: boolean
-  /** Whether a captured page starts with its emission as its light (`surfaceCacheResampleLighting`). */
+  /** Whether the light the pages' cards held is carried into the pages (`surfaceCacheResampleLighting`);
+   *  without it a captured page starts with no light. */
   readonly resample: boolean
+  /** Whether the radiosity is on (`surfaceCacheRadiosity`): its light and accumulation are carried too. */
+  readonly radiosity: boolean
   /** The number the light is kept multiplied by. */
   readonly preExposure: number
 }
 
 /** The bindings of each kernel's bind group after its parameters, the pages' entries and the tile lists: the resources it names. */
-function bindingsOf(inputs: CaptureInputs): Partial<Record<Kernel, GPUBindGroupEntry[]>> {
+function bindingsOf(
+  inputs: ResampleInputs | CaptureInputs,
+): Partial<Record<Kernel, GPUBindGroupEntry[]>> {
   const { atlases } = inputs
   const { physical: p, capture: c } = atlases
   const view = (resource: GPUTextureView, binding: number) => ({ binding, resource })
   return {
-    resolve: [
-      { binding: 3, resource: { buffer: inputs.tables } },
-      view(c.ids, 4),
-      view(inputs.colours, 5),
-      view(c.albedo, 6),
-      view(c.normal, 7),
-      view(c.emissive, 8),
-    ],
+    ...('colours' in inputs && {
+      resolve: [
+        { binding: 3, resource: { buffer: inputs.tables } },
+        view(c.ids, 4),
+        view(inputs.colours, 5),
+        view(c.albedo, 6),
+        view(c.normal, 7),
+        view(c.emissive, 8),
+      ],
+    }),
     resample: [
       { binding: 3, resource: { buffer: inputs.tables } },
       view(p.depth, 4),
@@ -163,6 +218,20 @@ function bindingsOf(inputs: CaptureInputs): Partial<Record<Kernel, GPUBindGroupE
       view(c.normal, 12),
       view(c.emissive, 13),
       view(c.depth, 14),
+    ],
+    resampleLighting: [
+      { binding: 3, resource: { buffer: inputs.tables } },
+      view(p.depth, 4),
+      view(p.albedo, 5),
+      view(p.normal, 6),
+      view(p.emissive, 7),
+      view(p.direct, 8),
+      view(p.indirect, 9),
+      view(p.final, 10),
+      view(p.frames, 11),
+      view(c.direct, 12),
+      view(c.indirect, 13),
+      view(c.frames, 14),
     ],
     copy: [
       view(c.albedo, 3),
@@ -182,13 +251,24 @@ function bindingsOf(inputs: CaptureInputs): Partial<Record<Kernel, GPUBindGroupE
       ],
     }),
     lights: [
-      view(c.emissive, 3),
-      view(p.direct, 4),
-      view(p.indirect, 5),
-      view(p.final, 6),
-      view(p.frames, 7),
+      view(c.albedo, 3),
+      view(c.emissive, 4),
+      view(c.direct, 5),
+      view(c.indirect, 6),
+      view(c.frames, 7),
+      view(p.direct, 8),
+      view(p.indirect, 9),
+      view(p.final, 10),
+      view(p.frames, 11),
+      { binding: 12, resource: { buffer: inputs.tables } },
     ],
   }
+}
+
+/** The buffers a stage lays its pages in. */
+interface StageLists {
+  pageBuffer: GPUBuffer | undefined
+  tileBuffer: GPUBuffer | undefined
 }
 
 /** What the capture's kernels keep between two images. */
@@ -203,8 +283,7 @@ interface CaptureContext {
   readonly paramFloats: Float32Array
   /** What the groups name, in the order `Kernel.group` compares them. */
   readonly named: unknown[]
-  pageBuffer: GPUBuffer | undefined
-  tileBuffer: GPUBuffer | undefined
+  readonly lists: Record<Stage, StageLists>
   /** The pages of the last `encode` whose blocks `copyBlocks` copies into the atlas. */
   encoded: readonly CapturePage[]
 }
@@ -247,102 +326,106 @@ function paramBuffersOf(device: GPUDevice, order: Kernel[]) {
   ) as Record<Kernel, GPUBuffer>
 }
 
-/** The page entries of `pages` and the lists of their tiles. */
-function pageEntriesOf(pages: readonly CapturePage[], dilate: boolean) {
+/** The page entries of `pages` and the tiles of `lists`, laid one list after the other: the tiles and where
+ *  each list begins and how many it holds. */
+function pageEntriesOf(pages: readonly CapturePage[], dilate: boolean, lists: readonly Tiles[]) {
   const entryWords = new Uint32Array(Math.max(1, pages.length) * PAGE_ENTRY_WORDS)
   const floats = new Float32Array(entryWords.buffer)
-  const lists: Record<'draw' | 'copy' | 'all', number[]> = { draw: [], copy: [], all: [] }
+  const tilesOf = (page: CapturePage) =>
+    ceilDiv(page.captureRect.maxX - page.captureRect.minX, TILE) *
+    ceilDiv(page.captureRect.maxY - page.captureRect.minY, TILE)
+  const counts: Record<Tiles, number> = { draw: 0, copy: 0, all: 0 }
+  for (const page of pages) {
+    counts[page.copyCard >= 0 ? 'copy' : 'draw'] += tilesOf(page)
+    counts.all += tilesOf(page)
+  }
+  const bases: Record<Tiles, number> = { draw: 0, copy: 0, all: 0 }
+  let total = 0
+  for (const list of lists) {
+    bases[list] = total
+    total += counts[list]
+  }
+  const tiles = new Uint32Array(total)
+  const next = { ...bases }
   pages.forEach((page, at) => {
     const base = at * PAGE_ENTRY_WORDS
     const { captureRect: c, atlasRect: a, uv } = page
     const copy = page.copyCard >= 0
-    entryWords.set([c.minX, c.minY, c.maxX, c.maxY], base)
-    entryWords.set(
-      [
-        a.minX,
-        a.minY,
-        page.card,
-        (copy ? PAGE_FLAGS.copy : 0) |
-          (page.axisXFlipped ? PAGE_FLAGS.flipped : 0) |
-          (dilate && !copy ? PAGE_FLAGS.dilate : 0) |
-          (page.fresh ? PAGE_FLAGS.fresh : 0),
-      ],
-      base + 4,
-    )
+    entryWords[base] = c.minX
+    entryWords[base + 1] = c.minY
+    entryWords[base + 2] = c.maxX
+    entryWords[base + 3] = c.maxY
+    entryWords[base + 4] = a.minX
+    entryWords[base + 5] = a.minY
+    entryWords[base + 6] = page.card
+    entryWords[base + 7] =
+      (copy ? PAGE_FLAGS.copy : 0) |
+      (page.axisXFlipped ? PAGE_FLAGS.flipped : 0) |
+      (dilate && !copy ? PAGE_FLAGS.dilate : 0) |
+      (page.resampleLighting ? PAGE_FLAGS.resampleLighting : 0)
     floats.set(uv, base + 8)
     entryWords[base + 12] = Math.max(page.copyCard, 0)
+    const own: Tiles = copy ? 'copy' : 'draw'
     const across = ceilDiv(c.maxX - c.minX, TILE),
       down = ceilDiv(c.maxY - c.minY, TILE)
     for (let ty = 0; ty < down; ty++)
       for (let tx = 0; tx < across; tx++) {
         const tile = tx | (ty << 4) | (at << 8)
-        ;(copy ? lists.copy : lists.draw).push(tile)
-        lists.all.push(tile)
+        if (lists.includes(own)) tiles[next[own]++] = tile
+        if (lists.includes('all')) tiles[next.all++] = tile
       }
   })
-  return { entryWords, lists }
+  return { entryWords, tiles, counts, bases }
 }
 
-/** Writes the entries of `pages` and the lists of their tiles; the buffers grow with them. */
-function lay(ctx: CaptureContext, pages: readonly CapturePage[], dilate: boolean) {
+/** Writes the entries of `pages` and the tile lists of `stage` into the stage's buffers; the buffers grow
+ *  with them. */
+function lay(ctx: CaptureContext, stage: Stage, pages: readonly CapturePage[], dilate: boolean) {
   const { device } = ctx
-  const { entryWords, lists } = pageEntriesOf(pages, dilate)
-  const tiles = Uint32Array.from([...lists.draw, ...lists.copy, ...lists.all])
+  const held = ctx.lists[stage]
+  const { entryWords, tiles, counts, bases } = pageEntriesOf(pages, dilate, LISTS_OF[stage])
   const entries = pages.length
-  ctx.pageBuffer = sizedBuffer(
+  held.pageBuffer = sizedBuffer(
     device,
-    ctx.pageBuffer,
+    held.pageBuffer,
     Math.max(64, entries) * PAGE_ENTRY_WORDS * 4,
     GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    'Trillion3D surface cache pages',
+    `Trillion3D surface cache ${stage} pages`,
   )
-  ctx.tileBuffer = sizedBuffer(
+  held.tileBuffer = sizedBuffer(
     device,
-    ctx.tileBuffer,
+    held.tileBuffer,
     Math.max(1024, tiles.length) * 4,
     GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    'Trillion3D surface cache tiles',
+    `Trillion3D surface cache ${stage} tiles`,
   )
-  device.queue.writeBuffer(ctx.pageBuffer, 0, entryWords)
-  if (tiles.length) device.queue.writeBuffer(ctx.tileBuffer, 0, tiles)
-  // The encoders and the lights work over every page's tiles, the copy too.
-  const every = lists.all.length
-  const from = lists.draw.length + lists.copy.length
-  return {
-    pages: entries,
-    tiles: {
-      resolve: lists.draw.length,
-      resample: lists.copy.length,
-      copy: every,
-      encode: every,
-      lights: every,
-    },
-    bases: { resolve: 0, resample: lists.draw.length, copy: from, encode: from, lights: from },
-  }
+  device.queue.writeBuffer(held.pageBuffer, 0, entryWords)
+  if (tiles.length) device.queue.writeBuffer(held.tileBuffer, 0, tiles)
+  return { pages: entries, counts, bases }
 }
 
 /** The bind group of `kernel`, made again when a resource it names moved. */
-function groupOf(ctx: CaptureContext, kernel: Kernel, inputs: CaptureInputs) {
+function groupOf(ctx: CaptureContext, kernel: Kernel, inputs: ResampleInputs | CaptureInputs) {
   const { named } = ctx
-  named[0] = ctx.pageBuffer
-  named[1] = ctx.tileBuffer
+  const held = ctx.lists[KERNELS[kernel].stage]
+  named[0] = held.pageBuffer
+  named[1] = held.tileBuffer
   named[2] = inputs.atlases
   named[3] = inputs.tables
-  named[4] = inputs.colours
+  named[4] = 'colours' in inputs ? inputs.colours : undefined
   return ctx.kernels[kernel].group(named, () => [
     { binding: 0, resource: { buffer: ctx.params[kernel] } },
-    { binding: 1, resource: { buffer: ctx.pageBuffer! } },
-    { binding: 2, resource: { buffer: ctx.tileBuffer! } },
+    { binding: 1, resource: { buffer: held.pageBuffer! } },
+    { binding: 2, resource: { buffer: held.tileBuffer! } },
     ...bindingsOf(inputs)[kernel]!,
   ])
 }
 
-/** Writes the parameters of `kernel` over `tiles` tiles from `laid`. */
+/** Writes the parameters of `kernel` over its tiles of `laid`. */
 function writeParams(
   ctx: CaptureContext,
   kernel: Kernel,
   laid: ReturnType<typeof lay>,
-  tiles: number,
   atlases: SurfaceAtlases,
   settings: CaptureSettings,
 ) {
@@ -352,28 +435,33 @@ function writeParams(
   paramWords[at.captureSide] = atlases.captureSide
   paramWords[at.atlasSide] = atlases.side
   paramWords[at.pages] = laid.pages
-  paramWords[at.tiles] = tiles
-  paramWords[at.tileBase] = laid.bases[kernel]
+  paramWords[at.tiles] = laid.counts[KERNELS[kernel].tiles]
+  paramWords[at.tileBase] = laid.bases[KERNELS[kernel].tiles]
   paramWords[at.resample] = settings.resample ? 1 : 0
+  paramWords[at.radiosity] = settings.radiosity ? 1 : 0
   paramFloats[at.preExposure] = settings.preExposure
   paramFloats[at.invAtlasSide] = 1 / atlases.side
   paramFloats[at.invCaptureSide] = 1 / atlases.captureSide
   ctx.device.queue.writeBuffer(ctx.params[kernel], 0, paramWords)
 }
 
-/** Dispatches the kernels over the pages `laid` on `open`. */
+/** Dispatches the kernels of `stage` over the pages `laid` on `open`: the light's resample only where the
+ *  light is carried. */
 function dispatchKernels(
   ctx: CaptureContext,
+  stage: Stage,
   open: OpenPass,
   laid: ReturnType<typeof lay>,
-  inputs: CaptureInputs,
+  inputs: ResampleInputs | CaptureInputs,
   settings: CaptureSettings,
 ) {
   const pass = open.pass
   for (const kernel of ctx.order) {
-    const tiles = laid.tiles[kernel]
+    if (KERNELS[kernel].stage !== stage) continue
+    if (kernel === 'resampleLighting' && !settings.resample) continue
+    const tiles = laid.counts[KERNELS[kernel].tiles]
     if (!tiles) continue
-    writeParams(ctx, kernel, laid, tiles, inputs.atlases, settings)
+    writeParams(ctx, kernel, laid, inputs.atlases, settings)
     const [x, y] = dispatchGrid(
       kernel === 'encode' ? ceilDiv(tiles, TILES_PER_GROUP) : tiles,
       ctx.width,
@@ -402,8 +490,10 @@ function createCaptureContext(device: GPUDevice, compressed: boolean): CaptureCo
     paramWords,
     paramFloats: new Float32Array(paramWords.buffer),
     named: [],
-    pageBuffer: undefined,
-    tileBuffer: undefined,
+    lists: {
+      resample: { pageBuffer: undefined, tileBuffer: undefined },
+      capture: { pageBuffer: undefined, tileBuffer: undefined },
+    },
     encoded: [],
   }
 }
@@ -423,11 +513,26 @@ export function createCaptureKernels(device: GPUDevice, compressed: boolean) {
       return Object.values(kernels).every((k) => k.ready) && (clear?.ready ?? true)
     },
     /**
-     * Dispatches the kernels over `pages` on `open`: resolve (the pages drawn), resample (the pages
-     * that copy a card), copy, then, in a compressed atlas, the encoders of the blocks, and lights
-     * (all). `pages` holds the pages the image serves alone: those drawn and shaded, and those that
-     * copy; a page mapped for a capture that was not made is none of them, and is read by no one until
-     * it is (`confirmPages`).
+     * Dispatches the kernels that read the cards as they were over `pages`, every page the image
+     * captures, on `open`, before the image's tables go up: resample (the pages that copy a card) and,
+     * where the light is carried (`settings.resample`), resampleLighting (all). `inputs.tables` are the
+     * tables before the image.
+     */
+    resample(
+      open: OpenPass,
+      pages: readonly CapturePage[],
+      inputs: ResampleInputs,
+      settings: CaptureSettings,
+    ) {
+      if (!pages.length || (!settings.resample && !pages.some((page) => page.copyCard >= 0))) return
+      const laid = lay(ctx, 'resample', pages, settings.dilate)
+      dispatchKernels(ctx, 'resample', open, laid, inputs, settings)
+    },
+    /**
+     * Dispatches the kernels after the shading over `pages` on `open`: resolve (the pages drawn), copy,
+     * then, in a compressed atlas, the encoders of the blocks, and lights (all). `pages` holds the pages
+     * the image serves alone: those drawn and shaded, and those that copy; a page mapped for a capture
+     * that was not made is none of them, and is read by no one until it is (`confirmPages`).
      */
     encode(
       open: OpenPass,
@@ -437,9 +542,9 @@ export function createCaptureKernels(device: GPUDevice, compressed: boolean) {
     ) {
       ctx.encoded = []
       if (!pages.length) return
-      const laid = lay(ctx, pages, settings.dilate)
+      const laid = lay(ctx, 'capture', pages, settings.dilate)
       ctx.encoded = pages
-      dispatchKernels(ctx, open, laid, inputs, settings)
+      dispatchKernels(ctx, 'capture', open, laid, inputs, settings)
     },
     /**
      * Copies the blocks the last `encode` wrote into the compressed layers of `atlases`, on `encoder`: a
@@ -455,8 +560,10 @@ export function createCaptureKernels(device: GPUDevice, compressed: boolean) {
       clear?.encode(encoder, atlases)
     },
     dispose() {
-      ctx.pageBuffer?.destroy()
-      ctx.tileBuffer?.destroy()
+      for (const held of Object.values(ctx.lists)) {
+        held.pageBuffer?.destroy()
+        held.tileBuffer?.destroy()
+      }
       clear?.dispose()
       for (const buffer of Object.values(ctx.params)) buffer.destroy()
     },

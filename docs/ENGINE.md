@@ -2427,12 +2427,18 @@ profile).
   its triangle by one view and writes its uniform and bins once an image, so an image holds the pages of one view and the
   frame shades the first image the raster returns; the pages of the others are asked again.
 - **Resolve** gives the card's encodings: the albedo as the square root of the diffuse colour (the base colour less its metal
-  plus 45% of the specular a fully rough surface shows, plus the colour a thin double-sided sheet transmits), the normal's first two components in the card's frame, the emission
-  multiplied by the cached lighting pre-exposure. **Resample** fills a page that takes the texels of another card (cards of
-  one mesh with the same materials, facing the same way) or of its own finer level, reading the atlas bilinearly over the
-  texels that hold a surface. **Copy** writes the pages into the atlas — the depth as `1 - z` in sixteen bits, 65535 for no
-  surface — and, with `surfaceCacheDilationMode` 2, gives a texel with no surface the mean of the texels around it; **lights**
-  gives them their first light: none, and their emission as final light with `surfaceCacheResampleLighting`.
+  plus what the specular lobe of the surface made fully rough sends back along its normal — the tabulated directional albedo of a GGX lobe of roughness 1 at normal incidence, weighted for its multiple scattering, the reflectance at grazing angles occluded under 2% —, plus the colour a thin double-sided sheet transmits), the normal's first two components in the card's frame, the emission
+  multiplied by the cached lighting pre-exposure. Two kernels run first, before the image's tables go up — the tables are
+  copied in on the image's encoder (`tables.ts`), so these read the cards as they were: **resample** fills a page that takes
+  the texels of another card (cards of one mesh with the same materials, facing the same way) or of its own finer level,
+  reading the atlas bilinearly over the texels that hold a surface; **resample lighting** (`surfaceCacheResampleLighting`)
+  carries into the capture atlas the light each page's card held — a card that had pages before the image —, read
+  bilinearly from the card's finest page: the direct light, and with the radiosity the indirect light and the tile's
+  accumulation, the mean over its texels. **Copy** writes the pages into the atlas — the depth as `1 - z` in sixteen bits,
+  65535 for no surface — and, with `surfaceCacheDilationMode` 2, gives a texel with no surface the mean of the texels around
+  it; **lights** writes the light they start with: the carried direct and indirect light and accumulation, and as final
+  light the captured albedo over π times their sum plus the captured emission — no light at all without
+  `surfaceCacheResampleLighting`.
 - **The compressed atlas** (`compress.ts`, `compressWgsl.ts`; `surfaceCacheCompress` 2). WebGPU has no view of a block-compressed
   texture in another format to write through, so the blocks are made in a storage buffer and copied in. After the copy (which
   then writes the depth alone) a kernel for each layer — BC7 for the albedo, BC5 for the normal's two components, BC6H for the

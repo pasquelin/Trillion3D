@@ -60,19 +60,16 @@ export interface CapturePage {
   readonly atlasRect: AtlasRect
   /** The part of the card it covers, in the card's UV: `x0, y0, x1, y1`. */
   readonly uv: readonly [number, number, number, number]
-  /** Whether the light the page held is carried into its new texels. */
+  /** Whether the light the page's card held is carried into the page's texels: the card had pages before
+   *  the image. */
   readonly resampleLighting: boolean
   /** Whether the copy is mirrored. */
   readonly axisXFlipped: boolean
   /** The card whose texels it takes instead of being drawn, -1 if it is drawn. */
   readonly copyCard: number
-  /** Whether the page was mapped for this capture: the texels the atlas holds there are another page's
-   *  until it is captured; a page captured again holds its own. */
-  readonly fresh: boolean
   /** Whether it is the periodic refresh of a page the cache already holds, which follows what the
-   *  materials change: it rewrites the page's surface and leaves the light the page holds, so it asks
-   *  nothing of the lighting. Every other capture — a page new to the atlas, one a change asked for,
-   *  one still pending — gives the page texels that have no light yet. */
+   *  materials change: it rewrites the page's surface and carries the light the page holds, so it asks
+   *  nothing of the lighting. */
   readonly refresh: boolean
 }
 
@@ -134,7 +131,6 @@ function queuePage(
   cardIndex: number,
   pageIndex: number,
   resample: boolean,
-  fresh: boolean,
   axisXFlipped = false,
   copyCard = -1,
   refresh = false,
@@ -153,7 +149,6 @@ function queuePage(
     resampleLighting: resample,
     axisXFlipped,
     copyCard,
-    fresh,
     refresh,
   })
   cache.captured.update(cache.frame, pageIndex)
@@ -212,7 +207,7 @@ function makeCoarsestMip(c: Capturing, request: SurfaceRequest, level: number) {
     if (isMapped(cache.pages.at(index))) continue
     mapPage(cache, mip, index)
     if (!isMapped(cache.pages.at(index))) continue
-    queuePage(c, request.card, index, resample, true, flipped, copyCard)
+    queuePage(c, request.card, index, resample, flipped, copyCard)
     if (copyCard >= 0) c.work.hasCardCopy = true
   }
   c.dirty.add(request.card)
@@ -248,7 +243,7 @@ function serveFine(c: Capturing, fine: FinePage) {
   if (isMapped(cache.pages.at(index))) return
   mapPage(cache, mip, index)
   if (!isMapped(cache.pages.at(index))) return
-  queuePage(c, fine.card, index, resample, true)
+  queuePage(c, fine.card, index, resample)
   c.dirty.add(fine.card)
 }
 
@@ -260,7 +255,7 @@ function recapturePage(c: Capturing, pageIndex: number, refresh = false) {
   const card = c.cache.cards.at(page.card)
   return (
     c.space.isSpaceAvailable(cardMipDesc(card, page.resLevel), true) &&
-    queuePage(c, page.card, pageIndex, true, page.pending, false, -1, refresh)
+    queuePage(c, page.card, pageIndex, true, false, -1, refresh)
   )
 }
 

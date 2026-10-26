@@ -1,5 +1,5 @@
-// The surface cache's WGSL texts of `ENGINE_SHADERS`: the capture's kernels (the resolve, the resampling,
-// the copy and the encoders of a compressed atlas), the lights' kernels of its update (the context, the
+// The surface cache's WGSL texts of `ENGINE_SHADERS`: the capture's kernels (the resolve, the resampling
+// of the texels and of the light, the copy and the encoders of a compressed atlas), the lights' kernels of its update (the context, the
 // direct light, the radiosity passes, the cull, the combine), the atlas view and the feedback's
 // compaction; and the translucency's composition and holdout.
 import { COMPOSE_DUAL_WGSL, COMPOSE_WGSL, LATE_WGSL } from '../../blend/translucencyComposeWgsl.ts'
@@ -10,6 +10,8 @@ import {
   COPY_WGSL,
   LIGHTS_WGSL,
   RESAMPLE_COMPRESSED_WGSL,
+  RESAMPLE_LIGHTING_COMPRESSED_WGSL,
+  RESAMPLE_LIGHTING_WGSL,
   RESAMPLE_WGSL,
   RESOLVE_WGSL,
 } from '../../lighting/surfaceCache/copyWgsl.ts'
@@ -36,6 +38,8 @@ export const SURFACE_CACHE_SHADERS: Record<string, string> = {
   SURFACE_CACHE_RESOLVE_WGSL: RESOLVE_WGSL,
   SURFACE_CACHE_RESAMPLE_WGSL: RESAMPLE_WGSL,
   SURFACE_CACHE_RESAMPLE_COMPRESSED_WGSL: RESAMPLE_COMPRESSED_WGSL,
+  SURFACE_CACHE_RESAMPLE_LIGHTING_WGSL: RESAMPLE_LIGHTING_WGSL,
+  SURFACE_CACHE_RESAMPLE_LIGHTING_COMPRESSED_WGSL: RESAMPLE_LIGHTING_COMPRESSED_WGSL,
   SURFACE_CACHE_COPY_WGSL: COPY_WGSL,
   SURFACE_CACHE_COPY_COMPRESSED_WGSL: COPY_COMPRESSED_WGSL,
   SURFACE_CACHE_LIGHTS_WGSL: LIGHTS_WGSL,

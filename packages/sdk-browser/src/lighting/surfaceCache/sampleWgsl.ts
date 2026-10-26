@@ -203,8 +203,10 @@ fn scCardWorld(card:ScCard,uv:vec2f,depth:f32)->vec3f{
 /** The reads of the atlas's layers: four texels, in the order of a gather, each layer. */
 const atlasReads = (compressed: boolean) => `
 fn scClampTexel(p:vec2i)->vec2i{let s=i32(scAtlasSide());return clamp(p,vec2i(0),vec2i(s-1));}
-/** The texel of the gather of the point \`uv\` of the atlas whose top left is at \`base\`. */
-fn scGatherBase(uv:vec2f)->vec2i{return vec2i(floor(uv*scAtlasSide()-vec2f(0.5)));}
+/** The top left texel of the gather of the point \`uv\` of the atlas: the texel the bilinear weights of a sample
+ *  (\`ScSample.weights\`) start from, the same sub-texel bias taken, so that a point a hair under a texel's centre
+ *  reads that texel, never the one before it with no weight. */
+fn scGatherBase(uv:vec2f)->vec2i{return vec2i(floor(uv*scAtlasSide()-vec2f(0.5-1.0/512.0)));}
 fn scDepthWord(p:vec2i)->f32{return f32(textureLoad(scDepthAtlas,scClampTexel(p),0).x&0xffffu)/65535.0;}
 /** The depths of the four texels of the gather at \`b\`, and whether each holds a surface. */
 fn scDepths4(b:vec2i)->vec4f{return vec4f(scDepthWord(b+vec2i(0,1)),scDepthWord(b+vec2i(1,1)),scDepthWord(b+vec2i(1,0)),scDepthWord(b));}
